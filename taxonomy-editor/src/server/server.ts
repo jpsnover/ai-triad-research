@@ -26,7 +26,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { WebSocketServer, WebSocket } from 'ws';
 import {
-  PORT, getDataRoot, getApiKey, hasApiKey, storeApiKey, deleteApiKey, deleteAllApiKeys, resolveDataPath,
+  PORT, getDataRoot, getApiKey, hasApiKey, storeApiKey, deleteApiKey, deleteAllApiKeys, rotateApiKeyMaterial, resolveDataPath,
   BROKER_SCRIPT, SCRIPTS_DIR, getProjectRoot, type AIBackend,
   STORAGE_MODE, CACHE_DIR,
 } from './config.js';
@@ -650,6 +650,24 @@ post('/api/data/set-root', (_req, res, body) => {
       component: 'server',
       level: 'error',
       message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    json(res, { success: false, message: String(err) }, 500);
+  }
+});
+
+post('/api/admin/rotate-keys', async (_req, res) => {
+  if (!requireAdmin(res)) return; // t/809: rotating key material is admin-only
+  try {
+    const result = await rotateApiKeyMaterial();
+    log.server.info({ ...result }, 'Key material rotation requested');
+    json(res, { success: true, ...result });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Key material rotation failed',
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     json(res, { success: false, message: String(err) }, 500);

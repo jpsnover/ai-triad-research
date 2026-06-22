@@ -115,11 +115,17 @@ Auth user submits → community/_submissions/ (pending queue) → Admin approves
 | XSS extracting BYOK keys from sessionStorage | High | Low (CSP blocks inline scripts) |
 | Flight recorder logging API keys | High | Mitigated (truncation fix deployed June 2026; ADR for redaction layer pending in t/808) |
 | Server error messages leaking key values | High | Low (ActionableError standard strips secrets) |
-| Key material file compromise on Azure Files | High | Low (file mode 0600, managed identity access only) |
+| Key material file compromise on Azure Files | High | Low (file mode 0600, managed identity access only; rotation available — t/809) |
 
-**Existing mitigations:** CSP (`script-src 'self'`), AES-256-GCM encryption at rest, BYOK keys stay in browser sessionStorage, flight recorder key truncation.
+**Existing mitigations:** CSP (`script-src 'self'`), AES-256-GCM encryption at rest, BYOK keys stay in browser sessionStorage, flight recorder key truncation, key-material rotation (`POST /api/admin/rotate-keys`, t/809 — see Key Rotation Procedure below).
 
-**Gaps:** No key material rotation mechanism. No redaction safety net in flight recorder serializer (t/808). Key Vault secret names are hashed but derivable.
+**Gaps:** Key Vault secret names are hashed but derivable.
+
+**Key Rotation Procedure (t/809):** The local store derives its AES-256-GCM key from `.aitriad-key-material` (64 random bytes, mode 0600). To rotate after a suspected compromise — or quarterly per the maintenance schedule:
+
+1. As an admin, `POST /api/admin/rotate-keys` (admin-gated via `requireAdmin`). `rotateKeyMaterial()` decrypts every `.aitriad-key-*.enc` under the current (or legacy) material, generates fresh material, and re-encrypts all keys under it. The operation is crash-safe: it decrypts everything first (aborting untouched if any key is unreadable), stages re-encrypted files, then swaps the material and renames them into place.
+2. The response reports `{ rotated, backends }`. Verify keys still load (e.g. an AI call succeeds).
+3. **Azure (Key Vault) deployments:** rotation is a no-op at the application layer (`skipped` is set) — Key Vault encrypts at rest with platform/customer-managed keys; rotate the CMK via Azure instead.
 
 ### AS-2: Path Traversal
 
@@ -214,7 +220,7 @@ Auth user submits → community/_submissions/ (pending queue) → Admin approves
 |-----|----------|--------|-------|
 | ~~Flight recorder has no redaction safety net~~ | ~~Medium~~ | t/808 | Fixed (7651fe41) — serializer-level redaction layer: API keys, tokens, emails scrubbed at serialization time |
 | ~~Email addresses in server request IDs~~ | ~~Medium~~ | t/803 | Fixed (f7687bd8) — UUID-based request IDs, storageUserId in log context |
-| No key material rotation | Medium | — | `.aitriad-key-material` has no scheduled rotation |
+| ~~No key material rotation~~ | ~~Medium~~ | t/809 | Fixed — `rotateKeyMaterial()` re-encrypts all keys under fresh material; `POST /api/admin/rotate-keys` (admin-only); quarterly per maintenance schedule. Key Vault delegates to platform CMK. |
 | Path validation is caller-responsibility | Medium | — | Should be enforced at middleware/routing layer |
 | Per-instance rate limiting (not distributed) | Low | — | Acceptable at current scale (single replica) |
 | No CSRF tokens | Low | — | CORS + SameSite + Content-Type provides defense-in-depth |

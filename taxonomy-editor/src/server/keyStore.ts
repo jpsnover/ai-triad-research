@@ -21,15 +21,33 @@ import os from 'os';
 import { createRequire } from 'module';
 import type { AIBackend } from './config.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+import { ActionableError } from '../../../lib/debate/errors.js';
 
 const require = createRequire(import.meta.url);
 import { log } from './logger.js';
+
+/** Outcome of a key-material rotation (t/809). */
+export interface KeyRotationResult {
+  store: 'local' | 'azure-key-vault';
+  /** Number of backend key files re-encrypted under the new material. */
+  rotated: number;
+  /** Which backends were re-encrypted. */
+  backends: AIBackend[];
+  /** Set when rotation is not applicable to this store (e.g. Key Vault). */
+  skipped?: string;
+}
 
 export interface KeyStore {
   get(backend: AIBackend, userId: string): Promise<string | null>;
   set(backend: AIBackend, userId: string, key: string): Promise<void>;
   /** Remove the stored key for this backend/user. Idempotent (no-op if absent). */
   delete(backend: AIBackend, userId: string): Promise<void>;
+  /**
+   * Rotate the encryption key material and re-encrypt all stored keys under it
+   * (t/809). Defense-in-depth: limits exposure if the old material leaks. No-op
+   * for stores that delegate encryption to the platform (Azure Key Vault).
+   */
+  rotateKeyMaterial(): Promise<KeyRotationResult>;
 }
 
 // ── Local file store (single-user, unchanged behavior) ────────────────────────
@@ -41,23 +59,47 @@ class LocalFileKeyStore implements KeyStore {
     return path.join(this.resolveDataRoot(), `.aitriad-key-${backend}.enc`);
   }
 
+  private materialPath(): string {
+    return path.join(this.resolveDataRoot(), '.aitriad-key-material');
+  }
+
+  /** PBKDF2-derive the AES-256 key from raw key material. */
+  private deriveFromMaterial(material: Buffer): Buffer {
+    return crypto.pbkdf2Sync(material, 'aitriad-server-key-v2', 100_000, 32, 'sha256');
+  }
+
   // S11: Derive key from random material stored on disk instead of hostname.
   private derivedKey(): Buffer {
-    const keyFile = path.join(this.resolveDataRoot(), '.aitriad-key-material');
-    let material: Buffer;
+    return this.deriveFromMaterial(this.readOrCreateMaterial());
+  }
+
+  /** Load the on-disk key material, creating fresh 64-byte material if missing
+   *  or too short. Written mode 0600. */
+  private readOrCreateMaterial(): Buffer {
+    const keyFile = this.materialPath();
     if (fs.existsSync(keyFile)) {
-      material = fs.readFileSync(keyFile);
-      if (material.length < 32) {
-        material = crypto.randomBytes(64);
-        fs.mkdirSync(path.dirname(keyFile), { recursive: true });
-        fs.writeFileSync(keyFile, material, { mode: 0o600 });
-      }
-    } else {
-      material = crypto.randomBytes(64);
-      fs.mkdirSync(path.dirname(keyFile), { recursive: true });
-      fs.writeFileSync(keyFile, material, { mode: 0o600 });
+      const material = fs.readFileSync(keyFile);
+      if (material.length >= 32) return material;
     }
-    return crypto.pbkdf2Sync(material, 'aitriad-server-key-v2', 100_000, 32, 'sha256');
+    const fresh = crypto.randomBytes(64);
+    this.writeFileAtomic(keyFile, fresh, 0o600);
+    return fresh;
+  }
+
+  /** Atomic write: temp file in the same dir + rename (rename is atomic on a
+   *  single filesystem), so a crash never leaves a half-written file. */
+  private writeFileAtomic(p: string, buf: Buffer, mode?: number): void {
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    const tmp = `${p}.tmp-${crypto.randomBytes(6).toString('hex')}`;
+    fs.writeFileSync(tmp, buf, mode !== undefined ? { mode } : undefined);
+    fs.renameSync(tmp, p);
+  }
+
+  private encrypt(plaintext: string, key: Buffer): Buffer {
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    const encrypted = Buffer.concat([cipher.update(plaintext, 'utf-8'), cipher.final()]);
+    return Buffer.concat([iv, cipher.getAuthTag(), encrypted]);
   }
 
   private legacyDerivedKey(): Buffer {
@@ -104,13 +146,98 @@ class LocalFileKeyStore implements KeyStore {
   }
 
   async set(backend: AIBackend, _userId: string, key: string): Promise<void> {
-    const p = this.filePath(backend);
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv('aes-256-gcm', this.derivedKey(), iv);
-    const encrypted = Buffer.concat([cipher.update(key, 'utf-8'), cipher.final()]);
-    const combined = Buffer.concat([iv, cipher.getAuthTag(), encrypted]);
-    fs.mkdirSync(path.dirname(p), { recursive: true });
-    fs.writeFileSync(p, combined);
+    this.writeFileAtomic(this.filePath(backend), this.encrypt(key, this.derivedKey()));
+  }
+
+  /** Discover which backends have an encrypted key file on disk. */
+  private discoverBackends(): AIBackend[] {
+    const root = this.resolveDataRoot();
+    if (!fs.existsSync(root)) return [];
+    const re = /^\.aitriad-key-(.+)\.enc$/;
+    return fs.readdirSync(root)
+      .map(f => re.exec(f)?.[1])
+      .filter((b): b is string => !!b) as AIBackend[];
+  }
+
+  /**
+   * t/809: rotate the key material and re-encrypt every stored key under it.
+   * Crash-safe: decrypt everything first (abort untouched if any key can't be
+   * read), encrypt all under the new material to temp files, then swap the
+   * material and rename the temps into place — so a failure can't leave keys
+   * encrypted under material that no longer exists.
+   */
+  async rotateKeyMaterial(): Promise<KeyRotationResult> {
+    const backends = this.discoverBackends();
+    if (backends.length === 0) {
+      // Nothing encrypted yet — just (re)seed material so it exists going forward.
+      this.writeFileAtomic(this.materialPath(), crypto.randomBytes(64), 0o600);
+      return { store: 'local', rotated: 0, backends: [] };
+    }
+
+    const oldKey = this.derivedKey();
+    const legacyKey = this.legacyDerivedKey();
+
+    // 1. Decrypt all to memory first; abort the whole rotation if any fails.
+    const plaintext = new Map<AIBackend, string>();
+    for (const backend of backends) {
+      const p = this.filePath(backend);
+      try {
+        plaintext.set(backend, this.decrypt(p, oldKey));
+      } catch {
+        try {
+          plaintext.set(backend, this.decrypt(p, legacyKey)); // pre-v2 material
+        } catch (err) {
+          getGlobalRecorder()?.record({
+            type: 'system.error', component: 'key-store', level: 'error',
+            message: `Key rotation aborted: cannot decrypt ${backend} with current or legacy material`,
+            error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+          });
+          throw new ActionableError({
+            goal: 'Rotate key material and re-encrypt all stored API keys',
+            problem: `Could not decrypt the stored key for '${backend}' with the current or legacy material; rotating now would orphan it.`,
+            location: `keyStore.ts LocalFileKeyStore.rotateKeyMaterial (${p})`,
+            nextSteps: [
+              'Verify .aitriad-key-material has not been replaced out-of-band',
+              `Re-save the '${backend}' key via the Settings dialog, then retry rotation`,
+            ],
+            innerError: err,
+          });
+        }
+      }
+    }
+
+    // 2. Encrypt all under fresh material → temp files (no originals touched yet).
+    const newMaterial = crypto.randomBytes(64);
+    const newKey = this.deriveFromMaterial(newMaterial);
+    const staged: { final: string; tmp: string }[] = [];
+    try {
+      for (const [backend, value] of plaintext) {
+        const final = this.filePath(backend);
+        const tmp = `${final}.rot-${crypto.randomBytes(6).toString('hex')}`;
+        fs.writeFileSync(tmp, this.encrypt(value, newKey));
+        staged.push({ final, tmp });
+      }
+      // 3. Swap material, then move each re-encrypted file into place.
+      this.writeFileAtomic(this.materialPath(), newMaterial, 0o600);
+      for (const { final, tmp } of staged) fs.renameSync(tmp, final);
+    } catch (err) {
+      for (const { tmp } of staged) { try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch { /* telemetry — silent by design */ } }
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'key-store', level: 'error',
+        message: 'Key rotation failed while writing re-encrypted keys',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      throw new ActionableError({
+        goal: 'Rotate key material and re-encrypt all stored API keys',
+        problem: `Writing re-encrypted key files failed: ${String(err)}`,
+        location: 'keyStore.ts LocalFileKeyStore.rotateKeyMaterial',
+        nextSteps: ['Check free disk space and write permissions on the data root', 'Retry rotation'],
+        innerError: err,
+      });
+    }
+
+    log.server.info({ rotated: backends.length, backends }, 'Rotated key material');
+    return { store: 'local', rotated: backends.length, backends };
   }
 
   async delete(backend: AIBackend, _userId: string): Promise<void> {
@@ -224,6 +351,20 @@ class AzureKeyVaultKeyStore implements KeyStore {
       });
       log.server.warn({ secretName: name, err }, 'Key Vault beginDeleteSecret failed');
     }
+  }
+
+  /**
+   * No-op (t/809): Key Vault encrypts secrets at rest with Microsoft- or
+   * customer-managed keys and rotates them natively — there is no application-held
+   * key material to rotate. Rotate via Azure (Key Vault keys / CMK), not here.
+   */
+  async rotateKeyMaterial(): Promise<KeyRotationResult> {
+    return {
+      store: 'azure-key-vault',
+      rotated: 0,
+      backends: [],
+      skipped: 'Key Vault manages encryption keys natively; rotate via Azure (CMK), not application code.',
+    };
   }
 }
 

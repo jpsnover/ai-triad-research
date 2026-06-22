@@ -134,7 +134,7 @@ const ENV_KEY_NAMES: Record<AIBackend, string> = {
 };
 
 // Imported after AIBackend is defined (keyStore depends on the type).
-import { getKeyStore } from './keyStore.js';
+import { getKeyStore, type KeyRotationResult } from './keyStore.js';
 import { getCurrentUserId } from './userContext.js';
 
 /**
@@ -186,6 +186,14 @@ export async function deleteAllApiKeys(): Promise<void> {
   const store = getKeyStore(getDataRoot);
   const userId = getCurrentUserId();
   await Promise.all(ALL_AI_BACKENDS.map(b => store.delete(b, userId)));
+}
+
+/**
+ * Rotate the key store's encryption material and re-encrypt all stored keys
+ * (t/809). No-op on Key Vault (platform-managed encryption). Admin-triggered.
+ */
+export async function rotateApiKeyMaterial(): Promise<KeyRotationResult> {
+  return getKeyStore(getDataRoot).rotateKeyMaterial();
 }
 
 // ── Storage mode ──

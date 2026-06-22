@@ -51,6 +51,7 @@ Codified list of recurring maintenance tasks. Each task has a cadence, owner, an
 | Code review guide refresh | Tech Lead | Review `docs/CodeReview/` guides — add patterns learned from recent reviews |
 | LessonsLearned consolidation | Sage | Review `docs/LessonsLearned.md` — archive resolved items, extract patterns into CLAUDE.md or AGENTS.md |
 | Test suite health | Tech Lead | Are tests meaningful? Any flaky tests? Any areas with zero coverage that should have some? |
+| Key material rotation | ServerAPI | Local store: `POST /api/admin/rotate-keys` (admin) re-encrypts all API keys under fresh `.aitriad-key-material`. Azure: rotate the Key Vault CMK instead. See threat-model AS-1 (t/809) |
 
 ## Per-Release
 
