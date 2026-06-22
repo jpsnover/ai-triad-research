@@ -1035,6 +1035,63 @@ export async function saveProposal(filename: string, data: unknown): Promise<voi
   await backend.writeFile(path.join(getDataRoot(), filename), JSON.stringify(data, null, 2));
 }
 
+// ── Admin feedback & error reports (t/837) ──
+// Persisted through the user-content backend (Azure Blob in production) so they
+// survive container restarts, instead of raw fs to the ephemeral data root.
+// Filesystem/Electron mode falls back to the default backend (unchanged).
+
+function adminDir(kind: 'feedback' | 'errors'): string {
+  return path.join(getDataRoot(), 'admin', kind);
+}
+
+export async function saveFeedbackEntry(entry: { id: string; timestamp: string;[k: string]: unknown }): Promise<void> {
+  const ts = entry.timestamp.replace(/:/g, '-');
+  const file = path.join(adminDir('feedback'), `feedback-${ts}-${entry.id.slice(0, 8)}.json`);
+  await getUserContentBackend().writeFile(file, JSON.stringify(entry, null, 2));
+}
+
+export async function saveErrorReport(entry: { id: string; timestamp: string;[k: string]: unknown }): Promise<void> {
+  const ts = entry.timestamp.replace(/:/g, '-');
+  const file = path.join(adminDir('errors'), `error-${ts}-${entry.id.slice(0, 8)}.json`);
+  await getUserContentBackend().writeFile(file, JSON.stringify(entry, null, 2));
+}
+
+async function readAdminEntries(kind: 'feedback' | 'errors', prefix: string): Promise<{ items: Record<string, unknown>[]; skipped: string[] }> {
+  const ucb = getUserContentBackend();
+  const dir = adminDir(kind);
+  const items: Record<string, unknown>[] = [];
+  const skipped: string[] = [];
+  const files = (await ucb.listDirectory(dir)).filter(f => f.startsWith(prefix) && f.endsWith('.json'));
+  for (const f of files) {
+    try {
+      const raw = await ucb.readFile(path.join(dir, f));
+      if (raw == null) { skipped.push(f); continue; }
+      const entry = JSON.parse(raw) as Record<string, unknown>;
+      if (kind === 'feedback' && (entry.category === undefined || entry.category === null)) entry.category = 'general';
+      items.push(entry);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'file-io', level: 'warn',
+        message: `Failed to read/parse admin ${kind} entry; skipping`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        data: { file: f },
+      });
+      skipped.push(f);
+    }
+  }
+  return { items, skipped };
+}
+
+/** All feedback entries via the backend (unsorted); missing category → 'general'. */
+export async function listFeedbackEntries(): Promise<{ items: Record<string, unknown>[]; skipped: string[] }> {
+  return readAdminEntries('feedback', 'feedback-');
+}
+
+/** All client error reports via the backend (unsorted). */
+export async function listErrorEntries(): Promise<{ items: Record<string, unknown>[]; skipped: string[] }> {
+  return readAdminEntries('errors', 'error-');
+}
+
 // ── Harvest operations ──
 
 export async function harvestCreateConflict(conflict: Record<string, unknown>): Promise<boolean> {

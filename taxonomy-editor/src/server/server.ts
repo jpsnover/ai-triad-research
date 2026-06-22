@@ -39,7 +39,7 @@ import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
 import * as community from './community.js';
 import * as fileIO from './fileIO.js';
-import { FEEDBACK_CATEGORIES, isFeedbackCategory, listFeedback } from './feedbackStore.js';
+import { FEEDBACK_CATEGORIES, isFeedbackCategory, paginateFeedback } from './feedbackStore.js';
 import { stripEdgeRationale, type EdgesData } from './edgesApi.js';
 import { rateLimitResponseBody } from './rateLimitResponse.js';
 import { escapeForInlineScript } from './flightRecorderViewer.js';
@@ -1795,7 +1795,7 @@ post('/api/admin/review/action', async (_req, res, body) => {
 
 const serverStartTime = Date.now();
 
-post('/api/admin/feedback', (_req, res, body) => {
+post('/api/admin/feedback', async (_req, res, body) => {
   try {
     const { rating, text, context, category } = body as { rating: string; text?: string; context?: Record<string, unknown>; category?: string };
     if (rating !== 'up' && rating !== 'down') { error(res, 'rating must be "up" or "down"', 400); return; }
@@ -1804,9 +1804,6 @@ post('/api/admin/feedback', (_req, res, body) => {
     if (category !== undefined && !isFeedbackCategory(category)) {
       error(res, `category must be one of: ${FEEDBACK_CATEGORIES.join(', ')}`, 400); return;
     }
-
-    const feedbackDir = path.join(getDataRoot(), 'admin', 'feedback');
-    fs.mkdirSync(feedbackDir, { recursive: true });
 
     const userId = getCurrentUserId();
     const entry = {
@@ -1819,8 +1816,9 @@ post('/api/admin/feedback', (_req, res, body) => {
       context: context ?? {},
     };
 
-    const ts = entry.timestamp.replace(/:/g, '-');
-    fs.writeFileSync(path.join(feedbackDir, `feedback-${ts}-${entry.id.slice(0, 8)}.json`), JSON.stringify(entry, null, 2));
+    // t/837: persist via the user-content backend (Azure Blob in prod) so
+    // feedback survives container restarts instead of raw fs to ephemeral /tmp.
+    await fileIO.saveFeedbackEntry(entry);
     serverRecorder.record({ type: 'lifecycle', component: 'server', level: 'info', message: `Feedback received: ${rating}`, data: { userId, rating } });
 
     // Email notification (best-effort, env var FEEDBACK_WEBHOOK_URL)
@@ -1840,11 +1838,13 @@ post('/api/admin/feedback', (_req, res, body) => {
   }
 });
 
-get('/api/admin/feedback', (req, res) => {
+get('/api/admin/feedback', async (req, res) => {
   if (!requireAdmin(res)) return;
   try {
-    const feedbackDir = path.join(getDataRoot(), 'admin', 'feedback');
-    const { items, total, hasMore, skipped } = listFeedback(feedbackDir, {
+    // t/837: read via the user-content backend (Blob in prod), then apply the
+    // shared filter/sort/paginate logic.
+    const { items: allItems, skipped } = await fileIO.listFeedbackEntries();
+    const { items, total, hasMore } = paginateFeedback(allItems, {
       limit: parseInt(query(req, 'limit') ?? '', 10),
       offset: parseInt(query(req, 'offset') ?? '', 10),
       category: query(req, 'category'),
@@ -1874,13 +1874,10 @@ get('/api/admin/feedback', (req, res) => {
   }
 });
 
-post('/api/admin/errors', (_req, res, body) => {
+post('/api/admin/errors', async (_req, res, body) => {
   try {
     const report = body as { error: Record<string, unknown>; context?: Record<string, unknown> };
     if (!report.error) { error(res, 'Missing error field', 400); return; }
-
-    const errorsDir = path.join(getDataRoot(), 'admin', 'errors');
-    fs.mkdirSync(errorsDir, { recursive: true });
 
     const userId = getCurrentUserId();
     const entry = {
@@ -1891,8 +1888,9 @@ post('/api/admin/errors', (_req, res, body) => {
       context: report.context ?? {},
     };
 
-    const ts = entry.timestamp.replace(/:/g, '-');
-    fs.writeFileSync(path.join(errorsDir, `error-${ts}-${entry.id.slice(0, 8)}.json`), JSON.stringify(entry, null, 2));
+    // t/837: persist via the user-content backend so client error reports
+    // survive container restarts (was raw fs to ephemeral /tmp).
+    await fileIO.saveErrorReport(entry);
     serverRecorder.record({ type: 'system.error', component: 'server', level: 'warn', message: `Client error reported: ${report.error.message ?? 'unknown'}`, data: { userId } });
 
     json(res, { ok: true, id: entry.id });
@@ -1902,45 +1900,23 @@ post('/api/admin/errors', (_req, res, body) => {
   }
 });
 
-get('/api/admin/health', (_req, res) => {
+get('/api/admin/health', async (_req, res) => {
   try {
-    const errorsDir = path.join(getDataRoot(), 'admin', 'errors');
-    const feedbackDir = path.join(getDataRoot(), 'admin', 'feedback');
-
-    let errorCount = 0;
-    let recentErrors: string[] = [];
-    try {
-      const files = fs.readdirSync(errorsDir).filter(f => f.endsWith('.json')).sort().reverse();
-      errorCount = files.length;
-      recentErrors = files.slice(0, 5);
-    } catch { /* telemetry — silent by design: dir may not exist yet */ }
-
-    let feedbackCount = 0;
-    let recentFeedback: unknown[] = [];
-    try {
-      const files = fs.readdirSync(feedbackDir).filter(f => f.endsWith('.json')).sort().reverse();
-      feedbackCount = files.length;
-      recentFeedback = files.slice(0, 5).map(f => {
-        try { return JSON.parse(fs.readFileSync(path.join(feedbackDir, f), 'utf-8')); }
-        catch (err) {
-          getGlobalRecorder()?.record({
-            type: 'system.error',
-            component: 'server',
-            level: 'warn',
-            message: 'Failed to parse feedback file',
-            error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-          });
-          return { file: f, parseError: true };
-        }
-      });
-    } catch { /* telemetry — silent by design: dir may not exist yet */ }
+    // t/837: read counts via the user-content backend (Blob in prod) — the same
+    // store feedback/errors now persist to — not raw fs to ephemeral /tmp.
+    const sortDesc = (a: Record<string, unknown>, b: Record<string, unknown>) =>
+      String(b.timestamp ?? '').localeCompare(String(a.timestamp ?? ''));
+    const { items: errors } = await fileIO.listErrorEntries();
+    const { items: feedback } = await fileIO.listFeedbackEntries();
+    const recentErrors = [...errors].sort(sortDesc).slice(0, 5);
+    const recentFeedback = [...feedback].sort(sortDesc).slice(0, 5);
 
     json(res, {
       status: 'ok',
       uptime: Math.floor((Date.now() - serverStartTime) / 1000),
-      errorCount,
+      errorCount: errors.length,
       recentErrors,
-      feedbackCount,
+      feedbackCount: feedback.length,
       recentFeedback,
       storageMode: STORAGE_MODE,
     });

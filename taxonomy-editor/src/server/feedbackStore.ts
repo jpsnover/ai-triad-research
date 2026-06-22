@@ -82,13 +82,27 @@ export function listFeedback(feedbackDir: string, q: FeedbackQuery = {}): Feedba
     }
   }
 
-  if (q.category) items = items.filter(e => e.category === q.category);
-  if (q.rating) items = items.filter(e => e.rating === q.rating);
+  return { ...paginateFeedback(items, q), skipped };
+}
+
+/**
+ * Pure filter → sort (newest-first) → paginate over already-loaded feedback
+ * entries (t/837). Shared by the filesystem path (listFeedback) and the
+ * backend-aware path (server reads entries via fileIO, then paginates here), so
+ * the filter/pagination logic stays in one place regardless of storage backend.
+ */
+export function paginateFeedback(items: Record<string, unknown>[], q: FeedbackQuery = {}): Omit<FeedbackPage, 'skipped'> {
+  const limit = Number.isFinite(q.limit) ? Math.min(Math.max(q.limit as number, 1), MAX_LIMIT) : DEFAULT_LIMIT;
+  const offset = Number.isFinite(q.offset) ? Math.max(q.offset as number, 0) : 0;
+
+  let filtered = items;
+  if (q.category) filtered = filtered.filter(e => e.category === q.category);
+  if (q.rating) filtered = filtered.filter(e => e.rating === q.rating);
 
   // Newest first. ISO-8601 timestamps sort chronologically under lexicographic compare.
-  items.sort((a, b) => String(b.timestamp ?? '').localeCompare(String(a.timestamp ?? '')));
+  const sorted = [...filtered].sort((a, b) => String(b.timestamp ?? '').localeCompare(String(a.timestamp ?? '')));
 
-  const total = items.length;
-  const page = items.slice(offset, offset + limit);
-  return { items: page, total, hasMore: offset + page.length < total, skipped };
+  const total = sorted.length;
+  const page = sorted.slice(offset, offset + limit);
+  return { items: page, total, hasMore: offset + page.length < total };
 }
