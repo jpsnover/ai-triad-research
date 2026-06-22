@@ -82,6 +82,7 @@ function Get-AITSBOM {
                         Supplier      = $null
                         Description   = $null
                         Hash          = $null
+                        InstalledVia  = 'PSGallery'
                     })
                 }
             }
@@ -122,6 +123,7 @@ function Get-AITSBOM {
             Supplier      = 'AI Triad Research'
             Description   = $null
             Hash          = $null
+            InstalledVia  = 'project'
         })
     }
 
@@ -159,6 +161,7 @@ function Get-AITSBOM {
                         Supplier      = $null
                         Description   = $null
                         Hash          = $null
+                        InstalledVia  = 'npm'
                     })
                 }
             }
@@ -194,6 +197,7 @@ function Get-AITSBOM {
                     Supplier      = $null
                     Description   = $null
                     Hash          = $null
+                    InstalledVia  = 'pip'
                 })
             }
         }
@@ -203,25 +207,54 @@ function Get-AITSBOM {
     Write-Verbose 'Scanning system tools...'
 
     $SystemTools = @(
-        @{ Name = 'git';       VersionCmd = { (git --version) -replace 'git version\s*', '' } }
-        @{ Name = 'node';      VersionCmd = { (node --version) -replace '^v', '' } }
-        @{ Name = 'npm';       VersionCmd = { npm --version } }
-        @{ Name = 'python';    VersionCmd = { if (Get-Command python -EA SilentlyContinue) { $Cmd = 'python' } else { $Cmd = 'python3' }; (& $Cmd --version 2>&1) -replace 'Python\s*', '' } }
-        @{ Name = 'pip';       VersionCmd = { if (Get-Command pip -EA SilentlyContinue) { $Cmd = 'pip' } else { $Cmd = 'pip3' }; (& $Cmd --version 2>&1) -replace 'pip\s+(\S+).*', '$1' } }
-        @{ Name = 'pandoc';    VersionCmd = { pandoc --version | Select-Object -First 1 | ForEach-Object { $_ -replace 'pandoc\s*', '' } } }
-        @{ Name = 'markitdown'; VersionCmd = { 'present' } }
-        @{ Name = 'gs';        VersionCmd = { (gs --version 2>&1) -replace '.*?(\d+\.\d+\S*)', '$1' | Select-Object -First 1 } }
+        @{ Name = 'git';        Url = 'https://git-scm.com';                         VersionCmd = { (git --version) -replace 'git version\s*', '' } }
+        @{ Name = 'node';       Url = 'https://nodejs.org';                           VersionCmd = { (node --version) -replace '^v', '' } }
+        @{ Name = 'npm';        Url = 'https://www.npmjs.com';                        VersionCmd = { npm --version } }
+        @{ Name = 'python';     Url = 'https://www.python.org';                       VersionCmd = { if (Get-Command python -EA SilentlyContinue) { $Cmd = 'python' } else { $Cmd = 'python3' }; (& $Cmd --version 2>&1) -replace 'Python\s*', '' } }
+        @{ Name = 'pip';        Url = 'https://pip.pypa.io';                          VersionCmd = { if (Get-Command pip -EA SilentlyContinue) { $Cmd = 'pip' } else { $Cmd = 'pip3' }; (& $Cmd --version 2>&1) -replace 'pip\s+(\S+).*', '$1' } }
+        @{ Name = 'pandoc';     Url = 'https://pandoc.org';                           VersionCmd = { pandoc --version | Select-Object -First 1 | ForEach-Object { $_ -replace 'pandoc\s*', '' } } }
+        @{ Name = 'markitdown'; Url = 'https://github.com/microsoft/markitdown';      VersionCmd = { 'present' } }
+        @{ Name = 'gs';         Url = 'https://www.ghostscript.com';                  VersionCmd = { (gs --version 2>&1) -replace '.*?(\d+\.\d+\S*)', '$1' | Select-Object -First 1 } }
     )
+
+    # Pre-build winget lookup for system tools
+    $WingetInstalled = @{}
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        try {
+            $WingetRaw = winget list 2>$null
+            if ($WingetRaw) {
+                foreach ($WLine in $WingetRaw) {
+                    if ($WLine -match '^\s*(\S.+?)\s{2,}(\S+\.\S+)\s{2,}(\S+)') {
+                        $WingetInstalled[$Matches[2]] = $Matches[3]
+                    }
+                }
+            }
+        }
+        catch { }
+    }
+
+    $WingetIdMap = @{
+        'git'    = 'Git.Git'
+        'node'   = 'OpenJS.NodeJS.LTS'
+        'python' = 'Python.Python.3.12'
+        'pandoc' = 'JohnMacFarlane.Pandoc'
+    }
 
     foreach ($Tool in $SystemTools) {
         $ToolVer = 'not found'
-        $ToolPath = $null
         $Cmd = Get-Command $Tool.Name -ErrorAction SilentlyContinue
         if ($Cmd) {
             try { $ToolVer = & $Tool.VersionCmd }
             catch { $ToolVer = 'installed (version unknown)' }
-            $ToolPath = if ($Cmd.Source) { $Cmd.Source } else { $null }
         }
+
+        $ToolInstaller = $null
+        if ($WingetIdMap.ContainsKey($Tool.Name) -and $WingetInstalled.ContainsKey($WingetIdMap[$Tool.Name])) {
+            $ToolInstaller = "winget ($($WingetIdMap[$Tool.Name]))"
+        }
+        elseif ($Tool.Name -in @('npm'))       { $ToolInstaller = 'bundled (node)' }
+        elseif ($Tool.Name -in @('pip'))       { $ToolInstaller = 'bundled (python)' }
+        elseif ($Tool.Name -in @('markitdown')) { $ToolInstaller = 'pip' }
 
         $Entries.Add([PSCustomObject]@{
             Name          = $Tool.Name
@@ -231,11 +264,12 @@ function Get-AITSBOM {
             Type          = 'system'
             Scope         = 'required'
             Source        = 'system PATH'
-            SourceUrl     = $ToolPath
+            SourceUrl     = $Tool.Url
             License       = $null
             Supplier      = $null
             Description   = $null
             Hash          = $null
+            InstalledVia  = $ToolInstaller
         })
     }
 
@@ -271,6 +305,7 @@ function Get-AITSBOM {
                     Supplier      = $ModelSupplier
                     Description   = if ($Model.PSObject.Properties['display_name']) { $Model.display_name } else { $null }
                     Hash          = $null
+                    InstalledVia  = 'API'
                 })
             }
         }
@@ -306,6 +341,7 @@ function Get-AITSBOM {
                 Supplier      = 'AI Triad Research'
                 Description   = $null
                 Hash          = $null
+                InstalledVia  = 'project'
             })
         }
     }
@@ -540,9 +576,9 @@ function Get-AITSBOM {
     }
 
     # ── Output formatting ─────────────────────────────────────────────────────
-    $BaseFields = @('Name', 'Version', 'Type', 'Scope', 'License', 'Supplier', 'Source', 'SourceUrl', 'Description', 'Hash')
+    $BaseFields = @('Name', 'Version', 'Type', 'Scope', 'License', 'Supplier', 'InstalledVia', 'Source', 'SourceUrl', 'Description', 'Hash')
     if ($CheckUpdates) {
-        $AllFields = @('Name', 'Version', 'LatestVersion', 'Status') + @('Type', 'Scope', 'License', 'Supplier', 'Source', 'SourceUrl', 'Description', 'Hash')
+        $AllFields = @('Name', 'Version', 'LatestVersion', 'Status') + @('Type', 'Scope', 'License', 'Supplier', 'InstalledVia', 'Source', 'SourceUrl', 'Description', 'Hash')
         $OutputEntries = $Entries | Select-Object $AllFields
     }
     else {
@@ -552,10 +588,10 @@ function Get-AITSBOM {
     switch ($Format) {
         'Table' {
             if ($CheckUpdates) {
-                $Entries | Select-Object Name, Version, LatestVersion, Status, Type, Scope, License, Source | Format-Table -AutoSize | Out-Host
+                $Entries | Select-Object Name, Version, LatestVersion, Status, Type, Scope, License, InstalledVia, Source | Format-Table -AutoSize | Out-Host
             }
             else {
-                $Entries | Select-Object Name, Version, Type, Scope, License, Source | Format-Table -AutoSize | Out-Host
+                $Entries | Select-Object Name, Version, Type, Scope, License, InstalledVia, Source | Format-Table -AutoSize | Out-Host
             }
             return $Entries
         }
