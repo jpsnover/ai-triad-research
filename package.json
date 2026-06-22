@@ -8,7 +8,7 @@
     "evals": "node evals/run.mjs"
   },
   "devDependencies": {
-    "tsx": "^4.19.0",
+    "tsx": "^4.22.4",
     "typescript": "^6.0.3"
   },
   "dependencies": {
