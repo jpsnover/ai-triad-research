@@ -100,7 +100,25 @@ export function stampNodeAuthorship(
   const changedIds = new Set([...added, ...modified]);
 
   return newNodes.map(node => {
-    if (!changedIds.has(node.id)) return node;
+    if (!changedIds.has(node.id)) {
+      // Unchanged node: carry forward prior authorship metadata. If the incoming
+      // payload dropped _edit_meta/_edit_history (the client didn't round-trip the
+      // stamps), restore them from disk so a re-save can't strip history a prior
+      // save recorded (t/828 root cause; the web PUT /api/taxonomy/:pov path had
+      // the same latent bug). Metadata is excluded from the content diff, so the
+      // node is genuinely unchanged — this only restores stamps, never content.
+      const old = oldMap[node.id];
+      if (!old) return node;
+      if (node._edit_meta !== undefined && node._edit_history !== undefined) return node;
+      const restored: NodeWithMeta = { ...node };
+      if (restored._edit_meta === undefined && old._edit_meta !== undefined) {
+        restored._edit_meta = old._edit_meta;
+      }
+      if (restored._edit_history === undefined && old._edit_history !== undefined) {
+        restored._edit_history = old._edit_history;
+      }
+      return restored;
+    }
 
     const existing = oldMap[node.id]?._edit_meta;
     const isNew = added.includes(node.id);

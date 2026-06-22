@@ -177,6 +177,43 @@ describe('editMeta', () => {
       expect(result[0]._edit_history![0].user).toBe('user-1@test.com');
       expect(result[0]._edit_history![49].user).toBe('test-user@example.com');
     });
+
+    // t/828 / p/78#5: unchanged nodes whose incoming payload dropped the stamps
+    // must keep the metadata already on disk (else a re-save strips prior history).
+    it('preserves disk _edit_meta/_edit_history for an unchanged node missing them in the payload', () => {
+      const meta = { last_edited_by: 'prev@test.com', last_edited_at: '2026-01-01T00:00:00Z' };
+      const history = [{ user: 'prev@test.com', timestamp: '2026-01-01T00:00:00Z', fields_changed: ['label'] }];
+      const old = [{ ...makeNode('a-1', 'Alpha'), _edit_meta: meta, _edit_history: history }];
+      const now = [makeNode('a-1', 'Alpha')]; // same content, no stamps round-tripped
+      const result = stampNodeAuthorship(old, now);
+      expect(result[0]._edit_meta).toEqual(meta);
+      expect(result[0]._edit_history).toEqual(history);
+    });
+
+    it('keeps payload stamps for an unchanged node that did round-trip them', () => {
+      const meta = { last_edited_by: 'prev@test.com', last_edited_at: '2026-01-01T00:00:00Z' };
+      const history = [{ user: 'prev@test.com', timestamp: '2026-01-01T00:00:00Z', fields_changed: ['label'] }];
+      const old = [{ ...makeNode('a-1', 'Alpha'), _edit_meta: meta, _edit_history: history }];
+      const now = [{ ...makeNode('a-1', 'Alpha'), _edit_meta: meta, _edit_history: history }];
+      const result = stampNodeAuthorship(old, now);
+      expect(result[0]._edit_history).toEqual(history);
+    });
+
+    it('repeated saves without round-tripping stamps do not strip history', () => {
+      // Save 1: a-1 is edited → stamped with history.
+      const disk0 = [makeNode('a-1', 'Alpha')];
+      const save1Payload = [makeNode('a-1', 'Alpha Updated')];
+      const afterSave1 = stampNodeAuthorship(disk0, save1Payload);
+      expect(afterSave1[0]._edit_history).toHaveLength(1);
+
+      // Saves 2 & 3: renderer re-sends the same node WITHOUT the stamps. Content
+      // matches disk → "unchanged" → must NOT lose the history from save 1.
+      const afterSave2 = stampNodeAuthorship(afterSave1, [makeNode('a-1', 'Alpha Updated')]);
+      expect(afterSave2[0]._edit_history).toHaveLength(1);
+      const afterSave3 = stampNodeAuthorship(afterSave2, [makeNode('a-1', 'Alpha Updated')]);
+      expect(afterSave3[0]._edit_history).toHaveLength(1);
+      expect(afterSave3[0]._edit_meta!.last_edited_by).toBe('test-user@example.com');
+    });
   });
 
   describe('changedFields', () => {
