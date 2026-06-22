@@ -26,9 +26,9 @@
     "min_confrontation_rounds": 1,
     "max_confrontation_rounds": 2,
     "min_argumentation_rounds": 2,
-    "max_argumentation_rounds": 4,
+    "max_argumentation_rounds": 2,
     "min_concluding_rounds": 1,
-    "max_concluding_rounds": 2,
+    "max_concluding_rounds": 1,
     "max_total_rounds_default": 10,
     "max_regressions": 2,
     "regression_ratchet": 0.10
