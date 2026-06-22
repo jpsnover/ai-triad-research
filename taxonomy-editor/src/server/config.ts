@@ -149,8 +149,9 @@ export async function getApiKey(backend: AIBackend = 'gemini'): Promise<string |
   if (envKey) return envKey;
 
   try {
-    const stored = await getKeyStore(getDataRoot).get(backend, getCurrentUserId());
-    if (stored) return stored;
+    // t/835: stored value may be a JSON array of keys — take the first.
+    const stored = await getKeyStore(getDataRoot).getKeys(backend, getCurrentUserId());
+    if (stored.length > 0) return stored[0];
   } catch (err) {
     getGlobalRecorder()?.record({
       type: 'system.error',
@@ -165,6 +166,50 @@ export async function getApiKey(backend: AIBackend = 'gemini'): Promise<string |
   if (process.env.AI_API_KEY) return process.env.AI_API_KEY;
 
   return null;
+}
+
+/**
+ * All API keys for a backend (t/835), in rotation order. Precedence mirrors
+ * getApiKey: a configured env key (platform/free, single) wins; otherwise the
+ * user's stored BYOK key list; otherwise the AI_API_KEY fallback. Returns [] if
+ * none. Used by the key rotator for round-robin selection.
+ */
+export async function getApiKeys(backend: AIBackend = 'gemini'): Promise<string[]> {
+  const envKey = process.env[ENV_KEY_NAMES[backend]];
+  if (envKey) return [envKey];
+
+  try {
+    const stored = await getKeyStore(getDataRoot).getKeys(backend, getCurrentUserId());
+    if (stored.length > 0) return stored;
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server-config',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    log.server.warn({ backend, err }, 'getApiKeys failed');
+  }
+
+  if (process.env.AI_API_KEY) return [process.env.AI_API_KEY];
+  return [];
+}
+
+/** The user's stored BYOK keys for a backend (t/835) — excludes env/platform
+ *  keys; for the Settings key-management list. */
+export async function getStoredApiKeys(backend: AIBackend = 'gemini'): Promise<string[]> {
+  return getKeyStore(getDataRoot).getKeys(backend, getCurrentUserId());
+}
+
+/** Append a BYOK key for a backend (t/835); returns the new key list. */
+export async function addApiKey(key: string, backend: AIBackend = 'gemini'): Promise<string[]> {
+  return getKeyStore(getDataRoot).addKey(backend, getCurrentUserId(), key);
+}
+
+/** Remove the BYOK key at `index` for a backend (t/835); returns the new key list. */
+export async function removeApiKey(index: number, backend: AIBackend = 'gemini'): Promise<string[]> {
+  return getKeyStore(getDataRoot).removeKey(backend, getCurrentUserId(), index);
 }
 
 export async function hasApiKey(backend: AIBackend = 'gemini'): Promise<boolean> {

@@ -38,6 +38,8 @@ export interface KeyRotationResult {
 }
 
 export interface KeyStore {
+  /** Raw stored value for (backend,user). May be a single legacy key or a JSON
+   *  array of keys (t/835); callers wanting the list should use getKeys(). */
   get(backend: AIBackend, userId: string): Promise<string | null>;
   set(backend: AIBackend, userId: string, key: string): Promise<void>;
   /** Remove the stored key for this backend/user. Idempotent (no-op if absent). */
@@ -48,12 +50,81 @@ export interface KeyStore {
    * for stores that delegate encryption to the platform (Azure Key Vault).
    */
   rotateKeyMaterial(): Promise<KeyRotationResult>;
+
+  // ── Multi-key (t/835) — stored as a JSON array; legacy single values wrap. ──
+  /** All keys for (backend,user); [] if none. */
+  getKeys(backend: AIBackend, userId: string): Promise<string[]>;
+  /** Replace the full key list (empty list deletes the entry). */
+  setKeys(backend: AIBackend, userId: string, keys: string[]): Promise<void>;
+  /** Append a key (deduped, trimmed); returns the new list. */
+  addKey(backend: AIBackend, userId: string, key: string): Promise<string[]>;
+  /** Remove the key at `index` (no-op if out of range); returns the new list. */
+  removeKey(backend: AIBackend, userId: string, index: number): Promise<string[]>;
+}
+
+/**
+ * Parse a raw stored value into a key list (t/835). A value that JSON-parses to
+ * a string array is multi-key; anything else is treated as one legacy key.
+ * Empty / blank values yield []. Blank entries are dropped.
+ */
+export function parseKeys(raw: string | null): string[] {
+  if (raw == null) return [];
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+  if (trimmed.startsWith('[')) {
+    try {
+      const arr: unknown = JSON.parse(trimmed);
+      if (Array.isArray(arr)) {
+        return arr.filter((k): k is string => typeof k === 'string' && k.trim().length > 0).map(k => k.trim());
+      }
+    } catch { /* silent by design — non-JSON value is a legacy single key */ }
+  }
+  return [trimmed];
+}
+
+/**
+ * Shared multi-key logic (t/835) layered over each backend's raw get/set/delete.
+ * Keeps the array convention in one place so Local and Key Vault stores agree.
+ */
+abstract class BaseKeyStore implements KeyStore {
+  abstract get(backend: AIBackend, userId: string): Promise<string | null>;
+  abstract set(backend: AIBackend, userId: string, key: string): Promise<void>;
+  abstract delete(backend: AIBackend, userId: string): Promise<void>;
+  abstract rotateKeyMaterial(): Promise<KeyRotationResult>;
+
+  async getKeys(backend: AIBackend, userId: string): Promise<string[]> {
+    return parseKeys(await this.get(backend, userId));
+  }
+
+  async setKeys(backend: AIBackend, userId: string, keys: string[]): Promise<void> {
+    const clean: string[] = [];
+    for (const k of keys) {
+      const t = typeof k === 'string' ? k.trim() : '';
+      if (t && !clean.includes(t)) clean.push(t); // trim + dedupe
+    }
+    if (clean.length === 0) { await this.delete(backend, userId); return; }
+    await this.set(backend, userId, JSON.stringify(clean));
+  }
+
+  async addKey(backend: AIBackend, userId: string, key: string): Promise<string[]> {
+    const keys = await this.getKeys(backend, userId);
+    keys.push(key); // setKeys trims + dedupes
+    await this.setKeys(backend, userId, keys);
+    return this.getKeys(backend, userId);
+  }
+
+  async removeKey(backend: AIBackend, userId: string, index: number): Promise<string[]> {
+    const keys = await this.getKeys(backend, userId);
+    if (index >= 0 && index < keys.length) keys.splice(index, 1);
+    await this.setKeys(backend, userId, keys);
+    return this.getKeys(backend, userId);
+  }
 }
 
 // ── Local file store (single-user, unchanged behavior) ────────────────────────
 
-class LocalFileKeyStore implements KeyStore {
-  constructor(private resolveDataRoot: () => string) {}
+class LocalFileKeyStore extends BaseKeyStore {
+  constructor(private resolveDataRoot: () => string) { super(); }
 
   private filePath(backend: AIBackend): string {
     return path.join(this.resolveDataRoot(), `.aitriad-key-${backend}.enc`);
@@ -264,13 +335,14 @@ interface AzureSecretClient {
   beginDeleteSecret(name: string): Promise<unknown>;
 }
 
-class AzureKeyVaultKeyStore implements KeyStore {
+class AzureKeyVaultKeyStore extends BaseKeyStore {
   private client: AzureSecretClient | null = null;
   private readonly vaultUrl: string;
   private cache = new Map<string, { value: string; expires: number }>();
   private readonly cacheTtlMs = 5 * 60 * 1000;
 
   constructor(vaultUrl: string) {
+    super();
     this.vaultUrl = vaultUrl;
   }
 

@@ -16,7 +16,8 @@ import { createRequire } from 'module';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 const require = createRequire(import.meta.url);
-import { getApiKey, getProjectRoot, EMBED_SCRIPT, resolveDataPath, type AIBackend } from './config.js';
+import { getApiKey, getApiKeys, getProjectRoot, EMBED_SCRIPT, resolveDataPath, type AIBackend } from './config.js';
+import * as keyRotator from './keyRotator.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../lib/search/tavily.js';
 import {
@@ -238,6 +239,86 @@ export function filterChainForExplicitKey(models: string[], hasExplicitKey: bool
   return models.filter(m => resolveBackend(m) === primaryBackend);
 }
 
+/** Parse a withRetry progress message and forward it to onRetry + the recorder. */
+function reportProviderRetry(
+  msg: string,
+  backend: string,
+  apiModel: string,
+  onRetry?: (p: GenerateTextProgress) => void,
+): void {
+  const attemptMatch = msg.match(/attempt (\d+)\/(\d+)/);
+  const backoffMatch = msg.match(/waiting (\d+)s/);
+  const reasonMatch = msg.match(/failed \((.+?)\), waiting/);
+  const attempt = attemptMatch ? parseInt(attemptMatch[1], 10) : 1;
+  const maxRetries = attemptMatch ? parseInt(attemptMatch[2], 10) : SERVER_RETRY_CONFIG.maxRetries;
+  const backoffSeconds = backoffMatch ? parseInt(backoffMatch[1], 10) : 5;
+  const reason = reasonMatch?.[1] ?? msg;
+  onRetry?.({ attempt, maxRetries, backoffSeconds, limitType: 'unknown', limitMessage: msg });
+  getGlobalRecorder()?.record({
+    type: 'ai.retry', component: 'ai-adapter', level: 'warn',
+    message: `Retry ${attempt}/${maxRetries}: ${reason}`,
+    data: { attempt, maxRetries, backoffSeconds, reason, backend, model: apiModel },
+  });
+}
+
+/** Heuristic 429/rate-limit detection from a provider error (t/835). */
+function is429Error(err: unknown): boolean {
+  const s = String((err as Error)?.message ?? err);
+  return /\b429\b/.test(s) || /rate.?limit/i.test(s) || /RESOURCE_EXHAUSTED/i.test(s)
+    || /\bquota\b/i.test(s) || /too many requests/i.test(s);
+}
+
+/** Best-effort retry-after (ms) parsed from a provider error; defaults to 30s. */
+function retryAfterMs(err: unknown): number {
+  const s = String((err as Error)?.message ?? err);
+  const m = s.match(/retry[- ]?after[^0-9]*(\d+)\s*(ms|s|sec|seconds)?/i) || s.match(/\b(\d+)\s*(s|sec|seconds)\b/i);
+  if (m) {
+    const n = parseInt(m[1], 10);
+    return (m[2] ?? 's').toLowerCase().startsWith('ms') ? n : n * 1000;
+  }
+  return 30_000;
+}
+
+/**
+ * Multi-key round-robin (t/835): try each key once via the rotator, skipping
+ * keys in 429 cooldown. On a 429 the key is marked rate-limited and the next key
+ * is tried immediately (no backoff). On any other error the key is recorded and
+ * the next key is tried. If every key is exhausted, throws the last error so the
+ * caller falls back to the next model. Backoff is intentionally skipped here —
+ * breadth across keys substitutes for per-key retry; the single-key path retains
+ * full withRetry backoff.
+ */
+async function callWithKeyRotation(
+  backend: ReturnType<typeof resolveBackend>,
+  keys: string[],
+  prompt: string,
+  apiModel: string,
+  opts: GenerateOptions,
+): Promise<ProviderResult> {
+  const tried = new Set<number>();
+  let lastErr: unknown;
+  while (tried.size < keys.length) {
+    const sel = keyRotator.getNextKey(backend, keys);
+    if (!sel || tried.has(sel.index)) break; // all remaining are rate-limited/tried
+    tried.add(sel.index);
+    try {
+      return await callProvider(fetch, backend, prompt, apiModel, sel.key, opts);
+    } catch (err) {
+      lastErr = err;
+      const rateLimited = is429Error(err);
+      if (rateLimited) keyRotator.markRateLimited(backend, sel.index, retryAfterMs(err));
+      getGlobalRecorder()?.record({
+        type: 'ai.fallback', component: 'ai-adapter', level: 'warn',
+        message: rateLimited
+          ? `Key ${sel.index}/${keys.length} for ${backend} rate-limited — rotating to next key`
+          : `Key ${sel.index}/${keys.length} for ${backend} failed — trying next key`,
+        data: { backend, keyIndex: sel.index, totalKeys: keys.length, rateLimited, error: String(err) },
+      });
+    }
+  }
+  throw lastErr ?? new Error(`All ${keys.length} keys for ${backend} exhausted`);
+}
+
 export async function generateText(
   prompt: string,
   model?: string,
@@ -252,8 +333,8 @@ export async function generateText(
   for (let mi = 0; mi < modelsToTry.length; mi++) {
     const currentModel = modelsToTry[mi];
     const backend = resolveBackend(currentModel);
-    const apiKey = explicitApiKey ?? await getApiKey(backend);
-    if (!apiKey) {
+    const keys = explicitApiKey !== undefined ? [explicitApiKey] : await getApiKeys(backend);
+    if (keys.length === 0) {
       if (mi < modelsToTry.length - 1) {
         getGlobalRecorder()?.record({
           type: 'ai.fallback', component: 'ai-adapter', level: 'info',
@@ -278,31 +359,20 @@ export async function generateText(
       timeoutMs: timeoutMs ?? getDefaultTimeout(currentModel),
     };
 
+    // Single key (including the free-tier explicitApiKey) keeps the full
+    // retry/backoff path. Multiple BYOK keys (t/835) round-robin with immediate
+    // rotation on 429 — see callWithKeyRotation.
+    const runWithRetry = (apiKey: string) => withRetry(
+      () => callProvider(fetch, backend, prompt, apiModel, apiKey, opts),
+      SERVER_RETRY_CONFIG,
+      `${backend}/${apiModel}`,
+      (msg: string) => reportProviderRetry(msg, backend, apiModel, onRetry),
+    );
+
     try {
-      const result = await withRetry(
-        () => callProvider(fetch, backend, prompt, apiModel, apiKey, opts),
-        SERVER_RETRY_CONFIG,
-        `${backend}/${apiModel}`,
-        (msg: string) => {
-          const attemptMatch = msg.match(/attempt (\d+)\/(\d+)/);
-          const backoffMatch = msg.match(/waiting (\d+)s/);
-          const reasonMatch = msg.match(/failed \((.+?)\), waiting/);
-          const attempt = attemptMatch ? parseInt(attemptMatch[1], 10) : 1;
-          const maxRetries = attemptMatch ? parseInt(attemptMatch[2], 10) : SERVER_RETRY_CONFIG.maxRetries;
-          const backoffSeconds = backoffMatch ? parseInt(backoffMatch[1], 10) : 5;
-          const reason = reasonMatch?.[1] ?? msg;
-          onRetry?.({
-            attempt, maxRetries, backoffSeconds,
-            limitType: 'unknown',
-            limitMessage: msg,
-          });
-          getGlobalRecorder()?.record({
-            type: 'ai.retry', component: 'ai-adapter', level: 'warn',
-            message: `Retry ${attempt}/${maxRetries}: ${reason}`,
-            data: { attempt, maxRetries, backoffSeconds, reason, backend, model: apiModel },
-          });
-        },
-      );
+      const result = keys.length > 1
+        ? await callWithKeyRotation(backend, keys, prompt, apiModel, opts)
+        : await runWithRetry(keys[0]);
 
       if (mi > 0) {
         getGlobalRecorder()?.record({

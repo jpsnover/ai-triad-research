@@ -26,7 +26,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { WebSocketServer, WebSocket } from 'ws';
 import {
-  PORT, getDataRoot, getApiKey, hasApiKey, storeApiKey, deleteApiKey, deleteAllApiKeys, rotateApiKeyMaterial, resolveDataPath,
+  PORT, getDataRoot, getApiKey, hasApiKey, storeApiKey, deleteApiKey, deleteAllApiKeys, rotateApiKeyMaterial,
+  getStoredApiKeys, addApiKey, removeApiKey, resolveDataPath,
   BROKER_SCRIPT, SCRIPTS_DIR, getProjectRoot, type AIBackend,
   STORAGE_MODE, CACHE_DIR,
 } from './config.js';
@@ -897,6 +898,63 @@ post('/api/keys/delete-all', async (_req, res) => {
     getGlobalRecorder()?.record({
       type: 'system.error', component: 'server', level: 'error',
       message: 'Failed to delete all API keys',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
+});
+
+// ── Multi-key management (t/835) ──
+// Per-backend key lists with masked display. Under the /api/keys prefix, so the
+// anon AI-route guard already blocks unauthenticated callers. Keys are never
+// returned in full — only a masked suffix.
+function maskApiKey(key: string): string {
+  return key.length <= 4 ? '••••' : `••••${key.slice(-4)}`;
+}
+function maskedKeyList(keys: string[]): { index: number; masked: string }[] {
+  return keys.map((k, index) => ({ index, masked: maskApiKey(k) }));
+}
+
+get('/api/keys/:backend', async (req, res) => {
+  try {
+    const backend = param(req, 'backend', '/api/keys/:backend') as AIBackend;
+    json(res, { backend, keys: maskedKeyList(await getStoredApiKeys(backend)) });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'server', level: 'error',
+      message: 'Failed to list API keys',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
+});
+
+post('/api/keys/:backend/add', async (req, res, body) => {
+  try {
+    const backend = param(req, 'backend', '/api/keys/:backend/add') as AIBackend;
+    const { key } = (body ?? {}) as { key?: string };
+    if (!key || !key.trim()) { error(res, 'key is required', 400); return; }
+    json(res, { backend, keys: maskedKeyList(await addApiKey(key, backend)) });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'server', level: 'error',
+      message: 'Failed to add API key',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
+});
+
+del('/api/keys/:backend/:index', async (req, res) => {
+  try {
+    const backend = param(req, 'backend', '/api/keys/:backend/:index') as AIBackend;
+    const index = parseInt(param(req, 'index', '/api/keys/:backend/:index'), 10);
+    if (Number.isNaN(index)) { error(res, 'index must be a number', 400); return; }
+    json(res, { backend, keys: maskedKeyList(await removeApiKey(index, backend)) });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'server', level: 'error',
+      message: 'Failed to remove API key',
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     error(res, String(err), 500, err);
