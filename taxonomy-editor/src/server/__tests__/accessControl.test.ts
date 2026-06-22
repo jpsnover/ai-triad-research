@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import path from 'path';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute } from '../accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam } from '../accessControl.js';
 
 describe('isAuthDisabledAllowed (L1)', () => {
   it('blocks AUTH_DISABLED in production', () => {
@@ -76,5 +76,44 @@ describe('isTerminalAccessAllowed (L6)', () => {
     expect(isTerminalAccessAllowed({ authDisabled: false, principalName: '', isAdmin: false })).toBe(false);
     expect(isTerminalAccessAllowed({ authDisabled: false, principalName: 'alice', isAdmin: false })).toBe(false);
     expect(isTerminalAccessAllowed({ authDisabled: false, principalName: 'alice', isAdmin: true })).toBe(true);
+  });
+});
+
+describe('invalidRouteParam (t/810)', () => {
+  it('passes well-formed params', () => {
+    expect(invalidRouteParam('/api/debates/:id', '/api/debates/abc-123')).toBeNull();
+    expect(invalidRouteParam('/api/edges/:index', '/api/edges/42')).toBeNull();
+    expect(invalidRouteParam('/api/community/:type/:id', '/api/community/chats/9f8e')).toBeNull();
+    expect(invalidRouteParam('/api/taxonomy/:pov', '/api/taxonomy/accelerationist')).toBeNull();
+    expect(invalidRouteParam('/api/taxonomy/:pov/node/:nodeId/history', '/api/taxonomy/saf/node/saf-bel-001/history')).toBeNull();
+    expect(invalidRouteParam('/health', '/health')).toBeNull(); // no params
+  });
+
+  it('rejects path traversal (raw, encoded, null byte) on id params', () => {
+    expect(invalidRouteParam('/api/debates/:id', '/api/debates/%2e%2e')).toBe('id');       // encoded ..
+    expect(invalidRouteParam('/api/debates/:id', '/api/debates/%2e%2e%2fetc')).toBe('id'); // encoded ../etc
+    expect(invalidRouteParam('/api/debates/:id', '/api/debates/foo%00')).toBe('id');       // null byte
+    expect(invalidRouteParam('/api/debates/:id', '/api/debates/a.b')).toBe('id');          // dot not allowed for id
+  });
+
+  it('rejects malformed percent-encoding', () => {
+    expect(invalidRouteParam('/api/debates/:id', '/api/debates/%zz')).toBe('id');
+  });
+
+  it('allows dotted filenames but blocks traversal', () => {
+    expect(invalidRouteParam('/api/flight-recorder/download/:filename', '/api/flight-recorder/download/dump-2026.json')).toBeNull();
+    expect(invalidRouteParam('/api/proposals/:filename', '/api/proposals/%2e%2e')).toBe('filename'); // ".."
+    expect(invalidRouteParam('/api/proposals/:filename', '/api/proposals/a%2fb')).toBe('filename');  // a/b
+  });
+
+  it('allows colon in review group ids but blocks traversal', () => {
+    expect(invalidRouteParam('/api/admin/review/detail/:groupId', '/api/admin/review/detail/calibration%3Ajpsnover')).toBeNull();
+    expect(invalidRouteParam('/api/admin/review/detail/:groupId', '/api/admin/review/detail/community%3Aabc-1')).toBeNull();
+    expect(invalidRouteParam('/api/admin/review/detail/:groupId', '/api/admin/review/detail/%2e%2e%2fx')).toBe('groupId');
+  });
+
+  it('rejects invalid pov names', () => {
+    expect(invalidRouteParam('/api/taxonomy/:pov', '/api/taxonomy/%2e%2e')).toBe('pov');
+    expect(invalidRouteParam('/api/taxonomy/:pov', '/api/taxonomy/ACC')).toBe('pov'); // uppercase not allowed
   });
 });

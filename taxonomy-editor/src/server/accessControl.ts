@@ -6,6 +6,47 @@
 // See t/720 (L1, L3, L6).
 
 import path from 'path';
+import { isSafeId, isSafePov, isSafeFilename } from './fileIO.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+
+// Review group ids are "domain:id" (e.g. "calibration:jpsnover") — allow the
+// colon, still block path separators / dots / encoded sequences.
+const GROUP_ID_RE = /^[a-zA-Z0-9_:-]+$/;
+
+/**
+ * t/810: routing-layer path-param validation. Given a matched route pattern and
+ * the request pathname, return the name of the first user-provided `:param`
+ * whose (decoded) value fails its whitelist, or null if all pass. Validating the
+ * decoded value mirrors param() (which decodes) and catches encoded traversal
+ * (%2e%2e → ".."), while allowing legit encoded chars (e.g. ":" in group ids).
+ * Per-param classes mirror the handlers' own assert* checks (defense-in-depth).
+ */
+export function invalidRouteParam(routePath: string, pathname: string): string | null {
+  const patternParts = routePath.split('/');
+  const pathParts = pathname.split('/');
+  for (let i = 0; i < patternParts.length; i++) {
+    const seg = patternParts[i];
+    if (!seg.startsWith(':')) continue;
+    const name = seg.slice(1);
+    let value: string;
+    try { value = decodeURIComponent(pathParts[i] ?? ''); }
+    catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'server', level: 'warn',
+        message: `Malformed percent-encoding in path param '${name}'`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      return name; // malformed percent-encoding — reject
+    }
+    const ok =
+      name === 'pov' ? isSafePov(value)
+        : (name === 'filename' || name === 'name') ? isSafeFilename(value)
+          : name === 'groupId' ? GROUP_ID_RE.test(value)
+            : isSafeId(value);
+    if (!ok) return name;
+  }
+  return null;
+}
 
 /**
  * L1: whether an AUTH_DISABLED=1 setting should be honored. AUTH_DISABLED makes

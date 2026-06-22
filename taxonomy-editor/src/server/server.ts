@@ -33,7 +33,7 @@ import {
 import { GitHubAPIBackend } from './githubAPIBackend.js';
 import { SessionBranchManager } from './sessionBranchManager.js';
 import { runWithUser, getCurrentUserId, getStorageUserId, setSessionBranchName, deriveStorageUserId, isAnonymousUser } from './userContext.js';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute } from './accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam } from './accessControl.js';
 import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
 import * as community from './community.js';
@@ -3351,6 +3351,17 @@ async function handleRequestInner(
 
     if (route) {
       (res as any).__routePath = route.routePath;
+      // t/810: validate user-provided path params at the routing layer (primary
+      // gate) before the handler runs. Handlers keep assertSafe* as defense-in-depth.
+      const badParam = invalidRouteParam(route.routePath, url.pathname);
+      if (badParam) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'server', level: 'warn',
+          message: `Blocked invalid path parameter '${badParam}': ${req.method} ${url.pathname}`,
+        });
+        json(res, { error: `Invalid path parameter: ${badParam}`, requestId: getRequestId() }, 400);
+        return;
+      }
       try {
         const body = ['POST', 'PUT', 'DELETE'].includes(req.method!) ? await readBody(req) : {};
         await route.handler(req, res, body);

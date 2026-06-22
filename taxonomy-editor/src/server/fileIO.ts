@@ -74,6 +74,14 @@ function assertSafePov(value: string): void {
     });
 }
 
+// Non-throwing predicates over the same whitelists — single source of truth for
+// the routing-layer path-param middleware (t/810) and any boolean checks.
+export function isSafeId(value: string): boolean { return !!value && SAFE_ID_RE.test(value); }
+export function isSafePov(value: string): boolean { return !!value && SAFE_POV_RE.test(value); }
+export function isSafeFilename(value: string): boolean {
+  return !!value && value !== '.' && value !== '..' && SAFE_FILENAME_RE.test(value);
+}
+
 export function assertSafeFilename(value: string, label: string): void {
   if (!value || !SAFE_FILENAME_RE.test(value) || value.includes('..'))
     throw Object.assign(new ActionableError({
