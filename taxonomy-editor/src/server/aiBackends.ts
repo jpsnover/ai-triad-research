@@ -211,6 +211,33 @@ function mapUsage(usage: ProviderResult['usage']): TokenUsage | undefined {
 
 export { resolveBackend };
 
+/**
+ * The ordered list of models generateText() will attempt: the resolved model
+ * followed by its fallback chain.
+ *
+ * t/829: when an explicit key is supplied (e.g. the free-tier server Gemini
+ * key), that key belongs to a single provider — so cross-provider fallbacks are
+ * dropped. Passing a Gemini key to Groq/Claude only produces auth errors,
+ * making the fallback chain useless. Without an explicit key each model resolves
+ * its own per-backend key, so the full cross-provider chain is kept.
+ */
+export function buildModelsToTry(resolved: string, hasExplicitKey: boolean): string[] {
+  return filterChainForExplicitKey([resolved, ...getFallbackChain(resolved)], hasExplicitKey);
+}
+
+/**
+ * Pure filter (t/829): when an explicit key is in play, keep only models that
+ * resolve to the same backend as the first (resolved) model — the explicit key
+ * belongs to one provider. No-op when there's no explicit key or the chain is
+ * empty. Split out from buildModelsToTry so the filtering is unit-testable
+ * without loading ai-models.json.
+ */
+export function filterChainForExplicitKey(models: string[], hasExplicitKey: boolean): string[] {
+  if (!hasExplicitKey || models.length === 0) return models;
+  const primaryBackend = resolveBackend(models[0]);
+  return models.filter(m => resolveBackend(m) === primaryBackend);
+}
+
 export async function generateText(
   prompt: string,
   model?: string,
@@ -219,7 +246,7 @@ export async function generateText(
   explicitApiKey?: string,
 ): Promise<GenerateResult> {
   const resolved = model || DEFAULT_MODEL;
-  const modelsToTry = [resolved, ...getFallbackChain(resolved)];
+  const modelsToTry = buildModelsToTry(resolved, explicitApiKey !== undefined);
 
   let lastError: unknown;
   for (let mi = 0; mi < modelsToTry.length; mi++) {

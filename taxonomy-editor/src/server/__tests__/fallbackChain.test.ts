@@ -1,0 +1,50 @@
+// @vitest-environment node
+
+/**
+ * t/829 — free-tier fallback chain must not pass the Gemini server key to
+ * non-Gemini backends. filterChainForExplicitKey() drops cross-provider
+ * fallbacks when an explicit key is supplied; without one, the full
+ * cross-provider chain is kept.
+ */
+
+import { describe, it, expect } from 'vitest';
+import { filterChainForExplicitKey, buildModelsToTry, resolveBackend } from '../aiBackends.js';
+
+// A deliberately cross-provider chain: gemini primary + a gemini fallback,
+// then groq/claude (which a free-tier Gemini key could never authenticate).
+const CROSS_PROVIDER = ['gemini-flash-lite-latest', 'gemini-2.0-flash', 'groq-llama-3.3-70b', 'claude-haiku'];
+
+describe('filterChainForExplicitKey (t/829)', () => {
+  it('drops cross-provider fallbacks when an explicit key is set', () => {
+    const filtered = filterChainForExplicitKey(CROSS_PROVIDER, true);
+    expect(filtered).toEqual(['gemini-flash-lite-latest', 'gemini-2.0-flash']);
+    expect(filtered.every(m => resolveBackend(m) === 'gemini')).toBe(true);
+  });
+
+  it('keeps the full cross-provider chain when there is no explicit key', () => {
+    // Per-backend keys are resolved individually, so other providers stay in play.
+    expect(filterChainForExplicitKey(CROSS_PROVIDER, false)).toEqual(CROSS_PROVIDER);
+  });
+
+  it('preserves the primary model even if it is non-Gemini', () => {
+    const claudeChain = ['claude-sonnet', 'gemini-2.0-flash', 'groq-llama'];
+    expect(filterChainForExplicitKey(claudeChain, true)).toEqual(['claude-sonnet']);
+  });
+
+  it('is a no-op on an empty chain', () => {
+    expect(filterChainForExplicitKey([], true)).toEqual([]);
+  });
+});
+
+describe('buildModelsToTry (t/829 integration)', () => {
+  it('always starts with the resolved model', () => {
+    expect(buildModelsToTry('gemini-flash-lite-latest', true)[0]).toBe('gemini-flash-lite-latest');
+    expect(buildModelsToTry('gemini-flash-lite-latest', false)[0]).toBe('gemini-flash-lite-latest');
+  });
+
+  it('with an explicit key, every attempted model is same-provider', () => {
+    const chain = buildModelsToTry('gemini-flash-lite-latest', true);
+    expect(chain.length).toBeGreaterThan(0);
+    expect(chain.every(m => resolveBackend(m) === 'gemini')).toBe(true);
+  });
+});
