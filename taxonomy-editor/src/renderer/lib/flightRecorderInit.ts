@@ -13,7 +13,7 @@
 import { FlightRecorder, setGlobalRecorder, getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { RecordInput, TriggerType } from '@lib/flight-recorder/types';
 import { api } from '@bridge';
-import { showDumpToast } from './dumpToast';
+import { showDumpToast, showDumpErrorToast } from './dumpToast';
 
 declare const __APP_VERSION__: string;
 declare const __BUILD_DATE__: string;
@@ -104,8 +104,21 @@ async function persistDump(
   error?: { name: string; message: string; stack?: string },
   context?: Record<string, unknown>,
 ): Promise<void> {
+  let ndjson: string;
   try {
-    const { ndjson } = recorder.buildDump(triggerType, error, context);
+    ({ ndjson } = recorder.buildDump(triggerType, error, context));
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'flight-recorder',
+      level: 'warn',
+      message: 'Failed to build flight recorder dump',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return;
+  }
+
+  try {
     const result = await api.dumpFlightRecorder(ndjson);
     console.log(`[flight-recorder] Dump saved: ${result.filePath}`);
 
@@ -132,8 +145,19 @@ async function persistDump(
       serverFilename,
     });
   } catch (err) {
-    console.warn('[flight-recorder] Failed to persist dump:', err);
-    /* flight recorder init — silent by design (can't log to itself) */
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'flight-recorder',
+      level: 'error',
+      message: 'Failed to persist flight recorder dump',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    showDumpErrorToast({
+      errorMessage: String(err),
+      isWeb,
+      ndjson,
+      onRetry: () => { void persistDump(recorder, triggerType, error, context); },
+    });
   }
 }
 

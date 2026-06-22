@@ -37,24 +37,22 @@ const STEPS: StepDef[] = [
       'Stage structured debates between AI-powered characters who argue from each perspective. Choose a topic, select debaters, and watch them engage in real-time.',
       'After a debate, the reflection tool analyzes results and proposes taxonomy edits based on what emerged.',
     ],
-    badge: 'Requires an AI API key',
   },
   {
     heading: 'Chat with Perspectives',
     image: '/onboarding/onboarding-chat.png',
     alt: 'Chat interface showing a conversation with a POV character and mode selector',
     body: [
-      'Have one-on-one conversations with any perspective. Use Brainstorm mode to explore ideas, Inform mode to learn a position’s reasoning, or Decide mode to work through a specific policy question.',
+      "Have one-on-one conversations with any perspective. Use Brainstorm mode to explore ideas, Inform mode to learn a position's reasoning, or Decide mode to work through a specific policy question.",
     ],
-    badge: 'Requires an AI API key',
   },
   {
-    heading: 'Set Up Your AI Key',
+    heading: 'Bring Your Own AI Key',
     image: '/onboarding/onboarding-settings.png',
     alt: 'Settings dialog showing the AI Backend section with Gemini selected and API key input',
     body: [
-      'Some features — debates, chat, enrichment, and analysis — need an AI backend to work. Without a key, those features are read-only or unavailable.',
-      'We recommend Gemini Flash Lite — it’s fast, capable, and very inexpensive (free tier available).',
+      'AI features work out of the box — debates, chat, enrichment, and analysis all run on a built-in key with Gemini Flash Lite. The model and rate limits are fixed to keep things fair for everyone.',
+      'Want more flexibility? Add your own API key in Settings to choose your model, switch backends, and remove rate limits.',
     ],
   },
 ];
@@ -172,17 +170,13 @@ export function OnboardingTour({ onDismiss }: OnboardingTourProps) {
           <div className="onboarding-body">
             {current.body.map((p, i) => <p key={i}>{p}</p>)}
             {isLastStep && (
-              <>
-                <p>
-                  <strong>Get a free API key:</strong>{' '}
-                  <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">
-                    Google AI Studio
-                  </a>
-                </p>
-                <p>
-                  Once you have a key, open <strong>Settings</strong> from the toolbar and paste it into the AI Backend section. Gemini is selected by default.
-                </p>
-              </>
+              <p>
+                <strong>Get a free API key:</strong>{' '}
+                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">
+                  Google AI Studio
+                </a>
+                {' '}— then open <strong>Settings</strong> to add it.
+              </p>
             )}
           </div>
           {current.badge && (

@@ -203,6 +203,111 @@ export function showDumpToast(opts: {
   setTimeout(() => removeToast(toast), TOAST_DURATION_MS);
 }
 
+/**
+ * Show an error toast when a flight recorder dump fails to persist.
+ * Offers a retry button and (web-only) a client-side blob download fallback.
+ */
+export function showDumpErrorToast(opts: {
+  errorMessage: string;
+  isWeb: boolean;
+  ndjson: string;
+  onRetry: () => void;
+}): void {
+  const container = getOrCreateContainer();
+
+  const toast = document.createElement('div');
+  Object.assign(toast.style, {
+    position: 'relative',
+    background: 'var(--bg-secondary, #1e1e2e)',
+    color: 'var(--text-primary, #cdd6f4)',
+    border: '1px solid #f38ba8',
+    borderRadius: '6px',
+    padding: '10px 14px',
+    fontSize: '12px',
+    fontFamily: 'var(--font-mono, monospace)',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+    pointerEvents: 'auto',
+    maxWidth: '420px',
+    opacity: '0',
+    transform: 'translateY(10px)',
+    transition: 'opacity 0.2s, transform 0.2s',
+  });
+
+  const title = document.createElement('div');
+  title.textContent = 'Flight recorder dump failed';
+  Object.assign(title.style, {
+    fontWeight: '600',
+    marginBottom: '4px',
+    color: '#f38ba8',
+  });
+  toast.appendChild(title);
+
+  const msg = document.createElement('div');
+  msg.textContent = opts.errorMessage.slice(0, 200);
+  Object.assign(msg.style, { opacity: '0.7', marginBottom: '8px', wordBreak: 'break-all' });
+  toast.appendChild(msg);
+
+  const btnRow = document.createElement('div');
+  Object.assign(btnRow.style, { display: 'flex', gap: '6px' });
+
+  const retryBtn = document.createElement('button');
+  retryBtn.textContent = 'Retry';
+  Object.assign(retryBtn.style, BTN_STYLE);
+  retryBtn.onclick = () => {
+    removeToast(toast);
+    opts.onRetry();
+  };
+  btnRow.appendChild(retryBtn);
+
+  if (opts.isWeb) {
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = 'Save locally';
+    Object.assign(saveBtn.style, { ...BTN_STYLE, background: '#a6e3a1' });
+    saveBtn.onclick = () => {
+      const blob = new Blob([opts.ndjson], { type: 'application/x-ndjson' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      a.href = url;
+      a.download = `flight-dump-${ts}.ndjson`;
+      a.click();
+      URL.revokeObjectURL(url);
+      saveBtn.textContent = 'Saved';
+      saveBtn.disabled = true;
+    };
+    btnRow.appendChild(saveBtn);
+  }
+
+  toast.appendChild(btnRow);
+
+  // Dismiss button
+  const dismiss = document.createElement('button');
+  dismiss.textContent = '×';
+  Object.assign(dismiss.style, {
+    position: 'absolute',
+    top: '4px',
+    right: '8px',
+    background: 'none',
+    border: 'none',
+    color: 'var(--text-muted, #6c7086)',
+    fontSize: '16px',
+    cursor: 'pointer',
+    padding: '0 2px',
+    lineHeight: '1',
+  });
+  dismiss.onclick = () => removeToast(toast);
+  toast.appendChild(dismiss);
+
+  container.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateY(0)';
+  });
+
+  setTimeout(() => removeToast(toast), TOAST_DURATION_MS);
+}
+
 function removeToast(toast: HTMLElement): void {
   toast.style.opacity = '0';
   toast.style.transform = 'translateY(10px)';
