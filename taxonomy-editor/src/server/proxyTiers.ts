@@ -20,12 +20,12 @@ export interface ResolvedTier {
   limits: TierLimits;
   allowedBackends: string[];
   /**
-   * Free tier (t/793): the server injects FREE_TIER_GEMINI_KEY, the model is
-   * pinned, and prompts are capped. Absent/undefined for all other tiers.
+   * Free tier (t/793): the server injects FREE_TIER_GEMINI_KEY and the model is
+   * pinned. Absent/undefined for all other tiers. Cost is bounded by
+   * tokensPerDay + per-IP rate limits (no char cap — removed in t/812).
    */
   serverProvidedKey?: boolean;
   pinnedModel?: string;
-  maxPromptChars?: number;
 }
 
 interface TierDefaults {
@@ -122,7 +122,6 @@ const FREE_TIER: ResolvedTier = {
   allowedBackends: ['gemini'],
   serverProvidedKey: true,
   pinnedModel: 'gemini-flash-lite-latest',
-  maxPromptChars: 4000,
 };
 
 /** Whether the server-provided free tier is configured (FREE_TIER_GEMINI_KEY set). */

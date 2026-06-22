@@ -900,9 +900,9 @@ post('/api/ai/generate', async (req, res, body) => {
     const limitKey = isFree ? `free:${getClientIp(req)}` : (principalName || '_anonymous');
     const effectiveModel = isFree ? (tier.pinnedModel ?? model) : model;
 
-    if (isFree && tier.maxPromptChars && (prompt?.length ?? 0) > tier.maxPromptChars) {
-      res.writeHead(400); res.end(JSON.stringify({ error: `Prompt too long for the free tier (max ${tier.maxPromptChars} characters)`, limitType: 'max_prompt_chars' })); return;
-    }
+    // Free-tier cost is bounded by tokensPerDay + per-IP rate limits; the
+    // redundant per-prompt char cap was removed in t/812 (broke long debate
+    // prompts: system instructions + soul docs + taxonomy context > 4000 chars).
 
     // Check backend is allowed
     const backend = ai.resolveBackend(effectiveModel || DEFAULT_MODEL);
