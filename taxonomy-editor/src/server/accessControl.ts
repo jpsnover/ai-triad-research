@@ -87,6 +87,11 @@ export function isTerminalAccessAllowed(opts: {
 // AI/inference routes anonymous users can never reach (keys, AI, embeddings, NLI).
 const AI_ROUTE_PREFIXES = ['/api/keys', '/api/ai/', '/api/embeddings/', '/api/nli/'];
 
+// AI-prefixed routes that are nonetheless safe for anonymous callers: local
+// server-side config with no key, no cost, and no abuse vector (t/811). Checked
+// before the blanket AI block so chat/debates can set temperature pre-generation.
+const ANON_SAFE_AI_ROUTES = ['/api/ai/temperature'];
+
 /**
  * Whether an anonymous (signed-out) user may call `method urlPath` in
  * AUTH_OPTIONAL mode. Anonymous users get read-only, non-AI access plus
@@ -94,6 +99,9 @@ const AI_ROUTE_PREFIXES = ['/api/keys', '/api/ai/', '/api/embeddings/', '/api/nl
  * `anon_route_blocked` 403 in the auth gate (t/763).
  */
 export function isAnonAllowedRoute(method: string, urlPath: string): boolean {
+  // Local-config AI routes (e.g. temperature) are exempt from the blanket AI
+  // block — no key, no cost, no abuse vector (t/811). Must precede the block.
+  if (ANON_SAFE_AI_ROUTES.includes(urlPath)) return true;
   // Block all AI-related routes regardless of method
   if (AI_ROUTE_PREFIXES.some(p => urlPath.startsWith(p))) return false;
   if (urlPath === '/api/evidence-qbaf') return false;
@@ -120,6 +128,7 @@ export function isAnonAllowedRoute(method: string, urlPath: string): boolean {
     '/api/source-evidence',
     '/api/analytics/event',
     '/api/admin/telemetry',
+    '/api/admin/errors',
     '/api/data/check-updates',
     '/api/community/submit',
     '/focus-node',

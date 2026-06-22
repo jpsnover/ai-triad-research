@@ -50,6 +50,19 @@ describe('isAnonAllowedRoute (t/763 anon_route_blocked classification)', () => {
     }
     expect(isAnonAllowedRoute('GET', '/api/debates/abc/news-report')).toBe(false);
   });
+
+  it('allows anon POST to /api/ai/temperature despite the /api/ai/ block (t/811)', () => {
+    // Local server config — no key, no cost, no abuse vector. Chat + debates set
+    // temperature before generation; the carve-out must precede the AI block.
+    expect(isAnonAllowedRoute('POST', '/api/ai/temperature')).toBe(true);
+    // Still blocks the other AI routes (the carve-out is exact-path only).
+    expect(isAnonAllowedRoute('POST', '/api/ai/generate')).toBe(false);
+    expect(isAnonAllowedRoute('POST', '/api/ai/temperature/x')).toBe(false);
+  });
+
+  it('allows anon POST to /api/admin/errors (t/811)', () => {
+    expect(isAnonAllowedRoute('POST', '/api/admin/errors')).toBe(true);
+  });
   it('allows anonymous save/delete of own ephemeral chats and debates', () => {
     expect(isAnonAllowedRoute('PUT', '/api/debates')).toBe(true);
     expect(isAnonAllowedRoute('DELETE', '/api/debates/abc')).toBe(true);
