@@ -14,6 +14,7 @@ import { Dictionary } from './dictionary';
 import { RingBuffer } from './ringBuffer';
 import { serializeDump } from './serializer';
 import { FlightRecorder } from './flightRecorder';
+import { redactString, redactFieldValue, redactRecord } from './redact';
 import type {
   RecordInput,
   FlightRecorderEvent,
@@ -721,5 +722,199 @@ describe('getSummary', () => {
     const large = recorder.getSummary().buffer_size_bytes;
 
     expect(large).toBeGreaterThan(small);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// Redaction — unit tests
+// ═══════════════════════════════════════════════════════════════════
+
+describe('redactString', () => {
+  it('redacts Google API keys (AIzaSy prefix)', () => {
+    const input = 'key=AIzaSyFakeKeyForTesting1234567890123456';
+    expect(redactString(input)).toBe('key=[REDACTED]');
+  });
+
+  it('redacts OpenAI/Anthropic keys (sk- prefix)', () => {
+    const input = 'Authorization: sk-abcdefghijklmnopqrstuvwxyz';
+    expect(redactString(input)).toBe('Authorization: [REDACTED]');
+  });
+
+  it('redacts Groq keys (gsk_ prefix)', () => {
+    const input = 'using gsk_abcdefghijklmnopqrstuvwxyz';
+    expect(redactString(input)).toBe('using [REDACTED]');
+  });
+
+  it('redacts xAI keys (xai- prefix)', () => {
+    const input = 'token xai-abcdefghijklmnopqrstuvwxyz';
+    expect(redactString(input)).toBe('token [REDACTED]');
+  });
+
+  it('redacts GitHub PATs (ghp_ prefix)', () => {
+    const input = 'ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmn';
+    expect(redactString(input)).toBe('[REDACTED]');
+  });
+
+  it('redacts GitHub fine-grained PATs (github_pat_ prefix)', () => {
+    const input = 'github_pat_ABCDEFGHIJKLMNOPQRSTUVWX';
+    expect(redactString(input)).toBe('[REDACTED]');
+  });
+
+  it('redacts Bearer tokens', () => {
+    const input = 'Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.payload.sig';
+    expect(redactString(input)).toBe('Bearer [REDACTED]');
+  });
+
+  it('masks email addresses (first char + *** + @domain)', () => {
+    const input = 'contact test@example.com for help';
+    expect(redactString(input)).toBe('contact t***@example.com for help');
+  });
+
+  it('masks multiple emails in one string', () => {
+    const input = 'from alice@foo.org to bob@bar.net';
+    expect(redactString(input)).toBe('from a***@foo.org to b***@bar.net');
+  });
+
+  it('leaves safe strings unchanged', () => {
+    const input = 'model=gemini-2.0-flash, duration=1234ms';
+    expect(redactString(input)).toBe(input);
+  });
+});
+
+describe('redactFieldValue', () => {
+  it('strips generic long tokens from sensitive field names', () => {
+    const longToken = 'A'.repeat(40);
+    expect(redactFieldValue('apiKey', longToken)).toBe('[REDACTED]');
+    expect(redactFieldValue('auth_token', longToken)).toBe('[REDACTED]');
+    expect(redactFieldValue('secret', longToken)).toBe('[REDACTED]');
+    expect(redactFieldValue('password', longToken)).toBe('[REDACTED]');
+    expect(redactFieldValue('x_authorization', longToken)).toBe('[REDACTED]');
+  });
+
+  it('does NOT strip long tokens from non-sensitive fields', () => {
+    const longValue = 'A'.repeat(40);
+    expect(redactFieldValue('component', longValue)).toBe(longValue);
+    expect(redactFieldValue('model', longValue)).toBe(longValue);
+  });
+});
+
+describe('redactRecord', () => {
+  it('redacts nested objects recursively', () => {
+    const data = {
+      config: {
+        apiKey: 'AIzaSyFakeKeyForTesting1234567890123456',
+        model: 'gemini-2.0-flash',
+      },
+      count: 42,
+    };
+    const result = redactRecord(data) as Record<string, unknown>;
+    const config = result.config as Record<string, unknown>;
+
+    expect(config.apiKey).toBe('[REDACTED]');
+    expect(config.model).toBe('gemini-2.0-flash');
+    expect(result.count).toBe(42);
+  });
+
+  it('preserves arrays and non-object values', () => {
+    const data = { tags: ['a', 'b'], enabled: true, score: 0.95 };
+    const result = redactRecord(data);
+    expect(result.tags).toEqual(['a', 'b']);
+    expect(result.enabled).toBe(true);
+    expect(result.score).toBe(0.95);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// Redaction — integration (serializer)
+// ═══════════════════════════════════════════════════════════════════
+
+describe('serializer redaction integration', () => {
+  let recorder: FlightRecorder;
+
+  beforeEach(() => {
+    recorder = new FlightRecorder({ capacity: 10, dumpOnError: false });
+  });
+
+  it('redacts API keys and emails in event data within dumps', () => {
+    recorder.record(makeInput({
+      data: {
+        apiKey: 'AIzaSyFakeKeyForTesting1234567890123456',
+        userEmail: 'test@example.com',
+      },
+    }));
+
+    const { ndjson } = recorder.buildDump('explicit');
+    const lines = ndjson.trim().split('\n');
+    const eventLine = JSON.parse(lines[2]);
+
+    expect(eventLine.data.apiKey).toBe('[REDACTED]');
+    expect(eventLine.data.userEmail).toBe('t***@example.com');
+  });
+
+  it('redacts secrets in error.message within dumps', () => {
+    recorder.record(makeInput({
+      error: {
+        name: 'AuthError',
+        message: 'Invalid key: sk-abcdefghijklmnopqrstuvwxyz',
+      },
+    }));
+
+    const { ndjson } = recorder.buildDump('explicit');
+    const lines = ndjson.trim().split('\n');
+    const eventLine = JSON.parse(lines[2]);
+
+    expect(eventLine.error.message).toContain('[REDACTED]');
+    expect(eventLine.error.message).not.toContain('sk-');
+    expect(eventLine.error.name).toBe('AuthError');
+  });
+
+  it('redacts secrets in event message within dumps', () => {
+    recorder.record(makeInput({
+      message: 'API call failed with key AIzaSyFakeKeyForTesting1234567890123456',
+    }));
+
+    const { ndjson } = recorder.buildDump('explicit');
+    const lines = ndjson.trim().split('\n');
+    const eventLine = JSON.parse(lines[2]);
+
+    expect(eventLine.message).toContain('[REDACTED]');
+    expect(eventLine.message).not.toContain('AIzaSy');
+  });
+
+  it('redacts trigger error.message and context', () => {
+    const { ndjson } = recorder.buildDump(
+      'uncaught_error',
+      { name: 'Error', message: 'Bearer eyJtoken123456 failed' },
+      { apiKey: 'sk-abcdefghijklmnopqrstuvwxyz' },
+    );
+
+    const lines = ndjson.trim().split('\n');
+    const trigger = JSON.parse(lines[lines.length - 1]);
+
+    expect(trigger.error.message).toContain('[REDACTED]');
+    expect(trigger.error.message).not.toContain('eyJtoken');
+    expect(trigger.context.apiKey).toBe('[REDACTED]');
+  });
+
+  it('passes safe fields through unchanged', () => {
+    recorder.record(makeInput({
+      message: 'debate round completed',
+      data: {
+        component: 'debate-engine',
+        type: 'turn.stage',
+        duration_ms: 1234,
+        model: 'gemini-2.0-flash',
+        round: 3,
+      },
+    }));
+
+    const { ndjson } = recorder.buildDump('explicit');
+    const lines = ndjson.trim().split('\n');
+    const eventLine = JSON.parse(lines[2]);
+
+    expect(eventLine.message).toBe('debate round completed');
+    expect(eventLine.data.component).toBe('debate-engine');
+    expect(eventLine.data.type).toBe('turn.stage');
+    expect(eventLine.data.model).toBe('gemini-2.0-flash');
   });
 });

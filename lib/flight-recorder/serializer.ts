@@ -10,6 +10,7 @@ import type {
   DumpEvent,
   DumpTrigger,
 } from './types.js';
+import { redactRecord, redactString } from './redact.js';
 
 /**
  * Serialize a flight recorder snapshot to NDJSON (one JSON object per line).
@@ -66,17 +67,22 @@ export function serializeDump(
       ...(event.phase !== undefined && { phase: event.phase }),
       ...(event.round !== undefined && { round: event.round }),
       ...(event.turn_index !== undefined && { turn_index: event.turn_index }),
-      ...(event.message !== undefined && { message: event.message }),
+      ...(event.message !== undefined && { message: redactString(event.message) }),
       ...(event.data !== undefined && { data: expandData(event.data, dictionary) }),
-      ...(event.error !== undefined && { error: event.error }),
+      ...(event.error !== undefined && { error: { ...event.error, message: redactString(event.error.message) } }),
       ...(event.duration_ms !== undefined && { duration_ms: event.duration_ms }),
       ...(event.error_category !== undefined && { error_category: event.error_category }),
     };
     lines.push(JSON.stringify(expanded));
   }
 
-  // Last line: trigger
-  lines.push(JSON.stringify(trigger));
+  // Last line: trigger (with redaction)
+  const redactedTrigger: DumpTrigger = {
+    ...trigger,
+    ...(trigger.error && { error: { ...trigger.error, message: redactString(trigger.error.message) } }),
+    ...(trigger.context && { context: redactRecord(trigger.context) }),
+  };
+  lines.push(JSON.stringify(redactedTrigger));
 
   return lines.join('\n') + '\n';
 }
@@ -96,5 +102,5 @@ function expandData(
       ? value  // Keep numbers as numbers — only component/speaker use handles
       : value;
   }
-  return result;
+  return redactRecord(result);
 }
