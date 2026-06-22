@@ -52,7 +52,7 @@ import * as proxyTiers from './proxyTiers.js';
 import * as rateLimiter from './rateLimiter.js';
 import * as analytics from './analytics.js';
 import { FlightRecorder } from '../../../lib/flight-recorder/flightRecorder.js';
-import { log, runWithRequestContext, generateRequestId } from './logger.js';
+import { log, runWithRequestContext, generateRequestId, getRequestId, getRequestContext } from './logger.js';
 import {
   requireAdmin,
   registerReviewHandler,
@@ -72,6 +72,12 @@ registerReviewHandler(communityReviewHandler);
 
 // ── Server-side flight recorder ──
 const serverRecorder = new FlightRecorder({ capacity: 2000, dumpOnError: false });
+// t/803: stamp the per-request correlation id (from the logger ALS) onto every
+// flight-recorder event recorded during request handling, so server events
+// correlate to the originating HTTP request. An explicit request_id passed to
+// record() still wins; outside a request the field is omitted.
+const _baseServerRecord = serverRecorder.record.bind(serverRecorder);
+serverRecorder.record = (input) => _baseServerRecord({ request_id: getRequestId(), ...input });
 serverRecorder.intern('component', 'server');
 serverRecorder.intern('component', 'git');
 serverRecorder.intern('component', 'data-pull');
@@ -277,10 +283,10 @@ function error(res: http.ServerResponse, message: string, status = 500, cause?: 
       message: `${route}: server error (detail withheld from client)`,
       error: { name: (cause as Error)?.name ?? 'Error', message, stack: (cause as Error)?.stack },
     });
-    json(res, { error: 'Internal server error' }, status);
+    json(res, { error: 'Internal server error', requestId: getRequestId() }, status);
     return;
   }
-  json(res, { error: message }, status);
+  json(res, { error: message, requestId: getRequestId() }, status);
 }
 
 // Best-effort client IP for rate limiting — first X-Forwarded-For hop (Azure
@@ -3321,6 +3327,10 @@ async function handleRequestInner(
   const effectivePrincipal = principalName || '_local';
   const effectiveIdp = idp || '_local';
   const storageUserId = deriveStorageUserId(effectivePrincipal, effectiveIdp);
+  // t/803: surface the sanitized storage id (e.g. "jpsnover") in the request log
+  // context — never the raw email/principal (PII).
+  const reqCtx = getRequestContext();
+  if (reqCtx) reqCtx.userId = storageUserId;
   const anonymousSessionId = isAnon ? parseCookies(req)['anon_session_id'] : undefined;
   const userCtx = { principalName: effectivePrincipal, idp: effectiveIdp, branchName: sessionBranch, storageUserId, isAnonymous: isAnon, anonymousSessionId };
   await runWithUser(userCtx, async () => {

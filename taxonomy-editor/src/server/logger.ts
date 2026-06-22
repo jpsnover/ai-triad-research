@@ -43,9 +43,9 @@ export function getRequestContext(): RequestContext | undefined {
   return requestAls.getStore();
 }
 
-/** Generate a short, unique request ID. */
+/** Generate a unique request ID (UUID-based, prefixed for easy grep; no PII). */
 export function generateRequestId(): string {
-  return crypto.randomBytes(8).toString('hex');
+  return `req-${crypto.randomUUID()}`;
 }
 
 // ── Logger configuration ──

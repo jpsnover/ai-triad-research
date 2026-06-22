@@ -26,6 +26,7 @@ import { ActionableError } from '../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import type { FlightRecorder, RecordInput } from '../../../lib/flight-recorder/index.js';
 import { getCurrentUserId, getSessionBranchName } from './userContext.js';
+import { getRequestId } from './logger.js';
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -1097,10 +1098,9 @@ export class GitHubAPIBackend implements StorageBackend {
     body?: unknown,
     callId?: string,
   ): Promise<{ ok: boolean; status: number; data: unknown; error?: string; etag?: string }> {
-    const reqUserId = this.getEffectiveUserId();
-    const requestId = reqUserId
-      ? `${reqUserId}-${Date.now()}`
-      : undefined;
+    // t/803: correlate GitHub API calls to the originating HTTP request. Never
+    // embed the user's email/principal in the id (it was PII in every log line).
+    const requestId = getRequestId() ?? `req-${crypto.randomUUID()}`;
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       const startMs = Date.now();
