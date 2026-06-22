@@ -576,7 +576,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                 )}
                 {freeTier && activeModelHasKey && !hasApiKey[activeModelBackend] && (
                   <div style={{ color: 'var(--info, #3b82f6)', fontSize: '0.75rem', marginTop: 4 }}>
-                    Free tier &mdash; {tierInfo!.pinnedModel} &middot; {tierInfo!.limits.requestsPerMinute} req/min &middot; {Math.round(tierInfo!.limits.tokensPerDay / 1000)}K tokens/day &middot; {tierInfo!.maxPromptChars?.toLocaleString()} char limit
+                    Free tier &mdash; {tierInfo!.pinnedModel} &middot; {tierInfo!.limits.requestsPerMinute} req/min &middot; {Math.round(tierInfo!.limits.tokensPerDay / 1000)}K tokens/day
                   </div>
                 )}
                 {activeModelHasKey && fallbackWarnings.length > 0 && (

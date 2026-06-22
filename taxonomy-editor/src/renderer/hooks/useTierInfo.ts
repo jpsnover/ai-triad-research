@@ -11,7 +11,6 @@ export interface TierInfo {
   principalName: string | null;
   serverProvidedKey?: boolean;
   pinnedModel?: string;
-  maxPromptChars?: number;
 }
 
 export interface TierUsage {

@@ -112,7 +112,7 @@ export interface AppAPI {
   setDebateTemperature: (temp: number | null) => Promise<void>;
 
   // --- Proxy tier & usage ---
-  getProxyTier?: () => Promise<{ level: string; limits: { requestsPerMinute: number; tokensPerDay: number }; allowedBackends: string[]; principalName: string | null; serverProvidedKey?: boolean; pinnedModel?: string; maxPromptChars?: number }>;
+  getProxyTier?: () => Promise<{ level: string; limits: { requestsPerMinute: number; tokensPerDay: number }; allowedBackends: string[]; principalName: string | null; serverProvidedKey?: boolean; pinnedModel?: string }>;
   getProxyUsage?: () => Promise<{ tier: string; limits: { requestsPerMinute: number; tokensPerDay: number }; usage: { requestsInWindow: number; tokensToday: number } }>;
 
   // --- Embeddings & NLI ---

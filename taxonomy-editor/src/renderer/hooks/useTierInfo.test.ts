@@ -17,7 +17,6 @@ const freeTier: TierInfo = {
   principalName: null,
   serverProvidedKey: true,
   pinnedModel: 'gemini-flash-lite-latest',
-  maxPromptChars: 4000,
 };
 
 const byokTier: TierInfo = {
