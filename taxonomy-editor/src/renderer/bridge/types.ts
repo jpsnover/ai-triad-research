@@ -84,6 +84,9 @@ export interface AppAPI {
   loadAIModels: () => Promise<unknown>;
   refreshAIModels: () => Promise<unknown>;
   setApiKey: (key: string, backend?: string) => Promise<void>;
+  addApiKey: (key: string, backend: string) => Promise<{ count: number }>;
+  removeApiKey: (index: number, backend: string) => Promise<void>;
+  getApiKeys: (backend: string) => Promise<{ index: number; masked: string }[]>;
   deleteApiKey: (backend?: string) => Promise<void>;
   deleteAllApiKeys: () => Promise<void>;
   hasApiKey: (backend?: string) => Promise<boolean>;

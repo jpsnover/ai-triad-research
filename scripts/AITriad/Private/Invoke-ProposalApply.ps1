@@ -87,6 +87,10 @@ function Invoke-ProposalApply {
 
             $NodeObj = [PSCustomObject]$NewNode
             Add-ChangeHistoryEntry -Node $NodeObj -Action 'created' -Fields @($NewNode.Keys | Where-Object { $_ -ne 'id' })
+            Add-TextHistoryEntry -Node $NodeObj -Field 'label' -Value $Proposal.label -Source 'initial'
+            if ($Proposal.description) {
+                Add-TextHistoryEntry -Node $NodeObj -Field 'description' -Value $Proposal.description -Source 'initial'
+            }
             $Raw.nodes += $NodeObj
         }
 
@@ -96,8 +100,16 @@ function Invoke-ProposalApply {
                 return [PSCustomObject]@{ Success = $false; Error = "Target node '$($Proposal.target_node_id)' not found" }
             }
 
-            if ($Proposal.label) { $Target.label = $Proposal.label }
-            if ($Proposal.description) { $Target.description = $Proposal.description }
+            if ($Proposal.label) {
+                Add-TextHistoryEntry -Node $Target -Field 'label' `
+                    -Previous $Target.label -Value $Proposal.label -Source 'batch_audit' -Reason "RELABEL proposal"
+                $Target.label = $Proposal.label
+            }
+            if ($Proposal.description) {
+                Add-TextHistoryEntry -Node $Target -Field 'description' `
+                    -Previous $Target.description -Value $Proposal.description -Source 'batch_audit' -Reason "RELABEL proposal"
+                $Target.description = $Proposal.description
+            }
         }
 
         'MERGE' {
@@ -110,8 +122,16 @@ function Invoke-ProposalApply {
             }
 
             # Update survivor label/description if proposal provides them
-            if ($Proposal.label) { $Survivor.label = $Proposal.label }
-            if ($Proposal.description) { $Survivor.description = $Proposal.description }
+            if ($Proposal.label) {
+                Add-TextHistoryEntry -Node $Survivor -Field 'label' `
+                    -Previous $Survivor.label -Value $Proposal.label -Source 'batch_audit' -Reason "MERGE proposal"
+                $Survivor.label = $Proposal.label
+            }
+            if ($Proposal.description) {
+                Add-TextHistoryEntry -Node $Survivor -Field 'description' `
+                    -Previous $Survivor.description -Value $Proposal.description -Source 'batch_audit' -Reason "MERGE proposal"
+                $Survivor.description = $Proposal.description
+            }
 
             # Remove merged nodes (except survivor)
             $RemoveIds = $MergeIds | Where-Object { $_ -ne $SurvivorId }
@@ -166,7 +186,12 @@ function Invoke-ProposalApply {
                     children           = @()
                     situation_refs = $ChildSitRefs
                 }
-                $Raw.nodes += $ChildNode
+                $ChildObj = [PSCustomObject]$ChildNode
+                Add-TextHistoryEntry -Node $ChildObj -Field 'label' -Value $Child.label -Source 'initial'
+                if ($Child.description) {
+                    Add-TextHistoryEntry -Node $ChildObj -Field 'description' -Value $Child.description -Source 'initial'
+                }
+                $Raw.nodes += $ChildObj
             }
 
             # Update parent to reference children
@@ -243,7 +268,12 @@ function Invoke-ProposalApply {
                     children    = @()
                     situation_refs = @()
                 }
-                $Raw.nodes += [PSCustomObject]$IntNode
+                $IntObj = [PSCustomObject]$IntNode
+                Add-TextHistoryEntry -Node $IntObj -Field 'label' -Value $SubGroup.label -Source 'initial'
+                if ($SubGroup.description) {
+                    Add-TextHistoryEntry -Node $IntObj -Field 'description' -Value $SubGroup.description -Source 'initial'
+                }
+                $Raw.nodes += $IntObj
 
                 # Move assigned children under the new intermediate node
                 if ($SubGroup.PSObject.Properties['assigned_children']) {
@@ -251,7 +281,7 @@ function Invoke-ProposalApply {
                         $Child = $Raw.nodes | Where-Object { $_.id -eq $ChildId }
                         if ($Child) {
                             $Child.parent_id = $SubGroup.suggested_id
-                            $IntNode.children = @($IntNode.children) + @($ChildId)
+                            $IntObj.children = @($IntObj.children) + @($ChildId)
                         }
                     }
                     # Remove moved children from original parent's children array
@@ -285,7 +315,12 @@ function Invoke-ProposalApply {
                 children    = @()
                 situation_refs = @()
             }
-            $Raw.nodes += [PSCustomObject]$NewNode
+            $NewObj = [PSCustomObject]$NewNode
+            Add-TextHistoryEntry -Node $NewObj -Field 'label' -Value $Proposal.label -Source 'initial'
+            if ($Proposal.description) {
+                Add-TextHistoryEntry -Node $NewObj -Field 'description' -Value $Proposal.description -Source 'initial'
+            }
+            $Raw.nodes += $NewObj
         }
 
         default {

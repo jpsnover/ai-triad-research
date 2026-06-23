@@ -16,6 +16,8 @@ import type {
   Category,
   ConflictInstance,
   ConflictNote,
+  TextHistoryEntry,
+  TextEditSource,
 } from '../../../types/taxonomy';
 import { interpretationText } from '../../../types/taxonomy';
 import {
@@ -113,7 +115,7 @@ export interface TaxonomyDataSlice {
   save: () => Promise<void>;
   dismissSaveError: () => void;
 
-  updatePovNode: (pov: Pov, nodeId: string, updates: Partial<PovNode>) => void;
+  updatePovNode: (pov: Pov, nodeId: string, updates: Partial<PovNode>, editSource?: { source: TextEditSource; debateId?: string; reason?: string }) => void;
   createPovNode: (pov: Pov, category: Category) => string;
   deletePovNode: (pov: Pov, nodeId: string) => void;
   movePovNodeCategory: (pov: Pov, nodeId: string, newCategory: Category) => void;
@@ -514,8 +516,8 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
     }
   },
 
-  updatePovNode: (pov, nodeId, updates) => {
-    getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'debug', message: 'updatePovNode.called', data: { pov, nodeId, fields: Object.keys(updates) } });
+  updatePovNode: (pov, nodeId, updates, editSource) => {
+    getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'debug', message: 'updatePovNode.called', data: { pov, nodeId, fields: Object.keys(updates), editSource: editSource?.source ?? 'manual' } });
     if (updates.category) {
       const validation = validatePovNodeId(nodeId, updates.category);
       if (!validation.valid) {
@@ -526,12 +528,24 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
     set((state) => {
       const file = state[pov];
       if (!file) return state;
-      const newNodes = file.nodes.map(n =>
-        n.id === nodeId ? { ...n, ...updates } : n,
-      );
+      const date = todayISO();
+      const source = editSource?.source ?? 'interactive';
+      const newNodes = file.nodes.map(n => {
+        if (n.id !== nodeId) return n;
+        const patched = { ...n, ...updates };
+        if ('label' in updates && updates.label !== n.label) {
+          const entry: TextHistoryEntry = { date, previous: n.label, value: updates.label!, source, ...(editSource?.debateId ? { debate_id: editSource.debateId } : {}), ...(editSource?.reason ? { reason: editSource.reason } : {}) };
+          patched.label_history = [...(n.label_history ?? []), entry];
+        }
+        if ('description' in updates && updates.description !== n.description) {
+          const entry: TextHistoryEntry = { date, previous: n.description, value: updates.description!, source, ...(editSource?.debateId ? { debate_id: editSource.debateId } : {}), ...(editSource?.reason ? { reason: editSource.reason } : {}) };
+          patched.description_history = [...(n.description_history ?? []), entry];
+        }
+        return patched;
+      });
       const newFile: PovTaxonomyFile = {
         ...file,
-        last_modified: todayISO(),
+        last_modified: date,
         nodes: newNodes,
       };
       const newDirty = new Set(state.dirty);

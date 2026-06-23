@@ -70,12 +70,12 @@ project-root/
 │   └── vite.config.ts
 │
 ├── scripts/                        # PowerShell module + automation
-│   ├── ProjectName/                # PS module (rename per project)
-│   │   ├── ProjectName.psd1       # Module manifest
-│   │   ├── ProjectName.psm1       # Root module (dot-sources Public/ + Private/)
-│   │   ├── Public/                 # Exported cmdlets
-│   │   ├── Private/                # Internal helpers
-│   │   └── Prompts/               # AI system prompts
+│   ├── Project-Template/           # PS module (rename via Initialize-ProjectModule)
+│   │   ├── Project-Template.psd1  # Module manifest (v0.1.0)
+│   │   ├── Project-Template.psm1  # Root module (dot-sources Public/ + Private/)
+│   │   ├── Public/                 # 15 exported cmdlets (see §12)
+│   │   ├── Private/                # Internal helpers (ActionableError, recovery)
+│   │   └── en-US/                 # Help files
 │   ├── Build-Module.ps1            # Build + bundle script
 │   ├── project-map.mjs            # Live project overview (dir tree + exports + status)
 │   └── requirements.txt            # Python dependencies
@@ -397,7 +397,7 @@ New-ActionableError -Goal '...' -Problem '...' -Location '...' -NextSteps @('...
 | Verify script | package.json | `npm run verify` = tsc + eslint + vitest |
 | Bicep templates | deploy/azure/ | Generalize resource names |
 | Dockerfile patterns | deploy/azure/ | Multi-stage template |
-| PS module structure | scripts/AITriad/ | Renamed scaffold |
+| PS module structure | scripts/AITriad/ | `scripts/Project-Template/` with 15 cmdlets (see §12) |
 | Git conventions | CLAUDE.md | CONTRIBUTING.md section |
 | Security patterns | Various | SECURITY.md + assertSafeId utility |
 
@@ -410,6 +410,139 @@ New-ActionableError -Goal '...' -Problem '...' -Location '...' -NextSteps @('...
 - **Data repo patterns** — two-repo split is project-specific
 - **Electron-specific IPC** — bridge pattern is included as reference, not scaffolded
 - **ML model downloads** — sentence-transformers, embedding models (project-specific)
+
+---
+
+## 12. PowerShell Module (`scripts/Project-Template/`)
+
+**Source:** Generalized from `scripts/AITriad/` (120+ cmdlets), distilled to 15 reusable infrastructure cmdlets + 2 private helpers. All domain-specific cmdlets (taxonomy, debate, embedding, POV) are excluded — this module provides the operational backbone that every project needs.
+
+**Post-clone setup:** Run `Initialize-ProjectModule -ProjectName 'YourProject'` to rename the module directory, manifest, and root module.
+
+### Module Structure
+
+```
+scripts/Project-Template/
+├── Project-Template.psd1           # Module manifest (v0.1.0, PS 7.0+)
+├── Project-Template.psm1           # Root module (auto-discovers repo root, dot-sources Public/ + Private/)
+├── Public/                          # 15 exported cmdlets
+│   ├── Get-FlightRecorderDump.ps1
+│   ├── Get-FlightRecorderReport.ps1
+│   ├── Show-FlightRecorder.ps1
+│   ├── Find-FlightRecorderPattern.ps1
+│   ├── Test-FlightRecorderPII.ps1
+│   ├── Invoke-VerifyGate.ps1
+│   ├── Invoke-LicenseAudit.ps1
+│   ├── Invoke-DependencyAudit.ps1
+│   ├── Test-VersionConsistency.ps1
+│   ├── Test-SBOMCurrency.ps1
+│   ├── New-ADR.ps1
+│   ├── Get-ADRIndex.ps1
+│   ├── Get-ProjectHealth.ps1
+│   ├── Get-ProjectMap.ps1
+│   └── Initialize-ProjectModule.ps1
+├── Private/                         # Internal helpers
+│   └── New-ActionableError.ps1     # ActionableError + Invoke-WithRecovery
+└── en-US/                           # Help files
+```
+
+### Cmdlet Catalog
+
+#### Flight Recorder Processing (5 cmdlets)
+
+| Cmdlet | Purpose | Key Parameters |
+|--------|---------|----------------|
+| `Get-FlightRecorderDump` | List/retrieve NDJSON dump files from platform-specific app data | `-Last <N>`, `-DumpDir`, `-AppName` |
+| `Get-FlightRecorderReport` | Parse dump → structured analysis (levels, components, errors, time range, trigger) | `-Path`, `-Detailed`, `-AsObject` |
+| `Show-FlightRecorder` | Open dump in interactive HTML viewer (embeds data, launches browser) | `-Path`, `-Last` |
+| `Find-FlightRecorderPattern` | Scan multiple dumps for recurring error patterns (weekly maintenance check) | `-MinOccurrences 3`, `-DumpDir`, `-Last` |
+| `Test-FlightRecorderPII` | Scan dump for PII/secret leaks (API keys, emails, tokens, JWTs) | `-Path` (pipeline from Get-FlightRecorderDump) |
+
+**Pipeline example:**
+```powershell
+Get-FlightRecorderDump -Last 5 | Get-FlightRecorderReport -AsObject | Where-Object ErrorCount -gt 0
+Get-FlightRecorderDump -Last 1 | Test-FlightRecorderPII
+Find-FlightRecorderPattern -MinOccurrences 2 -Last 10
+```
+
+#### Maintenance & Compliance (5 cmdlets)
+
+| Cmdlet | Purpose | Maintenance Cadence |
+|--------|---------|---------------------|
+| `Invoke-VerifyGate` | Auto-detect app dirs, run `npm run verify` + Pester tests | Per-task |
+| `Invoke-LicenseAudit` | Check npm dependencies against allow/deny license lists | Weekly |
+| `Invoke-DependencyAudit` | Run `npm audit` + `pip-audit`, categorize by CVSS severity with SLA deadlines | Weekly |
+| `Test-VersionConsistency` | Verify version strings match across .psd1, package.json, CLAUDE.md | Per-release |
+| `Test-SBOMCurrency` | Regenerate THIRD-PARTY-NOTICES.txt, diff against committed version | Weekly |
+
+**SLA deadlines** (from `docs/security/dependency-policy.md`):
+- Critical: 48 hours
+- High: 7 days
+- Medium/Moderate: 30 days
+- Low: Next maintenance cycle
+
+#### ADR Management (2 cmdlets)
+
+| Cmdlet | Purpose | Key Parameters |
+|--------|---------|----------------|
+| `New-ADR` | Auto-number + scaffold ADR from Nygard template, open in editor | `-Title` (mandatory), `-Author`, `-Status`, `-ADRDir` |
+| `Get-ADRIndex` | Parse all ADRs → structured index (number, title, status, date, author) | `-Status` filter, `-ADRDir` |
+
+**Example:**
+```powershell
+New-ADR -Title 'Use ring buffer for diagnostic recording'
+Get-ADRIndex -Status accepted | Format-Table Number, Title, Date
+```
+
+#### Project Health & Utilities (3 cmdlets)
+
+| Cmdlet | Purpose | Key Parameters |
+|--------|---------|----------------|
+| `Get-ProjectHealth` | Aggregate dashboard: version consistency + ADR status + SBOM + dependency audit | `-Quick` (skip slow checks) |
+| `Get-ProjectMap` | Generate project overview: directory tree, key files, git status | `-Depth`, `-IncludeGitStatus` |
+| `Initialize-ProjectModule` | Post-clone: rename module from Project-Template to project name, update GUID/author | `-ProjectName` (mandatory), `-Author` |
+
+**Health check output:**
+```
+=== Project Health Check ===
+Check                Status Detail
+-----                ------ ------
+Version Consistency  PASS   v0.1.0
+ADR Status           PASS   Active: 3, Proposed: 1, Deprecated: 0
+SBOM Currency        PASS   Up to date
+Dependency Audit     FAIL   Critical: 0, High: 2, Medium: 5, Low: 3
+```
+
+#### Private Helpers (2 functions)
+
+| Function | Purpose |
+|----------|---------|
+| `New-ActionableError` | Structured error with Goal/Problem/Location/NextSteps. Supports `-Throw`, `-PassThru`, `-InnerError`. |
+| `Invoke-WithRecovery` | Retry + fallback wrapper. Configurable `-MaxRetries`, `-RetryDelaySeconds`, `-Fallback` scriptblock. |
+
+### Design Principles
+
+1. **All errors use ActionableError** — no bare `throw "message"` in any cmdlet (ADR-001)
+2. **Pipeline-first** — every cmdlet accepts pipeline input where sensible (Get-FlightRecorderDump | Get-FlightRecorderReport | ...)
+3. **Auto-discovery** — cmdlets find repo root, app dirs, dump dirs automatically; override with explicit parameters
+4. **Structured output** — every cmdlet returns PSCustomObject with typed properties; formatted text is the default display, not the data
+5. **Cross-platform** — all cmdlets work on Windows, macOS, Linux (PS 7.0+)
+6. **No project-specific logic** — flight recorder event types, maintenance SLAs, and license policies are configurable, not hardcoded
+
+### Maintenance Schedule Integration
+
+These cmdlets map directly to the tasks in `docs/maintenance-schedule.md`:
+
+| Schedule Task | Cmdlet |
+|---------------|--------|
+| Flight recorder spot check (weekly) | `Find-FlightRecorderPattern` |
+| Dependency audit — npm (weekly) | `Invoke-DependencyAudit` |
+| Dependency audit — pip (weekly) | `Invoke-DependencyAudit -SkipNpm` |
+| SBOM currency (weekly) | `Test-SBOMCurrency` |
+| Run verify gate (per-task) | `Invoke-VerifyGate` |
+| Version consistency (per-release) | `Test-VersionConsistency` |
+| ADR review (quarterly) | `Get-ADRIndex` |
+| Overall health check | `Get-ProjectHealth` |
 
 ---
 

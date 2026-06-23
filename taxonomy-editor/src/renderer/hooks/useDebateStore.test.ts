@@ -1400,6 +1400,7 @@ describe('Reflection edits', () => {
         'accelerationist',
         'acc-B-001',
         expect.objectContaining({ label: 'New label', description: 'New desc' }),
+        expect.objectContaining({ source: 'debate_reflection' }),
       );
       expect(mockTaxonomyState.save).toHaveBeenCalled();
     });
@@ -1449,6 +1450,7 @@ describe('Reflection edits', () => {
         'accelerationist',
         'acc-B-001',
         expect.objectContaining({ label: 'User-edited label', description: 'User-edited description' }),
+        expect.objectContaining({ source: 'debate_reflection' }),
       );
       expect(mockTaxonomyState.save).toHaveBeenCalled();
     });
@@ -1463,6 +1465,7 @@ describe('Reflection edits', () => {
         'accelerationist',
         'acc-B-001',
         expect.objectContaining({ label: 'New label', description: 'New desc' }),
+        expect.objectContaining({ source: 'debate_reflection' }),
       );
     });
 
@@ -1478,6 +1481,7 @@ describe('Reflection edits', () => {
         'accelerationist',
         'acc-B-001',
         expect.objectContaining({ label: 'Custom label', description: 'New desc' }),
+        expect.objectContaining({ source: 'debate_reflection' }),
       );
     });
   });

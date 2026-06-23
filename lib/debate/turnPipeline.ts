@@ -162,6 +162,9 @@ export interface TurnPipelineInput {
     approaching_transition: boolean;
   };
   model: string;
+  briefModel?: string;
+  planModel?: string;
+  citeModel?: string;
   stageTemperatures?: TurnStageConfig;
   repairHints?: string[];
   /** Last opponent's statement text — used by the draft quality pre-check "engages" question. */
@@ -328,6 +331,9 @@ export async function runTurnPipeline(
     ...DEFAULT_STAGE_TEMPERATURES,
     ...input.stageTemperatures,
   };
+  const briefModel = input.briefModel ?? input.model;
+  const planModel = input.planModel ?? input.model;
+  const citeModel = input.citeModel ?? input.model;
   const stageInput = buildStageInput(input);
   const stageDiags: StageDiagnostics[] = [];
   const pipelineStart = Date.now();
@@ -373,18 +379,18 @@ export async function runTurnPipeline(
     if (envelopeGenerate) {
       const env = briefStageEnvelope(stageInput);
       briefPrompt = flattenEnvelope(env);
-      const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.brief_temperature } }, `${input.label} brief`);
+      const resp = await envelopeGenerate({ envelope: env, model: briefModel, options: { temperature: temps.brief_temperature } }, `${input.label} brief`);
       briefRaw = resp.text;
       briefUsage = resp.usage;
     } else {
       briefPrompt = briefStagePrompt(stageInput);
-      briefRaw = await generate(briefPrompt, input.model, { temperature: temps.brief_temperature }, `${input.label} brief`);
+      briefRaw = await generate(briefPrompt, briefModel, { temperature: temps.brief_temperature }, `${input.label} brief`);
     }
     elapsed = Date.now() - t0;
     const briefParsed = parseStageResponse<BriefWorkProduct>(briefRaw, 'brief');
     stageDiags.push({
       stage: 'brief', prompt: briefPrompt, raw_response: briefRaw,
-      model: input.model, temperature: temps.brief_temperature,
+      model: briefModel, temperature: temps.brief_temperature,
       response_time_ms: elapsed, work_product: briefParsed.product as unknown as Record<string, unknown>,
       parse_error: briefParsed.error,
       retry_trigger: isOuterRetry ? 'orchestration-rerun' : 'initial',
@@ -403,7 +409,7 @@ export async function runTurnPipeline(
     brief = tagProvenance(briefParsed.product, {
       pipeline_run: isOuterRetry ? 1 : 0,
       stage: 'brief', attempt: 0,
-      model: input.model, timestamp: new Date().toISOString(),
+      model: briefModel, timestamp: new Date().toISOString(),
     });
     briefJson = toPromptJson(brief);
     getGlobalRecorder()?.record({
@@ -482,7 +488,7 @@ export async function runTurnPipeline(
           env.layer4_variable += `\n\n=== REPAIR HINTS (from prior failed attempt) ===\n${planRepairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your revised plan.`;
         }
         planPromptText = flattenEnvelope(env);
-        const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.plan_temperature } }, `${input.label} plan`);
+        const resp = await envelopeGenerate({ envelope: env, model: planModel, options: { temperature: temps.plan_temperature } }, `${input.label} plan`);
         planRaw = resp.text;
         planUsage = resp.usage;
       } else {
@@ -490,13 +496,13 @@ export async function runTurnPipeline(
         if (planRepairHints.length > 0) {
           planPromptText += `\n\n=== REPAIR HINTS (from prior failed attempt) ===\n${planRepairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your revised plan.`;
         }
-        planRaw = await generate(planPromptText, input.model, { temperature: temps.plan_temperature }, `${input.label} plan`);
+        planRaw = await generate(planPromptText, planModel, { temperature: temps.plan_temperature }, `${input.label} plan`);
       }
       elapsed = Date.now() - t0;
       const planParsed = parseStageResponse<PlanWorkProduct>(planRaw, 'plan');
       stageDiags.push({
         stage: 'plan', prompt: planPromptText, raw_response: planRaw,
-        model: input.model, temperature: temps.plan_temperature,
+        model: planModel, temperature: temps.plan_temperature,
         response_time_ms: elapsed, work_product: planParsed.product as unknown as Record<string, unknown>,
         parse_error: planParsed.error,
         retry_trigger: isOuterRetry ? 'orchestration-rerun' : planAttempt > 0 ? 'stage-retry' : 'initial',
@@ -536,7 +542,7 @@ export async function runTurnPipeline(
       plan = tagProvenance(planParsed.product, {
         pipeline_run: isOuterRetry ? 1 : 0,
         stage: 'plan', attempt: planAttempt,
-        model: input.model, timestamp: new Date().toISOString(),
+        model: planModel, timestamp: new Date().toISOString(),
       });
       planJson = toPromptJson(plan);
       getGlobalRecorder()?.record({
@@ -1549,7 +1555,7 @@ export async function runTurnPipeline(
         env.layer4_variable += `\n\n=== CITATION REPAIR HINTS (from prior failed attempt) ===\n${citeRepairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your taxonomy references.`;
       }
       citePromptText = flattenEnvelope(env);
-      const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.cite_temperature } }, `${input.label} cite`);
+      const resp = await envelopeGenerate({ envelope: env, model: citeModel, options: { temperature: temps.cite_temperature } }, `${input.label} cite`);
       citeRaw = resp.text;
       citeUsage = resp.usage;
     } else {
@@ -1557,13 +1563,13 @@ export async function runTurnPipeline(
       if (citeRepairHints.length > 0) {
         citePromptText += `\n\n=== CITATION REPAIR HINTS (from prior failed attempt) ===\n${citeRepairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your taxonomy references.`;
       }
-      citeRaw = await generate(citePromptText, input.model, { temperature: temps.cite_temperature }, `${input.label} cite`);
+      citeRaw = await generate(citePromptText, citeModel, { temperature: temps.cite_temperature }, `${input.label} cite`);
     }
     elapsed = Date.now() - t0;
     citeParsed = parseStageResponse<CiteWorkProduct>(citeRaw, 'cite');
     stageDiags.push({
       stage: 'cite', prompt: citePromptText, raw_response: citeRaw,
-      model: input.model, temperature: temps.cite_temperature,
+      model: citeModel, temperature: temps.cite_temperature,
       response_time_ms: elapsed, work_product: citeParsed.product as unknown as Record<string, unknown>,
       parse_error: citeParsed.error,
       retry_trigger: isOuterRetry ? 'orchestration-rerun' : citeAttempt > 0 ? 'stage-retry' : 'initial',
@@ -1619,12 +1625,12 @@ export async function runTurnPipeline(
       stageInput.taxonomyContext,
     );
     t0 = Date.now();
-    const retryRaw = await generate(retryPrompt, input.model, { temperature: temps.cite_temperature }, `${input.label} cite-retry`);
+    const retryRaw = await generate(retryPrompt, citeModel, { temperature: temps.cite_temperature }, `${input.label} cite-retry`);
     elapsed = Date.now() - t0;
     const retryParsed = parseStageResponse<{ taxonomy_refs: import('./types.js').TaxonomyRef[] }>(retryRaw, 'cite');
     stageDiags.push({
       stage: 'cite', prompt: retryPrompt, raw_response: retryRaw,
-      model: input.model, temperature: temps.cite_temperature,
+      model: citeModel, temperature: temps.cite_temperature,
       response_time_ms: elapsed, work_product: retryParsed.product as unknown as Record<string, unknown>,
       parse_error: retryParsed.error,
       prompt_component_chars: promptComponentChars,
@@ -2528,6 +2534,9 @@ export interface OpeningPipelineInput {
   documentAnalysis?: DocumentAnalysis;
   audience?: import('./types').DebateAudience;
   model: string;
+  briefModel?: string;
+  planModel?: string;
+  citeModel?: string;
   stageTemperatures?: TurnStageConfig;
   userSeedClaims?: { id: string; text: string; bdi_category?: string }[];
   /** Repair hints from a prior failed attempt — injected into the DRAFT stage prompt. */
@@ -2545,6 +2554,9 @@ export async function runOpeningPipeline(
     ...DEFAULT_STAGE_TEMPERATURES,
     ...input.stageTemperatures,
   };
+  const oBriefModel = input.briefModel ?? input.model;
+  const oPlanModel = input.planModel ?? input.model;
+  const oCiteModel = input.citeModel ?? input.model;
   const stageInput: OpeningStagePromptInput = {
     label: input.label,
     pov: input.pov,

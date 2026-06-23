@@ -321,7 +321,7 @@ export function initFlightRecorder(): FlightRecorder {
     component: recorder.intern('component', 'flight-recorder') as string | number,
     level: 'info',
     message: 'Flight recorder initialized',
-    data: { capacity: 3000, window: windowId, load_generation: loadGeneration },
+    data: { capacity: 5000, window: windowId, load_generation: loadGeneration },
   });
 
   // ── Context provider (full app state snapshot for dump) ──

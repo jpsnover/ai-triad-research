@@ -65,7 +65,7 @@ export async function withRetry<T>(
           lower.includes(' 401:') || lower.includes(' 403:')) throw err;
       const isRetryable =
         msg.includes('429') || msg.includes('503') ||
-        lower.includes('rate') || lower.includes('unavailable') ||
+        /rate[_ -]?limit/.test(lower) || lower.includes('unavailable') ||
         lower.includes('fetch failed') || lower.includes('econnreset') ||
         lower.includes('etimedout') || lower.includes('enotfound') ||
         lower.includes('socket hang up') || lower.includes('network') ||

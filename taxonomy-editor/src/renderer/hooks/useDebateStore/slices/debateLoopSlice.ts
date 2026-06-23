@@ -1735,7 +1735,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
           description: finalDescription,
           graph_attributes: defaultGraphAttributes(povKey, edit.category),
           debate_refs: debateId ? [debateId] : [],
-        });
+        }, { source: 'debate_reflection', debateId: debateId ?? undefined, reason: edit.rationale || undefined });
         // Provisional weight assignment (t/148) — new nodes get an initial weight immediately
         const createdNode = useTaxonomyStore.getState()[povKey]?.nodes.find(n => n.id === newId);
         if (createdNode) {
@@ -1769,17 +1769,18 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
         }
       }
     } else if (edit.node_id) {
+      const reflectionSource = { source: 'debate_reflection' as const, debateId: get().activeDebateId ?? undefined, reason: edit.rationale || undefined };
       if (edit.edit_type === 'deprecate') {
         const deprecatedDesc = finalDescription || `[DEPRECATED] ${edit.current_description || ''}`;
         taxStore.updatePovNode(povKey, edit.node_id, {
           label: finalLabel || edit.current_label || '',
           description: deprecatedDesc,
-        });
+        }, reflectionSource);
       } else {
         taxStore.updatePovNode(povKey, edit.node_id, {
           label: finalLabel || edit.current_label || '',
           description: finalDescription,
-        });
+        }, reflectionSource);
       }
     }
 

@@ -197,7 +197,12 @@ function Set-TaxonomyHierarchy {
                     $NextSeq++
                 }
 
-                $FileEntry.Data.nodes += [PSCustomObject]$NewNode
+                $NewObj = [PSCustomObject]$NewNode
+                Add-TextHistoryEntry -Node $NewObj -Field 'label' -Value $Parent.label -Source 'initial'
+                if ($Parent.description) {
+                    Add-TextHistoryEntry -Node $NewObj -Field 'description' -Value $Parent.description -Source 'initial'
+                }
+                $FileEntry.Data.nodes += $NewObj
                 [void]$ExistingIds.Add($ParentId)
                 $ParentNode = $FileEntry.Data.nodes | Where-Object { $_.id -eq $ParentId } | Select-Object -First 1
 

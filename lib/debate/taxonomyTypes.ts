@@ -56,6 +56,17 @@ export interface WeightHistoryEntry {
   model_confirmations?: string[];
 }
 
+export type TextEditSource = 'interactive' | 'debate_reflection' | 'batch_audit' | 'initial';
+
+export interface TextHistoryEntry {
+  date: string;
+  previous?: string;
+  value: string;
+  source: TextEditSource;
+  debate_id?: string;
+  reason?: string;
+}
+
 export interface PovNode {
   id: string;
   category: Category;
@@ -87,6 +98,8 @@ export interface PovNode {
   operationality_history?: WeightHistoryEntry[];
   /** Concession history — tracks cross-debate concessions affecting this node. Absent in pre-tracking nodes. */
   concession_history?: ConcessionRecord[];
+  label_history?: TextHistoryEntry[];
+  description_history?: TextHistoryEntry[];
   /** Last 5 modifications to this node (FIFO). */
   change_history?: ChangeHistoryEntry[];
 }

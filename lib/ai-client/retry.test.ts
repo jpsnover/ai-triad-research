@@ -74,4 +74,40 @@ describe('withRetry — auth error fast-fail', () => {
     }, FAST_CONFIG, 'test')).rejects.toThrow('ECONNRESET');
     expect(calls).toBe(3);
   });
+
+  it('still retries "rate limit" errors', async () => {
+    let calls = 0;
+    await expect(withRetry(async () => {
+      calls++;
+      throw new Error('rate limit exceeded');
+    }, FAST_CONFIG, 'test')).rejects.toThrow('rate limit');
+    expect(calls).toBe(3);
+  });
+
+  it('still retries "rate_limit" errors', async () => {
+    let calls = 0;
+    await expect(withRetry(async () => {
+      calls++;
+      throw new Error('rate_limit: too many requests');
+    }, FAST_CONFIG, 'test')).rejects.toThrow('rate_limit');
+    expect(calls).toBe(3);
+  });
+
+  it('does NOT retry errors that merely contain "generate" (rate substring bug)', async () => {
+    let calls = 0;
+    await expect(withRetry(async () => {
+      calls++;
+      throw new Error('Failed to generate text: invalid schema');
+    }, FAST_CONFIG, 'test')).rejects.toThrow('generate');
+    expect(calls).toBe(1);
+  });
+
+  it('does NOT retry generic errors without retryable keywords', async () => {
+    let calls = 0;
+    await expect(withRetry(async () => {
+      calls++;
+      throw new Error('JSON parse error: unexpected token');
+    }, FAST_CONFIG, 'test')).rejects.toThrow('JSON parse');
+    expect(calls).toBe(1);
+  });
 });

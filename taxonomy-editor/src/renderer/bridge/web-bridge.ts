@@ -144,6 +144,22 @@ async function del<T = unknown>(path: string): Promise<T> {
   return res.json();
 }
 
+/** Read BYOK keys from sessionStorage, backward-compatible with legacy single-key strings. */
+function readByokKeys(backend: string): string[] {
+  const raw = sessionStorage.getItem(`byok-${backend}`);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.filter((k: unknown) => typeof k === 'string' && k);
+  } catch { /* legacy raw string */ }
+  return [raw];
+}
+
+function maskByokKey(key: string): string {
+  if (key.length <= 4) return key.slice(0, 2) + '***';
+  return key.slice(0, 4) + '...' + key.slice(-4);
+}
+
 function bridgeWarn<T>(message: string, fallback: T) {
   return (err: unknown) => {
     getGlobalRecorder()?.record({
@@ -330,10 +346,36 @@ const rawApi: AppAPI = {
   refreshAIModels: () => post('/api/models/refresh'),
   setApiKey: async (key, backend) => {
     const storageKey = backend ? `byok-${backend}` : 'byok-api-key';
-    sessionStorage.setItem(storageKey, key);
+    sessionStorage.setItem(storageKey, JSON.stringify([key]));
     if (!(await isAnonymous())) {
       await post('/api/keys', { key, backend });
     }
+  },
+  addApiKey: async (key, backend) => {
+    if (await isAnonymous()) {
+      const keys = readByokKeys(backend);
+      if (!keys.includes(key)) keys.push(key);
+      sessionStorage.setItem(`byok-${backend}`, JSON.stringify(keys));
+      return { count: keys.length };
+    }
+    const res = await post<{ keys: { index: number; masked: string }[] }>(`/api/keys/${backend}/add`, { key });
+    return { count: res.keys.length };
+  },
+  removeApiKey: async (index, backend) => {
+    if (await isAnonymous()) {
+      const keys = readByokKeys(backend);
+      if (index >= 0 && index < keys.length) keys.splice(index, 1);
+      sessionStorage.setItem(`byok-${backend}`, JSON.stringify(keys));
+      return;
+    }
+    await del(`/api/keys/${backend}/${index}`);
+  },
+  getApiKeys: async (backend) => {
+    if (await isAnonymous()) {
+      return readByokKeys(backend).map((k, i) => ({ index: i, masked: maskByokKey(k) }));
+    }
+    const res = await get<{ keys: { index: number; masked: string }[] }>(`/api/keys/${backend}`);
+    return res.keys;
   },
   deleteApiKey: async (backend) => {
     const storageKey = backend ? `byok-${backend}` : 'byok-api-key';
@@ -373,11 +415,11 @@ const rawApi: AppAPI = {
   getApiKeySummary: async () => {
     const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'tavily', 'ollama'] as const;
     return ALL_BACKENDS.map((b) => {
-      const stored = sessionStorage.getItem(`byok-${b}`);
+      const keys = readByokKeys(b);
       return {
         backend: b,
-        hasKey: !!stored,
-        maskedKey: stored ? stored.slice(0, 4) + '...' + stored.slice(-4) : null,
+        hasKey: keys.length > 0,
+        maskedKey: keys.length > 0 ? maskByokKey(keys[0]) : null,
       };
     });
   },

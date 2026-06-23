@@ -96,6 +96,8 @@ const SKIP = new Set([
   'focusNodeInMainWindow',
   // Avoid recursion — dump calls the bridge itself
   'dumpFlightRecorder',
+  // High-frequency polling — noise that evicts useful diagnostic events
+  'adminReviewStats', 'adminReviewConfigured',
 ]);
 
 /** Categorize bridge methods for the recorder. */

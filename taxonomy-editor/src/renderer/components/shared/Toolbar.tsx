@@ -40,7 +40,7 @@ function useAdminReviewCount(): number {
       doPoll();
     };
     poll();
-    const id = setInterval(poll, 60_000);
+    const id = setInterval(poll, 300_000);
     return () => { cancelled = true; clearInterval(id); };
   }, [profile?.isAdmin]);
   return count;

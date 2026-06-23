@@ -190,6 +190,9 @@ Rules:
             # ── Apply or preview ──────────────────────────────────────────
             $IssueLabel = $Issues -join ', '
             if ($PSCmdlet.ShouldProcess("$($Node.id) [$IssueLabel]", 'Repair description')) {
+                Add-TextHistoryEntry -Node $Node -Field 'description' `
+                    -Previous $Desc -Value $NewDesc -Source 'batch_audit' `
+                    -Reason "Repair: $IssueLabel"
                 $Node.description = $NewDesc
                 $Modified = $true
                 $TotalFixed++

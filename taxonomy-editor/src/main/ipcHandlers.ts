@@ -47,7 +47,7 @@ import {
   deleteChatSession,
 } from './chatIO.js';
 import { debateToText, debateToMarkdown, debateToPdf, debateToPackage } from './debateExport.js';
-import { storeApiKey, hasApiKey, getApiKeySummary, exportKeysForSharing, importKeysFromSharing, deleteApiKey, deleteAllApiKeys } from './apiKeyStore.js';
+import { storeApiKey, hasApiKey, getApiKeySummary, exportKeysForSharing, importKeysFromSharing, deleteApiKey, deleteAllApiKeys, addApiKey, removeApiKey, getMaskedKeys } from './apiKeyStore.js';
 import type { KeySharePayload } from './apiKeyStore.js';
 import { isDataAvailable, getDataRootPath, setDataRootPath, loadDataConfig, PROJECT_ROOT, getSourcesDir, writeJsonFileAtomic } from './fileIO.js';
 import { computeEmbeddings, computeQueryEmbedding, generateText, generateTextWithSearch, generateChatStream, updateNodeEmbeddings, classifyNli, setDebateTemperature, getEmbeddingInfo } from './embeddings.js';
@@ -108,12 +108,20 @@ export function registerIpcHandlers(): void {
     if (!parsed.success) throw new ActionableError({ goal: 'Save taxonomy file', problem: `Invalid POV: ${pov}`, location: 'ipcHandlers:save-taxonomy-file', nextSteps: ['Use a valid POV name'] });
     // Stamp _edit_meta / _edit_history before writing so desktop edits record
     // authorship just like the web server's PUT /api/taxonomy/:pov handler.
+    // The renderer may send either { nodes: [...] } or a bare nodes array — handle both.
     const incoming = data as { nodes?: unknown[] };
-    if (incoming.nodes && Array.isArray(incoming.nodes)) {
+    const newNodes: unknown[] | null = Array.isArray(incoming.nodes)
+      ? incoming.nodes
+      : Array.isArray(data) ? (data as unknown[]) : null;
+    let toWrite: unknown = data;
+    if (newNodes) {
       let oldNodes: unknown[] = [];
       try {
-        const existing = readTaxonomyFile(parsed.data) as { nodes?: unknown[] };
-        oldNodes = existing?.nodes ?? [];
+        const existing = readTaxonomyFile(parsed.data);
+        // Existing file may also be either shape — extract nodes from either.
+        oldNodes = Array.isArray(existing)
+          ? existing
+          : ((existing as { nodes?: unknown[] })?.nodes ?? []);
       } catch (err) {
         // Missing file on first write is benign (ENOENT); a corrupt existing file
         // means we can't diff for history — record it but still save against an
@@ -126,12 +134,50 @@ export function registerIpcHandlers(): void {
           error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
       }
-      incoming.nodes = stampNodeAuthorship(
+      const stamped = stampNodeAuthorship(
         oldNodes as Parameters<typeof stampNodeAuthorship>[0],
-        incoming.nodes as Parameters<typeof stampNodeAuthorship>[1],
+        newNodes as Parameters<typeof stampNodeAuthorship>[1],
       );
+      // Preserve on-disk authorship metadata for nodes this save did NOT change.
+      // stampNodeAuthorship only (re)writes _edit_meta/_edit_history for added/modified
+      // nodes; unchanged nodes are returned verbatim from the incoming payload. On a
+      // desktop re-save that payload lacks the history already written to disk (the
+      // renderer never receives the stamps back), so without this the 2nd+ save of a
+      // file strips the history the 1st save recorded — every node ends up with none (t/828).
+      type NodeMeta = { id: string; _edit_meta?: unknown; _edit_history?: unknown };
+      const oldById = new Map((oldNodes as NodeMeta[]).map((n) => [n.id, n]));
+      let stampedCount = 0;
+      let preservedCount = 0;
+      for (const node of stamped as NodeMeta[]) {
+        if (node._edit_meta !== undefined) stampedCount++; // stamp wrote metadata (added/modified node)
+        const old = oldById.get(node.id);
+        if (!old) continue;
+        if (node._edit_meta === undefined && old._edit_meta !== undefined) { node._edit_meta = old._edit_meta; preservedCount++; }
+        if (node._edit_history === undefined && old._edit_history !== undefined) node._edit_history = old._edit_history;
+      }
+      // Observability (t/828): one event per save so a future history-strip is immediately
+      // visible from a flight-recorder dump — stampedCount:0 with a high unchanged count on a
+      // re-save was the signature that took hours of static analysis to find.
+      getGlobalRecorder()?.record({
+        type: 'state.change',
+        component: 'ipc-save-taxonomy',
+        level: 'info',
+        message: 'save.stamp',
+        data: {
+          pov: parsed.data,
+          total: stamped.length,
+          stampedCount,
+          unchangedCount: stamped.length - stampedCount,
+          preservedCount,
+        },
+      });
+      if (Array.isArray(incoming.nodes)) {
+        incoming.nodes = stamped;       // object form: mutate nodes in place, write the wrapper
+      } else {
+        toWrite = stamped;              // bare-array form: write the stamped array directly
+      }
     }
-    writeTaxonomyFile(parsed.data, data);
+    writeTaxonomyFile(parsed.data, toWrite);
     // Notify all other windows to reload taxonomy data
     for (const win of BrowserWindow.getAllWindows()) {
       if (win.webContents !== event.sender) {
@@ -297,6 +343,20 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('delete-all-api-keys', () => {
     deleteAllApiKeys();
+  });
+
+  // Multi-key management (t/834). get-api-keys returns MASKED keys only — raw keys
+  // never cross the IPC boundary to the renderer.
+  ipcMain.handle('add-api-key', (_event, key: string, backend?: string) => {
+    return addApiKey(key, backend as Parameters<typeof addApiKey>[1]);
+  });
+
+  ipcMain.handle('remove-api-key', (_event, index: number, backend?: string) => {
+    removeApiKey(index, backend as Parameters<typeof removeApiKey>[1]);
+  });
+
+  ipcMain.handle('get-api-keys', (_event, backend?: string) => {
+    return getMaskedKeys(backend as Parameters<typeof getMaskedKeys>[0]);
   });
 
   ipcMain.handle('export-keys-for-sharing', async (_event, passphrase: string) => {

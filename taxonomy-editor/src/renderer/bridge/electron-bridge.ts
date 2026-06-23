@@ -76,6 +76,15 @@ export const api: AppAPI = {
   loadAIModels: () => window.electronAPI.loadAIModels(),
   refreshAIModels: () => window.electronAPI.refreshAIModels(),
   setApiKey: (key, backend) => window.electronAPI.setApiKey(key, backend),
+  addApiKey: async (key, backend) => {
+    const count = await window.electronAPI.addApiKey(key, backend);
+    return { count };
+  },
+  removeApiKey: (index, backend) => window.electronAPI.removeApiKey(index, backend),
+  getApiKeys: async (backend) => {
+    const masked: string[] = await window.electronAPI.getApiKeys(backend);
+    return masked.map((m, i) => ({ index: i, masked: m }));
+  },
   deleteApiKey: (backend) => window.electronAPI.deleteApiKey(backend),
   deleteAllApiKeys: () => window.electronAPI.deleteAllApiKeys(),
   hasApiKey: (backend) => window.electronAPI.hasApiKey(backend),

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
-import type { Pov, PovNode, Category } from '../../types/taxonomy';
+import type { Pov, PovNode, Category, TabId } from '../../types/taxonomy';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { AggregatedCrux } from '../../hooks/useTaxonomyStore';
 import { useDebateStore } from '../../hooks/useDebateStore';
@@ -23,7 +23,7 @@ import { FactsPanel, getFactCount, preloadFactsIndex } from '../analysis/FactsPa
 import type { SourceFact } from '../analysis/FactsPanel';
 import type { SourceDocumentResolution } from '../../bridge/types';
 import { NodeEditHistory } from './NodeEditHistory';
-import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
+import { nodeTypeFromId, nodePovFromId } from '@lib/debate/nodeIdUtils';
 import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
 import { EditConflictBadge, type NodeConflict } from '../conflict/edit-conflicts';
@@ -677,11 +677,28 @@ const CRUX_TYPE_COLORS: Record<string, string> = {
 };
 
 function RelatedCruxes({ nodeId }: { nodeId: string }) {
-  const { aggregatedCruxes, showCruxDetail } = useTaxonomyStore();
+  const { aggregatedCruxes, showCruxDetail, activeTab } = useTaxonomyStore();
   const related = aggregatedCruxes?.filter(c => c.linked_node_ids.includes(nodeId)) ?? [];
   const [expanded, setExpanded] = useState(related.length <= 5);
 
   if (!aggregatedCruxes || related.length === 0) return null;
+
+  const handleCruxClick = (cruxId: string) => {
+    const isPovTab = (POV_KEYS as readonly string[]).includes(activeTab);
+    if (isPovTab) {
+      showCruxDetail(cruxId);
+    } else {
+      const pov = nodePovFromId(nodeId);
+      if (pov && (POV_KEYS as readonly string[]).includes(pov)) {
+        const store = useTaxonomyStore.getState();
+        store.navigateToNode(pov as TabId, nodeId);
+        useTaxonomyStore.setState({ toolbarPanel: null });
+        setTimeout(() => useTaxonomyStore.getState().showCruxDetail(cruxId), 0);
+      } else {
+        showCruxDetail(cruxId);
+      }
+    }
+  };
 
   return (
     <div style={{ marginBottom: 12 }}>
@@ -696,7 +713,7 @@ function RelatedCruxes({ nodeId }: { nodeId: string }) {
       {expanded && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {related.map(crux => (
-            <CruxChip key={crux.id} crux={crux} onClick={() => showCruxDetail(crux.id)} />
+            <CruxChip key={crux.id} crux={crux} onClick={() => handleCruxClick(crux.id)} />
           ))}
         </div>
       )}

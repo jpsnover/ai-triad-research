@@ -4,12 +4,6 @@
 /**
  * Tests for the retry, fallback, and timeout logic in aiAdapter.ts
  * (T4 from the 2026-05-01 code review).
- *
- * NOTE: A real bug exists in withRetry's retryable detection:
- *   lower.includes('rate') matches the word "generate" in every
- *   ActionableError Goal ("Generate text via ..."), causing ALL
- *   errors to be treated as retryable. Tests below work with
- *   this behaviour as-is and document it where relevant.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';

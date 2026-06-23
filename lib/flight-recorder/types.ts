@@ -20,12 +20,15 @@ export type EventType =
   | 'an.commitment_update'
   | 'an.extraction_confidence_missing'
   | 'an.extraction_coverage_low'
+  | 'an.extraction_confidence_delta'
   | 'an.extraction_coverage_error'
+  | 'an.exclusion_violation'
   // Turn pipeline
   | 'turn.stage'
   | 'turn.validate'
   | 'turn.repair'
   | 'turn.micro-fix'
+  | 'turn.hint-filtered'
   | 'turn.hint-suppressed'
   | 'turn.stage.validation.fail'
   | 'turn.prompt_size'
@@ -35,7 +38,11 @@ export type EventType =
   | 'turn.citation_bank'
   | 'turn.cite_quality'
   | 'turn.quality_gate'
+  | 'turn.micro-fix-preserved'
+  | 'turn.orchestration.retry_decision'
   | 'turn.quality_gate_repair'
+  | 'turn.scope_drift'
+  | 'turn.validate.outcome'
   // Debate flow
   | 'debate.config'
   | 'debate.phase'
@@ -44,11 +51,14 @@ export type EventType =
   | 'debate.moderate'
   | 'debate.crux'
   | 'debate.crux_transition'
+  | 'debate.crux_refresh'
   | 'debate.lifecycle'
+  | 'debate.lookahead.filter'
   // State management
   | 'state.save'
   | 'state.load'
   | 'state.error'
+  | 'state.init'
   // User interaction
   | 'user.action'
   | 'ui.navigate'
@@ -90,12 +100,24 @@ export type EventType =
   | 'lock.timeout'
   | 'lock.ttl_eviction'
   // Lineage
+  | 'lineage.boost-applied'
+  | 'lineage.boost-check'
+  | 'lineage.boost-result'
+  | 'lineage.boost-skipped'
+  | 'lineage.debate-summary'
   | 'lineage.distribution'
+  | 'lineage.pipeline-status'
+  // Lookahead
+  | 'lookahead.regen'
+  // Situation
+  | 'situation.divergence-summary'
   // Topic scope
+  | 'topic.critique'
   | 'topic_scope_extracted'
   | 'topic_scope_extraction_failed'
   // System
   | 'system.error'
+  | 'system.info'
   | 'system.scaling_warning';
 
 export type EventLevel = 'debug' | 'info' | 'warn' | 'error' | 'fatal';

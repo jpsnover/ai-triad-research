@@ -93,7 +93,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         : buildClarificationPrompt(topic, activeDebate.source_content || undefined, activeDebate.audience, lineageCtx);
     try {
       const { text } = await generateTextWithProgress(prompt, model, `Generating clarifying questions (${model})`, set);
-      if (!isStillValid()) return;
+      if (!isStillValid()) { getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'warn', debate_id: activeDebate?.id, message: 'runClarification aborted: guard failed after question generation' }); return; }
       let questions: string[];
       const clarParsed = parseAIJson<{ questions?: string[] } | string[]>(text);
       if (clarParsed && typeof clarParsed === 'object' && 'questions' in clarParsed && Array.isArray(clarParsed.questions)) {
@@ -138,6 +138,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
     if (!activeDebate) return;
 
+    newAbortController();
     const isStillValid = createDebateGuard(get);
 
     addTranscriptEntry({
@@ -181,7 +182,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         : `Refining topic, attempt ${attempt + 1}/${MAX_REFINEMENT_ATTEMPTS} (${model})`;
       try {
         const { text } = await generateTextWithProgress(prompt, model, label, set);
-        if (!isStillValid()) { set({ debateGenerating: null }); return; }
+        if (!isStillValid()) { getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'warn', debate_id: activeDebate?.id, message: 'submitAnswersAndSynthesize aborted: guard failed after topic refinement' }); set({ debateGenerating: null }); return; }
         const parsed = parseAIJson<{ refined_topic?: string }>(text);
         const candidate = parsed?.refined_topic || text.trim();
 
@@ -190,7 +191,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           try {
             const critiquePrompt = critiqueTopicPrompt(candidate);
             const { text: critiqueText } = await generateTextWithProgress(critiquePrompt, model, `Scoring refined topic (${model})`, set);
-            if (!isStillValid()) { set({ debateGenerating: null }); return; }
+            if (!isStillValid()) { getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'warn', debate_id: activeDebate?.id, message: 'submitAnswersAndSynthesize aborted: guard failed after critique scoring' }); set({ debateGenerating: null }); return; }
             const candidateCritique = parseTopicCritique(critiqueText, baselineCritique.structural_score);
 
             if (candidateCritique.composite_score >= baselineScore) {
@@ -428,6 +429,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         (activeDebate.source_type === 'document' || activeDebate.source_type === 'url')) {
       set({ debateGenerating: 'system' as SpeakerId });
       const model = getConfiguredModel();
+      newAbortController();
       const isStillValid = createDebateGuard(get);
       try {
         const taxStore = useTaxonomyStore.getState();
@@ -454,7 +456,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         const { text: analysisText } = await generateTextWithProgress(
           analysisPrompt, model, `Analyzing document claims (${model})`, set,
         );
-        if (!isStillValid()) return;
+        if (!isStillValid()) { getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'error', debate_id: activeDebate?.id, message: 'beginDebate aborted: guard failed after document analysis — debate will stall', data: { source_type: activeDebate.source_type, phase: activeDebate.phase } }); return; }
 
         const analysis = parseAIJson<DocumentAnalysis>(analysisText);
         if (analysis && analysis.i_nodes && analysis.i_nodes.length > 0) {

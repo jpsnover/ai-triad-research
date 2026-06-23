@@ -66,6 +66,17 @@ export interface ConcessionRecord {
   bdi_impact: 'belief' | 'desire' | 'intention';
 }
 
+export type TextEditSource = 'interactive' | 'debate_reflection' | 'batch_audit' | 'initial';
+
+export interface TextHistoryEntry {
+  date: string;
+  previous?: string;
+  value: string;
+  source: TextEditSource;
+  debate_id?: string;
+  reason?: string;
+}
+
 export interface NodeEditMeta {
   last_edited_by: string;
   last_edited_at: string;
@@ -107,6 +118,8 @@ export interface PovNode {
   priority_history?: WeightHistoryEntry[];
   /** Concession history — tracks cross-debate concessions affecting this node. */
   concession_history?: ConcessionRecord[];
+  label_history?: TextHistoryEntry[];
+  description_history?: TextHistoryEntry[];
   _edit_meta?: NodeEditMeta;
   _edit_history?: EditHistoryEntry[];
 }

@@ -16,32 +16,84 @@ function keyFilePath(backend?: Backend): string {
   return path.join(app.getPath('userData'), `api-key${suffix}.enc`);
 }
 
-export function storeApiKey(key: string, backend?: Backend): void {
+// ── Multi-key storage (t/834) ──────────────────────────────────────────────
+// Keys are stored per backend as an encrypted JSON array of strings (enables
+// round-robin across keys to multiply rate-limit quota — see t/833). Legacy
+// files written before t/834 hold a single encrypted raw key string; they are
+// read transparently as `[key]` so existing single-key users lose no data.
+
+/**
+ * Load all stored keys for a backend (RAW). Main-process internal use only —
+ * AI calls and the key rotator. Never expose the result to the renderer; use
+ * getMaskedKeys()/getApiKeySummary() for anything that crosses the IPC boundary.
+ */
+export function loadApiKeys(backend?: Backend): string[] {
+  const fp = keyFilePath(backend);
+  if (!fs.existsSync(fp) || !safeStorage.isEncryptionAvailable()) return [];
+  let decrypted: string;
+  try {
+    decrypted = safeStorage.decryptString(fs.readFileSync(fp));
+  } catch {
+    /* telemetry — silent by design (corrupt/unreadable key file) */
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(decrypted);
+    if (Array.isArray(parsed)) return parsed.filter((k): k is string => typeof k === 'string');
+  } catch {
+    /* not JSON — legacy single raw key, fall through to wrap */
+  }
+  // Backward compat: legacy file holds a single raw key string.
+  return decrypted ? [decrypted] : [];
+}
+
+function saveApiKeys(backend: Backend | undefined, keys: string[]): void {
   if (!safeStorage.isEncryptionAvailable()) {
     throw new Error('Encryption not available on this system');
   }
-  const encrypted = safeStorage.encryptString(key);
+  if (keys.length === 0) {
+    fs.rmSync(keyFilePath(backend), { force: true });
+    return;
+  }
+  const encrypted = safeStorage.encryptString(JSON.stringify(keys));
   fs.writeFileSync(keyFilePath(backend), encrypted);
 }
 
+/** Append a key for a backend (deduped) and return the new key count. */
+export function addApiKey(key: string, backend?: Backend): number {
+  const keys = loadApiKeys(backend);
+  if (!keys.includes(key)) keys.push(key);
+  saveApiKeys(backend, keys);
+  return keys.length;
+}
+
+/** Remove a key by index (no-op if out of range), re-encrypting the remainder. */
+export function removeApiKey(index: number, backend?: Backend): void {
+  const keys = loadApiKeys(backend);
+  if (index < 0 || index >= keys.length) return;
+  keys.splice(index, 1);
+  saveApiKeys(backend, keys);
+}
+
+/**
+ * Store a key for a backend — REPLACE semantics: sets the backend's keys to `[key]`.
+ * Preserves the existing "Save Key" button UX (Save = set this key). Use addApiKey()
+ * to append additional keys for round-robin (the multi-key UI).
+ */
+export function storeApiKey(key: string, backend?: Backend): void {
+  saveApiKeys(backend, [key]);
+}
+
+/** Backward-compat single-key read — returns the first key, or null. */
 export function loadApiKey(backend?: Backend): string | null {
-  const fp = keyFilePath(backend);
-  if (!fs.existsSync(fp)) return null;
-  if (!safeStorage.isEncryptionAvailable()) return null;
-  try {
-    const encrypted = fs.readFileSync(fp);
-    return safeStorage.decryptString(encrypted);
-  } catch {
-    /* telemetry — silent by design */
-    return null;
-  }
+  return loadApiKeys(backend)[0] ?? null;
 }
 
 export function hasApiKey(backend?: Backend): boolean {
-  return fs.existsSync(keyFilePath(backend));
+  return loadApiKeys(backend).length > 0;
 }
 
-/** Delete the stored key for a backend (no-op if absent). Omit backend for the default (gemini). */
+/** Delete ALL keys for a backend (no-op if absent). Omit backend for the default (gemini). */
 export function deleteApiKey(backend?: Backend): void {
   fs.rmSync(keyFilePath(backend), { force: true });
 }
@@ -53,24 +105,53 @@ export function deleteAllApiKeys(): void {
   }
 }
 
+/**
+ * Normalize a key-share payload value into a string[]. Matches the web key store's
+ * `parseKeys` convention (ServerAPI, t/835) so exports are interchangeable between
+ * desktop and web: an actual array is used as-is; a string that is itself a JSON
+ * array is parsed; any other string is treated as a single legacy key.
+ */
+function parseKeys(val: unknown): string[] {
+  if (Array.isArray(val)) return val.filter((k): k is string => typeof k === 'string');
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed.filter((k): k is string => typeof k === 'string');
+    } catch {
+      /* not JSON — legacy single raw key */
+    }
+    return [val];
+  }
+  return [];
+}
+
+function maskKey(key: string): string {
+  return key.length <= 8 ? `${key.slice(0, 2)}***` : `${key.slice(0, 4)}...${key.slice(-4)}`;
+}
+
+/** Masked keys for a single backend — safe to send to the renderer (never raw). */
+export function getMaskedKeys(backend?: Backend): string[] {
+  return loadApiKeys(backend).map(maskKey);
+}
+
 export interface ApiKeySummaryEntry {
   backend: Backend;
-  hasKey: boolean;
-  maskedKey: string | null;
+  hasKey: boolean;            // backward compat (true if any key)
+  maskedKey: string | null;  // backward compat — first key masked
+  keyCount: number;
+  maskedKeys: string[];
 }
 
 export function getApiKeySummary(): ApiKeySummaryEntry[] {
   return ALL_BACKENDS.map((backend) => {
-    const key = loadApiKey(backend);
-    let maskedKey: string | null = null;
-    if (key) {
-      if (key.length <= 8) {
-        maskedKey = key.slice(0, 2) + '***';
-      } else {
-        maskedKey = key.slice(0, 4) + '...' + key.slice(-4);
-      }
-    }
-    return { backend, hasKey: !!key, maskedKey };
+    const maskedKeys = getMaskedKeys(backend);
+    return {
+      backend,
+      hasKey: maskedKeys.length > 0,
+      maskedKey: maskedKeys[0] ?? null,
+      keyCount: maskedKeys.length,
+      maskedKeys,
+    };
   });
 }
 
@@ -83,10 +164,10 @@ export interface KeySharePayload {
 }
 
 export function exportKeysForSharing(passphrase: string): KeySharePayload {
-  const keys: Record<string, string> = {};
+  const keys: Record<string, string[]> = {};
   for (const b of ALL_BACKENDS) {
-    const k = loadApiKey(b);
-    if (k) keys[b] = k;
+    const arr = loadApiKeys(b);
+    if (arr.length) keys[b] = arr;
   }
   if (Object.keys(keys).length === 0) {
     throw new Error('No API keys to export — save at least one key first');
@@ -115,10 +196,11 @@ export function importKeysFromSharing(payload: KeySharePayload, passphrase: stri
   let decrypted = decipher.update(payload.data, 'hex', 'utf8');
   decrypted += decipher.final('utf8');
 
-  const { keys } = JSON.parse(decrypted) as { keys: Record<string, string> };
+  // Accept array, JSON-array-string (web key store convention), and legacy single-key.
+  const { keys } = JSON.parse(decrypted) as { keys: Record<string, unknown> };
   const imported: string[] = [];
-  for (const [backend, key] of Object.entries(keys)) {
-    storeApiKey(key, backend as Backend);
+  for (const [backend, val] of Object.entries(keys)) {
+    for (const k of parseKeys(val)) addApiKey(k, backend as Backend);
     imported.push(backend);
   }
   return imported;

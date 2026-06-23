@@ -251,6 +251,12 @@ export interface DebateConfig {
   embedFn?: (text: string) => Promise<number[]>;
   /** Enable salience beacon in draft prompts to reduce scope drift (experiment). */
   salienceBeacon?: boolean;
+  /** Per-stage model overrides — use cheaper models for analytical stages (brief, plan, cite) while keeping the primary model for draft. */
+  stageModels?: {
+    brief?: string;
+    plan?: string;
+    cite?: string;
+  };
 }
 
 export interface DebateProgress {

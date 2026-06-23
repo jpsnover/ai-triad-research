@@ -25,19 +25,38 @@ import { stampNodeAuthorship } from '../../server/editMeta.js';
 interface TaxNode { id: string; [k: string]: unknown }
 
 // Mirrors the stamping composition in ipcHandlers.ts → 'save-taxonomy-file'.
-function saveWithStamp(filePath: string, data: { nodes?: TaxNode[] }): void {
-  if (data.nodes && Array.isArray(data.nodes)) {
+// Accepts either { nodes: [...] } or a bare nodes array.
+function saveWithStamp(filePath: string, data: { nodes?: TaxNode[] } | TaxNode[]): void {
+  const incoming = data as { nodes?: TaxNode[] };
+  const newNodes: TaxNode[] | null = Array.isArray(incoming.nodes)
+    ? incoming.nodes
+    : Array.isArray(data) ? (data as TaxNode[]) : null;
+  let toWrite: unknown = data;
+  if (newNodes) {
     let oldNodes: unknown[] = [];
     try {
-      const existing = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as { nodes?: unknown[] };
-      oldNodes = existing?.nodes ?? [];
+      const existing = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as { nodes?: unknown[] } | unknown[];
+      oldNodes = Array.isArray(existing) ? existing : ((existing as { nodes?: unknown[] })?.nodes ?? []);
     } catch { /* missing file on first write — stamp against an empty baseline */ }
-    data.nodes = stampNodeAuthorship(
+    const stamped = stampNodeAuthorship(
       oldNodes as Parameters<typeof stampNodeAuthorship>[0],
-      data.nodes as Parameters<typeof stampNodeAuthorship>[1],
+      newNodes as Parameters<typeof stampNodeAuthorship>[1],
     ) as TaxNode[];
+    // Preserve on-disk metadata for nodes the stamp left untouched (t/828).
+    const oldById = new Map((oldNodes as TaxNode[]).map((n) => [n.id, n]));
+    for (const node of stamped) {
+      const old = oldById.get(node.id);
+      if (!old) continue;
+      if (node._edit_meta === undefined && old._edit_meta !== undefined) node._edit_meta = old._edit_meta;
+      if (node._edit_history === undefined && old._edit_history !== undefined) node._edit_history = old._edit_history;
+    }
+    if (Array.isArray(incoming.nodes)) {
+      incoming.nodes = stamped;
+    } else {
+      toWrite = stamped;
+    }
   }
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  fs.writeFileSync(filePath, JSON.stringify(toWrite, null, 2));
 }
 
 describe('Electron save path stamps node edit history (t/781)', () => {
@@ -87,6 +106,63 @@ describe('Electron save path stamps node edit history (t/781)', () => {
 
       expect(meta.created_by).toBe('_local');
       expect(history[0].fields_changed).toEqual(['*']); // new node → wildcard
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('t/828: preserves edit history across repeated saves (renderer payload lacks the on-disk stamps)', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tax-hist-'));
+    const file = path.join(dir, 'accelerationist.json');
+    try {
+      // Existing file, one node, no prior history.
+      fs.writeFileSync(file, JSON.stringify({ nodes: [{ id: 'acc-beliefs-028', label: 'Original' }] }, null, 2));
+
+      // The renderer's in-memory copy never receives the stamps the handler writes,
+      // so every save sends the same edited content WITHOUT _edit_history. A debate
+      // reflection edit triggers several sequential saves of the same file.
+      const editedPayload = () => ({ nodes: [{ id: 'acc-beliefs-028', label: 'Edited via reflection' }] });
+
+      saveWithStamp(file, editedPayload()); // save 1 — records history
+      saveWithStamp(file, editedPayload()); // save 2 — must NOT strip it
+      saveWithStamp(file, editedPayload()); // save 3
+      saveWithStamp(file, editedPayload()); // save 4 (matches the 4-save flight-recorder evidence)
+
+      const reloaded = JSON.parse(fs.readFileSync(file, 'utf-8')) as { nodes: Array<Record<string, unknown>> };
+      const node = reloaded.nodes[0];
+      const meta = node._edit_meta as { last_edited_by?: string } | undefined;
+      const history = node._edit_history as Array<{ user: string }> | undefined;
+
+      // The bug stripped these to undefined on save 2+. They must survive all saves.
+      expect(meta?.last_edited_by).toBe('_local');
+      expect(Array.isArray(history)).toBe(true);
+      expect(history!.length).toBeGreaterThanOrEqual(1);
+      expect(history![0].user).toBe('_local');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('stamps history when the renderer sends a bare nodes array (not wrapped in { nodes })', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tax-hist-'));
+    const file = path.join(dir, 'cross_cutting.json');
+    try {
+      // Seed an existing file in the same bare-array shape with no prior history.
+      fs.writeFileSync(file, JSON.stringify([{ id: 'cc-001', label: 'Original' }], null, 2));
+
+      // Renderer sends a bare array (no { nodes } wrapper).
+      saveWithStamp(file, [{ id: 'cc-001', label: 'Edited label' }]);
+
+      // Persisted shape stays a bare array, and the node carries stamped history.
+      const reloaded = JSON.parse(fs.readFileSync(file, 'utf-8')) as Array<Record<string, unknown>>;
+      expect(Array.isArray(reloaded)).toBe(true);
+      const node = reloaded[0];
+      const meta = node._edit_meta as { last_edited_by?: string };
+      const history = node._edit_history as Array<{ user: string; fields_changed: string[] }>;
+
+      expect(meta.last_edited_by).toBe('_local');
+      expect(history).toHaveLength(1);
+      expect(history[0].fields_changed).toContain('label');
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
