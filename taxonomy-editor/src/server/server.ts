@@ -34,7 +34,7 @@ import {
 import { GitHubAPIBackend } from './githubAPIBackend.js';
 import { SessionBranchManager } from './sessionBranchManager.js';
 import { runWithUser, getCurrentUser, getCurrentUserId, getStorageUserId, setSessionBranchName, deriveStorageUserId, isAnonymousUser } from './userContext.js';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage } from './accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError } from './accessControl.js';
 import { sanitizeUserText } from './contentSanitizer.js';
 import { getRollbackStatus } from './rollbackStatus.js';
 import { initAnonymousSessionStore } from './anonymousSessionStore.js';
@@ -374,7 +374,8 @@ get('/health', async (_req, res) => {
   // (versions, storage internals, GitHub rate limits, paths) only for admins.
   // AI key status is always included so deployment gates can verify readiness.
   const geminiReady = await hasApiKey('gemini');
-  if (!community.isAdmin()) { json(res, { status: 'ok', ai: { geminiKeyConfigured: geminiReady } }); return; }
+  const freeKeyPoolSize = proxyTiers.parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY).length;
+  if (!community.isAdmin()) { json(res, { status: 'ok', ai: { geminiKeyConfigured: geminiReady, freeTierKeyPoolSize: freeKeyPoolSize } }); return; }
   const base: Record<string, unknown> = {
     status: 'ok',
     version: SERVER_VERSION,
@@ -393,6 +394,13 @@ get('/health', async (_req, res) => {
     storage: {
       mode: STORAGE_MODE,
     },
+  };
+
+  base.ai = {
+    geminiKeyConfigured: geminiReady,
+    freeTierEnabled: freeKeyPoolSize > 0,
+    freeTierKeyPoolSize: freeKeyPoolSize,
+    freeTierLimits: freeKeyPoolSize > 0 ? { requestsPerMinute: 6, tokensPerDay: 50_000 } : null,
   };
 
   if (githubBackend) {
@@ -981,6 +989,12 @@ function callerIdentity(): { principalName: string; idp: string } {
   return callerTierIdentity(getCurrentUser());
 }
 
+// t/896: user-facing provider names for the missing_api_key fast-fail message.
+const BACKEND_DISPLAY: Record<string, string> = {
+  gemini: 'Gemini', claude: 'Claude (Anthropic)', groq: 'Groq',
+  openai: 'OpenAI', deepseek: 'DeepSeek', tavily: 'Tavily', ollama: 'Ollama',
+};
+
 post('/api/ai/generate', async (req, res, body) => {
   const { prompt, model, timeout, apiKey: clientKey } = body as { prompt: string; model?: string; timeout?: number; apiKey?: string };
   try {
@@ -1027,6 +1041,27 @@ post('/api/ai/generate', async (req, res, body) => {
     } else {
       explicitKey = tier.level === 'platform' ? undefined : (clientKey || undefined);
     }
+
+    // t/896: fail fast with a clear, actionable error when there is no usable key
+    // for the target backend — before the request reaches the AI adapter (which
+    // would otherwise surface an opaque upstream 401/403). Free tier
+    // (server-provided key) is exempt; hasApiKey() covers env-backed keys, so
+    // env-configured backends (e.g. Gemini/Groq) never trip this for BYOK users.
+    const haveExplicitKey = (typeof explicitKey === 'string' && explicitKey.length > 0)
+      || (Array.isArray(explicitKey) && explicitKey.length > 0);
+    const missingKey = missingApiKeyError({
+      backend,
+      displayName: BACKEND_DISPLAY[backend] ?? backend,
+      serverProvidedKey: !!tier.serverProvidedKey,
+      haveExplicitKey,
+      hasResolvedKey: haveExplicitKey || (!tier.serverProvidedKey && await hasApiKey(backend)),
+    });
+    if (missingKey) {
+      res.writeHead(422, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(missingKey));
+      return;
+    }
+
     // t/839: record the AI request/response on the happy path so the web-mode
     // retry timeline is visible in the flight recorder (mirrors lib/debate
     // aiAdapter). Prompt content is never recorded — only its length.

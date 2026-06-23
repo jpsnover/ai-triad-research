@@ -48,6 +48,28 @@ export function invalidRouteParam(routePath: string, pathname: string): string |
   return null;
 }
 
+/**
+ * t/896: structured fast-fail when the caller has no usable API key for the
+ * target backend — returned as a 422 before the request reaches the AI adapter
+ * (which would otherwise surface an opaque upstream 401/403). Returns null (=
+ * proceed) when the free tier provides the key, the caller supplied one, or a
+ * stored/env key resolves.
+ */
+export function missingApiKeyError(opts: {
+  backend: string;
+  displayName: string;
+  serverProvidedKey: boolean;
+  haveExplicitKey: boolean;
+  hasResolvedKey: boolean;
+}): { error: 'missing_api_key'; backend: string; message: string } | null {
+  if (opts.serverProvidedKey || opts.haveExplicitKey || opts.hasResolvedKey) return null;
+  return {
+    error: 'missing_api_key',
+    backend: opts.backend,
+    message: `No API key configured for ${opts.displayName}. Add one in Settings → API Keys.`,
+  };
+}
+
 /** Duck-typed ActionableError (avoids importing across the lib boundary). */
 function isActionableErrorLike(e: unknown): e is { goal: string; problem: string } {
   return !!e && typeof e === 'object' && 'goal' in e && 'problem' in e && 'nextSteps' in e;

@@ -8,8 +8,30 @@
 
 import { describe, it, expect } from 'vitest';
 import path from 'path';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage } from '../accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError } from '../accessControl.js';
 import { resolveTier } from '../proxyTiers.js';
+
+describe('missingApiKeyError (t/896)', () => {
+  const base = { backend: 'claude', displayName: 'Claude (Anthropic)' };
+
+  it('returns a structured 422 payload when no key is available (AC#1,#2)', () => {
+    const out = missingApiKeyError({ ...base, serverProvidedKey: false, haveExplicitKey: false, hasResolvedKey: false });
+    expect(out).toEqual({
+      error: 'missing_api_key',
+      backend: 'claude',
+      message: 'No API key configured for Claude (Anthropic). Add one in Settings → API Keys.',
+    });
+  });
+
+  it('returns null (proceed) when the free tier provides the key (AC#3)', () => {
+    expect(missingApiKeyError({ ...base, serverProvidedKey: true, haveExplicitKey: false, hasResolvedKey: false })).toBeNull();
+  });
+
+  it('returns null when the caller supplied a key or one resolved from env/store', () => {
+    expect(missingApiKeyError({ ...base, serverProvidedKey: false, haveExplicitKey: true, hasResolvedKey: true })).toBeNull();
+    expect(missingApiKeyError({ ...base, serverProvidedKey: false, haveExplicitKey: false, hasResolvedKey: true })).toBeNull();
+  });
+});
 
 describe('clientSafeMessage (t/853)', () => {
   const dump = [
