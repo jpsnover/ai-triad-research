@@ -1007,7 +1007,25 @@ post('/api/ai/generate', async (req, res, body) => {
     } else {
       explicitKey = tier.level === 'platform' ? undefined : (clientKey || undefined);
     }
+    // t/839: record the AI request/response on the happy path so the web-mode
+    // retry timeline is visible in the flight recorder (mirrors lib/debate
+    // aiAdapter). Prompt content is never recorded — only its length.
+    const requestModel = effectiveModel ?? DEFAULT_MODEL;
+    const t0 = Date.now();
+    getGlobalRecorder()?.record({
+      type: 'ai.request', component: 'ai-generate', level: 'info',
+      message: `generate ${backend}/${requestModel}`,
+      data: { model: requestModel, backend, tier: tier.level, promptLength: prompt?.length ?? 0 },
+    });
+
     const result = await ai.generateText(prompt, effectiveModel, undefined, timeout, explicitKey);
+
+    getGlobalRecorder()?.record({
+      type: 'ai.response', component: 'ai-generate', level: 'info',
+      duration_ms: Date.now() - t0,
+      message: `generate success ${backend}/${requestModel}`,
+      data: { model: requestModel, backend, responseLength: result.text?.length ?? 0, usage: result.tokenUsage },
+    });
 
     if (result.tokenUsage) {
       rateLimiter.recordTokenUsage(limitKey, result.tokenUsage.inputTokens, result.tokenUsage.outputTokens);
