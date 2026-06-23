@@ -49,6 +49,21 @@ export function invalidRouteParam(routePath: string, pathname: string): string |
 }
 
 /**
+ * t/848: the identity to feed proxyTiers.resolveTier, sourced from the verified
+ * ALS user context (populated once by the S9 middleware from
+ * AZURE_AUTH_ENABLED-guarded headers) — never from raw request headers. An
+ * anonymous caller (or no context) maps to an empty principal so resolveTier
+ * yields the free/anonymous tier, never platform — even if a spoofed
+ * x-ms-client-principal-* header is present when Easy Auth isn't in front.
+ */
+export function callerTierIdentity(
+  user: { principalName: string; idp: string; isAnonymous: boolean } | null,
+): { principalName: string; idp: string } {
+  if (!user || user.isAnonymous) return { principalName: '', idp: '' };
+  return { principalName: user.principalName, idp: user.idp };
+}
+
+/**
  * L1: whether an AUTH_DISABLED=1 setting should be honored. AUTH_DISABLED makes
  * every request an anonymous user with full access — acceptable for local/dev
  * single-operator use, never in production. Honored only outside production.

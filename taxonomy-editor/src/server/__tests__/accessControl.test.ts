@@ -8,7 +8,28 @@
 
 import { describe, it, expect } from 'vitest';
 import path from 'path';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam } from '../accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity } from '../accessControl.js';
+import { resolveTier } from '../proxyTiers.js';
+
+describe('callerTierIdentity (t/848)', () => {
+  it('returns the principal/idp for an authenticated context', () => {
+    expect(callerTierIdentity({ principalName: 'alice', idp: 'github', isAnonymous: false }))
+      .toEqual({ principalName: 'alice', idp: 'github' });
+  });
+
+  it('maps anonymous / null context to an empty principal', () => {
+    expect(callerTierIdentity({ principalName: '_local', idp: '_local', isAnonymous: true }))
+      .toEqual({ principalName: '', idp: '' });
+    expect(callerTierIdentity(null)).toEqual({ principalName: '', idp: '' });
+  });
+
+  it('an anonymous context never resolves to the platform tier (no header-spoof escalation)', () => {
+    // Even if a spoofed x-ms-client-principal-* header existed, the verified
+    // context is anonymous → empty principal → resolveTier is not platform.
+    const id = callerTierIdentity({ principalName: '_local', idp: '_local', isAnonymous: true });
+    expect(resolveTier(id.principalName, id.idp).level).not.toBe('platform');
+  });
+});
 
 describe('isAuthDisabledAllowed (L1)', () => {
   it('blocks AUTH_DISABLED in production', () => {

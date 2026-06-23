@@ -33,8 +33,8 @@ import {
 } from './config.js';
 import { GitHubAPIBackend } from './githubAPIBackend.js';
 import { SessionBranchManager } from './sessionBranchManager.js';
-import { runWithUser, getCurrentUserId, getStorageUserId, setSessionBranchName, deriveStorageUserId, isAnonymousUser } from './userContext.js';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam } from './accessControl.js';
+import { runWithUser, getCurrentUser, getCurrentUserId, getStorageUserId, setSessionBranchName, deriveStorageUserId, isAnonymousUser } from './userContext.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity } from './accessControl.js';
 import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
 import * as community from './community.js';
@@ -963,11 +963,22 @@ del('/api/keys/:backend/:index', async (req, res) => {
 
 // ── AI generation ──
 
+/**
+ * t/848: resolve the caller's identity from the verified ALS user context (set
+ * once by the S9 middleware from AZURE_AUTH_ENABLED-guarded headers) — NEVER by
+ * re-reading raw x-ms-client-principal-* headers, which are spoofable when the
+ * container is reachable without Easy Auth (direct ingress / misconfig). An
+ * anonymous caller maps to '' so resolveTier yields the free/anonymous tier
+ * (the free tier keys on an empty principal), never platform.
+ */
+function callerIdentity(): { principalName: string; idp: string } {
+  return callerTierIdentity(getCurrentUser());
+}
+
 post('/api/ai/generate', async (req, res, body) => {
   const { prompt, model, timeout, apiKey: clientKey } = body as { prompt: string; model?: string; timeout?: number; apiKey?: string };
   try {
-    const principalName = (req.headers['x-ms-client-principal-name'] as string) || '';
-    const idp = (req.headers['x-ms-client-principal-idp'] as string) || '';
+    const { principalName, idp } = callerIdentity(); // t/848: verified context, not raw headers
     const tier = proxyTiers.resolveTier(principalName, idp);
     const isFree = tier.level === 'free';
     // Free tier (t/793): keyed per-IP (all keyless users would otherwise share
@@ -1068,10 +1079,9 @@ post('/api/ai/search', async (_req, res, body) => {
 // only checks key presence and let it assign models to backends that 403 at
 // generation time. Cheap: tier config is cached (proxyTiers), the model registry
 // is static, and keyStore.get is cached with bust-on-write — no new cache needed.
-get('/api/backends/available', async (req, res) => {
+get('/api/backends/available', async (_req, res) => {
   try {
-    const principalName = (req.headers['x-ms-client-principal-name'] as string) || '';
-    const idp = (req.headers['x-ms-client-principal-idp'] as string) || '';
+    const { principalName, idp } = callerIdentity(); // t/848: verified context, not raw headers
     const tier = proxyTiers.resolveTier(principalName, idp);
     const registry = await fileIO.loadAIModels() as { backends?: { id: string }[]; models?: { id: string; backend: string }[] };
     const ids = (registry.backends ?? []).map(b => b.id);
@@ -1088,16 +1098,14 @@ get('/api/backends/available', async (req, res) => {
   }
 });
 
-get('/api/proxy/tier', (req, res) => {
-  const principalName = (req.headers['x-ms-client-principal-name'] as string) || '';
-  const idp = (req.headers['x-ms-client-principal-idp'] as string) || '';
+get('/api/proxy/tier', (_req, res) => {
+  const { principalName, idp } = callerIdentity(); // t/848: verified context, not raw headers
   const tier = proxyTiers.resolveTier(principalName, idp);
   json(res, { ...tier, principalName: principalName || null });
 });
 
-get('/api/proxy/usage', (req, res) => {
-  const principalName = (req.headers['x-ms-client-principal-name'] as string) || '';
-  const idp = (req.headers['x-ms-client-principal-idp'] as string) || '';
+get('/api/proxy/usage', (_req, res) => {
+  const { principalName, idp } = callerIdentity(); // t/848: verified context, not raw headers
   const userId = principalName || '_anonymous';
   const tier = proxyTiers.resolveTier(principalName, idp);
   const usage = rateLimiter.getUsage(userId);
