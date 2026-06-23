@@ -28,8 +28,9 @@ interface AdaptiveStagingTabProps {
 }
 
 export function AdaptiveStagingTab({ debate }: AdaptiveStagingTabProps) {
+  const sm = debate.stage_models;
   const diag = (debate as unknown as Record<string, unknown>).adaptive_staging_diagnostics as AdaptiveStagingDiagnostics | undefined;
-  if (!diag) return <div style={{ color: 'var(--text-secondary)', padding: 16 }}>No adaptive staging data available.</div>;
+  if (!diag && !sm) return <div style={{ color: 'var(--text-secondary)', padding: 16 }}>No adaptive staging data available.</div>;
 
   const downloadSignals = () => {
     const blob = new Blob([JSON.stringify(diag, null, 2)], { type: 'application/json' });
@@ -43,6 +44,30 @@ export function AdaptiveStagingTab({ debate }: AdaptiveStagingTabProps) {
 
   return (
     <div style={{ fontSize: '0.75rem' }}>
+      {/* Stage Models config */}
+      {sm && Object.keys(sm).length > 0 && (
+        <div style={{ marginBottom: 12, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 6 }}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>Stage Model Overrides</div>
+          <div style={{ display: 'flex', gap: 12, fontSize: '0.7rem' }}>
+            {(['brief', 'plan', 'cite'] as const).map(stage => (
+              <div key={stage}>
+                <span style={{ fontWeight: 500, textTransform: 'capitalize' }}>{stage}: </span>
+                <span style={{ color: sm[stage] ? 'var(--accent, #3b82f6)' : 'var(--text-muted)' }}>
+                  {sm[stage] || 'debate model'}
+                </span>
+              </div>
+            ))}
+            <div>
+              <span style={{ fontWeight: 500 }}>Draft: </span>
+              <span style={{ color: 'var(--text-muted)' }}>debate model (always)</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!diag && <div style={{ color: 'var(--text-secondary)', padding: 8 }}>No adaptive staging signal data yet.</div>}
+
+      {diag && <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <span style={{ fontWeight: 600 }}>Adaptive Staging Diagnostics</span>
         <button onClick={downloadSignals} style={{ fontSize: '0.7rem', padding: '2px 8px', cursor: 'pointer', borderRadius: 4, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-primary)' }}>
@@ -159,6 +184,7 @@ export function AdaptiveStagingTab({ debate }: AdaptiveStagingTabProps) {
           ))}
         </div>
       )}
+      </>}
     </div>
   );
 }

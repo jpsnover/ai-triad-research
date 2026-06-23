@@ -95,6 +95,8 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [excludedBackends, setExcludedBackends] = useState<Set<string>>(new Set());
   const [stepMode, setStepMode] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [stageModelPreset, setStageModelPreset] = useState<'same' | 'cost-optimized' | 'custom'>('same');
+  const [stageModels, setStageModels] = useState<{ brief: string; plan: string; cite: string }>({ brief: '', plan: '', cite: '' });
   const [showModelModal, setShowModelModal] = useState(false);
   const [modalBackend, setModalBackend] = useState<AIBackend>(aiBackend);
   const [hasApiKey, setHasApiKey] = useState<Record<string, boolean>>({});
@@ -328,11 +330,14 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
         speakerModels,
         modelTier: multiProvider ? modelTier : undefined,
         stepMode: stepMode || undefined,
+        stageModels: (stageModels.brief || stageModels.plan || stageModels.cite)
+          ? { ...(stageModels.brief && { brief: stageModels.brief }), ...(stageModels.plan && { plan: stageModels.plan }), ...(stageModels.cite && { cite: stageModels.cite }) }
+          : undefined,
       },
     );
     await loadDebate(id);
     const _creationWeights = (() => { try { const w = loadProvisionalWeights(); const p = w.pacing_presets?.moderate; return { pacing: 'moderate', maxTotalRounds: p?.maxTotalRounds, argumentationExit: p?.argumentationExit, concludingExit: p?.concludingExit, phase_bounds: w.phase_bounds, overrides: { confrontation: confrontationRounds, argumentation: argumentationRounds, concluding: concludingRounds } }; } catch { /* telemetry — silent by design: weights unavailable is non-fatal */ return null; } })();
-    getGlobalRecorder()?.record({ type: 'user.action', component: 'new-debate', level: 'info', message: 'debate.created', data: { debate_id: id, source_type: sourceType, povers, user_is_pover: userIsPover, model: effectiveModel, protocol: protocolId, temperature, audience: audience || null, adaptive_staging: true, step_mode: stepMode || undefined, multi_provider: multiProvider || undefined, model_tier: multiProvider ? modelTier : undefined, speaker_models: speakerModels || undefined, ..._creationWeights && { adaptive_config: _creationWeights } } });
+    getGlobalRecorder()?.record({ type: 'user.action', component: 'new-debate', level: 'info', message: 'debate.created', data: { debate_id: id, source_type: sourceType, povers, user_is_pover: userIsPover, model: effectiveModel, protocol: protocolId, temperature, audience: audience || null, adaptive_staging: true, step_mode: stepMode || undefined, multi_provider: multiProvider || undefined, model_tier: multiProvider ? modelTier : undefined, speaker_models: speakerModels || undefined, stage_models: (stageModels.brief || stageModels.plan || stageModels.cite) ? stageModels : undefined, ..._creationWeights && { adaptive_config: _creationWeights } } });
     const store = useDebateStore.getState();
     store.updatePhase('clarification');
     await store.saveDebate();
@@ -744,6 +749,53 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                     <option key={m.value} value={m.value}>{m.label}</option>
                   ))}
                 </select>
+
+                {/* Stage Models (per-stage model overrides) */}
+                <label className="ndd-field-label" style={{ marginTop: 12 }}>Stage Models</label>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 4 }}>
+                  Use cheaper models for Brief/Plan/Cite stages. Draft always uses the main debate model.
+                </div>
+                <select
+                  className="ndd-model-select"
+                  value={stageModelPreset}
+                  onChange={(e) => {
+                    const preset = e.target.value as 'same' | 'cost-optimized' | 'custom';
+                    setStageModelPreset(preset);
+                    if (preset === 'same') {
+                      setStageModels({ brief: '', plan: '', cite: '' });
+                    } else if (preset === 'cost-optimized') {
+                      const cheapModels = availableModels.filter(m => /flash|haiku|llama/i.test(m.label));
+                      const cheapModel = cheapModels[0]?.value ?? '';
+                      setStageModels({ brief: cheapModel, plan: '', cite: cheapModel });
+                    }
+                  }}
+                  style={{ marginBottom: 6 }}
+                >
+                  <option value="same">All same model</option>
+                  <option value="cost-optimized">Cost-optimized (Brief+Cite on cheap)</option>
+                  <option value="custom">Custom</option>
+                </select>
+                {stageModelPreset !== 'same' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 4 }}>
+                    {(['brief', 'plan', 'cite'] as const).map(stage => (
+                      <div key={stage}>
+                        <label style={{ fontSize: '0.7rem', fontWeight: 500, textTransform: 'capitalize', display: 'block', marginBottom: 2 }}>{stage}</label>
+                        <select
+                          className="ndd-model-select"
+                          value={stageModels[stage]}
+                          onChange={(e) => setStageModels(prev => ({ ...prev, [stage]: e.target.value }))}
+                          style={{ width: '100%', fontSize: '0.7rem' }}
+                          disabled={stageModelPreset !== 'custom'}
+                        >
+                          <option value="">Same as debate model</option>
+                          {availableModels.map((m) => (
+                            <option key={m.value} value={m.value}>{m.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
