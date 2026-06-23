@@ -9,6 +9,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { bridgeGet } from '../../bridge/web-bridge';
+import { SystemOverviewRow } from './SystemOverviewRow';
 
 // ── Types ──
 
@@ -500,6 +501,12 @@ export function AnalyticsDashboard() {
             </div>
           ) : (
             <>
+              <SystemOverviewRow usage={{
+                sessions: data.summary.sessions,
+                sessionsDeltaPct: compare && prevData && prevData.sessions > 0
+                  ? ((data.summary.sessions - prevData.sessions) / prevData.sessions) * 100
+                  : null,
+              }} />
               <SummaryCards data={data.summary} previous={compare ? prevData : null} />
               <ActivityChart daily={data.daily} />
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>

@@ -6,6 +6,22 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => null }));
 
+// SystemOverviewRow (embedded above the cards) pulls from these — stub so the
+// dashboard tests focus on the period-comparison behaviour.
+vi.mock('../../hooks/useTaxonomyStore', () => ({
+  useTaxonomyStore: () => ({
+    accelerationist: { nodes: [] }, safetyist: { nodes: [] },
+    skeptic: { nodes: [] }, situations: { nodes: [] },
+    setToolbarPanel: () => {},
+  }),
+}));
+vi.mock('@bridge', () => ({
+  api: {
+    getCalibrationLog: () => Promise.resolve({ entries: [], validationReport: null }),
+    listDebateSessionsMeta: () => Promise.resolve([]),
+  },
+}));
+
 // Bridge mock — current window (to === today) vs the preceding window.
 // Chosen so the four cards exercise: increase, decrease, zero-baseline, flat.
 vi.mock('../../bridge/web-bridge', () => {

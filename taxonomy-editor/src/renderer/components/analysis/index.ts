@@ -16,4 +16,5 @@ export * from './ParameterHistoryPanel';
 export * from './PolicyAlignmentPanel';
 export * from './PolicyDashboard';
 export * from './SummariesTab';
+export * from './SystemOverviewRow';
 export * from './TaxonomyGapPanel';

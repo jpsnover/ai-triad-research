@@ -1,0 +1,49 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* SystemOverviewRow — cross-domain summary strip atop the analytics dashboard. */
+
+.sys-overview-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.sys-overview-card {
+  flex: 1 1 160px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.sys-overview-card--link {
+  cursor: pointer;
+}
+
+.sys-overview-card--link:hover {
+  border-color: var(--color-acc, #3b82f6);
+  background: var(--bg-hover);
+}
+
+.sys-overview-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.sys-overview-primary {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.sys-overview-secondary {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  min-height: 0.9rem;
+}
