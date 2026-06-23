@@ -1,0 +1,26 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Shared hover tooltip for SVG analytics charts (t/894). Theme-aware. */
+
+.chart-tooltip {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none; /* never intercept the hover that spawned it */
+  max-width: 190px;
+  padding: 6px 9px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  animation: chart-tooltip-fade 0.12s ease-out forwards;
+}
+
+@keyframes chart-tooltip-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

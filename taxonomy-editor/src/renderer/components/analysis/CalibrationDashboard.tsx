@@ -10,6 +10,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { CalibrationDataPoint } from '@lib/debate/calibrationLogger';
+import { useChartTooltip, ChartTooltipLayer } from './chartTooltip';
 
 type CalibrationEntry = CalibrationDataPoint;
 
@@ -59,6 +60,7 @@ function MetricChart({ entries, metricKey, label, color }: {
   label: string;
   color: string;
 }) {
+  const { tip, showTip, hideTip } = useChartTooltip();
   const data = entries
     .map((e, i) => ({ idx: i, value: (e as Record<string, unknown>)[metricKey] as number | null }))
     .filter((d): d is { idx: number; value: number } => d.value !== null && typeof d.value === 'number');
@@ -106,7 +108,21 @@ function MetricChart({ entries, metricKey, label, color }: {
         <path d={maPathD} fill="none" stroke={color} strokeWidth="2" />
         {/* Latest point */}
         <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="3" fill={color} />
+        {/* Invisible per-point hover targets for rich tooltips */}
+        {points.map((p, i) => {
+          const ts = entries[data[i].idx]?.timestamp;
+          const when = ts ? new Date(ts).toLocaleDateString() + ': ' : '';
+          return (
+            <circle
+              key={i} cx={p.x} cy={p.y} r={6} fill="transparent" style={{ cursor: 'pointer' }}
+              onMouseEnter={e => showTip(e, <><strong>{label}</strong><br />{when}{p.value.toFixed(3)}</>)}
+              onMouseMove={e => showTip(e, <><strong>{label}</strong><br />{when}{p.value.toFixed(3)}</>)}
+              onMouseLeave={hideTip}
+            />
+          );
+        })}
       </svg>
+      <ChartTooltipLayer tip={tip} />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { bridgeGet } from '../../bridge/web-bridge';
 import { SystemOverviewRow } from './SystemOverviewRow';
+import { useChartTooltip, ChartTooltipLayer } from './chartTooltip';
 
 // ── Types ──
 
@@ -136,6 +137,7 @@ function SummaryCards({ data, previous }: { data: QueryResult['summary']; previo
 }
 
 function ActivityChart({ daily }: { daily: DailySummary[] }) {
+  const { tip, showTip, hideTip } = useChartTooltip();
   if (daily.length === 0) return null;
   const maxEvents = Math.max(...daily.map(d => d.events), 1);
   const maxUsers = Math.max(...daily.map(d => d.users), 1);
@@ -148,8 +150,10 @@ function ActivityChart({ daily }: { daily: DailySummary[] }) {
       <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 12 }}>Activity Over Time</div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 100 }}>
         {daily.map(d => (
-          <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}
-            title={`${d.date}\n${d.events} events, ${d.users} users, ${d.sessions} sessions`}
+          <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', cursor: 'pointer' }}
+            onMouseEnter={e => showTip(e, <><strong>{d.date}</strong><br />{d.events} events · {d.users} users · {d.sessions} sessions</>)}
+            onMouseMove={e => showTip(e, <><strong>{d.date}</strong><br />{d.events} events · {d.users} users · {d.sessions} sessions</>)}
+            onMouseLeave={hideTip}
           >
             <div style={{
               width: '100%', maxWidth: 24, borderRadius: '3px 3px 0 0',
@@ -170,6 +174,7 @@ function ActivityChart({ daily }: { daily: DailySummary[] }) {
         <span><span style={{ display: 'inline-block', width: 10, height: 10, background: '#3b82f6', opacity: 0.7, borderRadius: 2, marginRight: 4 }} />Events</span>
         <span><span style={{ display: 'inline-block', width: 10, height: 2, background: '#f59e0b', marginRight: 4, verticalAlign: 'middle' }} />Users</span>
       </div>
+      <ChartTooltipLayer tip={tip} />
     </div>
   );
 }
