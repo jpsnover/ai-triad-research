@@ -201,7 +201,7 @@ function getStoredTheme(): ColorScheme {
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read stored theme from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
   }
-  return 'light';
+  return 'harvard';
 }
 
 function applyTheme(scheme: ColorScheme) {

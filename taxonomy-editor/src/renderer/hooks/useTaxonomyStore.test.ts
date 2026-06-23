@@ -245,8 +245,8 @@ describe('useTaxonomyStore', () => {
 
   describe('settings', () => {
     describe('colorScheme', () => {
-      it('defaults to light', () => {
-        expect(useTaxonomyStore.getState().colorScheme).toBe('light');
+      it('defaults to harvard', () => {
+        expect(useTaxonomyStore.getState().colorScheme).toBe('harvard');
       });
 
       it('setColorScheme updates state and persists', () => {
