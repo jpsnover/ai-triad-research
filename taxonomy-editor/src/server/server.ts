@@ -34,7 +34,7 @@ import {
 import { GitHubAPIBackend } from './githubAPIBackend.js';
 import { SessionBranchManager } from './sessionBranchManager.js';
 import { runWithUser, getCurrentUser, getCurrentUserId, getStorageUserId, setSessionBranchName, deriveStorageUserId, isAnonymousUser } from './userContext.js';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError } from './accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies } from './accessControl.js';
 import { sanitizeUserText } from './contentSanitizer.js';
 import { getRollbackStatus } from './rollbackStatus.js';
 import { initAnonymousSessionStore } from './anonymousSessionStore.js';
@@ -881,6 +881,19 @@ get('/api/keys/has', async (req, res) => {
   json(res, await hasApiKey(backend));
 });
 
+// t/897: Easy Auth's /.auth/logout left AppServiceAuthSession valid, so "Sign
+// Out" didn't terminate the session (next browser user inherited it). This GET
+// (browser navigates here) expires every Easy Auth session cookie present, then
+// hands off to /.auth/logout with a post-logout redirect home. Provider-agnostic
+// (same session cookie for GitHub/Google). The client links here, not /.auth/logout.
+get('/api/auth/logout', (req, res) => {
+  res.writeHead(302, {
+    'Set-Cookie': expiredAuthCookies(Object.keys(parseCookies(req))),
+    'Location': '/.auth/logout?post_logout_redirect_uri=/',
+  });
+  res.end();
+});
+
 post('/api/keys', async (_req, res, body) => {
   const { key, backend } = body as { key: string; backend?: string };
   await storeApiKey(key, (backend || 'gemini') as AIBackend);
@@ -996,7 +1009,7 @@ const BACKEND_DISPLAY: Record<string, string> = {
 };
 
 post('/api/ai/generate', async (req, res, body) => {
-  const { prompt, model, timeout, apiKey: clientKey } = body as { prompt: string; model?: string; timeout?: number; apiKey?: string };
+  const { prompt, model, timeout, apiKey: clientKey, search } = body as { prompt: string; model?: string; timeout?: number; apiKey?: string; search?: boolean };
   try {
     const { principalName, idp } = callerIdentity(); // t/848: verified context, not raw headers
     const tier = proxyTiers.resolveTier(principalName, idp);
@@ -1073,20 +1086,33 @@ post('/api/ai/generate', async (req, res, body) => {
       data: { model: requestModel, backend, tier: tier.level, promptLength: prompt?.length ?? 0 },
     });
 
-    const result = await ai.generateText(prompt, effectiveModel, undefined, timeout, explicitKey);
+    if (search) {
+      const result = await ai.generateTextWithSearch(prompt, effectiveModel, explicitKey);
 
-    getGlobalRecorder()?.record({
-      type: 'ai.response', component: 'ai-generate', level: 'info',
-      duration_ms: Date.now() - t0,
-      message: `generate success ${backend}/${requestModel}`,
-      data: { model: requestModel, backend, responseLength: result.text?.length ?? 0, usage: result.tokenUsage },
-    });
+      getGlobalRecorder()?.record({
+        type: 'ai.response', component: 'ai-generate', level: 'info',
+        duration_ms: Date.now() - t0,
+        message: `generate+search success ${backend}/${requestModel}`,
+        data: { model: requestModel, backend, responseLength: result.text?.length ?? 0, search: true },
+      });
 
-    if (result.tokenUsage) {
-      rateLimiter.recordTokenUsage(limitKey, result.tokenUsage.inputTokens, result.tokenUsage.outputTokens);
+      json(res, result);
+    } else {
+      const result = await ai.generateText(prompt, effectiveModel, undefined, timeout, explicitKey);
+
+      getGlobalRecorder()?.record({
+        type: 'ai.response', component: 'ai-generate', level: 'info',
+        duration_ms: Date.now() - t0,
+        message: `generate success ${backend}/${requestModel}`,
+        data: { model: requestModel, backend, responseLength: result.text?.length ?? 0, usage: result.tokenUsage },
+      });
+
+      if (result.tokenUsage) {
+        rateLimiter.recordTokenUsage(limitKey, result.tokenUsage.inputTokens, result.tokenUsage.outputTokens);
+      }
+
+      json(res, { text: result.text, tokenUsage: result.tokenUsage });
     }
-
-    json(res, { text: result.text, tokenUsage: result.tokenUsage });
   } catch (err) {
     getGlobalRecorder()?.record({
       type: 'system.error', component: 'ai-generate', level: 'error',
@@ -3299,7 +3325,7 @@ const FORBIDDEN_PAGE = (name: string) => `<!DOCTYPE html>
   <h1>Access Denied</h1>
   <p>Signed in as <span class="user">${escapeHtml(name)}</span></p>
   <p>You are not in the authorized users list. Contact the administrator to request access.</p>
-  <a class="btn" href="/.auth/logout?post_logout_redirect_uri=/">Sign out</a>
+  <a class="btn" href="/api/auth/logout">Sign out</a>
 </div>
 </body>
 </html>`;
@@ -3405,6 +3431,7 @@ async function handleRequestInner(
     || urlPath === '/status'
     || urlPath === '/api/models'
     || urlPath === '/api/auth/me'
+    || urlPath === '/api/auth/logout' // t/897: logout must work even for authed-but-unauthorized users
     || urlPath === '/api/user/profile'
     || urlPath === '/api/sync/webhook/github'
     || urlPath === '/api/community/submit'

@@ -49,6 +49,21 @@ export function invalidRouteParam(routePath: string, pathname: string): string |
 }
 
 /**
+ * t/897: Set-Cookie values that expire the Easy Auth session cookies. Azure's
+ * /.auth/logout doesn't reliably clear AppServiceAuthSession (it can be chunked
+ * into AppServiceAuthSession, AppServiceAuthSession1, …), leaving the session
+ * valid after "Sign Out". The logout endpoint expires every such cookie present
+ * on the request (plus the canonical name) before handing off to /.auth/logout.
+ * Deletion only requires matching name + Path, so the fixed attributes are safe.
+ */
+export function expiredAuthCookies(presentCookieNames: string[]): string[] {
+  const names = new Set(presentCookieNames.filter(n => /^AppServiceAuthSession/i.test(n)));
+  names.add('AppServiceAuthSession');
+  return [...names].map(n =>
+    `${n}=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Secure; SameSite=Lax`);
+}
+
+/**
  * t/896: structured fast-fail when the caller has no usable API key for the
  * target backend — returned as a 422 before the request reaches the AI adapter
  * (which would otherwise surface an opaque upstream 401/403). Returns null (=

@@ -8,8 +8,30 @@
 
 import { describe, it, expect } from 'vitest';
 import path from 'path';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError } from '../accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies } from '../accessControl.js';
 import { resolveTier } from '../proxyTiers.js';
+
+describe('expiredAuthCookies (t/897)', () => {
+  it('expires every AppServiceAuthSession cookie present plus the canonical name', () => {
+    const out = expiredAuthCookies(['AppServiceAuthSession', 'AppServiceAuthSession1', 'other', 'anon_session_id']);
+    expect(out.some(c => c.startsWith('AppServiceAuthSession='))).toBe(true);
+    expect(out.some(c => c.startsWith('AppServiceAuthSession1='))).toBe(true);
+    expect(out.some(c => c.startsWith('other='))).toBe(false); // non-auth cookies untouched
+  });
+
+  it('always expires the canonical cookie even when none are present', () => {
+    const out = expiredAuthCookies([]);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatch(/^AppServiceAuthSession=;/);
+  });
+
+  it('each expiry sets Max-Age=0 and Path=/ so the browser deletes it', () => {
+    for (const c of expiredAuthCookies(['AppServiceAuthSession'])) {
+      expect(c).toContain('Max-Age=0');
+      expect(c).toContain('Path=/');
+    }
+  });
+});
 
 describe('missingApiKeyError (t/896)', () => {
   const base = { backend: 'claude', displayName: 'Claude (Anthropic)' };
