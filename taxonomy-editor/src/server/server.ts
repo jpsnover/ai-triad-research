@@ -36,6 +36,7 @@ import { SessionBranchManager } from './sessionBranchManager.js';
 import { runWithUser, getCurrentUser, getCurrentUserId, getStorageUserId, setSessionBranchName, deriveStorageUserId, isAnonymousUser } from './userContext.js';
 import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage } from './accessControl.js';
 import { sanitizeUserText } from './contentSanitizer.js';
+import { getRollbackStatus } from './rollbackStatus.js';
 import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
 import * as community from './community.js';
@@ -1969,6 +1970,25 @@ get('/api/admin/health', async (_req, res) => {
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     error(res, String(err));
+  }
+});
+
+// t/871: deployment / rollback status — what's running, what to roll back to.
+// Admin-only; sources deploy identity from env (DEPLOY_SHA/DEPLOY_TAG +
+// ACA CONTAINER_APP_REVISION) and the known-good tag from GHCR (cached).
+get('/api/admin/rollback/status', async (_req, res) => {
+  if (!requireAdmin(res)) return;
+  try {
+    json(res, await getRollbackStatus());
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Failed to build rollback status',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
   }
 });
 
