@@ -191,7 +191,7 @@ No PDF engine found. Install one of:
                             else {
                                 # macOS: cupsfilter
                                 Write-Verbose "cupsfilter → PDF"
-                                & /bin/bash -c "/usr/sbin/cupsfilter '$TempHtml' > '$PdfPath' 2>/dev/null"
+                                & /usr/sbin/cupsfilter $TempHtml 2>$null | Set-Content -Path $PdfPath -AsByteStream
                             }
                             Remove-Item $TempHtml -ErrorAction SilentlyContinue
                         }

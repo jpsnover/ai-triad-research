@@ -1,0 +1,201 @@
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
+function Test-GitHubHealth {
+    <#
+    .SYNOPSIS
+        Tests health of GitHub services used by the AI Triad project.
+    .DESCRIPTION
+        Checks GitHub platform status, repo accessibility, Actions workflow
+        status, and API rate limits. Uses GITHUB_TOKEN env var for authenticated
+        checks (higher rate limits, workflow status) when available.
+    .PARAMETER Repo
+        GitHub repo in owner/name format. Default: jpsnover/ai-triad-research.
+    .PARAMETER TimeoutSec
+        HTTP request timeout in seconds. Default: 10.
+    .EXAMPLE
+        Test-GitHubHealth
+    .EXAMPLE
+        Test-GitHubHealth -Repo 'jpsnover/ai-triad-research'
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0)]
+        [string]$Repo = 'jpsnover/ai-triad-research',
+
+        [Parameter()]
+        [ValidateRange(1, 120)]
+        [int]$TimeoutSec = 10
+    )
+
+    Set-StrictMode -Version Latest
+
+    $Checks = [System.Collections.Generic.List[PSObject]]::new()
+    $Headers = @{ 'Accept' = 'application/json'; 'User-Agent' = 'AITriad-HealthCheck/1.0' }
+    $Token = $env:GITHUB_TOKEN
+    if ($Token) { $Headers['Authorization'] = "Bearer $Token" }
+
+    # ── GitHub Status API ────────────────────────────────────────────────
+    try {
+        $Sw = [System.Diagnostics.Stopwatch]::StartNew()
+        $StatusResp = Invoke-RestMethod -Uri 'https://www.githubstatus.com/api/v2/status.json' `
+            -Headers @{ 'Accept' = 'application/json' } -TimeoutSec $TimeoutSec -ErrorAction Stop
+        $Sw.Stop()
+
+        $Indicator = $StatusResp.status.indicator
+        $Description = $StatusResp.status.description
+
+        $Checks.Add([PSCustomObject]@{
+            Check      = 'GitHub Platform Status'
+            Pass       = $Indicator -eq 'none'
+            ResponseMs = $Sw.ElapsedMilliseconds
+            Detail     = "$Indicator — $Description"
+        })
+    }
+    catch {
+        $Checks.Add([PSCustomObject]@{
+            Check      = 'GitHub Platform Status'
+            Pass       = $false
+            ResponseMs = 0
+            Detail     = $_.Exception.Message
+        })
+    }
+
+    # ── Repository Accessibility ─────────────────────────────────────────
+    try {
+        $Sw = [System.Diagnostics.Stopwatch]::StartNew()
+        $RepoResp = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo" `
+            -Headers $Headers -TimeoutSec $TimeoutSec -ErrorAction Stop
+        $Sw.Stop()
+
+        $Checks.Add([PSCustomObject]@{
+            Check      = 'Repository Accessible'
+            Pass       = $true
+            ResponseMs = $Sw.ElapsedMilliseconds
+            Detail     = "visibility=$($RepoResp.visibility) | default_branch=$($RepoResp.default_branch)"
+        })
+    }
+    catch {
+        $Checks.Add([PSCustomObject]@{
+            Check      = 'Repository Accessible'
+            Pass       = $false
+            ResponseMs = 0
+            Detail     = $_.Exception.Message
+        })
+    }
+
+    # ── API Rate Limits ──────────────────────────────────────────────────
+    try {
+        $RateResp = Invoke-RestMethod -Uri 'https://api.github.com/rate_limit' `
+            -Headers $Headers -TimeoutSec $TimeoutSec -ErrorAction Stop
+
+        $Core = $RateResp.resources.core
+        $Remaining = $Core.remaining
+        $Limit = $Core.limit
+        $ResetEpoch = $Core.reset
+        $ResetTime = ([DateTimeOffset]::FromUnixTimeSeconds($ResetEpoch)).LocalDateTime.ToString('HH:mm:ss')
+        $Pct = if ($Limit -gt 0) { [math]::Round(($Remaining / $Limit) * 100, 0) } else { 0 }
+
+        $Checks.Add([PSCustomObject]@{
+            Check      = 'API Rate Limit'
+            Pass       = $Remaining -gt 10
+            ResponseMs = 0
+            Detail     = "$Remaining/$Limit remaining ($Pct%) | resets $ResetTime | auth=$(if ($Token) {'token'} else {'anonymous'})"
+        })
+    }
+    catch {
+        $Checks.Add([PSCustomObject]@{
+            Check      = 'API Rate Limit'
+            Pass       = $false
+            ResponseMs = 0
+            Detail     = $_.Exception.Message
+        })
+    }
+
+    # ── Latest Workflow Runs ─────────────────────────────────────────────
+    $KeyWorkflows = @('ci.yml', 'deploy-azure.yml', 'health-monitor.yml')
+
+    foreach ($Wf in $KeyWorkflows) {
+        try {
+            $RunsResp = Invoke-RestMethod `
+                -Uri "https://api.github.com/repos/$Repo/actions/workflows/$Wf/runs?per_page=1&status=completed" `
+                -Headers $Headers -TimeoutSec $TimeoutSec -ErrorAction Stop
+
+            if ($RunsResp.total_count -gt 0) {
+                $Run = $RunsResp.workflow_runs[0]
+                $Conclusion = $Run.conclusion
+                $RunDate = ([datetime]$Run.updated_at).ToString('yyyy-MM-dd HH:mm')
+
+                $Checks.Add([PSCustomObject]@{
+                    Check      = "Workflow: $Wf"
+                    Pass       = $Conclusion -eq 'success'
+                    ResponseMs = 0
+                    Detail     = "conclusion=$Conclusion | $RunDate | #$($Run.run_number)"
+                })
+            }
+            else {
+                $Checks.Add([PSCustomObject]@{
+                    Check      = "Workflow: $Wf"
+                    Pass       = $true
+                    ResponseMs = 0
+                    Detail     = 'No completed runs found'
+                })
+            }
+        }
+        catch {
+            $StatusCode = 0
+            if ($_.Exception.PSObject.Properties['Response'] -and $_.Exception.Response) {
+                $StatusCode = [int]$_.Exception.Response.StatusCode
+            }
+            $Checks.Add([PSCustomObject]@{
+                Check      = "Workflow: $Wf"
+                Pass       = $false
+                ResponseMs = 0
+                Detail     = if ($StatusCode -eq 404) { 'Workflow not found' }
+                             elseif ($StatusCode -eq 403) { 'Auth required — set GITHUB_TOKEN env var' }
+                             else { $_.Exception.Message }
+            })
+        }
+    }
+
+    # ── GHCR Package Accessibility ───────────────────────────────────────
+    try {
+        $Sw = [System.Diagnostics.Stopwatch]::StartNew()
+        $GhcrResp = Invoke-WebRequest -Uri 'https://ghcr.io/v2/' `
+            -TimeoutSec $TimeoutSec -UseBasicParsing -ErrorAction Stop `
+            -Headers @{ 'Accept' = 'application/json' }
+        $Sw.Stop()
+
+        $Checks.Add([PSCustomObject]@{
+            Check      = 'GHCR Registry'
+            Pass       = $true
+            ResponseMs = $Sw.ElapsedMilliseconds
+            Detail     = "Reachable (HTTP $($GhcrResp.StatusCode))"
+        })
+    }
+    catch {
+        $StatusCode = 0
+        if ($_.Exception.PSObject.Properties['Response'] -and $_.Exception.Response) {
+            $StatusCode = [int]$_.Exception.Response.StatusCode
+        }
+        # GHCR returns 401 for unauthenticated — that still means it's reachable
+        $Reachable = $StatusCode -eq 401
+        $Checks.Add([PSCustomObject]@{
+            Check      = 'GHCR Registry'
+            Pass       = $Reachable
+            ResponseMs = 0
+            Detail     = if ($Reachable) { "Reachable (HTTP 401 — auth required for pulls)" } else { $_.Exception.Message }
+        })
+    }
+
+    # ── Summary ──────────────────────────────────────────────────────────
+    $AllPass = @($Checks | Where-Object { -not $_.Pass }).Count -eq 0
+
+    [PSCustomObject]@{
+        Platform  = 'GitHub'
+        Repo      = $Repo
+        Healthy   = $AllPass
+        Checks    = @($Checks)
+        Timestamp = (Get-Date).ToString('o')
+    }
+}

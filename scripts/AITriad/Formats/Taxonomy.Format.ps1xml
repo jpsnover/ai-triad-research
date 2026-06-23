@@ -192,5 +192,95 @@
         </TableRowEntries>
       </TableControl>
     </View>
+    <View>
+      <Name>TaxEditorHealthResult.Default</Name>
+      <ViewSelectedBy>
+        <TypeName>TaxEditorHealthResult</TypeName>
+      </ViewSelectedBy>
+      <CustomControl>
+        <CustomEntries>
+          <CustomEntry>
+            <CustomItem>
+              <Text>BaseUrl   : </Text>
+              <ExpressionBinding><PropertyName>BaseUrl</PropertyName></ExpressionBinding>
+              <NewLine/>
+              <Text>Healthy   : </Text>
+              <ExpressionBinding><PropertyName>Healthy</PropertyName></ExpressionBinding>
+              <NewLine/>
+              <Text>AverageMs : </Text>
+              <ExpressionBinding><PropertyName>AverageMs</PropertyName></ExpressionBinding>
+              <NewLine/>
+              <Text>Timestamp : </Text>
+              <ExpressionBinding><PropertyName>Timestamp</PropertyName></ExpressionBinding>
+              <NewLine/>
+              <Text>Checks:</Text>
+              <NewLine/>
+              <ExpressionBinding>
+                <ScriptBlock>($_.Checks | Format-Table Endpoint, Purpose, Status, Healthy, Ms, Detail -AutoSize | Out-String).TrimEnd()</ScriptBlock>
+              </ExpressionBinding>
+              <NewLine/>
+            </CustomItem>
+          </CustomEntry>
+        </CustomEntries>
+      </CustomControl>
+    </View>
+    <View>
+      <Name>HealthCheck.Default</Name>
+      <ViewSelectedBy>
+        <TypeName>HealthCheck</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Endpoint</Label><Width>10</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Purpose</Label><Width>10</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Status</Label><Width>7</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Healthy</Label><Width>8</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Ms</Label><Width>6</Width><Alignment>Right</Alignment></TableColumnHeader>
+          <TableColumnHeader><Label>Detail</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>Endpoint</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Purpose</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Status</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Healthy</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Ms</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Detail</PropertyName></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+    <View>
+      <Name>EndpointTestResult.Default</Name>
+      <ViewSelectedBy>
+        <TypeName>EndpointTestResult</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Pass</Label><Width>6</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Status</Label><Width>7</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Ms</Label><Width>6</Width><Alignment>Right</Alignment></TableColumnHeader>
+          <TableColumnHeader><Label>Endpoint</Label><Width>30</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Description</Label><Width>28</Width></TableColumnHeader>
+          <TableColumnHeader><Label>NodeCount</Label><Width>10</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Error</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><ScriptBlock>if ($_.Pass) { 'OK' } else { 'FAIL' }</ScriptBlock></TableColumnItem>
+              <TableColumnItem><PropertyName>Status</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Ms</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Endpoint</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Description</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>NodeCount</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Error</PropertyName></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
   </ViewDefinitions>
 </Configuration>

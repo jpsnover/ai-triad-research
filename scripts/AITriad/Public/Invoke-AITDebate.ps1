@@ -89,7 +89,10 @@ function Invoke-AITDebate {
         [int]$MaxTurnRetries = 2,
 
         [Parameter()]
-        [switch]$AdaptiveStaging
+        [switch]$AdaptiveStaging,
+
+        [Parameter()]
+        [hashtable]$StageModels
     )
 
     Set-StrictMode -Version Latest
@@ -172,10 +175,12 @@ Install Node.js from https://nodejs.org (v18+), then verify: npx --version
 
     if ($ApiKey) { $Config.apiKey = $ApiKey }
     if ($AdaptiveStaging) { $Config.useAdaptiveStaging = $true }
+    if ($StageModels) { $Config.stageModels = $StageModels }
 
     Write-Verbose "Config: topic='$DebateTopic' | slug=$Slug | rounds=$Rounds | protocol=$Protocol"
     Write-Verbose "Config: debaters=$($Debaters -join ',') | responseLength=$ResponseLength | temp=$Temperature"
     Write-Verbose "Config: clarify=$Clarify | probe=$Probe (every $ProbeEvery) | adaptiveStaging=$AdaptiveStaging"
+    if ($StageModels) { Write-Verbose "Config: stageModels=$($StageModels | ConvertTo-Json -Compress)" }
     if ($DisableTurnValidation) { Write-Verbose "Config: turn validation DISABLED" }
     if ($MaxTurnRetries -ne 2) { Write-Verbose "Config: maxTurnRetries=$MaxTurnRetries" }
 

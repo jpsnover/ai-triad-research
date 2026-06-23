@@ -141,6 +141,9 @@ class TaxonomyNode {
     [string[]]$LinkedNodes
     [double]$Score
     [PSObject]$GraphAttributes
+    [PSObject[]]$LabelHistory
+    [PSObject[]]$DescriptionHistory
+    [PSObject[]]$ChangeHistory
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -164,6 +167,43 @@ class AITClaim {
     [bool]     $HasWarrant      # evidence_criteria.has_warrant (FactualClaim only)
     [string]   $EvidenceLevel   # evidence_criteria.category_criteria.evidence_level (FactualClaim only)
     [string]   $Verbatim        # verbatim quote (KeyPoint only)
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HealthCheck — individual check result from Test-TaxEditorHealth
+# ─────────────────────────────────────────────────────────────────────────────
+class HealthCheck {
+    [string] $Endpoint
+    [string] $Purpose
+    [int]    $Status
+    [bool]   $Healthy
+    [int]    $Ms
+    [string] $Detail
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TaxEditorHealthResult — overall result from Test-TaxEditorHealth
+# ─────────────────────────────────────────────────────────────────────────────
+class TaxEditorHealthResult {
+    [string]        $BaseUrl
+    [bool]          $Healthy
+    [HealthCheck[]] $Checks
+    [int]           $AverageMs
+    [string]        $Timestamp
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# EndpointTestResult — typed result from Test-TaxEditorEndpoints
+# ─────────────────────────────────────────────────────────────────────────────
+class EndpointTestResult {
+    [string] $Endpoint
+    [string] $Category
+    [string] $Description
+    [int]    $Status
+    [bool]   $Pass
+    [int]    $Ms
+    [object] $NodeCount
+    [string] $Error
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -428,6 +468,11 @@ Export-ModuleMember -Function @(
     'Test-SynthesisCompleteness'
     'Get-ImportReport'
     'Get-CalibrationTrend'
+    'Test-TaxEditorHealth'
+    'Test-TaxEditorEndpoints'
+    'Invoke-TaxEditorSmokeTest'
+    'Test-AzureHealth'
+    'Test-GitHubHealth'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

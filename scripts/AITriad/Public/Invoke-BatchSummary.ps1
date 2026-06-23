@@ -672,7 +672,7 @@ function Invoke-BatchSummary {
                     for ($j = $i + 1; $j -lt $AllLabels.Count; $j++) {
                         $wa = @($AllLabels[$i].ToLower() -split '\s+')
                         $wb = @($AllLabels[$j].ToLower() -split '\s+')
-                        $shared = ($wa | Where-Object { $wb -contains $_ }).Count
+                        $shared = @($wa | Where-Object { $wb -contains $_ }).Count
                         $union = ($wa + $wb | Select-Object -Unique).Count
                         if ($union -gt 0 -and ($shared / $union) -gt 0.6) { $DupCandidates++ }
                     }

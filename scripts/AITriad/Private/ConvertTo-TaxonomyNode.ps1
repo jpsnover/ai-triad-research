@@ -81,5 +81,16 @@ function ConvertTo-TaxonomyNode {
         $Obj.GraphAttributes = $Node.graph_attributes
     }
 
+    # Edit history
+    if ($null -ne $Node.PSObject.Properties['label_history']) {
+        $Obj.LabelHistory = @($Node.label_history)
+    }
+    if ($null -ne $Node.PSObject.Properties['description_history']) {
+        $Obj.DescriptionHistory = @($Node.description_history)
+    }
+    if ($null -ne $Node.PSObject.Properties['change_history']) {
+        $Obj.ChangeHistory = @($Node.change_history)
+    }
+
     $Obj
 }

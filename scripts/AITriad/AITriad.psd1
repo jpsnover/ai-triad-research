@@ -117,6 +117,11 @@
         'Test-SynthesisCompleteness'
         'Get-ImportReport'
         'Get-CalibrationTrend'
+        'Test-TaxEditorHealth'
+        'Test-TaxEditorEndpoints'
+        'Invoke-TaxEditorSmokeTest'
+        'Test-AzureHealth'
+        'Test-GitHubHealth'
     )
 
     # Aliases exported from this module
