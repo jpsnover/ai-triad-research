@@ -1,6 +1,9 @@
 // Barrel file — re-exports all components in this directory
 export * from './AnalysisPanel';
+export * from './AICostCard';
 export * from './AnalyticsDashboard';
+export * from './DebateFunnelChart';
+export * from './DebateHealthCard';
 export * from './AttributeFilterPanel';
 export * from './AttributeInfoPanel';
 export * from './CalibrationDashboard';

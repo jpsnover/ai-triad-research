@@ -11,16 +11,27 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { bridgeGet } from '../../bridge/web-bridge';
 import { SystemOverviewRow } from './SystemOverviewRow';
 import { useChartTooltip, ChartTooltipLayer } from './chartTooltip';
+import { DebateHealthCard } from './DebateHealthCard';
+import { AICostCard } from './AICostCard';
+import { DebateFunnelChart } from './DebateFunnelChart';
 
 // ── Types ──
 
 interface DailySummary { date: string; events: number; users: number; sessions: number }
 interface UserSummary { user: string; lastActive: string; sessions: number; events: number; topCategory: string }
+/** Per-model AI spend aggregate (server, t/892). */
+export interface AICostBreakdown { calls: number; tokensIn: number; tokensOut: number; costUsd: number }
+export interface AICostAggregate extends AICostBreakdown { byModel: Record<string, AICostBreakdown> }
+
 interface QueryResult {
   summary: { activeUsers: number; sessions: number; totalEvents: number; avgSessionDurationMs: number };
   daily: DailySummary[];
   featureUsage: Record<string, number>;
   users: UserSummary[];
+  /** Counts keyed by event_type (server, t/888 events) — optional until the aggregation ships. */
+  eventTypes?: Record<string, number>;
+  /** Summed AI spend from ai.call detail (server) — optional until the aggregation ships. */
+  aiCost?: AICostAggregate;
 }
 interface RawEvent {
   user: string; session_id: string; timestamp: string;
@@ -513,7 +524,12 @@ export function AnalyticsDashboard() {
                   : null,
               }} />
               <SummaryCards data={data.summary} previous={compare ? prevData : null} />
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+                <DebateHealthCard eventTypes={data.eventTypes} />
+                <AICostCard aiCost={data.aiCost} debateCount={data.eventTypes?.['debate.complete']} />
+              </div>
               <ActivityChart daily={data.daily} />
+              <DebateFunnelChart eventTypes={data.eventTypes} />
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                 <FeatureUsage usage={data.featureUsage} onFilter={cat => setCategoryFilter(cat === categoryFilter ? null : cat)} />
                 <ActiveUsers

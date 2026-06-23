@@ -1,0 +1,108 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Shared styling for the P1 analytics cards (t/891 health, t/892 AI cost) and
+   the debate funnel (t/893). Theme-aware via CSS variables. */
+
+.analytics-card {
+  flex: 1 1 200px;
+  padding: 14px 18px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.analytics-card-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.analytics-card-primary {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.analytics-card-rows {
+  margin-top: 6px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.analytics-card-sub {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+.analytics-card-empty {
+  margin-top: 10px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* Funnel */
+
+.analytics-panel {
+  margin-bottom: 20px;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.funnel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.funnel-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.72rem;
+}
+
+.funnel-label {
+  flex: 0 0 150px;
+  color: var(--text-primary);
+}
+
+.funnel-pending {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.funnel-bar-track {
+  flex: 1;
+  height: 16px;
+  border-radius: 3px;
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+.funnel-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.funnel-count {
+  flex: 0 0 44px;
+  text-align: right;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.funnel-note {
+  margin-top: 10px;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
