@@ -2848,6 +2848,8 @@ get('/api/analytics/query', (req, res) => {
   const sessionId = url.searchParams.get('session_id') || undefined;
 
   if (user || sessionId) {
+    // t/850: raw per-user/session events expose other users' telemetry — admin only.
+    if (!requireAdmin(res)) return;
     json(res, { events: analytics.queryRawEvents(from, to, user, sessionId) });
   } else {
     json(res, analytics.queryAggregated(from, to));

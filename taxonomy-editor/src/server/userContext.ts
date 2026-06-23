@@ -91,12 +91,16 @@ export function setSessionBranchName(branchName: string): void {
 export function deriveStorageUserId(principalName: string, idp: string): string {
   if (!principalName || principalName === '_local') return '_local';
 
-  if (idp === 'github') {
-    return principalName.toLowerCase();
-  }
+  const raw = idp === 'github'
+    ? principalName.toLowerCase()
+    : principalName
+      .toLowerCase()
+      .replace(/@/g, '-at-')
+      .replace(/\./g, '-');
 
-  return principalName
-    .toLowerCase()
-    .replace(/@/g, '-at-')
-    .replace(/\./g, '-');
+  // Defense-in-depth (t/850): this value becomes a directory name
+  // (users/${id}/...). Easy Auth injects real usernames/emails that can't
+  // contain separators, but never trust that alone — strip path separators,
+  // traversal, and null bytes. Falls back to '_local' if sanitizing empties it.
+  return raw.replace(/[/\\\0]/g, '').replace(/\.\.+/g, '') || '_local';
 }

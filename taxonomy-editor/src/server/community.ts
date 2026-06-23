@@ -327,6 +327,7 @@ export async function approveSubmission(
   submissionId: string,
   edits?: Record<string, unknown>,
 ): Promise<{ communityId: string }> {
+  assertSafeId(submissionId, 'submission id'); // t/850: defense-in-depth parity with sibling fns
   const backend = getUserContentBackend();
   const subPath = path.join(submissionsDir(), `sub-${submissionId}.json`);
   const raw = await backend.readFile(subPath, { ref: 'main' });
@@ -359,6 +360,7 @@ export async function approveSubmission(
 }
 
 export async function rejectSubmission(submissionId: string, reason?: string): Promise<void> {
+  assertSafeId(submissionId, 'submission id'); // t/850: defense-in-depth parity with sibling fns
   const backend = getUserContentBackend();
   const subPath = path.join(submissionsDir(), `sub-${submissionId}.json`);
   const raw = await backend.readFile(subPath, { ref: 'main' });
