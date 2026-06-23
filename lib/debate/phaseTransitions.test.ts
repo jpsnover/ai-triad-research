@@ -739,13 +739,13 @@ describe('evaluatePhaseTransition', () => {
     it('force-transitions on soft API budget', () => {
       const w = loadProvisionalWeights();
       const softBudget = 12 * w.budget.soft_multiplier;
+      const config = makeConfig({ phaseBoundsOverride: { maxArgumentationRounds: 4 } });
       const state = makePhaseState({
         current_phase: 'argumentation',
         rounds_in_phase: 7, // past min (2×3=6), below max (4×3=12)
         api_calls_used: softBudget,
       });
       const ctx = makeSignalContext();
-      const config = makeConfig();
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.action).toBe('transition');
       expect(result.new_phase).toBe('concluding');
@@ -753,6 +753,7 @@ describe('evaluatePhaseTransition', () => {
     });
 
     it('force-transitions when debate is dead (recycling > 0.8 AND fatigue > 0.8)', () => {
+      const config = makeConfig({ phaseBoundsOverride: { maxArgumentationRounds: 4 } });
       const state = makePhaseState({ current_phase: 'argumentation', rounds_in_phase: 7 });
       const ctx = makeSignalContext({
         convergenceSignals: {
@@ -766,7 +767,6 @@ describe('evaluatePhaseTransition', () => {
           movingAverage: () => null, // null bypasses stability confidence gating
         },
       });
-      const config = makeConfig();
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.action).toBe('transition');
       expect(result.new_phase).toBe('concluding');
@@ -774,6 +774,7 @@ describe('evaluatePhaseTransition', () => {
     });
 
     it('fires fresh-crux veto when saturation above threshold but crux just discovered', () => {
+      const config = makeConfig({ phaseBoundsOverride: { maxArgumentationRounds: 4 } });
       const state = makePhaseState({
         current_phase: 'argumentation',
         rounds_in_phase: 7, // past min (2×3=6), below max (4×3=12)
@@ -807,7 +808,6 @@ describe('evaluatePhaseTransition', () => {
           ],
         },
       });
-      const config = makeConfig();
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.veto_active).toBe(true);
       expect(result.action).toBe('stay');
