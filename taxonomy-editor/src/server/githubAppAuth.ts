@@ -26,6 +26,7 @@ import crypto from 'crypto';
 import { createRequire } from 'module';
 import { log } from './logger.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+import { getCurrentUserId } from './userContext.js';
 
 const require = createRequire(import.meta.url);
 
@@ -183,28 +184,38 @@ async function getInstallationToken(): Promise<string | null> {
 }
 
 // ── Runtime credential store (set via /api/sync/credentials) ──
+//
+// t/847: scoped PER USER, keyed by getCurrentUserId(). Previously a single
+// process-global PAT meant one user's runtime credential was used for every
+// other user's sync/PR/push (confused-deputy / cross-user PAT leak). The map
+// keys on the ALS principal: single-user/Electron collapses to one "_local"
+// entry (identical to the old behavior), while a multi-user Azure deployment
+// isolates each authenticated user's PAT.
 
-let runtimeRepo: string | null = null;
-let runtimeToken: string | null = null;
+interface RuntimeCreds { repo: string | null; token: string | null }
+const runtimeCredsByUser = new Map<string, RuntimeCreds>();
 
 /**
- * Store credentials at runtime (from the UI). These take priority over
- * env vars so users can configure credentials without restarting the server.
+ * Store credentials at runtime (from the UI), scoped to the current user. These
+ * take priority over env vars so users can configure credentials without
+ * restarting the server.
  */
 export function setRuntimeCredentials(repo: string, token: string): void {
-  runtimeRepo = repo && repo.includes('/') ? repo : null;
-  runtimeToken = token && token.trim() ? token.trim() : null;
+  runtimeCredsByUser.set(getCurrentUserId(), {
+    repo: repo && repo.includes('/') ? repo : null,
+    token: token && token.trim() ? token.trim() : null,
+  });
 }
 
 export function clearRuntimeCredentials(): void {
-  runtimeRepo = null;
-  runtimeToken = null;
+  runtimeCredsByUser.delete(getCurrentUserId());
 }
 
 // ── Public API ──
 
 /** Repo in "owner/repo" form, or null when unset. */
 export function getRepoSlug(): string | null {
+  const runtimeRepo = runtimeCredsByUser.get(getCurrentUserId())?.repo;
   if (runtimeRepo) return runtimeRepo;
   const repo = process.env.GITHUB_REPO;
   return repo && repo.includes('/') ? repo : null;
@@ -228,7 +239,8 @@ export async function getCredentials(): Promise<SyncCredentials | null> {
   const repo = getRepoSlug();
   if (!repo) return null;
 
-  // 1. Runtime PAT (set via UI)
+  // 1. Runtime PAT (set via UI), scoped to the current user (t/847)
+  const runtimeToken = runtimeCredsByUser.get(getCurrentUserId())?.token;
   if (runtimeToken) return { repo, token: runtimeToken, mode: 'pat' };
 
   // 2. GitHub App installation token

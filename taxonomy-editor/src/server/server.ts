@@ -2302,6 +2302,12 @@ post('/api/upload-document', async (req, res) => {
 // ── Git sync ──
 
 post('/api/sync/credentials', async (_req, res, body) => {
+  // t/847: runtime credentials are now per-user (scoped in githubAppAuth). In a
+  // multi-user deployment, anonymous callers must not set them at all — only
+  // single-user/filesystem mode (no auth front door) keeps the open behavior.
+  if (STORAGE_MODE !== 'filesystem' && isAnonymousUser()) {
+    error(res, 'Authentication required to set sync credentials', 401); return;
+  }
   try {
     const data = body as { repo?: string; token?: string; clear?: boolean };
     if (data.clear) {
