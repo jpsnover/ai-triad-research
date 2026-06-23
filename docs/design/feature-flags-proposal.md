@@ -263,6 +263,167 @@ interface FlagDefinition {
 }
 ```
 
+### User Experience
+
+#### For Regular Users
+
+**No visible change.** Flags are invisible to non-admin users. Features either appear or they don't. There is no "Labs" or "Experimental" settings panel — the admin controls what's enabled for whom.
+
+#### For Admins: Feature Flags Tab
+
+Access: `/#admin` → new "Feature Flags" tab in the `AdminReviewPanel` header alongside existing Submissions / Feedback / Review tabs.
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│ ← Back   Admin   [Submissions] [Feedback] [Feature Flags]    │
+│                                                [+ New Flag]   │
+├───────────────────────────────────────────────────────────────┤
+│                                                               │
+│  ┌─ release-debate-streaming ─────────────────── [ON] ────┐  │
+│  │  Stream debate responses token-by-token                 │  │
+│  │  Scope: ● Global         Owner: ServerAPI               │  │
+│  │  Created: Jun 23         Expires: Sep 1                 │  │
+│  └──────────────────────────────────── [Edit] [Delete] ────┘  │
+│                                                               │
+│  ┌─ ops-verbose-flight-recorder ──────────────── [OFF] ───┐  │
+│  │  Emit full debug payloads in flight recorder events     │  │
+│  │  Scope: ● Admin only     Owner: Diagnostics             │  │
+│  │  Created: Jun 20                                        │  │
+│  └──────────────────────────────────── [Edit] [Delete] ────┘  │
+│                                                               │
+│  ┌─ exp-embeddings-v2 ────────────────────────── [OFF] ───┐  │
+│  │  Use v2 embedding model for similarity search           │  │
+│  │  Scope: ● jpsnover       Owner: ElectronMain            │  │
+│  │  Created: Jun 23         Expires: Jul 15                │  │
+│  │  ⚠ Expires in 22 days                                   │  │
+│  └──────────────────────────────────── [Edit] [Delete] ────┘  │
+│                                                               │
+│  ── Stale Flags (> 90 days) ────────────────────────────────  │
+│  ⚠ No stale flags found.                                     │
+│                                                               │
+└───────────────────────────────────────────────────────────────┘
+```
+
+**Card elements:**
+- **Toggle switch** — instant on/off, optimistic UI with rollback on error. Calls `PUT /api/admin/flags/:name/override`.
+- **Scope badge** — colored dot + label: green = Global, blue = Admin only, purple = Specific users, orange = Environment-specific.
+- **Expiry warning** — yellow highlight + countdown when flag expires within 30 days.
+- **Stale section** — bottom area lists flags older than 90 days with no `expires` date, nudging cleanup.
+
+#### Create / Edit Dialog
+
+Triggered by "+ New Flag" button or "Edit" on an existing flag card.
+
+```
+┌─ New Feature Flag ──────────────────────────────┐
+│                                                  │
+│  Name:  [release-debate-streaming          ]     │
+│         kebab-case, prefix with type             │
+│                                                  │
+│  Type:  (•) Release  ( ) Ops  ( ) Permission     │
+│         ( ) Experiment                           │
+│                                                  │
+│  Description:                                    │
+│  [Stream debate responses token-by-token    ]    │
+│                                                  │
+│  Enabled:  (•) On   ( ) Off                      │
+│                                                  │
+│  Scope:    [Global              ▾]               │
+│            ┌────────────────────┐                │
+│            │ Global             │                │
+│            │ Admin only         │                │
+│            │ Specific users     │                │
+│            │ Specific tier      │                │
+│            │ Web only           │                │
+│            │ Electron only      │                │
+│            └────────────────────┘                │
+│                                                  │
+│  Users:    [jpsnover, alice            ]         │
+│            (visible when Scope = Specific users) │
+│                                                  │
+│  Tier:     [platform           ▾]               │
+│            (visible when Scope = Specific tier)  │
+│                                                  │
+│  Rollout:  [  100  ] %                           │
+│            Deterministic — same user always gets │
+│            the same result. 0 = off, 100 = on.   │
+│                                                  │
+│  Expires:  [2026-09-01         ] [Clear]         │
+│            Required for Release and Experiment   │
+│            types. Ops flags may omit.            │
+│                                                  │
+│  Owner:    [ServerAPI           ▾]               │
+│            Team responsible for cleanup          │
+│                                                  │
+│              [Cancel]          [Save]            │
+└──────────────────────────────────────────────────┘
+```
+
+**Validation rules:**
+- Name must be kebab-case, 3–50 characters, unique
+- Release and Experiment flags require an `expires` date
+- Scope "Specific users" requires at least one user ID
+- Percentage rollout must be 0–100
+
+#### Setting and Clearing Flags
+
+Three distinct operations:
+
+| Action | What happens | When to use |
+|---|---|---|
+| **Toggle on/off** | Flips the flag's `enabled` state. The flag definition remains. | Temporarily disable a misbehaving feature, or re-enable after a fix. |
+| **Edit scope** | Changes who sees the flag. E.g., widen from "Admin only" to "Global" for a phased rollout. | Gradually expand a feature's audience. |
+| **Delete** | Removes the flag definition from `feature-flags.json`. Confirmation dialog: "Delete flag 'X'? Code that checks this flag will see it as disabled (fail-closed)." | When a feature is fully shipped (remove flag + remove code check) or abandoned. |
+
+**Phased rollout workflow** (using scope changes):
+1. Create flag with `Scope: Specific users → [jpsnover]` — dogfood on admin account
+2. Edit scope → `Admin only` — expand to all admins
+3. Edit scope → `Global` — ship to everyone
+4. Once stable: delete flag, remove `useFlag()` check from code
+
+**Kill switch workflow** (using toggle):
+1. Feature is live with flag enabled, scope Global
+2. Problem detected → toggle OFF in admin panel (instant, no redeploy)
+3. Fix deployed → toggle ON to restore
+4. Remove flag when the root cause is permanently resolved
+
+#### Audit Trail
+
+Every flag change is logged. Visible at the bottom of the Feature Flags tab as an expandable "Recent Changes" section:
+
+```
+▸ Recent Changes (last 7 days)
+  Jun 23 14:30  jpsnover  toggled release-debate-streaming ON
+  Jun 23 12:00  jpsnover  created release-debate-streaming (scope: Global)
+  Jun 22 09:15  jpsnover  deleted exp-old-search
+```
+
+Persisted to `admin/feature-flags-audit.ndjson` — same NDJSON append pattern as analytics.
+
+#### Electron vs Web
+
+| Aspect | Web (Azure Container Apps) | Electron (Desktop) |
+|---|---|---|
+| Flag storage | `admin/feature-flags.json` on Azure Files mount | Local `feature-flags.json` in data directory |
+| Admin UI | `/#admin` → Feature Flags tab | Settings panel (admin section not exposed in Electron — single-user, you ARE the admin) |
+| Flag evaluation | Server-side in middleware, sent to client via `/api/flags` | Client-side from local file |
+| Runtime override | Admin REST API | Direct file edit or future Settings UI toggle |
+
+In Electron, all flags default to their `default` value. User targeting and percentage rollout don't apply (single user). The admin panel is web-only. Electron users who want to toggle experimental features can edit `feature-flags.json` directly or use a future "Experimental Features" section in the Settings dialog.
+
+### Migration: Existing Ad-Hoc Patterns
+
+The first concrete migration is `qbafEnabled`:
+
+| Step | Change |
+|---|---|
+| 1. Add flag | `"release-qbaf-analysis": { "default": true, "type": "release", ... }` in `feature-flags.json` |
+| 2. Replace reads | All 12 `useTaxonomyStore(s => s.qbafEnabled)` call sites → `useFlag('release-qbaf-analysis')` |
+| 3. Remove old code | Delete `qbafEnabled` / `setQbafEnabled` from `settingsSlice.ts`, remove `localStorage` key |
+| 4. Affected files | `ConflictDetail.tsx`, `QbafOverlay.tsx` (×4), `StatementCard.tsx`, `HarvestDialog.tsx`, `EntryView.tsx`, `OverviewView.tsx`, `WhatIfSection.tsx`, `settingsSlice.ts` |
+
+This serves as the template for migrating any future ad-hoc boolean that is really a feature gate.
+
 ### Implementation Scope
 
 | Component | File | Effort |
@@ -272,7 +433,7 @@ interface FlagDefinition {
 | Admin REST endpoints | `src/server/server.ts` (4 routes) | ~80 lines |
 | Client-side hook | `src/renderer/hooks/useFeatureFlags.ts` | ~50 lines |
 | Bridge additions | `types.ts`, `web-bridge.ts`, `electron-bridge.ts` | ~40 lines |
-| Admin panel UI | `src/renderer/components/admin/FeatureFlagsPanel.tsx` | ~150 lines |
+| Admin panel UI | `src/renderer/components/settings/FeatureFlagsPanel.tsx` | ~150 lines |
 | Flag config file | `feature-flags.json` | ~30 lines (initial flags) |
 | **Total** | | **~650 lines** |
 

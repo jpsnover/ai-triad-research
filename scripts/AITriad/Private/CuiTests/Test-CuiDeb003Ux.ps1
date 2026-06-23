@@ -22,7 +22,7 @@ function Test-CuiDeb003Ux {
         Invoke-UxWaitForSelector -Session $Session -Selector '.toolbar' -TimeoutMs 10000 | Out-Null
 
         # Navigate to debate and select a session
-        Invoke-UxEvaluate -Session $Session -Expression @"
+        $null = Invoke-UxEvaluate -Session $Session -Expression @"
 (() => {
   const items = document.querySelectorAll('.toolbar-more-item, .toolbar-icon');
   for (const item of items) {

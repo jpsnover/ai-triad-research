@@ -25,7 +25,7 @@ function Test-CuiAi001Ux {
         $CheckSw = [System.Diagnostics.Stopwatch]::StartNew()
         $menuOk = $false
         try {
-            Invoke-UxEvaluate -Session $Session -Expression @"
+            $null = Invoke-UxEvaluate -Session $Session -Expression @"
 (() => {
   const wraps = document.querySelectorAll('.toolbar-more-wrap .toolbar-icon, .toolbar-icon');
   for (const w of wraps) {
@@ -63,7 +63,7 @@ function Test-CuiAi001Ux {
         $CheckSw = [System.Diagnostics.Stopwatch]::StartNew()
         $debateOk = $false
         try {
-            Invoke-UxEvaluate -Session $Session -Expression @"
+            $null = Invoke-UxEvaluate -Session $Session -Expression @"
 (() => {
   const items = document.querySelectorAll('.toolbar-more-item');
   for (const item of items) {

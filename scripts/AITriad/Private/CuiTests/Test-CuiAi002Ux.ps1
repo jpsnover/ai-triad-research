@@ -25,7 +25,7 @@ function Test-CuiAi002Ux {
         $CheckSw = [System.Diagnostics.Stopwatch]::StartNew()
         $menuOk = $false
         try {
-            Invoke-UxEvaluate -Session $Session -Expression @"
+            $null = Invoke-UxEvaluate -Session $Session -Expression @"
 (() => {
   const wraps = document.querySelectorAll('.toolbar-more-wrap .toolbar-icon, .toolbar-icon');
   for (const w of wraps) {

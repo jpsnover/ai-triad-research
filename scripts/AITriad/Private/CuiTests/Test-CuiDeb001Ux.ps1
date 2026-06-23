@@ -25,7 +25,7 @@ function Test-CuiDeb001Ux {
         $CheckSw = [System.Diagnostics.Stopwatch]::StartNew()
         $debateViewOk = $false
         try {
-            Invoke-UxEvaluate -Session $Session -Expression @"
+            $null = Invoke-UxEvaluate -Session $Session -Expression @"
 (() => {
   const items = document.querySelectorAll('.toolbar-more-item, .toolbar-icon');
   for (const item of items) {

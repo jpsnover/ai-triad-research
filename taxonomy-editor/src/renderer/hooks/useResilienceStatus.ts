@@ -16,6 +16,8 @@ export interface ResilienceAlert {
   kind: 'degraded' | 'server-down' | 'reconnecting';
   category: EndpointCategory;
   message: string;
+  p95Ms?: number;
+  baselineMs?: number;
 }
 
 export interface RecoveryToast {
@@ -77,6 +79,8 @@ function buildAlerts(status: ResilienceStatus): ResilienceAlert[] {
         kind: 'degraded',
         category,
         message: 'Server is responding slowly — some features may be delayed',
+        p95Ms: throttle.p95Ms,
+        baselineMs: throttle.baselineMs,
       });
     }
   }

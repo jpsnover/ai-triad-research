@@ -27,7 +27,7 @@ function Test-CuiTax003Ux {
         try {
             $searchExists = Invoke-UxElementExists -Session $Session -Selector '.search-input'
             if (-not $searchExists) {
-                Invoke-UxEvaluate -Session $Session -Expression @"
+                $null = Invoke-UxEvaluate -Session $Session -Expression @"
 (() => {
   const btns = document.querySelectorAll('.toolbar-icon');
   for (const b of btns) { if (b.textContent.includes('search') || b.title?.includes('Search')) { b.click(); return true; } }

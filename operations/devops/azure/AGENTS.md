@@ -139,6 +139,16 @@ Before any container app goes to production, verify:
 - **Data**: Azure File Share mounted as volume (taxonomy data)
 - **Model keys**: BYOK — users provide their own API keys (stored client-side)
 
+## Remote Diagnostics Cmdlets
+
+Run `Import-Module ./scripts/AITriad/AITriad.psm1` first.
+
+- `Test-AzureHealth` — checks Azure status page, Container App liveness/readiness, TLS cert expiry, and optional ACA CLI diagnostics. Use this to separate app-level issues from Azure platform issues.
+- `Test-TaxEditorHealth` — quick liveness/readiness check against the deployed site
+- `Invoke-TaxEditorSmokeTest -Detailed` — full end-to-end validation when you need the complete picture
+
+All accept `-BaseUrl` to target staging or other instances.
+
 ## Error Reporting
 
 When flagging ACA issues, use the project error format:

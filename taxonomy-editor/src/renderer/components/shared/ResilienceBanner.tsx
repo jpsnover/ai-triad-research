@@ -3,6 +3,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useResilienceStatus, initResilienceUI, type ResilienceAlert } from '../../hooks/useResilienceStatus';
+import { useUserProfile } from '../../hooks/useAuthStatus';
 import './ResilienceBanner.css';
 
 const TOAST_TTL_MS = 5000;
@@ -33,10 +34,20 @@ function BannerIcon({ kind }: { kind: ResilienceAlert['kind'] }) {
   );
 }
 
+function formatAlertMessage(alert: ResilienceAlert, isAdmin: boolean): string {
+  if (isAdmin && alert.p95Ms != null && alert.baselineMs != null) {
+    const threshold = Math.round(alert.baselineMs * 2);
+    return `${alert.message} (p95: ${alert.p95Ms}ms, threshold: ${threshold}ms, baseline: ${alert.baselineMs}ms)`;
+  }
+  return alert.message;
+}
+
 export function ResilienceBanner() {
   const alerts = useResilienceStatus(s => s.alerts);
   const toasts = useResilienceStatus(s => s.toasts);
   const dismissToast = useResilienceStatus(s => s.dismissToast);
+  const profile = useUserProfile();
+  const isAdmin = profile?.isAdmin ?? false;
   const timersRef = useRef(new Map<number, ReturnType<typeof setTimeout>>());
 
   useEffect(() => { initResilienceUI(); }, []);
@@ -73,7 +84,7 @@ export function ResilienceBanner() {
           aria-live="polite"
         >
           <BannerIcon kind={alert.kind} />
-          <span className="resilience-banner-text">{alert.message}</span>
+          <span className="resilience-banner-text">{formatAlertMessage(alert, isAdmin)}</span>
         </div>
       ))}
 

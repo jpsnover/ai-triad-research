@@ -22,7 +22,7 @@ function Test-CuiAdm002Ux {
         Invoke-UxWaitForSelector -Session $Session -Selector '.toolbar' -TimeoutMs 10000 | Out-Null
 
         # Navigate to admin
-        Invoke-UxEvaluate -Session $Session -Expression @"
+        $null = Invoke-UxEvaluate -Session $Session -Expression @"
 (() => {
   const wraps = document.querySelectorAll('.toolbar-more-wrap .toolbar-icon, .toolbar-icon');
   for (const w of wraps) { if (w.closest('.toolbar-more-wrap')) { w.click(); return true; } }
@@ -30,7 +30,7 @@ function Test-CuiAdm002Ux {
 })()
 "@
         Start-Sleep -Milliseconds 300
-        Invoke-UxEvaluate -Session $Session -Expression @"
+        $null = Invoke-UxEvaluate -Session $Session -Expression @"
 (() => {
   const items = document.querySelectorAll('.toolbar-more-item');
   for (const item of items) {
