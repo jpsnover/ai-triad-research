@@ -41,6 +41,19 @@ interface DailySummary {
   sessions: number;
 }
 
+/** Summed AI usage/cost for one model (t/892). */
+export interface AiCostBucket {
+  calls: number;
+  tokensIn: number;
+  tokensOut: number;
+  costUsd: number;
+}
+
+/** Summed AI usage/cost across all `ai.call` events, with a per-model breakdown. */
+export interface AiCostSummary extends AiCostBucket {
+  byModel: Record<string, AiCostBucket>;
+}
+
 export interface QueryResult {
   summary: {
     activeUsers: number;
@@ -51,6 +64,10 @@ export interface QueryResult {
   daily: DailySummary[];
   featureUsage: Record<string, number>;
   users: UserSummary[];
+  /** Counts keyed by event_type (t/891 debate.complete/abandon, t/893 funnel). */
+  eventTypes: Record<string, number>;
+  /** Summed AI usage/cost from `ai.call` detail (t/892). */
+  aiCost: AiCostSummary;
 }
 
 // ── Backend abstraction ──
@@ -179,6 +196,8 @@ export async function queryAggregated(from: string, to: string): Promise<QueryRe
   const userSet = new Set<string>();
   const sessionSet = new Set<string>();
   const featureUsage: Record<string, number> = {};
+  const eventTypes: Record<string, number> = {};
+  const aiCost: AiCostSummary = { calls: 0, tokensIn: 0, tokensOut: 0, costUsd: 0, byModel: {} };
   const dailyMap = new Map<string, { events: number; users: Set<string>; sessions: Set<string> }>();
   const userMap = new Map<string, { lastActive: string; sessions: Set<string>; events: number; categories: Record<string, number> }>();
   const sessionTimes = new Map<string, { first: number; last: number }>();
@@ -188,6 +207,20 @@ export async function queryAggregated(from: string, to: string): Promise<QueryRe
     sessionSet.add(evt.session_id);
 
     featureUsage[evt.category] = (featureUsage[evt.category] || 0) + 1;
+    eventTypes[evt.event_type] = (eventTypes[evt.event_type] || 0) + 1;
+
+    // t/892: sum AI usage/cost from ai.call detail (one pass, additive).
+    if (evt.event_type === 'ai.call') {
+      const d = evt.detail || {};
+      const tokensIn = Number(d.tokens_in) || 0;
+      const tokensOut = Number(d.tokens_out) || 0;
+      const costUsd = Number(d.estimated_cost_usd) || 0;
+      const model = typeof d.model === 'string' && d.model ? d.model : 'unknown';
+      aiCost.calls++; aiCost.tokensIn += tokensIn; aiCost.tokensOut += tokensOut; aiCost.costUsd += costUsd;
+      let m = aiCost.byModel[model];
+      if (!m) { m = { calls: 0, tokensIn: 0, tokensOut: 0, costUsd: 0 }; aiCost.byModel[model] = m; }
+      m.calls++; m.tokensIn += tokensIn; m.tokensOut += tokensOut; m.costUsd += costUsd;
+    }
 
     const date = evt.timestamp.slice(0, 10);
     let daily = dailyMap.get(date);
@@ -229,6 +262,11 @@ export async function queryAggregated(from: string, to: string): Promise<QueryRe
     })
     .sort((a, b) => b.lastActive.localeCompare(a.lastActive));
 
+  // Round summed costs to 6 dp to avoid floating-point accumulation noise.
+  const round6 = (n: number) => Math.round(n * 1e6) / 1e6;
+  aiCost.costUsd = round6(aiCost.costUsd);
+  for (const m of Object.values(aiCost.byModel)) m.costUsd = round6(m.costUsd);
+
   return {
     summary: {
       activeUsers: userSet.size,
@@ -239,6 +277,8 @@ export async function queryAggregated(from: string, to: string): Promise<QueryRe
     daily,
     featureUsage,
     users,
+    eventTypes,
+    aiCost,
   };
 }
 
