@@ -166,7 +166,6 @@ jobs:
               githubAppInstallationId=${{ vars.SYNC_GITHUB_APP_INSTALLATION_ID }} \
               githubAppPrivateKeySecretName=${{ vars.SYNC_GITHUB_APP_PRIVATE_KEY_SECRET_NAME }} \
               githubWebhookSecret=${{ secrets.SYNC_GITHUB_WEBHOOK_SECRET }} \
-              ghcrPassword=${{ github.token }} \
               freeTierGeminiKey=${{ secrets.FREE_TIER_GEMINI_KEY }} \
             --no-pretty-print 2>&1) || true
           echo "$RESULT"
@@ -208,7 +207,6 @@ jobs:
             githubAppInstallationId=${{ vars.SYNC_GITHUB_APP_INSTALLATION_ID }}
             githubAppPrivateKeySecretName=${{ vars.SYNC_GITHUB_APP_PRIVATE_KEY_SECRET_NAME }}
             githubWebhookSecret=${{ secrets.SYNC_GITHUB_WEBHOOK_SECRET }}
-            ghcrPassword=${{ github.token }}
             freeTierGeminiKey=${{ secrets.FREE_TIER_GEMINI_KEY }}
 
       - name: Get current active revision
@@ -569,3 +567,39 @@ jobs:
 
           echo ""
           echo "=== Smoke test results: $PASS passed, $FAIL failed ==="
+
+      - name: Cleanup stale registry credentials
+        if: steps.acceptance.outputs.accepted == 'true'
+        continue-on-error: true
+        run: |
+          # The GHCR package is public — no registry credentials needed.
+          # Stale credentials (expired PATs) cause ImagePullBackOff on node rotation.
+          # ARM API won't remove registries referenced by active revisions, so we
+          # first deactivate old revisions, then remove the registry + secret.
+          echo "Deactivating old revisions..."
+          OLD_REV="${{ steps.current_revision.outputs.revision }}"
+          if [ -n "$OLD_REV" ]; then
+            az containerapp revision deactivate \
+              --name ${{ env.CONTAINER_APP_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --revision "$OLD_REV" 2>/dev/null || true
+            echo "  Deactivated: $OLD_REV"
+          fi
+
+          echo "Removing stale GHCR registry credential (if present)..."
+          if az containerapp registry show \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --server ghcr.io 2>/dev/null | grep -q ghcr.io; then
+            az containerapp registry remove \
+              --name ${{ env.CONTAINER_APP_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --server ghcr.io 2>/dev/null || echo "  (registry remove failed — may still be referenced)"
+            az containerapp secret remove \
+              --name ${{ env.CONTAINER_APP_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --secret-names ghcr-password 2>/dev/null || echo "  (secret remove failed — may still be referenced)"
+            echo "  GHCR cleanup attempted"
+          else
+            echo "  No GHCR registry configured — nothing to clean"
+          fi
