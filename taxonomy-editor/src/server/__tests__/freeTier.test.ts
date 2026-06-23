@@ -9,7 +9,32 @@
  */
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { resolveTier, freeTierEnabled, isBackendAllowed } from '../proxyTiers.js';
+import { resolveTier, freeTierEnabled, isBackendAllowed, parseFreeTierKeys } from '../proxyTiers.js';
+
+describe('parseFreeTierKeys (t/846)', () => {
+  it('returns [] for unset/blank', () => {
+    expect(parseFreeTierKeys(undefined)).toEqual([]);
+    expect(parseFreeTierKeys('')).toEqual([]);
+    expect(parseFreeTierKeys('  ,  ,')).toEqual([]);
+  });
+  it('parses a single key (no commas) — backward compatible (AC#2)', () => {
+    expect(parseFreeTierKeys('only-key')).toEqual(['only-key']);
+  });
+  it('parses a comma-separated list, trimming blanks (AC#1)', () => {
+    expect(parseFreeTierKeys('k1,k2,k3')).toEqual(['k1', 'k2', 'k3']);
+    expect(parseFreeTierKeys(' k1 , ,k2 ')).toEqual(['k1', 'k2']);
+  });
+});
+
+describe('freeTierEnabled with multi-key (t/846)', () => {
+  afterEach(() => { delete process.env.FREE_TIER_GEMINI_KEY; });
+  it('is true for a CSV value and false for a blank one', () => {
+    process.env.FREE_TIER_GEMINI_KEY = 'k1,k2';
+    expect(freeTierEnabled()).toBe(true);
+    process.env.FREE_TIER_GEMINI_KEY = ' , ';
+    expect(freeTierEnabled()).toBe(false);
+  });
+});
 
 describe('free tier (t/793)', () => {
   afterEach(() => { delete process.env.FREE_TIER_GEMINI_KEY; });

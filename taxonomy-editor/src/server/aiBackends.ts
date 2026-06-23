@@ -301,6 +301,12 @@ async function callWithKeyRotation(
     const sel = keyRotator.getNextKey(backend, keys);
     if (!sel || tried.has(sel.index)) break; // all remaining are rate-limited/tried
     tried.add(sel.index);
+    // t/846/AC#4: log which key index each attempt uses (visible even on success).
+    getGlobalRecorder()?.record({
+      type: 'ai.request', component: 'ai-adapter', level: 'info',
+      message: `Using key ${sel.index}/${keys.length} for ${backend}`,
+      data: { backend, keyIndex: sel.index, totalKeys: keys.length },
+    });
     try {
       return await callProvider(fetch, backend, prompt, apiModel, sel.key, opts);
     } catch (err) {
@@ -324,16 +330,21 @@ export async function generateText(
   model?: string,
   onRetry?: (p: GenerateTextProgress) => void,
   timeoutMs?: number,
-  explicitApiKey?: string,
+  explicitApiKey?: string | string[],
 ): Promise<GenerateResult> {
   const resolved = model || DEFAULT_MODEL;
-  const modelsToTry = buildModelsToTry(resolved, explicitApiKey !== undefined);
+  // t/846: an explicit key may now be a single string or an array (free-tier
+  // server keys, comma-separated). An array with >1 key hits callWithKeyRotation.
+  const explicitKeys = explicitApiKey === undefined
+    ? undefined
+    : (Array.isArray(explicitApiKey) ? explicitApiKey.filter(Boolean) : [explicitApiKey]);
+  const modelsToTry = buildModelsToTry(resolved, explicitKeys !== undefined);
 
   let lastError: unknown;
   for (let mi = 0; mi < modelsToTry.length; mi++) {
     const currentModel = modelsToTry[mi];
     const backend = resolveBackend(currentModel);
-    const keys = explicitApiKey !== undefined ? [explicitApiKey] : await getApiKeys(backend);
+    const keys = explicitKeys ?? await getApiKeys(backend);
     if (keys.length === 0) {
       if (mi < modelsToTry.length - 1) {
         getGlobalRecorder()?.record({

@@ -1000,10 +1000,13 @@ post('/api/ai/generate', async (req, res, body) => {
 
     // Key injection: free tier uses the server's FREE_TIER_GEMINI_KEY; platform
     // users get server-side keys; BYOK users provide their own.
-    let explicitKey: string | undefined;
+    let explicitKey: string | string[] | undefined;
     if (tier.serverProvidedKey) {
-      explicitKey = process.env.FREE_TIER_GEMINI_KEY;
-      if (!explicitKey) { res.writeHead(503); res.end(JSON.stringify({ error: 'Free tier is not available' })); return; }
+      // t/846: FREE_TIER_GEMINI_KEY may be a comma-separated list; >1 key
+      // round-robins across server keys via callWithKeyRotation in generateText.
+      const freeKeys = proxyTiers.parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY);
+      if (freeKeys.length === 0) { res.writeHead(503); res.end(JSON.stringify({ error: 'Free tier is not available' })); return; }
+      explicitKey = freeKeys.length === 1 ? freeKeys[0] : freeKeys;
     } else {
       explicitKey = tier.level === 'platform' ? undefined : (clientKey || undefined);
     }

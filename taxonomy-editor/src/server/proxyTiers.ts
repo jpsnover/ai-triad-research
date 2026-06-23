@@ -124,9 +124,18 @@ const FREE_TIER: ResolvedTier = {
   pinnedModel: 'gemini-flash-lite-latest',
 };
 
-/** Whether the server-provided free tier is configured (FREE_TIER_GEMINI_KEY set). */
+/**
+ * Parse FREE_TIER_GEMINI_KEY into a key list (t/846). Accepts a single key or a
+ * comma-separated list (`key1,key2,key3`) to round-robin across server-provided
+ * keys. Trims blanks; an unset/blank value yields [].
+ */
+export function parseFreeTierKeys(raw: string | undefined): string[] {
+  return (raw ?? '').split(',').map(k => k.trim()).filter(Boolean);
+}
+
+/** Whether the server-provided free tier is configured (≥1 FREE_TIER_GEMINI_KEY). */
 export function freeTierEnabled(): boolean {
-  return !!process.env.FREE_TIER_GEMINI_KEY;
+  return parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY).length > 0;
 }
 
 export function resolveTier(principalName: string, idp: string): ResolvedTier {
