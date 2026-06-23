@@ -142,47 +142,6 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Cleanup stale GHCR registry credentials
-        run: |
-          # GHCR package is public — no registry credentials needed to pull.
-          # Legacy credentials cause ContainerAppRegistryInUse errors during Bicep
-          # deploy and ImagePullBackOff on node rotation when PATs expire.
-          # Remove the credential if no active revision still depends on it.
-          if az containerapp registry show \
-            --name ${{ env.CONTAINER_APP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --server ghcr.io 2>/dev/null | grep -q ghcr.io; then
-            echo "Found stale ghcr.io registry credential — attempting removal..."
-
-            # Deactivate revisions with 0% traffic first (they block registry removal)
-            ACTIVE=$(az containerapp revision list \
-              --name ${{ env.CONTAINER_APP_NAME }} \
-              --resource-group ${{ env.RESOURCE_GROUP }} \
-              --query "[?properties.active && properties.trafficWeight == \`0\`].name" -o tsv)
-            for rev in $ACTIVE; do
-              echo "  Deactivating 0%-traffic revision: $rev"
-              az containerapp revision deactivate \
-                --name ${{ env.CONTAINER_APP_NAME }} \
-                --resource-group ${{ env.RESOURCE_GROUP }} \
-                --revision "$rev" 2>/dev/null || true
-            done
-
-            # Try to remove the registry — may fail if the 100%-traffic revision
-            # was created with it. That's OK; Bicep no longer declares registries
-            # so it won't conflict.
-            az containerapp registry remove \
-              --name ${{ env.CONTAINER_APP_NAME }} \
-              --resource-group ${{ env.RESOURCE_GROUP }} \
-              --server ghcr.io 2>/dev/null && echo "  Removed ghcr.io registry" \
-              || echo "  Registry still referenced by active revision — will be cleaned on next deploy"
-            az containerapp secret remove \
-              --name ${{ env.CONTAINER_APP_NAME }} \
-              --resource-group ${{ env.RESOURCE_GROUP }} \
-              --secret-names ghcr-password 2>/dev/null || true
-          else
-            echo "No ghcr.io registry configured — nothing to clean"
-          fi
-
       - name: Preview Bicep changes (what-if)
         run: |
           echo "Previewing infrastructure changes..."
@@ -208,6 +167,7 @@ jobs:
               githubAppPrivateKeySecretName=${{ vars.SYNC_GITHUB_APP_PRIVATE_KEY_SECRET_NAME }} \
               githubWebhookSecret=${{ secrets.SYNC_GITHUB_WEBHOOK_SECRET }} \
               freeTierGeminiKey=${{ secrets.FREE_TIER_GEMINI_KEY }} \
+              ghcrPassword=${{ github.token }} \
             --no-pretty-print 2>&1) || true
           echo "$RESULT"
 
@@ -249,6 +209,7 @@ jobs:
             githubAppPrivateKeySecretName=${{ vars.SYNC_GITHUB_APP_PRIVATE_KEY_SECRET_NAME }}
             githubWebhookSecret=${{ secrets.SYNC_GITHUB_WEBHOOK_SECRET }}
             freeTierGeminiKey=${{ secrets.FREE_TIER_GEMINI_KEY }}
+            ghcrPassword=${{ github.token }}
 
       - name: Get current active revision
         id: current_revision
