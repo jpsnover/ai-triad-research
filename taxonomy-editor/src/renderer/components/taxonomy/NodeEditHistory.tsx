@@ -76,6 +76,12 @@ export function NodeEditHistory({ editMeta, editHistory }: NodeEditHistoryProps)
               <div key={i} className="node-edit-history-entry">
                 <div className="node-edit-history-entry-header">
                   <span className="node-edit-history-entry-user">{userDisplay(entry.user)}</span>
+                  {entry.source === 'debate_reflection' && (
+                    <span className="node-edit-history-source-badge debate-reflection">Debate Reflection</span>
+                  )}
+                  {entry.source === 'batch_audit' && (
+                    <span className="node-edit-history-source-badge batch-audit">Batch Audit</span>
+                  )}
                   <span className="node-edit-history-entry-time">{formatTimestamp(entry.timestamp)}</span>
                 </div>
                 <div className="node-edit-history-entry-fields">
@@ -85,6 +91,12 @@ export function NodeEditHistory({ editMeta, editHistory }: NodeEditHistoryProps)
                     </span>
                   ))}
                 </div>
+                {entry.reason && (
+                  <div className="node-edit-history-entry-reason">{entry.reason}</div>
+                )}
+                {entry.debate_id && (
+                  <div className="node-edit-history-entry-debate-id">Debate: {entry.debate_id.slice(0, 8)}…</div>
+                )}
                 {entry.summary && (
                   <div className="node-edit-history-entry-summary">{entry.summary}</div>
                 )}

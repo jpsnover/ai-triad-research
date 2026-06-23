@@ -4138,6 +4138,24 @@ body {
   color: var(--accent-text, #1a56db);
 }
 .node-edit-history-entry-summary { font-size: 0.85em; color: var(--text-secondary); margin-top: 4px; }
+.node-edit-history-source-badge {
+  font-size: 0.7em; font-weight: 600; padding: 1px 6px; border-radius: 4px;
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+.node-edit-history-source-badge.debate-reflection {
+  background: rgba(99, 102, 241, 0.15); color: var(--accent, #6366f1);
+}
+.node-edit-history-source-badge.batch-audit {
+  background: rgba(234, 179, 8, 0.15); color: #b45309;
+}
+.node-edit-history-entry-reason {
+  font-size: 0.85em; color: var(--text-primary); margin-top: 4px;
+  padding: 4px 8px; background: var(--bg-secondary, #f3f4f6); border-radius: 4px;
+  border-left: 3px solid var(--accent, #6366f1); line-height: 1.4;
+}
+.node-edit-history-entry-debate-id {
+  font-size: 0.75em; color: var(--text-secondary); margin-top: 2px; font-family: monospace;
+}
 
 /* ─── Instance / note cards ────────────────────────────── */
 

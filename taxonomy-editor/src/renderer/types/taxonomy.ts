@@ -89,6 +89,9 @@ export interface EditHistoryEntry {
   timestamp: string;
   fields_changed: string[];
   summary?: string;
+  source?: TextEditSource;
+  debate_id?: string;
+  reason?: string;
 }
 
 export interface PovNode {

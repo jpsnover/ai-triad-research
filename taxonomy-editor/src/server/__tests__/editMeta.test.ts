@@ -250,5 +250,103 @@ describe('editMeta', () => {
       };
       expect(changedFields(old, now)).toEqual([]);
     });
+
+    it('excludes description_history and label_history', () => {
+      const old = makeNode('a-1', 'Alpha');
+      const now = {
+        ...makeNode('a-1', 'Alpha'),
+        description_history: [{ date: '2026-06-16', value: 'x', source: 'interactive' }],
+        label_history: [{ date: '2026-06-16', value: 'y', source: 'interactive' }],
+      };
+      expect(changedFields(old, now)).toEqual([]);
+    });
+  });
+
+  describe('stampNodeAuthorship — reflection source (t/863)', () => {
+    it('copies debate_reflection source from description_history to _edit_history', () => {
+      const old = [makeNode('a-1', 'Alpha')];
+      const now = [{
+        ...makeNode('a-1', 'Alpha Updated'),
+        description_history: [
+          { date: '2026-06-16', previous: 'Alpha', value: 'Alpha Updated', source: 'debate_reflection', debate_id: 'deb-123', reason: 'Rationale from debate' },
+        ],
+      }];
+      const result = stampNodeAuthorship(old, now);
+      const entry = result[0]._edit_history![0];
+      expect(entry.source).toBe('debate_reflection');
+      expect(entry.debate_id).toBe('deb-123');
+      expect(entry.reason).toBe('Rationale from debate');
+    });
+
+    it('copies batch_audit source from label_history to _edit_history', () => {
+      const old = [makeNode('a-1', 'Alpha')];
+      const now = [{
+        ...makeNode('a-1', 'Beta'),
+        label_history: [
+          { date: '2026-06-16', previous: 'Alpha', value: 'Beta', source: 'batch_audit', reason: 'Audit fix' },
+        ],
+      }];
+      const result = stampNodeAuthorship(old, now);
+      const entry = result[0]._edit_history![0];
+      expect(entry.source).toBe('batch_audit');
+      expect(entry.reason).toBe('Audit fix');
+      expect(entry.debate_id).toBeUndefined();
+    });
+
+    it('does not add source fields for interactive edits', () => {
+      const old = [makeNode('a-1', 'Alpha')];
+      const now = [{
+        ...makeNode('a-1', 'Alpha Updated'),
+        description_history: [
+          { date: '2026-06-16', previous: 'Alpha', value: 'Alpha Updated', source: 'interactive' },
+        ],
+      }];
+      const result = stampNodeAuthorship(old, now);
+      const entry = result[0]._edit_history![0];
+      expect(entry.source).toBeUndefined();
+      expect(entry.debate_id).toBeUndefined();
+      expect(entry.reason).toBeUndefined();
+    });
+
+    it('does not add source fields when no text history exists', () => {
+      const old = [makeNode('a-1', 'Alpha')];
+      const now = [makeNode('a-1', 'Alpha Updated')];
+      const result = stampNodeAuthorship(old, now);
+      const entry = result[0]._edit_history![0];
+      expect(entry.source).toBeUndefined();
+      expect(entry.reason).toBeUndefined();
+    });
+
+    it('prefers description_history over label_history when both exist', () => {
+      const old = [makeNode('a-1', 'Alpha')];
+      const now = [{
+        ...makeNode('a-1', 'Beta'),
+        description: 'new desc',
+        description_history: [
+          { date: '2026-06-16', value: 'new desc', source: 'debate_reflection', debate_id: 'deb-desc', reason: 'Description reason' },
+        ],
+        label_history: [
+          { date: '2026-06-16', value: 'Beta', source: 'debate_reflection', debate_id: 'deb-label', reason: 'Label reason' },
+        ],
+      }];
+      const result = stampNodeAuthorship(old, now);
+      const entry = result[0]._edit_history![0];
+      expect(entry.debate_id).toBe('deb-desc');
+      expect(entry.reason).toBe('Description reason');
+    });
+
+    it('falls back to label_history when description_history is absent', () => {
+      const old = [makeNode('a-1', 'Alpha')];
+      const now = [{
+        ...makeNode('a-1', 'Beta'),
+        label_history: [
+          { date: '2026-06-16', value: 'Beta', source: 'debate_reflection', debate_id: 'deb-lbl', reason: 'Label reason' },
+        ],
+      }];
+      const result = stampNodeAuthorship(old, now);
+      const entry = result[0]._edit_history![0];
+      expect(entry.debate_id).toBe('deb-lbl');
+      expect(entry.reason).toBe('Label reason');
+    });
   });
 });

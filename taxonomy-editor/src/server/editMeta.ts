@@ -30,11 +30,22 @@ interface EditHistoryEntry {
   timestamp: string;
   fields_changed: string[];
   summary?: string;
+  source?: string;
+  debate_id?: string;
+  reason?: string;
+}
+
+interface TextHistoryEntry {
+  date: string;
+  source?: string;
+  debate_id?: string;
+  reason?: string;
+  [key: string]: unknown;
 }
 
 const MAX_HISTORY_ENTRIES = 50;
 
-const HASH_EXCLUDE = new Set(['_edit_meta', '_edit_history', 'confidence_history', 'priority_history', 'concession_history']);
+const HASH_EXCLUDE = new Set(['_edit_meta', '_edit_history', 'confidence_history', 'priority_history', 'concession_history', 'description_history', 'label_history']);
 
 export function nodeContentHash(node: NodeWithMeta): string {
   const filtered: Record<string, unknown> = {};
@@ -136,6 +147,18 @@ export function stampNodeAuthorship(
       timestamp: now,
       fields_changed: fields,
     };
+
+    // Copy reflection source from the node's text history so the edit
+    // record is self-contained (survives debate deletion — t/863#1).
+    const descHist = node.description_history as TextHistoryEntry[] | undefined;
+    const labelHist = node.label_history as TextHistoryEntry[] | undefined;
+    const latestText = descHist?.at(-1) ?? labelHist?.at(-1);
+    if (latestText?.source && latestText.source !== 'interactive' && latestText.source !== 'initial') {
+      historyEntry.source = latestText.source;
+      if (latestText.debate_id) historyEntry.debate_id = latestText.debate_id;
+      if (latestText.reason) historyEntry.reason = latestText.reason;
+    }
+
     const prevHistory = (node._edit_history as EditHistoryEntry[] | undefined) ?? (oldMap[node.id]?._edit_history as EditHistoryEntry[] | undefined) ?? [];
     const newHistory = [...prevHistory, historyEntry].slice(-MAX_HISTORY_ENTRIES);
 
