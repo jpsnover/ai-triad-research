@@ -11,6 +11,7 @@ import type {
 import { POVER_INFO, AI_POVERS, POV_KEYS } from '../../../types/debate';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { trackDebateComplete } from '../../../lib/analyticsEmitter';
 import { generateId, nowISO, stripCodeFences, parseAIJson, extractArraysFromPartialJson, formatRecentTranscript } from '@lib/debate/helpers';
 import { runSynthesisPhases } from '@lib/debate/synthesisPhases';
 import type { SynthesisInput } from '@lib/debate/synthesisPhases';
@@ -546,7 +547,10 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
 
       // Transition phase to closed now that synthesis and all post-synthesis passes are done
       get().updatePhase('closed');
-      api.trackEvent('debate_complete', 'debate', { debateId: activeDebate?.id, rounds: activeDebate?.transcript.filter(e => e.type === 'statement').length ?? 0 });
+      const turnCount = activeDebate?.transcript.filter(e => e.type === 'statement').length ?? 0;
+      const durationMs = activeDebate?.created_at ? Date.now() - new Date(activeDebate.created_at).getTime() : 0;
+      api.trackEvent('debate_complete', 'debate', { debateId: activeDebate?.id, rounds: turnCount });
+      trackDebateComplete(activeDebate?.id, turnCount, durationMs);
 
       // Emit lineage.debate-summary — aggregates per-turn lineage boost data for quick impact assessment
       try {

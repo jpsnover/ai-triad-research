@@ -15,6 +15,7 @@ import type {
 import { POVER_INFO, AI_POVERS, POV_KEYS, normalizeActivePovers, migrateSpeakerId } from '../../../types/debate';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { trackDebateAbandon } from '../../../lib/analyticsEmitter';
 import { useTaxonomyStore } from '../../useTaxonomyStore';
 import { usePromptConfigStore } from '../../usePromptConfigStore';
 import { mapErrorToUserMessage } from '../../../utils/errorMessages';
@@ -388,6 +389,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       await get().loadSessions();
       getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Debate deleted' });
       getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'debate.ended', data: { reason: 'deleted' } });
+      trackDebateAbandon(id, 'deleted');
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error',
@@ -435,6 +437,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     if (closingId) {
       getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: closingId, message: 'Debate closed' });
       getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: closingId, message: 'debate.ended', data: { reason: 'closed' } });
+      trackDebateAbandon(closingId, 'closed');
     }
   },
 

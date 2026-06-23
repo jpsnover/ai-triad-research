@@ -8,6 +8,7 @@ import type { StandardizedTerm, ColloquialTerm } from '@lib/dictionary/types';
 import type { ReflectionResult, ConsensusCluster } from '../types';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { trackDebateAbandon } from '../../../lib/analyticsEmitter';
 import { cancelAndResetAbort } from '../helpers';
 
 export interface ConfigSlice {
@@ -138,7 +139,10 @@ export const createConfigSlice: StateCreator<DebateStore, [], [], ConfigSlice> =
     const debateId = get().activeDebateId;
     cancelAndResetAbort();
     set({ debateGenerating: null, debateActivity: null });
-    if (debateId) getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: debateId, message: 'debate.ended', data: { reason: 'cancelled' } });
+    if (debateId) {
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: debateId, message: 'debate.ended', data: { reason: 'cancelled' } });
+      trackDebateAbandon(debateId, 'cancelled');
+    }
   },
   toggleDiagnostics: () => {
     const enabled = !get().diagnosticsEnabled;

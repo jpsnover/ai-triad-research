@@ -45,6 +45,7 @@ import { api } from '@bridge';
 import { loadLineageCategoriesData } from '../../../data/lineageCategories';
 import { loadLineageInfoData } from '../../../data/lineageLookup';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { trackNodeMutation } from '../../../lib/analyticsEmitter';
 
 export type PinnedData =
   | { type: 'pov'; pov: Pov; node: PovNode }
@@ -518,6 +519,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
 
   updatePovNode: (pov, nodeId, updates, editSource) => {
     getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'debug', message: 'updatePovNode.called', data: { pov, nodeId, fields: Object.keys(updates), editSource: editSource?.source ?? 'manual' } });
+    trackNodeMutation('edit', pov, nodeId);
     if (updates.category) {
       const validation = validatePovNodeId(nodeId, updates.category);
       if (!validation.valid) {
@@ -582,10 +584,12 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
     const newDirty = new Set(state.dirty);
     newDirty.add(pov);
     set({ [pov]: newFile, dirty: newDirty, selectedNodeId: newId, embeddingDirty: true });
+    trackNodeMutation('create', pov, newId);
     return newId;
   },
 
   deletePovNode: (pov, nodeId) => {
+    trackNodeMutation('delete', pov, nodeId);
     set((state) => {
       const file = state[pov];
       if (!file) return state;
@@ -839,10 +843,12 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
     const newDirty = new Set(state.dirty);
     newDirty.add('situations');
     set({ situations: newFile, dirty: newDirty, selectedNodeId: newId, embeddingDirty: true });
+    trackNodeMutation('create', 'situations', newId);
     return newId;
   },
 
   deleteSituationNode: (nodeId) => {
+    trackNodeMutation('delete', 'situations', nodeId);
     set((state) => {
       const file = state.situations;
       if (!file) return state;

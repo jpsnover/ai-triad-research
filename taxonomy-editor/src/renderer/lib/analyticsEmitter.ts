@@ -145,9 +145,38 @@ export function trackDebateEvent(eventType: string, detail: Record<string, unkno
   emit(eventType, 'debate', detail);
 }
 
-/** Emit an AI call event. */
-export function trackAICall(model: string, durationMs?: number): void {
-  emit('ai.call', 'ai', { model }, durationMs);
+/** Emit a debate-complete event with round count, duration, and optional quality score. */
+export function trackDebateComplete(
+  debateId: string | undefined,
+  turnCount: number,
+  durationMs: number,
+  qualityScore?: number,
+): void {
+  emit('debate.complete', 'debate', { debateId, turnCount, qualityScore }, durationMs);
+}
+
+/** Emit a debate-abandon event (cancelled, closed, or deleted before completion). */
+export function trackDebateAbandon(debateId: string | undefined, reason: string): void {
+  emit('debate.abandon', 'debate', { debateId, reason });
+}
+
+/** Emit a taxonomy node mutation event (create, edit, or delete). */
+export function trackNodeMutation(action: 'create' | 'edit' | 'delete', pov: string, nodeId: string): void {
+  emit(`node.${action}`, 'taxonomy', { pov, nodeId });
+}
+
+/** Emit an AI call event with optional token and cost details. */
+export function trackAICall(
+  model: string,
+  durationMs?: number,
+  tokens?: { tokens_in?: number; tokens_out?: number; estimated_cost_usd?: number },
+): void {
+  emit('ai.call', 'ai', { model, ...tokens }, durationMs);
+}
+
+/** Emit an export event. */
+export function trackExport(format: string, debateId?: string): void {
+  emit(`export.${format}`, 'export', { format, debateId });
 }
 
 /** Emit a config change event. */

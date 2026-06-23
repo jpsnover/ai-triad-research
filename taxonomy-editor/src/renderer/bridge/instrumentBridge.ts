@@ -12,6 +12,7 @@
  */
 
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { trackAICall } from '../lib/analyticsEmitter';
 import type { AppAPI } from './types';
 
 /** Truncate an argument for logging. Keeps strings short, summarizes objects. */
@@ -180,6 +181,13 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
             duration_ms,
             data: { method: key, category, ...resultMeta },
           });
+          if (isAI) {
+            const model = typeof args[1] === 'string' ? args[1] : 'unknown';
+            trackAICall(model, duration_ms, resultMeta ? {
+              tokens_in: resultMeta.input_tokens as number | undefined,
+              tokens_out: resultMeta.output_tokens as number | undefined,
+            } : undefined);
+          }
           return value;
         },
         (err) => {

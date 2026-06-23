@@ -22,6 +22,7 @@ import type { DebateSession } from '../../types/debate';
 import { POVER_INFO } from '@lib/debate/types';
 import { ParameterHistoryPanel } from '../analysis/ParameterHistoryPanel';
 import { api } from '@bridge';
+import { trackExport } from '../../lib/analyticsEmitter';
 
 const PHASE_LABELS: Record<string, string> = {
   setup: 'Setup',
@@ -195,6 +196,7 @@ export function DebateTab() {
       );
       if (!result.cancelled && result.filePath) {
         setExportStatus(`Exported to ${result.filePath}`);
+        trackExport(format, activeDebate.id);
         setTimeout(() => setExportStatus(null), 4000);
       }
     } catch (err) {
