@@ -4,6 +4,7 @@
 import crypto from 'crypto';
 import { resolveDataPath } from './config.js';
 import { getUserContentBackend, assertSafeId } from './fileIO.js';
+import { sanitizeUserText } from './contentSanitizer.js';
 import { getStorageUserId, isAnonymousUser } from './userContext.js';
 import { log } from './logger.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
@@ -142,7 +143,7 @@ export async function listCommunityChats(): Promise<unknown[]> {
       created_at: parsed.created_at || '',
       updated_at: parsed.updated_at || parsed.created_at || '',
       mode: parsed.mode || '',
-      community_metadata: parsed.community_metadata || null,
+      community_metadata: stripOriginalId(parsed.community_metadata || null), // t/856
     }),
   });
   return [...items].sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
@@ -159,7 +160,7 @@ export async function listCommunityDebates(): Promise<unknown[]> {
       created_at: parsed.created_at || '',
       updated_at: parsed.updated_at || parsed.created_at || '',
       phase: parsed.phase || 'unknown',
-      community_metadata: parsed.community_metadata || null,
+      community_metadata: stripOriginalId(parsed.community_metadata || null), // t/856
     }),
   });
   return [...items].sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
@@ -171,7 +172,11 @@ export async function loadCommunityItem(type: 'chats' | 'debates', id: string): 
   const dir = type === 'chats' ? communityChatsDir() : communityDebatesDir();
   const prefix = type === 'chats' ? 'chat-' : 'debate-';
   const raw = await backend.readFile(path.join(dir, `${prefix}${id}.json`), { ref: 'main' });
-  return raw ? JSON.parse(raw) : null;
+  if (!raw) return null;
+  const parsed = JSON.parse(raw) as Record<string, unknown>;
+  // t/856: don't expose the pre-share private UUID in public responses.
+  if (parsed.community_metadata) parsed.community_metadata = stripOriginalId(parsed.community_metadata);
+  return parsed;
 }
 
 // ── Submissions ──
@@ -305,10 +310,23 @@ function stripSensitiveKeys(obj: unknown): unknown {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
     if (SENSITIVE_KEYS.has(key)) continue;
-    if (typeof value === 'string' && /^(sk-|AIza|gsk_|key-|xai-|Bearer\s)/.test(value)) continue;
+    if (typeof value === 'string') {
+      if (/^(sk-|AIza|gsk_|key-|xai-|Bearer\s)/.test(value)) continue;
+      result[key] = sanitizeUserText(value); // t/856: neutralize executable tags / schemes server-side
+      continue;
+    }
     result[key] = stripSensitiveKeys(value);
   }
   return result;
+}
+
+/** t/856: drop the pre-share private UUID from community_metadata before it's
+ *  served publicly (kept in the stored file for admin tracing). */
+function stripOriginalId(meta: unknown): unknown {
+  if (!meta || typeof meta !== 'object') return meta;
+  const rest = { ...(meta as Record<string, unknown>) };
+  delete rest.original_id;
+  return rest;
 }
 
 function sanitizeForCommunity(data: unknown, submittedBy: string): unknown {

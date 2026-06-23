@@ -35,6 +35,7 @@ import { GitHubAPIBackend } from './githubAPIBackend.js';
 import { SessionBranchManager } from './sessionBranchManager.js';
 import { runWithUser, getCurrentUser, getCurrentUserId, getStorageUserId, setSessionBranchName, deriveStorageUserId, isAnonymousUser } from './userContext.js';
 import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage } from './accessControl.js';
+import { sanitizeUserText } from './contentSanitizer.js';
 import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
 import * as community from './community.js';
@@ -1370,7 +1371,13 @@ del('/api/debates/:id', async (req, res) => {
 });
 
 get('/api/debates/:id/comments', async (req, res) => {
-  try { json(res, await fileIO.loadDebateComments(param(req, 'id', '/api/debates/:id/comments'))); }
+  try {
+    const id = param(req, 'id', '/api/debates/:id/comments');
+    // t/856: 404 for a debate the caller doesn't own (was 200 + empty list),
+    // for consistency with sibling endpoints.
+    if (!(await fileIO.loadDebateSession(id))) { error(res, 'Debate not found', 404); return; }
+    json(res, await fileIO.loadDebateComments(id));
+  }
   catch (err) { error(res, String(err), 404, err); }
 });
 
@@ -1843,7 +1850,8 @@ post('/api/admin/feedback', async (_req, res, body) => {
       userId,
       rating,
       category: isFeedbackCategory(category) ? category : 'general',
-      text: text?.trim() || null,
+      text: text?.trim() ? sanitizeUserText(text.trim()) : null, // t/856
+
       context: context ?? {},
     };
 
@@ -3289,7 +3297,13 @@ async function handleRequestInner(
     // L9: style-src keeps 'unsafe-inline' — accepted risk. React applies inline
     // style attributes (style={{…}}) which CSP blocks without it; removing it
     // breaks the UI. script-src has NO unsafe-inline, so the XSS surface is small.
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' wss:; font-src 'self'; worker-src 'self'");
+    // t/856: scope WebSocket origins instead of a bare `wss:` (which allowed any
+    // host). Same-origin ws/wss is covered by 'self'; additionally allow each
+    // configured ALLOWED_ORIGINS host over wss.
+    const wssOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean)
+      .map(o => o.replace(/^https?:/i, 'wss:'));
+    const connectSrc = ["connect-src 'self'", ...wssOrigins].join(' ');
+    res.setHeader('Content-Security-Policy', `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; ${connectSrc}; font-src 'self'; worker-src 'self'`);
   }
 
   // CORS headers — locked to ALLOWED_ORIGINS in production, permissive in dev.

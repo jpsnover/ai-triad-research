@@ -466,7 +466,10 @@ describe('Community Library workflow (integration)', () => {
     expect(raw).toBeTruthy();
     expect((raw as any).flight_recorder).toBeUndefined();
     expect((raw as any).debug).toBeUndefined();
-    expect((raw as any).community_metadata.original_id).toBe('original-chat-1');
+    // t/856: original_id (pre-share private UUID) is stripped from public
+    // responses; submitted_by_display is retained.
+    expect((raw as any).community_metadata.original_id).toBeUndefined();
+    expect((raw as any).community_metadata.submitted_by_display).toBe('alice');
   });
 
   it('submit → reject flow', async () => {
