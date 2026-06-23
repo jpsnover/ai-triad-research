@@ -225,7 +225,10 @@ function MainApp() {
     // Check if data is available before loading
     void Promise.all([
       api.isDataAvailable(),
-      api.getDataRoot(),
+      api.getDataRoot().catch((err) => {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'app', level: 'warn', message: 'getDataRoot failed (expected for non-admin users)', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+        return '';
+      }),
     ]).then(([available, root]) => {
       setDataRoot(root);
       if (!available) {
