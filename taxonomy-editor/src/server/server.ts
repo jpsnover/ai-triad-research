@@ -635,6 +635,7 @@ get('/api/data/available', async (_req, res) => {
 });
 
 get('/api/data/root', (_req, res) => {
+  if (!requireAdmin(res)) return; // t/855: the data-root filesystem path is admin-only
   json(res, fileIO.getDataRootPath());
 });
 
@@ -2370,7 +2371,7 @@ get('/api/sync/status', async (_req, res) => {
       hasConflicts = cmp.status === 'diverged' && cmp.behind_by > 0;
     }
 
-    json(res, {
+    const full = {
       enabled: true,
       mode: 'github-api' as const,
       unsynced_count: unsyncedCount,
@@ -2389,11 +2390,18 @@ get('/api/sync/status', async (_req, res) => {
         last_poll: new Date(Date.now() - githubBackend.getLastPollAge() * 1000).toISOString(),
         age_seconds: githubBackend.getLastPollAge(),
       },
-    });
+    };
+    // t/855: non-admins don't see the repo SHA or cache internals — the UI-
+    // functional fields (counts, branch, PR, conflicts) are retained.
+    if (community.isAdmin()) { json(res, full); return; }
+    const { main_sha, cache, ...safe } = full;
+    void main_sha; void cache;
+    json(res, safe);
   } catch (err) { error(res, String(err), 500, err); }
 });
 
 get('/api/sync/diagnostics', async (_req, res) => {
+  if (!requireAdmin(res)) return; // t/855: paths, repo SHAs, and credential status are admin-only
   try {
     if (!githubBackend || !sessionManager) {
       json(res, { git_sync_enabled: false, data_root: '', data_root_has_git: false, github_repo: null, github_credentials_valid: false, current_branch: null, head_sha: null, origin_main_sha: null, ahead_of_main: 0, behind_main: 0, active_taxonomy_dir: '', files: [], recent_commits: [] });
