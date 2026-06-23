@@ -413,7 +413,7 @@ export type { SharedGroundingCitation as GroundingCitation };
 export type { GroundingSegment } from '../../../lib/ai-client/providers/gemini-search.js';
 
 export async function generateTextWithSearch(
-  prompt: string, model?: string,
+  prompt: string, model?: string, explicitApiKey?: string | string[],
 ): Promise<{ text: string; searchQueries?: string[]; citations?: SharedGroundingCitation[] }> {
   const resolved = model || DEFAULT_MODEL;
   const backend = resolveBackend(resolved);
@@ -429,7 +429,7 @@ export async function generateTextWithSearch(
         searchDepth: 'basic',
       });
       const { augmentedPrompt, searchQueries, citations: searchCitations } = buildSearchAugmentedPrompt(prompt, searchResult);
-      const { text } = await generateText(augmentedPrompt, resolved);
+      const { text } = await generateText(augmentedPrompt, resolved, undefined, undefined, explicitApiKey);
       const citations: SharedGroundingCitation[] = searchCitations.map(c => ({
         uri: c.uri,
         title: c.title,
@@ -441,11 +441,12 @@ export async function generateTextWithSearch(
         citations: citations.length ? citations : undefined,
       };
     }
-    const result = await generateText(prompt, resolved);
+    const result = await generateText(prompt, resolved, undefined, undefined, explicitApiKey);
     return { text: result.text };
   }
 
-  const apiKey = await getApiKey('gemini');
+  const apiKey = (typeof explicitApiKey === 'string' ? explicitApiKey : explicitApiKey?.[0])
+    ?? await getApiKey('gemini');
   if (!apiKey) {
     throw new ActionableError({
       goal: 'Perform grounded search via Gemini',

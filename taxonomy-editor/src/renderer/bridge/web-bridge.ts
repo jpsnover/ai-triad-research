@@ -143,6 +143,17 @@ async function post<T = unknown>(path: string, body?: unknown, opts?: FetchOptio
       }));
     }
   }
+  if (res.status === 422 && path === '/api/ai/generate') {
+    const data = await res.json().catch(bridgeWarn('Failed to parse 422 response body', {})) as Record<string, unknown>;
+    if (data.error === 'missing_api_key') {
+      throwHttpError(422, new ActionableError({
+        goal: 'Generate AI response',
+        problem: (data.message as string) || `No API key configured for ${(data.backend as string) || 'the selected backend'}.`,
+        location: 'web-bridge.post',
+        nextSteps: ['Open Settings → API Keys and add a key for this backend', 'Switch to a backend that has a key configured'],
+      }));
+    }
+  }
   if (!res.ok) {
     const text = await res.text();
     throwHttpError(res.status, new ActionableError({
@@ -531,8 +542,12 @@ const rawApi: AppAPI = {
     if (byokKey) body.apiKey = byokKey;
     return post('/api/ai/generate', body);
   },
-  generateTextWithSearch: (prompt, model) =>
-    post('/api/ai/search', { prompt, model }),
+  generateTextWithSearch: (prompt, model) => {
+    const body: Record<string, unknown> = { prompt, model, search: true };
+    const byokKey = sessionStorage.getItem('byok-api-key');
+    if (byokKey) body.apiKey = byokKey;
+    return post('/api/ai/generate', body);
+  },
   startChatStream: () => Promise.reject(new Error('Streaming chat not supported in web mode')),
   onChatStreamChunk: () => () => {},
   onChatStreamDone: () => () => {},
