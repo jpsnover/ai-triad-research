@@ -68,9 +68,9 @@ param aadClientSecret string = ''
 @description('Azure AD OpenID issuer — use "common" for multi-tenant + personal accounts, or a specific tenant ID')
 param aadIssuer string = 'common'
 
-@secure()
-@description('GHCR registry password — use GITHUB_TOKEN (ephemeral, auto-rotated) instead of a long-lived PAT')
-param ghcrPassword string = ''
+// GHCR registry credentials removed — the package is public, no auth needed to pull.
+// Stale credentials cause ImagePullBackOff on node rotation when PATs expire.
+// See deploy-azure.yml pre-deploy cleanup step for one-time removal of legacy creds.
 
 @description('Auth mode: set authDisabled="1" for anonymous-only (no login page), or authOptional="1" for login page with anonymous option. If neither, sign-in is required (needs authorized-users.json).')
 param authDisabled string = ''
@@ -140,10 +140,8 @@ var githubClientSecretName = 'github-client-secret'
 var aadClientSecretName = 'aad-client-secret'
 var githubTokenSecretName = 'github-sync-token'
 var githubWebhookSecretName = 'github-webhook-secret'
-var ghcrSecretName = 'ghcr-password'
 var githubTokenProvided = !empty(githubToken)
 var githubWebhookSecretProvided = !empty(githubWebhookSecret)
-var ghcrConfigured = !empty(ghcrPassword)
 var freeTierEnabled = !empty(freeTierGeminiKey)
 var freeTierSecretName = 'free-tier-gemini-key'
 var oauthSecrets = concat(
@@ -152,7 +150,6 @@ var oauthSecrets = concat(
   aadEnabled ? [ { name: aadClientSecretName, value: aadClientSecret } ] : [],
   githubTokenProvided ? [ { name: githubTokenSecretName, value: githubToken } ] : [],
   githubWebhookSecretProvided ? [ { name: githubWebhookSecretName, value: githubWebhookSecret } ] : [],
-  ghcrConfigured ? [ { name: ghcrSecretName, value: ghcrPassword } ] : [],
   freeTierEnabled ? [ { name: freeTierSecretName, value: freeTierGeminiKey } ] : []
 )
 
@@ -429,13 +426,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         allowInsecure: false
       }
       secrets: oauthSecrets
-      registries: ghcrConfigured ? [
-        {
-          server: 'ghcr.io'
-          username: 'jpsnover'
-          passwordSecretRef: ghcrSecretName
-        }
-      ] : []
+      // registries omitted — GHCR package is public, no auth needed to pull.
+      // Omitting (rather than setting []) avoids ContainerAppRegistryInUse errors
+      // when active revisions were created with legacy credentials. The deploy
+      // workflow's pre-deploy step removes stale credentials when safe.
     }
     template: {
       containers: [
@@ -528,13 +522,7 @@ resource containerAppStaging 'Microsoft.App/containerApps@2024-03-01' = {
         allowInsecure: false
       }
       secrets: oauthSecrets
-      registries: ghcrConfigured ? [
-        {
-          server: 'ghcr.io'
-          username: 'jpsnover'
-          passwordSecretRef: ghcrSecretName
-        }
-      ] : []
+      // registries omitted — GHCR is public (see production resource above)
     }
     template: {
       containers: [
