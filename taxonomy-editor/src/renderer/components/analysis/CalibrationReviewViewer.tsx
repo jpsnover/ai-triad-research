@@ -23,6 +23,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { bridgeGet, bridgePost } from '../../bridge/web-bridge';
 import './CalibrationReviewViewer.css';
 
 // ── Detail contract types (t/647#3) ──
@@ -75,19 +76,11 @@ type ReviewActionBody = {
 // ── Server calls ──
 
 async function fetchDetail(groupId: string): Promise<CalibrationDetail> {
-  const res = await fetch(`/api/admin/review/detail/${encodeURIComponent(groupId)}`);
-  if (!res.ok) throw new Error(`GET detail failed: HTTP ${res.status}`);
-  return res.json() as Promise<CalibrationDetail>;
+  return bridgeGet<CalibrationDetail>(`/api/admin/review/detail/${encodeURIComponent(groupId)}`);
 }
 
 async function postAction(body: ReviewActionBody): Promise<{ ok: boolean }> {
-  const res = await fetch('/api/admin/review/action', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`${body.action} failed: HTTP ${res.status}`);
-  return res.json() as Promise<{ ok: boolean }>;
+  return bridgePost<{ ok: boolean }>('/api/admin/review/action', body);
 }
 
 function record(message: string, err: unknown): void {

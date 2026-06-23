@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { bridgeGet } from '../bridge/web-bridge';
 
 export interface TierInfo {
   level: string;
@@ -30,9 +31,8 @@ export function useTierInfo(): { tier: TierInfo | null; usage: TierUsage | null;
 
   const fetchTier = useCallback(() => {
     if (!isWeb) { setLoading(false); return; }
-    fetch('/api/proxy/tier')
-      .then(r => r.json())
-      .then((data: TierInfo) => setTier(data))
+    bridgeGet<TierInfo>('/api/proxy/tier')
+      .then((data) => setTier(data))
       .catch((err) => {
         getGlobalRecorder()?.record({
           type: 'system.error', component: 'useTierInfo', level: 'warn',
@@ -45,9 +45,8 @@ export function useTierInfo(): { tier: TierInfo | null; usage: TierUsage | null;
 
   const fetchUsage = useCallback(() => {
     if (!isWeb) return;
-    fetch('/api/proxy/usage')
-      .then(r => r.json())
-      .then((data: TierUsage) => setUsage(data))
+    bridgeGet<TierUsage>('/api/proxy/usage')
+      .then((data) => setUsage(data))
       .catch((err) => {
         getGlobalRecorder()?.record({
           type: 'system.error', component: 'useTierInfo', level: 'warn',

@@ -10,6 +10,13 @@ vi.mock('@lib/flight-recorder/index', () => ({
   getGlobalRecorder: () => ({ record: vi.fn() }),
 }));
 
+vi.mock('../bridge/web-bridge', () => ({
+  bridgeGet: vi.fn(),
+}));
+
+import { bridgeGet } from '../bridge/web-bridge';
+const mockBridgeGet = vi.mocked(bridgeGet);
+
 const freeTier: TierInfo = {
   level: 'free',
   limits: { requestsPerMinute: 6, tokensPerDay: 50000 },
@@ -43,13 +50,10 @@ describe('isFreeTier', () => {
 describe('useTierInfo', () => {
   const originalEnv = import.meta.env.VITE_TARGET;
 
-  beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
-  });
-
   afterEach(() => {
     import.meta.env.VITE_TARGET = originalEnv;
     vi.restoreAllMocks();
+    mockBridgeGet.mockReset();
   });
 
   it('returns null tier in non-web mode', async () => {
@@ -63,9 +67,9 @@ describe('useTierInfo', () => {
   it('fetches tier and usage in web mode', async () => {
     import.meta.env.VITE_TARGET = 'web';
     const usageData = { tier: 'free', limits: { requestsPerMinute: 6, tokensPerDay: 50000 }, usage: { requestsInWindow: 2, tokensToday: 5000 } };
-    (globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url === '/api/proxy/tier') return Promise.resolve({ json: () => Promise.resolve(freeTier) });
-      if (url === '/api/proxy/usage') return Promise.resolve({ json: () => Promise.resolve(usageData) });
+    mockBridgeGet.mockImplementation((url: string) => {
+      if (url === '/api/proxy/tier') return Promise.resolve(freeTier);
+      if (url === '/api/proxy/usage') return Promise.resolve(usageData);
       return Promise.reject(new Error('Unknown URL'));
     });
 
@@ -77,7 +81,7 @@ describe('useTierInfo', () => {
 
   it('handles fetch errors gracefully', async () => {
     import.meta.env.VITE_TARGET = 'web';
-    (globalThis.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
+    mockBridgeGet.mockRejectedValue(new Error('Network error'));
 
     const { result } = renderHook(() => useTierInfo());
     await waitFor(() => expect(result.current.loading).toBe(false));

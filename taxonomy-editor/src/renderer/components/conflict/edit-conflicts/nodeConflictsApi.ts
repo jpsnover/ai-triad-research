@@ -15,6 +15,7 @@
  */
 
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { bridgeGet } from '../../../bridge/web-bridge';
 
 /** One node touched on both the session branch and `main` since divergence. */
 export interface NodeConflict {
@@ -56,11 +57,7 @@ export const DISABLED_NODE_CONFLICTS: NodeConflictsResponse = {
  */
 export async function getNodeConflicts(): Promise<NodeConflictsResponse> {
   try {
-    const res = await fetch('/api/sync/node-conflicts');
-    if (!res.ok) return DISABLED_NODE_CONFLICTS;
-    const ct = res.headers.get('content-type') ?? '';
-    if (!ct.includes('application/json')) return DISABLED_NODE_CONFLICTS;
-    return (await res.json()) as NodeConflictsResponse;
+    return await bridgeGet<NodeConflictsResponse>('/api/sync/node-conflicts');
   } catch (err) {
     getGlobalRecorder()?.record({
       type: 'system.error',

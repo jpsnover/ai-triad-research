@@ -217,6 +217,8 @@ async function del<T = unknown>(path: string, opts?: FetchOptions): Promise<T> {
   return res.json();
 }
 
+export { get as bridgeGet, post as bridgePost, put as bridgePut, del as bridgeDel };
+
 /** Read BYOK keys from sessionStorage, backward-compatible with legacy single-key strings. */
 function readByokKeys(backend: string): string[] {
   const raw = sessionStorage.getItem(`byok-${backend}`);

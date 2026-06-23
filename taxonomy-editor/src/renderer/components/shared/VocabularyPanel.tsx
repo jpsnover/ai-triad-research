@@ -3,6 +3,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { bridgeGet } from '../../bridge/web-bridge';
 import type { StandardizedTerm, ColloquialTerm, LintViolation, CampOrigin, CoinageStatus } from '@lib/dictionary';
 
 const POV_COLORS: Record<string, string> = {
@@ -46,13 +47,10 @@ export function VocabularyPanel() {
       } else {
         // Web/fallback: load via bridge API
         try {
-          const resp = await fetch('/api/dictionary');
-          if (resp.ok) {
-            const data = await resp.json();
-            setStandardized(data.standardized ?? []);
-            setColloquial(data.colloquial ?? []);
-            setLintResults(data.lintViolations ?? []);
-          }
+          const data = await bridgeGet<{ standardized?: StandardizedTerm[]; colloquial?: ColloquialTerm[]; lintViolations?: LintViolation[] }>('/api/dictionary');
+          setStandardized(data.standardized ?? []);
+          setColloquial(data.colloquial ?? []);
+          setLintResults(data.lintViolations ?? []);
         } catch (err) {
           // No dictionary API available — empty state
           getGlobalRecorder()?.record({

@@ -10,10 +10,12 @@ import { EditConflictBadge } from './EditConflictBadge';
 // Flight recorder is a no-op in tests.
 vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => null }));
 
-function mockFetchOnce(body: unknown, { ok = true, contentType = 'application/json' } = {}) {
-  const res = { ok, headers: { get: () => contentType }, json: async () => body } as unknown as Response;
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(res));
-}
+vi.mock('../../../bridge/web-bridge', () => ({
+  bridgeGet: vi.fn(),
+}));
+
+import { bridgeGet } from '../../../bridge/web-bridge';
+const mockBridgeGet = vi.mocked(bridgeGet);
 
 const SAMPLE: NodeConflictsResponse = {
   enabled: true,
@@ -26,33 +28,33 @@ const SAMPLE: NodeConflictsResponse = {
 
 const CONFLICT: NodeConflict = SAMPLE.conflicts[0];
 
-afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+afterEach(() => { vi.restoreAllMocks(); mockBridgeGet.mockReset(); });
 
 describe('getNodeConflicts', () => {
   it('returns the disabled response on HTTP error', async () => {
-    mockFetchOnce({}, { ok: false });
+    mockBridgeGet.mockRejectedValue(new Error('HTTP 500'));
     expect(await getNodeConflicts()).toEqual({ enabled: false, session_branch: null, behind_by: 0, conflicts: [] });
   });
 
   it('returns the disabled response on non-JSON (server absent)', async () => {
-    mockFetchOnce('<html>', { contentType: 'text/html' });
+    mockBridgeGet.mockRejectedValue(new SyntaxError('Unexpected token'));
     expect((await getNodeConflicts()).enabled).toBe(false);
   });
 
   it('returns the disabled response when fetch throws', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')));
+    mockBridgeGet.mockRejectedValue(new Error('network down'));
     expect((await getNodeConflicts()).conflicts).toEqual([]);
   });
 
   it('passes through the parsed body', async () => {
-    mockFetchOnce(SAMPLE);
+    mockBridgeGet.mockResolvedValue(SAMPLE);
     expect(await getNodeConflicts()).toEqual(SAMPLE);
   });
 });
 
 describe('useNodeConflicts', () => {
   it('exposes conflicts keyed by node id', async () => {
-    mockFetchOnce(SAMPLE);
+    mockBridgeGet.mockResolvedValue(SAMPLE);
     const { result } = renderHook(() => useNodeConflicts());
     await waitFor(() => expect(result.current.enabled).toBe(true));
     expect(result.current.behindBy).toBe(2);
@@ -60,7 +62,7 @@ describe('useNodeConflicts', () => {
   });
 
   it('stays empty and disabled when the backend is off', async () => {
-    mockFetchOnce({ enabled: false, session_branch: null, behind_by: 0, conflicts: [] });
+    mockBridgeGet.mockResolvedValue({ enabled: false, session_branch: null, behind_by: 0, conflicts: [] });
     const { result } = renderHook(() => useNodeConflicts());
     await waitFor(() => expect(result.current.conflicts.size).toBe(0));
     expect(result.current.enabled).toBe(false);

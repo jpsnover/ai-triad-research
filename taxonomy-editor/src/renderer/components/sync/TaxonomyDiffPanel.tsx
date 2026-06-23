@@ -17,6 +17,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { bridgeGet } from '../../bridge/web-bridge';
 import { createPullRequestTracked, type CreatePrSuccess, type SyncStatus } from '../../utils/syncApi';
 import './TaxonomyDiffPanel.css';
 
@@ -89,14 +90,7 @@ function fileLabel(path: string): string {
 
 async function fetchNodeDiff(): Promise<NodeDiffResponse | null> {
   try {
-    const res = await fetch('/api/sync/node-diff');
-    if (!res.ok) {
-      // 404 → endpoint not deployed yet; any other status → server-side issue.
-      return null;
-    }
-    const ct = res.headers.get('content-type') ?? '';
-    if (!ct.includes('application/json')) return null;
-    return (await res.json()) as NodeDiffResponse;
+    return await bridgeGet<NodeDiffResponse>('/api/sync/node-diff');
   } catch (err) {
     getGlobalRecorder()?.record({
       type: 'system.error',

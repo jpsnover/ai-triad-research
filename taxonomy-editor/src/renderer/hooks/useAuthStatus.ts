@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { bridgeGet } from '../bridge/web-bridge';
 
 export interface AuthInfo { user: string; anonymous: boolean; idp: string }
 
@@ -21,7 +22,7 @@ export function useAuthStatus(): AuthInfo | null {
   const [auth, setAuth] = useState<AuthInfo | null>(null);
   useEffect(() => {
     if (import.meta.env.VITE_TARGET !== 'web') return;
-    fetch('/api/auth/me').then(r => r.json()).then(setAuth).catch((err) => {
+    bridgeGet<AuthInfo>('/api/auth/me').then(setAuth).catch((err) => {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'useAuthStatus', level: 'warn', message: 'Auth status check failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     });
   }, []);
@@ -32,7 +33,7 @@ export function useUserProfile(): UserProfile | null {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   useEffect(() => {
     if (import.meta.env.VITE_TARGET !== 'web') return;
-    fetch('/api/user/profile').then(r => r.json()).then(setProfile).catch((err) => {
+    bridgeGet<UserProfile>('/api/user/profile').then(setProfile).catch((err) => {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'useAuthStatus', level: 'warn', message: 'User profile fetch failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     });
   }, []);

@@ -4,6 +4,7 @@
 import { create } from 'zustand';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { bridgeGet, bridgePost } from '../bridge/web-bridge';
 import { useTaxonomyStore } from './useTaxonomyStore';
 
 export interface CommunityItem {
@@ -64,18 +65,6 @@ function getCommunityBaseUrl(): string {
   return url.replace(/\/+$/, '');
 }
 
-async function fetchJson<T>(url: string, opts?: RequestInit): Promise<T> {
-  const res = await fetch(url, opts);
-  if (!res.ok) {
-    const body = await res.json().catch((err) => {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'community-store', level: 'warn', message: 'Failed to parse response body', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-    return { error: res.statusText };
-  });
-    throw new Error(body.error || `HTTP ${res.status}`);
-  }
-  return res.json();
-}
-
 export const useCommunityStore = create<CommunityStore>((set) => ({
   chats: [],
   debates: [],
@@ -87,7 +76,7 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
     if (isElectronMode()) { set({ chats: [], loading: false }); return; }
     set({ loading: true, error: null });
     try {
-      const chats = await fetchJson<CommunityChat[]>('/api/community/chats');
+      const chats = await bridgeGet<CommunityChat[]>('/api/community/chats');
       set({ chats, loading: false });
       api.trackEvent('community_browse', 'community', { type: 'chats', count: chats.length });
     } catch (err) {
@@ -100,7 +89,7 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
     if (isElectronMode()) { set({ debates: [], loading: false }); return; }
     set({ loading: true, error: null });
     try {
-      const debates = await fetchJson<CommunityDebate[]>('/api/community/debates');
+      const debates = await bridgeGet<CommunityDebate[]>('/api/community/debates');
       set({ debates, loading: false });
       api.trackEvent('community_browse', 'community', { type: 'debates', count: debates.length });
     } catch (err) {
@@ -114,7 +103,7 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
     set({ loading: true, error: null });
     try {
       const qs = status ? `?status=${status}` : '';
-      const submissions = await fetchJson<Submission[]>(`/api/admin/submissions${qs}`);
+      const submissions = await bridgeGet<Submission[]>(`/api/admin/submissions${qs}`);
       set({ submissions, loading: false });
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'community-store', level: 'error', message: 'Failed to fetch submissions', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
@@ -134,21 +123,13 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
       const result = await api.communitySubmit(base, { type, data, note });
       return result.submissionId;
     }
-    const result = await fetchJson<{ submissionId: string }>(`${base}/api/community/submit`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, data, note }),
-    });
+    const result = await bridgePost<{ submissionId: string }>(`${base}/api/community/submit`, { type, data, note });
     return result.submissionId;
   },
 
   copyItem: async (type, communityId) => {
     if (isElectronMode()) throw new Error('Community Library is not available in desktop mode');
-    const result = await fetchJson<{ newId: string }>('/api/community/copy', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, communityId }),
-    });
+    const result = await bridgePost<{ newId: string }>('/api/community/copy', { type, communityId });
     api.trackEvent('community_copy', 'community', { type, communityId });
     return result.newId;
   },
@@ -161,11 +142,13 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
       if (isElectronMode()) {
         await api.adminRemoveCommunityItem(type, id, reason);
       } else {
-        await fetchJson(`/api/community/${type}/${encodeURIComponent(id)}`, {
+        // bridgeDel doesn't support request bodies; inline fetch for DELETE-with-reason
+        const res = await fetch(`/api/community/${type}/${encodeURIComponent(id)}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ reason }),
         });
+        if (!res.ok) throw new Error(`DELETE failed: HTTP ${res.status}`);
       }
       api.trackEvent('community_admin_remove', 'community', { type, id });
     } catch (err) {
@@ -177,11 +160,11 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
 
   approveSubmission: async (id) => {
     if (isElectronMode()) return;
-    await fetchJson(`/api/admin/submissions/${id}/approve`, { method: 'POST' });
+    await bridgePost(`/api/admin/submissions/${id}/approve`, {});
   },
 
   rejectSubmission: async (id) => {
     if (isElectronMode()) return;
-    await fetchJson(`/api/admin/submissions/${id}/reject`, { method: 'POST' });
+    await bridgePost(`/api/admin/submissions/${id}/reject`, {});
   },
 }));

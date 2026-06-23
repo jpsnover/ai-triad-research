@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useUserProfile } from '../../hooks/useAuthStatus';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { api, isElectronMode } from '@bridge';
+import { bridgeGet } from '../../bridge/web-bridge';
 import ErrorBoundary from '../../../../../lib/electron-shared/components/ErrorBoundary';
 import { CalibrationReviewViewer } from '../analysis';
 import { CommunityReviewViewer } from './CommunityReviewViewer';
@@ -69,9 +70,7 @@ async function fetchFeedback(opts: {
   if (opts.category && opts.category !== 'all') params.set('category', opts.category);
   if (opts.rating && opts.rating !== 'all') params.set('rating', opts.rating);
   const qs = params.toString();
-  const res = await fetch(`/api/admin/feedback${qs ? `?${qs}` : ''}`);
-  if (!res.ok) throw new Error(`GET feedback failed: HTTP ${res.status}`);
-  return res.json();
+  return bridgeGet<FeedbackResponse>(`/api/admin/feedback${qs ? `?${qs}` : ''}`);
 }
 
 // ── Helpers ──
