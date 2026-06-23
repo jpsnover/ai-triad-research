@@ -10,10 +10,41 @@ import { instrumentBridge } from './instrumentBridge';
 import { ActionableError } from '@lib/debate/errors';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { encryptKeysForSharing, decryptKeysFromSharing } from '../utils/keyShareCrypto';
+import { resilientFetch, categorizeEndpoint, type EndpointCategory } from './resilience';
+export { getResilienceState, subscribeResilience, resetResilience } from './resilience';
+export type { ResilienceStatus, CircuitState, ThrottleState, EndpointCategory } from './resilience';
 
 function throwHttpError(status: number, err: ActionableError): never {
   (err as ActionableError & { httpStatus: number }).httpStatus = status;
   throw err;
+}
+
+// ── Resilient fetch options for callers ──
+
+interface FetchOptions {
+  timeoutMs?: number;
+  maxRetries?: number;
+  idempotent?: boolean;
+  critical?: boolean;
+}
+
+const DEFAULT_READ_TIMEOUT_MS = 30_000;
+const DEFAULT_MUTATION_TIMEOUT_MS = 180_000;
+
+function defaultMaxRetries(cat: EndpointCategory, method: string, idempotent?: boolean): number {
+  if (cat === 'telemetry') return 0;
+  if (method === 'GET') return 3;
+  // AI mutations get 0 retries: the server already retries 5× per backend + model fallback chain (t/878)
+  return idempotent ? 1 : 0;
+}
+
+function throwTimeoutError(method: string, path: string, timeoutMs: number): never {
+  throw new ActionableError({
+    goal: 'Call server API',
+    problem: `${method} ${path} timed out after ${Math.round(timeoutMs / 1000)}s`,
+    location: `web-bridge.${method.toLowerCase()}`,
+    nextSteps: ['The server may be overloaded — try again', 'Check server logs for errors'],
+  });
 }
 
 // ── Auth state cache ──
@@ -39,8 +70,23 @@ async function isAnonymous(): Promise<boolean> {
 
 // ── HTTP helpers ──
 
-async function get<T = unknown>(path: string): Promise<T> {
-  const res = await fetch(path);
+async function get<T = unknown>(path: string, opts?: FetchOptions): Promise<T> {
+  const cat = categorizeEndpoint(path, 'GET');
+  const timeoutMs = opts?.timeoutMs ?? DEFAULT_READ_TIMEOUT_MS;
+  let res: Response;
+  try {
+    res = await resilientFetch(path, {}, {
+      timeoutMs,
+      maxRetries: opts?.maxRetries ?? defaultMaxRetries(cat, 'GET'),
+      critical: opts?.critical ?? true,
+      category: cat,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throwTimeoutError('GET', path, timeoutMs);
+    }
+    throw err;
+  }
   if (!res.ok) {
     const text = await res.text();
     throwHttpError(res.status, new ActionableError({
@@ -53,30 +99,27 @@ async function get<T = unknown>(path: string): Promise<T> {
   return res.json();
 }
 
-async function post<T = unknown>(path: string, body?: unknown, timeoutMs = 180_000): Promise<T> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+async function post<T = unknown>(path: string, body?: unknown, opts?: FetchOptions): Promise<T> {
+  const cat = categorizeEndpoint(path, 'POST');
+  const timeoutMs = opts?.timeoutMs ?? DEFAULT_MUTATION_TIMEOUT_MS;
   let res: Response;
   try {
-    res = await fetch(path, {
+    res = await resilientFetch(path, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: body !== undefined ? JSON.stringify(body) : undefined,
-      signal: controller.signal,
+    }, {
+      timeoutMs,
+      maxRetries: opts?.maxRetries ?? defaultMaxRetries(cat, 'POST', opts?.idempotent),
+      critical: opts?.critical ?? (cat !== 'telemetry'),
+      category: cat,
     });
   } catch (err) {
-    clearTimeout(timer);
     if (err instanceof DOMException && err.name === 'AbortError') {
-      throw new ActionableError({
-        goal: 'Call server API',
-        problem: `POST ${path} timed out after ${Math.round(timeoutMs / 1000)}s`,
-        location: 'web-bridge.post',
-        nextSteps: ['The server may be overloaded — try again', 'Check server logs for errors'],
-      });
+      throwTimeoutError('POST', path, timeoutMs);
     }
     throw err;
   }
-  clearTimeout(timer);
   if (res.status === 429) {
     const data = await res.json().catch(bridgeWarn('Failed to parse rate-limit response body', {})) as Record<string, unknown>;
     const msg = data.limitType === 'tokens_per_day'
@@ -112,12 +155,27 @@ async function post<T = unknown>(path: string, body?: unknown, timeoutMs = 180_0
   return res.json();
 }
 
-async function put<T = unknown>(path: string, body?: unknown): Promise<T> {
-  const res = await fetch(path, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+async function put<T = unknown>(path: string, body?: unknown, opts?: FetchOptions): Promise<T> {
+  const cat = categorizeEndpoint(path, 'PUT');
+  const timeoutMs = opts?.timeoutMs ?? DEFAULT_MUTATION_TIMEOUT_MS;
+  let res: Response;
+  try {
+    res = await resilientFetch(path, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    }, {
+      timeoutMs,
+      maxRetries: opts?.maxRetries ?? defaultMaxRetries(cat, 'PUT', opts?.idempotent),
+      critical: opts?.critical ?? true,
+      category: cat,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throwTimeoutError('PUT', path, timeoutMs);
+    }
+    throw err;
+  }
   if (!res.ok) {
     const text = await res.text();
     throwHttpError(res.status, new ActionableError({
@@ -130,8 +188,23 @@ async function put<T = unknown>(path: string, body?: unknown): Promise<T> {
   return res.json();
 }
 
-async function del<T = unknown>(path: string): Promise<T> {
-  const res = await fetch(path, { method: 'DELETE' });
+async function del<T = unknown>(path: string, opts?: FetchOptions): Promise<T> {
+  const cat = categorizeEndpoint(path, 'DELETE');
+  const timeoutMs = opts?.timeoutMs ?? DEFAULT_MUTATION_TIMEOUT_MS;
+  let res: Response;
+  try {
+    res = await resilientFetch(path, { method: 'DELETE' }, {
+      timeoutMs,
+      maxRetries: opts?.maxRetries ?? defaultMaxRetries(cat, 'DELETE', opts?.idempotent),
+      critical: opts?.critical ?? true,
+      category: cat,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throwTimeoutError('DELETE', path, timeoutMs);
+    }
+    throw err;
+  }
   if (!res.ok) {
     const text = await res.text();
     throwHttpError(res.status, new ActionableError({
