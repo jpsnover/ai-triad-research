@@ -650,7 +650,12 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
         )}
 
         {activeTab === 'history' && (
-          <NodeEditHistory editMeta={node._edit_meta} editHistory={node._edit_history} />
+          <NodeEditHistory
+            editMeta={node._edit_meta}
+            editHistory={node._edit_history}
+            descriptionHistory={node.description_history}
+            labelHistory={node.label_history}
+          />
         )}
       </div>
 
