@@ -34,7 +34,7 @@ import {
 import { GitHubAPIBackend } from './githubAPIBackend.js';
 import { SessionBranchManager } from './sessionBranchManager.js';
 import { runWithUser, getCurrentUser, getCurrentUserId, getStorageUserId, setSessionBranchName, deriveStorageUserId, isAnonymousUser } from './userContext.js';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity } from './accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage } from './accessControl.js';
 import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
 import * as community from './community.js';
@@ -287,7 +287,9 @@ function error(res: http.ServerResponse, message: string, status = 500, cause?: 
     json(res, { error: 'Internal server error', requestId: getRequestId() }, status);
     return;
   }
-  json(res, { error: message, requestId: getRequestId() }, status);
+  // t/853: strip ActionableError internals (location, resolve steps) from <500
+  // responses in production; keep the user-actionable summary.
+  json(res, { error: clientSafeMessage(message, cause), requestId: getRequestId() }, status);
 }
 
 // Best-effort client IP for rate limiting — first X-Forwarded-For hop (Azure
@@ -2927,6 +2929,15 @@ const MIME_TYPES: Record<string, string> = {
 
 function serveStatic(req: http.IncomingMessage, res: http.ServerResponse): boolean {
   const url = new URL(req.url!, 'http://localhost');
+
+  // t/854: never serve source maps in production — *.js.map lets anyone recover
+  // the full client source (API shapes, auth flows, internal logic). 404 them.
+  if (process.env.NODE_ENV === 'production' && url.pathname.endsWith('.map')) {
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('Not found');
+    return true;
+  }
+
   let filePath = path.join(STATIC_DIR, url.pathname === '/' ? 'index.html' : url.pathname);
 
   // Security: prevent directory traversal

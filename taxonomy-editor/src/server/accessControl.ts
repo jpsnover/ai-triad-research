@@ -48,6 +48,30 @@ export function invalidRouteParam(routePath: string, pathname: string): string |
   return null;
 }
 
+/** Duck-typed ActionableError (avoids importing across the lib boundary). */
+function isActionableErrorLike(e: unknown): e is { goal: string; problem: string } {
+  return !!e && typeof e === 'object' && 'goal' in e && 'problem' in e && 'nextSteps' in e;
+}
+
+/**
+ * t/853: produce a client-safe error string for production. ActionableError
+ * carries `location`, `Resolve:` steps, and stacks that reveal server internals
+ * (source paths, function names) — in production keep only the user-actionable
+ * `goal: problem`. Handles an ActionableError `cause` and a message that is
+ * already a serialized ActionableError dump. Outside production the full message
+ * is returned unchanged (dev/debug ergonomics).
+ */
+export function clientSafeMessage(message: string, cause?: unknown, isProduction = process.env.NODE_ENV === 'production'): string {
+  if (!isProduction) return message;
+  if (isActionableErrorLike(cause)) return `${cause.goal}: ${cause.problem}`;
+  if (/\n\s*Location:/.test(message)) {
+    const goal = message.match(/Goal:\s*(.+)/)?.[1]?.trim();
+    const prob = message.match(/Error:\s*(.+)/)?.[1]?.trim();
+    return goal && prob ? `${goal}: ${prob}` : 'Request failed';
+  }
+  return message;
+}
+
 /**
  * t/848: the identity to feed proxyTiers.resolveTier, sourced from the verified
  * ALS user context (populated once by the S9 middleware from

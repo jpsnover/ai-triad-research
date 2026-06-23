@@ -8,8 +8,37 @@
 
 import { describe, it, expect } from 'vitest';
 import path from 'path';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity } from '../accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage } from '../accessControl.js';
 import { resolveTier } from '../proxyTiers.js';
+
+describe('clientSafeMessage (t/853)', () => {
+  const dump = [
+    '', '  Goal:     Load chat session',
+    '  Error:    Chat not found', '  Location: server/fileIO.ts → loadChatSession',
+    '  Resolve:', '  1. Check the id',
+  ].join('\n');
+
+  it('strips ActionableError internals from a cause in production (goal: problem only)', () => {
+    const cause = { goal: 'Load chat session', problem: 'Chat not found', location: 'server/fileIO.ts', nextSteps: ['x'] };
+    const out = clientSafeMessage('whatever', cause, true);
+    expect(out).toBe('Load chat session: Chat not found');
+    expect(out).not.toMatch(/Location|Resolve|fileIO/);
+  });
+
+  it('strips a serialized ActionableError dump message in production', () => {
+    const out = clientSafeMessage(dump, undefined, true);
+    expect(out).toBe('Load chat session: Chat not found');
+    expect(out).not.toMatch(/Location|Resolve|fileIO/);
+  });
+
+  it('passes plain validation messages through unchanged', () => {
+    expect(clientSafeMessage('rating must be "up" or "down"', undefined, true)).toBe('rating must be "up" or "down"');
+  });
+
+  it('returns the full message in development (unchanged)', () => {
+    expect(clientSafeMessage(dump, undefined, false)).toBe(dump);
+  });
+});
 
 describe('callerTierIdentity (t/848)', () => {
   it('returns the principal/idp for an authenticated context', () => {
