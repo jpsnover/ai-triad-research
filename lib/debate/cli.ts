@@ -56,6 +56,7 @@ interface CLIConfig {
     measure_recovery_window?: number;
   };
   salienceBeacon?: boolean;
+  stageModels?: { brief?: string; plan?: string; cite?: string };
 }
 
 // ── Main ─────────────────────────────────────────────────
@@ -366,6 +367,7 @@ async function main(): Promise<void> {
     throttleMs: config.throttleMs,
     perturbation: resolvePerturbationConfig(config, perturbationPrompt, perturbationTurn),
     salienceBeacon: config.salienceBeacon,
+    stageModels: config.stageModels,
   };
 
   // Run debate

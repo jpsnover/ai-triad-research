@@ -150,7 +150,7 @@ Install Node.js from https://nodejs.org (v18+), then verify: npx --version
 
     # ── Build config JSON ─────────────────────────────────
     $Config = @{
-        activePovers       = $Debaters
+        activePovers       = @($Debaters | ForEach-Object { $_.ToLower() })
         model              = $ResolvedModel
         rounds             = $Rounds
         responseLength     = $ResponseLength

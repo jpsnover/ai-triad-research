@@ -173,7 +173,7 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
 // identity is granted 'Key Vault Secrets Officer' on this vault below.
 // Secret names: apikey-<backend>-<sha256(principal)[:32]>
 
-resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
+resource keyVault 'Microsoft.KeyVault/vaults@2026-02-01' = {
   name: 'kv-ait-${uniqueSuffix}'
   location: location
   tags: tags
@@ -684,6 +684,9 @@ resource authConfig 'Microsoft.App/containerApps/authConfigs@2024-10-02-preview'
       routes: {
         logoutEndpoint: '/.auth/logout'
       }
+      allowedExternalRedirectUrls: [
+        'https://${containerApp.properties.configuration.ingress.fqdn}'
+      ]
       preserveUrlFragmentsForLogins: false
       tokenStore: {
         enabled: true

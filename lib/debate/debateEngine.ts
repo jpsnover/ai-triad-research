@@ -3495,7 +3495,7 @@ export class DebateEngine {
 
     // ── Update active moderator state for next round ──
     if (this.session.crux_tracker && this.session.crux_tracker.length > 0) {
-      updateCruxEngagement(this._moderatorState!, this.session.crux_tracker, this.activePovers, an.nodes);
+      updateCruxEngagement(this._moderatorState!, this.session.crux_tracker, this.config.activePovers, an.nodes);
     }
     const validationResult = activeIntervention
       ? { proceed: true, validated_move: activeIntervention.move, validated_family: activeIntervention.family, validated_target: activeIntervention.target_debater } as import('./types').EngineValidationResult

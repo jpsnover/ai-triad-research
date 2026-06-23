@@ -189,7 +189,53 @@ class TaxEditorHealthResult {
     [bool]          $Healthy
     [HealthCheck[]] $Checks
     [int]           $AverageMs
+    [int]           $FreeTierKeyPoolSize
     [string]        $Timestamp
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AcaRevision — typed result from Get-TaxEditorRevision
+# ─────────────────────────────────────────────────────────────────────────────
+class AcaRevision {
+    [string] $Name
+    [bool]   $Active
+    [int]    $TrafficWeight
+    [string] $RunningState
+    [string] $ImageTag
+    [string] $CreatedAt
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GhcrImage — typed result from Get-TaxEditorImage
+# ─────────────────────────────────────────────────────────────────────────────
+class GhcrImage {
+    [string[]] $Tags
+    [string]   $Digest
+    [string]   $CreatedAt
+    [bool]     $IsKnownGood
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DataCommit — typed result from Get-TaxEditorDataCommit
+# ─────────────────────────────────────────────────────────────────────────────
+class DataCommit {
+    [string] $Sha
+    [string] $ShortSha
+    [string] $Message
+    [string] $Author
+    [string] $Date
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BlobInfo — typed result from Get-TaxEditorBlob
+# ─────────────────────────────────────────────────────────────────────────────
+class BlobInfo {
+    [string] $Name
+    [string] $Container
+    [long]   $Size
+    [string] $LastModified
+    [bool]   $Deleted
+    [string] $DeletedAt
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -245,7 +291,7 @@ if (Test-Path $AIModelsPath) {
 foreach ($Scope in @('Private', 'Public')) {
     $Dir = Join-Path $PSScriptRoot $Scope
     if (Test-Path $Dir) {
-        foreach ($File in Get-ChildItem -Path $Dir -Filter '*.ps1' -File) {
+        foreach ($File in Get-ChildItem -Path $Dir -Filter '*.ps1' -File -Recurse) {
             . $File.FullName
         }
     }
@@ -473,6 +519,22 @@ Export-ModuleMember -Function @(
     'Invoke-TaxEditorSmokeTest'
     'Test-AzureHealth'
     'Test-GitHubHealth'
+    'Get-TaxEditorRevision'
+    'Switch-TaxEditorRevision'
+    'Get-TaxEditorDataCommit'
+    'Undo-TaxEditorDataCommit'
+    'Sync-TaxEditorData'
+    'Reset-TaxEditorSession'
+    'Get-TaxEditorImage'
+    'Deploy-TaxEditorImage'
+    'Set-TaxEditorKnownGood'
+    'Restore-TaxEditorKnownGood'
+    'Test-TaxEditorInfra'
+    'Deploy-TaxEditorInfra'
+    'Get-TaxEditorBlob'
+    'Restore-TaxEditorBlob'
+    'Get-CriticalInteraction'
+    'Test-CriticalInteractions'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

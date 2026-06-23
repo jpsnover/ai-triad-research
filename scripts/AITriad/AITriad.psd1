@@ -122,6 +122,22 @@
         'Invoke-TaxEditorSmokeTest'
         'Test-AzureHealth'
         'Test-GitHubHealth'
+        'Get-TaxEditorRevision'
+        'Switch-TaxEditorRevision'
+        'Get-TaxEditorDataCommit'
+        'Undo-TaxEditorDataCommit'
+        'Sync-TaxEditorData'
+        'Reset-TaxEditorSession'
+        'Get-TaxEditorImage'
+        'Deploy-TaxEditorImage'
+        'Set-TaxEditorKnownGood'
+        'Restore-TaxEditorKnownGood'
+        'Test-TaxEditorInfra'
+        'Deploy-TaxEditorInfra'
+        'Get-TaxEditorBlob'
+        'Restore-TaxEditorBlob'
+        'Get-CriticalInteraction'
+        'Test-CriticalInteractions'
     )
 
     # Aliases exported from this module

@@ -350,59 +350,95 @@ interface DebateSession {
 
 **Name:** `cheap-brief-cite-v1`
 
-**Configuration:**
+**Rationale:** Not all users have Claude API keys. Users without registered keys only have access to `gemini-3.1-flash-lite` (free Gemini tier). Flash-lite is therefore the baseline cheap model for the majority of users — haiku is an optional upgrade for BYOK Claude users. The experiment must answer two questions in order:
+
+1. **Primary:** Does flash-lite produce acceptable Brief/Cite quality? (Ships the feature for everyone.)
+2. **Secondary:** For Claude BYOK users, does haiku improve on flash-lite enough to justify ~3x cost? (Determines whether to auto-upgrade when a Claude key is present.)
+
+**Configuration (shared across all arms):**
 - Draft model: claude-opus-4 (unchanged)
 - Plan model: claude-opus-4 (unchanged — conservative)
-- Brief model: claude-haiku-4-5
-- Cite model: claude-haiku-4-5
 - All other parameters: matched to baseline
+- Topic: "Audit Trails & Discoverability"
 
-**A/B Test:**
-- **Control:** All-opus debate on "Audit Trails & Discoverability" topic (baseline exists: debate-72a6e0a2)
-- **Treatment:** Same topic, same parameters, Brief+Cite on haiku
-- **Sample size:** 3 runs each (to account for stochastic variance; PRM variance was halved in prior comparison, so n=3 should be sufficient)
+**A/B/C Test:**
+- **Control (A):** All-opus — baseline (debate-72a6e0a2 exists; 2 more needed for n=3)
+- **Treatment B (flash-lite):** Brief+Cite on `gemini-3.1-flash-lite` — answers the primary question
+- **Treatment C (haiku):** Brief+Cite on `claude-haiku-4-5` — answers the secondary question
+- **Sample size:** 3 runs per arm (9 total; 8 new + 1 existing control)
+- **Run order:** Treatment B first (flash-lite), then Treatment C (haiku) — primary question takes priority; if flash-lite is unacceptable, haiku results still inform a BYOK-only feature
+- **Entry point:** PS cmdlet `-StageModels` parameter (t/852); UI wiring deferred (t/843)
+
+**Cost per arm:**
+
+| Arm | Brief+Cite model | Est. cost/debate | Arm total (n=3) |
+|-----|-------------------|-----------------|-----------------|
+| Control (opus) | opus | ~$7.70 | ~$23 |
+| Treatment B (flash-lite) | flash-lite ($0.375/$1.50) | ~$3.50 | ~$10.50 |
+| Treatment C (haiku) | haiku ($1/$5) | ~$4.20 | ~$12.60 |
+| **Total experiment** | | | **~$46** |
 
 ### 5.2 Primary Metrics to Monitor
 
-| Metric | Baseline (opus) | Predicted Treatment | Acceptable Threshold |
-|--------|----------------|--------------------|--------------------|
-| `crux_addressed_ratio` | 0.33 | 0.28-0.33 | ≥0.25 |
-| `taxonomy_mapped_ratio` | 0.68 | 0.60-0.65 | ≥0.55 |
-| `repetition_rate` | 0.12 | 0.12-0.15 | ≤0.20 |
-| `claims_forgotten_rate` | 0.05 | 0.05-0.08 | ≤0.10 |
-| `situation_crux_alignment` | 0.0 | 0.0 | ≥0.0 (already at floor) |
-| PRM mean | 0.72 | 0.68-0.72 | ≥0.65 |
-| PRM variance | 0.008 | 0.008-0.012 | ≤0.015 |
+Baselines measured from 2 completed opus debates. Only debate-72a6e0a2 (v0.13.6-59, Audit Trails topic) is a valid control — debate-5ff58b8b (v0.13.6-76) is on a different topic (Siloed Datasets). Two more matched-topic control runs are needed to reach n=3.
+
+| Metric | Baseline range (opus, n=2) | Predicted Treatment | Acceptable Threshold |
+|--------|---------------------------|--------------------|--------------------|
+| `crux_addressed_ratio` | 0.20–0.29 | 0.18-0.29 | ≥0.15 |
+| `taxonomy_mapped_ratio` | 0.83–0.93 | 0.75-0.90 | ≥0.70 |
+| `repetition_rate` | 0.00 | 0.00-0.05 | ≤0.15 |
+| `claims_forgotten_rate` | 0.32–0.37 | 0.32-0.42 | ≤0.50 |
+| `situation_crux_alignment` | 1.0 | 0.8-1.0 | ≥0.7 |
+| `convergence_score` | null (not computed) | — | — (excluded until metric is implemented) |
+| PRM mean | 0.75–0.80 | 0.70-0.80 | ≥0.65 |
+| PRM variance | 0.006 | 0.006-0.012 | ≤0.020 |
+
+**Notes:**
+- `claims_forgotten_rate` measures unanswered claims / total argument network nodes. The 0.32-0.37 range is normal operating behavior for 3-agent debates, not an anomaly.
+- `convergence_score` is null in all available debates — the metric computation may not be wired. Excluded from comparison until fixed.
+- `situation_crux_alignment` is at ceiling (1.0), not floor — the acceptable threshold guards against degradation.
 
 ### 5.3 Kill Criteria
 
-Abort the experiment if any treatment run shows:
-- `crux_addressed_ratio` < 0.20 (crux engagement collapsed)
-- `repetition_rate` > 0.25 (debaters circling)
-- `claims_forgotten_rate` > 0.15 (context loss from bad Briefs)
+Abort the experiment if any treatment run shows degradation beyond the baseline range + margin:
+- `crux_addressed_ratio` < 0.10 (more than 50% relative drop from baseline floor of 0.20)
+- `repetition_rate` > 0.25 (debaters circling — no observed baseline repetition)
+- `claims_forgotten_rate` > 0.55 (>50% relative increase over baseline ceiling of 0.37)
+- `situation_crux_alignment` < 0.5 (substantial drop from baseline ceiling of 1.0)
 - Draft quality pre-check failure rate > 40% (cascading from bad Briefs)
 
 ### 5.4 Expected Outcomes
 
-**Optimistic (60% probability):** Brief+Cite quality on haiku is indistinguishable from opus for these structured tasks. Metrics within 5% of baseline. Proceed to add Plan to the cheap-model set.
+**Question 1 — Flash-lite (Treatment B):**
 
-**Neutral (30% probability):** Brief quality slightly degrades (crux identification 5-10% worse), Cite quality maintained. Net acceptable. Keep Brief+Cite on haiku for cost-sensitive runs, opus for calibration runs.
+- **Optimistic (40%):** Flash-lite Brief+Cite quality is acceptable — metrics within kill criteria. Ship as default for all users. Proceed to question 2.
+- **Neutral (35%):** Flash-lite Cite is fine but Brief quality degrades noticeably (shallow situation assessments, missed cruxes). Ship Cite-only on flash-lite; Brief stays on the main model for free-tier users.
+- **Pessimistic (25%):** Flash-lite produces frequent parse failures or metrics hit kill criteria. Flash-lite is not viable for prep stages. Free-tier users get no cost optimization; the feature is BYOK-only.
 
-**Pessimistic (10% probability):** Brief quality degrades substantially — wrong cruxes identified, key claims missed. Plan and Draft can't compensate. Roll back Brief to opus; keep only Cite on haiku (still saves 15%).
+**Question 2 — Haiku vs flash-lite (Treatment C vs B):**
+
+- **Haiku clearly better (50%):** Haiku metrics are closer to opus than flash-lite. When a Claude key is present, auto-upgrade Brief+Cite to haiku. Worth the ~3x premium over flash-lite.
+- **No meaningful difference (35%):** Haiku and flash-lite metrics are statistically similar. No reason to upgrade — use flash-lite universally regardless of available keys.
+- **Haiku worse or same cost-adjusted (15%):** Haiku doesn't justify the premium. Use flash-lite universally.
+
+**Note:** The haiku treatment-1 pilot (currently running) provides early data for question 2 even before flash-lite runs complete.
 
 ---
 
 ## 6. Future Experiment Roadmap
 
-After the first experiment validates Brief+Cite on cheap:
+After the first experiment validates Brief+Cite on cheap models:
 
 | Phase | Change | Expected Savings | Risk |
 |-------|--------|-----------------|------|
-| **Phase 1** (this ticket) | Brief + Cite on haiku | 40% | Low |
-| **Phase 2** | Add Plan to cheap set | +9% (total 48%) | Medium |
-| **Phase 3** | Evaluator model → haiku | +5-8% | Medium |
+| **Phase 1a** (this ticket) | Brief + Cite on flash-lite | ~55% | Medium |
+| **Phase 1b** (this ticket) | Brief + Cite on haiku (BYOK upgrade) | ~40% | Low |
+| **Phase 2** | Add Plan to cheap set | +9% | Medium |
+| **Phase 3** | Evaluator model → flash-lite/haiku | +5-8% | Medium |
 | **Phase 4** | Pre-debate stages on flash-lite | +2-3% | Low |
 | **Phase 5** | Dynamic: use cheap for early rounds, opus for crux rounds | Variable | Complex |
+
+**Model selection logic (post-experiment):** If Phase 1 validates both models, the runtime default would be: use flash-lite for Brief+Cite (available to everyone), auto-upgrade to haiku when a Claude API key is registered and the haiku arm showed meaningful improvement. This is a config-level decision, not a code change — `stageModels` already supports any registered model ID.
 
 Phase 5 is the most interesting — it would use cheap models for the opening exploration rounds when arguments are broad, then switch to opus when cruxes are identified and precision matters. This requires crux-detection-based model switching, which aligns with the existing adaptive staging infrastructure.
 

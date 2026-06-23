@@ -373,3 +373,58 @@ describe('Per-stage model override', () => {
     expect(draftCall?.[1]).toBe('expensive-model');
   });
 });
+
+// ── Brief stage parse-failure retry (t/895) ─────────────
+
+describe('Brief stage parse-failure retry', () => {
+  it('retries once on brief parse failure then succeeds', async () => {
+    let briefCallCount = 0;
+    const generate = vi.fn(async (_prompt: string, _model: string, _options: unknown, label: string) => {
+      if (label.includes('brief')) {
+        briefCallCount++;
+        if (briefCallCount === 1) return 'not valid json at all';
+        return JSON.stringify(VALID_BRIEF);
+      }
+      if (label.includes('plan')) return JSON.stringify(VALID_PLAN);
+      if (label.includes('draft')) return JSON.stringify(SPECIFIC_DRAFT);
+      if (label.includes('cite')) return JSON.stringify(VALID_CITE);
+      return '{}';
+    }) as unknown as StageGenerateFn;
+
+    const result = await runTurnPipeline(makeBaseInput(), generate);
+
+    expect(briefCallCount).toBe(2);
+    const briefDiags = result.stage_diagnostics.filter(d => d.stage === 'brief');
+    expect(briefDiags.length).toBe(2);
+    expect(briefDiags[0].parse_error).toBeDefined();
+    expect(briefDiags[1].parse_error).toBeUndefined();
+  });
+
+  it('throws after all brief retries exhausted', async () => {
+    const generate = vi.fn(async (_prompt: string, _model: string, _options: unknown, label: string) => {
+      if (label.includes('brief')) return 'not valid json';
+      if (label.includes('plan')) return JSON.stringify(VALID_PLAN);
+      if (label.includes('draft')) return JSON.stringify(SPECIFIC_DRAFT);
+      if (label.includes('cite')) return JSON.stringify(VALID_CITE);
+      return '{}';
+    }) as unknown as StageGenerateFn;
+
+    await expect(runTurnPipeline(makeBaseInput(), generate))
+      .rejects.toThrow(/Brief stage failed to parse after 2 attempt/);
+  });
+
+  it('skips brief retry during outer retry (repairHints present)', async () => {
+    let briefCallCount = 0;
+    const generate = vi.fn(async (_prompt: string, _model: string, _options: unknown, label: string) => {
+      if (label.includes('brief')) {
+        briefCallCount++;
+        return 'not valid json';
+      }
+      return '{}';
+    }) as unknown as StageGenerateFn;
+
+    await expect(runTurnPipeline(makeBaseInput({ repairHints: ['fix something'] }), generate))
+      .rejects.toThrow(/Brief stage failed to parse/);
+    expect(briefCallCount).toBe(1);
+  });
+});

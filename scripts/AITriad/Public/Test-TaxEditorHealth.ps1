@@ -55,6 +55,11 @@ function Test-TaxEditorHealth {
         $parts = @("status=$($b.status)")
         if ($b.PSObject.Properties['ai'] -and $b.ai.PSObject.Properties['geminiKeyConfigured']) {
             $parts += "geminiKey=$($b.ai.geminiKeyConfigured)"
+            if ($b.ai.PSObject.Properties['freeTierKeyPoolSize']) {
+                $pool = $b.ai.freeTierKeyPoolSize
+                $parts += "freeKeyPool=$pool"
+                if ($pool -lt 2) { $parts += '(NO ROUND-ROBIN)' }
+            }
         }
         if ($b.PSObject.Properties['version']) { $parts += "version=$($b.version)" }
         if ($b.PSObject.Properties['uptime']) { $parts += "uptime=$($b.uptime)s" }
@@ -74,11 +79,19 @@ function Test-TaxEditorHealth {
     $AllHealthy = @($Checks | Where-Object { -not $_.Healthy }).Count -eq 0
     $AvgMs = [math]::Round(($Checks | Measure-Object -Property Ms -Average).Average, 0)
 
+    $PoolSize = 0
+    if ($ReadinessResult.Success -and
+        $ReadinessResult.Body.PSObject.Properties['ai'] -and
+        $ReadinessResult.Body.ai.PSObject.Properties['freeTierKeyPoolSize']) {
+        $PoolSize = [int]$ReadinessResult.Body.ai.freeTierKeyPoolSize
+    }
+
     $Result = [TaxEditorHealthResult]::new()
-    $Result.BaseUrl   = $BaseUrl
-    $Result.Healthy   = $AllHealthy
-    $Result.Checks    = @($Checks)
-    $Result.AverageMs = $AvgMs
-    $Result.Timestamp = (Get-Date).ToString('o')
+    $Result.BaseUrl              = $BaseUrl
+    $Result.Healthy              = $AllHealthy
+    $Result.Checks               = @($Checks)
+    $Result.AverageMs            = $AvgMs
+    $Result.FreeTierKeyPoolSize  = $PoolSize
+    $Result.Timestamp            = (Get-Date).ToString('o')
     $Result
 }

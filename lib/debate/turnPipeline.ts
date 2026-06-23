@@ -338,6 +338,7 @@ export async function runTurnPipeline(
   const stageDiags: StageDiagnostics[] = [];
   const pipelineStart = Date.now();
   const isOuterRetry = (input.repairHints?.length ?? 0) > 0;
+  const MAX_STAGE_RETRIES = isOuterRetry ? 0 : 1;
 
   // Per-component char counts for prompt growth forensics (t/221)
   const hintsChars =
@@ -365,59 +366,72 @@ export async function runTurnPipeline(
     briefJson = toPromptJson(brief);
     console.log(`[pipeline] Brief stage FROZEN — reusing prior output`);
   } else {
-    onProgress?.('brief', `${input.label} is briefing...`);
-    getGlobalRecorder()?.record({
-      type: 'turn.stage', component: 'turn-pipeline', level: 'info',
-      speaker: input.label, debate_id: (input as any).debate_id, turn_id: (input as any).turn_id,
-      message: `${input.label} entering BRIEF stage`,
-      data: { stage: 'brief', action: 'enter' },
-    });
-    let briefPrompt: string;
-    let briefRaw: string;
-    let briefUsage: { inputTokens: number; outputTokens: number } | undefined;
-    t0 = Date.now();
-    if (envelopeGenerate) {
-      const env = briefStageEnvelope(stageInput);
-      briefPrompt = flattenEnvelope(env);
-      const resp = await envelopeGenerate({ envelope: env, model: briefModel, options: { temperature: temps.brief_temperature } }, `${input.label} brief`);
-      briefRaw = resp.text;
-      briefUsage = resp.usage;
-    } else {
-      briefPrompt = briefStagePrompt(stageInput);
-      briefRaw = await generate(briefPrompt, briefModel, { temperature: temps.brief_temperature }, `${input.label} brief`);
-    }
-    elapsed = Date.now() - t0;
-    const briefParsed = parseStageResponse<BriefWorkProduct>(briefRaw, 'brief');
-    stageDiags.push({
-      stage: 'brief', prompt: briefPrompt, raw_response: briefRaw,
-      model: briefModel, temperature: temps.brief_temperature,
-      response_time_ms: elapsed, work_product: briefParsed.product as unknown as Record<string, unknown>,
-      parse_error: briefParsed.error,
-      retry_trigger: isOuterRetry ? 'orchestration-rerun' : 'initial',
-      prompt_component_chars: promptComponentChars,
-      input_tokens: briefUsage?.inputTokens,
-      output_tokens: briefUsage?.outputTokens,
-    });
-    if (briefParsed.error) {
-      throw new ActionableError({
-        goal: 'Run debate turn pipeline',
-        problem: `Brief stage failed to parse — downstream stages would operate on empty context. ${briefParsed.error}`,
-        location: 'turnPipeline.runPipeline',
-        nextSteps: ['Check the AI model response quality', 'Try a different model'],
+    for (let briefAttempt = 0; briefAttempt <= MAX_STAGE_RETRIES; briefAttempt++) {
+      onProgress?.('brief', `${input.label} is briefing${briefAttempt > 0 ? ` (retry ${briefAttempt})` : ''}...`);
+      getGlobalRecorder()?.record({
+        type: 'turn.stage', component: 'turn-pipeline', level: 'info',
+        speaker: input.label, debate_id: (input as any).debate_id, turn_id: (input as any).turn_id,
+        message: `${input.label} entering BRIEF stage (attempt ${briefAttempt})`,
+        data: { stage: 'brief', action: 'enter', attempt: briefAttempt },
       });
+      let briefPrompt: string;
+      let briefRaw: string;
+      let briefUsage: { inputTokens: number; outputTokens: number } | undefined;
+      t0 = Date.now();
+      if (envelopeGenerate) {
+        const env = briefStageEnvelope(stageInput);
+        briefPrompt = flattenEnvelope(env);
+        const resp = await envelopeGenerate({ envelope: env, model: briefModel, options: { temperature: temps.brief_temperature } }, `${input.label} brief`);
+        briefRaw = resp.text;
+        briefUsage = resp.usage;
+      } else {
+        briefPrompt = briefStagePrompt(stageInput);
+        briefRaw = await generate(briefPrompt, briefModel, { temperature: temps.brief_temperature }, `${input.label} brief`);
+      }
+      elapsed = Date.now() - t0;
+      const briefParsed = parseStageResponse<BriefWorkProduct>(briefRaw, 'brief');
+      stageDiags.push({
+        stage: 'brief', prompt: briefPrompt, raw_response: briefRaw,
+        model: briefModel, temperature: temps.brief_temperature,
+        response_time_ms: elapsed, work_product: briefParsed.product as unknown as Record<string, unknown>,
+        parse_error: briefParsed.error,
+        retry_trigger: isOuterRetry ? 'orchestration-rerun' : briefAttempt > 0 ? 'stage-retry' : 'initial',
+        prompt_component_chars: promptComponentChars,
+        input_tokens: briefUsage?.inputTokens,
+        output_tokens: briefUsage?.outputTokens,
+      });
+      if (briefParsed.error) {
+        if (briefAttempt < MAX_STAGE_RETRIES) {
+          getGlobalRecorder()?.record({
+            type: 'turn.repair', component: 'turn-pipeline', level: 'warn',
+            speaker: input.label,
+            message: `BRIEF parse failed (attempt ${briefAttempt}), retrying`,
+            data: { stage: 'brief', attempt: briefAttempt, error: briefParsed.error },
+          });
+          console.log(`[pipeline] Brief parse failed (attempt ${briefAttempt}), retrying: ${briefParsed.error}`);
+          continue;
+        }
+        throw new ActionableError({
+          goal: 'Run debate turn pipeline',
+          problem: `Brief stage failed to parse after ${briefAttempt + 1} attempt(s) — downstream stages would operate on empty context. ${briefParsed.error}`,
+          location: 'turnPipeline.runPipeline',
+          nextSteps: ['Check the AI model response quality', 'Try a different model'],
+        });
+      }
+      brief = tagProvenance(briefParsed.product, {
+        pipeline_run: isOuterRetry ? 1 : 0,
+        stage: 'brief', attempt: briefAttempt,
+        model: briefModel, timestamp: new Date().toISOString(),
+      });
+      briefJson = toPromptJson(brief);
+      getGlobalRecorder()?.record({
+        type: 'turn.stage', component: 'turn-pipeline', level: 'info',
+        speaker: input.label, duration_ms: elapsed,
+        message: `${input.label} completed BRIEF stage (attempt ${briefAttempt})`,
+        data: { stage: 'brief', action: 'exit', attempt: briefAttempt, duration_ms: elapsed },
+      });
+      break;
     }
-    brief = tagProvenance(briefParsed.product, {
-      pipeline_run: isOuterRetry ? 1 : 0,
-      stage: 'brief', attempt: 0,
-      model: briefModel, timestamp: new Date().toISOString(),
-    });
-    briefJson = toPromptJson(brief);
-    getGlobalRecorder()?.record({
-      type: 'turn.stage', component: 'turn-pipeline', level: 'info',
-      speaker: input.label, duration_ms: elapsed,
-      message: `${input.label} completed BRIEF stage`,
-      data: { stage: 'brief', action: 'exit', duration_ms: elapsed },
-    });
   }
 
   // ── Stage 1.5: BRIEF node ID sanitization ──
@@ -456,9 +470,6 @@ export async function runTurnPipeline(
   }
 
   // ── Stage 2: PLAN (with per-stage validation + retry) ──
-  // If repairHints are provided, this is an outer retry — skip per-stage retries
-  // to avoid compounding (outer retry already re-runs the full pipeline).
-  const MAX_STAGE_RETRIES = isOuterRetry ? 0 : 1;
   const isFirstRound = (input.priorMoves ?? []).length === 0;
   let plan: PlanWorkProduct | undefined;
   let planJson = '';
@@ -2573,34 +2584,54 @@ export async function runOpeningPipeline(
   const stageDiags: StageDiagnostics[] = [];
   const pipelineStart = Date.now();
 
-  // ── Stage 1: BRIEF ──
-  onProgress?.('brief', `${input.label} is briefing...`);
-  const briefPrompt = briefOpeningStagePrompt(stageInput);
-  let t0 = Date.now();
-  const briefRaw = await generate(
-    briefPrompt, oBriefModel, { temperature: temps.brief_temperature }, `${input.label} opening brief`,
-  );
-  let elapsed = Date.now() - t0;
-  const briefParsed = parseStageResponse<OpeningBriefWorkProduct>(briefRaw, 'brief');
-  stageDiags.push({
-    stage: 'brief', prompt: briefPrompt, raw_response: briefRaw,
-    model: oBriefModel, temperature: temps.brief_temperature,
-    response_time_ms: elapsed, work_product: briefParsed.product as unknown as Record<string, unknown>,
-    parse_error: briefParsed.error,
-  });
-  if (briefParsed.error) {
-    throw new ActionableError({
-      goal: 'Run opening statement pipeline',
-      problem: `Brief stage failed to parse — downstream stages would operate on empty context. ${briefParsed.error}`,
-      location: 'turnPipeline.runOpeningPipeline',
-      nextSteps: ['Check the AI model response quality', 'Try a different model'],
+  // ── Stage 1: BRIEF (with parse-failure retry) ──
+  const isOpeningOuterRetry = (input.repairHints?.length ?? 0) > 0;
+  const MAX_OPENING_RETRIES = isOpeningOuterRetry ? 0 : 1;
+  let brief: OpeningBriefWorkProduct | undefined;
+  let briefJson = '';
+  let t0: number;
+  let elapsed: number;
+  for (let briefAttempt = 0; briefAttempt <= MAX_OPENING_RETRIES; briefAttempt++) {
+    onProgress?.('brief', `${input.label} is briefing${briefAttempt > 0 ? ` (retry ${briefAttempt})` : ''}...`);
+    const briefPrompt = briefOpeningStagePrompt(stageInput);
+    t0 = Date.now();
+    const briefRaw = await generate(
+      briefPrompt, oBriefModel, { temperature: temps.brief_temperature }, `${input.label} opening brief`,
+    );
+    elapsed = Date.now() - t0;
+    const briefParsed = parseStageResponse<OpeningBriefWorkProduct>(briefRaw, 'brief');
+    stageDiags.push({
+      stage: 'brief', prompt: briefPrompt, raw_response: briefRaw,
+      model: oBriefModel, temperature: temps.brief_temperature,
+      response_time_ms: elapsed, work_product: briefParsed.product as unknown as Record<string, unknown>,
+      parse_error: briefParsed.error,
+      retry_trigger: briefAttempt > 0 ? 'stage-retry' : 'initial',
     });
+    if (briefParsed.error) {
+      if (briefAttempt < MAX_OPENING_RETRIES) {
+        getGlobalRecorder()?.record({
+          type: 'turn.repair', component: 'turn-pipeline', level: 'warn',
+          speaker: input.label,
+          message: `Opening BRIEF parse failed (attempt ${briefAttempt}), retrying`,
+          data: { stage: 'brief', attempt: briefAttempt, error: briefParsed.error },
+        });
+        console.log(`[pipeline] Opening brief parse failed (attempt ${briefAttempt}), retrying: ${briefParsed.error}`);
+        continue;
+      }
+      throw new ActionableError({
+        goal: 'Run opening statement pipeline',
+        problem: `Brief stage failed to parse after ${briefAttempt + 1} attempt(s) — downstream stages would operate on empty context. ${briefParsed.error}`,
+        location: 'turnPipeline.runOpeningPipeline',
+        nextSteps: ['Check the AI model response quality', 'Try a different model'],
+      });
+    }
+    brief = tagProvenance(briefParsed.product, {
+      pipeline_run: 0, stage: 'brief', attempt: briefAttempt,
+      model: oBriefModel, timestamp: new Date().toISOString(),
+    });
+    briefJson = toPromptJson(brief);
+    break;
   }
-  const brief = tagProvenance(briefParsed.product, {
-    pipeline_run: 0, stage: 'brief', attempt: 0,
-    model: oBriefModel, timestamp: new Date().toISOString(),
-  });
-  const briefJson = toPromptJson(brief);
 
   // ── Stage 2: PLAN ──
   onProgress?.('plan', `${input.label} is planning...`);
