@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { bridgeGet } from '../../bridge/web-bridge';
 
 // ── Types ──
 
@@ -36,12 +37,28 @@ const CATEGORY_COLORS: Record<string, string> = {
   config: '#6b7280',
 };
 
+const PRESET_DAYS: Record<DatePreset, number> = { '1d': 1, '7d': 7, '30d': 30, '90d': 90 };
+
 function dateRange(preset: DatePreset): { from: string; to: string } {
   const to = new Date();
   const from = new Date();
-  const days = preset === '1d' ? 0 : preset === '7d' ? 6 : preset === '30d' ? 29 : 89;
-  from.setDate(from.getDate() - days);
+  from.setDate(from.getDate() - (PRESET_DAYS[preset] - 1));
   return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
+}
+
+/** The equal-length window immediately preceding the current one (for period comparison). */
+function previousRange(preset: DatePreset): { from: string; to: string } {
+  const days = PRESET_DAYS[preset];
+  const to = new Date();
+  to.setDate(to.getDate() - days);
+  const from = new Date();
+  from.setDate(from.getDate() - (2 * days - 1));
+  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
+}
+
+/** Fetch one analytics window via the resilient bridge helper (timeout/retry/429 handling). */
+function fetchQuery(from: string, to: string): Promise<QueryResult> {
+  return bridgeGet<QueryResult>(`/api/analytics/query?from=${from}&to=${to}`);
 }
 
 function relativeTime(iso: string): string {
@@ -68,12 +85,35 @@ function fmtNumber(n: number): string {
 
 // ── Components ──
 
-function SummaryCards({ data }: { data: QueryResult['summary'] }) {
-  const cards = [
-    { label: 'Active Users', value: data.activeUsers },
-    { label: 'Sessions', value: data.sessions },
-    { label: 'Total Events', value: fmtNumber(data.totalEvents) },
-    { label: 'Avg Session', value: fmtDuration(data.avgSessionDurationMs) },
+/** Period-over-period delta indicator. `goodWhenUp` null = neutral metric (no green/red). */
+function Delta({ current, previous, goodWhenUp }: { current: number; previous: number; goodWhenUp: boolean | null }) {
+  // No baseline to compare against — avoid divide-by-zero.
+  if (previous === 0) {
+    return <div style={{ fontSize: '0.7rem', marginTop: 4, color: 'var(--text-muted)' }}>{current > 0 ? 'new' : '—'}</div>;
+  }
+  const delta = ((current - previous) / previous) * 100;
+  const flat = Math.abs(delta) < 0.05;
+  const up = delta > 0;
+  const arrow = flat ? '→' : up ? '↑' : '↓';
+  let color = 'var(--text-muted)';
+  if (!flat && goodWhenUp !== null) {
+    const good = goodWhenUp ? up : !up;
+    color = good ? 'var(--success, #22c55e)' : 'var(--danger, #ef4444)';
+  }
+  return (
+    <div style={{ fontSize: '0.7rem', marginTop: 4, color }} title={`vs. previous period`}>
+      {arrow} {Math.abs(delta).toFixed(1)}%
+    </div>
+  );
+}
+
+function SummaryCards({ data, previous }: { data: QueryResult['summary']; previous?: QueryResult['summary'] | null }) {
+  // goodWhenUp: true = higher is better (green up); null = neutral (no color judgement)
+  const cards: { label: string; value: number; display: string; prev: number | undefined; goodWhenUp: boolean | null }[] = [
+    { label: 'Active Users', value: data.activeUsers, display: String(data.activeUsers), prev: previous?.activeUsers, goodWhenUp: true },
+    { label: 'Sessions', value: data.sessions, display: String(data.sessions), prev: previous?.sessions, goodWhenUp: true },
+    { label: 'Total Events', value: data.totalEvents, display: fmtNumber(data.totalEvents), prev: previous?.totalEvents, goodWhenUp: true },
+    { label: 'Avg Session', value: data.avgSessionDurationMs, display: fmtDuration(data.avgSessionDurationMs), prev: previous?.avgSessionDurationMs, goodWhenUp: null },
   ];
   return (
     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
@@ -83,8 +123,11 @@ function SummaryCards({ data }: { data: QueryResult['summary'] }) {
           background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
           textAlign: 'center',
         }}>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>{c.value}</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>{c.display}</div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>{c.label}</div>
+          {previous != null && c.prev !== undefined && (
+            <Delta current={c.value} previous={c.prev} goodWhenUp={c.goodWhenUp} />
+          )}
         </div>
       ))}
     </div>
@@ -234,9 +277,8 @@ function SessionExplorer({ from, to, selectedUser, categoryFilter }: {
   useEffect(() => {
     if (!selectedUser) { setSessions([]); setEvents([]); return; }
     setLoading(true);
-    fetch(`/api/analytics/query?from=${from}&to=${to}&user=${encodeURIComponent(selectedUser)}`)
-      .then(r => r.json())
-      .then((data: { events: RawEvent[] }) => {
+    bridgeGet<{ events: RawEvent[] }>(`/api/analytics/query?from=${from}&to=${to}&user=${encodeURIComponent(selectedUser)}`)
+      .then((data) => {
         const ids = [...new Set(data.events.map(e => e.session_id))];
         setSessions(ids);
         setSelectedSession(ids[0] || null);
@@ -356,15 +398,16 @@ export function AnalyticsDashboard() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [sortCol, setSortCol] = useState<SortCol>('lastActive');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [compare, setCompare] = useState(false);
+  const [prevData, setPrevData] = useState<QueryResult['summary'] | null>(null);
 
   const { from, to } = useMemo(() => dateRange(preset), [preset]);
 
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetch(`/api/analytics/query?from=${from}&to=${to}`)
-      .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
-      .then((d: QueryResult) => { setData(d); setLoading(false); })
+    fetchQuery(from, to)
+      .then((d) => { setData(d); setLoading(false); })
       .catch(err => {
         getGlobalRecorder()?.record({
           type: 'system.error',
@@ -377,6 +420,26 @@ export function AnalyticsDashboard() {
         setLoading(false);
       });
   }, [from, to]);
+
+  // Period comparison: fetch the equal-length preceding window when enabled.
+  useEffect(() => {
+    if (!compare) { setPrevData(null); return; }
+    let cancelled = false;
+    const prev = previousRange(preset);
+    fetchQuery(prev.from, prev.to)
+      .then((d) => { if (!cancelled) setPrevData(d.summary); })
+      .catch(err => {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'analytics-dashboard',
+          level: 'warn',
+          message: 'Failed to load previous-period analytics — comparison unavailable',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        if (!cancelled) setPrevData(null);
+      });
+    return () => { cancelled = true; };
+  }, [compare, preset]);
 
   const handleSort = useCallback((col: SortCol) => {
     setSortCol(prev => {
@@ -412,6 +475,16 @@ export function AnalyticsDashboard() {
               {p === '1d' ? 'Today' : `${p.replace('d', '')} days`}
             </button>
           ))}
+          <button onClick={() => setCompare(c => !c)}
+            title="Compare each metric with the previous period of equal length"
+            style={{
+              marginLeft: 8, padding: '4px 12px', borderRadius: 4, fontSize: '0.75rem', cursor: 'pointer',
+              background: compare ? 'var(--color-acc, #3b82f6)' : 'var(--bg-secondary)',
+              color: compare ? '#fff' : 'var(--text-muted)',
+              border: `1px solid ${compare ? 'transparent' : 'var(--border-color)'}`,
+            }}>
+            vs. previous
+          </button>
         </div>
       </div>
 
@@ -427,7 +500,7 @@ export function AnalyticsDashboard() {
             </div>
           ) : (
             <>
-              <SummaryCards data={data.summary} />
+              <SummaryCards data={data.summary} previous={compare ? prevData : null} />
               <ActivityChart daily={data.daily} />
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                 <FeatureUsage usage={data.featureUsage} onFilter={cat => setCategoryFilter(cat === categoryFilter ? null : cat)} />
