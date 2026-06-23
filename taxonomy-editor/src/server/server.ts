@@ -39,6 +39,7 @@ import { sanitizeUserText } from './contentSanitizer.js';
 import { getRollbackStatus } from './rollbackStatus.js';
 import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
+import { checkProviderBinding } from './providerBinding.js';
 import * as community from './community.js';
 import * as fileIO from './fileIO.js';
 import { FEEDBACK_CATEGORIES, isFeedbackCategory, paginateFeedback } from './feedbackStore.js';
@@ -3475,6 +3476,21 @@ async function handleRequestInner(
   const effectivePrincipal = principalName || '_local';
   const effectiveIdp = idp || '_local';
   const storageUserId = deriveStorageUserId(effectivePrincipal, effectiveIdp);
+
+  // Cross-provider collision guard: verify the idp matches the one that first
+  // claimed this storageUserId. Prevents a different provider from accessing
+  // another user's data by presenting the same normalized email.
+  if (!isAnon) {
+    const binding = checkProviderBinding(storageUserId, effectiveIdp);
+    if (!binding.ok) {
+      json(res, {
+        error: 'provider_mismatch',
+        message: `This account is bound to a different identity provider (${binding.boundTo}). Sign in with your original provider.`,
+      }, 403);
+      return;
+    }
+  }
+
   // t/803: surface the sanitized storage id (e.g. "jpsnover") in the request log
   // context — never the raw email/principal (PII).
   const reqCtx = getRequestContext();
