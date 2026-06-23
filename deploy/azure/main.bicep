@@ -323,6 +323,14 @@ resource communityContainer 'Microsoft.Storage/storageAccounts/blobServices/cont
   }
 }
 
+resource analyticsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'analytics'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
 // ── Staging-isolated blob containers (H5) ──
 // Staging writes to its own containers to prevent cross-contamination with
 // production user data. The staging Container App env needs updating to
@@ -339,6 +347,14 @@ resource stagingUserContentContainer 'Microsoft.Storage/storageAccounts/blobServ
 resource stagingCommunityContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
   parent: blobService
   name: 'staging-community'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource stagingAnalyticsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'staging-analytics'
   properties: {
     publicAccess: 'None'
   }

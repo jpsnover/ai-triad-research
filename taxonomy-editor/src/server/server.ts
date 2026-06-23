@@ -2854,11 +2854,17 @@ post('/api/analytics/event', (_req, res, body) => {
       duration_ms: typeof o.duration_ms === 'number' ? o.duration_ms : undefined,
     });
   }
-  analytics.appendEvents(events);
+  analytics.appendEvents(events).catch((e) => {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'analytics', level: 'error',
+      message: 'Analytics append failed',
+      error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack },
+    });
+  });
   json(res, { ok: true, count: events.length });
 });
 
-get('/api/analytics/query', (req, res) => {
+get('/api/analytics/query', async (req, res) => {
   const url = new URL(req.url!, 'http://localhost');
   const from = url.searchParams.get('from') || new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
   const to = url.searchParams.get('to') || new Date().toISOString().slice(0, 10);
@@ -2868,9 +2874,9 @@ get('/api/analytics/query', (req, res) => {
   if (user || sessionId) {
     // t/850: raw per-user/session events expose other users' telemetry — admin only.
     if (!requireAdmin(res)) return;
-    json(res, { events: analytics.queryRawEvents(from, to, user, sessionId) });
+    json(res, { events: await analytics.queryRawEvents(from, to, user, sessionId) });
   } else {
-    json(res, analytics.queryAggregated(from, to));
+    json(res, await analytics.queryAggregated(from, to));
   }
 });
 
@@ -3835,8 +3841,16 @@ server.listen(PORT, '0.0.0.0', () => {
   log.server.info({ port: PORT }, 'Taxonomy Editor running');
   log.server.info({ dataRoot: getDataRoot() }, 'Data root');
 
-  // Initialize analytics storage (daily NDJSON files + 90-day pruning)
-  try { analytics.initAnalytics(getDataRoot()); } catch (e) { /* telemetry — silent by design */ log.analytics.warn({ err: e }, 'Analytics init failed'); }
+  // Initialize analytics storage — uses Azure Append Blobs in container
+  // deployments, local NDJSON files in Electron/dev.
+  const analyticsBlobUrl = process.env.AZURE_STORAGE_ACCOUNT_URL;
+  const analyticsContainer = process.env.AZURE_ANALYTICS_CONTAINER || 'analytics';
+  analytics.initAnalytics(
+    getDataRoot(),
+    analyticsBlobUrl ? { accountUrl: analyticsBlobUrl, container: analyticsContainer } : undefined,
+  ).then(() => {
+    log.analytics.info({ backend: analyticsBlobUrl ? 'azure-blob' : 'filesystem' }, 'Analytics initialized');
+  }).catch((e) => { /* telemetry — silent by design */ log.analytics.warn({ err: e }, 'Analytics init failed'); });
 
   if (githubBackend) {
     // Initialize GitHubAPIBackend (token + cache check) AFTER health check is

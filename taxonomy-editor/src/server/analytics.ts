@@ -3,11 +3,18 @@
 
 /**
  * Analytics storage and query layer.
- * Events are stored as daily NDJSON files at /data/analytics/YYYY-MM-DD.ndjson.
+ *
+ * Two backends — filesystem (Electron / local dev) and Azure Append Blob
+ * (container deployments). The backend is chosen at init time based on
+ * whether blob config is provided.
+ *
+ * Events are stored as daily NDJSON files: `YYYY-MM-DD.ndjson`.
  */
 
 import fs from 'fs';
 import path from 'path';
+
+// ── Types ──
 
 export interface AnalyticsEvent {
   user: string;
@@ -46,36 +53,107 @@ export interface QueryResult {
   users: UserSummary[];
 }
 
-let analyticsDir = '';
+// ── Backend abstraction ──
 
-export function initAnalytics(dataRoot: string): void {
-  analyticsDir = path.join(dataRoot, 'analytics');
-  fs.mkdirSync(analyticsDir, { recursive: true });
-  pruneOldFiles();
+export interface AnalyticsBackend {
+  append(date: string, lines: string[]): Promise<void>;
+  readLines(date: string): Promise<string[]>;
+  listDates(): Promise<string[]>;
+  prune(cutoffDate: string): Promise<void>;
 }
 
-/** Append a batch of events to today's NDJSON file. */
-export function appendEvents(events: AnalyticsEvent[]): void {
-  if (!analyticsDir || events.length === 0) return;
+export interface AnalyticsBlobConfig {
+  accountUrl: string;
+  container: string;
+  /** Test seam: inject a pre-built BlobServiceClient. */
+  serviceClient?: unknown;
+}
 
-  // Group by date to handle edge cases (events spanning midnight)
+// ── Filesystem backend ──
+
+class FsAnalyticsBackend implements AnalyticsBackend {
+  constructor(private readonly dir: string) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  async append(date: string, lines: string[]): Promise<void> {
+    const filePath = path.join(this.dir, `${date}.ndjson`);
+    fs.appendFileSync(filePath, lines.join('\n') + '\n', 'utf-8');
+  }
+
+  async readLines(date: string): Promise<string[]> {
+    const filePath = path.join(this.dir, `${date}.ndjson`);
+    if (!fs.existsSync(filePath)) return [];
+    return fs.readFileSync(filePath, 'utf-8').split('\n').filter(Boolean);
+  }
+
+  async listDates(): Promise<string[]> {
+    try {
+      return fs.readdirSync(this.dir)
+        .filter(f => f.endsWith('.ndjson'))
+        .map(f => f.replace('.ndjson', ''));
+    } catch { /* telemetry — silent by design */ return []; }
+  }
+
+  async prune(cutoffDate: string): Promise<void> {
+    try {
+      const files = fs.readdirSync(this.dir).filter(f => f.endsWith('.ndjson'));
+      for (const f of files) {
+        const date = f.replace('.ndjson', '');
+        if (date < cutoffDate) {
+          fs.unlinkSync(path.join(this.dir, f));
+        }
+      }
+    } catch { /* telemetry — silent by design;  best-effort cleanup */ }
+  }
+}
+
+// ── Module state ──
+
+let backend: AnalyticsBackend | null = null;
+
+function cutoffStr(): string {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 90);
+  return cutoff.toISOString().slice(0, 10);
+}
+
+// ── Public API ──
+
+export async function initAnalytics(dataRoot: string, blobConfig?: AnalyticsBlobConfig): Promise<void> {
+  if (blobConfig?.accountUrl) {
+    const { BlobAnalyticsBackend } = await import('./analyticsBlob.js');
+    backend = new BlobAnalyticsBackend({
+      accountUrl: blobConfig.accountUrl,
+      container: blobConfig.container,
+      serviceClient: blobConfig.serviceClient as import('@azure/storage-blob').BlobServiceClient | undefined,
+    });
+  } else {
+    backend = new FsAnalyticsBackend(path.join(dataRoot, 'analytics'));
+  }
+  await backend.prune(cutoffStr());
+}
+
+/** Append a batch of events. Fire-and-forget safe — errors are recorded, not thrown. */
+export async function appendEvents(events: AnalyticsEvent[]): Promise<void> {
+  if (!backend || events.length === 0) return;
+
   const byDate = new Map<string, string[]>();
   for (const evt of events) {
-    const date = evt.timestamp.slice(0, 10); // YYYY-MM-DD
+    const date = evt.timestamp.slice(0, 10);
     const lines = byDate.get(date) || [];
     lines.push(JSON.stringify(evt));
     byDate.set(date, lines);
   }
 
   for (const [date, lines] of byDate) {
-    const filePath = path.join(analyticsDir, `${date}.ndjson`);
-    fs.appendFileSync(filePath, lines.join('\n') + '\n', 'utf-8');
+    await backend.append(date, lines);
   }
 }
 
 /** Read all events in a date range (inclusive). */
-function readEvents(from: string, to: string): AnalyticsEvent[] {
-  if (!analyticsDir) return [];
+async function readEvents(from: string, to: string): Promise<AnalyticsEvent[]> {
+  if (!backend) return [];
 
   const events: AnalyticsEvent[] = [];
   const start = new Date(from);
@@ -83,10 +161,7 @@ function readEvents(from: string, to: string): AnalyticsEvent[] {
 
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const date = d.toISOString().slice(0, 10);
-    const filePath = path.join(analyticsDir, `${date}.ndjson`);
-    if (!fs.existsSync(filePath)) continue;
-
-    const lines = fs.readFileSync(filePath, 'utf-8').split('\n').filter(Boolean);
+    const lines = await backend.readLines(date);
     for (const line of lines) {
       try {
         events.push(JSON.parse(line) as AnalyticsEvent);
@@ -98,8 +173,8 @@ function readEvents(from: string, to: string): AnalyticsEvent[] {
 }
 
 /** Query aggregated analytics for a date range. */
-export function queryAggregated(from: string, to: string): QueryResult {
-  const events = readEvents(from, to);
+export async function queryAggregated(from: string, to: string): Promise<QueryResult> {
+  const events = await readEvents(from, to);
 
   const userSet = new Set<string>();
   const sessionSet = new Set<string>();
@@ -112,10 +187,8 @@ export function queryAggregated(from: string, to: string): QueryResult {
     userSet.add(evt.user);
     sessionSet.add(evt.session_id);
 
-    // Feature usage
     featureUsage[evt.category] = (featureUsage[evt.category] || 0) + 1;
 
-    // Daily
     const date = evt.timestamp.slice(0, 10);
     let daily = dailyMap.get(date);
     if (!daily) { daily = { events: 0, users: new Set(), sessions: new Set() }; dailyMap.set(date, daily); }
@@ -123,7 +196,6 @@ export function queryAggregated(from: string, to: string): QueryResult {
     daily.users.add(evt.user);
     daily.sessions.add(evt.session_id);
 
-    // Per-user
     let u = userMap.get(evt.user);
     if (!u) { u = { lastActive: evt.timestamp, sessions: new Set(), events: 0, categories: {} }; userMap.set(evt.user, u); }
     if (evt.timestamp > u.lastActive) u.lastActive = evt.timestamp;
@@ -131,7 +203,6 @@ export function queryAggregated(from: string, to: string): QueryResult {
     u.events++;
     u.categories[evt.category] = (u.categories[evt.category] || 0) + 1;
 
-    // Session duration tracking
     const ts = new Date(evt.timestamp).getTime();
     let sess = sessionTimes.get(evt.session_id);
     if (!sess) { sess = { first: ts, last: ts }; sessionTimes.set(evt.session_id, sess); }
@@ -139,7 +210,6 @@ export function queryAggregated(from: string, to: string): QueryResult {
     if (ts > sess.last) sess.last = ts;
   }
 
-  // Avg session duration
   let totalDuration = 0;
   let sessionCount = 0;
   for (const sess of sessionTimes.values()) {
@@ -148,12 +218,10 @@ export function queryAggregated(from: string, to: string): QueryResult {
   }
   const avgSessionDurationMs = sessionCount > 0 ? Math.round(totalDuration / sessionCount) : 0;
 
-  // Daily array sorted by date
   const daily: DailySummary[] = Array.from(dailyMap.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, d]) => ({ date, events: d.events, users: d.users.size, sessions: d.sessions.size }));
 
-  // Users array sorted by last active desc
   const users: UserSummary[] = Array.from(userMap.entries())
     .map(([user, u]) => {
       const topCategory = Object.entries(u.categories).sort(([, a], [, b]) => b - a)[0]?.[0] || '';
@@ -175,27 +243,9 @@ export function queryAggregated(from: string, to: string): QueryResult {
 }
 
 /** Query raw events for a specific user and/or session. */
-export function queryRawEvents(from: string, to: string, user?: string, sessionId?: string): AnalyticsEvent[] {
-  const events = readEvents(from, to);
+export async function queryRawEvents(from: string, to: string, user?: string, sessionId?: string): Promise<AnalyticsEvent[]> {
+  const events = await readEvents(from, to);
   return events.filter(e =>
     (!user || e.user === user) && (!sessionId || e.session_id === sessionId)
   );
-}
-
-/** Remove NDJSON files older than 90 days. */
-function pruneOldFiles(): void {
-  if (!analyticsDir) return;
-  try {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 90);
-    const cutoffStr = cutoff.toISOString().slice(0, 10);
-
-    const files = fs.readdirSync(analyticsDir).filter(f => f.endsWith('.ndjson'));
-    for (const f of files) {
-      const date = f.replace('.ndjson', '');
-      if (date < cutoffStr) {
-        fs.unlinkSync(path.join(analyticsDir, f));
-      }
-    }
-  } catch { /* telemetry — silent by design;  best-effort cleanup */ }
 }
