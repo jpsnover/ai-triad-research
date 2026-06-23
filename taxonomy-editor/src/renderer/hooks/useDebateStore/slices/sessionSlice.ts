@@ -15,7 +15,7 @@ import type {
 import { POVER_INFO, AI_POVERS, POV_KEYS, normalizeActivePovers, migrateSpeakerId } from '../../../types/debate';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
-import { trackDebateAbandon } from '../../../lib/analyticsEmitter';
+import { trackDebateAbandon, trackDebateStart } from '../../../lib/analyticsEmitter';
 import { useTaxonomyStore } from '../../useTaxonomyStore';
 import { usePromptConfigStore } from '../../usePromptConfigStore';
 import { mapErrorToUserMessage } from '../../../utils/errorMessages';
@@ -131,6 +131,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     };
     await api.saveDebateSession(session);
     api.trackEvent('debate_start', 'debate', { topic: session.title, protocol: protocolId || 'structured' });
+    trackDebateStart(id, session.title, protocolId || 'structured');
     const aiPoversForOrder = AI_POVERS.filter(p => povers.includes(p));
     const shuffledOrder = [...aiPoversForOrder];
     for (let i = shuffledOrder.length - 1; i > 0; i--) {

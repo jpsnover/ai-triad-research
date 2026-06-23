@@ -160,6 +160,21 @@ export function trackDebateAbandon(debateId: string | undefined, reason: string)
   emit('debate.abandon', 'debate', { debateId, reason });
 }
 
+/** Emit a debate-start event. */
+export function trackDebateStart(debateId: string, topic: string, protocol: string): void {
+  emit('debate.start', 'debate', { debateId, topic, protocol });
+}
+
+/** Emit a debate turn-completed event. */
+export function trackDebateTurn(debateId: string, round: number, speaker: string): void {
+  emit('debate.turn', 'debate', { debateId, round, speaker });
+}
+
+/** Emit a debate extraction event (taxonomy edit applied from reflection). */
+export function trackDebateExtraction(debateId: string | undefined, editType: string, nodeId: string): void {
+  emit('debate.extraction', 'debate', { debateId, editType, nodeId });
+}
+
 /** Emit a taxonomy node mutation event (create, edit, or delete). */
 export function trackNodeMutation(action: 'create' | 'edit' | 'delete', pov: string, nodeId: string): void {
   emit(`node.${action}`, 'taxonomy', { pov, nodeId });

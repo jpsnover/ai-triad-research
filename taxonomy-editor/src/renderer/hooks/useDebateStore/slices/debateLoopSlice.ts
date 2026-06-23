@@ -24,6 +24,7 @@ import type { TurnPipelineInput } from '@lib/debate/turnPipeline';
 import type { TurnAttempt, TurnValidation, TurnValidationTrail, TaxonomySuggestion } from '../../../types/debate';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { trackDebateTurn, trackDebateExtraction } from '../../../lib/analyticsEmitter';
 import { triggerManualDump } from '../../../lib/flightRecorderInit';
 import { generateId, nowISO, stripCodeFences, parseAIJson, parseAtMention, formatRecentTranscript, parsePoverResponse } from '@lib/debate/helpers';
 import { getMoveName, SUPPORT_MOVES } from '@lib/debate/helpers';
@@ -870,6 +871,8 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
           injection_manifest: ctx.injectionManifest,
         },
       });
+
+      trackDebateTurn(activeDebate.id, crossRespondRound, responderPover);
 
       // Persist validation trail + route clarifies_taxonomy hints
       {
@@ -1899,6 +1902,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
     }
 
     getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'applyReflectionEdit.result', data: { ok: true, pover, editIndex, edit_type: edit.edit_type, node_id: edit.node_id, enrichNodeId, duration_ms: duration } });
+    trackDebateExtraction(get().activeDebateId ?? undefined, edit.edit_type, edit.node_id);
     const updated = reflections.map(r => {
       if (r.pover !== pover) return r;
       return {
