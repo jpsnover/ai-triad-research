@@ -1,0 +1,127 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root.
+ *
+ * Resilience feedback UI — banners + recovery toasts (t/876).
+ * Uses shared theme CSS variables for Light / Dark / BKC compatibility.
+ */
+
+/* ─── Top banners (degraded / server-down / reconnecting) ─── */
+
+.resilience-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  animation: resilience-fade-in 0.2s ease-out;
+}
+
+.resilience-banner--degraded {
+  background: rgba(217, 119, 6, 0.12);
+  border-bottom: 1px solid rgba(217, 119, 6, 0.3);
+  color: var(--text-secondary, #475569);
+}
+
+.resilience-banner--server-down {
+  background: rgba(239, 68, 68, 0.12);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--text-secondary, #475569);
+}
+
+.resilience-banner--reconnecting {
+  background: rgba(74, 158, 255, 0.1);
+  border-bottom: 1px solid rgba(74, 158, 255, 0.25);
+  color: var(--text-secondary, #475569);
+}
+
+.resilience-banner-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.resilience-banner--degraded .resilience-banner-icon {
+  color: var(--warning, #d97706);
+}
+
+.resilience-banner--server-down .resilience-banner-icon {
+  color: var(--danger, #ef4444);
+}
+
+.resilience-banner--reconnecting .resilience-banner-icon {
+  color: var(--accent, #4a9eff);
+}
+
+.resilience-banner-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+@keyframes resilience-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ─── Recovery toasts (bottom-right, above save bar) ─── */
+
+.resilience-toasts {
+  position: fixed;
+  right: 16px;
+  bottom: 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1100;
+  max-width: min(340px, 90vw);
+  pointer-events: none;
+}
+
+.resilience-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-secondary, #f8fafc);
+  color: var(--text-primary, #1e293b);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-left: 3px solid var(--success, #22c55e);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  font-size: 13px;
+  pointer-events: auto;
+  animation: resilience-toast-in 0.18s ease-out;
+}
+
+@keyframes resilience-toast-in {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.resilience-toast-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success, #22c55e);
+  flex-shrink: 0;
+}
+
+.resilience-toast-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.resilience-toast-dismiss {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted, #94a3b8);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.resilience-toast-dismiss:hover {
+  color: var(--text-primary, #1e293b);
+}
