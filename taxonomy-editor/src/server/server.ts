@@ -3430,6 +3430,7 @@ async function handleRequestInner(
     || urlPath === '/healthz'
     || urlPath === '/status'
     || urlPath === '/api/models'
+    || urlPath === '/api/data/available'
     || urlPath === '/api/auth/me'
     || urlPath === '/api/auth/logout' // t/897: logout must work even for authed-but-unauthorized users
     || urlPath === '/api/user/profile'
