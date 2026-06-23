@@ -304,3 +304,72 @@ describe('runTurnPipeline micro-fix: intervention compliance', () => {
     expect(intDiag).toBeUndefined();
   });
 });
+
+// ── Per-stage model override (t/842) ─────────────────────
+
+describe('Per-stage model override', () => {
+  it('routes brief/plan/cite to per-stage models while draft uses primary', async () => {
+    const input = makeBaseInput({
+      model: 'expensive-model',
+      briefModel: 'cheap-brief',
+      planModel: 'cheap-plan',
+      citeModel: 'cheap-cite',
+    });
+
+    const generate = makeGenerate([
+      ['draft', JSON.stringify(SPECIFIC_DRAFT)],
+    ]);
+
+    const result = await runTurnPipeline(input, generate);
+
+    const briefDiag = result.stage_diagnostics.find(d => d.stage === 'brief');
+    const planDiag = result.stage_diagnostics.find(d => d.stage === 'plan');
+    const draftDiag = result.stage_diagnostics.find(d => d.stage === 'draft');
+    const citeDiag = result.stage_diagnostics.find(d => d.stage === 'cite');
+
+    expect(briefDiag?.model).toBe('cheap-brief');
+    expect(planDiag?.model).toBe('cheap-plan');
+    expect(draftDiag?.model).toBe('expensive-model');
+    expect(citeDiag?.model).toBe('cheap-cite');
+  });
+
+  it('defaults to primary model when per-stage models are unset', async () => {
+    const input = makeBaseInput({ model: 'primary-model' });
+
+    const generate = makeGenerate([
+      ['draft', JSON.stringify(SPECIFIC_DRAFT)],
+    ]);
+
+    const result = await runTurnPipeline(input, generate);
+
+    const briefDiag = result.stage_diagnostics.find(d => d.stage === 'brief');
+    const planDiag = result.stage_diagnostics.find(d => d.stage === 'plan');
+    const draftDiag = result.stage_diagnostics.find(d => d.stage === 'draft');
+    const citeDiag = result.stage_diagnostics.find(d => d.stage === 'cite');
+
+    expect(briefDiag?.model).toBe('primary-model');
+    expect(planDiag?.model).toBe('primary-model');
+    expect(draftDiag?.model).toBe('primary-model');
+    expect(citeDiag?.model).toBe('primary-model');
+  });
+
+  it('passes per-stage model to generate function', async () => {
+    const input = makeBaseInput({
+      model: 'expensive-model',
+      briefModel: 'cheap-model',
+    });
+
+    const generate = makeGenerate([
+      ['draft', JSON.stringify(SPECIFIC_DRAFT)],
+    ]);
+
+    await runTurnPipeline(input, generate);
+
+    const calls = (generate as ReturnType<typeof vi.fn>).mock.calls;
+    const briefCall = calls.find((c: unknown[]) => (c[3] as string).includes('brief'));
+    const draftCall = calls.find((c: unknown[]) => (c[3] as string).includes('draft') && !(c[3] as string).includes('quality'));
+
+    expect(briefCall?.[1]).toBe('cheap-model');
+    expect(draftCall?.[1]).toBe('expensive-model');
+  });
+});

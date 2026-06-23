@@ -683,6 +683,7 @@ export class DebateEngine {
       debate_model: this.config.model,
       evaluator_model: this.config.evaluatorModel,
       speaker_models: this.config.speakerModels,
+      stage_models: this.config.stageModels ? { ...this.config.stageModels } as Record<string, string> : undefined,
       model_tier: this.config.modelTier,
       protocol_id: this.config.protocolId ?? 'structured',
       diagnostics: {
@@ -2474,6 +2475,9 @@ export class DebateEngine {
         documentAnalysis: this.session.document_analysis,
         audience: this.config.audience,
         model: this.resolveModelForSpeaker(poverId),
+        briefModel: this.config.stageModels?.brief,
+        planModel: this.config.stageModels?.plan,
+        citeModel: this.config.stageModels?.cite,
         userSeedClaims: userSeeds.length > 0 ? userSeeds : undefined,
         availablePovNodeIds: [...this.getKnownNodeIds()],
         ...(this.config.temperature != null ? {
@@ -3136,6 +3140,9 @@ export class DebateEngine {
       documentAnalysis: this.session.document_analysis,
       audience: this.config.audience,
       model: this.resolveModelForSpeaker(responder),
+      briefModel: this.config.stageModels?.brief,
+      planModel: this.config.stageModels?.plan,
+      citeModel: this.config.stageModels?.cite,
       ...(activeIntervention ? {
         pendingIntervention: {
           move: activeIntervention.move,

@@ -2578,13 +2578,13 @@ export async function runOpeningPipeline(
   const briefPrompt = briefOpeningStagePrompt(stageInput);
   let t0 = Date.now();
   const briefRaw = await generate(
-    briefPrompt, input.model, { temperature: temps.brief_temperature }, `${input.label} opening brief`,
+    briefPrompt, oBriefModel, { temperature: temps.brief_temperature }, `${input.label} opening brief`,
   );
   let elapsed = Date.now() - t0;
   const briefParsed = parseStageResponse<OpeningBriefWorkProduct>(briefRaw, 'brief');
   stageDiags.push({
     stage: 'brief', prompt: briefPrompt, raw_response: briefRaw,
-    model: input.model, temperature: temps.brief_temperature,
+    model: oBriefModel, temperature: temps.brief_temperature,
     response_time_ms: elapsed, work_product: briefParsed.product as unknown as Record<string, unknown>,
     parse_error: briefParsed.error,
   });
@@ -2598,7 +2598,7 @@ export async function runOpeningPipeline(
   }
   const brief = tagProvenance(briefParsed.product, {
     pipeline_run: 0, stage: 'brief', attempt: 0,
-    model: input.model, timestamp: new Date().toISOString(),
+    model: oBriefModel, timestamp: new Date().toISOString(),
   });
   const briefJson = toPromptJson(brief);
 
@@ -2607,13 +2607,13 @@ export async function runOpeningPipeline(
   const planPromptText = planOpeningStagePrompt(stageInput, briefJson);
   t0 = Date.now();
   const planRaw = await generate(
-    planPromptText, input.model, { temperature: temps.plan_temperature }, `${input.label} opening plan`,
+    planPromptText, oPlanModel, { temperature: temps.plan_temperature }, `${input.label} opening plan`,
   );
   elapsed = Date.now() - t0;
   const planParsed = parseStageResponse<OpeningPlanWorkProduct>(planRaw, 'plan');
   stageDiags.push({
     stage: 'plan', prompt: planPromptText, raw_response: planRaw,
-    model: input.model, temperature: temps.plan_temperature,
+    model: oPlanModel, temperature: temps.plan_temperature,
     response_time_ms: elapsed, work_product: planParsed.product as unknown as Record<string, unknown>,
     parse_error: planParsed.error,
   });
@@ -2627,7 +2627,7 @@ export async function runOpeningPipeline(
   }
   const plan = tagProvenance(planParsed.product, {
     pipeline_run: 0, stage: 'plan', attempt: 0,
-    model: input.model, timestamp: new Date().toISOString(),
+    model: oPlanModel, timestamp: new Date().toISOString(),
   });
   const planJson = toPromptJson(plan);
 
@@ -2691,13 +2691,13 @@ export async function runOpeningPipeline(
   const citePromptText = citeOpeningStagePrompt(stageInput, briefJson, planJson, draftJson);
   t0 = Date.now();
   const citeRaw = await generate(
-    citePromptText, input.model, { temperature: temps.cite_temperature }, `${input.label} opening cite`,
+    citePromptText, oCiteModel, { temperature: temps.cite_temperature }, `${input.label} opening cite`,
   );
   elapsed = Date.now() - t0;
   const citeParsed = parseStageResponse<OpeningCiteWorkProduct>(citeRaw, 'cite');
   stageDiags.push({
     stage: 'cite', prompt: citePromptText, raw_response: citeRaw,
-    model: input.model, temperature: temps.cite_temperature,
+    model: oCiteModel, temperature: temps.cite_temperature,
     response_time_ms: elapsed, work_product: citeParsed.product as unknown as Record<string, unknown>,
     parse_error: citeParsed.error,
   });

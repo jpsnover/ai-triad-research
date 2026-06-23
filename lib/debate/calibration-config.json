@@ -81,6 +81,12 @@
     "floor_step": 0.10,
     "minimum_floor": 0.20
   },
+  "stage_model_overrides": {
+    "enabled": false,
+    "brief": null,
+    "plan": null,
+    "cite": null
+  },
   "transcript_compression": {
     "aggressive_after_entries": 30,
     "normal_verbatim_window": 8,

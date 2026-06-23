@@ -1277,6 +1277,38 @@ describe('Per-speaker model routing', () => {
   });
 });
 
+// ── Per-stage model override (t/842) ─────────────────────
+
+describe('Per-stage model override', () => {
+  it('accepts config with stageModels', () => {
+    const config = createDefaultConfig({
+      model: 'expensive-model',
+      stageModels: { brief: 'cheap-model', plan: 'cheap-model', cite: 'cheap-model' },
+    });
+    expect(config.stageModels?.brief).toBe('cheap-model');
+    expect(config.stageModels?.plan).toBe('cheap-model');
+    expect(config.stageModels?.cite).toBe('cheap-model');
+  });
+
+  it('stamps stage_models on session', () => {
+    const config = createDefaultConfig({
+      stageModels: { brief: 'cheap-brief', cite: 'cheap-cite' },
+    });
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+    (engine as any).initSession();
+    const session = (engine as any).session;
+    expect(session.stage_models).toEqual({ brief: 'cheap-brief', cite: 'cheap-cite' });
+  });
+
+  it('does not stamp stage_models when stageModels is unset', () => {
+    const config = createDefaultConfig();
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+    (engine as any).initSession();
+    const session = (engine as any).session;
+    expect(session.stage_models).toBeUndefined();
+  });
+});
+
 // ── Speaker model failover (t/773) ─────────────────────
 
 describe('Speaker model failover', () => {
