@@ -656,6 +656,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
   runOpeningStatements: async () => {
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
     if (!activeDebate) return;
+    if (get().debateGenerating) return;
     if (!claimDebateDriver()) {
       set({ debateError: 'Another window is already running this debate.' });
       getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'warn', debate_id: activeDebate.id, message: 'Debate driver claim denied — another window owns it (openings)' });
@@ -746,6 +747,11 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
     console.log(`[debate-store] Opening statements: aiPovers=${JSON.stringify(aiPovers)}, existingOpenings=${JSON.stringify([...existingOpenings])}, resolvedOrder=${JSON.stringify(resolvedOrder)}`);
 
     for (const poverId of aiPovers) {
+      const freshTranscript = get().activeDebate?.transcript ?? [];
+      if (freshTranscript.some(e => e.type === 'opening' && e.speaker === poverId)) {
+        console.log(`[debate-store] Skipping ${poverId} — already has opening (live check)`);
+        continue;
+      }
       // Skip POVers who already delivered an opening (idempotency after interruption)
       if (existingOpenings.has(poverId)) {
         console.log(`[debate-store] Skipping ${poverId} — already has opening`);

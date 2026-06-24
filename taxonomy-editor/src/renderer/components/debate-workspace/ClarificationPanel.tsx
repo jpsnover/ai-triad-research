@@ -317,9 +317,15 @@ export function ClarificationActions() {
 
       {!hasClarifications && !isGenerating && (
         <div className="debate-clarification-choice">
-          <div className="debate-action-hint">
-            Configure the debate, then refine the topic or begin.
-          </div>
+          {activeDebate.topic.critique && (activeDebate.topic.critique as TopicCritique).composite_score < 14 ? (
+            <div className="debate-action-hint debate-refine-nudge">
+              Topic scored <strong>{(activeDebate.topic.critique as TopicCritique).composite_score}/20</strong> — refining can sharpen the debate.
+            </div>
+          ) : (
+            <div className="debate-action-hint">
+              Configure the debate, then refine the topic or begin.
+            </div>
+          )}
           {openingOrder.length > 0 && (
             <div className="debate-opening-order">
               <span className="debate-opening-order-label">Speaking order:</span>
@@ -387,14 +393,15 @@ export function ClarificationActions() {
           </div>
           <div className="debate-clarification-buttons">
             <button
-              className="btn"
+              className="btn btn-refine"
               onClick={() => void runClarification()}
             >
               Refine Topic
             </button>
             <button
-              className="btn btn-primary"
+              className="btn"
               onClick={handleBeginDebate}
+              disabled={isGenerating || submitting}
             >
               Begin Debate
             </button>
@@ -505,8 +512,8 @@ export function ClarificationActions() {
 }
 
 export function RefinedTopicEditor() {
-  const { activeDebate, updateTopic, saveDebate } = useDebateStore(
-    useShallow(s => ({ activeDebate: s.activeDebate, updateTopic: s.updateTopic, saveDebate: s.saveDebate }))
+  const { activeDebate, updateTopic, saveDebate, runClarification, debateGenerating } = useDebateStore(
+    useShallow(s => ({ activeDebate: s.activeDebate, updateTopic: s.updateTopic, saveDebate: s.saveDebate, runClarification: s.runClarification, debateGenerating: s.debateGenerating }))
   );
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState('');
@@ -528,6 +535,13 @@ export function RefinedTopicEditor() {
     setEditing(false);
   };
 
+  const handleRevert = () => {
+    updateTopic({ refined: null, final: activeDebate.topic.original });
+  };
+
+  const isGenerating = !!debateGenerating;
+  const isChanged = activeDebate.topic.final !== activeDebate.topic.original;
+
   return (
     <div className="debate-refined-topic">
       <div className="debate-refined-topic-label">Refined Topic</div>
@@ -548,6 +562,21 @@ export function RefinedTopicEditor() {
       ) : (
         <div className="debate-refined-topic-text" onClick={handleStartEdit} title="Click to edit">
           {activeDebate.topic.final}
+        </div>
+      )}
+      {!editing && (
+        <div className="debate-refined-topic-actions">
+          <button className="btn btn-sm" onClick={handleStartEdit} disabled={isGenerating} title="Manually edit the topic text">
+            Edit
+          </button>
+          <button className="btn btn-sm btn-refine" onClick={() => void runClarification()} disabled={isGenerating} title="Run refinement again on the current topic">
+            Re-refine
+          </button>
+          {isChanged && (
+            <button className="btn btn-sm" onClick={handleRevert} disabled={isGenerating} title="Revert to the original topic">
+              Revert to Original
+            </button>
+          )}
         </div>
       )}
     </div>
