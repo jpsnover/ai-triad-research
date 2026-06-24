@@ -447,6 +447,21 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     const { activeDebate, vocabularyTerms } = get();
     const entryId = generateId();
     if (!activeDebate) return entryId;
+
+    if (entry.type === 'opening' && entry.speaker !== 'system') {
+      const existing = activeDebate.transcript.find(
+        e => e.type === 'opening' && e.speaker === entry.speaker,
+      );
+      if (existing) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'debate-store', level: 'warn',
+          debate_id: activeDebate.id,
+          message: `Duplicate opening blocked for ${entry.speaker} — already has opening ${existing.id}`,
+        });
+        return existing.id;
+      }
+    }
+
     const full: TranscriptEntry = {
       ...entry,
       id: entryId,
