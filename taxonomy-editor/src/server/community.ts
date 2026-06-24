@@ -58,7 +58,7 @@ interface ListingIndexSpec<T> {
 /** Direct-child item files in `dir` matching `prefix` (excludes `_index.json`). */
 async function listIndexedFiles(dir: string, prefix: string): Promise<string[]> {
   const backend = getUserContentBackend();
-  return (await backend.listDirectory(dir, { ref: 'main' }))
+  return (await backend.listDirectory(dir))
     .filter(f => f.startsWith(prefix) && f.endsWith('.json'));
 }
 
@@ -69,7 +69,7 @@ async function rebuildListingIndex<T>(spec: ListingIndexSpec<T>): Promise<T[]> {
   const entries: T[] = [];
   for (const f of files) {
     try {
-      const raw = await backend.readFile(path.join(spec.dir, f), { ref: 'main' });
+      const raw = await backend.readFile(path.join(spec.dir, f));
       if (raw === null) continue;
       entries.push(spec.toEntry(JSON.parse(raw)));
     } catch (err) {
@@ -87,7 +87,6 @@ async function rebuildListingIndex<T>(spec: ListingIndexSpec<T>): Promise<T[]> {
   await backend.writeFile(
     path.join(spec.dir, COMMUNITY_INDEX_FILE),
     JSON.stringify(entries, null, 2),
-    { ref: 'main' },
   ).catch((err) => { log.server.warn({ err }, 'Community listing index write failed (best-effort)'); });
   return entries;
 }
@@ -102,7 +101,7 @@ async function listViaIndex<T>(spec: ListingIndexSpec<T>): Promise<T[]> {
   const backend = getUserContentBackend();
   let cached: T[] | null = null;
   try {
-    const raw = await backend.readFile(path.join(spec.dir, COMMUNITY_INDEX_FILE), { ref: 'main' });
+    const raw = await backend.readFile(path.join(spec.dir, COMMUNITY_INDEX_FILE));
     if (raw !== null) cached = JSON.parse(raw) as T[];
   } catch { /* telemetry — silent by design */ cached = null; }
 
@@ -172,7 +171,7 @@ export async function loadCommunityItem(type: 'chats' | 'debates', id: string): 
   const backend = getUserContentBackend();
   const dir = type === 'chats' ? communityChatsDir() : communityDebatesDir();
   const prefix = type === 'chats' ? 'chat-' : 'debate-';
-  const raw = await backend.readFile(path.join(dir, `${prefix}${id}.json`), { ref: 'main' });
+  const raw = await backend.readFile(path.join(dir, `${prefix}${id}.json`));
   if (!raw) return null;
   const parsed = JSON.parse(raw) as Record<string, unknown>;
   // t/856: don't expose the pre-share private UUID in public responses.
@@ -228,13 +227,11 @@ export async function submitToCommunity(type: 'chat' | 'debate', itemData: unkno
     data: itemData,
   };
 
-  // Submissions are shared data on main — submitters (often without a session
-  // branch / merge rights) need them visible to admins immediately, so commit
-  // straight to main rather than the submitter's session overlay (t/694).
+  // t/700: community submissions live in Azure Blob (no git branches), so the
+  // ref:'main' overlay-bypass that was needed on the GitHub backend (t/694) is gone.
   await backend.writeFile(
     path.join(dir, `sub-${submissionId}.json`),
     JSON.stringify(submission, null, 2),
-    { ref: 'main' },
   );
 
   log.server.info({ submissionId, type, userId }, 'Community submission created');
@@ -251,11 +248,11 @@ export async function submitToCommunity(type: 'chat' | 'debate', itemData: unkno
 async function listSubmissionsForUser(userId: string): Promise<Submission[]> {
   const backend = getUserContentBackend();
   const dir = submissionsDir();
-  const files = (await backend.listDirectory(dir, { ref: 'main' })).filter(f => f.startsWith('sub-') && f.endsWith('.json'));
+  const files = (await backend.listDirectory(dir)).filter(f => f.startsWith('sub-') && f.endsWith('.json'));
   const subs: Submission[] = [];
   for (const f of files) {
     try {
-      const raw = await backend.readFile(path.join(dir, f), { ref: 'main' });
+      const raw = await backend.readFile(path.join(dir, f));
       if (raw === null) continue;
       const s = JSON.parse(raw) as Submission;
       if (s.submittedBy === userId) subs.push(s);
@@ -276,11 +273,11 @@ async function listSubmissionsForUser(userId: string): Promise<Submission[]> {
 export async function listSubmissions(statusFilter?: string): Promise<unknown[]> {
   const backend = getUserContentBackend();
   const dir = submissionsDir();
-  const files = (await backend.listDirectory(dir, { ref: 'main' })).filter(f => f.startsWith('sub-') && f.endsWith('.json'));
+  const files = (await backend.listDirectory(dir)).filter(f => f.startsWith('sub-') && f.endsWith('.json'));
   const subs: Submission[] = [];
   for (const f of files) {
     try {
-      const raw = await backend.readFile(path.join(dir, f), { ref: 'main' });
+      const raw = await backend.readFile(path.join(dir, f));
       if (raw === null) continue;
       const s = JSON.parse(raw) as Submission;
       if (!statusFilter || s.status === statusFilter) subs.push(s);
@@ -350,7 +347,7 @@ export async function approveSubmission(
   assertSafeId(submissionId, 'submission id'); // t/850: defense-in-depth parity with sibling fns
   const backend = getUserContentBackend();
   const subPath = path.join(submissionsDir(), `sub-${submissionId}.json`);
-  const raw = await backend.readFile(subPath, { ref: 'main' });
+  const raw = await backend.readFile(subPath);
   if (!raw) throw Object.assign(new Error('Submission not found'), { statusCode: 404 });
 
   const submission = JSON.parse(raw) as Submission;
@@ -383,7 +380,7 @@ export async function rejectSubmission(submissionId: string, reason?: string): P
   assertSafeId(submissionId, 'submission id'); // t/850: defense-in-depth parity with sibling fns
   const backend = getUserContentBackend();
   const subPath = path.join(submissionsDir(), `sub-${submissionId}.json`);
-  const raw = await backend.readFile(subPath, { ref: 'main' });
+  const raw = await backend.readFile(subPath);
   if (!raw) throw Object.assign(new Error('Submission not found'), { statusCode: 404 });
 
   const submission = JSON.parse(raw) as Submission;
@@ -438,7 +435,7 @@ export async function removeCommunityItem(
   const prefix = type === 'chats' ? 'chat-' : 'debate-';
   const filePath = path.join(dir, `${prefix}${id}.json`);
 
-  const raw = await backend.readFile(filePath, { ref: 'main' });
+  const raw = await backend.readFile(filePath);
   if (raw === null) throw Object.assign(new Error('Community item not found'), { statusCode: 404 });
 
   // Capture metadata for the audit record before deleting. Tolerate a malformed

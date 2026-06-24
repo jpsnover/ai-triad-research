@@ -1623,7 +1623,9 @@ get('/api/debates/:id', async (req, res) => {
 
 put('/api/debates', async (_req, res, body) => {
   try {
-    await ensureSessionBranch();
+    // t/700: user content (debates/chats/community) lives in Azure Blob, keyed by
+    // storageUserId — no GitHub session branch needed. Closing the github-api
+    // rollback window (authorized e/19#28).
     await fileIO.saveDebateSession(body);
 
     // Log calibration data if debate has synthesis (completed debate)
@@ -1666,7 +1668,6 @@ put('/api/debates', async (_req, res, body) => {
 
 del('/api/debates/:id', async (req, res) => {
   try {
-    await ensureSessionBranch();
     await fileIO.deleteDebateSession(param(req, 'id', '/api/debates/:id'));
     json(res, { ok: true });
   } catch (err) { error(res, String(err), 500, err); }
@@ -1685,7 +1686,6 @@ get('/api/debates/:id/comments', async (req, res) => {
 
 put('/api/debates/:id/comments', async (req, res, body) => {
   try {
-    await ensureSessionBranch();
     const debateId = param(req, 'id', '/api/debates/:id/comments');
     await fileIO.saveDebateComments(debateId, body);
     json(res, { ok: true });
@@ -1737,7 +1737,7 @@ get('/api/chats/:id', async (req, res) => {
 });
 
 put('/api/chats', async (_req, res, body) => {
-  try { await ensureSessionBranch(); await fileIO.saveChatSession(body); json(res, { ok: true }); }
+  try { await fileIO.saveChatSession(body); json(res, { ok: true }); }
   catch (err) {
     getGlobalRecorder()?.record({
       type: 'system.error',
@@ -1755,7 +1755,6 @@ put('/api/chats', async (_req, res, body) => {
 
 del('/api/chats/:id', async (req, res) => {
   try {
-    await ensureSessionBranch();
     await fileIO.deleteChatSession(param(req, 'id', '/api/chats/:id'));
     json(res, { ok: true });
   } catch (err) { error(res, String(err), 500, err); }
@@ -1770,7 +1769,6 @@ del('/api/community/:type/:id', async (req, res, body) => {
   try {
     const type = param(req, 'type', '/api/community/:type/:id');
     if (type !== 'chats' && type !== 'debates') { error(res, 'type must be "chats" or "debates"', 400); return; }
-    await ensureSessionBranch();
     const id = param(req, 'id', '/api/community/:type/:id');
     const reason = (body as { reason?: string } | undefined)?.reason;
     await community.removeCommunityItem(type, id, typeof reason === 'string' ? reason : undefined);
@@ -1896,7 +1894,6 @@ post('/api/community/submit', async (_req, res, body) => {
 
 post('/api/community/copy', async (_req, res, body) => {
   try {
-    await ensureSessionBranch();
     const { type, communityId } = body as { type: 'chats' | 'debates'; communityId: string };
     if (!type || !communityId) { json(res, { error: 'type and communityId required' }, 400); return; }
     json(res, await community.copyFromCommunity(type, communityId));
@@ -1936,7 +1933,6 @@ get('/api/admin/submissions', async (req, res) => {
 post('/api/admin/submissions/:id/approve', async (req, res) => {
   if (!community.isAdmin()) { json(res, { error: 'Forbidden' }, 403); return; }
   try {
-    await ensureSessionBranch();
     json(res, await community.approveSubmission(param(req, 'id', '/api/admin/submissions/:id/approve')));
   } catch (err) {
     getGlobalRecorder()?.record({
@@ -1954,7 +1950,6 @@ post('/api/admin/submissions/:id/approve', async (req, res) => {
 post('/api/admin/submissions/:id/reject', async (req, res) => {
   if (!community.isAdmin()) { json(res, { error: 'Forbidden' }, 403); return; }
   try {
-    await ensureSessionBranch();
     json(res, await community.rejectSubmission(param(req, 'id', '/api/admin/submissions/:id/reject')));
   } catch (err) {
     getGlobalRecorder()?.record({
