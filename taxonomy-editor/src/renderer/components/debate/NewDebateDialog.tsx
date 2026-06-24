@@ -81,6 +81,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   );
   const [debateTitle, setDebateTitle] = useState('');
   const [topic, setTopic] = useState('');
+  const [background, setBackground] = useState('');
   const [sourceType, setSourceType] = useState<DebateSourceType>('topic');
   const [sourceRef, setSourceRef] = useState('');
   const [sourceContent, setSourceContent] = useState('');
@@ -374,6 +375,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       audience,
       {
         title: debateTitle || undefined,
+        background: background.trim() || undefined,
         evaluatorModel: evaluatorModel || undefined,
         useAdaptiveStaging: true,
         phaseBoundsOverride: {
@@ -576,6 +578,16 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                 )}
               </>
             )}
+            {/* Background context — supporting info kept separate from the topic question (t/917) */}
+            <label className="ndd-field-label">Background (optional)</label>
+            <AutoGrowTextarea
+              className="ndd-topic-input"
+              placeholder="Supporting context for the debate — constraints, prior decisions, domain details. Given to the AI as background, kept separate from the topic question."
+              value={background}
+              onChange={(e) => setBackground(e.target.value)}
+              rows={2}
+            />
+
             {/* Improve with AI — inline topic refinement (t/910) */}
             {topic.trim() && (
               <div style={{ marginTop: 8 }}>
