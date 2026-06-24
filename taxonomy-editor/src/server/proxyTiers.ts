@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { getDataRoot } from './config.js';
 import { log } from './logger.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 // ── Types ──
 
@@ -78,7 +79,23 @@ function loadTierConfig(): TierConfig {
       _cacheMtime = stat.mtimeMs;
       log.server.debug({ count: _cache.users.length, path: p }, 'Loaded tier entries');
       return _cache;
-    } catch { /* telemetry — silent by design;  try next */ }
+    } catch (err) {
+      // ENOENT is expected (no override file → built-in defaults). A malformed
+      // proxy-tiers.json, however, silently demotes EVERY user to anonymous
+      // limits, so surface that loudly.
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        log.server.warn(
+          { component: 'proxy-tiers', path: p, err: (err as Error).message },
+          'Tier config unreadable — falling back to DEFAULT_CONFIG (all users get anonymous limits)',
+        );
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'proxy-tiers', level: 'warn',
+          message: 'Tier config load failed — using DEFAULT_CONFIG',
+          data: { path: p },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+      }
+    }
   }
   return DEFAULT_CONFIG;
 }

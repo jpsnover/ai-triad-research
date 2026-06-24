@@ -89,6 +89,10 @@ export function setDebateTemperature(temp: number | null): void {
   _debateTemperature = temp;
 }
 
+export function getDebateTemperature(): number | null {
+  return _debateTemperature;
+}
+
 // ── Re-export shared types ──
 
 export type { RateLimitType };
@@ -488,8 +492,19 @@ function loadEmbeddingsFile(): EmbeddingsFile | null {
     if (embeddingsCache) return embeddingsCache;
     embeddingsCache = JSON.parse(fs.readFileSync(p, 'utf-8'));
     return embeddingsCache;
-  } catch {
-    /* telemetry — silent by design */
+  } catch (err) {
+    // ENOENT is expected (no precomputed cache) → fall through to fresh
+    // embedding. Anything else (corrupt JSON, permissions) silently re-embeds
+    // against the API quota, so surface it at warn.
+    const code = (err as NodeJS.ErrnoException).code;
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'ai-backends',
+      level: code === 'ENOENT' ? 'info' : 'warn',
+      message: code === 'ENOENT'
+        ? 'No embeddings cache file — computing fresh'
+        : 'Embeddings cache unreadable — falling back to full re-embed (API quota)',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     return null;
   }
 }
@@ -624,7 +639,14 @@ function computeQueryViaLocalPython(text: string): Promise<number[]> {
         const v = JSON.parse(stdout) as number[];
         if (!Array.isArray(v) || v.length === 0) { reject(new Error('Empty vector')); return; }
         resolve(v);
-      } catch (e) { /* telemetry — silent by design */ reject(new Error(`Parse failed: ${e}`)); }
+      } catch (e) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'ai-backends', level: 'warn',
+          message: 'Failed to parse Python embedding output',
+          error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack },
+        });
+        reject(new Error(`Parse failed: ${e}`));
+      }
     });
   });
 }
@@ -697,7 +719,14 @@ export async function updateNodeEmbeddings(nodes: { id: string; text: string; po
   const vectors = await new Promise<Record<string, number[]>>((resolve, reject) => {
     const child = execFile(PYTHON, [EMBED_SCRIPT, 'batch-encode'], { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) { reject(new Error(`batch-encode failed: ${err.message}\n${stderr}`)); return; }
-      try { resolve(JSON.parse(stdout)); } catch (e) { /* telemetry — silent by design */ reject(new Error(`Parse failed: ${e}`)); }
+      try { resolve(JSON.parse(stdout)); } catch (e) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'ai-backends', level: 'warn',
+          message: 'Failed to parse Python embedding output',
+          error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack },
+        });
+        reject(new Error(`Parse failed: ${e}`));
+      }
     });
     child.stdin!.write(JSON.stringify(items));
     child.stdin!.end();
@@ -709,7 +738,14 @@ export async function updateNodeEmbeddings(nodes: { id: string; text: string; po
     exclVectors = await new Promise<Record<string, number[]>>((resolve, reject) => {
       const child = execFile(PYTHON, [EMBED_SCRIPT, 'batch-encode'], { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
         if (err) { reject(new Error(`batch-encode (exclusion) failed: ${err.message}\n${stderr}`)); return; }
-        try { resolve(JSON.parse(stdout)); } catch (e) { /* telemetry — silent by design */ reject(new Error(`Parse exclusion failed: ${e}`)); }
+        try { resolve(JSON.parse(stdout)); } catch (e) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'ai-backends', level: 'warn',
+          message: 'Failed to parse Python exclusion-embedding output',
+          error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack },
+        });
+        reject(new Error(`Parse exclusion failed: ${e}`));
+      }
       });
       child.stdin!.write(JSON.stringify(exclItems));
       child.stdin!.end();
@@ -741,7 +777,14 @@ export async function classifyNli(pairs: { text_a: string; text_b: string }[]): 
   return new Promise((resolve, reject) => {
     const child = execFile(PYTHON, [EMBED_SCRIPT, 'nli-classify'], { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) { reject(new Error(`NLI failed: ${err.message}\n${stderr}`)); return; }
-      try { resolve(JSON.parse(stdout)); } catch (e) { /* telemetry — silent by design */ reject(new Error(`Parse failed: ${e}`)); }
+      try { resolve(JSON.parse(stdout)); } catch (e) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'ai-backends', level: 'warn',
+          message: 'Failed to parse Python embedding output',
+          error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack },
+        });
+        reject(new Error(`Parse failed: ${e}`));
+      }
     });
     child.stdin!.write(JSON.stringify(pairs));
     child.stdin!.end();

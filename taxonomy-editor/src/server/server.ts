@@ -440,8 +440,25 @@ get('/api/taxonomy-dir/active', (_req, res) => {
 
 put('/api/taxonomy-dir/active', (_req, res, body) => {
   const { dirName } = body as { dirName: string };
-  fileIO.setActiveTaxonomyDir(dirName);
-  json(res, { ok: true });
+  const previous = fileIO.getActiveTaxonomyDirName();
+  try {
+    fileIO.setActiveTaxonomyDir(dirName);
+    log.api.info({ component: 'taxonomy-dir', previous, active: dirName }, 'Active taxonomy directory changed');
+    getGlobalRecorder()?.record({
+      type: 'lifecycle', component: 'taxonomy-dir', level: 'info',
+      message: 'Active taxonomy directory changed',
+      data: { previous, active: dirName },
+    });
+    json(res, { ok: true });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'taxonomy-dir', level: 'error',
+      message: 'Failed to switch active taxonomy directory',
+      data: { previous, requested: dirName },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
 });
 
 // ── Synthetic corpus (must precede the :pov wildcard) ──
@@ -958,8 +975,20 @@ get('/api/auth/logout', (req, res) => {
 
 post('/api/keys', async (_req, res, body) => {
   const { key, backend } = body as { key: string; backend?: string };
-  await storeApiKey(key, (backend || 'gemini') as AIBackend);
-  json(res, { ok: true });
+  const target = (backend || 'gemini') as AIBackend;
+  try {
+    await storeApiKey(key, target);
+    json(res, { ok: true });
+  } catch (err) {
+    // Never log the key material itself — only the backend it was destined for.
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'key-store', level: 'error',
+      message: 'Failed to store API key',
+      data: { backend: target },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
 });
 
 // Delete the current user's stored key for one backend / all backends. Mirrors
@@ -1257,7 +1286,14 @@ get('/api/proxy/usage', (_req, res) => {
 
 post('/api/ai/temperature', (_req, res, body) => {
   const { temp } = body as { temp: number | null };
+  const previous = ai.getDebateTemperature();
   ai.setDebateTemperature(temp);
+  log.api.info({ component: 'ai-config', previous, temp }, 'Debate temperature changed');
+  getGlobalRecorder()?.record({
+    type: 'lifecycle', component: 'ai-config', level: 'info',
+    message: 'Debate temperature changed',
+    data: { previous, temp },
+  });
   json(res, { ok: true });
 });
 
@@ -1515,7 +1551,15 @@ put('/api/debates', async (_req, res, body) => {
         const dataPoint = extractCalibrationData(session as unknown as Parameters<typeof extractCalibrationData>[0], getStorageUserId());
         appendCalibrationLog(dataPoint, getDataRoot());
       }
-    } catch { /* telemetry — silent by design;  calibration logging never blocks save */ }
+    } catch (err) {
+      // Calibration logging never blocks the save, but record so silent
+      // extraction/append failures are visible in dumps.
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'calibration', level: 'warn',
+        message: 'Calibration logging skipped after save',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+    }
 
     json(res, { ok: true });
   }
@@ -2262,15 +2306,42 @@ post('/api/harvest/steelman', async (_req, res, body) => {
 
 post('/api/harvest/verdict', async (_req, res, body) => {
   const { conflictId, verdict } = body as { conflictId: string; verdict: Record<string, unknown> };
-  json(res, { updated: await fileIO.harvestAddVerdict(conflictId, verdict) });
+  try {
+    json(res, { updated: await fileIO.harvestAddVerdict(conflictId, verdict) });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'harvest', level: 'error',
+      message: 'Failed to add harvest verdict', data: { conflictId },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
 });
 
 post('/api/harvest/concept', async (_req, res, body) => {
-  json(res, { queued: await fileIO.harvestQueueConcept(body as Record<string, unknown>) });
+  try {
+    json(res, { queued: await fileIO.harvestQueueConcept(body as Record<string, unknown>) });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'harvest', level: 'error',
+      message: 'Failed to queue harvest concept',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
 });
 
 post('/api/harvest/manifest', async (_req, res, body) => {
-  json(res, { saved: await fileIO.harvestSaveManifest(body as Record<string, unknown>) });
+  try {
+    json(res, { saved: await fileIO.harvestSaveManifest(body as Record<string, unknown>) });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'harvest', level: 'error',
+      message: 'Failed to save harvest manifest',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
 });
 
 // ── Summaries & Sources ──
@@ -2493,7 +2564,16 @@ get('/api/ps-prompts/:name', async (req, res) => {
 
 post('/api/fetch-url', async (_req, res, body) => {
   const { url } = body as { url: string };
-  json(res, await fileIO.fetchUrlContent(url));
+  try {
+    json(res, await fileIO.fetchUrlContent(url));
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'fetch-url', level: 'warn',
+      message: 'Failed to fetch URL content', data: { url },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 502, err);
+  }
 });
 
 // ── File upload (replaces pickDocumentFile dialog) ──
@@ -2941,7 +3021,13 @@ post('/api/sync/webhook/github', async (req, res, _body) => {
 
   const event = (req.headers['x-github-event'] as string | undefined) ?? '';
   let parsed: Record<string, unknown> = {};
-  try { parsed = JSON.parse(raw) as Record<string, unknown>; } catch { /* telemetry — silent by design;  empty payload */ }
+  try { parsed = JSON.parse(raw) as Record<string, unknown>; } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'github-webhook', level: 'warn',
+      message: 'GitHub webhook payload is not valid JSON', data: { event },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+  }
 
   if (event === 'ping') {
     json(res, { ok: true, pong: true });
@@ -3214,7 +3300,16 @@ async function readBody(req: http.IncomingMessage): Promise<unknown> {
   (req as RawBodyReq).__rawBody = raw;
   if (!raw) return {};
   try { return JSON.parse(raw); }
-  catch { /* telemetry — silent by design */ return raw; }
+  catch (err) {
+    // Non-JSON bodies (raw text uploads) legitimately land here, so warn-only —
+    // but record so malformed-JSON API calls aren't invisible.
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'http-body', level: 'warn',
+      message: 'Request body is not valid JSON — passing raw string through',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return raw;
+  }
 }
 
 // ── HTTP server ──
@@ -3678,6 +3773,8 @@ async function handleRequestInner(
       const wr = rateLimiter.checkRate(`write:${getClientIp(req)}`, 100, 60_000);
       if (!wr.allowed) {
         const retryAfter = Math.max(1, Math.ceil((wr.retryAfterMs ?? 60_000) / 1000));
+        // t/925: write-rate 429s were silent — log so abuse/DoS spikes are visible.
+        log.server.warn({ component: 'rate-limiter', type: 'write_per_minute', method: req.method, path: url.pathname, retryAfter }, 'API write rate-limited');
         res.setHeader('Retry-After', String(retryAfter));
         json(res, { error: 'rate_limited', message: 'Too many requests', retryAfter }, 429);
         return;
@@ -4033,6 +4130,7 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason) => {
   const err = reason instanceof Error ? reason : new Error(String(reason));
   serverRecorder.record({ type: 'system.error', component: 'server', level: 'error', message: err.message, error: { name: err.name, message: err.message, stack: err.stack?.slice(0, 500) } });
+  log.server.error({ err }, 'Unhandled promise rejection');
 });
 
 // ── Anonymous session store (in-memory, ephemeral) ──
