@@ -44,7 +44,7 @@ export interface SessionSlice {
   debateLoading: boolean;
 
   loadSessions: () => Promise<void>;
-  createDebate: (topic: string, povers: SpeakerId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { title?: string; evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean; phaseBoundsOverride?: { maxConfrontationRounds?: number; maxArgumentationRounds?: number; maxConcludingRounds?: number }; speakerModels?: Record<string, string>; modelTier?: 'basic' | 'advanced'; stepMode?: boolean; stageModels?: { brief?: string; plan?: string; cite?: string } }) => Promise<string>;
+  createDebate: (topic: string, povers: SpeakerId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { title?: string; evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean; phaseBoundsOverride?: { maxConfrontationRounds?: number; maxArgumentationRounds?: number; maxConcludingRounds?: number }; speakerModels?: Record<string, string>; modelTier?: 'basic' | 'advanced'; stepMode?: boolean; stageModels?: { brief?: string; plan?: string; cite?: string }; background?: string }) => Promise<string>;
   createSituationDebate: (ccNodeId: string) => Promise<string>;
   createConflictDebate: (claimId: string) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
@@ -108,6 +108,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
         original: topic,
         refined: null,
         final: topic,
+        background: options?.background || undefined,
       },
       source_type: sourceType,
       source_ref: sourceRef,
@@ -548,6 +549,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     const { activeDebate } = get();
     if (!activeDebate) return;
     set({ activeDebate: { ...activeDebate, phase, updated_at: nowISO() } });
+    void get().saveDebate('updatePhase');
   },
 
   updateTopic: (topic) => {
@@ -560,6 +562,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
         updated_at: nowISO(),
       },
     });
+    void get().saveDebate('updateTopic');
   },
 
   toggleStepMode: async () => {
