@@ -13,6 +13,7 @@
 import { FlightRecorder, setGlobalRecorder, getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { RecordInput, TriggerType } from '@lib/flight-recorder/types';
 import { api } from '@bridge';
+import { getResilienceState } from '../bridge/resilience';
 import { showDumpToast, showDumpErrorToast } from './dumpToast';
 
 declare const __APP_VERSION__: string;
@@ -118,9 +119,11 @@ async function persistDump(
     return;
   }
 
+  const dumpId = crypto.randomUUID();
+
   try {
-    const result = await api.dumpFlightRecorder(ndjson);
-    console.log(`[flight-recorder] Dump saved: ${result.filePath}`);
+    const result = await api.dumpFlightRecorder(ndjson, dumpId);
+    console.log(`[flight-recorder] Dump saved: ${result.filePath} (dumpId=${dumpId})`);
 
     // In web/container mode, also dump the server-side flight recorder
     // so server events (git ops, GitHub API, cache) are captured alongside client events.
@@ -134,6 +137,14 @@ async function persistDump(
           console.log(`[flight-recorder] Server dump saved: ${serverResult.filePath}`);
         }
       } catch { /* server dump is best-effort */ }
+
+      // Fire-and-forget: trigger admin-level server dump correlated by dumpId.
+      // Non-admins/anon get 403 — that's expected and ignored.
+      void fetch('/api/admin/flight-recorder/dump', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dumpId }),
+      }).catch(() => { /* admin dump is best-effort */ });
     }
 
     showDumpToast({
@@ -416,6 +427,16 @@ export function initFlightRecorder(): FlightRecorder {
         network: {
           online: navigator.onLine,
           deployment_mode: getDeploymentMode(),
+          resilience: (() => {
+            const rs = getResilienceState();
+            const out: Record<string, { state: string; failures: number; recent?: string[] }> = {};
+            for (const [cat, c] of Object.entries(rs.circuits)) {
+              if (c.state !== 'CLOSED' || c.consecutiveFailures > 0) {
+                out[cat] = { state: c.state, failures: c.consecutiveFailures, ...(c.recentFailures.length > 0 ? { recent: c.recentFailures } : {}) };
+              }
+            }
+            return Object.keys(out).length > 0 ? out : undefined;
+          })(),
         },
         performance: {
           uptime_s: Math.round(performance.now() / 1000),
