@@ -6,8 +6,15 @@
  * so getConfig()/forceReload() exercise the ENOENT → defaults fail-safe.
  */
 
-import { describe, it, expect } from 'vitest';
-import { validateAndMerge, getDefaults, getConfig, forceReload, type RuntimeConfig } from '../runtimeConfig.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import {
+  validateAndMerge, getDefaults, getConfig, forceReload,
+  getConfigState, writeConfig, diffFromDefaults, getClientConfig,
+  type RuntimeConfig,
+} from '../runtimeConfig.js';
 
 const defaults = (): RuntimeConfig => getDefaults();
 
@@ -189,5 +196,86 @@ describe('getConfig / forceReload — ENOENT fail-safe (t/926 AC#3, AC#6)', () =
   it('forceReload reports ok:false when falling back to defaults (no file)', () => {
     const result = forceReload();
     expect(result.ok).toBe(false);
+  });
+});
+
+describe('REST-endpoint support — file round-trip (t/927)', () => {
+  let root: string;
+  let prevEnv: string | undefined;
+
+  beforeEach(() => {
+    prevEnv = process.env.AI_TRIAD_DATA_ROOT;
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'rtcfg-'));
+    process.env.AI_TRIAD_DATA_ROOT = root;
+    forceReload(); // point the cache at the (empty) temp data root
+  });
+
+  afterEach(() => {
+    if (prevEnv === undefined) delete process.env.AI_TRIAD_DATA_ROOT;
+    else process.env.AI_TRIAD_DATA_ROOT = prevEnv;
+    fs.rmSync(root, { recursive: true, force: true });
+    forceReload();
+  });
+
+  const configFile = () => path.join(root, 'admin', 'runtime-config.json');
+
+  it('getConfigState reports fileExists:false before any write', () => {
+    const state = getConfigState();
+    expect(state.fileExists).toBe(false);
+    expect(state.lastModified).toBeNull();
+    expect(state.errors).toEqual([]);
+    expect(state.config).toEqual(getDefaults());
+    expect(state.defaults).toEqual(getDefaults());
+  });
+
+  it('writeConfig persists a valid partial config with refreshed _meta (AC#3)', () => {
+    expect(writeConfig({ resilience: { circuitThreshold: 8 } }, 'tester')).toEqual({ ok: true, errors: [] });
+
+    const written = JSON.parse(fs.readFileSync(configFile(), 'utf-8'));
+    expect(written._meta.version).toBe(1);
+    expect(written._meta.updatedBy).toBe('tester');
+    expect(typeof written._meta.updatedAt).toBe('string');
+    expect(written.resilience.circuitThreshold).toBe(8);
+
+    const state = getConfigState();
+    expect(state.fileExists).toBe(true);
+    expect(state.lastModified).not.toBeNull();
+    expect(state.config.resilience.circuitThreshold).toBe(8);
+    expect(state.config.quotas.defaultMaxChats).toBe(25); // untouched default
+  });
+
+  it('writeConfig rejects an out-of-range config, leaving the file untouched (AC#2)', () => {
+    const result = writeConfig({ quotas: { defaultMaxChats: 99_999 } }, 'tester');
+    expect(result.ok).toBe(false);
+    expect(result.errors.some(e => e.includes('defaultMaxChats'))).toBe(true);
+    expect(fs.existsSync(configFile())).toBe(false);
+  });
+
+  it('writeConfig rejects a cross-field violation without writing', () => {
+    const result = writeConfig({ resilience: { throttleEnterFactor: 2.0, throttleExitFactor: 5.0 } }, 'tester');
+    expect(result.ok).toBe(false);
+    expect(fs.existsSync(configFile())).toBe(false);
+  });
+
+  it('a partial PUT merges over the live config, not defaults', () => {
+    expect(writeConfig({ resilience: { circuitThreshold: 8 } }, 'a').ok).toBe(true);
+    expect(writeConfig({ quotas: { defaultMaxChats: 40 } }, 'b').ok).toBe(true);
+    const state = getConfigState();
+    expect(state.config.resilience.circuitThreshold).toBe(8); // preserved from first write
+    expect(state.config.quotas.defaultMaxChats).toBe(40);
+  });
+
+  it('diffFromDefaults returns only changed leaves', () => {
+    expect(diffFromDefaults()).toEqual([]); // no file → nothing differs
+    writeConfig({ resilience: { circuitThreshold: 9 } }, 'tester');
+    expect(diffFromDefaults()).toEqual([{ path: 'resilience.circuitThreshold', current: 9, default: 5 }]);
+  });
+
+  it('getClientConfig exposes only resilience + flightRecorder subset + analytics (AC#5)', () => {
+    const client = getClientConfig();
+    expect(Object.keys(client).sort()).toEqual(['analytics', 'flightRecorder', 'resilience']);
+    expect(Object.keys(client.flightRecorder).sort()).toEqual(['dumpWindowMs', 'maxDumpsPerWindow', 'minDumpIntervalMs']);
+    expect(Object.keys(client.analytics)).toEqual(['bufferRequeueLimit']);
+    expect(client.resilience.circuitThreshold).toBe(5);
   });
 });

@@ -52,6 +52,7 @@ import { stampNodeAuthorship, diffNodes, changedFields } from './editMeta.js';
 import { computeNodeConflicts } from './nodeConflicts.js';
 import type { TaxNode, NodeConflict } from './nodeConflicts.js';
 import * as ai from './aiBackends.js';
+import { getConfigState, writeConfig, forceReload as reloadRuntimeConfig, diffFromDefaults, getClientConfig } from './runtimeConfig.js';
 import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
 import { setRuntimeCredentials, clearRuntimeCredentials, getCredentials } from './githubAppAuth.js';
 import * as proxyTiers from './proxyTiers.js';
@@ -1988,6 +1989,87 @@ post('/api/admin/calibration/reject', async (_req, res, body) => {
 // at startup (calibration t/647, community t/650, taxonomy). Admin-gated via the
 // shared requireAdmin() middleware (reuses isAdmin() / ADMIN_USERS).
 
+// ── Runtime config (t/927, spec §4.4 + §8.2) ──
+
+get('/api/admin/config', (_req, res) => {
+  if (!requireAdmin(res)) return;
+  try {
+    json(res, getConfigState());
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'runtime-config', level: 'error',
+      message: 'GET /api/admin/config failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
+});
+
+put('/api/admin/config', (_req, res, body) => {
+  if (!requireAdmin(res)) return;
+  try {
+    // Body may be the bare config or { config } (spec §4.4). updatedBy is the
+    // verified caller; writeConfig validates before touching the file.
+    const incoming = (body && typeof body === 'object' && 'config' in (body as Record<string, unknown>))
+      ? (body as { config: unknown }).config
+      : body;
+    const result = writeConfig(incoming, getCurrentUserId());
+    if (!result.ok) { json(res, { errors: result.errors }, 400); return; }
+    json(res, { ok: true, errors: [] });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'runtime-config', level: 'error',
+      message: 'PUT /api/admin/config failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
+});
+
+post('/api/admin/config/reload', (_req, res) => {
+  if (!requireAdmin(res)) return;
+  try {
+    const result = reloadRuntimeConfig();
+    json(res, { ok: result.ok, reloadedAt: new Date().toISOString(), errors: result.errors ?? [] });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'runtime-config', level: 'error',
+      message: 'POST /api/admin/config/reload failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
+});
+
+get('/api/admin/config/diff', (_req, res) => {
+  if (!requireAdmin(res)) return;
+  try {
+    json(res, { diff: diffFromDefaults() });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'runtime-config', level: 'error',
+      message: 'GET /api/admin/config/diff failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
+});
+
+// Public (spec §8.2): client-relevant subset, no secrets, cached 60s.
+get('/api/config/client', (_req, res) => {
+  try {
+    res.setHeader('Cache-Control', 'max-age=60');
+    json(res, getClientConfig());
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'runtime-config', level: 'error',
+      message: 'GET /api/config/client failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
+});
+
 get('/api/admin/review/queue', async (_req, res) => {
   if (!requireAdmin(res)) return;
   try {
@@ -3666,6 +3748,7 @@ async function handleRequestInner(
     || urlPath === '/api/data/available'
     || urlPath === '/api/auth/me'
     || urlPath === '/api/auth/logout' // t/897: logout must work even for authed-but-unauthorized users
+    || urlPath === '/api/config/client' // t/927: public client config subset (no secrets)
     || urlPath === '/api/user/profile'
     || urlPath === '/api/sync/webhook/github'
     || urlPath === '/api/community/submit'

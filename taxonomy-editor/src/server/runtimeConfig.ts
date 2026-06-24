@@ -453,3 +453,119 @@ export function forceReload(): { ok: boolean; errors?: string[] } {
 export function getDefaults(): RuntimeConfig {
   return structuredClone(DEFAULTS);
 }
+
+// ── REST-endpoint support (t/927) ──
+
+export interface ConfigState {
+  config: RuntimeConfig;
+  defaults: RuntimeConfig;
+  errors: string[];
+  fileExists: boolean;
+  lastModified: string | null;
+}
+
+/**
+ * Fresh, un-cached snapshot for `GET /api/admin/config`: the merged config, the
+ * hardcoded defaults, any validation errors, whether the file exists, and its
+ * mtime. Admin reads are infrequent, so this bypasses the 5s cache for accuracy.
+ */
+export function getConfigState(): ConfigState {
+  const p = configPath();
+  try {
+    const stat = fs.statSync(p);
+    const raw = JSON.parse(fs.readFileSync(p, 'utf-8'));
+    const { config, errors } = validateAndMerge(raw, DEFAULTS);
+    return { config, defaults: getDefaults(), errors, fileExists: true, lastModified: new Date(stat.mtimeMs).toISOString() };
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'runtime-config', level: 'warn',
+        message: 'Failed to read runtime config for admin view',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      return { config: getDefaults(), defaults: getDefaults(), errors: [String(err)], fileExists: true, lastModified: null };
+    }
+    return { config: getDefaults(), defaults: getDefaults(), errors: [], fileExists: false, lastModified: null };
+  }
+}
+
+/**
+ * Validate `incoming` (deep-merged over the *current* config) and, only if it is
+ * clean, persist the full validated config with refreshed `_meta`. Backs
+ * `PUT /api/admin/config`: any validation error means the file is left untouched
+ * and the errors are returned for the admin UI (spec §4.4). On success the cache
+ * is force-reloaded so the new values take effect immediately.
+ */
+export function writeConfig(incoming: unknown, updatedBy: string): { ok: boolean; errors: string[] } {
+  const base = getConfig(); // partial PUT bodies merge over the live config, not defaults
+  const { config, errors } = validateAndMerge(incoming, base);
+  if (errors.length > 0) return { ok: false, errors };
+  const p = configPath();
+  try {
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    const out = {
+      $schema: './runtime-config.schema.json',
+      _meta: { version: 1, updatedAt: new Date().toISOString(), updatedBy },
+      ...config,
+    };
+    fs.writeFileSync(p, JSON.stringify(out, null, 2), 'utf-8');
+    forceReload();
+    return { ok: true, errors: [] };
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'runtime-config', level: 'error',
+      message: 'Failed to write runtime config',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return { ok: false, errors: [`write failed: ${String(err)}`] };
+  }
+}
+
+export interface ConfigDiffEntry { path: string; current: unknown; default: unknown }
+
+function collectDiff(cur: unknown, def: unknown, prefix: string, out: ConfigDiffEntry[]): void {
+  if (cur !== null && typeof cur === 'object' && !Array.isArray(cur) &&
+      def !== null && typeof def === 'object' && !Array.isArray(def)) {
+    const c = cur as Record<string, unknown>;
+    const d = def as Record<string, unknown>;
+    for (const key of Object.keys(d)) {
+      collectDiff(c[key], d[key], prefix ? `${prefix}.${key}` : key, out);
+    }
+    return;
+  }
+  // Leaf (number, string, or array) — compare by value.
+  if (JSON.stringify(cur) !== JSON.stringify(def)) {
+    out.push({ path: prefix, current: cur, default: def });
+  }
+}
+
+/** Leaves of the live config that differ from defaults (backs GET /api/admin/config/diff). */
+export function diffFromDefaults(): ConfigDiffEntry[] {
+  const out: ConfigDiffEntry[] = [];
+  collectDiff(getConfig(), DEFAULTS, '', out);
+  return out;
+}
+
+export interface ClientConfig {
+  resilience: RuntimeConfig['resilience'];
+  flightRecorder: Pick<RuntimeConfig['flightRecorder'], 'minDumpIntervalMs' | 'maxDumpsPerWindow' | 'dumpWindowMs'>;
+  analytics: Pick<RuntimeConfig['analytics'], 'bufferRequeueLimit'>;
+}
+
+/**
+ * The client-relevant config subset for the (public) `GET /api/config/client`.
+ * Contains no secrets — these are the same values currently hardcoded in the
+ * shipped renderer bundle (spec §8.2).
+ */
+export function getClientConfig(): ClientConfig {
+  const c = getConfig();
+  return {
+    resilience: c.resilience,
+    flightRecorder: {
+      minDumpIntervalMs: c.flightRecorder.minDumpIntervalMs,
+      maxDumpsPerWindow: c.flightRecorder.maxDumpsPerWindow,
+      dumpWindowMs: c.flightRecorder.dumpWindowMs,
+    },
+    analytics: { bufferRequeueLimit: c.analytics.bufferRequeueLimit },
+  };
+}
