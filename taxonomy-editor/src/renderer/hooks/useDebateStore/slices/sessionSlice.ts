@@ -494,6 +494,17 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       transcript: [...activeDebate.transcript, full],
     };
     set({ activeDebate: updated });
+
+    if (full.type === 'opening' && full.speaker !== 'system') {
+      const openingCount = updated.transcript.filter(e => e.type === 'opening' && e.speaker === full.speaker).length;
+      getGlobalRecorder()?.record({
+        type: 'debate.opening_added', component: 'debate-store', level: 'info',
+        debate_id: activeDebate.id,
+        message: `Opening added for ${full.speaker}`,
+        data: { speaker: full.speaker, entryId, openingCount },
+      });
+    }
+
     return entryId;
   },
 
