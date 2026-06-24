@@ -11,6 +11,7 @@ import { POVER_INFO, DEBATE_AUDIENCES } from '../../types/debate';
 import type { SpeakerId, DebateSourceType, DebateAudience } from '../../types/debate';
 import { DEBATE_PROTOCOLS } from '../../data/debateProtocols';
 import { AI_POVERS } from '@lib/debate/types';
+import { improveDebateTopicPrompt } from '@lib/debate/prompts';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { loadProvisionalWeights } from '@lib/debate/phaseTransitions';
@@ -87,6 +88,10 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [selected, setSelected] = useState<Set<SpeakerId>>(new Set(AI_POVERS));
   const [userIsPover, setUserIsPover] = useState(false);
   const [creating, setCreating] = useState(false);
+  // "Improve with AI" inline topic refinement (t/910)
+  const [improvingTopic, setImprovingTopic] = useState(false);
+  const [topicSuggestion, setTopicSuggestion] = useState<string | null>(null);
+  const [improveError, setImproveError] = useState<string | null>(null);
   const { aiBackend, geminiModel, situations } = useTaxonomyStore();
   const globalModel = geminiModel;
   const availableModels = Object.entries(MODELS_BY_BACKEND)
@@ -150,6 +155,33 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
 
   const handleRemoveQueued = (idx: number) => {
     persistQueue(queuedTopics.filter((_, i) => i !== idx));
+  };
+
+  // t/910 — sharpen the raw topic text via AI before the debate is created.
+  // Uses the configured backend/model (api.generateText default) → AC #4.
+  const handleImproveTopic = async () => {
+    const current = topic.trim();
+    if (!current || improvingTopic) return;
+    setImprovingTopic(true);
+    setImproveError(null);
+    setTopicSuggestion(null);
+    try {
+      const { text } = await api.generateText(improveDebateTopicPrompt(current));
+      const improved = text.trim();
+      if (improved) setTopicSuggestion(improved);
+      else setImproveError('No suggestion returned — try again.');
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'new-debate-dialog',
+        level: 'error',
+        message: 'Failed to improve topic with AI',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      setImproveError(err instanceof Error ? err.message : 'Failed to improve topic.');
+    } finally {
+      setImprovingTopic(false);
+    }
   };
 
   useEffect(() => {
@@ -543,6 +575,48 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                   </div>
                 )}
               </>
+            )}
+            {/* Improve with AI — inline topic refinement (t/910) */}
+            {topic.trim() && (
+              <div style={{ marginTop: 8 }}>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ fontSize: '0.75rem' }}
+                  onClick={() => void handleImproveTopic()}
+                  disabled={improvingTopic}
+                  title="Use AI to sharpen this topic into a clearer, more debatable question"
+                >
+                  {improvingTopic ? 'Improving…' : '✨ Improve with AI'}
+                </button>
+                {improveError && (
+                  <div style={{ color: 'var(--error, #ef4444)', fontSize: '0.75rem', marginTop: 4 }}>{improveError}</div>
+                )}
+                {topicSuggestion && (
+                  <div style={{ marginTop: 6, padding: 8, border: '1px solid var(--border-color, rgba(255,255,255,0.15))', borderRadius: 4, background: 'var(--bg-tertiary, rgba(255,255,255,0.03))' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 4 }}>Suggested topic</div>
+                    <p style={{ fontSize: '0.85rem', margin: '0 0 8px' }}>{topicSuggestion}</p>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        style={{ fontSize: '0.75rem' }}
+                        onClick={() => { setTopic(topicSuggestion); setTopicSuggestion(null); setImproveError(null); }}
+                      >
+                        Accept
+                      </button>
+                      <button
+                        type="button"
+                        className="btn"
+                        style={{ fontSize: '0.75rem' }}
+                        onClick={() => setTopicSuggestion(null)}
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
