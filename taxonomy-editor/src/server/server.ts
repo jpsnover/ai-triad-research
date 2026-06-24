@@ -37,6 +37,7 @@ import { runWithUser, getCurrentUser, getCurrentUserId, getStorageUserId, setSes
 import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies } from './accessControl.js';
 import { sanitizeUserText } from './contentSanitizer.js';
 import { getRollbackStatus } from './rollbackStatus.js';
+import { getAllFlags, listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
 import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
 import { checkProviderBinding } from './providerBinding.js';
@@ -642,6 +643,66 @@ get('/api/policy-source-index', async (_req, res) => {
 
 get('/api/data/available', async (_req, res) => {
   json(res, await fileIO.isDataAvailable());
+});
+
+// ── Feature flags (t/899) ──
+
+// Resolved flags for the current user (any caller). The UI gates features on these.
+get('/api/flags', (_req, res) => {
+  try { json(res, getAllFlags()); }
+  catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'server', level: 'error', message: 'Failed to resolve feature flags',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
+});
+
+// Full flag definitions (admin only).
+get('/api/admin/flags', (_req, res) => {
+  if (!requireAdmin(res)) return;
+  try { json(res, { flags: listFlags() }); }
+  catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'server', level: 'error', message: 'Failed to list feature flags',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
+});
+
+// Create/update a flag (admin only). Persists + audits.
+put('/api/admin/flags/:name', (req, res, body) => {
+  if (!requireAdmin(res)) return;
+  try {
+    const name = param(req, 'name', '/api/admin/flags/:name');
+    const patch = (body ?? {}) as Partial<FlagDef>;
+    if (patch.enabled !== undefined && typeof patch.enabled !== 'boolean') { error(res, 'enabled must be a boolean', 400); return; }
+    if (patch.scope !== undefined && typeof patch.scope !== 'string') { error(res, 'scope must be a string', 400); return; }
+    json(res, setFlag(name, patch, getStorageUserId()));
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'server', level: 'error', message: 'Failed to set feature flag',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
+});
+
+// Delete a flag (admin only). Persists + audits.
+del('/api/admin/flags/:name', (req, res) => {
+  if (!requireAdmin(res)) return;
+  try {
+    const name = param(req, 'name', '/api/admin/flags/:name');
+    json(res, { deleted: deleteFlag(name, getStorageUserId()) });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'server', level: 'error', message: 'Failed to delete feature flag',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
 });
 
 get('/api/data/root', (_req, res) => {
