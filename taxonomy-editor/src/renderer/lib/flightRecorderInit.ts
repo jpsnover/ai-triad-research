@@ -13,6 +13,7 @@
 import { FlightRecorder, setGlobalRecorder, getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { RecordInput, TriggerType } from '@lib/flight-recorder/types';
 import { api } from '@bridge';
+import { getClientConfig } from './clientConfig';
 import { getResilienceState } from '../bridge/resilience';
 import { showDumpToast, showDumpErrorToast } from './dumpToast';
 
@@ -63,25 +64,23 @@ let dumpCountInWindow = 0;
 let windowStart = 0;
 let autoDumpDisabled = false;
 
-const MIN_DUMP_INTERVAL_MS = 10_000;
-const MAX_DUMPS_PER_WINDOW = 5;
-const DUMP_WINDOW_MS = 60_000;
+function dumpCfg() { return getClientConfig().flightRecorder; }
 
 function canAutoDump(): boolean {
   if (autoDumpDisabled) return false;
   const now = Date.now();
 
   // Reset window if expired
-  if (now - windowStart > DUMP_WINDOW_MS) {
+  if (now - windowStart > dumpCfg().dumpWindowMs) {
     windowStart = now;
     dumpCountInWindow = 0;
   }
 
   // Check min interval
-  if (now - lastDumpTime < MIN_DUMP_INTERVAL_MS) return false;
+  if (now - lastDumpTime < dumpCfg().minDumpIntervalMs) return false;
 
   // Check circuit breaker
-  if (dumpCountInWindow >= MAX_DUMPS_PER_WINDOW) {
+  if (dumpCountInWindow >= dumpCfg().maxDumpsPerWindow) {
     autoDumpDisabled = true;
     console.warn('[flight-recorder] Auto-dump disabled: too many dumps in 60s window');
     return false;

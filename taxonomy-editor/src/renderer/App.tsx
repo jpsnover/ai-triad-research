@@ -17,6 +17,7 @@ import { DeploymentErrorScreen } from './components/shared/DeploymentErrorScreen
 
 import { StartupProgressScreen } from './components/shared/StartupProgressScreen';
 
+import { initClientConfig } from './lib/clientConfig';
 import { initFlightRecorder } from './lib/flightRecorderInit';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { initAnalytics } from './lib/analyticsEmitter';
@@ -69,6 +70,9 @@ const THEME_COLORS: Record<string, string> = {
 // Build fingerprint — changes every build to verify deployment
 const BUILD_FINGERPRINT = `build-${Date.now()}`;
 console.log(`[App] BUILD_FINGERPRINT: ${BUILD_FINGERPRINT}`);
+
+// Fetch runtime config before anything that depends on it (resilience, flight recorder)
+void initClientConfig();
 
 // Initialize flight recorder as early as possible
 initFlightRecorder();
@@ -639,7 +643,7 @@ function MainApp() {
         </div>
       </div>
       <SaveBar />
-      <BottomNav />
+      <BottomNav onOpenMore={() => setHamburgerOpen(true)} />
       {isMobile && <HamburgerMenu isOpen={hamburgerOpen} onClose={() => setHamburgerOpen(false)} />}
       {UpdatePrompt && <Suspense fallback={null}><UpdatePrompt /></Suspense>}
       <PrecacheToast progress={precacheProgress} onCancel={cancelPrecache} onDismiss={dismissPrecache} />

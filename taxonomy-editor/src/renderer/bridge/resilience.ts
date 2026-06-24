@@ -3,6 +3,7 @@
 
 import { ActionableError } from '@lib/debate/errors';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { getClientConfig } from '../lib/clientConfig';
 
 // ── Public types ──
 
@@ -22,21 +23,9 @@ export interface ResilientFetchOptions {
   category: EndpointCategory;
 }
 
-// ── Constants ──
+// ── Config accessors (backed by runtime config, falls back to hardcoded defaults) ──
 
-const CIRCUIT_THRESHOLD = 5;
-const CIRCUIT_COOLDOWN_MS = 60_000;
-
-const RETRY_BASE_DELAY_MS = 1_000;
-const RETRY_MAX_DELAY_MS = 30_000;
-const RETRY_JITTER_MAX_MS = 500;
-const MAX_RETRY_AFTER_MS = 30_000;
-
-const THROTTLE_WINDOW_SIZE = 20;
-const THROTTLE_BASELINE_COUNT = 10;
-const THROTTLE_ENTER_FACTOR = 2.0;
-const THROTTLE_EXIT_FACTOR = 1.5;
-const THROTTLE_DELAY_MS = 2_000;
+function cfg() { return getClientConfig().resilience; }
 
 const ALL_CATEGORIES: EndpointCategory[] = ['read', 'mutation', 'ai', 'admin', 'telemetry'];
 
@@ -88,14 +77,14 @@ function checkCircuit(cat: EndpointCategory, path: string): void {
   if (c.state === 'CLOSED') return;
   if (c.state === 'OPEN') {
     const elapsed = Date.now() - c.lastFailureTime;
-    if (elapsed >= CIRCUIT_COOLDOWN_MS) {
+    if (elapsed >= cfg().circuitCooldownMs) {
       c.state = 'HALF_OPEN';
       recordEvent('network.circuit_half_open', 'warn',
         `Circuit '${cat}' → HALF_OPEN, allowing probe request`);
       notifyListeners();
       return;
     }
-    const remaining = Math.ceil((CIRCUIT_COOLDOWN_MS - elapsed) / 1000);
+    const remaining = Math.ceil((cfg().circuitCooldownMs - elapsed) / 1000);
     const failureSummary = summarizeFailures(c.recentFailures);
     const detail = failureSummary ? `\nLast failures: ${failureSummary}` : '';
     throw new ActionableError({
@@ -132,7 +121,7 @@ function onCircuitFailure(cat: EndpointCategory, reason: string): void {
     c.state = 'OPEN';
     recordEvent('network.circuit_open', 'warn',
       `Circuit '${cat}' re-OPEN after failed probe (${reason})`);
-  } else if (c.consecutiveFailures >= CIRCUIT_THRESHOLD && c.state === 'CLOSED') {
+  } else if (c.consecutiveFailures >= cfg().circuitThreshold && c.state === 'CLOSED') {
     c.state = 'OPEN';
     const summary = summarizeFailures(c.recentFailures);
     recordEvent('network.circuit_open', 'error',
@@ -170,24 +159,24 @@ function computeP95(values: number[]): number {
 function recordLatency(cat: EndpointCategory, ms: number): void {
   const t = getThrottle(cat);
   t.latencies.push(ms);
-  if (t.latencies.length > THROTTLE_WINDOW_SIZE) t.latencies.shift();
+  if (t.latencies.length > cfg().throttleWindowSize) t.latencies.shift();
 
-  if (t.latencies.length <= THROTTLE_BASELINE_COUNT) {
+  if (t.latencies.length <= cfg().throttleBaselineCount) {
     t.baseline = t.latencies.reduce((a, b) => a + b, 0) / t.latencies.length;
     return;
   }
   if (t.baseline === 0) {
-    t.baseline = t.latencies.slice(0, THROTTLE_BASELINE_COUNT)
-      .reduce((a, b) => a + b, 0) / THROTTLE_BASELINE_COUNT;
+    t.baseline = t.latencies.slice(0, cfg().throttleBaselineCount)
+      .reduce((a, b) => a + b, 0) / cfg().throttleBaselineCount;
   }
 
   const p95 = computeP95(t.latencies);
-  if (t.state === 'NORMAL' && p95 > t.baseline * THROTTLE_ENTER_FACTOR) {
+  if (t.state === 'NORMAL' && p95 > t.baseline * cfg().throttleEnterFactor) {
     t.state = 'THROTTLED';
     recordEvent('network.throttle_active', 'warn',
-      `Throttle '${cat}' activated: p95=${Math.round(p95)}ms > ${THROTTLE_ENTER_FACTOR}× baseline ${Math.round(t.baseline)}ms`);
+      `Throttle '${cat}' activated: p95=${Math.round(p95)}ms > ${cfg().throttleEnterFactor}× baseline ${Math.round(t.baseline)}ms`);
     notifyListeners();
-  } else if (t.state === 'THROTTLED' && p95 < t.baseline * THROTTLE_EXIT_FACTOR) {
+  } else if (t.state === 'THROTTLED' && p95 < t.baseline * cfg().throttleExitFactor) {
     t.state = 'NORMAL';
     recordEvent('network.throttle_cleared', 'info',
       `Throttle '${cat}' cleared: p95=${Math.round(p95)}ms`);
@@ -198,7 +187,7 @@ function recordLatency(cat: EndpointCategory, ms: number): void {
 async function maybeThrottleDelay(cat: EndpointCategory, critical: boolean): Promise<void> {
   const t = getThrottle(cat);
   if (t.state === 'THROTTLED' && !critical) {
-    await new Promise<void>(r => setTimeout(r, THROTTLE_DELAY_MS));
+    await new Promise<void>(r => setTimeout(r, cfg().throttleDelayMs));
   }
 }
 
@@ -215,8 +204,8 @@ function isRetryableError(err: unknown): boolean {
 }
 
 function computeBackoff(attempt: number): number {
-  const delay = Math.min(RETRY_BASE_DELAY_MS * Math.pow(2, attempt), RETRY_MAX_DELAY_MS);
-  return delay + Math.random() * RETRY_JITTER_MAX_MS;
+  const delay = Math.min(cfg().retryBaseDelayMs * Math.pow(2, attempt), cfg().retryMaxDelayMs);
+  return delay + Math.random() * cfg().retryJitterMaxMs;
 }
 
 function parseRetryAfter(res: Response): number | null {
@@ -261,7 +250,7 @@ export async function resilientFetch(
 
       if (attempt < maxRetries) {
         const retryAfterMs = res.status === 429 ? parseRetryAfter(res) : null;
-        if (retryAfterMs !== null && retryAfterMs > MAX_RETRY_AFTER_MS) {
+        if (retryAfterMs !== null && retryAfterMs > cfg().maxRetryAfterMs) {
           return res;
         }
         const backoff = retryAfterMs ?? computeBackoff(attempt);

@@ -9,6 +9,8 @@
  * beforeunload. Generates a per-tab session_id.
  */
 
+import { getClientConfig } from './clientConfig';
+
 interface AnalyticsEvent {
   user: string;
   session_id: string;
@@ -62,7 +64,7 @@ async function flush(): Promise<void> {
   } catch {
     /* telemetry — silent by design */
     // Re-queue on failure (drop if buffer gets too large)
-    if (buffer.length < 500) {
+    if (buffer.length < getClientConfig().analytics.bufferRequeueLimit) {
       buffer.unshift(...batch);
     }
   }
