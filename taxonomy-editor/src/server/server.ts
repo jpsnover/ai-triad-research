@@ -39,6 +39,7 @@ import { sanitizeUserText } from './contentSanitizer.js';
 import { getRollbackStatus } from './rollbackStatus.js';
 import { getAllFlags, listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
 import { writeDump, isValidDumpId } from './flightRecorderDumps.js';
+import { drainServerLogLines } from './serverLogBuffer.js';
 import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
 import { checkProviderBinding } from './providerBinding.js';
@@ -169,6 +170,18 @@ if (process.platform === 'win32') {
 }
 
 export { serverRecorder };
+
+// Merge the bounded server-log buffer into a server dump's ndjson as `log.line`
+// entries, so a dump is self-contained for offline triage without a Log
+// Analytics query (operator request). Log lines are already pino-redacted and
+// re-scrubbed in serverLogBuffer; they live in their own capped buffer so they
+// never evict curated flight-recorder events.
+function appendServerLogs(ndjson: string): string {
+  const logs = drainServerLogLines();
+  if (logs.length === 0) return ndjson;
+  const tail = logs.map(l => JSON.stringify({ type: 'log.line', component: 'server-log', ...l })).join('\n');
+  return (ndjson.endsWith('\n') ? ndjson : ndjson + '\n') + tail + '\n';
+}
 
 // L1 (t/720): AUTH_DISABLED makes every request an anonymous user with full
 // access — fine for local/dev single-operator use, catastrophic in production.
@@ -1449,7 +1462,7 @@ post('/api/flight-recorder/dump', (_req, res, body) => {
 // Server-side flight recorder dump
 post('/api/flight-recorder/server-dump', (_req, res) => {
   try {
-    const { ndjson } = serverRecorder.buildDump('manual');
+    const ndjson = appendServerLogs(serverRecorder.buildDump('manual').ndjson);
     const dumpDir = path.join(getDataRoot(), 'flight-recorder');
     fs.mkdirSync(dumpDir, { recursive: true });
     const ts = new Date().toISOString().replace(/:/g, '-');
@@ -1470,7 +1483,7 @@ post('/api/admin/flight-recorder/dump', (_req, res, body) => {
   try {
     const { dumpId } = (body ?? {}) as { dumpId?: string };
     if (!isValidDumpId(dumpId)) { error(res, 'dumpId must be a UUID-safe string', 400); return; }
-    const { ndjson } = serverRecorder.buildDump('manual');
+    const ndjson = appendServerLogs(serverRecorder.buildDump('manual').ndjson);
     const filePath = writeDump(getDataRoot(), 'server', dumpId, ndjson);
     log.fr.info({ filePath, dumpId }, 'Correlated server dump written');
     json(res, { ok: true, filename: path.basename(filePath), dumpId });
@@ -4187,7 +4200,7 @@ function shutdown(signal: string) {
   // Dump server flight recorder on shutdown
   try {
     serverRecorder.record({ type: 'lifecycle', component: 'server', level: 'info', message: `Shutdown: ${signal}` });
-    const { ndjson } = serverRecorder.buildDump('manual');
+    const ndjson = appendServerLogs(serverRecorder.buildDump('manual').ndjson);
     const dumpDir = path.join(getDataRoot(), 'flight-recorder');
     fs.mkdirSync(dumpDir, { recursive: true });
     fs.writeFileSync(path.join(dumpDir, `server-shutdown-${Date.now()}.jsonl`), ndjson);

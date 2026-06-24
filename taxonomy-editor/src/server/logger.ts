@@ -15,7 +15,9 @@
 
 import pino from 'pino';
 import { AsyncLocalStorage } from 'async_hooks';
+import { Writable } from 'stream';
 import crypto from 'crypto';
+import { recordServerLog } from './serverLogBuffer.js';
 
 // ── Request context (correlation ID) ──
 
@@ -59,7 +61,21 @@ function hasPinoPretty(): boolean {
 // Evaluate before pino constructor — pino resolves transports eagerly
 const usePretty = !isProduction && hasPinoPretty();
 
-const logger = pino({
+// Tee every emitted (already-redacted) log line into the bounded server-log
+// buffer so flight-recorder dumps are self-contained. Only on the non-pretty
+// path (pretty mode runs a worker transport that bypasses an in-process
+// destination); opt out with FR_DUMP_INCLUDE_LOGS=0.
+const teeLogs = !usePretty && process.env.FR_DUMP_INCLUDE_LOGS !== '0';
+const teeStream = new Writable({
+  write(chunk: Buffer | string, _enc, cb) {
+    const s = chunk.toString();
+    process.stdout.write(s);
+    recordServerLog(s);
+    cb();
+  },
+});
+
+const pinoOptions = {
   level: process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug'),
   redact: {
     paths: [
@@ -98,7 +114,11 @@ const logger = pino({
   serializers: {
     err: pino.stdSerializers.err,
   },
-});
+};
+
+// In pretty mode pino owns its output via a worker transport; otherwise route
+// through the tee so log lines also land in the server-log buffer for dumps.
+const logger = teeLogs ? pino(pinoOptions, teeStream) : pino(pinoOptions);
 
 // ── Component child loggers ──
 
