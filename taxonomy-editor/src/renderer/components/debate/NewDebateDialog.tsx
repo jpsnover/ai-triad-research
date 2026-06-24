@@ -550,19 +550,19 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
           <div className="ndd-col-right">
             <h3 className="ndd-section-heading">Configuration</h3>
 
-            {/* Format */}
+            {/* Format — card view, matching Dialectical Style (t/912) */}
             <label className="ndd-field-label">Format</label>
-            <select
-              className="ndd-format-select"
-              value={protocolId}
-              onChange={(e) => setProtocolId(e.target.value)}
-            >
+            <div className="ndd-style-cards">
               {DEBATE_PROTOCOLS.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.label} — {p.description}
-                </option>
+                <label key={p.id} className={`ndd-style-card${protocolId === p.id ? ' active' : ''}`}>
+                  <input type="radio" name="format" value={p.id} checked={protocolId === p.id} onChange={() => setProtocolId(p.id)} />
+                  <div className="ndd-style-text">
+                    <span className="ndd-style-name">{p.label}</span>
+                    <span className="ndd-style-desc">{p.description}</span>
+                  </div>
+                </label>
               ))}
-            </select>
+            </div>
 
             {/* AI Model */}
             <label className="ndd-field-label">AI Model</label>
