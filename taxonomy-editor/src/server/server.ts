@@ -1219,6 +1219,23 @@ post('/api/ai/generate', async (req, res, body) => {
       json(res, { text: result.text, tokenUsage: result.tokenUsage });
     }
   } catch (err) {
+    // t/920: an upstream provider rate-limit (common when 3 opening statements
+    // fire concurrently on a single free-tier key) was collapsing into an opaque,
+    // non-retryable HTTP 500. Surface it as a retryable 429 with Retry-After so the
+    // debate flow can back off + retry instead of treating it as a fatal error.
+    if (ai.is429Error(err)) {
+      const retry = ai.retryAfterMs(err);
+      log.server.warn({ component: 'ai-generate', model: model ?? 'default', retryAfterMs: retry }, 'AI generate upstream rate-limited — returning 429');
+      getGlobalRecorder()?.record({
+        type: 'ai.error', component: 'ai-generate', level: 'warn',
+        message: 'AI generate upstream rate-limited',
+        data: { model: model ?? 'default', retryAfterMs: retry, source: 'upstream' },
+      });
+      res.setHeader('Retry-After', String(Math.max(1, Math.ceil(retry / 1000))));
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Upstream AI provider rate limit — retry shortly', limitType: 'upstream_rate_limit', retryAfterMs: retry, retryable: true }));
+      return;
+    }
     getGlobalRecorder()?.record({
       type: 'system.error', component: 'ai-generate', level: 'error',
       message: `AI generate failed: ${String(err)}`,
@@ -1234,6 +1251,19 @@ post('/api/ai/search', async (_req, res, body) => {
   try {
     json(res, await ai.generateTextWithSearch(prompt, model));
   } catch (err) {
+    if (ai.is429Error(err)) {
+      const retry = ai.retryAfterMs(err);
+      log.server.warn({ component: 'ai-search', model: model ?? 'default', retryAfterMs: retry }, 'AI search upstream rate-limited — returning 429');
+      getGlobalRecorder()?.record({
+        type: 'ai.error', component: 'ai-search', level: 'warn',
+        message: 'AI search upstream rate-limited',
+        data: { model: model ?? 'default', retryAfterMs: retry, source: 'upstream' },
+      });
+      res.setHeader('Retry-After', String(Math.max(1, Math.ceil(retry / 1000))));
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Upstream AI provider rate limit — retry shortly', limitType: 'upstream_rate_limit', retryAfterMs: retry, retryable: true }));
+      return;
+    }
     getGlobalRecorder()?.record({
       type: 'system.error', component: 'ai-search', level: 'error',
       message: `AI search failed: ${String(err)}`,

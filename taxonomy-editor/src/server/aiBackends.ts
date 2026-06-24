@@ -266,14 +266,14 @@ function reportProviderRetry(
 }
 
 /** Heuristic 429/rate-limit detection from a provider error (t/835). */
-function is429Error(err: unknown): boolean {
+export function is429Error(err: unknown): boolean {
   const s = String((err as Error)?.message ?? err);
   return /\b429\b/.test(s) || /rate.?limit/i.test(s) || /RESOURCE_EXHAUSTED/i.test(s)
     || /\bquota\b/i.test(s) || /too many requests/i.test(s);
 }
 
 /** Best-effort retry-after (ms) parsed from a provider error; defaults to 30s. */
-function retryAfterMs(err: unknown): number {
+export function retryAfterMs(err: unknown): number {
   const s = String((err as Error)?.message ?? err);
   const m = s.match(/retry[- ]?after[^0-9]*(\d+)\s*(ms|s|sec|seconds)?/i) || s.match(/\b(\d+)\s*(s|sec|seconds)\b/i);
   if (m) {
