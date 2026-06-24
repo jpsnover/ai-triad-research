@@ -6,6 +6,7 @@ import fsp from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import { log } from './logger.js';
+import { getConfig } from './runtimeConfig.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 /**
@@ -37,9 +38,9 @@ interface AnonymousSessionStoreOptions {
   cleanupIntervalMs?: number;
 }
 
-const DEFAULT_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
-const DEFAULT_MAX_SESSIONS = 100;
-const DEFAULT_MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+// t/929: TTL / max-sessions / max-size now come from runtime-config
+// (getConfig().sessions.*), sourced at construction (init time). The cleanup
+// interval stays a constant — restart-required timer (spec §2.12).
 const DEFAULT_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 const SHARED_MOUNT = '/mnt/shared';
@@ -82,9 +83,9 @@ export class AnonymousSessionStore {
 
   constructor(opts: AnonymousSessionStoreOptions = {}) {
     this.baseDir = opts.baseDir ?? defaultBaseDir();
-    this.maxSessions = opts.maxSessions ?? DEFAULT_MAX_SESSIONS;
-    this.sessionTtlMs = opts.sessionTtlMs ?? DEFAULT_TTL_MS;
-    this.maxSessionSizeBytes = opts.maxSessionSizeBytes ?? DEFAULT_MAX_SIZE_BYTES;
+    this.maxSessions = opts.maxSessions ?? getConfig().sessions.anonymousMaxSessions;
+    this.sessionTtlMs = opts.sessionTtlMs ?? getConfig().sessions.anonymousTtlMs;
+    this.maxSessionSizeBytes = opts.maxSessionSizeBytes ?? getConfig().sessions.anonymousMaxSizeBytes;
 
     const interval = opts.cleanupIntervalMs ?? DEFAULT_CLEANUP_INTERVAL_MS;
     this.cleanupTimer = setInterval(() => { this.cleanup().catch(() => { /* sweep is best-effort */ }); }, interval);

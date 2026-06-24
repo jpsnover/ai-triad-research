@@ -21,16 +21,15 @@ import { getTokenExpiryMs, getCredentials } from './githubAppAuth.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import type { FlightRecorder, RecordInput } from '../../../lib/flight-recorder/index.js';
+import { getConfig } from './runtimeConfig.js';
 
 // ── Constants ────────────────────────────────────────────────────────────
 
 const BRANCH_PREFIX = 'api-session/';
 const MAX_BRANCH_NAME_LENGTH = 100;
-const TOKEN_FRESHNESS_THRESHOLD_MS = 60_000;  // 60 seconds
-
-// Lock timeouts (from Phase 2G spec)
-const LOCK_ACQUIRE_TIMEOUT_MS = 10_000;   // 10 seconds
-const LOCK_HOLD_TTL_MS = 30_000;          // 30 seconds
+// t/929: token-freshness threshold + lock timeouts are runtime-configurable via
+// getConfig().sessions.* (BRANCH_PREFIX / MAX_BRANCH_NAME_LENGTH stay constant —
+// restart-required, spec §2.12).
 
 // ── Branch name sanitization ─────────────────────────────────────────────
 
@@ -110,7 +109,7 @@ class CommitMutex {
     if (existing) {
       const timeoutPromise = new Promise<never>((_, reject) => {
         // eslint-disable-next-line @typescript-eslint/no-use-before-define -- class defined below, safe at call-time
-        setTimeout(() => reject(new LockTimeoutError(userId, Date.now() - startMs)), LOCK_ACQUIRE_TIMEOUT_MS);
+        setTimeout(() => reject(new LockTimeoutError(userId, Date.now() - startMs)), getConfig().sessions.lockAcquireTimeoutMs);
       });
 
       try {
@@ -140,10 +139,10 @@ class CommitMutex {
 
     const ttlTimer = setTimeout(() => {
       this.recordLockEvent('lock.ttl_eviction', userId, requestId, {
-        hold_duration_ms: LOCK_HOLD_TTL_MS,
+        hold_duration_ms: getConfig().sessions.lockHoldTtlMs,
       });
       this.release(userId);
-    }, LOCK_HOLD_TTL_MS);
+    }, getConfig().sessions.lockHoldTtlMs);
 
     this.locks.set(userId, {
       promise: lockPromise,
@@ -566,13 +565,13 @@ export class SessionBranchManager {
     if (expiryMs === 0) return;
 
     const remainingMs = expiryMs - Date.now();
-    if (remainingMs < TOKEN_FRESHNESS_THRESHOLD_MS) {
+    if (remainingMs < getConfig().sessions.tokenFreshnessThresholdMs) {
       this.recordEvent({
         type: 'github.api.request',
         component: 'session',
         level: 'info',
         message: `Token has ${Math.round(remainingMs / 1000)}s remaining — forcing early refresh before batch commit`,
-        data: { remaining_ms: remainingMs, threshold_ms: TOKEN_FRESHNESS_THRESHOLD_MS },
+        data: { remaining_ms: remainingMs, threshold_ms: getConfig().sessions.tokenFreshnessThresholdMs },
       });
 
       // Force a fresh credential fetch (getCredentials re-mints if needed)

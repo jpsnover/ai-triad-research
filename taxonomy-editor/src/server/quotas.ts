@@ -6,6 +6,7 @@ import path from 'path';
 import { getDataRoot } from './config.js';
 import { log } from './logger.js';
 import { getStorageUserId } from './userContext.js';
+import { getConfig as getRuntimeConfig } from './runtimeConfig.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 export interface QuotaLimits {
@@ -24,16 +25,18 @@ interface QuotaConfig {
   elevated: ElevatedEntry[];
 }
 
-const DEFAULT_CONFIG: QuotaConfig = {
-  defaults: { maxChats: 25, maxDebates: 15 },
-  elevated: [],
-};
+// t/929: quota defaults now come from runtime-config (getConfig().quotas).
+// quotas.json still supplies per-user `elevated` overrides + an optional
+// `defaults` override layered on top.
+function runtimeQuotaDefaults(): QuotaLimits {
+  const q = getRuntimeConfig().quotas;
+  return { maxChats: q.defaultMaxChats, maxDebates: q.defaultMaxDebates };
+}
 
 // ── Config loading with mtime cache (follows proxyTiers.ts pattern) ──
 
 let _cache: QuotaConfig | null = null;
 let _cacheMtime = 0;
-const CACHE_TTL = 30_000;
 let _lastLoadTime = 0;
 
 function loadQuotaConfig(): QuotaConfig {
@@ -43,7 +46,7 @@ function loadQuotaConfig(): QuotaConfig {
     if (_cache && stat.mtimeMs === _cacheMtime) return _cache;
     const data = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as Partial<QuotaConfig>;
     _cache = {
-      defaults: { ...DEFAULT_CONFIG.defaults, ...data.defaults },
+      defaults: { ...runtimeQuotaDefaults(), ...data.defaults },
       elevated: data.elevated ?? [],
     };
     _cacheMtime = stat.mtimeMs;
@@ -57,13 +60,13 @@ function loadQuotaConfig(): QuotaConfig {
       message: 'Failed to load quota config — using defaults',
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
-    return DEFAULT_CONFIG;
+    return { defaults: runtimeQuotaDefaults(), elevated: [] };
   }
 }
 
 function getConfig(): QuotaConfig {
   const now = Date.now();
-  if (now - _lastLoadTime > CACHE_TTL) {
+  if (now - _lastLoadTime > getRuntimeConfig().cache.defaultTtlMs) {
     _lastLoadTime = now;
     return loadQuotaConfig();
   }

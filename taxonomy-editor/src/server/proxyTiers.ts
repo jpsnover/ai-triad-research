@@ -6,6 +6,7 @@ import path from 'path';
 import { getDataRoot } from './config.js';
 import { log } from './logger.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+import { getConfig as getRuntimeConfig } from './runtimeConfig.js';
 
 // ── Types ──
 
@@ -48,20 +49,25 @@ interface TierConfig {
   users: TierUserEntry[];
 }
 
-const DEFAULT_CONFIG: TierConfig = {
-  defaults: {
-    platform:  { requestsPerMinute: 60,  tokensPerDay: 2_000_000, allowedBackends: ['gemini', 'claude', 'groq'] },
-    byok:      { requestsPerMinute: 30,  tokensPerDay: 500_000,   allowedBackends: ['gemini', 'claude', 'groq'] },
-    anonymous: { requestsPerMinute: 10,  tokensPerDay: 100_000,   allowedBackends: ['gemini', 'claude', 'groq'] },
-  },
-  users: [],
-};
+// t/929: default tier limits now come from runtime-config (getConfig().tiers).
+// proxy-tiers.json still supplies per-user entries + an optional `defaults` override.
+function tierDefaults(): TierDefaults {
+  const t = getRuntimeConfig().tiers;
+  return {
+    platform:  { requestsPerMinute: t.platform.requestsPerMinute,  tokensPerDay: t.platform.tokensPerDay,  allowedBackends: [...t.platform.allowedBackends] },
+    byok:      { requestsPerMinute: t.byok.requestsPerMinute,      tokensPerDay: t.byok.tokensPerDay,      allowedBackends: [...t.byok.allowedBackends] },
+    anonymous: { requestsPerMinute: t.anonymous.requestsPerMinute, tokensPerDay: t.anonymous.tokensPerDay, allowedBackends: [...t.anonymous.allowedBackends] },
+  };
+}
+
+function defaultTierConfig(): TierConfig {
+  return { defaults: tierDefaults(), users: [] };
+}
 
 // ── Config loading with cache ──
 
 let _cache: TierConfig | null = null;
 let _cacheMtime = 0;
-const CACHE_TTL = 30_000;
 
 function loadTierConfig(): TierConfig {
   const candidates = [
@@ -73,7 +79,7 @@ function loadTierConfig(): TierConfig {
       if (_cache && stat.mtimeMs === _cacheMtime) return _cache;
       const data = JSON.parse(fs.readFileSync(p, 'utf-8')) as Partial<TierConfig>;
       _cache = {
-        defaults: { ...DEFAULT_CONFIG.defaults, ...data.defaults },
+        defaults: { ...tierDefaults(), ...data.defaults },
         users: data.users ?? [],
       };
       _cacheMtime = stat.mtimeMs;
@@ -97,14 +103,14 @@ function loadTierConfig(): TierConfig {
       }
     }
   }
-  return DEFAULT_CONFIG;
+  return defaultTierConfig();
 }
 
 let _lastLoadTime = 0;
 
 function getConfig(): TierConfig {
   const now = Date.now();
-  if (now - _lastLoadTime > CACHE_TTL) {
+  if (now - _lastLoadTime > getRuntimeConfig().cache.defaultTtlMs) {
     _lastLoadTime = now;
     return loadTierConfig();
   }
@@ -133,13 +139,16 @@ export function isBackendAllowed(tier: ResolvedTier, backend: string): boolean {
 // the deployment, t/795). Without it, keyless users stay 'anonymous' (no AI), so
 // this is inert until deliberately deployed. Pinned to a cheap model with tight
 // per-IP limits to bound cost/abuse.
-const FREE_TIER: ResolvedTier = {
-  level: 'free',
-  limits: { requestsPerMinute: 6, tokensPerDay: 50_000 },
-  allowedBackends: ['gemini'],
-  serverProvidedKey: true,
-  pinnedModel: 'gemini-flash-lite-latest',
-};
+function freeTierBase(): ResolvedTier {
+  const f = getRuntimeConfig().tiers.free;
+  return {
+    level: 'free',
+    limits: { requestsPerMinute: f.requestsPerMinute, tokensPerDay: f.tokensPerDay },
+    allowedBackends: [...f.allowedBackends],
+    serverProvidedKey: true,
+    pinnedModel: f.pinnedModel,
+  };
+}
 
 /**
  * Parse FREE_TIER_GEMINI_KEY into a key list (t/846). Accepts a single key or a
@@ -175,7 +184,8 @@ export function resolveTier(principalName: string, idp: string): ResolvedTier {
       // rotator (t/846) spreads load across the pool — so scale the server-side
       // limit with the key count instead of the hardcoded 6 (capped to bound abuse).
       const rpm = scaledFreeTierRpm(parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY).length);
-      return { ...FREE_TIER, limits: { ...FREE_TIER.limits, requestsPerMinute: rpm } };
+      const base = freeTierBase();
+      return { ...base, limits: { ...base.limits, requestsPerMinute: rpm } };
     }
     const d = config.defaults.anonymous;
     return { level: 'anonymous', limits: { requestsPerMinute: d.requestsPerMinute, tokensPerDay: d.tokensPerDay }, allowedBackends: d.allowedBackends };

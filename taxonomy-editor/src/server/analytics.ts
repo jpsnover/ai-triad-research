@@ -13,6 +13,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { getConfig } from './runtimeConfig.js';
 
 // ── Types ──
 
@@ -131,7 +132,7 @@ let backend: AnalyticsBackend | null = null;
 
 function cutoffStr(): string {
   const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 90);
+  cutoff.setDate(cutoff.getDate() - getConfig().analytics.retentionDays);
   return cutoff.toISOString().slice(0, 10);
 }
 

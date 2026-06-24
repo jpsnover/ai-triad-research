@@ -38,7 +38,7 @@ import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnon
 import { sanitizeUserText } from './contentSanitizer.js';
 import { getRollbackStatus } from './rollbackStatus.js';
 import { getAllFlags, listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
-import { writeDump, isValidDumpId } from './flightRecorderDumps.js';
+import { writeDump, isValidDumpId, readMergedDump } from './flightRecorderDumps.js';
 import { drainServerLogLines } from './serverLogBuffer.js';
 import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
@@ -53,7 +53,7 @@ import { stampNodeAuthorship, diffNodes, changedFields } from './editMeta.js';
 import { computeNodeConflicts } from './nodeConflicts.js';
 import type { TaxNode, NodeConflict } from './nodeConflicts.js';
 import * as ai from './aiBackends.js';
-import { getConfigState, writeConfig, forceReload as reloadRuntimeConfig, diffFromDefaults, getClientConfig } from './runtimeConfig.js';
+import { getConfig, getConfigState, writeConfig, forceReload as reloadRuntimeConfig, diffFromDefaults, getClientConfig } from './runtimeConfig.js';
 import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
 import { setRuntimeCredentials, clearRuntimeCredentials, getCredentials } from './githubAppAuth.js';
 import * as proxyTiers from './proxyTiers.js';
@@ -549,10 +549,10 @@ get('/api/taxonomy/:pov/node/:nodeId/history', async (req, res) => {
 // ── Conflicts ──
 
 let conflictsCache: { data: unknown[]; ts: number } | null = null;
-const CONFLICTS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+// t/929: conflicts cache TTL is runtime-configurable — getConfig().server.conflictsCacheTtlMs (default 5m).
 
 get('/api/conflicts', async (_req, res) => {
-  if (conflictsCache && Date.now() - conflictsCache.ts < CONFLICTS_CACHE_TTL) {
+  if (conflictsCache && Date.now() - conflictsCache.ts < getConfig().server.conflictsCacheTtlMs) {
     json(res, conflictsCache.data);
     return;
   }
@@ -796,7 +796,7 @@ post('/api/data/clone', async (_req, res, body) => {
     // when targetPath is root-owned (e.g. /data in Azure containers).
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'data-clone-'));
     await new Promise<void>((resolve, reject) => {
-      execFile('git', ['clone', 'https://github.com/jpsnover/ai-triad-data.git', tmpDir], { timeout: 300_000 }, (err) => {
+      execFile('git', ['clone', 'https://github.com/jpsnover/ai-triad-data.git', tmpDir], { timeout: getConfig().server.gitCloneTimeoutMs }, (err) => {
         if (err) reject(err); else resolve();
       });
     });
@@ -876,8 +876,8 @@ post('/api/data/pull', async (_req, res) => {
 
   try {
     const dataRoot = getDataRoot();
-    const runGit = (args: string[], timeoutMs = 120_000): Promise<string> => new Promise((resolve, reject) => {
-      execFile('git', args, { cwd: dataRoot, timeout: timeoutMs, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+    const runGit = (args: string[], timeoutMs = getConfig().server.gitDefaultTimeoutMs): Promise<string> => new Promise((resolve, reject) => {
+      execFile('git', args, { cwd: dataRoot, timeout: timeoutMs, maxBuffer: getConfig().server.gitBufferLimitBytes }, (err, stdout, stderr) => {
         if (err) {
           log.dataPull.error({ cmd: `git ${args.join(' ')}`, stderr: stderr?.trim() }, err.message);
           reject(new Error(`git ${args[0]}: ${err.message}${stderr ? ' — ' + stderr.trim() : ''}`));
@@ -926,14 +926,14 @@ post('/api/data/pull', async (_req, res) => {
     serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.fetch_start' });
     log.dataPull.info('Fetching origin');
     const fetchStart = Date.now();
-    await runGit(['fetch', 'origin'], 600_000);
+    await runGit(['fetch', 'origin'], getConfig().server.gitFetchTimeoutMs);
     serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.fetch_ok', duration_ms: Date.now() - fetchStart });
 
     progress('Applying updates...');
     serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.reset_start' });
     log.dataPull.info('Resetting to origin/main');
     const resetStart = Date.now();
-    await runGit(['reset', '--hard', 'origin/main'], 600_000);
+    await runGit(['reset', '--hard', 'origin/main'], getConfig().server.gitFetchTimeoutMs);
     serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.reset_ok', duration_ms: Date.now() - resetStart });
 
     log.dataPull.info('Pull completed successfully');
@@ -1041,7 +1041,8 @@ post('/api/keys/delete-all', async (_req, res) => {
 // anon AI-route guard already blocks unauthenticated callers. Keys are never
 // returned in full — only a masked suffix.
 function maskApiKey(key: string): string {
-  return key.length <= 4 ? '••••' : `••••${key.slice(-4)}`;
+  const visible = getConfig().server.apiKeyMaskLength; // t/929: runtime-configurable (default 4)
+  return key.length <= visible ? '••••' : `••••${key.slice(-visible)}`;
 }
 function maskedKeyList(keys: string[]): { index: number; masked: string }[] {
   return keys.map((k, index) => ({ index, masked: maskApiKey(k) }));
@@ -1537,6 +1538,21 @@ get('/api/flight-recorder/download/:filename', (req, res) => {
       'Content-Disposition': `attachment; filename="${filename}"`,
     });
     res.end(content);
+  } catch (err) { error(res, String(err), 500, err); }
+});
+
+get('/api/flight-recorder/download-merged/:dumpId', (req, res) => {
+  try {
+    const dumpId = param(req, 'dumpId', '/api/flight-recorder/download-merged/:dumpId');
+    if (!isValidDumpId(dumpId)) { error(res, 'Invalid dumpId', 400); return; }
+    const merged = readMergedDump(getDataRoot(), dumpId);
+    if (!merged) { error(res, 'No dumps found for this dumpId', 404); return; }
+    const filename = `merged-${dumpId}.jsonl`;
+    res.writeHead(200, {
+      'Content-Type': 'application/x-ndjson',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+    res.end(merged);
   } catch (err) { error(res, String(err), 500, err); }
 });
 

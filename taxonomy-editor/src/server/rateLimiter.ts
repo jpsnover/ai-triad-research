@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import { getConfig } from './runtimeConfig.js';
+
 // ── Sliding-window requests-per-minute ──
 
 const requestWindows = new Map<string, number[]>();
@@ -14,7 +16,7 @@ export interface RateCheckResult {
 
 export function checkRequestRate(userId: string, limit: number): RateCheckResult {
   const now = Date.now();
-  const windowMs = 60_000;
+  const windowMs = getConfig().rateLimiting.windowMs; // t/929: runtime-configurable (default 60_000)
   let timestamps = requestWindows.get(userId);
   if (!timestamps) { timestamps = []; requestWindows.set(userId, timestamps); }
 
@@ -90,7 +92,7 @@ export function checkTokenLimit(userId: string, limit: number): RateCheckResult 
 
 export function getUsage(userId: string): { requestsInWindow: number; tokensToday: number } {
   const now = Date.now();
-  const cutoff = now - 60_000;
+  const cutoff = now - getConfig().rateLimiting.windowMs;
   const timestamps = requestWindows.get(userId) ?? [];
   const active = timestamps.filter(t => t >= cutoff).length;
   const bucket = getBucket(userId);
@@ -101,7 +103,7 @@ export function getUsage(userId: string): { requestsInWindow: number; tokensToda
 
 setInterval(() => {
   const now = Date.now();
-  const cutoff = now - 120_000;
+  const cutoff = now - getConfig().rateLimiting.cleanupCutoffMs; // hot-reloadable (default 120_000)
   for (const [key, timestamps] of requestWindows) {
     while (timestamps.length > 0 && timestamps[0] < cutoff) timestamps.shift();
     if (timestamps.length === 0) requestWindows.delete(key);

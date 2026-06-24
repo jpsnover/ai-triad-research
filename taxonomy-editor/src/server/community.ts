@@ -9,6 +9,7 @@ import { getStorageUserId, isAnonymousUser } from './userContext.js';
 import { log } from './logger.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import path from 'path';
+import { getConfig } from './runtimeConfig.js';
 
 // ── Paths ──
 
@@ -198,16 +199,17 @@ export async function submitToCommunity(type: 'chat' | 'debate', itemData: unkno
   const backend = getUserContentBackend();
   const dir = submissionsDir();
 
-  // Rate limit: max 20 pending submissions per user
+  // Rate limit: max pending submissions per user (t/929: runtime-configurable, default 20)
+  const maxPendingPerUser = getConfig().community.maxPendingPerUser;
   const existing = await listSubmissionsForUser(userId);
   const pending = existing.filter(s => s.status === 'pending');
-  if (pending.length >= 20) {
-    throw Object.assign(new Error('Maximum 20 pending submissions allowed'), { statusCode: 429 });
+  if (pending.length >= maxPendingPerUser) {
+    throw Object.assign(new Error(`Maximum ${maxPendingPerUser} pending submissions allowed`), { statusCode: 429 });
   }
 
   // L7 (t/720): global pending-queue cap — backstop against many users (or
   // anonymous sessions) collectively exhausting the review queue / storage.
-  const GLOBAL_PENDING_CAP = 500;
+  const GLOBAL_PENDING_CAP = getConfig().community.globalPendingCap; // t/929: runtime-configurable (default 500)
   const allPending = await listSubmissions('pending');
   if (allPending.length >= GLOBAL_PENDING_CAP) {
     throw Object.assign(new Error('Community submission queue is full; please try again later.'), { statusCode: 503 });

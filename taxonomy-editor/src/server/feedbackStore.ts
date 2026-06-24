@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+import { getConfig } from './runtimeConfig.js';
 
 /**
  * Server-side feedback storage helpers for the admin feedback API.
@@ -34,9 +35,6 @@ export interface FeedbackPage {
   skipped: string[];
 }
 
-const DEFAULT_LIMIT = 50;
-const MAX_LIMIT = 200;
-
 /**
  * Read, filter, sort (newest-first), and paginate feedback entries.
  *
@@ -46,7 +44,7 @@ const MAX_LIMIT = 200;
  *   exist until the first feedback is stored.
  */
 export function listFeedback(feedbackDir: string, q: FeedbackQuery = {}): FeedbackPage {
-  const limit = Number.isFinite(q.limit) ? Math.min(Math.max(q.limit as number, 1), MAX_LIMIT) : DEFAULT_LIMIT;
+  const limit = Number.isFinite(q.limit) ? Math.min(Math.max(q.limit as number, 1), getConfig().feedback.maxPageLimit) : getConfig().feedback.defaultPageLimit;
   const offset = Number.isFinite(q.offset) ? Math.max(q.offset as number, 0) : 0;
 
   let files: string[] = [];
@@ -92,7 +90,7 @@ export function listFeedback(feedbackDir: string, q: FeedbackQuery = {}): Feedba
  * the filter/pagination logic stays in one place regardless of storage backend.
  */
 export function paginateFeedback(items: Record<string, unknown>[], q: FeedbackQuery = {}): Omit<FeedbackPage, 'skipped'> {
-  const limit = Number.isFinite(q.limit) ? Math.min(Math.max(q.limit as number, 1), MAX_LIMIT) : DEFAULT_LIMIT;
+  const limit = Number.isFinite(q.limit) ? Math.min(Math.max(q.limit as number, 1), getConfig().feedback.maxPageLimit) : getConfig().feedback.defaultPageLimit;
   const offset = Number.isFinite(q.offset) ? Math.max(q.offset as number, 0) : 0;
 
   let filtered = items;

@@ -17,6 +17,7 @@ import fs from 'fs';
 import path from 'path';
 import { getDataRoot } from './config.js';
 import { log } from './logger.js';
+import { getConfig } from './runtimeConfig.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 interface ProviderBindings {
@@ -25,7 +26,6 @@ interface ProviderBindings {
 
 let _cache: ProviderBindings | null = null;
 let _cacheMtime = 0;
-const CACHE_TTL = 30_000;
 let _lastLoadTime = 0;
 
 function getBindingsPath(): string {
@@ -57,7 +57,7 @@ function loadBindings(): ProviderBindings {
 
 function getBindings(): ProviderBindings {
   const now = Date.now();
-  if (now - _lastLoadTime > CACHE_TTL) {
+  if (now - _lastLoadTime > getConfig().cache.defaultTtlMs) { // t/929: runtime-configurable (default 30_000)
     _lastLoadTime = now;
     return loadBindings();
   }
