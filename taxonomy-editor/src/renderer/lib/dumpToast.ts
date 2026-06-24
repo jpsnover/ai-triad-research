@@ -55,6 +55,7 @@ export function showDumpToast(opts: {
   onCopy?: () => void;
   onOpen?: () => void;
   serverFilename?: string;
+  dumpId?: string;
 }): void {
   const container = getOrCreateContainer();
 
@@ -86,14 +87,46 @@ export function showDumpToast(opts: {
   toast.appendChild(title);
 
   if (opts.isWeb) {
-    // Web mode: fetch blob and trigger download (avoids proxy/auth issues with <a href>)
+    // Merged dump link (primary — interleaves client + server events by timestamp)
+    if (opts.dumpId) {
+      const mergedLink = document.createElement('a');
+      mergedLink.textContent = 'Download merged dump';
+      Object.assign(mergedLink.style, {
+        display: 'block',
+        color: 'var(--accent-color, #89b4fa)',
+        textDecoration: 'underline',
+        cursor: 'pointer',
+        wordBreak: 'break-all',
+        fontWeight: '600',
+      });
+      mergedLink.onclick = async (e) => {
+        e.preventDefault();
+        try {
+          const resp = await fetch(`/api/flight-recorder/download-merged/${encodeURIComponent(opts.dumpId!)}`);
+          if (!resp.ok) { mergedLink.textContent = `Merged download failed (${resp.status})`; return; }
+          const blob = await resp.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `merged-${opts.dumpId}.jsonl`;
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (err) { mergedLink.textContent = `Merged download failed: ${err}`; /* flight recorder UI — silent by design (error shown in toast) */ }
+      };
+      toast.appendChild(mergedLink);
+    }
+
+    // Individual client dump link
     const link = document.createElement('a');
-    link.textContent = opts.filename;
+    link.textContent = opts.dumpId ? `Client: ${opts.filename}` : opts.filename;
     Object.assign(link.style, {
+      display: 'block',
       color: 'var(--accent-color, #89b4fa)',
       textDecoration: 'underline',
       cursor: 'pointer',
       wordBreak: 'break-all',
+      fontSize: opts.dumpId ? '0.8em' : '1em',
+      marginTop: opts.dumpId ? '4px' : '0',
     });
     link.onclick = async (e) => {
       e.preventDefault();

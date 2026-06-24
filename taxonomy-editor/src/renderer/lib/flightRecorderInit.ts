@@ -154,6 +154,7 @@ async function persistDump(
       onCopy: () => { void api.clipboardWriteText(result.filePath); },
       onOpen: () => { void api.openFlightRecorderViewer(result.filePath); },
       serverFilename,
+      dumpId: isWeb ? dumpId : undefined,
     });
   } catch (err) {
     getGlobalRecorder()?.record({
