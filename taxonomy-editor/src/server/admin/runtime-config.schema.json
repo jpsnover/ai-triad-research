@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-triad-research/runtime-config.schema.json",
+  "title": "Taxonomy Editor Runtime Configuration",
+  "description": "Optional runtime config (t/905). Every field has a hardcoded default; a missing file or absent section falls back to defaults. Location: {dataRoot}/admin/runtime-config.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string", "description": "Path to this schema for editor tooling." },
+    "_meta": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Audit metadata. Updated by the admin UI / PowerShell cmdlets on write.",
+      "properties": {
+        "version": { "const": 1, "description": "Schema version. Must equal 1; a non-1 file is rejected and defaults are used." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "ISO timestamp of the last write." },
+        "updatedBy": { "type": "string", "description": "Principal that last wrote the config." }
+      }
+    },
+    "resilience": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Client network resilience (circuit breaker, retry, adaptive throttle). Delivered to the renderer via GET /api/config/client.",
+      "properties": {
+        "circuitThreshold": { "type": "integer", "minimum": 1, "maximum": 1000, "description": "Consecutive failures before the circuit opens. Default 5." },
+        "circuitCooldownMs": { "type": "integer", "minimum": 0, "maximum": 86400000, "description": "How long the circuit stays open before half-open probe (ms). Default 60000." },
+        "retryBaseDelayMs": { "type": "integer", "minimum": 0, "maximum": 86400000, "description": "Base exponential-backoff delay (ms). Default 1000." },
+        "retryMaxDelayMs": { "type": "integer", "minimum": 0, "maximum": 86400000, "description": "Cap on backoff delay (ms). Default 30000." },
+        "retryJitterMaxMs": { "type": "integer", "minimum": 0, "maximum": 86400000, "description": "Max random jitter added to each retry (ms). Default 500." },
+        "maxRetryAfterMs": { "type": "integer", "minimum": 0, "maximum": 86400000, "description": "Cap honored from a server Retry-After header (ms). Default 30000." },
+        "throttleWindowSize": { "type": "integer", "minimum": 1, "maximum": 10000, "description": "Rolling window of recent requests for adaptive throttle. Default 20." },
+        "throttleBaselineCount": { "type": "integer", "minimum": 1, "maximum": 10000, "description": "Baseline request count used to compute throttle factors. Default 10." },
+        "throttleEnterFactor": { "type": "number", "exclusiveMinimum": 1.0, "maximum": 100, "description": "Load factor at which throttling engages. Must exceed throttleExitFactor. Default 2.0." },
+        "throttleExitFactor": { "type": "number", "exclusiveMinimum": 1.0, "maximum": 100, "description": "Load factor at which throttling disengages. Must be < throttleEnterFactor. Default 1.5." },
+        "throttleDelayMs": { "type": "integer", "minimum": 0, "maximum": 86400000, "description": "Delay injected per request while throttled (ms). Default 2000." }
+      }
+    },
+    "rateLimiting": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Server request rate-limiter windows.",
+      "properties": {
+        "windowMs": { "type": "integer", "minimum": 0, "maximum": 86400000, "description": "Sliding rate-limit window (ms). Default 60000." },
+        "cleanupCutoffMs": { "type": "integer", "minimum": 0, "maximum": 86400000, "description": "Idle age after which a limiter bucket is evicted (ms). Default 120000." }
+      }
+    },
+    "tiers": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Default per-tier limits. Per-user overrides remain in proxy-tiers.json.",
+      "properties": {
+        "platform": { "$ref": "#/$defs/tier", "description": "Platform (Key Vault) tier defaults." },
+        "byok": { "$ref": "#/$defs/tier", "description": "Bring-your-own-key tier defaults." },
+        "anonymous": { "$ref": "#/$defs/tier", "description": "Anonymous tier defaults." },
+        "free": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Free tier defaults (server-provided key).",
+          "properties": {
+            "requestsPerMinute": { "type": "integer", "minimum": 1, "maximum": 1000, "description": "Requests per minute. Default 6." },
+            "tokensPerDay": { "type": "integer", "minimum": 0, "maximum": 100000000, "description": "Tokens per day. Default 50000." },
+            "allowedBackends": { "$ref": "#/$defs/backends", "description": "Permitted AI backends. Default ['gemini']." },
+            "pinnedModel": { "type": "string", "minLength": 1, "description": "Model the free tier is pinned to. Default 'gemini-flash-lite-latest'." }
+          }
+        }
+      }
+    },
+    "quotas": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Default per-user content quotas. Per-user overrides remain in quotas.json.",
+      "properties": {
+        "defaultMaxChats": { "type": "integer", "minimum": 1, "maximum": 10000, "description": "Max saved chats per user. Default 25." },
+        "defaultMaxDebates": { "type": "integer", "minimum": 1, "maximum": 10000, "description": "Max saved debates per user. Default 15." }
+      }
+    },
+    "sessions": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Anonymous session store and session-branch locking.",
+      "properties": {
+        "anonymousTtlMs": { "type": "integer", "minimum": 0, "maximum": 86400000, "description": "Anonymous session lifetime (ms). Default 14400000 (4h)." },
+        "anonymousMaxSessions": { "type": "integer", "minimum": 1, "maximum": 1000000, "description": "Max concurrent anonymous sessions. Default 100." },
+        "anonymousMaxSizeBytes": { "type": "integer", "minimum": 0, "maximum": 1073741824, "description": "Max bytes stored per anonymous session. Default 10485760 (10 MB)." },
+        "tokenFreshnessThresholdMs": { "type": "integer", "minimum": 0, "maximum": 86400000, "description": "Age at which a cached token is refreshed (ms). Default 60000." },
+        "lockAcquireTimeoutMs": { "type": "integer", "minimum": 0, "maximum": 86400000, "description": "Max wait to acquire a session-branch lock (ms). Default 10000." },
+        "lockHoldTtlMs": { "type": "integer", "minimum": 0, "maximum": 86400000, "description": "Auto-release TTL for a held session-branch lock (ms). Default 30000." }
+      }
+    },
+    "analytics": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Usage analytics.",
+      "properties": {
+        "retentionDays": { "type": "integer", "minimum": 1, "maximum": 3650, "description": "Days analytics events are retained. Default 90." },
+        "bufferRequeueLimit": { "type": "integer", "minimum": 0, "maximum": 1000000, "description": "Max client-buffered events requeued after a failed flush. Default 500." }
+      }
+    },
+    "flightRecorder": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Flight recorder dump throttling and retention.",
+      "properties": {
+        "minDumpIntervalMs": { "type": "integer", "minimum": 0, "maximum": 86400000, "description": "Minimum spacing between auto-dumps (ms). Default 10000." },
+        "maxDumpsPerWindow": { "type": "integer", "minimum": 1, "maximum": 1000, "description": "Max dumps per window. Default 5." },
+        "dumpWindowMs": { "type": "integer", "minimum": 0, "maximum": 86400000, "description": "Dump rate-limit window (ms). Default 60000." },
+        "maxRetainedDumps": { "type": "integer", "minimum": 1, "maximum": 10000, "description": "Max dump pairs retained on disk. Default 20." },
+        "maxTotalDumpSizeBytes": { "type": "integer", "minimum": 0, "maximum": 1073741824, "description": "Total dump-storage cap (bytes). Default 52428800 (50 MB)." }
+      }
+    },
+    "community": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Community Library submission caps.",
+      "properties": {
+        "maxPendingPerUser": { "type": "integer", "minimum": 1, "maximum": 10000, "description": "Max pending submissions per user. Default 20." },
+        "globalPendingCap": { "type": "integer", "minimum": 1, "maximum": 1000000, "description": "Max pending submissions across all users. Default 500." }
+      }
+    },
+    "feedback": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Feedback store pagination.",
+      "properties": {
+        "defaultPageLimit": { "type": "integer", "minimum": 1, "maximum": 10000, "description": "Default page size. Default 50." },
+        "maxPageLimit": { "type": "integer", "minimum": 1, "maximum": 10000, "description": "Max page size. Default 200." }
+      }
+    },
+    "server": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Server infrastructure timeouts and limits.",
+      "properties": {
+        "conflictsCacheTtlMs": { "type": "integer", "minimum": 0, "maximum": 86400000, "description": "Conflicts cache TTL (ms). Default 300000 (5 min)." },
+        "gitCloneTimeoutMs": { "type": "integer", "minimum": 0, "maximum": 3600000, "description": "Git clone timeout (ms, max 1h). Default 300000 (5 min)." },
+        "gitFetchTimeoutMs": { "type": "integer", "minimum": 0, "maximum": 3600000, "description": "Git fetch timeout (ms, max 1h). Default 600000 (10 min)." },
+        "gitDefaultTimeoutMs": { "type": "integer", "minimum": 0, "maximum": 3600000, "description": "Default git op timeout (ms, max 1h). Default 120000 (2 min)." },
+        "gitBufferLimitBytes": { "type": "integer", "minimum": 0, "maximum": 1073741824, "description": "Max git subprocess stdout buffer (bytes). Default 10485760 (10 MB)." },
+        "apiKeyMaskLength": { "type": "integer", "minimum": 0, "maximum": 64, "description": "Visible characters when masking an API key in logs/UI. Default 4." }
+      }
+    },
+    "cache": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Generic cache defaults (e.g. provider binding).",
+      "properties": {
+        "defaultTtlMs": { "type": "integer", "minimum": 0, "maximum": 86400000, "description": "Default cache TTL (ms). Default 30000." }
+      }
+    }
+  },
+  "$defs": {
+    "backends": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "enum": ["gemini", "claude", "groq"] }
+    },
+    "tier": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requestsPerMinute": { "type": "integer", "minimum": 1, "maximum": 1000, "description": "Requests per minute." },
+        "tokensPerDay": { "type": "integer", "minimum": 0, "maximum": 100000000, "description": "Tokens per day." },
+        "allowedBackends": { "$ref": "#/$defs/backends", "description": "Permitted AI backends." }
+      }
+    }
+  }
+}

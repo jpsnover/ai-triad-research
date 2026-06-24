@@ -1,0 +1,455 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+/**
+ * Runtime configuration reader (t/926, spec: docs/design/runtime-config-spec.md).
+ *
+ * Externalizes ~52 previously-hardcoded server/client parameters into an optional
+ * `{dataRoot}/admin/runtime-config.json` file with hot-reload. Follows the
+ * established mtime-cache pattern (quotas.ts, proxyTiers.ts, providerBinding.ts)
+ * with a tighter 5s TTL because this config backs everything.
+ *
+ * Fail-safe by design: a missing file, malformed JSON, or out-of-range values all
+ * degrade to the hardcoded DEFAULTS (the app behaves exactly as it does today).
+ * Partial configs deep-merge over defaults; bad individual fields fall back to
+ * their default and are reported in `errors[]` for the admin UI.
+ */
+
+import fs from 'fs';
+import path from 'path';
+import { getDataRoot } from './config.js';
+import { log } from './logger.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+
+// ── Types (mirror runtime-config-spec.md §3) ──
+
+export interface TierConfig {
+  requestsPerMinute: number;
+  tokensPerDay: number;
+  allowedBackends: string[];
+}
+
+export interface FreeTierConfig extends TierConfig {
+  pinnedModel: string;
+}
+
+export interface RuntimeConfig {
+  resilience: {
+    circuitThreshold: number;
+    circuitCooldownMs: number;
+    retryBaseDelayMs: number;
+    retryMaxDelayMs: number;
+    retryJitterMaxMs: number;
+    maxRetryAfterMs: number;
+    throttleWindowSize: number;
+    throttleBaselineCount: number;
+    throttleEnterFactor: number;
+    throttleExitFactor: number;
+    throttleDelayMs: number;
+  };
+  rateLimiting: {
+    windowMs: number;
+    cleanupCutoffMs: number;
+  };
+  tiers: {
+    platform: TierConfig;
+    byok: TierConfig;
+    anonymous: TierConfig;
+    free: FreeTierConfig;
+  };
+  quotas: {
+    defaultMaxChats: number;
+    defaultMaxDebates: number;
+  };
+  sessions: {
+    anonymousTtlMs: number;
+    anonymousMaxSessions: number;
+    anonymousMaxSizeBytes: number;
+    tokenFreshnessThresholdMs: number;
+    lockAcquireTimeoutMs: number;
+    lockHoldTtlMs: number;
+  };
+  analytics: {
+    retentionDays: number;
+    bufferRequeueLimit: number;
+  };
+  flightRecorder: {
+    minDumpIntervalMs: number;
+    maxDumpsPerWindow: number;
+    dumpWindowMs: number;
+    maxRetainedDumps: number;
+    maxTotalDumpSizeBytes: number;
+  };
+  community: {
+    maxPendingPerUser: number;
+    globalPendingCap: number;
+  };
+  feedback: {
+    defaultPageLimit: number;
+    maxPageLimit: number;
+  };
+  server: {
+    conflictsCacheTtlMs: number;
+    gitCloneTimeoutMs: number;
+    gitFetchTimeoutMs: number;
+    gitDefaultTimeoutMs: number;
+    gitBufferLimitBytes: number;
+    apiKeyMaskLength: number;
+  };
+  cache: {
+    defaultTtlMs: number;
+  };
+}
+
+export const KNOWN_BACKENDS = ['gemini', 'claude', 'groq'] as const;
+
+// Range bounds (spec §3.2).
+const DURATION_MAX = 86_400_000; // 24h
+const GIT_TIMEOUT_MAX = 3_600_000; // 1h
+const SIZE_MAX = 1_073_741_824; // 1 GB
+const TOKENS_MAX = 100_000_000;
+const RPM_MAX = 1_000;
+const QUOTA_MAX = 10_000;
+
+const DEFAULTS: RuntimeConfig = {
+  resilience: {
+    circuitThreshold: 5,
+    circuitCooldownMs: 60_000,
+    retryBaseDelayMs: 1_000,
+    retryMaxDelayMs: 30_000,
+    retryJitterMaxMs: 500,
+    maxRetryAfterMs: 30_000,
+    throttleWindowSize: 20,
+    throttleBaselineCount: 10,
+    throttleEnterFactor: 2.0,
+    throttleExitFactor: 1.5,
+    throttleDelayMs: 2_000,
+  },
+  rateLimiting: {
+    windowMs: 60_000,
+    cleanupCutoffMs: 120_000,
+  },
+  tiers: {
+    platform: { requestsPerMinute: 60, tokensPerDay: 2_000_000, allowedBackends: ['gemini', 'claude', 'groq'] },
+    byok: { requestsPerMinute: 30, tokensPerDay: 500_000, allowedBackends: ['gemini', 'claude', 'groq'] },
+    anonymous: { requestsPerMinute: 10, tokensPerDay: 100_000, allowedBackends: ['gemini', 'claude', 'groq'] },
+    free: { requestsPerMinute: 6, tokensPerDay: 50_000, allowedBackends: ['gemini'], pinnedModel: 'gemini-flash-lite-latest' },
+  },
+  quotas: {
+    defaultMaxChats: 25,
+    defaultMaxDebates: 15,
+  },
+  sessions: {
+    anonymousTtlMs: 14_400_000,
+    anonymousMaxSessions: 100,
+    anonymousMaxSizeBytes: 10_485_760,
+    tokenFreshnessThresholdMs: 60_000,
+    lockAcquireTimeoutMs: 10_000,
+    lockHoldTtlMs: 30_000,
+  },
+  analytics: {
+    retentionDays: 90,
+    bufferRequeueLimit: 500,
+  },
+  flightRecorder: {
+    minDumpIntervalMs: 10_000,
+    maxDumpsPerWindow: 5,
+    dumpWindowMs: 60_000,
+    maxRetainedDumps: 20,
+    maxTotalDumpSizeBytes: 52_428_800,
+  },
+  community: {
+    maxPendingPerUser: 20,
+    globalPendingCap: 500,
+  },
+  feedback: {
+    defaultPageLimit: 50,
+    maxPageLimit: 200,
+  },
+  server: {
+    conflictsCacheTtlMs: 300_000,
+    gitCloneTimeoutMs: 300_000,
+    gitFetchTimeoutMs: 600_000,
+    gitDefaultTimeoutMs: 120_000,
+    gitBufferLimitBytes: 10_485_760,
+    apiKeyMaskLength: 4,
+  },
+  cache: {
+    defaultTtlMs: 30_000,
+  },
+};
+
+// ── Field validation helpers ──
+
+interface NumOpts { min: number; max: number; integer?: boolean }
+
+/** Validate a numeric field: type-check, round integers, clamp to [min,max]. */
+function vNum(val: unknown, def: number, opts: NumOpts, field: string, errors: string[]): number {
+  if (val === undefined) return def;
+  if (typeof val !== 'number' || Number.isNaN(val) || !Number.isFinite(val)) {
+    errors.push(`${field}: expected number, got ${typeof val} — using default ${def}`);
+    return def;
+  }
+  let v = val;
+  if (opts.integer && !Number.isInteger(v)) v = Math.round(v);
+  if (v < opts.min) { errors.push(`${field}: ${val} below min ${opts.min} — clamped`); v = opts.min; }
+  if (v > opts.max) { errors.push(`${field}: ${val} above max ${opts.max} — clamped`); v = opts.max; }
+  return v;
+}
+
+/** Throttle factor: must be > 1.0 (spec §3.2). Invalid → default; too large → clamped. */
+function vFactor(val: unknown, def: number, field: string, errors: string[]): number {
+  if (val === undefined) return def;
+  if (typeof val !== 'number' || Number.isNaN(val) || !Number.isFinite(val)) {
+    errors.push(`${field}: expected number, got ${typeof val} — using default ${def}`);
+    return def;
+  }
+  if (val <= 1.0) { errors.push(`${field}: ${val} must be > 1.0 — using default ${def}`); return def; }
+  if (val > 100) { errors.push(`${field}: ${val} above max 100 — clamped`); return 100; }
+  return val;
+}
+
+function vStr(val: unknown, def: string, field: string, errors: string[]): string {
+  if (val === undefined) return def;
+  if (typeof val !== 'string' || val.length === 0) {
+    errors.push(`${field}: expected non-empty string — using default "${def}"`);
+    return def;
+  }
+  return val;
+}
+
+/** allowedBackends: non-empty array of known backends; unknown items dropped (spec §3.2). */
+function vBackends(val: unknown, def: string[], field: string, errors: string[]): string[] {
+  if (val === undefined) return [...def];
+  if (!Array.isArray(val) || val.length === 0) {
+    errors.push(`${field}: expected non-empty array — using default`);
+    return [...def];
+  }
+  const filtered = val.filter((b): b is string => typeof b === 'string' && (KNOWN_BACKENDS as readonly string[]).includes(b));
+  if (filtered.length === 0) {
+    errors.push(`${field}: no known backends (allowed: ${KNOWN_BACKENDS.join(', ')}) — using default`);
+    return [...def];
+  }
+  if (filtered.length !== val.length) {
+    errors.push(`${field}: dropped ${val.length - filtered.length} unknown/invalid backend(s)`);
+  }
+  return filtered;
+}
+
+/** Return raw[key] if it's a plain object, else {} (so absent/wrong-type sections fall to defaults). */
+function section(raw: Record<string, unknown>, key: string, errors: string[]): Record<string, unknown> {
+  const v = raw[key];
+  if (v === undefined) return {};
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) {
+    errors.push(`${key}: expected object — section ignored, using defaults`);
+    return {};
+  }
+  return v as Record<string, unknown>;
+}
+
+function mergeTier(raw: Record<string, unknown>, def: TierConfig, name: string, errors: string[]): TierConfig {
+  return {
+    requestsPerMinute: vNum(raw.requestsPerMinute, def.requestsPerMinute, { min: 1, max: RPM_MAX, integer: true }, `tiers.${name}.requestsPerMinute`, errors),
+    tokensPerDay: vNum(raw.tokensPerDay, def.tokensPerDay, { min: 0, max: TOKENS_MAX, integer: true }, `tiers.${name}.tokensPerDay`, errors),
+    allowedBackends: vBackends(raw.allowedBackends, def.allowedBackends, `tiers.${name}.allowedBackends`, errors),
+  };
+}
+
+/**
+ * Deep-merge `raw` over `defaults`, validating each field. Returns the merged
+ * config plus an `errors[]` array (empty when clean). Out-of-range values clamp;
+ * wrong-typed fields fall back to their default; a non-v1 file or a cross-field
+ * violation reverts the affected scope to defaults (spec §4.2, §7.1).
+ */
+export function validateAndMerge(raw: unknown, defaults: RuntimeConfig): { config: RuntimeConfig; errors: string[] } {
+  const errors: string[] = [];
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    errors.push('root: config is not an object — using defaults');
+    return { config: structuredClone(defaults), errors };
+  }
+  const r = raw as Record<string, unknown>;
+
+  // Forward-compat guard: refuse to merge a config authored against a newer schema.
+  const meta = r._meta;
+  if (meta && typeof meta === 'object' && !Array.isArray(meta) && 'version' in meta) {
+    const ver = (meta as Record<string, unknown>).version;
+    if (ver !== 1) {
+      errors.push(`_meta.version: expected 1, got ${JSON.stringify(ver)} — refusing to merge a non-v1 config, using defaults`);
+      return { config: structuredClone(defaults), errors };
+    }
+  }
+
+  const res = section(r, 'resilience', errors);
+  const rl = section(r, 'rateLimiting', errors);
+  const tiers = section(r, 'tiers', errors);
+  const q = section(r, 'quotas', errors);
+  const sess = section(r, 'sessions', errors);
+  const an = section(r, 'analytics', errors);
+  const fr = section(r, 'flightRecorder', errors);
+  const comm = section(r, 'community', errors);
+  const fb = section(r, 'feedback', errors);
+  const srv = section(r, 'server', errors);
+  const cache = section(r, 'cache', errors);
+
+  let resilience: RuntimeConfig['resilience'] = {
+    circuitThreshold: vNum(res.circuitThreshold, defaults.resilience.circuitThreshold, { min: 1, max: 1_000, integer: true }, 'resilience.circuitThreshold', errors),
+    circuitCooldownMs: vNum(res.circuitCooldownMs, defaults.resilience.circuitCooldownMs, { min: 0, max: DURATION_MAX }, 'resilience.circuitCooldownMs', errors),
+    retryBaseDelayMs: vNum(res.retryBaseDelayMs, defaults.resilience.retryBaseDelayMs, { min: 0, max: DURATION_MAX }, 'resilience.retryBaseDelayMs', errors),
+    retryMaxDelayMs: vNum(res.retryMaxDelayMs, defaults.resilience.retryMaxDelayMs, { min: 0, max: DURATION_MAX }, 'resilience.retryMaxDelayMs', errors),
+    retryJitterMaxMs: vNum(res.retryJitterMaxMs, defaults.resilience.retryJitterMaxMs, { min: 0, max: DURATION_MAX }, 'resilience.retryJitterMaxMs', errors),
+    maxRetryAfterMs: vNum(res.maxRetryAfterMs, defaults.resilience.maxRetryAfterMs, { min: 0, max: DURATION_MAX }, 'resilience.maxRetryAfterMs', errors),
+    throttleWindowSize: vNum(res.throttleWindowSize, defaults.resilience.throttleWindowSize, { min: 1, max: 10_000, integer: true }, 'resilience.throttleWindowSize', errors),
+    throttleBaselineCount: vNum(res.throttleBaselineCount, defaults.resilience.throttleBaselineCount, { min: 1, max: 10_000, integer: true }, 'resilience.throttleBaselineCount', errors),
+    throttleEnterFactor: vFactor(res.throttleEnterFactor, defaults.resilience.throttleEnterFactor, 'resilience.throttleEnterFactor', errors),
+    throttleExitFactor: vFactor(res.throttleExitFactor, defaults.resilience.throttleExitFactor, 'resilience.throttleExitFactor', errors),
+    throttleDelayMs: vNum(res.throttleDelayMs, defaults.resilience.throttleDelayMs, { min: 0, max: DURATION_MAX }, 'resilience.throttleDelayMs', errors),
+  };
+  // Cross-field: exit factor must stay below enter factor (spec §3.2). On violation
+  // the whole resilience section reverts to defaults (spec §7.1).
+  if (resilience.throttleExitFactor >= resilience.throttleEnterFactor) {
+    errors.push(`resilience: throttleExitFactor (${resilience.throttleExitFactor}) must be < throttleEnterFactor (${resilience.throttleEnterFactor}) — reverting resilience section to defaults`);
+    resilience = structuredClone(defaults.resilience);
+  }
+
+  const config: RuntimeConfig = {
+    resilience,
+    rateLimiting: {
+      windowMs: vNum(rl.windowMs, defaults.rateLimiting.windowMs, { min: 0, max: DURATION_MAX }, 'rateLimiting.windowMs', errors),
+      cleanupCutoffMs: vNum(rl.cleanupCutoffMs, defaults.rateLimiting.cleanupCutoffMs, { min: 0, max: DURATION_MAX }, 'rateLimiting.cleanupCutoffMs', errors),
+    },
+    tiers: {
+      platform: mergeTier(section(tiers, 'platform', errors), defaults.tiers.platform, 'platform', errors),
+      byok: mergeTier(section(tiers, 'byok', errors), defaults.tiers.byok, 'byok', errors),
+      anonymous: mergeTier(section(tiers, 'anonymous', errors), defaults.tiers.anonymous, 'anonymous', errors),
+      free: {
+        ...mergeTier(section(tiers, 'free', errors), defaults.tiers.free, 'free', errors),
+        pinnedModel: vStr(section(tiers, 'free', errors).pinnedModel, defaults.tiers.free.pinnedModel, 'tiers.free.pinnedModel', errors),
+      },
+    },
+    quotas: {
+      defaultMaxChats: vNum(q.defaultMaxChats, defaults.quotas.defaultMaxChats, { min: 1, max: QUOTA_MAX, integer: true }, 'quotas.defaultMaxChats', errors),
+      defaultMaxDebates: vNum(q.defaultMaxDebates, defaults.quotas.defaultMaxDebates, { min: 1, max: QUOTA_MAX, integer: true }, 'quotas.defaultMaxDebates', errors),
+    },
+    sessions: {
+      anonymousTtlMs: vNum(sess.anonymousTtlMs, defaults.sessions.anonymousTtlMs, { min: 0, max: DURATION_MAX }, 'sessions.anonymousTtlMs', errors),
+      anonymousMaxSessions: vNum(sess.anonymousMaxSessions, defaults.sessions.anonymousMaxSessions, { min: 1, max: 1_000_000, integer: true }, 'sessions.anonymousMaxSessions', errors),
+      anonymousMaxSizeBytes: vNum(sess.anonymousMaxSizeBytes, defaults.sessions.anonymousMaxSizeBytes, { min: 0, max: SIZE_MAX, integer: true }, 'sessions.anonymousMaxSizeBytes', errors),
+      tokenFreshnessThresholdMs: vNum(sess.tokenFreshnessThresholdMs, defaults.sessions.tokenFreshnessThresholdMs, { min: 0, max: DURATION_MAX }, 'sessions.tokenFreshnessThresholdMs', errors),
+      lockAcquireTimeoutMs: vNum(sess.lockAcquireTimeoutMs, defaults.sessions.lockAcquireTimeoutMs, { min: 0, max: DURATION_MAX }, 'sessions.lockAcquireTimeoutMs', errors),
+      lockHoldTtlMs: vNum(sess.lockHoldTtlMs, defaults.sessions.lockHoldTtlMs, { min: 0, max: DURATION_MAX }, 'sessions.lockHoldTtlMs', errors),
+    },
+    analytics: {
+      retentionDays: vNum(an.retentionDays, defaults.analytics.retentionDays, { min: 1, max: 3_650, integer: true }, 'analytics.retentionDays', errors),
+      bufferRequeueLimit: vNum(an.bufferRequeueLimit, defaults.analytics.bufferRequeueLimit, { min: 0, max: 1_000_000, integer: true }, 'analytics.bufferRequeueLimit', errors),
+    },
+    flightRecorder: {
+      minDumpIntervalMs: vNum(fr.minDumpIntervalMs, defaults.flightRecorder.minDumpIntervalMs, { min: 0, max: DURATION_MAX }, 'flightRecorder.minDumpIntervalMs', errors),
+      maxDumpsPerWindow: vNum(fr.maxDumpsPerWindow, defaults.flightRecorder.maxDumpsPerWindow, { min: 1, max: 1_000, integer: true }, 'flightRecorder.maxDumpsPerWindow', errors),
+      dumpWindowMs: vNum(fr.dumpWindowMs, defaults.flightRecorder.dumpWindowMs, { min: 0, max: DURATION_MAX }, 'flightRecorder.dumpWindowMs', errors),
+      maxRetainedDumps: vNum(fr.maxRetainedDumps, defaults.flightRecorder.maxRetainedDumps, { min: 1, max: 10_000, integer: true }, 'flightRecorder.maxRetainedDumps', errors),
+      maxTotalDumpSizeBytes: vNum(fr.maxTotalDumpSizeBytes, defaults.flightRecorder.maxTotalDumpSizeBytes, { min: 0, max: SIZE_MAX, integer: true }, 'flightRecorder.maxTotalDumpSizeBytes', errors),
+    },
+    community: {
+      maxPendingPerUser: vNum(comm.maxPendingPerUser, defaults.community.maxPendingPerUser, { min: 1, max: 10_000, integer: true }, 'community.maxPendingPerUser', errors),
+      globalPendingCap: vNum(comm.globalPendingCap, defaults.community.globalPendingCap, { min: 1, max: 1_000_000, integer: true }, 'community.globalPendingCap', errors),
+    },
+    feedback: {
+      defaultPageLimit: vNum(fb.defaultPageLimit, defaults.feedback.defaultPageLimit, { min: 1, max: 10_000, integer: true }, 'feedback.defaultPageLimit', errors),
+      maxPageLimit: vNum(fb.maxPageLimit, defaults.feedback.maxPageLimit, { min: 1, max: 10_000, integer: true }, 'feedback.maxPageLimit', errors),
+    },
+    server: {
+      conflictsCacheTtlMs: vNum(srv.conflictsCacheTtlMs, defaults.server.conflictsCacheTtlMs, { min: 0, max: DURATION_MAX }, 'server.conflictsCacheTtlMs', errors),
+      gitCloneTimeoutMs: vNum(srv.gitCloneTimeoutMs, defaults.server.gitCloneTimeoutMs, { min: 0, max: GIT_TIMEOUT_MAX }, 'server.gitCloneTimeoutMs', errors),
+      gitFetchTimeoutMs: vNum(srv.gitFetchTimeoutMs, defaults.server.gitFetchTimeoutMs, { min: 0, max: GIT_TIMEOUT_MAX }, 'server.gitFetchTimeoutMs', errors),
+      gitDefaultTimeoutMs: vNum(srv.gitDefaultTimeoutMs, defaults.server.gitDefaultTimeoutMs, { min: 0, max: GIT_TIMEOUT_MAX }, 'server.gitDefaultTimeoutMs', errors),
+      gitBufferLimitBytes: vNum(srv.gitBufferLimitBytes, defaults.server.gitBufferLimitBytes, { min: 0, max: SIZE_MAX, integer: true }, 'server.gitBufferLimitBytes', errors),
+      apiKeyMaskLength: vNum(srv.apiKeyMaskLength, defaults.server.apiKeyMaskLength, { min: 0, max: 64, integer: true }, 'server.apiKeyMaskLength', errors),
+    },
+    cache: {
+      defaultTtlMs: vNum(cache.defaultTtlMs, defaults.cache.defaultTtlMs, { min: 0, max: DURATION_MAX }, 'cache.defaultTtlMs', errors),
+    },
+  };
+
+  return { config, errors };
+}
+
+// ── Config loading with mtime cache (5s TTL — tighter than quotas.ts) ──
+
+let _cache: RuntimeConfig | null = null;
+let _cacheMtime = 0;
+let _lastLoadTime = 0;
+const CACHE_TTL = 5_000;
+
+function configPath(): string {
+  return path.join(getDataRoot(), 'admin', 'runtime-config.json');
+}
+
+function loadConfig(): RuntimeConfig {
+  const p = configPath();
+  try {
+    const stat = fs.statSync(p);
+    if (_cache && stat.mtimeMs === _cacheMtime) return _cache;
+    const raw = JSON.parse(fs.readFileSync(p, 'utf-8'));
+    const { config, errors } = validateAndMerge(raw, DEFAULTS);
+    if (errors.length > 0) {
+      log.server.warn({ component: 'runtime-config', path: p, errorCount: errors.length, errors: errors.slice(0, 20) }, 'Runtime config loaded with validation issues');
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'runtime-config', level: 'warn',
+        message: `Runtime config loaded with ${errors.length} validation issue(s)`,
+        data: { errors: errors.slice(0, 20) },
+      });
+    }
+    _cache = config;
+    _cacheMtime = stat.mtimeMs;
+    return _cache;
+  } catch (err) {
+    // ENOENT is the common, expected case (no override file → defaults). Anything
+    // else (malformed JSON, permissions) is surfaced before degrading to defaults.
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      log.server.warn({ component: 'runtime-config', path: p, err: (err as Error).message }, 'Invalid runtime config — using defaults');
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'runtime-config', level: 'warn',
+        message: 'Failed to load runtime config — using defaults',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+    }
+    return DEFAULTS;
+  }
+}
+
+/** Current runtime config (merged over defaults), re-read at most once per 5s. */
+export function getConfig(): RuntimeConfig {
+  const now = Date.now();
+  if (now - _lastLoadTime > CACHE_TTL) {
+    _lastLoadTime = now;
+    return loadConfig();
+  }
+  return _cache ?? loadConfig();
+}
+
+/**
+ * Force an immediate cache invalidation + re-read (backs POST /api/admin/config/reload).
+ * `ok` is true when a config file was actually loaded, false when it fell back to
+ * hardcoded defaults (missing/unreadable file).
+ */
+export function forceReload(): { ok: boolean; errors?: string[] } {
+  _cache = null;
+  _cacheMtime = 0;
+  _lastLoadTime = Date.now();
+  try {
+    const config = loadConfig();
+    return { ok: config !== DEFAULTS };
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'runtime-config', level: 'warn',
+      message: 'Runtime config force-reload failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return { ok: false, errors: [String(err)] };
+  }
+}
+
+/** A deep copy of the hardcoded defaults (safe for callers to mutate). */
+export function getDefaults(): RuntimeConfig {
+  return structuredClone(DEFAULTS);
+}
