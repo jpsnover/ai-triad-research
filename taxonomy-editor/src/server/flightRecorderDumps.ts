@@ -16,6 +16,7 @@
 import fs from 'fs';
 import path from 'path';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+import { getConfig } from './runtimeConfig.js';
 
 export const MAX_DUMP_GROUPS = 20;
 export const MAX_DUMP_BYTES = 50 * 1024 * 1024;
@@ -74,7 +75,7 @@ export function pruneDumps(dir: string): void {
         const stat = fs.statSync(path.join(dir, name));
         return { name, dumpId: m[2], mtime: stat.mtimeMs, size: stat.size };
       });
-    for (const name of selectExpiredDumps(files)) {
+    for (const name of selectExpiredDumps(files, getConfig().flightRecorder.maxRetainedDumps, getConfig().flightRecorder.maxTotalDumpSizeBytes)) {
       try { fs.unlinkSync(path.join(dir, name)); } catch { /* telemetry — silent by design */ }
     }
   } catch (err) {
@@ -94,4 +95,130 @@ export function writeDump(dataRoot: string, kind: 'client' | 'server', dumpId: s
   fs.writeFileSync(filePath, ndjson, 'utf-8');
   pruneDumps(dir);
   return filePath;
+}
+
+// ── Merge logic (t/939) ────────────────────────────────────────────────
+
+interface ParsedDump {
+  header: Record<string, unknown> | null;
+  dictionary: Record<string, unknown>[];
+  context: Record<string, unknown> | null;
+  events: Record<string, unknown>[];
+  triggers: Record<string, unknown>[];
+}
+
+function parseDumpNdjson(ndjson: string): ParsedDump {
+  const result: ParsedDump = { header: null, dictionary: [], context: null, events: [], triggers: [] };
+  for (const line of ndjson.split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const rec = JSON.parse(line) as Record<string, unknown>;
+      switch (rec._type) {
+        case 'header': result.header = rec; break;
+        case 'dictionary': result.dictionary.push(rec); break;
+        case 'context': result.context = rec; break;
+        case 'trigger': result.triggers.push(rec); break;
+        default: result.events.push(rec); break;
+      }
+    } catch { /* skip malformed lines */ }
+  }
+  return result;
+}
+
+/**
+ * Merge a paired client + server dump into a single interleaved NDJSON string.
+ * Events are sorted by `_wall` timestamp and tagged with `_source` and `_merged_seq`.
+ * Mirrors the `Merge-FlightRecorderDumps` PowerShell cmdlet.
+ */
+export function mergeDumps(clientNdjson: string | null, serverNdjson: string | null): string {
+  const client = clientNdjson ? parseDumpNdjson(clientNdjson) : null;
+  const server = serverNdjson ? parseDumpNdjson(serverNdjson) : null;
+
+  const lines: string[] = [];
+
+  // Merged header
+  const mergedHeader: Record<string, unknown> = {
+    _type: 'header',
+    merged: true,
+    merge_timestamp: new Date().toISOString(),
+    sources: [client && 'client', server && 'server'].filter(Boolean),
+    total_events: (client?.events.length ?? 0) + (server?.events.length ?? 0),
+  };
+  for (const [src, dump] of [['client', client], ['server', server]] as const) {
+    if (!dump?.header) continue;
+    const h = dump.header;
+    mergedHeader[`${src}_timestamp`] = h.timestamp ?? h._wall;
+    mergedHeader[`${src}_uptime_ms`] = h.uptime_ms;
+    mergedHeader[`${src}_capacity`] = h.capacity;
+    mergedHeader[`${src}_retained`] = h.retained;
+    mergedHeader[`${src}_lost`] = h.lost;
+  }
+  lines.push(JSON.stringify(mergedHeader));
+
+  // Merged dictionary — deduplicate by category:value
+  const seen = new Set<string>();
+  let handle = 0;
+  for (const [src, dump] of [['client', client], ['server', server]] as const) {
+    if (!dump) continue;
+    for (const entry of dump.dictionary) {
+      const key = `${entry.category}:${entry.value}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      lines.push(JSON.stringify({ ...entry, handle: handle++, source: src }));
+    }
+  }
+
+  // Merged context — union fields, track provenance
+  const mergedCtx: Record<string, unknown> = { _type: 'context' };
+  const clientFields: string[] = [];
+  const serverFields: string[] = [];
+  for (const [src, dump, arr] of [['client', client, clientFields], ['server', server, serverFields]] as const) {
+    if (!dump?.context) continue;
+    for (const [k, v] of Object.entries(dump.context)) {
+      if (k === '_type') continue;
+      if (!(k in mergedCtx)) mergedCtx[k] = v;
+      (arr as string[]).push(k);
+    }
+  }
+  mergedCtx._client_fields = clientFields;
+  mergedCtx._server_fields = serverFields;
+  lines.push(JSON.stringify(mergedCtx));
+
+  // Interleave events by _wall timestamp
+  const allEvents: Record<string, unknown>[] = [];
+  if (client) for (const e of client.events) allEvents.push({ ...e, _source: 'client' });
+  if (server) for (const e of server.events) allEvents.push({ ...e, _source: 'server' });
+  allEvents.sort((a, b) => {
+    const wa = typeof a._wall === 'string' ? a._wall : '';
+    const wb = typeof b._wall === 'string' ? b._wall : '';
+    return wa < wb ? -1 : wa > wb ? 1 : 0;
+  });
+  for (let i = 0; i < allEvents.length; i++) {
+    allEvents[i]._merged_seq = i;
+    lines.push(JSON.stringify(allEvents[i]));
+  }
+
+  // Triggers from both sources
+  if (client) for (const t of client.triggers) lines.push(JSON.stringify({ ...t, _source: 'client' }));
+  if (server) for (const t of server.triggers) lines.push(JSON.stringify({ ...t, _source: 'server' }));
+
+  return lines.join('\n') + '\n';
+}
+
+/**
+ * Read and merge a paired dump by dumpId. Returns null if neither file exists.
+ */
+export function readMergedDump(dataRoot: string, dumpId: string): string | null {
+  const dir = dumpsDir(dataRoot);
+  const clientPath = path.join(dir, `client-${dumpId}.jsonl`);
+  const serverPath = path.join(dir, `server-${dumpId}.jsonl`);
+
+  const clientExists = fs.existsSync(clientPath);
+  const serverExists = fs.existsSync(serverPath);
+  if (!clientExists && !serverExists) return null;
+
+  const clientNdjson = clientExists ? fs.readFileSync(clientPath, 'utf-8') : null;
+  const serverNdjson = serverExists ? fs.readFileSync(serverPath, 'utf-8') : null;
+
+  return mergeDumps(clientNdjson, serverNdjson);
 }

@@ -9,7 +9,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import {
-  isValidDumpId, selectExpiredDumps, writeDump, dumpsDir, type DumpFileInfo,
+  isValidDumpId, selectExpiredDumps, writeDump, dumpsDir, mergeDumps, readMergedDump, type DumpFileInfo,
 } from '../flightRecorderDumps.js';
 
 describe('isValidDumpId (t/908)', () => {
@@ -59,5 +59,154 @@ describe('writeDump (t/908)', () => {
     const dir = dumpsDir(root);
     expect(fs.existsSync(path.join(dir, 'client-abc.jsonl'))).toBe(true);
     expect(fs.existsSync(path.join(dir, 'server-abc.jsonl'))).toBe(true);
+  });
+});
+
+// ── Merge logic (t/939) ─────────────────────────────────────────────
+
+function ndjson(...records: Record<string, unknown>[]): string {
+  return records.map(r => JSON.stringify(r)).join('\n') + '\n';
+}
+
+describe('mergeDumps (t/939)', () => {
+  it('interleaves events by _wall timestamp and tags with _source/_merged_seq', () => {
+    const client = ndjson(
+      { _type: 'header', timestamp: '2026-01-01T00:00:00Z', capacity: 100, retained: 2, lost: 0 },
+      { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'click' },
+      { _type: 'event', _wall: '2026-01-01T00:00:03Z', type: 'nav' },
+    );
+    const server = ndjson(
+      { _type: 'header', timestamp: '2026-01-01T00:00:00Z', capacity: 200, retained: 1, lost: 0 },
+      { _type: 'event', _wall: '2026-01-01T00:00:02Z', type: 'api.call' },
+    );
+    const merged = mergeDumps(client, server);
+    const lines = merged.trim().split('\n').map(l => JSON.parse(l));
+
+    const header = lines[0];
+    expect(header._type).toBe('header');
+    expect(header.merged).toBe(true);
+    expect(header.total_events).toBe(3);
+    expect(header.sources).toEqual(['client', 'server']);
+
+    const events = lines.filter(l => l._source && l._type !== 'trigger');
+    expect(events).toHaveLength(3);
+    expect(events[0]._wall).toBe('2026-01-01T00:00:01Z');
+    expect(events[0]._source).toBe('client');
+    expect(events[0]._merged_seq).toBe(0);
+    expect(events[1]._wall).toBe('2026-01-01T00:00:02Z');
+    expect(events[1]._source).toBe('server');
+    expect(events[1]._merged_seq).toBe(1);
+    expect(events[2]._wall).toBe('2026-01-01T00:00:03Z');
+    expect(events[2]._source).toBe('client');
+    expect(events[2]._merged_seq).toBe(2);
+  });
+
+  it('deduplicates dictionary entries by category:value', () => {
+    const client = ndjson(
+      { _type: 'header' },
+      { _type: 'dictionary', handle: 0, category: 'component', value: 'Toolbar' },
+      { _type: 'dictionary', handle: 1, category: 'component', value: 'Sidebar' },
+    );
+    const server = ndjson(
+      { _type: 'header' },
+      { _type: 'dictionary', handle: 0, category: 'component', value: 'Toolbar' },
+      { _type: 'dictionary', handle: 1, category: 'route', value: '/api/health' },
+    );
+    const merged = mergeDumps(client, server);
+    const lines = merged.trim().split('\n').map(l => JSON.parse(l));
+    const dicts = lines.filter(l => l._type === 'dictionary');
+    expect(dicts).toHaveLength(3);
+    expect(dicts.map(d => `${d.category}:${d.value}`)).toEqual([
+      'component:Toolbar', 'component:Sidebar', 'route:/api/health',
+    ]);
+  });
+
+  it('unions context fields and tracks provenance', () => {
+    const client = ndjson(
+      { _type: 'header' },
+      { _type: 'context', userId: 'alice', theme: 'dark' },
+    );
+    const server = ndjson(
+      { _type: 'header' },
+      { _type: 'context', nodeVersion: '22', uptime: 3600 },
+    );
+    const merged = mergeDumps(client, server);
+    const lines = merged.trim().split('\n').map(l => JSON.parse(l));
+    const ctx = lines.find(l => l._type === 'context');
+    expect(ctx.userId).toBe('alice');
+    expect(ctx.theme).toBe('dark');
+    expect(ctx.nodeVersion).toBe('22');
+    expect(ctx._client_fields).toEqual(['userId', 'theme']);
+    expect(ctx._server_fields).toEqual(['nodeVersion', 'uptime']);
+  });
+
+  it('handles client-only merge (no server dump)', () => {
+    const client = ndjson(
+      { _type: 'header', timestamp: '2026-01-01T00:00:00Z' },
+      { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'click' },
+    );
+    const merged = mergeDumps(client, null);
+    const lines = merged.trim().split('\n').map(l => JSON.parse(l));
+    const header = lines[0];
+    expect(header.merged).toBe(true);
+    expect(header.sources).toEqual(['client']);
+    expect(header.total_events).toBe(1);
+  });
+
+  it('tags triggers with _source from each side', () => {
+    const client = ndjson(
+      { _type: 'header' },
+      { _type: 'trigger', action: 'user-clicked-dump' },
+    );
+    const server = ndjson(
+      { _type: 'header' },
+      { _type: 'trigger', action: 'admin-requested' },
+    );
+    const merged = mergeDumps(client, server);
+    const lines = merged.trim().split('\n').map(l => JSON.parse(l));
+    const triggers = lines.filter(l => l._type === 'trigger');
+    expect(triggers).toHaveLength(2);
+    expect(triggers[0]._source).toBe('client');
+    expect(triggers[1]._source).toBe('server');
+  });
+});
+
+describe('readMergedDump (t/939)', () => {
+  let root: string;
+  beforeEach(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), 'frdump-merge-')); });
+  afterEach(() => { fs.rmSync(root, { recursive: true, force: true }); });
+
+  it('merges paired files from disk', () => {
+    const clientNdjson = ndjson(
+      { _type: 'header', capacity: 100 },
+      { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'click' },
+    );
+    const serverNdjson = ndjson(
+      { _type: 'header', capacity: 200 },
+      { _type: 'event', _wall: '2026-01-01T00:00:02Z', type: 'api' },
+    );
+    writeDump(root, 'client', 'test-id', clientNdjson);
+    writeDump(root, 'server', 'test-id', serverNdjson);
+
+    const merged = readMergedDump(root, 'test-id');
+    expect(merged).not.toBeNull();
+    const lines = merged!.trim().split('\n').map(l => JSON.parse(l));
+    expect(lines[0].merged).toBe(true);
+    expect(lines[0].total_events).toBe(2);
+  });
+
+  it('returns null when neither file exists', () => {
+    expect(readMergedDump(root, 'nonexistent')).toBeNull();
+  });
+
+  it('handles single-side (client only) gracefully', () => {
+    writeDump(root, 'client', 'solo', ndjson(
+      { _type: 'header' },
+      { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'click' },
+    ));
+    const merged = readMergedDump(root, 'solo');
+    expect(merged).not.toBeNull();
+    const lines = merged!.trim().split('\n').map(l => JSON.parse(l));
+    expect(lines[0].sources).toEqual(['client']);
   });
 });

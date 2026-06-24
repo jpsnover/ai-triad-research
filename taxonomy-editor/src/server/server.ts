@@ -1497,6 +1497,32 @@ post('/api/admin/flight-recorder/dump', (_req, res, body) => {
   }
 });
 
+// t/939: download a single merged (client+server) dump for a dumpId. Mirrors the
+// Merge-FlightRecorderDumps cmdlet — interleaves events by _wall, tags _source,
+// merges headers/dictionaries/contexts; handles a single side gracefully. Admin
+// only: the merge includes the full server ring buffer (other users' internals).
+get('/api/flight-recorder/download-merged/:dumpId', (req, res) => {
+  if (!requireAdmin(res)) return;
+  try {
+    const dumpId = param(req, 'dumpId', '/api/flight-recorder/download-merged/:dumpId');
+    if (!isValidDumpId(dumpId)) { error(res, 'dumpId must be a UUID-safe string', 400); return; }
+    const merged = readMergedDump(getDataRoot(), dumpId);
+    if (merged === null) { error(res, 'No dump found for that dumpId', 404); return; }
+    res.writeHead(200, {
+      'Content-Type': 'application/x-ndjson',
+      'Content-Disposition': `attachment; filename="merged-${dumpId}.jsonl"`,
+    });
+    res.end(merged);
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'flight-recorder-dumps', level: 'error',
+      message: 'Merged dump download failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
+});
+
 get('/api/flight-recorder/list', (_req, res) => {
   try {
     const dumpDir = path.join(getDataRoot(), 'flight-recorder');
