@@ -270,7 +270,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: 'staitriad${uniqueSuffix}'
   location: location
   tags: tags
-  sku: { name: 'Standard_LRS' }
+  sku: { name: 'Standard_ZRS' }
   kind: 'StorageV2'
   properties: {
     accessTier: 'Hot'
