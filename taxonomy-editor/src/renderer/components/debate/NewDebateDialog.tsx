@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
-import type { TextareaHTMLAttributes } from 'react';
+import type { TextareaHTMLAttributes, CSSProperties } from 'react';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore, MODELS_BY_BACKEND, AI_BACKENDS, DEBATE_TIERS, FALLBACK_CHAINS, initAIModels, backendForModel } from '../../hooks/useTaxonomyStore';
@@ -75,6 +75,93 @@ function AutoGrowTextarea({
   return <textarea ref={ref} value={value} {...props} />;
 }
 
+// Help copy for audiences (DEBATE_AUDIENCES carries only id+label) — used by the
+// config info modal (t/911). Display text, not an AI prompt.
+const AUDIENCE_DESCRIPTIONS: Record<string, string> = {
+  policymakers: 'Frames arguments around policy levers, governance, and real-world decisions and tradeoffs.',
+  technical_researchers: 'Emphasizes mechanisms, evidence, and technical precision over rhetoric.',
+  industry_leaders: 'Focuses on strategy, deployment, incentives, and commercial/operational impact.',
+  academic_community: 'Prioritizes rigor, citations, and engagement with the scholarly literature.',
+  general_public: 'Uses plain language and accessible framing, minimizing jargon.',
+};
+
+/**
+ * Explainer modal for the New Debate configuration options (t/911). Covers
+ * Format, Dialectical Style, Target Audience, and Debaters with descriptions
+ * sourced from the same data the selectors use, so copy stays in sync.
+ */
+function ConfigInfoModal({ onClose }: { onClose: () => void }) {
+  const sectionStyle: CSSProperties = { marginTop: 18 };
+  const itemStyle: CSSProperties = { marginBottom: 8 };
+  const nameStyle: CSSProperties = { fontWeight: 600, fontSize: '0.85rem' };
+  const descStyle: CSSProperties = { fontSize: '0.8rem', color: 'var(--text-muted)' };
+  const introStyle: CSSProperties = { fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 6px' };
+  return (
+    <div className="dialog-overlay" style={{ zIndex: 1000 }} onClick={(e) => { e.stopPropagation(); onClose(); }}>
+      <div
+        className="ndd-info-modal"
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: 640, width: '90%', maxHeight: '80vh', overflowY: 'auto', background: 'var(--bg-secondary, #1e1e1e)', border: '1px solid var(--border-color, rgba(255,255,255,0.15))', borderRadius: 8, padding: 20 }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ margin: 0, fontSize: '1.1rem' }}>Debate configuration guide</h2>
+          <button type="button" className="btn" style={{ fontSize: '0.85rem' }} onClick={onClose} aria-label="Close guide">×</button>
+        </div>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 0 }}>
+          What each setup option controls and what to expect.
+        </p>
+
+        <section style={sectionStyle}>
+          <h3 style={{ fontSize: '0.95rem', marginBottom: 4 }}>Format</h3>
+          <p style={introStyle}>How the debate is structured and how speakers take turns.</p>
+          {DEBATE_PROTOCOLS.map(p => (
+            <div key={p.id} style={itemStyle}>
+              <div style={nameStyle}>{p.label}</div>
+              <div style={descStyle}>{p.description}</div>
+            </div>
+          ))}
+        </section>
+
+        <section style={sectionStyle}>
+          <h3 style={{ fontSize: '0.95rem', marginBottom: 4 }}>Dialectical Style</h3>
+          <p style={introStyle}>The tone debaters take toward each other's arguments.</p>
+          {STYLE_PRESETS.map(s => (
+            <div key={s.id} style={itemStyle}>
+              <div style={nameStyle}>{s.label}</div>
+              <div style={descStyle}>{s.desc}</div>
+            </div>
+          ))}
+        </section>
+
+        <section style={sectionStyle}>
+          <h3 style={{ fontSize: '0.95rem', marginBottom: 4 }}>Target Audience</h3>
+          <p style={introStyle}>Who the debate is written for — shapes framing, depth, and vocabulary.</p>
+          {DEBATE_AUDIENCES.map(a => (
+            <div key={a.id} style={itemStyle}>
+              <div style={nameStyle}>{a.label}</div>
+              <div style={descStyle}>{AUDIENCE_DESCRIPTIONS[a.id] ?? ''}</div>
+            </div>
+          ))}
+        </section>
+
+        <section style={sectionStyle}>
+          <h3 style={{ fontSize: '0.95rem', marginBottom: 4 }}>Debaters</h3>
+          <p style={introStyle}>The three perspectives that argue the topic (pick any combination).</p>
+          {AI_POVERS.map((id) => {
+            const info = POVER_INFO[id];
+            return (
+              <div key={id} style={itemStyle}>
+                <div style={nameStyle}>{DEBATER_ICONS[id]} {info.label}</div>
+                <div style={descStyle}>{info.personality}</div>
+              </div>
+            );
+          })}
+        </section>
+      </div>
+    </div>
+  );
+}
+
 export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const { createDebate, loadDebate } = useDebateStore(
     useShallow(s => ({ createDebate: s.createDebate, loadDebate: s.loadDebate }))
@@ -82,6 +169,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [debateTitle, setDebateTitle] = useState('');
   const [topic, setTopic] = useState('');
   const [background, setBackground] = useState('');
+  const [showConfigInfo, setShowConfigInfo] = useState(false);
   const [sourceType, setSourceType] = useState<DebateSourceType>('topic');
   const [sourceRef, setSourceRef] = useState('');
   const [sourceContent, setSourceContent] = useState('');
@@ -634,7 +722,19 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
 
           {/* ─── Right Column: Configuration ─── */}
           <div className="ndd-col-right">
-            <h3 className="ndd-section-heading">Configuration</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h3 className="ndd-section-heading" style={{ margin: 0 }}>Configuration</h3>
+              <button
+                type="button"
+                className="btn"
+                style={{ fontSize: '0.7rem', padding: '2px 8px' }}
+                onClick={() => setShowConfigInfo(true)}
+                title="Learn what each configuration option does"
+              >
+                ⓘ Learn more
+              </button>
+            </div>
+            {showConfigInfo && <ConfigInfoModal onClose={() => setShowConfigInfo(false)} />}
 
             {/* Format — card view, matching Dialectical Style (t/912) */}
             <label className="ndd-field-label">Format</label>
