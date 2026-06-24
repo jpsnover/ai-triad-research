@@ -308,7 +308,14 @@ async function callWithKeyRotation(
       data: { backend, keyIndex: sel.index, totalKeys: keys.length },
     });
     try {
-      return await callProvider(fetch, backend, prompt, apiModel, sel.key, opts);
+      const result = await callProvider(fetch, backend, prompt, apiModel, sel.key, opts);
+      // t/924: record which key succeeded — key-pool / rotation visibility.
+      getGlobalRecorder()?.record({
+        type: 'ai.response', component: 'ai-adapter', level: 'info',
+        message: `Key ${sel.index}/${keys.length} succeeded for ${backend}`,
+        data: { backend, keyIndex: sel.index, keysTotal: keys.length, rotationActive: keys.length > 1 },
+      });
+      return result;
     } catch (err) {
       lastErr = err;
       const rateLimited = is429Error(err);

@@ -1097,10 +1097,24 @@ post('/api/ai/generate', async (req, res, body) => {
       ? rateLimiter.checkRate(limitKey, tier.limits.requestsPerMinute, 60_000)
       : rateLimiter.checkRequestRate(limitKey, tier.limits.requestsPerMinute);
     if (!rpmCheck.allowed) {
+      // t/924: rate-limit rejections were silent server-side — log + record so the
+      // 429 is diagnosable (which limit, pool state, retry timing).
+      log.server.warn({ component: 'rate-limiter', type: 'requests_per_minute', limitKey, limit: rpmCheck.limit, current: rpmCheck.current, retryAfterMs: rpmCheck.retryAfterMs, backend }, 'AI request rate-limited (RPM)');
+      getGlobalRecorder()?.record({
+        type: 'ai.error', component: 'rate-limiter', level: 'warn',
+        message: `RPM limit reached (${rpmCheck.current}/${rpmCheck.limit})`,
+        data: { type: 'requests_per_minute', limitKey, limit: rpmCheck.limit, current: rpmCheck.current, retryAfterMs: rpmCheck.retryAfterMs, backend, tier: tier.level },
+      });
       res.writeHead(429); res.end(JSON.stringify({ error: 'Rate limit exceeded', limitType: 'requests_per_minute', retryAfterMs: rpmCheck.retryAfterMs, limit: rpmCheck.limit, current: rpmCheck.current })); return;
     }
     const tokenCheck = rateLimiter.checkTokenLimit(limitKey, tier.limits.tokensPerDay);
     if (!tokenCheck.allowed) {
+      log.server.warn({ component: 'rate-limiter', type: 'tokens_per_day', limitKey, limit: tokenCheck.limit, current: tokenCheck.current, backend }, 'AI request rate-limited (daily tokens)');
+      getGlobalRecorder()?.record({
+        type: 'ai.error', component: 'rate-limiter', level: 'warn',
+        message: `Daily token limit reached (${tokenCheck.current}/${tokenCheck.limit})`,
+        data: { type: 'tokens_per_day', limitKey, limit: tokenCheck.limit, current: tokenCheck.current, backend, tier: tier.level },
+      });
       res.writeHead(429); res.end(JSON.stringify({ error: 'Daily token limit exceeded', limitType: 'tokens_per_day', limit: tokenCheck.limit, current: tokenCheck.current })); return;
     }
 
@@ -4033,6 +4047,11 @@ server.listen(PORT, '0.0.0.0', () => {
   serverRecorder.record({ type: 'lifecycle', component: 'server', level: 'info', message: 'Server started', data: { port: PORT, version: SERVER_VERSION, dataRoot: getDataRoot(), platform: process.platform, arch: process.arch, storageMode: STORAGE_MODE } });
   log.server.info({ port: PORT }, 'Taxonomy Editor running');
   log.server.info({ dataRoot: getDataRoot() }, 'Data root');
+
+  // t/924: surface the free-tier key pool + effective RPM so rate-limit
+  // behavior is observable from startup logs (not inferred from 429 timing).
+  const freeTierKeyPool = proxyTiers.parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY).length;
+  log.server.info({ component: 'server', freeTierKeyPool, effectiveRpm: proxyTiers.scaledFreeTierRpm(freeTierKeyPool) }, 'Free-tier key pool');
 
   // Initialize analytics storage — uses Azure Append Blobs in container
   // deployments, local NDJSON files in Electron/dev.
