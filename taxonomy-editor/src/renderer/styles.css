@@ -9783,9 +9783,48 @@ a.vocab-term,
 }
 
 .debate-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 0.75rem;
   color: var(--danger);
   margin-bottom: 8px;
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  border-radius: 6px;
+}
+.debate-error-text {
+  flex: 1;
+}
+.debate-error-retry {
+  font-size: 0.7rem;
+  padding: 2px 10px;
+  border: 1px solid var(--danger);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--danger);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.debate-error-retry:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+}
+.debate-error-retry:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.debate-error-dismiss {
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: var(--danger);
+  cursor: pointer;
+  opacity: 0.6;
+}
+.debate-error-dismiss:hover {
+  opacity: 1;
 }
 
 .debate-action-bar-inner {

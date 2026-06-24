@@ -127,8 +127,8 @@ const AI_MENTION_OPTIONS: { id: string; label: string; color: string }[] = [
 ];
 
 export function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, setShowEvaluation }: { showParamHistory: boolean; setShowParamHistory: (v: boolean) => void; showEvaluation: boolean; setShowEvaluation: (v: boolean) => void }) {
-  const { activeDebate, debateGenerating, debateError, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, requestReflections, audience, setAudience, toggleStepMode, setDebatePhase } = useDebateStore(
-    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, askQuestion: s.askQuestion, crossRespond: s.crossRespond, requestSynthesis: s.requestSynthesis, requestProbingQuestions: s.requestProbingQuestions, requestReflections: s.requestReflections, audience: s.audience, setAudience: s.setAudience, toggleStepMode: s.toggleStepMode, setDebatePhase: s.setDebatePhase }))
+  const { activeDebate, debateGenerating, debateError, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, requestReflections, audience, setAudience, toggleStepMode, setDebatePhase, setError } = useDebateStore(
+    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, askQuestion: s.askQuestion, crossRespond: s.crossRespond, requestSynthesis: s.requestSynthesis, requestProbingQuestions: s.requestProbingQuestions, requestReflections: s.requestReflections, audience: s.audience, setAudience: s.setAudience, toggleStepMode: s.toggleStepMode, setDebatePhase: s.setDebatePhase, setError: s.setError }))
   );
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -264,7 +264,13 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
 
   return (
     <div className="debate-action-bar">
-      {debateError && <div className="debate-error">{debateError}</div>}
+      {debateError && (
+        <div className="debate-error">
+          <span className="debate-error-text">{debateError}</span>
+          <button className="debate-error-retry" onClick={() => { setError(null); void handleCrossRespond(); }} disabled={disableAnalysis}>Retry</button>
+          <button className="debate-error-dismiss" onClick={() => setError(null)} title="Dismiss">&times;</button>
+        </div>
+      )}
       <div className="debate-action-bar-inner">
         <div className="debate-input-wrapper">
           <input
