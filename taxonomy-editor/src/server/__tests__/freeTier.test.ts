@@ -9,7 +9,28 @@
  */
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { resolveTier, freeTierEnabled, isBackendAllowed, parseFreeTierKeys } from '../proxyTiers.js';
+import { resolveTier, freeTierEnabled, isBackendAllowed, parseFreeTierKeys, scaledFreeTierRpm } from '../proxyTiers.js';
+
+describe('free-tier RPM scales with key-pool size (t/906)', () => {
+  afterEach(() => { delete process.env.FREE_TIER_GEMINI_KEY; });
+
+  it('scaledFreeTierRpm = 6 per key, capped at 30 (AC#1, #3)', () => {
+    expect(scaledFreeTierRpm(1)).toBe(6);
+    expect(scaledFreeTierRpm(2)).toBe(12);
+    expect(scaledFreeTierRpm(5)).toBe(30);
+    expect(scaledFreeTierRpm(6)).toBe(30); // capped
+    expect(scaledFreeTierRpm(0)).toBe(0);
+  });
+
+  it('resolveTier applies the scaled RPM for keyless free-tier users', () => {
+    process.env.FREE_TIER_GEMINI_KEY = 'k1,k2';
+    expect(resolveTier('', 'github').limits.requestsPerMinute).toBe(12);
+    process.env.FREE_TIER_GEMINI_KEY = 'k1';
+    expect(resolveTier('', 'github').limits.requestsPerMinute).toBe(6);
+    process.env.FREE_TIER_GEMINI_KEY = 'k1,k2,k3,k4,k5,k6,k7';
+    expect(resolveTier('', 'github').limits.requestsPerMinute).toBe(30); // capped
+  });
+});
 
 describe('parseFreeTierKeys (t/846)', () => {
   it('returns [] for unset/blank', () => {

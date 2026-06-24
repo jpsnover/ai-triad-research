@@ -138,13 +138,28 @@ export function freeTierEnabled(): boolean {
   return parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY).length > 0;
 }
 
+/**
+ * Free-tier per-minute request budget scaled by the key-pool size (t/906): each
+ * Gemini key carries its own 6 RPM and the rotator spreads load across them, so
+ * the server limit is 6 × keyCount, capped at 30 to bound abuse.
+ */
+export function scaledFreeTierRpm(keyCount: number): number {
+  return Math.min(6 * Math.max(0, keyCount), 30);
+}
+
 export function resolveTier(principalName: string, idp: string): ResolvedTier {
   const config = getConfig();
 
   if (!principalName || principalName === '_local') {
     // Keyless web users (no principal) get the free tier when it's configured;
     // local single-user (_local) and the no-key fallback stay 'anonymous'.
-    if (!principalName && freeTierEnabled()) return { ...FREE_TIER };
+    if (!principalName && freeTierEnabled()) {
+      // t/906: each free-tier Gemini key carries its own 6 RPM at Gemini and the
+      // rotator (t/846) spreads load across the pool — so scale the server-side
+      // limit with the key count instead of the hardcoded 6 (capped to bound abuse).
+      const rpm = scaledFreeTierRpm(parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY).length);
+      return { ...FREE_TIER, limits: { ...FREE_TIER.limits, requestsPerMinute: rpm } };
+    }
     const d = config.defaults.anonymous;
     return { level: 'anonymous', limits: { requestsPerMinute: d.requestsPerMinute, tokensPerDay: d.tokensPerDay }, allowedBackends: d.allowedBackends };
   }
