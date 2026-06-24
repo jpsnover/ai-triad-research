@@ -11,7 +11,7 @@ export type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
 export type ThrottleState = 'NORMAL' | 'THROTTLED';
 
 export interface ResilienceStatus {
-  circuits: Record<EndpointCategory, { state: CircuitState; consecutiveFailures: number }>;
+  circuits: Record<EndpointCategory, { state: CircuitState; consecutiveFailures: number; recentFailures: string[] }>;
   throttles: Record<EndpointCategory, { state: ThrottleState; p95Ms: number; baselineMs: number }>;
 }
 
@@ -52,10 +52,13 @@ export function categorizeEndpoint(path: string, method: string): EndpointCatego
 
 // ── Circuit breaker ──
 
+const RECENT_FAILURES_CAP = 5;
+
 interface CircuitEntry {
   state: CircuitState;
   consecutiveFailures: number;
   lastFailureTime: number;
+  recentFailures: string[];
 }
 
 const circuits = new Map<EndpointCategory, CircuitEntry>();
@@ -63,10 +66,21 @@ const circuits = new Map<EndpointCategory, CircuitEntry>();
 function getCircuit(cat: EndpointCategory): CircuitEntry {
   let e = circuits.get(cat);
   if (!e) {
-    e = { state: 'CLOSED', consecutiveFailures: 0, lastFailureTime: 0 };
+    e = { state: 'CLOSED', consecutiveFailures: 0, lastFailureTime: 0, recentFailures: [] };
     circuits.set(cat, e);
   }
   return e;
+}
+
+function summarizeFailures(reasons: string[]): string {
+  if (reasons.length === 0) return '';
+  const runs: { reason: string; count: number }[] = [];
+  for (const r of reasons) {
+    const last = runs[runs.length - 1];
+    if (last && last.reason === r) last.count++;
+    else runs.push({ reason: r, count: 1 });
+  }
+  return runs.map(r => r.count > 1 ? `${r.reason} (x${r.count})` : r.reason).join(', ');
 }
 
 function checkCircuit(cat: EndpointCategory, path: string): void {
@@ -82,9 +96,11 @@ function checkCircuit(cat: EndpointCategory, path: string): void {
       return;
     }
     const remaining = Math.ceil((CIRCUIT_COOLDOWN_MS - elapsed) / 1000);
+    const failureSummary = summarizeFailures(c.recentFailures);
+    const detail = failureSummary ? `\nLast failures: ${failureSummary}` : '';
     throw new ActionableError({
       goal: `Make request to ${path}`,
-      problem: `Circuit breaker OPEN for '${cat}' after ${c.consecutiveFailures} consecutive failures. ${remaining}s cooldown remaining.`,
+      problem: `Circuit breaker OPEN for '${cat}' after ${c.consecutiveFailures} consecutive failures. ${remaining}s cooldown remaining.${detail}`,
       location: 'web-bridge/resilience',
       nextSteps: ['Wait for the cooldown period to expire', 'Check whether the server is healthy'],
     });
@@ -100,23 +116,27 @@ function onCircuitSuccess(cat: EndpointCategory): void {
       `Circuit '${cat}' → CLOSED after successful probe`);
   }
   c.consecutiveFailures = 0;
+  c.recentFailures = [];
   c.state = 'CLOSED';
   if (wasNotClosed) notifyListeners();
 }
 
-function onCircuitFailure(cat: EndpointCategory): void {
+function onCircuitFailure(cat: EndpointCategory, reason: string): void {
   const c = getCircuit(cat);
   const prevState = c.state;
   c.consecutiveFailures++;
   c.lastFailureTime = Date.now();
+  c.recentFailures.push(reason);
+  if (c.recentFailures.length > RECENT_FAILURES_CAP) c.recentFailures.shift();
   if (c.state === 'HALF_OPEN') {
     c.state = 'OPEN';
     recordEvent('network.circuit_open', 'warn',
-      `Circuit '${cat}' re-OPEN after failed probe`);
+      `Circuit '${cat}' re-OPEN after failed probe (${reason})`);
   } else if (c.consecutiveFailures >= CIRCUIT_THRESHOLD && c.state === 'CLOSED') {
     c.state = 'OPEN';
+    const summary = summarizeFailures(c.recentFailures);
     recordEvent('network.circuit_open', 'error',
-      `Circuit '${cat}' → OPEN after ${c.consecutiveFailures} consecutive failures`);
+      `Circuit '${cat}' → OPEN after ${c.consecutiveFailures} consecutive failures. Last: ${summary}`);
   }
   if (c.state !== prevState) notifyListeners();
 }
@@ -237,7 +257,7 @@ export async function resilientFetch(
       }
 
       // Retryable HTTP status (5xx or 429)
-      onCircuitFailure(category);
+      onCircuitFailure(category, `HTTP ${res.status}`);
 
       if (attempt < maxRetries) {
         const retryAfterMs = res.status === 429 ? parseRetryAfter(res) : null;
@@ -257,7 +277,7 @@ export async function resilientFetch(
     } catch (err) {
       clearTimeout(timer);
       recordLatency(category, performance.now() - start);
-      onCircuitFailure(category);
+      onCircuitFailure(category, (err as Error).name === 'AbortError' ? 'timeout' : (err as Error).name);
 
       if (attempt < maxRetries && isRetryableError(err)) {
         const backoff = computeBackoff(attempt);
@@ -305,7 +325,7 @@ export function getResilienceState(): ResilienceStatus {
   const ts = {} as ResilienceStatus['throttles'];
   for (const cat of ALL_CATEGORIES) {
     const c = getCircuit(cat);
-    cs[cat] = { state: c.state, consecutiveFailures: c.consecutiveFailures };
+    cs[cat] = { state: c.state, consecutiveFailures: c.consecutiveFailures, recentFailures: [...c.recentFailures] };
     const t = getThrottle(cat);
     ts[cat] = {
       state: t.state,

@@ -224,6 +224,20 @@ describe('resilience', () => {
       expect(fetchSpy).toHaveBeenCalledTimes(5);
     });
 
+    it('includes failure reasons in the OPEN error message', async () => {
+      for (let i = 0; i < 3; i++) {
+        fetchSpy.mockResolvedValueOnce(mockFetchResponse(429));
+        await resilientFetch('/api/test', {}, defaultOpts());
+      }
+      for (let i = 0; i < 2; i++) {
+        fetchSpy.mockResolvedValueOnce(mockFetchResponse(503));
+        await resilientFetch('/api/test', {}, defaultOpts());
+      }
+      await expect(
+        resilientFetch('/api/test', {}, defaultOpts()),
+      ).rejects.toThrow(/Last failures: HTTP 429 \(x3\), HTTP 503 \(x2\)/);
+    });
+
     it('transitions to HALF_OPEN after cooldown', async () => {
       for (let i = 0; i < 5; i++) {
         fetchSpy.mockResolvedValueOnce(mockFetchResponse(500));
@@ -259,6 +273,45 @@ describe('resilience', () => {
       fetchSpy.mockResolvedValueOnce(mockFetchResponse(200));
       await resilientFetch('/api/test', {}, defaultOpts());
       expect(getResilienceState().circuits.read.consecutiveFailures).toBe(0);
+    });
+
+    it('exposes recentFailures in state', async () => {
+      fetchSpy.mockResolvedValueOnce(mockFetchResponse(429));
+      await resilientFetch('/api/test', {}, defaultOpts());
+      fetchSpy.mockResolvedValueOnce(mockFetchResponse(503));
+      await resilientFetch('/api/test', {}, defaultOpts());
+      const state = getResilienceState();
+      expect(state.circuits.read.recentFailures).toEqual(['HTTP 429', 'HTTP 503']);
+    });
+
+    it('clears recentFailures on success', async () => {
+      fetchSpy.mockResolvedValueOnce(mockFetchResponse(500));
+      await resilientFetch('/api/test', {}, defaultOpts());
+      expect(getResilienceState().circuits.read.recentFailures).toHaveLength(1);
+
+      fetchSpy.mockResolvedValueOnce(mockFetchResponse(200));
+      await resilientFetch('/api/test', {}, defaultOpts());
+      expect(getResilienceState().circuits.read.recentFailures).toEqual([]);
+    });
+
+    it('caps recentFailures at 5 entries', async () => {
+      // Use maxRetries to accumulate more failures without the circuit blocking calls.
+      // 1 call with maxRetries=3 → 4 failures from retries, then 1 more call → 5 total.
+      // Then succeed to reset count (not buffer check), then fail 3 more → 8 total recorded,
+      // but buffer should be capped at 5.
+      // Simpler: the circuit opens at 5 — all 5 fit in the cap. Verify cap via HALF_OPEN probe.
+      for (let i = 0; i < 5; i++) {
+        fetchSpy.mockResolvedValueOnce(mockFetchResponse(500));
+        await resilientFetch('/api/test', {}, defaultOpts());
+      }
+      expect(getResilienceState().circuits.read.recentFailures).toHaveLength(5);
+
+      // Advance past cooldown, fail the HALF_OPEN probe → 6th failure, cap still 5
+      vi.advanceTimersByTime(60_001);
+      fetchSpy.mockResolvedValueOnce(mockFetchResponse(500));
+      await resilientFetch('/api/test', {}, defaultOpts());
+      expect(getResilienceState().circuits.read.recentFailures).toHaveLength(5);
+      expect(getResilienceState().circuits.read.consecutiveFailures).toBe(6);
     });
 
     it('isolates categories — AI failures do not affect read circuit', async () => {
