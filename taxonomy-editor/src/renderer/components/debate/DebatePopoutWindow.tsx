@@ -6,7 +6,7 @@
  * initializes stores independently, and renders DebateWorkspace.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../../hooks/useDebateStore';
@@ -18,6 +18,44 @@ export function DebatePopoutWindow() {
   const [error, setError] = useState<string | null>(null);
   const activeDebateId = useDebateStore(s => s.activeDebateId);
   const debateError = useDebateStore(s => s.debateError);
+  // Remember what to (re)load so the error screen's "Try Again" can re-attempt it (t/941).
+  const [loadTarget, setLoadTarget] = useState<{ id: string; community: boolean } | null>(null);
+  const [retrying, setRetrying] = useState(false);
+
+  const runLoad = useCallback(async (debateId: string, community: boolean) => {
+    setError(null);
+    if (community) {
+      try {
+        const raw = await api.loadCommunityDebateSession(debateId);
+        if (raw && typeof raw === 'object' && 'found' in (raw as Record<string, unknown>) && !(raw as Record<string, unknown>).found) {
+          setError('Community debate not found');
+          return;
+        }
+        useDebateStore.getState().loadDebateFromData(raw, { readOnly: true });
+      } catch (err) {
+        getGlobalRecorder()?.record({ type: 'state.error', component: 'debatePopout', level: 'error', message: 'Failed to load community debate', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack }, data: { debateId } });
+        setError(`Failed to load community debate: ${err}`);
+      }
+    } else {
+      // loadDebate() clears debateError on entry and catches internally (no rethrow),
+      // so re-calling it on retry re-runs cleanly; debateError is what renders on failure.
+      try {
+        await useDebateStore.getState().loadDebate(debateId);
+        const title = useDebateStore.getState().activeDebate?.title;
+        document.title = title ? `Debate — ${title}` : `Debate — ${debateId.slice(0, 8)}`;
+      } catch (err) {
+        getGlobalRecorder()?.record({ type: 'state.error', component: 'debatePopout', level: 'error', message: 'Failed to load debate', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack }, data: { debateId } });
+        setError(`Failed to load debate: ${err}`);
+      }
+    }
+  }, []);
+
+  const handleRetry = useCallback(async () => {
+    if (!loadTarget || retrying) return;
+    setRetrying(true);
+    await runLoad(loadTarget.id, loadTarget.community);
+    setRetrying(false);
+  }, [loadTarget, retrying, runLoad]);
 
   // Apply theme — popouts don't go through MainApp which sets data-theme
   useEffect(() => {
@@ -54,23 +92,8 @@ export function DebatePopoutWindow() {
     if (idMatch) {
       const debateId = decodeURIComponent(idMatch[1]);
       console.log('[DebatePopout] Web mode — loading debate from hash:', debateId, isCommunity ? '(community)' : '');
-      if (isCommunity) {
-        api.loadCommunityDebateSession(debateId).then(raw => {
-          if (raw && typeof raw === 'object' && 'found' in (raw as Record<string, unknown>) && !(raw as Record<string, unknown>).found) {
-            setError('Community debate not found');
-            return;
-          }
-          useDebateStore.getState().loadDebateFromData(raw, { readOnly: true });
-        }).catch(err => {
-          getGlobalRecorder()?.record({ type: 'state.error', component: 'debatePopout', level: 'error', message: 'Failed to load community debate from URL hash', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack }, data: { debateId } });
-          setError(`Failed to load community debate: ${err}`);
-        });
-      } else {
-        useDebateStore.getState().loadDebate(debateId).catch(err => {
-          getGlobalRecorder()?.record({ type: 'state.error', component: 'debatePopout', level: 'error', message: 'Failed to load debate from URL hash', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack }, data: { debateId } });
-          setError(`Failed to load debate: ${err}`);
-        });
-      }
+      setLoadTarget({ id: debateId, community: isCommunity });
+      void runLoad(debateId, isCommunity);
     }
 
     // Electron mode: receive debate ID via IPC
@@ -78,19 +101,12 @@ export function DebatePopoutWindow() {
     // (can happen with the bootstrap indirection — did-finish-load fires before React mounts)
     const unsub = api.onDebateWindowLoad((debateId: string) => {
       console.log('[DebatePopout] Received debate-window-load IPC:', debateId);
-      setError(null);
-      useDebateStore.getState().loadDebate(debateId).then(() => {
-        const title = useDebateStore.getState().activeDebate?.title;
-        document.title = title ? `Debate — ${title}` : `Debate — ${debateId.slice(0, 8)}`;
-      }).catch(err => {
-        console.error('[DebatePopout] loadDebate failed:', err);
-        getGlobalRecorder()?.record({ type: 'state.error', component: 'debatePopout', level: 'error', message: 'Failed to load debate via IPC', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack }, data: { debateId } });
-        setError(`Failed to load debate: ${err}`);
-      });
+      setLoadTarget({ id: debateId, community: false });
+      void runLoad(debateId, false);
     });
 
     return unsub;
-  }, []);
+  }, [runLoad]);
 
   const displayError = error || debateError;
   if (displayError) {
@@ -102,6 +118,17 @@ export function DebatePopoutWindow() {
         <div style={{ textAlign: 'center', maxWidth: 400 }}>
           <h3 style={{ color: 'var(--danger, #ef4444)' }}>Error</h3>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{displayError}</p>
+          {loadTarget && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => void handleRetry()}
+              disabled={retrying}
+              style={{ marginTop: 12 }}
+            >
+              {retrying ? 'Retrying…' : 'Try Again'}
+            </button>
+          )}
         </div>
       </div>
     );
