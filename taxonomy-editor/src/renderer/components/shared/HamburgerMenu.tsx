@@ -8,6 +8,7 @@ import { HelpDialog } from '../settings/HelpDialog';
 import { SettingsDialog } from '../settings/SettingsDialog';
 import { FeedbackPopover } from './FeedbackPopover';
 import { useAuthStatus, useUserProfile } from '../../hooks/useAuthStatus';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useFlag } from '../../hooks/useFeatureFlags';
 
 function AuthSection() {
@@ -72,6 +73,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
     clearAttributeInfo,
   } = useTaxonomyStore();
   const profile = useUserProfile();
+  const breakpoint = useBreakpoint();
   const adminFeatures = useFlag('permission-admin-features');
   const summariesFlag = useFlag('env-electron-summaries');
   const [showHelp, setShowHelp] = useState(false);
@@ -148,6 +150,18 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
   };
 
   const isPovTab = ['accelerationist', 'safetyist', 'skeptic'].includes(activeTab);
+  const isPhone = breakpoint === 'phone' || breakpoint === 'phone-lg';
+  const isDebateContext = activeTab === 'debate' || activeTab === 'chat';
+
+  // Items already visible in BottomNav — exclude from this menu to mirror desktop "Other Tools"
+  const bottomNavIds = new Set<string>(['search']);
+  if (isDebateContext) {
+    bottomNavIds.add('debate');
+    bottomNavIds.add('chat');
+  } else {
+    bottomNavIds.add('taxonomy');
+    if (!isPhone) bottomNavIds.add('debate');
+  }
 
   const browseItems: MenuItem[] = [
     {
@@ -319,14 +333,22 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
         </div>
 
         <div className="hamburger-body">
-          <div className="hamburger-section">Browse</div>
-          {browseItems.map(renderItem)}
+          {browseItems.filter(i => !bottomNavIds.has(i.id)).length > 0 && (
+            <>
+              <div className="hamburger-section">Browse</div>
+              {browseItems.filter(i => !bottomNavIds.has(i.id)).map(renderItem)}
+            </>
+          )}
 
-          <div className="hamburger-section">Communicate</div>
-          {communicateItems.map(renderItem)}
+          {communicateItems.filter(i => !bottomNavIds.has(i.id)).length > 0 && (
+            <>
+              <div className="hamburger-section">Communicate</div>
+              {communicateItems.filter(i => !bottomNavIds.has(i.id)).map(renderItem)}
+            </>
+          )}
 
           <div className="hamburger-section">Analyze</div>
-          {analyzeItems.map(renderItem)}
+          {analyzeItems.filter(i => !bottomNavIds.has(i.id)).map(renderItem)}
 
           <div className="hamburger-divider" />
           {systemItems.map(renderItem)}
