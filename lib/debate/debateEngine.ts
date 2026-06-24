@@ -257,6 +257,8 @@ export interface DebateConfig {
     plan?: string;
     cite?: string;
   };
+  /** Snapshot callback for incremental persistence. Fired after each completed round and before rethrowing on fatal errors. Callers use this to write crash-recovery files. */
+  onSnapshot?: (session: DebateSession, trigger: 'round_complete' | 'error') => void;
 }
 
 export interface DebateProgress {
@@ -554,6 +556,7 @@ export class DebateEngine {
         getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-engine', level: 'info', debate_id: this.session.id, message: 'Debate cancelled via AbortSignal' });
         return this.session;
       }
+      this.emitSnapshot('error');
       getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'error', debate_id: this.session?.id, message: 'Debate run failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       throw err;
     }
@@ -942,6 +945,19 @@ export class DebateEngine {
       totalRounds: this.config.rounds,
       message: message ?? phase,
     });
+  }
+
+  private emitSnapshot(trigger: 'round_complete' | 'error'): void {
+    try {
+      this.config.onSnapshot?.(this.session, trigger);
+    } catch (snapshotErr) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'debate-engine', level: 'warn',
+        debate_id: this.session?.id,
+        message: `Snapshot callback failed (trigger=${trigger})`,
+        error: { name: (snapshotErr as Error).name ?? 'Error', message: String(snapshotErr), stack: (snapshotErr as Error).stack },
+      });
+    }
   }
 
   /** Log a non-fatal warning — records in diagnostics, flight recorder, and emits progress */
@@ -2654,6 +2670,8 @@ export class DebateEngine {
       if (this.session.transcript.length >= 12) {
         await this.compressContext();
       }
+
+      this.emitSnapshot('round_complete');
     }
   }
 
@@ -2877,6 +2895,8 @@ export class DebateEngine {
       if (this.session.transcript.length >= 12) {
         await this.compressContext();
       }
+
+      this.emitSnapshot('round_complete');
     }
 
     // Store adaptive diagnostics on session

@@ -1598,3 +1598,47 @@ describe('Duplicate opening guard (t/919)', () => {
     expect(safetyistOpenings[0].content).toBe('Pre-existing safetyist opening statement.');
   });
 });
+
+// ── Snapshot callback (t/932) ────────────────────────────
+
+describe('Snapshot callback (t/932)', () => {
+  it('emitSnapshot calls config.onSnapshot without throwing', () => {
+    const onSnapshot = vi.fn();
+    const config = createDefaultConfig({ onSnapshot });
+    const adapter = createMockAdapter();
+    const taxonomy = createMinimalTaxonomy();
+    const engine = new DebateEngine(config, adapter, taxonomy);
+
+    // Initialize the session so emitSnapshot has something to pass
+    (engine as any).initSession();
+
+    (engine as any).emitSnapshot('round_complete');
+    expect(onSnapshot).toHaveBeenCalledOnce();
+    expect(onSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({ id: expect.any(String) }),
+      'round_complete',
+    );
+  });
+
+  it('emitSnapshot swallows callback errors without crashing', () => {
+    const onSnapshot = vi.fn(() => { throw new Error('disk full'); });
+    const config = createDefaultConfig({ onSnapshot });
+    const adapter = createMockAdapter();
+    const taxonomy = createMinimalTaxonomy();
+    const engine = new DebateEngine(config, adapter, taxonomy);
+    (engine as any).initSession();
+
+    expect(() => (engine as any).emitSnapshot('error')).not.toThrow();
+    expect(onSnapshot).toHaveBeenCalledOnce();
+  });
+
+  it('emitSnapshot is a no-op when onSnapshot is not configured', () => {
+    const config = createDefaultConfig();
+    const adapter = createMockAdapter();
+    const taxonomy = createMinimalTaxonomy();
+    const engine = new DebateEngine(config, adapter, taxonomy);
+    (engine as any).initSession();
+
+    expect(() => (engine as any).emitSnapshot('round_complete')).not.toThrow();
+  });
+});

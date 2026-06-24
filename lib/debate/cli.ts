@@ -370,6 +370,33 @@ async function main(): Promise<void> {
     stageModels: config.stageModels,
   };
 
+  // Prepare output paths early so the snapshot callback can write partial files
+  const slug = config.slug ?? generateSlug(config.name ?? topic);
+  const dataRoot = resolveDataRoot(repoRoot);
+  const outputDir = path.resolve(config.outputDir ?? path.join(dataRoot, 'debates'));
+  try {
+    fs.mkdirSync(outputDir, { recursive: true });
+  } catch (mkdirErr) {
+    getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to create output directory '${outputDir}'`, error: { name: (mkdirErr as Error).name ?? 'Error', message: String(mkdirErr), stack: (mkdirErr as Error).stack } });
+    throw new ActionableError({
+      goal: 'Create debate output directory',
+      problem: `Failed to create output directory '${outputDir}': ${mkdirErr instanceof Error ? mkdirErr.message : mkdirErr}`,
+      location: 'cli.main',
+      nextSteps: [
+        `Check that the parent directory of '${outputDir}' exists`,
+        'Verify you have write permissions to the target location',
+        'Try specifying a different "outputDir" in your config',
+      ],
+      innerError: mkdirErr,
+    });
+  }
+
+  const partialPath = path.join(outputDir, `${slug}-partial.json`);
+  engineConfig.onSnapshot = (session, trigger) => {
+    fs.writeFileSync(partialPath, JSON.stringify(session, null, 2), 'utf-8');
+    log(`[snapshot] Wrote ${trigger} recovery file: ${partialPath}`);
+  };
+
   // Run debate
   log(`Starting debate: "${topic.slice(0, 80)}..." with ${activePovers.join(', ')}, ${engineConfig.useAdaptiveStaging ? `adaptive (${config.pacing ?? 'moderate'})` : `${engineConfig.rounds} rounds`}`);
   const engine = new DebateEngine(engineConfig, adapter, taxonomy);
@@ -400,28 +427,11 @@ async function main(): Promise<void> {
     },
   };
 
-  // Generate outputs
-  const slug = config.slug ?? generateSlug(config.name ?? topic);
-  const dataRoot = resolveDataRoot(repoRoot);
-  const outputDir = path.resolve(config.outputDir ?? path.join(dataRoot, 'debates'));
-  try {
-    fs.mkdirSync(outputDir, { recursive: true });
-  } catch (err) {
-    getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to create output directory '${outputDir}'`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-    throw new ActionableError({
-      goal: 'Create debate output directory',
-      problem: `Failed to create output directory '${outputDir}': ${err instanceof Error ? err.message : err}`,
-      location: 'cli.main',
-      nextSteps: [
-        `Check that the parent directory of '${outputDir}' exists`,
-        'Verify you have write permissions to the target location',
-        'Try specifying a different "outputDir" in your config',
-      ],
-      innerError: err,
-    });
-  }
-
+  // Generate outputs — slug/outputDir already computed above for snapshot callback
   const outputFormat = config.outputFormat ?? 'json';
+
+  // Clean up partial recovery file on successful completion
+  try { fs.unlinkSync(partialPath); } catch { /* no partial to clean up */ }
 
   function writeOutput(filePath: string, content: string, description: string): void {
     try {
