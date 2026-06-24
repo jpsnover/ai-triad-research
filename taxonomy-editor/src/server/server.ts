@@ -38,6 +38,7 @@ import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnon
 import { sanitizeUserText } from './contentSanitizer.js';
 import { getRollbackStatus } from './rollbackStatus.js';
 import { getAllFlags, listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
+import { writeDump, isValidDumpId } from './flightRecorderDumps.js';
 import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
 import { checkProviderBinding } from './providerBinding.js';
@@ -1319,8 +1320,18 @@ get('/api/calibration/history', async (_req, res) => {
 // ── Flight recorder dump ──
 post('/api/flight-recorder/dump', (_req, res, body) => {
   try {
-    const { ndjson } = body as { ndjson: string };
+    const { ndjson, dumpId } = body as { ndjson: string; dumpId?: string };
     if (!ndjson || typeof ndjson !== 'string') { error(res, 'Missing ndjson field', 400); return; }
+
+    // t/908: when the client supplies a dumpId, write client-{dumpId}.jsonl into
+    // the paired-dump dir (joinable to server-{dumpId}.jsonl). Otherwise keep the
+    // legacy timestamped behavior.
+    if (dumpId !== undefined) {
+      if (!isValidDumpId(dumpId)) { error(res, 'dumpId must be a UUID-safe string', 400); return; }
+      const filePath = writeDump(getDataRoot(), 'client', dumpId, ndjson);
+      json(res, { filePath, filename: path.basename(filePath), dumpId });
+      return;
+    }
 
     const dumpDir = path.join(getDataRoot(), 'flight-recorder');
     fs.mkdirSync(dumpDir, { recursive: true });
@@ -1367,6 +1378,28 @@ post('/api/flight-recorder/server-dump', (_req, res) => {
     log.fr.info({ filePath }, 'Server dump written');
     json(res, { filePath, filename });
   } catch (err) { error(res, String(err), 500, err); }
+});
+
+// t/908: correlated server dump. The client fires this best-effort with the
+// dumpId it used for its own dump; we write the server ring buffer alongside as
+// server-{dumpId}.jsonl, joinable to client-{dumpId}.jsonl on requestId. Admin
+// only — the server recorder may hold other users' request internals.
+post('/api/admin/flight-recorder/dump', (_req, res, body) => {
+  if (!requireAdmin(res)) return;
+  try {
+    const { dumpId } = (body ?? {}) as { dumpId?: string };
+    if (!isValidDumpId(dumpId)) { error(res, 'dumpId must be a UUID-safe string', 400); return; }
+    const { ndjson } = serverRecorder.buildDump('manual');
+    const filePath = writeDump(getDataRoot(), 'server', dumpId, ndjson);
+    log.fr.info({ filePath, dumpId }, 'Correlated server dump written');
+    json(res, { ok: true, filename: path.basename(filePath), dumpId });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'server', level: 'error', message: 'Correlated server dump failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
 });
 
 get('/api/flight-recorder/list', (_req, res) => {
