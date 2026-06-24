@@ -230,6 +230,59 @@ function createPopupShim(origin: string): FlightRecorder {
   return shim;
 }
 
+/**
+ * BroadcastChannel-based shim for web-container popup windows.
+ * Mirrors createPopupShim but uses BroadcastChannel instead of Electron IPC.
+ */
+function createWebPopupShim(origin: string): FlightRecorder {
+  const shim = new FlightRecorder({ capacity: 1, dumpOnError: false });
+  const channel = new BroadcastChannel('aitriad-flight-recorder');
+
+  shim.record = (input: RecordInput) => {
+    const stamped: RecordInput = {
+      ...input,
+      data: { ...input.data, _origin: origin },
+    };
+    try {
+      channel.postMessage({ type: 'event', payload: stamped });
+    } catch {
+      /* flight recorder init — silent by design (main tab may have closed) */
+    }
+  };
+
+  const originalIntern = shim.intern.bind(shim);
+  const _forwardedDictEntries = new Set<string>();
+  shim.intern = (category: string, value: string) => {
+    const handle = originalIntern(category, value);
+    const key = `${category}/${value}`;
+    if (_forwardedDictEntries.has(key)) return handle;
+    _forwardedDictEntries.add(key);
+    try {
+      channel.postMessage({
+        type: 'event',
+        payload: {
+          type: 'lifecycle',
+          component: 'flight-recorder',
+          level: 'debug',
+          message: `Dictionary registration from ${origin}`,
+          data: { _origin: origin, _dict_category: category, _dict_value: `${origin}/${value}` },
+        } satisfies RecordInput,
+      });
+    } catch { /* flight recorder init — silent by design */ }
+    return handle;
+  };
+
+  shim.record({
+    type: 'lifecycle',
+    component: 'flight-recorder',
+    level: 'info',
+    message: 'Web popup shim initialized (forwarding via BroadcastChannel)',
+    data: { origin },
+  });
+
+  return shim;
+}
+
 // ── Initialization ───────────────────────────────────────────────────────
 
 let initialized = false;
@@ -248,40 +301,52 @@ export function initFlightRecorder(): FlightRecorder {
     : hash === '#chat-window' ? 'chat'
     : 'main';
 
-  // Popup windows use a thin IPC shim — no local buffer, forward everything to main
-  if (isPopup && typeof (window as unknown as { electronAPI?: { forwardFlightEvent?: unknown } }).electronAPI?.forwardFlightEvent === 'function') {
-    const shim = createPopupShim(windowId);
-    setGlobalRecorder(shim);
+  // Popup windows use a thin shim — no local buffer, forward everything to main.
+  // Electron: IPC via electronAPI. Web: BroadcastChannel.
+  if (isPopup) {
+    const hasElectronIPC = typeof (window as unknown as { electronAPI?: { forwardFlightEvent?: unknown } }).electronAPI?.forwardFlightEvent === 'function';
+    const hasBroadcastChannel = typeof BroadcastChannel !== 'undefined';
 
-    // Set up error boundary hook for popup — forward crash event to main window's recorder
-    (globalThis as unknown as { __onErrorBoundaryCatch: (err: Error, stack?: string) => void }).__onErrorBoundaryCatch = (error, componentStack) => {
-      shim.record({
-        type: 'system.error',
-        component: 'react-error-boundary',
-        level: 'fatal',
-        message: error.message,
-        error: { name: error.name, message: error.message, stack: error.stack?.slice(0, 500) },
-        data: componentStack ? { component_stack: componentStack.slice(0, 1000) } : undefined,
-      });
-    };
+    if (hasElectronIPC || hasBroadcastChannel) {
+      const shim = hasElectronIPC
+        ? createPopupShim(windowId)
+        : createWebPopupShim(windowId);
+      setGlobalRecorder(shim);
 
-    // Set up manual dump trigger for popup — request main window to dump via IPC
-    (globalThis as unknown as { __triggerManualDump: () => void }).__triggerManualDump = () => {
-      // Forward a dump-request event; the main window listener triggers persistDump
-      shim.record({ type: 'lifecycle', component: 'flight-recorder', level: 'info', message: 'Manual dump requested from popup' });
-      // Trigger dump on main window via broadcast channel or direct IPC
-      try {
-        const eApi = (window as unknown as { electronAPI: { triggerMainDump?: () => Promise<{ filePath: string }> } }).electronAPI;
-        if (eApi.triggerMainDump) {
-          void eApi.triggerMainDump().then(result => {
-            console.log(`[flight-recorder] Dump saved: ${result.filePath}`);
-            void api.clipboardWriteText(result.filePath);
-          });
+      // Set up error boundary hook for popup — forward crash event to main window's recorder
+      (globalThis as unknown as { __onErrorBoundaryCatch: (err: Error, stack?: string) => void }).__onErrorBoundaryCatch = (error, componentStack) => {
+        shim.record({
+          type: 'system.error',
+          component: 'react-error-boundary',
+          level: 'fatal',
+          message: error.message,
+          error: { name: error.name, message: error.message, stack: error.stack?.slice(0, 500) },
+          data: componentStack ? { component_stack: componentStack.slice(0, 1000) } : undefined,
+        });
+      };
+
+      // Set up manual dump trigger for popup — request main window to dump
+      (globalThis as unknown as { __triggerManualDump: () => void }).__triggerManualDump = () => {
+        shim.record({ type: 'lifecycle', component: 'flight-recorder', level: 'info', message: 'Manual dump requested from popup' });
+        if (hasElectronIPC) {
+          try {
+            const eApi = (window as unknown as { electronAPI: { triggerMainDump?: () => Promise<{ filePath: string }> } }).electronAPI;
+            if (eApi.triggerMainDump) {
+              void eApi.triggerMainDump().then(result => {
+                console.log(`[flight-recorder] Dump saved: ${result.filePath}`);
+                void api.clipboardWriteText(result.filePath);
+              });
+            }
+          } catch { /* flight recorder init — silent by design (dump request forwarded as event) */ }
+        } else if (hasBroadcastChannel) {
+          const ch = new BroadcastChannel('aitriad-flight-recorder');
+          ch.postMessage({ type: 'dump-request', origin: windowId });
+          ch.close();
         }
-      } catch { /* flight recorder init — silent by design (dump request forwarded as event) */ }
-    };
+      };
 
-    return shim;
+      return shim;
+    }
   }
 
   const recorder = new FlightRecorder({ capacity: 5000, dumpOnError: true });
@@ -461,17 +526,32 @@ export function initFlightRecorder(): FlightRecorder {
   // ── Receive forwarded events from popup windows (main window only) ──
 
   if (!isPopup) {
+    // Electron: receive via IPC
     const electronAPI = (window as unknown as { electronAPI?: { onFlightEventFromPopup?: (cb: (_e: unknown, payload: unknown) => void) => void } }).electronAPI;
     if (electronAPI?.onFlightEventFromPopup) {
       electronAPI.onFlightEventFromPopup((_e, payload) => {
         const event = payload as RecordInput;
-        // Handle dictionary registration forwarding
         if (event.data?._dict_category && event.data?._dict_value) {
           recorder.intern(event.data._dict_category as string, event.data._dict_value as string);
         }
-        // Record into main buffer (already has _origin stamped by popup shim)
         recorder.record(event);
       });
+    }
+
+    // Web: receive via BroadcastChannel (mirrors IPC path for web-container popups)
+    if (typeof BroadcastChannel !== 'undefined') {
+      const frChannel = new BroadcastChannel('aitriad-flight-recorder');
+      frChannel.onmessage = (msg: MessageEvent<{ type: string; payload?: RecordInput; origin?: string }>) => {
+        if (msg.data.type === 'event' && msg.data.payload) {
+          const event = msg.data.payload;
+          if (event.data?._dict_category && event.data?._dict_value) {
+            recorder.intern(event.data._dict_category as string, event.data._dict_value as string);
+          }
+          recorder.record(event);
+        } else if (msg.data.type === 'dump-request') {
+          void persistDump(recorder, 'manual');
+        }
+      };
     }
   }
 
