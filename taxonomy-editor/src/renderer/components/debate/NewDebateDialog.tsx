@@ -1,7 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
+import type { TextareaHTMLAttributes } from 'react';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore, MODELS_BY_BACKEND, AI_BACKENDS, DEBATE_TIERS, FALLBACK_CHAINS, initAIModels, backendForModel } from '../../hooks/useTaxonomyStore';
@@ -51,6 +52,27 @@ const DEBATER_ICONS: Record<string, string> = {
   skeptic: '\uD83D\uDD2E',  // crystal ball
   user: '\uD83D\uDC64',       // silhouette
 };
+
+/**
+ * Textarea that grows to fit its content (t/909). Expands as the user types or
+ * pastes, collapses when text is removed, and starts scrolling once it reaches
+ * `maxHeight`. `rows` still sets the minimum height. Drop-in for <textarea>.
+ */
+function AutoGrowTextarea({
+  value,
+  maxHeight = 320,
+  ...props
+}: TextareaHTMLAttributes<HTMLTextAreaElement> & { maxHeight?: number }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
+    el.style.overflowY = el.scrollHeight > maxHeight ? 'auto' : 'hidden';
+  }, [value, maxHeight]);
+  return <textarea ref={ref} value={value} {...props} />;
+}
 
 export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const { createDebate, loadDebate } = useDebateStore(
@@ -391,7 +413,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
             {sourceType === 'topic' && (
               <>
                 <label className="ndd-field-label">Topic</label>
-                <textarea
+                <AutoGrowTextarea
                   className="ndd-topic-input"
                   placeholder="What should we debate? Type your own or pick from Potential Topics below."
                   value={topic}
@@ -414,7 +436,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                   )}
                 </div>
                 <label className="ndd-field-label">Topic (optional)</label>
-                <textarea
+                <AutoGrowTextarea
                   className="ndd-topic-input"
                   placeholder="Focus the debate on a specific aspect of this document..."
                   value={topic}
@@ -436,7 +458,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                   autoFocus
                 />
                 <label className="ndd-field-label">Topic (optional)</label>
-                <textarea
+                <AutoGrowTextarea
                   className="ndd-topic-input"
                   placeholder="Focus the debate on a specific aspect of this content..."
                   value={topic}
@@ -450,7 +472,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
             {sourceType === 'other' && (
               <>
                 <label className="ndd-field-label">Topic</label>
-                <textarea
+                <AutoGrowTextarea
                   className="ndd-topic-input"
                   placeholder="Type a custom topic or pick from Canned / Queued below."
                   value={topic}
