@@ -7,6 +7,7 @@ import { useResizablePanel } from '../../hooks/useResizablePanel';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { useFlag } from '../../hooks/useFeatureFlags';
 import type { Pov, Category } from '../../types/taxonomy';
 
 // ── Types ──
@@ -106,6 +107,7 @@ const CATEGORY_MAP: Record<string, Category> = {
 
 export function SummariesTab() {
   const { getLabelForId, navigateToNode, setActiveTab, createPovNode, updatePovNode } = useTaxonomyStore();
+  const summariesFlag = useFlag('env-electron-summaries');
   const { width: listWidth, onMouseDown } = useResizablePanel();
   const breakpoint = useBreakpoint();
   const isPhone = breakpoint === 'phone' || breakpoint === 'phone-lg';
@@ -573,7 +575,7 @@ export function SummariesTab() {
                   {snapshotLoading ? (
                     <div className="panel-empty">Loading document...</div>
                   ) : !snapshot ? (
-                    import.meta.env.VITE_TARGET === 'web' ? (
+                    !summariesFlag ? (
                       <div className="panel-empty" style={{ maxWidth: 480, margin: '2rem auto', textAlign: 'center' }}>
                         <strong>Document snapshots are available in the desktop app.</strong>
                         <p style={{ marginTop: '0.5rem', opacity: 0.8 }}>

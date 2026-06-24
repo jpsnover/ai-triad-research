@@ -3,7 +3,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useResilienceStatus, initResilienceUI, type ResilienceAlert } from '../../hooks/useResilienceStatus';
-import { useUserProfile } from '../../hooks/useAuthStatus';
+import { useFlag } from '../../hooks/useFeatureFlags';
 import './ResilienceBanner.css';
 
 const TOAST_TTL_MS = 5000;
@@ -46,8 +46,7 @@ export function ResilienceBanner() {
   const alerts = useResilienceStatus(s => s.alerts);
   const toasts = useResilienceStatus(s => s.toasts);
   const dismissToast = useResilienceStatus(s => s.dismissToast);
-  const profile = useUserProfile();
-  const isAdmin = profile?.isAdmin ?? false;
+  const isAdmin = useFlag('permission-admin-features');
   const timersRef = useRef(new Map<number, ReturnType<typeof setTimeout>>());
 
   useEffect(() => { initResilienceUI(); }, []);

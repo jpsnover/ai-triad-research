@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useCommunityStore, type CommunityChat, type CommunityDebate } from '../../hooks/useCommunityStore';
-import { useUserProfile } from '../../hooks/useAuthStatus';
+import { useFlag } from '../../hooks/useFeatureFlags';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 type Tab = 'chats' | 'debates';
@@ -123,10 +123,9 @@ function CommunityCard({ item, isAdmin, onCopy, onRemove }: {
 
 export function CommunityLibrary() {
   const { chats, debates, loading, error, fetchChats, fetchDebates, copyItem, removeItem } = useCommunityStore();
-  const profile = useUserProfile();
   const [tab, setTab] = useState<Tab>('debates');
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'info' | 'error' } | null>(null);
-  const isAdmin = !!profile?.isAdmin;
+  const isAdmin = useFlag('permission-admin-features');
 
   useEffect(() => { void fetchChats(); void fetchDebates(); }, []);
 

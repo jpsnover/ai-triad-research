@@ -7,6 +7,7 @@ import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { triggerManualDump } from '../../lib/flightRecorderInit';
+import { useFlag } from '../../hooks/useFeatureFlags';
 import { UnsyncedChangesDrawer } from './UnsyncedChangesDrawer';
 import { SyncDiagnosticsDialog } from './SyncDiagnosticsDialog';
 import { TaxonomyDiffPanel } from './TaxonomyDiffPanel';
@@ -20,6 +21,7 @@ function formatFileKey(key: string): string {
 
 export function SaveBar() {
   const { dirty, save, saveError, dismissSaveError, validationErrors, integrityIssues, fixIntegrityErrors, zoomLevel, zoomIn, zoomOut, zoomReset } = useTaxonomyStore();
+  const analyticsFlag = useFlag('env-web-analytics-dashboard');
   const isOnline = useOnlineStatus();
   const isDirty = dirty.size > 0;
   const [showErrors, setShowErrors] = useState(false);
@@ -184,7 +186,7 @@ export function SaveBar() {
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         </button>
-        {import.meta.env.VITE_TARGET === 'web' && (
+        {analyticsFlag && (
           <button
             type="button"
             className="save-bar-sync-diag"

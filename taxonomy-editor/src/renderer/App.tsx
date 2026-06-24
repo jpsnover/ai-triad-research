@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useEffect, useState, lazy, Suspense } from 'react';
-import { api, isElectronMode } from '@bridge';
+import { api } from '@bridge';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import ErrorBoundary from '../../../lib/electron-shared/components/ErrorBoundary';
 import { useTaxonomyStore, initAIModels } from './hooks/useTaxonomyStore';
@@ -28,6 +28,7 @@ import { GitProgressBanner } from './components/sync/GitProgressBanner';
 import { AnonymousBanner } from './components/community/AnonymousBanner';
 import { ResilienceBanner } from './components/shared/ResilienceBanner';
 import { pullDataTracked } from './utils/syncApi';
+import { useFeatureFlagStore, useFlag } from './hooks/useFeatureFlags';
 import { PrecacheToast } from './components/shared/PrecacheToast';
 import { usePrecache } from './hooks/usePrecache';
 import { DiagnosticsDrawer } from './components/shared/DiagnosticsDrawer';
@@ -147,11 +148,17 @@ function FileViewerApp() {
 
 export function App() {
   const [hash, setHash] = useState(window.location.hash);
+  const analyticsFlag = useFlag('env-web-analytics-dashboard');
+  const communityFlag = useFlag('env-web-community-library');
+  const adminLegacyFlag = useFlag('env-web-admin-legacy');
+
   useEffect(() => {
     const onHashChange = () => setHash(window.location.hash);
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
+
+  useEffect(() => { void useFeatureFlagStore.getState().refresh(); }, []);
 
   // If this window was opened as a diagnostics popout, render only that
   if (hash === '#diagnostics-window') {
@@ -172,16 +179,16 @@ export function App() {
   if (hash === '#chat-window') {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><ChatWindow /></Suspense></ErrorBoundary>;
   }
-  if (hash === '#analytics' && import.meta.env.VITE_TARGET === 'web') {
+  if (hash === '#analytics' && analyticsFlag) {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><AnalyticsDashboard /></Suspense></ErrorBoundary>;
   }
-  if (hash === '#community' && import.meta.env.VITE_TARGET === 'web') {
+  if (hash === '#community' && communityFlag) {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><CommunityLibrary /></Suspense></ErrorBoundary>;
   }
   if (hash === '#admin') {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><AdminReviewPanel /></Suspense></ErrorBoundary>;
   }
-  if (hash === '#admin-legacy' && import.meta.env.VITE_TARGET === 'web') {
+  if (hash === '#admin-legacy' && adminLegacyFlag) {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><AdminPanel /></Suspense></ErrorBoundary>;
   }
 
@@ -204,6 +211,7 @@ function AppRouter() {
 /** Main taxonomy editor application */
 function MainApp() {
   const { activeTab, loading, backgroundLoading, loadingProgress, loadAll, colorScheme, paneSpacing, zoomLevel, zoomIn, zoomOut, zoomReset, toolbarPanel } = useTaxonomyStore();
+  const summariesFlag = useFlag('env-electron-summaries');
   const breakpoint = useBreakpoint();
   const isTouch = useIsTouchDevice();
   const isMobile = breakpoint === 'phone' || breakpoint === 'phone-lg' || breakpoint === 'tablet';
@@ -229,6 +237,7 @@ function MainApp() {
         getGlobalRecorder()?.record({ type: 'system.error', component: 'app', level: 'warn', message: 'getDataRoot failed (expected for non-admin users)', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
         return '';
       }),
+      useFeatureFlagStore.getState().refresh(),
     ]).then(([available, root]) => {
       setDataRoot(root);
       if (!available) {
@@ -624,7 +633,7 @@ function MainApp() {
             {activeTab === 'conflicts' && <ConflictsTab />}
             {activeTab === 'cruxes' && <CruxesTab />}
             {activeTab === 'debate' && <DebateTab />}
-            {activeTab === 'summaries' && isElectronMode() && <SummariesTab />}
+            {activeTab === 'summaries' && summariesFlag && <SummariesTab />}
             {activeTab === 'validation' && <ValidationTab />}
           </Suspense>
         </div>

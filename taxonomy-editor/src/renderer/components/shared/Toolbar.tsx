@@ -8,17 +8,17 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { HelpDialog } from '../settings/HelpDialog';
 import { SettingsDialog } from '../settings/SettingsDialog';
 import { useAuthStatus, useUserProfile } from '../../hooks/useAuthStatus';
+import { useFlag } from '../../hooks/useFeatureFlags';
 import { useTierInfo } from '../../hooks/useTierInfo';
 import { FeedbackPopover } from './FeedbackPopover';
 
 type ToolbarPanel = 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard' | 'vocabulary' | 'calibration';
 
 function useAdminReviewCount(): number {
-  const profile = useUserProfile();
+  const adminFeatures = useFlag('permission-admin-features');
   const [count, setCount] = useState(0);
   useEffect(() => {
-    // In Electron mode, check if Azure review is configured; in web mode, check profile.isAdmin
-    if (!isElectronMode() && !profile?.isAdmin) return;
+    if (!isElectronMode() && !adminFeatures) return;
     let cancelled = false;
     let configChecked = false;
     const doPoll = () => {
@@ -42,13 +42,14 @@ function useAdminReviewCount(): number {
     poll();
     const id = setInterval(poll, 300_000);
     return () => { cancelled = true; clearInterval(id); };
-  }, [profile?.isAdmin]);
+  }, [adminFeatures]);
   return count;
 }
 
 function ToolbarAuthButton() {
   const auth = useAuthStatus();
   const profile = useUserProfile();
+  const adminFeatures = useFlag('permission-admin-features');
   const { tier, usage } = useTierInfo();
   const [showPopover, setShowPopover] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -120,7 +121,7 @@ function ToolbarAuthButton() {
                   <span className="toolbar-auth-name">{auth.user}</span>
                   <span className="toolbar-auth-meta">
                     {auth.idp ? `via ${auth.idp}` : ''}
-                    {profile?.isAdmin && <span className="toolbar-auth-admin-badge">Admin</span>}
+                    {adminFeatures && <span className="toolbar-auth-admin-badge">Admin</span>}
                   </span>
                 </div>
               </div>
@@ -146,7 +147,7 @@ function ToolbarAuthButton() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
                 <span>Community Library</span>
               </a>
-              {profile?.isAdmin && (
+              {adminFeatures && (
                 <a className="toolbar-more-item" href="#admin" style={{ textDecoration: 'none', color: 'inherit' }}
                   onClick={() => setShowPopover(false)}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
@@ -205,8 +206,9 @@ export function Toolbar() {
     return () => window.removeEventListener('mousedown', handler);
   }, [showMore]);
 
-  const profile = useUserProfile();
-  const morePanels: ToolbarPanel[] = ['lineage', 'edges', 'policyAlignment', 'policyDashboard', 'fallacy', 'vocabulary', 'calibration', ...(profile?.isAdmin ? ['console' as const] : []), 'prompts'];
+  const adminFeatures = useFlag('permission-admin-features');
+  const summariesFlag = useFlag('env-electron-summaries');
+  const morePanels: ToolbarPanel[] = ['lineage', 'edges', 'policyAlignment', 'policyDashboard', 'fallacy', 'vocabulary', 'calibration', ...(adminFeatures ? ['console' as const] : []), 'prompts'];
   const moreTabsActive = ['situations', 'conflicts', 'cruxes', 'summaries', 'validation'].includes(activeTab) && toolbarPanel === null;
   const moreHasActive = morePanels.includes(toolbarPanel as ToolbarPanel) || moreTabsActive;
 
@@ -378,7 +380,7 @@ export function Toolbar() {
                 </svg>
                 <span>Cruxes</span>
               </button>
-              {isElectronMode() && (
+              {summariesFlag && (
               <button
                 className={`toolbar-more-item${activeTab === 'summaries' && toolbarPanel === null ? ' active' : ''}`}
                 onClick={() => { switchTab('summaries'); setShowMore(false); }}
@@ -484,7 +486,7 @@ export function Toolbar() {
                 <span>Calibration</span>
               </button>
               <div className="toolbar-more-divider" />
-              {profile?.isAdmin && (
+              {adminFeatures && (
               <button
                 className={`toolbar-more-item${toolbarPanel === 'console' ? ' active' : ''}`}
                 onClick={() => { toggle('console'); setShowMore(false); }}

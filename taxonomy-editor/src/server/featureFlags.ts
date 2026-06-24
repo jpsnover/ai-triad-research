@@ -72,6 +72,30 @@ const SEED_FLAGS: Record<string, FlagDef> = {
     created_at: '2026-06-23T00:00:00.000Z', updated_at: '2026-06-23T00:00:00.000Z',
     created_by: 'seed',
   },
+  'env-web-analytics-dashboard': {
+    name: 'env-web-analytics-dashboard', enabled: true, scope: 'env:web',
+    description: 'Show analytics dashboard route and nav shortcuts (web only)',
+    created_at: '2026-06-24T00:00:00.000Z', updated_at: '2026-06-24T00:00:00.000Z',
+    created_by: 'seed',
+  },
+  'env-web-community-library': {
+    name: 'env-web-community-library', enabled: true, scope: 'env:web',
+    description: 'Show community library route (web only)',
+    created_at: '2026-06-24T00:00:00.000Z', updated_at: '2026-06-24T00:00:00.000Z',
+    created_by: 'seed',
+  },
+  'env-web-admin-legacy': {
+    name: 'env-web-admin-legacy', enabled: true, scope: 'env:web',
+    description: 'Show legacy admin panel route (web only)',
+    created_at: '2026-06-24T00:00:00.000Z', updated_at: '2026-06-24T00:00:00.000Z',
+    created_by: 'seed',
+  },
+  'env-electron-summaries': {
+    name: 'env-electron-summaries', enabled: true, scope: 'env:electron',
+    description: 'Show summaries tab and menu items (electron only)',
+    created_at: '2026-06-24T00:00:00.000Z', updated_at: '2026-06-24T00:00:00.000Z',
+    created_by: 'seed',
+  },
 };
 
 // ── Config loading (mtime cache, quotas.ts pattern) ──

@@ -8,6 +8,7 @@ import { HelpDialog } from '../settings/HelpDialog';
 import { SettingsDialog } from '../settings/SettingsDialog';
 import { FeedbackPopover } from './FeedbackPopover';
 import { useAuthStatus, useUserProfile } from '../../hooks/useAuthStatus';
+import { useFlag } from '../../hooks/useFeatureFlags';
 
 function AuthSection() {
   const auth = useAuthStatus();
@@ -71,6 +72,8 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
     clearAttributeInfo,
   } = useTaxonomyStore();
   const profile = useUserProfile();
+  const adminFeatures = useFlag('permission-admin-features');
+  const summariesFlag = useFlag('env-electron-summaries');
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -175,7 +178,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
       active: activeTab === 'cruxes' && toolbarPanel === null,
       action: () => switchTab('cruxes'),
     },
-    ...(isElectronMode() ? [{
+    ...(summariesFlag ? [{
       id: 'summaries', label: 'Summaries',
       icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /><line x1="8" y1="7" x2="16" y2="7" /><line x1="8" y1="11" x2="14" y2="11" /></svg>,
       active: activeTab === 'summaries' && toolbarPanel === null,
@@ -255,7 +258,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
     },
   ];
 
-  const showAdminItems = isElectronMode() || profile?.isAdmin;
+  const showAdminItems = isElectronMode() || adminFeatures;
 
   const systemItems: MenuItem[] = [
     ...(showAdminItems ? [{
@@ -264,7 +267,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
       active: window.location.hash === '#admin',
       action: () => { window.location.hash = '#admin'; window.location.reload(); },
     }] : []),
-    ...(profile?.isAdmin ? [{
+    ...(adminFeatures ? [{
       id: 'console', label: 'Console',
       icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" /></svg>,
       active: toolbarPanel === 'console',
