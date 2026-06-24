@@ -1,0 +1,254 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* ── Feature Flags admin panel ── */
+
+.ff-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.ff-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ff-count {
+  flex: 1;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.ff-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Flag card ── */
+
+.ff-card {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 12px;
+  background: var(--bg-secondary);
+}
+
+.ff-card--expiry-warn {
+  border-color: #f59e0b;
+  background: color-mix(in srgb, #f59e0b 5%, var(--bg-secondary));
+}
+
+.ff-card--expired {
+  border-color: #ef4444;
+  opacity: 0.7;
+}
+
+.ff-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ff-card-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  font-family: var(--font-mono, monospace);
+}
+
+.ff-card-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.ff-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.ff-card-owner,
+.ff-card-date {
+  font-size: 0.7rem;
+}
+
+.ff-card-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+
+/* ── Scope badge ── */
+
+.ff-scope-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Expiry warnings ── */
+
+.ff-expiry-warn-text { color: #f59e0b; font-weight: 600; }
+.ff-expired-text { color: #ef4444; font-weight: 600; }
+
+/* ── Toggle switch ── */
+
+.ff-toggle {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.ff-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.ff-toggle-slider {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+  background: var(--border-color);
+  border-radius: 10px;
+  transition: background 0.2s;
+}
+
+.ff-toggle-slider::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.ff-toggle input:checked + .ff-toggle-slider {
+  background: #22c55e;
+}
+
+.ff-toggle input:checked + .ff-toggle-slider::before {
+  transform: translateX(16px);
+}
+
+/* ── Danger button ── */
+
+.ff-btn-danger {
+  color: #ef4444 !important;
+}
+
+.ff-btn-danger:hover {
+  background: color-mix(in srgb, #ef4444 10%, transparent) !important;
+}
+
+/* ── Stale section ── */
+
+.ff-stale-section {
+  margin-top: 24px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+}
+
+.ff-stale-header {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #f59e0b;
+  margin-bottom: 8px;
+}
+
+/* ── Dialog overlay ── */
+
+.ff-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.ff-dialog {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  width: 400px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.ff-dialog--sm {
+  width: 320px;
+}
+
+.ff-dialog h3 {
+  margin: 0 0 16px;
+  font-size: 1rem;
+}
+
+.ff-dialog p {
+  font-size: 0.85rem;
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+
+/* ── Form fields ── */
+
+.ff-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.ff-field > span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.ff-field input,
+.ff-field select {
+  padding: 6px 8px;
+  font-size: 0.8rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.ff-field input:disabled {
+  opacity: 0.5;
+}
+
+.ff-dialog-error {
+  font-size: 0.75rem;
+  color: #ef4444;
+  margin-bottom: 12px;
+}
+
+.ff-dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
