@@ -1051,12 +1051,14 @@ A user wants to debate the following topic:
 
 "${topic}"${sourceContext(debateSourceContent)}${lineageBlock}
 
-Generate 1 to 3 concise clarifying questions that would help sharpen the debate. Your questions should:
-- Help narrow the scope so the debate stays focused
+Generate 1 to 3 concise clarifying questions that help the user sharpen and narrow their topic. Your questions should:
+- Help the user specify THEIR intent: what scope, stakeholders, timeframe, or dimension they care about most
 - Surface assumptions the user might not realize they're making
 - Distinguish whether the core disagreement is empirical (what is true), normative (what should we value), or definitional (what do key terms mean)
 - Be neutral — do not favor any particular perspective
 - Be concise (one sentence each)
+
+IMPORTANT: Your questions must be REFINEMENT questions, not debate propositions. A refinement question helps the user decide what to focus on (e.g., "Are you more interested in the technical feasibility or the governance challenges?"). A debate proposition is something the agents would argue about (e.g., "Should AI development be paused until safety is proven?"). Generate only refinement questions.
 
 For each question, generate 3-5 answer options that cover the reasonable answer space. Options should be:
 - Topic-specific and substantive (not generic like "yes/no")
@@ -1090,7 +1092,12 @@ Several debaters asked clarifying questions and the moderator answered:
 ${qaPairs}
 ${critiqueBlock}${lineageBlock}
 Synthesize the original topic and the answers into a clear, specific debate topic statement.
-One to three sentences. Incorporate the key constraints and scope clarifications from the answers.
+Incorporate the key constraints and scope clarifications from the answers.
+
+CRITICAL: Preserve the user's specific named entities, numbers, examples, comparisons, and concrete arguments. Do not abstract away specifics into vague categories — if the user mentioned "$1T valuations", "7-year depreciation", or "2008-style default risk", those exact details must appear in the refined topic. The user chose those specifics for a reason; dropping them makes the topic feel hollow.
+
+Length: match the complexity of the input. A simple topic needs 1-2 sentences. A multi-faceted topic with many concrete specifics may need 3-5 sentences or a structured compound question (e.g., a framing sentence followed by 2-3 specific sub-questions the debate should address).
+
 The refined topic should be specific enough to produce falsifiable claims but broad enough to sustain 6-10 rounds of multi-perspective debate.
 The refined topic must sound conversational and direct — like a question worth arguing about, not a committee-drafted scope statement. Prefer plain language over jargon-laden precision.
 ${getReadingLevel(audience)}
@@ -1621,6 +1628,8 @@ export interface OpeningStagePromptInput {
   pov: string;
   personality: string;
   topic: string;
+  /** User-supplied supporting context, kept separate from the topic question. */
+  background?: string;
   taxonomyContext: string;
   priorStatements: string;
   isFirst: boolean;
@@ -1643,7 +1652,7 @@ Your task is to analyze the debate topic and identify the strongest framing stra
 ${input.taxonomyContext}
 ${input.edgeContext ? `\n=== KNOWN CROSS-POV TENSIONS ===\n${input.edgeContext}\n` : ''}
 === DEBATE TOPIC ===
-"${input.topic}"${documentBlock}
+"${input.topic}"${input.background ? `\n\n=== BACKGROUND CONTEXT ===\nThe user provided the following supporting context. Use it to inform your analysis, but keep it separate from the debate question itself.\n${input.background}` : ''}${documentBlock}
 ${input.userSeedClaims && input.userSeedClaims.length > 0 ? `\n=== USER-STATED POSITIONS ===\nThe user framed this debate with the following positions. Factor these into your analysis.\n${input.userSeedClaims.map(c => `- [${c.id}] ${c.text}`).join('\n')}\n` : ''}${input.priorStatements}
 
 Analyze the topic${input.isFirst ? '' : ' and prior opening statements'} and produce a structured brief. Focus on:
@@ -1873,6 +1882,8 @@ export interface StagePromptInput {
   pov: string;
   personality: string;
   topic: string;
+  /** User-supplied supporting context, kept separate from the topic question. */
+  background?: string;
   taxonomyContext: string;
   recentTranscript: string;
   focusPoint: string;
@@ -1932,7 +1943,7 @@ Your task is to comprehend the current state of the debate and identify what mat
 
 ${input.taxonomyContext}
 ${input.edgeContext ? `\n=== KNOWN CROSS-POV TENSIONS ===\n${input.edgeContext}\n` : ''}${input.topicScope ? `\n${formatDebateScopeBlock(input.topicScope)}\n` : ''}${input.priorCruxContext ? `\n${input.priorCruxContext}\n` : ''}${input.currentCruxContext ? `\n=== IDENTIFIED CRUXES (THIS DEBATE) ===\n${input.currentCruxContext}\n\n` : ''}=== DEBATE TOPIC ===
-"${input.topic}"
+"${input.topic}"${input.background ? `\n\n=== BACKGROUND CONTEXT ===\nThe user provided the following supporting context. Use it to inform your analysis, but keep it separate from the debate question itself.\n${input.background}` : ''}
 
 === RECENT DEBATE HISTORY ===
 ${input.recentTranscript}
@@ -2918,6 +2929,8 @@ Before the debate begins, you need to help the user focus. Generate 1 to 3 clari
 - Be neutral — do not favor any perspective
 - Be concise (one sentence each)
 
+IMPORTANT: Your questions must be REFINEMENT questions that help the user decide what to focus on — not debate propositions that the agents would argue about. Good: "Which of the paper's claims do you most want the debaters to challenge?" Bad: "Should the paper's recommendation for mandatory AI audits be adopted?"
+
 For each question, generate 3-5 answer options that cover the reasonable answer space. Options should be:
 - Topic-specific and substantive (not generic like "yes/no")
 - Mutually distinct — each option steers the debate in a different direction
@@ -2947,13 +2960,15 @@ The user wants to debate this topic:
 
 ${ccContext}${lineageBlock}
 
-The three POV interpretations above show where the perspectives already diverge. Generate 1 to 3 clarifying questions that would help focus the debate. Your questions should:
+The three POV interpretations above show where the perspectives already diverge. Generate 1 to 3 clarifying questions that help the user decide what to focus on. Your questions should:
 - Identify which specific dimension of this concern the user most wants to explore (e.g., the timeline question vs. the policy response vs. the epistemic disagreement)
 - Surface which assumptions or fallacies the user finds most interesting to probe
 - Distinguish whether the core tension is empirical, normative, or definitional
-- Help the debaters go beyond restating their pre-existing interpretations
+- Help the user choose a focus that pushes the debaters beyond restating their pre-existing interpretations
 - Be neutral — do not favor any perspective
 - Be concise (one sentence each)
+
+IMPORTANT: Your questions must be REFINEMENT questions that help the user narrow focus — not debate propositions the agents would argue about. Good: "Which dimension interests you most — the timeline disagreement or the policy response?" Bad: "Is the accelerationist timeline for AGI realistic?"
 
 For each question, generate 3-5 answer options that cover the reasonable answer space. Options should be:
 - Topic-specific and substantive (not generic like "yes/no")
@@ -4300,6 +4315,22 @@ Respond in JSON:
     { "element_index": 2, "covered": false, "covering_claim_index": null }
   ]
 }`;
+}
+
+// ── Inline topic improvement (lightweight, pre-creation) ──────────────
+
+export function improveDebateTopicPrompt(topic: string): string {
+  return `You are a debate-topic editor. The user has drafted a topic for a structured three-perspective debate on AI policy and safety. Your job is to sharpen it into a single, clear, debatable question that:
+
+1. Is specific enough to produce substantive disagreement across accelerationist, safetyist, and skeptic viewpoints.
+2. Avoids yes/no framing — prefer "To what extent…", "How should…", or "What role should…" phrasing.
+3. Is self-contained (no jargon that requires outside context).
+4. Is concise — one sentence, under 200 characters.
+
+User's draft topic:
+"${topic}"
+
+Respond with ONLY the improved topic question — no preamble, no explanation, no quotes. If the draft is already well-formed, return it unchanged.`;
 }
 
 // Exported for envelope builders (lib/debate/envelopes.ts)

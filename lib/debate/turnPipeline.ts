@@ -128,6 +128,8 @@ export interface TurnPipelineInput {
   pov: string;
   personality: string;
   topic: string;
+  /** User-supplied supporting context, kept separate from the topic question. */
+  background?: string;
   taxonomyContext: string;
   commitmentContext: string;
   establishedPoints: string;
@@ -254,6 +256,7 @@ function buildStageInput(input: TurnPipelineInput): StagePromptInput {
     pov: input.pov,
     personality: input.personality,
     topic: input.topic,
+    background: input.background,
     taxonomyContext:
       input.taxonomyContext +
       input.commitmentContext +
@@ -2538,6 +2541,8 @@ export interface OpeningPipelineInput {
   pov: string;
   personality: string;
   topic: string;
+  /** User-supplied supporting context, kept separate from the topic question. */
+  background?: string;
   taxonomyContext: string;
   priorStatements: string;
   isFirst: boolean;
@@ -2573,6 +2578,7 @@ export async function runOpeningPipeline(
     pov: input.pov,
     personality: input.personality,
     topic: input.topic,
+    background: input.background,
     taxonomyContext: input.taxonomyContext,
     priorStatements: input.priorStatements,
     isFirst: input.isFirst,

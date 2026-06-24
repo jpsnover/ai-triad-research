@@ -453,6 +453,8 @@ export interface DebateSession {
     original: string;
     refined: string | null;
     final: string;
+    /** Optional supporting context provided by the user — separate from the debate question. */
+    background?: string;
     /** Decomposition of `final` into N atomic clauses. Set by runClarification.
      *  Used by the moderator prompt to keep interventions anchored to the
      *  resolution's specific clauses rather than drifting to abstractions. */

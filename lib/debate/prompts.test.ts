@@ -44,6 +44,7 @@ import {
   classifyOffScopeDrift,
   offScopeRepairHint,
   topicScopeExtractionPrompt,
+  improveDebateTopicPrompt,
 } from './prompts.js';
 import type { OpeningStagePromptInput, StagePromptInput, SituationDebateInput } from './prompts.js';
 import type { TopicScope } from './types.js';
@@ -485,6 +486,16 @@ describe('4-stage opening pipeline', () => {
       expectContains(result, '"concept_used"');
       expectContains(result, '"source_quote"');
     });
+
+    it('includes BACKGROUND CONTEXT block when background is provided', () => {
+      const result = briefOpeningStagePrompt(makeOpeningInput({ background: 'Recent EU AI Act developments' }));
+      expectContains(result, 'BACKGROUND CONTEXT', 'Recent EU AI Act developments');
+    });
+
+    it('omits BACKGROUND CONTEXT block when background is absent', () => {
+      const result = briefOpeningStagePrompt(makeOpeningInput());
+      expect(result).not.toContain('BACKGROUND CONTEXT');
+    });
   });
 
   describe('planOpeningStagePrompt', () => {
@@ -557,6 +568,16 @@ describe('4-stage turn pipeline', () => {
     it('omits crux section when currentCruxContext is absent', () => {
       const result = briefStagePrompt(makeStageInput());
       expect(result).not.toContain('IDENTIFIED CRUXES (THIS DEBATE)');
+    });
+
+    it('includes BACKGROUND CONTEXT block when background is provided', () => {
+      const result = briefStagePrompt(makeStageInput({ background: 'NIST AI RMF framework details' }));
+      expectContains(result, 'BACKGROUND CONTEXT', 'NIST AI RMF framework details');
+    });
+
+    it('omits BACKGROUND CONTEXT block when background is absent', () => {
+      const result = briefStagePrompt(makeStageInput());
+      expect(result).not.toContain('BACKGROUND CONTEXT');
     });
   });
 
@@ -1208,5 +1229,26 @@ describe('topicScopeExtractionPrompt', () => {
   it('omits additions block for empty array', () => {
     const result = topicScopeExtractionPrompt('Topic', []);
     expect(result).not.toContain('ADDITIONAL DIMENSIONAL CONTEXT');
+  });
+});
+
+describe('improveDebateTopicPrompt', () => {
+  it('returns a non-empty string containing the user topic', () => {
+    const result = improveDebateTopicPrompt('AI regulation');
+    expect(result.length).toBeGreaterThan(0);
+    expect(result).toContain('AI regulation');
+  });
+
+  it('includes guidance for three-perspective debate framing', () => {
+    const result = improveDebateTopicPrompt('Should we ban AI?');
+    expect(result).toContain('accelerationist');
+    expect(result).toContain('safetyist');
+    expect(result).toContain('skeptic');
+  });
+
+  it('instructs plain-text response with no preamble', () => {
+    const result = improveDebateTopicPrompt('test');
+    expect(result).toContain('ONLY the improved topic');
+    expect(result).toContain('no preamble');
   });
 });

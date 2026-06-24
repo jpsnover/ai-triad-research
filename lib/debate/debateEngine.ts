@@ -1141,6 +1141,21 @@ export class DebateEngine {
   }
 
   private addEntry(entry: Omit<TranscriptEntry, 'id' | 'timestamp'>): TranscriptEntry {
+    // Guard: reject duplicate opening statements per speaker (defense-in-depth for t/919)
+    if (entry.type === 'opening' && entry.speaker !== 'system') {
+      const existing = this.session.transcript.find(
+        e => e.type === 'opening' && e.speaker === entry.speaker,
+      );
+      if (existing) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'debate-engine', level: 'warn',
+          debate_id: this.session?.id,
+          message: `Duplicate opening blocked for ${entry.speaker} — already has opening ${existing.id}`,
+        });
+        return existing;
+      }
+    }
+
     const full: TranscriptEntry = { id: generateId(), timestamp: nowISO(), ...entry };
     this.session.transcript.push(full);
 
@@ -2414,6 +2429,11 @@ export class DebateEngine {
     };
 
     for (const poverId of order) {
+      // Per-iteration idempotency: skip speakers who already have an opening (t/919)
+      if (this.session.transcript.some(e => e.type === 'opening' && e.speaker === poverId)) {
+        continue;
+      }
+
       const info = POVER_INFO[poverId];
       this.progress('opening', poverId, `${info.label} preparing opening statement`);
 
@@ -2468,6 +2488,7 @@ export class DebateEngine {
         pov: info.pov,
         personality: info.personality,
         topic: this.session.topic.final,
+        background: this.session.topic.background || undefined,
         taxonomyContext: fullContext,
         priorStatements: priorBlock,
         isFirst: priorStatements.length === 0,
@@ -3113,6 +3134,7 @@ export class DebateEngine {
       pov: info.pov,
       personality: info.personality,
       topic: this.session.topic.final,
+      background: this.session.topic.background || undefined,
       taxonomyContext: taxonomyContext + turnVocabContext + interventionInjection,
       commitmentContext,
       establishedPoints,

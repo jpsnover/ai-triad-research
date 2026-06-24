@@ -1517,3 +1517,84 @@ async function config_stamps_test(config: DebateConfig, adapter: ExtendedAIAdapt
   const engine = new DebateEngine(config, adapter, createMinimalTaxonomy());
   return engine.run();
 }
+
+// ── Duplicate opening guard (t/919) ─────────────────────
+
+describe('Duplicate opening guard (t/919)', () => {
+  function makeInitializedEngine() {
+    const config = createDefaultConfig();
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+    (engine as any).initSession();
+    return engine as any;
+  }
+
+  it('addEntry blocks duplicate opening for the same speaker', () => {
+    const e = makeInitializedEngine();
+
+    const first = e.addEntry({ type: 'opening', speaker: 'safetyist', content: 'First opening', taxonomy_refs: [] });
+    expect(first.id).toBeDefined();
+    expect(e.session.transcript).toHaveLength(1);
+
+    const duplicate = e.addEntry({ type: 'opening', speaker: 'safetyist', content: 'Duplicate opening', taxonomy_refs: [] });
+    expect(duplicate.id).toBe(first.id);
+    expect(e.session.transcript).toHaveLength(1);
+    expect(e.session.transcript[0].content).toBe('First opening');
+  });
+
+  it('addEntry allows openings from different speakers', () => {
+    const e = makeInitializedEngine();
+
+    e.addEntry({ type: 'opening', speaker: 'safetyist', content: 'Safety opening', taxonomy_refs: [] });
+    e.addEntry({ type: 'opening', speaker: 'accelerationist', content: 'Accel opening', taxonomy_refs: [] });
+    e.addEntry({ type: 'opening', speaker: 'skeptic', content: 'Skeptic opening', taxonomy_refs: [] });
+
+    expect(e.session.transcript).toHaveLength(3);
+    const speakers = e.session.transcript.map((e: any) => e.speaker);
+    expect(speakers).toEqual(['safetyist', 'accelerationist', 'skeptic']);
+  });
+
+  it('addEntry allows system entries alongside openings (no guard on type=system)', () => {
+    const e = makeInitializedEngine();
+
+    e.addEntry({ type: 'opening', speaker: 'safetyist', content: 'Opening', taxonomy_refs: [] });
+    e.addEntry({ type: 'system', speaker: 'system', content: 'System message', taxonomy_refs: [] });
+    e.addEntry({ type: 'statement', speaker: 'safetyist', content: 'Cross-respond', taxonomy_refs: [] });
+
+    expect(e.session.transcript).toHaveLength(3);
+  });
+
+  it('runOpeningStatements skips speakers who already have an opening', async () => {
+    const config = createDefaultConfig({ activePovers: ['accelerationist', 'safetyist'] });
+    const responses = [
+      // Only accelerationist should generate — 4 stages (brief, plan, draft, cite) + claim extraction
+      JSON.stringify({ key_claims: [{ text: 'test', bdi_category: 'beliefs' }], strategy: 'explore' }),
+      JSON.stringify({ plan: { strategy: 'test', key_claims: [] } }),
+      JSON.stringify({ statement: 'Accelerationist opening.', my_claims: [], taxonomy_refs: [], policy_refs: [], turn_symbols: [], key_assumptions: [], move_types: [] }),
+      JSON.stringify({ citations: [] }),
+      JSON.stringify({ claims: [] }),
+      // summary
+      '{"summary": "test"}',
+    ];
+    const engine = new DebateEngine(config, createMockAdapter(responses), createMinimalTaxonomy());
+    (engine as any).initSession();
+
+    // Pre-populate safetyist opening
+    (engine as any).session.transcript.push({
+      id: 'pre-existing-opening',
+      timestamp: new Date().toISOString(),
+      type: 'opening',
+      speaker: 'safetyist',
+      content: 'Pre-existing safetyist opening statement.',
+      taxonomy_refs: [],
+    });
+
+    await (engine as any).runOpeningStatements();
+
+    const openings = (engine as any).session.transcript.filter((e: any) => e.type === 'opening');
+    expect(openings).toHaveLength(2);
+
+    const safetyistOpenings = openings.filter((e: any) => e.speaker === 'safetyist');
+    expect(safetyistOpenings).toHaveLength(1);
+    expect(safetyistOpenings[0].content).toBe('Pre-existing safetyist opening statement.');
+  });
+});
