@@ -3,7 +3,7 @@
 
 import React, { Suspense, lazy } from 'react';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
-import { useUserProfile } from '../../hooks/useAuthStatus';
+import { useFlag } from '../../hooks/useFeatureFlags';
 
 import { SearchPanel } from '../edge-browser/SearchPanel';
 import { RelatedEdgesPanel } from '../edge-browser/RelatedEdgesPanel';
@@ -51,7 +51,7 @@ export function ToolbarPaneRenderer({
   onSelectPrompt,
   onInspectorToggle,
 }: ToolbarPaneRendererProps) {
-  const profile = useUserProfile();
+  const adminFeatures = useFlag('permission-admin-features');
   switch (panel) {
     case 'search': return <SearchPanel onSelectResult={onSelectResult} onAnalyze={onAnalyze} />;
     case 'related': return <RelatedEdgesPanel />;
@@ -61,7 +61,7 @@ export function ToolbarPaneRenderer({
     case 'prompts': return <PromptsPanel onSelectPrompt={onSelectPrompt} onInspectorToggle={onInspectorToggle} />;
     case 'fallacy': return <FallacyPanel onSelectFallacy={onSelectFallacy} />;
     case 'edges': return <EdgeBrowser />;
-    case 'console': return profile?.isAdmin
+    case 'console': return adminFeatures
       ? <Suspense fallback={<div style={{ padding: 16, color: 'var(--text-muted)' }}>Loading terminal...</div>}><TerminalPanel /></Suspense>
       : null;
     case 'policyAlignment': return <PolicyAlignmentPanel />;

@@ -25,9 +25,44 @@ export const useDebateStore = create<DebateStore>()((...a) => ({
 
 ((window as unknown as { __ZUSTAND_STORES__?: Record<string, unknown> }).__ZUSTAND_STORES__ ??= {} as Record<string, unknown>).debate = useDebateStore;
 
+const ACTIVE_DEBATE_KEY = 'activeDebateId';
+
 export function initDebateSessions(): void {
-  void useDebateStore.getState().loadSessions();
+  void useDebateStore.getState().loadSessions().then(() => {
+    const stored = sessionStorage.getItem(ACTIVE_DEBATE_KEY);
+    if (stored && !useDebateStore.getState().activeDebateId) {
+      void useDebateStore.getState().loadDebate(stored);
+    }
+  });
 }
+
+// Persist activeDebateId to sessionStorage so page refresh can resume
+useDebateStore.subscribe(
+  (state, prev) => {
+    if (state.activeDebateId === prev.activeDebateId) return;
+    if (state.activeDebateId) {
+      sessionStorage.setItem(ACTIVE_DEBATE_KEY, state.activeDebateId);
+    } else {
+      sessionStorage.removeItem(ACTIVE_DEBATE_KEY);
+    }
+  },
+);
+
+// Debounced auto-save: persist in-progress debate after transcript/state changes settle
+let _autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+const AUTO_SAVE_DEBOUNCE_MS = 3000;
+
+useDebateStore.subscribe(
+  (state, prev) => {
+    if (!state.activeDebate || state.activeDebate === prev.activeDebate) return;
+    if (state.communityReadOnly) return;
+    if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
+    _autoSaveTimer = setTimeout(() => {
+      _autoSaveTimer = null;
+      void useDebateStore.getState().saveDebate('auto-save');
+    }, AUTO_SAVE_DEBOUNCE_MS);
+  },
+);
 
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
@@ -51,6 +86,8 @@ if (typeof window !== 'undefined') {
       },
     });
 
+    if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
+
     if (isGenerating) {
       const round = state.activeDebate.transcript.filter(e => e.type === 'statement').length + 1;
       const session = {
@@ -63,6 +100,8 @@ if (typeof window !== 'undefined') {
         },
       };
       void api.saveDebateSession(session);
+    } else {
+      void api.saveDebateSession(state.activeDebate);
     }
   });
 }

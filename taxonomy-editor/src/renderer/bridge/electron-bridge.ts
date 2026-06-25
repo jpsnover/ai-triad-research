@@ -90,7 +90,7 @@ export const api: AppAPI = {
   hasApiKey: (backend) => window.electronAPI.hasApiKey(backend),
   getAvailableBackends: async () => {
     // Desktop has no community server; availability is local key presence.
-    const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'tavily', 'ollama'] as const;
+    const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'azure', 'deepseek', 'tavily', 'ollama'] as const;
     return Promise.all(
       ALL_BACKENDS.map(async (id) => ({ id, available: await window.electronAPI.hasApiKey(id) })),
     );
@@ -226,7 +226,7 @@ export const api: AppAPI = {
   syncCommit: async () => ({ ok: true, commitSha: null, filesCommitted: 0 }),
 
   // Flight recorder
-  dumpFlightRecorder: (ndjson) => window.electronAPI.dumpFlightRecorder(ndjson),
+  dumpFlightRecorder: (ndjson, _dumpId) => window.electronAPI.dumpFlightRecorder(ndjson),
   openFile: (filePath) => window.electronAPI.openFile(filePath),
   openFlightRecorderViewer: (dumpPath) => window.electronAPI.openFlightRecorderViewer(dumpPath),
 
@@ -299,6 +299,9 @@ export const api: AppAPI = {
   onTerminalData: (cb) => window.electronAPI.onTerminalData(cb),
   onTerminalExit: (cb) => window.electronAPI.onTerminalExit(cb),
   captureScreenshot: (opts) => window.electronAPI.captureScreenshot(opts),
+
+  // Feature flags — single-user desktop, no server flags
+  getFlags: () => Promise.resolve({}),
 
   // Admin Review (Azure Blob via main process)
   adminReviewConfigured: () => window.electronAPI.adminReviewConfigured(),

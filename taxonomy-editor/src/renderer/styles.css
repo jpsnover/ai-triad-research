@@ -1632,6 +1632,16 @@ body {
   background: #16a34a;
 }
 
+.btn-refine {
+  background: #7c3aed;
+  border-color: #7c3aed;
+  color: #fff;
+  font-weight: 600;
+}
+.btn-refine:hover:not(:disabled) {
+  background: #6d28d9;
+}
+
 .btn-danger {
   background: var(--danger);
   border-color: var(--danger);
@@ -10138,6 +10148,72 @@ a.vocab-term,
   text-overflow: ellipsis;
 }
 
+/* ─── Session Phase Stepper ───────────────────────── */
+.session-stepper {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  gap: 0;
+}
+.session-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.session-step-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+  transition: all 0.25s ease;
+}
+.session-step.active .session-step-dot {
+  border-color: var(--accent, #3b82f6);
+  background: var(--accent, #3b82f6);
+  color: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #3b82f6) 20%, transparent);
+}
+.session-step.completed .session-step-dot {
+  border-color: #10b981;
+  background: #10b981;
+  color: #fff;
+}
+.session-step-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.session-step.active .session-step-label {
+  color: var(--text-primary);
+}
+.session-step.completed .session-step-label {
+  color: #10b981;
+}
+.session-step-line {
+  width: 24px;
+  height: 2px;
+  background: var(--border);
+  margin: 0 4px;
+  flex-shrink: 0;
+  transition: background 0.25s ease;
+}
+.session-step-line.completed {
+  background: #10b981;
+}
+
 /* ─── Phase Transition Cards ───────────────────────── */
 .phase-transition-card {
   margin: 8px 0;
@@ -11286,6 +11362,20 @@ a.vocab-term,
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.debate-refined-topic-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.debate-refine-nudge {
+  background: rgba(124, 58, 237, 0.08);
+  border: 1px solid rgba(124, 58, 237, 0.25);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--text-primary);
 }
 
 /* Statement type styling */

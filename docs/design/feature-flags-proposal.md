@@ -2,7 +2,7 @@
 
 **Author:** Technical Lead  
 **Date:** 2026-06-23  
-**Status:** Draft — awaiting review
+**Status:** Implemented (t/898 — all 6 sub-tickets completed 2026-06-24)
 
 ---
 

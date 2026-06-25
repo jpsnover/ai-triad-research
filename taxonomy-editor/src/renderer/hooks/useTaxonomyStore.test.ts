@@ -302,18 +302,6 @@ describe('useTaxonomyStore', () => {
       });
     });
 
-    describe('qbafEnabled', () => {
-      it('setQbafEnabled toggles and persists', () => {
-        useTaxonomyStore.getState().setQbafEnabled(false);
-        expect(useTaxonomyStore.getState().qbafEnabled).toBe(false);
-        expect(storage.get('taxonomy-editor-qbaf')).toBe('false');
-
-        useTaxonomyStore.getState().setQbafEnabled(true);
-        expect(useTaxonomyStore.getState().qbafEnabled).toBe(true);
-        expect(storage.get('taxonomy-editor-qbaf')).toBe('true');
-      });
-    });
-
     describe('zoom', () => {
       it('zoomIn increases by 10, capped at 200', () => {
         useTaxonomyStore.setState({ zoomLevel: 100 });

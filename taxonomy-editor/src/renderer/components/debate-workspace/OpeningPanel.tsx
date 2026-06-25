@@ -7,8 +7,8 @@ import { useShallow } from 'zustand/react/shallow';
 import { POVER_INFO } from '../../types/debate';
 
 export function OpeningActions() {
-  const { activeDebate, debateGenerating, debateError, submitUserOpening, runOpeningStatements } = useDebateStore(
-    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, submitUserOpening: s.submitUserOpening, runOpeningStatements: s.runOpeningStatements }))
+  const { activeDebate, debateGenerating, debateError, submitUserOpening, runOpeningStatements, setError } = useDebateStore(
+    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, submitUserOpening: s.submitUserOpening, runOpeningStatements: s.runOpeningStatements, setError: s.setError }))
   );
   const [statement, setStatement] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -24,7 +24,12 @@ export function OpeningActions() {
   if (isGenerating) {
     return (
       <div className="debate-action-bar">
-        {debateError && <div className="debate-error">{debateError}</div>}
+        {debateError && (
+          <div className="debate-error">
+            <span className="debate-error-text">{debateError}</span>
+            <button className="debate-error-dismiss" onClick={() => setError(null)} title="Dismiss">&times;</button>
+          </div>
+        )}
         <div className="debate-action-hint">Delivering opening statements...</div>
       </div>
     );
@@ -41,7 +46,13 @@ export function OpeningActions() {
 
     return (
       <div className="debate-action-bar">
-        {debateError && <div className="debate-error">{debateError}</div>}
+        {debateError && (
+          <div className="debate-error">
+            <span className="debate-error-text">{debateError}</span>
+            <button className="debate-error-retry" onClick={() => { setError(null); void runOpeningStatements(); }}>Retry</button>
+            <button className="debate-error-dismiss" onClick={() => setError(null)} title="Dismiss">&times;</button>
+          </div>
+        )}
         <div className="debate-action-hint">It's your turn. Deliver your opening statement.</div>
         <div className="debate-clarification-input">
           <textarea
@@ -75,7 +86,13 @@ export function OpeningActions() {
   if (missingPovers.length > 0) {
     return (
       <div className="debate-action-bar">
-        {debateError && <div className="debate-error">{debateError}</div>}
+        {debateError && (
+          <div className="debate-error">
+            <span className="debate-error-text">{debateError}</span>
+            <button className="debate-error-retry" onClick={() => { setError(null); void runOpeningStatements(); }}>Retry</button>
+            <button className="debate-error-dismiss" onClick={() => setError(null)} title="Dismiss">&times;</button>
+          </div>
+        )}
         <div className="debate-action-hint">
           {missingPovers.length === 1
             ? `${POVER_INFO[missingPovers[0] as keyof typeof POVER_INFO]?.label ?? missingPovers[0]} still needs to deliver an opening statement.`

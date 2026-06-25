@@ -4,7 +4,7 @@
 import { useState, useCallback, useMemo, type ReactNode } from 'react';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
-import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import { useFlag } from '../../hooks/useFeatureFlags';
 import { POVER_INFO } from '../../types/debate';
 import type { SpeakerId, TranscriptEntry, TaxonomyRef, ConvergenceSignals } from '../../types/debate';
 import Markdown from 'react-markdown';
@@ -280,7 +280,7 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
   const toggleDiagnostics = useDebateStore(s => s.toggleDiagnostics);
   const selectDiagEntry = useDebateStore(s => s.selectDiagEntry);
   const deleteTranscriptEntries = useDebateStore(s => s.deleteTranscriptEntries);
-  const qbafEnabled = useTaxonomyStore(s => s.qbafEnabled);
+  const qbafEnabled = useFlag('release-qbaf-analysis');
   const [deleteConfirm, setDeleteConfirm] = useState<'single' | 'after' | null>(null);
   const [showSymbolTooltips, setShowSymbolTooltips] = useState(false);
   const anNodeId = activeDebate?.argument_network?.nodes?.find(

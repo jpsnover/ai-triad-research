@@ -3,8 +3,9 @@
 **Ticket:** t/841  
 **Author:** Computational Linguist  
 **Date:** 2026-06-22  
-**Status:** Draft  
-**Related:** t/456 (debate rerun optimization — narrower scope)
+**Status:** Experiment Complete — flash-lite validated  
+**Related:** t/456 (debate rerun optimization — narrower scope)  
+**Results:** [`analyses/cheap-brief-cite-v1-results.md`](../analyses/cheap-brief-cite-v1-results.md)
 
 ## Executive Summary
 

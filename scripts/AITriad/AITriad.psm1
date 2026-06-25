@@ -535,6 +535,10 @@ Export-ModuleMember -Function @(
     'Restore-TaxEditorBlob'
     'Get-CriticalInteraction'
     'Test-CriticalInteractions'
+    'Merge-FlightRecorderDumps'
+    'Get-TriadConfig'
+    'Set-TriadConfig'
+    'Invoke-TriadConfigReload'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

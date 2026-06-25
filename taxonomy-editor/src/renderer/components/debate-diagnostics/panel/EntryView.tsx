@@ -4,6 +4,7 @@
 import { useCallback, useMemo } from 'react';
 import { useDebateStore } from '../../../hooks/useDebateStore';
 import { useTaxonomyStore } from '../../../hooks/useTaxonomyStore';
+import { useFlag } from '../../../hooks/useFeatureFlags';
 import { POVER_INFO } from '../../../types/debate';
 import type { SpeakerId, EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge } from '../../../types/debate';
 import { QbafClaimBadge, QbafScoreSlider, QbafEdgeIndicator } from '../../taxonomy/QbafOverlay';
@@ -13,7 +14,7 @@ import { api } from '@bridge';
 import { CollapsibleSection, speakerLabel } from './helpers';
 
 function QbafClaimStrengthSection({ entryId, activeDebate }: { entryId: string; activeDebate: { argument_network?: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] } } | null }) {
-  const qbafEnabled = useTaxonomyStore(s => s.qbafEnabled);
+  const qbafEnabled = useFlag('release-qbaf-analysis');
   const anNodes = activeDebate?.argument_network?.nodes?.filter(
     n => n.source_entry_id === entryId
   ) ?? [];

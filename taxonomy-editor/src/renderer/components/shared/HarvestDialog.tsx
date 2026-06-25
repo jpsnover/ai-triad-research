@@ -6,6 +6,7 @@ import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import { useFeatureFlagStore } from '../../hooks/useFeatureFlags';
 import type { ArgumentNetworkNode } from '../../types/debate';
 import { QbafClaimBadge } from '../taxonomy/QbafOverlay';
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
@@ -97,7 +98,7 @@ export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
     }
     if (!activeDebate) return;
     // Q-15: Pre-uncheck low-strength items when QBAF is enabled
-    const qbafEnabled = useTaxonomyStore.getState().qbafEnabled;
+    const qbafEnabled = useFeatureFlagStore.getState().flags['release-qbaf-analysis'] ?? false;
     const anNodes: ArgumentNetworkNode[] = (activeDebate as Record<string, unknown>).argument_network?.nodes ?? [];
     const HARVEST_STRENGTH_THRESHOLD = 0.7;
 

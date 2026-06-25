@@ -9,6 +9,9 @@ import { bridgeGet } from '../../bridge/web-bridge';
 import ErrorBoundary from '../../../../../lib/electron-shared/components/ErrorBoundary';
 import { CalibrationReviewViewer } from '../analysis';
 import { CommunityReviewViewer } from './CommunityReviewViewer';
+import { FeatureFlagsPanel } from './FeatureFlagsPanel';
+import './FeatureFlagsPanel.css';
+import { RuntimeConfigPanel } from './RuntimeConfigPanel';
 import './AdminReviewPanel.css';
 
 // ── Types mirroring server/admin/types.ts ──
@@ -380,7 +383,7 @@ function FeedbackSection() {
 
 // ── Main panel ──
 
-type AdminTab = 'reviews' | 'feedback';
+type AdminTab = 'reviews' | 'feedback' | 'flags' | 'config';
 
 export function AdminReviewPanel() {
   const [adminTab, setAdminTab] = useState<AdminTab>('reviews');
@@ -473,10 +476,18 @@ export function AdminReviewPanel() {
             onClick={() => setAdminTab('reviews')}>Reviews</button>
           <button className={`admin-review-tab${adminTab === 'feedback' ? ' active' : ''}`}
             onClick={() => setAdminTab('feedback')}>Feedback</button>
+          <button className={`admin-review-tab${adminTab === 'flags' ? ' active' : ''}`}
+            onClick={() => setAdminTab('flags')}>Feature Flags</button>
+          <button className={`admin-review-tab${adminTab === 'config' ? ' active' : ''}`}
+            onClick={() => setAdminTab('config')}>Config</button>
         </div>
       </div>
 
-      {adminTab === 'feedback' ? (
+      {adminTab === 'config' ? (
+        <RuntimeConfigPanel />
+      ) : adminTab === 'flags' ? (
+        <FeatureFlagsPanel />
+      ) : adminTab === 'feedback' ? (
         <FeedbackSection />
       ) : (
         <div className="admin-review-body">

@@ -87,7 +87,7 @@ if ($script:ModelRegistry.Count -eq 0) {
 
     1. Explicit key passed via -ExplicitKey parameter.
     2. Backend-specific environment variable (GEMINI_API_KEY, ANTHROPIC_API_KEY
-       or CLAUDE_API_KEY, GROQ_API_KEY).
+       or CLAUDE_API_KEY, GROQ_API_KEY, OPENAI_API_KEY, AZURE_OPENAI_API_KEY).
     3. Universal fallback: $env:AI_API_KEY.
 
     Returns $null if no key is found at any level.  The resolved source is
@@ -123,6 +123,7 @@ function Resolve-AIApiKey {
         'claude' = @('ANTHROPIC_API_KEY', 'CLAUDE_API_KEY')
         'groq'   = @('GROQ_API_KEY')
         'openai' = @('OPENAI_API_KEY')
+        'azure'  = @('AZURE_OPENAI_API_KEY')
     }
 
     $BackendEnvVars = $EnvVarMap[$Backend]
@@ -340,6 +341,7 @@ function Invoke-AIApi {
             'claude' { 'ANTHROPIC_API_KEY / CLAUDE_API_KEY' }
             'groq'   { 'GROQ_API_KEY' }
             'openai' { 'OPENAI_API_KEY' }
+            'azure'  { 'AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT' }
         }
         Write-Warning "No API key found for $Backend backend. Set $EnvHint or AI_API_KEY."
         return $null
@@ -470,6 +472,53 @@ function Invoke-AIApi {
             }
 
             $Body = $GroqBody | ConvertTo-Json -Depth 10
+        }
+
+        'azure' {
+            $AzureEndpoint = $env:AZURE_OPENAI_ENDPOINT
+            if ([string]::IsNullOrWhiteSpace($AzureEndpoint)) {
+                throw (New-ActionableError `
+                    -Goal 'Call Azure OpenAI API' `
+                    -Problem 'AZURE_OPENAI_ENDPOINT environment variable is not set' `
+                    -Location 'Invoke-AIApi (azure)' `
+                    -NextSteps @(
+                        'Set $env:AZURE_OPENAI_ENDPOINT to your Azure OpenAI resource URL',
+                        'Example: https://my-resource.openai.azure.com'
+                    ))
+            }
+            $AzureEndpoint = $AzureEndpoint.TrimEnd('/')
+            $Uri = "$AzureEndpoint/openai/deployments/$ApiModelId/chat/completions?api-version=2024-10-21"
+            $Headers = @{
+                'api-key' = $ResolvedKey
+            }
+
+            $AzureMessages = [System.Collections.Generic.List[object]]::new()
+            if ($SystemInstruction) {
+                $AzureMessages.Add(@{ role = 'system'; content = $SystemInstruction })
+            }
+            $AzureMessages.Add(@{ role = 'user'; content = $Prompt })
+
+            $AzureBody = @{
+                messages    = @($AzureMessages)
+                temperature = $Temperature
+                max_tokens  = $MaxTokens
+            }
+            if ($JsonMode) {
+                if ($ResponseSchema) {
+                    $AzureBody['response_format'] = @{
+                        type        = 'json_schema'
+                        json_schema = @{
+                            name   = 'response'
+                            schema = $ResponseSchema
+                            strict = $true
+                        }
+                    }
+                } else {
+                    $AzureBody['response_format'] = @{ type = 'json_object' }
+                }
+            }
+
+            $Body = $AzureBody | ConvertTo-Json -Depth 10
         }
 
         'openai' {
@@ -673,6 +722,25 @@ function Invoke-AIApi {
             } catch {
                 $TopKeys = ($Response.PSObject.Properties.Name | Select-Object -First 5) -join ', '
                 Write-Warning "Groq: unexpected response shape (top-level keys: $TopKeys). Expected choices[].message.content"
+                return $null
+            }
+        }
+        'azure' {
+            try {
+                $Choice = $Response.choices[0]
+                $Text = $Choice.message.content
+                $Truncated = ($Choice.finish_reason -eq 'length')
+                $u = $Response.usage
+                if ($u) {
+                    $Usage = [PSCustomObject]@{
+                        InputTokens  = [int]($u.prompt_tokens)
+                        OutputTokens = [int]($u.completion_tokens)
+                        TotalTokens  = [int]($u.total_tokens)
+                    }
+                }
+            } catch {
+                $TopKeys = ($Response.PSObject.Properties.Name | Select-Object -First 5) -join ', '
+                Write-Warning "Azure OpenAI: unexpected response shape (top-level keys: $TopKeys). Expected choices[].message.content"
                 return $null
             }
         }

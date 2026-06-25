@@ -2,9 +2,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useEffect, useRef } from 'react';
+import { useFlag } from '../../hooks/useFeatureFlags';
 
 interface CommunityShareBannerProps {
-  isAdmin: boolean;
   itemType: 'chat' | 'debate';
   compact?: boolean;
   onDismiss: () => void;
@@ -12,7 +12,8 @@ interface CommunityShareBannerProps {
 
 const AUTO_DISMISS_MS = 8_000;
 
-export function CommunityShareBanner({ isAdmin, itemType, compact, onDismiss }: CommunityShareBannerProps) {
+export function CommunityShareBanner({ itemType, compact, onDismiss }: CommunityShareBannerProps) {
+  const isAdmin = useFlag('permission-admin-features');
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {

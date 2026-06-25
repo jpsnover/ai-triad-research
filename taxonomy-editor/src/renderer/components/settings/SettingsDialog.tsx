@@ -19,6 +19,7 @@ interface RefreshResult {
   claude: { ok: boolean; count: number; error?: string };
   groq:   { ok: boolean; count: number; error?: string };
   openai: { ok: boolean; count: number; error?: string };
+  azure?: { ok: boolean; count: number; error?: string };
   deepseek: { ok: boolean; count: number; error?: string };
   ollama: { ok: boolean; count: number; error?: string };
   totalModels: number;
@@ -335,6 +336,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [showKeySharing, setShowKeySharing] = useState(false);
   const [, forceUpdate] = useState(0);
   const [keyRefreshTrigger, setKeyRefreshTrigger] = useState(0);
+  const [endpointInput, setEndpointInput] = useState('');
 
   const models = MODELS_BY_BACKEND[aiBackend] || [];
 
@@ -349,12 +351,38 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
 
   const handleSaveKey = async () => {
     if (!keyInput.trim()) return;
+    if (aiBackend === 'azure') {
+      if (!endpointInput.trim()) {
+        setKeyError('Azure OpenAI requires an endpoint URL');
+        setKeySuccess(null);
+        return;
+      }
+      try {
+        const parsed = new URL(endpointInput.trim());
+        if (parsed.protocol !== 'https:' || !parsed.hostname.endsWith('.openai.azure.com')) {
+          setKeyError('Endpoint must be https://{resource}.openai.azure.com');
+          setKeySuccess(null);
+          return;
+        }
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'settings-dialog', level: 'warn',
+          message: 'Invalid Azure endpoint URL',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        setKeyError('Invalid endpoint URL format');
+        setKeySuccess(null);
+        return;
+      }
+    }
     setSavingKey(true);
     setKeyError(null);
     setKeySuccess(null);
     try {
-      const { count } = await api.addApiKey(keyInput.trim(), aiBackend);
+      const value = aiBackend === 'azure' ? `${endpointInput.trim()}|${keyInput.trim()}` : keyInput.trim();
+      const { count } = await api.addApiKey(value, aiBackend);
       setKeyInput('');
+      if (aiBackend === 'azure') setEndpointInput('');
       const label = AI_BACKENDS.find(b => b.value === aiBackend)?.label;
       setKeySuccess(count > 1 ? `${label} key added (${count} total)` : `${label} key saved`);
     } catch (err) {
@@ -403,6 +431,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
     groq: 'gsk_...',
     openai: 'sk-...',
     deepseek: 'sk-...',
+    azure: 'your-api-key',
   };
 
   const keyProvisionUrl: Partial<Record<AIBackend, { url: string; label: string }>> = {
@@ -411,6 +440,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
     groq:     { url: 'https://console.groq.com/keys', label: 'Groq Console' },
     openai:   { url: 'https://platform.openai.com/api-keys', label: 'OpenAI Platform' },
     deepseek: { url: 'https://platform.deepseek.com/api_keys', label: 'DeepSeek Platform' },
+    azure:    { url: 'https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub/~/OpenAI', label: 'Azure Portal' },
   };
 
   return (
@@ -458,7 +488,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
 
         {refreshResult && (
           <div className="settings-refresh-result">
-            {(['gemini', 'claude', 'groq', 'openai', 'deepseek', 'ollama'] as const).map((b) => {
+            {(['gemini', 'claude', 'groq', 'openai', 'azure', 'deepseek', 'ollama'] as const).map((b) => {
               const r = refreshResult[b];
               if (!r) return null;
               return (
@@ -485,6 +515,20 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
           </div>
         ) : (
           <div className="settings-key-section">
+            {aiBackend === 'azure' && (
+              <>
+                <label className="settings-label">Endpoint URL</label>
+                <div className="settings-key-row" style={{ marginBottom: 8 }}>
+                  <input
+                    type="text"
+                    className="settings-key-input"
+                    value={endpointInput}
+                    onChange={(e) => setEndpointInput(e.target.value)}
+                    placeholder="https://your-resource.openai.azure.com"
+                  />
+                </div>
+              </>
+            )}
             <label className="settings-label">
               {AI_BACKENDS.find(b => b.value === aiBackend)?.label} API Key
               {hasKey[aiBackend] && <span className="settings-key-status"> (set)</span>}
@@ -500,7 +544,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
               <button
                 className="btn btn-sm"
                 onClick={handleSaveKey}
-                disabled={!keyInput.trim() || savingKey}
+                disabled={!keyInput.trim() || (aiBackend === 'azure' && !endpointInput.trim()) || savingKey}
               >
                 {savingKey ? '...' : hasKey[aiBackend] ? 'Add Key' : 'Save'}
               </button>

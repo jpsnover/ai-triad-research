@@ -5,7 +5,7 @@ import { useState, useMemo } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
-import { useTaxonomyStore } from '../../../hooks/useTaxonomyStore';
+import { useFlag } from '../../../hooks/useFeatureFlags';
 import type { SpeakerId, ArgumentNetworkNode, ArgumentNetworkEdge, QbafTimelineEntry } from '../../../types/debate';
 import { QbafClaimBadge, QbafEdgeIndicator } from '../../taxonomy/QbafOverlay';
 import { computeCoverageMap, computeStrengthWeightedCoverage } from '@lib/debate/coverageTracker';
@@ -38,7 +38,7 @@ function StrengthTimeline({ timeline, nodes, onSelectClaim }: {
   onSelectClaim?: (nodeId: string) => void;
 }) {
   const [hoveredClaim, setHoveredClaim] = useState<string | null>(null);
-  const qbafEnabled = useTaxonomyStore(s => s.qbafEnabled);
+  const qbafEnabled = useFlag('release-qbaf-analysis');
   if (!qbafEnabled || timeline.length === 0) return null;
 
   const claimIds = useMemo(() => {

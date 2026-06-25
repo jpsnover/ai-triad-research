@@ -8,8 +8,8 @@
  */
 
 import { useState, useCallback } from 'react';
-import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { useDebateStore } from '../../hooks/useDebateStore';
+import { useFlag } from '../../hooks/useFeatureFlags';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge, BdiSubScores } from '../../types/debate';
 import { CATEGORY_SLUGS } from '@lib/debate/nodeIdUtils';
 
@@ -42,7 +42,7 @@ function strengthBand(score: number): { label: string; className: string } {
 
 /** Badge showing QBAF strength for a single claim in the transcript */
 export function QbafClaimBadge({ node }: QbafClaimBadgeProps) {
-  const qbafEnabled = useTaxonomyStore(s => s.qbafEnabled);
+  const qbafEnabled = useFlag('release-qbaf-analysis');
   if (!qbafEnabled) return null;
   if (node.computed_strength == null && node.base_strength == null) return null;
 
@@ -96,7 +96,7 @@ interface QbafScoreSliderProps {
  * Per hybrid scoring decision (e/19#23).
  */
 export function QbafScoreSlider({ node, onScoreChange }: QbafScoreSliderProps) {
-  const qbafEnabled = useTaxonomyStore(s => s.qbafEnabled);
+  const qbafEnabled = useFlag('release-qbaf-analysis');
   if (!qbafEnabled) return null;
 
   const beliefs = isBeliefsNode(node);
@@ -143,7 +143,7 @@ interface QbafEdgeIndicatorProps {
 
 /** Inline indicator for attack/support weight on an edge */
 export function QbafEdgeIndicator({ edge }: QbafEdgeIndicatorProps) {
-  const qbafEnabled = useTaxonomyStore(s => s.qbafEnabled);
+  const qbafEnabled = useFlag('release-qbaf-analysis');
   if (!qbafEnabled || edge.weight == null) return null;
 
   const thickness = 1 + edge.weight * 3; // 1px to 4px
@@ -167,7 +167,7 @@ interface QbafSummaryProps {
 
 /** Summary panel showing QBAF statistics for the current debate */
 export function QbafSummary({ nodes, edges }: QbafSummaryProps) {
-  const qbafEnabled = useTaxonomyStore(s => s.qbafEnabled);
+  const qbafEnabled = useFlag('release-qbaf-analysis');
   if (!qbafEnabled) return null;
 
   const scoredNodes = nodes.filter(n => n.computed_strength != null);

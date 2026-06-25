@@ -6,6 +6,7 @@ import { TOAST_DURATION_FEEDBACK } from '../../constants';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { ConflictFile, ConflictQbaf, DialecticTrace, DialecticTraceStep } from '../../types/taxonomy';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import { useFeatureFlagStore } from '../../hooks/useFeatureFlags';
 import { DeleteConfirmDialog } from '../shared/DeleteConfirmDialog';
 import { ConflictInstanceForm, newEmptyInstance } from './ConflictInstanceForm';
 import { ConflictNoteForm, newEmptyNote } from './ConflictNoteForm';
@@ -349,7 +350,7 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
       </div>
 
       {/* QBAF Analysis (Q-15a) — shown when qbaf field present and feature flag on */}
-      {conflict.qbaf && useTaxonomyStore.getState().qbafEnabled && (
+      {conflict.qbaf && (useFeatureFlagStore.getState().flags['release-qbaf-analysis'] ?? false) && (
         <QbafConflictPanel qbaf={conflict.qbaf} />
       )}
 

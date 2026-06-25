@@ -17,6 +17,7 @@ Review your recent TypeScript/Electron changes against the project's code review
    - PDF.js (Web Worker, version matching)
    - jszip (Uint8Array over strings, worker offloading)
    - xterm/node-pty (env scrubbing, shell path)
+   - Network resilience (fetch routing through web-bridge, timeouts, retry safety, error feedback)
    - Testing (mock cleanup, user-event)
 4. Report any findings with severity (CRITICAL/WARNING/INFO), file:line, and specific fix
 5. Fix any CRITICAL issues before reporting done

@@ -55,10 +55,13 @@ vi.mock('../../../hooks/useDebateStore', () => ({
     selector({ activeDebate: mockActiveDebate }),
 }));
 
+vi.mock('../../../hooks/useFeatureFlags', () => ({
+  useFlag: () => false,
+}));
+
 vi.mock('../../../hooks/useTaxonomyStore', () => ({
   useTaxonomyStore: Object.assign(
-    (selector: (s: { qbafEnabled: boolean }) => unknown) =>
-      selector({ qbafEnabled: false }),
+    () => null,
     {
       getState: vi.fn().mockReturnValue({ situations: null }),
     },

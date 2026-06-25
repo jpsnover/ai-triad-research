@@ -25,6 +25,7 @@ export function resolveBackend(model: string): BackendId {
   if (model.startsWith('claude')) return 'claude';
   if (model.startsWith('groq')) return 'groq';
   if (model.startsWith('openai')) return 'openai';
+  if (model.startsWith('azure')) return 'azure';
   if (model.startsWith('ollama')) return 'ollama';
   if (model.startsWith('deepseek')) return 'deepseek';
   return 'gemini';
@@ -37,6 +38,7 @@ export function resolveModel(registry: ModelRegistry, friendlyId: string): { api
   if (friendlyId.startsWith('claude')) return { apiModelId: friendlyId, backend: 'claude' };
   if (friendlyId.startsWith('groq')) return { apiModelId: friendlyId, backend: 'groq' };
   if (friendlyId.startsWith('openai')) return { apiModelId: friendlyId, backend: 'openai' };
+  if (friendlyId.startsWith('azure')) return { apiModelId: friendlyId, backend: 'azure' };
   if (friendlyId.startsWith('ollama')) return { apiModelId: friendlyId, backend: 'ollama' };
   if (friendlyId.startsWith('deepseek')) return { apiModelId: friendlyId, backend: 'deepseek' };
   return { apiModelId: friendlyId, backend: 'gemini' };
@@ -48,6 +50,7 @@ export function getDefaultTimeout(model: string): number {
     case 'ollama':    return 300_000;
     case 'deepseek':  return 180_000;
     case 'openai':    return 180_000;
+    case 'azure':     return 180_000;
     case 'claude':    return 180_000;
     case 'groq':      return 120_000;
     case 'gemini':    return 120_000;

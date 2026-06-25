@@ -7,9 +7,9 @@ import path from 'path';
 import crypto from 'crypto';
 import { app } from 'electron';
 
-type Backend = 'gemini' | 'claude' | 'groq' | 'openai' | 'deepseek' | 'tavily' | 'ollama';
+type Backend = 'gemini' | 'claude' | 'groq' | 'openai' | 'azure' | 'deepseek' | 'tavily' | 'ollama';
 
-const ALL_BACKENDS: Backend[] = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'tavily', 'ollama'];
+const ALL_BACKENDS: Backend[] = ['gemini', 'claude', 'groq', 'openai', 'azure', 'deepseek', 'tavily', 'ollama'];
 
 function keyFilePath(backend?: Backend): string {
   const suffix = backend && backend !== 'gemini' ? `-${backend}` : '';

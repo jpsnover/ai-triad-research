@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo } from 'react';
-import { useTaxonomyStore } from '../../../hooks/useTaxonomyStore';
+import { useFlag } from '../../../hooks/useFeatureFlags';
 import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge } from '../../../types/debate';
@@ -10,7 +10,7 @@ import { CollapsibleSection, speakerLabel } from './helpers';
 
 /** What-If Mode (D-Q6): counterfactual strength propagation via DF-QuAD. */
 export function WhatIfSection({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] }) {
-  const qbafEnabled = useTaxonomyStore(s => s.qbafEnabled);
+  const qbafEnabled = useFlag('release-qbaf-analysis');
   const [active, setActive] = useState(false);
   const [overrides, setOverrides] = useState<Record<string, number>>({});
 

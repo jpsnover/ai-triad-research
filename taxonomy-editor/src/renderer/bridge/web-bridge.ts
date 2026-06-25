@@ -99,14 +99,14 @@ async function get<T = unknown>(path: string, opts?: FetchOptions): Promise<T> {
   return res.json();
 }
 
-async function post<T = unknown>(path: string, body?: unknown, opts?: FetchOptions): Promise<T> {
+async function post<T = unknown>(path: string, body?: unknown, opts?: FetchOptions, extraHeaders?: Record<string, string>): Promise<T> {
   const cat = categorizeEndpoint(path, 'POST');
   const timeoutMs = opts?.timeoutMs ?? DEFAULT_MUTATION_TIMEOUT_MS;
   let res: Response;
   try {
     res = await resilientFetch(path, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...extraHeaders },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     }, {
       timeoutMs,
@@ -242,6 +242,13 @@ function readByokKeys(backend: string): string[] {
 }
 
 function maskByokKey(key: string): string {
+  const sep = key.indexOf('|');
+  if (sep > 0) {
+    const endpoint = key.slice(0, sep);
+    const k = key.slice(sep + 1);
+    const masked = k.length <= 4 ? k.slice(0, 2) + '***' : k.slice(0, 4) + '...' + k.slice(-4);
+    return `${endpoint} | ${masked}`;
+  }
   if (key.length <= 4) return key.slice(0, 2) + '***';
   return key.slice(0, 4) + '...' + key.slice(-4);
 }
@@ -471,7 +478,7 @@ const rawApi: AppAPI = {
     }
   },
   deleteAllApiKeys: async () => {
-    const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'tavily', 'ollama'] as const;
+    const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'azure', 'deepseek', 'tavily', 'ollama'] as const;
     for (const b of ALL_BACKENDS) {
       sessionStorage.removeItem(`byok-${b}`);
     }
@@ -491,7 +498,7 @@ const rawApi: AppAPI = {
     // Anonymous (BYOK) keys live in sessionStorage — the server can't see them,
     // so derive availability locally, mirroring hasApiKey's anonymous branch.
     if (await isAnonymous()) {
-      const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'tavily', 'ollama'] as const;
+      const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'azure', 'deepseek', 'tavily', 'ollama'] as const;
       return ALL_BACKENDS.map((id) => ({ id, available: !!sessionStorage.getItem(`byok-${id}`) }));
     }
     const res = await get<{ backends: { id: string; available: boolean; models?: string[]; reason?: string }[] }>('/api/backends/available')
@@ -499,7 +506,7 @@ const rawApi: AppAPI = {
     return res.backends;
   },
   getApiKeySummary: async () => {
-    const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'tavily', 'ollama'] as const;
+    const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'azure', 'deepseek', 'tavily', 'ollama'] as const;
     return ALL_BACKENDS.map((b) => {
       const keys = readByokKeys(b);
       return {
@@ -510,7 +517,7 @@ const rawApi: AppAPI = {
     });
   },
   exportKeysForSharing: async (passphrase) => {
-    const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'tavily', 'ollama'] as const;
+    const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'azure', 'deepseek', 'tavily', 'ollama'] as const;
     const keys: Record<string, string> = {};
     for (const b of ALL_BACKENDS) {
       const stored = sessionStorage.getItem(`byok-${b}`);
@@ -537,16 +544,32 @@ const rawApi: AppAPI = {
 
   // AI generation
   generateText: (prompt, model, timeout, temperature) => {
+    const requestId = crypto.randomUUID();
     const body: Record<string, unknown> = { prompt, model, timeout, temperature };
     const byokKey = sessionStorage.getItem('byok-api-key');
     if (byokKey) body.apiKey = byokKey;
-    return post('/api/ai/generate', body);
+    getGlobalRecorder()?.record({
+      type: 'ai.request',
+      component: 'web-bridge',
+      level: 'info',
+      message: `AI generate request: ${model ?? 'default'}`,
+      data: { requestId },
+    });
+    return post('/api/ai/generate', body, undefined, { 'x-request-id': requestId });
   },
   generateTextWithSearch: (prompt, model) => {
+    const requestId = crypto.randomUUID();
     const body: Record<string, unknown> = { prompt, model, search: true };
     const byokKey = sessionStorage.getItem('byok-api-key');
     if (byokKey) body.apiKey = byokKey;
-    return post('/api/ai/generate', body);
+    getGlobalRecorder()?.record({
+      type: 'ai.request',
+      component: 'web-bridge',
+      level: 'info',
+      message: `AI generate+search request: ${model ?? 'default'}`,
+      data: { requestId },
+    });
+    return post('/api/ai/generate', body, undefined, { 'x-request-id': requestId });
   },
   startChatStream: () => Promise.reject(new Error('Streaming chat not supported in web mode')),
   onChatStreamChunk: () => () => {},
@@ -698,7 +721,7 @@ const rawApi: AppAPI = {
   syncCommit: (message) => post('/api/sync/commit', message ? { message } : undefined),
 
   // Flight recorder
-  dumpFlightRecorder: (ndjson) => post('/api/flight-recorder/dump', { ndjson }),
+  dumpFlightRecorder: (ndjson, dumpId) => post('/api/flight-recorder/dump', { ndjson, dumpId }),
   openFile: async () => {}, // No local file access in web mode
   openFlightRecorderViewer: async (dumpPath) => {
     // Extract filename from path and open the server-side viewer endpoint
@@ -830,6 +853,9 @@ const rawApi: AppAPI = {
     return () => { terminalExitCallbacks.delete(cb); };
   },
   captureScreenshot: () => Promise.resolve({ cancelled: true }),
+
+  // Feature flags
+  getFlags: () => get<Record<string, boolean>>('/api/flags').catch(bridgeWarn('getFlags failed', {})),
 
   // Admin Review (HTTP to server)
   adminReviewConfigured: () => Promise.resolve(true),

@@ -10,6 +10,7 @@ export { generateViaGemini, GEMINI_BASE, GEMINI_SAFETY_SETTINGS, toGeminiSchema 
 export { generateViaClaude } from './providers/claude.js';
 export { generateViaGroq } from './providers/groq.js';
 export { generateViaOpenAI } from './providers/openai.js';
+export { generateViaAzure } from './providers/azure.js';
 export { generateViaDeepSeek, generateViaDeepSeekStream } from './providers/deepseek.js';
 export { generateViaOllama, isOllamaAvailable, OLLAMA_BASE } from './providers/ollama.js';
 export { TaskTier, resolveModelForPurpose, probeOllama, configureRouter, getRouterConfig, getTierForPurpose, PURPOSE_TIER_MAP, resolveMultiProviderModels } from './modelRouter.js';

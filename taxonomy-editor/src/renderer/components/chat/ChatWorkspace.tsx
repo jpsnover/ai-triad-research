@@ -302,7 +302,6 @@ export function ChatWorkspace() {
         {/* Share result banner */}
         {shareState === 'success' && (
           <CommunityShareBanner
-            isAdmin={!!profile?.isAdmin}
             itemType="chat"
             compact
             onDismiss={() => setShareState('idle')}

@@ -746,6 +746,23 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
 
     console.log(`[debate-store] Opening statements: aiPovers=${JSON.stringify(aiPovers)}, existingOpenings=${JSON.stringify([...existingOpenings])}, resolvedOrder=${JSON.stringify(resolvedOrder)}`);
 
+    const MAX_OPENING_RETRIES = 1;
+    let openingRetryPass = 0;
+    let failedSpeakers: string[] = [];
+    let hasRetryableFailure = false;
+    let retryBackoffMs = 5000;
+
+    while (openingRetryPass <= MAX_OPENING_RETRIES) {
+      if (openingRetryPass > 0) {
+        console.log(`[debate-store] Opening retry pass ${openingRetryPass} — waiting ${retryBackoffMs}ms`);
+        set({ debateActivity: `Rate-limited — retrying openings in ${Math.ceil(retryBackoffMs / 1000)}s...` });
+        await new Promise(resolve => setTimeout(resolve, retryBackoffMs));
+        if (!isStillValid()) break;
+      }
+
+      failedSpeakers = [];
+      hasRetryableFailure = false;
+
     for (const poverId of aiPovers) {
       const freshTranscript = get().activeDebate?.transcript ?? [];
       if (freshTranscript.some(e => e.type === 'opening' && e.speaker === poverId)) {
@@ -933,41 +950,60 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           void extractClaimsAndUpdateAN(statement, poverId, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
         }
       } catch (err) {
-        console.error(`[debate] ${info.label} opening statement failed:`, err);
-        getGlobalRecorder()?.record({ type: 'system.error', debate_id: activeDebate?.id, component: 'debate-engine', level: 'error', message: `Opening statement failed: ${info.label}`, error: { name: (err as Error).name, message: (err as Error).message, stack: (err as Error).stack?.slice(0, 500) } });
+        const httpStatus = (err as { httpStatus?: number }).httpStatus;
+        const isRetryable = httpStatus === 429;
+        console.error(`[debate] ${info.label} opening statement failed (status=${httpStatus ?? 'unknown'}):`, err);
+        getGlobalRecorder()?.record({ type: 'system.error', debate_id: activeDebate?.id, component: 'debate-engine', level: 'error', message: `Opening statement failed: ${info.label} (status=${httpStatus ?? 'unknown'})`, error: { name: (err as Error).name ?? 'Error', message: (err as Error).message ?? String(err), stack: (err as Error).stack?.slice(0, 500) } });
         addTranscriptEntry({
           type: 'system',
           speaker: 'system',
           content: `${info.label} failed to deliver opening statement: ${mapErrorToUserMessage(err)}`,
           taxonomy_refs: [],
         });
+        failedSpeakers.push(info.label);
+        if (isRetryable) {
+          hasRetryableFailure = true;
+          const msgMatch = String(err).match(/Retry in (\d+)s/);
+          retryBackoffMs = msgMatch ? parseInt(msgMatch[1], 10) * 1000 : 5000;
+          break;
+        }
       }
+    }
+
+      if (!hasRetryableFailure || failedSpeakers.length === 0) break;
+      openingRetryPass++;
     }
 
     releaseDebateDriver();
     set({ debateGenerating: null });
 
-    // If user is a POVer, wait for their input (phase stays 'opening')
-    // Otherwise, transition to debate phase — but only if at least one valid opening was delivered
+    // Check if all expected AI openings were delivered
+    const currentDebate = get().activeDebate;
+    const deliveredOpenings = (currentDebate?.transcript ?? []).filter(
+      e => e.type === 'opening' && e.content && e.content.trim().length > 0,
+    );
+    const deliveredSpeakers = new Set(deliveredOpenings.map(e => e.speaker));
+    const missingSpeakers = aiPovers.filter(p => !deliveredSpeakers.has(p));
+
+    if (missingSpeakers.length > 0) {
+      const missingLabels = missingSpeakers.map(p => POVER_INFO[p].label);
+      set({
+        debateActivity: null,
+        debateError: `Opening statements failed for ${missingLabels.join(', ')}. Click Retry to try again.`,
+      });
+      await saveDebate('runOpeningStatements:partialFailure');
+      return;
+    }
+
+    // All openings delivered — advance to debate phase (unless user is a POVer)
     if (!activeDebate.user_is_pover) {
-      const currentDebate = get().activeDebate;
-      const validOpenings = (currentDebate?.transcript ?? []).filter(
-        e => e.type === 'opening' && e.content && e.content.trim().length > 0,
-      );
-      if (validOpenings.length > 0) {
-        get().updatePhase('debate');
-        const expectedCount = aiPovers.length;
-        const suffix = validOpenings.length < expectedCount
-          ? ` (${expectedCount - validOpenings.length} debater${expectedCount - validOpenings.length > 1 ? 's' : ''} failed to deliver — they will join during cross-respond.)`
-          : '';
-        addTranscriptEntry({
-          type: 'system',
-          speaker: 'system',
-          content: `Opening statements complete.${suffix} The floor is open.`,
-          taxonomy_refs: [],
-        });
-      }
-      // If no valid openings at all, stay in 'opening' phase so user can retry
+      get().updatePhase('debate');
+      addTranscriptEntry({
+        type: 'system',
+        speaker: 'system',
+        content: 'Opening statements complete. The floor is open.',
+        taxonomy_refs: [],
+      });
     }
 
     // Cache opening embeddings for position drift detection (non-blocking)

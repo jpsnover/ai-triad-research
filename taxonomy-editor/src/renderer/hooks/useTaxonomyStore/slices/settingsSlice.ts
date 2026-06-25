@@ -231,9 +231,6 @@ export interface SettingsSlice {
   paneSpacing: 'normal' | 'concise';
   setPaneSpacing: (spacing: 'normal' | 'concise') => void;
 
-  qbafEnabled: boolean;
-  setQbafEnabled: (enabled: boolean) => void;
-
   communityServerUrl: string;
   setCommunityServerUrl: (url: string) => void;
 
@@ -283,19 +280,6 @@ export const createSettingsSlice: StateCreator<TaxonomyStore, [], [], SettingsSl
     }
     document.documentElement.setAttribute('data-pane-spacing', spacing);
     set({ paneSpacing: spacing });
-  },
-
-  qbafEnabled: (() => {
-    try { const v = localStorage.getItem('taxonomy-editor-qbaf'); return v === null ? true : v === 'true'; } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read QBAF setting from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      return true;
-    }
-  })(),
-  setQbafEnabled: (enabled) => {
-    try { localStorage.setItem('taxonomy-editor-qbaf', String(enabled)); } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist QBAF setting to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-    }
-    set({ qbafEnabled: enabled });
   },
 
   communityServerUrl: (() => {

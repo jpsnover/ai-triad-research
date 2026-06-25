@@ -12,12 +12,11 @@ vi.mock('@bridge', () => ({
   api: { clipboardWriteText: vi.fn() },
 }));
 
-// ── Mock useTaxonomyStore ────────────────────────────────────────────────────
+// ── Mock useFeatureFlags ─────────────────────────────────────────────────────
 let mockQbafEnabled = true;
 
-vi.mock('../../../hooks/useTaxonomyStore', () => ({
-  useTaxonomyStore: (selector: (s: { qbafEnabled: boolean }) => unknown) =>
-    selector({ qbafEnabled: mockQbafEnabled }),
+vi.mock('../../../hooks/useFeatureFlags', () => ({
+  useFlag: () => mockQbafEnabled,
 }));
 
 // ── Mock @lib/debate/qbaf ────────────────────────────────────────────────────

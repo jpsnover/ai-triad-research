@@ -2650,3 +2650,85 @@ describe('Lookahead WEAK claim filtering (t/459)', () => {
     expect(committedTexts).toContain('Weak claim');
   });
 });
+
+// ── Opening Statement Failure Handling (t/920) ─────────────
+
+describe('runOpeningStatements — failure halts flow (t/920)', () => {
+  it('does not advance to debate phase when opening pipeline throws a fatal error', async () => {
+    const { runOpeningPipeline } = await import('@lib/debate/turnPipeline');
+    const fatalError = Object.assign(new Error('Internal server error'), { httpStatus: 500 });
+    vi.mocked(runOpeningPipeline).mockRejectedValue(fatalError);
+
+    const session = makeSession({
+      phase: 'opening',
+      active_povers: ['accelerationist', 'safetyist'],
+      topic: { original: 'AI governance', refined: null, final: 'AI governance' },
+    });
+    useDebateStore.setState({ activeDebate: session as any, debateModel: 'gemini-2.0-flash' });
+
+    await useDebateStore.getState().runOpeningStatements();
+
+    const state = useDebateStore.getState();
+    expect(state.activeDebate?.phase).toBe('opening');
+    expect(state.debateError).toBeTruthy();
+    expect(state.debateError).toMatch(/Opening statements failed/);
+    expect(state.debateGenerating).toBeNull();
+
+    vi.mocked(runOpeningPipeline).mockResolvedValue({});
+  });
+
+  it('sets debateError with speaker names on partial failure', async () => {
+    const { runOpeningPipeline, assembleOpeningPipelineResult } = await import('@lib/debate/turnPipeline');
+    vi.mocked(runOpeningPipeline)
+      .mockResolvedValueOnce({ stage_diagnostics: [] })
+      .mockRejectedValueOnce(Object.assign(new Error('Server error'), { httpStatus: 500 }));
+    vi.mocked(assembleOpeningPipelineResult).mockReturnValueOnce({
+      statement: 'A'.repeat(100),
+      taxonomyRefs: [],
+      meta: { key_assumptions: [], my_claims: [], turn_symbols: [], policy_refs: [] },
+    } as any);
+
+    const session = makeSession({
+      phase: 'opening',
+      active_povers: ['accelerationist', 'safetyist'],
+      topic: { original: 'AI governance', refined: null, final: 'AI governance' },
+    });
+    useDebateStore.setState({ activeDebate: session as any, debateModel: 'gemini-2.0-flash' });
+
+    await useDebateStore.getState().runOpeningStatements();
+
+    const state = useDebateStore.getState();
+    expect(state.activeDebate?.phase).toBe('opening');
+    expect(state.debateError).toMatch(/Safetyist/);
+    expect(state.debateGenerating).toBeNull();
+
+    vi.mocked(runOpeningPipeline).mockResolvedValue({});
+    vi.mocked(assembleOpeningPipelineResult).mockReturnValue({});
+  });
+
+  it('retries once on 429 rate-limit errors before halting', async () => {
+    const { runOpeningPipeline } = await import('@lib/debate/turnPipeline');
+    const rateLimitError = Object.assign(
+      new Error('Rate limit exceeded. Retry in 1s.'),
+      { httpStatus: 429 },
+    );
+    vi.mocked(runOpeningPipeline).mockRejectedValue(rateLimitError);
+
+    const session = makeSession({
+      phase: 'opening',
+      active_povers: ['accelerationist'],
+      topic: { original: 'Test', refined: null, final: 'Test topic' },
+    });
+    useDebateStore.setState({ activeDebate: session as any, debateModel: 'gemini-2.0-flash' });
+
+    await useDebateStore.getState().runOpeningStatements();
+
+    // Pipeline was called twice: initial attempt + one retry
+    expect(vi.mocked(runOpeningPipeline).mock.calls.length).toBeGreaterThanOrEqual(2);
+    const state = useDebateStore.getState();
+    expect(state.activeDebate?.phase).toBe('opening');
+    expect(state.debateError).toBeTruthy();
+
+    vi.mocked(runOpeningPipeline).mockResolvedValue({});
+  });
+});

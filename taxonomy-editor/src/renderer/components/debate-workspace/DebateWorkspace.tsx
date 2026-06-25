@@ -32,7 +32,7 @@ import { useUserProfile } from '../../hooks/useAuthStatus';
 import { CommunityShareBanner } from '../shared/CommunityShareBanner';
 import { CoverageBadge } from './TaxonomyRefs';
 import { StatementCard, ProbingCard, FactCheckCard, EntryDeleteControls, HighlightedText } from './StatementCard';
-import { PhaseProgressBar, ProgressIndicator, DebaterToggles, DebateActions } from './DebateActionBar';
+import { PhaseProgressBar, SessionPhaseStepper, ProgressIndicator, DebaterToggles, DebateActions } from './DebateActionBar';
 import { ClarificationActions, ClaimsEditor, RefinedTopicEditor, TopicScoreComparison } from './ClarificationPanel';
 import { OpeningActions } from './OpeningPanel';
 
@@ -149,7 +149,6 @@ function ShareToCommunityButton({ debate }: { debate: { id: string; topic: strin
       </button>
       {shareState === 'success' && (
         <CommunityShareBanner
-          isAdmin={!!profile?.isAdmin}
           itemType="debate"
           onDismiss={() => setShareState('idle')}
         />
@@ -756,6 +755,14 @@ export function DebateWorkspace({ onExport, exportStatus }: {
           </div>
           <span className="debate-topic-text">{activeDebate.topic.final}</span>
         </div>
+
+        {/* Session phase stepper — always visible once debate has started */}
+        {activeDebate.phase !== 'setup' && (
+          <SessionPhaseStepper
+            phase={activeDebate.phase}
+            roundCount={activeDebate.transcript.filter(e => e.type === 'statement').length}
+          />
+        )}
 
         {/* Adaptive phase progress bar — shown during debate phase when adaptive staging is enabled */}
         {isDebatePhase && (activeDebate as any).adaptive_staging?.enabled && (() => {

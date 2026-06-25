@@ -254,7 +254,7 @@ export interface AppAPI {
   syncCommit: (message?: string) => Promise<{ ok: boolean; commitSha: string | null; filesCommitted: number }>;
 
   // --- Flight recorder ---
-  dumpFlightRecorder: (ndjson: string) => Promise<{ filePath: string; filename: string }>;
+  dumpFlightRecorder: (ndjson: string, dumpId?: string) => Promise<{ filePath: string; filename: string }>;
   openFile: (filePath: string) => Promise<void>;
   openFlightRecorderViewer: (dumpPath: string) => Promise<void>;
 
@@ -283,6 +283,9 @@ export interface AppAPI {
 
   // --- Screenshot capture ---
   captureScreenshot: (opts?: { width?: number; height?: number; defaultName?: string }) => Promise<{ cancelled: boolean; filePath?: string }>;
+
+  // --- Feature flags ---
+  getFlags: () => Promise<Record<string, boolean>>;
 
   // --- Admin Review (Azure Blob in Electron, HTTP in web) ---
   adminReviewConfigured: () => Promise<boolean>;

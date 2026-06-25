@@ -21,6 +21,10 @@
       "label": "DeepSeek"
     },
     {
+      "id": "azure",
+      "label": "Azure OpenAI"
+    },
+    {
       "id": "ollama",
       "label": "Ollama (Local)",
       "local": true
@@ -658,6 +662,30 @@
       "backend": "deepseek"
     },
     {
+      "id": "azure-gpt-4o",
+      "apiModelId": "gpt-4o",
+      "label": "GPT-4o (Azure)",
+      "backend": "azure"
+    },
+    {
+      "id": "azure-gpt-4o-mini",
+      "apiModelId": "gpt-4o-mini",
+      "label": "GPT-4o Mini (Azure)",
+      "backend": "azure"
+    },
+    {
+      "id": "azure-gpt-4.1",
+      "apiModelId": "gpt-4.1",
+      "label": "GPT-4.1 (Azure)",
+      "backend": "azure"
+    },
+    {
+      "id": "azure-gpt-4.1-mini",
+      "apiModelId": "gpt-4.1-mini",
+      "label": "GPT-4.1 Mini (Azure)",
+      "backend": "azure"
+    },
+    {
       "id": "ollama-gemma4-e4b-it-q4-k-m",
       "apiModelId": "gemma4:e4b-it-q4_K_M",
       "label": "gemma4:e4b-it-q4_K_M (8.0B) Q4_K_M",
@@ -669,6 +697,7 @@
     "claude": "claude-sonnet-4-6",
     "groq": "groq-openai-gpt-oss-120b",
     "deepseek": "deepseek-deepseek-v4-flash",
+    "azure": "azure-gpt-4o",
     "ollama": "ollama-gemma4-e4b-it-q4-k-m"
   },
   "fallbackChains": {
@@ -727,6 +756,22 @@
       "gemini-2.5-flash",
       "groq-llama-3.3-70b-versatile"
     ],
+    "azure-gpt-4o": [
+      "azure-gpt-4o-mini",
+      "gemini-2.5-flash"
+    ],
+    "azure-gpt-4o-mini": [
+      "gemini-2.5-flash-lite",
+      "groq-llama-3.1-8b-instant"
+    ],
+    "azure-gpt-4.1": [
+      "azure-gpt-4.1-mini",
+      "gemini-2.5-flash"
+    ],
+    "azure-gpt-4.1-mini": [
+      "gemini-2.5-flash-lite",
+      "groq-llama-3.1-8b-instant"
+    ],
     "deepseek-chat": [
       "groq-llama-3.3-70b-versatile",
       "gemini-2.5-flash"
@@ -741,6 +786,7 @@
     "claude": 1048576,
     "groq": 131072,
     "openai": 131072,
+    "azure": 128000,
     "deepseek": 65536,
     "ollama": 131072
   },
@@ -749,6 +795,7 @@
     "claude":   { "supportsTools": true,  "supportsVision": true,  "supportsStreaming": true,  "maxContextTokens": 200000 },
     "groq":     { "supportsTools": true,  "supportsVision": false, "supportsStreaming": true,  "maxContextTokens": 131072 },
     "openai":   { "supportsTools": true,  "supportsVision": true,  "supportsStreaming": true,  "maxContextTokens": 128000 },
+    "azure":    { "supportsTools": true,  "supportsVision": true,  "supportsStreaming": true,  "maxContextTokens": 128000 },
     "deepseek": { "supportsTools": true,  "supportsVision": false, "supportsStreaming": true,  "maxContextTokens": 65536 },
     "ollama":   { "supportsTools": false, "supportsVision": false, "supportsStreaming": true,  "maxContextTokens": 131072 }
   },
@@ -785,6 +832,7 @@
       "claude": "claude-haiku-4-5",
       "groq": "groq-llama-3.1-8b-instant",
       "openai": "openai-gpt-4.1-mini",
+      "azure": "azure-gpt-4o-mini",
       "deepseek": "deepseek-deepseek-v4-flash",
       "ollama": "ollama-gemma4-e4b-it-q4-k-m"
     },
@@ -793,6 +841,7 @@
       "claude": "claude-sonnet-4-6",
       "groq": "groq-llama-3.3-70b-versatile",
       "openai": "openai-gpt-4.1",
+      "azure": "azure-gpt-4.1",
       "deepseek": "deepseek-deepseek-v4-pro",
       "ollama": "ollama-gemma4-e4b-it-q4-k-m"
     }

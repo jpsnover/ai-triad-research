@@ -138,6 +138,10 @@
         'Restore-TaxEditorBlob'
         'Get-CriticalInteraction'
         'Test-CriticalInteractions'
+        'Merge-FlightRecorderDumps'
+        'Get-TriadConfig'
+        'Set-TriadConfig'
+        'Invoke-TriadConfigReload'
     )
 
     # Aliases exported from this module

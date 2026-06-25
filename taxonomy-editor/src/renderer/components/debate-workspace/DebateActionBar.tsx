@@ -86,6 +86,37 @@ export function PhaseProgressBar({ currentPhase, phaseProgress, roundsInPhase, a
   );
 }
 
+const SESSION_STEPS = [
+  { key: 'clarification', label: 'Refine' },
+  { key: 'opening', label: 'Opening' },
+  { key: 'debate', label: 'Debate' },
+  { key: 'closed', label: 'Complete' },
+] as const;
+
+export function SessionPhaseStepper({ phase, roundCount }: { phase: string; roundCount: number }) {
+  const stepIdx = SESSION_STEPS.findIndex(s => s.key === phase);
+  const activeIdx = stepIdx >= 0 ? stepIdx : (phase === 'setup' || phase === 'edit-claims' ? 0 : -1);
+
+  return (
+    <div className="session-stepper">
+      {SESSION_STEPS.map((step, idx) => {
+        const completed = idx < activeIdx || phase === 'closed';
+        const active = idx === activeIdx && phase !== 'closed';
+        return (
+          <div key={step.key} className={`session-step${completed ? ' completed' : ''}${active ? ' active' : ''}`}>
+            <div className="session-step-dot">{completed ? '✓' : idx + 1}</div>
+            <span className="session-step-label">
+              {step.label}
+              {active && step.key === 'debate' && roundCount > 0 ? ` (${roundCount})` : ''}
+            </span>
+            {idx < SESSION_STEPS.length - 1 && <div className={`session-step-line${completed ? ' completed' : ''}`} />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function DebaterToggles() {
   const { activeDebate, togglePover, debateGenerating } = useDebateStore(
     useShallow(s => ({ activeDebate: s.activeDebate, togglePover: s.togglePover, debateGenerating: s.debateGenerating }))
