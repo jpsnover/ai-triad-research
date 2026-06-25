@@ -96,6 +96,12 @@ const SEED_FLAGS: Record<string, FlagDef> = {
     created_at: '2026-06-24T00:00:00.000Z', updated_at: '2026-06-24T00:00:00.000Z',
     created_by: 'seed',
   },
+  'permission-admin-features': {
+    name: 'permission-admin-features', enabled: true, scope: 'role:admin',
+    description: 'Unlock admin UI features (community moderation, resilience details, share banner controls)',
+    created_at: '2026-06-25T00:00:00.000Z', updated_at: '2026-06-25T00:00:00.000Z',
+    created_by: 'seed',
+  },
 };
 
 // ── Config loading (mtime cache, quotas.ts pattern) ──
