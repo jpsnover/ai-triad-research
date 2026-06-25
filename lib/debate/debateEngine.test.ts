@@ -1290,7 +1290,7 @@ describe('Per-stage model override', () => {
     expect(config.stageModels?.cite).toBe('cheap-model');
   });
 
-  it('stamps stage_models on session', () => {
+  it('stamps stage_models on session with explicit overrides', () => {
     const config = createDefaultConfig({
       stageModels: { brief: 'cheap-brief', cite: 'cheap-cite' },
     });
@@ -1300,12 +1300,32 @@ describe('Per-stage model override', () => {
     expect(session.stage_models).toEqual({ brief: 'cheap-brief', cite: 'cheap-cite' });
   });
 
-  it('does not stamp stage_models when stageModels is unset', () => {
+  it('defaults brief and cite to flash-lite when stageModels is unset', () => {
+    const config = createDefaultConfig();
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+    expect((engine as any).config.stageModels.brief).toBe('gemini-3.1-flash-lite');
+    expect((engine as any).config.stageModels.cite).toBe('gemini-3.1-flash-lite');
+    expect((engine as any).config.stageModels.plan).toBeUndefined();
+  });
+
+  it('stamps flash-lite defaults on session when no stageModels provided', () => {
     const config = createDefaultConfig();
     const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
     (engine as any).initSession();
     const session = (engine as any).session;
-    expect(session.stage_models).toBeUndefined();
+    expect(session.stage_models).toBeDefined();
+    expect(session.stage_models.brief).toBe('gemini-3.1-flash-lite');
+    expect(session.stage_models.cite).toBe('gemini-3.1-flash-lite');
+  });
+
+  it('preserves explicit overrides over flash-lite defaults', () => {
+    const config = createDefaultConfig({
+      stageModels: { brief: 'claude-opus-4', plan: 'claude-opus-4', cite: 'claude-opus-4' },
+    });
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+    expect((engine as any).config.stageModels.brief).toBe('claude-opus-4');
+    expect((engine as any).config.stageModels.plan).toBe('claude-opus-4');
+    expect((engine as any).config.stageModels.cite).toBe('claude-opus-4');
   });
 });
 

@@ -436,7 +436,14 @@ export class DebateEngine {
   }
 
   constructor(config: DebateConfig, adapter: AIAdapter | ExtendedAIAdapter, taxonomy: LoadedTaxonomy) {
-    this.config = config;
+    this.config = {
+      ...config,
+      stageModels: {
+        brief: config.stageModels?.brief ?? 'gemini-3.1-flash-lite',
+        plan: config.stageModels?.plan,
+        cite: config.stageModels?.cite ?? 'gemini-3.1-flash-lite',
+      },
+    };
     this.adapter = adapter;
     this.taxonomy = taxonomy;
   }
