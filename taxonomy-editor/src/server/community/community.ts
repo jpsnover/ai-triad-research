@@ -21,7 +21,7 @@ function removalsDir(): string { return resolveDataPath('community/_removals'); 
 // ── Admin ──
 
 function getAdminUsers(): string[] {
-  return (process.env.ADMIN_USERS || 'jpsnover').split(',').map(s => s.trim());
+  return (process.env.ADMIN_USERS || 'jpsnover,jsnover13-at-gmail-com').split(',').map(s => s.trim());
 }
 
 export function isAdmin(userId?: string): boolean {

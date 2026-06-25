@@ -3375,7 +3375,7 @@ get('/api/user/profile', (req, res) => {
     : '';
   const isAnon = !principalName;
   const userId = deriveStorageUserId(principalName || '_local', idp || '_local');
-  const adminUsers = (process.env.ADMIN_USERS || 'jpsnover').split(',').map(s => s.trim());
+  const adminUsers = (process.env.ADMIN_USERS || 'jpsnover,jsnover13-at-gmail-com').split(',').map(s => s.trim());
   const quotaLimits = isAnon ? null : getQuotaLimits(userId);
   json(res, {
     userId,
