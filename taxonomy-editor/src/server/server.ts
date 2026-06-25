@@ -219,11 +219,13 @@ if (STORAGE_MODE === 'github-api') {
     data: { mode: 'github-api', cacheDir: CACHE_DIR },
   });
 
-  // Dual-backend routing (t/698): user content (chats / debates / community) can
-  // live in Azure Blob while taxonomy/conflicts/calibration stay on GitHub.
-  // Gated by USER_CONTENT_STORAGE for rollback safety — default 'github-api'
-  // leaves everything on GitHub (userContentBackend falls back to taxonomy).
-  const userContentStorage = process.env.USER_CONTENT_STORAGE === 'azure-blob' ? 'azure-blob' : 'github-api';
+  // Dual-backend routing (t/698): user content (chats / debates / community) lives
+  // in Azure Blob; taxonomy/conflicts/calibration stay on GitHub. Default is now
+  // 'azure-blob' (t/1002 AC#4): the GitHub copy of user content was deleted in
+  // t/700/t/1002, so the old github-api rollback path is defunct. Setting
+  // USER_CONTENT_STORAGE=github-api is a legacy escape hatch only — that data no
+  // longer exists in the repo. Requires AZURE_STORAGE_ACCOUNT_URL to be set.
+  const userContentStorage = process.env.USER_CONTENT_STORAGE === 'github-api' ? 'github-api' : 'azure-blob';
   const blobAccountUrl = process.env.AZURE_STORAGE_ACCOUNT_URL;
   if (userContentStorage === 'azure-blob' && blobAccountUrl) {
     // Dynamic import: only pull in the Azure SDK (@azure/identity +
@@ -245,12 +247,12 @@ if (STORAGE_MODE === 'github-api') {
     });
   } else {
     if (userContentStorage === 'azure-blob' && !blobAccountUrl) {
-      log.storage.warn('USER_CONTENT_STORAGE=azure-blob but AZURE_STORAGE_ACCOUNT_URL is unset — user content stays on GitHub');
+      log.storage.warn('User content defaults to azure-blob but AZURE_STORAGE_ACCOUNT_URL is unset — Blob backend not initialized; user content falls back to the primary GitHub backend, whose user-content copy was deleted in t/700. Set AZURE_STORAGE_ACCOUNT_URL.');
     }
     serverRecorder.record({
-      type: 'storage.mode', component: 'storage', level: 'info',
-      message: 'User content storage: github-api (rollback path)',
-      data: { userContentStorage: 'github-api' },
+      type: 'storage.mode', component: 'storage', level: 'warn',
+      message: 'User content storage: github-api fallback (Azure Blob not configured) — note the GitHub user-content copy was deleted in t/700',
+      data: { userContentStorage },
     });
   }
 } else {
