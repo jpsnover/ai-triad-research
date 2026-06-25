@@ -3866,6 +3866,16 @@ async function handleRequestInner(
         status: res.statusCode,
         duration_ms: duration,
       }, 'Request completed');
+      // t/1022: a 404 on /api/*/assets/*.js means index.html was served for an API
+      // path (service-worker navigateFallback or SPA catch-all) — this should never
+      // happen under normal operation, so surface it as a warning instead of burying
+      // it as a routine info-level 404.
+      if (res.statusCode === 404 && /^\/api\/.*\/assets\//.test(urlPath)) {
+        log.server.warn({
+          requestId,
+          path: urlPath,
+        }, 'Anomalous 404: SPA index.html likely served for an API path (service-worker interception or SPA fallback misconfiguration)');
+      }
       serverRecorder.record({
         type: 'lifecycle',
         component: serverRecorder.intern('component', 'server') as string | number,
