@@ -26,6 +26,7 @@ export interface RequestContext {
   method?: string;
   path?: string;
   userId?: string;
+  debateId?: string; // t/966: set by /api/ai/generate so debate sessions are filterable in logs
 }
 
 const requestAls = new AsyncLocalStorage<RequestContext>();
@@ -106,6 +107,7 @@ const pinoOptions = {
     if (ctx) {
       const merged: Record<string, unknown> = { requestId: ctx.requestId };
       if (ctx.userId) merged.userId = ctx.userId;
+      if (ctx.debateId) merged.debateId = ctx.debateId;
       return merged;
     }
     return {};

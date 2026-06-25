@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { getConfig } from './runtimeConfig.js';
+import { log } from './logger.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 // ── Sliding-window requests-per-minute ──
 
@@ -60,6 +62,7 @@ interface DailyTokenBucket {
   inputTokens: number;
   outputTokens: number;
   total: number;
+  milestonesLogged: Set<number>; // t/967: daily-budget thresholds already logged today
 }
 
 const dailyTokens = new Map<string, DailyTokenBucket>();
@@ -72,17 +75,41 @@ function getBucket(userId: string): DailyTokenBucket {
   const d = today();
   let bucket = dailyTokens.get(userId);
   if (!bucket || bucket.date !== d) {
-    bucket = { date: d, inputTokens: 0, outputTokens: 0, total: 0 };
+    bucket = { date: d, inputTokens: 0, outputTokens: 0, total: 0, milestonesLogged: new Set() };
     dailyTokens.set(userId, bucket);
   }
   return bucket;
 }
 
-export function recordTokenUsage(userId: string, inputTokens: number, outputTokens: number): void {
+// t/967: warn when a user crosses 50/80/95% of their daily token budget — once per
+// threshold per user per day — so the consumption rate is visible before the hard
+// limit (not just at the rejection point). 80% and 95% also emit flight-recorder
+// events so they surface in dumps.
+const TOKEN_MILESTONES = [50, 80, 95] as const;
+
+function checkTokenMilestones(limitKey: string, bucket: DailyTokenBucket, limit: number): void {
+  const pct = (bucket.total / limit) * 100;
+  for (const m of TOKEN_MILESTONES) {
+    if (pct >= m && !bucket.milestonesLogged.has(m)) {
+      bucket.milestonesLogged.add(m);
+      log.server.warn({ component: 'rate-limiter', type: 'token_milestone', limitKey, milestone: `${m}%`, current: bucket.total, limit }, `Daily token usage at ${m}%`);
+      if (m >= 80) {
+        getGlobalRecorder()?.record({
+          type: 'ai.error', component: 'rate-limiter', level: 'warn',
+          message: `Daily token usage at ${m}% (${bucket.total}/${limit})`,
+          data: { type: 'token_milestone', limitKey, milestone: `${m}%`, current: bucket.total, limit },
+        });
+      }
+    }
+  }
+}
+
+export function recordTokenUsage(userId: string, inputTokens: number, outputTokens: number, limit?: number): void {
   const bucket = getBucket(userId);
   bucket.inputTokens += inputTokens;
   bucket.outputTokens += outputTokens;
   bucket.total += inputTokens + outputTokens;
+  if (limit && limit > 0) checkTokenMilestones(userId, bucket, limit);
 }
 
 export function checkTokenLimit(userId: string, limit: number): RateCheckResult {

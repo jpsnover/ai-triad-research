@@ -1116,7 +1116,14 @@ const BACKEND_DISPLAY: Record<string, string> = {
 };
 
 post('/api/ai/generate', async (req, res, body) => {
-  const { prompt, model, timeout, apiKey: clientKey, search } = body as { prompt: string; model?: string; timeout?: number; apiKey?: string; search?: boolean };
+  const { prompt, model, timeout, apiKey: clientKey, search, debateId } = body as { prompt: string; model?: string; timeout?: number; apiKey?: string; search?: boolean; debateId?: string };
+  // t/966: stamp the debate client's debateId onto the request context so it lands
+  // in the request-completion log (and every log line for this request) — debate
+  // sessions become filterable in one query instead of correlating by user+time.
+  if (typeof debateId === 'string' && debateId) {
+    const rc = getRequestContext();
+    if (rc) rc.debateId = debateId.slice(0, 64);
+  }
   try {
     const { principalName, idp } = callerIdentity(); // t/848: verified context, not raw headers
     const tier = proxyTiers.resolveTier(principalName, idp);
@@ -1211,7 +1218,7 @@ post('/api/ai/generate', async (req, res, body) => {
     getGlobalRecorder()?.record({
       type: 'ai.request', component: 'ai-generate', level: 'info',
       message: `generate ${backend}/${requestModel}`,
-      data: { model: requestModel, backend, tier: tier.level, promptLength: prompt?.length ?? 0 },
+      data: { model: requestModel, backend, tier: tier.level, promptLength: prompt?.length ?? 0, debateId },
     });
 
     if (search) {
@@ -1271,7 +1278,7 @@ post('/api/ai/generate', async (req, res, body) => {
       });
 
       if (result.tokenUsage) {
-        rateLimiter.recordTokenUsage(limitKey, result.tokenUsage.inputTokens, result.tokenUsage.outputTokens);
+        rateLimiter.recordTokenUsage(limitKey, result.tokenUsage.inputTokens, result.tokenUsage.outputTokens, tier.limits.tokensPerDay);
       }
 
       json(res, { text: result.text, tokenUsage: result.tokenUsage });
