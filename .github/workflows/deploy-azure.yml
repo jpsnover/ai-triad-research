@@ -43,7 +43,7 @@ permissions:
 
 concurrency:
   group: deploy-${{ inputs.environment }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
