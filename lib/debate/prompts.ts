@@ -1930,6 +1930,8 @@ export interface StagePromptInput {
   topicScope?: TopicScope;
   /** When true, inserts a salience beacon block in the Draft prompt to reduce scope drift. */
   salienceBeacon?: boolean;
+  /** Exploration summary priming — AN sketch + convergence areas injected at Brief prompt top. */
+  explorationPriming?: string;
 }
 
 export function briefStagePrompt(input: StagePromptInput): string {
@@ -1941,7 +1943,7 @@ export function briefStagePrompt(input: StagePromptInput): string {
 
 Your task is to comprehend the current state of the debate and identify what matters most for ${input.label}'s next response. This is pure analysis — do not write any debate statement or adopt the debater's voice.
 
-${input.taxonomyContext}
+${input.explorationPriming ? `${input.explorationPriming}\n` : ''}${input.taxonomyContext}
 ${input.edgeContext ? `\n=== KNOWN CROSS-POV TENSIONS ===\n${input.edgeContext}\n` : ''}${input.topicScope ? `\n${formatDebateScopeBlock(input.topicScope)}\n` : ''}${input.priorCruxContext ? `\n${input.priorCruxContext}\n` : ''}${input.currentCruxContext ? `\n=== IDENTIFIED CRUXES (THIS DEBATE) ===\n${input.currentCruxContext}\n\n` : ''}=== DEBATE TOPIC ===
 "${input.topic}"${input.background ? `\n\n=== BACKGROUND CONTEXT ===\nThe user provided the following supporting context. Use it to inform your analysis, but keep it separate from the debate question itself.\n${input.background}` : ''}
 

@@ -253,6 +253,8 @@ export interface DebateConfig {
   embedFn?: (text: string) => Promise<number[]>;
   /** Enable salience beacon in draft prompts to reduce scope drift (experiment). */
   salienceBeacon?: boolean;
+  /** Exploration summary from a prior cheap-engine run — seeds cruxes, situations, AN priming, and config overrides. */
+  explorationSummary?: import('./explorationSummary.js').ExplorationSummary;
   /** Per-stage model overrides — use cheaper models for analytical stages (brief, plan, cite) while keeping the primary model for draft. */
   stageModels?: {
     brief?: string;
@@ -333,6 +335,10 @@ export class DebateEngine {
   private _hintStreaks = new Map<string, import('./types').HintStreak>();
   /** Cached prior crux context string — seeded from registry at debate start, injected into Brief stage. */
   private _priorCruxContext: string = '';
+  /** Situation score adjustments from exploration summary (effective → boost, ineffective → penalty). */
+  private _explorationBoosts: Map<string, number> = new Map();
+  /** Formatted exploration priming text (AN sketch + convergence areas) for Brief prompt injection. */
+  private _explorationPriming: string = '';
   /** Adaptive backoff (ms) imposed after a 429 rate-limit error is detected. */
   private _rateLimitBackoffMs = 0;
   /** Timestamp of the last 429 detection — used with _rateLimitBackoffMs in throttle(). */
@@ -370,6 +376,113 @@ export class DebateEngine {
       injectedSitIds,
       referencedSitIds,
     });
+  }
+
+  private seedExplorationSummary(summary: import('./explorationSummary.js').ExplorationSummary): void {
+    if (summary.topic.final !== this.session.topic.final &&
+        summary.topic.original !== this.config.topic) {
+      getGlobalRecorder()?.record({
+        type: 'exploration_seeding', component: 'debate-engine', level: 'warn',
+        debate_id: this.session?.id,
+        message: 'Exploration summary topic mismatch — skipping seeding',
+        data: { summary_topic: summary.topic.final, debate_topic: this.session.topic.final },
+      });
+      return;
+    }
+
+    // Step 1: Crux seeding — merge exploration cruxes into _priorCruxContext
+    const unresolvedCruxes = summary.cruxes.filter(c => c.state !== 'resolved');
+    if (unresolvedCruxes.length > 0) {
+      const cruxLines = unresolvedCruxes.map(
+        c => `- [${c.disagreement_type}] "${c.description}" (${c.state})`,
+      );
+      const explorationCruxBlock = `\n=== EXPLORATION CRUXES ===\n${cruxLines.join('\n')}`;
+      this._priorCruxContext += explorationCruxBlock;
+      getGlobalRecorder()?.record({
+        type: 'exploration_seeding', component: 'debate-engine', level: 'info',
+        debate_id: this.session?.id,
+        message: `Seeded ${unresolvedCruxes.length} exploration cruxes`,
+        data: { step: 'crux_seeding', count: unresolvedCruxes.length },
+      });
+    }
+
+    // Step 2: Situation pre-filtering — store boost/penalty factors
+    for (const sit of summary.effective_situations) {
+      this._explorationBoosts.set(sit.id, 0.15);
+    }
+    for (const sit of summary.ineffective_situations) {
+      this._explorationBoosts.set(sit.id, -0.10);
+    }
+    if (this._explorationBoosts.size > 0) {
+      getGlobalRecorder()?.record({
+        type: 'exploration_seeding', component: 'debate-engine', level: 'info',
+        debate_id: this.session?.id,
+        message: `Seeded ${summary.effective_situations.length} boosts, ${summary.ineffective_situations.length} penalties`,
+        data: {
+          step: 'situation_filtering',
+          boosted: summary.effective_situations.length,
+          penalized: summary.ineffective_situations.length,
+        },
+      });
+    }
+
+    // Step 3: AN priming — format argument sketch for Brief prompt injection
+    const topNodes = [...summary.argument_sketch.nodes]
+      .sort((a, b) => b.computed_strength - a.computed_strength)
+      .slice(0, 10);
+    const primingParts: string[] = [];
+    if (topNodes.length > 0) {
+      const nodeLines = topNodes.map(
+        n => `- [${n.speaker}] (strength: ${n.computed_strength.toFixed(2)}, refs: ${n.taxonomy_refs.join(', ') || 'none'}): "${n.text}"`,
+      );
+      const edgeLines = summary.argument_sketch.edges
+        .filter(e => {
+          const topIds = new Set(topNodes.map(n => n.id));
+          return topIds.has(e.source) && topIds.has(e.target);
+        })
+        .map(e => `  ${e.source} → ${e.type} → ${e.target}${e.attack_type ? ` (${e.attack_type})` : ''}`);
+      primingParts.push(
+        `=== PRIOR ANALYSIS ===\nThe following argument structure was identified in a prior exploration:\n${nodeLines.join('\n')}` +
+        (edgeLines.length > 0 ? `\nKey tensions:\n${edgeLines.join('\n')}` : ''),
+      );
+      getGlobalRecorder()?.record({
+        type: 'exploration_seeding', component: 'debate-engine', level: 'info',
+        debate_id: this.session?.id,
+        message: `AN priming: ${topNodes.length} nodes, ${edgeLines.length} edges`,
+        data: { step: 'an_priming', nodes: topNodes.length, edges: edgeLines.length },
+      });
+    }
+
+    // Step 5: Convergence priming — inject agreement/disagreement areas
+    const cp = summary.convergence_profile;
+    const convergenceLines: string[] = [];
+    if (cp.areas_of_agreement.length > 0) {
+      convergenceLines.push(`Prior analysis established agreement on:\n${cp.areas_of_agreement.map(a => `- ${a}`).join('\n')}`);
+    }
+    if (cp.areas_of_disagreement.length > 0) {
+      convergenceLines.push(`Disagreement remains on:\n${cp.areas_of_disagreement.map(d => `- ${d}`).join('\n')}`);
+    }
+    if (cp.unresolved_questions.length > 0) {
+      convergenceLines.push(`Open questions to address:\n${cp.unresolved_questions.map(q => `- ${q}`).join('\n')}`);
+    }
+    if (convergenceLines.length > 0) {
+      primingParts.push(
+        `=== ESTABLISHED CONTEXT ===\n${convergenceLines.join('\n')}\nDo not re-derive these — build from them.`,
+      );
+      getGlobalRecorder()?.record({
+        type: 'exploration_seeding', component: 'debate-engine', level: 'info',
+        debate_id: this.session?.id,
+        message: `Convergence priming: ${cp.areas_of_agreement.length} agreements, ${cp.areas_of_disagreement.length} disagreements, ${cp.unresolved_questions.length} open questions`,
+        data: {
+          step: 'convergence_priming',
+          agreements: cp.areas_of_agreement.length,
+          disagreements: cp.areas_of_disagreement.length,
+          unresolved: cp.unresolved_questions.length,
+        },
+      });
+    }
+
+    this._explorationPriming = primingParts.join('\n\n');
   }
 
   /** Update hint streaks after a turn completes. Hints that fired increment; hints that didn't reset. */
@@ -459,6 +572,50 @@ export class DebateEngine {
     };
     this.adapter = adapter;
     this.taxonomy = taxonomy;
+    this.applyExplorationConfigDefaults();
+  }
+
+  private applyExplorationConfigDefaults(): void {
+    if (!this.config.explorationSummary) return;
+    const rc = this.config.explorationSummary.recommended_config;
+    if (this.config.explorationSummary.topic.final !== this.config.topic &&
+        this.config.explorationSummary.topic.original !== this.config.topic) {
+      return;
+    }
+    if (this.config.maxTotalRounds == null) {
+      this.config.maxTotalRounds = Math.min(20, Math.max(6, rc.max_rounds));
+    }
+    if (this.config.argumentationExitThreshold == null) {
+      this.config.argumentationExitThreshold = Math.min(0.9, Math.max(0.4, rc.argumentation_exit_threshold));
+    }
+    if (this.config.concludingExitThreshold == null) {
+      this.config.concludingExitThreshold = Math.min(0.9, Math.max(0.4, rc.concluding_exit_threshold));
+    }
+    if (this.config.temperature == null) {
+      this.config.temperature = Math.min(1.0, Math.max(0.3, rc.temperature));
+    }
+    if (this.config.pacing == null) {
+      this.config.pacing = rc.pacing;
+    }
+    if (this.config.enableClarification == null && rc.skip_clarification) {
+      this.config.enableClarification = false;
+    }
+    getGlobalRecorder()?.record({
+      type: 'exploration_seeding', component: 'debate-engine', level: 'info',
+      debate_id: this.session?.id,
+      message: 'Applied exploration config overrides',
+      data: {
+        step: 'config_overrides',
+        applied: {
+          maxTotalRounds: this.config.maxTotalRounds,
+          argumentationExitThreshold: this.config.argumentationExitThreshold,
+          concludingExitThreshold: this.config.concludingExitThreshold,
+          temperature: this.config.temperature,
+          pacing: this.config.pacing,
+          enableClarification: this.config.enableClarification,
+        },
+      },
+    });
   }
 
   async run(onProgress?: (p: DebateProgress) => void): Promise<DebateSession> {
@@ -506,6 +663,11 @@ export class DebateEngine {
         } catch (err) {
           getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Crux registry seeding failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
         }
+      }
+
+      // Phase 0.9: Exploration summary seeding (t/986)
+      if (this.config.explorationSummary) {
+        this.seedExplorationSummary(this.config.explorationSummary);
       }
 
       // Phase 1: Clarification (optional)
@@ -1756,6 +1918,15 @@ export class DebateEngine {
         if (boost > 0) {
           sitScores.set(sit.id, (sitScores.get(sit.id) ?? 0) + boost);
           policyBoostedSitIds.push(sit.id);
+        }
+      }
+    }
+
+    // Apply exploration summary situation boosts/penalties (Phase 0.9 Step 2)
+    if (this._explorationBoosts.size > 0) {
+      for (const [sitId, adjustment] of this._explorationBoosts) {
+        if (sitScores.has(sitId)) {
+          sitScores.set(sitId, (sitScores.get(sitId) ?? 0) + adjustment);
         }
       }
     }
@@ -3251,6 +3422,7 @@ export class DebateEngine {
       currentCruxContext: this.session.crux_tracker?.length
         ? formatCruxResolutionContext(this.session.crux_tracker)
         : undefined,
+      explorationPriming: this._explorationPriming || undefined,
       topicScope: this.session.topic.scope ?? undefined,
       salienceBeacon: this.config.salienceBeacon ?? false,
       sourceContent: this.session.document_analysis ? undefined : this.config.sourceContent,

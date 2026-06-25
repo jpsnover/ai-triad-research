@@ -207,6 +207,8 @@ export interface TurnPipelineInput {
   priorCruxContext?: string;
   /** Current debate crux context — active/resolved cruxes from this debate's crux_tracker. */
   currentCruxContext?: string;
+  /** Exploration summary priming — AN sketch + convergence areas injected at Brief prompt top. */
+  explorationPriming?: string;
   /** Enable salience beacon in draft prompts to reduce scope drift (experiment). */
   salienceBeacon?: boolean;
 }
@@ -285,6 +287,7 @@ function buildStageInput(input: TurnPipelineInput): StagePromptInput {
     vocabularyExclusion: input.vocabularyExclusion,
     priorCruxContext: input.priorCruxContext,
     currentCruxContext: input.currentCruxContext,
+    explorationPriming: input.explorationPriming,
     topicScope: input.topicScope,
     salienceBeacon: input.salienceBeacon,
   };
