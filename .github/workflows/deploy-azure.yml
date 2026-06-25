@@ -76,22 +76,40 @@ jobs:
             fi
           fi
 
-      - name: Verify CI passed for this commit
+      - name: Verify container-relevant CI passed for this commit
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           echo "Checking CI status for ${{ github.sha }}..."
-          CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${{ github.sha }}&per_page=1" \
-            --jq '.workflow_runs[0].conclusion // empty' 2>/dev/null || echo "")
-          if [ "$CONCLUSION" = "success" ]; then
-            echo "CI passed for this commit"
-          elif [ -z "$CONCLUSION" ]; then
-            echo "::error::No CI run found for commit ${{ github.sha }}. CI must pass before deploying."
-            exit 1
-          else
-            echo "::error::CI status is '$CONCLUSION' for commit ${{ github.sha }}. CI must pass before deploying."
+
+          # Get the latest CI run for this commit
+          RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${{ github.sha }}&per_page=1" \
+            --jq '.workflow_runs[0].id // empty' 2>/dev/null || echo "")
+
+          if [ -z "$RUN_ID" ]; then
+            echo "::error::No CI run found for commit ${{ github.sha }}. CI must run before deploying."
             exit 1
           fi
+
+          # Check only the test-container job — PowerShell test failures
+          # should not block container deployments (post-mortem 2026-06-24)
+          for JOB in test-electron test-container; do
+            STATUS=$(gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/jobs" \
+              --jq ".jobs[] | select(.name == \"${JOB}\") | .conclusion // .status" 2>/dev/null || echo "")
+            if [ "$STATUS" = "success" ]; then
+              echo "  ${JOB}: passed"
+            elif [ -z "$STATUS" ]; then
+              echo "::error::Job '${JOB}' not found in CI run ${RUN_ID}."
+              exit 1
+            elif [ "$STATUS" = "in_progress" ] || [ "$STATUS" = "queued" ]; then
+              echo "::error::Job '${JOB}' is still ${STATUS} in CI run ${RUN_ID}. Wait for it to complete."
+              exit 1
+            else
+              echo "::error::Job '${JOB}' status is '${STATUS}' in CI run ${RUN_ID}. Container-relevant CI must pass before deploying."
+              exit 1
+            fi
+          done
+          echo "Container-relevant CI passed for this commit"
 
       - name: Verify container image exists
         env:
