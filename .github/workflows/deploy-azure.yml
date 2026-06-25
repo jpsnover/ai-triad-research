@@ -91,9 +91,10 @@ jobs:
             exit 1
           fi
 
-          # Check only the test-container job — PowerShell test failures
-          # should not block container deployments (post-mortem 2026-06-24)
-          for JOB in test-electron test-container; do
+          # Check only test-container — it needs: [test-powershell, test-electron]
+          # so if it passed, all upstream jobs passed too. Checking test-electron
+          # by name fails because the matrix creates per-app jobs (e.g. "test-electron (taxonomy-editor)").
+          for JOB in test-container; do
             STATUS=$(gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/jobs" \
               --jq ".jobs[] | select(.name == \"${JOB}\") | .conclusion // .status" 2>/dev/null || echo "")
             if [ "$STATUS" = "success" ]; then
