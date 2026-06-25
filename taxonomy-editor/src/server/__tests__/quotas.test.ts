@@ -13,7 +13,7 @@ vi.mock('../logger.js', () => ({
   log: { server: { info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() } },
 }));
 
-vi.mock('../userContext.js', () => ({
+vi.mock('../security/userContext.js', () => ({
   getStorageUserId: vi.fn().mockReturnValue('testuser'),
 }));
 

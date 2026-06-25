@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { nodeContentHash, diffNodes, stampNodeAuthorship, changedFields } from '../storage/editMeta';
 
-vi.mock('../userContext', () => ({
+vi.mock('../security/userContext', () => ({
   getCurrentUserId: () => 'test-user@example.com',
 }));
 

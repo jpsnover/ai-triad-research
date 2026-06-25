@@ -31,7 +31,7 @@ vi.mock('fs/promises', () => ({
 }));
 
 // Mock githubAppAuth — provide predictable test credentials
-vi.mock('../githubAppAuth', () => ({
+vi.mock('../security/githubAppAuth', () => ({
   getCredentials: vi.fn().mockResolvedValue({
     repo: 'testowner/testrepo',
     token: 'test-token-abc123',
