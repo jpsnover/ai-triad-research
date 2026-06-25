@@ -12,6 +12,7 @@ import { useResizablePanel } from '../../hooks/useResizablePanel';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useMobileNav } from '../../hooks/useMobileNav';
 import { NewDebateDialog } from './NewDebateDialog';
+import { filterCommunityDebates } from './communityFilter';
 import { SearchPreview } from '../edge-browser/SearchPreview';
 import { PromptDetailPanel } from '../chat/PromptsPanel';
 import type { PromptCatalogEntry } from '../../data/promptCatalog';
@@ -146,16 +147,11 @@ export function DebateTab() {
     );
   }, [orderedSessions, searchQuery]);
 
-  // Community debates filtered by the shared search box (t/951 AC#3) — matches on
-  // title (topic) and the submitter's display name (participant).
-  const filteredCommunityDebates = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return communityDebates;
-    return communityDebates.filter(cd =>
-      cd.title.toLowerCase().includes(q) ||
-      (cd.community_metadata?.submitted_by_display?.toLowerCase().includes(q) ?? false)
-    );
-  }, [communityDebates, searchQuery]);
+  // Community debates filtered by the shared search box (t/951 AC#3).
+  const filteredCommunityDebates = useMemo(
+    () => filterCommunityDebates(communityDebates, searchQuery),
+    [communityDebates, searchQuery],
+  );
 
   const moveSession = useCallback((id: string, direction: 'up' | 'down') => {
     // Build full order array from current display order

@@ -12,6 +12,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { DebateWorkspace } from '../debate-workspace';
+import { parseDebateHash, shouldShowLoadError, type DebateLoadTarget } from './popoutLoad';
 
 export function DebatePopoutWindow() {
   const [ready, setReady] = useState(false);
@@ -19,7 +20,7 @@ export function DebatePopoutWindow() {
   const activeDebateId = useDebateStore(s => s.activeDebateId);
   const debateError = useDebateStore(s => s.debateError);
   // Remember what to (re)load so the error screen's "Try Again" can re-attempt it (t/941).
-  const [loadTarget, setLoadTarget] = useState<{ id: string; community: boolean } | null>(null);
+  const [loadTarget, setLoadTarget] = useState<DebateLoadTarget | null>(null);
   const [retrying, setRetrying] = useState(false);
 
   const runLoad = useCallback(async (debateId: string, community: boolean) => {
@@ -91,14 +92,11 @@ export function DebatePopoutWindow() {
     console.log('[DebatePopout] Setting up debate ID listener, hash:', window.location.hash);
 
     // Web mode: parse debate ID from hash query string
-    const hash = window.location.hash;
-    const idMatch = hash.match(/[?&]id=([^&]+)/);
-    const isCommunity = hash.includes('source=community');
-    if (idMatch) {
-      const debateId = decodeURIComponent(idMatch[1]);
-      console.log('[DebatePopout] Web mode — loading debate from hash:', debateId, isCommunity ? '(community)' : '');
-      setLoadTarget({ id: debateId, community: isCommunity });
-      void runLoad(debateId, isCommunity);
+    const target = parseDebateHash(window.location.hash);
+    if (target) {
+      console.log('[DebatePopout] Web mode — loading debate from hash:', target.id, target.community ? '(community)' : '');
+      setLoadTarget(target);
+      void runLoad(target.id, target.community);
     }
 
     // Electron mode: receive debate ID via IPC
@@ -118,7 +116,7 @@ export function DebatePopoutWindow() {
   // DebateWorkspace's action bar with context-aware Retry/Dismiss (t/953) — the popout
   // must not hijack the screen with a full-page error, which is what the tester hit.
   const displayError = error || debateError;
-  if (displayError && !activeDebateId) {
+  if (shouldShowLoadError(displayError, activeDebateId)) {
     return (
       <div style={{
         height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
