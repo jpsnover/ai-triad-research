@@ -39,7 +39,7 @@
     "depgraph:reverse": "node scripts/depgraph.mjs --reverse",
     "depgraph:orphans": "node scripts/depgraph.mjs --orphans",
     "depcruise": "depcruise --config .dependency-cruiser.cjs src/ ../lib/",
-    "verify": "tsc -p tsconfig.main.json --noEmit && eslint src/ && npm run depcruise && vitest run"
+    "verify": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.server.json --noEmit && eslint src/ && npm run depcruise && vitest run && vite build"
   },
   "dependencies": {
     "@azure/identity": "^4.13.1",
