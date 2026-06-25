@@ -57,6 +57,11 @@ export function DebatePopoutWindow() {
     setRetrying(false);
   }, [loadTarget, retrying, runLoad]);
 
+  const handleDismiss = useCallback(() => {
+    setError(null);
+    useDebateStore.getState().setError(null);
+  }, []);
+
   // Apply theme — popouts don't go through MainApp which sets data-theme
   useEffect(() => {
     const root = document.documentElement;
@@ -108,8 +113,12 @@ export function DebatePopoutWindow() {
     return unsub;
   }, [runLoad]);
 
+  // Only take over the whole window for load/startup failures (no debate loaded yet).
+  // Once a debate is active, transient errors (rate-limits, etc.) render inline in
+  // DebateWorkspace's action bar with context-aware Retry/Dismiss (t/953) — the popout
+  // must not hijack the screen with a full-page error, which is what the tester hit.
   const displayError = error || debateError;
-  if (displayError) {
+  if (displayError && !activeDebateId) {
     return (
       <div style={{
         height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -118,17 +127,26 @@ export function DebatePopoutWindow() {
         <div style={{ textAlign: 'center', maxWidth: 400 }}>
           <h3 style={{ color: 'var(--danger, #ef4444)' }}>Error</h3>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{displayError}</p>
-          {loadTarget && (
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12 }}>
+            {loadTarget && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => void handleRetry()}
+                disabled={retrying}
+              >
+                {retrying ? 'Retrying…' : 'Try Again'}
+              </button>
+            )}
             <button
               type="button"
-              className="btn btn-primary"
-              onClick={() => void handleRetry()}
+              className="btn"
+              onClick={handleDismiss}
               disabled={retrying}
-              style={{ marginTop: 12 }}
             >
-              {retrying ? 'Retrying…' : 'Try Again'}
+              Dismiss
             </button>
-          )}
+          </div>
         </div>
       </div>
     );
