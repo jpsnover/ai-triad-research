@@ -11,8 +11,8 @@ import path from 'path';
 describe('providerBinding', () => {
   let tmpDir: string;
   let adminDir: string;
-  let checkProviderBinding: typeof import('../providerBinding.js')['checkProviderBinding'];
-  let _resetBindingsCache: typeof import('../providerBinding.js')['_resetBindingsCache'];
+  let checkProviderBinding: typeof import('../ai/providerBinding.js')['checkProviderBinding'];
+  let _resetBindingsCache: typeof import('../ai/providerBinding.js')['_resetBindingsCache'];
 
   beforeEach(async () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'provider-binding-test-'));
@@ -22,7 +22,7 @@ describe('providerBinding', () => {
     vi.stubEnv('AI_TRIAD_DATA_ROOT', tmpDir);
     vi.resetModules();
 
-    const mod = await import('../providerBinding.js');
+    const mod = await import('../ai/providerBinding.js');
     checkProviderBinding = mod.checkProviderBinding;
     _resetBindingsCache = mod._resetBindingsCache;
     _resetBindingsCache();

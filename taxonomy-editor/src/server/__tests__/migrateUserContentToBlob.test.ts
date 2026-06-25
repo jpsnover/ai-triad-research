@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { StorageBackend } from '../storageBackend.js';
+import type { StorageBackend } from '../storage/storageBackend.js';
 import { collectUserContentPaths, migrateUserContent } from '../scripts/migrateUserContentToBlob.js';
 
 class MemoryBackend implements StorageBackend {

@@ -32,34 +32,34 @@ import {
   BROKER_SCRIPT, SCRIPTS_DIR, getProjectRoot, type AIBackend,
   STORAGE_MODE, CACHE_DIR,
 } from './config.js';
-import { GitHubAPIBackend } from './githubAPIBackend.js';
-import { SessionBranchManager } from './sessionBranchManager.js';
-import { runWithUser, getCurrentUser, getCurrentUserId, getStorageUserId, setSessionBranchName, deriveStorageUserId, isAnonymousUser } from './userContext.js';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies, hasEasyAuthSessionCookie } from './accessControl.js';
-import { sanitizeUserText } from './contentSanitizer.js';
+import { GitHubAPIBackend } from './storage/githubAPIBackend.js';
+import { SessionBranchManager } from './storage/sessionBranchManager.js';
+import { runWithUser, getCurrentUser, getCurrentUserId, getStorageUserId, setSessionBranchName, deriveStorageUserId, isAnonymousUser } from './security/userContext.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies, hasEasyAuthSessionCookie } from './security/accessControl.js';
+import { sanitizeUserText } from './security/contentSanitizer.js';
 import { getRollbackStatus } from './rollbackStatus.js';
 import { getAllFlags, listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
 import { writeDump, isValidDumpId, readMergedDump } from './flightRecorderDumps.js';
 import { drainServerLogLines } from './serverLogBuffer.js';
-import { initAnonymousSessionStore } from './anonymousSessionStore.js';
-import { getQuotaLimits } from './quotas.js';
-import { checkProviderBinding } from './providerBinding.js';
-import * as community from './community.js';
-import * as fileIO from './fileIO.js';
-import { FEEDBACK_CATEGORIES, isFeedbackCategory, paginateFeedback } from './feedbackStore.js';
-import { stripEdgeRationale, type EdgesData } from './edgesApi.js';
-import { rateLimitResponseBody } from './rateLimitResponse.js';
+import { initAnonymousSessionStore } from './storage/anonymousSessionStore.js';
+import { getQuotaLimits } from './security/quotas.js';
+import { checkProviderBinding } from './ai/providerBinding.js';
+import * as community from './community/community.js';
+import * as fileIO from './storage/fileIO.js';
+import { FEEDBACK_CATEGORIES, isFeedbackCategory, paginateFeedback } from './storage/feedbackStore.js';
+import { stripEdgeRationale, type EdgesData } from './community/edgesApi.js';
+import { rateLimitResponseBody } from './security/rateLimitResponse.js';
 import { escapeForInlineScript } from './flightRecorderViewer.js';
-import { stampNodeAuthorship, diffNodes, changedFields } from './editMeta.js';
-import { computeNodeConflicts } from './nodeConflicts.js';
-import type { TaxNode, NodeConflict } from './nodeConflicts.js';
-import * as ai from './aiBackends.js';
+import { stampNodeAuthorship, diffNodes, changedFields } from './storage/editMeta.js';
+import { computeNodeConflicts } from './community/nodeConflicts.js';
+import type { TaxNode, NodeConflict } from './community/nodeConflicts.js';
+import * as ai from './ai/aiBackends.js';
 import { getConfig, getConfigState, writeConfig, forceReload as reloadRuntimeConfig, diffFromDefaults, getClientConfig } from './runtimeConfig.js';
 import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
-import { setRuntimeCredentials, clearRuntimeCredentials, getCredentials } from './githubAppAuth.js';
-import * as proxyTiers from './proxyTiers.js';
-import * as rateLimiter from './rateLimiter.js';
-import * as analytics from './analytics.js';
+import { setRuntimeCredentials, clearRuntimeCredentials, getCredentials } from './security/githubAppAuth.js';
+import * as proxyTiers from './ai/proxyTiers.js';
+import * as rateLimiter from './security/rateLimiter.js';
+import * as analytics from './community/analytics.js';
 import { FlightRecorder } from '../../../lib/flight-recorder/flightRecorder.js';
 import { log, runWithRequestContext, generateRequestId, getRequestId, getRequestContext } from './logger.js';
 import {
@@ -69,10 +69,10 @@ import {
   getReviewStats,
   getReviewDetail,
   executeReviewAction,
-} from './admin/reviewRegistry.js';
-import type { ReviewAction } from './admin/types.js';
-import { calibrationReviewHandler } from './admin/calibrationHandler.js';
-import { communityReviewHandler } from './admin/communityReviewHandler.js';
+} from './community/admin/reviewRegistry.js';
+import type { ReviewAction } from './community/admin/types.js';
+import { calibrationReviewHandler } from './community/admin/calibrationHandler.js';
+import { communityReviewHandler } from './community/admin/communityReviewHandler.js';
 
 // Register review domain handlers at startup so the unified admin endpoints
 // (queue/stats/action/detail) can delegate to them (t/646, t/647, t/650).
@@ -232,7 +232,7 @@ if (STORAGE_MODE === 'github-api') {
     // even when disabled, blocking the event loop in CI containers (no Azure
     // IMDS) and hurting cold start. Top-level await keeps the backend set before
     // the server starts listening. (t/698 follow-up.)
-    const { AzureBlobBackend } = await import('./azureBlobBackend.js');
+    const { AzureBlobBackend } = await import('./storage/azureBlobBackend.js');
     fileIO.setUserContentBackend(new AzureBlobBackend({
       accountUrl: blobAccountUrl,
       userContentContainer: process.env.AZURE_USER_CONTENT_CONTAINER || 'user-content',

@@ -245,7 +245,7 @@ function createTestRecorder(): FlightRecorder & { events: RecordInput[] } {
 // ── Lazy imports (after mocks) ──────────────────────────────────────────
 
 async function createBackend(recorder?: FlightRecorder) {
-  const { GitHubAPIBackend } = await import('../githubAPIBackend');
+  const { GitHubAPIBackend } = await import('../storage/githubAPIBackend');
   const backend = new GitHubAPIBackend({
     cacheDir: '/tmp/test-cache',
     recorder: recorder ?? createTestRecorder(),
@@ -257,7 +257,7 @@ async function createBackend(recorder?: FlightRecorder) {
 }
 
 async function createSessionManager(backend?: Awaited<ReturnType<typeof createBackend>>, recorder?: FlightRecorder) {
-  const { SessionBranchManager } = await import('../sessionBranchManager');
+  const { SessionBranchManager } = await import('../storage/sessionBranchManager');
   const rec = recorder ?? createTestRecorder();
   const be = backend ?? await createBackend(rec);
   return { manager: new SessionBranchManager(be, rec), backend: be, recorder: rec };
@@ -775,10 +775,10 @@ describe('SessionBranchManager — multi-user isolation', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('sanitizeBranchName', () => {
-  let sanitize: typeof import('../sessionBranchManager').sanitizeBranchName;
+  let sanitize: typeof import('../storage/sessionBranchManager').sanitizeBranchName;
 
   beforeEach(async () => {
-    const mod = await import('../sessionBranchManager');
+    const mod = await import('../storage/sessionBranchManager');
     sanitize = mod.sanitizeBranchName;
   });
 
@@ -1122,7 +1122,7 @@ describe('SessionBranchManager — chaos: multi-tab race', () => {
 
 describe('GitHubAPIBackend — chaos: missing credentials', () => {
   it('initializes in fallback mode with no credentials', async () => {
-    const { getCredentials } = await import('../githubAppAuth');
+    const { getCredentials } = await import('../security/githubAppAuth');
     (getCredentials as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
 
     const recorder = createTestRecorder();
@@ -1136,10 +1136,10 @@ describe('GitHubAPIBackend — chaos: missing credentials', () => {
   });
 
   it('throws noCredsError on write when credentials are missing (direct write mode)', async () => {
-    const { getCredentials } = await import('../githubAppAuth');
+    const { getCredentials } = await import('../security/githubAppAuth');
     (getCredentials as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
-    const { GitHubAPIBackend } = await import('../githubAPIBackend');
+    const { GitHubAPIBackend } = await import('../storage/githubAPIBackend');
     const backend = new GitHubAPIBackend({
       cacheDir: '/tmp/test-cache-nocreds',
       pollIntervalMs: 999_999_999,
@@ -1468,7 +1468,7 @@ describe('GitHubAPIBackend — manifest mutex', () => {
 
 describe('GitHubAPIBackend — session overlay memory cap (t/727)', () => {
   async function cappedBackend(capBytes: number) {
-    const { GitHubAPIBackend } = await import('../githubAPIBackend');
+    const { GitHubAPIBackend } = await import('../storage/githubAPIBackend');
     const b = new GitHubAPIBackend({
       cacheDir: '/tmp/test-cache',
       recorder: createTestRecorder(),

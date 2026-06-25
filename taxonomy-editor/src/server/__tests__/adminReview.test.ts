@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type http from 'http';
-import { runWithUser } from '../userContext';
+import { runWithUser } from '../security/userContext';
 import {
   registerReviewHandler,
   getReviewHandler,
@@ -11,8 +11,8 @@ import {
   getReviewStats,
   getReviewDetail,
   executeReviewAction,
-} from '../admin/reviewRegistry';
-import type { ReviewAction, ReviewDomainHandler, ReviewItem } from '../admin/types';
+} from '../community/admin/reviewRegistry';
+import type { ReviewAction, ReviewDomainHandler, ReviewItem } from '../community/admin/types';
 
 // ── Test helpers ──
 

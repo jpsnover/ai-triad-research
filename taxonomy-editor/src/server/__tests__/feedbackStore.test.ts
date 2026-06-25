@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { listFeedback, isFeedbackCategory, FEEDBACK_CATEGORIES } from '../feedbackStore';
+import { listFeedback, isFeedbackCategory, FEEDBACK_CATEGORIES } from '../storage/feedbackStore';
 
 let dir: string;
 

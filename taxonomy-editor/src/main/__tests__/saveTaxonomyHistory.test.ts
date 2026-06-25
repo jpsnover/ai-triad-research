@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { stampNodeAuthorship } from '../../server/editMeta.js';
+import { stampNodeAuthorship } from '../../server/storage/editMeta.js';
 
 /**
  * Regression test for t/781: the Electron `save-taxonomy-file` IPC handler must

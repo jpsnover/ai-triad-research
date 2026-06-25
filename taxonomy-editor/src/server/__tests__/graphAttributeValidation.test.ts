@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { findGraphAttributeMismatches } from '../fileIO.js';
+import { findGraphAttributeMismatches } from '../storage/fileIO.js';
 
 const wrap = (graph_attributes: Record<string, unknown>, id = 'acc-bel-001') => ({ nodes: [{ id, graph_attributes }] });
 

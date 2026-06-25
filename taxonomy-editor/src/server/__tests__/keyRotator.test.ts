@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   getNextKey, markRateLimited, isRateLimited, clearExpiredLimits, _resetRotatorState,
-} from '../keyRotator.js';
+} from '../security/keyRotator.js';
 
 const KEYS = ['k0', 'k1', 'k2'];
 

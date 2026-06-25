@@ -11,9 +11,9 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { getKeyStore } from '../keyStore.js';
+import { getKeyStore } from '../security/keyStore.js';
 import { deleteAllApiKeys } from '../config.js';
-import * as userContext from '../userContext.js';
+import * as userContext from '../security/userContext.js';
 
 let dataRoot: string;
 const store = () => getKeyStore(() => dataRoot);

@@ -7,7 +7,7 @@ import {
   promoteCalibrationEntries,
   rejectCalibrationEntries,
   readCalibrationIntegrationLog,
-} from '../fileIO';
+} from '../storage/fileIO';
 
 // Calibration curation resolves paths relative to AI_TRIAD_DATA_ROOT (config.getDataRoot).
 let dataRoot: string;

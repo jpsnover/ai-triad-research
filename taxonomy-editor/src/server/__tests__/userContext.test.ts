@@ -4,7 +4,7 @@
 // @vitest-environment node
 
 import { describe, it, expect } from 'vitest';
-import { deriveStorageUserId } from '../userContext.js';
+import { deriveStorageUserId } from '../security/userContext.js';
 
 describe('deriveStorageUserId', () => {
   it('returns _local for empty principal', () => {

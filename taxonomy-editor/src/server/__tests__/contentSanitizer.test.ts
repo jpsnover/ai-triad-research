@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { sanitizeUserText, sanitizeDeep } from '../contentSanitizer.js';
+import { sanitizeUserText, sanitizeDeep } from '../security/contentSanitizer.js';
 
 describe('sanitizeUserText (t/856)', () => {
   it('strips executable tag blocks', () => {

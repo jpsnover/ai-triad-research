@@ -4,7 +4,7 @@
 // @vitest-environment node
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { AnonymousSessionStore } from '../anonymousSessionStore.js';
+import { AnonymousSessionStore } from '../storage/anonymousSessionStore.js';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -77,8 +77,8 @@ function makeAnonCtx(sessionId: string) {
 
 describe('Multi-user data isolation (integration)', () => {
   let mem: MemoryBackend;
-  let fileIO: typeof import('../fileIO.js');
-  let userContext: typeof import('../userContext.js');
+  let fileIO: typeof import('../storage/fileIO.js');
+  let userContext: typeof import('../security/userContext.js');
   let DATA_ROOT: string;
 
   beforeEach(async () => {
@@ -88,8 +88,8 @@ describe('Multi-user data isolation (integration)', () => {
     vi.stubEnv('AI_TRIAD_DATA_ROOT', DATA_ROOT);
 
     vi.resetModules();
-    userContext = await import('../userContext.js');
-    fileIO = await import('../fileIO.js');
+    userContext = await import('../security/userContext.js');
+    fileIO = await import('../storage/fileIO.js');
     fileIO.setBackend(mem as any);
   });
 
@@ -265,8 +265,8 @@ describe('Anonymous session isolation (integration)', () => {
 
 describe('Quota enforcement (integration)', () => {
   let mem: MemoryBackend;
-  let fileIO: typeof import('../fileIO.js');
-  let userContext: typeof import('../userContext.js');
+  let fileIO: typeof import('../storage/fileIO.js');
+  let userContext: typeof import('../security/userContext.js');
   let DATA_ROOT: string;
 
   beforeEach(async () => {
@@ -276,8 +276,8 @@ describe('Quota enforcement (integration)', () => {
     vi.stubEnv('AI_TRIAD_DATA_ROOT', DATA_ROOT);
 
     vi.resetModules();
-    userContext = await import('../userContext.js');
-    fileIO = await import('../fileIO.js');
+    userContext = await import('../security/userContext.js');
+    fileIO = await import('../storage/fileIO.js');
     fileIO.setBackend(mem as any);
   });
 
@@ -389,9 +389,9 @@ describe('Quota enforcement (integration)', () => {
 
 describe('Community Library workflow (integration)', () => {
   let mem: MemoryBackend;
-  let community: typeof import('../community.js');
-  let fileIO: typeof import('../fileIO.js');
-  let userContext: typeof import('../userContext.js');
+  let community: typeof import('../community/community.js');
+  let fileIO: typeof import('../storage/fileIO.js');
+  let userContext: typeof import('../security/userContext.js');
   let DATA_ROOT: string;
 
   beforeEach(async () => {
@@ -401,9 +401,9 @@ describe('Community Library workflow (integration)', () => {
     vi.stubEnv('ADMIN_USERS', 'jpsnover');
 
     vi.resetModules();
-    userContext = await import('../userContext.js');
-    fileIO = await import('../fileIO.js');
-    community = await import('../community.js');
+    userContext = await import('../security/userContext.js');
+    fileIO = await import('../storage/fileIO.js');
+    community = await import('../community/community.js');
     fileIO.setBackend(mem as any);
   });
 

@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { calibrationReviewHandler as handler } from '../admin/calibrationHandler';
-import { readCalibrationIntegrationLog } from '../fileIO';
+import { calibrationReviewHandler as handler } from '../community/admin/calibrationHandler';
+import { readCalibrationIntegrationLog } from '../storage/fileIO';
 
 // Resolves under AI_TRIAD_DATA_ROOT (config.getDataRoot), like calibrationCuration.test.ts.
 let dataRoot: string;

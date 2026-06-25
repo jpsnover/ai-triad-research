@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { getKeyStore, parseKeys } from '../keyStore.js';
+import { getKeyStore, parseKeys } from '../security/keyStore.js';
 
 let dataRoot: string;
 const store = () => getKeyStore(() => dataRoot);

@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { initAnalytics, appendEvents, queryAggregated, type AnalyticsEvent } from '../analytics.js';
+import { initAnalytics, appendEvents, queryAggregated, type AnalyticsEvent } from '../community/analytics.js';
 
 let dataRoot: string;
 const D = '2026-06-20';

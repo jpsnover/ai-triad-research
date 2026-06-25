@@ -12,7 +12,7 @@ vi.mock('../logger.js', () => ({
   log: { server: { info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() } },
 }));
 
-import { AnonymousSessionStore } from '../anonymousSessionStore.js';
+import { AnonymousSessionStore } from '../storage/anonymousSessionStore.js';
 
 describe('AnonymousSessionStore (file-backed, t/683)', () => {
   let store: AnonymousSessionStore;

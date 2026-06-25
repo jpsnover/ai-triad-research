@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeNodeConflicts, type TaxNode } from '../nodeConflicts';
+import { computeNodeConflicts, type TaxNode } from '../community/nodeConflicts';
 
 // Minimal node factory — `id` plus arbitrary content fields.
 function node(id: string, fields: Record<string, unknown> = {}): TaxNode {

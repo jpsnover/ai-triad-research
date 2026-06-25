@@ -24,7 +24,7 @@
 
 import crypto from 'crypto';
 import { pathToFileURL } from 'url';
-import type { StorageBackend } from '../storageBackend.js';
+import type { StorageBackend } from '../storage/storageBackend.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
 export interface MigrationSummary {
@@ -155,7 +155,7 @@ async function main(): Promise<void> {
     process.exit(2);
   }
 
-  const { AzureBlobBackend } = await import('../azureBlobBackend.js');
+  const { AzureBlobBackend } = await import('../storage/azureBlobBackend.js');
 
   // Source selection:
   //  - 'filesystem' (CI default): read a checked-out copy of the data repo from
@@ -164,14 +164,14 @@ async function main(): Promise<void> {
   //  - 'github': read live via the GitHub Contents/Trees API (needs GitHub App
   //    creds; matches the runtime backend).
   const sourceMode = process.env.MIGRATION_SOURCE ?? 'github';
-  let source: import('../storageBackend.js').StorageBackend;
+  let source: import('../storage/storageBackend.js').StorageBackend;
   let shutdownSource: () => void = () => {};
   if (sourceMode === 'filesystem') {
-    const { FilesystemBackend } = await import('../filesystemBackend.js');
+    const { FilesystemBackend } = await import('../storage/filesystemBackend.js');
     source = new FilesystemBackend();
     log.server.info({ cwd: process.cwd() }, 'Migration source: filesystem (cwd-relative)');
   } else {
-    const { GitHubAPIBackend } = await import('../githubAPIBackend.js');
+    const { GitHubAPIBackend } = await import('../storage/githubAPIBackend.js');
     const { CACHE_DIR } = await import('../config.js');
     const gh = new GitHubAPIBackend({ cacheDir: CACHE_DIR, pollIntervalMs: 999_999_999, coherencyProbeRate: 0 });
     await gh.initialize();

@@ -9,8 +9,8 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import type { StorageBackend } from '../storageBackend.js';
-import * as fileIO from '../fileIO.js';
+import type { StorageBackend } from '../storage/storageBackend.js';
+import * as fileIO from '../storage/fileIO.js';
 
 class MemoryBackend implements StorageBackend {
   files = new Map<string, string>();

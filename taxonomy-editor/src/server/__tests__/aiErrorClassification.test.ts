@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { is429Error, retryAfterMs, isContextTooLongError } from '../aiBackends.js';
+import { is429Error, retryAfterMs, isContextTooLongError } from '../ai/aiBackends.js';
 
 describe('is429Error — upstream rate-limit detection (t/920)', () => {
   it('detects the provider rate-limit signals that should yield a retryable 429', () => {

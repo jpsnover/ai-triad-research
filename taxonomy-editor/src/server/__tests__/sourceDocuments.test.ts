@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { resolveSourceDocument, readSourceDocumentPdf } from '../fileIO';
+import { resolveSourceDocument, readSourceDocumentPdf } from '../storage/fileIO';
 
 // Source documents are resolved relative to AI_TRIAD_SOURCES_ROOT (see config.getSourcesRoot).
 let sourcesRoot: string;

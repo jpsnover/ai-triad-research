@@ -25,8 +25,8 @@ import fs from 'fs';
 import path from 'path';
 import { getDataRoot } from './config.js';
 import { log } from './logger.js';
-import { getCurrentUser } from './userContext.js';
-import { isAdmin } from './community.js';
+import { getCurrentUser } from './security/userContext.js';
+import { isAdmin } from './community/community.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 // ── Types ──

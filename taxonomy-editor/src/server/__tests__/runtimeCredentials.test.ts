@@ -7,8 +7,8 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { runWithUser, type UserContext } from '../userContext.js';
-import { setRuntimeCredentials, clearRuntimeCredentials, getCredentials } from '../githubAppAuth.js';
+import { runWithUser, type UserContext } from '../security/userContext.js';
+import { setRuntimeCredentials, clearRuntimeCredentials, getCredentials } from '../security/githubAppAuth.js';
 
 function asUser<T>(principalName: string, fn: () => T): T {
   const ctx: UserContext = { principalName, idp: 'github', storageUserId: principalName, isAnonymous: false };

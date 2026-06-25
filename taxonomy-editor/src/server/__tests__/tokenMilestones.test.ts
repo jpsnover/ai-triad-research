@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { recordTokenUsage, getUsage } from '../rateLimiter.js';
+import { recordTokenUsage, getUsage } from '../security/rateLimiter.js';
 import { log } from '../logger.js';
 
 let n = 0;

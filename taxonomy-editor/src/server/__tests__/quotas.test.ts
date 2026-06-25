@@ -25,7 +25,7 @@ vi.mock('fs', () => ({
   },
 }));
 
-import { getQuotaLimits, checkQuota } from '../quotas.js';
+import { getQuotaLimits, checkQuota } from '../security/quotas.js';
 
 describe('quotas', () => {
   describe('getQuotaLimits', () => {

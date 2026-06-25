@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { filterChainForExplicitKey, buildModelsToTry, resolveBackend } from '../aiBackends.js';
+import { filterChainForExplicitKey, buildModelsToTry, resolveBackend } from '../ai/aiBackends.js';
 
 // A deliberately cross-provider chain: gemini primary + a gemini fallback,
 // then groq/claude (which a free-tier Gemini key could never authenticate).

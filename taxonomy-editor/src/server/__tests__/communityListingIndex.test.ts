@@ -12,10 +12,10 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import type { StorageBackend } from '../storageBackend.js';
-import * as fileIO from '../fileIO.js';
-import * as community from '../community.js';
-import * as userContext from '../userContext.js';
+import type { StorageBackend } from '../storage/storageBackend.js';
+import * as fileIO from '../storage/fileIO.js';
+import * as community from '../community/community.js';
+import * as userContext from '../security/userContext.js';
 import { resolveDataPath } from '../config.js';
 
 /** In-memory backend that actually persists writes, so the index hit-path is testable. */

@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { checkRate } from '../rateLimiter.js';
+import { checkRate } from '../security/rateLimiter.js';
 
 let seq = 0;
 const uniqueKey = () => `test-key-${++seq}-${process.pid}`;

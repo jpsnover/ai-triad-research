@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { diffNodes, changedFields } from '../editMeta';
+import { diffNodes, changedFields } from '../storage/editMeta';
 
 function makeNode(id: string, label: string, extra?: Record<string, unknown>) {
   return { id, label, description: `desc-${id}`, ...extra };

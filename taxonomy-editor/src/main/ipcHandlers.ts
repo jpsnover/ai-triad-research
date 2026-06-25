@@ -57,7 +57,7 @@ import { checkForDataUpdates, pullDataUpdates, getChangedFiles, getFileDiff } fr
 import { diagnosePythonEmbeddings } from './diagnosePython.js';
 import type { NodeEmbeddingInput, NliPair } from './embeddings.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
-import { stampNodeAuthorship } from '../server/editMeta.js';
+import { stampNodeAuthorship } from '../server/storage/editMeta.js';
 import {
   isAzureReviewConfigured,
   adminReviewQueue,

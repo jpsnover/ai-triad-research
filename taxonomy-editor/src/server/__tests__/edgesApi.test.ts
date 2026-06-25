@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { stripEdgeRationale } from '../edgesApi';
+import { stripEdgeRationale } from '../community/edgesApi';
 
 describe('stripEdgeRationale', () => {
   it('removes rationale from every edge but keeps all other fields', () => {

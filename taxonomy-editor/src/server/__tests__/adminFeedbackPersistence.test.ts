@@ -9,12 +9,12 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import path from 'path';
-import type { StorageBackend } from '../storageBackend.js';
+import type { StorageBackend } from '../storage/storageBackend.js';
 import {
   setBackend, setUserContentBackend,
   saveFeedbackEntry, listFeedbackEntries, saveErrorReport, listErrorEntries,
-} from '../fileIO.js';
-import { paginateFeedback } from '../feedbackStore.js';
+} from '../storage/fileIO.js';
+import { paginateFeedback } from '../storage/feedbackStore.js';
 
 class MemBackend implements StorageBackend {
   files = new Map<string, string>();

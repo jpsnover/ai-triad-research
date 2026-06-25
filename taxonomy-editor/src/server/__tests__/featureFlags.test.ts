@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { runWithUser, type UserContext } from '../userContext.js';
+import { runWithUser, type UserContext } from '../security/userContext.js';
 import {
   evaluateScope, getFlag, getAllFlags, getFlagMetadata, listFlags,
   setFlag, deleteFlag, getStaleFlags, _resetFlagCache, type FlagUserContext,

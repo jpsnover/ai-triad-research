@@ -14,7 +14,7 @@ import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { BlobServiceClient } from '@azure/storage-blob';
-import { AzureBlobBackend } from '../azureBlobBackend.js';
+import { AzureBlobBackend } from '../storage/azureBlobBackend.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const AZURITE_MAIN = path.resolve(here, '../../../node_modules/azurite/dist/src/blob/main.js');

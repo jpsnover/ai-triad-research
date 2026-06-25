@@ -141,8 +141,8 @@ const ENV_KEY_NAMES: Record<AIBackend, string> = {
 };
 
 // Imported after AIBackend is defined (keyStore depends on the type).
-import { getKeyStore, type KeyRotationResult } from './keyStore.js';
-import { getCurrentUserId } from './userContext.js';
+import { getKeyStore, type KeyRotationResult } from './security/keyStore.js';
+import { getCurrentUserId } from './security/userContext.js';
 
 /**
  * Resolve an API key for the given backend.

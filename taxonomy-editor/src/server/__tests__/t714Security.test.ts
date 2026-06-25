@@ -5,8 +5,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import * as fileIO from '../fileIO.js';
-import * as community from '../community.js';
+import * as fileIO from '../storage/fileIO.js';
+import * as community from '../community/community.js';
 import { escapeForInlineScript } from '../flightRecorderViewer.js';
 
 describe('M1 — readPsPrompt path traversal', () => {

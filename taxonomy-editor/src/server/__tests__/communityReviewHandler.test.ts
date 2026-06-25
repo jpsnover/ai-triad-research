@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { runWithUser } from '../userContext';
-import { communityReviewHandler as handler } from '../admin/communityReviewHandler';
+import { runWithUser } from '../security/userContext';
+import { communityReviewHandler as handler } from '../community/admin/communityReviewHandler';
 
 // Community storage resolves under AI_TRIAD_DATA_ROOT (filesystem backend in tests).
 let dataRoot: string;

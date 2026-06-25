@@ -7,8 +7,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { computeAvailableBackends } from '../aiBackends.js';
-import { isBackendAllowed, type ResolvedTier } from '../proxyTiers.js';
+import { computeAvailableBackends } from '../ai/aiBackends.js';
+import { isBackendAllowed, type ResolvedTier } from '../ai/proxyTiers.js';
 
 const registry = {
   backends: [{ id: 'gemini' }, { id: 'claude' }, { id: 'groq' }, { id: 'openai' }],

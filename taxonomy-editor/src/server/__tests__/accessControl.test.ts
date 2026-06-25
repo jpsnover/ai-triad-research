@@ -8,8 +8,8 @@
 
 import { describe, it, expect } from 'vitest';
 import path from 'path';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies, hasEasyAuthSessionCookie } from '../accessControl.js';
-import { resolveTier } from '../proxyTiers.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies, hasEasyAuthSessionCookie } from '../security/accessControl.js';
+import { resolveTier } from '../ai/proxyTiers.js';
 
 describe('expiredAuthCookies (t/897)', () => {
   it('expires every AppServiceAuthSession cookie present plus the canonical name', () => {
