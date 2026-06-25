@@ -121,6 +121,8 @@ export interface PovNode {
   priority_history?: WeightHistoryEntry[];
   /** Concession history — tracks cross-debate concessions affecting this node. */
   concession_history?: ConcessionRecord[];
+  plain_description?: string | null;
+  plain_description_version?: string | null;
   label_history?: TextHistoryEntry[];
   description_history?: TextHistoryEntry[];
   _edit_meta?: NodeEditMeta;
@@ -184,6 +186,8 @@ export interface SituationNode {
     original_proposals: Record<string, { proposed_label: string; evidence_entries: string[] }>;
     similarity_scores: Record<string, number>;
   };
+  plain_description?: string | null;
+  plain_description_version?: string | null;
   _edit_meta?: NodeEditMeta;
 }
 

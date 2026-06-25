@@ -18,6 +18,8 @@ import { SourcesPanel } from '../policy/SourcesPanel';
 import { SituationDebatePanel } from './SituationDebatePanel';
 import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
 import { api } from '@bridge';
+import { triggerSituationNodeRegeneration } from '../../utils/regeneratePlainDescription';
+import { useDescriptionMode, DescriptionToggle } from '../shared/DescriptionToggle';
 
 interface SituationDetailProps {
   node: SituationNode;
@@ -49,6 +51,7 @@ const POV_TITLES: Record<string, string> = {
 
 export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, chipDepth = 0 }: SituationDetailProps) {
   const { updateSituationNode, deleteSituationNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, getLabelForId } = useTaxonomyStore();
+  const [descMode, setDescMode] = useDescriptionMode();
   const [showDelete, setShowDelete] = useState(false);
   const [activeTab, setActiveTab] = useState<SitTab>('overview');
   const [expandedLineage, setExpandedLineage] = useState<string | null>(null);
@@ -204,17 +207,42 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
         {activeTab === 'overview' && (
           <div className="sit-overview">
             <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
-              <label>
-                Description
-                <FieldHelp text={'Genus-differentia format:\n"A situation that [differentia].\nEncompasses: ...\nExcludes: ..."\nEncompasses and Excludes must each start on a new line.'} />
-              </label>
-              <HighlightedTextarea
-                value={node.description}
-                onChange={(v) => update({ description: v })}
-                rows={4}
-                readOnly={readOnly}
-              />
-              {err('description') && <div className="error-text">{err('description')}</div>}
+              <div className="description-header">
+                <label>
+                  Description
+                  <FieldHelp text={'Genus-differentia format:\n"A situation that [differentia].\nEncompasses: ...\nExcludes: ..."\nEncompasses and Excludes must each start on a new line.'} />
+                </label>
+                <DescriptionToggle mode={descMode} onToggle={setDescMode} hasPlainDescription={!!node.plain_description} />
+              </div>
+              {descMode === 'formal' ? (
+                <>
+                  <HighlightedTextarea
+                    value={node.description}
+                    onChange={(v) => update({ description: v })}
+                    rows={4}
+                    readOnly={readOnly}
+                  />
+                  {err('description') && <div className="error-text">{err('description')}</div>}
+                </>
+              ) : (
+                <>
+                  {node.plain_description === null ? (
+                    <div className="plain-description-box plain-description-generating">Regenerating…</div>
+                  ) : (
+                    <div className="plain-description-box">{node.plain_description ?? node.description}</div>
+                  )}
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      className="plain-description-regen"
+                      disabled={node.plain_description === null}
+                      onClick={() => triggerSituationNodeRegeneration(node.id, node.description, updateSituationNode)}
+                    >
+                      ↻ Regenerate
+                    </button>
+                  )}
+                </>
+              )}
             </div>
 
             {node.interpretation_divergence != null && (() => {

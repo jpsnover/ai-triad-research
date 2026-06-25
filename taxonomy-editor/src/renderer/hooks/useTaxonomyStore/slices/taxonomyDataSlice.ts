@@ -542,6 +542,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
         if ('description' in updates && updates.description !== n.description) {
           const entry: TextHistoryEntry = { date, previous: n.description, value: updates.description!, source, ...(editSource?.debateId ? { debate_id: editSource.debateId } : {}), ...(editSource?.reason ? { reason: editSource.reason } : {}) };
           patched.description_history = [...(n.description_history ?? []), entry];
+          patched.plain_description = null;
         }
         return patched;
       });
@@ -807,9 +808,14 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
     set((state) => {
       const file = state.situations;
       if (!file) return state;
-      const newNodes = file.nodes.map(n =>
-        n.id === nodeId ? { ...n, ...updates } : n,
-      );
+      const newNodes = file.nodes.map(n => {
+        if (n.id !== nodeId) return n;
+        const patched = { ...n, ...updates };
+        if ('description' in updates && updates.description !== n.description) {
+          patched.plain_description = null;
+        }
+        return patched;
+      });
       const newFile: SituationsFile = {
         ...file,
         last_modified: todayISO(),

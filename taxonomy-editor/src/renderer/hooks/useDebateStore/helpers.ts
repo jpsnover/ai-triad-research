@@ -349,6 +349,13 @@ export function enrichPolicyRefs(
   });
 }
 
+/** Check if an error is a daily token limit (tokens_per_day) — non-retryable. */
+export function isDailyLimitError(err: unknown): boolean {
+  return (err as { limitType?: string })?.limitType === 'tokens_per_day';
+}
+
+export const DAILY_LIMIT_MESSAGE = 'Daily AI usage limit reached (resets at midnight UTC). Resume tomorrow, or add your own API key in Settings to continue now.';
+
 /** Normalize progress from either flat shape (Electron IPC) or nested retry shape (lib DebateProgress). */
 export function normalizeProgress(p: Record<string, unknown>): { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string; phase?: string } {
   // Lib DebateProgress: { phase: 'retry', retry: { attempt, maxRetries, backoffSeconds }, message }

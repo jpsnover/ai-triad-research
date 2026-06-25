@@ -443,3 +443,72 @@
   background: var(--danger, #ef4444);
   color: #fff;
 }
+
+/* ── Paid Gemini fallback key ── */
+
+.admin-fallback-key-section {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.admin-fallback-key-section h3 {
+  margin: 0 0 4px;
+  font-size: 0.875rem;
+}
+
+.admin-fallback-key-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+}
+
+.admin-fallback-key-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-fallback-key-configured {
+  font-size: 0.8125rem;
+}
+
+.admin-fallback-key-configured code {
+  background: var(--bg-secondary);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+}
+
+.admin-fallback-key-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.admin-fallback-key-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-fallback-key-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.admin-fallback-key-input {
+  flex: 1;
+  max-width: 320px;
+  padding: 4px 8px;
+  font-size: 0.8125rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.admin-fallback-key-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}

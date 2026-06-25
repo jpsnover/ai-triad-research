@@ -57,7 +57,7 @@ const { mockApi, mockTaxonomyState, mockPromptConfigState } = vi.hoisted(() => {
 
 // ── Mock dependencies BEFORE importing the store ────────────
 
-vi.mock('@bridge', () => ({ api: mockApi }));
+vi.mock('@bridge', () => ({ api: mockApi, setActiveDebateId: vi.fn() }));
 
 vi.mock('./useTaxonomyStore', () => ({
   useTaxonomyStore: {
@@ -368,6 +368,8 @@ function resetStore(): void {
     selectedDiagEntry: null,
     diagPopoutOpen: false,
     debateWarnings: [],
+    debateRetryAction: null,
+    dailyLimitPaused: false,
     openingOrder: [],
     initialCrossRespondRounds: 3,
     topicCritiqueLoading: false,
@@ -953,7 +955,7 @@ describe('Error handling', () => {
   });
 
   describe('compressOldTranscript error handling', () => {
-    it('sets debateError on compression failure', async () => {
+    it('pushes warning (not debateError) on compression failure (t/957)', async () => {
       const entries = Array.from({ length: 15 }, (_, i) => ({
         id: `e${i}`, timestamp: 't', type: 'debate', speaker: 'accelerationist', content: `Entry ${i}`, taxonomy_refs: [],
       }));
@@ -962,7 +964,8 @@ describe('Error handling', () => {
 
       await useDebateStore.getState().compressOldTranscript();
 
-      expect(useDebateStore.getState().debateError).toContain('Context compression failed');
+      expect(useDebateStore.getState().debateError).toBeNull();
+      expect(useDebateStore.getState().debateWarnings.some(w => w.includes('Context compression skipped'))).toBe(true);
       expect(useDebateStore.getState().debateGenerating).toBeNull();
     });
   });
@@ -2730,5 +2733,70 @@ describe('runOpeningStatements — failure halts flow (t/920)', () => {
     expect(state.debateError).toBeTruthy();
 
     vi.mocked(runOpeningPipeline).mockResolvedValue({});
+  });
+});
+
+// ── Retry Action Tracking (t/953) ──────────────────────────
+
+describe('setErrorWithRetry — tracks retry action (t/953)', () => {
+  it('sets debateRetryAction alongside debateError', () => {
+    useDebateStore.getState().setErrorWithRetry('Synthesis failed: rate limited', 'synthesis');
+    const state = useDebateStore.getState();
+    expect(state.debateError).toBe('Synthesis failed: rate limited');
+    expect(state.debateRetryAction).toBe('synthesis');
+  });
+
+  it('clears debateRetryAction when setError(null) is called', () => {
+    useDebateStore.getState().setErrorWithRetry('Cross-respond failed', 'crossRespond');
+    expect(useDebateStore.getState().debateRetryAction).toBe('crossRespond');
+
+    useDebateStore.getState().setError(null);
+    const state = useDebateStore.getState();
+    expect(state.debateError).toBeNull();
+    expect(state.debateRetryAction).toBeNull();
+  });
+
+  it('preserves debateRetryAction when setError sets a new error string', () => {
+    useDebateStore.getState().setErrorWithRetry('First error', 'probing');
+    useDebateStore.getState().setError('Second error');
+    const state = useDebateStore.getState();
+    expect(state.debateError).toBe('Second error');
+    expect(state.debateRetryAction).toBe('probing');
+  });
+});
+
+// ── Daily Token Limit Handling (t/963) ─────────────────────
+
+describe('daily token limit stops debate gracefully (t/963)', () => {
+  it('sets dailyLimitPaused and DAILY_LIMIT_MESSAGE on tokens_per_day 429 during synthesis', async () => {
+    const dailyLimitError = Object.assign(
+      new Error('Daily token limit exceeded'),
+      { httpStatus: 429, limitType: 'tokens_per_day' },
+    );
+    mockApi.generateText.mockRejectedValueOnce(dailyLimitError);
+
+    const session = makeSession({
+      phase: 'debate',
+      transcript: [
+        { id: 'e1', timestamp: 't', type: 'statement', speaker: 'accelerationist', content: 'Test', taxonomy_refs: [] },
+      ],
+    });
+    useDebateStore.setState({ activeDebate: session as any, debateModel: 'gemini-2.0-flash' });
+
+    await useDebateStore.getState().requestSynthesis();
+
+    const state = useDebateStore.getState();
+    expect(state.dailyLimitPaused).toBe(true);
+    expect(state.debateError).toContain('Daily');
+    expect(state.debateRetryAction).toBeNull();
+    expect(state.debateGenerating).toBeNull();
+  });
+
+  it('clears dailyLimitPaused when setError(null) is called', () => {
+    useDebateStore.setState({ debateError: 'Daily limit', dailyLimitPaused: true });
+    useDebateStore.getState().setError(null);
+    const state = useDebateStore.getState();
+    expect(state.dailyLimitPaused).toBe(false);
+    expect(state.debateError).toBeNull();
   });
 });

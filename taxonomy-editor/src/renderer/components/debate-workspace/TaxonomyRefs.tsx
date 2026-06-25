@@ -102,7 +102,7 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
   return (
     <div className="debate-taxonomy-refs-section">
       <div className="debate-taxonomy-refs">
-        {entry && (
+        {entry && entry.speaker !== 'system' && entry.type !== 'fact-check' && (
           explainCopied
             ? <span className="debate-reasoning-toggle" style={{ color: '#22c55e', cursor: 'default' }}>✓ Explain prompt copied to clipboard</span>
             : <button className="debate-reasoning-toggle" onClick={handleExplain} title="Copy an explain prompt to clipboard and open Gemini">Explain</button>

@@ -14,6 +14,8 @@ import { instrumentBridge } from './instrumentBridge';
 export const api = instrumentBridge(rawApi);
 export type { AppAPI } from './types';
 
+export function setActiveDebateId(_id: string | null): void { /* no-op in Electron — no server logs to correlate */ }
+
 export function isElectronMode(): boolean {
   return typeof window !== 'undefined' && 'electronAPI' in window;
 }

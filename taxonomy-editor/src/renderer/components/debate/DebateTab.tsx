@@ -711,6 +711,17 @@ function DebateDetailSummary({
         <button className="btn btn-primary" onClick={onOpenWindow}>
           Open in Window
         </button>
+        <div className="debate-detail-povers">
+          {debate.active_povers.map(p => {
+            const info = POVER_LABELS[p] ?? { label: p, color: 'var(--text-muted)' };
+            return (
+              <span key={p} className="debate-detail-pover" style={{ borderColor: info.color }}>
+                {info.label}
+              </span>
+            );
+          })}
+        </div>
+        <div style={{ flex: 1 }} />
         <button className="btn" onClick={() => onExport('json')}>Export JSON</button>
         <button className="btn" onClick={() => onExport('markdown')}>Export Markdown</button>
         <button className="btn" onClick={() => onExport('pdf')}>Export PDF</button>
@@ -727,21 +738,6 @@ function DebateDetailSummary({
         <ParameterHistoryPanel onClose={() => setShowCalibration(false)} />
       )}
 
-      {/* Debaters — full width */}
-      <div className="debate-detail-debaters-row">
-        <h3>Debaters</h3>
-        <div className="debate-detail-povers">
-          {debate.active_povers.map(p => {
-            const info = POVER_LABELS[p] ?? { label: p, color: 'var(--text-muted)' };
-            return (
-              <span key={p} className="debate-detail-pover" style={{ borderColor: info.color }}>
-                {info.label}
-              </span>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Topic — full width, scrollable */}
       <div className="debate-detail-topic-row">
         <h3>Topic</h3>
@@ -756,24 +752,6 @@ function DebateDetailSummary({
       </div>
 
       <div className="debate-detail-grid">
-        <div className="debate-detail-section">
-          <h3>Source</h3>
-          <div className="debate-detail-meta-row">
-            <span className="debate-detail-label">Type:</span>
-            <span>{SOURCE_TYPE_LABELS[debate.source_type] ?? debate.source_type}</span>
-          </div>
-          {debate.source_ref && (
-            <div className="debate-detail-meta-row">
-              <span className="debate-detail-label">Reference:</span>
-              <span className="debate-detail-source-ref" title={debate.source_ref}>
-                {debate.source_type === 'document'
-                  ? debate.source_ref.split('/').pop()
-                  : debate.source_ref}
-              </span>
-            </div>
-          )}
-        </div>
-
         <div className="debate-detail-section">
           <h3>Statistics</h3>
           <div className="debate-detail-stats">
@@ -800,6 +778,36 @@ function DebateDetailSummary({
               </div>
             )}
           </div>
+        </div>
+
+        <div className="debate-detail-section">
+          <h3>Timestamps</h3>
+          <div className="debate-detail-meta-row">
+            <span className="debate-detail-label">Created:</span>
+            <span>{formatDateLong(debate.created_at)}</span>
+          </div>
+          <div className="debate-detail-meta-row">
+            <span className="debate-detail-label">Updated:</span>
+            <span>{formatDateLong(debate.updated_at)}</span>
+          </div>
+        </div>
+
+        <div className="debate-detail-section">
+          <h3>Source</h3>
+          <div className="debate-detail-meta-row">
+            <span className="debate-detail-label">Type:</span>
+            <span>{SOURCE_TYPE_LABELS[debate.source_type] ?? debate.source_type}</span>
+          </div>
+          {debate.source_ref && (
+            <div className="debate-detail-meta-row">
+              <span className="debate-detail-label">Reference:</span>
+              <span className="debate-detail-source-ref" title={debate.source_ref}>
+                {debate.source_type === 'document'
+                  ? debate.source_ref.split('/').pop()
+                  : debate.source_ref}
+              </span>
+            </div>
+          )}
         </div>
 
         {(debate.audience || debate.debate_model || debate.protocol_id || debate.origin) && (
@@ -869,18 +877,6 @@ function DebateDetailSummary({
             )}
           </div>
         )}
-
-        <div className="debate-detail-section">
-          <h3>Timestamps</h3>
-          <div className="debate-detail-meta-row">
-            <span className="debate-detail-label">Created:</span>
-            <span>{formatDateLong(debate.created_at)}</span>
-          </div>
-          <div className="debate-detail-meta-row">
-            <span className="debate-detail-label">Updated:</span>
-            <span>{formatDateLong(debate.updated_at)}</span>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -948,15 +944,7 @@ function CommunityDebateDetail({ debate }: { debate: CommunityDebate }) {
         <button className="btn btn-primary" onClick={handleOpenWindow} disabled={loading || !!error}>
           Open in Window
         </button>
-      </div>
-
-      {loading && <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic', padding: '8px 0' }}>Loading debate details...</p>}
-      {error && <p style={{ color: 'var(--danger, #ef4444)', fontSize: '0.85rem', padding: '8px 0' }}>{error}</p>}
-
-      {/* Debaters */}
-      {full?.active_povers && full.active_povers.length > 0 && (
-        <div className="debate-detail-debaters-row">
-          <h3>Debaters</h3>
+        {full?.active_povers && full.active_povers.length > 0 && (
           <div className="debate-detail-povers">
             {full.active_povers.map(p => {
               const info = POVER_LABELS[p] ?? { label: p, color: 'var(--text-muted)' };
@@ -967,8 +955,11 @@ function CommunityDebateDetail({ debate }: { debate: CommunityDebate }) {
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
+
+      {loading && <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic', padding: '8px 0' }}>Loading debate details...</p>}
+      {error && <p style={{ color: 'var(--danger, #ef4444)', fontSize: '0.85rem', padding: '8px 0' }}>{error}</p>}
 
       {/* Topic */}
       {topic && (
@@ -981,17 +972,6 @@ function CommunityDebateDetail({ debate }: { debate: CommunityDebate }) {
       )}
 
       <div className="debate-detail-grid">
-        {/* Source */}
-        {full?.source_type && (
-          <div className="debate-detail-section">
-            <h3>Source</h3>
-            <div className="debate-detail-meta-row">
-              <span className="debate-detail-label">Type:</span>
-              <span>{SOURCE_TYPE_LABELS[full.source_type] ?? full.source_type}</span>
-            </div>
-          </div>
-        )}
-
         {/* Statistics */}
         {full && (
           <div className="debate-detail-section">
@@ -1013,6 +993,29 @@ function CommunityDebateDetail({ debate }: { debate: CommunityDebate }) {
                   <span className="debate-detail-stat-label">Relations</span>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        <div className="debate-detail-section">
+          <h3>Timestamps</h3>
+          <div className="debate-detail-meta-row">
+            <span className="debate-detail-label">Created:</span>
+            <span>{formatDateLong(debate.created_at)}</span>
+          </div>
+          <div className="debate-detail-meta-row">
+            <span className="debate-detail-label">Updated:</span>
+            <span>{formatDateLong(debate.updated_at)}</span>
+          </div>
+        </div>
+
+        {/* Source */}
+        {full?.source_type && (
+          <div className="debate-detail-section">
+            <h3>Source</h3>
+            <div className="debate-detail-meta-row">
+              <span className="debate-detail-label">Type:</span>
+              <span>{SOURCE_TYPE_LABELS[full.source_type] ?? full.source_type}</span>
             </div>
           </div>
         )}
@@ -1054,18 +1057,6 @@ function CommunityDebateDetail({ debate }: { debate: CommunityDebate }) {
             </div>
           </div>
         )}
-
-        <div className="debate-detail-section">
-          <h3>Timestamps</h3>
-          <div className="debate-detail-meta-row">
-            <span className="debate-detail-label">Created:</span>
-            <span>{formatDateLong(debate.created_at)}</span>
-          </div>
-          <div className="debate-detail-meta-row">
-            <span className="debate-detail-label">Updated:</span>
-            <span>{formatDateLong(debate.updated_at)}</span>
-          </div>
-        </div>
       </div>
     </div>
   );

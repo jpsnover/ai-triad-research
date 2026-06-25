@@ -1772,6 +1772,76 @@ body {
   margin-bottom: 16px;
 }
 
+.description-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.description-header label {
+  margin-bottom: 0;
+}
+
+.plain-description-group {
+  margin-top: -4px;
+}
+
+.plain-description-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.plain-description-badge {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-tertiary, var(--border));
+  padding: 1px 6px;
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.plain-description-box {
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  background: var(--bg-secondary, var(--bg-tertiary, #f5f5f5));
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  opacity: 0.85;
+  white-space: pre-wrap;
+  min-height: 2.5em;
+}
+
+.plain-description-generating {
+  font-style: italic;
+  color: var(--text-muted);
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+.plain-description-regen {
+  margin-top: 4px;
+  background: none;
+  border: none;
+  color: var(--link, var(--focus-ring));
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.plain-description-regen:hover {
+  text-decoration: underline;
+}
+
+.plain-description-regen:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .form-group label {
   display: block;
   font-size: 0.8rem;
@@ -2228,6 +2298,21 @@ body {
   font-size: 0.7rem;
   color: var(--text-muted);
   margin-top: 4px;
+}
+
+.recovery-elapsed {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.recovery-cold-start {
+  font-size: 0.78rem;
+  color: var(--warning, #f59e0b);
+  padding: 6px 12px;
+  margin-top: 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--warning, #f59e0b) 10%, transparent);
+  text-align: center;
 }
 
 .recovery-auth-inline {
@@ -4606,6 +4691,25 @@ body {
 .settings-divider {
   border-top: 1px solid var(--border-color);
   margin: 12px 0;
+}
+
+.settings-radio-group {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.settings-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+.settings-radio-label input[type="radio"] {
+  accent-color: var(--focus-ring);
 }
 
 .settings-key-section {
@@ -9228,6 +9332,57 @@ body {
 
 /* ─── Lineage Links (t/201) ──────────────────────────── */
 
+/* ── Concluding statement collapsible sections ── */
+.concluding-collapsed-section {
+  margin: 12px 0;
+}
+.concluding-collapsed-section > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.concluding-collapsed-section > summary::-webkit-details-marker {
+  display: none;
+}
+.concluding-collapsed-section > summary h2 {
+  display: inline;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.concluding-collapsed-section > summary h2::before {
+  content: '▶ ';
+  font-size: 0.7em;
+  color: var(--text-muted);
+}
+.concluding-collapsed-section[open] > summary h2::before {
+  content: '▼ ';
+}
+.concluding-collapsible-bullet {
+  margin: 2px 0;
+}
+.concluding-bullet-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+.concluding-toggle-arrow {
+  font-size: 0.6em;
+  color: var(--text-muted);
+  margin-top: 6px;
+  flex-shrink: 0;
+  user-select: none;
+}
+.concluding-bullet-top p {
+  margin: 0;
+}
+.concluding-bullet-subs {
+  padding-left: 20px;
+}
+.concluding-bullet-subs ul {
+  margin: 2px 0;
+  padding-left: 16px;
+}
+
 a.lineage-link,
 .lineage-link {
   color: inherit;
@@ -9835,6 +9990,80 @@ a.vocab-term,
 }
 .debate-error-dismiss:hover {
   opacity: 1;
+}
+.debate-daily-limit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--warning, #e6a700);
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--warning, #e6a700) 8%, transparent);
+  border-radius: 6px;
+}
+.debate-daily-limit-text {
+  flex: 1;
+}
+.debate-daily-limit-dismiss {
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: var(--warning, #e6a700);
+  cursor: pointer;
+  opacity: 0.6;
+}
+.debate-daily-limit-dismiss:hover {
+  opacity: 1;
+}
+.token-budget-indicator {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.token-budget-indicator.warning {
+  color: var(--warning, #e6a700);
+}
+.token-budget-indicator.urgent {
+  color: var(--danger, #ef4444);
+}
+.token-budget-bar {
+  width: 60px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.token-budget-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.token-budget-indicator.warning .token-budget-fill {
+  background: var(--warning, #e6a700);
+}
+.token-budget-indicator.urgent .token-budget-fill {
+  background: var(--danger, #ef4444);
+}
+.token-budget-label {
+  white-space: nowrap;
+}
+.token-budget-banner {
+  flex-basis: 100%;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+.token-budget-reset {
+  font-weight: 400;
+  opacity: 0.8;
 }
 
 .debate-action-bar-inner {
@@ -18332,4 +18561,46 @@ th[data-tooltip]::after {
     padding: 20px 16px;
     border-radius: 8px;
   }
+}
+
+/* ─── Description toggle (Formal / Plain) ─────────────── */
+
+.description-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  font-size: 0.6875rem;
+  line-height: 1;
+}
+
+.description-toggle-btn {
+  padding: 3px 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: inherit;
+  line-height: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+
+.description-toggle-btn:hover {
+  background: var(--bg-hover);
+}
+
+.description-toggle-btn.active {
+  background: var(--accent, #2563eb);
+  color: #fff;
+}
+
+.description-toggle-generating {
+  margin-left: 2px;
+  opacity: 0.6;
+  animation: description-toggle-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes description-toggle-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
 }

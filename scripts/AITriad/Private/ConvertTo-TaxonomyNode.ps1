@@ -81,6 +81,14 @@ function ConvertTo-TaxonomyNode {
         $Obj.GraphAttributes = $Node.graph_attributes
     }
 
+    # Plain-language description (from Invoke-VernacularBatch)
+    if ($null -ne $Node.PSObject.Properties['plain_description']) {
+        $Obj.PlainDescription = $Node.plain_description
+    }
+    if ($null -ne $Node.PSObject.Properties['plain_description_version']) {
+        $Obj.PlainDescriptionVersion = $Node.plain_description_version
+    }
+
     # Edit history
     if ($null -ne $Node.PSObject.Properties['label_history']) {
         $Obj.LabelHistory = @($Node.label_history)

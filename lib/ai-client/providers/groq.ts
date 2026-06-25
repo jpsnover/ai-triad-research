@@ -51,7 +51,7 @@ export async function generateViaGroq(
       goal: 'Generate text via Groq',
       problem: `Groq ${response.status}: ${bodyText.slice(0, 200)}`,
       location: 'ai-client.generateViaGroq',
-      nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check API quota'],
+      nextSteps: ['Wait a minute and retry', 'Switch to a different AI provider (Settings → AI Model)', 'Check API quota'],
     });
   }
   if (!response.ok) {

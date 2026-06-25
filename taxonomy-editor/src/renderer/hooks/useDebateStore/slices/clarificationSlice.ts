@@ -57,6 +57,8 @@ import {
   _abortController,
   claimDebateDriver,
   releaseDebateDriver,
+  isDailyLimitError,
+  DAILY_LIMIT_MESSAGE,
 } from '../helpers';
 
 export interface ClarificationSlice {
@@ -830,6 +832,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           userSeedClaims: userSeeds.length > 0 ? userSeeds : undefined,
           availablePovNodeIds: [...getAllKnownNodeIds()],
           doctrinalBoundaries: info.doctrinal_boundaries,
+          background: activeDebate.topic?.background || undefined,
         };
 
         let pipelineResult = await runOpeningPipeline(
@@ -951,9 +954,21 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         }
       } catch (err) {
         const httpStatus = (err as { httpStatus?: number }).httpStatus;
-        const isRetryable = httpStatus === 429;
+        const isRetryable = httpStatus === 429 && !isDailyLimitError(err);
         console.error(`[debate] ${info.label} opening statement failed (status=${httpStatus ?? 'unknown'}):`, err);
         getGlobalRecorder()?.record({ type: 'system.error', debate_id: activeDebate?.id, component: 'debate-engine', level: 'error', message: `Opening statement failed: ${info.label} (status=${httpStatus ?? 'unknown'})`, error: { name: (err as Error).name ?? 'Error', message: (err as Error).message ?? String(err), stack: (err as Error).stack?.slice(0, 500) } });
+        if (isDailyLimitError(err)) {
+          addTranscriptEntry({
+            type: 'system',
+            speaker: 'system',
+            content: DAILY_LIMIT_MESSAGE,
+            taxonomy_refs: [],
+          });
+          releaseDebateDriver();
+          set({ debateGenerating: null, debateActivity: null, debateError: DAILY_LIMIT_MESSAGE, dailyLimitPaused: true });
+          await saveDebate('runOpeningStatements:dailyLimit');
+          return;
+        }
         addTranscriptEntry({
           type: 'system',
           speaker: 'system',
@@ -1063,10 +1078,16 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           } catch (loopErr) {
             console.error(`[debate] Adaptive loop iteration ${i} failed:`, loopErr);
             getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'error', debate_id: d.id, message: `Adaptive loop failed at iteration ${i}`, data: { iteration: i, error: String(loopErr), stack: (loopErr as Error).stack?.slice(0, 500) } });
-            set({ debateError: `Cross-respond failed: ${(loopErr as Error).message?.slice(0, 200) ?? String(loopErr)}` });
-            loopExitReason = 'crossRespond_error';
+            if (isDailyLimitError(loopErr)) {
+              set({ debateError: DAILY_LIMIT_MESSAGE, dailyLimitPaused: true });
+              loopExitReason = 'daily_token_limit';
+            } else {
+              set({ debateError: `Cross-respond failed: ${(loopErr as Error).message?.slice(0, 200) ?? String(loopErr)}` });
+              loopExitReason = 'crossRespond_error';
+            }
             break;
           }
+          if (get().dailyLimitPaused) { loopExitReason = 'daily_token_limit'; break; }
           const post = get().activeDebate;
           if (!post) { loopExitReason = 'post_debate_null'; break; }
           if (post.transcript.length === preLen) {
@@ -1100,7 +1121,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         // Normal path: phase reached 'terminated'. Abnormal: loop exhausted, consecutive
         // system-only rounds, errors, etc. — still synthesize what we have.
         const statementsInTranscript = finalDebate?.transcript.filter(e => e.type === 'statement').length ?? 0;
-        if (finalDebate && statementsInTranscript >= 3) {
+        if (finalDebate && statementsInTranscript >= 3 && loopExitReason !== 'daily_token_limit') {
           if (finalPhase !== 'terminated') {
             getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'warn', debate_id: loopDebateId, message: `Forcing synthesis: loop exited before termination (${loopExitReason})`, data: { exit_reason: loopExitReason, iterations: loopIterations, maxRounds, final_phase: finalPhase, statements: statementsInTranscript } });
           }
@@ -1109,9 +1130,10 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
       } else if (initialCrossRespondRounds > 0) {
         for (let i = 0; i < initialCrossRespondRounds; i++) {
           const d = get().activeDebate;
-          if (!d) break;
+          if (!d || get().dailyLimitPaused) break;
           const preLen = d.transcript.length;
           await get().crossRespond();
+          if (get().dailyLimitPaused) break;
           const post = get().activeDebate;
           if (!post || post.transcript.length === preLen) break;
           const hasStatement = post.transcript.slice(preLen).some(e => e.type === 'statement');

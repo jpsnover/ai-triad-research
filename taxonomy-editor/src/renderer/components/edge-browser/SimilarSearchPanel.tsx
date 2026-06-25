@@ -6,6 +6,7 @@ import { nodePovFromId, SITUATION_PREFIX } from '@lib/debate/nodeIdUtils';
 import { POV_KEYS } from '@lib/debate/types';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { ApiKeyErrorMessage } from '../settings/ApiKeyErrorMessage';
+import { useDescriptionMode, resolveDescription } from '../shared/DescriptionToggle';
 
 type SortKey = 'match' | 'id' | 'label' | 'description';
 type SortDir = 'asc' | 'desc';
@@ -24,6 +25,7 @@ interface SimilarSearchPanelProps {
 }
 
 export function SimilarSearchPanel({ width, onAnalyze }: SimilarSearchPanelProps) {
+  const [descMode] = useDescriptionMode();
   const {
     similarResults,
     similarLoading,
@@ -101,7 +103,7 @@ export function SimilarSearchPanel({ width, onAnalyze }: SimilarSearchPanelProps
     const state = useTaxonomyStore.getState();
     if (id.startsWith(SITUATION_PREFIX)) {
       const node = state.situations?.nodes.find(n => n.id === id);
-      return node?.description || '';
+      return resolveDescription(node, descMode).text;
     }
     if (id.startsWith('conflict-')) {
       const conflict = state.conflicts.find(c => c.claim_id === id);
@@ -111,7 +113,7 @@ export function SimilarSearchPanel({ width, onAnalyze }: SimilarSearchPanelProps
       const file = state[pov];
       if (file) {
         const node = file.nodes.find(n => n.id === id);
-        if (node) return node.description;
+        if (node) return resolveDescription(node, descMode).text;
       }
     }
     return '';

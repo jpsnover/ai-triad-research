@@ -13,6 +13,7 @@ import { ADAPTIVE_PHASES, ADAPTIVE_PHASE_LABELS, ADAPTIVE_PHASE_COLORS } from '.
 import { HarvestDialog } from '../shared/HarvestDialog';
 import { ReflectionsPanel } from '../shared/ReflectionsPanel';
 import { NewsReportModal } from '../shared/NewsReportModal';
+import { useTierInfo } from '../../hooks/useTierInfo';
 
 export function ProgressIndicator() {
   const { debateActivity, debateProgress } = useDebateStore(
@@ -33,6 +34,48 @@ export function ProgressIndicator() {
       {debateProgress?.limitMessage && (
         <span className="debate-progress-limit">{debateProgress.limitMessage}</span>
       )}
+    </div>
+  );
+}
+
+const BUDGET_WARN_THRESHOLD = 0.8;
+const BUDGET_URGENT_THRESHOLD = 0.95;
+
+function formatResetTime(resetsAt: string): string {
+  const ms = new Date(resetsAt).getTime() - Date.now();
+  if (ms <= 0) return 'resets soon';
+  const hours = Math.floor(ms / 3_600_000);
+  const mins = Math.floor((ms % 3_600_000) / 60_000);
+  if (hours > 0) return `resets in ${hours}h ${mins}m`;
+  return `resets in ${mins}m`;
+}
+
+export function TokenBudgetIndicator() {
+  const { usage } = useTierInfo();
+  if (!usage) return null;
+  const { tokensToday, resetsAt } = usage.usage;
+  const { tokensPerDay } = usage.limits;
+  if (!tokensPerDay || tokensPerDay <= 0) return null;
+  const pct = tokensToday / tokensPerDay;
+  if (pct < 0.01) return null;
+  const remaining = Math.max(0, tokensPerDay - tokensToday);
+  const remainingK = remaining >= 1000 ? `${Math.round(remaining / 1000)}k` : String(remaining);
+  const isUrgent = pct >= BUDGET_URGENT_THRESHOLD;
+  const isWarning = pct >= BUDGET_WARN_THRESHOLD;
+  const resetLabel = resetsAt ? formatResetTime(resetsAt) : '';
+  const levelClass = isUrgent ? ' urgent' : isWarning ? ' warning' : '';
+  return (
+    <div className={`token-budget-indicator${levelClass}`}>
+      {isUrgent ? (
+        <span className="token-budget-banner">Almost out of today&#39;s AI budget — this debate may be interrupted. {resetLabel && <span className="token-budget-reset">({resetLabel})</span>}</span>
+      ) : isWarning ? (
+        <span className="token-budget-banner">You&#39;ve used {Math.round(pct * 100)}% of today&#39;s AI budget. {resetLabel && <span className="token-budget-reset">({resetLabel})</span>}</span>
+      ) : null}
+      <div className="token-budget-bar"
+        title={`${tokensToday.toLocaleString()} / ${tokensPerDay.toLocaleString()} tokens used today${resetLabel ? ` — ${resetLabel}` : ''}`}>
+        <div className="token-budget-fill" style={{ width: `${Math.min(100, pct * 100)}%` }} />
+      </div>
+      <span className="token-budget-label">{remainingK} left</span>
     </div>
   );
 }
@@ -158,8 +201,8 @@ const AI_MENTION_OPTIONS: { id: string; label: string; color: string }[] = [
 ];
 
 export function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, setShowEvaluation }: { showParamHistory: boolean; setShowParamHistory: (v: boolean) => void; showEvaluation: boolean; setShowEvaluation: (v: boolean) => void }) {
-  const { activeDebate, debateGenerating, debateError, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, requestReflections, audience, setAudience, toggleStepMode, setDebatePhase, setError } = useDebateStore(
-    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, askQuestion: s.askQuestion, crossRespond: s.crossRespond, requestSynthesis: s.requestSynthesis, requestProbingQuestions: s.requestProbingQuestions, requestReflections: s.requestReflections, audience: s.audience, setAudience: s.setAudience, toggleStepMode: s.toggleStepMode, setDebatePhase: s.setDebatePhase, setError: s.setError }))
+  const { activeDebate, debateGenerating, debateError, debateRetryAction, dailyLimitPaused, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, requestReflections, audience, setAudience, toggleStepMode, setDebatePhase, setError } = useDebateStore(
+    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, debateRetryAction: s.debateRetryAction, dailyLimitPaused: s.dailyLimitPaused, askQuestion: s.askQuestion, crossRespond: s.crossRespond, requestSynthesis: s.requestSynthesis, requestProbingQuestions: s.requestProbingQuestions, requestReflections: s.requestReflections, audience: s.audience, setAudience: s.setAudience, toggleStepMode: s.toggleStepMode, setDebatePhase: s.setDebatePhase, setError: s.setError }))
   );
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -296,12 +339,22 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
   return (
     <div className="debate-action-bar">
       {debateError && (
-        <div className="debate-error">
-          <span className="debate-error-text">{debateError}</span>
-          <button className="debate-error-retry" onClick={() => { setError(null); void handleCrossRespond(); }} disabled={disableAnalysis}>Retry</button>
-          <button className="debate-error-dismiss" onClick={() => setError(null)} title="Dismiss">&times;</button>
+        <div className={dailyLimitPaused ? 'debate-daily-limit' : 'debate-error'}>
+          <span className={dailyLimitPaused ? 'debate-daily-limit-text' : 'debate-error-text'}>{debateError}</span>
+          {!dailyLimitPaused && (
+            <button className="debate-error-retry" onClick={() => {
+              const action = debateRetryAction;
+              setError(null);
+              if (action === 'synthesis') void requestSynthesis();
+              else if (action === 'probing') void requestProbingQuestions();
+              else if (action === 'reflections') void requestReflections();
+              else void handleCrossRespond();
+            }} disabled={disableAnalysis}>Retry</button>
+          )}
+          <button className={dailyLimitPaused ? 'debate-daily-limit-dismiss' : 'debate-error-dismiss'} onClick={() => setError(null)} title="Dismiss">&times;</button>
         </div>
       )}
+      <TokenBudgetIndicator />
       <div className="debate-action-bar-inner">
         <div className="debate-input-wrapper">
           <input

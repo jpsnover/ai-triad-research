@@ -144,6 +144,8 @@ class TaxonomyNode {
     [PSObject[]]$LabelHistory
     [PSObject[]]$DescriptionHistory
     [PSObject[]]$ChangeHistory
+    [string]$PlainDescription
+    [string]$PlainDescriptionVersion
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

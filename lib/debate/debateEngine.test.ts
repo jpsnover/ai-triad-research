@@ -1662,3 +1662,145 @@ describe('Snapshot callback (t/932)', () => {
     expect(() => (engine as any).emitSnapshot('round_complete')).not.toThrow();
   });
 });
+
+// ── Rate-limit adaptive throttling (t/955) ───────────────
+
+describe('rate-limit adaptive throttling', () => {
+  it('recordRateLimit sets a 15s initial backoff', () => {
+    const engine = new DebateEngine(createDefaultConfig(), createMockAdapter(), createMinimalTaxonomy());
+    expect((engine as any)._rateLimitBackoffMs).toBe(0);
+
+    (engine as any).recordRateLimit();
+
+    expect((engine as any)._rateLimitBackoffMs).toBe(15_000);
+    expect((engine as any)._lastRateLimitTime).toBeGreaterThan(0);
+  });
+
+  it('recordRateLimit doubles backoff on consecutive calls, capped at 120s', () => {
+    const engine = new DebateEngine(createDefaultConfig(), createMockAdapter(), createMinimalTaxonomy());
+
+    (engine as any).recordRateLimit(); // 15s
+    (engine as any).recordRateLimit(); // 30s
+    (engine as any).recordRateLimit(); // 60s
+    (engine as any).recordRateLimit(); // 120s
+    expect((engine as any)._rateLimitBackoffMs).toBe(120_000);
+
+    (engine as any).recordRateLimit(); // still 120s (capped)
+    expect((engine as any)._rateLimitBackoffMs).toBe(120_000);
+  });
+
+  it('clearRateLimitBackoff halves backoff and eventually resets to 0', () => {
+    const engine = new DebateEngine(createDefaultConfig(), createMockAdapter(), createMinimalTaxonomy());
+
+    (engine as any)._rateLimitBackoffMs = 16_000;
+    (engine as any)._lastRateLimitTime = Date.now();
+
+    (engine as any).clearRateLimitBackoff(); // 8000
+    expect((engine as any)._rateLimitBackoffMs).toBe(8_000);
+
+    (engine as any).clearRateLimitBackoff(); // 4000
+    expect((engine as any)._rateLimitBackoffMs).toBe(4_000);
+
+    (engine as any).clearRateLimitBackoff(); // 2000
+    expect((engine as any)._rateLimitBackoffMs).toBe(2_000);
+
+    (engine as any).clearRateLimitBackoff(); // <2000 → reset to 0
+    expect((engine as any)._rateLimitBackoffMs).toBe(0);
+    expect((engine as any)._lastRateLimitTime).toBe(0);
+  });
+
+  it('isRateLimitError detects 429 and rate limit patterns', () => {
+    const engine = new DebateEngine(createDefaultConfig(), createMockAdapter(), createMinimalTaxonomy());
+    const check = (err: unknown) => (engine as any).isRateLimitError(err);
+
+    expect(check(new Error('HTTP 429: Too Many Requests'))).toBe(true);
+    expect(check(new Error('Rate limited by API'))).toBe(true);
+    expect(check(new Error('rate_limit exceeded'))).toBe(true);
+    expect(check(new Error('rate-limit'))).toBe(true);
+    expect(check(new Error('Server error 500'))).toBe(false);
+    expect(check(new Error('Network timeout'))).toBe(false);
+  });
+
+  it('generate() records rate limit on 429 error and clears on success', async () => {
+    let callCount = 0;
+    const adapter: ExtendedAIAdapter = {
+      async generateText() {
+        callCount++;
+        if (callCount === 1) throw new Error('429: Rate limited');
+        return '{"text": "ok"}';
+      },
+    };
+
+    const engine = new DebateEngine(createDefaultConfig(), adapter, createMinimalTaxonomy());
+    (engine as any).initSession();
+
+    // First call should throw and record rate limit
+    await expect((engine as any).generate('prompt', 'test')).rejects.toThrow('429');
+    expect((engine as any)._rateLimitBackoffMs).toBe(15_000);
+
+    // Manually expire the backoff window so throttle doesn't actually wait
+    (engine as any)._lastRateLimitTime = Date.now() - 20_000;
+
+    // Second call succeeds and clears backoff
+    await (engine as any).generate('prompt', 'test');
+    expect((engine as any)._rateLimitBackoffMs).toBeLessThan(15_000);
+  });
+
+  it('throttle() waits when rate limit backoff is active', async () => {
+    const engine = new DebateEngine(createDefaultConfig(), createMockAdapter(), createMinimalTaxonomy());
+    (engine as any).onProgress = vi.fn();
+
+    (engine as any)._rateLimitBackoffMs = 500;
+    (engine as any)._lastRateLimitTime = Date.now();
+
+    const start = Date.now();
+    await (engine as any).throttle();
+    const elapsed = Date.now() - start;
+
+    expect(elapsed).toBeGreaterThanOrEqual(400);
+    expect((engine as any).onProgress).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('Rate-limited') }),
+    );
+  });
+
+  it('throttle() skips wait when backoff window has elapsed', async () => {
+    const engine = new DebateEngine(createDefaultConfig(), createMockAdapter(), createMinimalTaxonomy());
+
+    (engine as any)._rateLimitBackoffMs = 1_000;
+    (engine as any)._lastRateLimitTime = Date.now() - 2_000;
+
+    const start = Date.now();
+    await (engine as any).throttle();
+    const elapsed = Date.now() - start;
+
+    expect(elapsed).toBeLessThan(100);
+  });
+});
+
+// ── Background field wiring (t/954) ──────────────────────
+
+describe('background field in DebateConfig', () => {
+  it('populates session.topic.background from config.background', () => {
+    const config = createDefaultConfig({ background: 'Market concentration data and capex analysis' });
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+    (engine as any).initSession();
+
+    expect((engine as any).session.topic.background).toBe('Market concentration data and capex analysis');
+  });
+
+  it('omits session.topic.background when config.background is not set', () => {
+    const config = createDefaultConfig();
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+    (engine as any).initSession();
+
+    expect((engine as any).session.topic.background).toBeUndefined();
+  });
+
+  it('omits session.topic.background when config.background is empty string', () => {
+    const config = createDefaultConfig({ background: '' });
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+    (engine as any).initSession();
+
+    expect((engine as any).session.topic.background).toBeUndefined();
+  });
+});

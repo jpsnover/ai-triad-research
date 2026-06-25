@@ -92,7 +92,9 @@ interface TaxResult {
 
 function searchPovNode(node: PovNode, regex: RegExp, tab: TabId): TaxResult[] {
   const results: TaxResult[] = [];
-  for (const [field, value] of [['id', node.id], ['label', node.label], ['description', node.description], ['category', node.category]] as const) {
+  const fields: [string, string][] = [['id', node.id], ['label', node.label], ['description', node.description], ['category', node.category]];
+  if (node.plain_description) fields.push(['plain_description', node.plain_description]);
+  for (const [field, value] of fields) {
     regex.lastIndex = 0;
     if (regex.test(value)) {
       results.push({ id: node.id, label: node.label, tab, category: node.category, field, matchText: value });
@@ -103,12 +105,14 @@ function searchPovNode(node: PovNode, regex: RegExp, tab: TabId): TaxResult[] {
 
 function searchCCNode(node: SituationNode, regex: RegExp): TaxResult[] {
   const results: TaxResult[] = [];
-  for (const [field, value] of [
+  const fields: [string, string][] = [
     ['id', node.id], ['label', node.label], ['description', node.description],
     ['interp:accelerationist', interpretationText(node.interpretations.accelerationist)],
     ['interp:safetyist', interpretationText(node.interpretations.safetyist)],
     ['interp:skeptic', interpretationText(node.interpretations.skeptic)],
-  ] as const) {
+  ];
+  if (node.plain_description) fields.push(['plain_description', node.plain_description]);
+  for (const [field, value] of fields) {
     regex.lastIndex = 0;
     if (regex.test(value)) {
       results.push({ id: node.id, label: node.label, tab: 'situations', field, matchText: value });

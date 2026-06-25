@@ -17,7 +17,7 @@ export interface TierInfo {
 export interface TierUsage {
   tier: string;
   limits: { requestsPerMinute: number; tokensPerDay: number };
-  usage: { requestsInWindow: number; tokensToday: number };
+  usage: { requestsInWindow: number; tokensToday: number; resetsAt?: string };
 }
 
 const USAGE_POLL_MS = 30_000;

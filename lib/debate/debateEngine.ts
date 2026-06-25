@@ -187,6 +187,8 @@ import type { UnengagedNode } from './gapCheck.js';
 
 export interface DebateConfig {
   topic: string;
+  /** Optional supporting context provided by the user — separate from the debate question. */
+  background?: string;
   name?: string;
   sourceType: DebateSourceType;
   sourceRef?: string;
@@ -331,6 +333,10 @@ export class DebateEngine {
   private _hintStreaks = new Map<string, import('./types').HintStreak>();
   /** Cached prior crux context string — seeded from registry at debate start, injected into Brief stage. */
   private _priorCruxContext: string = '';
+  /** Adaptive backoff (ms) imposed after a 429 rate-limit error is detected. */
+  private _rateLimitBackoffMs = 0;
+  /** Timestamp of the last 429 detection — used with _rateLimitBackoffMs in throttle(). */
+  private _lastRateLimitTime = 0;
 
   /** Get the set of hint keys currently suppressed for this debate. */
   private getSuppressedHints(): Set<string> {
@@ -424,15 +430,22 @@ export class DebateEngine {
     await this.throttle();
     this.progress('generating', undefined, label);
     const start = Date.now();
-    const text = await this.adapter.generateText(prompt, model, {
-      temperature: 0,
-      timeoutMs: timeoutMs ?? 120_000,
-      signal: this.config.signal,
-    });
-    this.lastApiCallTime = Date.now();
-    this.apiCallCount++;
-    this.totalResponseTimeMs += Date.now() - start;
-    return text;
+    try {
+      const text = await this.adapter.generateText(prompt, model, {
+        temperature: 0,
+        timeoutMs: timeoutMs ?? 120_000,
+        signal: this.config.signal,
+      });
+      this.lastApiCallTime = Date.now();
+      this.apiCallCount++;
+      this.totalResponseTimeMs += Date.now() - start;
+      this.clearRateLimitBackoff();
+      return text;
+    } catch (err) {
+      this.lastApiCallTime = Date.now();
+      if (this.isRateLimitError(err)) this.recordRateLimit();
+      throw err;
+    }
   }
 
   constructor(config: DebateConfig, adapter: AIAdapter | ExtendedAIAdapter, taxonomy: LoadedTaxonomy) {
@@ -681,6 +694,7 @@ export class DebateEngine {
         original: this.config.topic,
         refined: null,
         final: this.config.topic,
+        background: this.config.background || undefined,
       },
       source_type: this.config.sourceType,
       source_ref: this.config.sourceRef ?? '',
@@ -822,6 +836,14 @@ export class DebateEngine {
   // ── AI call wrapper ────────────────────────────────────────
 
   private async throttle(): Promise<void> {
+    if (this._rateLimitBackoffMs > 0 && this._lastRateLimitTime > 0) {
+      const sinceRateLimit = Date.now() - this._lastRateLimitTime;
+      if (sinceRateLimit < this._rateLimitBackoffMs) {
+        const waitMs = this._rateLimitBackoffMs - sinceRateLimit;
+        this.progress('generating', undefined, `Rate-limited — waiting ${Math.ceil(waitMs / 1000)}s`);
+        await new Promise(r => setTimeout(r, waitMs));
+      }
+    }
     const delay = this.config.throttleMs ?? 0;
     if (delay > 0 && this.lastApiCallTime > 0) {
       const elapsed = Date.now() - this.lastApiCallTime;
@@ -831,20 +853,50 @@ export class DebateEngine {
     }
   }
 
+  private recordRateLimit(): void {
+    this._lastRateLimitTime = Date.now();
+    this._rateLimitBackoffMs = Math.min(
+      Math.max(this._rateLimitBackoffMs * 2, 15_000),
+      120_000,
+    );
+  }
+
+  private clearRateLimitBackoff(): void {
+    if (this._rateLimitBackoffMs > 0) {
+      this._rateLimitBackoffMs = Math.floor(this._rateLimitBackoffMs / 2);
+      if (this._rateLimitBackoffMs < 2_000) {
+        this._rateLimitBackoffMs = 0;
+        this._lastRateLimitTime = 0;
+      }
+    }
+  }
+
+  private isRateLimitError(err: unknown): boolean {
+    const msg = err instanceof Error ? err.message : String(err);
+    return msg.includes('429') || /rate[_ -]?limit/i.test(msg);
+  }
+
   private async generate(prompt: string, label: string, timeoutMs?: number): Promise<string> {
     await this.throttle();
     this.progress('generating', undefined, label);
     const start = Date.now();
-    const text = await this.adapter.generateText(prompt, this.config.model, {
-      temperature: this.config.temperature ?? 0.7,
-      timeoutMs: timeoutMs ?? 120_000,
-      signal: this.config.signal,
-    });
-    const elapsed = Date.now() - start;
-    this.lastApiCallTime = Date.now();
-    this.apiCallCount++;
-    this.totalResponseTimeMs += elapsed;
-    return text;
+    try {
+      const text = await this.adapter.generateText(prompt, this.config.model, {
+        temperature: this.config.temperature ?? 0.7,
+        timeoutMs: timeoutMs ?? 120_000,
+        signal: this.config.signal,
+      });
+      const elapsed = Date.now() - start;
+      this.lastApiCallTime = Date.now();
+      this.apiCallCount++;
+      this.totalResponseTimeMs += elapsed;
+      this.clearRateLimitBackoff();
+      return text;
+    } catch (err) {
+      this.lastApiCallTime = Date.now();
+      if (this.isRateLimitError(err)) this.recordRateLimit();
+      throw err;
+    }
   }
 
   private resolveModelForSpeaker(speaker: string): string {
@@ -932,16 +984,23 @@ export class DebateEngine {
     const evalModel = this.config.evaluatorModel ?? this.config.model;
     this.progress('generating', undefined, label);
     const start = Date.now();
-    const text = await this.adapter.generateText(prompt, evalModel, {
-      temperature: 0,
-      timeoutMs: timeoutMs ?? 120_000,
-      signal: this.config.signal,
-    });
-    const elapsed = Date.now() - start;
-    this.lastApiCallTime = Date.now();
-    this.apiCallCount++;
-    this.totalResponseTimeMs += elapsed;
-    return text;
+    try {
+      const text = await this.adapter.generateText(prompt, evalModel, {
+        temperature: 0,
+        timeoutMs: timeoutMs ?? 120_000,
+        signal: this.config.signal,
+      });
+      const elapsed = Date.now() - start;
+      this.lastApiCallTime = Date.now();
+      this.apiCallCount++;
+      this.totalResponseTimeMs += elapsed;
+      this.clearRateLimitBackoff();
+      return text;
+    } catch (err) {
+      this.lastApiCallTime = Date.now();
+      if (this.isRateLimitError(err)) this.recordRateLimit();
+      throw err;
+    }
   }
 
   private progress(phase: string, speaker?: string, message?: string, round?: number): void {
@@ -2443,12 +2502,21 @@ export class DebateEngine {
     const priorStatements: { speaker: string; pov: string; poverId: string; statement: string; summary: string }[] = [];
 
     const stageGenerate = async (prompt: string, model: string, options: { temperature?: number; timeoutMs?: number }, label: string) => {
+      await this.throttle();
       this.progress('generating', undefined, label);
       const start = Date.now();
-      const text = await this.adapter.generateText(prompt, model, { ...options, timeoutMs: options.timeoutMs ?? 120_000 });
-      this.apiCallCount++;
-      this.totalResponseTimeMs += Date.now() - start;
-      return text;
+      try {
+        const text = await this.adapter.generateText(prompt, model, { ...options, timeoutMs: options.timeoutMs ?? 120_000 });
+        this.lastApiCallTime = Date.now();
+        this.apiCallCount++;
+        this.totalResponseTimeMs += Date.now() - start;
+        this.clearRateLimitBackoff();
+        return text;
+      } catch (err) {
+        this.lastApiCallTime = Date.now();
+        if (this.isRateLimitError(err)) this.recordRateLimit();
+        throw err;
+      }
     };
 
     for (const poverId of order) {
@@ -3236,22 +3304,40 @@ export class DebateEngine {
     };
 
     const stageGenerate = async (prompt: string, model: string, options: { temperature?: number; timeoutMs?: number }, label: string) => {
+      await this.throttle();
       this.progress('generating', undefined, label);
       const start = Date.now();
-      const text = await this.adapter.generateText(prompt, model, { ...options, timeoutMs: options.timeoutMs ?? 120_000 });
-      this.apiCallCount++;
-      this.totalResponseTimeMs += Date.now() - start;
-      return text;
+      try {
+        const text = await this.adapter.generateText(prompt, model, { ...options, timeoutMs: options.timeoutMs ?? 120_000 });
+        this.lastApiCallTime = Date.now();
+        this.apiCallCount++;
+        this.totalResponseTimeMs += Date.now() - start;
+        this.clearRateLimitBackoff();
+        return text;
+      } catch (err) {
+        this.lastApiCallTime = Date.now();
+        if (this.isRateLimitError(err)) this.recordRateLimit();
+        throw err;
+      }
     };
 
     const envelopeGenerate = this.adapter.generate
       ? async (request: import('./cacheTypes').GenerateRequest, label: string) => {
+          await this.throttle();
           this.progress('generating', undefined, label);
           const start = Date.now();
-          const resp = await this.adapter.generate!(request);
-          this.apiCallCount++;
-          this.totalResponseTimeMs += Date.now() - start;
-          return resp;
+          try {
+            const resp = await this.adapter.generate!(request);
+            this.lastApiCallTime = Date.now();
+            this.apiCallCount++;
+            this.totalResponseTimeMs += Date.now() - start;
+            this.clearRateLimitBackoff();
+            return resp;
+          } catch (err) {
+            this.lastApiCallTime = Date.now();
+            if (this.isRateLimitError(err)) this.recordRateLimit();
+            throw err;
+          }
         }
       : undefined;
 

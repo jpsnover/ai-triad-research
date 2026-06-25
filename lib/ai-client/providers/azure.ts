@@ -68,7 +68,7 @@ export async function generateViaAzure(
       goal: 'Generate text via Azure OpenAI',
       problem: `Azure OpenAI ${response.status}: ${bodyText.slice(0, 200)}`,
       location: 'ai-client.generateViaAzure',
-      nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check API quota'],
+      nextSteps: ['Wait a minute and retry', 'Switch to a different AI provider (Settings → AI Model)', 'Check API quota'],
     });
   }
   if (!response.ok) {

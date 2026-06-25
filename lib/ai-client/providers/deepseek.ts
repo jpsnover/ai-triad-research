@@ -46,7 +46,7 @@ export async function generateViaDeepSeek(
       goal: 'Generate text via DeepSeek',
       problem: `DeepSeek ${response.status}: ${bodyText.slice(0, 200)}`,
       location: 'ai-client.generateViaDeepSeek',
-      nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check API quota'],
+      nextSteps: ['Wait a minute and retry', 'Switch to a different AI provider (Settings → AI Model)', 'Check API quota'],
     });
   }
   if (!response.ok) {
@@ -132,7 +132,7 @@ export async function generateViaDeepSeekStream(
       goal: 'Generate text via DeepSeek (streaming)',
       problem: `DeepSeek ${response.status}: ${errBody.slice(0, 200)}`,
       location: 'ai-client.generateViaDeepSeekStream',
-      nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check API quota'],
+      nextSteps: ['Wait a minute and retry', 'Switch to a different AI provider (Settings → AI Model)', 'Check API quota'],
     });
   }
   if (!response.ok) {

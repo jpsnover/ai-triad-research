@@ -27,6 +27,8 @@ import { nodeTypeFromId, nodePovFromId } from '@lib/debate/nodeIdUtils';
 import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
 import { EditConflictBadge, type NodeConflict } from '../conflict/edit-conflicts';
+import { triggerPovNodeRegeneration } from '../../utils/regeneratePlainDescription';
+import { useDescriptionMode, resolveDescription, DescriptionToggle } from '../shared/DescriptionToggle';
 
 interface MoveTarget {
   label: string;
@@ -130,6 +132,7 @@ type NodeDetailTabId = 'content' | 'related' | 'attributes' | 'phrases' | 'sourc
 
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, chipDepth = 0, conflict, resolveUrl }: NodeDetailProps) {
   const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile, setSelectedNodeId, getLabelForId } = useTaxonomyStore();
+  const [descMode, setDescMode] = useDescriptionMode();
   const [showDelete, setShowDelete] = useState(false);
   const [activeTab, setActiveTab] = useState<NodeDetailTabId>('content');
   const [expandedLineage, setExpandedLineage] = useState<string | null>(null);
@@ -419,19 +422,43 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             )}
 
             <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
-              <label>
-                Description
-                <FieldHelp text={`Genus-differentia format:\n"${CATEGORY_SINGULAR[node.category]} within [POV] discourse that [differentia].\nEncompasses: ...\nExcludes: ..."\nEncompasses and Excludes must each start on a new line.`} />
-              </label>
-              <HighlightedTextarea
-                value={node.description}
-                onChange={(v) => update({ description: v })}
-                rows={6}
-                readOnly={readOnly}
-              />
-              {err('description') && <div className="error-text">{err('description')}</div>}
+              <div className="description-header">
+                <label>
+                  Description
+                  <FieldHelp text={`Genus-differentia format:\n"${CATEGORY_SINGULAR[node.category]} within [POV] discourse that [differentia].\nEncompasses: ...\nExcludes: ..."\nEncompasses and Excludes must each start on a new line.`} />
+                </label>
+                <DescriptionToggle mode={descMode} onToggle={setDescMode} hasPlainDescription={!!node.plain_description} />
+              </div>
+              {descMode === 'formal' ? (
+                <>
+                  <HighlightedTextarea
+                    value={node.description}
+                    onChange={(v) => update({ description: v })}
+                    rows={6}
+                    readOnly={readOnly}
+                  />
+                  {err('description') && <div className="error-text">{err('description')}</div>}
+                </>
+              ) : (
+                <>
+                  {node.plain_description === null ? (
+                    <div className="plain-description-box plain-description-generating">Regenerating…</div>
+                  ) : (
+                    <div className="plain-description-box">{node.plain_description ?? node.description}</div>
+                  )}
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      className="plain-description-regen"
+                      disabled={node.plain_description === null}
+                      onClick={() => triggerPovNodeRegeneration(pov, node.id, node.description, updatePovNode)}
+                    >
+                      ↻ Regenerate
+                    </button>
+                  )}
+                </>
+              )}
             </div>
-
 
             {hasGraphAttrs && (
               <div className="form-group">

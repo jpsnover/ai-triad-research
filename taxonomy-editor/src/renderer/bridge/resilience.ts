@@ -80,7 +80,8 @@ function checkCircuit(cat: EndpointCategory, path: string): void {
     if (elapsed >= cfg().circuitCooldownMs) {
       c.state = 'HALF_OPEN';
       recordEvent('network.circuit_half_open', 'warn',
-        `Circuit '${cat}' → HALF_OPEN, allowing probe request`);
+        `Circuit '${cat}' → HALF_OPEN, allowing probe request`,
+        { category: cat, state: 'HALF_OPEN', consecutiveFailures: c.consecutiveFailures, timeOpenMs: elapsed });
       notifyListeners();
       return;
     }
@@ -102,7 +103,8 @@ function onCircuitSuccess(cat: EndpointCategory): void {
   const wasNotClosed = c.state !== 'CLOSED';
   if (c.state === 'HALF_OPEN') {
     recordEvent('network.circuit_closed', 'info',
-      `Circuit '${cat}' → CLOSED after successful probe`);
+      `Circuit '${cat}' → CLOSED after successful probe`,
+      { category: cat, state: 'CLOSED', previousFailures: c.consecutiveFailures });
   }
   c.consecutiveFailures = 0;
   c.recentFailures = [];
@@ -120,12 +122,14 @@ function onCircuitFailure(cat: EndpointCategory, reason: string): void {
   if (c.state === 'HALF_OPEN') {
     c.state = 'OPEN';
     recordEvent('network.circuit_open', 'warn',
-      `Circuit '${cat}' re-OPEN after failed probe (${reason})`);
+      `Circuit '${cat}' re-OPEN after failed probe (${reason})`,
+      { category: cat, state: 'OPEN', trigger: 'half_open_probe_failed', consecutiveFailures: c.consecutiveFailures, cooldownMs: cfg().circuitCooldownMs, lastFailure: reason });
   } else if (c.consecutiveFailures >= cfg().circuitThreshold && c.state === 'CLOSED') {
     c.state = 'OPEN';
     const summary = summarizeFailures(c.recentFailures);
     recordEvent('network.circuit_open', 'error',
-      `Circuit '${cat}' → OPEN after ${c.consecutiveFailures} consecutive failures. Last: ${summary}`);
+      `Circuit '${cat}' → OPEN after ${c.consecutiveFailures} consecutive failures. Last: ${summary}`,
+      { category: cat, state: 'OPEN', trigger: 'threshold_exceeded', consecutiveFailures: c.consecutiveFailures, cooldownMs: cfg().circuitCooldownMs, recentFailures: [...c.recentFailures] });
   }
   if (c.state !== prevState) notifyListeners();
 }
@@ -245,8 +249,12 @@ export async function resilientFetch(
         return res;
       }
 
-      // Retryable HTTP status (5xx or 429)
-      onCircuitFailure(category, `HTTP ${res.status}`);
+      // Retryable HTTP status — 429 is rate-limiting (server healthy), not a failure
+      if (res.status === 429) {
+        onCircuitSuccess(category);
+      } else {
+        onCircuitFailure(category, `HTTP ${res.status}`);
+      }
 
       if (attempt < maxRetries) {
         const retryAfterMs = res.status === 429 ? parseRetryAfter(res) : null;
@@ -333,6 +341,6 @@ export function resetResilience(): void {
 
 // ── Flight recorder helper ──
 
-function recordEvent(type: string, level: 'info' | 'warn' | 'error', message: string): void {
-  getGlobalRecorder()?.record({ type, component: 'web-bridge', level, message });
+function recordEvent(type: string, level: 'info' | 'warn' | 'error', message: string, data?: Record<string, unknown>): void {
+  getGlobalRecorder()?.record({ type, component: 'web-bridge', level, message, ...(data ? { data } : {}) });
 }

@@ -24,6 +24,7 @@ function searchPovNode(node: PovNode, regex: RegExp, tab: TabId): SearchResult[]
     ['description', node.description],
     ['category', node.category],
   ];
+  if (node.plain_description) fields.push(['plain_description', node.plain_description]);
   for (const [field, value] of fields) {
     regex.lastIndex = 0;
     if (regex.test(value)) {
@@ -43,6 +44,7 @@ function searchSituationNode(node: CrossCuttingNode, regex: RegExp): SearchResul
     ['interp:safetyist', interpretationText(node.interpretations.safetyist)],
     ['interp:skeptic', interpretationText(node.interpretations.skeptic)],
   ];
+  if (node.plain_description) fields.push(['plain_description', node.plain_description]);
   for (const [field, value] of fields) {
     regex.lastIndex = 0;
     if (regex.test(value)) {

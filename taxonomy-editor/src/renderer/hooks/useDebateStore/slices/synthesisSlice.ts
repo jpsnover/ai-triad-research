@@ -51,6 +51,8 @@ import {
   newAbortController,
   _abortController,
   getTaxonomyContext,
+  isDailyLimitError,
+  DAILY_LIMIT_MESSAGE,
 } from '../helpers';
 
 export interface SynthesisSlice {
@@ -197,31 +199,6 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
           if (challenged) lines.push(`  - Challenged by: ${challenged}${dc.challenge_basis ? ` — ${stripNodeIds(dc.challenge_basis)}` : ''}`);
         }
       }
-      if (synthesis.argument_map?.length > 0) {
-        lines.push('', '## Argument Map', '');
-        for (const claim of synthesis.argument_map) {
-          const claimantLabel = POVER_INFO[claim.claimant as Exclude<SpeakerId, 'user'>]?.label || claim.claimant;
-          const typeTag = claim.type ? ` [${claim.type}]` : '';
-          lines.push(`- **${claim.claim_id}** (${claimantLabel})${typeTag}: ${stripNodeIds(claim.claim)}`);
-          if (claim.supported_by?.length > 0) {
-            for (const sup of claim.supported_by) {
-              if (typeof sup === 'string') {
-                lines.push(`  - Supported by: ${sup}`);
-              } else {
-                const schemeTag = sup.scheme ? ` (${sup.scheme.replace(/_/g, ' ')})` : '';
-                lines.push(`  - Supported by ${sup.claim_id}${schemeTag}${sup.warrant ? `: ${stripNodeIds(sup.warrant)}` : ''}`);
-              }
-            }
-          }
-          if (claim.attacked_by?.length > 0) {
-            for (const attack of claim.attacked_by) {
-              const attackerLabel = POVER_INFO[attack.claimant as Exclude<SpeakerId, 'user'>]?.label || attack.claimant;
-              const schemeTag = attack.scheme ? ` via ${attack.scheme}` : '';
-              lines.push(`  - ← **${attack.claim_id}** ${attack.attack_type}${schemeTag} (${attackerLabel}): ${stripNodeIds(attack.claim)}`);
-            }
-          }
-        }
-      }
       if (synthesis.preferences?.length > 0) {
         lines.push('', '## Resolution Analysis', '');
         for (const p of synthesis.preferences) {
@@ -246,6 +223,31 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
         lines.push('', '## Unresolved Questions', '');
         for (const q of synthesis.unresolved_questions) {
           lines.push(`- ${stripNodeIds(q)}`);
+        }
+      }
+      if (synthesis.argument_map?.length > 0) {
+        lines.push('', '## Argument Map', '');
+        for (const claim of synthesis.argument_map) {
+          const claimantLabel = POVER_INFO[claim.claimant as Exclude<SpeakerId, 'user'>]?.label || claim.claimant;
+          const typeTag = claim.type ? ` [${claim.type}]` : '';
+          lines.push(`- **${claim.claim_id}** (${claimantLabel})${typeTag}: ${stripNodeIds(claim.claim)}`);
+          if (claim.supported_by?.length > 0) {
+            for (const sup of claim.supported_by) {
+              if (typeof sup === 'string') {
+                lines.push(`  - Supported by: ${sup}`);
+              } else {
+                const schemeTag = sup.scheme ? ` (${sup.scheme.replace(/_/g, ' ')})` : '';
+                lines.push(`  - Supported by ${sup.claim_id}${schemeTag}${sup.warrant ? `: ${stripNodeIds(sup.warrant)}` : ''}`);
+              }
+            }
+          }
+          if (claim.attacked_by?.length > 0) {
+            for (const attack of claim.attacked_by) {
+              const attackerLabel = POVER_INFO[attack.claimant as Exclude<SpeakerId, 'user'>]?.label || attack.claimant;
+              const schemeTag = attack.scheme ? ` via ${attack.scheme}` : '';
+              lines.push(`  - ← **${attack.claim_id}** ${attack.attack_type}${schemeTag} (${attackerLabel}): ${stripNodeIds(attack.claim)}`);
+            }
+          }
         }
       }
 
@@ -628,7 +630,11 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
         message: 'Synthesis failed',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      set({ debateError: `Synthesis failed: ${mapErrorToUserMessage(err)}` });
+      if (isDailyLimitError(err)) {
+        set({ debateError: DAILY_LIMIT_MESSAGE, dailyLimitPaused: true });
+      } else {
+        set({ debateError: `Synthesis failed: ${mapErrorToUserMessage(err)}`, debateRetryAction: 'synthesis' });
+      }
     } finally {
       set({ debateGenerating: null });
       await saveDebate('requestSynthesis');
@@ -703,7 +709,11 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
         message: 'Probing questions generation failed',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      set({ debateError: `Probing questions failed: ${mapErrorToUserMessage(err)}` });
+      if (isDailyLimitError(err)) {
+        set({ debateError: DAILY_LIMIT_MESSAGE, dailyLimitPaused: true });
+      } else {
+        set({ debateError: `Probing questions failed: ${mapErrorToUserMessage(err)}`, debateRetryAction: 'probing' });
+      }
     } finally {
       set({ debateGenerating: null });
       await saveDebate('requestProbingQuestions');
@@ -960,7 +970,11 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
         message: 'Fact check failed',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      set({ debateError: `Fact check failed: ${mapErrorToUserMessage(err)}` });
+      if (isDailyLimitError(err)) {
+        set({ debateError: DAILY_LIMIT_MESSAGE, dailyLimitPaused: true });
+      } else {
+        set({ debateError: `Fact check failed: ${mapErrorToUserMessage(err)}`, debateRetryAction: 'factCheck' });
+      }
     } finally {
       set({ debateGenerating: null });
       await saveDebate('factCheckSelection');
@@ -1038,7 +1052,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
         message: 'Context compression failed',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      set({ debateError: `Context compression failed: ${mapErrorToUserMessage(err)}` });
+      pushWarning(get, set, `Context compression skipped: ${mapErrorToUserMessage(err)}`);
     } finally {
       set({ debateGenerating: null });
     }

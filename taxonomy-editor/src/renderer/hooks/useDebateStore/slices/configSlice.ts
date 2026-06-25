@@ -53,6 +53,9 @@ export interface ConfigSlice {
   // Community read-only mode (viewing a shared debate without copying)
   communityReadOnly: boolean;
 
+  // Daily limit pause state
+  dailyLimitPaused: boolean;
+
   // News
   newsReport: string | null;
   newsReportLoading: boolean;
@@ -72,6 +75,8 @@ export interface ConfigSlice {
   inspectNode: (nodeId: string | null) => void;
   setGenerating: (pover: SpeakerId | null) => void;
   setError: (error: string | null) => void;
+  debateRetryAction: string | null;
+  setErrorWithRetry: (error: string, retryAction: string) => void;
 }
 
 export const createConfigSlice: StateCreator<DebateStore, [], [], ConfigSlice> = (set, get) => ({
@@ -98,6 +103,8 @@ export const createConfigSlice: StateCreator<DebateStore, [], [], ConfigSlice> =
   consensusClusters: [],
   enrichmentStatus: {},
   communityReadOnly: false,
+  dailyLimitPaused: false,
+  debateRetryAction: null,
   newsReport: null,
   newsReportLoading: false,
   newsReportError: null,
@@ -180,5 +187,6 @@ export const createConfigSlice: StateCreator<DebateStore, [], [], ConfigSlice> =
   setDiagPopoutOpen: (open) => set({ diagPopoutOpen: open }),
   inspectNode: (nodeId) => set({ inspectedNodeId: nodeId }),
   setGenerating: (pover) => set({ debateGenerating: pover }),
-  setError: (error) => set({ debateError: error }),
+  setError: (error) => set({ debateError: error, debateRetryAction: error ? get().debateRetryAction : null, dailyLimitPaused: error ? get().dailyLimitPaused : false }),
+  setErrorWithRetry: (error, retryAction) => set({ debateError: error, debateRetryAction: retryAction }),
 });

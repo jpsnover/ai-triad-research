@@ -26,8 +26,9 @@ vi.mock('@lib/debate/errors', () => ({
   },
 }));
 
+const mockRecord = vi.fn();
 vi.mock('@lib/flight-recorder/index', () => ({
-  getGlobalRecorder: () => ({ record: vi.fn(), intern: vi.fn() }),
+  getGlobalRecorder: () => ({ record: mockRecord, intern: vi.fn() }),
 }));
 
 function mockFetchResponse(status: number, body: unknown = {}, headers?: Record<string, string>): Response {
@@ -59,6 +60,7 @@ describe('resilience', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     resetResilience();
+    mockRecord.mockClear();
     fetchSpy = vi.fn();
     globalThis.fetch = fetchSpy;
   });
@@ -226,7 +228,7 @@ describe('resilience', () => {
 
     it('includes failure reasons in the OPEN error message', async () => {
       for (let i = 0; i < 3; i++) {
-        fetchSpy.mockResolvedValueOnce(mockFetchResponse(429));
+        fetchSpy.mockResolvedValueOnce(mockFetchResponse(500));
         await resilientFetch('/api/test', {}, defaultOpts());
       }
       for (let i = 0; i < 2; i++) {
@@ -235,7 +237,17 @@ describe('resilience', () => {
       }
       await expect(
         resilientFetch('/api/test', {}, defaultOpts()),
-      ).rejects.toThrow(/Last failures: HTTP 429 \(x3\), HTTP 503 \(x2\)/);
+      ).rejects.toThrow(/Last failures: HTTP 500 \(x3\), HTTP 503 \(x2\)/);
+    });
+
+    it('does not count 429 as a circuit breaker failure', async () => {
+      for (let i = 0; i < 10; i++) {
+        fetchSpy.mockResolvedValueOnce(mockFetchResponse(429));
+        await resilientFetch('/api/test', {}, defaultOpts());
+      }
+      const state = getResilienceState();
+      expect(state.circuits.read.state).toBe('CLOSED');
+      expect(state.circuits.read.consecutiveFailures).toBe(0);
     });
 
     it('transitions to HALF_OPEN after cooldown', async () => {
@@ -276,12 +288,12 @@ describe('resilience', () => {
     });
 
     it('exposes recentFailures in state', async () => {
-      fetchSpy.mockResolvedValueOnce(mockFetchResponse(429));
+      fetchSpy.mockResolvedValueOnce(mockFetchResponse(500));
       await resilientFetch('/api/test', {}, defaultOpts());
       fetchSpy.mockResolvedValueOnce(mockFetchResponse(503));
       await resilientFetch('/api/test', {}, defaultOpts());
       const state = getResilienceState();
-      expect(state.circuits.read.recentFailures).toEqual(['HTTP 429', 'HTTP 503']);
+      expect(state.circuits.read.recentFailures).toEqual(['HTTP 500', 'HTTP 503']);
     });
 
     it('clears recentFailures on success', async () => {
@@ -321,6 +333,97 @@ describe('resilience', () => {
       }
       expect(getResilienceState().circuits.ai.state).toBe('OPEN');
       expect(getResilienceState().circuits.read.state).toBe('CLOSED');
+    });
+  });
+
+  describe('circuit breaker flight recorder events', () => {
+    function findRecordCall(type: string) {
+      return mockRecord.mock.calls.find(
+        (c: unknown[]) => (c[0] as { type: string }).type === type,
+      );
+    }
+
+    it('emits structured data when circuit opens', async () => {
+      for (let i = 0; i < 5; i++) {
+        fetchSpy.mockResolvedValueOnce(mockFetchResponse(500));
+        await resilientFetch('/api/test', {}, defaultOpts());
+      }
+      const call = findRecordCall('network.circuit_open');
+      expect(call).toBeDefined();
+      const event = call![0] as Record<string, unknown>;
+      expect(event.level).toBe('error');
+      expect(event.data).toMatchObject({
+        category: 'read',
+        state: 'OPEN',
+        trigger: 'threshold_exceeded',
+        consecutiveFailures: 5,
+      });
+      expect((event.data as { recentFailures: string[] }).recentFailures).toHaveLength(5);
+    });
+
+    it('emits structured data on HALF_OPEN transition', async () => {
+      for (let i = 0; i < 5; i++) {
+        fetchSpy.mockResolvedValueOnce(mockFetchResponse(500));
+        await resilientFetch('/api/test', {}, defaultOpts());
+      }
+      mockRecord.mockClear();
+
+      vi.advanceTimersByTime(60_001);
+      fetchSpy.mockResolvedValueOnce(mockFetchResponse(200));
+      await resilientFetch('/api/test', {}, defaultOpts());
+
+      const halfOpenCall = findRecordCall('network.circuit_half_open');
+      expect(halfOpenCall).toBeDefined();
+      const event = halfOpenCall![0] as Record<string, unknown>;
+      expect(event.data).toMatchObject({
+        category: 'read',
+        state: 'HALF_OPEN',
+        consecutiveFailures: 5,
+      });
+    });
+
+    it('emits structured data on CLOSED transition after probe success', async () => {
+      for (let i = 0; i < 5; i++) {
+        fetchSpy.mockResolvedValueOnce(mockFetchResponse(500));
+        await resilientFetch('/api/test', {}, defaultOpts());
+      }
+      mockRecord.mockClear();
+
+      vi.advanceTimersByTime(60_001);
+      fetchSpy.mockResolvedValueOnce(mockFetchResponse(200));
+      await resilientFetch('/api/test', {}, defaultOpts());
+
+      const closedCall = findRecordCall('network.circuit_closed');
+      expect(closedCall).toBeDefined();
+      const event = closedCall![0] as Record<string, unknown>;
+      expect(event.data).toMatchObject({
+        category: 'read',
+        state: 'CLOSED',
+        previousFailures: 5,
+      });
+    });
+
+    it('emits re-OPEN event with probe failure details', async () => {
+      for (let i = 0; i < 5; i++) {
+        fetchSpy.mockResolvedValueOnce(mockFetchResponse(500));
+        await resilientFetch('/api/test', {}, defaultOpts());
+      }
+      mockRecord.mockClear();
+
+      vi.advanceTimersByTime(60_001);
+      fetchSpy.mockResolvedValueOnce(mockFetchResponse(503));
+      await resilientFetch('/api/test', {}, defaultOpts());
+
+      const openCall = findRecordCall('network.circuit_open');
+      expect(openCall).toBeDefined();
+      const event = openCall![0] as Record<string, unknown>;
+      expect(event.level).toBe('warn');
+      expect(event.data).toMatchObject({
+        category: 'read',
+        state: 'OPEN',
+        trigger: 'half_open_probe_failed',
+        lastFailure: 'HTTP 503',
+      });
     });
   });
 

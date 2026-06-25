@@ -84,7 +84,7 @@ export async function withRetry<T>(
     goal: `Complete ${label}`,
     problem: `${label} failed after ${config.maxRetries} retries`,
     location: 'ai-client.withRetry',
-    nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check API quota'],
+    nextSteps: ['Wait a minute and retry', 'Switch to a different AI provider (Settings → AI Model)', 'Check API quota'],
   });
 }
 
@@ -122,7 +122,7 @@ export async function retryableFetch(opts: {
           problem: `Daily API quota exhausted. ${limitMessage}`,
           location: `ai-client.retryableFetch(${opts.label})`,
           nextSteps: [
-            'Switch to a different model (Settings → AI Model)',
+            'Switch to a different AI provider (Settings → AI Model)',
             'Wait until quota resets (midnight PT)',
             'Upgrade to a paid API tier',
           ],
@@ -133,7 +133,7 @@ export async function retryableFetch(opts: {
           goal: `Generate text via ${opts.label}`,
           problem: `${response.status === 429 ? 'Rate limited' : 'Service unavailable'} after ${config.maxRetries} attempts. ${limitMessage}`,
           location: `ai-client.retryableFetch(${opts.label})`,
-          nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check the API provider status page'],
+          nextSteps: ['Wait a minute and retry', 'Switch to a different AI provider (Settings → AI Model)', 'Check the API provider status page'],
         });
       }
       const backoff = Math.min(2 ** attempt, config.maxBackoffS ?? 30);
@@ -149,6 +149,6 @@ export async function retryableFetch(opts: {
     goal: `Generate text via ${opts.label}`,
     problem: `Exhausted ${config.maxRetries} retry attempts`,
     location: `ai-client.retryableFetch(${opts.label})`,
-    nextSteps: ['Wait and retry', 'Switch to a different backend'],
+    nextSteps: ['Wait and retry', 'Switch to a different AI provider (Settings → AI Model)'],
   });
 }

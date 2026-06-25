@@ -645,7 +645,7 @@ function MainApp() {
       <SaveBar />
       <BottomNav onOpenMore={() => setHamburgerOpen(true)} />
       {isMobile && <HamburgerMenu isOpen={hamburgerOpen} onClose={() => setHamburgerOpen(false)} />}
-      {UpdatePrompt && <Suspense fallback={null}><UpdatePrompt /></Suspense>}
+      {UpdatePrompt && !loading && <Suspense fallback={null}><UpdatePrompt /></Suspense>}
       <PrecacheToast progress={precacheProgress} onCancel={cancelPrecache} onDismiss={dismissPrecache} />
       {isMobile && <DiagnosticsDrawer />}
       {showOnboarding && <OnboardingTour onDismiss={() => setShowOnboarding(false)} />}

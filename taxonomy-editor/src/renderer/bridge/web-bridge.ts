@@ -14,6 +14,9 @@ import { resilientFetch, categorizeEndpoint, type EndpointCategory } from './res
 export { getResilienceState, subscribeResilience, resetResilience } from './resilience';
 export type { ResilienceStatus, CircuitState, ThrottleState, EndpointCategory } from './resilience';
 
+let _activeDebateId: string | null = null;
+export function setActiveDebateId(id: string | null): void { _activeDebateId = id; }
+
 function throwHttpError(status: number, err: ActionableError): never {
   (err as ActionableError & { httpStatus: number }).httpStatus = status;
   throw err;
@@ -125,12 +128,14 @@ async function post<T = unknown>(path: string, body?: unknown, opts?: FetchOptio
     const msg = data.limitType === 'tokens_per_day'
       ? 'Daily token limit exceeded. Try again tomorrow or use your own API key.'
       : `Rate limit exceeded. Retry in ${Math.ceil((data.retryAfterMs as number || 60000) / 1000)}s.`;
-    throwHttpError(429, new ActionableError({
+    const err = new ActionableError({
       goal: 'Call AI backend',
       problem: msg,
       location: 'web-bridge.post',
       nextSteps: ['Wait for the rate limit to reset', 'Use your own API key to avoid shared limits'],
-    }));
+    });
+    (err as ActionableError & { limitType: string }).limitType = String(data.limitType ?? '');
+    throwHttpError(429, err);
   }
   if (res.status === 400 && path === '/api/ai/generate') {
     const data = await res.json().catch(bridgeWarn('Failed to parse 400 response body', {})) as Record<string, unknown>;
@@ -548,12 +553,13 @@ const rawApi: AppAPI = {
     const body: Record<string, unknown> = { prompt, model, timeout, temperature };
     const byokKey = sessionStorage.getItem('byok-api-key');
     if (byokKey) body.apiKey = byokKey;
+    if (_activeDebateId) body.debateId = _activeDebateId;
     getGlobalRecorder()?.record({
       type: 'ai.request',
       component: 'web-bridge',
       level: 'info',
       message: `AI generate request: ${model ?? 'default'}`,
-      data: { requestId },
+      data: { requestId, ..._activeDebateId ? { debateId: _activeDebateId } : {} },
     });
     return post('/api/ai/generate', body, undefined, { 'x-request-id': requestId });
   },
@@ -562,12 +568,13 @@ const rawApi: AppAPI = {
     const body: Record<string, unknown> = { prompt, model, search: true };
     const byokKey = sessionStorage.getItem('byok-api-key');
     if (byokKey) body.apiKey = byokKey;
+    if (_activeDebateId) body.debateId = _activeDebateId;
     getGlobalRecorder()?.record({
       type: 'ai.request',
       component: 'web-bridge',
       level: 'info',
       message: `AI generate+search request: ${model ?? 'default'}`,
-      data: { requestId },
+      data: { requestId, ..._activeDebateId ? { debateId: _activeDebateId } : {} },
     });
     return post('/api/ai/generate', body, undefined, { 'x-request-id': requestId });
   },

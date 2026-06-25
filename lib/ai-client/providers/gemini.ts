@@ -100,7 +100,7 @@ export async function generateViaGemini(
       goal: 'Generate text via Gemini',
       problem: `Gemini ${response.status}: ${bodyText.slice(0, 200)}`,
       location: 'ai-client.generateViaGemini',
-      nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check API quota'],
+      nextSteps: ['Wait a minute and retry', 'Switch to a different AI provider (Settings → AI Model)', 'Check API quota'],
     });
   }
   if (!response.ok) {

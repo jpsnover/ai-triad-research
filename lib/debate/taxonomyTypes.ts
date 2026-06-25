@@ -102,6 +102,10 @@ export interface PovNode {
   description_history?: TextHistoryEntry[];
   /** Last 5 modifications to this node (FIFO). */
   change_history?: ChangeHistoryEntry[];
+  /** Auto-generated plain-language version of description (display-only, never sent to debate prompts). */
+  plain_description?: string | null;
+  /** Model+prompt version string (e.g., "flash-lite:v1") for staleness detection. */
+  plain_description_version?: string | null;
 }
 
 export type ChangeAction = 'created' | 'modified' | 'deprecated';
@@ -180,6 +184,10 @@ export interface SituationNode {
     }>;
     similarity_scores: Record<string, number>;
   };
+  /** Auto-generated plain-language version of description (display-only, never sent to debate prompts). */
+  plain_description?: string | null;
+  /** Model+prompt version string (e.g., "flash-lite:v1") for staleness detection. */
+  plain_description_version?: string | null;
 }
 
 /** @deprecated Use SituationNode. Kept for backward compatibility. */

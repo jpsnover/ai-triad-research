@@ -3,6 +3,7 @@
 
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { GraphAttributes } from '../../types/taxonomy';
+import { useDescriptionMode, resolveDescription } from './DescriptionToggle';
 
 const POV_LABELS: Record<string, string> = {
   accelerationist: 'Accelerationist',
@@ -35,6 +36,7 @@ interface EnrichedAttrs {
  */
 export function LinkedNodePreview({ nodeId }: { nodeId: string }) {
   const lookupPinnedData = useTaxonomyStore(s => s.lookupPinnedData);
+  const [descMode] = useDescriptionMode();
   const data = lookupPinnedData(nodeId);
   if (!data) return null;
 
@@ -74,7 +76,7 @@ export function LinkedNodePreview({ nodeId }: { nodeId: string }) {
         <span className="linked-node-preview-id">{nodeId}</span>
       </div>
       <div className="linked-node-preview-label">{node.label}</div>
-      <div className="linked-node-preview-description">{node.description}</div>
+      <div className="linked-node-preview-description">{resolveDescription(node, descMode).text}</div>
       {interpretation && (
         <div className="linked-node-preview-attrs">
           <span className="linked-node-preview-attr-label">Interpretation:</span>

@@ -6,8 +6,13 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { app } from 'electron';
+import type { ApiKeyBackend } from '../../../lib/ai-client/types.js';
 
-type Backend = 'gemini' | 'claude' | 'groq' | 'openai' | 'azure' | 'deepseek' | 'tavily' | 'ollama';
+// Single source of truth for backend ids (lib/ai-client, t/958). Prevents the local
+// drift that broke things when 'azure' was added to BackendId — this stays in sync
+// automatically. ALL_BACKENDS below is still maintained by hand, but every code path
+// typed as Backend follows BackendId without edits here.
+type Backend = ApiKeyBackend;
 
 const ALL_BACKENDS: Backend[] = ['gemini', 'claude', 'groq', 'openai', 'azure', 'deepseek', 'tavily', 'ollama'];
 

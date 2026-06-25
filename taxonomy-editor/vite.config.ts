@@ -142,7 +142,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    exclude: ['@huggingface/transformers', 'onnxruntime-web'],
+    exclude: ['@huggingface/transformers', 'onnxruntime-web', 'virtual:pwa-register/react'],
   },
   server: {
     port: 5173,

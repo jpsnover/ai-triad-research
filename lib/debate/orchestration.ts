@@ -978,8 +978,8 @@ export async function executeTurnWithRetry(
     } catch (err) {
       pipelineError = err instanceof Error ? err : new Error(String(err));
       getGlobalRecorder()?.record({ type: 'system.error', component: 'orchestration', level: 'warn', message: `Pipeline attempt ${pipelineAttempt + 1} failed`, error: { name: pipelineError.name, message: pipelineError.message, stack: pipelineError.stack } });
+      if ((err as { limitType?: string })?.limitType === 'tokens_per_day') break;
       if (pipelineAttempt < vConfig.maxRetries) {
-        // Log and retry — transient parse errors from weak models often succeed on retry
         console.warn(`[orchestration] Pipeline attempt ${pipelineAttempt + 1} failed: ${pipelineError.message.slice(0, 100)}. Retrying...`);
       }
     }

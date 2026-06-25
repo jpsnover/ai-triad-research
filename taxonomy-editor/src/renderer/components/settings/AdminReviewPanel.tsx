@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useUserProfile } from '../../hooks/useAuthStatus';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { api, isElectronMode } from '@bridge';
-import { bridgeGet } from '../../bridge/web-bridge';
+import { bridgeGet, bridgePost, bridgeDel } from '../../bridge/web-bridge';
 import ErrorBoundary from '../../../../../lib/electron-shared/components/ErrorBoundary';
 import { CalibrationReviewViewer } from '../analysis';
 import { CommunityReviewViewer } from './CommunityReviewViewer';
@@ -381,6 +381,135 @@ function FeedbackSection() {
   );
 }
 
+// ── Paid Gemini fallback key management ──
+
+function PaidFallbackKeySection() {
+  const [configured, setConfigured] = useState(false);
+  const [masked, setMasked] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [inputValue, setInputValue] = useState('');
+  const [editing, setEditing] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const data = await bridgeGet<{ configured: boolean; masked: string | null }>('/api/admin/paid-fallback-key');
+      setConfigured(data.configured);
+      setMasked(data.masked);
+      setError(null);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'AdminReviewPanel.PaidFallbackKey', level: 'error',
+        message: 'Failed to load paid fallback key status',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      setError(String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const handleSave = async () => {
+    if (!inputValue.trim()) return;
+    setSaving(true);
+    try {
+      const data = await bridgePost<{ ok: boolean; masked: string }>('/api/admin/paid-fallback-key', { key: inputValue.trim() });
+      setConfigured(true);
+      setMasked(data.masked);
+      setInputValue('');
+      setEditing(false);
+      setError(null);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'AdminReviewPanel.PaidFallbackKey', level: 'error',
+        message: 'Failed to save paid fallback key',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      setError(String(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemove = async () => {
+    setSaving(true);
+    try {
+      await bridgeDel<{ ok: boolean }>('/api/admin/paid-fallback-key');
+      setConfigured(false);
+      setMasked(null);
+      setEditing(false);
+      setError(null);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'AdminReviewPanel.PaidFallbackKey', level: 'error',
+        message: 'Failed to remove paid fallback key',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      setError(String(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="admin-review-loading">Loading…</div>;
+
+  return (
+    <div className="admin-fallback-key-section">
+      <h3>Paid Gemini Fallback Key</h3>
+      <p className="admin-fallback-key-desc">
+        When configured, this key is used as a fallback when the free-tier Gemini quota is exhausted.
+        It is stored encrypted on the server and never sent to clients.
+      </p>
+
+      {error && <div className="admin-review-error">{error}</div>}
+
+      {configured && !editing ? (
+        <div className="admin-fallback-key-status">
+          <span className="admin-fallback-key-configured">
+            Configured: <code>{masked}</code>
+          </span>
+          <div className="admin-fallback-key-actions">
+            <button className="btn btn-sm" onClick={() => setEditing(true)} disabled={saving}>
+              Replace
+            </button>
+            <button className="btn btn-sm btn-danger" onClick={() => void handleRemove()} disabled={saving}>
+              {saving ? 'Removing…' : 'Remove'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="admin-fallback-key-form">
+          <div className="admin-fallback-key-input-row">
+            <input
+              type="password"
+              className="admin-fallback-key-input"
+              placeholder="Paste Gemini API key"
+              value={inputValue}
+              onChange={e => setInputValue(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') void handleSave(); }}
+              disabled={saving}
+              autoComplete="off"
+            />
+            <button className="btn btn-sm btn-primary" onClick={() => void handleSave()}
+              disabled={saving || !inputValue.trim()}>
+              {saving ? 'Saving…' : configured ? 'Replace' : 'Set Key'}
+            </button>
+            {editing && (
+              <button className="btn btn-sm btn-ghost" onClick={() => { setEditing(false); setInputValue(''); }}
+                disabled={saving}>
+                Cancel
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main panel ──
 
 type AdminTab = 'reviews' | 'feedback' | 'flags' | 'config';
@@ -484,7 +613,10 @@ export function AdminReviewPanel() {
       </div>
 
       {adminTab === 'config' ? (
-        <RuntimeConfigPanel />
+        <>
+          {!isElectronMode() && <PaidFallbackKeySection />}
+          <RuntimeConfigPanel />
+        </>
       ) : adminTab === 'flags' ? (
         <FeatureFlagsPanel />
       ) : adminTab === 'feedback' ? (

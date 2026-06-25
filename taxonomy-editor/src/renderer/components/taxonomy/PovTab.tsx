@@ -114,6 +114,8 @@ interface RecoveryStep {
 const STEP_LABELS = ['Server health', 'Data availability', 'Authentication', 'Load taxonomy'];
 const POLL_INTERVAL = 4000;
 const MAX_FAILURES = 3;
+const PIPELINE_TIMEOUT_MS = 30_000;
+const COLD_START_THRESHOLD_MS = 3_000;
 
 function DataRecovery({ pov }: { pov: string }) {
   const { loadAll } = useTaxonomyStore();
@@ -123,7 +125,11 @@ function DataRecovery({ pov }: { pov: string }) {
   const [activeStep, setActiveStep] = useState(0);
   const [failures, setFailures] = useState(0);
   const [diagnostics, setDiagnostics] = useState('');
+  const [coldStart, setColdStart] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
+  const startTimeRef = useRef(0);
 
   const updateStep = useCallback((idx: number, patch: Partial<RecoveryStep>) => {
     setSteps(prev => prev.map((s, i) => i === idx ? { ...s, ...patch } : s));
@@ -134,7 +140,18 @@ function DataRecovery({ pov }: { pov: string }) {
     const ac = new AbortController();
     abortRef.current = ac;
     const sig = ac.signal;
-    let diagLines: string[] = [];
+    const diagLines: string[] = [];
+
+    startTimeRef.current = Date.now();
+    setElapsed(0);
+    setColdStart(false);
+    setTimedOut(false);
+
+    const timeoutId = setTimeout(() => {
+      setTimedOut(true);
+      ac.abort();
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'data-recovery', level: 'error', message: `Loading pipeline timed out after ${PIPELINE_TIMEOUT_MS / 1000}s` });
+    }, PIPELINE_TIMEOUT_MS);
 
     // In electron mode, steps 0-2 (health, data availability, auth) use HTTP
     // endpoints that only exist on the deployed server — not on the Vite dev
@@ -152,26 +169,31 @@ function DataRecovery({ pov }: { pov: string }) {
       // Step 0: Server health (web mode only)
       if (startFrom <= 0) {
         updateStep(0, { status: 'running', detail: 'Checking...' });
+        const healthStart = Date.now();
         try {
           const res = await fetch('/health', { signal: sig });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const healthMs = Date.now() - healthStart;
+          if (healthMs > COLD_START_THRESHOLD_MS) setColdStart(true);
           const data = await res.json();
-          const cacheCount = data.storage?.cacheFileCount ?? '?';
-          const uptime = data.uptime ? `${Math.round(data.uptime)}s` : '?';
-          updateStep(0, { status: 'ok', detail: `${data.status} · ${cacheCount} cached · uptime ${uptime}` });
-          diagLines.push(`health: ${JSON.stringify(data)}`);
+          const parts: string[] = [data.status ?? 'ok'];
+          if (data.storage?.cacheFileCount != null) parts.push(`${data.storage.cacheFileCount} cached`);
+          if (data.uptime) parts.push(`uptime ${Math.round(data.uptime)}s`);
+          updateStep(0, { status: 'ok', detail: parts.join(' · ') });
+          diagLines.push(`health: ${JSON.stringify(data)} (${healthMs}ms)`);
         } catch (err) {
-          if (sig.aborted) return;
+          if (sig.aborted) { clearTimeout(timeoutId); return; }
           const msg = String((err as Error).message);
           updateStep(0, { status: 'error', detail: 'Server unreachable', error: msg });
           diagLines.push(`health: FAILED — ${msg}`);
           setDiagnostics(diagLines.join('\n'));
           setFailures(f => f + 1);
           getGlobalRecorder()?.record({ type: 'system.error', component: 'data-recovery', level: 'error', message: 'Health check failed', error: { name: 'HealthCheckError', message: msg } });
+          clearTimeout(timeoutId);
           return;
         }
       }
-      if (sig.aborted) return;
+      if (sig.aborted) { clearTimeout(timeoutId); return; }
 
       // Step 1: Data availability (may poll)
       if (startFrom <= 1) {
@@ -180,29 +202,32 @@ function DataRecovery({ pov }: { pov: string }) {
         try {
           let available = false;
           let pollCount = 0;
+          const availStart = Date.now();
           while (!available && !sig.aborted) {
             const res = await fetch('/api/data/available', { signal: sig });
             available = await res.json();
             if (available) break;
             pollCount++;
+            if (pollCount === 1 && Date.now() - availStart > COLD_START_THRESHOLD_MS) setColdStart(true);
             updateStep(1, { status: 'polling', detail: `Server syncing data from GitHub (poll ${pollCount})...` });
             await new Promise(r => setTimeout(r, POLL_INTERVAL));
           }
-          if (sig.aborted) return;
+          if (sig.aborted) { clearTimeout(timeoutId); return; }
           updateStep(1, { status: 'ok', detail: 'Data available' });
           diagLines.push(`data-available: true (polls: ${pollCount})`);
         } catch (err) {
-          if (sig.aborted) return;
+          if (sig.aborted) { clearTimeout(timeoutId); return; }
           const msg = String((err as Error).message);
           updateStep(1, { status: 'error', detail: 'Cannot verify data', error: msg });
           diagLines.push(`data-available: FAILED — ${msg}`);
           setDiagnostics(diagLines.join('\n'));
           setFailures(f => f + 1);
           getGlobalRecorder()?.record({ type: 'system.error', component: 'data-recovery', level: 'error', message: 'Data availability check failed', error: { name: 'DataAvailError', message: msg } });
+          clearTimeout(timeoutId);
           return;
         }
       }
-      if (sig.aborted) return;
+      if (sig.aborted) { clearTimeout(timeoutId); return; }
 
       // Step 2: Authentication
       if (startFrom <= 2) {
@@ -215,17 +240,18 @@ function DataRecovery({ pov }: { pov: string }) {
           updateStep(2, { status: 'ok', detail: userLabel });
           diagLines.push(`auth: ${JSON.stringify(data)}`);
         } catch (err) {
-          if (sig.aborted) return;
+          if (sig.aborted) { clearTimeout(timeoutId); return; }
           const msg = String((err as Error).message);
           updateStep(2, { status: 'error', detail: 'Auth check failed', error: msg });
           diagLines.push(`auth: FAILED — ${msg}`);
           setDiagnostics(diagLines.join('\n'));
           setFailures(f => f + 1);
           getGlobalRecorder()?.record({ type: 'system.error', component: 'data-recovery', level: 'error', message: 'Auth check failed', error: { name: 'AuthCheckError', message: msg } });
+          clearTimeout(timeoutId);
           return;
         }
       }
-      if (sig.aborted) return;
+      if (sig.aborted) { clearTimeout(timeoutId); return; }
 
       // Step 3: Load taxonomy data
       setActiveStep(3);
@@ -235,13 +261,14 @@ function DataRecovery({ pov }: { pov: string }) {
         updateStep(3, { status: 'ok', detail: 'Loaded' });
         diagLines.push('loadAll: ok');
       } catch (err) {
-        if (sig.aborted) return;
+        if (sig.aborted) { clearTimeout(timeoutId); return; }
         const msg = String((err as Error).message);
         updateStep(3, { status: 'error', detail: 'Load failed', error: msg });
         diagLines.push(`loadAll: FAILED — ${msg}`);
         setDiagnostics(diagLines.join('\n'));
         setFailures(f => f + 1);
         getGlobalRecorder()?.record({ type: 'system.error', component: 'data-recovery', level: 'error', message: 'Taxonomy load failed', error: { name: 'LoadError', message: msg } });
+        clearTimeout(timeoutId);
         return;
       }
 
@@ -251,6 +278,8 @@ function DataRecovery({ pov }: { pov: string }) {
       if (!sig.aborted) {
         getGlobalRecorder()?.record({ type: 'system.error', component: 'data-recovery', level: 'error', message: 'Recovery pipeline error', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       }
+    } finally {
+      clearTimeout(timeoutId);
     }
   }, [loadAll, pov, updateStep]);
 
@@ -258,6 +287,14 @@ function DataRecovery({ pov }: { pov: string }) {
     void runPipeline(0);
     return () => { abortRef.current?.abort(); };
   }, []);
+
+  useEffect(() => {
+    if (timedOut) return;
+    const id = setInterval(() => {
+      if (startTimeRef.current) setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [timedOut]);
 
   const failedIdx = steps.findIndex(s => s.status === 'error');
   const completedCount = steps.filter(s => s.status === 'ok').length;
@@ -298,11 +335,18 @@ function DataRecovery({ pov }: { pov: string }) {
         ))}
       </div>
 
+      {coldStart && !timedOut && failedIdx < 0 && (
+        <div className="recovery-cold-start">Server is starting up — this usually takes 15–30 seconds</div>
+      )}
+
       {/* Progress bar */}
       <div className="recovery-progress">
         <div className="recovery-progress-bar" style={{ width: `${(completedCount / steps.length) * 100}%` }} />
       </div>
-      <div className="recovery-progress-text">{completedCount} of {steps.length}</div>
+      <div className="recovery-progress-text">
+        {completedCount} of {steps.length}
+        {elapsed >= 5 && !timedOut && failedIdx < 0 && <span className="recovery-elapsed"> · {elapsed}s</span>}
+      </div>
 
       {step2NeedsAuth(steps) && (
         <div className="recovery-auth-inline">
@@ -311,7 +355,18 @@ function DataRecovery({ pov }: { pov: string }) {
         </div>
       )}
 
-      {failedIdx >= 0 && (
+      {timedOut && (
+        <div className="recovery-actions">
+          <div className="data-load-retry-error">
+            Server is taking too long. It may be starting up — try again in 30 seconds.
+          </div>
+          <button className="data-load-retry-btn" onClick={() => void runPipeline(0)}>
+            Retry
+          </button>
+        </div>
+      )}
+
+      {!timedOut && failedIdx >= 0 && (
         <div className="recovery-actions">
           {steps[failedIdx].error && <div className="data-load-retry-error">{steps[failedIdx].error}</div>}
           <button className="data-load-retry-btn" onClick={() => { setFailures(f => f); void runPipeline(failedIdx); }}>

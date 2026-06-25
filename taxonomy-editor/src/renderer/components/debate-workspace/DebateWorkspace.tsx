@@ -379,6 +379,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
   );
   const { runSemanticSearch, setFindQuery: setStoreFindQuery, setFindMode: setStoreFindMode, setToolbarPanel } = useTaxonomyStore();
   const transcriptEndRef = useRef<HTMLDivElement>(null);
+  const compressionCooldownRef = useRef<number>(0);
 
 
   // Listen for diagnostics popout window closing
@@ -533,6 +534,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
   // Phase 8: Auto-compress context when transcript grows large
   useEffect(() => {
     if (!activeDebate || debateGenerating) return;
+    if (Date.now() < compressionCooldownRef.current) return;
     if (activeDebate.transcript.length >= 16) {
       const lastSummaryIdx = activeDebate.context_summaries.length > 0
         ? activeDebate.transcript.findIndex(
@@ -541,6 +543,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
         : -1;
       const uncompressed = activeDebate.transcript.length - (lastSummaryIdx + 1) - 8;
       if (uncompressed >= 8) {
+        compressionCooldownRef.current = Date.now() + 60_000;
         void compressOldTranscript();
       }
     }

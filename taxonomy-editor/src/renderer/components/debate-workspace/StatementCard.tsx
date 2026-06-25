@@ -233,6 +233,95 @@ export function EntryCommentBadge({ entryId }: { entryId: string }) {
   );
 }
 
+// ── Collapsible sections for concluding statements ──────
+
+const FULLY_COLLAPSED_SECTIONS = new Set(['Argument Map']);
+const SUB_COLLAPSED_SECTIONS = new Set(['Areas of Disagreement', 'Cruxes', 'Resolution Analysis']);
+
+interface ParsedSection { heading: string; body: string }
+
+function splitByHeadings(content: string): ParsedSection[] {
+  const parts = content.split(/\n(?=## )/);
+  const sections: ParsedSection[] = [];
+  for (const part of parts) {
+    const match = part.match(/^## (.+)\n([\s\S]*)$/);
+    if (match) {
+      sections.push({ heading: match[1].trim(), body: match[2].trim() });
+    } else if (part.trim()) {
+      sections.push({ heading: '', body: part.trim() });
+    }
+  }
+  return sections;
+}
+
+function parseBullets(body: string): { top: string; subs: string[] }[] {
+  const lines = body.split('\n');
+  const groups: { top: string; subs: string[] }[] = [];
+  for (const line of lines) {
+    if (line.startsWith('- ')) {
+      groups.push({ top: line, subs: [] });
+    } else if (line.startsWith('  - ') && groups.length > 0) {
+      groups[groups.length - 1].subs.push(line);
+    } else if (line.startsWith('  ') && groups.length > 0 && groups[groups.length - 1].subs.length > 0) {
+      groups[groups.length - 1].subs[groups[groups.length - 1].subs.length - 1] += '\n' + line;
+    }
+  }
+  return groups;
+}
+
+function CollapsibleBulletItem({ top, subs, mdComponents }: { top: string; subs: string[]; mdComponents: object }) {
+  const [expanded, setExpanded] = useState(false);
+  if (subs.length === 0) {
+    return <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{fixMarkdownLinks(top)}</Markdown>;
+  }
+  return (
+    <div className="concluding-collapsible-bullet">
+      <div className="concluding-bullet-top" onClick={() => setExpanded(e => !e)} style={{ cursor: 'pointer' }}>
+        <span className="concluding-toggle-arrow">{expanded ? '▼' : '▶'}</span>
+        <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{fixMarkdownLinks(top)}</Markdown>
+      </div>
+      {expanded && (
+        <div className="concluding-bullet-subs">
+          <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{fixMarkdownLinks(subs.join('\n'))}</Markdown>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ConcludingSections({ content, mdComponents }: { content: string; mdComponents: object }) {
+  const sections = splitByHeadings(content);
+  return (
+    <>
+      {sections.map((section, i) => {
+        if (!section.heading) {
+          return <Markdown key={i} remarkPlugins={[remarkGfm]} components={mdComponents}>{fixMarkdownLinks(section.body)}</Markdown>;
+        }
+        if (FULLY_COLLAPSED_SECTIONS.has(section.heading)) {
+          return (
+            <details key={i} className="concluding-collapsed-section">
+              <summary className="concluding-section-summary"><h2>{section.heading}</h2></summary>
+              <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{fixMarkdownLinks(section.body)}</Markdown>
+            </details>
+          );
+        }
+        if (SUB_COLLAPSED_SECTIONS.has(section.heading)) {
+          const bullets = parseBullets(section.body);
+          return (
+            <div key={i}>
+              <h2>{section.heading}</h2>
+              {bullets.map((b, j) => (
+                <CollapsibleBulletItem key={j} top={b.top} subs={b.subs} mdComponents={mdComponents} />
+              ))}
+            </div>
+          );
+        }
+        return <Markdown key={i} remarkPlugins={[remarkGfm]} components={mdComponents}>{fixMarkdownLinks(`## ${section.heading}\n${section.body}`)}</Markdown>;
+      })}
+    </>
+  );
+}
+
 // ── Tier display content resolution ─────────────────────
 
 const SUBSTANTIVE_TYPES = new Set(['opening', 'statement', 'fact-check', 'cross_respond']);
@@ -468,7 +557,9 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
             <div className="debate-statement-content markdown-body">
               {findQuery
                 ? <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
-                : <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{fixMarkdownLinks(displayContent)}</Markdown>}
+                : entry.type === 'concluding'
+                  ? <ConcludingSections content={displayContent} mdComponents={mdComponents} />
+                  : <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{fixMarkdownLinks(displayContent)}</Markdown>}
               {isTruncated && (
                 <span
                   className="debate-tier-truncated"

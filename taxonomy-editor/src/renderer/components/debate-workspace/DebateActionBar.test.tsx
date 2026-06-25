@@ -3,7 +3,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ProgressIndicator, PhaseProgressBar, DebaterToggles } from './DebateActionBar';
+import { ProgressIndicator, PhaseProgressBar, DebaterToggles, TokenBudgetIndicator } from './DebateActionBar';
 
 // ── Mocks ────────────────────────────────────────────────────
 
@@ -74,6 +74,16 @@ vi.mock('../ReflectionsPanel', () => ({
 }));
 vi.mock('../NewsReportModal', () => ({
   NewsReportModal: () => <div data-testid="news-report-modal" />,
+}));
+
+const mockTierInfo: { tier: any; usage: any; loading: boolean; refresh: () => void } = {
+  tier: null,
+  usage: null,
+  loading: false,
+  refresh: vi.fn(),
+};
+vi.mock('../../hooks/useTierInfo', () => ({
+  useTierInfo: () => mockTierInfo,
 }));
 
 afterEach(() => { vi.clearAllMocks(); });
@@ -210,5 +220,78 @@ describe('DebaterToggles', () => {
     const { container } = render(<DebaterToggles />);
     const buttons = container.querySelectorAll('button');
     buttons.forEach(btn => expect(btn.disabled).toBe(true));
+  });
+});
+
+// ── TokenBudgetIndicator (t/964) ───────────────────────────
+
+describe('TokenBudgetIndicator', () => {
+  afterEach(() => {
+    mockTierInfo.usage = null;
+  });
+
+  it('renders nothing when usage is null (Electron)', () => {
+    mockTierInfo.usage = null;
+    const { container } = render(<TokenBudgetIndicator />);
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('renders nothing when usage is below 1%', () => {
+    mockTierInfo.usage = {
+      tier: 'free',
+      limits: { requestsPerMinute: 10, tokensPerDay: 500000 },
+      usage: { requestsInWindow: 0, tokensToday: 100 },
+    };
+    const { container } = render(<TokenBudgetIndicator />);
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('renders bar without warning below 80%', () => {
+    mockTierInfo.usage = {
+      tier: 'free',
+      limits: { requestsPerMinute: 10, tokensPerDay: 500000 },
+      usage: { requestsInWindow: 1, tokensToday: 200000 },
+    };
+    const { container } = render(<TokenBudgetIndicator />);
+    expect(container.querySelector('.token-budget-indicator')).toBeTruthy();
+    expect(container.querySelector('.token-budget-indicator.warning')).toBeNull();
+    expect(container.querySelector('.token-budget-indicator.urgent')).toBeNull();
+    expect(screen.getByText('300k left')).toBeInTheDocument();
+    expect(container.querySelector('.token-budget-banner')).toBeNull();
+  });
+
+  it('shows warning banner at 80% usage', () => {
+    mockTierInfo.usage = {
+      tier: 'free',
+      limits: { requestsPerMinute: 10, tokensPerDay: 500000 },
+      usage: { requestsInWindow: 5, tokensToday: 420000 },
+    };
+    const { container } = render(<TokenBudgetIndicator />);
+    expect(container.querySelector('.token-budget-indicator.warning')).toBeTruthy();
+    expect(screen.getByText(/84% of today/)).toBeInTheDocument();
+    expect(screen.getByText('80k left')).toBeInTheDocument();
+  });
+
+  it('shows urgent banner at 95% usage', () => {
+    mockTierInfo.usage = {
+      tier: 'free',
+      limits: { requestsPerMinute: 10, tokensPerDay: 500000 },
+      usage: { requestsInWindow: 8, tokensToday: 490000 },
+    };
+    const { container } = render(<TokenBudgetIndicator />);
+    expect(container.querySelector('.token-budget-indicator.urgent')).toBeTruthy();
+    expect(screen.getByText(/Almost out of today/)).toBeInTheDocument();
+    expect(screen.getByText('10k left')).toBeInTheDocument();
+  });
+
+  it('shows reset time when resetsAt is provided', () => {
+    const twoHoursFromNow = new Date(Date.now() + 2 * 3600000 + 15 * 60000).toISOString();
+    mockTierInfo.usage = {
+      tier: 'free',
+      limits: { requestsPerMinute: 10, tokensPerDay: 500000 },
+      usage: { requestsInWindow: 5, tokensToday: 420000, resetsAt: twoHoursFromNow },
+    };
+    render(<TokenBudgetIndicator />);
+    expect(screen.getByText(/resets in 2h \d+m/)).toBeInTheDocument();
   });
 });

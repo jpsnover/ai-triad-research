@@ -122,6 +122,8 @@ import {
   getTaxonomyContext,
   claimDebateDriver,
   releaseDebateDriver,
+  isDailyLimitError,
+  DAILY_LIMIT_MESSAGE,
 } from '../helpers';
 
 export interface DebateLoopSlice {
@@ -419,6 +421,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
           sourceEvidenceIndex: evidenceIndex as TurnPipelineInput['sourceEvidenceIndex'],
           docTitles: docTitles as TurnPipelineInput['docTitles'],
           doctrinalBoundaries: info.doctrinal_boundaries,
+          background: activeDebate.topic?.background || undefined,
         };
 
         const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, getSpeakerModel(activeDebate, responderPover, model));
@@ -556,8 +559,13 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       releaseDebateDriver();
-      set({ debateError: `Cross-respond selection failed: ${mapErrorToUserMessage(err)}`, debateGenerating: null });
-      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'error', error: String(err) } });
+      if (isDailyLimitError(err)) {
+        set({ debateError: DAILY_LIMIT_MESSAGE, dailyLimitPaused: true, debateGenerating: null });
+        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.paused', data: { reason: 'daily_token_limit' } });
+      } else {
+        set({ debateError: `Cross-respond selection failed: ${mapErrorToUserMessage(err)}`, debateRetryAction: 'crossRespond', debateGenerating: null });
+        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'error', error: String(err) } });
+      }
       return;
     }
 
@@ -774,6 +782,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
       sourceEvidenceIndex: evidenceIndex as TurnPipelineInput['sourceEvidenceIndex'],
       docTitles: docTitles as TurnPipelineInput['docTitles'],
       doctrinalBoundaries: info.doctrinal_boundaries,
+      background: activeDebate.topic?.background || undefined,
       topicScope: activeDebate.topic?.scope ?? undefined,
       preCheckModel: resolveTurnValidationConfig(undefined).preCheckModel,
       lastOpponentStatement,
@@ -1120,13 +1129,19 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
         pushWarning(get, set, 'Gap analysis skipped this turn');
       }
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: `Pipeline failed for ${responderPover} R${crossRespondRound}`, data: { round: crossRespondRound, speaker: responderPover, error: String(err), stack: (err as Error).stack?.slice(0, 500), transcript_length: get().activeDebate?.transcript.length } });
+      if (isDailyLimitError(err)) {
+        addTranscriptEntry({ type: 'system', speaker: 'system', content: DAILY_LIMIT_MESSAGE, taxonomy_refs: [] });
+        releaseDebateDriver();
+        set({ debateGenerating: null, debateActivity: null, debateError: DAILY_LIMIT_MESSAGE, dailyLimitPaused: true });
+        return;
+      }
       addTranscriptEntry({
         type: 'system',
         speaker: 'system',
         content: `${info.label} failed to cross-respond: ${mapErrorToUserMessage(err)}`,
         taxonomy_refs: [],
       });
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: `Pipeline failed for ${responderPover} R${crossRespondRound}`, data: { round: crossRespondRound, speaker: responderPover, error: String(err), stack: (err as Error).stack?.slice(0, 500), transcript_length: get().activeDebate?.transcript.length } });
     }
 
     getGlobalRecorder()?.record({ type: 'debate.round', component: 'debate-store', level: 'debug', debate_id: activeDebate.id, message: `Cross-respond turn complete, entering post-processing`, data: { round: crossRespondRound, speaker: responderPover, transcript_length: get().activeDebate?.transcript.length } });
