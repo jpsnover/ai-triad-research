@@ -55,6 +55,9 @@ export interface RetryProgress {
 
 export type BackendId = 'gemini' | 'claude' | 'groq' | 'openai' | 'azure' | 'ollama' | 'deepseek';
 
+/** Superset of BackendId that includes non-generation backends needing API key management (e.g. tavily for search). */
+export type ApiKeyBackend = BackendId | 'tavily';
+
 export interface ModelCapabilities {
   supportsTools: boolean;
   supportsVision: boolean;
