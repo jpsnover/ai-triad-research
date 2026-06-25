@@ -28,6 +28,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import {
   PORT, getDataRoot, getApiKey, hasApiKey, storeApiKey, deleteApiKey, deleteAllApiKeys, rotateApiKeyMaterial,
   getStoredApiKeys, addApiKey, removeApiKey, resolveDataPath,
+  getPaidGeminiFallbackKey, setPaidGeminiFallbackKey, deletePaidGeminiFallbackKey,
   BROKER_SCRIPT, SCRIPTS_DIR, getProjectRoot, type AIBackend,
   STORAGE_MODE, CACHE_DIR,
 } from './config.js';
@@ -1225,7 +1226,42 @@ post('/api/ai/generate', async (req, res, body) => {
 
       json(res, result);
     } else {
-      const result = await ai.generateText(prompt, effectiveModel, undefined, timeout, explicitKey);
+      let result: Awaited<ReturnType<typeof ai.generateText>>;
+      try {
+        result = await ai.generateText(prompt, effectiveModel, undefined, timeout, explicitKey);
+      } catch (genErr) {
+        // t/948: paid Gemini fallback for the free tier. When the entire free pool
+        // is rate-limited (upstream 429), retry once with the admin-registered paid
+        // key after a deliberate 3s throttle. The paid key never enters the
+        // round-robin pool; free keys recover on their own as cooldowns expire
+        // (design: docs/design/paid-gemini-fallback.md).
+        const paidKey = (ai.is429Error(genErr) && isFree) ? await getPaidGeminiFallbackKey() : null;
+        if (!paidKey) throw genErr; // non-free, non-429, or no paid key → outer 429 mapping records it
+        getGlobalRecorder()?.record({
+          type: 'ai.fallback', component: 'ai-generate', level: 'info',
+          message: 'Free-tier keys exhausted — waiting 3s before paid fallback',
+          data: { model: requestModel, backend, fallback: 'paid', delayMs: 3000, freeKeyCount: proxyTiers.parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY).length },
+        });
+        // Throttle: caps paid-key throughput (~20/min) and gives free keys time to
+        // exit cooldown so the next request reverts to the free pool.
+        await new Promise(r => setTimeout(r, 3000));
+        try {
+          result = await ai.generateText(prompt, effectiveModel, undefined, timeout, paidKey);
+          getGlobalRecorder()?.record({
+            type: 'ai.response', component: 'ai-generate', level: 'info', duration_ms: Date.now() - t0,
+            message: `Paid fallback succeeded for ${backend}/${requestModel}`,
+            data: { model: requestModel, backend, fallback: 'paid', delayMs: 3000, responseLength: result.text?.length ?? 0 },
+          });
+        } catch (fallbackErr) {
+          getGlobalRecorder()?.record({
+            type: 'ai.error', component: 'ai-generate', level: 'warn',
+            message: 'Paid fallback also failed',
+            data: { model: requestModel, backend, fallback: 'paid', delayMs: 3000 },
+            error: { name: (fallbackErr as Error).name ?? 'Error', message: String(fallbackErr), stack: (fallbackErr as Error).stack },
+          });
+          throw genErr; // both pools exhausted → outer catch maps to a 429 for the client
+        }
+      }
 
       getGlobalRecorder()?.record({
         type: 'ai.response', component: 'ai-generate', level: 'info',
@@ -2123,6 +2159,45 @@ get('/api/config/client', (_req, res) => {
       message: 'GET /api/config/client failed',
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
+    error(res, String(err), 500, err);
+  }
+});
+
+// t/948: admin CRUD for the paid Gemini fallback key (stored in the encrypted key
+// store `_system` partition). The key value is never logged — only a masked suffix.
+get('/api/admin/paid-fallback-key', async (_req, res) => {
+  if (!requireAdmin(res)) return;
+  try {
+    const key = await getPaidGeminiFallbackKey();
+    json(res, { configured: !!key, masked: key ? maskApiKey(key) : null });
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'paid-fallback', level: 'error', message: 'GET paid-fallback-key failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    error(res, String(err), 500, err);
+  }
+});
+
+post('/api/admin/paid-fallback-key', async (_req, res, body) => {
+  if (!requireAdmin(res)) return;
+  try {
+    const { key } = body as { key?: string };
+    if (!key?.trim()) { error(res, 'key is required', 400); return; }
+    await setPaidGeminiFallbackKey(key.trim());
+    log.server.info({ component: 'paid-fallback' }, 'Paid Gemini fallback key set'); // never log the key itself
+    json(res, { ok: true, masked: maskApiKey(key.trim()) });
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'paid-fallback', level: 'error', message: 'POST paid-fallback-key failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    error(res, String(err), 500, err);
+  }
+});
+
+del('/api/admin/paid-fallback-key', async (_req, res) => {
+  if (!requireAdmin(res)) return;
+  try {
+    await deletePaidGeminiFallbackKey();
+    log.server.info({ component: 'paid-fallback' }, 'Paid Gemini fallback key removed');
+    json(res, { ok: true });
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'paid-fallback', level: 'error', message: 'DELETE paid-fallback-key failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     error(res, String(err), 500, err);
   }
 });

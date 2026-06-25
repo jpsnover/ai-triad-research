@@ -227,6 +227,39 @@ export async function storeApiKey(key: string, backend: AIBackend = 'gemini'): P
   await getKeyStore(getDataRoot).set(backend, getCurrentUserId(), key);
 }
 
+// ── Paid Gemini fallback key (t/948) ──
+// A last-resort Gemini key used ONLY when the entire free-tier pool is rate-
+// limited. Stored in the encrypted key store under the reserved `_system`
+// partition (admin-registered), or via the GEMINI_PAID_KEY env var. Deliberately
+// kept OUT of the free-tier rotation pool — see docs/design/paid-gemini-fallback.md.
+const PAID_FALLBACK_PARTITION = '_system';
+
+/** The paid Gemini fallback key (key store `_system` partition first, then
+ *  GEMINI_PAID_KEY env var), or null if neither is configured. */
+export async function getPaidGeminiFallbackKey(): Promise<string | null> {
+  try {
+    const stored = await getKeyStore(getDataRoot).getKeys('gemini', PAID_FALLBACK_PARTITION);
+    if (stored.length > 0) return stored[0];
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'server-config', level: 'warn',
+      message: 'Paid Gemini fallback key store read failed — falling back to env var',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+  }
+  return process.env.GEMINI_PAID_KEY?.trim() || null;
+}
+
+/** Admin: store the paid Gemini fallback key in the `_system` key-store partition. */
+export async function setPaidGeminiFallbackKey(key: string): Promise<void> {
+  await getKeyStore(getDataRoot).set('gemini', PAID_FALLBACK_PARTITION, key);
+}
+
+/** Admin: remove the stored paid Gemini fallback key (the env-var path, if any, persists). */
+export async function deletePaidGeminiFallbackKey(): Promise<void> {
+  await getKeyStore(getDataRoot).delete('gemini', PAID_FALLBACK_PARTITION);
+}
+
 /** All user-configurable AI backends — iterated by deleteAllApiKeys(). */
 const ALL_AI_BACKENDS: AIBackend[] = ['gemini', 'claude', 'groq', 'openai', 'tavily', 'ollama', 'deepseek'];
 
