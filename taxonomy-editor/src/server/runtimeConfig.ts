@@ -131,7 +131,7 @@ const DEFAULTS: RuntimeConfig = {
   },
   tiers: {
     platform: { requestsPerMinute: 60, tokensPerDay: 2_000_000, allowedBackends: ['gemini', 'claude', 'groq'] },
-    byok: { requestsPerMinute: 30, tokensPerDay: 500_000, allowedBackends: ['gemini', 'claude', 'groq'] },
+    byok: { requestsPerMinute: 30, tokensPerDay: 2_000_000, allowedBackends: ['gemini', 'claude', 'groq'] }, // t/965: 500K → 2M (a single 10-round debate uses 300–500K; BYOK users pay their own API)
     anonymous: { requestsPerMinute: 10, tokensPerDay: 100_000, allowedBackends: ['gemini', 'claude', 'groq'] },
     free: { requestsPerMinute: 6, tokensPerDay: 50_000, allowedBackends: ['gemini'], pinnedModel: 'gemini-flash-lite-latest' },
   },
