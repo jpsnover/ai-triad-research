@@ -23,6 +23,7 @@ export default defineConfig({
     ...(isWeb ? [VitePWA({
       registerType: 'prompt',
       workbox: {
+        navigateFallbackDenylist: [/^\/api\//, /^\/.auth\//],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         runtimeCaching: [

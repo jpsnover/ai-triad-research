@@ -75,10 +75,20 @@ Codified list of recurring maintenance tasks. Each task has a cadence, owner, an
 
 ## How to Use This Schedule
 
-**For agents:** Check overdue tasks for your scope at session start. Execute what's due. Update ticket or ping Tech Lead with findings.
+**For agents:** Check overdue tasks for your scope at session start. Compare against the Execution Log below — if a weekly task hasn't run in 7+ days, or a monthly task in 30+ days, it's overdue. After completing a scheduled task, append a row to the log.
 
 **For Tech Lead:** Use this as a checklist during weekly planning. Create tickets for findings. Route execution to owning agents.
 
 **For humans:** Review monthly and quarterly tasks during planning. Adjust cadences based on project phase (faster during active development, slower during maintenance).
 
 **Tracking:** When a scheduled task surfaces a finding, create a ticket. Reference this schedule in the ticket description so the pattern is traceable.
+
+## Execution Log
+
+Append a row after completing any weekly, monthly, quarterly, or per-release task. Keep the log trimmed to the last 90 days — archive older rows by deleting them.
+
+| Date | Task | Agent | Result / Notes |
+|------|------|-------|----------------|
+| 2026-06-25 | Dead code scan | Taxonomy Editor | 163 orphans via depgraph. 3 dead files removed (debateTopics.ts, lineageL2Clusters.ts+JSON, useClientConfig.ts). 1 false positive (clustering.ts — dynamic import). Rest are test files, entry points, and lib/ scope. |
+| 2026-06-25 | ESLint warning review | Taxonomy Editor | No new warning categories found. |
+| 2026-06-25 | SBOM currency check | Taxonomy Editor | Pending — check in next session. |

@@ -31,6 +31,17 @@ export interface ClientConfig {
   analytics: {
     bufferRequeueLimit: number;
   };
+  healthProbe: {
+    intervalMs: number;
+    warmUpCount: number;
+    warmUpDiscardCount: number;
+    warmUpIntervalMs: number;
+    windowSize: number;
+    enterFactor: number;
+    exitFactor: number;
+    gracePeriodMs: number;
+    timeoutMs: number;
+  };
 }
 
 const DEFAULTS: ClientConfig = {
@@ -54,6 +65,17 @@ const DEFAULTS: ClientConfig = {
   },
   analytics: {
     bufferRequeueLimit: 500,
+  },
+  healthProbe: {
+    intervalMs: 30_000,
+    warmUpCount: 3,
+    warmUpDiscardCount: 1,
+    warmUpIntervalMs: 5_000,
+    windowSize: 10,
+    enterFactor: 2.0,
+    exitFactor: 1.5,
+    gracePeriodMs: 15_000,
+    timeoutMs: 10_000,
   },
 };
 

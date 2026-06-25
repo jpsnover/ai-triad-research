@@ -9,6 +9,7 @@ import PointDetailCard from './PointDetailCard';
 import AggregationView from './AggregationView';
 import StanceHeatmap from './StanceHeatmap';
 import GapsView from './GapsView';
+import { useDescriptionMode, DescriptionToggle } from './DescriptionToggle';
 
 export default function PovPanel() {
   const notebooks = useAppStore(s => s.notebooks);
@@ -26,6 +27,7 @@ export default function PovPanel() {
     ? source.points.find(p => p.id === selectedPointId) ?? null
     : null;
 
+  const [descMode, setDescMode] = useDescriptionMode();
   const { addAnnotation, getPointAnnotations } = useAnnotations(selectedSourceId);
 
   const pointAnnotations = selectedPoint
@@ -38,6 +40,9 @@ export default function PovPanel() {
     <div className="pov-panel">
       <div className="pane-header">
         <h2>POV Analysis</h2>
+        {hasAnalyzedSources && (
+          <DescriptionToggle mode={descMode} onToggle={setDescMode} hasPlainDescription={true} />
+        )}
       </div>
 
       {/* View mode tabs */}
@@ -76,6 +81,7 @@ export default function PovPanel() {
                   point={selectedPoint}
                   source={source}
                   annotations={pointAnnotations}
+                  descMode={descMode}
                   onAnnotate={(action, value, mappingIndex) =>
                     addAnnotation(selectedPoint.id, action, value, mappingIndex)
                   }
@@ -101,7 +107,7 @@ export default function PovPanel() {
         <>
           <PovFilterToggles />
           <div className="pane-body">
-            <AggregationView />
+            <AggregationView descMode={descMode} />
             <StanceHeatmap />
           </div>
         </>

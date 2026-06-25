@@ -1044,15 +1044,45 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
 
       await saveDebate('compressOldTranscript');
     } catch (err) {
+      const errCode = (err as Record<string, unknown> | null)?.errorCode;
+      const isContextOverflow = errCode === 'context_too_long'
+        || String(err).includes('context_too_long')
+        || String(err).includes('context window');
+
       getGlobalRecorder()?.record({
         type: 'system.error',
         debate_id: activeDebate?.id,
         component: 'debate-store',
-        level: 'error',
-        message: 'Context compression failed',
+        level: isContextOverflow ? 'warn' : 'error',
+        message: isContextOverflow ? 'Context compression hit token limit — using non-LLM fallback' : 'Context compression failed',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      pushWarning(get, set, `Context compression skipped: ${mapErrorToUserMessage(err)}`);
+
+      if (isContextOverflow && isStillValid()) {
+        const lastCompressedEntry = toCompress[toCompress.length - 1];
+        const fallbackSummary = toCompress.map((e) => {
+          const label = e.speaker === 'user' ? 'Moderator'
+            : e.speaker === 'system' ? 'System'
+            : POVER_INFO[e.speaker as Exclude<SpeakerId, 'user'>]?.label || e.speaker;
+          const snippet = e.content.length > 120 ? e.content.slice(0, 120) + '...' : e.content;
+          return `- ${label} (${e.type}): ${snippet}`;
+        }).join('\n');
+
+        set({
+          activeDebate: {
+            ...get().activeDebate!,
+            context_summaries: [
+              ...activeDebate.context_summaries,
+              { up_to_entry_id: lastCompressedEntry.id, summary: fallbackSummary },
+            ],
+            updated_at: nowISO(),
+          },
+        });
+        await saveDebate('compressOldTranscript');
+        pushWarning(get, set, 'Context was too long for AI compression — used a shortened summary instead.');
+      } else {
+        pushWarning(get, set, `Context compression skipped: ${mapErrorToUserMessage(err)}`);
+      }
     } finally {
       set({ debateGenerating: null });
     }

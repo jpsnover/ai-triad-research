@@ -876,6 +876,24 @@ export class DebateEngine {
     return msg.includes('429') || /rate[_ -]?limit/i.test(msg);
   }
 
+  private async stageGenerate(prompt: string, model: string, options: { temperature?: number; timeoutMs?: number }, label: string): Promise<string> {
+    await this.throttle();
+    this.progress('generating', undefined, label);
+    const start = Date.now();
+    try {
+      const text = await this.adapter.generateText(prompt, model, { ...options, timeoutMs: options.timeoutMs ?? 120_000 });
+      this.lastApiCallTime = Date.now();
+      this.apiCallCount++;
+      this.totalResponseTimeMs += Date.now() - start;
+      this.clearRateLimitBackoff();
+      return text;
+    } catch (err) {
+      this.lastApiCallTime = Date.now();
+      if (this.isRateLimitError(err)) this.recordRateLimit();
+      throw err;
+    }
+  }
+
   private async generate(prompt: string, label: string, timeoutMs?: number): Promise<string> {
     await this.throttle();
     this.progress('generating', undefined, label);
@@ -2501,24 +2519,6 @@ export class DebateEngine {
 
     const priorStatements: { speaker: string; pov: string; poverId: string; statement: string; summary: string }[] = [];
 
-    const stageGenerate = async (prompt: string, model: string, options: { temperature?: number; timeoutMs?: number }, label: string) => {
-      await this.throttle();
-      this.progress('generating', undefined, label);
-      const start = Date.now();
-      try {
-        const text = await this.adapter.generateText(prompt, model, { ...options, timeoutMs: options.timeoutMs ?? 120_000 });
-        this.lastApiCallTime = Date.now();
-        this.apiCallCount++;
-        this.totalResponseTimeMs += Date.now() - start;
-        this.clearRateLimitBackoff();
-        return text;
-      } catch (err) {
-        this.lastApiCallTime = Date.now();
-        if (this.isRateLimitError(err)) this.recordRateLimit();
-        throw err;
-      }
-    };
-
     for (const poverId of order) {
       // Per-iteration idempotency: skip speakers who already have an opening (t/919)
       if (this.session.transcript.some(e => e.type === 'opening' && e.speaker === poverId)) {
@@ -2614,7 +2614,7 @@ export class DebateEngine {
         const input = { ...pipelineInput, model };
         let result = await runOpeningPipeline(
           input,
-          stageGenerate,
+          this.stageGenerate.bind(this),
           (_stage, label) => this.progress('opening', poverId, label),
         );
 
@@ -2624,7 +2624,7 @@ export class DebateEngine {
           try {
             result = await runOpeningPipeline(
               { ...input, repairHints },
-              stageGenerate,
+              this.stageGenerate.bind(this),
               (_stage, label) => this.progress('opening', poverId, label),
             );
           } catch (err) {
@@ -3303,24 +3303,6 @@ export class DebateEngine {
       } : {}),
     };
 
-    const stageGenerate = async (prompt: string, model: string, options: { temperature?: number; timeoutMs?: number }, label: string) => {
-      await this.throttle();
-      this.progress('generating', undefined, label);
-      const start = Date.now();
-      try {
-        const text = await this.adapter.generateText(prompt, model, { ...options, timeoutMs: options.timeoutMs ?? 120_000 });
-        this.lastApiCallTime = Date.now();
-        this.apiCallCount++;
-        this.totalResponseTimeMs += Date.now() - start;
-        this.clearRateLimitBackoff();
-        return text;
-      } catch (err) {
-        this.lastApiCallTime = Date.now();
-        if (this.isRateLimitError(err)) this.recordRateLimit();
-        throw err;
-      }
-    };
-
     const envelopeGenerate = this.adapter.generate
       ? async (request: import('./cacheTypes').GenerateRequest, label: string) => {
           await this.throttle();
@@ -3346,8 +3328,9 @@ export class DebateEngine {
     const vConfig = resolveTurnValidationConfig(this.config.turnValidation);
 
     // Pre-check generate uses the same adapter but with the pre-check model
+    const boundStageGenerate = this.stageGenerate.bind(this);
     const preCheckGenerate = !vConfig.skipPreCheck
-      ? stageGenerate  // same function — model is passed per-call
+      ? boundStageGenerate
       : undefined;
 
     // Inject pre-check config into pipeline input
@@ -3356,7 +3339,7 @@ export class DebateEngine {
 
     const retryCallbacks: TurnRetryCallbacks = {
       runPipeline: (input) => runTurnPipeline(
-        input, stageGenerate,
+        input, boundStageGenerate,
         (_stage, label) => this.progress('generating', responder, label),
         envelopeGenerate,
         preCheckGenerate,

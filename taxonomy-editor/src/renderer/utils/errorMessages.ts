@@ -3,6 +3,12 @@
  */
 export function mapErrorToUserMessage(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
+  const errorCode = (err as Record<string, unknown> | null)?.errorCode;
+
+  // Context window exceeded — check BEFORE rate-limit since both can mention "RESOURCE_EXHAUSTED"
+  if (errorCode === 'context_too_long' || msg.includes('context_too_long') || msg.includes('context window')) {
+    return 'Input is too long for this model. Try fewer debate rounds, compress the history, or switch to a model with a larger context window.';
+  }
 
   // API rate limiting — check BEFORE Python errors since chained errors can contain both
   if (msg.includes('429') || msg.includes('rate limit') || msg.includes('Rate limit')) {

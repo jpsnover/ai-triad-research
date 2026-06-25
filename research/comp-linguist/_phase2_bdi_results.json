@@ -1,0 +1,62 @@
+{
+  "metadata": {
+    "phase": 2,
+    "ticket": "t/536",
+    "model": "gemini-2.5-flash-lite",
+    "total_claims": 664,
+    "run_date": "2026-06-25T13:27:00"
+  },
+  "taxonomy_ground_truth": {
+    "counts": {
+      "belief": 374,
+      "desire": 70,
+      "intention": 260
+    },
+    "distribution": {
+      "belief": 0.53125,
+      "desire": 0.09943181818181818,
+      "intention": 0.3693181818181818
+    }
+  },
+  "original": {
+    "counts": {
+      "belief": 439,
+      "desire": 65,
+      "intention": 160
+    },
+    "distribution": {
+      "belief": 0.661144578313253,
+      "desire": 0.09789156626506024,
+      "intention": 0.24096385542168675
+    },
+    "kl_divergence": 0.040196023789977026
+  },
+  "reclassified": {
+    "counts": {
+      "belief": 500,
+      "desire": 20,
+      "intention": 144
+    },
+    "distribution": {
+      "belief": 0.7530120481927711,
+      "desire": 0.030120481927710843,
+      "intention": 0.21686746987951808
+    },
+    "kl_divergence": 0.11126104313737767
+  },
+  "kl_delta": 0.07106501934740064,
+  "improved": false,
+  "claims_changed": 117,
+  "claims_changed_pct": 17.6,
+  "transitions": {
+    "belief \u2192 belief": 422,
+    "desire \u2192 desire": 12,
+    "intention \u2192 intention": 113,
+    "desire \u2192 belief": 37,
+    "intention \u2192 belief": 41,
+    "desire \u2192 intention": 16,
+    "intention \u2192 desire": 6,
+    "belief \u2192 intention": 15,
+    "belief \u2192 desire": 2
+  }
+}

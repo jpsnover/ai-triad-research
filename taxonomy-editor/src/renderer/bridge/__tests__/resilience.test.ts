@@ -5,6 +5,7 @@ import {
   getResilienceState,
   resetResilience,
   subscribeResilience,
+  setThrottleFromProbe,
   type EndpointCategory,
   type ResilientFetchOptions,
 } from '../resilience';
@@ -434,30 +435,16 @@ describe('resilience', () => {
     });
 
     it('does not block critical requests even when THROTTLED', async () => {
-      // Feed baseline: 10 fast requests, then 10 slow ones to push p95 above 2× baseline
-      const perfNow = vi.spyOn(performance, 'now');
-      let fakeTime = 1000;
-      perfNow.mockImplementation(() => fakeTime);
-
-      for (let i = 0; i < 20; i++) {
-        fetchSpy.mockImplementationOnce(async () => {
-          // Simulate: first 10 take 100ms, next 10 take 5000ms
-          fakeTime += i < 10 ? 100 : 5000;
-          return mockFetchResponse(200);
-        });
-        await resilientFetch('/api/test', {}, defaultOpts());
-      }
+      // Drive THROTTLED via the health probe API (recordLatency no longer transitions state)
+      setThrottleFromProbe('THROTTLED', 500, 100);
 
       const state = getResilienceState();
       expect(state.throttles.read.state).toBe('THROTTLED');
 
       // Critical request should NOT wait for the 2s throttle delay
       fetchSpy.mockResolvedValueOnce(mockFetchResponse(200));
-      fakeTime += 1;
       const res = await resilientFetch('/api/test', {}, defaultOpts({ critical: true }));
       expect(res.ok).toBe(true);
-
-      perfNow.mockRestore();
     });
   });
 

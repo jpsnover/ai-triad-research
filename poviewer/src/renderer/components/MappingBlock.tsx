@@ -3,9 +3,11 @@
 
 import type { Mapping, PovCamp } from '../types/types';
 import { POV_LABELS } from '../types/types';
+import { resolveDescription, type DescriptionMode } from './DescriptionToggle';
 
 interface Props {
   mapping: Mapping;
+  descMode?: DescriptionMode;
 }
 
 const BLOCK_CLASS: Record<PovCamp, string> = {
@@ -22,8 +24,9 @@ const CAMP_CLASS: Record<PovCamp, string> = {
   'situations': 'mapping-camp-cc',
 };
 
-export default function MappingBlock({ mapping }: Props) {
+export default function MappingBlock({ mapping, descMode = 'plain' }: Props) {
   const alignIcon = mapping.alignment === 'agrees' ? '+' : '\u2212';
+  const descText = resolveDescription(mapping.nodeDescription, mapping.nodePlainDescription, descMode);
 
   return (
     <div className={`mapping-block ${BLOCK_CLASS[mapping.camp]}`}>
@@ -37,8 +40,8 @@ export default function MappingBlock({ mapping }: Props) {
       </div>
       <div className="mapping-node-id">{mapping.nodeId}</div>
       <div className="mapping-node-label">{mapping.nodeLabel}</div>
-      {mapping.nodeDescription && (
-        <div className="mapping-node-description">{mapping.nodeDescription}</div>
+      {descText && (
+        <div className="mapping-node-description">{descText}</div>
       )}
       <div className="mapping-category">{mapping.category}</div>
       <div className="mapping-strength">Strength: {mapping.strength}</div>

@@ -52,6 +52,7 @@ export interface Mapping {
   nodeId: string;
   nodeLabel: string;
   nodeDescription?: string;
+  nodePlainDescription?: string | null;
   category: string;
   alignment: Alignment;
   strength: StrengthLevel;

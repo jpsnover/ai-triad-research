@@ -52,7 +52,7 @@ Document results before proceeding with production cutover.
 
 ```bash
 # Verify app is healthy without Azure Files
-curl -s https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io/health
+curl -s https://taxonomy-editor.gentlecoast-20f0bd5b.eastus2.azurecontainerapps.io/health
 
 # Delete the storage account (removes file share + all data)
 az storage account delete --name staitriadkvwl3nywge4iw -g ai-triad --yes

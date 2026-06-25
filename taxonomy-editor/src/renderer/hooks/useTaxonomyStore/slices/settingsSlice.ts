@@ -13,7 +13,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
  * the box in the desktop build. Still overridable via Settings → Community Server URL.
  * Only affects Electron; the web build posts same-origin (see getCommunityBaseUrl).
  */
-const DEFAULT_COMMUNITY_SERVER_URL = 'https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io';
+const DEFAULT_COMMUNITY_SERVER_URL = 'https://taxonomy-editor.gentlecoast-20f0bd5b.eastus2.azurecontainerapps.io';
 
 // -- Exported types --
 

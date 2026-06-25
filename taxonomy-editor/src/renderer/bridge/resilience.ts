@@ -165,25 +165,30 @@ function recordLatency(cat: EndpointCategory, ms: number): void {
   t.latencies.push(ms);
   if (t.latencies.length > cfg().throttleWindowSize) t.latencies.shift();
 
-  if (t.latencies.length <= cfg().throttleBaselineCount) {
-    t.baseline = t.latencies.reduce((a, b) => a + b, 0) / t.latencies.length;
-    return;
-  }
-  if (t.baseline === 0) {
+  if (t.baseline === 0 && t.latencies.length >= cfg().throttleBaselineCount) {
     t.baseline = t.latencies.slice(0, cfg().throttleBaselineCount)
       .reduce((a, b) => a + b, 0) / cfg().throttleBaselineCount;
   }
+}
 
-  const p95 = computeP95(t.latencies);
-  if (t.state === 'NORMAL' && p95 > t.baseline * cfg().throttleEnterFactor) {
-    t.state = 'THROTTLED';
-    recordEvent('network.throttle_active', 'warn',
-      `Throttle '${cat}' activated: p95=${Math.round(p95)}ms > ${cfg().throttleEnterFactor}× baseline ${Math.round(t.baseline)}ms`);
-    notifyListeners();
-  } else if (t.state === 'THROTTLED' && p95 < t.baseline * cfg().throttleExitFactor) {
-    t.state = 'NORMAL';
-    recordEvent('network.throttle_cleared', 'info',
-      `Throttle '${cat}' cleared: p95=${Math.round(p95)}ms`);
+export function setThrottleFromProbe(
+  state: ThrottleState,
+  p95Ms: number,
+  baselineMs: number,
+): void {
+  const cat: EndpointCategory = 'read';
+  const t = getThrottle(cat);
+  const prev = t.state;
+  t.state = state;
+  t.baseline = baselineMs;
+  if (state !== prev) {
+    if (state === 'THROTTLED') {
+      recordEvent('network.throttle_active', 'warn',
+        `Health probe detected degradation: p95=${Math.round(p95Ms)}ms > baseline ${Math.round(baselineMs)}ms`);
+    } else {
+      recordEvent('network.throttle_cleared', 'info',
+        `Health probe detected recovery: p95=${Math.round(p95Ms)}ms`);
+    }
     notifyListeners();
   }
 }

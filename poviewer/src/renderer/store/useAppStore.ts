@@ -157,10 +157,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         const povFiles = ['accelerationist', 'safetyist', 'skeptic', 'situations'];
         for (const pov of povFiles) {
           try {
-            const data = await window.electronAPI.loadTaxonomyFile(pov) as { nodes?: Array<{ id: string; label: string; description: string }> };
+            const data = await window.electronAPI.loadTaxonomyFile(pov) as { nodes?: Array<{ id: string; label: string; description: string; plain_description?: string | null }> };
             if (data?.nodes) {
               for (const node of data.nodes) {
-                taxNodes[node.id] = { label: node.label, description: node.description };
+                taxNodes[node.id] = { label: node.label, description: node.description, plain_description: node.plain_description };
               }
             }
           } catch { /* taxonomy file may not exist */ }

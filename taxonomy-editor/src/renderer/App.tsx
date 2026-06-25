@@ -77,6 +77,9 @@ void initClientConfig();
 // Initialize flight recorder as early as possible
 initFlightRecorder();
 
+import { initSwEventListener } from './lib/swEventListener';
+initSwEventListener();
+
 interface DataUpdateInfo {
   available: boolean;
   behindCount: number;

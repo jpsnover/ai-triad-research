@@ -4,6 +4,7 @@
 import { useEffect, useRef } from 'react';
 import { useResilienceStatus, initResilienceUI, type ResilienceAlert } from '../../hooks/useResilienceStatus';
 import { useFlag } from '../../hooks/useFeatureFlags';
+import { initHealthProbe } from '../../bridge/healthProbe';
 import './ResilienceBanner.css';
 
 const TOAST_TTL_MS = 5000;
@@ -49,7 +50,7 @@ export function ResilienceBanner() {
   const isAdmin = useFlag('permission-admin-features');
   const timersRef = useRef(new Map<number, ReturnType<typeof setTimeout>>());
 
-  useEffect(() => { initResilienceUI(); }, []);
+  useEffect(() => { initResilienceUI(); initHealthProbe(); }, []);
 
   useEffect(() => {
     const timers = timersRef.current;

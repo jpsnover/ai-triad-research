@@ -1,0 +1,136 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+// Uses bare fetch() intentionally — this module measures raw server latency
+// and must not go through resilientFetch (which adds retry/throttle delays).
+// Same approved-exception pattern as clientConfig.ts and flightRecorderInit.ts.
+
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { getClientConfig } from '../lib/clientConfig';
+import { setThrottleFromProbe } from './resilience';
+
+type ProbePhase = 'idle' | 'warmup' | 'steady';
+
+function cfg() { return getClientConfig().healthProbe; }
+
+const state = {
+  phase: 'idle' as ProbePhase,
+  latencies: [] as number[],
+  baseline: 0,
+  warmUpSamples: [] as number[],
+  startTime: 0,
+  timerId: 0,
+};
+
+function computeP95(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const idx = Math.min(Math.ceil(0.95 * sorted.length) - 1, sorted.length - 1);
+  return sorted[idx];
+}
+
+async function probe(): Promise<number | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), cfg().timeoutMs);
+  const start = performance.now();
+  try {
+    const res = await fetch('/api/config/client', { signal: controller.signal });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    await res.json();
+    return performance.now() - start;
+  } catch (err) {
+    clearTimeout(timer);
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'health-probe',
+      level: 'warn',
+      message: 'Health probe request failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return null;
+  }
+}
+
+async function runWarmUp(): Promise<void> {
+  state.phase = 'warmup';
+  const { warmUpCount, warmUpDiscardCount, warmUpIntervalMs } = cfg();
+
+  for (let i = 0; i < warmUpCount; i++) {
+    const latency = await probe();
+    if (latency !== null) {
+      state.warmUpSamples.push(latency);
+    }
+    if (i < warmUpCount - 1) {
+      await new Promise<void>(r => setTimeout(r, warmUpIntervalMs));
+    }
+  }
+
+  const kept = state.warmUpSamples.slice(warmUpDiscardCount);
+  if (kept.length > 0) {
+    state.baseline = kept.reduce((a, b) => a + b, 0) / kept.length;
+    getGlobalRecorder()?.record({
+      type: 'lifecycle',
+      component: 'health-probe',
+      level: 'info',
+      message: `Warm-up complete: baseline=${Math.round(state.baseline)}ms from ${kept.length} samples (${warmUpDiscardCount} discarded)`,
+    });
+  }
+
+  state.phase = 'steady';
+  scheduleSteadyState();
+}
+
+function scheduleSteadyState(): void {
+  state.timerId = window.setInterval(() => { void steadyProbe(); }, cfg().intervalMs);
+}
+
+async function steadyProbe(): Promise<void> {
+  const latency = await probe();
+  if (latency === null) return;
+
+  state.latencies.push(latency);
+  if (state.latencies.length > cfg().windowSize) state.latencies.shift();
+  if (state.baseline === 0) return;
+
+  const elapsed = performance.now() - state.startTime;
+  if (elapsed < cfg().gracePeriodMs) return;
+
+  const p95 = computeP95(state.latencies);
+  if (p95 > state.baseline * cfg().enterFactor) {
+    setThrottleFromProbe('THROTTLED', p95, state.baseline);
+  } else if (p95 < state.baseline * cfg().exitFactor) {
+    setThrottleFromProbe('NORMAL', p95, state.baseline);
+  }
+}
+
+export function initHealthProbe(): void {
+  if (state.phase !== 'idle') return;
+  state.startTime = performance.now();
+  void runWarmUp();
+}
+
+export function stopHealthProbe(): void {
+  if (state.timerId) {
+    clearInterval(state.timerId);
+    state.timerId = 0;
+  }
+  state.phase = 'idle';
+  state.latencies = [];
+  state.warmUpSamples = [];
+  state.baseline = 0;
+}
+
+export function getProbeState(): {
+  phase: ProbePhase;
+  baseline: number;
+  p95: number;
+  sampleCount: number;
+} {
+  return {
+    phase: state.phase,
+    baseline: Math.round(state.baseline),
+    p95: Math.round(computeP95(state.latencies)),
+    sampleCount: state.latencies.length,
+  };
+}

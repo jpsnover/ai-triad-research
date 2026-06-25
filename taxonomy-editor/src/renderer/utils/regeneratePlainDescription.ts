@@ -49,6 +49,31 @@ export function triggerPovNodeRegeneration(
   void regeneratePlainDescription(nodeId, description, (updates) => updatePovNode(pov, nodeId, updates));
 }
 
+export async function generatePlainPreview(description: string): Promise<string | null> {
+  if (!description || description.length < MIN_DESCRIPTION_LENGTH || description.startsWith('[DEPRECATED]')) {
+    return description || null;
+  }
+  try {
+    const { api } = await import('@bridge');
+    const result = await api.generateText(
+      vernacularPrompt(description),
+      VERNACULAR_MODEL,
+      VERNACULAR_TIMEOUT,
+      VERNACULAR_TEMPERATURE,
+    );
+    return result.text?.trim() ?? null;
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'generate-plain-preview',
+      level: 'warn',
+      message: 'On-demand plain preview generation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return null;
+  }
+}
+
 export function triggerSituationNodeRegeneration(
   nodeId: string,
   description: string,

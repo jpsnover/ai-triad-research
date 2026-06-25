@@ -171,7 +171,7 @@ function findExcerptOffset(
 
 // === Taxonomy Node Lookup (id → {label, description}) ===
 
-export type TaxNodeLookup = Record<string, { label: string; description: string }>;
+export type TaxNodeLookup = Record<string, { label: string; description: string; plain_description?: string | null }>;
 
 // === Convert Pipeline Summary → POViewer Points/Mappings ===
 
@@ -203,6 +203,7 @@ export function summaryToPoints(
         nodeId: resolvedId,
         nodeLabel: taxNode?.label ?? kp.point.slice(0, 60) + (kp.point.length > 60 ? '...' : ''),
         nodeDescription: taxNode?.description,
+        nodePlainDescription: taxNode?.plain_description,
         category: kp.category,
         alignment: stanceToAlignment(kpStance),
         strength: stanceToStrength(kpStance),

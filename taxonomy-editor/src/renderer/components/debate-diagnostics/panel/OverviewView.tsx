@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -15,6 +15,9 @@ import { CollapsibleSection, speakerLabel } from './helpers';
 import { WhatIfSection } from './WhatIfSection';
 import { DocumentCoverageSection } from './DocumentCoverageSection';
 import { VerificationSection } from './VerificationSection';
+import { useDescriptionMode, DescriptionToggle } from '../../shared/DescriptionToggle';
+import { useTaxonomyStore } from '../../../hooks/useTaxonomyStore';
+import { generatePlainPreview } from '../../../utils/regeneratePlainDescription';
 
 const AIF_TOOLTIPS = {
   'I-node': 'I-node (Information node) — a claim, proposition, or data point. These are the passive content of arguments: what is being asserted.',
@@ -405,6 +408,40 @@ export function OverviewView() {
   }, [coverageMap, an]);
 
   const topicScope = activeDebate.topic?.scope as TopicScope | undefined;
+
+  const [descMode, setDescMode] = useDescriptionMode();
+  const taxState = useTaxonomyStore(useShallow(s => ({
+    accelerationist: s.accelerationist, safetyist: s.safetyist, skeptic: s.skeptic, situations: s.situations,
+  })));
+
+  const [plainPreviews, setPlainPreviews] = useState<Record<string, string | null>>({});
+  const [previewLoading, setPreviewLoading] = useState<Record<string, boolean>>({});
+  const inflightRef = useRef<Set<string>>(new Set());
+
+  const lookupPlainDescription = useCallback((nodeId: string, pov: string): string | null => {
+    const povKey = pov as keyof typeof taxState;
+    const file = taxState[povKey];
+    if (!file?.nodes) return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const node = (file.nodes as any[]).find((n: any) => n.id === nodeId);
+    return node?.plain_description ?? null;
+  }, [taxState]);
+
+  const suggestions = activeDebate.taxonomy_suggestions;
+  useEffect(() => {
+    if (descMode !== 'plain' || !suggestions?.length) return;
+    for (let i = 0; i < suggestions.length; i++) {
+      const sug = suggestions[i];
+      const key = `after-${sug.node_id}-${i}`;
+      if (inflightRef.current.has(key) || plainPreviews[key] !== undefined) continue;
+      inflightRef.current.add(key);
+      setPreviewLoading(prev => ({ ...prev, [key]: true }));
+      void generatePlainPreview(sug.proposed_description).then(text => {
+        setPlainPreviews(prev => ({ ...prev, [key]: text }));
+        setPreviewLoading(prev => ({ ...prev, [key]: false }));
+      });
+    }
+  }, [descMode, suggestions, plainPreviews]);
 
   return (
     <div className="diag-overview">
@@ -859,7 +896,32 @@ export function OverviewView() {
       {/* Taxonomy Suggestions */}
       {activeDebate.taxonomy_suggestions && activeDebate.taxonomy_suggestions.length > 0 && (
         <CollapsibleSection title={`Taxonomy Suggestions — ${activeDebate.taxonomy_suggestions.length} revisions`} defaultOpen>
-          {activeDebate.taxonomy_suggestions.map((sug, i) => (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+            <DescriptionToggle mode={descMode} onToggle={setDescMode} hasPlainDescription />
+          </div>
+          {activeDebate.taxonomy_suggestions.map((sug, i) => {
+            const afterKey = `after-${sug.node_id}-${i}`;
+            let beforeText = sug.current_description;
+            let afterText = sug.proposed_description;
+            let beforeGenerating = false;
+            let afterGenerating = false;
+
+            if (descMode === 'plain') {
+              const storedPlain = lookupPlainDescription(sug.node_id, sug.node_pov);
+              if (storedPlain) {
+                beforeText = storedPlain;
+              } else if (sug.current_description) {
+                beforeGenerating = true;
+              }
+
+              if (plainPreviews[afterKey] !== undefined) {
+                afterText = plainPreviews[afterKey] ?? sug.proposed_description;
+              } else {
+                afterGenerating = true;
+              }
+            }
+
+            return (
             <div key={i} className="diag-taxo-suggestion">
               <div style={{ display: 'flex', gap: 6, alignItems: 'baseline', flexWrap: 'wrap' }}>
                 <span className="diag-an-id">{sug.node_id}</span>
@@ -867,15 +929,15 @@ export function OverviewView() {
                 <span className="diag-badge diag-badge-move" style={{ fontSize: '0.5rem' }}>{sug.node_pov}</span>
                 <span className={`diag-badge diag-suggestion-${sug.suggestion_type}`} style={{ fontSize: '0.5rem' }}>{sug.suggestion_type}</span>
               </div>
-              {sug.current_description && (
+              {beforeText && (
                 <div className="diag-taxo-before">
                   <span className="diag-k">Before:</span>
-                  <div className="diag-taxo-desc">{sug.current_description}</div>
+                  <div className={`diag-taxo-desc${beforeGenerating ? ' plain-description-generating' : ''}`}>{beforeText}</div>
                 </div>
               )}
               <div className="diag-taxo-after">
                 <span className="diag-k">After:</span>
-                <div className="diag-taxo-desc diag-taxo-desc-proposed">{sug.proposed_description}</div>
+                <div className={`diag-taxo-desc diag-taxo-desc-proposed${afterGenerating ? ' plain-description-generating' : ''}`}>{afterText}</div>
               </div>
               <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 4 }}>
                 {sug.rationale}
@@ -886,7 +948,8 @@ export function OverviewView() {
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </CollapsibleSection>
       )}
 

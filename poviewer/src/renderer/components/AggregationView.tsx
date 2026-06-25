@@ -5,11 +5,13 @@ import { useMemo } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import type { Source, Point, PovCamp } from '../types/types';
 import { POV_LABELS, POV_COLORS } from '../types/types';
+import { resolveDescription, type DescriptionMode } from './DescriptionToggle';
 
 interface NodeAggregation {
   nodeId: string;
   nodeLabel: string;
   nodeDescription: string;
+  nodePlainDescription?: string | null;
   category: string;
   camp: PovCamp;
   sources: Array<{
@@ -22,7 +24,7 @@ interface NodeAggregation {
   totalPoints: number;
 }
 
-export default function AggregationView() {
+export default function AggregationView({ descMode = 'plain' }: { descMode?: DescriptionMode }) {
   const notebooks = useAppStore(s => s.notebooks);
   const activeNotebookId = useAppStore(s => s.activeNotebookId);
   const enabledSourceIds = useAppStore(s => s.enabledSourceIds);
@@ -47,6 +49,7 @@ export default function AggregationView() {
               nodeId: mapping.nodeId,
               nodeLabel: mapping.nodeLabel,
               nodeDescription: mapping.nodeDescription ?? '',
+              nodePlainDescription: mapping.nodePlainDescription,
               category: mapping.category,
               camp: mapping.camp,
               sources: [],
@@ -104,9 +107,10 @@ export default function AggregationView() {
             <span className="aggregation-node-count">{node.totalPoints}</span>
           </div>
           <div className="aggregation-node-category">{node.category}</div>
-          {node.nodeDescription && (
-            <div className="aggregation-node-description">{node.nodeDescription}</div>
-          )}
+          {(() => {
+            const desc = resolveDescription(node.nodeDescription, node.nodePlainDescription, descMode);
+            return desc ? <div className="aggregation-node-description">{desc}</div> : null;
+          })()}
           <div className="aggregation-node-sources">
             {node.sources.map(src => (
               <div key={src.sourceId} className="aggregation-source-row">

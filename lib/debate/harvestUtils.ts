@@ -74,7 +74,7 @@ export interface HarvestVerdictItem {
 }
 
 export interface HarvestManifestItem {
-  type: 'conflict' | 'steelman' | 'debate_ref' | 'verdict' | 'concept';
+  type: 'conflict' | 'steelman' | 'debate_ref' | 'verdict' | 'concept' | 'modification';
   action: 'created' | 'updated' | 'added' | 'queued';
   id: string;
   status: 'applied' | 'rejected';

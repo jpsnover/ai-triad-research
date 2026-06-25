@@ -137,8 +137,18 @@ async function post<T = unknown>(path: string, body?: unknown, opts?: FetchOptio
     (err as ActionableError & { limitType: string }).limitType = String(data.limitType ?? '');
     throwHttpError(429, err);
   }
-  if (res.status === 400 && path === '/api/ai/generate') {
+  if (res.status === 400 && (path === '/api/ai/generate' || path === '/api/ai/search')) {
     const data = await res.json().catch(bridgeWarn('Failed to parse 400 response body', {})) as Record<string, unknown>;
+    if (data.error === 'context_too_long') {
+      const err = new ActionableError({
+        goal: 'Generate AI response',
+        problem: (data.message as string) || 'Input exceeds the model context window.',
+        location: 'web-bridge.post',
+        nextSteps: ['Try a shorter prompt or fewer debate rounds', 'Switch to a model with a larger context window in Settings'],
+      });
+      (err as ActionableError & { errorCode: string }).errorCode = 'context_too_long';
+      throwHttpError(400, err);
+    }
     if (data.limitType === 'max_prompt_chars') {
       throwHttpError(400, new ActionableError({
         goal: 'Generate AI response',

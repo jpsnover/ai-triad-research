@@ -21,6 +21,14 @@ import type { TaxRefEdge } from '../../../taxonomy/TaxonomyRefDetail';
 import type { UtilitySnapshot } from '../types';
 import type { FlightRecorderEvent } from '@lib/flight-recorder/index';
 
+interface SuppressedIntervention {
+  intervention_move?: string | null;
+  intervention_target?: SpeakerId | string | null;
+  intervention_suppressed_reason?: string | null;
+  intervention_suppression_explanation?: string | null;
+  trigger_reasoning?: string | null;
+}
+
 export interface DetailsTabProps {
   entry: DebateSession['transcript'][number];
   entryIdx: number;
@@ -32,7 +40,7 @@ export interface DetailsTabProps {
   perTurnUtilities: UtilitySnapshot[];
   precedingIntervention: DebateSession['transcript'][number] | null;
   interventionResponseField: Record<string, unknown> | string | null;
-  suppressedIntervention: Record<string, unknown> | null;
+  suppressedIntervention: SuppressedIntervention | null;
   policyMap: Map<string, { id: string; action: string; source_povs: string[]; member_count: number }>;
   allEdges: TaxRefEdge[];
   taxNodeMap: Map<string, Record<string, unknown>>;
@@ -306,19 +314,19 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
             <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#f59e0b' }}>
               {'⚠'} Suppressed Intervention
             </span>
-            {(suppressedIntervention as any).intervention_move && (
+            {suppressedIntervention.intervention_move && (
               <span style={{
                 padding: '1px 6px', borderRadius: 3, fontSize: '0.65rem', fontWeight: 600,
                 background: 'rgba(245, 158, 11, 0.18)', color: '#d97706',
               }}>
-                {(suppressedIntervention as any).intervention_move}
+                {suppressedIntervention.intervention_move}
               </span>
             )}
           </div>
           <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginBottom: 4 }}>
-            The moderator recommended a <strong>{(suppressedIntervention as any).intervention_move ?? 'intervention'}</strong>
-            {(suppressedIntervention as any).intervention_target && (
-              <> directed at <strong>{speakerLabel((suppressedIntervention as any).intervention_target)}</strong></>
+            The moderator recommended a <strong>{suppressedIntervention.intervention_move ?? 'intervention'}</strong>
+            {suppressedIntervention.intervention_target && (
+              <> directed at <strong>{speakerLabel(suppressedIntervention.intervention_target)}</strong></>
             )}
             , but it was blocked by the engine.
           </div>
@@ -328,22 +336,22 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
             borderLeft: '3px solid #d97706',
           }}>
             <strong style={{ color: '#d97706' }}>Reason: </strong>
-            {(suppressedIntervention as any).intervention_suppressed_reason && (
+            {suppressedIntervention.intervention_suppressed_reason && (
               <span
-                title={SUPPRESSION_REASON_TOOLTIPS[(suppressedIntervention as any).intervention_suppressed_reason] ?? ''}
+                title={SUPPRESSION_REASON_TOOLTIPS[suppressedIntervention.intervention_suppressed_reason] ?? ''}
                 style={{ cursor: 'default', borderBottom: '1px dotted #92400e' }}
               >
-                {String((suppressedIntervention as any).intervention_suppressed_reason ?? '').replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
+                {String(suppressedIntervention.intervention_suppressed_reason ?? '').replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
               </span>
             )}
-            {(suppressedIntervention as any).intervention_suppression_explanation
-              ? ((suppressedIntervention as any).intervention_suppressed_reason ? ' — ' : '') + (suppressedIntervention as any).intervention_suppression_explanation
-              : (!(suppressedIntervention as any).intervention_suppressed_reason ? 'No reason recorded' : '')
+            {suppressedIntervention.intervention_suppression_explanation
+              ? (suppressedIntervention.intervention_suppressed_reason ? ' — ' : '') + suppressedIntervention.intervention_suppression_explanation
+              : (!suppressedIntervention.intervention_suppressed_reason ? 'No reason recorded' : '')
             }
           </div>
-          {(suppressedIntervention as any).trigger_reasoning && (
+          {suppressedIntervention.trigger_reasoning && (
             <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>
-              {(suppressedIntervention as any).trigger_reasoning}
+              {suppressedIntervention.trigger_reasoning}
             </div>
           )}
         </div>

@@ -9,15 +9,17 @@ import MappingBlock from './MappingBlock';
 import CollisionAlert from './CollisionAlert';
 import AnnotationToolbar from './AnnotationToolbar';
 import AnnotationBadge from './AnnotationBadge';
+import type { DescriptionMode } from './DescriptionToggle';
 
 interface Props {
   point: Point;
   source: Source;
   annotations?: Annotation[];
+  descMode?: DescriptionMode;
   onAnnotate?: (action: AnnotationAction, value: unknown, mappingIndex?: number) => void;
 }
 
-export default function PointDetailCard({ point, source, annotations = [], onAnnotate }: Props) {
+export default function PointDetailCard({ point, source, annotations = [], descMode = 'plain', onAnnotate }: Props) {
   const navigatePoint = useAppStore(s => s.navigatePoint);
   const povFilters = useAppStore(s => s.povFilters);
 
@@ -103,7 +105,7 @@ export default function PointDetailCard({ point, source, annotations = [], onAnn
       ) : (
         effectiveMappings.map(({ mapping, dismissed }, i) => (
           <div key={i} className={dismissed ? 'mapping-dismissed' : ''}>
-            <MappingBlock mapping={mapping} />
+            <MappingBlock mapping={mapping} descMode={descMode} />
             {dismissed && <div className="mapping-dismissed-label">Dismissed</div>}
           </div>
         ))

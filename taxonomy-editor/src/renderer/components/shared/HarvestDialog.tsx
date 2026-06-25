@@ -11,6 +11,8 @@ import type { ArgumentNetworkNode } from '../../types/debate';
 import { QbafClaimBadge } from '../taxonomy/QbafOverlay';
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { triggerPovNodeRegeneration } from '../../utils/regeneratePlainDescription';
+import type { Pov } from '../../types/taxonomy';
 import {
   extractConflictCandidates,
   extractSteelmanCandidates,
@@ -546,6 +548,45 @@ Return ONLY JSON (no markdown):
       }
     }
 
+    // Apply modifications — update existing node descriptions atomically
+    for (const item of modifications) {
+      if (!item.checked || !item.suggestedChange) {
+        manifest.push({ type: 'modification', action: 'updated', id: item.nodeId, status: 'rejected' });
+        continue;
+      }
+      if (item.modificationType === 'refine_description') {
+        try {
+          const store = useTaxonomyStore.getState();
+          let appliedPov: Pov | null = null;
+          for (const pov of POV_KEYS) {
+            const node = store[pov]?.nodes?.find(n => n.id === item.nodeId);
+            if (node) {
+              store.updatePovNode(pov, item.nodeId, { description: item.suggestedChange }, { source: 'debate_reflection', debateId: activeDebate.id, reason: item.rationale });
+              appliedPov = pov;
+              break;
+            }
+          }
+          if (appliedPov) {
+            triggerPovNodeRegeneration(appliedPov, item.nodeId, item.suggestedChange, store.updatePovNode);
+          }
+          manifest.push({ type: 'modification', action: 'updated', id: item.nodeId, status: 'applied' });
+          applied++;
+        } catch (err) {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'harvest-dialog',
+            level: 'error',
+            message: `Failed to apply modification to ${item.nodeId}`,
+            error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+          });
+          manifest.push({ type: 'modification', action: 'updated', id: item.nodeId, status: 'rejected' });
+          failed++;
+        }
+      } else {
+        manifest.push({ type: 'modification', action: 'updated', id: item.nodeId, status: 'rejected' });
+      }
+    }
+
     // Save manifest
     await api.harvestSaveManifest({
       debate_id: activeDebate.id,
@@ -562,7 +603,8 @@ Return ONLY JSON (no markdown):
   const checkedCount = conflicts.filter(c => c.checked).length +
     steelmans.filter(s => s.checked).length +
     verdicts.filter(v => v.checked).length +
-    concepts.filter(c => c.checked).length;
+    concepts.filter(c => c.checked).length +
+    modifications.filter(m => m.checked).length;
 
   const needsGeneration = conflicts.some(c => c.checked && !c.generatedLabel) ||
     steelmans.some(s => s.checked && !s.proposedSteelman) ||

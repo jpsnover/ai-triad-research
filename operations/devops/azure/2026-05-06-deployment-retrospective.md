@@ -240,7 +240,7 @@ Since the copy now runs in the background, the app should expose copy status:
 Set up an external health check (Azure Monitor availability test, or a simple cron-based ping) that runs every 60 seconds against production:
 
 ```
-GET https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io/health
+GET https://taxonomy-editor.gentlecoast-20f0bd5b.eastus2.azurecontainerapps.io/health
 ```
 
 Escalation ladder:
