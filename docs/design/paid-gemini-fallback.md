@@ -63,7 +63,8 @@ Keep the free key pool and paid key **completely separate**. The free pool round
 │                                                 │
 │  3. Catch 429 → is paid fallback configured?     │
 │     No  → return 429 to client (existing behavior)│
-│     Yes → retry with paid key ONLY               │
+│     Yes → WAIT 3 SECONDS (throttle + recovery)   │
+│        → retry with paid key ONLY                │
 │        ✓ → respond to client                    │
 │        ✗ → return 429 to client                  │
 └─────────────────────────────────────────────────┘
@@ -96,9 +97,9 @@ Request 4: cursor=0 → free1 ✓                    (round-robin wraps)
 ── Burst (3 concurrent debate openings) ──
 Request 5: cursor=1 → free2 → 429! → cooldown[1] → free3 ✓
 Request 6: cursor=0 → free1 → 429! → cooldown[0] → free2 in cooldown → free3 in cooldown
-           → all exhausted → CATCH → retry with paid1 ✓
+           → all exhausted → CATCH → wait 3s → retry with paid1 ✓
 Request 7: cursor=2 → free3 in cooldown → free1 in cooldown → free2 in cooldown
-           → all exhausted → CATCH → retry with paid1 ✓
+           → all exhausted → CATCH → wait 3s → retry with paid1 ✓
 
 ── 30s later (cooldowns expire) ──
 Request 8: cursor=0 → free1 ✓                    (recovered — paid key not tried)
@@ -188,9 +189,12 @@ catch (err) {
       try {
         getGlobalRecorder()?.record({
           type: 'ai.fallback', component: 'ai-generate', level: 'info',
-          message: 'Free-tier keys exhausted — trying paid fallback',
-          data: { model: requestModel, backend, freeKeyCount: freeKeys.length },
+          message: 'Free-tier keys exhausted — waiting 3s before paid fallback',
+          data: { model: requestModel, backend, freeKeyCount: freeKeys.length, delayMs: 3000 },
         });
+        // Throttle: 3-second delay before using the paid key. Gives free keys
+        // time to exit cooldown and caps paid-key usage under sustained load.
+        await new Promise(r => setTimeout(r, 3000));
         const result = await ai.generateText(prompt, effectiveModel, undefined, timeout, paidKey);
         getGlobalRecorder()?.record({
           type: 'ai.response', component: 'ai-generate', level: 'info',
@@ -284,22 +288,27 @@ Monitoring: grep flight recorder dumps for `fallback: 'paid'` to see how often t
 
 ### Latency Impact
 
-When the paid fallback triggers, there's latency overhead from the failed free-key attempts:
+When the paid fallback triggers, the user experiences:
 
-- **Free keys already in cooldown from prior requests:** `callWithKeyRotation` tries the soonest-to-recover key (one network call, fast 429 response ~100-200ms), then the other keys that are also in cooldown. Each attempt is a fast 429.
-- **Paid key retry:** One additional call (~200-500ms for a successful Gemini request).
-- **Total worst case:** ~500-700ms overhead vs. an immediate 429 to the client.
+- **Free key exhaustion:** `callWithKeyRotation` tries keys that may be in cooldown — fast upstream 429 responses (~100-200ms each).
+- **Intentional 3-second delay:** Throttle before the paid key call.
+- **Paid key call:** ~200-500ms for a successful Gemini request.
+- **Total worst case:** ~3.5-4s from free-pool exhaustion to response.
 
-This is far better than the client receiving a 429 and retrying the entire request with backoff (seconds).
+This is still better than the client receiving a 429 and retrying the full request with exponential backoff (5-30s). The 3s delay is a deliberate trade-off: slower individual responses in exchange for cost control and faster free-key recovery.
 
 ### Cost Guardrails
 
-The paid key is only used when all free keys are rate-limited — typically during concurrent bursts within a 60-second window. Gemini free-tier cooldowns are 30-60 seconds.
+**3-second delay on every paid-key call.** Before retrying with the paid key, the server waits 3 seconds. This serves two purposes:
+1. **Throttle:** Caps paid-key throughput at ~20 requests/minute even under sustained load
+2. **Recovery window:** Free key cooldowns are typically 30-60s. The 3s delay means every ~10th paid-key request will find a free key recovered, naturally reverting to free
+
+Combined with the existing per-IP daily token limit (50K for free tier), cost exposure is bounded:
 
 - **Normal load (1-2 users):** Paid key almost never used.
-- **Burst (debate openings, 3 concurrent):** Paid key may handle 1-2 overflow requests. Cost at flash-lite pricing: fractions of a cent.
-- **Sustained high load:** Paid key used more. The per-IP `tokensPerDay` limit (50K for free tier) caps total cost.
-- **Monitoring:** Flight recorder `ai.fallback` events with `fallback: 'paid'` track usage frequency.
+- **Burst (debate openings, 3 concurrent):** 1-2 paid-key requests with 3s delay each. Cost at flash-lite pricing: fractions of a cent. Total added latency: 3s per overflow request.
+- **Sustained high load:** Paid key used but throttled. At most ~20 requests/minute, and free keys re-enter rotation as cooldowns expire.
+- **Monitoring:** Flight recorder `ai.fallback` events with `fallback: 'paid'` and `delayMs: 3000` track usage frequency.
 
 ### Security
 
