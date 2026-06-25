@@ -146,6 +146,117 @@ function Test-AzureHealth {
                             Detail     = "runningStatus=$RunState"
                         })
                     }
+
+                    # ── Active Revision Health ───────────────────────────
+                    try {
+                        $RevJson = & az containerapp revision list -g $ResourceGroup -n $AppName --output json 2>$null
+                        if ($LASTEXITCODE -eq 0 -and $RevJson) {
+                            $Revisions = @($RevJson | ConvertFrom-Json)
+                            $ActiveRevs = @($Revisions | Where-Object {
+                                $_.PSObject.Properties['properties'] -and
+                                $_.properties.PSObject.Properties['active'] -and
+                                $_.properties.active -eq $true
+                            })
+                            foreach ($Rev in $ActiveRevs) {
+                                $RevName = if ($Rev.PSObject.Properties['name']) { $Rev.name } else { 'unknown' }
+                                $HealthState = 'Unknown'
+                                if ($Rev.properties.PSObject.Properties['healthState']) {
+                                    $HealthState = $Rev.properties.healthState
+                                }
+                                $ProvError = $null
+                                if ($Rev.properties.PSObject.Properties['provisioningError']) {
+                                    $ProvError = $Rev.properties.provisioningError
+                                }
+                                $RevDetail = "revision=$RevName healthState=$HealthState"
+                                if ($ProvError) { $RevDetail += " provisioningError=$ProvError" }
+                                $Checks.Add([PSCustomObject]@{
+                                    Check      = 'ACA Active Revision Health'
+                                    Pass       = $HealthState -eq 'Healthy' -and -not $ProvError
+                                    ResponseMs = 0
+                                    Detail     = $RevDetail
+                                })
+                            }
+                        }
+                    }
+                    catch {
+                        $Checks.Add([PSCustomObject]@{
+                            Check      = 'ACA Active Revision Health'
+                            Pass       = $false
+                            ResponseMs = 0
+                            Detail     = "revision list failed: $($_.Exception.Message)"
+                        })
+                    }
+
+                    # ── Replica Count ────────────────────────────────────
+                    $MinReplicas = 1
+                    if ($App.properties.template.PSObject.Properties['scale'] -and
+                        $App.properties.template.scale.PSObject.Properties['minReplicas']) {
+                        $MinReplicas = [int]$App.properties.template.scale.minReplicas
+                    }
+
+                    $ActiveRevision = $null
+                    if ($App.properties.PSObject.Properties['latestRevisionName']) {
+                        $ActiveRevision = $App.properties.latestRevisionName
+                    }
+
+                    if ($ActiveRevision) {
+                        try {
+                            $ReplicaJson = & az containerapp replica list -g $ResourceGroup -n $AppName --revision $ActiveRevision --output json 2>$null
+                            if ($LASTEXITCODE -eq 0 -and $ReplicaJson) {
+                                $Replicas = @($ReplicaJson | ConvertFrom-Json)
+                                $RunningCount = @($Replicas | Where-Object {
+                                    $_.PSObject.Properties['properties'] -and
+                                    $_.properties.PSObject.Properties['runningState'] -and
+                                    $_.properties.runningState -eq 'Running'
+                                }).Count
+                                $ReplicaPass = $RunningCount -ge $MinReplicas
+                                $Checks.Add([PSCustomObject]@{
+                                    Check      = 'ACA Replica Count'
+                                    Pass       = $ReplicaPass
+                                    ResponseMs = 0
+                                    Detail     = "running=$RunningCount/minReplicas=$MinReplicas"
+                                })
+
+                                # ── Container Pull Status ────────────────
+                                $BadContainers = [System.Collections.Generic.List[string]]::new()
+                                foreach ($Replica in $Replicas) {
+                                    $ReplicaName = if ($Replica.PSObject.Properties['name']) { $Replica.name } else { 'unknown' }
+                                    $Containers = @()
+                                    if ($Replica.PSObject.Properties['properties'] -and
+                                        $Replica.properties.PSObject.Properties['containers']) {
+                                        $Containers = @($Replica.properties.containers)
+                                    }
+                                    foreach ($Container in $Containers) {
+                                        $State = 'Unknown'
+                                        if ($Container.PSObject.Properties['runningState']) {
+                                            $State = $Container.runningState
+                                        }
+                                        if ($State -ne 'Running') {
+                                            $CName = if ($Container.PSObject.Properties['name']) { $Container.name } else { 'unnamed' }
+                                            $BadContainers.Add("$ReplicaName/$CName=$State")
+                                        }
+                                    }
+                                }
+                                $ContainerPass = $BadContainers.Count -eq 0
+                                $ContainerDetail = if ($ContainerPass) { "All containers Running ($($Replicas.Count) replicas)" }
+                                                   else { $BadContainers -join ', ' }
+                                $Checks.Add([PSCustomObject]@{
+                                    Check      = 'ACA Container Pull Status'
+                                    Pass       = $ContainerPass
+                                    ResponseMs = 0
+                                    Detail     = $ContainerDetail
+                                })
+                            }
+                        }
+                        catch {
+                            $Checks.Add([PSCustomObject]@{
+                                Check      = 'ACA Replica Count'
+                                Pass       = $false
+                                ResponseMs = 0
+                                Detail     = "replica list failed: $($_.Exception.Message)"
+                            })
+                        }
+                    }
                 }
                 else {
                     $Checks.Add([PSCustomObject]@{
