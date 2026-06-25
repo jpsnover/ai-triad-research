@@ -21,7 +21,7 @@ import { LineageDetailView } from '../shared/LineageDetailView';
 import type { DebateSession } from '../../types/debate';
 import { POVER_INFO } from '@lib/debate/types';
 import { ParameterHistoryPanel } from '../analysis/ParameterHistoryPanel';
-import { api } from '@bridge';
+import { api, isElectronMode } from '@bridge';
 import { trackExport } from '../../lib/analyticsEmitter';
 
 const PHASE_LABELS: Record<string, string> = {
@@ -145,6 +145,17 @@ export function DebateTab() {
       (s.topic_text && s.topic_text.toLowerCase().includes(q))
     );
   }, [orderedSessions, searchQuery]);
+
+  // Community debates filtered by the shared search box (t/951 AC#3) — matches on
+  // title (topic) and the submitter's display name (participant).
+  const filteredCommunityDebates = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return communityDebates;
+    return communityDebates.filter(cd =>
+      cd.title.toLowerCase().includes(q) ||
+      (cd.community_metadata?.submitted_by_display?.toLowerCase().includes(q) ?? false)
+    );
+  }, [communityDebates, searchQuery]);
 
   const moveSession = useCallback((id: string, direction: 'up' | 'down') => {
     // Build full order array from current display order
@@ -437,14 +448,38 @@ export function DebateTab() {
               </div>
             </>
           ) : (
+            <>
+            {communityDebates.length > 0 && (
+              <div style={{ padding: '4px 10px 2px' }}>
+                <input
+                  type="text"
+                  placeholder="Search community debates..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    width: '100%', padding: '4px 8px', fontSize: '0.8rem',
+                    border: '1px solid var(--border-color)', borderRadius: 4,
+                    background: 'var(--bg-secondary)', color: 'var(--text-primary)',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+            )}
             <div className="list-panel-items">
               {communityLoading && communityDebates.length === 0 && (
                 <div className="debate-session-empty">Loading community debates...</div>
               )}
               {!communityLoading && communityDebates.length === 0 && (
-                <div className="debate-session-empty">No community debates available yet.</div>
+                <div className="debate-session-empty">
+                  {isElectronMode()
+                    ? 'Community debates are only available in the web app — open it in your browser to browse and search shared debates.'
+                    : 'No community debates available yet.'}
+                </div>
               )}
-              {communityDebates.map((cd) => (
+              {searchQuery && filteredCommunityDebates.length === 0 && communityDebates.length > 0 && (
+                <div className="debate-session-empty">No community debates match &ldquo;{searchQuery}&rdquo;</div>
+              )}
+              {filteredCommunityDebates.map((cd) => (
                 <div
                   key={cd.id}
                   className={`debate-session-item${selectedCommunityDebate?.id === cd.id ? ' selected' : ''}`}
@@ -492,6 +527,7 @@ export function DebateTab() {
                 </div>
               ))}
             </div>
+            </>
           )}
         </div>
       )}
