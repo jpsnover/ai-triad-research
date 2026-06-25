@@ -142,6 +142,7 @@
         'Get-TriadConfig'
         'Set-TriadConfig'
         'Invoke-TriadConfigReload'
+        'Invoke-VernacularBatch'
     )
 
     # Aliases exported from this module

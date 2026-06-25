@@ -539,6 +539,7 @@ Export-ModuleMember -Function @(
     'Get-TriadConfig'
     'Set-TriadConfig'
     'Invoke-TriadConfigReload'
+    'Invoke-VernacularBatch'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'
