@@ -79,7 +79,7 @@ param authDisabled string = ''
 param authOptional string = '1'
 
 @description('Comma-separated list of admin userIds (derived storage IDs, not raw emails — see deriveStorageUserId in userContext.ts). Grants the community/calibration review UI and /api/admin/* endpoints. Sourced from the ADMIN_USERS GitHub Actions variable so personal emails stay out of public source. Defaults to jpsnover (matches the server default).')
-param adminUsers string = 'jpsnover'
+param adminUsers string = 'jpsnover,jsnover13-at-gmail-com'
 
 // ── GitHub data-sync (optional Phase-2 feature) ──
 // When enabled, web edits commit to a per-user branch in the working tree and
