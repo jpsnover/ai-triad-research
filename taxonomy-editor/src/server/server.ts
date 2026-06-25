@@ -34,7 +34,7 @@ import {
 import { GitHubAPIBackend } from './githubAPIBackend.js';
 import { SessionBranchManager } from './sessionBranchManager.js';
 import { runWithUser, getCurrentUser, getCurrentUserId, getStorageUserId, setSessionBranchName, deriveStorageUserId, isAnonymousUser } from './userContext.js';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies } from './accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies, hasEasyAuthSessionCookie } from './accessControl.js';
 import { sanitizeUserText } from './contentSanitizer.js';
 import { getRollbackStatus } from './rollbackStatus.js';
 import { getAllFlags, listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
@@ -3597,6 +3597,19 @@ function recordAuthDenied(reason: AuthDenyReason, method: string, urlPath: strin
   });
 }
 
+// t/940: a stale Easy Auth cookie (AppServiceAuthSession present but no valid
+// principal) makes the OAuth redirect loop back to the login page. Whenever we
+// serve that page, expire any such cookie so the next sign-in click starts from a
+// clean state — the auto-clear half of AC#1 (the page also offers a manual link).
+function loginPageHeaders(req: http.IncomingMessage): http.OutgoingHttpHeaders {
+  const headers: http.OutgoingHttpHeaders = { 'Content-Type': 'text/html' };
+  const cookieNames = Object.keys(parseCookies(req));
+  if (hasEasyAuthSessionCookie(cookieNames)) {
+    headers['Set-Cookie'] = expiredAuthCookies(cookieNames);
+  }
+  return headers;
+}
+
 function buildLoginPage(showAnonymous: boolean): string {
   const subtitle = showAnonymous
     ? 'Sign in for full access, or browse read-only without signing in'
@@ -3637,6 +3650,8 @@ function buildLoginPage(showAnonymous: boolean): string {
   .divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; color: #64748b; font-size: 0.8rem; }
   .divider::before, .divider::after { content: ''; flex: 1; border-top: 1px solid #334155; }
   .anon-note { color: #64748b; font-size: 0.75rem; margin-top: 4px; }
+  .clear-link { display: inline-block; margin-top: 24px; color: #64748b; font-size: 0.75rem; text-decoration: underline; }
+  .clear-link:hover { color: #94a3b8; }
 </style>
 </head>
 <body>
@@ -3656,6 +3671,7 @@ function buildLoginPage(showAnonymous: boolean): string {
     Sign in with Microsoft
   </a>
   ${anonymousSection}
+  <a class="clear-link" href="/api/auth/logout">Trouble signing in? Clear session &amp; retry</a>
 </div>
 </body>
 </html>`;
@@ -3844,7 +3860,7 @@ async function handleRequestInner(
       if (!principalName) {
         const isAnonymousSession = parseCookies(req)['auth_anonymous'] === '1';
         if (!isAnonymousSession) {
-          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.writeHead(200, loginPageHeaders(req));
           res.end(buildLoginPage(true));
           return;
         }
@@ -3861,7 +3877,7 @@ async function handleRequestInner(
           res.end(JSON.stringify({ error: 'Sign in required', reason: 'no_auth_header' }));
           return;
         }
-        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.writeHead(200, loginPageHeaders(req));
         res.end(buildLoginPage(false));
         return;
       }

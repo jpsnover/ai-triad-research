@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import path from 'path';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies } from '../accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies, hasEasyAuthSessionCookie } from '../accessControl.js';
 import { resolveTier } from '../proxyTiers.js';
 
 describe('expiredAuthCookies (t/897)', () => {
@@ -30,6 +30,19 @@ describe('expiredAuthCookies (t/897)', () => {
       expect(c).toContain('Max-Age=0');
       expect(c).toContain('Path=/');
     }
+  });
+});
+
+describe('hasEasyAuthSessionCookie (t/940)', () => {
+  it('detects a present Easy Auth session cookie, including chunked variants', () => {
+    expect(hasEasyAuthSessionCookie(['AppServiceAuthSession'])).toBe(true);
+    expect(hasEasyAuthSessionCookie(['other', 'AppServiceAuthSession1'])).toBe(true);
+    expect(hasEasyAuthSessionCookie(['appserviceauthsession'])).toBe(true); // case-insensitive
+  });
+
+  it('is false when no Easy Auth cookie is present (fresh session → no auto-clear)', () => {
+    expect(hasEasyAuthSessionCookie([])).toBe(false);
+    expect(hasEasyAuthSessionCookie(['anon_session_id', 'auth_anonymous'])).toBe(false);
   });
 });
 

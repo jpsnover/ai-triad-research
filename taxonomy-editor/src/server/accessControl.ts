@@ -64,6 +64,16 @@ export function expiredAuthCookies(presentCookieNames: string[]): string[] {
 }
 
 /**
+ * t/940: true when the request carries an Easy Auth session cookie
+ * (AppServiceAuthSession, possibly chunked). When this is present but the request
+ * is unauthenticated (no principal), the session is stale and loops the OAuth
+ * redirect — the login gate expires the cookie before serving the page.
+ */
+export function hasEasyAuthSessionCookie(cookieNames: string[]): boolean {
+  return cookieNames.some(n => /^AppServiceAuthSession/i.test(n));
+}
+
+/**
  * t/896: structured fast-fail when the caller has no usable API key for the
  * target backend — returned as a 422 before the request reaches the AI adapter
  * (which would otherwise surface an opaque upstream 401/403). Returns null (=
