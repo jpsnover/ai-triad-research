@@ -121,7 +121,12 @@ export function getProjectRoot(): string {
 
 // ── API key resolution ──
 
-export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai' | 'tavily' | 'ollama' | 'deepseek';
+// t/945 build-fix: `azure` was added to BackendId (lib/ai-client/types.ts) for
+// Azure OpenAI support, but the key-store AIBackend type wasn't updated, so
+// resolveBackend()'s BackendId no longer assigned to getApiKeys()/hasApiKey().
+// Adding it keeps BackendId ⊆ AIBackend; getApiKeys('azure') returns [] when no
+// azure key is stored (the model then falls through / 422s, as before).
+export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai' | 'tavily' | 'ollama' | 'deepseek' | 'azure';
 
 const ENV_KEY_NAMES: Record<AIBackend, string> = {
   gemini: 'GEMINI_API_KEY',
@@ -131,6 +136,7 @@ const ENV_KEY_NAMES: Record<AIBackend, string> = {
   tavily: 'TAVILY_API_KEY',
   ollama: '', // local — no key needed
   deepseek: 'DEEPSEEK_API_KEY',
+  azure: 'AZURE_OPENAI_API_KEY', // t/945 build-fix; actual Azure-backend wiring owned elsewhere
 };
 
 // Imported after AIBackend is defined (keyStore depends on the type).
