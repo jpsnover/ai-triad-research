@@ -385,14 +385,14 @@ function defaultPrBody(files: UnsyncedFile[]): string {
   if (files.length === 0) return '';
   const lines = files.slice(0, 50).map(f => `- \`${f.path}\` (${statusLabel(f.status)})`);
   const extra = files.length > 50 ? `\n\n…and ${files.length - 50} more file(s).` : '';
-  return `Edits made via the Taxonomy Editor web UI.\n\n**Changed files:**\n${lines.join('\n')}${extra}`;
+  return `Taxonomy edits made via the web UI.\n\n**Changed files:**\n${lines.join('\n')}${extra}`;
 }
 
 function CreatePrDialog({ files, status, onCancel, onDone, onError }: CreatePrDialogProps) {
   const existing = !!status.pr_number;
   const [title, setTitle] = useState(existing
     ? `Update PR #${status.pr_number}`
-    : `Web edits on ${status.session_branch ?? 'session branch'}`);
+    : `Taxonomy edits on ${status.session_branch ?? 'session branch'}`);
   const [body, setBody] = useState(defaultPrBody(files));
   const [submitting, setSubmitting] = useState(false);
 
