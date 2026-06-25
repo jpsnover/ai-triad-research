@@ -121,12 +121,13 @@ export function getProjectRoot(): string {
 
 // ── API key resolution ──
 
-// t/945 build-fix: `azure` was added to BackendId (lib/ai-client/types.ts) for
-// Azure OpenAI support, but the key-store AIBackend type wasn't updated, so
-// resolveBackend()'s BackendId no longer assigned to getApiKeys()/hasApiKey().
-// Adding it keeps BackendId ⊆ AIBackend; getApiKeys('azure') returns [] when no
-// azure key is stored (the model then falls through / 422s, as before).
-export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai' | 'tavily' | 'ollama' | 'deepseek' | 'azure';
+// t/958: derive the key-store backend union from the shared ApiKeyBackend
+// (= BackendId | 'tavily') instead of duplicating the literals — so adding a
+// backend to BackendId can't silently diverge the server type (the root cause of
+// the t/945 build break). ENV_KEY_NAMES below stays Record<AIBackend, string>, so
+// tsc flags a missing key-name entry for any newly added backend at compile time.
+import type { ApiKeyBackend } from '../../../lib/ai-client/types.js';
+export type AIBackend = ApiKeyBackend;
 
 const ENV_KEY_NAMES: Record<AIBackend, string> = {
   gemini: 'GEMINI_API_KEY',
