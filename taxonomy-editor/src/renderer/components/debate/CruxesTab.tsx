@@ -14,6 +14,7 @@ import { LinkedNodePreview } from '../shared/LinkedNodePreview';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import type { PromptCatalogEntry } from '../../data/promptCatalog';
 import { PROMPT_CATALOG } from '../../data/promptCatalog';
+import { cruxDominantState } from './cruxState';
 
 type CruxType = 'empirical' | 'values' | 'definitional';
 type ResolutionFilter = 'all' | 'active' | 'resolved' | 'irreducible';
@@ -243,12 +244,7 @@ function CruxListItem({ crux, isSelected, onSelect }: {
     }
   }, [isSelected]);
 
-  const rs = crux.resolution_summary;
-  const dominantState = rs.resolved > 0 && rs.active === 0 && rs.irreducible === 0
-    ? 'resolved'
-    : rs.irreducible > 0 && rs.active === 0
-      ? 'irreducible'
-      : 'active';
+  const dominantState = cruxDominantState(crux.resolution_summary);
 
   return (
     <div

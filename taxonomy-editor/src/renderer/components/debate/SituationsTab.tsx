@@ -22,20 +22,8 @@ import { PromptDetailPanel } from '../chat/PromptsPanel';
 import type { PromptCatalogEntry } from '../../data/promptCatalog';
 import { PROMPT_CATALOG } from '../../data/promptCatalog';
 import { api } from '@bridge';
-
-type SitSortMode = 'label' | 'id' | 'divergence';
-
-function sortSituationNodes(nodes: SituationNode[], mode: SitSortMode): SituationNode[] {
-  if (mode === 'id') return [...nodes].sort((a, b) => a.id.localeCompare(b.id));
-  if (mode === 'divergence') {
-    return [...nodes].sort((a, b) => {
-      const da = a.interpretation_divergence ?? -1;
-      const db = b.interpretation_divergence ?? -1;
-      return db - da; // highest first; nodes without score sort to end
-    });
-  }
-  return [...nodes].sort((a, b) => (a.label || '').localeCompare(b.label || ''));
-}
+import { sortSituationNodes, type SitSortMode } from './situationSort';
+import { SituationListItem } from './SituationListItem';
 
 export function SituationsTab() {
   const {
@@ -426,7 +414,7 @@ export function SituationsTab() {
                         <span className="node-tree-parent-count">{children.length}</span>
                       </div>
                       {!isGroupCollapsed && children.map((child) => (
-                        <ListItem
+                        <SituationListItem
                           key={child.id}
                           id={child.id}
                           label={child.label}
@@ -543,52 +531,6 @@ export function SituationsTab() {
           {pinnedStack.length > 0 && !hasToolbarPane && <PinnedPanel />}
         </>
       )}
-    </div>
-  );
-}
-
-const REL_LABELS: Record<string, string> = {
-  is_a: 'is a',
-  part_of: 'part of',
-  specializes: 'specializes',
-};
-
-function ListItem({ id, label, isSelected, onSelect, indent, relationship, divergence }: {
-  id: string;
-  label: string;
-  isSelected: boolean;
-  onSelect: (id: string) => void;
-  indent?: boolean;
-  relationship?: string | null;
-  divergence?: number;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (isSelected && ref.current) {
-      ref.current.scrollIntoView({ block: 'nearest' });
-    }
-  }, [isSelected]);
-
-  return (
-    <div
-      ref={ref}
-      className={`node-item ${isSelected ? 'selected' : ''}${indent ? ' node-item-child' : ''}`}
-      onClick={() => onSelect(id)}
-    >
-      <div>{label || '(untitled)'}</div>
-      <div className="node-item-id">
-        {id}
-        {relationship && <span className="node-item-rel">{REL_LABELS[relationship] || relationship}</span>}
-        {divergence != null && (
-          <span
-            className={`node-item-divergence${divergence > 0.4 ? ' high' : divergence >= 0.2 ? ' medium' : ' low'}`}
-            title={`Interpretation divergence: ${divergence.toFixed(3)}`}
-          >
-            {divergence.toFixed(2)}
-          </span>
-        )}
-      </div>
     </div>
   );
 }

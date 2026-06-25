@@ -4,6 +4,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { splitSentences, wildcardToRegex } from './sourceSearch';
 
 type SearchMode = 'raw' | 'wildcard' | 'similar';
 
@@ -11,38 +12,6 @@ interface DebateSourceViewerProps {
   content: string;
   sourceType: 'document' | 'url';
   sourceRef: string;
-}
-
-/** Split text into sentences (rough but effective) */
-function splitSentences(text: string): { text: string; start: number }[] {
-  const results: { text: string; start: number }[] = [];
-  // Split on sentence-ending punctuation followed by whitespace
-  const regex = /[^.!?\n]+[.!?\n]+[\s]*/g;
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(text)) !== null) {
-    const s = match[0].trim();
-    if (s.length > 10) { // skip very short fragments
-      results.push({ text: s, start: match.index });
-    }
-  }
-  return results;
-}
-
-/** Simple wildcard to regex conversion */
-function wildcardToRegex(pattern: string): RegExp | null {
-  try {
-    const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.');
-    return new RegExp(escaped, 'gi');
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'debate-source-viewer',
-      level: 'warn',
-      message: 'Invalid wildcard pattern',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    return null;
-  }
 }
 
 interface SearchMatch {
