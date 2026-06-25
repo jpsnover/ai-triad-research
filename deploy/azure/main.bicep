@@ -120,6 +120,10 @@ param githubWebhookSecret string = ''
 @description('Gemini API key for the anonymous free tier. When set, keyless web users get limited Gemini access (pinned model, rate-limited). Omit to keep the free tier disabled.')
 param freeTierGeminiKey string = ''
 
+@secure()
+@description('Paid Gemini API key for fallback when user has no key and free tier is exhausted. Omit to disable paid fallback.')
+param geminiPaidKey string = ''
+
 // ── Ephemeral self-hosted runner (ACI + Azure Function) ──
 @description('Enable ephemeral GitHub Actions runner infrastructure (Azure Function + ACI)')
 param ephemeralRunnerEnabled bool = false
@@ -145,6 +149,8 @@ var githubTokenProvided = !empty(githubToken)
 var githubWebhookSecretProvided = !empty(githubWebhookSecret)
 var freeTierEnabled = !empty(freeTierGeminiKey)
 var freeTierSecretName = 'free-tier-gemini-key'
+var paidTierEnabled = !empty(geminiPaidKey)
+var paidTierSecretName = 'gemini-paid-key'
 var oauthSecrets = concat(
   googleEnabled ? [ { name: googleClientSecretName, value: googleClientSecret } ] : [],
   githubEnabled ? [ { name: githubClientSecretName, value: githubClientSecret } ] : [],
@@ -152,7 +158,8 @@ var oauthSecrets = concat(
   githubTokenProvided ? [ { name: githubTokenSecretName, value: githubToken } ] : [],
   githubWebhookSecretProvided ? [ { name: githubWebhookSecretName, value: githubWebhookSecret } ] : [],
   [ { name: ghcrSecretName, value: ghcrPassword } ],
-  freeTierEnabled ? [ { name: freeTierSecretName, value: freeTierGeminiKey } ] : []
+  freeTierEnabled ? [ { name: freeTierSecretName, value: freeTierGeminiKey } ] : [],
+  paidTierEnabled ? [ { name: paidTierSecretName, value: geminiPaidKey } ] : []
 )
 
 // ── Log Analytics ──
@@ -406,9 +413,12 @@ var envWithToken = githubTokenProvided
 var envWithWebhook = githubWebhookSecretProvided
   ? concat(envWithToken, [ { name: 'GITHUB_WEBHOOK_SECRET', secretRef: githubWebhookSecretName } ])
   : envWithToken
-var containerEnv = freeTierEnabled
+var envWithFreeTier = freeTierEnabled
   ? concat(envWithWebhook, [ { name: 'FREE_TIER_GEMINI_KEY', secretRef: freeTierSecretName } ])
   : envWithWebhook
+var containerEnv = paidTierEnabled
+  ? concat(envWithFreeTier, [ { name: 'GEMINI_PAID_KEY', secretRef: paidTierSecretName } ])
+  : envWithFreeTier
 
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: 'taxonomy-editor'

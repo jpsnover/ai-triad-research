@@ -167,6 +167,7 @@ jobs:
               githubAppPrivateKeySecretName=${{ vars.SYNC_GITHUB_APP_PRIVATE_KEY_SECRET_NAME }} \
               githubWebhookSecret=${{ secrets.SYNC_GITHUB_WEBHOOK_SECRET }} \
               freeTierGeminiKey=${{ secrets.FREE_TIER_GEMINI_KEY }} \
+              geminiPaidKey=${{ secrets.GEMINI_PAID_KEY }} \
               ghcrPassword=${{ github.token }} \
             --no-pretty-print 2>&1) || true
           echo "$RESULT"
@@ -209,6 +210,7 @@ jobs:
             githubAppPrivateKeySecretName=${{ vars.SYNC_GITHUB_APP_PRIVATE_KEY_SECRET_NAME }}
             githubWebhookSecret=${{ secrets.SYNC_GITHUB_WEBHOOK_SECRET }}
             freeTierGeminiKey=${{ secrets.FREE_TIER_GEMINI_KEY }}
+            geminiPaidKey=${{ secrets.GEMINI_PAID_KEY }}
             ghcrPassword=${{ github.token }}
 
       - name: Get current active revision
