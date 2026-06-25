@@ -1,8 +1,8 @@
 # HLD: Migrate User Content from GitHub to Azure Blob Storage
 
-**Last updated:** 2026-06-20
+**Last updated:** 2026-06-25
 **Author:** Technical Lead
-**Status:** Draft
+**Status:** Complete
 
 ## Problem
 

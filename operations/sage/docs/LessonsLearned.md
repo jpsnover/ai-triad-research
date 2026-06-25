@@ -380,6 +380,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Instances:**
 - 2026-05-24 — Project Manager: push to `ai-triad-data` rejected after `embeddings.json` modified both locally and remotely. Resolved with stash/pull --rebase/take theirs/push (p/31#1).
 - 2026-05-24 — Technical Lead: push to code repo main rejected with 3 unpushed CI fixes. Resolved with stash/pull --rebase, merge conflict in `logger.ts` (kept cached `usePretty` approach), rebase --continue/stash pop/push (p/8#11).
+- 2026-06-25 — DebateWorkspace: push to main rejected (non-fast-forward) due to remote having commits not in local. Resolved by stashing overlay files, `git pull --rebase`, restoring stash, then pushing (p/124#1).
 
 **Root Cause:** Multiple agents work in parallel on the same branches. The window between local commits and push allows remote to advance, causing non-fast-forward rejections. More agents = more contention.
 
@@ -758,3 +759,24 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — ADR-005 pathspec rule already in AGENTS.md but this is the first recorded violation with real impact.
 
 **Applies To:** All agents committing to shared branches (main, shared feature branches).
+
+---
+
+## [Build] Deploy Preflight Fails on CI Matrix Job Name Mismatch
+
+**Pattern:** Deploy workflow preflight checks that match CI job names with exact string equality (`select(.name == "test-electron")`) fail when CI uses matrix strategy, which appends the matrix value to the job name (e.g., `test-electron (taxonomy-editor)`).
+
+**Instances:**
+- 2026-06-25 — DebateWorkspace: Azure deploy (run 28192219897) failed at preflight because the jq filter `select(.name == "test-electron")` didn't match the actual matrix job name `test-electron (taxonomy-editor)`. Fix: update `.github/workflows/deploy-azure.yml` to use prefix matching (`startswith("test-electron")`) or check the overall workflow conclusion instead (p/124#2).
+
+**Root Cause:** GitHub Actions matrix jobs are named `{job-name} ({matrix-value})`, not just `{job-name}`. Preflight scripts that do exact string matching on job names silently find no match, treating it as "job not found" rather than "job succeeded." This is fragile — adding or renaming matrix dimensions breaks deploy without any CI change.
+
+**Prevention:**
+1. Use prefix matching for CI job name checks: `select(.name | startswith("test-electron"))` instead of exact equality.
+2. Alternatively, check the overall workflow conclusion (`conclusion == "success"`) rather than individual job names — more resilient to CI restructuring.
+3. When adding matrix dimensions to CI jobs, grep deploy workflows for exact job name references: `grep -r "test-electron" .github/workflows/`.
+4. Test deploy preflight after any CI workflow restructuring (adding/removing matrix dimensions, renaming jobs).
+
+**Status:** Active
+
+**Applies To:** All agents modifying CI workflows or deploy preflight checks.

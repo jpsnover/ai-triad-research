@@ -1,6 +1,6 @@
 # Debate Sharing: Design Document
 
-**Last updated:** 2026-06-20
+**Last updated:** 2026-06-25
 **Author:** Technical Lead
 
 ## Overview
@@ -11,28 +11,60 @@ The taxonomy-editor supports two build targets (Electron desktop and Azure-hoste
 
 ## 1. Storage Layout
 
-All debate data lives in the `ai-triad-data` GitHub repo (or local filesystem clone for Electron).
+Debate data is split across two storage backends based on data type:
+
+- **Taxonomy & shared reference data** stay in the `ai-triad-data` GitHub repo (versioned, PR-reviewed)
+- **User content & community library** live in Azure Blob Storage (direct read/write, no versioning overhead)
+
+See `docs/hld-azure-blob-user-content.md` for the full migration rationale and design.
+
+### Azure Blob Storage (user content)
+
+Two containers, routed by path prefix in `AzureBlobBackend.containerFor()`:
 
 ```
-ai-triad-data/
-  users/                          # Per-user data root
-    {storageUserId}/
-      debates/
-        debate-{uuid}.json        # Full debate session
-        debate-{uuid}-comments.json
-        _index.json               # Lightweight listing cache
-      chats/
-        chat-{uuid}.json
-  community/                      # Shared Community Library
-    debates/
-      debate-{uuid}.json          # Approved community debates
+Storage Account: staitriad{uniqueSuffix}
+
+  Container: user-content
+    users/
+      {storageUserId}/
+        debates/
+          debate-{uuid}.json        # Full debate session
+          debate-{uuid}-comments.json
+          _index.json               # Lightweight listing cache
+        chats/
+          chat-{uuid}.json
+    admin/
+      feedback/
+        feedback-{ts}-{uuid}.json   # User feedback entries
+      errors/
+        error-{ts}-{uuid}.json      # Error reports
+
+  Container: community
     chats/
-      chat-{uuid}.json
-    _submissions/                 # Pending submission queue
-      sub-{uuid}.json             # Submission envelope (contains full data)
-  debates/                        # LEGACY (pre-multi-user, jpsnover only)
-  chats/                          # LEGACY
+      chat-{uuid}.json              # Approved community chats
+    debates/
+      debate-{uuid}.json            # Approved community debates
+    _submissions/
+      sub-{uuid}.json               # Pending submission queue
+    _removals/
+      ...                           # Removal records
+    _index.json                     # Community listing index
 ```
+
+### GitHub API (taxonomy & reference data)
+
+```
+ai-triad-data/  (GitHub repo)
+  taxonomy/Origin/                  # POV taxonomy files
+  conflicts/                       # Conflict data
+  calibration/                     # Calibration logs
+  summaries/                       # Document summaries
+```
+
+### Electron (local filesystem)
+
+On Electron desktop, both backends use `FilesystemBackend` — all data lives under the local `ai-triad-data` clone. The legacy flat paths `debates/` and `chats/` are used directly (no `users/` prefix, single user `_local`).
 
 ### User ID Derivation
 
@@ -48,14 +80,25 @@ This function is deterministic and must never change once deployed -- existing u
 
 When `storageUserId === '_local'` (Electron desktop or unauthenticated), the legacy flat paths `debates/` and `chats/` are used directly (no `users/` prefix).
 
+### Backend Routing
+
+`fileIO.ts` maintains two backend references and routes by data type:
+
+| Function | Backend | Storage Target |
+|---|---|---|
+| `getBackend()` | Taxonomy | GitHub API (versioned) |
+| `getUserContentBackend()` | User content | Azure Blob (direct writes) |
+
+User content writes are **immediately durable** — no overlay, no commit step, no session branch. The "Commit" button and `POST /api/sync/commit` apply only to taxonomy edits.
+
 ### Key Files
 
 | File | Purpose |
 |---|---|
+| `server/storage/azureBlobBackend.ts` | `AzureBlobBackend` — `StorageBackend` implementation for Azure Blob |
+| `server/storage/fileIO.ts` | Dual-backend routing (`getBackend()` / `getUserContentBackend()`) |
 | `server/userContext.ts` | `AsyncLocalStorage`-based per-request user identity |
-| `server/fileIO.ts:655-658` | `getDebatesDir()` -- routes to `users/{userId}/debates` |
-| `server/fileIO.ts:847-850` | `getChatsDir()` -- routes to `users/{userId}/chats` |
-| `server/community.ts:13-15` | Community and submission directory resolvers |
+| `server/community/community.ts` | Community listing, submission, approval, rejection, sanitization, copy |
 
 ---
 
@@ -65,65 +108,39 @@ When `storageUserId === '_local'` (Electron desktop or unauthenticated), the leg
 
 1. User runs or edits a debate in the UI
 2. Store calls `PUT /api/debates` with the full session JSON
-3. Server: `ensureSessionBranch()` lazily creates `api-session/{userId}` branch from main HEAD on first write
-4. `saveDebateSession()` in `fileIO.ts:791` performs:
+3. `saveDebateSession()` performs:
    - Quota check (count-based via `listDirectory()`)
-   - `backend.writeFile()` to `users/{userId}/debates/debate-{id}.json`
+   - `getUserContentBackend().writeFile()` to `users/{userId}/debates/debate-{id}.json`
    - Upserts lightweight `_index.json` for fast listing
-5. Write goes to the **session overlay** (in-memory map) -- no GitHub API call yet
+4. Write is **immediately durable** — no overlay, no commit step
 
 ### How Debates Persist Across Sessions
 
-The persistence mechanism differs between Electron and web:
-
 **Electron (desktop):**
 - Writes go directly to the local filesystem via `FilesystemBackend`
-- Immediately durable -- no overlay or commit step
 - Path: `{ai-triad-data}/debates/debate-{id}.json` (flat, `_local` user)
 
 **Web (Azure):**
-- Writes accumulate in the **session overlay** (in-memory `Map<repoPath, content>`)
-- On explicit "Commit" (`POST /api/sync/commit`), `commitOverlay()` flushes all pending writes to GitHub via the Trees API as a single batch commit on the user's session branch
-- The session branch (`api-session/{userId}`) persists on GitHub across browser sessions -- the user's work is durable once committed
-- On next login, `getEffectiveRef()` resolves to the existing session branch; reads check overlay first, then disk cache, then GitHub API
+- Writes go directly to Azure Blob Storage via `AzureBlobBackend`
+- Path: `users/{userId}/debates/debate-{id}.json` in the `user-content` container
+- No session branch, overlay, or commit step — the Blob write is the persistence event
+- Auth: `DefaultAzureCredential` (Managed Identity in Azure)
 
 **Anonymous (web, no auth):**
 - Writes go to `AnonymousSessionStore` (in-memory, backed by shared filesystem at `/mnt/shared`)
 - 4-hour TTL, 10 MB limit per session, LRU eviction at 100 sessions
-- Data is deliberately ephemeral -- signing in is the path to persistence
-
-### Commit and Sync Flow
-
-```
-User edits debate
-    |
-    v
-PUT /api/debates  -->  ensureSessionBranch()  -->  overlay.set(path, content)
-    |
-    |  (later, user clicks "Commit")
-    v
-POST /api/sync/commit  -->  commitOverlay(userId)
-    |
-    v
-GitHub Trees API batch commit to api-session/{userId}
-    |
-    |  (later, user clicks "Create PR")
-    v
-POST /api/sync/create-pr  -->  GitHub PR from session branch to main
-```
-
-The sync status bar (`GET /api/sync/status`) shows pending overlay count, session branch name, and PR status.
+- Data is deliberately ephemeral — signing in is the path to persistence
 
 ---
 
 ## 3. Community Library
 
-Community debates live at `community/debates/` on the **main** branch. They are shared, read-only content visible to all authenticated users.
+Community debates live in the `community` Blob container at `debates/`. They are shared, read-only content visible to all authenticated users.
 
 ### Browsing Community Debates
 
-1. `GET /api/community/debates` calls `listCommunityDebates()` in `community.ts:53-74`
-2. Reads from `community/debates/` on main (passes `{ ref: 'main' }` to both `listDirectory` and `readFile`)
+1. `GET /api/community/debates` calls `listCommunityDebates()` in `community.ts`
+2. Reads from `community/debates/` via `getUserContentBackend()` (routed to the `community` Blob container)
 3. Returns lightweight summaries: `{ id, title, created_at, updated_at, phase, community_metadata }`
 4. Client `useCommunityStore` caches the list
 
@@ -161,7 +178,7 @@ Community debates live at `community/debates/` on the **main** branch. They are 
        "data": { /* full debate session JSON */ }
      }
      ```
-   - Writes to `community/_submissions/sub-{id}.json` on **main** (not the session overlay -- community data is shared)
+   - Writes to `community/_submissions/sub-{id}.json` via `getUserContentBackend()` (routed to `community` Blob container)
    - If submitter is an admin, auto-approves immediately
 
 ### Step 2: Admin Reviews
@@ -305,31 +322,29 @@ Admin users are defined by `ADMIN_USERS` env var (default: `jpsnover`), matched 
 
 | Aspect | Electron | Web (Azure) |
 |---|---|---|
-| Storage backend | `FilesystemBackend` (local disk) | `GitHubAPIBackend` (GitHub API) |
-| Write durability | Immediate (fs.writeFileSync) | Overlay → commit → GitHub |
-| User isolation | Single user (`_local`) | Per-user directories |
+| Taxonomy backend | `FilesystemBackend` (local disk) | `GitHubAPIBackend` (GitHub API) |
+| User content backend | `FilesystemBackend` (local disk) | `AzureBlobBackend` (Azure Blob Storage) |
+| Write durability | Immediate (fs.writeFileSync) | Immediate (Blob HTTP PUT) |
+| User isolation | Single user (`_local`) | Per-user directories in `user-content` container |
 | Community access | Can submit to remote server via `communitySubmit` bridge | Direct REST calls |
-| Session branches | N/A | `api-session/{userId}` on GitHub |
+| Session branches | N/A | Taxonomy edits only (`api-session/{userId}`) |
 | Anonymous mode | N/A | In-memory + shared filesystem |
-| Debate path | `{dataRoot}/debates/` | `{dataRoot}/users/{userId}/debates/` |
+| Debate path | `{dataRoot}/debates/` | `users/{userId}/debates/` in `user-content` container |
 
 ---
 
 ## 8. Key Implementation Files
 
-| File | Lines | Responsibility |
-|---|---|---|
-| `server/userContext.ts` | 1-102 | Per-request user identity via AsyncLocalStorage |
-| `server/fileIO.ts` | 655-811 | Debate CRUD with per-user routing, quota checks, index maintenance |
-| `server/community.ts` | 1-281 | Community listing, submission, approval, rejection, sanitization, copy |
-| `server/githubAPIBackend.ts` | 362-430 | `writeFile()` overlay routing; 789-900 `commitOverlay()` batch flush |
-| `server/server.ts` | 176-180 | `ensureSessionBranch()` lazy branch creation |
-| `server/server.ts` | 1003-1054 | Debate REST endpoints (CRUD + export) |
-| `server/server.ts` | 1125-2147 | Sync endpoints (commit, diff, create-pr, discard) |
-| `server/server.ts` | 1288-1373 | Admin review endpoints (queue, detail, action, stats) |
-| `server/admin/reviewRegistry.ts` | 30-171 | Multi-domain review aggregation and routing |
-| `server/admin/communityReviewHandler.ts` | 96-160 | Community-specific review logic + sanitization preview |
-| `renderer/hooks/useCommunityStore.ts` | all | Zustand store for community browsing |
-| `renderer/components/settings/AdminReviewPanel.tsx` | 387-517 | Admin review queue UI |
-| `renderer/components/settings/CommunityReviewViewer.tsx` | 63-265 | Community detail viewer with edit-on-promote |
-| `renderer/bridge/types.ts` | 192-200 | Bridge method signatures for community operations |
+| File | Responsibility |
+|---|---|
+| `server/storage/azureBlobBackend.ts` | `AzureBlobBackend` — `StorageBackend` for Azure Blob with dual-container routing |
+| `server/storage/fileIO.ts` | Dual-backend routing, debate/chat CRUD, quota checks, index maintenance |
+| `server/userContext.ts` | Per-request user identity via AsyncLocalStorage |
+| `server/community/community.ts` | Community listing, submission, approval, rejection, sanitization, copy |
+| `server/server.ts` | Backend initialization (`USER_CONTENT_STORAGE` gating), REST endpoints |
+| `server/admin/reviewRegistry.ts` | Multi-domain review aggregation and routing |
+| `server/admin/communityReviewHandler.ts` | Community-specific review logic + sanitization preview |
+| `renderer/hooks/useCommunityStore.ts` | Zustand store for community browsing |
+| `renderer/components/settings/AdminReviewPanel.tsx` | Admin review queue UI |
+| `renderer/components/settings/CommunityReviewViewer.tsx` | Community detail viewer with edit-on-promote |
+| `renderer/bridge/types.ts` | Bridge method signatures for community operations |
