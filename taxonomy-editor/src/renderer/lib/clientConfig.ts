@@ -42,6 +42,22 @@ export interface ClientConfig {
     gracePeriodMs: number;
     timeoutMs: number;
   };
+  debate: {
+    defaultConfrontationRounds: number;
+    defaultArgumentationRounds: number;
+    defaultConcludingRounds: number;
+    defaultTemperature: number;
+    briefStageTemperature: number;
+    planStageTemperature: number;
+    draftStageTemperature: number;
+    citeStageTemperature: number;
+    evaluatorTemperature: number;
+    summarizationTemperature: number;
+    summarizationMaxTokens: number;
+    evaluatorMaxTokens: number;
+    defaultTimeoutMs: number;
+    maxRegenAttempts: number;
+  };
 }
 
 const DEFAULTS: ClientConfig = {
@@ -76,6 +92,22 @@ const DEFAULTS: ClientConfig = {
     exitFactor: 1.5,
     gracePeriodMs: 15_000,
     timeoutMs: 10_000,
+  },
+  debate: {
+    defaultConfrontationRounds: 1,
+    defaultArgumentationRounds: 2,
+    defaultConcludingRounds: 1,
+    defaultTemperature: 0.7,
+    briefStageTemperature: 0.15,
+    planStageTemperature: 0.4,
+    draftStageTemperature: 0.7,
+    citeStageTemperature: 0.15,
+    evaluatorTemperature: 0.2,
+    summarizationTemperature: 0.3,
+    summarizationMaxTokens: 500,
+    evaluatorMaxTokens: 8192,
+    defaultTimeoutMs: 120_000,
+    maxRegenAttempts: 3,
   },
 };
 

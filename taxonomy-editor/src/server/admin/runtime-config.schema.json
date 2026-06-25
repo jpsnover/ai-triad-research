@@ -146,6 +146,27 @@
       "properties": {
         "defaultTtlMs": { "type": "integer", "minimum": 0, "maximum": 86400000, "description": "Default cache TTL (ms). Default 30000." }
       }
+    },
+    "debate": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Per-phase debate parameters (round limits, stage temperatures, token limits, timeouts).",
+      "properties": {
+        "defaultConfrontationRounds": { "type": "integer", "minimum": 1, "maximum": 20, "description": "Confrontation phase rounds. Default 1." },
+        "defaultArgumentationRounds": { "type": "integer", "minimum": 1, "maximum": 20, "description": "Argumentation phase rounds. Default 2." },
+        "defaultConcludingRounds": { "type": "integer", "minimum": 1, "maximum": 20, "description": "Concluding phase rounds. Default 1." },
+        "defaultTemperature": { "type": "number", "minimum": 0, "maximum": 2, "description": "Default debate temperature (user-facing slider default). Default 0.7." },
+        "briefStageTemperature": { "type": "number", "minimum": 0, "maximum": 2, "description": "Brief (context extraction) stage temperature. Default 0.15." },
+        "planStageTemperature": { "type": "number", "minimum": 0, "maximum": 2, "description": "Plan (strategy selection) stage temperature. Default 0.4." },
+        "draftStageTemperature": { "type": "number", "minimum": 0, "maximum": 2, "description": "Draft (argument generation) stage temperature. Default 0.7." },
+        "citeStageTemperature": { "type": "number", "minimum": 0, "maximum": 2, "description": "Cite (evidence grounding) stage temperature. Default 0.15." },
+        "evaluatorTemperature": { "type": "number", "minimum": 0, "maximum": 2, "description": "Neutral evaluator temperature. Default 0.2." },
+        "summarizationTemperature": { "type": "number", "minimum": 0, "maximum": 2, "description": "Synthesis/summarization temperature. Default 0.3." },
+        "summarizationMaxTokens": { "type": "integer", "minimum": 100, "maximum": 32768, "description": "Max tokens for summarization output. Default 500." },
+        "evaluatorMaxTokens": { "type": "integer", "minimum": 100, "maximum": 32768, "description": "Max tokens for evaluator output. Default 8192." },
+        "defaultTimeoutMs": { "type": "integer", "minimum": 5000, "maximum": 86400000, "description": "Default AI call timeout (ms). Default 120000." },
+        "maxRegenAttempts": { "type": "integer", "minimum": 0, "maximum": 10, "description": "Max regeneration attempts per turn. Default 3." }
+      }
     }
   },
   "$defs": {

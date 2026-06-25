@@ -99,6 +99,22 @@ export interface RuntimeConfig {
   cache: {
     defaultTtlMs: number;
   };
+  debate: {
+    defaultConfrontationRounds: number;
+    defaultArgumentationRounds: number;
+    defaultConcludingRounds: number;
+    defaultTemperature: number;
+    briefStageTemperature: number;
+    planStageTemperature: number;
+    draftStageTemperature: number;
+    citeStageTemperature: number;
+    evaluatorTemperature: number;
+    summarizationTemperature: number;
+    summarizationMaxTokens: number;
+    evaluatorMaxTokens: number;
+    defaultTimeoutMs: number;
+    maxRegenAttempts: number;
+  };
 }
 
 export const KNOWN_BACKENDS = ['gemini', 'claude', 'groq'] as const;
@@ -176,6 +192,22 @@ const DEFAULTS: RuntimeConfig = {
   },
   cache: {
     defaultTtlMs: 30_000,
+  },
+  debate: {
+    defaultConfrontationRounds: 1,
+    defaultArgumentationRounds: 2,
+    defaultConcludingRounds: 1,
+    defaultTemperature: 0.7,
+    briefStageTemperature: 0.15,
+    planStageTemperature: 0.4,
+    draftStageTemperature: 0.7,
+    citeStageTemperature: 0.15,
+    evaluatorTemperature: 0.2,
+    summarizationTemperature: 0.3,
+    summarizationMaxTokens: 500,
+    evaluatorMaxTokens: 8192,
+    defaultTimeoutMs: 120_000,
+    maxRegenAttempts: 3,
   },
 };
 
@@ -290,6 +322,7 @@ export function validateAndMerge(raw: unknown, defaults: RuntimeConfig): { confi
   const fb = section(r, 'feedback', errors);
   const srv = section(r, 'server', errors);
   const cache = section(r, 'cache', errors);
+  const deb = section(r, 'debate', errors);
 
   let resilience: RuntimeConfig['resilience'] = {
     circuitThreshold: vNum(res.circuitThreshold, defaults.resilience.circuitThreshold, { min: 1, max: 1_000, integer: true }, 'resilience.circuitThreshold', errors),
@@ -367,6 +400,22 @@ export function validateAndMerge(raw: unknown, defaults: RuntimeConfig): { confi
     },
     cache: {
       defaultTtlMs: vNum(cache.defaultTtlMs, defaults.cache.defaultTtlMs, { min: 0, max: DURATION_MAX }, 'cache.defaultTtlMs', errors),
+    },
+    debate: {
+      defaultConfrontationRounds: vNum(deb.defaultConfrontationRounds, defaults.debate.defaultConfrontationRounds, { min: 1, max: 20, integer: true }, 'debate.defaultConfrontationRounds', errors),
+      defaultArgumentationRounds: vNum(deb.defaultArgumentationRounds, defaults.debate.defaultArgumentationRounds, { min: 1, max: 20, integer: true }, 'debate.defaultArgumentationRounds', errors),
+      defaultConcludingRounds: vNum(deb.defaultConcludingRounds, defaults.debate.defaultConcludingRounds, { min: 1, max: 20, integer: true }, 'debate.defaultConcludingRounds', errors),
+      defaultTemperature: vNum(deb.defaultTemperature, defaults.debate.defaultTemperature, { min: 0, max: 2 }, 'debate.defaultTemperature', errors),
+      briefStageTemperature: vNum(deb.briefStageTemperature, defaults.debate.briefStageTemperature, { min: 0, max: 2 }, 'debate.briefStageTemperature', errors),
+      planStageTemperature: vNum(deb.planStageTemperature, defaults.debate.planStageTemperature, { min: 0, max: 2 }, 'debate.planStageTemperature', errors),
+      draftStageTemperature: vNum(deb.draftStageTemperature, defaults.debate.draftStageTemperature, { min: 0, max: 2 }, 'debate.draftStageTemperature', errors),
+      citeStageTemperature: vNum(deb.citeStageTemperature, defaults.debate.citeStageTemperature, { min: 0, max: 2 }, 'debate.citeStageTemperature', errors),
+      evaluatorTemperature: vNum(deb.evaluatorTemperature, defaults.debate.evaluatorTemperature, { min: 0, max: 2 }, 'debate.evaluatorTemperature', errors),
+      summarizationTemperature: vNum(deb.summarizationTemperature, defaults.debate.summarizationTemperature, { min: 0, max: 2 }, 'debate.summarizationTemperature', errors),
+      summarizationMaxTokens: vNum(deb.summarizationMaxTokens, defaults.debate.summarizationMaxTokens, { min: 100, max: 32_768, integer: true }, 'debate.summarizationMaxTokens', errors),
+      evaluatorMaxTokens: vNum(deb.evaluatorMaxTokens, defaults.debate.evaluatorMaxTokens, { min: 100, max: 32_768, integer: true }, 'debate.evaluatorMaxTokens', errors),
+      defaultTimeoutMs: vNum(deb.defaultTimeoutMs, defaults.debate.defaultTimeoutMs, { min: 5_000, max: DURATION_MAX }, 'debate.defaultTimeoutMs', errors),
+      maxRegenAttempts: vNum(deb.maxRegenAttempts, defaults.debate.maxRegenAttempts, { min: 0, max: 10, integer: true }, 'debate.maxRegenAttempts', errors),
     },
   };
 
@@ -550,6 +599,7 @@ export interface ClientConfig {
   resilience: RuntimeConfig['resilience'];
   flightRecorder: Pick<RuntimeConfig['flightRecorder'], 'minDumpIntervalMs' | 'maxDumpsPerWindow' | 'dumpWindowMs'>;
   analytics: Pick<RuntimeConfig['analytics'], 'bufferRequeueLimit'>;
+  debate: RuntimeConfig['debate'];
 }
 
 /**
@@ -567,5 +617,6 @@ export function getClientConfig(): ClientConfig {
       dumpWindowMs: c.flightRecorder.dumpWindowMs,
     },
     analytics: { bufferRequeueLimit: c.analytics.bufferRequeueLimit },
+    debate: c.debate,
   };
 }

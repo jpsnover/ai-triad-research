@@ -271,11 +271,18 @@ describe('REST-endpoint support — file round-trip (t/927)', () => {
     expect(diffFromDefaults()).toEqual([{ path: 'resilience.circuitThreshold', current: 9, default: 5 }]);
   });
 
-  it('getClientConfig exposes only resilience + flightRecorder subset + analytics (AC#5)', () => {
+  it('getClientConfig exposes only resilience + flightRecorder subset + analytics + debate (AC#5)', () => {
     const client = getClientConfig();
-    expect(Object.keys(client).sort()).toEqual(['analytics', 'flightRecorder', 'resilience']);
+    expect(Object.keys(client).sort()).toEqual(['analytics', 'debate', 'flightRecorder', 'resilience']);
     expect(Object.keys(client.flightRecorder).sort()).toEqual(['dumpWindowMs', 'maxDumpsPerWindow', 'minDumpIntervalMs']);
     expect(Object.keys(client.analytics)).toEqual(['bufferRequeueLimit']);
     expect(client.resilience.circuitThreshold).toBe(5);
+    expect(client.debate).toEqual({
+      defaultConfrontationRounds: 1, defaultArgumentationRounds: 2, defaultConcludingRounds: 1,
+      defaultTemperature: 0.7, briefStageTemperature: 0.15, planStageTemperature: 0.4,
+      draftStageTemperature: 0.7, citeStageTemperature: 0.15, evaluatorTemperature: 0.2,
+      summarizationTemperature: 0.3, summarizationMaxTokens: 500, evaluatorMaxTokens: 8192,
+      defaultTimeoutMs: 120_000, maxRegenAttempts: 3,
+    });
   });
 });

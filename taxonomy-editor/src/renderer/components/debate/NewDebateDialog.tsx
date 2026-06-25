@@ -17,6 +17,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { loadProvisionalWeights } from '@lib/debate/phaseTransitions';
 import { resolveMultiProviderModels } from '@lib/ai-client/modelRouter';
 import { useTierInfo, isFreeTier } from '../../hooks/useTierInfo';
+import { getClientConfig } from '../../lib/clientConfig';
 
 // Ollama (local quantized models) cannot reliably produce structured JSON for debate pipelines.
 const DEBATE_EXCLUDED_BACKENDS = new Set(['ollama']);
@@ -202,9 +203,10 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const defaultBounds = useMemo(() => {
     try { const w = loadProvisionalWeights(); return w.phase_bounds; } catch { /* telemetry — silent by design: missing weights file is expected on first launch */ return null; }
   }, []);
-  const [confrontationRounds, setConfrontationRounds] = useState(defaultBounds?.max_confrontation_rounds ?? 2);
-  const [argumentationRounds, setArgumentationRounds] = useState(defaultBounds?.max_argumentation_rounds ?? 2);
-  const [concludingRounds, setConcludingRounds] = useState(defaultBounds?.max_concluding_rounds ?? 1);
+  const debateConfig = getClientConfig().debate;
+  const [confrontationRounds, setConfrontationRounds] = useState(defaultBounds?.max_confrontation_rounds ?? debateConfig.defaultConfrontationRounds);
+  const [argumentationRounds, setArgumentationRounds] = useState(defaultBounds?.max_argumentation_rounds ?? debateConfig.defaultArgumentationRounds);
+  const [concludingRounds, setConcludingRounds] = useState(defaultBounds?.max_concluding_rounds ?? debateConfig.defaultConcludingRounds);
   const [evaluatorModel, setEvaluatorModel] = useState('');
   const [multiProvider, setMultiProvider] = useState(false);
   const [modelTier, setModelTier] = useState<'basic' | 'advanced'>('basic');
