@@ -44,7 +44,7 @@ function Switch-TaxEditorRevision {
         [string]$AppName = 'taxonomy-editor',
 
         [Parameter()]
-        [string]$BaseUrl = 'https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io',
+        [string]$BaseUrl = 'https://taxonomy-editor.gentlecoast-20f0bd5b.eastus2.azurecontainerapps.io',
 
         [Parameter()]
         [switch]$SkipHealthCheck
