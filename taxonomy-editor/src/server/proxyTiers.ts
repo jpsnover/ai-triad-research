@@ -165,6 +165,26 @@ export function freeTierEnabled(): boolean {
 }
 
 /**
+ * t/945: a BYOK user with no key for the requested backend falls back to the
+ * free-tier Gemini pool — so a Claude-only user isn't 422'd on the Gemini-pinned
+ * helper stages (BRIEF/CITE). Returns the fallback key(s), or undefined when no
+ * fallback applies (already has a key, not BYOK, not Gemini, or pool unset).
+ * Per-user rate limiting still bounds usage (the caller keys on the principal).
+ */
+export function byokGeminiFallbackKey(
+  tierLevel: TierLevel,
+  backend: string,
+  currentKey: string | string[] | undefined,
+): string | string[] | undefined {
+  const haveKey = (typeof currentKey === 'string' && currentKey.length > 0)
+    || (Array.isArray(currentKey) && currentKey.length > 0);
+  if (haveKey || tierLevel !== 'byok' || backend !== 'gemini') return undefined;
+  const freeKeys = parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY);
+  if (freeKeys.length === 0) return undefined;
+  return freeKeys.length === 1 ? freeKeys[0] : freeKeys;
+}
+
+/**
  * Free-tier per-minute request budget scaled by the key-pool size (t/906): each
  * Gemini key carries its own 6 RPM and the rotator spreads load across them, so
  * the server limit is 6 × keyCount, capped at 30 to bound abuse.

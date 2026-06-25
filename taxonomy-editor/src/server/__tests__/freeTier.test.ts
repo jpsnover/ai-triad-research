@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { resolveTier, freeTierEnabled, isBackendAllowed, parseFreeTierKeys, scaledFreeTierRpm } from '../proxyTiers.js';
+import { resolveTier, freeTierEnabled, isBackendAllowed, parseFreeTierKeys, scaledFreeTierRpm, byokGeminiFallbackKey } from '../proxyTiers.js';
 
 describe('free-tier RPM scales with key-pool size (t/906)', () => {
   afterEach(() => { delete process.env.FREE_TIER_GEMINI_KEY; });
@@ -97,5 +97,34 @@ describe('free tier (t/793)', () => {
     expect(isBackendAllowed(tier, 'gemini')).toBe(true);
     expect(isBackendAllowed(tier, 'openai')).toBe(false);
     expect(isBackendAllowed(tier, 'groq')).toBe(false);
+  });
+});
+
+describe('byokGeminiFallbackKey (t/945)', () => {
+  afterEach(() => { delete process.env.FREE_TIER_GEMINI_KEY; });
+
+  it('gives a Claude-only BYOK user the free-tier Gemini pool on Gemini stages (AC#1/#2)', () => {
+    process.env.FREE_TIER_GEMINI_KEY = 'k1,k2';
+    expect(byokGeminiFallbackKey('byok', 'gemini', undefined)).toEqual(['k1', 'k2']);
+    process.env.FREE_TIER_GEMINI_KEY = 'only';
+    expect(byokGeminiFallbackKey('byok', 'gemini', undefined)).toBe('only');
+  });
+
+  it('does NOT override a key the BYOK user already has', () => {
+    process.env.FREE_TIER_GEMINI_KEY = 'k1';
+    expect(byokGeminiFallbackKey('byok', 'gemini', 'user-gemini-key')).toBeUndefined();
+    expect(byokGeminiFallbackKey('byok', 'gemini', ['a', 'b'])).toBeUndefined();
+  });
+
+  it('only applies to BYOK + gemini (AC#5: platform/free/other backends unchanged)', () => {
+    process.env.FREE_TIER_GEMINI_KEY = 'k1';
+    expect(byokGeminiFallbackKey('byok', 'claude', undefined)).toBeUndefined(); // non-gemini backend
+    expect(byokGeminiFallbackKey('platform', 'gemini', undefined)).toBeUndefined();
+    expect(byokGeminiFallbackKey('anonymous', 'gemini', undefined)).toBeUndefined();
+    expect(byokGeminiFallbackKey('free', 'gemini', undefined)).toBeUndefined();
+  });
+
+  it('returns undefined when the free-tier pool is unset (still 422s, as before)', () => {
+    expect(byokGeminiFallbackKey('byok', 'gemini', undefined)).toBeUndefined();
   });
 });

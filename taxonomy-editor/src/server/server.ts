@@ -1173,13 +1173,20 @@ post('/api/ai/generate', async (req, res, body) => {
       explicitKey = freeKeys.length === 1 ? freeKeys[0] : freeKeys;
     } else {
       explicitKey = tier.level === 'platform' ? undefined : (clientKey || undefined);
+      // t/945: a BYOK user with no key for the requested backend (e.g. Claude-only,
+      // hitting the Gemini-pinned BRIEF/CITE helper stages) falls back to the
+      // free-tier Gemini pool instead of a 422. Per-user rate limiting (limitKey =
+      // principal, not free:IP) still bounds it.
+      explicitKey = explicitKey ?? proxyTiers.byokGeminiFallbackKey(tier.level, backend, explicitKey);
     }
 
     // t/896: fail fast with a clear, actionable error when there is no usable key
     // for the target backend — before the request reaches the AI adapter (which
     // would otherwise surface an opaque upstream 401/403). Free tier
-    // (server-provided key) is exempt; hasApiKey() covers env-backed keys, so
-    // env-configured backends (e.g. Gemini/Groq) never trip this for BYOK users.
+    // (server-provided key) is exempt, and t/945 resolves a free-tier Gemini key
+    // above for Claude-only BYOK users. hasApiKey() only finds a *deployed*
+    // GEMINI_API_KEY/AI_API_KEY — prod sets neither (only FREE_TIER_GEMINI_KEY),
+    // so env-backed Gemini does NOT save a BYOK user here.
     const haveExplicitKey = (typeof explicitKey === 'string' && explicitKey.length > 0)
       || (Array.isArray(explicitKey) && explicitKey.length > 0);
     const missingKey = missingApiKeyError({
