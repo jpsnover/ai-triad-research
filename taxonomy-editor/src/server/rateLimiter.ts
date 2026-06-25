@@ -117,13 +117,21 @@ export function checkTokenLimit(userId: string, limit: number): RateCheckResult 
   return { allowed: bucket.total < limit, current: bucket.total, limit };
 }
 
-export function getUsage(userId: string): { requestsInWindow: number; tokensToday: number } {
+// t/964: daily token buckets key on the UTC date (today()), so the budget resets
+// at 00:00 UTC. Exposed so the budget UI can show "resets in Xh" without
+// re-deriving the boundary client-side.
+function nextDailyResetUtc(): string {
+  const d = new Date();
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1)).toISOString();
+}
+
+export function getUsage(userId: string): { requestsInWindow: number; tokensToday: number; resetsAt: string } {
   const now = Date.now();
   const cutoff = now - getConfig().rateLimiting.windowMs;
   const timestamps = requestWindows.get(userId) ?? [];
   const active = timestamps.filter(t => t >= cutoff).length;
   const bucket = getBucket(userId);
-  return { requestsInWindow: active, tokensToday: bucket.total };
+  return { requestsInWindow: active, tokensToday: bucket.total, resetsAt: nextDailyResetUtc() };
 }
 
 // ── Periodic cleanup ──
