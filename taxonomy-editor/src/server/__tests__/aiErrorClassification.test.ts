@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { is429Error, retryAfterMs } from '../aiBackends.js';
+import { is429Error, retryAfterMs, isContextTooLongError } from '../aiBackends.js';
 
 describe('is429Error — upstream rate-limit detection (t/920)', () => {
   it('detects the provider rate-limit signals that should yield a retryable 429', () => {
@@ -41,5 +41,32 @@ describe('retryAfterMs — backoff hint parsing (t/920)', () => {
   it('defaults to 30s when no hint is present', () => {
     expect(retryAfterMs(new Error('RESOURCE_EXHAUSTED'))).toBe(30_000);
     expect(retryAfterMs(undefined)).toBe(30_000);
+  });
+});
+
+describe('isContextTooLongError + RESOURCE_EXHAUSTED disambiguation (t/997)', () => {
+  it('detects context-window-exceeded errors (incl. Gemini RESOURCE_EXHAUSTED variants)', () => {
+    expect(isContextTooLongError(new Error('The input token count (1052480) exceeds the maximum number of tokens allowed (1048576)'))).toBe(true);
+    expect(isContextTooLongError(new Error('RESOURCE_EXHAUSTED: input token count exceeds the limit'))).toBe(true);
+    expect(isContextTooLongError(new Error('context length exceeded'))).toBe(true);
+    expect(isContextTooLongError(new Error('maximum context window is 32768 tokens'))).toBe(true);
+    expect(isContextTooLongError(new Error('Input too long for this model'))).toBe(true);
+    expect(isContextTooLongError(new Error('Request payload size exceeds the limit'))).toBe(true);
+  });
+
+  it('does NOT flag rate-limit / RPM-TPM quota messages as context-overflow', () => {
+    expect(isContextTooLongError(new Error('429 Too Many Requests'))).toBe(false);
+    expect(isContextTooLongError(new Error("Quota exceeded for quota metric 'Generate Content API requests per minute'"))).toBe(false);
+    expect(isContextTooLongError(new Error('Rate limit exceeded for this key'))).toBe(false);
+    expect(isContextTooLongError(new Error('RESOURCE_EXHAUSTED'))).toBe(false); // bare → rate-limit
+  });
+
+  it('RESOURCE_EXHAUSTED splits correctly: rate-limit → 429, context-overflow → NOT 429 (AC#1/#6/#7)', () => {
+    // Rate-limit variant stays a 429.
+    expect(is429Error(new Error('RESOURCE_EXHAUSTED: requests per minute exceeded'))).toBe(true);
+    expect(is429Error(new Error("Quota exceeded for 'tokens per minute'"))).toBe(true);
+    // Context-overflow variant is NOT a 429 (→ the handler returns 400).
+    expect(is429Error(new Error('RESOURCE_EXHAUSTED: The input token count exceeds the maximum number of tokens allowed'))).toBe(false);
+    expect(is429Error(new Error('Input too long for this model'))).toBe(false);
   });
 });

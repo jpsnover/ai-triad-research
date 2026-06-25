@@ -1288,6 +1288,20 @@ post('/api/ai/generate', async (req, res, body) => {
     // fire concurrently on a single free-tier key) was collapsing into an opaque,
     // non-retryable HTTP 500. Surface it as a retryable 429 with Retry-After so the
     // debate flow can back off + retry instead of treating it as a fatal error.
+    // t/997: Gemini surfaces a too-long context window as RESOURCE_EXHAUSTED, which
+    // would otherwise be misread as a 429. It's a 400-class error (retrying won't
+    // help) — return context_too_long so the client shows the right message.
+    if (ai.isContextTooLongError(err)) {
+      log.server.warn({ component: 'ai-generate', model: model ?? 'default' }, 'AI generate input exceeds model context window');
+      getGlobalRecorder()?.record({
+        type: 'ai.error', component: 'ai-generate', level: 'warn',
+        message: 'AI generate input too long for model context window',
+        data: { model: model ?? 'default', source: 'context_overflow' },
+      });
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'context_too_long', message: 'Input exceeds the model context window — try a shorter prompt or a model with a larger context window' }));
+      return;
+    }
     if (ai.is429Error(err)) {
       const retry = ai.retryAfterMs(err);
       log.server.warn({ component: 'ai-generate', model: model ?? 'default', retryAfterMs: retry }, 'AI generate upstream rate-limited — returning 429');
@@ -1316,6 +1330,17 @@ post('/api/ai/search', async (_req, res, body) => {
   try {
     json(res, await ai.generateTextWithSearch(prompt, model));
   } catch (err) {
+    if (ai.isContextTooLongError(err)) {
+      log.server.warn({ component: 'ai-search', model: model ?? 'default' }, 'AI search input exceeds model context window');
+      getGlobalRecorder()?.record({
+        type: 'ai.error', component: 'ai-search', level: 'warn',
+        message: 'AI search input too long for model context window',
+        data: { model: model ?? 'default', source: 'context_overflow' },
+      });
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'context_too_long', message: 'Input exceeds the model context window — try a shorter prompt or a model with a larger context window' }));
+      return;
+    }
     if (ai.is429Error(err)) {
       const retry = ai.retryAfterMs(err);
       log.server.warn({ component: 'ai-search', model: model ?? 'default', retryAfterMs: retry }, 'AI search upstream rate-limited — returning 429');

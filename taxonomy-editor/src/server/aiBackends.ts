@@ -267,9 +267,29 @@ function reportProviderRetry(
 
 /** Heuristic 429/rate-limit detection from a provider error (t/835). */
 export function is429Error(err: unknown): boolean {
+  // t/997: Gemini returns RESOURCE_EXHAUSTED for BOTH RPM/TPM rate limits AND a
+  // too-long context window. Only the rate-limit variant is a 429 — context
+  // overflow is a 400-class error, so it must not trigger 429 handling, paid
+  // fallback, or retries.
+  if (isContextTooLongError(err)) return false;
   const s = String((err as Error)?.message ?? err);
   return /\b429\b/.test(s) || /rate.?limit/i.test(s) || /RESOURCE_EXHAUSTED/i.test(s)
     || /\bquota\b/i.test(s) || /too many requests/i.test(s);
+}
+
+/**
+ * t/997: detect a context-window-exceeded error (input too long for the model).
+ * Gemini surfaces these as RESOURCE_EXHAUSTED too, so without this they'd be
+ * misread as a rate limit. Matches context-overflow phrasings while deliberately
+ * NOT matching RPM/TPM quota messages ("per minute", "requests", "rate limit").
+ */
+export function isContextTooLongError(err: unknown): boolean {
+  const s = String((err as Error)?.message ?? err).toLowerCase();
+  return /context[ _-]?(length|window)/.test(s)
+    || /(input|prompt) (is )?too long/.test(s)
+    || /(input )?token count[^.]{0,40}exceed/.test(s)
+    || /exceeds the maximum (number of )?(input |context )?tokens/.test(s)
+    || /request (payload|entity)[^.]{0,40}(too large|exceeds|limit)/.test(s);
 }
 
 /** Best-effort retry-after (ms) parsed from a provider error; defaults to 30s. */
