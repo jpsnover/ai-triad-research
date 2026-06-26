@@ -488,12 +488,30 @@ let _activeDriverWindow: string | null = null;
 if (_driverChannel) {
   _driverChannel.onmessage = (e: MessageEvent) => {
     const { type, windowId } = e.data as { type: string; windowId: string };
-    if (type === 'claim') _activeDriverWindow = windowId;
-    if (type === 'release' && _activeDriverWindow === windowId) _activeDriverWindow = null;
+    if (type === 'claim') {
+      _activeDriverWindow = windowId;
+      if (windowId !== _windowId) {
+        useDebateStore.setState({ driverIsRemote: true });
+      }
+    }
+    if (type === 'release' && _activeDriverWindow === windowId) {
+      _activeDriverWindow = null;
+      if (windowId !== _windowId) {
+        useDebateStore.setState({ driverIsRemote: false });
+        reloadActiveDebateFromStorage();
+      }
+    }
   };
 }
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => releaseDebateDriver());
+}
+
+function reloadActiveDebateFromStorage(): void {
+  const debateId = useDebateStore.getState().activeDebateId;
+  if (debateId) {
+    void useDebateStore.getState().loadDebate(debateId);
+  }
 }
 
 export function claimDebateDriver(): boolean {
@@ -512,6 +530,13 @@ export function releaseDebateDriver(): void {
 
 export function resetDebateDriverLock(): void {
   _activeDriverWindow = null;
+}
+
+export function initDebatePopoutCloseHandler(api: { onDebatePopoutClosed: (cb: () => void) => () => void }): () => void {
+  return api.onDebatePopoutClosed(() => {
+    useDebateStore.setState({ driverIsRemote: false });
+    reloadActiveDebateFromStorage();
+  });
 }
 
 const AI_POVER_ORDER = AI_POVERS;

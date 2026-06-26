@@ -56,6 +56,9 @@ export interface ConfigSlice {
   // Daily limit pause state
   dailyLimitPaused: boolean;
 
+  // Remote driver state — true when another window (popout) holds the debate driver lock
+  driverIsRemote: boolean;
+
   // News
   newsReport: string | null;
   newsReportLoading: boolean;
@@ -104,6 +107,7 @@ export const createConfigSlice: StateCreator<DebateStore, [], [], ConfigSlice> =
   enrichmentStatus: {},
   communityReadOnly: false,
   dailyLimitPaused: false,
+  driverIsRemote: false,
   debateRetryAction: null,
   newsReport: null,
   newsReportLoading: false,
