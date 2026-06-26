@@ -290,7 +290,10 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
   crossRespond: async () => {
 
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
-    if (!activeDebate) return;
+    if (!activeDebate) {
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'warn', message: 'crossRespond called with no activeDebate — exiting' });
+      return;
+    }
     if (!claimDebateDriver()) {
       set({ debateError: 'Another window is already running this debate.' });
       getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'warn', debate_id: activeDebate.id, message: 'Debate driver claim denied — another window owns it' });
@@ -320,6 +323,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
     if (aiPovers.length < 2) {
       releaseDebateDriver();
       set({ debateError: 'Need at least 2 AI debaters for cross-response' });
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'warn', debate_id: activeDebate.id, message: 'crossRespond exiting — fewer than 2 AI debaters', data: { aiPovers: aiPovers.length } });
       return;
     }
 
@@ -548,7 +552,10 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
     let modResult: Awaited<ReturnType<typeof runModeratorSelection>>;
     try {
       modResult = await runModeratorSelection(selectionInput, selectionCallbacks);
-      if (!isStillValid()) { releaseDebateDriver(); return; }
+      if (!isStillValid()) {
+        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'crossRespond aborted post-moderator — debate no longer valid' });
+        releaseDebateDriver(); return;
+      }
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error',
@@ -827,7 +834,10 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
       };
 
       const turnResult = await executeTurnWithRetry(retryInput, retryCallbacks);
-      if (turnResult.aborted) { releaseDebateDriver(); return; }
+      if (turnResult.aborted) {
+        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'crossRespond aborted post-turn — debate terminated during pipeline', data: { round: crossRespondRound, speaker: responderPover } });
+        releaseDebateDriver(); return;
+      }
       const { statement, taxonomyRefs, meta, validation, attempts, pipelineResult } = turnResult;
 
       // Enrich taxonomy refs with relevance scores from context injection
@@ -1134,6 +1144,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
         addTranscriptEntry({ type: 'system', speaker: 'system', content: DAILY_LIMIT_MESSAGE, taxonomy_refs: [] });
         releaseDebateDriver();
         set({ debateGenerating: null, debateActivity: null, debateError: DAILY_LIMIT_MESSAGE, dailyLimitPaused: true });
+        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.paused', data: { reason: 'daily_token_limit', round: crossRespondRound, speaker: responderPover } });
         return;
       }
       addTranscriptEntry({
@@ -1142,6 +1153,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
         content: `${info.label} failed to cross-respond: ${mapErrorToUserMessage(err)}`,
         taxonomy_refs: [],
       });
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: 'debate.turn_failed', data: { reason: 'pipeline_error', round: crossRespondRound, speaker: responderPover, error: String(err) } });
     }
 
     getGlobalRecorder()?.record({ type: 'debate.round', component: 'debate-store', level: 'debug', debate_id: activeDebate.id, message: `Cross-respond turn complete, entering post-processing`, data: { round: crossRespondRound, speaker: responderPover, transcript_length: get().activeDebate?.transcript.length } });

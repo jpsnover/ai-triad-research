@@ -657,8 +657,8 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
 
   runOpeningStatements: async () => {
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
-    if (!activeDebate) return;
-    if (get().debateGenerating) return;
+    if (!activeDebate) { getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'warn', message: 'runOpeningStatements called with no activeDebate' }); return; }
+    if (get().debateGenerating) { getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'warn', debate_id: activeDebate.id, message: 'runOpeningStatements skipped — already generating' }); return; }
     if (!claimDebateDriver()) {
       set({ debateError: 'Another window is already running this debate.' });
       getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'warn', debate_id: activeDebate.id, message: 'Debate driver claim denied — another window owns it (openings)' });
@@ -843,6 +843,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         if (!isStillValid()) {
           console.warn(`[debate-store] Debate state changed after ${info.label} opening pipeline — remaining speakers will be skipped. activeDebateId: ${get().activeDebateId}, aborted: ${_abortController?.signal.aborted}`);
           addTranscriptEntry({ type: 'system', speaker: 'system', content: `Opening generation interrupted after ${info.label} — debate state changed during generation.`, taxonomy_refs: [] });
+          getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate?.id, message: 'runOpeningStatements aborted post-pipeline', data: { speaker: info.label } });
           return;
         }
 
@@ -871,6 +872,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           if (!isStillValid()) {
             console.warn(`[debate-store] Debate state changed after ${info.label} opening retry — remaining speakers will be skipped. activeDebateId: ${get().activeDebateId}, aborted: ${_abortController?.signal.aborted}`);
             addTranscriptEntry({ type: 'system', speaker: 'system', content: `Opening generation interrupted after ${info.label} retry — debate state changed during generation.`, taxonomy_refs: [] });
+            getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate?.id, message: 'runOpeningStatements aborted post-retry', data: { speaker: info.label } });
             return;
           }
         }
@@ -1006,6 +1008,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         debateActivity: null,
         debateError: `Opening statements failed for ${missingLabels.join(', ')}. Click Retry to try again.`,
       });
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'warn', debate_id: activeDebate?.id, message: 'runOpeningStatements partial failure', data: { missingSpeakers } });
       await saveDebate('runOpeningStatements:partialFailure');
       return;
     }
