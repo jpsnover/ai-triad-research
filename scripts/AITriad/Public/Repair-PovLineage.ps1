@@ -362,6 +362,21 @@ Return a JSON object mapping node_id to an array of updated lineage entries:
                 }
 
                 $CleanText = $Result.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
+                # Extract first complete JSON object — LLMs sometimes append trailing content
+                $ObjStart = $CleanText.IndexOf('{')
+                if ($ObjStart -ge 0) {
+                    $Depth = 0; $InStr = $false; $Esc = $false
+                    for ($jx = $ObjStart; $jx -lt $CleanText.Length; $jx++) {
+                        $Ch = $CleanText[$jx]
+                        if ($Esc) { $Esc = $false; continue }
+                        if ($Ch -eq '\' -and $InStr) { $Esc = $true; continue }
+                        if ($Ch -eq '"') { $InStr = -not $InStr; continue }
+                        if (-not $InStr) {
+                            if ($Ch -eq '{') { $Depth++ }
+                            elseif ($Ch -eq '}') { $Depth--; if ($Depth -eq 0) { $CleanText = $CleanText.Substring($ObjStart, $jx - $ObjStart + 1); break } }
+                        }
+                    }
+                }
                 $Regenerated = $CleanText | ConvertFrom-Json
 
                 foreach ($Item in $Batch) {
@@ -757,6 +772,21 @@ Example: [{"name":"Effective Altruism","description":"A philosophical movement..
                 -Temperature 0.2 -MaxTokens 8192 -JsonMode -TimeoutSec 60
             if ($Result -and $Result.Text) {
                 $CleanText = $Result.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
+                # Extract the first complete JSON array — LLMs sometimes append trailing content
+                $ArrStart = $CleanText.IndexOf('[')
+                if ($ArrStart -ge 0) {
+                    $Depth = 0; $InStr = $false; $Esc = $false
+                    for ($jx = $ArrStart; $jx -lt $CleanText.Length; $jx++) {
+                        $Ch = $CleanText[$jx]
+                        if ($Esc) { $Esc = $false; continue }
+                        if ($Ch -eq '\' -and $InStr) { $Esc = $true; continue }
+                        if ($Ch -eq '"') { $InStr = -not $InStr; continue }
+                        if (-not $InStr) {
+                            if ($Ch -eq '[') { $Depth++ }
+                            elseif ($Ch -eq ']') { $Depth--; if ($Depth -eq 0) { $CleanText = $CleanText.Substring($ArrStart, $jx - $ArrStart + 1); break } }
+                        }
+                    }
+                }
                 $Enriched = $CleanText | ConvertFrom-Json
                 foreach ($E in @($Enriched)) {
                     if (-not $E.name) { continue }
