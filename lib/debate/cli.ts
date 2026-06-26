@@ -21,6 +21,7 @@ import { formatSituationDebateContext } from './prompts.js';
 import { FlightRecorder, getGlobalRecorder, setGlobalRecorder } from '../flight-recorder/index.js';
 import { generateSlug, formatDebateMarkdown, buildDiagnosticsOutput, buildHarvestOutput } from './formatters.js';
 import { ActionableError } from './errors.js';
+import { runExploreFirstPipeline } from './explorationPreset.js';
 
 // ── CLI Config schema ────────────────────────────────────
 
@@ -57,6 +58,8 @@ interface CLIConfig {
   };
   salienceBeacon?: boolean;
   stageModels?: { brief?: string; plan?: string; cite?: string };
+  exploreFirst?: boolean;
+  exploreModel?: string;
 }
 
 // ── Main ─────────────────────────────────────────────────
@@ -71,6 +74,8 @@ interface ParsedArgs {
   maxTurnRetries?: 0 | 1 | 2;
   perturbationPrompt?: string;
   perturbationTurn?: number;
+  exploreFirst: boolean;
+  exploreModel?: string;
 }
 
 function parseArgs(): ParsedArgs {
@@ -82,11 +87,12 @@ function parseArgs(): ParsedArgs {
   else if (args.includes('--stdin')) configPath = '-';
 
   if (!configPath) {
-    console.error('Usage: npx tsx lib/debate/cli.ts --config <path.json> [--no-turn-validation] [--max-turn-retries 0|1|2] [--perturbation <prompt> --perturbation-turn <N>]');
+    console.error('Usage: npx tsx lib/debate/cli.ts --config <path.json> [--no-turn-validation] [--max-turn-retries 0|1|2] [--perturbation <prompt> --perturbation-turn <N>] [--explore-first [--explore-model <model>]]');
     process.exit(1);
   }
 
   const disableTurnValidation = args.includes('--no-turn-validation');
+  const exploreFirst = args.includes('--explore-first');
 
   let maxTurnRetries: 0 | 1 | 2 | undefined;
   const retryIdx = args.indexOf('--max-turn-retries');
@@ -108,7 +114,11 @@ function parseArgs(): ParsedArgs {
   const pertTurnIdx = args.indexOf('--perturbation-turn');
   if (pertTurnIdx >= 0 && args[pertTurnIdx + 1]) perturbationTurn = parseInt(args[pertTurnIdx + 1], 10);
 
-  return { configPath, disableTurnValidation, maxTurnRetries, perturbationPrompt, perturbationTurn };
+  let exploreModel: string | undefined;
+  const emIdx = args.indexOf('--explore-model');
+  if (emIdx >= 0 && args[emIdx + 1]) exploreModel = args[emIdx + 1];
+
+  return { configPath, disableTurnValidation, maxTurnRetries, perturbationPrompt, perturbationTurn, exploreFirst, exploreModel };
 }
 
 function resolvePerturbationConfig(
@@ -134,7 +144,7 @@ function resolvePerturbationConfig(
 }
 
 async function main(): Promise<void> {
-  const { configPath, disableTurnValidation, maxTurnRetries, perturbationPrompt, perturbationTurn } = parseArgs();
+  const { configPath, disableTurnValidation, maxTurnRetries, perturbationPrompt, perturbationTurn, exploreFirst: cliExploreFirst, exploreModel: cliExploreModel } = parseArgs();
   let configText: string;
 
   if (configPath === '-') {
@@ -397,20 +407,35 @@ async function main(): Promise<void> {
     log(`[snapshot] Wrote ${trigger} recovery file: ${partialPath}`);
   };
 
-  // Run debate
-  log(`Starting debate: "${topic.slice(0, 80)}..." with ${activePovers.join(', ')}, ${engineConfig.useAdaptiveStaging ? `adaptive (${config.pacing ?? 'moderate'})` : `${engineConfig.rounds} rounds`}`);
-  const engine = new DebateEngine(engineConfig, adapter, taxonomy);
+  // Run debate — either explore-first pipeline or direct
+  const useExploreFirst = cliExploreFirst || config.exploreFirst;
+  let session: import('./types.js').DebateSession;
+  let explorationSession: import('./types.js').DebateSession | null = null;
   let activeDebateId: string | undefined;
   recorder.setContextProvider(() => ({ active_debate_id: activeDebateId }));
-  const session = await engine.run((p) => {
-    log(`[${p.phase}] ${p.speaker ? `${p.speaker}: ` : ''}${p.message}`);
-  });
+
+  if (useExploreFirst) {
+    const resolvedExploreModel = cliExploreModel ?? config.exploreModel ?? 'groq-openai-gpt-oss-120b';
+    log(`Explore-first pipeline: "${topic.slice(0, 80)}..." with ${activePovers.join(', ')}`);
+    const result = await runExploreFirstPipeline(
+      engineConfig, adapter, taxonomy, resolvedExploreModel, log,
+      (p) => { log(`[${p.phase}] ${p.speaker ? `${p.speaker}: ` : ''}${p.message}`); },
+    );
+    explorationSession = result.exploration;
+    session = result.production;
+  } else {
+    log(`Starting debate: "${topic.slice(0, 80)}..." with ${activePovers.join(', ')}, ${engineConfig.useAdaptiveStaging ? `adaptive (${config.pacing ?? 'moderate'})` : `${engineConfig.rounds} rounds`}`);
+    const engine = new DebateEngine(engineConfig, adapter, taxonomy);
+    session = await engine.run((p) => {
+      log(`[${p.phase}] ${p.speaker ? `${p.speaker}: ` : ''}${p.message}`);
+    });
+  }
   activeDebateId = session.id;
 
   // Stamp origin metadata
   session.origin = {
     mode: 'cli',
-    command: `npx tsx lib/debate/cli.ts --config ${configPath}${disableTurnValidation ? ' --no-turn-validation' : ''}${maxTurnRetries !== undefined ? ` --max-turn-retries ${maxTurnRetries}` : ''}`,
+    command: `npx tsx lib/debate/cli.ts --config ${configPath}${disableTurnValidation ? ' --no-turn-validation' : ''}${maxTurnRetries !== undefined ? ` --max-turn-retries ${maxTurnRetries}` : ''}${useExploreFirst ? ' --explore-first' : ''}${cliExploreModel ? ` --explore-model ${cliExploreModel}` : ''}`,
     config_summary: {
       ...(config.topic ? { topic: config.topic } : {}),
       ...(config.docPath ? { docPath: config.docPath } : {}),
@@ -490,6 +515,14 @@ async function main(): Promise<void> {
   if (outputFormat === 'json') {
     markdownPath = path.join(outputDir, `${slug}-debate.md`);
     writeOutput(markdownPath, formatDebateMarkdown(session), 'debate markdown');
+  }
+
+  // Write exploration outputs if explore-first was used
+  if (explorationSession) {
+    const explorationDebatePath = path.join(outputDir, `${slug}-exploration.json`);
+    writeOutput(explorationDebatePath, JSON.stringify(explorationSession, null, 2), 'exploration debate JSON');
+    const explorationDiagPath = path.join(outputDir, `${slug}-exploration-diagnostics.json`);
+    writeOutput(explorationDiagPath, JSON.stringify(buildDiagnosticsOutput(explorationSession), null, 2), 'exploration diagnostics');
   }
 
   // Log calibration data point (non-blocking)
