@@ -3444,12 +3444,13 @@ DESCRIPTION FORMAT — all proposed descriptions MUST follow this exact 3-line s
     Encompasses: opacity of high-dimensional latent spaces, absence of proven causal links between internal activations and model behavior, limitations of mechanistic interpretability at scale.
     Excludes: the claim that model insights are theoretically impossible, transparency achieved through open-source code access."
 
-REFLECTION LANGUAGE (applies to reflection_summary ONLY — proposed_description MUST stay in genus-differentia format):
+REFLECTION LANGUAGE (applies to reflection_summary and rationale — proposed_description MUST stay in genus-differentia format):
 Write reflection_summary for a general reader at a 10th-grade reading level.
 Short, direct sentences — no nested clauses or academic hedging.
 Active voice. Replace jargon with plain equivalents.
 Name what changed in your thinking and why, in the simplest terms that preserve the specificity of your insight.
 Do not sacrifice precision for brevity — cut the academic scaffolding, not the substance.
+Write rationale in the same plain, direct style — name the debate moment, what it showed, and what you changed, without academic scaffolding.
 
 Return ONLY JSON (no markdown, no code fences):
 {
@@ -3463,7 +3464,7 @@ Return ONLY JSON (no markdown, no code fences):
       "proposed_label": "Revised Label Text",
       "current_description": "Copy the current description exactly",
       "proposed_description": "Complete revised description in genus-differentia format. Encompasses: [...]. Excludes: [...].",
-      "rationale": "During turn S13, Safetyist argued X which I could not adequately counter. This reveals that...",
+      "rationale": "In turn S13, Safetyist showed X and I couldn't counter it. That told me...",
       "confidence": "high",
       "evidence_entries": ["S13", "S15"]
     },
