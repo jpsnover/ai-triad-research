@@ -3439,9 +3439,16 @@ DESCRIPTION FORMAT — all proposed descriptions MUST follow this exact 3-line s
     Encompasses: opacity of high-dimensional latent spaces, absence of proven causal links between internal activations and model behavior, limitations of mechanistic interpretability at scale.
     Excludes: the claim that model insights are theoretically impossible, transparency achieved through open-source code access."
 
+REFLECTION LANGUAGE (applies to reflection_summary ONLY — proposed_description MUST stay in genus-differentia format):
+Write reflection_summary for a general reader at a 10th-grade reading level.
+Short, direct sentences — no nested clauses or academic hedging.
+Active voice. Replace jargon with plain equivalents.
+Name what changed in your thinking and why, in the simplest terms that preserve the specificity of your insight.
+Do not sacrifice precision for brevity — cut the academic scaffolding, not the substance.
+
 Return ONLY JSON (no markdown, no code fences):
 {
-  "reflection_summary": "2-3 sentences on what this debate revealed about your perspective",
+  "reflection_summary": "2-3 short sentences (10th-grade reading level) on what this debate revealed about your perspective",
   "edits": [
     {
       "edit_type": "revise",
