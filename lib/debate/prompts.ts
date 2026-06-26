@@ -1959,6 +1959,8 @@ ${input.phase ? PHASE_INSTRUCTIONS[input.phase] : ''}
 
 ATTRIBUTION FIDELITY: Your analysis of other speakers' positions must be grounded in what they actually said in the RECENT DEBATE HISTORY above. Do not infer, extrapolate, or construct positions that a speaker did not explicitly state. If a speaker did not address a topic, note the absence — do not fill it with assumptions about what they "probably" believe.
 
+TOPIC PREMISE FIDELITY: When the DEBATE TOPIC states an explicit structural feature of the proposal (e.g., conditions, mechanisms, exclusions, exemptions), treat it as a given of the debate. You may question its enforceability, sufficiency, or practical consequences — but do not recharacterize it as a "claim" or "assertion." When referencing a topic feature, use the topic's own language or clearly mark your interpretation.
+
 Analyze the debate state and produce a structured brief. Focus on:
 1. What is the current state of the debate? What just happened?
 2. What are the most important claims that need addressing? Include the AN-ID if available. For each claim, identify which taxonomy nodes ground your response.
@@ -2004,6 +2006,8 @@ Your task is to comprehend the current state of the debate and identify what mat
 ${input.phase ? PHASE_INSTRUCTIONS[input.phase] : ''}
 
 ATTRIBUTION FIDELITY: Your analysis of other speakers' positions must be grounded in what they actually said in the RECENT DEBATE HISTORY below. Do not infer, extrapolate, or construct positions that a speaker did not explicitly state. If a speaker did not address a topic, note the absence — do not fill it with assumptions about what they "probably" believe.
+
+TOPIC PREMISE FIDELITY: When the DEBATE TOPIC states an explicit structural feature of the proposal (e.g., conditions, mechanisms, exclusions, exemptions), treat it as a given of the debate. You may question its enforceability, sufficiency, or practical consequences — but do not recharacterize it as a "claim" or "assertion." When referencing a topic feature, use the topic's own language or clearly mark your interpretation.
 
 Analyze the debate state and produce a structured brief. Focus on:
 1. What is the current state of the debate? What just happened?
@@ -2260,6 +2264,7 @@ ${pi?.isTargeted
 
 OUTPUT CONSTRAINTS:
 - ATTRIBUTION FIDELITY: You may only attribute positions to other debaters that they have explicitly stated in the debate history. Do not infer, extrapolate, or fabricate positions. Phrases like "your solution is X" or "you're arguing for Y" must correspond to something actually said — not an implication you've constructed. Misrepresenting another debater's position undermines the debate's integrity and will be flagged.
+- TOPIC PREMISE FIDELITY: Structural features stated in the debate topic are givens, not claims. Critique their consequences, not their existence.
 - NODE-ID PROHIBITION: Never surface AN-IDs or taxonomy node IDs in your statement text. Use plain language.
 - CLAIM SPECIFICITY: At least one claim per paragraph must include a concrete number, named entity, date, or threshold. If source evidence is provided above, use it — cite the specific statistic, year, or finding rather than paraphrasing vaguely. Abstract claims without any specifics weaken your argument.
 - CLAIM SKETCHING: Identify 2-5 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence and note which prior claims it engages with.${input.currentCruxContext ? `\n- CRUX ENGAGEMENT: At least one claim_sketch MUST directly address an active crux. Engage the core disagreement head-on rather than circling around it.` : ''}${!input.pendingIntervention?.isTargeted ? `\n- TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that capture your argument's essence. Tooltip: 1-sentence analogy connecting the symbol to your argument.` : ''}
