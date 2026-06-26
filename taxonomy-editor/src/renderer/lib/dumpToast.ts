@@ -103,7 +103,16 @@ export function showDumpToast(opts: {
         e.preventDefault();
         try {
           const resp = await fetch(`/api/flight-recorder/download-merged/${encodeURIComponent(opts.dumpId!)}`);
-          if (!resp.ok) { mergedLink.textContent = `Merged download failed (${resp.status})`; return; }
+          if (!resp.ok) {
+            let diag: DiagnosticBody | undefined;
+            try { diag = await resp.json() as DiagnosticBody; } catch { /* not JSON */ }
+            if (diag && (diag.goal || diag.problem)) {
+              showDiagnosticPanel(diag);
+            } else {
+              mergedLink.textContent = `Merged download failed (${resp.status})`;
+            }
+            return;
+          }
           const blob = await resp.blob();
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -345,4 +354,113 @@ function removeToast(toast: HTMLElement): void {
   toast.style.opacity = '0';
   toast.style.transform = 'translateY(10px)';
   setTimeout(() => toast.remove(), 200);
+}
+
+interface DiagnosticBody {
+  error?: string;
+  goal?: string;
+  problem?: string;
+  location?: string;
+  nextSteps?: string[];
+  dumpId?: string;
+  requestId?: string;
+}
+
+function showDiagnosticPanel(body: DiagnosticBody): void {
+  const container = getOrCreateContainer();
+
+  const panel = document.createElement('div');
+  Object.assign(panel.style, {
+    position: 'relative',
+    background: 'var(--bg-secondary, #1e1e2e)',
+    color: 'var(--text-primary, #cdd6f4)',
+    border: '1px solid #f38ba8',
+    borderRadius: '6px',
+    padding: '12px 14px',
+    fontSize: '12px',
+    fontFamily: 'var(--font-mono, monospace)',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+    pointerEvents: 'auto',
+    maxWidth: '480px',
+    userSelect: 'text',
+    opacity: '0',
+    transform: 'translateY(10px)',
+    transition: 'opacity 0.2s, transform 0.2s',
+  });
+
+  const title = document.createElement('div');
+  title.textContent = 'Merged dump download failed';
+  Object.assign(title.style, { fontWeight: '600', marginBottom: '8px', color: '#f38ba8' });
+  panel.appendChild(title);
+
+  const fields: [string, string | undefined][] = [
+    ['Goal', body.goal],
+    ['Problem', body.problem],
+    ['Location', body.location],
+    ['Error', body.error],
+    ['Dump ID', body.dumpId],
+    ['Request ID', body.requestId],
+  ];
+
+  for (const [label, value] of fields) {
+    if (!value) continue;
+    const row = document.createElement('div');
+    Object.assign(row.style, { marginBottom: '4px', wordBreak: 'break-all' });
+    const b = document.createElement('strong');
+    b.textContent = `${label}: `;
+    Object.assign(b.style, { color: 'var(--text-muted, #6c7086)' });
+    row.appendChild(b);
+    row.appendChild(document.createTextNode(value));
+    panel.appendChild(row);
+  }
+
+  if (body.nextSteps && body.nextSteps.length > 0) {
+    const stepsLabel = document.createElement('div');
+    stepsLabel.textContent = 'Next Steps:';
+    Object.assign(stepsLabel.style, { fontWeight: '600', color: 'var(--text-muted, #6c7086)', marginTop: '6px', marginBottom: '2px' });
+    panel.appendChild(stepsLabel);
+    const ul = document.createElement('ul');
+    Object.assign(ul.style, { margin: '0', paddingLeft: '18px' });
+    for (const step of body.nextSteps) {
+      const li = document.createElement('li');
+      li.textContent = step;
+      Object.assign(li.style, { marginBottom: '2px' });
+      ul.appendChild(li);
+    }
+    panel.appendChild(ul);
+  }
+
+  const btnRow = document.createElement('div');
+  Object.assign(btnRow.style, { display: 'flex', gap: '6px', marginTop: '8px' });
+
+  const copyBtn = document.createElement('button');
+  copyBtn.textContent = 'Copy diagnostics';
+  Object.assign(copyBtn.style, BTN_STYLE);
+  copyBtn.onclick = () => {
+    const text = JSON.stringify(body, null, 2);
+    navigator.clipboard.writeText(text).then(() => {
+      copyBtn.textContent = 'Copied';
+      setTimeout(() => { copyBtn.textContent = 'Copy diagnostics'; }, 1500);
+    }).catch(() => { /* clipboard — silent by design */ });
+  };
+  btnRow.appendChild(copyBtn);
+  panel.appendChild(btnRow);
+
+  const dismiss = document.createElement('button');
+  dismiss.textContent = '×';
+  Object.assign(dismiss.style, {
+    position: 'absolute', top: '4px', right: '8px',
+    background: 'none', border: 'none',
+    color: 'var(--text-muted, #6c7086)',
+    fontSize: '16px', cursor: 'pointer', padding: '0 2px', lineHeight: '1',
+  });
+  dismiss.onclick = () => removeToast(panel);
+  panel.appendChild(dismiss);
+
+  container.appendChild(panel);
+  requestAnimationFrame(() => {
+    panel.style.opacity = '1';
+    panel.style.transform = 'translateY(0)';
+  });
+  // No auto-dismiss — persistent until user closes
 }
