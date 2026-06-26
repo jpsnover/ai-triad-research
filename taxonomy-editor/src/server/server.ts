@@ -990,6 +990,25 @@ get('/api/auth/logout', (req, res) => {
   res.end();
 });
 
+// t/1032: defense-in-depth fresh sign-in. The Workbox service worker serves the
+// cached SPA for navigations to '/', so t/940's stale-cookie clearing in the
+// server-rendered login page never runs for returning users. Routing the SPA's
+// sign-in links through here expires any stale Easy Auth session cookie BEFORE
+// initiating OAuth, so every attempt starts from a clean state regardless of SW
+// cache. Provider is allowlisted — it's interpolated into the redirect target.
+const FRESH_LOGIN_PROVIDERS = new Set(['github', 'google', 'aad']);
+get('/api/auth/fresh-login/:provider', (req, res) => {
+  const provider = param(req, 'provider', '/api/auth/fresh-login/:provider');
+  const location = FRESH_LOGIN_PROVIDERS.has(provider)
+    ? `/.auth/login/${provider}?post_login_redirect_uri=/`
+    : '/'; // unknown provider → land on the login page rather than an open redirect
+  res.writeHead(302, {
+    'Set-Cookie': expiredAuthCookies(Object.keys(parseCookies(req))),
+    'Location': location,
+  });
+  res.end();
+});
+
 post('/api/keys', async (_req, res, body) => {
   const { key, backend } = body as { key: string; backend?: string };
   const target = (backend || 'gemini') as AIBackend;
@@ -3940,6 +3959,7 @@ async function handleRequestInner(
     || urlPath === '/api/data/available'
     || urlPath === '/api/auth/me'
     || urlPath === '/api/auth/logout' // t/897: logout must work even for authed-but-unauthorized users
+    || urlPath.startsWith('/api/auth/fresh-login/') // t/1032: pre-auth fresh sign-in (clears stale cookies, then OAuth)
     || urlPath === '/api/config/client' // t/927: public client config subset (no secrets)
     || urlPath === '/api/user/profile'
     || urlPath === '/api/sync/webhook/github'
