@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { DebateSession } from '../../../types/debate';
 import { POVER_INFO } from '../../../types/debate';
 import { POV_KEYS } from '@lib/debate/types';
-import { api } from '@bridge';
+import { api, isElectronMode } from '@bridge';
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import Markdown from 'react-markdown';
@@ -470,6 +470,7 @@ function handleCompareCommand(debate: DebateSession, args: string): string | nul
 }
 
 export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNavigate, embedded, onClose }: Props) {
+  const isWeb = !isElectronMode();
   const [open, setOpen] = useState(!!embedded);
   const [messages, setMessages] = useState<ChatMessage[]>(loadSessionMessages);
   const [input, setInput] = useState('');
@@ -887,17 +888,27 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
         display: 'flex', flexDirection: 'column', gap: 8,
       }}>
         {messages.length === 0 && !generating && (
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px 0', textAlign: 'center' }}>
-            Ask questions about the debate.
-            <br /><br />
-            <span style={{ fontSize: '0.68rem' }}>
-              Try: "Show me the brief for S21"
-              <br />"Which debater conceded the most?"
-              <br />"What's the strongest attack chain?"
+          isWeb ? (
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '24px 12px', textAlign: 'center' }}>
+              Debate Chat is available in the desktop app.
               <br /><br />
-              Type / or HELP for commands | /suggest for question ideas
-            </span>
-          </div>
+              <span style={{ fontSize: '0.68rem' }}>
+                AI-powered chat requires direct API access which is not supported in the web viewer.
+              </span>
+            </div>
+          ) : (
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px 0', textAlign: 'center' }}>
+              Ask questions about the debate.
+              <br /><br />
+              <span style={{ fontSize: '0.68rem' }}>
+                Try: "Show me the brief for S21"
+                <br />"Which debater conceded the most?"
+                <br />"What's the strongest attack chain?"
+                <br /><br />
+                Type / or HELP for commands | /suggest for question ideas
+              </span>
+            </div>
+          )
         )}
         {messages.filter(m => m.role !== 'system').map(msg => (
           <div
@@ -1000,8 +1011,8 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={debate ? 'Ask about the debate... (/ for commands)' : 'Waiting for debate data...'}
-            disabled={!debate || generating}
+            placeholder={isWeb ? 'Chat available in desktop app' : debate ? 'Ask about the debate... (/ for commands)' : 'Waiting for debate data...'}
+            disabled={isWeb || !debate || generating}
             rows={2}
             style={{
               flex: 1, resize: 'none',
@@ -1016,12 +1027,12 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
           />
           <button
             onClick={() => void sendMessage()}
-            disabled={!input.trim() || !debate || generating}
+            disabled={isWeb || !input.trim() || !debate || generating}
             style={{
               padding: '0 12px', borderRadius: 6,
-              background: input.trim() && debate && !generating ? '#f59e0b' : 'var(--bg-tertiary)',
-              color: input.trim() && debate && !generating ? '#000' : 'var(--text-muted)',
-              border: 'none', cursor: input.trim() && debate && !generating ? 'pointer' : 'not-allowed',
+              background: !isWeb && input.trim() && debate && !generating ? '#f59e0b' : 'var(--bg-tertiary)',
+              color: !isWeb && input.trim() && debate && !generating ? '#000' : 'var(--text-muted)',
+              border: 'none', cursor: !isWeb && input.trim() && debate && !generating ? 'pointer' : 'not-allowed',
               fontWeight: 600, fontSize: '0.75rem',
             }}
           >Send</button>
