@@ -589,6 +589,7 @@ function Import-AITriadDocument {
 
                 } catch {
                     Write-Fail "Failed to ingest $($InboxFile.Name): $_"
+                    Write-Verbose "Stack trace: $($_.ScriptStackTrace)"
                     Write-Info "File left in inbox for retry."
                 }
             }
