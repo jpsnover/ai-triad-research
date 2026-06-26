@@ -533,7 +533,7 @@ function callGeminiBatchApi(texts: string[], taskType: string, apiKey: string): 
   return callGeminiBatchEmbed(fetch, texts, taskType, apiKey, SERVER_RETRY_CONFIG);
 }
 
-export async function computeEmbeddings(texts: string[], ids?: string[]): Promise<number[][]> {
+export async function computeEmbeddings(texts: string[], ids?: string[], explicitApiKey?: string): Promise<number[][]> {
   const local = loadEmbeddingsFile();
   const results: (number[] | null)[] = new Array(texts.length).fill(null);
   const missing: number[] = [];
@@ -554,7 +554,7 @@ export async function computeEmbeddings(texts: string[], ids?: string[]): Promis
     let computed: number[][] | null = null;
 
     // Try Gemini batch API first
-    const apiKey = await getApiKey('gemini');
+    const apiKey = explicitApiKey ?? await getApiKey('gemini');
     if (apiKey) {
       try {
         const all: number[][] = [];
