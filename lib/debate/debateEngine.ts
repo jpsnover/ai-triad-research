@@ -548,14 +548,14 @@ export class DebateEngine {
   }
 
   private async generateWithModel(
-    prompt: string, label: string, model: string, timeoutMs?: number,
+    prompt: string, label: string, model: string, timeoutMs?: number, temperature?: number,
   ): Promise<string> {
     await this.throttle();
     this.progress('generating', undefined, label);
     const start = Date.now();
     try {
       const text = await this.adapter.generateText(prompt, model, {
-        temperature: 0,
+        temperature: temperature ?? 0,
         timeoutMs: timeoutMs ?? 120_000,
         signal: this.config.signal,
       });
@@ -3193,7 +3193,7 @@ export class DebateEngine {
 
     const moderatorModel = this.config.utilityModels?.moderator ?? this.config.model;
     const selectionCallbacks: ModeratorSelectionCallbacks = {
-      generate: async (prompt, _model, options, label) => this.generateWithModel(prompt, label, moderatorModel, options?.timeoutMs),
+      generate: async (prompt, _model, options, label) => this.generateWithModel(prompt, label, moderatorModel, options?.timeoutMs, this.config.temperature ?? 0.7),
       addEntry: (entry) => this.addEntry(entry).id,
       progress: (ph, speaker, message) => this.progress(ph, speaker, message),
       warn: (context, err, recovery) => this.warn(context, err, recovery),
