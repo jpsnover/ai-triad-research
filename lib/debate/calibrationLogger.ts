@@ -384,6 +384,20 @@ export interface CalibrationDataPoint {
   entailment_repair_rate: number | null;
   /** Fraction of AN nodes that were sampled for entailment checking. */
   entailment_sampling_coverage: number | null;
+
+  // ── Exploration seeding (t/990) ──
+  /** Debate ID of the exploration run that seeded this debate. */
+  exploration_source_id?: string;
+  /** Model used for the exploration run. */
+  exploration_source_model?: string;
+  /** Number of cruxes seeded from exploration. */
+  seeded_crux_count?: number;
+  /** Number of effective situations identified in exploration. */
+  seeded_effective_situation_count?: number;
+  /** Number of ineffective situations identified in exploration. */
+  seeded_ineffective_situation_count?: number;
+  /** Number of AN nodes primed from exploration. */
+  seeded_an_node_count?: number;
 }
 
 // ── Extraction logic ────────────────────────────────────────
@@ -413,6 +427,7 @@ export function extractCalibrationData(
     kpDivisor?: number;
     budgetHardMultiplier?: number;
     situationMaxNodes?: number;
+    explorationSummary?: import('./explorationSummary.js').ExplorationSummary;
   } = {},
 ): CalibrationDataPoint {
   const now = new Date().toISOString();
@@ -1256,6 +1271,16 @@ export function extractCalibrationData(
         entailment_sampling_coverage: entailSamplingCoverage,
       };
     })(),
+
+    // ── Exploration seeding ──
+    ...(config.explorationSummary ? {
+      exploration_source_id: config.explorationSummary.source_debate_id,
+      exploration_source_model: config.explorationSummary.source_model,
+      seeded_crux_count: config.explorationSummary.cruxes.length,
+      seeded_effective_situation_count: config.explorationSummary.effective_situations.length,
+      seeded_ineffective_situation_count: config.explorationSummary.ineffective_situations.length,
+      seeded_an_node_count: config.explorationSummary.argument_sketch.nodes.length,
+    } : {}),
   };
 }
 

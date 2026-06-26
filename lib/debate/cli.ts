@@ -529,7 +529,9 @@ async function main(): Promise<void> {
   try {
     const { extractCalibrationData, appendCalibrationLog } = await import('./calibrationLogger.js');
     const dataRoot = path.dirname(outputDir); // outputDir is .../debates, data root is parent
-    const dataPoint = extractCalibrationData(session, 'local');
+    const dataPoint = extractCalibrationData(session, 'local', {
+      explorationSummary: engineConfig.explorationSummary,
+    });
     appendCalibrationLog(dataPoint, dataRoot);
     log(`Calibration data logged to ${dataRoot}/calibration/users/${dataPoint.origin || 'local'}/calibration-log.jsonl`);
   } catch (err) {

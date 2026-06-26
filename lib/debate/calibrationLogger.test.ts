@@ -453,3 +453,68 @@ describe('qbaf_preference_concordance', () => {
     expect(dp.qbaf_preference_concordance).toBeNull();
   });
 });
+
+describe('extractCalibrationData exploration seeding fields', () => {
+  const explorationSummary = {
+    version: 1 as const,
+    source_debate_id: 'explore-abc',
+    source_model: 'groq-openai-gpt-oss-120b',
+    source_tier: 'basic' as const,
+    timestamp: '2026-06-01T00:00:00Z',
+    topic: { original: 'AI regulation', refined: 'AI regulation', final: 'AI regulation' },
+    cruxes: [
+      { description: 'c1', disagreement_type: 'empirical' as const, state: 'engaged' as const, speakers_involved: ['acc'] },
+      { description: 'c2', disagreement_type: 'values' as const, state: 'unresolved' as const, speakers_involved: ['saf'] },
+    ],
+    argument_sketch: {
+      nodes: [
+        { id: 'n1', text: 'claim 1', speaker: 'acc', bdi_category: 'beliefs', computed_strength: 0.8, taxonomy_refs: [] },
+        { id: 'n2', text: 'claim 2', speaker: 'saf', bdi_category: 'desires', computed_strength: 0.6, taxonomy_refs: [] },
+        { id: 'n3', text: 'claim 3', speaker: 'skp', bdi_category: 'intentions', computed_strength: 0.5, taxonomy_refs: [] },
+      ],
+      edges: [],
+    },
+    effective_situations: [
+      { id: 'sit-1', label: 'Labor displacement', referenced_turns: 3, match_type: 'explicit_citation' as const },
+    ],
+    ineffective_situations: [
+      { id: 'sit-2', label: 'Climate AI' },
+      { id: 'sit-3', label: 'Military AI' },
+    ],
+    phase_dynamics: { total_rounds: 6, saturation_round: null, regression_count: 0, phase_durations: [] },
+    convergence_profile: { final_convergence_score: null, stall_rounds: [], best_engagement_rounds: [], areas_of_agreement: [], areas_of_disagreement: [], unresolved_questions: [] },
+    quality_summary: { mean_process_reward: 0.5, repetition_rate: 0.1, claims_forgotten_rate: 0.05, crux_addressed_rate: 0.8 },
+    recommended_config: { max_rounds: 10, argumentation_exit_threshold: 0.65, concluding_exit_threshold: 0.6, temperature: 0.7, situation_cap: 15, skip_clarification: true, pacing: 'moderate' as const },
+  };
+
+  it('includes exploration fields when summary is present', () => {
+    const session = makeMinimalSession();
+    const dp = extractCalibrationData(session, 'local', { explorationSummary });
+    expect(dp.exploration_source_id).toBe('explore-abc');
+    expect(dp.exploration_source_model).toBe('groq-openai-gpt-oss-120b');
+    expect(dp.seeded_crux_count).toBe(2);
+    expect(dp.seeded_effective_situation_count).toBe(1);
+    expect(dp.seeded_ineffective_situation_count).toBe(2);
+    expect(dp.seeded_an_node_count).toBe(3);
+  });
+
+  it('omits exploration fields when summary is absent', () => {
+    const session = makeMinimalSession();
+    const dp = extractCalibrationData(session, 'local');
+    expect(dp.exploration_source_id).toBeUndefined();
+    expect(dp.exploration_source_model).toBeUndefined();
+    expect(dp.seeded_crux_count).toBeUndefined();
+    expect(dp.seeded_effective_situation_count).toBeUndefined();
+    expect(dp.seeded_ineffective_situation_count).toBeUndefined();
+    expect(dp.seeded_an_node_count).toBeUndefined();
+  });
+
+  it('field values match summary content', () => {
+    const session = makeMinimalSession();
+    const dp = extractCalibrationData(session, 'local', { explorationSummary });
+    expect(dp.seeded_crux_count).toBe(explorationSummary.cruxes.length);
+    expect(dp.seeded_effective_situation_count).toBe(explorationSummary.effective_situations.length);
+    expect(dp.seeded_ineffective_situation_count).toBe(explorationSummary.ineffective_situations.length);
+    expect(dp.seeded_an_node_count).toBe(explorationSummary.argument_sketch.nodes.length);
+  });
+});

@@ -811,6 +811,7 @@ export class DebateEngine {
         draftTemperature: 0.7,
         attackWeights: [1.0, 1.1, 1.2],
         argumentativeSaturationWeights: weights.argumentative_saturation,
+        explorationSummary: this.config.explorationSummary,
       });
       // Resolve data root — env var or .aitriad.json fallback
       const __engineDir = path.dirname(fileURLToPath(import.meta.url));
