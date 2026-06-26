@@ -24,6 +24,7 @@ export default defineConfig({
       registerType: 'prompt',
       workbox: {
         navigateFallbackDenylist: [/^\/api\//, /^\/.auth\//],
+        skipWaiting: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         runtimeCaching: [
