@@ -17,6 +17,7 @@ import {
   draftOpeningStagePrompt,
   citeOpeningStagePrompt,
   briefStagePrompt,
+  briefStagePromptV2,
   planStagePrompt,
   draftStagePrompt,
   citeStagePrompt,
@@ -578,6 +579,130 @@ describe('4-stage turn pipeline', () => {
     it('omits BACKGROUND CONTEXT block when background is absent', () => {
       const result = briefStagePrompt(makeStageInput());
       expect(result).not.toContain('BACKGROUND CONTEXT');
+    });
+  });
+
+  describe('briefStagePromptV2', () => {
+    it('returns a non-empty string with the same JSON schema as V1', () => {
+      const result = briefStagePromptV2(makeStageInput());
+      expectNonEmpty(result);
+      expectContains(result, '"situation_assessment"', '"key_claims_to_address"', '"grounding"');
+    });
+
+    it('places YOUR TASK section before REFERENCE MATERIAL and CURRENT STATE', () => {
+      const result = briefStagePromptV2(makeStageInput());
+      const taskIdx = result.indexOf('## YOUR TASK');
+      const refIdx = result.indexOf('## REFERENCE MATERIAL');
+      const stateIdx = result.indexOf('## CURRENT STATE');
+      expect(taskIdx).toBeGreaterThanOrEqual(0);
+      expect(refIdx).toBeGreaterThan(taskIdx);
+      expect(stateIdx).toBeGreaterThan(refIdx);
+    });
+
+    it('places taxonomy context in REFERENCE MATERIAL, not YOUR TASK', () => {
+      const result = briefStagePromptV2(makeStageInput());
+      const refIdx = result.indexOf('## REFERENCE MATERIAL');
+      const stateIdx = result.indexOf('## CURRENT STATE');
+      const taxIdx = result.indexOf(TAXONOMY_CONTEXT);
+      expect(taxIdx).toBeGreaterThan(refIdx);
+      expect(taxIdx).toBeLessThan(stateIdx);
+    });
+
+    it('places transcript in CURRENT STATE section', () => {
+      const result = briefStagePromptV2(makeStageInput());
+      const stateIdx = result.indexOf('## CURRENT STATE');
+      const transcriptIdx = result.indexOf(TRANSCRIPT);
+      expect(transcriptIdx).toBeGreaterThan(stateIdx);
+    });
+
+    it('places role definition in YOUR TASK section', () => {
+      const result = briefStagePromptV2(makeStageInput());
+      const taskIdx = result.indexOf('## YOUR TASK');
+      const refIdx = result.indexOf('## REFERENCE MATERIAL');
+      const roleIdx = result.indexOf('situation brief');
+      expect(roleIdx).toBeGreaterThan(taskIdx);
+      expect(roleIdx).toBeLessThan(refIdx);
+    });
+
+    it('includes phase instructions in YOUR TASK when phase is set', () => {
+      const result = briefStagePromptV2(makeStageInput({ phase: 'argumentation' }));
+      const taskIdx = result.indexOf('## YOUR TASK');
+      const refIdx = result.indexOf('## REFERENCE MATERIAL');
+      const phaseIdx = result.indexOf('EXPLORATION');
+      expect(phaseIdx).toBeGreaterThan(taskIdx);
+      expect(phaseIdx).toBeLessThan(refIdx);
+    });
+
+    it('includes crux context in REFERENCE MATERIAL when provided', () => {
+      const result = briefStagePromptV2(makeStageInput({
+        currentCruxContext: 'ACTIVE CRUXES:\n- "Is regulation feasible?" (crux-1)',
+      }));
+      const refIdx = result.indexOf('## REFERENCE MATERIAL');
+      const stateIdx = result.indexOf('## CURRENT STATE');
+      const cruxIdx = result.indexOf('Is regulation feasible?');
+      expect(cruxIdx).toBeGreaterThan(refIdx);
+      expect(cruxIdx).toBeLessThan(stateIdx);
+    });
+
+    it('includes BACKGROUND CONTEXT in REFERENCE MATERIAL when provided', () => {
+      const result = briefStagePromptV2(makeStageInput({ background: 'NIST AI RMF framework' }));
+      const refIdx = result.indexOf('## REFERENCE MATERIAL');
+      const stateIdx = result.indexOf('## CURRENT STATE');
+      const bgIdx = result.indexOf('NIST AI RMF framework');
+      expect(bgIdx).toBeGreaterThan(refIdx);
+      expect(bgIdx).toBeLessThan(stateIdx);
+    });
+
+    it('contains same content elements as V1', () => {
+      const v1 = briefStagePrompt(makeStageInput({ background: 'test-bg', currentCruxContext: 'crux-ctx' }));
+      const v2 = briefStagePromptV2(makeStageInput({ background: 'test-bg', currentCruxContext: 'crux-ctx' }));
+      const requiredElements = [
+        '"situation_assessment"',
+        '"key_claims_to_address"',
+        '"relevant_commitments"',
+        '"edge_tensions"',
+        '"phase_considerations"',
+        'ATTRIBUTION FIDELITY',
+        'GROUNDING DEPTH',
+        'NODE-ID ACCURACY',
+        TAXONOMY_CONTEXT,
+        TRANSCRIPT,
+        'test-bg',
+        'crux-ctx',
+      ];
+      for (const el of requiredElements) {
+        expect(v1).toContain(el);
+        expect(v2).toContain(el);
+      }
+    });
+
+    it('includes exploration priming in REFERENCE MATERIAL when provided', () => {
+      const result = briefStagePromptV2(makeStageInput({
+        explorationPriming: '=== PRIOR ANALYSIS ===\nKey findings from exploration run',
+      }));
+      const refIdx = result.indexOf('## REFERENCE MATERIAL');
+      const stateIdx = result.indexOf('## CURRENT STATE');
+      const primIdx = result.indexOf('PRIOR ANALYSIS');
+      expect(primIdx).toBeGreaterThan(refIdx);
+      expect(primIdx).toBeLessThan(stateIdx);
+    });
+
+    it('includes topic in CURRENT STATE section', () => {
+      const result = briefStagePromptV2(makeStageInput());
+      const stateIdx = result.indexOf('## CURRENT STATE');
+      const topicIdx = result.indexOf(TOPIC);
+      expect(topicIdx).toBeGreaterThan(stateIdx);
+    });
+
+    it('includes edge context in REFERENCE MATERIAL when provided', () => {
+      const result = briefStagePromptV2(makeStageInput({
+        edgeContext: 'acc-beliefs-001 attacks saf-desires-002',
+      }));
+      const refIdx = result.indexOf('## REFERENCE MATERIAL');
+      const stateIdx = result.indexOf('## CURRENT STATE');
+      const edgeIdx = result.indexOf('CROSS-POV TENSIONS');
+      expect(edgeIdx).toBeGreaterThan(refIdx);
+      expect(edgeIdx).toBeLessThan(stateIdx);
     });
   });
 

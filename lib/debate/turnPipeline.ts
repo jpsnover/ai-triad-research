@@ -31,6 +31,7 @@ import type { GenerateOptions } from './aiAdapter.js';
 import { parseJsonRobust, wordOverlap, getMoveName } from './helpers.js';
 import {
   briefStagePrompt,
+  briefStagePromptV2,
   planStagePrompt,
   draftStagePrompt,
   citeStagePrompt,
@@ -211,6 +212,8 @@ export interface TurnPipelineInput {
   explorationPriming?: string;
   /** Enable salience beacon in draft prompts to reduce scope drift (experiment). */
   salienceBeacon?: boolean;
+  /** Use restructured BRIEF prompt (YOUR TASK → REFERENCE → CURRENT STATE). Experiment flag (t/1029). */
+  useBackgroundPrompt?: boolean;
 }
 
 export type StageGenerateFn = (
@@ -288,6 +291,7 @@ function buildStageInput(input: TurnPipelineInput): StagePromptInput {
     priorCruxContext: input.priorCruxContext,
     currentCruxContext: input.currentCruxContext,
     explorationPriming: input.explorationPriming,
+    useBackgroundPrompt: input.useBackgroundPrompt,
     topicScope: input.topicScope,
     salienceBeacon: input.salienceBeacon,
   };
@@ -391,7 +395,7 @@ export async function runTurnPipeline(
         briefRaw = resp.text;
         briefUsage = resp.usage;
       } else {
-        briefPrompt = briefStagePrompt(stageInput);
+        briefPrompt = stageInput.useBackgroundPrompt ? briefStagePromptV2(stageInput) : briefStagePrompt(stageInput);
         briefRaw = await generate(briefPrompt, briefModel, { temperature: temps.brief_temperature }, `${input.label} brief`);
       }
       elapsed = Date.now() - t0;

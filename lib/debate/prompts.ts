@@ -1932,6 +1932,8 @@ export interface StagePromptInput {
   salienceBeacon?: boolean;
   /** Exploration summary priming — AN sketch + convergence areas injected at Brief prompt top. */
   explorationPriming?: string;
+  /** Use restructured BRIEF prompt (YOUR TASK → REFERENCE → CURRENT STATE). Experiment flag (t/1029). */
+  useBackgroundPrompt?: boolean;
 }
 
 export function briefStagePrompt(input: StagePromptInput): string {
@@ -1985,6 +1987,80 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   ],
   "phase_considerations": "1-2 sentences on what the current phase demands and how it shapes strategy"
 }`;
+}
+
+export function briefStagePromptV2(input: StagePromptInput): string {
+  const documentBlock = input.documentAnalysis
+    ? documentAnalysisContext(input.documentAnalysis)
+    : sourceReminder(input.sourceContent);
+
+  // ── Section 1: YOUR TASK (primacy position) ──
+  const taskSection = `## YOUR TASK
+
+You are an analytical assistant preparing a situation brief for ${input.label}, who represents the ${input.pov} perspective on AI policy.
+
+Your task is to comprehend the current state of the debate and identify what matters most for ${input.label}'s next response. This is pure analysis — do not write any debate statement or adopt the debater's voice.
+
+${input.phase ? PHASE_INSTRUCTIONS[input.phase] : ''}
+
+ATTRIBUTION FIDELITY: Your analysis of other speakers' positions must be grounded in what they actually said in the RECENT DEBATE HISTORY below. Do not infer, extrapolate, or construct positions that a speaker did not explicitly state. If a speaker did not address a topic, note the absence — do not fill it with assumptions about what they "probably" believe.
+
+Analyze the debate state and produce a structured brief. Focus on:
+1. What is the current state of the debate? What just happened?
+2. What are the most important claims that need addressing? Include the AN-ID if available. For each claim, identify which taxonomy nodes ground your response.
+3. What commitments have been made that constrain or enable ${input.label}'s response?
+4. What structural tensions exist that ${input.label} could exploit or must navigate?
+5. What does the current debate phase demand?
+${input.pendingIntervention ? `6. MODERATOR DIRECTIVE: A moderator ${input.pendingIntervention.move} intervention is active${input.pendingIntervention.isTargeted ? ' and directed at YOU' : ` (directed at ${input.pendingIntervention.targetDebater})`}. Your situation_assessment MUST identify this directive and note what compliance requires.` : ''}
+${input.currentCruxContext ? `\nCRUX ENGAGEMENT: Your situation_assessment MUST identify which active cruxes (from IDENTIFIED CRUXES in REFERENCE MATERIAL) bear on the key claims. For each relevant crux, note whether this turn could advance, challenge, or resolve it.\n` : ''}
+GROUNDING DEPTH: Each claim MUST cite 2-4 grounding nodes from the taxonomy — a primary anchor plus 1-3 supporting or contrasting nodes. Draw from different BDI categories (Beliefs for evidence, Desires for values, Intentions for strategy). A single-node grounding is too shallow — show the full argumentative structure.
+
+GROUNDING WEIGHTS: For Belief grounding nodes, include "confidence" (0.0–1.0) from the taxonomy context. For Desire grounding nodes, include "priority" (1–5). For Intention grounding nodes, include "operationality" (1–5). These help downstream stages calibrate rhetorical strength.
+
+NODE-ID ACCURACY: Copy taxonomy node IDs exactly as they appear in REFERENCE MATERIAL. Do NOT modify, prefix, or "correct" them. "cc-040" stays "cc-040" — do not change it to "sit-cc-040" or any other variant.
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{
+  "situation_assessment": "2-4 sentences describing the current debate state and what just happened${input.pendingIntervention ? '. Include the moderator directive and what it requires' : ''}",
+  "key_claims_to_address": [
+    {"claim": "the claim text or summary", "speaker": "who made it", "an_id": "AN-ID if known", "grounding": [{"node_id": "acc-beliefs-003", "label": "Node Label Here", "confidence": 0.72, "why": "primary — high-confidence anchor"}, {"node_id": "acc-desires-007", "label": "Node Label Here", "priority": 4, "why": "supporting — core value commitment"}, {"node_id": "acc-intentions-012", "label": "Node Label Here", "operationality": 3, "why": "supporting — strategic counter"}]}
+  ],
+  "relevant_commitments": [
+    {"speaker": "who", "commitment": "what was committed", "type": "asserted | conceded | challenged"}
+  ],
+  "edge_tensions": [
+    {"edge": "brief description of the tension", "relevance": "how it could be used"}
+  ],
+  "phase_considerations": "1-2 sentences on what the current phase demands and how it shapes strategy"
+}`;
+
+  // ── Section 2: REFERENCE MATERIAL (middle position) ──
+  const refParts: string[] = [];
+
+  if (input.explorationPriming) refParts.push(input.explorationPriming);
+  refParts.push(input.taxonomyContext);
+  if (input.edgeContext) refParts.push(`=== KNOWN CROSS-POV TENSIONS ===\n${input.edgeContext}`);
+  if (input.topicScope) refParts.push(formatDebateScopeBlock(input.topicScope));
+  if (input.priorCruxContext) refParts.push(input.priorCruxContext);
+  if (input.currentCruxContext) refParts.push(`=== IDENTIFIED CRUXES (THIS DEBATE) ===\n${input.currentCruxContext}`);
+  if (documentBlock) refParts.push(documentBlock);
+  if (input.background) refParts.push(`=== BACKGROUND CONTEXT ===\nThe user provided the following supporting context. Use it to inform your analysis, but keep it separate from the debate question itself.\n${input.background}`);
+
+  const referenceSection = `## REFERENCE MATERIAL\n\n${refParts.join('\n\n')}`;
+
+  // ── Section 3: CURRENT STATE (recency position) ──
+  const stateSection = `## CURRENT STATE
+
+=== DEBATE TOPIC ===
+"${input.topic}"
+
+=== RECENT DEBATE HISTORY ===
+${input.recentTranscript}
+
+=== ASSIGNMENT FOR NEXT TURN ===
+${input.label} must address ${input.addressing === 'general' ? 'the panel' : input.addressing} on: ${input.focusPoint}`;
+
+  return `${taskSection}\n\n${referenceSection}\n\n${stateSection}`;
 }
 
 export function planStagePrompt(input: StagePromptInput, brief: string): string {

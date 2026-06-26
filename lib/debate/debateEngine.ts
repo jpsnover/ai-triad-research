@@ -255,6 +255,8 @@ export interface DebateConfig {
   salienceBeacon?: boolean;
   /** Exploration summary from a prior cheap-engine run — seeds cruxes, situations, AN priming, and config overrides. */
   explorationSummary?: import('./explorationSummary.js').ExplorationSummary;
+  /** Use restructured BRIEF prompt (YOUR TASK → REFERENCE → CURRENT STATE) instead of inline context. Experiment flag (t/1029). */
+  useBackgroundPrompt?: boolean;
   /** Per-stage model overrides — use cheaper models for analytical stages (brief, plan, cite) while keeping the primary model for draft. */
   stageModels?: {
     brief?: string;
@@ -3423,6 +3425,7 @@ export class DebateEngine {
         ? formatCruxResolutionContext(this.session.crux_tracker)
         : undefined,
       explorationPriming: this._explorationPriming || undefined,
+      useBackgroundPrompt: this.config.useBackgroundPrompt,
       topicScope: this.session.topic.scope ?? undefined,
       salienceBeacon: this.config.salienceBeacon ?? false,
       sourceContent: this.session.document_analysis ? undefined : this.config.sourceContent,
