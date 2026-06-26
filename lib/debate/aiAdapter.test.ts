@@ -319,8 +319,9 @@ describe('aiAdapter', () => {
 
       await runWithTimers(adapter.generateText('test', 'gemini-2.5-flash').catch(() => {}));
 
-      expect(fetchTimes).toHaveLength(5);
-      // Exponential: 2^1=2s, 2^2=4s, 2^3=8s, 2^4=16s
+      // 2 outer attempts × 5 withRetry calls = 10 total
+      expect(fetchTimes).toHaveLength(10);
+      // First batch (attempt 0) shows exponential backoff: 2^1=2s, 2^2=4s, …
       const delay1 = fetchTimes[1] - fetchTimes[0];
       const delay2 = fetchTimes[2] - fetchTimes[1];
       expect(delay1).toBeGreaterThanOrEqual(1_500);
@@ -379,7 +380,67 @@ describe('aiAdapter', () => {
 
       await expect(
         runWithTimers(adapter.generateText('test', 'gemini-2.5-flash', { timeoutMs: 10_000 })),
-      ).rejects.toThrow(/Gemini API request timed out after 10s/);
+      ).rejects.toThrow(/timed out after 10s/);
+    });
+  });
+
+  // ── AbortController timeout + retry ───────────────────
+
+  describe('AbortController timeout with one retry (t/1068)', () => {
+    it('retries once on timeout then throws ActionableError', async () => {
+      process.env.GEMINI_API_KEY = 'test-key';
+      let callCount = 0;
+      mockFetch.mockImplementation(async () => {
+        callCount++;
+        return new Promise(() => {});
+      });
+
+      const mod = await getModule();
+      const adapter = mod.createCLIAdapter('/fake/root');
+
+      const err = await runWithTimers(
+        adapter.generateText('test', 'gemini-2.5-flash', { timeoutMs: 10_000 }),
+      ).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).toMatch(/timed out/i);
+      expect((err as Error).name).toBe('ActionableError');
+      // Outer loop retries once; inner withRetry may add background retries
+      expect(callCount).toBeGreaterThanOrEqual(2);
+    });
+
+    it('does not retry on 4xx errors (callCount === 1)', async () => {
+      process.env.GEMINI_API_KEY = 'test-key';
+      let callCount = 0;
+      mockFetch.mockImplementation(async () => {
+        callCount++;
+        return freshResponse({ error: 'not found' }, 404);
+      });
+
+      const mod = await getModule();
+      const adapter = mod.createCLIAdapter('/fake/root');
+
+      await expect(
+        runWithTimers(adapter.generateText('test', 'gemini-2.5-flash', { timeoutMs: 10_000 })),
+      ).rejects.toThrow(/404/);
+      expect(callCount).toBe(1);
+    });
+
+    it('succeeds on first attempt when call resolves within timeout', async () => {
+      process.env.GEMINI_API_KEY = 'test-key';
+      let callCount = 0;
+      mockFetch.mockImplementation(async () => {
+        callCount++;
+        return freshResponse(geminiOkBody('fast result'), 200);
+      });
+
+      const mod = await getModule();
+      const adapter = mod.createCLIAdapter('/fake/root');
+
+      const result = await runWithTimers(
+        adapter.generateText('test', 'gemini-2.5-flash', { timeoutMs: 10_000 }),
+      );
+      expect(result).toBe('fast result');
+      expect(callCount).toBe(1);
     });
   });
 

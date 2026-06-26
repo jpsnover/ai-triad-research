@@ -235,10 +235,46 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
     }
   };
 
+  function isTimeoutOrNetworkError(err: unknown): boolean {
+    if (err instanceof DOMException && err.name === 'AbortError') return true;
+    const msg = err instanceof Error ? err.message : String(err);
+    return msg.includes('timed out') || msg.includes('ECONNRESET') || msg.includes('ECONNREFUSED')
+      || msg.includes('ETIMEDOUT') || msg.includes('fetch failed') || msg.includes('network');
+  }
+
+  function is4xxError(err: unknown): boolean {
+    const msg = err instanceof Error ? err.message : String(err);
+    return /\b4\d{2}\b/.test(msg);
+  }
+
+  async function callWithTimeout(
+    fn: () => Promise<ProviderResult>,
+    timeoutMs: number,
+    externalSignal?: AbortSignal,
+  ): Promise<ProviderResult> {
+    const controller = new AbortController();
+    if (externalSignal) {
+      externalSignal.addEventListener('abort', () => controller.abort(externalSignal.reason), { once: true });
+    }
+    let timer: ReturnType<typeof setTimeout>;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        controller.abort();
+        reject(new DOMException('The operation was aborted', 'AbortError'));
+      }, timeoutMs);
+    });
+    try {
+      return await Promise.race([fn(), timeoutPromise]);
+    } finally {
+      clearTimeout(timer!);
+    }
+  }
+
   async function doGenerateText(prompt: string, model: string, options?: GenerateOptions): Promise<string> {
     const { apiModelId, backend } = resolveModel(registry, model);
     const apiKey = resolveApiKey(backend, explicitApiKey);
-    const opts = { ...options, timeoutMs: options?.timeoutMs ?? getDefaultTimeout(model) };
+    const timeoutMs = options?.timeoutMs ?? getDefaultTimeout(model);
+    const opts = { ...options, timeoutMs };
 
     const t0 = performance.now();
     getGlobalRecorder()?.record({
@@ -246,55 +282,92 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
       message: `generateText ${backend}/${apiModelId}`,
       data: { backend, model: apiModelId, fn: 'generateText' },
     });
-    try {
-      const result = await withRetry(
+
+    const attemptCall = () => callWithTimeout(
+      () => withRetry(
         () => callProvider(fetch, backend, prompt, apiModelId, apiKey, opts),
         CLI_RETRY_CONFIG, `${backend}/${apiModelId}`, retryLog,
-      );
-      emitUsageTelemetry(backend, apiModelId, performance.now() - t0, result.usage);
-      getGlobalRecorder()?.record({
-        type: 'ai.response', component: 'ai-adapter', level: 'info',
-        duration_ms: Math.round(performance.now() - t0),
-        message: `generateText success ${backend}/${apiModelId}`,
-        data: { backend, model: apiModelId, fn: 'generateText', usage: result.usage },
-      });
-      return result.text;
-    } catch (primaryErr) {
-      const errMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
-      const isAuthError = errMsg.includes('401') || errMsg.includes('403');
-      getGlobalRecorder()?.record({
-        type: 'ai.error', component: 'ai-adapter', level: 'error',
-        error_category: isAuthError ? 'permissions' : 'ai_provider',
-        duration_ms: Math.round(performance.now() - t0),
-        message: `generateText failed ${backend}/${apiModelId}: ${errMsg.slice(0, 120)}`,
-        error: { name: primaryErr instanceof Error ? primaryErr.name : 'Error', message: errMsg, stack: primaryErr instanceof Error ? primaryErr.stack : undefined },
-        data: { backend, model: apiModelId, fn: 'generateText', isAuthError },
-      });
-      const chain = registry.fallbackChains?.[model] ?? [];
-      for (const fbModel of chain) {
-        const fb = resolveModel(registry, fbModel);
-        if (isAuthError && fb.backend === backend) continue;
-        let fbKey: string;
-        try { fbKey = resolveApiKey(fb.backend, explicitApiKey); } catch (err) {
-          getGlobalRecorder()?.record({ type: 'ai.fallback', component: 'ai-adapter', level: 'warn', message: `Fallback key resolution failed for ${fb.backend}/${fb.apiModelId}`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      ),
+      timeoutMs,
+      options?.signal,
+    );
+
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const result = await attemptCall();
+        emitUsageTelemetry(backend, apiModelId, performance.now() - t0, result.usage);
+        getGlobalRecorder()?.record({
+          type: 'ai.response', component: 'ai-adapter', level: 'info',
+          duration_ms: Math.round(performance.now() - t0),
+          message: `generateText success ${backend}/${apiModelId}`,
+          data: { backend, model: apiModelId, fn: 'generateText', usage: result.usage },
+        });
+        return result.text;
+      } catch (err) {
+        lastErr = err;
+        if (attempt === 0 && isTimeoutOrNetworkError(err) && !is4xxError(err)) {
+          const elapsed = Math.round(performance.now() - t0);
+          getGlobalRecorder()?.record({
+            type: 'ai.retry', component: 'ai-adapter', level: 'warn',
+            message: `generateText timeout ${backend}/${apiModelId} after ${elapsed}ms — retrying once`,
+            data: { backend, model: apiModelId, elapsed, attempt: 1 },
+          });
           continue;
         }
-        process.stderr.write(`[cascade] ${backend}/${apiModelId} failed, trying ${fb.backend}/${fb.apiModelId}\n`);
-        try {
-          const fbOpts = { ...opts, timeoutMs: getDefaultTimeout(fbModel) };
-          const fbResult = await withRetry(
+        break;
+      }
+    }
+
+    const errMsg = lastErr instanceof Error ? lastErr.message : String(lastErr);
+    const isAuthError = errMsg.includes('401') || errMsg.includes('403');
+    getGlobalRecorder()?.record({
+      type: 'ai.error', component: 'ai-adapter', level: 'error',
+      error_category: isAuthError ? 'permissions' : isTimeoutOrNetworkError(lastErr) ? 'network' : 'ai_provider',
+      duration_ms: Math.round(performance.now() - t0),
+      message: `generateText failed ${backend}/${apiModelId}: ${errMsg.slice(0, 120)}`,
+      error: { name: lastErr instanceof Error ? lastErr.name : 'Error', message: errMsg, stack: lastErr instanceof Error ? lastErr.stack : undefined },
+      data: { backend, model: apiModelId, fn: 'generateText', isAuthError },
+    });
+
+    const chain = registry.fallbackChains?.[model] ?? [];
+    for (const fbModel of chain) {
+      const fb = resolveModel(registry, fbModel);
+      if (isAuthError && fb.backend === backend) continue;
+      let fbKey: string;
+      try { fbKey = resolveApiKey(fb.backend, explicitApiKey); } catch (err) {
+        getGlobalRecorder()?.record({ type: 'ai.fallback', component: 'ai-adapter', level: 'warn', message: `Fallback key resolution failed for ${fb.backend}/${fb.apiModelId}`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+        continue;
+      }
+      process.stderr.write(`[cascade] ${backend}/${apiModelId} failed, trying ${fb.backend}/${fb.apiModelId}\n`);
+      try {
+        const fbTimeoutMs = getDefaultTimeout(fbModel);
+        const fbOpts = { ...opts, timeoutMs: fbTimeoutMs };
+        const fbResult = await callWithTimeout(
+          () => withRetry(
             () => callProvider(fetch, fb.backend, prompt, fb.apiModelId, fbKey, fbOpts),
             { ...CLI_RETRY_CONFIG, maxRetries: 2 }, `cascade:${fb.backend}/${fb.apiModelId}`, retryLog,
-          );
-          emitUsageTelemetry(fb.backend, fb.apiModelId, performance.now() - t0, fbResult.usage);
-          return fbResult.text;
-        } catch (err) {
-          getGlobalRecorder()?.record({ type: 'ai.fallback', component: 'ai-adapter', level: 'warn', message: `Fallback provider ${fb.backend}/${fb.apiModelId} failed`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-          continue;
-        }
+          ),
+          fbTimeoutMs,
+          options?.signal,
+        );
+        emitUsageTelemetry(fb.backend, fb.apiModelId, performance.now() - t0, fbResult.usage);
+        return fbResult.text;
+      } catch (err) {
+        getGlobalRecorder()?.record({ type: 'ai.fallback', component: 'ai-adapter', level: 'warn', message: `Fallback provider ${fb.backend}/${fb.apiModelId} failed`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+        continue;
       }
-      throw primaryErr;
     }
+
+    if (isTimeoutOrNetworkError(lastErr)) {
+      throw new ActionableError({
+        goal: `Generate AI response from ${backend}/${apiModelId}`,
+        problem: `AI call timed out after ${Math.round(timeoutMs / 1000)}s — no response from ${model}`,
+        location: 'lib/debate/aiAdapter.ts:doGenerateText',
+        nextSteps: ['Click Retry to attempt the call again, or switch to a faster model'],
+      });
+    }
+    throw lastErr;
   }
 
   async function doGenerate(request: GenerateRequest): Promise<GenerateResponse> {
