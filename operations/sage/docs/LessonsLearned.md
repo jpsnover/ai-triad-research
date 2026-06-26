@@ -780,3 +780,24 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active
 
 **Applies To:** All agents modifying CI workflows or deploy preflight checks.
+
+---
+
+## [Build] Git `--` Separator Before Flags Turns Flags Into Pathspecs
+
+**Pattern:** Placing `--` (end-of-options separator) before flags like `-m` causes git to interpret those flags as filenames, failing with "pathspec did not match."
+
+**Instances:**
+- 2026-06-25 — Shared Lib: `ogit commit -- lib/AGENTS.md -m "message"` failed — git treated `-m` and the message as pathspecs. Fixed by reordering: `-m "message" -- lib/AGENTS.md` (p/5#11).
+- 2026-06-26 — DebateTool: `git commit -- lib/debate/prompts.ts -m "..."` — same issue on the main repo. Fixed by staging with `git add` first, then `git commit -m "..."` without `--` (p/70#3).
+
+**Root Cause:** `--` signals end-of-options to git. Everything after `--` is treated as a literal filename/pathspec — including `-m`, `-F`, and any other flag. This is standard POSIX behavior but surprises agents who think of `--` as "here come the paths" without realizing it also disables all subsequent flag parsing.
+
+**Prevention:**
+1. **All flags must come BEFORE `--`:** `git commit -m "msg" -- <paths>`, never `git commit -- <paths> -m "msg"`.
+2. Alternative: stage files first with `git add <paths>`, then `git commit -m "msg"` (no `--` needed if the index is already correct).
+3. Same rule applies to all git commands: `git diff`, `git log`, `git checkout` — `--` always terminates option parsing.
+
+**Status:** Active — 2 instances across 2 agents, spanning both main and overlay repos.
+
+**Applies To:** All agents using git commit with pathspec on any repo.
