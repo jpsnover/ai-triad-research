@@ -25,7 +25,6 @@ import type { DetailTier } from '@lib/debate/comments';
 import { UsernamePromptDialog } from '../shared/UsernamePromptDialog';
 import { DiagnosticsChatSidebar } from '../debate-diagnostics/chat';
 import type { NavigateCommand } from '../debate-diagnostics/chat';
-import { triggerManualDump } from '../../lib/flightRecorderInit';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useCommunityStore } from '../../hooks/useCommunityStore';
 import { useUserProfile } from '../../hooks/useAuthStatus';
@@ -644,16 +643,9 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     <div className="debate-workspace">
       {/* Fixed toolbar — always visible */}
       <div className="debate-toolbar">
-        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'monospace', userSelect: 'all', marginRight: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200 }} title={`${activeDebate.title} — ${activeDebate.id}`}>
+        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', userSelect: 'all', marginRight: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 300 }} title={`${activeDebate.title} — ${activeDebate.id}`}>
           {activeDebate.title || activeDebate.id.slice(0, 12)}
         </span>
-        <button
-          className={`btn btn-sm debate-diag-btn${diagnosticsEnabled ? ' active' : ''}`}
-          onClick={toggleDiagnostics}
-          title={diagnosticsEnabled ? 'Disable diagnostics mode' : 'Enable diagnostics mode — click entries to inspect'}
-        >
-          {diagnosticsEnabled ? 'Debate Diagnostics ON' : 'Debate Diagnostics'}
-        </button>
         {isCrossCutting && (
           <button
             className="btn btn-sm debate-cc-details-btn"
@@ -663,13 +655,12 @@ export function DebateWorkspace({ onExport, exportStatus }: {
             Details
           </button>
         )}
-{/* Debate Chat button moved to FAB at bottom-right */}
         <button
           className={`btn btn-sm${commentSidebarOpen ? ' active' : ''}`}
           onClick={toggleCommentSidebar}
           title={commentSidebarOpen ? 'Hide comments sidebar' : 'Show comments sidebar'}
         >
-          Comments{commentsFile?.comments?.length ? ` (${commentsFile.comments.length})` : ''}
+          Comments ({commentsFile?.comments?.length ?? 0})
         </button>
         {exportStatus && (
           <span className="debate-toolbar-status">{exportStatus}</span>
@@ -678,6 +669,13 @@ export function DebateWorkspace({ onExport, exportStatus }: {
           <ExportButtonInline onExport={onExport} />
         )}
         <ShareToCommunityButton debate={activeDebate} />
+        <button
+          className={`btn btn-sm debate-diag-btn${diagnosticsEnabled ? ' active' : ''}`}
+          onClick={toggleDiagnostics}
+          title={diagnosticsEnabled ? 'Disable diagnostics mode' : 'Enable diagnostics mode — click entries to inspect'}
+        >
+          {diagnosticsEnabled ? 'Diagnostics ON' : 'Diagnostics'}
+        </button>
         <span className="debate-tier-global" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 2 }}>
           {(['brief', 'medium', 'detailed', 'reasoning', 'claims', 'convergence'] as const).map(tier => (
             <button
@@ -690,13 +688,6 @@ export function DebateWorkspace({ onExport, exportStatus }: {
             </button>
           ))}
         </span>
-        <button
-          className="btn btn-sm"
-          onClick={triggerManualDump}
-          title="Dump flight recorder (Ctrl+Alt+D)"
-        >
-          Dump
-        </button>
       </div>
 
       {/* Cross-cutting context dialog */}

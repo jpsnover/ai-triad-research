@@ -14,6 +14,9 @@ import { HarvestDialog } from '../shared/HarvestDialog';
 import { ReflectionsPanel } from '../shared/ReflectionsPanel';
 import { NewsReportModal } from '../shared/NewsReportModal';
 import { useTierInfo } from '../../hooks/useTierInfo';
+import { isElectronMode } from '@bridge';
+import { useFlag } from '../../hooks/useFeatureFlags';
+import { triggerManualDump } from '../../lib/flightRecorderInit';
 
 export function ProgressIndicator() {
   const { debateActivity, debateProgress } = useDebateStore(
@@ -213,6 +216,7 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
   const [showNewsReport, setShowNewsReport] = useState(false);
   const [crossRespondTurns, setCrossRespondTurns] = useState(1);
   const inputRef = useRef<HTMLInputElement>(null);
+  const showAdminControls = isElectronMode() || useFlag('permission-admin-features');
   const hasSynthesis = activeDebate?.transcript.some(e => e.type === 'concluding') || false;
   const isAdaptive = (activeDebate as any)?.adaptive_staging?.enabled ?? false;
   const isStepMode = (activeDebate as any)?.adaptive_staging?.step_mode ?? false;
@@ -455,34 +459,36 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
         <button
           className="btn debate-synthesis-btn"
           onClick={() => void requestSynthesis()}
-          disabled={disableAnalysis}
-          title="Generate a synthesis of agreements, disagreements, and open questions"
+          disabled={disableAnalysis || hasSynthesis}
+          title={hasSynthesis ? 'Synthesis already generated' : 'Generate a synthesis of agreements, disagreements, and open questions'}
         >
           Synthesize
         </button>
         <button
           className="btn debate-probe-btn"
           onClick={() => void requestProbingQuestions()}
-          disabled={disableAnalysis}
+          disabled={disableAnalysis || isClosed}
           title="Get AI-suggested probing questions to deepen the debate"
         >
           Probe
         </button>
-        <button
-          className="btn debate-harvest-btn"
-          onClick={() => setShowHarvest(true)}
-          disabled={disableAnalysis || !hasSynthesis}
-          title="Harvest debate findings into the taxonomy"
-        >
-          Harvest
-        </button>
+        {showAdminControls && (
+          <button
+            className="btn debate-harvest-btn"
+            onClick={() => setShowHarvest(true)}
+            disabled={disableAnalysis || !hasSynthesis}
+            title="Harvest debate findings into the taxonomy"
+          >
+            Harvest
+          </button>
+        )}
         <button
           className="btn debate-reflections-btn"
           onClick={() => { setShowReflections(true); void requestReflections(); }}
           disabled={disableAnalysis}
           title="Each debater reflects on the debate and proposes taxonomy edits"
         >
-          Post-Debate Reflections
+          Reflections
         </button>
         <button
           className="btn"
@@ -500,15 +506,25 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
         >
           Evaluation
         </button>
-        <button
-          className="btn"
-          onClick={() => setShowParamHistory(!showParamHistory)}
-          title="View calibration parameter history and current values"
-          style={{ fontSize: '0.65rem' }}
-        >
-          Calibration
-        </button>
+        {showAdminControls && (
+          <button
+            className="btn"
+            onClick={() => setShowParamHistory(!showParamHistory)}
+            title="View calibration parameter history and current values"
+            style={{ fontSize: '0.65rem' }}
+          >
+            Calibration
+          </button>
+        )}
         <div style={{ flex: 1 }} />
+        <button
+          className="debate-dump-inline"
+          onClick={triggerManualDump}
+          title="Export flight recorder (Ctrl+Alt+D)"
+          aria-label="Export flight recorder"
+        >
+          ↓
+        </button>
         <select
           className="debate-audience-select"
           value={audience}

@@ -8546,6 +8546,24 @@ body {
 }
 .debate-chat-fab:hover { transform: scale(1.08); box-shadow: 0 4px 14px rgba(0,0,0,0.3); }
 .debate-chat-fab.active { background: var(--text-secondary, #666); }
+.debate-dump-inline {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+.debate-dump-inline:hover { background: var(--bg-tertiary); color: var(--text-primary); }
 .debate-workspace {
   display: flex;
   flex-direction: column;
@@ -9473,6 +9491,27 @@ a.vocab-term,
 .debate-tier-pill-active {
   background: var(--accent, #3b82f6);
   color: #fff;
+}
+
+.debate-detail-dropdown {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.55rem;
+  font-weight: 600;
+  padding: 0 4px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-radius: 3px;
+  height: 18px;
+}
+.debate-detail-dropdown:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.debate-detail-dropdown:focus {
+  outline: 1px solid var(--accent, #3b82f6);
 }
 
 .debate-tier-truncated {

@@ -255,20 +255,20 @@ describe('toolbar', () => {
     mockStore.activeDebate = makeDebate();
   });
 
-  it('renders Debate Diagnostics button', () => {
+  it('renders Diagnostics button', () => {
     render(<DebateWorkspace />);
-    expect(screen.getByText('Debate Diagnostics')).toBeInTheDocument();
+    expect(screen.getByText('Diagnostics')).toBeInTheDocument();
   });
 
   it('shows diagnostics ON label when diagnosticsEnabled is true', () => {
     mockStore.diagnosticsEnabled = true;
     render(<DebateWorkspace />);
-    expect(screen.getByText('Debate Diagnostics ON')).toBeInTheDocument();
+    expect(screen.getByText('Diagnostics ON')).toBeInTheDocument();
   });
 
   it('renders Comments button', () => {
     render(<DebateWorkspace />);
-    expect(screen.getByText('Comments')).toBeInTheDocument();
+    expect(screen.getByText('Comments (0)')).toBeInTheDocument();
   });
 
   it('renders tier pills — Brief, Med, Detail', () => {
@@ -290,11 +290,6 @@ describe('toolbar', () => {
     const activePills = container.querySelectorAll('.debate-tier-pill-active');
     expect(activePills.length).toBe(1);
     expect(activePills[0].textContent).toBe('Brief');
-  });
-
-  it('renders Dump button', () => {
-    render(<DebateWorkspace />);
-    expect(screen.getByTitle('Dump flight recorder (Ctrl+Alt+D)')).toBeInTheDocument();
   });
 
   it('does not render Export button when onExport prop is not provided', () => {
@@ -402,6 +397,36 @@ describe('phase routing', () => {
     render(<DebateWorkspace />);
     expect(screen.queryByTestId('clarification-actions')).toBeNull();
     expect(screen.queryByTestId('opening-actions')).toBeNull();
+  });
+
+  it('renders SessionPhaseStepper during debate phase', () => {
+    mockStore.activeDebate = makeDebate({ phase: 'debate' });
+    render(<DebateWorkspace />);
+    expect(screen.getByTestId('session-stepper')).toBeInTheDocument();
+  });
+
+  it('hides SessionPhaseStepper when debate is closed (t/1027)', () => {
+    mockStore.activeDebate = makeDebate({ phase: 'closed' });
+    render(<DebateWorkspace />);
+    expect(screen.queryByTestId('session-stepper')).toBeNull();
+  });
+
+  it('hides PhaseProgressBar when debate is closed (t/1027)', () => {
+    mockStore.activeDebate = makeDebate({
+      phase: 'closed',
+      adaptive_staging: { enabled: true, current_phase: 'concluding', phase_progress: 1, rounds_in_phase: 4, approaching_transition: false },
+    });
+    render(<DebateWorkspace />);
+    expect(screen.queryByTestId('phase-progress')).toBeNull();
+  });
+
+  it('renders PhaseProgressBar during active debate with adaptive staging', () => {
+    mockStore.activeDebate = makeDebate({
+      phase: 'debate',
+      adaptive_staging: { enabled: true, current_phase: 'confrontation', phase_progress: 0.5, rounds_in_phase: 3, approaching_transition: false },
+    });
+    render(<DebateWorkspace />);
+    expect(screen.getByTestId('phase-progress')).toBeInTheDocument();
   });
 
   it('renders ClaimsEditor in edit-claims phase', () => {
