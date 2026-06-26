@@ -120,7 +120,9 @@ function loadConfig(): FlagsConfig {
     const stat = fs.statSync(p);
     if (_cache && stat.mtimeMs === _cacheMtime) return _cache;
     const data = JSON.parse(fs.readFileSync(p, 'utf-8')) as Partial<FlagsConfig>;
-    _cache = { flags: data.flags ?? {} };
+    // Seed flags are the baseline — file overrides take precedence, but new
+    // seeds appear automatically without requiring a file rewrite.
+    _cache = { flags: { ...SEED_FLAGS, ...(data.flags ?? {}) } };
     _cacheMtime = stat.mtimeMs;
     log.server.debug({ path: p, count: Object.keys(_cache.flags).length }, 'Loaded feature flags');
     return _cache;

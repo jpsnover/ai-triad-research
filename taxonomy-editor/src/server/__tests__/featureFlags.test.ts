@@ -80,6 +80,20 @@ describe('feature flag CRUD + resolution (t/899)', () => {
     expect(getFlag('release-qbaf-analysis')).toBe(true);
   });
 
+  it('seed flags remain accessible when feature-flags.json exists without them', () => {
+    setFlag('custom-only', { enabled: true, scope: 'global' });
+    _resetFlagCache();
+    expect(getFlag('release-qbaf-analysis')).toBe(true);
+    expect(asUser('jpsnover', () => getFlag('permission-admin-features'))).toBe(true);
+    expect(getFlag('custom-only')).toBe(true);
+  });
+
+  it('file flags take precedence over seed flags with the same name', () => {
+    setFlag('release-qbaf-analysis', { enabled: false, scope: 'global' });
+    _resetFlagCache();
+    expect(getFlag('release-qbaf-analysis')).toBe(false);
+  });
+
   it('setFlag persists to feature-flags.json and appends an audit entry (AC#5)', () => {
     setFlag('my-flag', { enabled: true, scope: 'global', description: 'x' }, 'jpsnover');
     expect(fs.existsSync(flagsFile())).toBe(true);
