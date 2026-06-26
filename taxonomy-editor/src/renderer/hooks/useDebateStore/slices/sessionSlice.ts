@@ -25,7 +25,7 @@ import { generateId, nowISO } from '@lib/debate/helpers';
 import type { MoveAnnotation } from '@lib/debate/helpers';
 import { getMoveName } from '@lib/debate/helpers';
 import { disambiguateTerms } from '@lib/debate/vocabularyDisambiguation';
-import type { CampOrigin } from '@lib/dictionary/types';
+import type { CampOrigin, StandardizedTerm, ColloquialTerm } from '@lib/dictionary/types';
 import {
   resetDoctrinalAnchoringCache,
   resetNeutralMapping,
@@ -291,6 +291,15 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       set({ activeDebateId: id, activeDebate: session, debateLoading: false, debateModel: session.debate_model || null, debateTemperature: session.debate_temperature ?? null, audience: session.audience ?? 'policymakers', openingOrder: session.opening_order ?? [], selectedDiagEntry: null });
       setActiveDebateId(id);
       setGapInjectionCount(session.gap_injections?.length ?? 0);
+      if (!get().vocabularyTerms) {
+        api.loadDictionary().then(dict => {
+          if (dict.standardized.length > 0 && get().activeDebateId === id) {
+            set({ vocabularyTerms: { standardized: dict.standardized as StandardizedTerm[], colloquial: dict.colloquial as ColloquialTerm[] } });
+          }
+        }).catch((err: unknown) => {
+          getGlobalRecorder()?.record({ type: 'system.error', debate_id: id, component: 'debate-store', level: 'warn', message: 'Dictionary load failed on debate resume (non-critical)', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+        });
+      }
       usePromptConfigStore.getState().loadSessionConfig(
         (session as Record<string, unknown>).prompt_config as Record<string, number | boolean | string> | undefined
       );

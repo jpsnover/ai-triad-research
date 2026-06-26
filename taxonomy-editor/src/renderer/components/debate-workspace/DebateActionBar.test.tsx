@@ -86,6 +86,14 @@ vi.mock('../../hooks/useTierInfo', () => ({
   useTierInfo: () => mockTierInfo,
 }));
 
+vi.mock('@bridge', () => ({
+  isElectronMode: () => true,
+}));
+
+vi.mock('../../hooks/useFeatureFlags', () => ({
+  useFlag: () => false,
+}));
+
 afterEach(() => { vi.clearAllMocks(); });
 
 // ── ProgressIndicator ───────────────────────────────────────

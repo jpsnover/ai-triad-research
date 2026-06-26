@@ -101,12 +101,22 @@ export function VocabTermCard({ bare, dict, resolved, defLookup, navigateToLinea
         const isHighlighted = resolved != null && rt.standardized_term === resolved;
         const def = defLookup?.get(rt.standardized_term);
         return (
-          <div key={j} style={{ marginLeft: 16, marginTop: 4 }}>
+          <div key={j} style={{
+            marginLeft: 12, marginTop: 4, padding: '4px 8px', borderRadius: 4,
+            borderLeft: isHighlighted ? '3px solid var(--accent-color, #3b82f6)' : '3px solid transparent',
+            background: isHighlighted ? 'var(--active-definition-bg, rgba(59,130,246,0.08))' : 'transparent',
+            opacity: isHighlighted ? 1 : 0.7,
+          }}>
             <div style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+              {isHighlighted && (
+                <span style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--accent-color, #3b82f6)', flexShrink: 0 }}>
+                  active
+                </span>
+              )}
               <a
                 href="#"
                 style={{
-                  fontWeight: 600,
+                  fontWeight: isHighlighted ? 700 : 500,
                   textDecoration: 'underline',
                   textUnderlineOffset: '2px',
                   color: isHighlighted ? 'var(--text-primary)' : 'var(--text-muted)',
@@ -118,7 +128,7 @@ export function VocabTermCard({ bare, dict, resolved, defLookup, navigateToLinea
               >
                 {def?.display ?? rt.standardized_term}
               </a>
-              {rt.when && <span style={{ color: 'var(--text-muted)' }}>{rt.when}</span>}
+              {rt.when && <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>{rt.when}</span>}
               {rt.default_for_camp && (
                 <span style={{ color: POV_COLOR_VAR[rt.default_for_camp] ?? 'var(--text-muted)', fontWeight: 600, fontSize: '0.72rem', flexShrink: 0 }}>
                   {rt.default_for_camp}
@@ -126,31 +136,42 @@ export function VocabTermCard({ bare, dict, resolved, defLookup, navigateToLinea
               )}
             </div>
             {def?.definition && (
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>
+              <div style={{ fontSize: '0.72rem', color: isHighlighted ? 'var(--text-secondary)' : 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>
                 {def.definition}
               </div>
             )}
           </div>
         );
       })}
-      {!dict && resolved && (
-        <div style={{ marginLeft: 16, marginTop: 2 }}>
-          <div style={{ fontSize: '0.78rem' }}>
-            <a
-              href="#"
-              style={{ textDecoration: 'underline dotted', textUnderlineOffset: '2px', color: 'var(--text-secondary)', cursor: 'pointer' }}
-              onClick={(ev) => { ev.preventDefault(); navigateToLineage(resolved); }}
-            >
-              {defLookup?.get(resolved)?.display ?? resolved}
-            </a>
-          </div>
-          {defLookup?.get(resolved)?.definition && (
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2, marginLeft: 16, lineHeight: 1.4 }}>
-              {defLookup.get(resolved)!.definition}
+      {!dict && resolved && (() => {
+        const def = defLookup?.get(resolved);
+        return (
+          <div style={{
+            marginLeft: 12, marginTop: 4, padding: '4px 8px', borderRadius: 4,
+            borderLeft: '3px solid var(--accent-color, #3b82f6)',
+            background: 'var(--active-definition-bg, rgba(59,130,246,0.08))',
+          }}>
+            <div style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--accent-color, #3b82f6)', flexShrink: 0 }}>
+                active
+              </span>
+              <a
+                href="#"
+                style={{ fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: '2px', color: 'var(--text-primary)', cursor: 'pointer' }}
+                title={`Go to "${def?.display ?? resolved}" in Lineage Panel`}
+                onClick={(ev) => { ev.preventDefault(); navigateToLineage(resolved); }}
+              >
+                {def?.display ?? resolved}
+              </a>
             </div>
-          )}
-        </div>
-      )}
+            {def?.definition && (
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 2, lineHeight: 1.4 }}>
+                {def.definition}
+              </div>
+            )}
+          </div>
+        );
+      })()}
       {dict?.ambiguous_when && dict.ambiguous_when.length > 0 && (
         <div style={{ marginLeft: 16, marginTop: 3, fontSize: '0.72rem', fontStyle: 'italic', color: 'var(--text-muted)' }}>
           Ambiguous when: {dict.ambiguous_when.join('; ')}

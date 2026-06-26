@@ -9,7 +9,7 @@ import { POVER_INFO } from '../../types/debate';
 import type { SpeakerId, TranscriptEntry, TaxonomyRef, ConvergenceSignals } from '../../types/debate';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { lineageMarkdownComponents } from '../../utils/lineageMatcher';
+import { lineageMarkdownComponents, extractLineageNames } from '../../utils/lineageMatcher';
 import { getDebateMarkdownComponents, type VocabResolution } from '../../utils/vocabularyAnnotations';
 import {
   speakerLabel, speakerColor, pctFmt, focusMainWindowNode,
@@ -370,6 +370,7 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
   const selectDiagEntry = useDebateStore(s => s.selectDiagEntry);
   const deleteTranscriptEntries = useDebateStore(s => s.deleteTranscriptEntries);
   const qbafEnabled = useFlag('release-qbaf-analysis');
+  const detailDropdown = useFlag('debate-detail-dropdown');
   const [deleteConfirm, setDeleteConfirm] = useState<'single' | 'after' | null>(null);
   const [showSymbolTooltips, setShowSymbolTooltips] = useState(false);
   const anNodeId = activeDebate?.argument_network?.nodes?.find(
@@ -381,6 +382,7 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
   const vocabResolutions = meta?.vocabulary_resolutions as VocabResolution[] | undefined;
   const showTerms = useCallback(() => { setEntryDisplayTier(entry.id, 'terms'); }, [entry.id, setEntryDisplayTier]);
   const showLineage = useCallback(() => { setEntryDisplayTier(entry.id, 'lineage'); }, [entry.id, setEntryDisplayTier]);
+  const hasLineageRefs = useMemo(() => extractLineageNames(entry.content).length > 0, [entry.content]);
   const mdComponents = useMemo(
     () => getDebateMarkdownComponents(vocabResolutions, vocabResolutions?.length ? showTerms : undefined, showLineage),
     [vocabResolutions, showTerms, showLineage],
@@ -431,8 +433,31 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
         </span>
         {showTierPills && (
           <span className="debate-tier-pills">
-            {(['brief', 'medium', 'detailed', 'reasoning', 'terms', 'lineage', 'claims', 'convergence'] as const).map(tier => {
+            {detailDropdown ? (
+              <select
+                className="debate-detail-dropdown"
+                value={(['brief', 'medium', 'detailed'] as const).includes(activeTier as 'brief' | 'medium' | 'detailed') ? activeTier : 'detailed'}
+                onChange={(e) => { e.stopPropagation(); setEntryDisplayTier(entry.id, e.target.value as 'brief' | 'medium' | 'detailed'); }}
+              >
+                <option value="brief">Brief</option>
+                <option value="medium">Medium</option>
+                <option value="detailed">Full</option>
+              </select>
+            ) : (
+              (['brief', 'medium', 'detailed'] as const).map(tier => (
+                <button
+                  key={tier}
+                  className={`debate-tier-pill${activeTier === tier ? ' debate-tier-pill-active' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); setEntryDisplayTier(entry.id, tier); }}
+                  title={TIER_TITLES[tier]}
+                >
+                  {TIER_LABELS[tier]}
+                </button>
+              ))
+            )}
+            {(['reasoning', 'terms', 'lineage', 'claims', 'convergence'] as const).map(tier => {
               if (tier === 'terms' && !(vocabResolutions && vocabResolutions.length > 0)) return null;
+              if (tier === 'lineage' && !hasLineageRefs) return null;
               const isSpecial = (tier === 'terms' || tier === 'lineage') && activeTier !== tier;
               return (
                 <button
