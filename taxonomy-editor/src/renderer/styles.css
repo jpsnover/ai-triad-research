@@ -18234,7 +18234,8 @@ th[data-tooltip]::after {
   max-width: 960px;
   margin: 0 auto;
   padding: 32px 24px;
-  min-height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
   background: var(--bg-primary);
   color: var(--text-primary);
 }

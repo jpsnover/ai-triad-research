@@ -469,7 +469,7 @@ export function AnalyticsDashboard() {
   const handleBack = () => { window.location.hash = ''; window.location.reload(); };
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '20px 24px', color: 'var(--text-primary)' }}>
+    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '20px 24px', color: 'var(--text-primary)', height: '100dvh', overflowY: 'auto' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
