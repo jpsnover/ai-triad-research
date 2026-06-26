@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DiagnosticsChatSidebar } from './DiagnosticsChatSidebar';
@@ -19,6 +19,7 @@ vi.mock('react-markdown', () => ({
 vi.mock('remark-gfm', () => ({ default: {} }));
 
 // Bridge — only the methods this component actually calls.
+const mockIsElectronMode = vi.fn(() => true);
 vi.mock('@bridge', () => ({
   api: {
     loadTaxonomyFile:  vi.fn().mockResolvedValue(null),
@@ -26,6 +27,7 @@ vi.mock('@bridge', () => ({
     startChatStream:   vi.fn().mockResolvedValue(''),
     onChatStreamChunk: vi.fn().mockReturnValue(() => {}),
   },
+  isElectronMode: (...args: unknown[]) => mockIsElectronMode(...args),
 }));
 
 // Flight recorder — keep it null (the component guards all calls with ?.)
@@ -404,7 +406,51 @@ describe('DiagnosticsChatSidebar', () => {
     });
   });
 
-  // ── 10. Keyboard shortcut (Ctrl+Shift+D) ────────────────────────────────
+  // ── 10. Web mode — desktop-only guard (t/1063) ──────────────────────────
+
+  describe('web mode — desktop-only guard', () => {
+    beforeEach(() => {
+      mockIsElectronMode.mockReturnValue(false);
+    });
+    afterEach(() => {
+      mockIsElectronMode.mockReturnValue(true);
+    });
+
+    it('shows "desktop app" placeholder instead of onboarding hint', () => {
+      render(<DiagnosticsChatSidebar {...defaultProps} embedded />);
+      expect(
+        screen.getByText(/available in the desktop app/),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(/Ask questions about the debate/),
+      ).not.toBeInTheDocument();
+    });
+
+    it('shows "Chat available in desktop app" placeholder in the textarea', () => {
+      render(<DiagnosticsChatSidebar {...defaultProps} embedded />);
+      expect(
+        screen.getByPlaceholderText('Chat available in desktop app'),
+      ).toBeInTheDocument();
+    });
+
+    it('disables the textarea in web mode', () => {
+      render(
+        <DiagnosticsChatSidebar {...defaultProps} debate={makeDebate()} embedded />,
+      );
+      expect(
+        screen.getByPlaceholderText('Chat available in desktop app'),
+      ).toBeDisabled();
+    });
+
+    it('disables the Send button in web mode', () => {
+      render(
+        <DiagnosticsChatSidebar {...defaultProps} debate={makeDebate()} embedded />,
+      );
+      expect(screen.getByText('Send')).toBeDisabled();
+    });
+  });
+
+  // ── 11. Keyboard shortcut (Ctrl+Shift+D) ────────────────────────────────
 
   describe('Ctrl+Shift+D keyboard shortcut', () => {
     it('opens the sidebar from the closed non-embedded state', () => {
