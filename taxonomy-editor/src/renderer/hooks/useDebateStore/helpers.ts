@@ -485,6 +485,13 @@ const _windowId = typeof crypto !== 'undefined' && crypto.randomUUID
   ? crypto.randomUUID() : `w-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 let _activeDriverWindow: string | null = null;
 
+function reloadActiveDebateFromStorage(): void {
+  const debateId = useDebateStore.getState().activeDebateId;
+  if (debateId) {
+    void useDebateStore.getState().loadDebate(debateId);
+  }
+}
+
 if (_driverChannel) {
   _driverChannel.onmessage = (e: MessageEvent) => {
     const { type, windowId } = e.data as { type: string; windowId: string };
@@ -503,15 +510,11 @@ if (_driverChannel) {
     }
   };
 }
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => _driverChannel?.close());
+}
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => releaseDebateDriver());
-}
-
-function reloadActiveDebateFromStorage(): void {
-  const debateId = useDebateStore.getState().activeDebateId;
-  if (debateId) {
-    void useDebateStore.getState().loadDebate(debateId);
-  }
 }
 
 export function claimDebateDriver(): boolean {
