@@ -4201,6 +4201,47 @@ Topic: "Are physical limits on computation — energy, heat, materials — the r
 Return a single JSON object matching the TopicScope schema above. No markdown fences. No commentary.`;
 }
 
+// ── Topic Structure Extraction (t/1050) ──────────────────────────
+export function extractTopicStructurePrompt(topic: string): string {
+  return `You are a topic analyst. Extract the structure of this debate topic into three fields.
+
+DEFINITIONS:
+- core_proposition: The central claim or question being debated. Rephrase for clarity if the original is convoluted, but preserve the full scope.
+- structural_premises: Factual conditions the topic STATES AS GIVEN — background facts the debaters must accept, not argue about. Most topics have NONE.
+- scope_constraints: Explicit limits on what is in or out of scope. Only include if the topic explicitly bounds the debate.
+
+CRITICAL RULE — structural premises vs. debatable claims:
+A structural premise is a condition the topic presents as settled background, not something to argue about.
+Test: "Could a reasonable debater disagree with this statement?" If yes → it is NOT a structural premise. Classify it as part of core_proposition.
+
+When in doubt, leave structural_premises EMPTY. An overly generous list is worse than an empty one — it tells debaters to treat debatable content as settled fact.
+
+EXAMPLE 1 (has premises):
+Topic: "For an established consumer software team shipping a non-AI MVP within 90 days, under what conditions does AI-generated code help versus hurt the company?"
+→ structural_premises: ["The team is an established consumer software company", "The product being shipped is non-AI", "The timeline is 90 days"]
+These are GIVEN conditions that frame the question — no debater would argue the team isn't established or the timeline isn't 90 days.
+
+EXAMPLE 2 (no premises):
+Topic: "Congress should mandate that AI developers utilize siloed datasets to prevent cross-referencing of external user data, prioritizing privacy over agent utility."
+→ structural_premises: []
+The entire topic is one policy claim. "Prioritizing privacy over agent utility" is a framing preference, not a given fact.
+
+EXAMPLE 3 (looks like it has premises, but doesn't):
+Topic: "AI platforms should block non-mainstream information until users complete government-mandated training. This policy prioritizes public safety over open internet access, much like requiring a license to operate heavy machinery."
+→ structural_premises: []
+"Prioritizes public safety over open access" is a framing claim, not a given condition. The machinery analogy is an argumentative device. A reasonable debater could dispute both.
+
+TOPIC:
+"${topic}"
+
+Respond ONLY with JSON (no markdown, no code fences):
+{
+  "core_proposition": "The central claim or question",
+  "structural_premises": [],
+  "scope_constraints": []
+}`;
+}
+
 export function entailmentRepairPrompt(statement: string, claim: string): string {
   return `You are an entailment judge for a debate system. Given a debater's STATEMENT and an extracted CLAIM, determine whether the claim is faithfully entailed by the statement.
 

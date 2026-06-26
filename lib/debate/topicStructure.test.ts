@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { classifyTopicComplexity } from './topicStructure.js';
+import { describe, it, expect, vi } from 'vitest';
+import { classifyTopicComplexity, extractTopicStructure } from './topicStructure.js';
 import type { TopicComplexity } from './topicStructure.js';
 
 describe('classifyTopicComplexity', () => {
@@ -76,5 +76,62 @@ describe('classifyTopicComplexity', () => {
         expect(classifyTopicComplexity(topic)).toBe(expected);
       });
     }
+  });
+});
+
+describe('extractTopicStructure', () => {
+  it('parses valid LLM JSON response', async () => {
+    const generate = vi.fn().mockResolvedValue(JSON.stringify({
+      core_proposition: 'Whether AI should be regulated',
+      structural_premises: ['The team is established', 'The timeline is 90 days'],
+      scope_constraints: ['Consumer software only'],
+    }));
+
+    const result = await extractTopicStructure('test topic', generate);
+    expect(result.core_proposition).toBe('Whether AI should be regulated');
+    expect(result.structural_premises).toEqual(['The team is established', 'The timeline is 90 days']);
+    expect(result.scope_constraints).toEqual(['Consumer software only']);
+    expect(generate).toHaveBeenCalledWith(expect.stringContaining('test topic'), 'Topic structure extraction');
+  });
+
+  it('returns fallback on unparseable response', async () => {
+    const generate = vi.fn().mockResolvedValue('not json at all');
+    const result = await extractTopicStructure('my topic', generate);
+    expect(result.core_proposition).toBe('my topic');
+    expect(result.structural_premises).toEqual([]);
+    expect(result.scope_constraints).toEqual([]);
+  });
+
+  it('returns empty structural_premises when LLM returns empty array', async () => {
+    const generate = vi.fn().mockResolvedValue(JSON.stringify({
+      core_proposition: 'Congress should mandate X',
+      structural_premises: [],
+      scope_constraints: [],
+    }));
+
+    const result = await extractTopicStructure('test', generate);
+    expect(result.structural_premises).toEqual([]);
+  });
+
+  it('filters non-string values from arrays', async () => {
+    const generate = vi.fn().mockResolvedValue(JSON.stringify({
+      core_proposition: 'test',
+      structural_premises: ['valid', 123, null, 'also valid'],
+      scope_constraints: [true, 'constraint'],
+    }));
+
+    const result = await extractTopicStructure('test', generate);
+    expect(result.structural_premises).toEqual(['valid', 'also valid']);
+    expect(result.scope_constraints).toEqual(['constraint']);
+  });
+
+  it('falls back to raw topic when core_proposition is missing', async () => {
+    const generate = vi.fn().mockResolvedValue(JSON.stringify({
+      structural_premises: ['a premise'],
+    }));
+
+    const result = await extractTopicStructure('original topic', generate);
+    expect(result.core_proposition).toBe('original topic');
+    expect(result.structural_premises).toEqual(['a premise']);
   });
 });

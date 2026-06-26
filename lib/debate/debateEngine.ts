@@ -95,6 +95,7 @@ import { computeStrategicHints } from './strategicHints.js';
 import { evaluateLookahead } from './lookaheadGate.js';
 import type { LookaheadDiagnostics } from './lookaheadGate.js';
 import { computeStructuralScore, critiqueTopicPrompt, formatStructuralContext, formatLineageContext, parseTopicCritique, computeLineageDistribution } from './topicCritique.js';
+import { classifyTopicComplexity, extractTopicStructure } from './topicStructure.js';
 import type { LineageFrameEntry } from './topicCritique.js';
 import {
   optimizeRelevanceThreshold,
@@ -649,6 +650,28 @@ export class DebateEngine {
       // Phase 0.75: Topic scope extraction (t/336 — foundation for topic-alignment enforcement)
       await this.extractTopicScope();
       setTopicScope(this.session.topic.scope ?? null);
+
+      // Phase 0.76: Topic structure extraction for structured topics (t/1050)
+      if (!this.session.topic_structure && classifyTopicComplexity(this.session.topic.final) === 'structured') {
+        this.progress('setup', undefined, 'Extracting topic structure');
+        try {
+          this.session.topic_structure = await extractTopicStructure(
+            this.session.topic.final,
+            (prompt, label) => this.generate(prompt, label),
+          );
+          const premises = this.session.topic_structure.structural_premises.length;
+          const constraints = this.session.topic_structure.scope_constraints?.length ?? 0;
+          this.progress('setup', undefined, `Topic structure extracted (${premises} premises, ${constraints} constraints)`);
+          getGlobalRecorder()?.record({
+            type: 'topic_structure_extracted', component: 'debate-engine', level: 'info',
+            message: `Topic structure extracted (${premises} premises, ${constraints} constraints)`,
+            data: { complexity: 'structured', premises, constraints },
+          });
+        } catch (err) {
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Topic structure extraction failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+          this.warn('Topic structure extraction', err, 'Structure extraction skipped — debate continues without decomposition');
+        }
+      }
 
       // Phase 0.8: Seed prior crux context from registry (t/367)
       if (this.config.embedFn) {

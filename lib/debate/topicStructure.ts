@@ -1,3 +1,6 @@
+import { extractTopicStructurePrompt } from './prompts.js';
+import { parseJsonRobust } from './helpers.js';
+
 export type TopicComplexity = 'simple' | 'structured';
 
 export interface TopicStructure {
@@ -26,4 +29,32 @@ export function classifyTopicComplexity(topic: string): TopicComplexity {
   }
 
   return 'structured';
+}
+
+export async function extractTopicStructure(
+  topic: string,
+  generate: (prompt: string, label: string) => Promise<string>,
+): Promise<TopicStructure> {
+  const prompt = extractTopicStructurePrompt(topic);
+  const text = await generate(prompt, 'Topic structure extraction');
+
+  let parsed: Record<string, unknown> | null;
+  try {
+    parsed = parseJsonRobust(text) as Record<string, unknown> | null;
+  } catch {
+    return { core_proposition: topic, structural_premises: [], scope_constraints: [] };
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    return { core_proposition: topic, structural_premises: [], scope_constraints: [] };
+  }
+
+  const toStringArray = (v: unknown): string[] =>
+    Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : [];
+
+  return {
+    core_proposition: typeof parsed.core_proposition === 'string' ? parsed.core_proposition : topic,
+    structural_premises: toStringArray(parsed.structural_premises),
+    scope_constraints: toStringArray(parsed.scope_constraints),
+  };
 }
