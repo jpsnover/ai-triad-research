@@ -594,6 +594,8 @@ export interface DebateSession {
   perturbation_result?: PerturbationResult;
   /** When true (default), individual WEAK-classified claims are filtered from passing lookahead batches before AN commit. */
   lookahead_filter_weak?: boolean;
+  /** Decomposed topic structure — core proposition, structural premises, scope constraints. Set at Phase 0.75 for structured topics. */
+  topic_structure?: import('./topicStructure.js').TopicStructure;
   /** Persisted when a window closes mid-generation. Cleared on next load after surfacing a notification. */
   interrupted_turn?: {
     speaker: string;
