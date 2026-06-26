@@ -604,7 +604,7 @@ export async function runModeratorSelection(
     selectionElapsed = Date.now() - selectionStart;
 
     if (callbacks.isAborted?.()) {
-      // Return early with a placeholder — caller handles abort
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'orchestration', level: 'info', message: `Round ${round}: Moderator selection aborted after generate` });
       return buildEarlyReturn(modState, healthScore, activePovers[0], poverInfo);
     }
 
@@ -735,6 +735,7 @@ export async function runModeratorSelection(
             );
 
             if (callbacks.isAborted?.()) {
+              getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'orchestration', level: 'info', message: `Round ${round}: Moderator intervention aborted after generate` });
               return buildEarlyReturn(modState, healthScore, activePovers[0], poverInfo);
             }
 
@@ -1184,6 +1185,7 @@ export async function executeTurnWithRetry(
       break;
     }
     if (callbacks.isAborted?.()) {
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'orchestration', level: 'info', message: `Turn retry loop aborted after attempt ${attemptIdx}` });
       return { statement, taxonomyRefs, meta, validation, attempts, pipelineResult, aborted: true };
     }
     assembled = callbacks.assembleResult(pipelineResult);
