@@ -14,6 +14,7 @@ import { useMobileNav } from '../../hooks/useMobileNav';
 import { NewDebateDialog } from './NewDebateDialog';
 import { filterCommunityDebates } from './communityFilter';
 import { ExportDropdown } from './ExportDropdown';
+import { useFlag } from '../../hooks/useFeatureFlags';
 import { SearchPreview } from '../edge-browser/SearchPreview';
 import { PromptDetailPanel } from '../chat/PromptsPanel';
 import type { PromptCatalogEntry } from '../../data/promptCatalog';
@@ -667,6 +668,9 @@ function DebateDetailSummary({
 }) {
   const [showCalibration, setShowCalibration] = useState(false);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
+  // Calibration is an admin/power-user tool — show only for admins (t/1036).
+  // Desktop (Electron) owners are admin-equivalent; web requires the admin flag.
+  const showAdminControls = isElectronMode() || useFlag('permission-admin-features');
   const topic = debate.topic.final || debate.topic.refined || debate.topic.original;
   const turnCount = debate.transcript?.filter(t => t.type === 'statement' || t.type === 'opening').length ?? 0;
   const anNodeCount = debate.argument_network?.nodes?.length ?? 0;
@@ -720,9 +724,11 @@ function DebateDetailSummary({
         </div>
         <div style={{ flex: 1 }} />
         <ExportDropdown onExport={onExport} />
-        <button className="btn" onClick={() => setShowCalibration(!showCalibration)}>
-          Calibration
-        </button>
+        {showAdminControls && (
+          <button className="btn" onClick={() => setShowCalibration(!showCalibration)}>
+            Calibration
+          </button>
+        )}
         <button className="btn" onClick={handleShare} disabled={!!shareStatus}>
           {shareStatus || 'Share to Community'}
         </button>
