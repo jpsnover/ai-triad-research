@@ -204,6 +204,8 @@ export interface TurnPipelineInput {
   suppressedHints?: ReadonlySet<string>;
   vocabularyExclusion?: string;
   topicScope?: import('./types.js').TopicScope;
+  /** Parsed topic structure (core proposition, premises, scope constraints). */
+  topicStructure?: import('./topicStructure.js').TopicStructure;
   /** Prior crux context from cross-debate registry — injected into Brief stage. */
   priorCruxContext?: string;
   /** Current debate crux context — active/resolved cruxes from this debate's crux_tracker. */
@@ -293,6 +295,7 @@ function buildStageInput(input: TurnPipelineInput): StagePromptInput {
     explorationPriming: input.explorationPriming,
     useBackgroundPrompt: input.useBackgroundPrompt,
     topicScope: input.topicScope,
+    topicStructure: input.topicStructure,
     salienceBeacon: input.salienceBeacon,
   };
 }

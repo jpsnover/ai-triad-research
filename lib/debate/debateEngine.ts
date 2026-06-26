@@ -3451,6 +3451,7 @@ export class DebateEngine {
       explorationPriming: this._explorationPriming || undefined,
       useBackgroundPrompt: this.config.useBackgroundPrompt,
       topicScope: this.session.topic.scope ?? undefined,
+      topicStructure: this.session.topic_structure ?? undefined,
       salienceBeacon: this.config.salienceBeacon ?? false,
       sourceContent: this.session.document_analysis ? undefined : this.config.sourceContent,
       documentAnalysis: this.session.document_analysis,

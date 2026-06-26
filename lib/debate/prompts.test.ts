@@ -49,6 +49,7 @@ import {
 } from './prompts.js';
 import type { OpeningStagePromptInput, StagePromptInput, SituationDebateInput } from './prompts.js';
 import type { TopicScope } from './types.js';
+import type { TopicStructure } from './topicStructure.js';
 
 // ── Shared test fixtures ──────────────────────────────────────
 
@@ -580,6 +581,48 @@ describe('4-stage turn pipeline', () => {
       const result = briefStagePrompt(makeStageInput());
       expect(result).not.toContain('BACKGROUND CONTEXT');
     });
+
+    it('formats structured topic with premises and scope constraints', () => {
+      const ts: TopicStructure = {
+        core_proposition: 'Whether AI hiring tools should require bias audits',
+        structural_premises: ['Audits must be annual', 'Results published publicly'],
+        scope_constraints: ['Exemption for companies under 50 employees'],
+      };
+      const result = briefStagePrompt(makeStageInput({ topicStructure: ts }));
+      expectContains(result, 'Whether AI hiring tools should require bias audits');
+      expectContains(result, 'TOPIC PREMISES');
+      expectContains(result, '- Audits must be annual');
+      expectContains(result, '- Results published publicly');
+      expectContains(result, 'TOPIC SCOPE CONSTRAINTS');
+      expectContains(result, '- Exemption for companies under 50 employees');
+    });
+
+    it('uses dynamic TOPIC PREMISE FIDELITY when structure has premises', () => {
+      const ts: TopicStructure = {
+        core_proposition: 'Test',
+        structural_premises: ['A premise'],
+        scope_constraints: [],
+      };
+      const result = briefStagePrompt(makeStageInput({ topicStructure: ts }));
+      expectContains(result, 'TOPIC PREMISES listed above are given conditions');
+    });
+
+    it('uses generic TOPIC PREMISE FIDELITY when no topicStructure', () => {
+      const result = briefStagePrompt(makeStageInput());
+      expectContains(result, 'TOPIC PREMISE FIDELITY');
+      expectContains(result, 'structural feature of the proposal');
+    });
+
+    it('falls back to plain topic block when topicStructure matches topic', () => {
+      const ts: TopicStructure = {
+        core_proposition: TOPIC,
+        structural_premises: [],
+        scope_constraints: [],
+      };
+      const result = briefStagePrompt(makeStageInput({ topicStructure: ts }));
+      expectContains(result, `=== DEBATE TOPIC ===\n"${TOPIC}"`);
+      expect(result).not.toContain('TOPIC PREMISES');
+    });
   });
 
   describe('briefStagePromptV2', () => {
@@ -703,6 +746,34 @@ describe('4-stage turn pipeline', () => {
       const edgeIdx = result.indexOf('CROSS-POV TENSIONS');
       expect(edgeIdx).toBeGreaterThan(refIdx);
       expect(edgeIdx).toBeLessThan(stateIdx);
+    });
+
+    it('formats structured topic in CURRENT STATE with premises', () => {
+      const ts: TopicStructure = {
+        core_proposition: 'Whether AI hiring tools should require bias audits',
+        structural_premises: ['Audits must be annual', 'Results published publicly'],
+        scope_constraints: ['Exemption for companies under 50 employees'],
+      };
+      const result = briefStagePromptV2(makeStageInput({ topicStructure: ts }));
+      const stateIdx = result.indexOf('## CURRENT STATE');
+      const premiseIdx = result.indexOf('=== TOPIC PREMISES (given');
+      expect(premiseIdx).toBeGreaterThan(stateIdx);
+      expectContains(result, '- Audits must be annual');
+      expectContains(result, 'TOPIC SCOPE CONSTRAINTS');
+    });
+
+    it('uses dynamic TOPIC PREMISE FIDELITY in YOUR TASK when structure has premises', () => {
+      const ts: TopicStructure = {
+        core_proposition: 'Test',
+        structural_premises: ['A premise'],
+        scope_constraints: [],
+      };
+      const result = briefStagePromptV2(makeStageInput({ topicStructure: ts }));
+      const taskIdx = result.indexOf('## YOUR TASK');
+      const refIdx = result.indexOf('## REFERENCE MATERIAL');
+      const fidelityIdx = result.indexOf('TOPIC PREMISES listed above are given conditions');
+      expect(fidelityIdx).toBeGreaterThan(taskIdx);
+      expect(fidelityIdx).toBeLessThan(refIdx);
     });
   });
 

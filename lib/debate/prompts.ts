@@ -7,6 +7,7 @@
  */
 
 import type { DocumentAnalysis, DebatePhase, DebateAudience, InterventionMove, InterventionFamily, VoiceSpec, TopicScope } from './types.js';
+import type { TopicStructure } from './topicStructure.js';
 import { POVER_INFO } from './types.js';
 import { documentAnalysisContext } from './documentAnalysis.js';
 import { interpretationText } from './taxonomyTypes.js';
@@ -1934,6 +1935,33 @@ export interface StagePromptInput {
   explorationPriming?: string;
   /** Use restructured BRIEF prompt (YOUR TASK → REFERENCE → CURRENT STATE). Experiment flag (t/1029). */
   useBackgroundPrompt?: boolean;
+  /** Decomposed topic structure — when present, BRIEF uses labeled sections for proposition/premises/scope. */
+  topicStructure?: TopicStructure;
+}
+
+function formatTopicBlock(topic: string, structure?: TopicStructure): string {
+  if (!structure || structure.core_proposition === topic) {
+    return `=== DEBATE TOPIC ===\n"${topic}"`;
+  }
+  const parts = [`=== DEBATE TOPIC ===\n"${structure.core_proposition}"`];
+  if (structure.structural_premises.length > 0) {
+    parts.push(
+      `=== TOPIC PREMISES (given — do not recharacterize as claims) ===\n${structure.structural_premises.map(p => `- ${p}`).join('\n')}`,
+    );
+  }
+  if (structure.scope_constraints && structure.scope_constraints.length > 0) {
+    parts.push(
+      `=== TOPIC SCOPE CONSTRAINTS ===\n${structure.scope_constraints.map(c => `- ${c}`).join('\n')}`,
+    );
+  }
+  return parts.join('\n\n');
+}
+
+function topicPremiseFidelityInstruction(structure?: TopicStructure): string {
+  if (structure && structure.structural_premises.length > 0) {
+    return 'TOPIC PREMISE FIDELITY: The TOPIC PREMISES listed above are given conditions of the debate — treat them as settled background facts. You may question their enforceability, sufficiency, or practical consequences, but do not recharacterize them as "claims" or "assertions." When referencing a premise, use the topic\'s own language or clearly mark your interpretation.';
+  }
+  return 'TOPIC PREMISE FIDELITY: When the DEBATE TOPIC states an explicit structural feature of the proposal (e.g., conditions, mechanisms, exclusions, exemptions), treat it as a given of the debate. You may question its enforceability, sufficiency, or practical consequences — but do not recharacterize it as a "claim" or "assertion." When referencing a topic feature, use the topic\'s own language or clearly mark your interpretation.';
 }
 
 export function briefStagePrompt(input: StagePromptInput): string {
@@ -1946,8 +1974,7 @@ export function briefStagePrompt(input: StagePromptInput): string {
 Your task is to comprehend the current state of the debate and identify what matters most for ${input.label}'s next response. This is pure analysis — do not write any debate statement or adopt the debater's voice.
 
 ${input.explorationPriming ? `${input.explorationPriming}\n` : ''}${input.taxonomyContext}
-${input.edgeContext ? `\n=== KNOWN CROSS-POV TENSIONS ===\n${input.edgeContext}\n` : ''}${input.topicScope ? `\n${formatDebateScopeBlock(input.topicScope)}\n` : ''}${input.priorCruxContext ? `\n${input.priorCruxContext}\n` : ''}${input.currentCruxContext ? `\n=== IDENTIFIED CRUXES (THIS DEBATE) ===\n${input.currentCruxContext}\n\n` : ''}=== DEBATE TOPIC ===
-"${input.topic}"${input.background ? `\n\n=== BACKGROUND CONTEXT ===\nThe user provided the following supporting context. Use it to inform your analysis, but keep it separate from the debate question itself.\n${input.background}` : ''}
+${input.edgeContext ? `\n=== KNOWN CROSS-POV TENSIONS ===\n${input.edgeContext}\n` : ''}${input.topicScope ? `\n${formatDebateScopeBlock(input.topicScope)}\n` : ''}${input.priorCruxContext ? `\n${input.priorCruxContext}\n` : ''}${input.currentCruxContext ? `\n=== IDENTIFIED CRUXES (THIS DEBATE) ===\n${input.currentCruxContext}\n\n` : ''}${formatTopicBlock(input.topic, input.topicStructure)}${input.background ? `\n\n=== BACKGROUND CONTEXT ===\nThe user provided the following supporting context. Use it to inform your analysis, but keep it separate from the debate question itself.\n${input.background}` : ''}
 
 === RECENT DEBATE HISTORY ===
 ${input.recentTranscript}
@@ -1959,7 +1986,7 @@ ${input.phase ? PHASE_INSTRUCTIONS[input.phase] : ''}
 
 ATTRIBUTION FIDELITY: Your analysis of other speakers' positions must be grounded in what they actually said in the RECENT DEBATE HISTORY above. Do not infer, extrapolate, or construct positions that a speaker did not explicitly state. If a speaker did not address a topic, note the absence — do not fill it with assumptions about what they "probably" believe.
 
-TOPIC PREMISE FIDELITY: When the DEBATE TOPIC states an explicit structural feature of the proposal (e.g., conditions, mechanisms, exclusions, exemptions), treat it as a given of the debate. You may question its enforceability, sufficiency, or practical consequences — but do not recharacterize it as a "claim" or "assertion." When referencing a topic feature, use the topic's own language or clearly mark your interpretation.
+${topicPremiseFidelityInstruction(input.topicStructure)}
 
 Analyze the debate state and produce a structured brief. Focus on:
 1. What is the current state of the debate? What just happened?
@@ -2007,7 +2034,7 @@ ${input.phase ? PHASE_INSTRUCTIONS[input.phase] : ''}
 
 ATTRIBUTION FIDELITY: Your analysis of other speakers' positions must be grounded in what they actually said in the RECENT DEBATE HISTORY below. Do not infer, extrapolate, or construct positions that a speaker did not explicitly state. If a speaker did not address a topic, note the absence — do not fill it with assumptions about what they "probably" believe.
 
-TOPIC PREMISE FIDELITY: When the DEBATE TOPIC states an explicit structural feature of the proposal (e.g., conditions, mechanisms, exclusions, exemptions), treat it as a given of the debate. You may question its enforceability, sufficiency, or practical consequences — but do not recharacterize it as a "claim" or "assertion." When referencing a topic feature, use the topic's own language or clearly mark your interpretation.
+${topicPremiseFidelityInstruction(input.topicStructure)}
 
 Analyze the debate state and produce a structured brief. Focus on:
 1. What is the current state of the debate? What just happened?
@@ -2055,8 +2082,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   // ── Section 3: CURRENT STATE (recency position) ──
   const stateSection = `## CURRENT STATE
 
-=== DEBATE TOPIC ===
-"${input.topic}"
+${formatTopicBlock(input.topic, input.topicStructure)}
 
 === RECENT DEBATE HISTORY ===
 ${input.recentTranscript}
