@@ -363,8 +363,8 @@ function DataRecovery({ pov }: { pov: string }) {
 
       {step2NeedsAuth(steps) && (
         <div className="recovery-auth-inline">
-          <a href="/.auth/login/github" className="data-load-retry-btn">Sign in with GitHub</a>
-          <a href="/.auth/login/google" className="data-load-retry-btn data-load-retry-btn-sm">Sign in with Google</a>
+          <a href="/api/auth/fresh-login/github" className="data-load-retry-btn">Sign in with GitHub</a>
+          <a href="/api/auth/fresh-login/google" className="data-load-retry-btn data-load-retry-btn-sm">Sign in with Google</a>
         </div>
       )}
 

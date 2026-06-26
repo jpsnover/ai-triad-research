@@ -36,7 +36,7 @@ describe('AnonymousBanner', () => {
     render(<AnonymousBanner />);
     const githubLink = screen.getByText('Sign in with GitHub');
     const googleLink = screen.getByText('Sign in with Google');
-    expect(githubLink.getAttribute('href')).toBe('/.auth/login/github');
-    expect(googleLink.getAttribute('href')).toBe('/.auth/login/google');
+    expect(githubLink.getAttribute('href')).toBe('/api/auth/fresh-login/github');
+    expect(googleLink.getAttribute('href')).toBe('/api/auth/fresh-login/google');
   });
 });
