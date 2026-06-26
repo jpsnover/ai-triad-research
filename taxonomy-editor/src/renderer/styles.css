@@ -1387,88 +1387,47 @@ body {
   color: #16a34a;
 }
 
-/* ── Doctrinal Boundaries (t/126) ─────────────────── */
+/* ── Soul Document Dialog ─────────────────────────── */
 
-.doctrinal-boundaries {
-  border-bottom: 1px solid var(--border-color);
+.soul-doc-dialog {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-radius: 10px;
+  padding: 24px;
+  max-width: 560px;
+  width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
 }
 
-.doctrinal-boundaries-header {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  width: 100%;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  user-select: none;
-}
-
-.doctrinal-boundaries-header:hover {
-  background: var(--bg-hover);
-}
-
-.doctrinal-boundaries-arrow {
-  flex-shrink: 0;
-}
-
-.doctrinal-boundaries-label {
-  flex: 1;
-  text-align: left;
-}
-
-.doctrinal-boundaries-items {
-  padding: 0 12px 6px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.doctrinal-boundaries-item {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-}
-
-.doctrinal-boundaries-group {
-  margin-bottom: 4px;
-}
-
-.doctrinal-boundaries-group-label {
-  font-size: 0.72rem;
+.soul-doc-section-title {
+  font-size: 0.8rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 2px 0;
+  color: var(--text-muted);
+  margin: 0 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.doctrinal-boundaries-group-label.hardcoded {
-  color: var(--error-color, #d32f2f);
+.soul-doc-field {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin-bottom: 4px;
 }
 
-.doctrinal-boundaries-group-label.softcoded {
-  color: var(--warning-color, #ed6c02);
+.soul-doc-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.82rem;
+  line-height: 1.6;
 }
 
-.boundary-icon.hardcoded {
-  color: var(--error-color, #d32f2f);
+.soul-doc-list li {
+  margin-bottom: 2px;
 }
-
-.boundary-icon.softcoded {
-  color: var(--warning-color, #ed6c02);
-}
-
-[data-pane-spacing="concise"] .doctrinal-boundaries-header { padding: 3px 10px; font-size: 0.78rem; }
-[data-pane-spacing="concise"] .doctrinal-boundaries-items { padding: 0 10px 4px 18px; }
-[data-pane-spacing="concise"] .doctrinal-boundaries-item { font-size: 0.78rem; }
-[data-pane-spacing="concise"] .doctrinal-boundaries-group-label { font-size: 0.7rem; }
 
 /* ── Tree hierarchy ────────────────────────────────── */
 

@@ -41,63 +41,76 @@ interface PovTabProps {
   pov: Pov;
 }
 
-/** Extracted from PovTab IIFE to avoid conditional hook calls (React Rules of Hooks). */
-function DoctrinalBoundariesSection({ pov }: { pov: string }) {
+function SoulDocDialog({ pov, onClose }: { pov: string; onClose: () => void }) {
   const speakerKey = POV_TO_SPEAKER[pov.toLowerCase()];
   const info = speakerKey ? POVER_INFO[speakerKey] : undefined;
-  const hardcoded = info?.boundaries?.hardcoded ?? [];
-  const softcoded = info?.boundaries?.softcoded ?? [];
-  const total = hardcoded.length + softcoded.length;
-  const storageKey = `doctrinal-boundaries-collapsed-${pov}`;
-  const [collapsed, setCollapsed] = useState(() => {
-    const stored = localStorage.getItem(storageKey);
-    return stored !== null ? stored === 'true' : true;
-  });
+  if (!info) return null;
 
-  if (total === 0) return null;
+  const voice = (info as Record<string, unknown>).voice as Record<string, string> | undefined;
+  const antiPatterns = (info as Record<string, unknown>).anti_patterns as string[] | undefined;
+  const valueHierarchy = (info as Record<string, unknown>).value_hierarchy as string[] | undefined;
+  const epistemicStance = (info as Record<string, unknown>).epistemic_stance as string[] | undefined;
+  const boundaries = info.boundaries ?? { hardcoded: [], softcoded: [] };
 
-  const toggleCollapsed = () => {
-    const next = !collapsed;
-    setCollapsed(next);
-    localStorage.setItem(storageKey, String(next));
-  };
-  const countLabel = `${hardcoded.length} hardcoded, ${softcoded.length} softcoded`;
   return (
-    <div className="doctrinal-boundaries">
-      <button
-        className="doctrinal-boundaries-header"
-        onClick={toggleCollapsed}
-        aria-expanded={!collapsed}
-      >
-        <span className="doctrinal-boundaries-arrow">{collapsed ? '\u25B8' : '\u25BE'}</span>
-        <span className="doctrinal-boundaries-label">Doctrinal Boundaries ({countLabel})</span>
-      </button>
-      {!collapsed && (
-        <div className="doctrinal-boundaries-items">
-          {hardcoded.length > 0 && (
-            <div className="doctrinal-boundaries-group">
-              <div className="doctrinal-boundaries-group-label hardcoded">Identity (never concede)</div>
-              {hardcoded.map((b, i) => (
-                <div key={`h-${i}`} className="doctrinal-boundaries-item hardcoded">
-                  <span aria-hidden="true" className="boundary-icon hardcoded">{'✕'}</span>
-                  <span>{b}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {softcoded.length > 0 && (
-            <div className="doctrinal-boundaries-group">
-              <div className="doctrinal-boundaries-group-label softcoded">Default (can evolve)</div>
-              {softcoded.map((b, i) => (
-                <div key={`s-${i}`} className="doctrinal-boundaries-item softcoded">
-                  <span aria-hidden="true" className="boundary-icon softcoded">~</span>
-                  <span>{b}</span>
-                </div>
-              ))}
-            </div>
-          )}
+    <div className="dialog-overlay" onClick={onClose}>
+      <div className="soul-doc-dialog" onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 style={{ margin: 0, fontSize: '1.1rem' }}>{info.label} Soul Document</h2>
+          <button className="btn btn-ghost" onClick={onClose} style={{ fontSize: '1.2rem', lineHeight: 1 }}>&times;</button>
         </div>
-      )}
+        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 12 }}>{info.personality}</div>
+
+        {voice && (
+          <section style={{ marginBottom: 16 }}>
+            <h3 className="soul-doc-section-title">Voice</h3>
+            <div className="soul-doc-field"><strong>Disposition:</strong> {voice.disposition}</div>
+            <div className="soul-doc-field"><strong>Style:</strong> {voice.style}</div>
+            <div className="soul-doc-field"><strong>Reasoning:</strong> {voice.reasoning}</div>
+            <div className="soul-doc-field"><strong>Evidence:</strong> {voice.evidence}</div>
+            <div className="soul-doc-field"><strong>Signature:</strong> {voice.signature}</div>
+          </section>
+        )}
+
+        {valueHierarchy && valueHierarchy.length > 0 && (
+          <section style={{ marginBottom: 16 }}>
+            <h3 className="soul-doc-section-title">Value Hierarchy</h3>
+            <ol className="soul-doc-list">{valueHierarchy.map((v, i) => <li key={i}>{v}</li>)}</ol>
+          </section>
+        )}
+
+        {epistemicStance && epistemicStance.length > 0 && (
+          <section style={{ marginBottom: 16 }}>
+            <h3 className="soul-doc-section-title">Epistemic Stance</h3>
+            <ul className="soul-doc-list">{epistemicStance.map((s, i) => <li key={i}>{s}</li>)}</ul>
+          </section>
+        )}
+
+        {(boundaries.hardcoded.length > 0 || boundaries.softcoded.length > 0) && (
+          <section style={{ marginBottom: 16 }}>
+            <h3 className="soul-doc-section-title">Boundaries</h3>
+            {boundaries.hardcoded.length > 0 && (
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#ef4444', marginBottom: 4 }}>Identity (never concede)</div>
+                <ul className="soul-doc-list">{boundaries.hardcoded.map((b, i) => <li key={i}>{b}</li>)}</ul>
+              </div>
+            )}
+            {boundaries.softcoded.length > 0 && (
+              <div>
+                <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#f59e0b', marginBottom: 4 }}>Default (can evolve)</div>
+                <ul className="soul-doc-list">{boundaries.softcoded.map((b, i) => <li key={i}>{b}</li>)}</ul>
+              </div>
+            )}
+          </section>
+        )}
+
+        {antiPatterns && antiPatterns.length > 0 && (
+          <section>
+            <h3 className="soul-doc-section-title">Anti-Patterns</h3>
+            <ul className="soul-doc-list">{antiPatterns.map((a, i) => <li key={i}>{a}</li>)}</ul>
+          </section>
+        )}
+      </div>
     </div>
   );
 }
@@ -436,6 +449,7 @@ export function PovTab({ pov }: PovTabProps) {
   }, [syncStatus.main_updated_available, nodeConflicts.enabled, nodeConflicts.refresh]);
 
   const [showNewDialog, setShowNewDialog] = useState(false);
+  const [showSoulDoc, setShowSoulDoc] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('label');
   const [listCollapsed, setListCollapsed] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
@@ -754,11 +768,11 @@ export function PovTab({ pov }: PovTabProps) {
               <button className="btn btn-sm" onClick={() => setShowNewDialog(true)}>
                 + New
               </button>
+              <button className="btn btn-sm btn-ghost" onClick={() => setShowSoulDoc(true)} title="Soul document">&#x1f4dc;</button>
               <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
             </div>
           </div>
-          {/* Doctrinal Boundaries — collapsible section (t/126) */}
-          <DoctrinalBoundariesSection pov={pov} />
+          {showSoulDoc && <SoulDocDialog pov={pov} onClose={() => setShowSoulDoc(false)} />}
           <div className="list-panel-items">
             <NodeTree
               nodes={file.nodes}
