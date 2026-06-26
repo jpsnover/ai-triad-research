@@ -4,11 +4,15 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../../hooks/useDebateStore';
+import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { ReflectionEdit, ReflectionResult, ConsensusCluster } from '../../hooks/useDebateStore';
 import { POVER_INFO } from '../../types/debate';
 import type { SpeakerId } from '../../types/debate';
 import { checkDolceCompliance, type ComplianceViolation } from '../../utils/dolceCompliance';
+import { DescriptionToggle, resolveDescription, type DescriptionMode } from './DescriptionToggle';
+
+const PREFIX_TO_POV: Record<string, 'accelerationist' | 'safetyist' | 'skeptic'> = { acc: 'accelerationist', saf: 'safetyist', skp: 'skeptic' };
 
 /** Scroll the debate transcript to the referenced evidence entry (e.g. "S13" or "Moderator Round 4"). */
 function scrollToEvidence(entry: string) {
@@ -122,6 +126,15 @@ function EditCard({ edit, pover, editIndex }: {
   const [editedDescription, setEditedDescription] = useState(edit.proposed_description);
   const [applying, setApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
+  const [descMode, setDescMode] = useState<DescriptionMode>('formal');
+  const currentNode = useTaxonomyStore(useShallow(s => {
+    if (!edit.node_id || edit.edit_type === 'add') return null;
+    const prefix = edit.node_id.split('-')[0];
+    const pov = PREFIX_TO_POV[prefix];
+    if (!pov) return null;
+    const file = s[pov];
+    return file?.nodes?.find((n: { id: string }) => n.id === edit.node_id) ?? null;
+  }));
   const [fixing, setFixing] = useState(false);
   // Integrity failures (e.g. dangling CONVERGES_WITH edges) are auto-fixable via "Fix it".
   const isIntegrityError = !!applyError && applyError.startsWith('Integrity check failed');
@@ -232,16 +245,34 @@ function EditCard({ edit, pover, editIndex }: {
       </div>
 
       {/* Description diff */}
-      {edit.current_description && edit.edit_type !== 'add' && edit.current_description !== edit.proposed_description && (
-        <div style={{
-          fontSize: '0.7rem', padding: '4px 8px', marginBottom: 4,
-          background: 'rgba(239,68,68,0.06)', borderRadius: 4,
-          whiteSpace: 'pre-wrap', borderLeft: '3px solid rgba(239,68,68,0.3)',
-        }}>
-          <div style={{ fontSize: '0.6rem', fontWeight: 700, color: '#ef4444', marginBottom: 2 }}>CURRENT</div>
-          {edit.current_description}
-        </div>
-      )}
+      {edit.current_description && edit.edit_type !== 'add' && edit.current_description !== edit.proposed_description && (() => {
+        const resolved_desc = resolveDescription(
+          currentNode ? { description: edit.current_description, plain_description: (currentNode as { plain_description?: string | null }).plain_description } : { description: edit.current_description },
+          descMode,
+        );
+        return (
+          <div style={{
+            fontSize: '0.7rem', padding: '4px 8px', marginBottom: 4,
+            background: 'rgba(239,68,68,0.06)', borderRadius: 4,
+            whiteSpace: 'pre-wrap', borderLeft: '3px solid rgba(239,68,68,0.3)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+              <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#ef4444' }}>CURRENT</span>
+              <DescriptionToggle
+                mode={descMode}
+                onToggle={setDescMode}
+                hasPlainDescription={!!(currentNode as { plain_description?: string | null } | null)?.plain_description}
+              />
+            </div>
+            {resolved_desc.isGenerating && (
+              <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 2 }}>
+                Plain description generating…
+              </div>
+            )}
+            {resolved_desc.text}
+          </div>
+        );
+      })()}
 
       {editing ? (
         /* Edit mode — editable textarea with blue EDITED styling */
@@ -294,11 +325,11 @@ function EditCard({ edit, pover, editIndex }: {
                   >&#9998; Edit</button>
                 )}
               </div>
-              {diffWords(edit.current_description, edit.proposed_description).map((seg, i) =>
+              {descMode === 'formal' ? diffWords(edit.current_description, edit.proposed_description).map((seg, i) =>
                 seg.type === 'added'
                   ? <mark key={i} style={{ background: 'rgba(34,197,94,0.25)', color: 'inherit', borderRadius: 2, padding: '0 1px' }}>{seg.text}</mark>
                   : <span key={i}>{seg.text}</span>
-              )}
+              ) : edit.proposed_description}
             </>
           ) : (
             <>
