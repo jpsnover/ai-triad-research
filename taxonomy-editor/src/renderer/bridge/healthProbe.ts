@@ -11,6 +11,9 @@ import { setThrottleFromProbe } from './resilience';
 
 type ProbePhase = 'idle' | 'warmup' | 'steady';
 
+const MAX_BACKOFF_MS = 300_000; // 5 min cap
+const FAILURE_LOG_CUTOFF = 5;
+
 function cfg() { return getClientConfig().healthProbe; }
 
 const state = {
@@ -20,6 +23,7 @@ const state = {
   warmUpSamples: [] as number[],
   startTime: 0,
   timerId: 0,
+  consecutiveFailures: 0,
 };
 
 function computeP95(values: number[]): number {
@@ -36,18 +40,25 @@ async function probe(): Promise<number | null> {
   try {
     const res = await fetch('/api/config/client', { signal: controller.signal });
     clearTimeout(timer);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      state.consecutiveFailures++;
+      return null;
+    }
     await res.json();
+    state.consecutiveFailures = 0;
     return performance.now() - start;
   } catch (err) {
     clearTimeout(timer);
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'health-probe',
-      level: 'warn',
-      message: 'Health probe request failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
+    state.consecutiveFailures++;
+    if (state.consecutiveFailures <= FAILURE_LOG_CUTOFF) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'health-probe',
+        level: 'warn',
+        message: `Health probe request failed (${state.consecutiveFailures}/${FAILURE_LOG_CUTOFF})`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+    }
     return null;
   }
 }
@@ -81,8 +92,18 @@ async function runWarmUp(): Promise<void> {
   scheduleSteadyState();
 }
 
+function nextInterval(): number {
+  if (state.consecutiveFailures === 0) return cfg().intervalMs;
+  return Math.min(cfg().intervalMs * Math.pow(2, state.consecutiveFailures), MAX_BACKOFF_MS);
+}
+
 function scheduleSteadyState(): void {
-  state.timerId = window.setInterval(() => { void steadyProbe(); }, cfg().intervalMs);
+  const tick = () => {
+    void steadyProbe().then(() => {
+      state.timerId = window.setTimeout(tick, nextInterval());
+    });
+  };
+  state.timerId = window.setTimeout(tick, nextInterval());
 }
 
 async function steadyProbe(): Promise<void> {
@@ -106,19 +127,21 @@ async function steadyProbe(): Promise<void> {
 
 export function initHealthProbe(): void {
   if (state.phase !== 'idle') return;
+  if (typeof window !== 'undefined' && 'electronAPI' in window) return;
   state.startTime = performance.now();
   void runWarmUp();
 }
 
 export function stopHealthProbe(): void {
   if (state.timerId) {
-    clearInterval(state.timerId);
+    clearTimeout(state.timerId);
     state.timerId = 0;
   }
   state.phase = 'idle';
   state.latencies = [];
   state.warmUpSamples = [];
   state.baseline = 0;
+  state.consecutiveFailures = 0;
 }
 
 export function getProbeState(): {
