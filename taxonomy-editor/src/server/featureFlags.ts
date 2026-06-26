@@ -102,6 +102,12 @@ const SEED_FLAGS: Record<string, FlagDef> = {
     created_at: '2026-06-25T00:00:00.000Z', updated_at: '2026-06-25T00:00:00.000Z',
     created_by: 'seed',
   },
+  'debate-detail-dropdown': {
+    name: 'debate-detail-dropdown', enabled: false, scope: 'global',
+    description: 'Replace Brief/Med/Detail tabs in StatementCard with a dropdown (t/1030)',
+    created_at: '2026-06-26T00:00:00.000Z', updated_at: '2026-06-26T00:00:00.000Z',
+    created_by: 'seed',
+  },
 };
 
 // ── Config loading (mtime cache, quotas.ts pattern) ──
