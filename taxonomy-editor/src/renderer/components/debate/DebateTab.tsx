@@ -13,6 +13,7 @@ import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useMobileNav } from '../../hooks/useMobileNav';
 import { NewDebateDialog } from './NewDebateDialog';
 import { filterCommunityDebates } from './communityFilter';
+import { ExportDropdown } from './ExportDropdown';
 import { SearchPreview } from '../edge-browser/SearchPreview';
 import { PromptDetailPanel } from '../chat/PromptsPanel';
 import type { PromptCatalogEntry } from '../../data/promptCatalog';
@@ -718,9 +719,7 @@ function DebateDetailSummary({
           })}
         </div>
         <div style={{ flex: 1 }} />
-        <button className="btn" onClick={() => onExport('json')}>Export JSON</button>
-        <button className="btn" onClick={() => onExport('markdown')}>Export Markdown</button>
-        <button className="btn" onClick={() => onExport('pdf')}>Export PDF</button>
+        <ExportDropdown onExport={onExport} />
         <button className="btn" onClick={() => setShowCalibration(!showCalibration)}>
           Calibration
         </button>
