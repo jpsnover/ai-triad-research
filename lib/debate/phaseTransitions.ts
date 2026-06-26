@@ -51,7 +51,11 @@ interface ProvisionalWeights {
 let _cachedWeights: ProvisionalWeights | null = null;
 
 export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
-  if (_cachedWeights) return _cachedWeights;
+  if (_cachedWeights) {
+    // [t/1035 INSTRUMENTATION — remove after diagnosis]
+    try { (globalThis as Record<string, unknown>).__debugPhaseWeightsSource ??= 'cached'; } catch { /* instrumentation */ }
+    return _cachedWeights;
+  }
 
   // Only attempt filesystem reads in Node.js (main process / server)
   if (typeof process !== 'undefined' && process.versions?.node) {
@@ -73,12 +77,17 @@ export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
           const parsed = JSON.parse(raw) as ProvisionalWeights;
           if (parsed.schema_version === 1) {
             _cachedWeights = parsed;
+            // [t/1035 INSTRUMENTATION — remove after diagnosis]
+            try { (globalThis as Record<string, unknown>).__debugPhaseWeightsSource = `file:${p}`; } catch { /* instrumentation */ }
             return parsed;
           }
         } catch { /* try next candidate */ }
       }
     } catch { /* not in Node.js environment — fall through to defaults */ }
   }
+
+  // [t/1035 INSTRUMENTATION — remove after diagnosis]
+  try { (globalThis as Record<string, unknown>).__debugPhaseWeightsSource = 'hardcoded-fallback'; } catch { /* instrumentation */ }
 
   // Hardcoded fallback — PROVISIONAL pending Phase 5 validation
   _cachedWeights = {

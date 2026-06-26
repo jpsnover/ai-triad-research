@@ -143,6 +143,22 @@ export async function initClientConfig(): Promise<void> {
     if (resp.ok) {
       const data = await resp.json() as ClientConfig;
       cached = { ...DEFAULTS, ...data };
+      // [t/1035 INSTRUMENTATION — remove after diagnosis]
+      try {
+        const { getGlobalRecorder } = await import('@lib/flight-recorder/index');
+        getGlobalRecorder()?.record({
+          type: 'lifecycle', component: 'clientConfig', level: 'info',
+          message: 't/1035 clientConfig.debate from server',
+          data: {
+            server_confrontation: data.debate?.defaultConfrontationRounds ?? 'missing',
+            server_argumentation: data.debate?.defaultArgumentationRounds ?? 'missing',
+            server_concluding: data.debate?.defaultConcludingRounds ?? 'missing',
+            merged_confrontation: cached.debate.defaultConfrontationRounds,
+            merged_argumentation: cached.debate.defaultArgumentationRounds,
+            merged_concluding: cached.debate.defaultConcludingRounds,
+          },
+        });
+      } catch { /* instrumentation — silent */ }
     }
   } catch { /* startup config fetch — best-effort, defaults are fine */ }
   initialized = true;
