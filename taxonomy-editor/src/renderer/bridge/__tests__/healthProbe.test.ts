@@ -12,13 +12,13 @@ vi.mock('../resilience', () => ({
 
 const defaultProbeConfig = {
   intervalMs: 30_000,
-  warmUpCount: 3,
-  warmUpDiscardCount: 1,
+  warmUpCount: 6,
+  warmUpDiscardCount: 2,
   warmUpIntervalMs: 5_000,
   windowSize: 10,
   enterFactor: 2.0,
   exitFactor: 1.5,
-  gracePeriodMs: 15_000,
+  gracePeriodMs: 30_000,
   timeoutMs: 10_000,
 };
 
@@ -67,11 +67,11 @@ describe('healthProbe', () => {
   }
 
   describe('warm-up phase', () => {
-    it('establishes baseline from kept warm-up samples (discarding first)', async () => {
+    it('establishes baseline from kept warm-up samples (discarding first two)', async () => {
       let callCount = 0;
       fetchSpy.mockImplementation(async () => {
         callCount++;
-        const latency = callCount === 1 ? 200 : 100;
+        const latency = callCount <= 2 ? 200 : 100;
         vi.advanceTimersByTime(latency);
         return { ok: true, json: () => Promise.resolve({}) } as unknown as Response;
       });
@@ -79,15 +79,13 @@ describe('healthProbe', () => {
       const mod = await loadModule();
       mod.initHealthProbe();
 
-      // First probe fires immediately
+      // First probe fires immediately, then 5 more at warmUpInterval
       await vi.advanceTimersByTimeAsync(0);
-      // Wait for warmUpInterval between probes
-      await vi.advanceTimersByTimeAsync(5_000);
-      await vi.advanceTimersByTimeAsync(5_000);
+      for (let i = 0; i < 5; i++) await vi.advanceTimersByTimeAsync(5_000);
 
       const state = mod.getProbeState();
       expect(state.phase).toBe('steady');
-      // First sample (200ms) discarded, kept two at 100ms each → baseline = 100
+      // First 2 samples (200ms) discarded, kept 4 at 100ms each → baseline = 100
       expect(state.baseline).toBe(100);
     });
 
@@ -97,8 +95,7 @@ describe('healthProbe', () => {
       mod.initHealthProbe();
 
       await vi.advanceTimersByTimeAsync(0);
-      await vi.advanceTimersByTimeAsync(5_000);
-      await vi.advanceTimersByTimeAsync(5_000);
+      for (let i = 0; i < 5; i++) await vi.advanceTimersByTimeAsync(5_000);
 
       const state = mod.getProbeState();
       expect(state.phase).toBe('steady');

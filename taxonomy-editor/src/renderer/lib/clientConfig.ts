@@ -84,13 +84,13 @@ const DEFAULTS: ClientConfig = {
   },
   healthProbe: {
     intervalMs: 30_000,
-    warmUpCount: 3,
-    warmUpDiscardCount: 1,
+    warmUpCount: 6,
+    warmUpDiscardCount: 2,
     warmUpIntervalMs: 5_000,
     windowSize: 10,
     enterFactor: 2.0,
     exitFactor: 1.5,
-    gracePeriodMs: 15_000,
+    gracePeriodMs: 30_000,
     timeoutMs: 10_000,
   },
   debate: {
