@@ -419,7 +419,7 @@ get('/health', async (_req, res) => {
     geminiKeyConfigured: geminiReady,
     freeTierEnabled: freeKeyPoolSize > 0,
     freeTierKeyPoolSize: freeKeyPoolSize,
-    freeTierLimits: freeKeyPoolSize > 0 ? { requestsPerMinute: 6, tokensPerDay: 50_000 } : null,
+    freeTierLimits: freeKeyPoolSize > 0 ? { requestsPerMinute: proxyTiers.scaledFreeTierRpm(freeKeyPoolSize), tokensPerDay: getConfig().tiers.free.tokensPerDay } : null,
   };
 
   if (githubBackend) {
@@ -1440,10 +1440,28 @@ post('/api/ai/temperature', (_req, res, body) => {
 
 // ── Embeddings & NLI ──
 
-post('/api/embeddings/compute', async (_req, res, body) => {
+post('/api/embeddings/compute', async (req, res, body) => {
   const { texts, ids } = body as { texts: string[]; ids?: string[] };
   try {
-    const vectors = await ai.computeEmbeddings(texts, ids);
+    // t/1062: free tier rate limiting + key injection for anonymous embeddings
+    const { principalName, idp } = callerIdentity();
+    const tier = proxyTiers.resolveTier(principalName, idp);
+    const isFree = tier.level === 'free';
+    if (isFree) {
+      const limitKey = `free:${getClientIp(req)}`;
+      const rpmCheck = rateLimiter.checkRate(limitKey, tier.limits.requestsPerMinute, 60_000);
+      if (!rpmCheck.allowed) {
+        res.writeHead(429); res.end(JSON.stringify({ error: 'Rate limit exceeded', limitType: 'requests_per_minute', retryAfterMs: rpmCheck.retryAfterMs, limit: rpmCheck.limit, current: rpmCheck.current })); return;
+      }
+      const tokenCheck = rateLimiter.checkTokenLimit(limitKey, tier.limits.tokensPerDay);
+      if (!tokenCheck.allowed) {
+        res.writeHead(429); res.end(JSON.stringify({ error: 'Daily token limit exceeded', limitType: 'tokens_per_day', limit: tokenCheck.limit, current: tokenCheck.current })); return;
+      }
+    }
+    const freeTierKey = (isFree && tier.serverProvidedKey)
+      ? proxyTiers.parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY)[0]
+      : undefined;
+    const vectors = await ai.computeEmbeddings(texts, ids, freeTierKey);
     json(res, { vectors });
   } catch (err) { error(res, String(err), 500, err); }
 });
@@ -4066,8 +4084,10 @@ async function handleRequestInner(
     // Free tier (t/793): when configured, keyless users may reach AI generation;
     // the handler enforces the free-tier model pin, per-IP limits, and key. Inert
     // until FREE_TIER_GEMINI_KEY is set, so the AI block otherwise stands.
-    const freeTierGenerate = method === 'POST' && urlPath === '/api/ai/generate' && proxyTiers.freeTierEnabled();
-    if (!freeTierGenerate && !isAnonAllowedRoute(method, urlPath)) {
+    const freeTierRoute = method === 'POST'
+      && (urlPath === '/api/ai/generate' || urlPath === '/api/embeddings/compute')
+      && proxyTiers.freeTierEnabled();
+    if (!freeTierRoute && !isAnonAllowedRoute(method, urlPath)) {
       recordAuthDenied('anon_route_blocked', method, urlPath);
       res.writeHead(403, { 'Content-Type': 'application/json', 'X-Auth-Reason': 'anon_route_blocked' });
       res.end(JSON.stringify({ error: 'Sign in required', reason: 'anon_route_blocked', detail: 'AI features and editing require authentication. Sign in at /.auth/login/github to unlock full access.' }));
