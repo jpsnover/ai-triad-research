@@ -297,6 +297,16 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
     },
   ];
 
+  // Regroup items to match website's Toolbar layout:
+  // primary nav (top-level icons on desktop), browse tabs (popover group 1),
+  // analysis panels (popover group 2), system (popover group 3)
+  const primaryItems = [
+    ...browseItems.filter(i => i.id === 'taxonomy'),
+    ...communicateItems,
+  ];
+  const browseTabItems = browseItems.filter(i => i.id !== 'taxonomy');
+  const panelItems = analyzeItems.filter(i => i.id !== 'search');
+
   const renderItem = (item: MenuItem) => (
     <button
       key={item.id}
@@ -335,24 +345,19 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
         </div>
 
         <div className="hamburger-body">
-          {browseItems.filter(i => !bottomNavIds.has(i.id)).length > 0 && (
+          {primaryItems.filter(i => !bottomNavIds.has(i.id)).length > 0 && (
             <>
-              <div className="hamburger-section">Browse</div>
-              {browseItems.filter(i => !bottomNavIds.has(i.id)).map(renderItem)}
+              {primaryItems.filter(i => !bottomNavIds.has(i.id)).map(renderItem)}
+              <div className="hamburger-divider" />
             </>
           )}
 
-          {communicateItems.filter(i => !bottomNavIds.has(i.id)).length > 0 && (
-            <>
-              <div className="hamburger-section">Communicate</div>
-              {communicateItems.filter(i => !bottomNavIds.has(i.id)).map(renderItem)}
-            </>
-          )}
-
-          <div className="hamburger-section">Analyze</div>
-          {analyzeItems.filter(i => !bottomNavIds.has(i.id)).map(renderItem)}
-
+          {browseTabItems.map(renderItem)}
           <div className="hamburger-divider" />
+
+          {panelItems.map(renderItem)}
+          <div className="hamburger-divider" />
+
           {systemItems.map(renderItem)}
 
           <AuthSection />
