@@ -432,7 +432,7 @@ export function SituationsTab() {
                   <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 4 }} />
                 )}
                 {standalones.map((node) => (
-                  <ListItem
+                  <SituationListItem
                     key={node.id}
                     id={node.id}
                     label={node.label}
@@ -444,7 +444,7 @@ export function SituationsTab() {
               </>
             ) : (
               sortedFlatNodes.map((node) => (
-                <ListItem
+                <SituationListItem
                   key={node.id}
                   id={node.id}
                   label={node.label}
