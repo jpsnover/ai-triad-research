@@ -495,6 +495,7 @@ export interface DebateSession {
   evaluator_model?: string;
   speaker_models?: Record<string, string>;
   stage_models?: Record<string, string>;
+  utility_models?: Record<string, string>;
   model_tier?: ModelTier;
   /** Debate protocol format. Absent in older debates (defaults to 'structured'). */
   protocol_id?: string;

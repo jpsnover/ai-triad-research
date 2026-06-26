@@ -58,6 +58,7 @@ interface CLIConfig {
   };
   salienceBeacon?: boolean;
   stageModels?: { brief?: string; plan?: string; cite?: string };
+  utilityModels?: { summary?: string; scope?: string; moderator?: string; crux?: string };
   exploreFirst?: boolean;
   exploreModel?: string;
 }
@@ -378,6 +379,7 @@ async function main(): Promise<void> {
     perturbation: resolvePerturbationConfig(config, perturbationPrompt, perturbationTurn),
     salienceBeacon: config.salienceBeacon,
     stageModels: config.stageModels,
+    utilityModels: config.utilityModels,
   };
 
   // Prepare output paths early so the snapshot callback can write partial files

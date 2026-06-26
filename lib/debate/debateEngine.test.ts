@@ -1329,6 +1329,38 @@ describe('Per-stage model override', () => {
   });
 });
 
+// ── Utility model overrides (t/1070) ─────────────────────
+
+describe('Utility model overrides', () => {
+  it('accepts config with utilityModels', () => {
+    const config = createDefaultConfig({
+      utilityModels: { summary: 'flash-lite', scope: 'flash-lite', moderator: 'flash-lite', crux: 'flash-lite' },
+    });
+    expect(config.utilityModels?.summary).toBe('flash-lite');
+    expect(config.utilityModels?.scope).toBe('flash-lite');
+    expect(config.utilityModels?.moderator).toBe('flash-lite');
+    expect(config.utilityModels?.crux).toBe('flash-lite');
+  });
+
+  it('stamps utility_models on session when provided', () => {
+    const config = createDefaultConfig({
+      utilityModels: { summary: 'cheap-summary', crux: 'cheap-crux' },
+    });
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+    (engine as any).initSession();
+    const session = (engine as any).session;
+    expect(session.utility_models).toEqual({ summary: 'cheap-summary', crux: 'cheap-crux' });
+  });
+
+  it('omits utility_models from session when not provided', () => {
+    const config = createDefaultConfig();
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+    (engine as any).initSession();
+    const session = (engine as any).session;
+    expect(session.utility_models).toBeUndefined();
+  });
+});
+
 // ── Speaker model failover (t/773) ─────────────────────
 
 describe('Speaker model failover', () => {

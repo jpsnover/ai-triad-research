@@ -264,6 +264,13 @@ export interface DebateConfig {
     plan?: string;
     cite?: string;
   };
+  /** Per-function utility model overrides for non-pipeline stages. Each falls back to `model` when undefined. */
+  utilityModels?: {
+    summary?: string;
+    scope?: string;
+    moderator?: string;
+    crux?: string;
+  };
   /** Snapshot callback for incremental persistence. Fired after each completed round and before rethrowing on fatal errors. Callers use this to write crash-recovery files. */
   onSnapshot?: (session: DebateSession, trigger: 'round_complete' | 'error') => void;
 }
@@ -655,9 +662,10 @@ export class DebateEngine {
       if (!this.session.topic_structure && classifyTopicComplexity(this.session.topic.final) === 'structured') {
         this.progress('setup', undefined, 'Extracting topic structure');
         try {
+          const structureModel = this.config.utilityModels?.scope ?? this.config.model;
           this.session.topic_structure = await extractTopicStructure(
             this.session.topic.final,
-            (prompt, label) => this.generate(prompt, label),
+            (prompt, label) => this.generateWithModel(prompt, label, structureModel),
           );
           const premises = this.session.topic_structure.structural_premises.length;
           const constraints = this.session.topic_structure.scope_constraints?.length ?? 0;
@@ -896,6 +904,7 @@ export class DebateEngine {
       evaluator_model: this.config.evaluatorModel,
       speaker_models: this.config.speakerModels,
       stage_models: this.config.stageModels ? { ...this.config.stageModels } as Record<string, string> : undefined,
+      utility_models: this.config.utilityModels ? { ...this.config.utilityModels } as Record<string, string> : undefined,
       model_tier: this.config.modelTier,
       protocol_id: this.config.protocolId ?? 'structured',
       diagnostics: {
@@ -1409,7 +1418,7 @@ export class DebateEngine {
     try {
       const speaker = POVER_INFO[entry.speaker as SpeakerId]?.label ?? entry.speaker;
       const prompt = entrySummarizationPrompt(entry.content, speaker);
-      const raw = await this.adapter.generateText(prompt, this.config.model, {
+      const raw = await this.adapter.generateText(prompt, this.config.utilityModels?.summary ?? this.config.model, {
         temperature: 0.3, // Low temp for faithful summarization
         maxTokens: 500,
         timeoutMs: 15000,
@@ -2338,7 +2347,8 @@ export class DebateEngine {
     try {
       const scopeAdditions = this.session.topic.critique?.scope_additions;
       const prompt = topicScopeExtractionPrompt(this.session.topic.final, scopeAdditions);
-      const text = await this.generate(prompt, 'Topic scope extraction');
+      const scopeModel = this.config.utilityModels?.scope ?? this.config.model;
+      const text = await this.generateWithModel(prompt, 'Topic scope extraction', scopeModel);
       const parsed = parseJsonRobust(text) as Record<string, unknown> | null;
       if (!parsed || typeof parsed !== 'object') {
         this.warn('Topic scope extraction', 'LLM returned unparseable response', 'Scope extraction skipped — debate continues without scope enforcement');
@@ -3181,8 +3191,9 @@ export class DebateEngine {
     const sourceDocSummary = this.session.document_analysis?.claims_summary
       ?? (this.session.source_content ? this.session.source_content.slice(0, 2000) : undefined);
 
+    const moderatorModel = this.config.utilityModels?.moderator ?? this.config.model;
     const selectionCallbacks: ModeratorSelectionCallbacks = {
-      generate: async (prompt, _model, options, label) => this.generate(prompt, label, options?.timeoutMs),
+      generate: async (prompt, _model, options, label) => this.generateWithModel(prompt, label, moderatorModel, options?.timeoutMs),
       addEntry: (entry) => this.addEntry(entry).id,
       progress: (ph, speaker, message) => this.progress(ph, speaker, message),
       warn: (context, err, recovery) => this.warn(context, err, recovery),
@@ -3203,7 +3214,7 @@ export class DebateEngine {
       phase,
       activePovers: this.config.activePovers,
       totalRounds: this.config.rounds,
-      model: this.config.model,
+      model: moderatorModel,
       audience: this.config.audience,
       sourceDocSummary,
       resolution: this.session.topic.final,
@@ -5588,7 +5599,7 @@ Return ONLY JSON (no markdown, no code fences):
               this.session.topic?.text ?? '',
             );
             try {
-              const refreshRaw = await this.adapter.generateText(refreshPrompt, this.config.model, { timeoutMs: 15_000 });
+              const refreshRaw = await this.adapter.generateText(refreshPrompt, this.config.utilityModels?.crux ?? this.config.model, { timeoutMs: 15_000 });
               const refreshData = parseJsonRobust(refreshRaw) as {
                 crux_verdicts?: { id: string; verdict: string; reason: string }[];
                 emerging_cruxes?: { description: string; speakers_involved: string[]; disagreement_type: string; reason: string }[];
