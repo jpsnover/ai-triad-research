@@ -127,25 +127,28 @@ export class AnonymousSessionStore {
       const dir = this.kindDir(sessionId, kind);
       let files: string[];
       try { files = await fsp.readdir(dir); } catch (err) {
-        getGlobalRecorder()?.record({
-          type: 'system.error',
-          component: 'anonymous-session-store',
-          level: 'warn',
-          message: 'Failed to read kind dir while sizing session',
-          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-        });
-        continue;
-      }
-      for (const f of files) {
-        try { total += (await fsp.stat(path.join(dir, f))).size; } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
           getGlobalRecorder()?.record({
             type: 'system.error',
             component: 'anonymous-session-store',
             level: 'warn',
-            message: 'Failed to stat file while sizing session',
+            message: 'Failed to read kind dir while sizing session',
             error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
           });
-          /* gone */
+        }
+        continue;
+      }
+      for (const f of files) {
+        try { total += (await fsp.stat(path.join(dir, f))).size; } catch (err) {
+          if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+            getGlobalRecorder()?.record({
+              type: 'system.error',
+              component: 'anonymous-session-store',
+              level: 'warn',
+              message: 'Failed to stat file while sizing session',
+              error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+            });
+          }
         }
       }
     }
@@ -179,25 +182,19 @@ export class AnonymousSessionStore {
     const isNewSession = !fs.existsSync(this.sessionDir(sessionId));
     if (isNewSession) await this.evictIfFull();
 
+    await fsp.mkdir(dir, { recursive: true });
+
     const serialized = JSON.stringify(value);
     const newSize = Buffer.byteLength(serialized, 'utf-8');
     let oldSize = 0;
-    try { oldSize = (await fsp.stat(file)).size; } catch (err) {
-      getGlobalRecorder()?.record({
-        type: 'system.error',
-        component: 'anonymous-session-store',
-        level: 'warn',
-        message: 'Failed to stat existing item; treating as new',
-        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-      });
-      /* new item */
+    try { oldSize = (await fsp.stat(file)).size; } catch {
+      /* new item — file doesn't exist yet */
     }
     const projected = (await this.sessionSize(sessionId)) - oldSize + newSize;
     if (projected > this.maxSessionSizeBytes) {
       throw Object.assign(new Error('Anonymous session storage limit exceeded'), { statusCode: 429 });
     }
 
-    await fsp.mkdir(dir, { recursive: true });
     await fsp.writeFile(file, serialized);
     await this.touch(sessionId);
   }

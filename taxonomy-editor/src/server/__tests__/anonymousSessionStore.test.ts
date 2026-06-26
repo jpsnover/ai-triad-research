@@ -138,6 +138,27 @@ describe('AnonymousSessionStore (file-backed, t/683)', () => {
     });
   });
 
+  // ── New session initialization (t/1060) ──
+
+  describe('new session initialization (t/1060)', () => {
+    it('first write on brand-new session succeeds without false 429', async () => {
+      const debate = { id: 'd1', title: 'First Debate', created_at: '2026-01-01' };
+      await expect(store.saveDebate('brand-new', debate)).resolves.toBeUndefined();
+      expect(await store.loadDebate('brand-new', 'd1')).toEqual(debate);
+    });
+
+    it('genuine storage limit exceeded returns 429 statusCode', async () => {
+      await store.saveChat('s1', { id: 'c1', data: 'x'.repeat(600) });
+      try {
+        await store.saveChat('s1', { id: 'c2', data: 'x'.repeat(600) });
+        expect.fail('Expected storage limit error');
+      } catch (err) {
+        expect((err as Error).message).toMatch(/storage limit exceeded/i);
+        expect((err as { statusCode: number }).statusCode).toBe(429);
+      }
+    });
+  });
+
   // ── LRU eviction ──
 
   describe('LRU eviction', () => {
