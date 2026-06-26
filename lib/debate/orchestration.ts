@@ -844,11 +844,15 @@ export async function runModeratorSelection(
   );
   const lastSpeaker = lastSpeakerEntry?.speaker as Exclude<SpeakerId, 'user'> | undefined;
 
-  // Participation floor: force-select a speaker with 0 turns after round 3
+  // Participation floor: force-select any speaker below 50% of mean turn count after round 3
   if (round >= 3 && !activeIntervention) {
-    const zeroTurnSpeakers = activePovers.filter(p => (turnCounts[p] ?? 0) === 0 && p !== lastSpeaker);
-    if (zeroTurnSpeakers.length > 0) {
-      responder = zeroTurnSpeakers[0] as Exclude<SpeakerId, 'user'>;
+    const counts = activePovers.map(p => turnCounts[p] ?? 0);
+    const mean = counts.reduce((a, b) => a + b, 0) / counts.length;
+    const threshold = Math.max(1, Math.floor(mean * 0.5));
+    const underrepresented = activePovers
+      .filter(p => (turnCounts[p] ?? 0) < threshold && p !== lastSpeaker);
+    if (underrepresented.length > 0) {
+      responder = underrepresented[0] as Exclude<SpeakerId, 'user'>;
     }
   }
 

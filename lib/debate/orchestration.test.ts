@@ -278,9 +278,45 @@ describe('runModeratorSelection', () => {
 
     const result = await runModeratorSelection(input, callbacks);
 
-    // Skeptic has 0 turns — participation floor at round >= 3 forces skeptic even if
-    // AI selected someone else.
+    // Skeptic has 0 turns (< threshold 1) — participation floor forces skeptic
     expect(result.responder).toBe('skeptic');
+  });
+
+  it('participation floor force-selects severely underrepresented speaker', async () => {
+    // accelerationist: 6, skeptic: 1, safetyist: 5 → mean=4, threshold=max(1,floor(2))=2
+    // skeptic (1) < threshold (2) → force-selected
+    const transcript: TranscriptEntry[] = [
+      ...Array.from({ length: 6 }, () => makeTranscriptEntry({ speaker: 'accelerationist', type: 'statement' })),
+      makeTranscriptEntry({ speaker: 'skeptic', type: 'statement' }),
+      ...Array.from({ length: 5 }, () => makeTranscriptEntry({ speaker: 'safetyist', type: 'statement' })),
+    ];
+
+    const input = makeBaseModeratorInput({ round: 5, transcript });
+    const callbacks = makeBaseModeratorCallbacks(
+      JSON.stringify({ responder: 'accelerationist', focus_point: 'Continue analysis', addressing: 'general', agreement_detected: false }),
+    );
+
+    const result = await runModeratorSelection(input, callbacks);
+    expect(result.responder).toBe('skeptic');
+  });
+
+  it('participation floor does not override when speakers are roughly balanced', async () => {
+    // accelerationist: 4, skeptic: 3, safetyist: 5 → mean=4, threshold=max(1,floor(2))=2
+    // skeptic (3) >= threshold (2) → no override, AI selection stands
+    const transcript: TranscriptEntry[] = [
+      ...Array.from({ length: 4 }, () => makeTranscriptEntry({ speaker: 'accelerationist', type: 'statement' })),
+      ...Array.from({ length: 5 }, () => makeTranscriptEntry({ speaker: 'safetyist', type: 'statement' })),
+      ...Array.from({ length: 3 }, () => makeTranscriptEntry({ speaker: 'skeptic', type: 'statement' })),
+    ];
+
+    const input = makeBaseModeratorInput({ round: 5, transcript });
+    const callbacks = makeBaseModeratorCallbacks(
+      JSON.stringify({ responder: 'accelerationist', focus_point: 'Continue analysis', addressing: 'general', agreement_detected: false }),
+    );
+
+    const result = await runModeratorSelection(input, callbacks);
+    // AI picked accelerationist, and no floor override fires — accelerationist selected
+    expect(result.responder).toBe('accelerationist');
   });
 
   it('handles empty argument network and convergence signals without error', async () => {
