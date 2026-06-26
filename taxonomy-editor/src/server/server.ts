@@ -1598,12 +1598,38 @@ post('/api/admin/flight-recorder/dump', (_req, res, body) => {
 // merges headers/dictionaries/contexts; handles a single side gracefully. Admin
 // only: the merge includes the full server ring buffer (other users' internals).
 get('/api/flight-recorder/download-merged/:dumpId', (req, res) => {
-  if (!requireAdmin(res)) return;
+  const dumpId = param(req, 'dumpId', '/api/flight-recorder/download-merged/:dumpId');
+  if (!isValidDumpId(dumpId)) { error(res, 'dumpId must be a UUID-safe string', 400); return; }
+  // t/1064: the download must NOT fail just because the caller isn't an admin —
+  // local/Electron users are '_local' (never admin), so the old blanket
+  // requireAdmin gate 403'd the very users running this diagnostic locally. The
+  // server ring buffer (other users' internals) stays gated: it's merged in only
+  // for admins or single-user/local deployments (no other users). Non-admin web
+  // callers still get their own client dump.
+  const includeServer = community.isAdmin() || STORAGE_MODE !== 'github-api';
   try {
-    const dumpId = param(req, 'dumpId', '/api/flight-recorder/download-merged/:dumpId');
-    if (!isValidDumpId(dumpId)) { error(res, 'dumpId must be a UUID-safe string', 400); return; }
-    const merged = readMergedDump(getDataRoot(), dumpId);
-    if (merged === null) { error(res, 'No dump found for that dumpId', 404); return; }
+    const merged = readMergedDump(getDataRoot(), dumpId, { includeServer });
+    if (merged === null) {
+      // Actionable, copy-pasteable diagnostics (ADR-001 shape) instead of a bare
+      // "failed" — relative paths only, no secrets/absolute fs layout.
+      json(res, {
+        error: 'merged_dump_unavailable',
+        goal: `Download the merged flight-recorder dump for dumpId ${dumpId}`,
+        problem: 'No readable dump file exists for this dumpId. The client dump may not have finished uploading, it was pruned by retention (last 20 dumps / 50 MB), or the dumpId is wrong.',
+        location: `admin/flight-recorder-dumps/client-${dumpId}.jsonl${includeServer ? ` (and server-${dumpId}.jsonl)` : ''} under the server data root`,
+        nextSteps: [
+          'Re-trigger the dump and wait for the "Flight recorder dump saved" toast before clicking download.',
+          'Confirm the client upload succeeded — POST /api/flight-recorder/dump should have returned 200 for this dumpId.',
+          includeServer
+            ? 'For server-side events, confirm the correlated server dump was written (POST /api/admin/flight-recorder/dump, admin only).'
+            : 'Server-side events are admin-only in this deployment, so this download would include client events only.',
+          `dumpId used: ${dumpId} — verify it matches the saved dump's id.`,
+        ],
+        dumpId,
+        requestId: getRequestId(),
+      }, 404);
+      return;
+    }
     res.writeHead(200, {
       'Content-Type': 'application/x-ndjson',
       'Content-Disposition': `attachment; filename="merged-${dumpId}.jsonl"`,
@@ -1615,7 +1641,18 @@ get('/api/flight-recorder/download-merged/:dumpId', (req, res) => {
       message: 'Merged dump download failed',
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
-    error(res, String(err), 500, err);
+    json(res, {
+      error: 'merged_dump_failed',
+      goal: `Download the merged flight-recorder dump for dumpId ${dumpId}`,
+      problem: `Merging the dump threw: ${clientSafeMessage(String(err), err)}`,
+      location: 'readMergedDump → mergeDumps (server)',
+      nextSteps: [
+        'Retry the download.',
+        'If it persists, download the individual client dump from the same toast and file a bug report with this payload.',
+      ],
+      dumpId,
+      requestId: getRequestId(),
+    }, 500);
   }
 });
 
@@ -1660,21 +1697,6 @@ get('/api/flight-recorder/download/:filename', (req, res) => {
       'Content-Disposition': `attachment; filename="${filename}"`,
     });
     res.end(content);
-  } catch (err) { error(res, String(err), 500, err); }
-});
-
-get('/api/flight-recorder/download-merged/:dumpId', (req, res) => {
-  try {
-    const dumpId = param(req, 'dumpId', '/api/flight-recorder/download-merged/:dumpId');
-    if (!isValidDumpId(dumpId)) { error(res, 'Invalid dumpId', 400); return; }
-    const merged = readMergedDump(getDataRoot(), dumpId);
-    if (!merged) { error(res, 'No dumps found for this dumpId', 404); return; }
-    const filename = `merged-${dumpId}.jsonl`;
-    res.writeHead(200, {
-      'Content-Type': 'application/x-ndjson',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-    });
-    res.end(merged);
   } catch (err) { error(res, String(err), 500, err); }
 });
 

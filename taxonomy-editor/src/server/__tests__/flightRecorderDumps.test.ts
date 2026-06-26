@@ -209,4 +209,28 @@ describe('readMergedDump (t/939)', () => {
     const lines = merged!.trim().split('\n').map(l => JSON.parse(l));
     expect(lines[0].sources).toEqual(['client']);
   });
+
+  it('excludes the server half when includeServer:false (t/1064 — non-admin merge)', () => {
+    writeDump(root, 'client', 'gated', ndjson(
+      { _type: 'header' },
+      { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'click' },
+    ));
+    writeDump(root, 'server', 'gated', ndjson(
+      { _type: 'header' },
+      { _type: 'event', _wall: '2026-01-01T00:00:02Z', type: 'api' },
+    ));
+    const merged = readMergedDump(root, 'gated', { includeServer: false });
+    expect(merged).not.toBeNull();
+    const lines = merged!.trim().split('\n').map(l => JSON.parse(l));
+    expect(lines[0].sources).toEqual(['client']); // server events withheld from non-admin
+    expect(lines[0].total_events).toBe(1);
+  });
+
+  it('returns null for a server-only dumpId when includeServer:false', () => {
+    writeDump(root, 'server', 'srvonly', ndjson(
+      { _type: 'header' },
+      { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'api' },
+    ));
+    expect(readMergedDump(root, 'srvonly', { includeServer: false })).toBeNull();
+  });
 });

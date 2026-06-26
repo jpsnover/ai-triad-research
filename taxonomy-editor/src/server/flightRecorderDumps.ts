@@ -206,15 +206,25 @@ export function mergeDumps(clientNdjson: string | null, serverNdjson: string | n
 }
 
 /**
- * Read and merge a paired dump by dumpId. Returns null if neither file exists.
+ * Read and merge a paired dump by dumpId. Returns null if no readable half exists.
+ *
+ * `includeServer` (default true) gates the server half: the server ring buffer can
+ * contain other users' request internals, so multi-user callers pass `false` for
+ * non-admins — they still get their own client dump merged (t/1064). When false,
+ * the server file is never read, so a server-only dumpId yields null for them.
  */
-export function readMergedDump(dataRoot: string, dumpId: string): string | null {
+export function readMergedDump(
+  dataRoot: string,
+  dumpId: string,
+  opts: { includeServer?: boolean } = {},
+): string | null {
+  const includeServer = opts.includeServer !== false;
   const dir = dumpsDir(dataRoot);
   const clientPath = path.join(dir, `client-${dumpId}.jsonl`);
   const serverPath = path.join(dir, `server-${dumpId}.jsonl`);
 
   const clientExists = fs.existsSync(clientPath);
-  const serverExists = fs.existsSync(serverPath);
+  const serverExists = includeServer && fs.existsSync(serverPath);
   if (!clientExists && !serverExists) return null;
 
   const clientNdjson = clientExists ? fs.readFileSync(clientPath, 'utf-8') : null;
