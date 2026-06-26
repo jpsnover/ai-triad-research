@@ -416,7 +416,7 @@ function Import-AITriadDocument {
         if ($null -ne $AiMeta) {
             if ($AiMeta.date_published) {
                 $ValidatedDate = $AiMeta.date_published
-                $ParsedDate = $null
+                [datetime]$ParsedDate = [datetime]::MinValue
                 if ([datetime]::TryParse($ValidatedDate, [ref]$ParsedDate)) {
                     $Now = Get-Date
                     $DaysAhead = ($ParsedDate - $Now).Days
