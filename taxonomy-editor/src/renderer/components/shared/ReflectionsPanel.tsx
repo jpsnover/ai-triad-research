@@ -162,7 +162,9 @@ function EditCard({ edit, pover, editIndex }: {
     setEditing(false);
   };
 
-  const isEmpty = editing && (!editedLabel.trim() || !editedDescription.trim());
+  const isEmpty = editing && (
+    (edit.edit_type === 'add' && !editedLabel.trim()) || !editedDescription.trim()
+  );
 
   return (
     <div style={{
