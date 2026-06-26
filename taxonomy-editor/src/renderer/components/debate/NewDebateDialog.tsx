@@ -207,26 +207,6 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [confrontationRounds, setConfrontationRounds] = useState(defaultBounds?.max_confrontation_rounds ?? debateConfig.defaultConfrontationRounds);
   const [argumentationRounds, setArgumentationRounds] = useState(defaultBounds?.max_argumentation_rounds ?? debateConfig.defaultArgumentationRounds);
   const [concludingRounds, setConcludingRounds] = useState(defaultBounds?.max_concluding_rounds ?? debateConfig.defaultConcludingRounds);
-  // [t/1035 INSTRUMENTATION — remove after diagnosis]
-  useMemo(() => {
-    const g = globalThis as Record<string, unknown>;
-    getGlobalRecorder()?.record({
-      type: 'lifecycle', component: 'NewDebateDialog', level: 'info',
-      message: 't/1035 phase-round defaults trace',
-      data: {
-        weightsSource: g.__debugPhaseWeightsSource ?? 'unknown',
-        defaultBounds_confrontation: defaultBounds?.max_confrontation_rounds ?? null,
-        defaultBounds_argumentation: defaultBounds?.max_argumentation_rounds ?? null,
-        defaultBounds_concluding: defaultBounds?.max_concluding_rounds ?? null,
-        clientConfig_confrontation: debateConfig.defaultConfrontationRounds,
-        clientConfig_argumentation: debateConfig.defaultArgumentationRounds,
-        clientConfig_concluding: debateConfig.defaultConcludingRounds,
-        resolved_confrontation: defaultBounds?.max_confrontation_rounds ?? debateConfig.defaultConfrontationRounds,
-        resolved_argumentation: defaultBounds?.max_argumentation_rounds ?? debateConfig.defaultArgumentationRounds,
-        resolved_concluding: defaultBounds?.max_concluding_rounds ?? debateConfig.defaultConcludingRounds,
-      },
-    });
-  }, []);
   const [evaluatorModel, setEvaluatorModel] = useState('');
   const [multiProvider, setMultiProvider] = useState(false);
   const [modelTier, setModelTier] = useState<'basic' | 'advanced'>('basic');

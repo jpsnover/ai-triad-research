@@ -52,8 +52,6 @@ let _cachedWeights: ProvisionalWeights | null = null;
 
 export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
   if (_cachedWeights) {
-    // [t/1035 INSTRUMENTATION — remove after diagnosis]
-    try { (globalThis as Record<string, unknown>).__debugPhaseWeightsSource ??= 'cached'; } catch { /* instrumentation */ }
     return _cachedWeights;
   }
 
@@ -77,8 +75,6 @@ export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
           const parsed = JSON.parse(raw) as ProvisionalWeights;
           if (parsed.schema_version === 1) {
             _cachedWeights = parsed;
-            // [t/1035 INSTRUMENTATION — remove after diagnosis]
-            try { (globalThis as Record<string, unknown>).__debugPhaseWeightsSource = `file:${p}`; } catch { /* instrumentation */ }
             return parsed;
           }
         } catch { /* try next candidate */ }
@@ -86,31 +82,28 @@ export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
     } catch { /* not in Node.js environment — fall through to defaults */ }
   }
 
-  // [t/1035 INSTRUMENTATION — remove after diagnosis]
-  try { (globalThis as Record<string, unknown>).__debugPhaseWeightsSource = 'hardcoded-fallback'; } catch { /* instrumentation */ }
-
-  // Hardcoded fallback — PROVISIONAL pending Phase 5 validation
+  // Hardcoded fallback — mirrors calibration-config.json so the browser
+  // (which cannot read files) uses the same values as the server.
   _cachedWeights = {
     schema_version: 1,
     argumentative_saturation: {
-      recycling_pressure: 0.30, crux_maturity: 0.25, concession_plateau: 0.15,
-      engagement_fatigue: 0.15, pragmatic_convergence: 0.05, scheme_stagnation: 0.10,
+      recycling_pressure: 0.01, crux_maturity: 0.28, concession_plateau: 0.01,
+      engagement_fatigue: 0.01, pragmatic_convergence: 0.33, scheme_stagnation: 0.36,
     },
     convergence: {
-      qbaf_agreement_density: 0.30, position_stability: 0.20,
-      irreducible_disagreement_ratio: 0.20, concluding_pragmatic_signal: 0.15,
-      crux_resolution_ratio: 0.15,
+      qbaf_agreement_density: 0.35, position_stability: 0.25,
+      irreducible_disagreement_ratio: 0.25, concluding_pragmatic_signal: 0.15,
     },
-    thresholds: { argumentation_exit: 0.65, concluding_exit: 0.70, confidence_floor: 0.40, crux_semantic_novelty: 0.70 },
+    thresholds: { argumentation_exit: 0.72, concluding_exit: 0.70, confidence_floor: 0.40, crux_semantic_novelty: 0.70 },
     phase_bounds: {
       min_confrontation_rounds: 1, max_confrontation_rounds: 2,
-      min_argumentation_rounds: 2, max_argumentation_rounds: 4,
-      min_concluding_rounds: 1, max_concluding_rounds: 2,
+      min_argumentation_rounds: 2, max_argumentation_rounds: 2,
+      min_concluding_rounds: 1, max_concluding_rounds: 1,
       max_total_rounds_default: 10, max_regressions: 2, regression_ratchet: 0.10,
     },
     pacing_presets: {
-      tight: { maxTotalRounds: 4, argumentationExit: 0.55, concludingExit: 0.60 },
-      moderate: { maxTotalRounds: 10, argumentationExit: 0.65, concludingExit: 0.70 },
+      tight: { maxTotalRounds: 4, argumentationExit: 0.62, concludingExit: 0.60 },
+      moderate: { maxTotalRounds: 10, argumentationExit: 0.72, concludingExit: 0.70 },
       thorough: { maxTotalRounds: 8, argumentationExit: 0.80, concludingExit: 0.80 },
     },
     network: { gc_trigger: 175, gc_target: 150, hard_cap: 200 },
