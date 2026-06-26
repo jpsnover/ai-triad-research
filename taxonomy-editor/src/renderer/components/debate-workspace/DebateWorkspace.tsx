@@ -760,15 +760,15 @@ export function DebateWorkspace({ onExport, exportStatus }: {
         </div>
 
         {/* Session phase stepper — always visible once debate has started */}
-        {activeDebate.phase !== 'setup' && (
+        {activeDebate.phase !== 'setup' && activeDebate.phase !== 'closed' && (
           <SessionPhaseStepper
             phase={activeDebate.phase}
-            roundCount={activeDebate.transcript.filter(e => e.type === 'statement').length}
+            roundCount={activeDebate.transcript.filter(e => e.type === 'statement' || e.type === 'opening').length}
           />
         )}
 
         {/* Adaptive phase progress bar — shown during debate phase when adaptive staging is enabled */}
-        {isDebatePhase && (activeDebate as any).adaptive_staging?.enabled && (() => {
+        {isDebatePhase && activeDebate.phase !== 'closed' && (activeDebate as any).adaptive_staging?.enabled && (() => {
           const staging = (activeDebate as any).adaptive_staging as {
             enabled: boolean;
             current_phase: AdaptivePhase;
