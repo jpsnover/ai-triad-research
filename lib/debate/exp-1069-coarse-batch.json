@@ -1,0 +1,69 @@
+[
+  {
+    "topic": "Should frontier AI labs be required to share safety research?",
+    "name": "exp-1069-ctrl-safety-sharing",
+    "model": "claude-opus-4-8",
+    "evaluatorModel": "claude-opus-4-8",
+    "useAdaptiveStaging": true,
+    "pacing": "moderate",
+    "outputFormat": "all"
+  },
+  {
+    "topic": "Should liability for AI-caused harms follow strict liability or negligence standards?",
+    "name": "exp-1069-ctrl-liability-regime",
+    "model": "claude-opus-4-8",
+    "evaluatorModel": "claude-opus-4-8",
+    "useAdaptiveStaging": true,
+    "pacing": "moderate",
+    "outputFormat": "all"
+  },
+  {
+    "topic": "To what extent and under what specific regulatory and technological conditions would a Congressional mandate, targeting large language model providers like OpenAI and Google and enforced by agencies such as the FTC or NIST, for the utilization of siloed datasets—defined as restricted access tiers where models train on specific information without cross-referencing external user data—effectively mitigate unauthorized data exfiltration and corporate surveillance?",
+    "name": "exp-1069-ctrl-siloed-datasets",
+    "model": "claude-opus-4-8",
+    "evaluatorModel": "claude-opus-4-8",
+    "useAdaptiveStaging": true,
+    "pacing": "moderate",
+    "outputFormat": "all"
+  },
+
+  {
+    "topic": "Should frontier AI labs be required to share safety research?",
+    "name": "exp-1069-allcheap-safety-sharing",
+    "model": "claude-opus-4-8",
+    "evaluatorModel": "gemini-3.1-flash-lite",
+    "utilityModels": {
+      "summary": "gemini-3.1-flash-lite",
+      "scope": "gemini-3.1-flash-lite"
+    },
+    "useAdaptiveStaging": true,
+    "pacing": "moderate",
+    "outputFormat": "all"
+  },
+  {
+    "topic": "Should liability for AI-caused harms follow strict liability or negligence standards?",
+    "name": "exp-1069-allcheap-liability-regime",
+    "model": "claude-opus-4-8",
+    "evaluatorModel": "gemini-3.1-flash-lite",
+    "utilityModels": {
+      "summary": "gemini-3.1-flash-lite",
+      "scope": "gemini-3.1-flash-lite"
+    },
+    "useAdaptiveStaging": true,
+    "pacing": "moderate",
+    "outputFormat": "all"
+  },
+  {
+    "topic": "To what extent and under what specific regulatory and technological conditions would a Congressional mandate, targeting large language model providers like OpenAI and Google and enforced by agencies such as the FTC or NIST, for the utilization of siloed datasets—defined as restricted access tiers where models train on specific information without cross-referencing external user data—effectively mitigate unauthorized data exfiltration and corporate surveillance?",
+    "name": "exp-1069-allcheap-siloed-datasets",
+    "model": "claude-opus-4-8",
+    "evaluatorModel": "gemini-3.1-flash-lite",
+    "utilityModels": {
+      "summary": "gemini-3.1-flash-lite",
+      "scope": "gemini-3.1-flash-lite"
+    },
+    "useAdaptiveStaging": true,
+    "pacing": "moderate",
+    "outputFormat": "all"
+  }
+]
