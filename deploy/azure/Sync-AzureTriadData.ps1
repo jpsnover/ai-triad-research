@@ -14,7 +14,7 @@
     and pull latest data from GitHub into the Azure-mounted data volume.
 .PARAMETER ServerUrl
     Base URL of the Azure-hosted Taxonomy Editor.
-    Default: https://taxonomy-editor.gentlecoast-20f0bd5b.eastus2.azurecontainerapps.io
+    Default: https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io
 .PARAMETER AdminKey
     Admin API key matching ADMIN_API_KEY on the server. Falls back to
     $env:AITRIAD_ADMIN_KEY if not specified.
@@ -43,7 +43,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$ServerUrl = 'https://taxonomy-editor.gentlecoast-20f0bd5b.eastus2.azurecontainerapps.io',
+    [string]$ServerUrl = 'https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io',
 
     [string]$AdminKey,
 

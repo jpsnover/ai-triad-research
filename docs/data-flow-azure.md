@@ -216,15 +216,15 @@ GitHub (ai-triad-data, main branch)
 
 ```bash
 # 1. Check health endpoint
-curl https://taxonomy-editor.gentlecoast-20f0bd5b.eastus2.azurecontainerapps.io/healthz
+curl https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io/healthz
 # Expected: {"status":"healthy","dataRoot":"/data"}
 
 # 2. Check data availability
-curl https://taxonomy-editor.gentlecoast-20f0bd5b.eastus2.azurecontainerapps.io/api/data/available
+curl https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io/api/data/available
 # Expected: true
 
 # 3. Check copy status (during startup)
-curl https://taxonomy-editor.gentlecoast-20f0bd5b.eastus2.azurecontainerapps.io/status
+curl https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io/status
 # Expected: {"state":"complete"} or progress details
 ```
 
@@ -232,11 +232,11 @@ curl https://taxonomy-editor.gentlecoast-20f0bd5b.eastus2.azurecontainerapps.io/
 
 ```bash
 # 4. Check what git revision the app is running from (NOTE: POST, not GET)
-curl -X POST https://taxonomy-editor.gentlecoast-20f0bd5b.eastus2.azurecontainerapps.io/api/data/check-updates
+curl -X POST https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io/api/data/check-updates
 # Shows local HEAD vs origin/main — are they the same?
 
 # 5. Check sync status (uncommitted local changes)
-curl https://taxonomy-editor.gentlecoast-20f0bd5b.eastus2.azurecontainerapps.io/api/sync/status
+curl https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io/api/sync/status
 # Shows count of files changed locally but not committed
 ```
 
@@ -265,7 +265,7 @@ Debates save to `{dataRoot}/debates/` on every action (turn, phase transition, r
 
 ```bash
 # List debates via API
-curl https://taxonomy-editor.gentlecoast-20f0bd5b.eastus2.azurecontainerapps.io/api/debates
+curl https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io/api/debates
 ```
 
 ### Container Logs (for deeper diagnosis)

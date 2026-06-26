@@ -53,7 +53,7 @@ Describe 'Resolve-TriadConfigRequest (private helper)' {
             $env:GITHUB_TOKEN = 'test-token'
             $env:TAXONOMY_EDITOR_URL = $null
             $result = Resolve-TriadConfigRequest
-            $result.BaseUrl | Should -Match 'gentlecoast'
+            $result.BaseUrl | Should -Match 'yellowbush'
         }
     }
 

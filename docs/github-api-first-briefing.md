@@ -35,7 +35,7 @@ The code repo never contains data. The data repo is the single source of truth f
 The **Taxonomy Editor** is the primary app. It runs in two modes:
 
 - **Desktop (Electron)**: Runs locally on macOS/Windows. Reads/writes data directly from the local filesystem via Node.js `fs` module. The data repo is cloned locally.
-- **Web (Azure Container Apps)**: Hosted at `https://taxonomy-editor.gentlecoast-20f0bd5b.eastus2.azurecontainerapps.io`. A Node.js HTTP server serves a React SPA. Currently reads/writes data from an Azure Files SMB mount that contains a clone of the data repo.
+- **Web (Azure Container Apps)**: Hosted at `https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io`. A Node.js HTTP server serves a React SPA. Currently reads/writes data from an Azure Files SMB mount that contains a clone of the data repo.
 
 Both modes share the same React frontend. A "bridge" pattern abstracts the difference: `electron-bridge.ts` (IPC to Electron main process) vs `web-bridge.ts` (REST calls to server). The bridge implements a shared `AppAPI` interface with 100+ methods.
 
