@@ -352,7 +352,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
         const phase = 'concluding';
         const focusPoint = 'Give your final statement on this debate.';
         const addressingLabel = 'all';
-        set({ debateGenerating: responderPover });
+        set({ debateGenerating: responderPover, debateActivity: `${POVER_INFO[responderPover].label} is preparing...` });
 
         // Jump to step 2 with these values — the rest of crossRespond handles it
         // We need to skip to the pipeline section; use a goto-like pattern by setting these
@@ -674,7 +674,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
     };
 
     // Step 2: Generate the cross-response
-    set({ debateGenerating: responderPover });
+    set({ debateGenerating: responderPover, debateActivity: `${POVER_INFO[responderPover].label} is preparing...` });
 
     const info = POVER_INFO[responderPover];
     const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
