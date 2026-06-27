@@ -510,11 +510,15 @@ if (_driverChannel) {
     }
   };
 }
+const _beforeUnloadHandler = () => releaseDebateDriver();
 if (import.meta.hot) {
-  import.meta.hot.dispose(() => _driverChannel?.close());
+  import.meta.hot.dispose(() => {
+    _driverChannel?.close();
+    if (typeof window !== 'undefined') window.removeEventListener('beforeunload', _beforeUnloadHandler);
+  });
 }
 if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', () => releaseDebateDriver());
+  window.addEventListener('beforeunload', _beforeUnloadHandler);
 }
 
 export function claimDebateDriver(): boolean {

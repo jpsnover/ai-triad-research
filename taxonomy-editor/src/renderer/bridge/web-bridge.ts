@@ -374,7 +374,7 @@ const diagClosedCallbacks = new Set<() => void>();
 const reExtractCallbacks = new Set<(entryId: string) => void>();
 
 // Receive diagnostics state from the main tab (or from this tab if inline)
-diagChannel?.addEventListener('message', (event) => {
+const diagChannelHandler = (event: MessageEvent) => {
   const msg = event.data as { type: string; payload?: unknown; entryId?: string };
   if (msg.type === 'diagnostics-state' && msg.payload) {
     for (const cb of diagCallbacks) cb(msg.payload);
@@ -383,7 +383,11 @@ diagChannel?.addEventListener('message', (event) => {
   } else if (msg.type === 're-extract-claims' && msg.entryId) {
     for (const cb of reExtractCallbacks) cb(msg.entryId);
   }
-});
+};
+diagChannel?.addEventListener('message', diagChannelHandler);
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => diagChannel?.close());
+}
 
 // ── The bridge ──
 

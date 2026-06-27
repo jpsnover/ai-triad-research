@@ -9,7 +9,7 @@ export function initSwEventListener(): void {
   if (initialized || typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
   initialized = true;
 
-  navigator.serviceWorker.addEventListener('message', (event) => {
+  const onMessage = (event: MessageEvent) => {
     const data = event.data as Record<string, unknown> | null;
     if (!data || typeof data.type !== 'string') return;
 
@@ -20,16 +20,19 @@ export function initSwEventListener(): void {
       message: (data.message as string) || `SW event: ${data.type}`,
       data: data.data as Record<string, unknown> | undefined,
     });
-  });
+  };
 
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
+  const onControllerChange = () => {
     getGlobalRecorder()?.record({
       type: 'sw.controller_change',
       component: 'service-worker',
       level: 'info',
       message: 'Service worker controller changed — new SW activated',
     });
-  });
+  };
+
+  navigator.serviceWorker.addEventListener('message', onMessage);
+  navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
 
   if (navigator.serviceWorker.controller) {
     getGlobalRecorder()?.record({
@@ -51,4 +54,12 @@ export function initSwEventListener(): void {
       });
     });
   }).catch(() => { /* telemetry — silent by design */ });
+
+  if (import.meta.hot) {
+    import.meta.hot.dispose(() => {
+      navigator.serviceWorker.removeEventListener('message', onMessage);
+      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+      initialized = false;
+    });
+  }
 }

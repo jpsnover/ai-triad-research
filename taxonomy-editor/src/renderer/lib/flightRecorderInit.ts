@@ -552,6 +552,9 @@ export function initFlightRecorder(): FlightRecorder {
           void persistDump(recorder, 'manual');
         }
       };
+      if (import.meta.hot) {
+        import.meta.hot.dispose(() => frChannel.close());
+      }
     }
   }
 

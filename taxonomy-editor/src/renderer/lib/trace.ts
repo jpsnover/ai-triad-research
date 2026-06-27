@@ -216,16 +216,20 @@ export async function flush(): Promise<void> {
  * Flush on page unload via sendBeacon, which is designed for exactly this
  * case (fires even after the page has started tearing down).
  */
+const _tracePagehideHandler = () => {
+  if (buffer.length === 0) return;
+  try {
+    const batch = buffer.splice(0, buffer.length);
+    const body = JSON.stringify({ events: batch });
+    const blob = new Blob([body], { type: 'application/json' });
+    navigator.sendBeacon(ENDPOINT, blob);
+  } catch {
+    /* telemetry — silent by design (best effort beacon) */
+  }
+};
 if (typeof window !== 'undefined' && !isElectron()) {
-  window.addEventListener('pagehide', () => {
-    if (buffer.length === 0) return;
-    try {
-      const batch = buffer.splice(0, buffer.length);
-      const body = JSON.stringify({ events: batch });
-      const blob = new Blob([body], { type: 'application/json' });
-      navigator.sendBeacon(ENDPOINT, blob);
-    } catch {
-      /* telemetry — silent by design (best effort beacon) */
-    }
-  });
+  window.addEventListener('pagehide', _tracePagehideHandler);
+  if (import.meta.hot) {
+    import.meta.hot.dispose(() => window.removeEventListener('pagehide', _tracePagehideHandler));
+  }
 }
