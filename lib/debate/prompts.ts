@@ -2590,6 +2590,13 @@ Identify:
 4. Cruxes — specific questions that, if answered, would change a debater's position
 5. Questions that remain unresolved
 
+=== NEUTRALIZATION PASS ===
+After completing your analysis, review every free-text field before writing the final JSON:
+- PRESERVE: all substantive claims, factual content, and structural relationships (agreement/disagreement classifications, crux logic)
+- NEUTRALIZE: stance-loaded vocabulary (e.g., "reckless," "visionary"), camp-specific rhetorical moves (accelerationist urgency framing, safetyist catastrophism, skeptic dismissiveness), and emotional register tied to one position
+- "point" and "question" fields must read as neutral descriptions of the issue, not as advocacy for either side
+- Attributed fields ("stance", "if_yes", "if_no") may retain position-specific language since they describe a debater's view, but strip emotional amplification (e.g., "argues X is dangerous" → "argues X poses risks")
+
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "areas_of_agreement": [{"point": "...", "povers": ["accelerationist", "safetyist"], "converged": false, "conceded_by": null, "original_disagreement": null}],
@@ -2648,6 +2655,14 @@ Tasks:
    DESCRIPTION RULES: Use domain-specific terminology — no colloquialisms. Every description must include Encompasses: and Excludes: clauses.
 4. Identify existing taxonomy nodes that should be modified based on what this debate revealed — descriptions that are too narrow, categories that are wrong, or nodes that should be split. For each, specify the node ID, modification type, suggested change, and rationale.
 
+=== NEUTRALIZATION PASS ===
+After completing your analysis, review every free-text field before writing the final JSON:
+- PRESERVE: all substantive claims, claim relationships (supported_by, attacked_by), argumentation structure, and taxonomy mappings
+- NEUTRALIZE: stance-loaded vocabulary, camp-specific rhetorical moves, and emotional register tied to one position
+- "claim" fields should preserve substantive content while removing gratuitous emotional loading — keep the argument, strip the spin
+- "how_used", "rationale", "description", and "suggested_change" fields must read as neutral analytical observations
+- Taxonomy proposals (label, description) must use domain terminology, never camp rhetoric
+
 CRITICAL: The argument_map array below is the primary output. It MUST contain at least 3 claims — never return an empty argument_map.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
@@ -2701,6 +2716,14 @@ Tasks:
    Weight criteria f and g equally with the existing five when evaluating for a policymaker audience. A technically superior position that cannot be implemented is less valuable to this audience than a feasible one.` : ''}
    If genuinely undecidable, say so and explain what evidence would tip the balance.
 2. Policy implications: For each significant disagreement, identify what concrete policy actions would differ depending on which position prevails.${policyContext ? ` Reference pol-NNN IDs from the policy registry when applicable.${policyContext}` : ''}
+
+=== NEUTRALIZATION PASS ===
+After completing your analysis, review every free-text field before writing the final JSON:
+- PRESERVE: all evaluative conclusions, evidential reasoning, criterion-based judgments, and policy relationships
+- NEUTRALIZE: stance-loaded vocabulary, camp-specific rhetorical moves, and emotional register tied to one position
+- "rationale" fields must present evaluative reasoning in neutral analytical language — base the evaluation on the listed criteria, not on the winning position's rhetorical register
+- "implication" fields must describe policy consequences neutrally, not advocate for either side
+- "what_would_change_this" must frame the epistemic gap objectively, not from one camp's perspective
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
