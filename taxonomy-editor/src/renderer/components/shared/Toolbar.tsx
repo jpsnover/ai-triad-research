@@ -20,7 +20,7 @@ function useAdminReviewCount(): number {
   useEffect(() => {
     if (!isElectronMode() && !adminFeatures) return;
     let cancelled = false;
-    let configChecked = false;
+    let configState: boolean | null = null;
     const doPoll = () => {
       api.adminReviewStats()
         .then(s => { if (!cancelled && s) setCount(s.total ?? 0); })
@@ -29,13 +29,15 @@ function useAdminReviewCount(): number {
         });
     };
     const poll = () => {
-      if (isElectronMode() && !configChecked) {
-        api.adminReviewConfigured().then(configured => {
-          configChecked = true;
-          if (!configured) return;
-          doPoll();
-        }).catch(() => {});
-        return;
+      if (isElectronMode()) {
+        if (configState === false) return;
+        if (configState === null) {
+          api.adminReviewConfigured().then(configured => {
+            configState = configured;
+            if (configured) doPoll();
+          }).catch(() => {});
+          return;
+        }
       }
       doPoll();
     };
