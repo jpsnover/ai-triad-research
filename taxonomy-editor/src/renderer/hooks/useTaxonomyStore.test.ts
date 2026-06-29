@@ -612,6 +612,46 @@ describe('useTaxonomyStore', () => {
         await useTaxonomyStore.getState().checkApiKey();
         expect(useTaxonomyStore.getState().hasApiKey).toBe(false);
       });
+
+      it('falls back to free-tier proxy when BYOK returns false (anonymous persona)', async () => {
+        mockApi.hasApiKey.mockResolvedValueOnce(false);
+        (mockApi as Record<string, unknown>).getProxyTier = vi.fn().mockResolvedValueOnce({
+          level: 'free',
+          limits: { requestsPerMinute: 10, tokensPerDay: 50000 },
+          allowedBackends: ['gemini'],
+          principalName: null,
+        });
+        await useTaxonomyStore.getState().checkApiKey();
+        expect(useTaxonomyStore.getState().hasApiKey).toBe(true);
+        delete (mockApi as Record<string, unknown>).getProxyTier;
+      });
+
+      it('stays false when free-tier proxy has no allowed backends', async () => {
+        mockApi.hasApiKey.mockResolvedValueOnce(false);
+        (mockApi as Record<string, unknown>).getProxyTier = vi.fn().mockResolvedValueOnce({
+          level: 'free',
+          limits: { requestsPerMinute: 10, tokensPerDay: 50000 },
+          allowedBackends: [],
+          principalName: null,
+        });
+        await useTaxonomyStore.getState().checkApiKey();
+        expect(useTaxonomyStore.getState().hasApiKey).toBe(false);
+        delete (mockApi as Record<string, unknown>).getProxyTier;
+      });
+
+      it('stays false when getProxyTier is unavailable (Electron persona)', async () => {
+        mockApi.hasApiKey.mockResolvedValueOnce(false);
+        await useTaxonomyStore.getState().checkApiKey();
+        expect(useTaxonomyStore.getState().hasApiKey).toBe(false);
+      });
+
+      it('stays false when getProxyTier rejects (proxy down)', async () => {
+        mockApi.hasApiKey.mockResolvedValueOnce(false);
+        (mockApi as Record<string, unknown>).getProxyTier = vi.fn().mockRejectedValueOnce(new Error('503'));
+        await useTaxonomyStore.getState().checkApiKey();
+        expect(useTaxonomyStore.getState().hasApiKey).toBe(false);
+        delete (mockApi as Record<string, unknown>).getProxyTier;
+      });
     });
   });
 
