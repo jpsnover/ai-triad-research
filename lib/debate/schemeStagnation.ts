@@ -132,7 +132,7 @@ export const MIN_CITATIONS_FOR_INSULARITY = 4;
  * @param nodeIds - taxonomy node IDs cited by the speaker in recent turns
  * @param speakerPov - the debater's POV ('accelerationist', 'safetyist', 'skeptic')
  * @returns A value in [0, 1]. 1 = all citations are own-camp. 0 = no own-camp citations.
- *   Returns 0 if nodeIds is empty or no camp-specific nodes are present.
+ *   Returns null if nodeIds is empty or no camp-specific nodes are present.
  *
  * Cross-cutting nodes (cc-*, sit-*, pol-*) are excluded from the ratio — only
  * POV-attributed nodes (acc-*, saf-*, skp-*) count.
@@ -140,7 +140,7 @@ export const MIN_CITATIONS_FOR_INSULARITY = 4;
 export function computeCampInsularityRate(
   nodeIds: string[],
   speakerPov: string,
-): number {
+): number | null {
   let sameCamp = 0;
   let totalCampSpecific = 0;
 
@@ -151,7 +151,7 @@ export function computeCampInsularityRate(
     if (pov === speakerPov) sameCamp++;
   }
 
-  if (totalCampSpecific === 0) return 0;
+  if (totalCampSpecific === 0) return null;
   return sameCamp / totalCampSpecific;
 }
 

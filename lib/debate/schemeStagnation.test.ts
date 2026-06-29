@@ -119,8 +119,8 @@ describe('computeSchemeCoverageFactor', () => {
 // ── Camp insularity ────────────────────────────────────
 
 describe('computeCampInsularityRate', () => {
-  it('returns 0 for empty node list', () => {
-    expect(computeCampInsularityRate([], 'accelerationist')).toBe(0);
+  it('returns null for empty node list', () => {
+    expect(computeCampInsularityRate([], 'accelerationist')).toBeNull();
   });
 
   it('returns 1.0 when all citations are own-camp', () => {
@@ -144,9 +144,9 @@ describe('computeCampInsularityRate', () => {
     expect(computeCampInsularityRate(nodes, 'accelerationist')).toBe(1.0);
   });
 
-  it('returns 0 when only cross-cutting nodes present', () => {
+  it('returns null when only cross-cutting nodes present', () => {
     const nodes = ['sit-001', 'sit-002', 'cc-040'];
-    expect(computeCampInsularityRate(nodes, 'safetyist')).toBe(0);
+    expect(computeCampInsularityRate(nodes, 'safetyist')).toBeNull();
   });
 
   it('handles safetyist speaker correctly', () => {

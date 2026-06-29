@@ -418,6 +418,8 @@ export interface CalibrationDataPoint {
   // ── Camp insularity (BEA: Reflective User Engagement, t/1117) ──
   /** Mean same-camp citation rate across speakers [0,1]. Higher = more insular. */
   camp_insularity_rate: number | null;
+  /** Max same-camp citation rate across speakers — faithful trigger for per-speaker intervention. */
+  camp_insularity_max: number | null;
 
   // ── Exploration seeding (t/990) ──
   /** Debate ID of the exploration run that seeded this debate. */
@@ -1007,11 +1009,15 @@ export function extractCalibrationData(
       .flatMap((e: { taxonomy_refs?: { node_id: string }[] }) =>
         (e.taxonomy_refs ?? []).map(r => r.node_id));
     if (nodeIds.length > 0) {
-      speakerInsularityRates.push(computeCampInsularityRate(nodeIds, speaker));
+      const rate = computeCampInsularityRate(nodeIds, speaker);
+      if (rate != null) speakerInsularityRates.push(rate);
     }
   }
   const campInsularityRate = speakerInsularityRates.length > 0
     ? speakerInsularityRates.reduce((a, b) => a + b, 0) / speakerInsularityRates.length
+    : null;
+  const campInsularityMax = speakerInsularityRates.length > 0
+    ? Math.max(...speakerInsularityRates)
     : null;
 
   return {
@@ -1398,6 +1404,7 @@ export function extractCalibrationData(
 
     // ── Camp insularity (BEA: Reflective User Engagement, t/1117) ──
     camp_insularity_rate: campInsularityRate != null ? Math.round(campInsularityRate * 1000) / 1000 : null,
+    camp_insularity_max: campInsularityMax != null ? Math.round(campInsularityMax * 1000) / 1000 : null,
 
     // ── Exploration seeding ──
     ...(config.explorationSummary ? {
