@@ -1299,7 +1299,14 @@ post('/api/ai/generate', async (req, res, body) => {
       });
 
       if (result.tokenUsage) {
-        rateLimiter.recordTokenUsage(limitKey, result.tokenUsage.inputTokens, result.tokenUsage.outputTokens, tier.limits.tokensPerDay);
+        const milestone = rateLimiter.recordTokenUsage(limitKey, result.tokenUsage.inputTokens, result.tokenUsage.outputTokens, tier.limits.tokensPerDay);
+        if (milestone != null) {
+          // t/1132: surface the crossed daily-budget threshold (50/80/95) so the
+          // renderer's web-bridge post() can show a dismissable quota banner. The
+          // reset is the UTC-midnight boundary the daily token buckets key on.
+          res.setHeader('X-Token-Budget-Warning', String(milestone));
+          res.setHeader('X-Token-Budget-Resets', rateLimiter.nextDailyResetUtc());
+        }
       }
 
       json(res, { text: result.text, tokenUsage: result.tokenUsage });
@@ -4015,6 +4022,9 @@ async function handleRequestInner(
   res.setHeader('Access-Control-Allow-Origin', getCorsOrigin(req));
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Filename');
+  // t/1132: let the renderer read the token-budget milestone headers cross-origin
+  // (same-origin reads them anyway; this covers proxied/cross-origin topologies).
+  res.setHeader('Access-Control-Expose-Headers', 'X-Token-Budget-Warning, X-Token-Budget-Resets');
   if (ALLOWED_ORIGINS) res.setHeader('Vary', 'Origin');
 
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
