@@ -21,10 +21,11 @@ export default defineConfig({
   plugins: [
     react(),
     ...(isWeb ? [VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       workbox: {
         navigateFallbackDenylist: [/^\/api\//, /^\/.auth\//],
         skipWaiting: true,
+        clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         runtimeCaching: [
