@@ -1277,9 +1277,9 @@ describe('Per-speaker model routing', () => {
   });
 });
 
-// ── Per-stage model override (t/842) ─────────────────────
+// ── Unified stage model config (t/1089) ─────────────────────
 
-describe('Per-stage model override', () => {
+describe('Unified stage model config', () => {
   it('accepts config with stageModels', () => {
     const config = createDefaultConfig({
       model: 'expensive-model',
@@ -1290,35 +1290,29 @@ describe('Per-stage model override', () => {
     expect(config.stageModels?.cite).toBe('cheap-model');
   });
 
-  it('stamps stage_models on session with explicit overrides', () => {
+  it('stamps fully-resolved stage_models on session', () => {
     const config = createDefaultConfig({
-      stageModels: { brief: 'cheap-brief', cite: 'cheap-cite' },
+      model: 'base-model',
+      stageModels: { brief: 'cheap-brief', evaluator: 'eval-model' },
     });
     const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
     (engine as any).initSession();
     const session = (engine as any).session;
-    expect(session.stage_models).toEqual({ brief: 'cheap-brief', cite: 'cheap-cite' });
+    expect(session.stage_models.brief).toBe('cheap-brief');
+    expect(session.stage_models.evaluator).toBe('eval-model');
+    expect(session.stage_models.plan).toBe('base-model');
+    expect(session.stage_models.draft).toBe('base-model');
   });
 
-  it('defaults brief and cite to flash-lite when stageModels is unset', () => {
-    const config = createDefaultConfig();
+  it('resolves unset keys to config.model', () => {
+    const config = createDefaultConfig({ model: 'base-model' });
     const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
-    expect((engine as any).config.stageModels.brief).toBe('gemini-3.1-flash-lite');
-    expect((engine as any).config.stageModels.cite).toBe('gemini-3.1-flash-lite');
-    expect((engine as any).config.stageModels.plan).toBeUndefined();
+    expect((engine as any).resolveStageModel('brief')).toBe('base-model');
+    expect((engine as any).resolveStageModel('evaluator')).toBe('base-model');
+    expect((engine as any).resolveStageModel('crux')).toBe('base-model');
   });
 
-  it('stamps flash-lite defaults on session when no stageModels provided', () => {
-    const config = createDefaultConfig();
-    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
-    (engine as any).initSession();
-    const session = (engine as any).session;
-    expect(session.stage_models).toBeDefined();
-    expect(session.stage_models.brief).toBe('gemini-3.1-flash-lite');
-    expect(session.stage_models.cite).toBe('gemini-3.1-flash-lite');
-  });
-
-  it('preserves explicit overrides over flash-lite defaults', () => {
+  it('preserves explicit overrides', () => {
     const config = createDefaultConfig({
       stageModels: { brief: 'claude-opus-4', plan: 'claude-opus-4', cite: 'claude-opus-4' },
     });
@@ -1327,37 +1321,33 @@ describe('Per-stage model override', () => {
     expect((engine as any).config.stageModels.plan).toBe('claude-opus-4');
     expect((engine as any).config.stageModels.cite).toBe('claude-opus-4');
   });
-});
 
-// ── Utility model overrides (t/1070) ─────────────────────
-
-describe('Utility model overrides', () => {
-  it('accepts config with utilityModels', () => {
+  it('migrates legacy evaluatorModel to stageModels.evaluator', () => {
     const config = createDefaultConfig({
-      utilityModels: { summary: 'flash-lite', scope: 'flash-lite', moderator: 'flash-lite', crux: 'flash-lite' },
+      evaluatorModel: 'legacy-eval',
     });
-    expect(config.utilityModels?.summary).toBe('flash-lite');
-    expect(config.utilityModels?.scope).toBe('flash-lite');
-    expect(config.utilityModels?.moderator).toBe('flash-lite');
-    expect(config.utilityModels?.crux).toBe('flash-lite');
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+    expect((engine as any).resolveStageModel('evaluator')).toBe('legacy-eval');
   });
 
-  it('stamps utility_models on session when provided', () => {
+  it('migrates legacy utilityModels to stageModels', () => {
     const config = createDefaultConfig({
       utilityModels: { summary: 'cheap-summary', crux: 'cheap-crux' },
     });
     const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
-    (engine as any).initSession();
-    const session = (engine as any).session;
-    expect(session.utility_models).toEqual({ summary: 'cheap-summary', crux: 'cheap-crux' });
+    expect((engine as any).resolveStageModel('summary')).toBe('cheap-summary');
+    expect((engine as any).resolveStageModel('crux')).toBe('cheap-crux');
   });
 
-  it('omits utility_models from session when not provided', () => {
-    const config = createDefaultConfig();
+  it('stageModels takes precedence over legacy keys', () => {
+    const config = createDefaultConfig({
+      evaluatorModel: 'old-eval',
+      utilityModels: { summary: 'old-summary' },
+      stageModels: { evaluator: 'new-eval', summary: 'new-summary' },
+    });
     const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
-    (engine as any).initSession();
-    const session = (engine as any).session;
-    expect(session.utility_models).toBeUndefined();
+    expect((engine as any).resolveStageModel('evaluator')).toBe('new-eval');
+    expect((engine as any).resolveStageModel('summary')).toBe('new-summary');
   });
 });
 

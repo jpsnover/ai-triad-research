@@ -57,7 +57,8 @@ interface CLIConfig {
     measure_recovery_window?: number;
   };
   salienceBeacon?: boolean;
-  stageModels?: { brief?: string; plan?: string; cite?: string };
+  stageModels?: { brief?: string; plan?: string; draft?: string; cite?: string; evaluator?: string; scope?: string; summary?: string; moderator?: string; crux?: string };
+  /** @deprecated Use stageModels instead. */
   utilityModels?: { summary?: string; scope?: string; moderator?: string; crux?: string };
   exploreFirst?: boolean;
   exploreModel?: string;
@@ -355,7 +356,7 @@ async function main(): Promise<void> {
     activePovers,
     protocolId: config.protocolId ?? 'structured',
     model,
-    evaluatorModel: config.evaluatorModel,
+    evaluatorModel: config.evaluatorModel, // deprecated — constructor migrates to stageModels.evaluator
     rounds: config.rounds ?? 3,
     responseLength: (config.responseLength ?? 'medium') as 'brief' | 'medium' | 'detailed',
     enableClarification: config.enableClarification,

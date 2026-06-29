@@ -494,8 +494,8 @@ export interface DebateSession {
   /** Evaluator model for claim extraction/classification. Cross-vendor split recommended. */
   evaluator_model?: string;
   speaker_models?: Record<string, string>;
+  /** Fully-resolved per-stage model map (9 keys: brief, plan, draft, cite, evaluator, scope, summary, moderator, crux). */
   stage_models?: Record<string, string>;
-  utility_models?: Record<string, string>;
   model_tier?: ModelTier;
   /** Debate protocol format. Absent in older debates (defaults to 'structured'). */
   protocol_id?: string;

@@ -197,7 +197,7 @@ export interface DebateConfig {
   activePovers: Exclude<SpeakerId, 'user'>[];
   protocolId?: string;
   model: string;
-  /** Separate model for claim extraction/classification (evaluator role). Cross-vendor recommended. Defaults to `model` if unset. */
+  /** @deprecated Use `stageModels.evaluator` instead. Mapped automatically with deprecation warning. */
   evaluatorModel?: string;
   modelTier?: import('./types').ModelTier;
   speakerModels?: Record<string, string>;
@@ -258,13 +258,19 @@ export interface DebateConfig {
   explorationSummary?: import('./explorationSummary.js').ExplorationSummary;
   /** Use restructured BRIEF prompt (YOUR TASK → REFERENCE → CURRENT STATE) instead of inline context. Experiment flag (t/1029). */
   useBackgroundPrompt?: boolean;
-  /** Per-stage model overrides — use cheaper models for analytical stages (brief, plan, cite) while keeping the primary model for draft. */
+  /** Per-stage model overrides. Omitting a key falls back to `model`. */
   stageModels?: {
     brief?: string;
     plan?: string;
+    draft?: string;
     cite?: string;
+    evaluator?: string;
+    scope?: string;
+    summary?: string;
+    moderator?: string;
+    crux?: string;
   };
-  /** Per-function utility model overrides for non-pipeline stages. Each falls back to `model` when undefined. */
+  /** @deprecated Use `stageModels` instead. Mapped automatically with deprecation warning. */
   utilityModels?: {
     summary?: string;
     scope?: string;
@@ -572,17 +578,33 @@ export class DebateEngine {
   }
 
   constructor(config: DebateConfig, adapter: AIAdapter | ExtendedAIAdapter, taxonomy: LoadedTaxonomy) {
-    this.config = {
-      ...config,
-      stageModels: {
-        brief: config.stageModels?.brief ?? 'gemini-3.1-flash-lite',
-        plan: config.stageModels?.plan,
-        cite: config.stageModels?.cite ?? 'gemini-3.1-flash-lite',
-      },
-    };
+    const merged: DebateConfig['stageModels'] = { ...config.stageModels };
+
+    if (config.evaluatorModel && !merged.evaluator) {
+      merged.evaluator = config.evaluatorModel;
+      console.warn('[debate-engine] evaluatorModel is deprecated — use stageModels.evaluator instead');
+    }
+    if (config.utilityModels) {
+      const uMap: Record<string, keyof NonNullable<DebateConfig['stageModels']>> = {
+        summary: 'summary', scope: 'scope', moderator: 'moderator', crux: 'crux',
+      };
+      for (const [uKey, sKey] of Object.entries(uMap)) {
+        const val = config.utilityModels[uKey as keyof typeof config.utilityModels];
+        if (val && !merged[sKey]) {
+          merged[sKey] = val;
+          console.warn(`[debate-engine] utilityModels.${uKey} is deprecated — use stageModels.${sKey} instead`);
+        }
+      }
+    }
+
+    this.config = { ...config, stageModels: merged };
     this.adapter = adapter;
     this.taxonomy = taxonomy;
     this.applyExplorationConfigDefaults();
+  }
+
+  private resolveStageModel(key: string): string {
+    return this.config.stageModels?.[key as keyof NonNullable<DebateConfig['stageModels']>] ?? this.config.model;
   }
 
   private applyExplorationConfigDefaults(): void {
@@ -662,7 +684,7 @@ export class DebateEngine {
       if (!this.session.topic_structure && classifyTopicComplexity(this.session.topic.final) === 'structured') {
         this.progress('setup', undefined, 'Extracting topic structure');
         try {
-          const structureModel = this.config.utilityModels?.scope ?? this.config.model;
+          const structureModel = this.resolveStageModel('scope');
           this.session.topic_structure = await extractTopicStructure(
             this.session.topic.final,
             (prompt, label) => this.generateWithModel(prompt, label, structureModel),
@@ -903,8 +925,17 @@ export class DebateEngine {
       debate_model: this.config.model,
       evaluator_model: this.config.evaluatorModel,
       speaker_models: this.config.speakerModels,
-      stage_models: this.config.stageModels ? { ...this.config.stageModels } as Record<string, string> : undefined,
-      utility_models: this.config.utilityModels ? { ...this.config.utilityModels } as Record<string, string> : undefined,
+      stage_models: {
+        brief: this.resolveStageModel('brief'),
+        plan: this.resolveStageModel('plan'),
+        draft: this.resolveStageModel('draft'),
+        cite: this.resolveStageModel('cite'),
+        evaluator: this.resolveStageModel('evaluator'),
+        scope: this.resolveStageModel('scope'),
+        summary: this.resolveStageModel('summary'),
+        moderator: this.resolveStageModel('moderator'),
+        crux: this.resolveStageModel('crux'),
+      },
       model_tier: this.config.modelTier,
       protocol_id: this.config.protocolId ?? 'structured',
       diagnostics: {
@@ -932,7 +963,7 @@ export class DebateEngine {
     this._moderatorState = initModeratorState(this.config.rounds, this.config.activePovers);
     this.session.moderator_state = this._moderatorState;
 
-    if (!this.config.evaluatorModel || this.config.evaluatorModel === this.config.model) {
+    if (this.resolveStageModel('evaluator') === this.config.model) {
       this.recordDiagnostic('session_init', {
         evaluator_warning: 'Evaluator model matches debate model — self-preference bias is unmitigated. Cross-vendor split recommended.',
       });
@@ -1196,7 +1227,7 @@ export class DebateEngine {
 
   private async generateWithEvaluator(prompt: string, label: string, timeoutMs?: number): Promise<string> {
     await this.throttle();
-    const evalModel = this.config.evaluatorModel ?? this.config.model;
+    const evalModel = this.resolveStageModel('evaluator');
     this.progress('generating', undefined, label);
     const start = Date.now();
     try {
@@ -1418,7 +1449,7 @@ export class DebateEngine {
     try {
       const speaker = POVER_INFO[entry.speaker as SpeakerId]?.label ?? entry.speaker;
       const prompt = entrySummarizationPrompt(entry.content, speaker);
-      const raw = await this.adapter.generateText(prompt, this.config.utilityModels?.summary ?? this.config.model, {
+      const raw = await this.adapter.generateText(prompt, this.resolveStageModel('summary'), {
         temperature: 0.3, // Low temp for faithful summarization
         maxTokens: 500,
         timeoutMs: 15000,
@@ -2347,7 +2378,7 @@ export class DebateEngine {
     try {
       const scopeAdditions = this.session.topic.critique?.scope_additions;
       const prompt = topicScopeExtractionPrompt(this.session.topic.final, scopeAdditions);
-      const scopeModel = this.config.utilityModels?.scope ?? this.config.model;
+      const scopeModel = this.resolveStageModel('scope');
       const text = await this.generateWithModel(prompt, 'Topic scope extraction', scopeModel);
       const parsed = parseJsonRobust(text) as Record<string, unknown> | null;
       if (!parsed || typeof parsed !== 'object') {
@@ -2794,9 +2825,9 @@ export class DebateEngine {
         documentAnalysis: this.session.document_analysis,
         audience: this.config.audience,
         model: this.resolveModelForSpeaker(poverId),
-        briefModel: this.config.stageModels?.brief,
-        planModel: this.config.stageModels?.plan,
-        citeModel: this.config.stageModels?.cite,
+        briefModel: this.resolveStageModel('brief'),
+        planModel: this.resolveStageModel('plan'),
+        citeModel: this.resolveStageModel('cite'),
         userSeedClaims: userSeeds.length > 0 ? userSeeds : undefined,
         availablePovNodeIds: [...this.getKnownNodeIds()],
         ...(this.config.temperature != null ? {
@@ -3191,7 +3222,7 @@ export class DebateEngine {
     const sourceDocSummary = this.session.document_analysis?.claims_summary
       ?? (this.session.source_content ? this.session.source_content.slice(0, 2000) : undefined);
 
-    const moderatorModel = this.config.utilityModels?.moderator ?? this.config.model;
+    const moderatorModel = this.resolveStageModel('moderator');
     const selectionCallbacks: ModeratorSelectionCallbacks = {
       generate: async (prompt, _model, options, label) => this.generateWithModel(prompt, label, moderatorModel, options?.timeoutMs, this.config.temperature ?? 0.7),
       addEntry: (entry) => this.addEntry(entry).id,
@@ -3468,9 +3499,9 @@ export class DebateEngine {
       documentAnalysis: this.session.document_analysis,
       audience: this.config.audience,
       model: this.resolveModelForSpeaker(responder),
-      briefModel: this.config.stageModels?.brief,
-      planModel: this.config.stageModels?.plan,
-      citeModel: this.config.stageModels?.cite,
+      briefModel: this.resolveStageModel('brief'),
+      planModel: this.resolveStageModel('plan'),
+      citeModel: this.resolveStageModel('cite'),
       ...(activeIntervention ? {
         pendingIntervention: {
           move: activeIntervention.move,
@@ -5033,7 +5064,7 @@ Return ONLY JSON (no markdown, no code fences):
 
     if (evidenceItems.length === 0) return false;
 
-    const evalModel = this.config.evaluatorModel ?? this.config.model;
+    const evalModel = this.resolveStageModel('evaluator');
     const result = await buildEvidenceQbaf(
       node.text,
       evidenceItems,
@@ -5235,7 +5266,7 @@ Return ONLY JSON (no markdown, no code fences):
       prompt_token_estimate: Math.round(prompt.length / 4),
       response_chars: 0,
       response_truncated: false,
-      model: this.config.evaluatorModel ?? this.session.debate_model ?? '',
+      model: this.resolveStageModel('evaluator'),
       response_time_ms: 0,
       candidates_proposed: 0,
       candidates_accepted: 0,
@@ -5599,7 +5630,7 @@ Return ONLY JSON (no markdown, no code fences):
               this.session.topic?.text ?? '',
             );
             try {
-              const refreshRaw = await this.adapter.generateText(refreshPrompt, this.config.utilityModels?.crux ?? this.config.model, { timeoutMs: 15_000 });
+              const refreshRaw = await this.adapter.generateText(refreshPrompt, this.resolveStageModel('crux'), { timeoutMs: 15_000 });
               const refreshData = parseJsonRobust(refreshRaw) as {
                 crux_verdicts?: { id: string; verdict: string; reason: string }[];
                 emerging_cruxes?: { description: string; speakers_involved: string[]; disagreement_type: string; reason: string }[];
