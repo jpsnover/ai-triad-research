@@ -106,7 +106,7 @@ import { retrieveEvidence } from './evidenceRetriever.js';
 import { buildEvidenceQbaf } from './evidenceQbaf.js';
 import { updateCruxTracker, formatCruxResolutionContext, detectConcessionCascade, transitionCrux } from './cruxResolution.js';
 import { persistDebateCruxes, loadRegistry, findRelevantPriorCruxes, formatPriorCruxContext } from './cruxRegistry.js';
-import { computeConvergenceSignals, boostConvergenceOnConcession } from './convergenceSignals.js';
+import { computeConvergenceSignals, boostConvergenceOnConcession, boostConvergenceFromTaxonomyEdges } from './convergenceSignals.js';
 import { computeProcessReward } from './processReward.js';
 import { runSynthesisPhases } from './synthesisPhases.js';
 import { buildMediumTierSummary, buildDistantTierSummary } from './tieredCompression.js';
@@ -5607,6 +5607,24 @@ Return ONLY JSON (no markdown, no code fences):
             debate_id: this.session?.id,
             message: `Concession convergence boost: ${boostedIds.length} issue(s) boosted for ${speaker}`,
             data: { boosted_issue_ids: boostedIds, speaker },
+          });
+        }
+      }
+
+      // Taxonomy CONVERGES_WITH edge boost
+      if (this.session.convergence_tracker && this.taxonomy.edges?.edges) {
+        const taxBoostedIds = boostConvergenceFromTaxonomyEdges(
+          this.session.convergence_tracker,
+          this.taxonomy.edges.edges,
+          an.nodes,
+          turnNumber,
+        );
+        if (taxBoostedIds.length > 0) {
+          getGlobalRecorder()?.record({
+            type: 'debate.signal', component: 'debate-engine', level: 'info',
+            debate_id: this.session?.id,
+            message: `Taxonomy CONVERGES_WITH boost: ${taxBoostedIds.length} issue(s) boosted`,
+            data: { boosted_issue_ids: taxBoostedIds },
           });
         }
       }

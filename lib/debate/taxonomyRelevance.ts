@@ -634,6 +634,7 @@ import {
   computeCruxRelevance,
   computeDiversityComponent,
   computeMidDebateFreshness,
+  computeInterpretsBoost,
   type SituationScoreComponents,
 } from './situationScoring.js';
 
@@ -651,6 +652,8 @@ export interface SituationReScoreInput {
   injectedSitIds: ReadonlySet<string>;
   /** Situation IDs actually referenced in transcript taxonomy_refs. */
   referencedSitIds: ReadonlySet<string>;
+  /** Taxonomy edges — used for INTERPRETS boost scoring. */
+  edges?: readonly { source: string; target: string; type: string; status?: string }[];
 }
 
 export interface SituationReScoreResult {
@@ -728,6 +731,7 @@ export function reScoreSituationsForCruxesDetailed(input: SituationReScoreInput)
     adjustment += (relevance * divergenceScale) * 0.25; // crux alignment scaled to [0, 0.25]
     if (diversity > 0) adjustment += DIVERSITY_BONUS;
     if (freshness === 0) adjustment += STALE_PENALTY;
+    if (input.edges) adjustment += computeInterpretsBoost(sit.id, input.edges);
 
     if (adjustment !== 0) {
       adjustments.set(sit.id, adjustment);
