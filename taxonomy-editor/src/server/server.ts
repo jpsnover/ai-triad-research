@@ -35,7 +35,7 @@ import {
 import { GitHubAPIBackend } from './storage/githubAPIBackend.js';
 import { SessionBranchManager } from './storage/sessionBranchManager.js';
 import { runWithUser, getCurrentUser, getCurrentUserId, getStorageUserId, setSessionBranchName, deriveStorageUserId, isAnonymousUser } from './security/userContext.js';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies, hasEasyAuthSessionCookie } from './security/accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies, hasEasyAuthSessionCookie, resolveTestPersonaOverride } from './security/accessControl.js';
 import { sanitizeUserText } from './security/contentSanitizer.js';
 import { getRollbackStatus } from './rollbackStatus.js';
 import { getAllFlags, listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
@@ -3979,12 +3979,30 @@ async function handleRequestInner(
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
   // S9: Only read Easy Auth headers when Azure auth is confirmed via env var.
-  const principalName = AZURE_AUTH_ENABLED
+  let principalName = AZURE_AUTH_ENABLED
     ? (req.headers['x-ms-client-principal-name'] as string) || ''
     : '';
-  const idp = AZURE_AUTH_ENABLED
+  let idp = AZURE_AUTH_ENABLED
     ? (req.headers['x-ms-client-principal-idp'] as string) || ''
     : '';
+
+  // t/1125: dev/staging-only X-Test-Persona override (production-inert — requires
+  // ENABLE_TEST_PERSONA_HEADER=1 + a matching X-Test-Persona-Secret). Lets the
+  // persona regression matrix exercise authenticated/admin rows from the CLI.
+  const personaOverride = resolveTestPersonaOverride(req.headers, community.getAdminUsers());
+  if (personaOverride && 'error' in personaOverride) {
+    res.writeHead(401, { 'Content-Type': 'application/json', 'X-Auth-Reason': personaOverride.error });
+    res.end(JSON.stringify({ error: 'Invalid test persona', reason: personaOverride.error }));
+    return;
+  }
+  if (personaOverride) {
+    principalName = personaOverride.principalName;
+    idp = personaOverride.idp;
+    log.server.info(
+      { persona: personaOverride.persona, principalName: principalName || null, idp: idp || null },
+      'Test-persona override applied (dev/staging Easy Auth short-circuit)',
+    );
+  }
 
   // Auth gate — only enforced when authorized-users.json exists
   const urlPath = req.url?.split('?')[0] || '';

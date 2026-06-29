@@ -6,6 +6,8 @@
 // See t/720 (L1, L3, L6).
 
 import path from 'path';
+import crypto from 'crypto';
+import type { IncomingHttpHeaders } from 'http';
 import { isSafeId, isSafePov, isSafeFilename } from '../storage/fileIO.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
@@ -71,6 +73,67 @@ export function expiredAuthCookies(presentCookieNames: string[]): string[] {
  */
 export function hasEasyAuthSessionCookie(cookieNames: string[]): boolean {
   return cookieNames.some(n => /^AppServiceAuthSession/i.test(n));
+}
+
+export type TestPersona = 'anonymous' | 'authenticated' | 'admin';
+/** Fixed non-admin principal for the `authenticated` persona (must not be an ADMIN_USERS entry). */
+const TEST_PERSONA_AUTH_USER = 'test-persona-user';
+
+/** Constant-time string compare (equal-length only; length mismatch → false). */
+function timingSafeEqualStr(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ab, bb);
+}
+
+/**
+ * t/1125: dev/staging-only short-circuit of Azure Easy Auth for the persona test
+ * matrix (Test-PersonaEndpoints, t/1103). Lets a CLI regression net exercise the
+ * `authenticated`/`admin` rows without a real browser OAuth round-trip.
+ *
+ * PRODUCTION-INERT by construction: the whole path is unreachable unless the
+ * deployment sets `ENABLE_TEST_PERSONA_HEADER=1` AND a matching `TEST_PERSONA_SECRET`.
+ * With the env var unset (the prod default) this returns null immediately, so the
+ * `X-Test-Persona` header is completely ignored — Easy Auth handling is untouched.
+ *
+ * Returns:
+ *  - `null` — feature disabled, or no `X-Test-Persona` header (normal Easy Auth path).
+ *  - `{ error }` — enabled + persona header present but the shared secret is
+ *    missing/wrong, or the persona value is invalid (caller responds 401).
+ *  - `{ principalName, idp, persona }` — the override identity to use for the
+ *    rest of the request. Admin/tier resolution then flows normally from there.
+ *
+ * The `admin` persona uses idp `github`, for which deriveStorageUserId is just a
+ * lowercase identity — so `adminUsers[0]` (already in its derived form) resolves
+ * back to itself and lands in ADMIN_USERS for whatever the deployment configures.
+ */
+export function resolveTestPersonaOverride(
+  headers: IncomingHttpHeaders,
+  adminUsers: string[],
+): { principalName: string; idp: string; persona: TestPersona } | { error: 'test_persona_bad_secret' | 'test_persona_invalid' } | null {
+  if (process.env.ENABLE_TEST_PERSONA_HEADER !== '1') return null; // disabled (prod default)
+
+  const persona = headers['x-test-persona'];
+  if (typeof persona !== 'string' || persona === '') return null; // no override requested
+
+  // Shared-secret gate: a non-empty TEST_PERSONA_SECRET must be configured AND match.
+  const expected = process.env.TEST_PERSONA_SECRET ?? '';
+  const provided = typeof headers['x-test-persona-secret'] === 'string' ? headers['x-test-persona-secret'] as string : '';
+  if (!expected || !timingSafeEqualStr(provided, expected)) {
+    return { error: 'test_persona_bad_secret' };
+  }
+
+  switch (persona) {
+    case 'anonymous':
+      return { principalName: '', idp: '', persona };
+    case 'authenticated':
+      return { principalName: TEST_PERSONA_AUTH_USER, idp: 'github', persona };
+    case 'admin':
+      return { principalName: adminUsers[0] ?? '', idp: 'github', persona };
+    default:
+      return { error: 'test_persona_invalid' };
+  }
 }
 
 /**

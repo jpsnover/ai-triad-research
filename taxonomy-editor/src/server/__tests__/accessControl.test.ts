@@ -6,9 +6,10 @@
  * L6 (terminal WebSocket admin gate).
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import path from 'path';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies, hasEasyAuthSessionCookie } from '../security/accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies, hasEasyAuthSessionCookie, resolveTestPersonaOverride } from '../security/accessControl.js';
+import { deriveStorageUserId } from '../security/userContext.js';
 import { resolveTier } from '../ai/proxyTiers.js';
 
 describe('expiredAuthCookies (t/897)', () => {
@@ -43,6 +44,68 @@ describe('hasEasyAuthSessionCookie (t/940)', () => {
   it('is false when no Easy Auth cookie is present (fresh session → no auto-clear)', () => {
     expect(hasEasyAuthSessionCookie([])).toBe(false);
     expect(hasEasyAuthSessionCookie(['anon_session_id', 'auth_anonymous'])).toBe(false);
+  });
+});
+
+describe('resolveTestPersonaOverride (t/1125)', () => {
+  const ADMINS = ['jpsnover', 'jsnover13-at-gmail-com'];
+  const SECRET = 's3cr3t-test-persona';
+  let saved: { enable?: string; secret?: string };
+  beforeEach(() => {
+    saved = { enable: process.env.ENABLE_TEST_PERSONA_HEADER, secret: process.env.TEST_PERSONA_SECRET };
+  });
+  afterEach(() => {
+    if (saved.enable === undefined) delete process.env.ENABLE_TEST_PERSONA_HEADER; else process.env.ENABLE_TEST_PERSONA_HEADER = saved.enable;
+    if (saved.secret === undefined) delete process.env.TEST_PERSONA_SECRET; else process.env.TEST_PERSONA_SECRET = saved.secret;
+  });
+
+  it('is inert when the env flag is unset (production default) — header fully ignored', () => {
+    delete process.env.ENABLE_TEST_PERSONA_HEADER;
+    process.env.TEST_PERSONA_SECRET = SECRET;
+    expect(resolveTestPersonaOverride({ 'x-test-persona': 'admin', 'x-test-persona-secret': SECRET }, ADMINS)).toBeNull();
+  });
+
+  it('returns null when enabled but no persona header is present (normal Easy Auth path)', () => {
+    process.env.ENABLE_TEST_PERSONA_HEADER = '1';
+    process.env.TEST_PERSONA_SECRET = SECRET;
+    expect(resolveTestPersonaOverride({}, ADMINS)).toBeNull();
+  });
+
+  it('rejects (bad_secret) when the secret is missing or wrong', () => {
+    process.env.ENABLE_TEST_PERSONA_HEADER = '1';
+    process.env.TEST_PERSONA_SECRET = SECRET;
+    expect(resolveTestPersonaOverride({ 'x-test-persona': 'admin' }, ADMINS)).toEqual({ error: 'test_persona_bad_secret' });
+    expect(resolveTestPersonaOverride({ 'x-test-persona': 'admin', 'x-test-persona-secret': 'wrong' }, ADMINS)).toEqual({ error: 'test_persona_bad_secret' });
+  });
+
+  it('never matches when no server secret is configured (an empty secret cannot be matched)', () => {
+    process.env.ENABLE_TEST_PERSONA_HEADER = '1';
+    delete process.env.TEST_PERSONA_SECRET;
+    expect(resolveTestPersonaOverride({ 'x-test-persona': 'authenticated', 'x-test-persona-secret': '' }, ADMINS)).toEqual({ error: 'test_persona_bad_secret' });
+  });
+
+  it('maps personas to identities when env + secret are valid', () => {
+    process.env.ENABLE_TEST_PERSONA_HEADER = '1';
+    process.env.TEST_PERSONA_SECRET = SECRET;
+    const call = (p: string) => resolveTestPersonaOverride({ 'x-test-persona': p, 'x-test-persona-secret': SECRET }, ADMINS);
+    expect(call('anonymous')).toEqual({ principalName: '', idp: '', persona: 'anonymous' });
+    expect(call('authenticated')).toEqual({ principalName: 'test-persona-user', idp: 'github', persona: 'authenticated' });
+    expect(call('admin')).toEqual({ principalName: 'jpsnover', idp: 'github', persona: 'admin' });
+  });
+
+  it('admin persona derives into ADMIN_USERS; authenticated does not (AC)', () => {
+    process.env.ENABLE_TEST_PERSONA_HEADER = '1';
+    process.env.TEST_PERSONA_SECRET = SECRET;
+    const admin = resolveTestPersonaOverride({ 'x-test-persona': 'admin', 'x-test-persona-secret': SECRET }, ADMINS) as { principalName: string; idp: string };
+    expect(ADMINS).toContain(deriveStorageUserId(admin.principalName, admin.idp));
+    const authd = resolveTestPersonaOverride({ 'x-test-persona': 'authenticated', 'x-test-persona-secret': SECRET }, ADMINS) as { principalName: string; idp: string };
+    expect(ADMINS).not.toContain(deriveStorageUserId(authd.principalName, authd.idp));
+  });
+
+  it('rejects an unknown persona value', () => {
+    process.env.ENABLE_TEST_PERSONA_HEADER = '1';
+    process.env.TEST_PERSONA_SECRET = SECRET;
+    expect(resolveTestPersonaOverride({ 'x-test-persona': 'superuser', 'x-test-persona-secret': SECRET }, ADMINS)).toEqual({ error: 'test_persona_invalid' });
   });
 });
 
