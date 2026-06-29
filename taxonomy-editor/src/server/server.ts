@@ -3477,6 +3477,22 @@ post('/api/analytics/event', (_req, res, body) => {
   json(res, { ok: true, count: events.length });
 });
 
+// t/1128: receives the login page's service-worker state beacon (stuck-SW
+// diagnosis, t/1126). Public — the login page is pre-auth. Best-effort: log the
+// reported SW registrations/controller (captured in server-log dumps), then 204
+// (sendBeacon ignores the response body).
+post('/api/diagnostics/sw-state', (req, res, body) => {
+  try {
+    const info = (body && typeof body === 'object') ? body as Record<string, unknown> : { raw: String(body).slice(0, 500) };
+    log.server.info(
+      { component: 'sw-diagnostics', sw: info, ip: getClientIp(req), ua: (req.headers['user-agent'] || '').slice(0, 200) },
+      'Login-page service-worker state beacon (t/1128)',
+    );
+  } catch { /* telemetry — best-effort; never fail a diagnostics beacon */ }
+  res.writeHead(204);
+  res.end();
+});
+
 get('/api/analytics/query', async (req, res) => {
   const url = new URL(req.url!, 'http://localhost');
   const from = url.searchParams.get('from') || new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
@@ -3785,6 +3801,27 @@ function loginPageHeaders(req: http.IncomingMessage): http.OutgoingHttpHeaders {
   return headers;
 }
 
+// t/1128: login-page service-worker self-heal + state beacon. The server-rendered
+// login page otherwise has no JS, so a stuck old SW (from before the /.auth/
+// denylist) can intercept the sign-in navigations (t/1126) with no signal. This
+// (1) beacons the SW registration state for diagnosis and (2) unregisters any SW
+// once (sessionStorage-guarded against reload loops) so the sign-in links work —
+// the current SW re-registers after a successful login. The script text is static,
+// so its CSP sha256 is derived from this same constant and can never drift out of
+// sync (script-src has no 'unsafe-inline'; a hash source is the safe way in).
+const SW_HEAL_SCRIPT =
+  `(function(){try{if(!('serviceWorker' in navigator))return;` +
+  `navigator.serviceWorker.getRegistrations().then(function(regs){` +
+  `var info={page:'login',controller:navigator.serviceWorker.controller?navigator.serviceWorker.controller.scriptURL:null,` +
+  `registrations:regs.map(function(r){return{scope:r.scope,script:(r.active&&r.active.scriptURL)||null};}),` +
+  `ua:navigator.userAgent,ts:Date.now()};` +
+  `try{navigator.sendBeacon('/api/diagnostics/sw-state',new Blob([JSON.stringify(info)],{type:'application/json'}));}catch(e){}` +
+  `var stuck=regs.length>0||!!navigator.serviceWorker.controller;` +
+  `if(stuck&&sessionStorage.getItem('sw_login_cleared')!=='1'){sessionStorage.setItem('sw_login_cleared','1');` +
+  `Promise.all(regs.map(function(r){return r.unregister();})).then(function(){location.reload();}).catch(function(){});}` +
+  `}).catch(function(){});}catch(e){}})();`;
+const SW_HEAL_SCRIPT_CSP_HASH = `'sha256-${crypto.createHash('sha256').update(SW_HEAL_SCRIPT).digest('base64')}'`;
+
 function buildLoginPage(showAnonymous: boolean): string {
   const subtitle = showAnonymous
     ? 'Sign in for full access, or browse read-only without signing in'
@@ -3828,6 +3865,7 @@ function buildLoginPage(showAnonymous: boolean): string {
   .clear-link { display: inline-block; margin-top: 24px; color: #64748b; font-size: 0.75rem; text-decoration: underline; }
   .clear-link:hover { color: #94a3b8; }
 </style>
+<script>${SW_HEAL_SCRIPT}</script>
 </head>
 <body>
 <div class="card">
@@ -3965,7 +4003,10 @@ async function handleRequestInner(
     const wssOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean)
       .map(o => o.replace(/^https?:/i, 'wss:'));
     const connectSrc = ["connect-src 'self'", ...wssOrigins].join(' ');
-    res.setHeader('Content-Security-Policy', `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; ${connectSrc}; font-src 'self'; worker-src 'self'`);
+    // script-src adds the sha256 of the login page's static SW-heal script (t/1128)
+    // so it runs without re-opening 'unsafe-inline'. The hash is derived from the
+    // script constant, so it stays in sync automatically.
+    res.setHeader('Content-Security-Policy', `default-src 'self'; script-src 'self' ${SW_HEAL_SCRIPT_CSP_HASH}; style-src 'self' 'unsafe-inline'; img-src 'self' data:; ${connectSrc}; font-src 'self'; worker-src 'self'`);
   }
 
   // CORS headers — locked to ALLOWED_ORIGINS in production, permissive in dev.
@@ -4018,6 +4059,7 @@ async function handleRequestInner(
     || urlPath === '/api/auth/me'
     || urlPath === '/api/auth/logout' // t/897: logout must work even for authed-but-unauthorized users
     || urlPath.startsWith('/api/auth/fresh-login/') // t/1032: pre-auth fresh sign-in (clears stale cookies, then OAuth)
+    || urlPath === '/api/diagnostics/sw-state' // t/1128: pre-auth SW-state beacon from the login page
     || urlPath === '/api/config/client' // t/927: public client config subset (no secrets)
     || urlPath === '/api/user/profile'
     || urlPath === '/api/sync/webhook/github'
