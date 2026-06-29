@@ -26,6 +26,7 @@ import { UsernamePromptDialog } from '../shared/UsernamePromptDialog';
 import { DiagnosticsChatSidebar } from '../debate-diagnostics/chat';
 import type { NavigateCommand } from '../debate-diagnostics/chat';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { initDebatePopoutCloseHandler } from '../../hooks/useDebateStore/helpers';
 import { useCommunityStore } from '../../hooks/useCommunityStore';
 import { useUserProfile } from '../../hooks/useAuthStatus';
 import { CommunityShareBanner } from '../shared/CommunityShareBanner';
@@ -367,6 +368,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     runClarification, runOpeningStatements, saveDebate, compressOldTranscript,
     diagnosticsEnabled, toggleDiagnostics, selectedDiagEntry, selectDiagEntry,
     diagPopoutOpen, setDiagPopoutOpen, defaultTier, setDefaultTier,
+    driverIsRemote,
   } = useDebateStore(
     useShallow(s => ({
       activeDebate: s.activeDebate, debateLoading: s.debateLoading, debateError: s.debateError, debateGenerating: s.debateGenerating,
@@ -374,6 +376,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
       diagnosticsEnabled: s.diagnosticsEnabled, toggleDiagnostics: s.toggleDiagnostics, selectedDiagEntry: s.selectedDiagEntry, selectDiagEntry: s.selectDiagEntry,
       diagPopoutOpen: s.diagPopoutOpen, setDiagPopoutOpen: s.setDiagPopoutOpen,
       defaultTier: s.responseLength, setDefaultTier: s.setResponseLength,
+      driverIsRemote: s.driverIsRemote,
     }))
   );
   const { runSemanticSearch, setFindQuery: setStoreFindQuery, setFindMode: setStoreFindMode, setToolbarPanel } = useTaxonomyStore();
@@ -388,6 +391,11 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     });
     return unsub;
   }, [setDiagPopoutOpen]);
+
+  // Listen for debate popout window closing — release driver lock and reload state
+  useEffect(() => {
+    return initDebatePopoutCloseHandler(api);
+  }, []);
 
   // Listen for re-extract claims requests from popout (t/226)
   useEffect(() => {
@@ -637,6 +645,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     || activeDebate.phase === 'closed'
     || activeDebate.adaptive_staging?.current_phase != null;
   const isCrossCutting = activeDebate.source_type === 'situations';
+  const showRemoteOverlay = driverIsRemote && !!activeDebate;
 
   return (
     <div className="debate-workspace-row">
@@ -723,6 +732,20 @@ export function DebateWorkspace({ onExport, exportStatus }: {
           onNext={findNext}
           onClose={closeFind}
         />
+      )}
+
+      {/* Remote driver overlay — popout window is driving this debate */}
+      {showRemoteOverlay && (
+        <div className="debate-remote-overlay" style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          padding: '12px 16px', margin: '0 8px 8px',
+          background: 'var(--warning-bg, rgba(234,179,8,0.12))',
+          border: '1px solid var(--warning-border, rgba(234,179,8,0.3))',
+          borderRadius: 6, fontSize: '0.85rem', color: 'var(--text-primary)',
+        }}>
+          <span style={{ fontSize: '1.1rem' }}>&#8599;</span>
+          <span>Debate running in popout window. Controls are disabled here until the popout is closed.</span>
+        </div>
       )}
 
       {/* Scrollable content: topic, debaters, transcript */}
@@ -842,12 +865,12 @@ export function DebateWorkspace({ onExport, exportStatus }: {
         <div ref={transcriptEndRef} />
       </div>
 
-      {/* Phase-aware action bar (fixed at bottom) */}
-      {isClarificationPhase && !activeDebate.transcript.some(e => e.type === 'opening' || e.type === 'statement') && <ClarificationActions />}
-      {isEditClaimsPhase && <ClaimsEditor />}
-      {isOpeningPhase && <OpeningActions />}
+      {/* Phase-aware action bar (fixed at bottom) — hidden when popout is driving */}
+      {!showRemoteOverlay && isClarificationPhase && !activeDebate.transcript.some(e => e.type === 'opening' || e.type === 'statement') && <ClarificationActions />}
+      {!showRemoteOverlay && isEditClaimsPhase && <ClaimsEditor />}
+      {!showRemoteOverlay && isOpeningPhase && <OpeningActions />}
 
-      {isDebatePhase && <DebateActions showParamHistory={showParamHistory} setShowParamHistory={setShowParamHistory} showEvaluation={showEvaluation} setShowEvaluation={setShowEvaluation} />}
+      {!showRemoteOverlay && isDebatePhase && <DebateActions showParamHistory={showParamHistory} setShowParamHistory={setShowParamHistory} showEvaluation={showEvaluation} setShowEvaluation={setShowEvaluation} />}
 
       {/* Neutral evaluation panel — toggled via Evaluation button */}
       {showEvaluation && activeDebate.neutral_evaluations && activeDebate.neutral_evaluations.length > 0 && (

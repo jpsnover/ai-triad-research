@@ -26,6 +26,7 @@ const mockStore: Record<string, any> = {
   setResponseLength: vi.fn(),
   factCheckSelection: vi.fn(),
   reExtractClaims: vi.fn(),
+  driverIsRemote: false,
 };
 
 vi.mock('../../hooks/useDebateStore', () => ({
@@ -84,10 +85,15 @@ vi.mock('../../hooks/useTierInfo', () => ({
 vi.mock('@bridge', () => ({
   api: {
     onDiagnosticsPopoutClosed: vi.fn(() => vi.fn()),
+    onDebatePopoutClosed: vi.fn(() => vi.fn()),
     onReExtractClaims: vi.fn(() => vi.fn()),
     clipboardWriteText: vi.fn(),
     openExternal: vi.fn(),
   },
+}));
+
+vi.mock('../../hooks/useDebateStore/helpers', () => ({
+  initDebatePopoutCloseHandler: vi.fn(() => vi.fn()),
 }));
 
 vi.mock('@lib/flight-recorder/index', () => ({
@@ -650,5 +656,55 @@ describe('find bar', () => {
     fireEvent.keyDown(document, { key: 'f', ctrlKey: true });
     const input = screen.getByPlaceholderText('Find in debate…');
     expect(input).toBeInTheDocument();
+  });
+});
+
+// ── Remote driver overlay (t/1077) ──────────────────────────
+
+describe('remote driver overlay', () => {
+  beforeEach(() => {
+    mockStore.debateLoading = false;
+    mockStore.debateGenerating = null;
+    mockStore.driverIsRemote = false;
+    mockStore.activeDebate = makeDebate({ phase: 'debate' });
+  });
+
+  it('does not show remote overlay when driverIsRemote is false', () => {
+    const { container } = render(<DebateWorkspace />);
+    expect(container.querySelector('.debate-remote-overlay')).toBeNull();
+  });
+
+  it('shows remote overlay when driverIsRemote is true', () => {
+    mockStore.driverIsRemote = true;
+    const { container } = render(<DebateWorkspace />);
+    expect(container.querySelector('.debate-remote-overlay')).toBeTruthy();
+    expect(screen.getByText(/Debate running in popout window/)).toBeInTheDocument();
+  });
+
+  it('hides DebateActions when driverIsRemote is true', () => {
+    mockStore.driverIsRemote = true;
+    render(<DebateWorkspace />);
+    expect(screen.queryByTestId('debate-actions')).toBeNull();
+  });
+
+  it('hides ClarificationActions when driverIsRemote is true during clarification phase', () => {
+    mockStore.driverIsRemote = true;
+    mockStore.activeDebate = makeDebate({ phase: 'clarification', transcript: [] });
+    render(<DebateWorkspace />);
+    expect(screen.queryByTestId('clarification-actions')).toBeNull();
+  });
+
+  it('hides OpeningActions when driverIsRemote is true during opening phase', () => {
+    mockStore.driverIsRemote = true;
+    mockStore.activeDebate = makeDebate({ phase: 'opening' });
+    render(<DebateWorkspace />);
+    expect(screen.queryByTestId('opening-actions')).toBeNull();
+  });
+
+  it('shows DebateActions again when driverIsRemote becomes false', () => {
+    mockStore.driverIsRemote = false;
+    render(<DebateWorkspace />);
+    expect(screen.getByTestId('debate-actions')).toBeInTheDocument();
+    expect(screen.queryByText(/Debate running in popout window/)).toBeNull();
   });
 });
