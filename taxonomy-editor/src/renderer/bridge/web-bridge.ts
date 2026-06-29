@@ -386,7 +386,13 @@ const diagChannelHandler = (event: MessageEvent) => {
 };
 diagChannel?.addEventListener('message', diagChannelHandler);
 if (import.meta.hot) {
-  import.meta.hot.dispose(() => diagChannel?.close());
+  import.meta.hot.dispose(() => {
+    diagChannel?.close();
+    eventWs?.close();
+    eventWs = null;
+    terminalWs?.close();
+    terminalWs = null;
+  });
 }
 
 // ── The bridge ──
