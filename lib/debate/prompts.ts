@@ -2588,7 +2588,7 @@ Identify:
    b. "bdi_layer": "belief" (empirical disagreement), "desire" (value priorities differ), or "intention" (key terms defined differently)
    c. "resolvability": "resolvable_by_evidence", "negotiable_via_tradeoffs", or "requires_term_clarification"
 4. Cruxes — specific questions that, if answered, would change a debater's position.
-   For each crux, FIRST classify its counterfactual type before probing:
+   For each crux, FIRST decide whether it is counterfactual at all. A crux is counterfactual only if it reasons about a state contrary to fact. If it is a direct empirical or definitional question, set counterfactual_type to "none". Otherwise classify:
    - "interventional" (Pearl do-calculus): asks what would happen if a variable were FORCED to a value — "If we imposed strict liability, would developers exit?"
    - "backtracking" (Lewis): runs causal history backwards — "If the 2022 regulation had passed, would the landscape look different?"
    - "normative": asks what follows from adopting a value or rule — "If we adopted the precautionary principle, what would change?"
@@ -2606,7 +2606,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "areas_of_agreement": [{"point": "...", "povers": ["accelerationist", "safetyist"], "converged": false, "conceded_by": null, "original_disagreement": null}],
   "areas_of_disagreement": [{"point": "...", "type": "EMPIRICAL or VALUES or DEFINITIONAL", "bdi_layer": "belief or desire or intention", "resolvability": "resolvable_by_evidence or negotiable_via_tradeoffs or requires_term_clarification", "positions": [{"pover": "accelerationist", "stance": "..."}, {"pover": "safetyist", "stance": "..."}]}],
   "cruxes": [
-    {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES", "counterfactual_type": "interventional or backtracking or normative", "resolution_status": "resolved or irreducible or active", "resolution_evidence": "what resolved it, if applicable"}
+    {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES", "counterfactual_type": "interventional, backtracking, normative, or none if the crux is not counterfactual in form", "resolution_status": "resolved or irreducible or active", "resolution_evidence": "what resolved it, if applicable"}
   ],
   "unresolved_questions": ["..."]
 }`;
@@ -2793,7 +2793,7 @@ Identify:
       - "negotiable_via_tradeoffs" — requires explicit trade-off reasoning, not evidence (typical for value disagreements)
       - "requires_term_clarification" — debaters need to agree on definitions first (typical for conceptual disagreements)
 4. Cruxes — the specific factual or value questions that, if resolved, would change a debater's position. A good crux is a question where one debater would say "if the answer turned out to be X, I would actually change my position."
-   For each crux, classify its counterfactual type:
+   For each crux, FIRST decide whether it is counterfactual at all. A crux is counterfactual only if it reasons about a state contrary to fact. If it is a direct empirical or definitional question, set counterfactual_type to "none". Otherwise classify:
    - "interventional": asks what would happen if a variable were forced to a value (Pearl do-calculus)
    - "backtracking": runs causal history backwards — what would have been different? (Lewis)
    - "normative": asks what follows from adopting a value, principle, or rule
@@ -2826,7 +2826,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "areas_of_agreement": [{"point": "...", "povers": ["accelerationist", "safetyist"], "converged": false, "conceded_by": null, "original_disagreement": null}],
   "areas_of_disagreement": [{"point": "...", "type": "EMPIRICAL or VALUES or DEFINITIONAL", "bdi_layer": "belief or desire or intention", "resolvability": "resolvable_by_evidence or negotiable_via_tradeoffs or requires_term_clarification", "positions": [{"pover": "accelerationist", "stance": "..."}, {"pover": "safetyist", "stance": "..."}]}],
   "cruxes": [
-    {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES", "counterfactual_type": "interventional or backtracking or normative"}
+    {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES", "counterfactual_type": "interventional, backtracking, normative, or none if the crux is not counterfactual in form"}
   ],
   "unresolved_questions": ["..."],
   "taxonomy_coverage": [{"node_id": "e.g. acc-desires-002", "how_used": "brief description"}],

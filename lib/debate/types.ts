@@ -1041,7 +1041,7 @@ export interface TrackedCrux {
   history: CruxStateTransition[];
   disagreement_type?: 'empirical' | 'values' | 'definitional';
   /** Counterfactual reasoning type (RATIO 2024). */
-  counterfactual_type?: 'interventional' | 'backtracking' | 'normative';
+  counterfactual_type?: 'interventional' | 'backtracking' | 'normative' | 'none';
   attacking_claim_ids: string[];
   speakers_involved: string[];
   last_computed_strength: number;
@@ -1608,7 +1608,7 @@ export interface SynthesisCrux {
   if_no?: string;
   type?: 'EMPIRICAL' | 'VALUES' | 'DEFINITIONAL';
   /** Counterfactual reasoning type (RATIO 2024): interventional (Pearl do-calculus), backtracking (Lewis), or normative (value/rule change). */
-  counterfactual_type?: 'interventional' | 'backtracking' | 'normative';
+  counterfactual_type?: 'interventional' | 'backtracking' | 'normative' | 'none';
   resolution_status?: 'resolved' | 'irreducible' | 'active';
   resolution_evidence?: string;
   /** Which debaters are involved in this crux. */

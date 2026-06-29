@@ -198,7 +198,7 @@ export interface CalibrationDataPoint {
   /** How often engine crux status agrees with neutral evaluator crux status */
   crux_resolution_divergence_rate: number | null;
   /** Distribution of counterfactual types across tracked cruxes (RATIO 2024). */
-  counterfactual_type_distribution: { interventional: number; backtracking: number; normative: number } | null;
+  counterfactual_type_distribution: { interventional: number; backtracking: number; normative: number; none: number } | null;
   /** POLARITY_RESOLVED_THRESHOLD used */
   polarity_resolved_threshold: number;
 
@@ -650,9 +650,10 @@ export function extractCalibrationData(
             if (ct === 'interventional') acc.interventional++;
             else if (ct === 'backtracking') acc.backtracking++;
             else if (ct === 'normative') acc.normative++;
+            else if (ct === 'none') acc.none++;
             return acc;
           },
-          { interventional: 0, backtracking: 0, normative: 0 },
+          { interventional: 0, backtracking: 0, normative: 0, none: 0 },
         )
       : null;
 

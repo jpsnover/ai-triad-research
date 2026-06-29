@@ -31,8 +31,9 @@ export type ClaimOutcomeCategory = 'thrived' | 'survived' | 'died';
  * - interventional: Pearl do-calculus — "If X *were* forced, what would happen?"
  * - backtracking: Lewis — "If X *had been* different, what would the history look like?"
  * - normative: Value/rule change — "If we *adopted* principle P, what follows?"
+ * - none: The crux is not counterfactual (direct empirical or definitional question).
  */
-export type CounterfactualType = 'interventional' | 'backtracking' | 'normative';
+export type CounterfactualType = 'interventional' | 'backtracking' | 'normative' | 'none';
 
 /**
  * A single counterfactual crux: removing `flipping_argument` from the QBAF
