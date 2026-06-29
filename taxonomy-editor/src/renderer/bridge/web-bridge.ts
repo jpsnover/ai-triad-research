@@ -283,15 +283,37 @@ function bridgeWarn<T>(message: string, fallback: T) {
 
 // ── WebSocket event bus ──
 
+const WS_HANDSHAKE_TIMEOUT_MS = 10_000;
+const WS_RECONNECT_BASE_MS = 2_000;
+const WS_RECONNECT_MAX_MS = 60_000;
+const WS_MAX_RECONNECT_ATTEMPTS = 10;
+
 type EventCallback = (data: unknown) => void;
 const eventListeners = new Map<string, Set<EventCallback>>();
 let eventWs: WebSocket | null = null;
+let eventWsReconnectAttempts = 0;
 
 function ensureEventSocket(): void {
   if (eventWs && eventWs.readyState === WebSocket.OPEN) return;
 
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   eventWs = new WebSocket(`${protocol}//${location.host}/ws/events`);
+  const ws = eventWs;
+
+  const handshakeTimer = setTimeout(() => {
+    if (ws.readyState === WebSocket.CONNECTING) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'web-bridge', level: 'warn',
+        message: `WebSocket /ws/events handshake timed out after ${WS_HANDSHAKE_TIMEOUT_MS / 1000}s`,
+      });
+      ws.close();
+    }
+  }, WS_HANDSHAKE_TIMEOUT_MS);
+
+  eventWs.onopen = () => {
+    clearTimeout(handshakeTimer);
+    eventWsReconnectAttempts = 0;
+  };
 
   eventWs.onmessage = (event) => {
     try {
@@ -312,8 +334,18 @@ function ensureEventSocket(): void {
   };
 
   eventWs.onclose = () => {
-    // Reconnect after delay
-    setTimeout(ensureEventSocket, 2000);
+    clearTimeout(handshakeTimer);
+    eventWs = null;
+    if (eventWsReconnectAttempts >= WS_MAX_RECONNECT_ATTEMPTS) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'web-bridge', level: 'error',
+        message: `WebSocket /ws/events reconnect limit reached (${WS_MAX_RECONNECT_ATTEMPTS} attempts), giving up`,
+      });
+      return;
+    }
+    const delay = Math.min(WS_RECONNECT_BASE_MS * Math.pow(2, eventWsReconnectAttempts), WS_RECONNECT_MAX_MS);
+    eventWsReconnectAttempts++;
+    setTimeout(ensureEventSocket, delay);
   };
 }
 
@@ -335,6 +367,21 @@ function ensureTerminalSocket(): WebSocket {
 
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   terminalWs = new WebSocket(`${protocol}//${location.host}/ws/terminal`);
+  const ws = terminalWs;
+
+  const handshakeTimer = setTimeout(() => {
+    if (ws.readyState === WebSocket.CONNECTING) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'web-bridge', level: 'warn',
+        message: `WebSocket /ws/terminal handshake timed out after ${WS_HANDSHAKE_TIMEOUT_MS / 1000}s`,
+      });
+      ws.close();
+    }
+  }, WS_HANDSHAKE_TIMEOUT_MS);
+
+  terminalWs.onopen = () => {
+    clearTimeout(handshakeTimer);
+  };
 
   terminalWs.onmessage = (event) => {
     try {
@@ -356,6 +403,7 @@ function ensureTerminalSocket(): WebSocket {
   };
 
   terminalWs.onclose = () => {
+    clearTimeout(handshakeTimer);
     terminalWs = null;
     for (const cb of terminalExitCallbacks) cb();
   };
