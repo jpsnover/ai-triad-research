@@ -1526,7 +1526,21 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   ipcMain.handle('admin-review-stats', async () => {
-    return adminReviewStats();
+    // Polled by the renderer Toolbar. Degrade gracefully when Azure isn't configured
+    // or the stats call fails — return empty rather than throwing on every poll (t/1088).
+    if (!isAzureReviewConfigured()) return { total: 0, byDomain: {} };
+    try {
+      return await adminReviewStats();
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-admin-review-stats',
+        level: 'warn',
+        message: 'admin-review-stats failed; returning empty stats',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      return { total: 0, byDomain: {} };
+    }
   });
 
   ipcMain.handle('admin-review-detail', async (_event, groupId: string) => {
