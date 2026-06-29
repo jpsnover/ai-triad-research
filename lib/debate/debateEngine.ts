@@ -4143,7 +4143,7 @@ export class DebateEngine {
         policyLines,
         hasSourceDoc: this.config.sourceType === 'document' || this.config.sourceType === 'url',
       },
-      (prompt, label) => this.generate(prompt, label, 60_000),
+      (prompt, label) => this.generate(prompt, label),
       (_phase, label) => this.progress('concluding', undefined, label),
       (context, problem, nextStep) => this.warn(context, problem, nextStep),
       () => this.checkAborted(),
