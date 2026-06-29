@@ -1522,7 +1522,20 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   ipcMain.handle('admin-review-queue', async () => {
-    return adminReviewQueue();
+    // Read — degrade gracefully when Azure isn't configured or the call fails (t/1088).
+    if (!isAzureReviewConfigured()) return { items: [] };
+    try {
+      return await adminReviewQueue();
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-admin-review-queue',
+        level: 'warn',
+        message: 'admin-review-queue failed; returning empty queue',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      return { items: [] };
+    }
   });
 
   ipcMain.handle('admin-review-stats', async () => {
@@ -1544,7 +1557,20 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   ipcMain.handle('admin-review-detail', async (_event, groupId: string) => {
-    return adminReviewDetail(groupId);
+    // Read — degrade gracefully (null) when Azure isn't configured or the call fails.
+    if (!isAzureReviewConfigured()) return null;
+    try {
+      return await adminReviewDetail(groupId);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-admin-review-detail',
+        level: 'warn',
+        message: 'admin-review-detail failed; returning null',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      return null;
+    }
   });
 
   ipcMain.handle('admin-review-action', async (_event, action: {
@@ -1554,10 +1580,61 @@ document.addEventListener('DOMContentLoaded', function() {
     reason?: string;
     edits?: Record<string, Record<string, unknown>>;
   }) => {
-    return adminReviewAction(action);
+    // Mutation — surface failures to the user (ADR-001), don't swallow.
+    if (!isAzureReviewConfigured()) throw new ActionableError({
+      goal: 'Apply a community-review moderation action',
+      problem: 'Azure community review is not configured (AZURE_STORAGE_ACCOUNT_URL is unset)',
+      location: 'ipcHandlers.admin-review-action',
+      nextSteps: [
+        'Set AZURE_STORAGE_ACCOUNT_URL for the desktop app to enable community review',
+        'Confirm the admin review panel should be available in this environment',
+      ],
+    });
+    try {
+      return await adminReviewAction(action);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-admin-review-action',
+        level: 'error',
+        message: 'admin-review-action failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      throw new ActionableError({
+        goal: 'Apply a community-review moderation action',
+        problem: `The ${action.action} action could not be completed`,
+        location: 'ipcHandlers.admin-review-action',
+        nextSteps: ['Retry the action', 'Check Azure storage connectivity and credentials'],
+        innerError: err,
+      });
+    }
   });
 
   ipcMain.handle('admin-remove-community-item', async (_event, type: 'chats' | 'debates', id: string, reason?: string) => {
-    return adminRemoveCommunityItem(type, id, reason);
+    // Mutation — surface failures to the user (ADR-001), don't swallow.
+    if (!isAzureReviewConfigured()) throw new ActionableError({
+      goal: 'Remove a community item',
+      problem: 'Azure community review is not configured (AZURE_STORAGE_ACCOUNT_URL is unset)',
+      location: 'ipcHandlers.admin-remove-community-item',
+      nextSteps: ['Set AZURE_STORAGE_ACCOUNT_URL for the desktop app to enable community review'],
+    });
+    try {
+      return await adminRemoveCommunityItem(type, id, reason);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-admin-remove-community-item',
+        level: 'error',
+        message: 'admin-remove-community-item failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      throw new ActionableError({
+        goal: 'Remove a community item',
+        problem: `Could not remove ${type} item ${id}`,
+        location: 'ipcHandlers.admin-remove-community-item',
+        nextSteps: ['Retry the removal', 'Check Azure storage connectivity and credentials'],
+        innerError: err,
+      });
+    }
   });
 }
