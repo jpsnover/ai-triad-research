@@ -12,9 +12,12 @@
  * lives in the data directory alongside debate sessions.
  */
 
+import { getDebatePhase } from './types.js';
 import type { DebateSession, ArgumentNetworkNode, ArgumentNetworkEdge, SpeakerId, TrackedCrux, EntryDiagnostics, EntailmentRepairEvent } from './types.js';
 import type { NeutralEvaluation } from './neutralEvaluator.js';
 import { classifyClaimOutcomes, summarizeOutcomes } from './claimOutcomes.js';
+import { meanSentenceLength, lexicalDiversity, jargonDensity } from './clarityMetrics.js';
+import { computeAffectIntensity, computeAffectProfile, computeAffectAppropriateness } from './affectSignals.js';
 import { elementDecompositionPrompt, coverageCheckPrompt } from './prompts.js';
 import { parseJsonRobust } from './helpers.js';
 import { DEFAULT_TEMPERATURE } from '../ai-client/defaults.js';
@@ -384,6 +387,22 @@ export interface CalibrationDataPoint {
   entailment_repair_rate: number | null;
   /** Fraction of AN nodes that were sampled for entailment checking. */
   entailment_sampling_coverage: number | null;
+
+  // ── Clarity metrics (Wachsmuth: Clarity, t/1120) ──
+  /** Per-debate mean words-per-sentence across speaker turns. */
+  clarity_mean_sentence_length: number | null;
+  /** Per-debate mean type-token ratio across speaker turns. */
+  clarity_lexical_diversity: number | null;
+  /** Per-debate mean domain-jargon ratio across speaker turns. */
+  clarity_jargon_density: number | null;
+
+  // ── Affect signals (Wachsmuth: Emotional Appeal, t/1121) ──
+  /** Mean affect intensity across speaker turns [0,1]. */
+  affect_intensity_mean: number | null;
+  /** Population variance of per-turn affect intensity. */
+  affect_intensity_variance: number | null;
+  /** Mean affect appropriateness score (deviation from phase baseline). */
+  affect_appropriateness: number | null;
 
   // ── Exploration seeding (t/990) ──
   /** Debate ID of the exploration run that seeded this debate. */
@@ -905,6 +924,55 @@ export function extractCalibrationData(
     }
   }
 
+  // ── Clarity metrics (Wachsmuth: Clarity, t/1120) ──
+  const speakerTexts = (session.transcript ?? [])
+    .filter(e => (e.type === 'opening' || e.type === 'statement') && e.content)
+    .map(e => e.content);
+  const clarityMSL = speakerTexts.length > 0
+    ? speakerTexts.reduce((sum, t) => sum + meanSentenceLength(t), 0) / speakerTexts.length
+    : null;
+  const clarityLD = speakerTexts.length > 0
+    ? speakerTexts.reduce((sum, t) => sum + lexicalDiversity(t), 0) / speakerTexts.length
+    : null;
+  const domainTerms = new Set<string>();
+  for (const entry of an?.nodes ?? []) {
+    for (const w of entry.text.toLowerCase().match(/[a-z'-]+/g) ?? []) {
+      if (w.length >= 6) domainTerms.add(w);
+    }
+  }
+  const clarityJD = speakerTexts.length > 0 && domainTerms.size > 0
+    ? speakerTexts.reduce((sum, t) => sum + jargonDensity(t, domainTerms), 0) / speakerTexts.length
+    : null;
+
+  // ── Affect signals (Wachsmuth: Emotional Appeal, t/1121) ──
+  const affectIntensities: number[] = [];
+  const affectAppropScores: number[] = [];
+  for (const entry of session.transcript ?? []) {
+    if (entry.type !== 'opening' && entry.type !== 'statement') continue;
+    if (!entry.content) continue;
+    const intensity = computeAffectIntensity(entry.content);
+    if (intensity != null) affectIntensities.push(intensity);
+    const profile = computeAffectProfile(entry.content);
+    if (profile) {
+      const entryRound = (entry as { round?: number }).round ?? 1;
+      const phase = getDebatePhase(entryRound, rounds);
+      const approp = computeAffectAppropriateness(profile, phase);
+      if (approp != null) affectAppropScores.push(approp);
+      if (phase === 'concluding' && approp != null && approp < 0.40 && profile.outrage > 0.50) {
+        console.warn(`[calibration] concluding-phase turn has low affect_appropriateness (${approp.toFixed(3)}) with high outrage (${profile.outrage.toFixed(3)}) — debate ${session.id}`);
+      }
+    }
+  }
+  const affectIntensityMean = affectIntensities.length > 0
+    ? affectIntensities.reduce((a, b) => a + b, 0) / affectIntensities.length
+    : null;
+  const affectIntensityVariance = affectIntensities.length > 0
+    ? affectIntensities.reduce((sum, v) => sum + (v - affectIntensityMean!) ** 2, 0) / affectIntensities.length
+    : null;
+  const affectAppropMean = affectAppropScores.length > 0
+    ? affectAppropScores.reduce((a, b) => a + b, 0) / affectAppropScores.length
+    : null;
+
   return {
     schema_version: 1,
     debate_id: session.id,
@@ -1271,6 +1339,16 @@ export function extractCalibrationData(
         entailment_sampling_coverage: entailSamplingCoverage,
       };
     })(),
+
+    // ── Clarity metrics (Wachsmuth: Clarity, t/1120) ──
+    clarity_mean_sentence_length: clarityMSL != null ? Math.round(clarityMSL * 100) / 100 : null,
+    clarity_lexical_diversity: clarityLD != null ? Math.round(clarityLD * 1000) / 1000 : null,
+    clarity_jargon_density: clarityJD != null ? Math.round(clarityJD * 1000) / 1000 : null,
+
+    // ── Affect signals (Wachsmuth: Emotional Appeal, t/1121) ──
+    affect_intensity_mean: affectIntensityMean != null ? Math.round(affectIntensityMean * 1000) / 1000 : null,
+    affect_intensity_variance: affectIntensityVariance != null ? Math.round(affectIntensityVariance * 1000) / 1000 : null,
+    affect_appropriateness: affectAppropMean != null ? Math.round(affectAppropMean * 1000) / 1000 : null,
 
     // ── Exploration seeding ──
     ...(config.explorationSummary ? {
