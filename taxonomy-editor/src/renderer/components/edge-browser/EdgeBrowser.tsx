@@ -65,6 +65,7 @@ const EDGE_TYPES = [
   { value: 'RESPONDS_TO', label: 'Responds To' },
   { value: 'TENSION_WITH', label: 'Tension With' },
   { value: 'INTERPRETS', label: 'Interprets' },
+  { value: 'CONVERGES_WITH', label: 'Converges With' },
   // Legacy types — kept for backward compat with pre-Phase-5 data
   { value: 'CITES', label: 'Cites (legacy)' },
   { value: 'SUPPORTED_BY', label: 'Supported By (legacy)' },
@@ -99,7 +100,7 @@ function applyFilters(edges: IndexedEdge[], f: FilterState): IndexedEdge[] {
     if (f.targetPov && e.targetPov !== f.targetPov) return false;
     if (f.edgeType) {
       if (f.edgeType === '_OTHER') {
-        const canonical = new Set(['SUPPORTS','CONTRADICTS','ASSUMES','WEAKENS','RESPONDS_TO','TENSION_WITH','INTERPRETS']);
+        const canonical = new Set(['SUPPORTS','CONTRADICTS','ASSUMES','WEAKENS','RESPONDS_TO','TENSION_WITH','INTERPRETS','CONVERGES_WITH']);
         if (canonical.has(e.type)) return false;
       } else if (e.type !== f.edgeType) return false;
     }

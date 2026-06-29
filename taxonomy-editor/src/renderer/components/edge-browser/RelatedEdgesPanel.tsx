@@ -224,6 +224,7 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
       'RESPONDS_TO',
       'TENSION_WITH',
       'INTERPRETS',
+      'CONVERGES_WITH',
     ];
     const sorted = new Map<EdgeType, Edge[]>();
     // First: types in priority order

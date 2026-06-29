@@ -311,7 +311,8 @@ export type CanonicalEdgeType =
   | 'WEAKENS'
   | 'RESPONDS_TO'
   | 'TENSION_WITH'
-  | 'INTERPRETS';
+  | 'INTERPRETS'
+  | 'CONVERGES_WITH';
 
 /** Accept both canonical and legacy edge types — backward-compat handler (kept permanently). */
 export type EdgeType = CanonicalEdgeType | (string & {});

@@ -361,6 +361,7 @@ export const EDGE_TYPE_COLORS: Record<string, string> = {
   RESPONDS_TO: '#3b82f6',
   TENSION_WITH: '#f97316',
   INTERPRETS: '#06b6d4',
+  CONVERGES_WITH: '#10b981',
 };
 
 /* ── POV filter / edge grouping (mirrors RelatedEdgesPanel UX) ─── */
@@ -385,7 +386,7 @@ const POV_COLOR: Record<PovPrefix, string> = {
 
 const EDGE_TYPE_PRIORITY = [
   'SUPPORTS', 'CONTRADICTS', 'ASSUMES', 'WEAKENS',
-  'RESPONDS_TO', 'TENSION_WITH', 'INTERPRETS',
+  'RESPONDS_TO', 'TENSION_WITH', 'INTERPRETS', 'CONVERGES_WITH',
 ];
 
 function otherNodeId(edge: TaxRefEdge, nodeId: string) {
