@@ -162,6 +162,23 @@ export function computeCruxRelevance(
 }
 
 /**
+ * Compute INTERPRETS boost for a situation node.
+ * INTERPRETS edges signal that debate participants are actively engaging with
+ * a situation's framing — each edge adds +0.1, capped at +0.3.
+ */
+export function computeInterpretsBoost(
+  situationId: string,
+  edges: readonly { source: string; target: string; type: string; status?: string }[],
+): number {
+  let count = 0;
+  for (const edge of edges) {
+    if (edge.status === 'rejected') continue;
+    if (edge.type === 'INTERPRETS' && edge.target === situationId) count++;
+  }
+  return Math.min(0.3, count * 0.1);
+}
+
+/**
  * Compute conflict openness: fraction of linked conflicts that are unresolved.
  * Used by pre-debate ranking.
  */

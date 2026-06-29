@@ -7,6 +7,7 @@ import {
   computeEvidenceBoost,
   computeDebateBoost,
   computeEdgeBoost,
+  computeAssumesBoost,
   computeBeliefConfidence,
   countEdgesByTarget,
   assignBeliefConfidences,
@@ -125,6 +126,26 @@ describe('computeEdgeBoost', () => {
   });
 });
 
+// ── computeAssumesBoost ─────────────────────────────────
+
+describe('computeAssumesBoost', () => {
+  it('0 assumes → 0', () => {
+    expect(computeAssumesBoost(0)).toBe(0);
+  });
+
+  it('1 assumes → 0.01', () => {
+    expect(computeAssumesBoost(1)).toBe(0.01);
+  });
+
+  it('3 assumes → 0.03 (cap)', () => {
+    expect(computeAssumesBoost(3)).toBe(0.03);
+  });
+
+  it('10 assumes → 0.03 (cap)', () => {
+    expect(computeAssumesBoost(10)).toBe(0.03);
+  });
+});
+
 // ── computeBeliefConfidence (full formula) ───────────────
 
 describe('computeBeliefConfidence', () => {
@@ -136,8 +157,9 @@ describe('computeBeliefConfidence', () => {
       debate_ref_count: 0,
       supports_received: 3,
       attacks_received: 3,
+      assumes_received: 0,
     };
-    // base=0.80 + evidence=0.15 + debate=0 + edge=0 = 0.95
+    // base=0.80 + evidence=0.15 + debate=0 + edge=0 + assumes=0 = 0.95
     expect(computeBeliefConfidence(signals)).toBe(0.95);
   });
 
@@ -149,6 +171,7 @@ describe('computeBeliefConfidence', () => {
       debate_ref_count: 0,
       supports_received: 0,
       attacks_received: 5,
+      assumes_received: 0,
     };
     // base=0.40 + 0 + 0 - 0.05 = 0.35
     expect(computeBeliefConfidence(signals)).toBe(0.35);
@@ -161,6 +184,7 @@ describe('computeBeliefConfidence', () => {
       debate_ref_count: 0,
       supports_received: 0,
       attacks_received: 100,
+      assumes_received: 0,
     };
     // base=0.40 - 0.05 = 0.35 → 0.35 (above floor)
     // Actually with predictive: 0.40 + 0 + 0 - 0.05 = 0.35
@@ -175,8 +199,9 @@ describe('computeBeliefConfidence', () => {
       debate_ref_count: 10,
       supports_received: 10,
       attacks_received: 0,
+      assumes_received: 0,
     };
-    // base=0.80 + 0.15 + 0.10 + 0.05 = 1.10 → clamped to 0.95
+    // base=0.80 + 0.15 + 0.10 + 0.05 + 0 = 1.10 → clamped to 0.95
     expect(computeBeliefConfidence(signals)).toBe(0.95);
   });
 
@@ -188,8 +213,9 @@ describe('computeBeliefConfidence', () => {
       debate_ref_count: 0,
       supports_received: 1,
       attacks_received: 1,
+      assumes_received: 0,
     };
-    // base=0.70 + 0.10 + 0 + 0 = 0.80
+    // base=0.70 + 0.10 + 0 + 0 + 0 = 0.80
     expect(computeBeliefConfidence(signals)).toBe(0.80);
   });
 
@@ -200,6 +226,7 @@ describe('computeBeliefConfidence', () => {
       debate_ref_count: 0,
       supports_received: 0,
       attacks_received: 0,
+      assumes_received: 0,
     };
     expect(computeBeliefConfidence(signals)).toBe(0.50);
   });
@@ -252,14 +279,35 @@ describe('countEdgesByTarget', () => {
     expect(supports.get('b')).toBe(1);
   });
 
-  it('ignores non-support/attack edge types', () => {
+  it('counts ASSUMES edges as assumes', () => {
     const edges = [
       makeEdge('a', 'b', 'ASSUMES'),
-      makeEdge('a', 'b', 'INTERPRETS'),
+      makeEdge('c', 'b', 'ASSUMES'),
     ];
-    const { supports, attacks } = countEdgesByTarget(edges);
+    const { supports, attacks, assumes } = countEdgesByTarget(edges);
+    expect(assumes.get('b')).toBe(2);
     expect(supports.size).toBe(0);
     expect(attacks.size).toBe(0);
+  });
+
+  it('ignores non-support/attack/assumes edge types', () => {
+    const edges = [
+      makeEdge('a', 'b', 'INTERPRETS'),
+      makeEdge('a', 'b', 'CONVERGES_WITH'),
+    ];
+    const { supports, attacks, assumes } = countEdgesByTarget(edges);
+    expect(supports.size).toBe(0);
+    expect(attacks.size).toBe(0);
+    expect(assumes.size).toBe(0);
+  });
+
+  it('counts bidirectional ASSUMES edges for both source and target', () => {
+    const edges = [
+      makeEdge('a', 'b', 'ASSUMES', 'approved', true),
+    ];
+    const { assumes } = countEdgesByTarget(edges);
+    expect(assumes.get('a')).toBe(1);
+    expect(assumes.get('b')).toBe(1);
   });
 });
 
@@ -346,6 +394,25 @@ describe('assignBeliefConfidences', () => {
     // base=0.70 + evidence=0 + debate=0.06 + edge=0 = 0.76
     expect(results[0].confidence).toBe(0.76);
     expect(results[0].signals.debate_ref_count).toBe(2);
+  });
+
+  it('uses ASSUMES edge counts from provided edges', () => {
+    const node = makeBeliefNode('acc-beliefs-001', 'interpretive_lens');
+    const edges: Edge[] = [
+      { source: 'x', target: 'acc-beliefs-001', type: 'ASSUMES', bidirectional: false, confidence: 0.9, rationale: '', status: 'approved', discovered_at: '', model: '' },
+      { source: 'y', target: 'acc-beliefs-001', type: 'ASSUMES', bidirectional: false, confidence: 0.9, rationale: '', status: 'approved', discovered_at: '', model: '' },
+      { source: 'z', target: 'acc-beliefs-001', type: 'ASSUMES', bidirectional: false, confidence: 0.9, rationale: '', status: 'approved', discovered_at: '', model: '' },
+    ];
+
+    const results = assignBeliefConfidences(
+      [{ node, sourceDocCount: 0 }],
+      edges,
+      '2026-05-24',
+    );
+
+    // base=0.50 + evidence=0 + debate=0 + edge=0 + assumes=0.03(capped) = 0.53
+    expect(results[0].confidence).toBe(0.53);
+    expect(results[0].signals.assumes_received).toBe(3);
   });
 
   it('sanity: empirical > interpretive > predictive with same signals', () => {

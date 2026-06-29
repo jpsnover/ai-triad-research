@@ -114,6 +114,7 @@ export function computeConsensusScores(
         );
         if (!involvesPolicy) continue;
         if (edge.type === 'SUPPORTS') supports++;
+        else if (edge.type === 'ASSUMES') supports += 0.5;
         else if (edge.type === 'CONTRADICTS') contradicts++;
       }
       const total = supports + contradicts;

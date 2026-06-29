@@ -318,6 +318,70 @@ export function boostConvergenceOnConcession(
   return boostedIssueIds;
 }
 
+// ── CONVERGES_WITH taxonomy edge boost ──────────────────
+export const CONVERGES_WITH_BOOST = 0.10;
+
+/**
+ * Boost convergence tracker scores when CONVERGES_WITH taxonomy edges link
+ * argument network nodes on both sides of a tracker issue.
+ *
+ * Bridges taxonomy-level convergence into the debate convergence tracker
+ * via ArgumentNetworkNode.taxonomy_refs.
+ *
+ * Returns IDs of issues that were boosted.
+ */
+export function boostConvergenceFromTaxonomyEdges(
+  tracker: ConvergenceTracker,
+  taxonomyEdges: readonly { source: string; target: string; type: string; status?: string }[],
+  argumentNodes: readonly ArgumentNetworkNode[],
+  turnNumber: number,
+): string[] {
+  const convergesEdges = taxonomyEdges.filter(
+    e => e.type === 'CONVERGES_WITH' && e.status !== 'rejected',
+  );
+  if (convergesEdges.length === 0) return [];
+
+  const taxToAN = new Map<string, Set<string>>();
+  for (const node of argumentNodes) {
+    if (!node.taxonomy_refs) continue;
+    for (const ref of node.taxonomy_refs) {
+      if (!taxToAN.has(ref)) taxToAN.set(ref, new Set());
+      taxToAN.get(ref)!.add(node.id);
+    }
+  }
+
+  const convergentPairs: { sourceANIds: Set<string>; targetANIds: Set<string> }[] = [];
+  for (const edge of convergesEdges) {
+    const sourceANIds = taxToAN.get(edge.source);
+    const targetANIds = taxToAN.get(edge.target);
+    if (sourceANIds && targetANIds) {
+      convergentPairs.push({ sourceANIds, targetANIds });
+    }
+  }
+  if (convergentPairs.length === 0) return [];
+
+  const boostedIssueIds: string[] = [];
+  for (const issue of tracker.issues) {
+    const engaged = convergentPairs.some(
+      pair =>
+        issue.claim_ids.some(id => pair.sourceANIds.has(id)) &&
+        issue.claim_ids.some(id => pair.targetANIds.has(id)),
+    );
+    if (!engaged) continue;
+
+    issue.convergence = Math.min(1, (issue.convergence ?? 0) + CONVERGES_WITH_BOOST);
+    const lastHistory = issue.history[issue.history.length - 1];
+    if (lastHistory && lastHistory.turn === turnNumber) {
+      lastHistory.value = issue.convergence;
+    } else {
+      issue.history.push({ turn: turnNumber, value: issue.convergence });
+    }
+    boostedIssueIds.push(issue.id);
+  }
+
+  return boostedIssueIds;
+}
+
 // ── Process reward computation (PRM) ─────────────────────
 // Computes a continuous [0,1] per-turn quality score from convergence signals
 // and turn validation grounding. This is the "process reward" in PRM terms:

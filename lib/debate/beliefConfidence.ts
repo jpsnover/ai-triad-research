@@ -27,6 +27,8 @@ export interface ConfidenceSignals {
   supports_received: number;
   /** Number of CONTRADICTS/WEAKENS edges targeting this node */
   attacks_received: number;
+  /** Number of ASSUMES edges targeting this node (presupposition, weaker than SUPPORTS) */
+  assumes_received: number;
 }
 
 /**
@@ -71,6 +73,13 @@ export function computeEdgeBoost(supportsReceived: number, attacksReceived: numb
 }
 
 /**
+ * Compute assumes boost: ASSUMES edges are weaker than SUPPORTS (+0.01/edge, cap +0.03).
+ */
+export function computeAssumesBoost(assumesReceived: number): number {
+  return Math.min(0.03, assumesReceived * 0.01);
+}
+
+/**
  * Compute the full multi-signal confidence score.
  * Returns clamped value in [0.10, 0.95].
  */
@@ -79,8 +88,9 @@ export function computeBeliefConfidence(signals: ConfidenceSignals): number {
   const evidenceBoost = computeEvidenceBoost(signals.source_doc_count);
   const debateBoost = computeDebateBoost(signals.debate_ref_count);
   const edgeBoost = computeEdgeBoost(signals.supports_received, signals.attacks_received);
+  const assumesBoost = computeAssumesBoost(signals.assumes_received);
 
-  const raw = base + evidenceBoost + debateBoost + edgeBoost;
+  const raw = base + evidenceBoost + debateBoost + edgeBoost + assumesBoost;
   return Math.round(Math.max(0.10, Math.min(0.95, raw)) * 100) / 100;
 }
 
@@ -88,17 +98,20 @@ export function computeBeliefConfidence(signals: ConfidenceSignals): number {
 
 const ATTACK_EDGE_TYPES = new Set(['CONTRADICTS', 'WEAKENS']);
 const SUPPORT_EDGE_TYPES = new Set(['SUPPORTS']);
+const ASSUMES_EDGE_TYPES = new Set(['ASSUMES']);
 
 /**
- * Count supports and attacks received by each node from taxonomy edges.
+ * Count supports, attacks, and assumes received by each node from taxonomy edges.
  * Returns maps from node ID → count.
  */
 export function countEdgesByTarget(edges: Edge[]): {
   supports: Map<string, number>;
   attacks: Map<string, number>;
+  assumes: Map<string, number>;
 } {
   const supports = new Map<string, number>();
   const attacks = new Map<string, number>();
+  const assumes = new Map<string, number>();
 
   for (const edge of edges) {
     if (edge.status === 'rejected') continue;
@@ -113,10 +126,15 @@ export function countEdgesByTarget(edges: Edge[]): {
       if (edge.bidirectional) {
         attacks.set(edge.source, (attacks.get(edge.source) ?? 0) + 1);
       }
+    } else if (ASSUMES_EDGE_TYPES.has(edge.type)) {
+      assumes.set(edge.target, (assumes.get(edge.target) ?? 0) + 1);
+      if (edge.bidirectional) {
+        assumes.set(edge.source, (assumes.get(edge.source) ?? 0) + 1);
+      }
     }
   }
 
-  return { supports, attacks };
+  return { supports, attacks, assumes };
 }
 
 // ── Batch assignment ────────────────────────────────────
@@ -141,7 +159,7 @@ export function assignBeliefConfidences(
   edges: Edge[],
   date: string,
 ): BeliefConfidenceResult[] {
-  const { supports, attacks } = countEdgesByTarget(edges);
+  const { supports, attacks, assumes } = countEdgesByTarget(edges);
   const results: BeliefConfidenceResult[] = [];
 
   for (const { node, sourceDocCount } of inputs) {
@@ -154,6 +172,7 @@ export function assignBeliefConfidences(
       debate_ref_count: node.debate_refs?.length ?? 0,
       supports_received: supports.get(node.id) ?? 0,
       attacks_received: attacks.get(node.id) ?? 0,
+      assumes_received: assumes.get(node.id) ?? 0,
     };
 
     const confidence = computeBeliefConfidence(signals);

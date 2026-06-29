@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { computeConvergenceSignals, SEMANTIC_RECYCLING_THRESHOLD, ARCO_DRIFT_THRESHOLD, computeUncertaintyMetric, boostConvergenceOnConcession, CONCESSION_CONVERGENCE_BOOST } from './convergenceSignals.js';
+import { computeConvergenceSignals, SEMANTIC_RECYCLING_THRESHOLD, ARCO_DRIFT_THRESHOLD, computeUncertaintyMetric, boostConvergenceOnConcession, CONCESSION_CONVERGENCE_BOOST, boostConvergenceFromTaxonomyEdges, CONVERGES_WITH_BOOST } from './convergenceSignals.js';
 import type {
   SpeakerId,
   TranscriptEntry,
@@ -1861,5 +1861,120 @@ describe('boostConvergenceOnConcession', () => {
     expect(boosted).toEqual(['iss-1', 'iss-2']);
     expect(issue1.convergence).toBeCloseTo(CONCESSION_CONVERGENCE_BOOST);
     expect(issue2.convergence).toBeCloseTo(0.1 + CONCESSION_CONVERGENCE_BOOST);
+  });
+});
+
+// ── boostConvergenceFromTaxonomyEdges ─────────────────────
+
+describe('boostConvergenceFromTaxonomyEdges', () => {
+  function makeANNode(id: string, taxonomyRefs: string[]): ArgumentNetworkNode {
+    return {
+      id,
+      text: `node ${id}`,
+      speaker: 'accelerationist',
+      base_strength: 0.5,
+      computed_strength: 0.5,
+      taxonomy_refs: taxonomyRefs,
+    };
+  }
+
+  function makeCvIssue(id: string, claimIds: string[], convergence = 0): ConvergenceIssue {
+    return { id, label: id, claim_ids: claimIds, convergence, history: [] };
+  }
+
+  function makeCvTracker(issues: ConvergenceIssue[]): ConvergenceTracker {
+    return { issues };
+  }
+
+  it('boosts issue when CONVERGES_WITH links AN nodes on both sides', () => {
+    const anNodes = [
+      makeANNode('an-1', ['acc-beliefs-001']),
+      makeANNode('an-2', ['saf-beliefs-002']),
+    ];
+    const taxEdges = [
+      { source: 'acc-beliefs-001', target: 'saf-beliefs-002', type: 'CONVERGES_WITH' },
+    ];
+    const issue = makeCvIssue('iss-1', ['an-1', 'an-2']);
+    const tracker = makeCvTracker([issue]);
+
+    const boosted = boostConvergenceFromTaxonomyEdges(tracker, taxEdges, anNodes, 3);
+
+    expect(boosted).toEqual(['iss-1']);
+    expect(issue.convergence).toBeCloseTo(CONVERGES_WITH_BOOST);
+    expect(issue.history).toHaveLength(1);
+    expect(issue.history[0].turn).toBe(3);
+  });
+
+  it('returns empty when no CONVERGES_WITH edges exist', () => {
+    const anNodes = [makeANNode('an-1', ['acc-beliefs-001'])];
+    const taxEdges = [
+      { source: 'acc-beliefs-001', target: 'saf-beliefs-002', type: 'SUPPORTS' },
+    ];
+    const tracker = makeCvTracker([makeCvIssue('iss-1', ['an-1'])]);
+
+    expect(boostConvergenceFromTaxonomyEdges(tracker, taxEdges, anNodes, 3)).toEqual([]);
+  });
+
+  it('skips rejected CONVERGES_WITH edges', () => {
+    const anNodes = [
+      makeANNode('an-1', ['acc-beliefs-001']),
+      makeANNode('an-2', ['saf-beliefs-002']),
+    ];
+    const taxEdges = [
+      { source: 'acc-beliefs-001', target: 'saf-beliefs-002', type: 'CONVERGES_WITH', status: 'rejected' },
+    ];
+    const issue = makeCvIssue('iss-1', ['an-1', 'an-2']);
+    const tracker = makeCvTracker([issue]);
+
+    expect(boostConvergenceFromTaxonomyEdges(tracker, taxEdges, anNodes, 3)).toEqual([]);
+    expect(issue.convergence).toBe(0);
+  });
+
+  it('does not boost when issue only has nodes from one side', () => {
+    const anNodes = [
+      makeANNode('an-1', ['acc-beliefs-001']),
+      makeANNode('an-2', ['acc-beliefs-001']),
+    ];
+    const taxEdges = [
+      { source: 'acc-beliefs-001', target: 'saf-beliefs-002', type: 'CONVERGES_WITH' },
+    ];
+    const issue = makeCvIssue('iss-1', ['an-1', 'an-2']);
+    const tracker = makeCvTracker([issue]);
+
+    expect(boostConvergenceFromTaxonomyEdges(tracker, taxEdges, anNodes, 3)).toEqual([]);
+  });
+
+  it('caps convergence at 1.0', () => {
+    const anNodes = [
+      makeANNode('an-1', ['acc-beliefs-001']),
+      makeANNode('an-2', ['saf-beliefs-002']),
+    ];
+    const taxEdges = [
+      { source: 'acc-beliefs-001', target: 'saf-beliefs-002', type: 'CONVERGES_WITH' },
+    ];
+    const issue = makeCvIssue('iss-1', ['an-1', 'an-2'], 0.95);
+    const tracker = makeCvTracker([issue]);
+
+    boostConvergenceFromTaxonomyEdges(tracker, taxEdges, anNodes, 5);
+
+    expect(issue.convergence).toBe(1.0);
+  });
+
+  it('updates existing history entry at same turn number', () => {
+    const anNodes = [
+      makeANNode('an-1', ['acc-beliefs-001']),
+      makeANNode('an-2', ['saf-beliefs-002']),
+    ];
+    const taxEdges = [
+      { source: 'acc-beliefs-001', target: 'saf-beliefs-002', type: 'CONVERGES_WITH' },
+    ];
+    const issue = makeCvIssue('iss-1', ['an-1', 'an-2'], 0.2);
+    issue.history.push({ turn: 5, value: 0.2 });
+    const tracker = makeCvTracker([issue]);
+
+    boostConvergenceFromTaxonomyEdges(tracker, taxEdges, anNodes, 5);
+
+    expect(issue.history).toHaveLength(1);
+    expect(issue.history[0].value).toBeCloseTo(0.2 + CONVERGES_WITH_BOOST);
   });
 });

@@ -10,6 +10,7 @@ import {
   computePreDebateFreshness,
   computeCruxRelevance,
   computeConflictOpenness,
+  computeInterpretsBoost,
   PRE_DEBATE_WEIGHTS,
   MID_DEBATE_WEIGHTS,
 } from './situationScoring.js';
@@ -186,6 +187,47 @@ describe('computeConflictOpenness', () => {
 
   it('returns 0 for empty conflict list', () => {
     expect(computeConflictOpenness([], new Set())).toBe(0);
+  });
+});
+
+// ── computeInterpretsBoost ────────────────────────────────
+
+describe('computeInterpretsBoost', () => {
+  it('returns 0 when no INTERPRETS edges target the situation', () => {
+    const edges = [
+      { source: 'a', target: 'sit-1', type: 'SUPPORTS' },
+      { source: 'b', target: 'sit-2', type: 'INTERPRETS' },
+    ];
+    expect(computeInterpretsBoost('sit-1', edges)).toBe(0);
+  });
+
+  it('returns 0.1 per INTERPRETS edge targeting the situation', () => {
+    const edges = [
+      { source: 'a', target: 'sit-1', type: 'INTERPRETS' },
+    ];
+    expect(computeInterpretsBoost('sit-1', edges)).toBeCloseTo(0.1);
+  });
+
+  it('caps at 0.3 for 3+ INTERPRETS edges', () => {
+    const edges = [
+      { source: 'a', target: 'sit-1', type: 'INTERPRETS' },
+      { source: 'b', target: 'sit-1', type: 'INTERPRETS' },
+      { source: 'c', target: 'sit-1', type: 'INTERPRETS' },
+      { source: 'd', target: 'sit-1', type: 'INTERPRETS' },
+    ];
+    expect(computeInterpretsBoost('sit-1', edges)).toBe(0.3);
+  });
+
+  it('ignores rejected INTERPRETS edges', () => {
+    const edges = [
+      { source: 'a', target: 'sit-1', type: 'INTERPRETS', status: 'rejected' },
+      { source: 'b', target: 'sit-1', type: 'INTERPRETS', status: 'approved' },
+    ];
+    expect(computeInterpretsBoost('sit-1', edges)).toBeCloseTo(0.1);
+  });
+
+  it('returns 0 for empty edge list', () => {
+    expect(computeInterpretsBoost('sit-1', [])).toBe(0);
   });
 });
 
