@@ -14,12 +14,15 @@ export type FaultTarget = 'ai-call' | 'storage' | 'rate-limiter' | 'network';
 
 export interface Fault {
   target: FaultTarget;
-  trigger: 'always' | 'nth-call' | 'after-delay' | 'random';
+  trigger: 'always' | 'nth-call' | 'after-delay' | 'random' | 'match-request';
   effect: 'timeout' | 'throw-429' | 'throw-503' | 'throw-enoent' | 'throw-eacces'
         | 'corrupt-json' | 'slow-response' | 'auth-fail' | 'circuit-open';
   nthCall?: number;
   delayMs?: number;
   probability?: number;
+  // match-request: fires when matchFn returns true for the request.
+  // TODO: composable with nth-call (counter only increments for matching requests)
+  matchFn?: (url: string, init?: RequestInit) => boolean;
 }
 
 export interface FaultProfile {
@@ -79,6 +82,8 @@ export class FaultHarness {
     vi.stubGlobal('fetch', async (...args: Parameters<typeof fetch>): Promise<Response> => {
       self.callCount++;
       const currentCall = self.callCount;
+      const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url;
+      const init = args[1] as RequestInit | undefined;
 
       for (const fault of self.profile.faults) {
         if (fault.target !== 'ai-call') {
@@ -88,7 +93,7 @@ export class FaultHarness {
           continue;
         }
 
-        if (!self.shouldTrigger(fault, currentCall)) continue;
+        if (!self.shouldTrigger(fault, currentCall, url, init)) continue;
 
         return self.applyEffect(fault.effect);
       }
@@ -106,7 +111,7 @@ export class FaultHarness {
     }
   }
 
-  private shouldTrigger(fault: Fault, currentCall: number): boolean {
+  private shouldTrigger(fault: Fault, currentCall: number, url?: string, init?: RequestInit): boolean {
     switch (fault.trigger) {
       case 'always':
         return true;
@@ -116,6 +121,8 @@ export class FaultHarness {
         return (Date.now() - this.startTime) >= (fault.delayMs ?? 0);
       case 'random':
         return Math.random() < (fault.probability ?? 0.5);
+      case 'match-request':
+        return fault.matchFn ? fault.matchFn(url ?? '', init) : false;
       default:
         return false;
     }
