@@ -366,6 +366,7 @@ export function initFlightRecorder(): FlightRecorder {
   recorder.intern('component', 'bridge');
   recorder.intern('component', 'taxonomy-store');
   recorder.intern('component', 'reflection-edit');
+  recorder.intern('component', 'hmr');
 
   recorder.intern('pov', 'accelerationist');
   recorder.intern('pov', 'safetyist');
@@ -399,6 +400,40 @@ export function initFlightRecorder(): FlightRecorder {
     message: 'Flight recorder initialized',
     data: { capacity: 5000, window: windowId, load_generation: loadGeneration },
   });
+
+  // ── HMR lifecycle events (dev-only) ──
+  if (import.meta.hot) {
+    import.meta.hot.on('vite:beforeUpdate', (payload: { type: string; updates: Array<{ type: string; path: string; acceptedPath: string; timestamp: number }> }) => {
+      recorder.record({
+        type: 'lifecycle',
+        component: 'hmr',
+        level: 'info',
+        message: `HMR update: ${payload.updates.map(u => u.path).join(', ')}`,
+        data: { update_count: payload.updates.length, paths: payload.updates.map(u => u.path), load_generation: loadGeneration },
+      });
+    });
+
+    import.meta.hot.on('vite:beforeFullReload', () => {
+      recorder.record({
+        type: 'lifecycle',
+        component: 'hmr',
+        level: 'warn',
+        message: 'Full page reload triggered by HMR',
+        data: { load_generation: loadGeneration },
+      });
+    });
+
+    import.meta.hot.on('vite:error', (payload: { err: { message: string; stack: string } }) => {
+      recorder.record({
+        type: 'system.error',
+        component: 'hmr',
+        level: 'error',
+        message: `HMR error: ${payload.err.message}`,
+        error: { name: 'HMRError', message: payload.err.message, stack: payload.err.stack?.slice(0, 500) },
+        data: { load_generation: loadGeneration },
+      });
+    });
+  }
 
   // ── Context provider (full app state snapshot for dump) ──
   // See operations/diagnostics/flight-recorder-context-spec.md for field descriptions.
@@ -558,6 +593,16 @@ export function initFlightRecorder(): FlightRecorder {
     }
   }
 
+  // ── HMR timestamp extraction (dev-only) ──
+  function extractHmrTimestamps(stack?: string): Record<string, number> | undefined {
+    if (!stack || !import.meta.env.DEV) return undefined;
+    const matches: Record<string, number> = {};
+    for (const m of stack.matchAll(/([^\s(]+)\?t=(\d+)/g)) {
+      matches[m[1]] = Number(m[2]);
+    }
+    return Object.keys(matches).length > 0 ? matches : undefined;
+  }
+
   // ── Auto-dump triggers ──
 
   window.addEventListener('error', (event) => {
@@ -568,6 +613,7 @@ export function initFlightRecorder(): FlightRecorder {
       level: 'fatal',
       message: err.message,
       error: { name: err.name, message: err.message, stack: err.stack?.slice(0, 500) },
+      data: { hmr_timestamps: extractHmrTimestamps(err.stack), load_generation: loadGeneration },
     });
     if (canAutoDump()) {
       recordDump();
@@ -589,6 +635,7 @@ export function initFlightRecorder(): FlightRecorder {
       level: 'fatal',
       message: err.message,
       error: { name: err.name, message: err.message, stack: err.stack?.slice(0, 500) },
+      data: { hmr_timestamps: extractHmrTimestamps(err.stack), load_generation: loadGeneration },
     });
     if (canAutoDump()) {
       recordDump();
