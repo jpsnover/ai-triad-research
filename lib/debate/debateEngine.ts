@@ -391,6 +391,7 @@ export class DebateEngine {
       nodeEmbeddings: this.taxonomy.embeddings,
       injectedSitIds,
       referencedSitIds,
+      edges: this.taxonomy.edges?.edges,
     });
   }
 
