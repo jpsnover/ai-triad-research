@@ -27,6 +27,7 @@ import {
   buildModelIdMap,
   getApiModelId as getApiModelIdFromMap,
   getDefaultTimeout,
+  withTimeout,
   SERVER_RETRY_CONFIG,
   callGeminiBatchEmbed,
   geminiGroundedSearch,
@@ -529,8 +530,18 @@ function loadEmbeddingsFile(): EmbeddingsFile | null {
   }
 }
 
+// t/1113: bound the Gemini embeddings call (including its internal retries) so a
+// silent connection drop can't hang the request handler indefinitely — same bug
+// class as t/1068. On timeout this rejects and computeEmbeddings falls back to the
+// local Python encoder. 30s: embeddings are compute-only (no generation latency).
+const EMBED_TIMEOUT_MS = 30_000;
+
 function callGeminiBatchApi(texts: string[], taskType: string, apiKey: string): Promise<number[][]> {
-  return callGeminiBatchEmbed(fetch, texts, taskType, apiKey, SERVER_RETRY_CONFIG);
+  return withTimeout(
+    callGeminiBatchEmbed(fetch, texts, taskType, apiKey, SERVER_RETRY_CONFIG),
+    EMBED_TIMEOUT_MS,
+    'gemini-embedding',
+  );
 }
 
 export async function computeEmbeddings(texts: string[], ids?: string[], explicitApiKey?: string): Promise<number[][]> {
