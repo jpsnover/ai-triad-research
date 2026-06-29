@@ -27,6 +27,14 @@ import { ActionableError } from './errors.js';
 export type ClaimOutcomeCategory = 'thrived' | 'survived' | 'died';
 
 /**
+ * Counterfactual reasoning type (RATIO 2024, LNAI 14638 pp. 277–285).
+ * - interventional: Pearl do-calculus — "If X *were* forced, what would happen?"
+ * - backtracking: Lewis — "If X *had been* different, what would the history look like?"
+ * - normative: Value/rule change — "If we *adopted* principle P, what follows?"
+ */
+export type CounterfactualType = 'interventional' | 'backtracking' | 'normative';
+
+/**
  * A single counterfactual crux: removing `flipping_argument` from the QBAF
  * graph causes `claim` to flip between two outcome categories.
  */
@@ -51,6 +59,8 @@ export interface CounterfactualCrux {
   counterfactual_strength: number;
   /** Change in strength: counterfactual − original. */
   strength_delta: number;
+  /** Counterfactual reasoning type — set by LLM classification, not by the algorithmic analysis. */
+  counterfactual_type?: CounterfactualType;
 }
 
 /**
@@ -292,10 +302,11 @@ export function formatCounterfactualCruxReport(
     const direction = crux.strength_delta > 0 ? 'strengthened' : 'weakened';
     const claimSnippet = truncateText(crux.claim_text, 80);
     const argSnippet = truncateText(crux.flipping_argument_text, 80);
+    const typeTag = crux.counterfactual_type ? ` [${crux.counterfactual_type}]` : '';
     lines.push(
       `- If "${argSnippet}" were removed, "${claimSnippet}" would flip ` +
       `from ${crux.original_outcome} to ${crux.counterfactual_outcome} ` +
-      `(${direction} by ${Math.abs(crux.strength_delta).toFixed(3)}).`,
+      `(${direction} by ${Math.abs(crux.strength_delta).toFixed(3)}).${typeTag}`,
     );
   }
 

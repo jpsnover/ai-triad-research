@@ -7,6 +7,7 @@ import {
   computeCounterfactualCruxes,
   formatCounterfactualCruxReport,
   filterCrossPovCruxes,
+  type CounterfactualType,
 } from './counterfactualCrux.js';
 import { ActionableError } from './errors.js';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge } from './types.js';
@@ -412,5 +413,79 @@ describe('filterCrossPovCruxes', () => {
 
   it('handles empty cruxes array', () => {
     expect(filterCrossPovCruxes([], nodes)).toHaveLength(0);
+  });
+});
+
+// ── CounterfactualType field ────────────────────────────
+
+describe('CounterfactualType on CounterfactualCrux', () => {
+  it('accepts optional counterfactual_type on a crux object', () => {
+    const crux = {
+      claim_id: 'AN-1',
+      claim_text: 'Strict liability would drive developers out',
+      flipping_argument_id: 'AN-2',
+      flipping_argument_text: 'EU compliance data shows retention',
+      edge_type: 'attacks' as const,
+      original_outcome: 'thrived' as const,
+      counterfactual_outcome: 'died' as const,
+      original_strength: 0.65,
+      counterfactual_strength: 0.15,
+      strength_delta: -0.50,
+      counterfactual_type: 'interventional' as CounterfactualType,
+    };
+    expect(crux.counterfactual_type).toBe('interventional');
+  });
+
+  it('allows crux without counterfactual_type (backward compat)', () => {
+    const crux = {
+      claim_id: 'AN-1',
+      claim_text: 'Test',
+      flipping_argument_id: 'AN-2',
+      flipping_argument_text: 'Test arg',
+      edge_type: 'attacks' as const,
+      original_outcome: 'thrived' as const,
+      counterfactual_outcome: 'died' as const,
+      original_strength: 0.6,
+      counterfactual_strength: 0.2,
+      strength_delta: -0.4,
+    };
+    expect(crux.counterfactual_type).toBeUndefined();
+  });
+
+  it('includes type tag in report when counterfactual_type is set', () => {
+    const crux = {
+      claim_id: 'AN-1',
+      claim_text: 'AI regulation hinders innovation',
+      flipping_argument_id: 'AN-2',
+      flipping_argument_text: 'EU AI Act evidence',
+      edge_type: 'attacks' as const,
+      original_outcome: 'thrived' as const,
+      counterfactual_outcome: 'died' as const,
+      original_strength: 0.65,
+      counterfactual_strength: 0.15,
+      strength_delta: -0.50,
+      counterfactual_type: 'backtracking' as CounterfactualType,
+    };
+    const result = { cruxes: [crux], claims_analysed: 2, removals_tested: 2, flips_found: 1 };
+    const report = formatCounterfactualCruxReport(result);
+    expect(report).toContain('[backtracking]');
+  });
+
+  it('omits type tag in report when counterfactual_type is absent', () => {
+    const crux = {
+      claim_id: 'AN-1',
+      claim_text: 'Test claim',
+      flipping_argument_id: 'AN-2',
+      flipping_argument_text: 'Test arg',
+      edge_type: 'attacks' as const,
+      original_outcome: 'thrived' as const,
+      counterfactual_outcome: 'died' as const,
+      original_strength: 0.6,
+      counterfactual_strength: 0.2,
+      strength_delta: -0.4,
+    };
+    const result = { cruxes: [crux], claims_analysed: 2, removals_tested: 2, flips_found: 1 };
+    const report = formatCounterfactualCruxReport(result);
+    expect(report).not.toContain('[');
   });
 });

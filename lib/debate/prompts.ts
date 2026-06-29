@@ -2587,7 +2587,11 @@ Identify:
    a. "type": EMPIRICAL, VALUES, or DEFINITIONAL
    b. "bdi_layer": "belief" (empirical disagreement), "desire" (value priorities differ), or "intention" (key terms defined differently)
    c. "resolvability": "resolvable_by_evidence", "negotiable_via_tradeoffs", or "requires_term_clarification"
-4. Cruxes — specific questions that, if answered, would change a debater's position
+4. Cruxes — specific questions that, if answered, would change a debater's position.
+   For each crux, FIRST classify its counterfactual type before probing:
+   - "interventional" (Pearl do-calculus): asks what would happen if a variable were FORCED to a value — "If we imposed strict liability, would developers exit?"
+   - "backtracking" (Lewis): runs causal history backwards — "If the 2022 regulation had passed, would the landscape look different?"
+   - "normative": asks what follows from adopting a value or rule — "If we adopted the precautionary principle, what would change?"
 5. Questions that remain unresolved
 
 === NEUTRALIZATION PASS ===
@@ -2602,7 +2606,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "areas_of_agreement": [{"point": "...", "povers": ["accelerationist", "safetyist"], "converged": false, "conceded_by": null, "original_disagreement": null}],
   "areas_of_disagreement": [{"point": "...", "type": "EMPIRICAL or VALUES or DEFINITIONAL", "bdi_layer": "belief or desire or intention", "resolvability": "resolvable_by_evidence or negotiable_via_tradeoffs or requires_term_clarification", "positions": [{"pover": "accelerationist", "stance": "..."}, {"pover": "safetyist", "stance": "..."}]}],
   "cruxes": [
-    {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES", "resolution_status": "resolved or irreducible or active", "resolution_evidence": "what resolved it, if applicable"}
+    {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES", "counterfactual_type": "interventional or backtracking or normative", "resolution_status": "resolved or irreducible or active", "resolution_evidence": "what resolved it, if applicable"}
   ],
   "unresolved_questions": ["..."]
 }`;
@@ -2789,6 +2793,10 @@ Identify:
       - "negotiable_via_tradeoffs" — requires explicit trade-off reasoning, not evidence (typical for value disagreements)
       - "requires_term_clarification" — debaters need to agree on definitions first (typical for conceptual disagreements)
 4. Cruxes — the specific factual or value questions that, if resolved, would change a debater's position. A good crux is a question where one debater would say "if the answer turned out to be X, I would actually change my position."
+   For each crux, classify its counterfactual type:
+   - "interventional": asks what would happen if a variable were forced to a value (Pearl do-calculus)
+   - "backtracking": runs causal history backwards — what would have been different? (Lewis)
+   - "normative": asks what follows from adopting a value, principle, or rule
 5. Questions that remain unresolved
 6. Which taxonomy nodes were referenced and how they were used
 7. Build an argument map: extract the key claims from the transcript and show how they relate
@@ -2818,7 +2826,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "areas_of_agreement": [{"point": "...", "povers": ["accelerationist", "safetyist"], "converged": false, "conceded_by": null, "original_disagreement": null}],
   "areas_of_disagreement": [{"point": "...", "type": "EMPIRICAL or VALUES or DEFINITIONAL", "bdi_layer": "belief or desire or intention", "resolvability": "resolvable_by_evidence or negotiable_via_tradeoffs or requires_term_clarification", "positions": [{"pover": "accelerationist", "stance": "..."}, {"pover": "safetyist", "stance": "..."}]}],
   "cruxes": [
-    {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES"}
+    {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES", "counterfactual_type": "interventional or backtracking or normative"}
   ],
   "unresolved_questions": ["..."],
   "taxonomy_coverage": [{"node_id": "e.g. acc-desires-002", "how_used": "brief description"}],
@@ -4343,6 +4351,34 @@ Instructions:
 4. If the claim is already self-contained with no context-dependent references, return it unchanged.
 
 Respond in JSON only (no markdown): {"decontextualized": "the self-contained claim text", "changes_made": ["list of specific expansions, or empty if unchanged"]}`;
+}
+
+// ── Counterfactual type classification (RATIO 2024) ────────────────
+
+export function classifyCounterfactualTypePrompt(
+  cruxes: { id: string; claim_text: string; flipping_argument_text: string }[],
+  debateTopic: string,
+): string {
+  const cruxBlock = cruxes.map(c =>
+    `- [${c.id}] Claim: "${c.claim_text}" — Flipping argument: "${c.flipping_argument_text}"`
+  ).join('\n');
+
+  return `You are a debate analyst classifying counterfactual cruxes by reasoning type. Each crux represents an argument whose removal would flip a claim's debate outcome.
+
+DEBATE TOPIC: "${debateTopic}"
+
+=== COUNTERFACTUAL CRUXES ===
+${cruxBlock}
+
+For each crux, classify its counterfactual reasoning type:
+- "interventional" (Pearl do-calculus): The counterfactual asks what would happen if a variable were FORCED to a different value, holding all else fixed. Pattern: "If we imposed/required/banned X, what would happen?" The causal graph runs forward from the intervention point.
+- "backtracking" (Lewis): The counterfactual runs causal history BACKWARDS. Pattern: "If X had been different in the past, what chain of prior causes would also have been different?" It revises history, not just future consequences.
+- "normative": The counterfactual asks what follows from adopting a value, principle, or rule that is not currently in force. Pattern: "If we accepted principle P / valued X over Y, what policy would follow?" The reasoning is about ought-implications, not causal mechanics.
+
+Key distinction: interventional changes ONE variable and traces forward effects; backtracking changes ONE outcome and traces backward to what else must change; normative changes a value commitment and derives policy implications.
+
+Respond in JSON only (no markdown):
+{"classifications": [{"id": "crux-id", "counterfactual_type": "interventional or backtracking or normative", "reasoning": "one sentence explaining why this type"}]}`;
 }
 
 // ── Post-cascade crux refresh ──────────────────────────────────────

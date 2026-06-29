@@ -197,6 +197,8 @@ export interface CalibrationDataPoint {
   // ── Parameter 8: Crux resolution thresholds ──
   /** How often engine crux status agrees with neutral evaluator crux status */
   crux_resolution_divergence_rate: number | null;
+  /** Distribution of counterfactual types across tracked cruxes (RATIO 2024). */
+  counterfactual_type_distribution: { interventional: number; backtracking: number; normative: number } | null;
   /** POLARITY_RESOLVED_THRESHOLD used */
   polarity_resolved_threshold: number;
 
@@ -639,6 +641,21 @@ export function extractCalibrationData(
     cruxDivergenceRate = minLen > 0 ? divergences / minLen : null;
   }
 
+  // ── Counterfactual type distribution (RATIO 2024, t/1115) ──
+  const cfTypeDist: { interventional: number; backtracking: number; normative: number } | null =
+    engineCruxes.length > 0
+      ? engineCruxes.reduce(
+          (acc, c) => {
+            const ct = (c as Record<string, unknown>).counterfactual_type;
+            if (ct === 'interventional') acc.interventional++;
+            else if (ct === 'backtracking') acc.backtracking++;
+            else if (ct === 'normative') acc.normative++;
+            return acc;
+          },
+          { interventional: 0, backtracking: 0, normative: 0 },
+        )
+      : null;
+
   // ── Parameter 9: Node cap — relevance score variance ──
   let relevanceVariance: number | null = null;
   const allRelevanceScores: number[] = [];
@@ -1058,6 +1075,7 @@ export function extractCalibrationData(
     gc_trigger: config.gcTrigger ?? 175,
 
     crux_resolution_divergence_rate: cruxDivergenceRate,
+    counterfactual_type_distribution: cfTypeDist,
     polarity_resolved_threshold: config.polarityResolvedThreshold ?? 0.85,
 
     relevance_score_variance: relevanceVariance,
