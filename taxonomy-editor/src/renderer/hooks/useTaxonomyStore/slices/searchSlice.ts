@@ -81,7 +81,13 @@ export const createSearchSlice: StateCreator<TaxonomyStore, [], [], SearchSlice>
 
   checkApiKey: async () => {
     try {
-      const has = await api.hasApiKey();
+      let has = await api.hasApiKey();
+      if (!has && api.getProxyTier) {
+        try {
+          const tier = await api.getProxyTier();
+          if (tier?.level === 'free' && tier.allowedBackends?.length > 0) has = true;
+        } catch { /* telemetry — silent by design: proxy unavailable is a normal state in Electron */ }
+      }
       set({ hasApiKey: has });
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to check API key availability', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
