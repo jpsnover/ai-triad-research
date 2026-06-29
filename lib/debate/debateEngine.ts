@@ -603,8 +603,8 @@ export class DebateEngine {
     this.applyExplorationConfigDefaults();
   }
 
-  private resolveStageModel(key: string): string {
-    return this.config.stageModels?.[key as keyof NonNullable<DebateConfig['stageModels']>] ?? this.config.model;
+  private resolveStageModel(key: keyof NonNullable<DebateConfig['stageModels']>): string {
+    return this.config.stageModels?.[key] ?? this.config.model;
   }
 
   private applyExplorationConfigDefaults(): void {
@@ -2825,9 +2825,10 @@ export class DebateEngine {
         documentAnalysis: this.session.document_analysis,
         audience: this.config.audience,
         model: this.resolveModelForSpeaker(poverId),
-        briefModel: this.resolveStageModel('brief'),
-        planModel: this.resolveStageModel('plan'),
-        citeModel: this.resolveStageModel('cite'),
+        briefModel: this.config.stageModels?.brief,
+        planModel: this.config.stageModels?.plan,
+        draftModel: this.config.stageModels?.draft,
+        citeModel: this.config.stageModels?.cite,
         userSeedClaims: userSeeds.length > 0 ? userSeeds : undefined,
         availablePovNodeIds: [...this.getKnownNodeIds()],
         ...(this.config.temperature != null ? {
@@ -3499,9 +3500,10 @@ export class DebateEngine {
       documentAnalysis: this.session.document_analysis,
       audience: this.config.audience,
       model: this.resolveModelForSpeaker(responder),
-      briefModel: this.resolveStageModel('brief'),
-      planModel: this.resolveStageModel('plan'),
-      citeModel: this.resolveStageModel('cite'),
+      briefModel: this.config.stageModels?.brief,
+      planModel: this.config.stageModels?.plan,
+      draftModel: this.config.stageModels?.draft,
+      citeModel: this.config.stageModels?.cite,
       ...(activeIntervention ? {
         pendingIntervention: {
           move: activeIntervention.move,

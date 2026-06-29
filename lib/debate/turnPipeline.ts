@@ -167,6 +167,7 @@ export interface TurnPipelineInput {
   model: string;
   briefModel?: string;
   planModel?: string;
+  draftModel?: string;
   citeModel?: string;
   stageTemperatures?: TurnStageConfig;
   repairHints?: string[];
@@ -346,6 +347,7 @@ export async function runTurnPipeline(
   };
   const briefModel = input.briefModel ?? input.model;
   const planModel = input.planModel ?? input.model;
+  const draftModel = input.draftModel ?? input.model;
   const citeModel = input.citeModel ?? input.model;
   const stageInput = buildStageInput(input);
   const stageDiags: StageDiagnostics[] = [];
@@ -808,7 +810,7 @@ export async function runTurnPipeline(
         );
       }
       draftPromptText = flattenEnvelope(env);
-      const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.draft_temperature } }, `${input.label} draft`);
+      const resp = await envelopeGenerate({ envelope: env, model: draftModel, options: { temperature: temps.draft_temperature } }, `${input.label} draft`);
       draftRaw = resp.text;
       draftUsage = resp.usage;
     } else {
@@ -844,7 +846,7 @@ export async function runTurnPipeline(
           `${citationBankBlock}\n\nRespond ONLY with a JSON`,
         );
       }
-      draftRaw = await generate(draftPromptText, input.model, { temperature: temps.draft_temperature }, `${input.label} draft`);
+      draftRaw = await generate(draftPromptText, draftModel, { temperature: temps.draft_temperature }, `${input.label} draft`);
     }
     elapsed = Date.now() - t0;
     // Record prompt size for diagnostics
@@ -881,7 +883,7 @@ export async function runTurnPipeline(
     }
     stageDiags.push({
       stage: 'draft', prompt: draftPromptText, raw_response: draftRaw,
-      model: input.model, temperature: temps.draft_temperature,
+      model: draftModel, temperature: temps.draft_temperature,
       response_time_ms: elapsed, work_product: draftParsed.product as unknown as Record<string, unknown>,
       parse_error: draftParsed.error,
       retry_trigger: draftAttempt === 0 && !isOuterRetry ? 'initial' : draftAttempt > 0 ? 'stage-retry' : 'orchestration-rerun',
@@ -1427,7 +1429,7 @@ export async function runTurnPipeline(
             );
           }
           retryDraftPrompt = flattenEnvelope(env);
-          const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.draft_temperature } }, `${input.label} draft (quality retry)`);
+          const resp = await envelopeGenerate({ envelope: env, model: draftModel, options: { temperature: temps.draft_temperature } }, `${input.label} draft (quality retry)`);
           retryDraftRaw = resp.text;
           retryDraftUsage = resp.usage;
         } else {
@@ -1448,13 +1450,13 @@ export async function runTurnPipeline(
               `${citationBankBlock}\n\nRespond ONLY with a JSON`,
             );
           }
-          retryDraftRaw = await generate(retryDraftPrompt, input.model, { temperature: temps.draft_temperature }, `${input.label} draft (quality retry)`);
+          retryDraftRaw = await generate(retryDraftPrompt, draftModel, { temperature: temps.draft_temperature }, `${input.label} draft (quality retry)`);
         }
         const retryElapsed = Date.now() - retryT0;
         const retryDraftParsed = parseStageResponse<DraftWorkProduct>(retryDraftRaw, 'draft');
         stageDiags.push({
           stage: 'draft', prompt: retryDraftPrompt, raw_response: retryDraftRaw,
-          model: input.model, temperature: temps.draft_temperature,
+          model: draftModel, temperature: temps.draft_temperature,
           response_time_ms: retryElapsed, work_product: retryDraftParsed.product as unknown as Record<string, unknown>,
           parse_error: retryDraftParsed.error,
           prompt_component_chars: promptComponentChars,
@@ -2562,6 +2564,7 @@ export interface OpeningPipelineInput {
   model: string;
   briefModel?: string;
   planModel?: string;
+  draftModel?: string;
   citeModel?: string;
   stageTemperatures?: TurnStageConfig;
   userSeedClaims?: { id: string; text: string; bdi_category?: string }[];
@@ -2582,6 +2585,7 @@ export async function runOpeningPipeline(
   };
   const oBriefModel = input.briefModel ?? input.model;
   const oPlanModel = input.planModel ?? input.model;
+  const oDraftModel = input.draftModel ?? input.model;
   const oCiteModel = input.citeModel ?? input.model;
   const stageInput: OpeningStagePromptInput = {
     label: input.label,
@@ -2695,13 +2699,13 @@ export async function runOpeningPipeline(
   }
   t0 = Date.now();
   const draftRaw = await generate(
-    draftPromptText, input.model, { temperature: temps.draft_temperature }, `${input.label} opening draft`,
+    draftPromptText, oDraftModel, { temperature: temps.draft_temperature }, `${input.label} opening draft`,
   );
   elapsed = Date.now() - t0;
   const draftParsed = parseStageResponse<DraftWorkProduct>(draftRaw, 'draft');
   stageDiags.push({
     stage: 'draft', prompt: draftPromptText, raw_response: draftRaw,
-    model: input.model, temperature: temps.draft_temperature,
+    model: oDraftModel, temperature: temps.draft_temperature,
     response_time_ms: elapsed, work_product: draftParsed.product as unknown as Record<string, unknown>,
     parse_error: draftParsed.error,
   });
