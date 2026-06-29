@@ -2721,7 +2721,7 @@ Tasks:
 After completing your analysis, review every free-text field before writing the final JSON:
 - PRESERVE: all evaluative conclusions, evidential reasoning, criterion-based judgments, and policy relationships
 - NEUTRALIZE: stance-loaded vocabulary, camp-specific rhetorical moves, and emotional register tied to one position
-- "rationale" fields must present evaluative reasoning in neutral analytical language — base the evaluation on the listed criteria, not on the winning position's rhetorical register
+- "rationale" fields must present evaluative reasoning in neutral analytical language — base the evaluation on the five preference criteria listed in Task 1 (empirical_evidence, logical_validity, source_authority, specificity, scope), not on the winning position's rhetorical register
 - "implication" fields must describe policy consequences neutrally, not advocate for either side
 - "what_would_change_this" must frame the epistemic gap objectively, not from one camp's perspective
 
