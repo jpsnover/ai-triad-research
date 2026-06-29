@@ -18,6 +18,9 @@ import type { NeutralEvaluation } from './neutralEvaluator.js';
 import { classifyClaimOutcomes, summarizeOutcomes } from './claimOutcomes.js';
 import { meanSentenceLength, lexicalDiversity, jargonDensity } from './clarityMetrics.js';
 import { computeAffectIntensity, computeAffectProfile, computeAffectAppropriateness } from './affectSignals.js';
+import { computeSourceAuthority } from './sourceAuthority.js';
+import { computeCampInsularityRate } from './schemeStagnation.js';
+import type { DocMetaMap } from './evidenceFromSummaries.js';
 import { elementDecompositionPrompt, coverageCheckPrompt } from './prompts.js';
 import { parseJsonRobust } from './helpers.js';
 import { DEFAULT_TEMPERATURE } from '../ai-client/defaults.js';
@@ -404,6 +407,18 @@ export interface CalibrationDataPoint {
   /** Mean affect appropriateness score (deviation from phase baseline). */
   affect_appropriateness: number | null;
 
+  // ── Source authority (Wachsmuth: Credibility, t/1122) ──
+  /** Mean venue tier score of cited sources [0,1]. */
+  source_authority_mean: number | null;
+  /** Mean recency score of cited sources (exponential decay, half-life 5yr). Computed relative to the calendar year at scoring time; not stable across re-scoring runs in later years. */
+  source_recency_mean: number | null;
+  /** Mean distinct source documents per AN node. */
+  evidence_breadth_per_claim: number | null;
+
+  // ── Camp insularity (BEA: Reflective User Engagement, t/1117) ──
+  /** Mean same-camp citation rate across speakers [0,1]. Higher = more insular. */
+  camp_insularity_rate: number | null;
+
   // ── Exploration seeding (t/990) ──
   /** Debate ID of the exploration run that seeded this debate. */
   exploration_source_id?: string;
@@ -447,6 +462,7 @@ export function extractCalibrationData(
     budgetHardMultiplier?: number;
     situationMaxNodes?: number;
     explorationSummary?: import('./explorationSummary.js').ExplorationSummary;
+    docMeta?: DocMetaMap;
   } = {},
 ): CalibrationDataPoint {
   const now = new Date().toISOString();
@@ -973,6 +989,31 @@ export function extractCalibrationData(
     ? affectAppropScores.reduce((a, b) => a + b, 0) / affectAppropScores.length
     : null;
 
+  // ── Source authority (Wachsmuth: Credibility, t/1122) ──
+  const srcAuth = computeSourceAuthority(session.argument_network?.nodes ?? [], config.docMeta);
+
+  // ── Camp insularity (BEA: Reflective User Engagement, t/1117) ──
+  const speakerInsularityRates: number[] = [];
+  const speakers = new Set<string>();
+  for (const entry of session.transcript ?? []) {
+    if (entry.type !== 'opening' && entry.type !== 'statement') continue;
+    speakers.add(entry.speaker);
+  }
+  for (const speaker of speakers) {
+    if (speaker === 'system' || speaker === 'moderator' || speaker === 'user') continue;
+    const nodeIds = (session.transcript ?? [])
+      .filter((e: { type: string; speaker: string }) =>
+        (e.type === 'opening' || e.type === 'statement') && e.speaker === speaker)
+      .flatMap((e: { taxonomy_refs?: { node_id: string }[] }) =>
+        (e.taxonomy_refs ?? []).map(r => r.node_id));
+    if (nodeIds.length > 0) {
+      speakerInsularityRates.push(computeCampInsularityRate(nodeIds, speaker));
+    }
+  }
+  const campInsularityRate = speakerInsularityRates.length > 0
+    ? speakerInsularityRates.reduce((a, b) => a + b, 0) / speakerInsularityRates.length
+    : null;
+
   return {
     schema_version: 1,
     debate_id: session.id,
@@ -1349,6 +1390,14 @@ export function extractCalibrationData(
     affect_intensity_mean: affectIntensityMean != null ? Math.round(affectIntensityMean * 1000) / 1000 : null,
     affect_intensity_variance: affectIntensityVariance != null ? Math.round(affectIntensityVariance * 1000) / 1000 : null,
     affect_appropriateness: affectAppropMean != null ? Math.round(affectAppropMean * 1000) / 1000 : null,
+
+    // ── Source authority (Wachsmuth: Credibility, t/1122) ──
+    source_authority_mean: srcAuth.source_authority_mean != null ? Math.round(srcAuth.source_authority_mean * 1000) / 1000 : null,
+    source_recency_mean: srcAuth.source_recency_mean != null ? Math.round(srcAuth.source_recency_mean * 1000) / 1000 : null,
+    evidence_breadth_per_claim: srcAuth.evidence_breadth_per_claim != null ? Math.round(srcAuth.evidence_breadth_per_claim * 100) / 100 : null,
+
+    // ── Camp insularity (BEA: Reflective User Engagement, t/1117) ──
+    camp_insularity_rate: campInsularityRate != null ? Math.round(campInsularityRate * 1000) / 1000 : null,
 
     // ── Exploration seeding ──
     ...(config.explorationSummary ? {

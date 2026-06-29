@@ -2,13 +2,16 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 /**
- * Scheme Stagnation Detection
+ * Scheme Stagnation and Camp Insularity Detection
  *
- * Computes when a debate is recycling the same argumentation scheme patterns.
+ * Computes when a debate is recycling the same argumentation scheme patterns
+ * or when a debater is citing only their own camp's taxonomy nodes.
  * Part of the adaptive debate staging system.
  *
- * Pure computation — no dependencies on other debate modules.
+ * Pure computation — depends only on nodeIdUtils for POV prefix resolution.
  */
+
+import { nodePovFromId } from './nodeIdUtils.js';
 
 /**
  * Compute scheme stagnation: how much the recent argumentation schemes
@@ -115,4 +118,51 @@ export function computeSchemeCoverageFactor(
   }
 
   return Math.min(1, uniqueSchemesUsed / denominator);
+}
+
+// ── Camp Insularity Detection ───────────────────────────
+
+export const DEFAULT_INSULARITY_THRESHOLD = 0.75;
+export const MIN_CITATIONS_FOR_INSULARITY = 4;
+
+/**
+ * Compute the fraction of taxonomy node citations that belong to the
+ * speaker's own POV camp.
+ *
+ * @param nodeIds - taxonomy node IDs cited by the speaker in recent turns
+ * @param speakerPov - the debater's POV ('accelerationist', 'safetyist', 'skeptic')
+ * @returns A value in [0, 1]. 1 = all citations are own-camp. 0 = no own-camp citations.
+ *   Returns 0 if nodeIds is empty or no camp-specific nodes are present.
+ *
+ * Cross-cutting nodes (cc-*, sit-*, pol-*) are excluded from the ratio — only
+ * POV-attributed nodes (acc-*, saf-*, skp-*) count.
+ */
+export function computeCampInsularityRate(
+  nodeIds: string[],
+  speakerPov: string,
+): number {
+  let sameCamp = 0;
+  let totalCampSpecific = 0;
+
+  for (const id of nodeIds) {
+    const pov = nodePovFromId(id);
+    if (!pov || pov === 'situations' || pov === 'conflicts') continue;
+    totalCampSpecific++;
+    if (pov === speakerPov) sameCamp++;
+  }
+
+  if (totalCampSpecific === 0) return 0;
+  return sameCamp / totalCampSpecific;
+}
+
+/**
+ * Check whether the camp insularity rate exceeds the threshold with enough
+ * citations to be meaningful.
+ */
+export function isInsularityCritical(
+  rate: number,
+  totalCampCitations: number,
+  threshold: number = DEFAULT_INSULARITY_THRESHOLD,
+): boolean {
+  return totalCampCitations >= MIN_CITATIONS_FOR_INSULARITY && rate > threshold;
 }

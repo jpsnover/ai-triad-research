@@ -7,6 +7,10 @@ import {
   schemeBigramDiversity,
   computeSchemeStagnationCombined,
   computeSchemeCoverageFactor,
+  computeCampInsularityRate,
+  isInsularityCritical,
+  DEFAULT_INSULARITY_THRESHOLD,
+  MIN_CITATIONS_FOR_INSULARITY,
 } from './schemeStagnation.js';
 
 describe('computeSchemeStagnation (unigram)', () => {
@@ -109,5 +113,68 @@ describe('computeSchemeCoverageFactor', () => {
 
   it('returns fraction for fewer schemes', () => {
     expect(computeSchemeCoverageFactor(['a', 'b', 'c'])).toBeCloseTo(0.5, 2);
+  });
+});
+
+// ── Camp insularity ────────────────────────────────────
+
+describe('computeCampInsularityRate', () => {
+  it('returns 0 for empty node list', () => {
+    expect(computeCampInsularityRate([], 'accelerationist')).toBe(0);
+  });
+
+  it('returns 1.0 when all citations are own-camp', () => {
+    const nodes = ['acc-B-001', 'acc-D-002', 'acc-I-003'];
+    expect(computeCampInsularityRate(nodes, 'accelerationist')).toBe(1.0);
+  });
+
+  it('returns 0 when all citations are cross-camp', () => {
+    const nodes = ['saf-B-001', 'skp-D-002'];
+    expect(computeCampInsularityRate(nodes, 'accelerationist')).toBe(0);
+  });
+
+  it('returns correct ratio for mixed citations', () => {
+    const nodes = ['acc-B-001', 'acc-D-002', 'saf-B-001', 'skp-I-001'];
+    expect(computeCampInsularityRate(nodes, 'accelerationist')).toBe(0.5);
+  });
+
+  it('excludes cross-cutting and situation nodes from the ratio', () => {
+    const nodes = ['acc-B-001', 'acc-D-002', 'sit-001', 'cc-040'];
+    // Only 2 camp-specific nodes, both own-camp
+    expect(computeCampInsularityRate(nodes, 'accelerationist')).toBe(1.0);
+  });
+
+  it('returns 0 when only cross-cutting nodes present', () => {
+    const nodes = ['sit-001', 'sit-002', 'cc-040'];
+    expect(computeCampInsularityRate(nodes, 'safetyist')).toBe(0);
+  });
+
+  it('handles safetyist speaker correctly', () => {
+    const nodes = ['saf-B-001', 'saf-D-002', 'acc-B-001'];
+    expect(computeCampInsularityRate(nodes, 'safetyist')).toBeCloseTo(2 / 3, 5);
+  });
+
+  it('handles skeptic speaker correctly', () => {
+    const nodes = ['skp-I-001', 'acc-B-001', 'saf-B-001', 'skp-D-002'];
+    expect(computeCampInsularityRate(nodes, 'skeptic')).toBe(0.5);
+  });
+});
+
+describe('isInsularityCritical', () => {
+  it('returns false when below citation minimum', () => {
+    expect(isInsularityCritical(1.0, MIN_CITATIONS_FOR_INSULARITY - 1)).toBe(false);
+  });
+
+  it('returns false when rate is at threshold', () => {
+    expect(isInsularityCritical(DEFAULT_INSULARITY_THRESHOLD, MIN_CITATIONS_FOR_INSULARITY)).toBe(false);
+  });
+
+  it('returns true when rate exceeds threshold with enough citations', () => {
+    expect(isInsularityCritical(0.80, MIN_CITATIONS_FOR_INSULARITY)).toBe(true);
+  });
+
+  it('respects custom threshold', () => {
+    expect(isInsularityCritical(0.60, MIN_CITATIONS_FOR_INSULARITY, 0.5)).toBe(true);
+    expect(isInsularityCritical(0.40, MIN_CITATIONS_FOR_INSULARITY, 0.5)).toBe(false);
   });
 });
