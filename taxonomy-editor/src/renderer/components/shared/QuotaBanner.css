@@ -1,0 +1,77 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root.
+ *
+ * Token quota warning banners (t/1109).
+ * Mirrors ResilienceBanner.css structure for visual consistency.
+ */
+
+.quota-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  animation: quota-fade-in 0.2s ease-out;
+}
+
+.quota-banner--info {
+  background: rgba(74, 158, 255, 0.1);
+  border-bottom: 1px solid rgba(74, 158, 255, 0.25);
+  color: var(--text-secondary, #475569);
+}
+
+.quota-banner--warning {
+  background: rgba(217, 119, 6, 0.12);
+  border-bottom: 1px solid rgba(217, 119, 6, 0.3);
+  color: var(--text-secondary, #475569);
+}
+
+.quota-banner--error {
+  background: rgba(239, 68, 68, 0.12);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--text-secondary, #475569);
+}
+
+.quota-banner-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.quota-banner--info .quota-banner-icon {
+  color: var(--accent, #4a9eff);
+}
+
+.quota-banner--warning .quota-banner-icon {
+  color: var(--warning, #d97706);
+}
+
+.quota-banner--error .quota-banner-icon {
+  color: var(--danger, #ef4444);
+}
+
+.quota-banner-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.quota-banner-dismiss {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted, #94a3b8);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.quota-banner-dismiss:hover {
+  color: var(--text-primary, #1e293b);
+}
+
+@keyframes quota-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}

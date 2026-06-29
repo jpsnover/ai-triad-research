@@ -11,6 +11,7 @@ import { ActionableError } from '@lib/debate/errors';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { encryptKeysForSharing, decryptKeysFromSharing } from '../utils/keyShareCrypto';
 import { resilientFetch, categorizeEndpoint, type EndpointCategory } from './resilience';
+import { onQuotaMilestone } from '../hooks/useQuotaWarning';
 export { getResilienceState, subscribeResilience, resetResilience } from './resilience';
 export type { ResilienceStatus, CircuitState, ThrottleState, EndpointCategory } from './resilience';
 
@@ -123,8 +124,18 @@ async function post<T = unknown>(path: string, body?: unknown, opts?: FetchOptio
     }
     throw err;
   }
+  const budgetWarning = res.headers.get('X-Token-Budget-Warning');
+  if (budgetWarning) {
+    const milestone = parseInt(budgetWarning, 10);
+    if (!isNaN(milestone) && milestone >= 0 && milestone <= 100) {
+      onQuotaMilestone(milestone, res.headers.get('X-Token-Budget-Resets') ?? undefined);
+    }
+  }
   if (res.status === 429) {
     const data = await res.json().catch(bridgeWarn('Failed to parse rate-limit response body', {})) as Record<string, unknown>;
+    if (data.limitType === 'tokens_per_day' && !budgetWarning) {
+      onQuotaMilestone(100, (data.resetsAt as string | undefined));
+    }
     const msg = data.limitType === 'tokens_per_day'
       ? 'Daily token limit exceeded. Try again tomorrow or use your own API key.'
       : `Rate limit exceeded. Retry in ${Math.ceil((data.retryAfterMs as number || 60000) / 1000)}s.`;

@@ -28,6 +28,7 @@ import { HamburgerMenu } from './components/shared/HamburgerMenu';
 import { GitProgressBanner } from './components/sync/GitProgressBanner';
 import { AnonymousBanner } from './components/community/AnonymousBanner';
 import { ResilienceBanner } from './components/shared/ResilienceBanner';
+import { QuotaBanner } from './components/shared/QuotaBanner';
 import { pullDataTracked } from './utils/syncApi';
 import { useFeatureFlagStore, useFlag } from './hooks/useFeatureFlags';
 import { PrecacheToast } from './components/shared/PrecacheToast';
@@ -538,6 +539,7 @@ function MainApp() {
       <GitProgressBanner />
       <AnonymousBanner />
       <ResilienceBanner />
+      <QuotaBanner />
       {/* Data update banner */}
       {dataUpdate && (
         <div
