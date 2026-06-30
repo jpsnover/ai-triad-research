@@ -308,6 +308,9 @@ export const api: AppAPI = {
   listErrors: () => Promise.resolve({ items: [], total: 0, hasMore: false }),
   getErrorDetail: () => Promise.resolve(null),
 
+  // Deep-link URL — Electron delegates to main process settings; null if not configured
+  getWebAppUrl: () => window.electronAPI.getWebAppUrl?.() ?? Promise.resolve(null),
+
   // Admin Review (Azure Blob via main process)
   adminReviewConfigured: () => window.electronAPI.adminReviewConfigured(),
   adminReviewQueue: () => window.electronAPI.adminReviewQueue() as Promise<{ items: { id: string; domain: string; submitter: string; submitterDisplay: string; submittedAt: string; summary: string; itemCount: number; status: string }[] }>,

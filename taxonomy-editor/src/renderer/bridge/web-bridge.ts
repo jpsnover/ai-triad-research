@@ -958,6 +958,9 @@ const rawApi: AppAPI = {
   },
   getErrorDetail: (id) => get(`/api/admin/errors/${encodeURIComponent(id)}`),
 
+  // Deep-link URL — web builds use the current origin
+  getWebAppUrl: () => Promise.resolve(window.location.origin),
+
   // Admin Review (HTTP to server)
   adminReviewConfigured: () => Promise.resolve(true),
   adminReviewQueue: async () => {

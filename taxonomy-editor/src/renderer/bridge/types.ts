@@ -302,6 +302,9 @@ export interface AppAPI {
     relatedDumps: Array<{ dumpId: string; kind: string; timestamp: string }>;
   } | null>;
 
+  // --- Deep-link URL ---
+  getWebAppUrl: () => Promise<string | null>;
+
   // --- Admin Review (Azure Blob in Electron, HTTP in web) ---
   adminReviewConfigured: () => Promise<boolean>;
   adminReviewQueue: () => Promise<{ items: { id: string; domain: string; submitter: string; submitterDisplay: string; submittedAt: string; summary: string; itemCount: number; status: string }[] }>;
