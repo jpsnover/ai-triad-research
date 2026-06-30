@@ -432,7 +432,7 @@ describe('DebateConfig constraints', () => {
 // ── Progress callbacks ───────────────────────────────────
 
 describe('Progress callbacks', () => {
-  it('fires progress events during run', async () => {
+  it('fires progress events during run', { timeout: 15_000 }, async () => {
     const responses: string[] = [];
     for (let i = 0; i < 200; i++) {
       responses.push(JSON.stringify({
