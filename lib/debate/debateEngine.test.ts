@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { DebateEngine } from './debateEngine.js';
+import { DebateEngine, modelTierRank } from './debateEngine.js';
 import type { DebateConfig, DebateProgress } from './debateEngine.js';
 import type { AIAdapter, ExtendedAIAdapter, GenerateOptions } from './aiAdapter.js';
 import type { LoadedTaxonomy } from './taxonomyLoader.js';
@@ -1824,5 +1824,93 @@ describe('background field in DebateConfig', () => {
     (engine as any).initSession();
 
     expect((engine as any).session.topic.background).toBeUndefined();
+  });
+});
+
+// ── maxModelId cap on failover chain (t/1164) ────────────
+
+describe('modelTierRank', () => {
+  it('ranks compact models as tier 1', () => {
+    expect(modelTierRank('gemini-3.1-flash-lite')).toBe(1);
+    expect(modelTierRank('gemini-2.0-flash-lite')).toBe(1);
+    expect(modelTierRank('gemini-flash-8b')).toBe(1);
+  });
+
+  it('ranks flash models as tier 2', () => {
+    expect(modelTierRank('gemini-2.5-flash')).toBe(2);
+    expect(modelTierRank('gemini-2.0-flash')).toBe(2);
+  });
+
+  it('ranks sonnet/haiku as tier 3', () => {
+    expect(modelTierRank('claude-sonnet-4-6')).toBe(3);
+    expect(modelTierRank('claude-haiku-4-5')).toBe(3);
+  });
+
+  it('ranks opus/pro as tier 4', () => {
+    expect(modelTierRank('claude-opus-4-8')).toBe(4);
+    expect(modelTierRank('gemini-2.5-pro')).toBe(4);
+  });
+});
+
+describe('maxModelId cap on failover chain (t/1164)', () => {
+  it('with maxModelId set to flash-lite, failover never escalates beyond compact tier', () => {
+    const attemptedModels: string[] = [];
+    const adapter: ExtendedAIAdapter = {
+      async generateText(_prompt: string, model: string) {
+        attemptedModels.push(model);
+        throw new Error('500 Internal Server Error');
+      },
+    };
+
+    const config = createDefaultConfig({
+      model: 'gemini-3.1-flash-lite',
+      fallbackChain: ['gemini-2.5-flash', 'claude-sonnet-4-6'],
+      maxModelId: 'gemini-3.1-flash-lite',
+      rounds: 1,
+    });
+
+    const engine = new DebateEngine(config, adapter, createMinimalTaxonomy());
+    const chain = (engine as any).buildFailoverChain('gemini-3.1-flash-lite') as string[];
+
+    expect(chain).toEqual(['gemini-3.1-flash-lite']);
+    expect(chain).not.toContain('gemini-2.5-flash');
+    expect(chain).not.toContain('claude-sonnet-4-6');
+  });
+
+  it('without maxModelId, fallback chain escalation proceeds normally', () => {
+    const adapter: ExtendedAIAdapter = {
+      async generateText() { return '{}'; },
+    };
+
+    const config = createDefaultConfig({
+      model: 'gemini-3.1-flash-lite',
+      fallbackChain: ['gemini-2.5-flash', 'claude-sonnet-4-6'],
+      rounds: 1,
+    });
+
+    const engine = new DebateEngine(config, adapter, createMinimalTaxonomy());
+    const chain = (engine as any).buildFailoverChain('gemini-3.1-flash-lite') as string[];
+
+    expect(chain).toEqual(['gemini-3.1-flash-lite', 'gemini-2.5-flash', 'claude-sonnet-4-6']);
+  });
+
+  it('maxModelId at flash tier allows flash but blocks sonnet', () => {
+    const adapter: ExtendedAIAdapter = {
+      async generateText() { return '{}'; },
+    };
+
+    const config = createDefaultConfig({
+      model: 'gemini-2.5-flash',
+      fallbackChain: ['gemini-3.1-flash-lite', 'claude-sonnet-4-6', 'claude-opus-4-8'],
+      maxModelId: 'gemini-2.5-flash',
+      rounds: 1,
+    });
+
+    const engine = new DebateEngine(config, adapter, createMinimalTaxonomy());
+    const chain = (engine as any).buildFailoverChain('gemini-2.5-flash') as string[];
+
+    expect(chain).toEqual(['gemini-2.5-flash', 'gemini-3.1-flash-lite']);
+    expect(chain).not.toContain('claude-sonnet-4-6');
+    expect(chain).not.toContain('claude-opus-4-8');
   });
 });

@@ -186,6 +186,18 @@ import {
 } from './gapCheck.js';
 import type { UnengagedNode } from './gapCheck.js';
 
+// ── Model tier ranking (for maxModelId cap filtering) ────
+
+export function modelTierRank(model: string): number {
+  const m = model.toLowerCase();
+  if (isCompactModel(m)) return 1;
+  if (m.includes('flash')) return 2;
+  if (m.includes('haiku') || m.includes('deepseek')) return 3;
+  if (m.includes('sonnet') || m.includes('llama')) return 3;
+  if (m.includes('opus') || m.includes('pro')) return 4;
+  return 3;
+}
+
 // ── Config ───────────────────────────────────────────────
 
 export interface DebateConfig {
@@ -242,6 +254,8 @@ export interface DebateConfig {
   allowEarlyTermination?: boolean;
   /** AbortSignal for external cancellation. When aborted, the engine stops at the next checkpoint. */
   signal?: AbortSignal;
+  /** Model cost-tier ceiling for the failover chain. When set, `buildFailoverChain` filters out models with a higher tier rank than this model. Prevents cheap-run cost escalation via fallback. */
+  maxModelId?: string;
   /** Minimum delay (ms) between consecutive API calls. 0 = no throttle (default). Recommended: 500-1000 for free-tier APIs. */
   throttleMs?: number;
   /** Perturbation testing config — inject adversarial prompt at a specific turn for resilience evaluation. Evaluation/benchmark only. */
@@ -1250,6 +1264,10 @@ export class DebateEngine {
       }
     }
     if (!chain.includes(this.config.model)) chain.push(this.config.model);
+    if (this.config.maxModelId) {
+      const maxRank = modelTierRank(this.config.maxModelId);
+      return chain.filter(m => modelTierRank(m) <= maxRank);
+    }
     return chain;
   }
 
