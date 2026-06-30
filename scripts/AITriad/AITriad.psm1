@@ -322,6 +322,78 @@ class PersonaEndpointTestResult {
     [string] $Error
 }
 
+# t/1224 — Organization data model. Mirrors the HLD at t/1217#1 plus the
+# policy_engagement field added per TL guidance.
+class OrganizationPovAlignment {
+    [double] $Score          # -1.0 .. 1.0
+    [string] $Rationale
+}
+
+class OrganizationTopicEngagement {
+    [string] $TopicRef       # sit-NNN
+    [string] $Stance         # advocate | opponent | researcher | neutral
+    [string] $Description
+}
+
+class OrganizationPolicyEngagement {
+    [string] $PolicyRef      # pol-NNN
+    [string] $Stance         # supports | opposes
+}
+
+class OrganizationKeyFigure {
+    [string] $Name
+    [string] $Role
+    [string] $Relevance
+}
+
+class OrganizationExternalLink {
+    [string] $Type           # website | position_paper | report | blog | social | wikipedia | legislation
+    [string] $Url
+    [string] $Title
+}
+
+class Organization {
+    [string]                          $Id          # org-NNN
+    [string]                          $Name
+    [string]                          $ShortName
+    [string]                          $Type        # think_tank | advocacy | regulatory | academic | corporate | intergovernmental | civil_society | standards_body | research_lab
+    [string]                          $Description
+    [string]                          $Url
+    [string]                          $Headquarters
+    [int]                             $Founded
+    [string]                          $Status      # active | dissolved | merged
+    [hashtable]                       $PovAlignment           # 'accelerationist'|'safetyist'|'skeptic' → OrganizationPovAlignment
+    [OrganizationTopicEngagement[]]   $TopicEngagement
+    [OrganizationPolicyEngagement[]]  $PolicyEngagement
+    [OrganizationKeyFigure[]]         $KeyFigures
+    [OrganizationExternalLink[]]      $ExternalLinks
+    [string[]]                        $SourceRefs
+    [string[]]                        $Tags
+    [string]                          $CreatedAt
+    [string]                          $LastModified
+}
+
+class OrganizationStakeholders {
+    [string]         $PolicyId
+    [Organization[]] $Supporters
+    [Organization[]] $Opposers
+}
+
+class OrganizationIntegrityIssue {
+    [string] $OrgId
+    [string] $Severity   # error | warning
+    [string] $Field
+    [string] $Message
+}
+
+class OrganizationIntegrityReport {
+    [int]                          $Total
+    [int]                          $Errors
+    [int]                          $Warnings
+    [bool]                         $Pass
+    [OrganizationIntegrityIssue[]] $Issues
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Module-scoped taxonomy store
 # ─────────────────────────────────────────────────────────────────────────────
