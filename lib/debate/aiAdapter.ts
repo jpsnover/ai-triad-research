@@ -33,6 +33,11 @@ import {
 } from '../ai-client/index.js';
 import { callGeminiBatchEmbed } from '../ai-client/providers/gemini-embeddings.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
+import {
+  computeEmbedding as onnxComputeEmbedding,
+  tryWarmup as onnxTryWarmup,
+  isReady as onnxIsReady,
+} from '../embeddings/onnxEmbedding.js';
 import type {
   ProviderResult,
   GenerateOptions as SharedGenerateOptions,
@@ -217,6 +222,11 @@ function computeEmbeddingViaPython(repoRoot: string, text: string): number[] | n
 
 export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): ExtendedAIAdapter {
   const registry = loadRegistry(repoRoot);
+
+  // Warm up ONNX embedding model in background (loads once, stays warm for all calls)
+  onnxTryWarmup().then(ok => {
+    if (ok) console.log('[ai-adapter] ONNX embedding ready — subprocess cold-starts eliminated');
+  }).catch(() => { /* tryWarmup handles its own logging */ });
 
   const retryLog = (msg: string) => {
     process.stderr.write(msg + '\n');
@@ -455,26 +465,37 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
     },
 
     async computeQueryEmbedding(text: string): Promise<{ vector: number[] }> {
-      // Python sentence-transformers first (all-MiniLM-L6-v2, 384-dim — matches taxonomy embeddings)
+      // ONNX in-process first (all-MiniLM-L6-v2, 384-dim — same model, no subprocess cold-start)
+      if (onnxIsReady()) {
+        try {
+          const vector = await onnxComputeEmbedding(text);
+          return { vector };
+        } catch (err) {
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'ai-adapter', level: 'warn', message: 'ONNX embedding failed — trying Python fallback', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+        }
+      }
+
+      // Python subprocess fallback (cold-starts model each call — slower)
       const pyVec = computeEmbeddingViaPython(repoRoot, text);
       if (pyVec) return { vector: pyVec };
 
-      // Gemini API fallback (768-dim — dimension mismatch with taxonomy, attribution accuracy degrades)
+      // Gemini API last resort (768-dim — dimension mismatch with taxonomy, attribution accuracy degrades)
       let apiKey: string;
       try {
         apiKey = resolveApiKey('gemini', explicitApiKey);
       } catch {
         throw new ActionableError({
           goal: 'Compute query embedding for claim attribution',
-          problem: 'No embedding backend available. Python sentence-transformers not found, and no Gemini API key.',
+          problem: 'No embedding backend available. ONNX runtime not loaded, Python sentence-transformers not found, and no Gemini API key.',
           location: 'aiAdapter.createCLIAdapter.computeQueryEmbedding',
           nextSteps: [
-            'Install sentence-transformers: pip install sentence-transformers==4.1.0',
+            'Ensure onnxruntime-node is installed: npm install onnxruntime-node',
+            'Or install sentence-transformers: pip install sentence-transformers==4.1.0',
             'Or set GEMINI_API_KEY env var (note: Gemini embeddings have lower attribution accuracy due to dimension mismatch)',
           ],
         });
       }
-      console.warn('[embedding] Python unavailable, falling back to Gemini API (dimension mismatch with taxonomy — attribution accuracy may degrade)');
+      console.warn('[embedding] ONNX and Python unavailable, falling back to Gemini API (dimension mismatch with taxonomy — attribution accuracy may degrade)');
       const vectors = await callGeminiBatchEmbed(fetch, [text], 'RETRIEVAL_QUERY', apiKey);
       return { vector: vectors[0] };
     },
