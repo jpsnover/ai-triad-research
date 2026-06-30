@@ -19,6 +19,7 @@ taxonomy-editor/release/
 
 # Documentation and metadata
 *.md
+!CHANGELOG.md
 !taxonomy-editor/THIRD-PARTY-NOTICES.txt
 docs/
 AgentGuideLines/
