@@ -1,3 +1,4 @@
+# Tag: taxonomy (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -8,7 +9,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'Resolve-EdgeType (private)' {
+Describe 'Resolve-EdgeType (private)' -Tag 'taxonomy' {
 
     It 'Accepts all 8 canonical types' {
         InModuleScope AITriad {
@@ -90,7 +91,7 @@ Describe 'Resolve-EdgeType (private)' {
     }
 }
 
-Describe 'Get-CanonicalEdgeType (private)' {
+Describe 'Get-CanonicalEdgeType (private)' -Tag 'taxonomy' {
     It 'Returns the 8-type canonical vocabulary' {
         InModuleScope AITriad {
             $types = Get-CanonicalEdgeType
@@ -104,7 +105,7 @@ Describe 'Get-CanonicalEdgeType (private)' {
     }
 }
 
-Describe 'Dedup pattern (caller responsibility)' {
+Describe 'Dedup pattern (caller responsibility)' -Tag 'taxonomy' {
     # The helper itself is stateless; this verifies the documented call-site
     # pattern works: caller checks the existing-edge set before adding a
     # reclassified edge.
@@ -124,7 +125,7 @@ Describe 'Dedup pattern (caller responsibility)' {
     }
 }
 
-Describe 'Manifest sanity — edge-discovery cmdlets still load' {
+Describe 'Manifest sanity — edge-discovery cmdlets still load' -Tag 'taxonomy' {
     It 'Invoke-EdgeDiscovery is still exported' {
         Get-Command Invoke-EdgeDiscovery -Module AITriad -ErrorAction Stop | Should -Not -BeNullOrEmpty
     }

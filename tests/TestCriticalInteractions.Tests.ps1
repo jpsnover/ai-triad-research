@@ -1,3 +1,4 @@
+# Tag: health (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -8,7 +9,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'Test-CriticalInteractions' {
+Describe 'Test-CriticalInteractions' -Tag 'health' {
 
     BeforeAll {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -80,7 +81,7 @@ Describe 'Test-CriticalInteractions' {
     }
 }
 
-Describe 'Convert-CuiIdToFunctionName' {
+Describe 'Convert-CuiIdToFunctionName' -Tag 'health' {
 
     It 'Converts standard CUI IDs to function names' {
         InModuleScope AITriad {

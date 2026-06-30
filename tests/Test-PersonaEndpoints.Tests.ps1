@@ -1,3 +1,4 @@
+# Tag: health (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -8,7 +9,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'Test-PersonaEndpoints' {
+Describe 'Test-PersonaEndpoints' -Tag 'health' {
 
     It 'Is exported from the module' {
         Get-Command Test-PersonaEndpoints -Module AITriad -ErrorAction Stop | Should -Not -BeNullOrEmpty
@@ -115,7 +116,7 @@ Describe 'Test-PersonaEndpoints' {
     }
 }
 
-Describe 'Test-PersonaEndpoints - manifest' {
+Describe 'Test-PersonaEndpoints - manifest' -Tag 'health' {
     It 'FunctionsToExport includes Test-PersonaEndpoints' {
         $manifestPath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psd1'
         $manifest = Test-ModuleManifest -Path $manifestPath

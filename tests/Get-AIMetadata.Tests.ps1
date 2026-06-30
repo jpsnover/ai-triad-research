@@ -1,3 +1,4 @@
+# Tag: ingestion (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -14,7 +15,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'Get-AIMetadata date_published validation (gap 2.1)' {
+Describe 'Get-AIMetadata date_published validation (gap 2.1)' -Tag 'ingestion' {
 
     It 'Accepts YYYY format' {
         $mockResponse = [PSCustomObject]@{
@@ -122,7 +123,7 @@ Describe 'Get-AIMetadata date_published validation (gap 2.1)' {
     }
 }
 
-Describe 'Get-AIMetadata title/one_liner length limits (gap 2.2)' {
+Describe 'Get-AIMetadata title/one_liner length limits (gap 2.2)' -Tag 'ingestion' {
 
     It 'Truncates title exceeding 200 chars' {
         $longTitle = 'A' * 250
@@ -189,7 +190,7 @@ Describe 'Get-AIMetadata title/one_liner length limits (gap 2.2)' {
     }
 }
 
-Describe 'Get-AIMetadata author deduplication (gap 2.3)' {
+Describe 'Get-AIMetadata author deduplication (gap 2.3)' -Tag 'ingestion' {
 
     It 'Removes exact duplicates' {
         $mockResponse = [PSCustomObject]@{

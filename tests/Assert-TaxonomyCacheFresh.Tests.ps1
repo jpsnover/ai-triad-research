@@ -1,3 +1,4 @@
+# Tag: taxonomy (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -19,7 +20,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'Assert-TaxonomyCacheFresh staleness detection' {
+Describe 'Assert-TaxonomyCacheFresh staleness detection' -Tag 'taxonomy' {
 
     It 'Does not reload again when only non-POV aux files are present and unchanged' {
         InModuleScope AITriad {

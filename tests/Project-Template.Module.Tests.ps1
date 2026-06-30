@@ -1,8 +1,9 @@
+# Tag: template (t/1186)
 BeforeAll {
     $script:ptRoot = "$PSScriptRoot/../scripts/Project-Template"
 }
 
-Describe 'Project-Template Module Manifest' {
+Describe 'Project-Template Module Manifest' -Tag 'template' {
 
     It 'passes Test-ModuleManifest' {
         $manifestPath = Join-Path $script:ptRoot 'Project-Template.psd1'
@@ -15,7 +16,7 @@ Describe 'Project-Template Module Manifest' {
     }
 }
 
-Describe 'Project-Template Module Loading' {
+Describe 'Project-Template Module Loading' -Tag 'template' {
 
     BeforeAll {
         Import-Module (Join-Path $script:ptRoot 'Project-Template.psd1') -Force

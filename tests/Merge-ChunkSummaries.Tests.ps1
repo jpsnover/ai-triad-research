@@ -1,3 +1,4 @@
+# Tag: ingestion (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -19,7 +20,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'Merge-ChunkSummaries malformed-chunk resilience' {
+Describe 'Merge-ChunkSummaries malformed-chunk resilience' -Tag 'ingestion' {
 
     It 'Does not throw when a chunk camp is missing key_points and still merges valid chunks' {
         InModuleScope AITriad {

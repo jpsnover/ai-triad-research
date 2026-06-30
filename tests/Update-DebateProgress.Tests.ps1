@@ -1,3 +1,4 @@
+# Tag: debate (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -8,7 +9,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'Update-DebateProgress (private)' {
+Describe 'Update-DebateProgress (private)' -Tag 'debate' {
 
     It 'Creates the file on first write with batch_name and started_at' {
         InModuleScope AITriad {
@@ -84,7 +85,7 @@ Describe 'Update-DebateProgress (private)' {
     }
 }
 
-Describe 'Watch-DebateProgress (public)' {
+Describe 'Watch-DebateProgress (public)' -Tag 'debate' {
     It 'Is exported' {
         Get-Command Watch-DebateProgress -Module AITriad -ErrorAction Stop | Should -Not -BeNullOrEmpty
     }
@@ -96,7 +97,7 @@ Describe 'Watch-DebateProgress (public)' {
     }
 }
 
-Describe 'Invoke-DebateBatch (public)' {
+Describe 'Invoke-DebateBatch (public)' -Tag 'debate' {
     It 'Is exported' {
         Get-Command Invoke-DebateBatch -Module AITriad -ErrorAction Stop | Should -Not -BeNullOrEmpty
     }
@@ -108,7 +109,7 @@ Describe 'Invoke-DebateBatch (public)' {
     }
 }
 
-Describe 'Manifest export' {
+Describe 'Manifest export' -Tag 'debate' {
     It 'FunctionsToExport includes Watch-DebateProgress and Invoke-DebateBatch' {
         $manifestPath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psd1'
         $manifest = Test-ModuleManifest -Path $manifestPath

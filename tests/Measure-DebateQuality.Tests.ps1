@@ -1,3 +1,4 @@
+# Tag: debate (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -76,7 +77,7 @@ AfterAll {
     }
 }
 
-Describe 'Measure-DebateQuality' {
+Describe 'Measure-DebateQuality' -Tag 'debate' {
 
     It 'Is exported from the module' {
         Get-Command Measure-DebateQuality -Module AITriad -ErrorAction Stop | Should -Not -BeNullOrEmpty
@@ -146,7 +147,7 @@ Describe 'Measure-DebateQuality' {
     }
 }
 
-Describe 'Measure-DebateQuality - manifest' {
+Describe 'Measure-DebateQuality - manifest' -Tag 'debate' {
     It 'FunctionsToExport includes Measure-DebateQuality' {
         $manifestPath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psd1'
         $manifest = Test-ModuleManifest -Path $manifestPath

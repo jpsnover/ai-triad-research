@@ -1,3 +1,4 @@
+# Tag: template (t/1186)
 BeforeAll {
     $ptRoot = "$PSScriptRoot/../scripts/Project-Template"
     . "$ptRoot/Private/New-ActionableError.ps1"
@@ -5,7 +6,7 @@ BeforeAll {
     $script:RepoRoot = (Resolve-Path "$PSScriptRoot/..").Path
 }
 
-Describe 'Get-ProjectMap' {
+Describe 'Get-ProjectMap' -Tag 'template' {
 
     BeforeAll {
         $script:origRepoRoot = $script:RepoRoot
@@ -80,7 +81,7 @@ Describe 'Get-ProjectMap' {
     }
 }
 
-Describe 'Get-ProjectHealth' {
+Describe 'Get-ProjectHealth' -Tag 'template' {
 
     BeforeAll {
         $script:origRepoRoot = $script:RepoRoot
@@ -138,7 +139,7 @@ Test.
     }
 }
 
-Describe 'Initialize-ProjectModule' {
+Describe 'Initialize-ProjectModule' -Tag 'template' {
 
     BeforeAll {
         $script:origRepoRoot = $script:RepoRoot

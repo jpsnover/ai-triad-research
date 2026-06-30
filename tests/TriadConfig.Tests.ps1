@@ -1,3 +1,4 @@
+# Tag: config (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -8,7 +9,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'Resolve-TriadConfigRequest (private helper)' {
+Describe 'Resolve-TriadConfigRequest (private helper)' -Tag 'config' {
 
     BeforeAll {
         $OrigToken = $env:GITHUB_TOKEN
@@ -65,7 +66,7 @@ Describe 'Resolve-TriadConfigRequest (private helper)' {
     }
 }
 
-Describe 'Get-TriadConfig' {
+Describe 'Get-TriadConfig' -Tag 'config' {
 
     BeforeAll {
         $env:GITHUB_TOKEN = 'test-token-for-config'
@@ -162,7 +163,7 @@ Describe 'Get-TriadConfig' {
     }
 }
 
-Describe 'Set-TriadConfig' {
+Describe 'Set-TriadConfig' -Tag 'config' {
 
     BeforeAll {
         $env:GITHUB_TOKEN = 'test-token-for-config'
@@ -282,7 +283,7 @@ Describe 'Set-TriadConfig' {
     }
 }
 
-Describe 'Invoke-TriadConfigReload' {
+Describe 'Invoke-TriadConfigReload' -Tag 'config' {
 
     BeforeAll {
         $env:GITHUB_TOKEN = 'test-token-for-config'
@@ -337,7 +338,7 @@ Describe 'Invoke-TriadConfigReload' {
     }
 }
 
-Describe 'Module Manifest - Config Cmdlets' {
+Describe 'Module Manifest - Config Cmdlets' -Tag 'config' {
 
     It 'Test-ModuleManifest passes' {
         $manifestPath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psd1'

@@ -1,3 +1,4 @@
+# Tag: enrichment (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -8,7 +9,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'Invoke-VernacularBatch' {
+Describe 'Invoke-VernacularBatch' -Tag 'enrichment' {
 
     It 'Is exported from the module' {
         Get-Command Invoke-VernacularBatch -Module AITriad -ErrorAction Stop | Should -Not -BeNullOrEmpty
@@ -41,7 +42,7 @@ Describe 'Invoke-VernacularBatch' {
     }
 }
 
-Describe 'Invoke-VernacularBatch Skip Logic' {
+Describe 'Invoke-VernacularBatch Skip Logic' -Tag 'enrichment' {
 
     BeforeAll {
         $script:TempDir = Join-Path ([System.IO.Path]::GetTempPath()) "vernacular-test-$(Get-Random)"
@@ -221,7 +222,7 @@ Describe 'Invoke-VernacularBatch Skip Logic' {
     }
 }
 
-Describe 'Module Manifest - VernacularBatch' {
+Describe 'Module Manifest - VernacularBatch' -Tag 'enrichment' {
 
     It 'FunctionsToExport includes Invoke-VernacularBatch' {
         $manifestPath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psd1'

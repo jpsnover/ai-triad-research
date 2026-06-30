@@ -1,3 +1,4 @@
+# Tag: template (t/1186)
 BeforeAll {
     $ptRoot = "$PSScriptRoot/../scripts/Project-Template"
     . "$ptRoot/Private/New-ActionableError.ps1"
@@ -5,7 +6,7 @@ BeforeAll {
     $script:RepoRoot = (Resolve-Path "$PSScriptRoot/..").Path
 }
 
-Describe 'Test-VersionConsistency' {
+Describe 'Test-VersionConsistency' -Tag 'template' {
 
     BeforeAll {
         $script:origRepoRoot = $script:RepoRoot
@@ -82,7 +83,7 @@ Describe 'Test-VersionConsistency' {
     }
 }
 
-Describe 'Invoke-VerifyGate' {
+Describe 'Invoke-VerifyGate' -Tag 'template' {
 
     It 'returns structured result with AllPass when all skipped' {
         $script:origRepoRoot = $script:RepoRoot
@@ -115,7 +116,7 @@ Describe 'Invoke-VerifyGate' {
     }
 }
 
-Describe 'Invoke-LicenseAudit' {
+Describe 'Invoke-LicenseAudit' -Tag 'template' {
 
     It 'throws when no package.json is found' {
         $script:origRepoRoot = $script:RepoRoot
@@ -142,7 +143,7 @@ Describe 'Invoke-LicenseAudit' {
     }
 }
 
-Describe 'Invoke-DependencyAudit' {
+Describe 'Invoke-DependencyAudit' -Tag 'template' {
 
     It 'returns zero findings when both sources are skipped' {
         $script:origRepoRoot = $script:RepoRoot
@@ -182,7 +183,7 @@ Describe 'Invoke-DependencyAudit' {
     }
 }
 
-Describe 'Test-SBOMCurrency' {
+Describe 'Test-SBOMCurrency' -Tag 'template' {
 
     It 'returns Checked=$false when no app dir with licenses script found' {
         $script:origRepoRoot = $script:RepoRoot

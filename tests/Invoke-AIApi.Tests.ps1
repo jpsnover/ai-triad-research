@@ -1,3 +1,4 @@
+# Tag: enrichment (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -21,7 +22,7 @@ BeforeAll {
     }
 }
 
-Describe 'Invoke-AIApi truncation detection (gap 1.1)' {
+Describe 'Invoke-AIApi truncation detection (gap 1.1)' -Tag 'enrichment' {
 
     It 'Detects Claude max_tokens truncation' {
         $mockResponse = [PSCustomObject]@{
@@ -117,7 +118,7 @@ Describe 'Invoke-AIApi truncation detection (gap 1.1)' {
     }
 }
 
-Describe 'Invoke-AIApi token usage tracking (gap 1.2)' {
+Describe 'Invoke-AIApi token usage tracking (gap 1.2)' -Tag 'enrichment' {
 
     It 'Parses Claude usage tokens' {
         $mockResponse = [PSCustomObject]@{

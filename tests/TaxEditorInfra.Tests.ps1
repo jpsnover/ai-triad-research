@@ -1,3 +1,4 @@
+# Tag: health (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -8,7 +9,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'Test-TaxEditorInfra' {
+Describe 'Test-TaxEditorInfra' -Tag 'health' {
 
     It 'Throws when az CLI is not found' {
         Mock Get-Command { $null } -ParameterFilter { $Name -eq 'az' } -ModuleName AITriad
@@ -87,7 +88,7 @@ Describe 'Test-TaxEditorInfra' {
     }
 }
 
-Describe 'Deploy-TaxEditorInfra' {
+Describe 'Deploy-TaxEditorInfra' -Tag 'health' {
 
     It 'Throws when az CLI is not found' {
         Mock Get-Command { $null } -ParameterFilter { $Name -eq 'az' } -ModuleName AITriad

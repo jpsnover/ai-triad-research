@@ -1,3 +1,4 @@
+# Tag: health (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -8,7 +9,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'CUI Test Infrastructure' {
+Describe 'CUI Test Infrastructure' -Tag 'health' {
 
     It 'New-CuiTestResult produces structured output' {
         InModuleScope AITriad {
@@ -64,7 +65,7 @@ Describe 'CUI Test Infrastructure' {
     }
 }
 
-Describe 'Test-CuiTax001' {
+Describe 'Test-CuiTax001' -Tag 'health' {
 
     It 'Returns pass when all endpoints succeed' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -102,7 +103,7 @@ Describe 'Test-CuiTax001' {
     }
 }
 
-Describe 'Test-CuiTax002' {
+Describe 'Test-CuiTax002' -Tag 'health' {
 
     It 'Returns pass when nodes have attributes' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -128,7 +129,7 @@ Describe 'Test-CuiTax002' {
     }
 }
 
-Describe 'Test-CuiTax010' {
+Describe 'Test-CuiTax010' -Tag 'health' {
 
     It 'Skips mutation checks when not authenticated' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -151,7 +152,7 @@ Describe 'Test-CuiTax010' {
     }
 }
 
-Describe 'Test-CuiAuth002' {
+Describe 'Test-CuiAuth002' -Tag 'health' {
 
     It 'Returns pass when anonymous reads work and writes are blocked' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -182,7 +183,7 @@ Describe 'Test-CuiAuth002' {
     }
 }
 
-Describe 'Test-CuiAdm001' {
+Describe 'Test-CuiAdm001' -Tag 'health' {
 
     It 'Returns pass when health endpoints respond' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -211,7 +212,7 @@ Describe 'Test-CuiAdm001' {
     }
 }
 
-Describe 'Test-CuiData001' {
+Describe 'Test-CuiData001' -Tag 'health' {
 
     It 'Returns pass when data is available and all POVs loaded' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -250,7 +251,7 @@ Describe 'Test-CuiData001' {
     }
 }
 
-Describe 'Test-CuiData002' {
+Describe 'Test-CuiData002' -Tag 'health' {
 
     It 'Returns pass when sync status and taxonomy load' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -278,7 +279,7 @@ Describe 'Test-CuiData002' {
     }
 }
 
-Describe 'CUI Result Structure' {
+Describe 'CUI Result Structure' -Tag 'health' {
 
     It 'All results have PSTypeName CuiTestResult' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {

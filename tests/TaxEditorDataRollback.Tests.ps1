@@ -1,3 +1,4 @@
+# Tag: health (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -8,7 +9,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'Get-TaxEditorDataCommit' {
+Describe 'Get-TaxEditorDataCommit' -Tag 'health' {
 
     It 'Throws when GITHUB_TOKEN is not set' {
         Mock Invoke-RestMethod -ModuleName AITriad
@@ -67,7 +68,7 @@ Describe 'Get-TaxEditorDataCommit' {
     }
 }
 
-Describe 'Undo-TaxEditorDataCommit' {
+Describe 'Undo-TaxEditorDataCommit' -Tag 'health' {
 
     BeforeAll {
         $SampleCommit = @{
@@ -200,7 +201,7 @@ Describe 'Undo-TaxEditorDataCommit' {
     }
 }
 
-Describe 'Sync-TaxEditorData' {
+Describe 'Sync-TaxEditorData' -Tag 'health' {
 
     It 'Returns sync result on success' {
         Mock Invoke-RestMethod {
@@ -229,7 +230,7 @@ Describe 'Sync-TaxEditorData' {
     }
 }
 
-Describe 'Reset-TaxEditorSession' {
+Describe 'Reset-TaxEditorSession' -Tag 'health' {
 
     BeforeAll {
         $BranchInfo = @{

@@ -1,3 +1,4 @@
+# Tag: ingestion (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -8,7 +9,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'Remove-DuplicateClaims' {
+Describe 'Remove-DuplicateClaims' -Tag 'ingestion' {
 
     It 'Returns unchanged summary when fewer than 2 items' {
         InModuleScope AITriad {

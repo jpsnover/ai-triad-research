@@ -1,3 +1,4 @@
+# Tag: ingestion (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -5,7 +6,7 @@ BeforeAll {
     Import-Module "$PSScriptRoot/../scripts/AITriad/AITriad.psm1" -Force
 }
 
-Describe 'Get-AITClaim' {
+Describe 'Get-AITClaim' -Tag 'ingestion' {
 
     BeforeAll {
         $script:summDir = Join-Path $TestDrive 'summaries'

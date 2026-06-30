@@ -1,3 +1,4 @@
+# Tag: taxonomy (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -13,7 +14,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'Graph query node ID validation (gap 8.1)' {
+Describe 'Graph query node ID validation (gap 8.1)' -Tag 'taxonomy' {
 
     It 'Marks valid referenced_nodes as verified and invalid as unverified' {
         InModuleScope AITriad {

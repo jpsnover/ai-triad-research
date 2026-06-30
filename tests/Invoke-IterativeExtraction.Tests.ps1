@@ -1,3 +1,4 @@
+# Tag: ingestion (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -13,7 +14,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'Invoke-IterativeExtraction drift detection (gap 4.1)' {
+Describe 'Invoke-IterativeExtraction drift detection (gap 4.1)' -Tag 'ingestion' {
 
     It 'Flags drift_warning when refined claim diverges from taxonomy node' {
         InModuleScope AITriad {

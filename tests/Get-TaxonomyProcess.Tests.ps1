@@ -1,3 +1,4 @@
+# Tag: taxonomy (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -5,7 +6,7 @@ BeforeAll {
     Import-Module "$PSScriptRoot/../scripts/AITriad/AITriad.psm1" -Force
 }
 
-Describe 'Get-TaxonomyProcess' {
+Describe 'Get-TaxonomyProcess' -Tag 'taxonomy' {
 
     BeforeDiscovery {
         $script:skipCim = -not $IsWindows

@@ -1,3 +1,4 @@
+# Tag: template (t/1186)
 BeforeAll {
     # Dot-source the private helper and public cmdlets directly (no module manifest import needed)
     $ptRoot = "$PSScriptRoot/../scripts/Project-Template"
@@ -8,7 +9,7 @@ BeforeAll {
     $script:RepoRoot = (Resolve-Path "$PSScriptRoot/..").Path
 }
 
-Describe 'Get-FlightRecorderDump' {
+Describe 'Get-FlightRecorderDump' -Tag 'template' {
 
     BeforeAll {
         $script:dumpDir = Join-Path $TestDrive 'dumps'
@@ -66,7 +67,7 @@ Describe 'Get-FlightRecorderDump' {
     }
 }
 
-Describe 'Get-FlightRecorderReport' {
+Describe 'Get-FlightRecorderReport' -Tag 'template' {
 
     BeforeAll {
         $script:testFile = Join-Path $TestDrive 'report-dump.jsonl'
@@ -162,7 +163,7 @@ Describe 'Get-FlightRecorderReport' {
     }
 }
 
-Describe 'Show-FlightRecorder' {
+Describe 'Show-FlightRecorder' -Tag 'template' {
 
     BeforeAll {
         $script:dumpDir = Join-Path $TestDrive 'show-dumps'
@@ -183,7 +184,7 @@ Describe 'Show-FlightRecorder' {
     }
 }
 
-Describe 'Find-FlightRecorderPattern' {
+Describe 'Find-FlightRecorderPattern' -Tag 'template' {
 
     BeforeAll {
         $script:patternDir = Join-Path $TestDrive 'pattern-dumps'
@@ -234,7 +235,7 @@ Describe 'Find-FlightRecorderPattern' {
     }
 }
 
-Describe 'Test-FlightRecorderPII' {
+Describe 'Test-FlightRecorderPII' -Tag 'template' {
 
     It 'detects Google API key pattern' {
         $testFile = Join-Path $TestDrive 'pii-google.jsonl'

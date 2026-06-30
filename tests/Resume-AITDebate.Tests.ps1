@@ -1,3 +1,4 @@
+# Tag: debate (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -8,7 +9,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'Resume-AITDebate' {
+Describe 'Resume-AITDebate' -Tag 'debate' {
 
     It 'Is exported from the module' {
         Get-Command Resume-AITDebate -Module AITriad -ErrorAction Stop | Should -Not -BeNullOrEmpty
@@ -84,7 +85,7 @@ Describe 'Resume-AITDebate' {
     }
 }
 
-Describe 'Resume-AITDebate - manifest' {
+Describe 'Resume-AITDebate - manifest' -Tag 'debate' {
     It 'FunctionsToExport includes Resume-AITDebate' {
         $manifestPath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psd1'
         $manifest = Test-ModuleManifest -Path $manifestPath

@@ -1,3 +1,4 @@
+# Tag: taxonomy (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -13,7 +14,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'Edge validation (gaps 7.1-7.4)' {
+Describe 'Edge validation (gaps 7.1-7.4)' -Tag 'taxonomy' {
 
     It 'Rejects edges with invalid type, self-loop, unknown target, and duplicates' {
         InModuleScope AITriad {

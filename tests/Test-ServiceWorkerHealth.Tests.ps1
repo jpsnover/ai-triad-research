@@ -1,3 +1,4 @@
+# Tag: health (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -8,7 +9,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'Test-ServiceWorkerHealth' {
+Describe 'Test-ServiceWorkerHealth' -Tag 'health' {
 
     It 'Is exported from the module' {
         Get-Command Test-ServiceWorkerHealth -Module AITriad -ErrorAction Stop | Should -Not -BeNullOrEmpty
@@ -135,7 +136,7 @@ workbox.routing.registerRoute(({request}) => request.mode === 'navigate', new wo
     }
 }
 
-Describe 'Test-ServiceWorkerHealth - manifest' {
+Describe 'Test-ServiceWorkerHealth - manifest' -Tag 'health' {
     It 'FunctionsToExport includes Test-ServiceWorkerHealth' {
         $manifestPath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psd1'
         $manifest = Test-ModuleManifest -Path $manifestPath

@@ -1,3 +1,4 @@
+# Tag: health (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -8,7 +9,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'P1/P2 CUI Test Functions Loaded' {
+Describe 'P1/P2 CUI Test Functions Loaded' -Tag 'health' {
 
     It 'All 15 P1/P2 test functions are loaded in module scope' {
         InModuleScope AITriad {
@@ -29,7 +30,7 @@ Describe 'P1/P2 CUI Test Functions Loaded' {
     }
 }
 
-Describe 'Test-CuiTax003' {
+Describe 'Test-CuiTax003' -Tag 'health' {
 
     It 'Returns pass when taxonomy has searchable nodes' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -52,7 +53,7 @@ Describe 'Test-CuiTax003' {
     }
 }
 
-Describe 'Test-CuiTax004' {
+Describe 'Test-CuiTax004' -Tag 'health' {
 
     It 'Returns pass when edges have source and target' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -74,7 +75,7 @@ Describe 'Test-CuiTax004' {
     }
 }
 
-Describe 'Test-CuiTax005' {
+Describe 'Test-CuiTax005' -Tag 'health' {
 
     It 'Returns pass when policy registry and lineage load' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -93,7 +94,7 @@ Describe 'Test-CuiTax005' {
     }
 }
 
-Describe 'Test-CuiTax011' {
+Describe 'Test-CuiTax011' -Tag 'health' {
 
     It 'Returns pass when sync endpoints are accessible' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -124,7 +125,7 @@ Describe 'Test-CuiTax011' {
     }
 }
 
-Describe 'Test-CuiDeb004' {
+Describe 'Test-CuiDeb004' -Tag 'health' {
 
     It 'Returns pass when save and resume round-trips' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -154,7 +155,7 @@ Describe 'Test-CuiDeb004' {
     }
 }
 
-Describe 'Test-CuiDeb005' {
+Describe 'Test-CuiDeb005' -Tag 'health' {
 
     It 'Returns pass when create-delete-verify cycle succeeds' {
         $script:deleteCallCount = 0
@@ -191,7 +192,7 @@ Describe 'Test-CuiDeb005' {
     }
 }
 
-Describe 'Test-CuiAi003' {
+Describe 'Test-CuiAi003' -Tag 'health' {
 
     It 'Returns pass when tier and usage endpoints respond' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -223,7 +224,7 @@ Describe 'Test-CuiAi003' {
     }
 }
 
-Describe 'Test-CuiAuth003' {
+Describe 'Test-CuiAuth003' -Tag 'health' {
 
     It 'Returns pass when admin endpoints reject non-admin' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -247,7 +248,7 @@ Describe 'Test-CuiAuth003' {
     }
 }
 
-Describe 'Test-CuiAdm002' {
+Describe 'Test-CuiAdm002' -Tag 'health' {
 
     It 'Returns pass when analytics endpoints respond' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -266,7 +267,7 @@ Describe 'Test-CuiAdm002' {
     }
 }
 
-Describe 'Test-CuiAdm003' {
+Describe 'Test-CuiAdm003' -Tag 'health' {
 
     It 'Returns pass when error reporting works' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -288,7 +289,7 @@ Describe 'Test-CuiAdm003' {
     }
 }
 
-Describe 'Test-CuiAdm004' {
+Describe 'Test-CuiAdm004' -Tag 'health' {
 
     It 'Returns pass when flight recorder list loads' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -310,7 +311,7 @@ Describe 'Test-CuiAdm004' {
     }
 }
 
-Describe 'Test-CuiCom001' {
+Describe 'Test-CuiCom001' -Tag 'health' {
 
     It 'Returns pass when community lists load' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -329,7 +330,7 @@ Describe 'Test-CuiCom001' {
     }
 }
 
-Describe 'Test-CuiCom002' {
+Describe 'Test-CuiCom002' -Tag 'health' {
 
     It 'Skips when not authenticated' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -348,7 +349,7 @@ Describe 'Test-CuiCom002' {
     }
 }
 
-Describe 'Test-CuiData003' {
+Describe 'Test-CuiData003' -Tag 'health' {
 
     It 'Returns pass when health and liveness respond' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -374,7 +375,7 @@ Describe 'Test-CuiData003' {
     }
 }
 
-Describe 'Test-CuiCal001' {
+Describe 'Test-CuiCal001' -Tag 'health' {
 
     It 'Returns pass when calibration endpoints respond' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {
@@ -393,7 +394,7 @@ Describe 'Test-CuiCal001' {
     }
 }
 
-Describe 'P1/P2 CUI Result Structure' {
+Describe 'P1/P2 CUI Result Structure' -Tag 'health' {
 
     It 'All results have PSTypeName CuiTestResult' {
         Mock Invoke-RemoteCheck -ModuleName AITriad -MockWith {

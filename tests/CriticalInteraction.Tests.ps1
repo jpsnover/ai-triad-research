@@ -1,3 +1,4 @@
+# Tag: health (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -8,7 +9,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'Get-CriticalInteraction' {
+Describe 'Get-CriticalInteraction' -Tag 'health' {
 
     It 'Returns all 28 CUIs with no parameters' {
         $results = @(Get-CriticalInteraction)

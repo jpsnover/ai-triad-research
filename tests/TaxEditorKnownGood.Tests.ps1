@@ -1,3 +1,4 @@
+# Tag: health (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -8,7 +9,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'Set-TaxEditorKnownGood' {
+Describe 'Set-TaxEditorKnownGood' -Tag 'health' {
 
     BeforeAll {
         $MockRevisions = @(
@@ -150,7 +151,7 @@ Describe 'Set-TaxEditorKnownGood' {
     }
 }
 
-Describe 'Restore-TaxEditorKnownGood' {
+Describe 'Restore-TaxEditorKnownGood' -Tag 'health' {
 
     BeforeAll {
         $MockImages = @(
