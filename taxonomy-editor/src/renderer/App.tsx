@@ -45,6 +45,7 @@ const ChatTab = lazy(() => import('./components/chat/ChatTab').then(m => ({ defa
 const SummariesTab = lazy(() => import('./components/analysis/SummariesTab').then(m => ({ default: m.SummariesTab })));
 const CruxesTab = lazy(() => import('./components/debate/CruxesTab').then(m => ({ default: m.CruxesTab })));
 const ValidationTab = lazy(() => import('./components/taxonomy/ValidationTab').then(m => ({ default: m.ValidationTab })));
+const OrganizationsTab = lazy(() => import('./components/organizations/OrganizationsTab').then(m => ({ default: m.OrganizationsTab })));
 
 // Lazy-loaded window/panel components — separate Electron windows or hash routes
 const DiagnosticsWindow = lazy(() => import('./components/debate-diagnostics').then(m => ({ default: m.DiagnosticsWindow })));
@@ -647,6 +648,7 @@ function MainApp() {
             {activeTab === 'debate' && <DebateTab />}
             {activeTab === 'summaries' && summariesFlag && <SummariesTab />}
             {activeTab === 'validation' && <ValidationTab />}
+            {activeTab === 'organizations' && <OrganizationsTab />}
           </Suspense>
         </div>
       </div>

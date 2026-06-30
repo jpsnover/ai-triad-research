@@ -297,7 +297,7 @@ export interface ConflictFile {
   verdict?: ConflictVerdict;
 }
 
-export type TabId = 'accelerationist' | 'safetyist' | 'skeptic' | 'situations' | 'conflicts' | 'cruxes' | 'debate' | 'chat' | 'summaries' | 'validation';
+export type TabId = 'accelerationist' | 'safetyist' | 'skeptic' | 'situations' | 'conflicts' | 'cruxes' | 'debate' | 'chat' | 'summaries' | 'validation' | 'organizations';
 
 // ── Edge types (from taxonomy/Origin/edges.json) ─────────
 

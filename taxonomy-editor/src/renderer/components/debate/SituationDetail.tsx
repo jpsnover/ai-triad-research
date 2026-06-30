@@ -20,6 +20,7 @@ import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
 import { api } from '@bridge';
 import { triggerSituationNodeRegeneration } from '../../utils/regeneratePlainDescription';
 import { useDescriptionMode, DescriptionToggle } from '../shared/DescriptionToggle';
+import { StakeholderSection } from '../organizations/StakeholderSection';
 
 interface SituationDetailProps {
   node: SituationNode;
@@ -368,6 +369,8 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
                 />
               )}
             </div>
+
+            <StakeholderSection nodeId={node.id} queryType="topic" />
 
           </div>
         )}
