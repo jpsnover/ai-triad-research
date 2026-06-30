@@ -107,6 +107,9 @@ tmp/
 .orca-git/
 .orca-gitignore
 
+# Real-debate fixtures (generated locally via RUN_SLOW=1, not committed)
+lib/debate/__tests__/fixtures/real/
+
 # One-off audit/report artifacts
 judge-audit-report.json
 
