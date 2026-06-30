@@ -454,6 +454,24 @@ export async function readLineageEnrichments(): Promise<Record<string, unknown>>
 
 // ── Policy registry ──
 
+export async function readOrganizations(): Promise<unknown | null> {
+  try {
+    const p = path.join(getTaxonomyDir(), 'organizations.json');
+    const raw = await backend.readFile(p);
+    if (raw === null) return null;
+    return JSON.parse(raw);
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'file-io',
+      level: 'error',
+      message: 'readOrganizations failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return null;
+  }
+}
+
 export async function readPolicyRegistry(): Promise<unknown | null> {
   try {
     const taxDir = getTaxonomyDir();
