@@ -23,7 +23,7 @@ import { POV_KEYS } from '../../../../lib/debate/types.js';
 import type { StorageBackend } from './storageBackend.js';
 import { log } from '../logger.js';
 import { FilesystemBackend } from './filesystemBackend.js';
-import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
+import { getGlobalRecorder, redactRecord } from '../../../../lib/flight-recorder/index.js';
 import { parseNpy, extractNodeVectors } from '../../../../lib/npy.js';
 import { getStorageUserId, isAnonymousUser, getAnonymousSessionId } from '../security/userContext.js';
 import { getAnonymousSessionStore } from './anonymousSessionStore.js';
@@ -1057,7 +1057,10 @@ export async function saveFeedbackEntry(entry: { id: string; timestamp: string;[
 export async function saveErrorReport(entry: { id: string; timestamp: string;[k: string]: unknown }): Promise<void> {
   const ts = entry.timestamp.replace(/:/g, '-');
   const file = path.join(adminDir('errors'), `error-${ts}-${entry.id.slice(0, 8)}.json`);
-  await getUserContentBackend().writeFile(file, JSON.stringify(entry, null, 2));
+  const sanitized = entry.context && typeof entry.context === 'object' && !Array.isArray(entry.context)
+    ? { ...entry, context: redactRecord(entry.context as Record<string, unknown>) }
+    : entry;
+  await getUserContentBackend().writeFile(file, JSON.stringify(sanitized, null, 2));
 }
 
 async function readAdminEntries(kind: 'feedback' | 'errors', prefix: string): Promise<{ items: Record<string, unknown>[]; skipped: string[] }> {
@@ -1094,6 +1097,64 @@ export async function listFeedbackEntries(): Promise<{ items: Record<string, unk
 /** All client error reports via the backend (unsorted). */
 export async function listErrorEntries(): Promise<{ items: Record<string, unknown>[]; skipped: string[] }> {
   return readAdminEntries('errors', 'error-');
+}
+
+/** Read a single error report by ID. Returns null if not found or unparseable. */
+export async function getErrorReport(id: string): Promise<Record<string, unknown> | null> {
+  assertSafeId(id, 'error report id');
+  const ucb = getUserContentBackend();
+  const suffix = `-${id.slice(0, 8)}.json`;
+  const files = (await ucb.listDirectory(adminDir('errors'))).filter(f => f.startsWith('error-') && f.endsWith(suffix));
+  if (files.length === 0) return null;
+  try {
+    const raw = await ucb.readFile(path.join(adminDir('errors'), files[0]));
+    if (raw == null) return null;
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'file-io', level: 'warn',
+      message: 'Failed to read/parse error report',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      data: { errorId: id },
+    });
+    return null;
+  }
+}
+
+const DUMP_FILENAME_RE = /^(client|server)-(.+)\.jsonl$/;
+
+/** List flight recorder dump metadata from filenames + mtime (no file content read). */
+export async function listFlightRecorderDumpIds(): Promise<Array<{ kind: 'client' | 'server'; dumpId: string; timestamp: string }>> {
+  const dir = path.join(getDataRoot(), 'admin', 'flight-recorder-dumps');
+  let names: string[];
+  try {
+    names = await fs.readdir(dir);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'file-io', level: 'warn',
+      message: 'Failed to list flight recorder dumps directory',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return [];
+  }
+  const results: Array<{ kind: 'client' | 'server'; dumpId: string; timestamp: string }> = [];
+  for (const name of names) {
+    const m = DUMP_FILENAME_RE.exec(name);
+    if (!m) continue;
+    try {
+      const stat = await fs.stat(path.join(dir, name));
+      results.push({ kind: m[1] as 'client' | 'server', dumpId: m[2], timestamp: new Date(stat.mtimeMs).toISOString() });
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'file-io', level: 'warn',
+        message: 'Failed to stat flight recorder dump file; skipping',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        data: { file: name },
+      });
+    }
+  }
+  return results;
 }
 
 // ── Harvest operations ──

@@ -157,6 +157,17 @@ export class AzureBlobBackend implements StorageBackend {
     }
   }
 
+  async writeBinaryFile(filePath: string, content: Buffer, _opts?: { ref?: string }): Promise<void> {
+    const blob = this.toBlobPath(filePath);
+    try {
+      await this.containerFor(blob).getBlockBlobClient(blob).upload(content, content.byteLength, {
+        blobHTTPHeaders: { blobContentType: 'application/octet-stream' },
+      });
+    } catch (err) {
+      throw wrapBlobError(err, 'writeBinaryFile', blob);
+    }
+  }
+
   async deleteFile(filePath: string): Promise<void> {
     const blob = this.toBlobPath(filePath);
     try {

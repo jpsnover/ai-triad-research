@@ -47,4 +47,7 @@ export interface StorageBackend {
 
   /** Read a file as a raw binary Buffer. Returns null if the file does not exist. */
   readBinaryFile(filePath: string): Promise<Buffer | null>;
+
+  /** Write raw binary content to a file. Creates parent dirs; atomic where supported. */
+  writeBinaryFile(filePath: string, content: Buffer, opts?: { ref?: string }): Promise<void>;
 }

@@ -81,6 +81,13 @@ export class FilesystemBackend implements StorageBackend {
     }
   }
 
+  async writeBinaryFile(filePath: string, content: Buffer): Promise<void> {
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    const tmpPath = filePath + '.tmp';
+    await fs.writeFile(tmpPath, content);
+    await fs.rename(tmpPath, filePath);
+  }
+
   async readBinaryFile(filePath: string): Promise<Buffer | null> {
     try {
       return await fs.readFile(filePath);

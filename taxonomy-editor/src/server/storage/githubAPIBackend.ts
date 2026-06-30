@@ -458,6 +458,68 @@ export class GitHubAPIBackend implements StorageBackend {
     await this.writeToDiskCache(repoPath, content, newSha, '');
   }
 
+  async writeBinaryFile(filePath: string, content: Buffer, opts?: { ref?: string }): Promise<void> {
+    const repoPath = this.toRepoPath(filePath);
+    const ref = opts?.ref ?? this.getEffectiveRef();
+
+    if (this.circuitState === 'open' && !this.shouldProbe()) {
+      throw new ActionableError({
+        goal: 'Write binary file to GitHub',
+        problem: 'GitHub API is unavailable (circuit breaker open). Edits temporarily disabled.',
+        location: `GitHubAPIBackend.writeBinaryFile(${repoPath})`,
+        nextSteps: ['Wait for GitHub API to recover', 'Check /health for circuit breaker status'],
+      });
+    }
+
+    const fileSha = await this.getFileSha(repoPath, ref);
+    const creds = await this.getCredsCached();
+    if (!creds) throw this.noCredsError('writeBinaryFile');
+
+    const callId = crypto.randomUUID();
+    const encodedContent = content.toString('base64');
+
+    const doWrite = async (sha: string | null, attempt: number): Promise<{ ok: boolean; status: number; data: unknown }> => {
+      const body: Record<string, unknown> = {
+        message: `Update ${repoPath}`,
+        content: encodedContent,
+        branch: ref,
+      };
+      if (sha) body.sha = sha;
+
+      const resp = await this.apiRequest(creds, 'PUT',
+        `/repos/${creds.repo}/contents/${repoPath}`, body, callId);
+
+      if (resp.status === 409 && attempt === 0) {
+        this.recordEvent({
+          type: 'github.api.conflict',
+          component: 'github-api',
+          level: 'warn',
+          message: `409 SHA conflict on ${repoPath}, retrying with fresh SHA`,
+          call_id: callId,
+          data: { path: repoPath, ref, staleSha: sha },
+        });
+        const freshSha = await this.getFileSha(repoPath, ref);
+        return doWrite(freshSha, 1);
+      }
+
+      if (!resp.ok) {
+        throw new ActionableError({
+          goal: `Write binary ${repoPath} to GitHub`,
+          problem: `GitHub API returned ${resp.status}: ${resp.error}`,
+          location: `GitHubAPIBackend.writeBinaryFile(${repoPath})`,
+          nextSteps: ['Check GitHub API status', 'Retry the operation'],
+        });
+      }
+
+      return resp;
+    };
+
+    const resp = await doWrite(fileSha, 0);
+    const respData = resp.data as { content?: { sha?: string } };
+    const newSha = respData?.content?.sha ?? '';
+    await this.writeBinaryToDiskCache(repoPath, content, newSha, '');
+  }
+
   async listDirectory(dirPath: string, opts?: { ref?: string }): Promise<string[]> {
     const repoPath = this.toRepoPath(dirPath);
     const prefix = repoPath ? repoPath + '/' : '';
