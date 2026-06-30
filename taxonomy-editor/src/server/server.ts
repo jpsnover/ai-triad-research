@@ -39,6 +39,7 @@ import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnon
 import { sanitizeUserText } from './security/contentSanitizer.js';
 import { getRollbackStatus } from './rollbackStatus.js';
 import { LLMS_TXT } from './llmsTxt.js';
+import { getErrorSummaryCached, type ErrorEntry } from './errorAggregation.js';
 import { getAllFlags, listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
 import { writeDump, isValidDumpId, readMergedDump } from './flightRecorderDumps.js';
 import { drainServerLogLines } from './serverLogBuffer.js';
@@ -2540,6 +2541,86 @@ get('/api/admin/health', async (_req, res) => {
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     error(res, String(err));
+  }
+});
+
+// t/1154: admin error dashboard — paginated, filterable error list. Admin-only.
+// Filters: since/until (ISO), userId, errorName; paged via limit (≤500) / offset.
+get('/api/admin/errors', async (req, res) => {
+  if (!requireAdmin(res)) return;
+  try {
+    const since = query(req, 'since');
+    const until = query(req, 'until');
+    const userId = query(req, 'userId');
+    const errorName = query(req, 'errorName');
+    const limit = Math.min(Math.max(parseInt(query(req, 'limit') ?? '50', 10) || 50, 1), 500);
+    const offset = Math.max(parseInt(query(req, 'offset') ?? '0', 10) || 0, 0);
+
+    const { items } = await fileIO.listErrorEntries();
+    let rows = items as unknown as ErrorEntry[];
+    if (since) { const s = Date.parse(since); if (!Number.isNaN(s)) rows = rows.filter(e => Date.parse(String(e.timestamp)) >= s); }
+    if (until) { const u = Date.parse(until); if (!Number.isNaN(u)) rows = rows.filter(e => Date.parse(String(e.timestamp)) <= u); }
+    if (userId) rows = rows.filter(e => String(e.userId ?? '') === userId);
+    if (errorName) rows = rows.filter(e => String(e.error?.name ?? '') === errorName);
+    rows.sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
+
+    const total = rows.length;
+    json(res, { items: rows.slice(offset, offset + limit), total, hasMore: offset + limit < total });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'server', level: 'error',
+      message: 'Failed to list error reports',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
+});
+
+// t/1154: admin error dashboard — aggregated summary (period counts, top errors
+// grouped by normalizeMessage, byDay histogram). Cached 30s. Admin-only.
+// Note: `/api/admin/errors/summary` is registered before any future `:id` route
+// so the literal path wins under first-match routing.
+get('/api/admin/errors/summary', async (_req, res) => {
+  if (!requireAdmin(res)) return;
+  try {
+    const summary = await getErrorSummaryCached(async () => (await fileIO.listErrorEntries()).items as unknown as ErrorEntry[]);
+    json(res, summary);
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'server', level: 'error',
+      message: 'Failed to build error summary',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
+});
+
+// t/1154: admin error dashboard — full error detail + temporally correlated
+// flight-recorder dump IDs (±5 min). Admin-only. Registered after /summary so the
+// literal route wins under first-match routing.
+get('/api/admin/errors/:id', async (req, res) => {
+  if (!requireAdmin(res)) return;
+  try {
+    const id = param(req, 'id', '/api/admin/errors/:id');
+    const entry = await fileIO.getErrorReport(id);
+    if (!entry) { error(res, 'Error report not found', 404); return; }
+
+    const errTs = Date.parse(String(entry.timestamp));
+    const WINDOW_MS = 5 * 60 * 1000;
+    const dumps = await fileIO.listFlightRecorderDumpIds();
+    const relatedDumps = Number.isNaN(errTs) ? [] : dumps.filter(d => {
+      const dts = Date.parse(d.timestamp);
+      return !Number.isNaN(dts) && Math.abs(dts - errTs) <= WINDOW_MS;
+    });
+
+    json(res, { entry, relatedDumps });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'server', level: 'error',
+      message: 'Failed to load error detail',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
   }
 });
 
