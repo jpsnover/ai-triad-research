@@ -336,6 +336,7 @@ function CommunityChatDetail({ chat }: { chat: CommunityChat }) {
   const [full, setFull] = useState<ChatSession | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [metadataExpanded, setMetadataExpanded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -406,57 +407,66 @@ function CommunityChatDetail({ chat }: { chat: CommunityChat }) {
         </div>
       )}
 
-      {/* Meta grid */}
-      <div className="debate-detail-grid">
-        {full && (
-          <div className="debate-detail-section">
-            <h3>Statistics</h3>
-            <div className="debate-detail-stats">
-              <div className="debate-detail-stat">
-                <span className="debate-detail-stat-value">{messageCount}</span>
-                <span className="debate-detail-stat-label">Messages</span>
+      {/* Meta grid — collapsed by default */}
+      <button
+        className="btn-xs btn-ghost"
+        style={{ alignSelf: 'flex-start', marginBottom: 4 }}
+        onClick={() => setMetadataExpanded(v => !v)}
+      >
+        {metadataExpanded ? 'Details ▾' : 'Details ▸'}
+      </button>
+      {metadataExpanded && (
+        <div className="debate-detail-grid">
+          {full && (
+            <div className="debate-detail-section">
+              <h3>Statistics</h3>
+              <div className="debate-detail-stats">
+                <div className="debate-detail-stat">
+                  <span className="debate-detail-stat-value">{messageCount}</span>
+                  <span className="debate-detail-stat-label">Messages</span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-        {full?.chat_model && (
+          )}
+          {full?.chat_model && (
+            <div className="debate-detail-section">
+              <h3>Configuration</h3>
+              <div className="debate-detail-meta-row">
+                <span className="debate-detail-label">Model:</span>
+                <span>{full.chat_model}</span>
+              </div>
+            </div>
+          )}
+          {chat.community_metadata && (
+            <div className="debate-detail-section">
+              <h3>Community Info</h3>
+              <div className="debate-detail-meta-row">
+                <span className="debate-detail-label">Shared by:</span>
+                <span>{chat.community_metadata.submitted_by_display}</span>
+              </div>
+              <div className="debate-detail-meta-row">
+                <span className="debate-detail-label">Submitted:</span>
+                <span>{formatDate(chat.community_metadata.submitted_at)}</span>
+              </div>
+              <div className="debate-detail-meta-row">
+                <span className="debate-detail-label">Approved:</span>
+                <span>{formatDate(chat.community_metadata.approved_at)}</span>
+              </div>
+            </div>
+          )}
           <div className="debate-detail-section">
-            <h3>Configuration</h3>
+            <h3>Timestamps</h3>
             <div className="debate-detail-meta-row">
-              <span className="debate-detail-label">Model:</span>
-              <span>{full.chat_model}</span>
-            </div>
-          </div>
-        )}
-        {chat.community_metadata && (
-          <div className="debate-detail-section">
-            <h3>Community Info</h3>
-            <div className="debate-detail-meta-row">
-              <span className="debate-detail-label">Shared by:</span>
-              <span>{chat.community_metadata.submitted_by_display}</span>
+              <span className="debate-detail-label">Created:</span>
+              <span>{formatDate(chat.created_at)}</span>
             </div>
             <div className="debate-detail-meta-row">
-              <span className="debate-detail-label">Submitted:</span>
-              <span>{formatDate(chat.community_metadata.submitted_at)}</span>
+              <span className="debate-detail-label">Updated:</span>
+              <span>{formatDate(chat.updated_at)}</span>
             </div>
-            <div className="debate-detail-meta-row">
-              <span className="debate-detail-label">Approved:</span>
-              <span>{formatDate(chat.community_metadata.approved_at)}</span>
-            </div>
-          </div>
-        )}
-        <div className="debate-detail-section">
-          <h3>Timestamps</h3>
-          <div className="debate-detail-meta-row">
-            <span className="debate-detail-label">Created:</span>
-            <span>{formatDate(chat.created_at)}</span>
-          </div>
-          <div className="debate-detail-meta-row">
-            <span className="debate-detail-label">Updated:</span>
-            <span>{formatDate(chat.updated_at)}</span>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Transcript */}
       {full?.transcript && full.transcript.length > 0 && (
