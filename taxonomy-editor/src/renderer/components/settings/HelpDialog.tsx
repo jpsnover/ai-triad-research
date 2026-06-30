@@ -5,6 +5,8 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { api } from '@bridge';
 import ossData from '../../data/oss-licenses.json';
 import { SupportCaseForm } from '../support/SupportCaseForm';
+import { MyCases } from '../support/MyCases';
+import { useSupportStore } from '../../hooks/useSupportStore';
 
 declare const __APP_VERSION__: string;
 declare const __BUILD_DATE__: string;
@@ -51,7 +53,9 @@ function getRuntime(): string {
   return 'Browser';
 }
 
-type HelpTab = 'tour' | 'about' | 'overview' | 'documentation' | 'methods' | 'shortcuts' | 'sbom' | 'licenses';
+const isWeb = import.meta.env.VITE_TARGET === 'web';
+
+type HelpTab = 'tour' | 'about' | 'overview' | 'documentation' | 'methods' | 'shortcuts' | 'sbom' | 'licenses' | 'my-cases';
 
 const TABS: { id: HelpTab; label: string }[] = [
   { id: 'tour', label: 'Welcome Tour' },
@@ -62,6 +66,7 @@ const TABS: { id: HelpTab; label: string }[] = [
   { id: 'shortcuts', label: 'Shortcuts' },
   { id: 'sbom', label: 'SBOM' },
   { id: 'licenses', label: 'Licenses' },
+  ...(isWeb ? [{ id: 'my-cases' as const, label: 'My Cases' }] : []),
 ];
 
 type SortCol = 'name' | 'version' | 'license';
@@ -342,11 +347,10 @@ interface HelpDialogProps {
   onClose: () => void;
 }
 
-const isWeb = import.meta.env.VITE_TARGET === 'web';
-
 export function HelpDialog({ onClose }: HelpDialogProps) {
   const [activeTab, setActiveTab] = useState<HelpTab>('tour');
   const [showSupportForm, setShowSupportForm] = useState(false);
+  const { unreadCount, fetchCases: fetchSupportCases } = useSupportStore();
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [size, setSize] = useState({ w: 700, h: 480 });
   const [centered, setCentered] = useState(true);
@@ -360,6 +364,11 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
       setPos({ x: (window.innerWidth - size.w) / 2, y: (window.innerHeight - size.h) / 2 });
     }
   }, [centered, size.w, size.h]);
+
+  // Fetch support cases on mount for unread badge (web only)
+  useEffect(() => {
+    if (isWeb) void fetchSupportCases();
+  }, [fetchSupportCases]);
 
   const onDragStart = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button, a, table, ul, p')) return;
@@ -431,6 +440,15 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
                 }}
               >
                 {t.label}
+                {t.id === 'my-cases' && unreadCount > 0 && (
+                  <span style={{
+                    marginLeft: 6, padding: '0 5px', borderRadius: 8, fontSize: '0.68rem',
+                    fontWeight: 700, background: 'var(--color-error, #ef4444)', color: '#fff',
+                    lineHeight: '16px', display: 'inline-block', minWidth: 16, textAlign: 'center',
+                  }}>
+                    {unreadCount}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -625,6 +643,8 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
         {activeTab === 'sbom' && <SbomPanel />}
 
         {activeTab === 'licenses' && <LicensesPanel />}
+
+        {activeTab === 'my-cases' && <MyCases />}
 
           </div>
         </div>
