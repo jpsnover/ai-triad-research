@@ -200,3 +200,45 @@ export const AI_FAULT_PROFILES: Record<string, FaultProfile> = {
     faults: [{ target: 'ai-call', trigger: 'always', effect: 'throw-503' }],
   },
 };
+
+// ── Storage fault profiles (crash recovery, t/1149) ─────
+
+export interface StorageFault {
+  target: 'writeFileSync' | 'renameSync' | 'readFileSync';
+  effect: 'throw-enospc' | 'throw-eacces' | 'throw-exdev' | 'corrupt-json' | 'nth-call-throw';
+  nthCall?: number;
+  errorCode?: string;
+}
+
+export interface StorageFaultProfile {
+  name: string;
+  description: string;
+  faults: StorageFault[];
+}
+
+export const STORAGE_FAULT_PROFILES: Record<string, StorageFaultProfile> = {
+  checkpointWriteEnospc: {
+    name: 'checkpointWriteEnospc',
+    description: 'writeFileSync throws ENOSPC (disk full)',
+    faults: [{ target: 'writeFileSync', effect: 'throw-enospc' }],
+  },
+  checkpointWriteEacces: {
+    name: 'checkpointWriteEacces',
+    description: 'writeFileSync throws EACCES (permission denied)',
+    faults: [{ target: 'writeFileSync', effect: 'throw-eacces' }],
+  },
+  corruptPartialJson: {
+    name: 'corruptPartialJson',
+    description: 'readFileSync returns malformed JSON for partial checkpoint',
+    faults: [{ target: 'readFileSync', effect: 'corrupt-json' }],
+  },
+  renameFailure: {
+    name: 'renameFailure',
+    description: 'renameSync throws EXDEV (cross-device rename)',
+    faults: [{ target: 'renameSync', effect: 'throw-exdev' }],
+  },
+};
+
+export function makeStorageError(code: string, message: string): NodeJS.ErrnoException {
+  return Object.assign(new Error(`${code}: ${message}`), { code });
+}
