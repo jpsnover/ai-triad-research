@@ -8,6 +8,7 @@ import type { ClarificationSlice } from './slices/clarificationSlice';
 import type { ArgumentNetworkSlice } from './slices/argumentNetworkSlice';
 import type { SynthesisSlice } from './slices/synthesisSlice';
 import type { DebateLoopSlice } from './slices/debateLoopSlice';
+import type { ExplorationSlice } from './slices/explorationSlice';
 
 export type DebateStore =
   ConfigSlice &
@@ -16,7 +17,8 @@ export type DebateStore =
   ClarificationSlice &
   ArgumentNetworkSlice &
   SynthesisSlice &
-  DebateLoopSlice;
+  DebateLoopSlice &
+  ExplorationSlice;
 
 // ── Shared types used across slices ──────────────────────────
 

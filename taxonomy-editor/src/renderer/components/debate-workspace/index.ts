@@ -1,4 +1,5 @@
 export { DebateWorkspace } from './DebateWorkspace';
+export { ExplorationSummaryCard } from './ExplorationSummaryCard';
 export { ClaimsView, ClaimNodeRow } from './ClaimsView';
 export { LineageTermsView, VocabTermCard, VocabTermsView } from './VocabularyPanel';
 export { TopicCritiqueCard, CritiqueColumn, RadarChart } from './TopicCritique';

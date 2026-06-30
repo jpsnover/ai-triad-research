@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { POVER_INFO } from '../../types/debate';
@@ -12,6 +12,8 @@ import remarkGfm from 'remark-gfm';
 import { lineageMarkdownComponents } from '../../utils/lineageMatcher';
 import { speakerLabel, fixMarkdownLinks } from './utils';
 import { TopicCritiqueCard, DIMENSION_LABELS, RATING_COLORS } from './TopicCritique';
+import { MODELS_BY_BACKEND } from '../../hooks/useTaxonomyStore';
+import { EXPLORATION_PRESET } from '@lib/debate/explorationPreset';
 
 export function ClarificationCard({ entry }: { entry: TranscriptEntry }) {
   const meta = entry.metadata as Record<string, unknown> | undefined;
@@ -199,6 +201,7 @@ export function ClarificationActions() {
     openingOrder, setOpeningOrder,
     runTopicCritique, reEvaluateSuggestedTopic, topicCritiqueLoading, updateTopic,
     toggleStepMode,
+    explorationModel, setExplorationModel,
   } = useDebateStore(
     useShallow(s => ({
       activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError,
@@ -207,8 +210,17 @@ export function ClarificationActions() {
       openingOrder: s.openingOrder, setOpeningOrder: s.setOpeningOrder,
       runTopicCritique: s.runTopicCritique, reEvaluateSuggestedTopic: s.reEvaluateSuggestedTopic, topicCritiqueLoading: s.topicCritiqueLoading, updateTopic: s.updateTopic,
       toggleStepMode: s.toggleStepMode,
+      explorationModel: s.explorationModel, setExplorationModel: s.setExplorationModel,
     }))
   );
+
+  const cheapModels = useMemo(() => {
+    const all = Object.entries(MODELS_BY_BACKEND).flatMap(([backend, models]) =>
+      models.map(m => ({ ...m, label: `${m.label} (${backend})` })),
+    );
+    const cheap = all.filter(m => /flash|haiku|llama/i.test(m.label));
+    return cheap.length > 0 ? cheap : all.slice(0, 3);
+  }, []);
 
   const critiqueTriggered = useRef(false);
   useEffect(() => {
@@ -273,6 +285,40 @@ export function ClarificationActions() {
     await beginDebate();
     await runOpeningStatements();
   };
+
+  const handleExploreFirst = async () => {
+    if (!activeDebate) return;
+    const model = explorationModel || cheapModels[0]?.value || '';
+    const store = useDebateStore.getState();
+    const topic = activeDebate.topic.final || activeDebate.topic.original;
+    const povers = activeDebate.active_povers;
+    const userIsPover = activeDebate.user_is_pover;
+
+    const id = await store.createDebate(
+      topic,
+      povers,
+      userIsPover,
+      activeDebate.source_type,
+      activeDebate.source_ref,
+      activeDebate.source_content,
+      model,
+      'exploration',
+      EXPLORATION_PRESET.temperature,
+      activeDebate.audience,
+      {
+        pacing: EXPLORATION_PRESET.pacing,
+        useAdaptiveStaging: false,
+        background: activeDebate.topic.background,
+      },
+    );
+    await store.loadDebate(id);
+    store.updatePhase('clarification');
+    await store.saveDebate('explore-first-setup');
+    await beginDebate();
+    await runOpeningStatements();
+  };
+
+  const [showExploreModel, setShowExploreModel] = useState(false);
 
   const moveUp = (index: number) => {
     if (index <= 0) return;
@@ -405,6 +451,37 @@ export function ClarificationActions() {
             >
               Begin Debate
             </button>
+            <div className="debate-explore-first-group">
+              <button
+                className="btn btn-explore"
+                onClick={() => void handleExploreFirst()}
+                disabled={isGenerating || submitting}
+                title="Run a quick exploration debate with a cheap model, then review findings before starting a full debate"
+              >
+                Explore First
+              </button>
+              <button
+                className="btn btn-sm debate-explore-model-toggle"
+                onClick={() => setShowExploreModel(v => !v)}
+                title="Choose exploration model"
+              >
+                &#9660;
+              </button>
+              {showExploreModel && (
+                <div className="debate-explore-model-dropdown">
+                  <label style={{ fontSize: '0.75rem', fontWeight: 500 }}>Exploration model:</label>
+                  <select
+                    className="debate-explore-model-select"
+                    value={explorationModel || cheapModels[0]?.value || ''}
+                    onChange={e => setExplorationModel(e.target.value)}
+                  >
+                    {cheapModels.map(m => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

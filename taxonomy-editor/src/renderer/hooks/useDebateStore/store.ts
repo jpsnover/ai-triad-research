@@ -10,6 +10,7 @@ import { createClarificationSlice } from './slices/clarificationSlice';
 import { createArgumentNetworkSlice } from './slices/argumentNetworkSlice';
 import { createSynthesisSlice } from './slices/synthesisSlice';
 import { createDebateLoopSlice } from './slices/debateLoopSlice';
+import { createExplorationSlice } from './slices/explorationSlice';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { api } from '@bridge';
 
@@ -21,6 +22,7 @@ export const useDebateStore = create<DebateStore>()((...a) => ({
   ...createArgumentNetworkSlice(...a),
   ...createSynthesisSlice(...a),
   ...createDebateLoopSlice(...a),
+  ...createExplorationSlice(...a),
 }));
 
 ((window as unknown as { __ZUSTAND_STORES__?: Record<string, unknown> }).__ZUSTAND_STORES__ ??= {} as Record<string, unknown>).debate = useDebateStore;

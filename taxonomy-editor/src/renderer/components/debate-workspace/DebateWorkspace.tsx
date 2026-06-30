@@ -35,6 +35,7 @@ import { StatementCard, ProbingCard, FactCheckCard, EntryDeleteControls, Highlig
 import { PhaseProgressBar, SessionPhaseStepper, ProgressIndicator, DebaterToggles, DebateActions } from './DebateActionBar';
 import { ClarificationActions, ClaimsEditor, RefinedTopicEditor, TopicScoreComparison } from './ClarificationPanel';
 import { OpeningActions } from './OpeningPanel';
+import { ExplorationSummaryCard } from './ExplorationSummaryCard';
 
 // ── Phase 7: Context menu state ──────────────────────────
 interface ContextMenuState {
@@ -369,6 +370,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     diagnosticsEnabled, toggleDiagnostics, selectedDiagEntry, selectDiagEntry,
     diagPopoutOpen, setDiagPopoutOpen, defaultTier, setDefaultTier,
     driverIsRemote,
+    explorationSummary, extractExplorationSummary, extractAndSeedFromDebate,
   } = useDebateStore(
     useShallow(s => ({
       activeDebate: s.activeDebate, debateLoading: s.debateLoading, debateError: s.debateError, debateGenerating: s.debateGenerating,
@@ -377,6 +379,9 @@ export function DebateWorkspace({ onExport, exportStatus }: {
       diagPopoutOpen: s.diagPopoutOpen, setDiagPopoutOpen: s.setDiagPopoutOpen,
       defaultTier: s.responseLength, setDefaultTier: s.setResponseLength,
       driverIsRemote: s.driverIsRemote,
+      explorationSummary: s.explorationSummary,
+      extractExplorationSummary: s.extractExplorationSummary,
+      extractAndSeedFromDebate: s.extractAndSeedFromDebate,
     }))
   );
   const { runSemanticSearch, setFindQuery: setStoreFindQuery, setFindMode: setStoreFindMode, setToolbarPanel } = useTaxonomyStore();
@@ -404,6 +409,19 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     });
     return unsub;
   }, []);
+  // Auto-extract exploration summary when an exploration debate closes
+  const explorationExtracted = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      activeDebate?.protocol_id === 'exploration'
+      && activeDebate.phase === 'closed'
+      && explorationExtracted.current !== activeDebate.id
+    ) {
+      explorationExtracted.current = activeDebate.id;
+      extractExplorationSummary();
+    }
+  }, [activeDebate?.id, activeDebate?.phase, activeDebate?.protocol_id, extractExplorationSummary]);
+
   const hasTriggeredOpening = useRef(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [commentPopover, setCommentPopover] = useState<CommentPopoverState | null>(null);
@@ -645,6 +663,8 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     || activeDebate.phase === 'closed'
     || activeDebate.adaptive_staging?.current_phase != null;
   const isCrossCutting = activeDebate.source_type === 'situations';
+  const isExploration = activeDebate.protocol_id === 'exploration';
+  const isExplorationClosed = isExploration && activeDebate.phase === 'closed';
   const showRemoteOverlay = driverIsRemote && !!activeDebate;
 
   return (
@@ -655,6 +675,11 @@ export function DebateWorkspace({ onExport, exportStatus }: {
         <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', userSelect: 'all', marginRight: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 300 }} title={`${activeDebate.title} — ${activeDebate.id}`}>
           {activeDebate.title || activeDebate.id.slice(0, 12)}
         </span>
+        {isExploration && (
+          <span className="debate-exploration-badge" title="Exploration run — quick discovery with a cheap model">
+            Exploration
+          </span>
+        )}
         {isCrossCutting && (
           <button
             className="btn btn-sm debate-cc-details-btn"
@@ -865,12 +890,28 @@ export function DebateWorkspace({ onExport, exportStatus }: {
         <div ref={transcriptEndRef} />
       </div>
 
+      {/* Exploration summary card — shown when exploration debate closes */}
+      {isExplorationClosed && explorationSummary && <ExplorationSummaryCard />}
+
+      {/* "Rerun with Insights" — on non-exploration closed debates */}
+      {!isExploration && activeDebate.phase === 'closed' && !explorationSummary && (
+        <div className="debate-rerun-insights">
+          <button
+            className="btn btn-explore"
+            onClick={() => void extractAndSeedFromDebate(activeDebate.id)}
+            title="Extract insights from this debate and use them to seed a new, better debate"
+          >
+            Rerun with Insights
+          </button>
+        </div>
+      )}
+
       {/* Phase-aware action bar (fixed at bottom) — hidden when popout is driving */}
       {!showRemoteOverlay && isClarificationPhase && !activeDebate.transcript.some(e => e.type === 'opening' || e.type === 'statement') && <ClarificationActions />}
       {!showRemoteOverlay && isEditClaimsPhase && <ClaimsEditor />}
       {!showRemoteOverlay && isOpeningPhase && <OpeningActions />}
 
-      {!showRemoteOverlay && isDebatePhase && <DebateActions showParamHistory={showParamHistory} setShowParamHistory={setShowParamHistory} showEvaluation={showEvaluation} setShowEvaluation={setShowEvaluation} />}
+      {!showRemoteOverlay && isDebatePhase && !isExplorationClosed && <DebateActions showParamHistory={showParamHistory} setShowParamHistory={setShowParamHistory} showEvaluation={showEvaluation} setShowEvaluation={setShowEvaluation} />}
 
       {/* Neutral evaluation panel — toggled via Evaluation button */}
       {showEvaluation && activeDebate.neutral_evaluations && activeDebate.neutral_evaluations.length > 0 && (
