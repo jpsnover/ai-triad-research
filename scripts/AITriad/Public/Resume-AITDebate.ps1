@@ -161,6 +161,12 @@ function Resume-AITDebate {
             -Throw
     }
 
+    # t/1170: drain stdout asynchronously so the OS pipe buffer never fills
+    # while we're reading stderr line-by-line (classic .NET Process stdout/stderr
+    # deadlock fix — multi-MB session JSON on stdout would otherwise block the
+    # CLI write and keep stderr from EOF-ing).
+    $StdOutTask = $Proc.StandardOutput.ReadToEndAsync()
+
     try {
         # Stream stderr for progress + Verbose
         $CurrentTurn = 0
@@ -198,7 +204,8 @@ function Resume-AITDebate {
             }
         }
 
-        $StdOutText = $Proc.StandardOutput.ReadToEnd()
+        # t/1170: await the async stdout drain kicked off after Process.Start.
+        $StdOutText = $StdOutTask.GetAwaiter().GetResult()
         if (-not $Proc.WaitForExit(600000)) {
             try { $Proc.Kill() } catch { }
             throw "Debate CLI process timed out after 10 minutes during resume. Stderr tail:`n$(($StdErr | Select-Object -Last 20) -join "`n")"

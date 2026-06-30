@@ -337,6 +337,16 @@ Install Node.js from https://nodejs.org (v18+), then verify: npx --version
         $RepoRoot = Get-CodeRoot
         $CliPath  = Join-Path (Join-Path (Join-Path $RepoRoot 'lib') 'debate') 'cli.ts'
 
+        # t/1163: optional test seam — when AITRIAD_DEBATE_CLI_OVERRIDE is set,
+        # bypass npx/tsx and shell out to that file via `pwsh -File ...` instead.
+        # Lets PsBoundaryFaults tests inject canned stderr/exit codes without
+        # running the real TypeScript engine.
+        $UseOverride = -not [string]::IsNullOrWhiteSpace($env:AITRIAD_DEBATE_CLI_OVERRIDE)
+        if ($UseOverride) {
+            $CliPath = $env:AITRIAD_DEBATE_CLI_OVERRIDE
+            Write-Verbose "CLI override active: $CliPath"
+        }
+
         if (-not (Test-Path $CliPath)) {
             throw @"
 Debate CLI not found at: $CliPath
@@ -354,13 +364,20 @@ Verify the file exists: Get-Item '$CliPath'
         $StdErr  = [System.Collections.Generic.List[string]]::new()
 
         $Psi = [System.Diagnostics.ProcessStartInfo]::new()
-        $Psi.FileName = $NpxCmd.Source
         $TvArgs = ''
         if ($DisableTurnValidation) { $TvArgs += ' --no-turn-validation' }
         if ($PSBoundParameters.ContainsKey('MaxTurnRetries')) { $TvArgs += " --max-turn-retries $MaxTurnRetries" }
-        $Psi.Arguments = "tsx `"$CliPath`" --config `"$ConfigPath`"$TvArgs"
 
-        Write-Verbose "CLI: npx tsx $CliPath --config $ConfigPath$TvArgs"
+        if ($UseOverride) {
+            $PwshCmd = Get-Command pwsh -ErrorAction Stop
+            $Psi.FileName = $PwshCmd.Source
+            $Psi.Arguments = "-NoProfile -File `"$CliPath`" --config `"$ConfigPath`"$TvArgs"
+        } else {
+            $Psi.FileName = $NpxCmd.Source
+            $Psi.Arguments = "tsx `"$CliPath`" --config `"$ConfigPath`"$TvArgs"
+        }
+
+        Write-Verbose "CLI: $($Psi.FileName) $($Psi.Arguments)"
         Write-Verbose "Working directory: $RepoRoot"
         $Psi.WorkingDirectory = $RepoRoot
         $Psi.RedirectStandardOutput = $true
@@ -373,6 +390,13 @@ Verify the file exists: Get-Item '$CliPath'
         } catch {
             throw "Failed to start debate CLI process (npx tsx): $_`nVerify Node.js is installed and npx is in your PATH: npx --version"
         }
+
+        # t/1170: drain stdout asynchronously so the OS pipe buffer never fills
+        # while we're reading stderr line-by-line. Without this, a multi-MB
+        # session JSON on stdout blocks the CLI write — main thread spins
+        # forever in StandardError.ReadLine() waiting for stderr that never
+        # comes (classic .NET Process stdout/stderr deadlock).
+        $StdOutTask = $Proc.StandardOutput.ReadToEndAsync()
 
         # ── Progress file setup (t/1095) ──────────────────
         # When -ProgressFile is set, write per-turn updates so Watch-DebateProgress
@@ -461,7 +485,11 @@ Verify the file exists: Get-Item '$CliPath'
             Write-Verbose "  Round $CurrentRound completed in ${RoundElapsed}s"
         }
 
-        $StdOutText = $Proc.StandardOutput.ReadToEnd()
+        # t/1170: await the async stdout drain kicked off after Process.Start.
+        # The task has been pulling stdout into a buffer for the entire duration
+        # of the stderr loop, so this either returns immediately (stdout already
+        # fully read) or completes within a few ms of the CLI exiting.
+        $StdOutText = $StdOutTask.GetAwaiter().GetResult()
 
         # Wait with timeout (10 minutes max for a full debate)
         if (-not $Proc.WaitForExit(600000)) {
@@ -484,6 +512,26 @@ $($StdErr -join "`n" | Select-Object -Last 20)
         # immediately, don't fall through to the JSON parser (which would throw a
         # confusing "Failed to parse JSON" error that masks the real cause).
         if ($Proc.ExitCode -ne 0) {
+            # t/1163: if the CLI emitted an ActionableError JSON line on stderr,
+            # render its fields directly instead of dumping a raw stderr tail.
+            $Structured = Get-StructuredErrorFromStderr -StderrLines (@($StdErr))
+            # Defensive: structured errors should be on stderr, but if a CLI
+            # writes them to stdout instead, still surface them.
+            if (-not $Structured -and $ResultJson) {
+                $Structured = Get-StructuredErrorFromStderr -StderrLines @($ResultJson -split "`n")
+            }
+            if ($Structured) {
+                $StepLines = (@($Structured.NextSteps) | ForEach-Object { "  - $_" }) -join "`n"
+                throw @"
+[Debate CLI ActionableError] (exit code $($Proc.ExitCode))
+Goal:       $($Structured.Goal)
+Problem:    $($Structured.Problem)
+Location:   $($Structured.Location)
+Next Steps:
+$StepLines
+"@
+            }
+
             $StderrTail = (@($StdErr) | Select-Object -Last 20) -join "`n"
             $StdoutPreview = if ($ResultJson) {
                 "Stdout preview (first 500 chars):`n$($ResultJson.Substring(0, [Math]::Min(500, $ResultJson.Length)))"
