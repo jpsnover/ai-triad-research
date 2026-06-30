@@ -32,10 +32,9 @@ import { checkQuota } from '../security/quotas.js';
 
 // Taxonomy / conflicts / calibration / summaries / sources use `backend`.
 // User content (chats, debates, community) routes through `userContentBackend`,
-// which falls back to `backend` when not separately configured — i.e. Electron /
-// filesystem mode, and the github-api rollback path (USER_CONTENT_STORAGE=
-// github-api). In the Azure Blob migration `userContentBackend` is set to an
-// AzureBlobBackend while `backend` stays on GitHubAPIBackend. See t/698.
+// which falls back to `backend` when not separately configured (Electron /
+// filesystem mode). In production, `userContentBackend` is an AzureBlobBackend
+// while `backend` stays on GitHubAPIBackend.
 let backend: StorageBackend = new FilesystemBackend();
 let userContentBackend: StorageBackend | null = null;
 

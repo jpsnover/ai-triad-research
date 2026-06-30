@@ -223,21 +223,10 @@ if (STORAGE_MODE === 'github-api') {
     data: { mode: 'github-api', cacheDir: CACHE_DIR },
   });
 
-  // Dual-backend routing (t/698): user content (chats / debates / community) lives
-  // in Azure Blob; taxonomy/conflicts/calibration stay on GitHub. Default is now
-  // 'azure-blob' (t/1002 AC#4): the GitHub copy of user content was deleted in
-  // t/700/t/1002, so the old github-api rollback path is defunct. Setting
-  // USER_CONTENT_STORAGE=github-api is a legacy escape hatch only — that data no
-  // longer exists in the repo. Requires AZURE_STORAGE_ACCOUNT_URL to be set.
-  const userContentStorage = process.env.USER_CONTENT_STORAGE === 'github-api' ? 'github-api' : 'azure-blob';
+  // User content (chats, debates, community) lives in Azure Blob Storage.
+  // Taxonomy/conflicts/calibration stay on the GitHub backend.
   const blobAccountUrl = process.env.AZURE_STORAGE_ACCOUNT_URL;
-  if (userContentStorage === 'azure-blob' && blobAccountUrl) {
-    // Dynamic import: only pull in the Azure SDK (@azure/identity +
-    // @azure/storage-blob, ~2MB) when blob storage is actually enabled. A static
-    // top-level import made DefaultAzureCredential's IMDS probing run at startup
-    // even when disabled, blocking the event loop in CI containers (no Azure
-    // IMDS) and hurting cold start. Top-level await keeps the backend set before
-    // the server starts listening. (t/698 follow-up.)
+  if (blobAccountUrl) {
     const { AzureBlobBackend } = await import('./storage/azureBlobBackend.js');
     fileIO.setUserContentBackend(new AzureBlobBackend({
       accountUrl: blobAccountUrl,
@@ -247,16 +236,13 @@ if (STORAGE_MODE === 'github-api') {
     serverRecorder.record({
       type: 'storage.mode', component: 'storage', level: 'info',
       message: 'User content storage: azure-blob',
-      data: { userContentStorage: 'azure-blob', accountUrl: blobAccountUrl },
+      data: { accountUrl: blobAccountUrl },
     });
   } else {
-    if (userContentStorage === 'azure-blob' && !blobAccountUrl) {
-      log.storage.warn('User content defaults to azure-blob but AZURE_STORAGE_ACCOUNT_URL is unset — Blob backend not initialized; user content falls back to the primary GitHub backend, whose user-content copy was deleted in t/700. Set AZURE_STORAGE_ACCOUNT_URL.');
-    }
+    log.storage.warn('AZURE_STORAGE_ACCOUNT_URL is unset — Blob backend not initialized; user content will fall back to the primary GitHub backend.');
     serverRecorder.record({
       type: 'storage.mode', component: 'storage', level: 'warn',
-      message: 'User content storage: github-api fallback (Azure Blob not configured) — note the GitHub user-content copy was deleted in t/700',
-      data: { userContentStorage },
+      message: 'User content storage: github-api fallback (Azure Blob not configured)',
     });
   }
 } else {

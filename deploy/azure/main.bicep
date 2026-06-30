@@ -90,9 +90,6 @@ param adminUsers string = 'jpsnover,jsnover13-at-gmail-com'
 // once (`az keyvault secret set --name github-app-private-key --file key.pem`)
 // and pass the secret NAME here.
 
-@description('User content storage backend: "github-api" (default, legacy) or "azure-blob" (production target). Controls where chats, debates, and community data are read/written.')
-param userContentStorage string = 'azure-blob'
-
 @description('Enable GitHub data-sync feature. "1" = on, empty = off.')
 param gitSyncEnabled string = ''
 
@@ -403,9 +400,6 @@ var baseEnv = [
   // Azure Blob Storage — user content (chats, debates) and community library.
   // Auth via managed identity (DefaultAzureCredential), no connection string needed.
   { name: 'AZURE_STORAGE_ACCOUNT_URL', value: storageAccount.properties.primaryEndpoints.blob }
-  // User content storage routing — 'azure-blob' sends chats/debates/community
-  // to Blob Storage; 'github-api' keeps them in the GitHub data repo (legacy).
-  { name: 'USER_CONTENT_STORAGE', value: userContentStorage }
 ]
 var envWithToken = githubTokenProvided
   ? concat(baseEnv, [ { name: 'GITHUB_TOKEN', secretRef: githubTokenSecretName } ])
