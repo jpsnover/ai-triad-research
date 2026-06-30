@@ -4,6 +4,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { api } from '@bridge';
 import ossData from '../../data/oss-licenses.json';
+import { SupportCaseForm } from '../support/SupportCaseForm';
 
 declare const __APP_VERSION__: string;
 declare const __BUILD_DATE__: string;
@@ -341,8 +342,11 @@ interface HelpDialogProps {
   onClose: () => void;
 }
 
+const isWeb = import.meta.env.VITE_TARGET === 'web';
+
 export function HelpDialog({ onClose }: HelpDialogProps) {
   const [activeTab, setActiveTab] = useState<HelpTab>('tour');
+  const [showSupportForm, setShowSupportForm] = useState(false);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [size, setSize] = useState({ w: 700, h: 480 });
   const [centered, setCentered] = useState(true);
@@ -574,6 +578,9 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
               <li><strong>DOLCE</strong> — Descriptive Ontology for Linguistic and Cognitive Engineering; foundational ontology informing the taxonomy's upper-level categories and cross-cutting situation semantics.
                 {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://arxiv.org/pdf/2308.01597'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Borgo et al. (2023)</a>
               </li>
+              <li><strong>Emotional Register</strong> — Lexicon-based per-statement affect detection (urgency, fear, hope, outrage, empathy) with phase-appropriateness scoring, operationalizing the &ldquo;Emotional Appeal&rdquo; dimension of computational argument-quality assessment.
+                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://aclanthology.org/E17-1017/'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Wachsmuth et al. (2017)</a>
+              </li>
             </ul>
           </div>
         )}
@@ -623,8 +630,12 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
         </div>
 
         <div className="dialog-actions">
+          {isWeb && (
+            <button className="btn btn-ghost" onClick={() => setShowSupportForm(true)}>Report a Problem</button>
+          )}
           <button className="btn btn-primary" onClick={onClose}>Close</button>
         </div>
+        {showSupportForm && <SupportCaseForm onClose={() => setShowSupportForm(false)} />}
 
         {/* Resize handles: right edge, bottom edge, and corner */}
         <div onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setCentered(false);

@@ -105,7 +105,7 @@ export function GeminiOnboardingModal({ open, onClose }: GeminiOnboardingModalPr
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') handleDismiss('later');
-    if (e.key === 'Enter' && key.trim() && state !== 'validating') handleSave();
+    if (e.key === 'Enter' && key.trim() && state !== 'validating') void handleSave();
   };
 
   return (
