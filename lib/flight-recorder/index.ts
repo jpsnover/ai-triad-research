@@ -39,3 +39,8 @@ export function getGlobalRecorder(): FlightRecorder | null {
 export function setGlobalRecorder(recorder: FlightRecorder): void {
   _global = recorder;
 }
+
+/** Reset the global recorder to null. Used by test harnesses to avoid leaking recorders across runs. */
+export function clearGlobalRecorder(): void {
+  _global = null;
+}
