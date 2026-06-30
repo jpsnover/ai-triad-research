@@ -1460,36 +1460,47 @@ post('/api/ai/temperature', (_req, res, body) => {
 
 // ── Embeddings & NLI ──
 
+// t/1062 / t/1171: shared free-tier gate for the embeddings routes. For free-tier
+// callers (anonymous, server-provided key) it enforces the per-IP RPM + daily-token
+// limits — writing a 429 and returning { blocked: true } if exceeded — and resolves
+// the server free-tier key. Non-free callers pass through with no key (unchanged).
+function freeTierEmbeddingGate(req: http.IncomingMessage, res: http.ServerResponse): { blocked: boolean; key?: string } {
+  const { principalName, idp } = callerIdentity();
+  const tier = proxyTiers.resolveTier(principalName, idp);
+  if (tier.level !== 'free') return { blocked: false };
+  const limitKey = `free:${getClientIp(req)}`;
+  const rpmCheck = rateLimiter.checkRate(limitKey, tier.limits.requestsPerMinute, 60_000);
+  if (!rpmCheck.allowed) {
+    res.writeHead(429); res.end(JSON.stringify({ error: 'Rate limit exceeded', limitType: 'requests_per_minute', retryAfterMs: rpmCheck.retryAfterMs, limit: rpmCheck.limit, current: rpmCheck.current }));
+    return { blocked: true };
+  }
+  const tokenCheck = rateLimiter.checkTokenLimit(limitKey, tier.limits.tokensPerDay);
+  if (!tokenCheck.allowed) {
+    res.writeHead(429); res.end(JSON.stringify({ error: 'Daily token limit exceeded', limitType: 'tokens_per_day', limit: tokenCheck.limit, current: tokenCheck.current }));
+    return { blocked: true };
+  }
+  const key = tier.serverProvidedKey ? proxyTiers.parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY)[0] : undefined;
+  return { blocked: false, key };
+}
+
 post('/api/embeddings/compute', async (req, res, body) => {
   const { texts, ids } = body as { texts: string[]; ids?: string[] };
   try {
-    // t/1062: free tier rate limiting + key injection for anonymous embeddings
-    const { principalName, idp } = callerIdentity();
-    const tier = proxyTiers.resolveTier(principalName, idp);
-    const isFree = tier.level === 'free';
-    if (isFree) {
-      const limitKey = `free:${getClientIp(req)}`;
-      const rpmCheck = rateLimiter.checkRate(limitKey, tier.limits.requestsPerMinute, 60_000);
-      if (!rpmCheck.allowed) {
-        res.writeHead(429); res.end(JSON.stringify({ error: 'Rate limit exceeded', limitType: 'requests_per_minute', retryAfterMs: rpmCheck.retryAfterMs, limit: rpmCheck.limit, current: rpmCheck.current })); return;
-      }
-      const tokenCheck = rateLimiter.checkTokenLimit(limitKey, tier.limits.tokensPerDay);
-      if (!tokenCheck.allowed) {
-        res.writeHead(429); res.end(JSON.stringify({ error: 'Daily token limit exceeded', limitType: 'tokens_per_day', limit: tokenCheck.limit, current: tokenCheck.current })); return;
-      }
-    }
-    const freeTierKey = (isFree && tier.serverProvidedKey)
-      ? proxyTiers.parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY)[0]
-      : undefined;
-    const vectors = await ai.computeEmbeddings(texts, ids, freeTierKey);
+    const gate = freeTierEmbeddingGate(req, res);
+    if (gate.blocked) return;
+    const vectors = await ai.computeEmbeddings(texts, ids, gate.key);
     json(res, { vectors });
   } catch (err) { error(res, String(err), 500, err); }
 });
 
-post('/api/embeddings/query', async (_req, res, body) => {
+// t/1171: same free-tier exemption + rate limiting + key as /compute, so anonymous
+// semantic search finishes the cheap query-embedding step (not just the corpus one).
+post('/api/embeddings/query', async (req, res, body) => {
   const { text } = body as { text: string };
   try {
-    const vector = await ai.computeQueryEmbedding(text);
+    const gate = freeTierEmbeddingGate(req, res);
+    if (gate.blocked) return;
+    const vector = await ai.computeQueryEmbedding(text, gate.key);
     json(res, { vector });
   } catch (err) { error(res, String(err), 500, err); }
 });
@@ -4249,7 +4260,7 @@ async function handleRequestInner(
     // the handler enforces the free-tier model pin, per-IP limits, and key. Inert
     // until FREE_TIER_GEMINI_KEY is set, so the AI block otherwise stands.
     const freeTierRoute = method === 'POST'
-      && (urlPath === '/api/ai/generate' || urlPath === '/api/embeddings/compute')
+      && (urlPath === '/api/ai/generate' || urlPath === '/api/embeddings/compute' || urlPath === '/api/embeddings/query')
       && proxyTiers.freeTierEnabled();
     if (!freeTierRoute && !isAnonAllowedRoute(method, urlPath)) {
       recordAuthDenied('anon_route_blocked', method, urlPath);

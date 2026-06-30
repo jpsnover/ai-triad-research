@@ -704,7 +704,7 @@ function setCachedQueryEmbedding(text: string, vec: number[]): void {
   _queryCache.set(text, vec);
 }
 
-export async function computeQueryEmbedding(text: string): Promise<number[]> {
+export async function computeQueryEmbedding(text: string, explicitApiKey?: string): Promise<number[]> {
   const cached = getCachedQueryEmbedding(text);
   if (cached) return cached;
 
@@ -725,7 +725,9 @@ export async function computeQueryEmbedding(text: string): Promise<number[]> {
     }
   }
 
-  const apiKey = await getApiKey('gemini');
+  // t/1171: accept an explicit key (free-tier server key) so anonymous semantic
+  // search can finish the query-embedding step, mirroring computeEmbeddings.
+  const apiKey = explicitApiKey ?? await getApiKey('gemini');
   if (!apiKey) {
     throw new ActionableError({
       goal: 'Compute query embedding',
