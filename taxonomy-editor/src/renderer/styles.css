@@ -13283,9 +13283,9 @@ a.vocab-term,
 }
 
 .chat-detail-pane {
-  width: 380px;
   min-width: 280px;
   max-width: 50%;
+  flex-shrink: 0;
   height: 100%;
   overflow-y: auto;
   position: relative;

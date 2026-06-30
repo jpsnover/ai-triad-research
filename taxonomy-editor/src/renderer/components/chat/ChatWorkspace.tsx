@@ -16,6 +16,7 @@ import { SituationDetail } from '../debate/SituationDetail';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { useResizableRightPanel } from '../../hooks/useResizablePanel';
 import { useUserProfile } from '../../hooks/useAuthStatus';
 import { CommunityShareBanner } from '../shared/CommunityShareBanner';
 
@@ -198,6 +199,12 @@ export function ChatWorkspace() {
   const [selectedRefNodeId, setSelectedRefNodeId] = useState<string | null>(null);
   const selectedNode = useSelectedNode(selectedRefNodeId);
   const profile = useUserProfile();
+  const { width: detailWidth, onMouseDown: onDetailResize, onTouchStart: onDetailTouchStart } = useResizableRightPanel({
+    storageKey: 'taxonomy-editor-chat-detail-width',
+    defaultWidth: 380,
+    minWidth: 280,
+    maxWidth: 600,
+  });
 
   const handleShare = useCallback(async () => {
     if (!activeChat) return;
@@ -358,7 +365,9 @@ export function ChatWorkspace() {
       </div>
 
       {selectedNode && (
-        <div className="chat-detail-pane">
+        <>
+        <div className="resize-handle" onMouseDown={onDetailResize} onTouchStart={onDetailTouchStart} />
+        <div className="chat-detail-pane" style={{ width: detailWidth }}>
           <button className="chat-detail-close" onClick={() => setSelectedRefNodeId(null)} title="Close detail pane">&times;</button>
           {selectedNode.type === 'pov' ? (
             <NodeDetail pov={selectedNode.pov} node={selectedNode.node} readOnly />
@@ -366,6 +375,7 @@ export function ChatWorkspace() {
             <SituationDetail node={selectedNode.node} readOnly />
           )}
         </div>
+        </>
       )}
     </div>
   );
