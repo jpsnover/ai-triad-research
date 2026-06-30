@@ -549,6 +549,9 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
 
       // Transition phase to closed now that synthesis and all post-synthesis passes are done
       get().updatePhase('closed');
+      // Immediate save bypassing auto-save debounce — a hard crash within the debounce
+      // window after synthesis would lose the entire synthesis result (t/1140 AC3).
+      await saveDebate('synthesis-complete');
       const turnCount = activeDebate?.transcript.filter(e => e.type === 'statement').length ?? 0;
       const durationMs = activeDebate?.created_at ? Date.now() - new Date(activeDebate.created_at).getTime() : 0;
       api.trackEvent('debate_complete', 'debate', { debateId: activeDebate?.id, rounds: turnCount });
