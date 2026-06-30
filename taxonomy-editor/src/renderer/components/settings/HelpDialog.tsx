@@ -3,6 +3,8 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { api } from '@bridge';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import ossData from '../../data/oss-licenses.json';
 import { SupportCaseForm } from '../support/SupportCaseForm';
 import { MyCases } from '../support/MyCases';
@@ -10,6 +12,7 @@ import { useSupportStore } from '../../hooks/useSupportStore';
 
 declare const __APP_VERSION__: string;
 declare const __BUILD_DATE__: string;
+declare const __CHANGELOG_MD__: string;
 
 const REPO_URL = 'https://github.com/jpsnover/ai-triad-research';
 
@@ -55,11 +58,12 @@ function getRuntime(): string {
 
 const isWeb = import.meta.env.VITE_TARGET === 'web';
 
-type HelpTab = 'tour' | 'about' | 'overview' | 'documentation' | 'methods' | 'shortcuts' | 'sbom' | 'licenses' | 'my-cases';
+export type HelpTab = 'tour' | 'about' | 'overview' | 'documentation' | 'methods' | 'shortcuts' | 'sbom' | 'licenses' | 'changelog' | 'my-cases';
 
 const TABS: { id: HelpTab; label: string }[] = [
   { id: 'tour', label: 'Welcome Tour' },
   { id: 'about', label: 'About' },
+  { id: 'changelog', label: "What's New" },
   { id: 'overview', label: 'Overview' },
   { id: 'documentation', label: 'Documentation' },
   { id: 'methods', label: 'Methods' },
@@ -343,12 +347,27 @@ function LicensesPanel() {
   );
 }
 
-interface HelpDialogProps {
-  onClose: () => void;
+function ChangelogPanel() {
+  return (
+    <div className="help-section help-changelog">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <span style={{ fontSize: '0.8rem', padding: '2px 8px', borderRadius: 4, background: 'var(--accent)', color: '#fff' }}>
+          v{__APP_VERSION__}
+        </span>
+        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Current version</span>
+      </div>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{__CHANGELOG_MD__}</ReactMarkdown>
+    </div>
+  );
 }
 
-export function HelpDialog({ onClose }: HelpDialogProps) {
-  const [activeTab, setActiveTab] = useState<HelpTab>('tour');
+interface HelpDialogProps {
+  onClose: () => void;
+  initialTab?: HelpTab;
+}
+
+export function HelpDialog({ onClose, initialTab }: HelpDialogProps) {
+  const [activeTab, setActiveTab] = useState<HelpTab>(initialTab ?? 'tour');
   const [showSupportForm, setShowSupportForm] = useState(false);
   const { unreadCount, fetchCases: fetchSupportCases } = useSupportStore();
   const [pos, setPos] = useState({ x: 0, y: 0 });
@@ -643,6 +662,8 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
         {activeTab === 'sbom' && <SbomPanel />}
 
         {activeTab === 'licenses' && <LicensesPanel />}
+
+        {activeTab === 'changelog' && <ChangelogPanel />}
 
         {activeTab === 'my-cases' && <MyCases />}
 

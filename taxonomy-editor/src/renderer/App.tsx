@@ -12,6 +12,8 @@ import { TabBar } from './components/shared/TabBar';
 import { SaveBar } from './components/sync/SaveBar';
 import { PovTab } from './components/taxonomy/PovTab';
 import { FirstRunDialog } from './components/settings/FirstRunDialog';
+import { WhatsNewToast } from './components/settings/WhatsNewToast';
+import { HelpDialog } from './components/settings/HelpDialog';
 import { OnboardingTour } from './components/OnboardingTour';
 import { DeploymentErrorScreen } from './components/shared/DeploymentErrorScreen';
 
@@ -236,6 +238,7 @@ function MainApp() {
   const [dataRoot, setDataRoot] = useState('');
   const [copyStatus, setCopyStatus] = useState<{ state: string; dir?: string; copied?: number; total?: number } | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showChangelogHelp, setShowChangelogHelp] = useState(false);
 
   useEffect(() => {
     // Check if data is available before loading
@@ -652,6 +655,8 @@ function MainApp() {
       {isMobile && <HamburgerMenu isOpen={hamburgerOpen} onClose={() => setHamburgerOpen(false)} />}
       {UpdatePrompt && !loading && <Suspense fallback={null}><UpdatePrompt /></Suspense>}
       <PrecacheToast progress={precacheProgress} onCancel={cancelPrecache} onDismiss={dismissPrecache} />
+      <WhatsNewToast onOpenChangelog={() => setShowChangelogHelp(true)} />
+      {showChangelogHelp && <HelpDialog onClose={() => setShowChangelogHelp(false)} initialTab="changelog" />}
       {isMobile && <DiagnosticsDrawer />}
       {showOnboarding && <OnboardingTour onDismiss={() => setShowOnboarding(false)} />}
     </div>
