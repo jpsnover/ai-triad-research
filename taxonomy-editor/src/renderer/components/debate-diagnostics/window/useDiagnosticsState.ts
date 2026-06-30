@@ -12,6 +12,7 @@ import type { TaxRefEdge } from '../../taxonomy/TaxonomyRefDetail';
 import { countMatches } from './helpers';
 import type { OverviewTab, EntryTab, UtilitySnapshot } from './types';
 import { UTILITY_WEIGHTS } from './types';
+import { parseHashParams } from '../../../lib/parseHash';
 
 function countMatchesInValue(value: unknown, term: string): number {
   if (typeof value === 'string') return countMatches(value, term);
@@ -40,6 +41,7 @@ export function useDiagnosticsState(initialData?: Record<string, unknown>) {
   const [localOverride, setLocalOverride] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [deepLinkError, setDeepLinkError] = useState<string | null>(null);
   const [entryTab, setEntryTab] = useState<EntryTab>('details');
   const tabContentRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -206,6 +208,123 @@ export function useDiagnosticsState(initialData?: Record<string, unknown>) {
     return unsub;
   }, [localOverride]);
 
+  // Deep-link: parse URL hash params on mount (debateId, entry, tab, overviewTab)
+  const deepLinkApplied = useRef(false);
+  useEffect(() => {
+    if (deepLinkApplied.current) return;
+    deepLinkApplied.current = true;
+    const params = parseHashParams(window.location.hash);
+    const debateId = params.get('debateId');
+    if (!debateId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const raw = await api.loadDebateSession(debateId);
+        if (cancelled) return;
+        if (!raw) {
+          setDebate(null);
+          setDeepLinkError(`Debate not found: ${debateId}`);
+          getGlobalRecorder()?.record({
+            type: 'system.error', component: 'diagnostics-deep-link', level: 'warn',
+            message: `Deep-link debate not found: ${debateId}`,
+          });
+          return;
+        }
+        const session = raw as DebateSession;
+        setDebate(session);
+
+        const entryParam = params.get('entry');
+        if (entryParam != null) {
+          const idx = parseInt(entryParam, 10);
+          if (!isNaN(idx) && idx >= 0 && idx < session.transcript.length) {
+            setSelectedEntry(session.transcript[idx].id);
+            setLocalOverride(true);
+            setOverviewTab('transcript');
+          } else {
+            getGlobalRecorder()?.record({
+              type: 'system.error', component: 'diagnostics-deep-link', level: 'warn',
+              message: `Deep-link entry index out of range: ${entryParam} (transcript has ${session.transcript.length} entries)`,
+            });
+          }
+        }
+
+        const tabParam = params.get('tab');
+        if (tabParam) {
+          const VALID_ENTRY_TABS: string[] = ['tax-refs', 'details', 'claims', 'evidence', 'citations', 'brief', 'plan', 'draft', 'lookahead', 'cite', 'moderator', 'exclusion', 'affect'];
+          if (VALID_ENTRY_TABS.includes(tabParam)) {
+            setEntryTab(tabParam as EntryTab);
+          }
+        }
+
+        const overviewParam = params.get('overviewTab');
+        if (overviewParam && !entryParam) {
+          const VALID_OVERVIEW_TABS: string[] = ['topic-scope', 'extraction', 'argument-network', 'commitments', 'transcript', 'convergence', 'reflections', 'gaps', 'grounding', 'lineage', 'adaptive', 'pov-progression', 'fr-context', 'prompt-diff', 'utility', 'exclusion-overview', 'emotional-register'];
+          if (VALID_OVERVIEW_TABS.includes(overviewParam)) {
+            setOverviewTab(overviewParam as OverviewTab);
+          }
+        }
+      } catch (err) {
+        if (cancelled) return;
+        setDeepLinkError(`Failed to load debate: ${String(err)}`);
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'diagnostics-deep-link', level: 'error',
+          message: `Failed to load deep-linked debate: ${debateId}`,
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Hash sync: push history entries when navigation state changes (enables back/forward)
+  const hashSyncSkip = useRef(false);
+  useEffect(() => {
+    if (!debate) return;
+    if (hashSyncSkip.current) {
+      hashSyncSkip.current = false;
+      return;
+    }
+    const parts: string[] = [`debateId=${encodeURIComponent(debate.id)}`];
+    if (selectedEntry) {
+      const idx = debate.transcript.findIndex(e => e.id === selectedEntry);
+      if (idx >= 0) {
+        parts.push(`entry=${idx}`);
+        parts.push(`tab=${entryTab}`);
+      }
+    } else {
+      parts.push(`overviewTab=${overviewTab}`);
+    }
+    const newHash = `#diagnostics-window?${parts.join('&')}`;
+    if (window.location.hash !== newHash) {
+      history.pushState(null, '', newHash);
+    }
+  }, [debate, selectedEntry, entryTab, overviewTab]);
+
+  // Popstate: restore state from hash when user presses back/forward
+  useEffect(() => {
+    const onPopState = () => {
+      const params = parseHashParams(window.location.hash);
+      const entryParam = params.get('entry');
+      const tabParam = params.get('tab');
+      const overviewParam = params.get('overviewTab');
+      hashSyncSkip.current = true;
+      if (entryParam != null && debate) {
+        const idx = parseInt(entryParam, 10);
+        if (!isNaN(idx) && idx >= 0 && idx < debate.transcript.length) {
+          setSelectedEntry(debate.transcript[idx].id);
+          setLocalOverride(true);
+        }
+      } else {
+        setSelectedEntry(null);
+        setLocalOverride(true);
+      }
+      if (tabParam) setEntryTab(tabParam as EntryTab);
+      if (overviewParam) setOverviewTab(overviewParam as OverviewTab);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [debate]);
+
   // Derived values
   const entry = selectedEntry ? debate?.transcript.find(e => e.id === selectedEntry) ?? null : null;
   const diag: EntryDiagnostics | undefined = selectedEntry ? debate?.diagnostics?.entries[selectedEntry] : undefined;
@@ -258,6 +377,7 @@ export function useDiagnosticsState(initialData?: Record<string, unknown>) {
       'utility': hasAn,
       'fr-context': true,
       'exclusion-overview': true,
+      'emotional-register': true,
     };
     return tabVisibility[overviewTab] ? overviewTab : 'transcript';
   }, [overviewTab, debate, an, commitments]);
@@ -343,12 +463,12 @@ export function useDiagnosticsState(initialData?: Record<string, unknown>) {
         e.preventDefault();
         const dir = e.key === 'ArrowRight' ? 1 : -1;
         if (entry) {
-          const ENTRY_TABS: EntryTab[] = ['moderator', 'details', 'brief', 'plan', 'evidence', 'citations', 'draft', 'lookahead', 'cite', 'claims', 'tax-refs'];
+          const ENTRY_TABS: EntryTab[] = ['moderator', 'details', 'brief', 'plan', 'evidence', 'citations', 'draft', 'lookahead', 'cite', 'claims', 'exclusion', 'affect', 'tax-refs'];
           const idx = ENTRY_TABS.indexOf(entryTab);
           const next = idx + dir;
           if (next >= 0 && next < ENTRY_TABS.length) setEntryTab(ENTRY_TABS[next]);
         } else if (debate) {
-          const OVERVIEW_TABS: OverviewTab[] = ['topic-scope', 'argument-network', 'commitments', 'transcript', 'extraction', 'convergence', 'reflections', 'gaps', 'grounding', 'lineage', 'adaptive', 'pov-progression', 'fr-context', 'prompt-diff', 'utility', 'exclusion-overview'];
+          const OVERVIEW_TABS: OverviewTab[] = ['topic-scope', 'argument-network', 'commitments', 'transcript', 'extraction', 'convergence', 'reflections', 'gaps', 'grounding', 'lineage', 'adaptive', 'pov-progression', 'fr-context', 'prompt-diff', 'utility', 'exclusion-overview', 'emotional-register'];
           const visible = OVERVIEW_TABS.filter(id => {
             if (id === 'topic-scope') return !!debate.topic?.scope;
             if (id === 'argument-network' || id === 'utility') return !!(an && an.nodes.length > 0);
@@ -426,6 +546,7 @@ export function useDiagnosticsState(initialData?: Record<string, unknown>) {
     an, commitments,
     nodeWeights, proxiedModeratorTrace,
     effectiveOverviewTab, perTurnUtilities, matchCount,
+    deepLinkError,
   };
 }
 

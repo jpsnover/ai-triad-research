@@ -4,7 +4,9 @@
 import { useEffect, useState } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useTaxonomyStore, initAIModels } from '../../hooks/useTaxonomyStore';
+import { useChatStore } from '../../hooks/useChatStore';
 import { initDebateSessions } from '../../hooks/useDebateStore';
+import { parseHashParams } from '../../lib/parseHash';
 import { ChatTab } from './ChatTab';
 
 export function ChatWindow() {
@@ -24,7 +26,11 @@ export function ChatWindow() {
       .then(() => useTaxonomyStore.getState().loadAll())
       .then(() => {
         initDebateSessions();
-        if (!cancelled) setReady(true);
+        if (!cancelled) {
+          setReady(true);
+          const chatId = parseHashParams(window.location.hash).get('id');
+          if (chatId) void useChatStore.getState().loadChat(chatId);
+        }
       })
       .catch(err => {
         getGlobalRecorder()?.record({

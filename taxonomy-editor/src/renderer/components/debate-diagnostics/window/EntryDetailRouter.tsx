@@ -33,7 +33,7 @@ import { ModeratorTab } from './shared';
 import {
   DraftTab, ClaimsTab, EvidenceTab, CitationsTab,
   TaxRefsTab, DetailsTab, BriefTab, PlanTab, LookaheadTab, CiteTab,
-  ExclusionGuardTab,
+  ExclusionGuardTab, AffectTab,
 } from './entry-tabs';
 
 // TensionsListDetail, DebateExchangeRich, ModeratorTab → extracted to ./shared/
@@ -324,6 +324,7 @@ export function EntryDetailRouter({
     { id: 'cite', label: 'Cite', has: !!citeStage, copy: JSON.stringify(citeStage?.work_product, null, 2) ?? '' },
     { id: 'claims', label: 'Claims', has: hasClaims, ranEmpty: !hasClaims && stageRan && entry.type === 'statement' && !pipelineError, copy: claimsCopy },
     { id: 'exclusion', label: 'Exclusion', has: hasExclusionData, copy: '' },
+    { id: 'affect', label: 'Affect', has: !!(entry.content && typeof entry.content === 'string' && entry.content.split(/\s+/).length >= 20), copy: '' },
     { id: 'tax-refs', label: 'Taxonomy Refs', count: taxRefCount, has: taxRefCount > 0, copy: entry.taxonomy_refs?.map(r => `${r.node_id}: ${r.relevance}`).join('\n') ?? '' },
   ];
   const tabEnabled = (t: typeof tabs[0]) => t.has || !!t.ranEmpty;
@@ -741,6 +742,11 @@ export function EntryDetailRouter({
           {/* ══════════════ EXCLUSION GUARD TAB ══════════════ */}
           {activeTab === 'exclusion' && (
             <ExclusionGuardTab diag={diag} />
+          )}
+
+          {/* ══════════════ AFFECT TAB ══════════════ */}
+          {activeTab === 'affect' && (
+            <AffectTab entry={entry} debate={debate} entryIdx={entryIdx} />
           )}
 
           {/* ══════════════ EVIDENCE TAB (delegated) ══════════════ */}

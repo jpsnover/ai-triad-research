@@ -12,3 +12,4 @@ export { CiteTab } from './CiteTab';
 export { TaxRefsTab } from './TaxRefsTab';
 export { DetailsTab } from './DetailsTab';
 export { ExclusionGuardTab } from './ExclusionGuardTab';
+export { AffectTab } from './AffectTab';

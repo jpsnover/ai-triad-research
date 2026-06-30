@@ -9,6 +9,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 const mockLoadAll = vi.fn().mockResolvedValue(undefined);
 const mockInitAIModels = vi.fn().mockResolvedValue(undefined);
 const mockInitDebateSessions = vi.fn();
+const mockLoadChat = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('../../hooks/useTaxonomyStore', () => ({
   useTaxonomyStore: Object.assign(
@@ -16,6 +17,13 @@ vi.mock('../../hooks/useTaxonomyStore', () => ({
     { getState: () => ({ loadAll: mockLoadAll }) },
   ),
   initAIModels: (...args: unknown[]) => mockInitAIModels(...args),
+}));
+
+vi.mock('../../hooks/useChatStore', () => ({
+  useChatStore: Object.assign(
+    () => ({}),
+    { getState: () => ({ loadChat: mockLoadChat }) },
+  ),
 }));
 
 vi.mock('../../hooks/useDebateStore', () => ({
@@ -53,6 +61,8 @@ describe('ChatWindow', () => {
     mockInitAIModels.mockClear().mockResolvedValue(undefined);
     mockLoadAll.mockClear().mockResolvedValue(undefined);
     mockInitDebateSessions.mockClear();
+    mockLoadChat.mockClear().mockResolvedValue(undefined);
+    window.location.hash = '';
   });
 
   it('shows loading state initially', () => {
@@ -77,5 +87,23 @@ describe('ChatWindow', () => {
     await waitFor(() => {
       expect(screen.getByTestId('chat-tab')).toBeInTheDocument();
     });
+  });
+
+  it('deep-links to a chat when hash contains ?id=', async () => {
+    window.location.hash = '#chat-window?id=chat-abc';
+    render(<ChatWindow />);
+    await waitFor(() => {
+      expect(screen.getByTestId('chat-tab')).toBeInTheDocument();
+    });
+    expect(mockLoadChat).toHaveBeenCalledWith('chat-abc');
+  });
+
+  it('does not call loadChat when hash has no id param', async () => {
+    window.location.hash = '#chat-window';
+    render(<ChatWindow />);
+    await waitFor(() => {
+      expect(screen.getByTestId('chat-tab')).toBeInTheDocument();
+    });
+    expect(mockLoadChat).not.toHaveBeenCalled();
   });
 });

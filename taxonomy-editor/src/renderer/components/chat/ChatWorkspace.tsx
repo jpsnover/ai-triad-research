@@ -236,6 +236,16 @@ export function ChatWorkspace() {
     setSelectedRefNodeId(null);
   }, [activeChat?.id]);
 
+  // Sync address bar with active chat ID (web popout only)
+  useEffect(() => {
+    if (!activeChat?.id) return;
+    if (!window.location.hash.startsWith('#chat-window')) return;
+    const next = `#chat-window?id=${encodeURIComponent(activeChat.id)}`;
+    if (window.location.hash !== next) {
+      window.history.replaceState(null, '', next);
+    }
+  }, [activeChat?.id]);
+
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });

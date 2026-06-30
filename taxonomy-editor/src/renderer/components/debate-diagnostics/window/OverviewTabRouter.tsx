@@ -15,6 +15,7 @@ import { ArgumentNetworkTab } from './overview-tabs';
 import { AdaptiveStagingTab } from './overview-tabs';
 import { ReflectionsTab } from './overview-tabs';
 import { UtilityTab } from './overview-tabs';
+import { EmotionalRegisterTab } from './overview-tabs';
 
 import { ExtractionTimelinePanel } from '../../analysis/ExtractionTimelinePanel';
 import { ConvergenceSignalsPanel } from '../../analysis/ConvergenceSignalsPanel';
@@ -685,6 +686,15 @@ export function OverviewTabRouter({
         <UtilityTab
           debate={debate}
           perTurnUtilities={perTurnUtilities}
+          setSelectedEntry={setSelectedEntry}
+          setLocalOverride={setLocalOverride}
+        />
+      )}
+
+      {/* Emotional Register — per-speaker affect profiles, intensity trends, appropriateness */}
+      {effectiveOverviewTab === 'emotional-register' && (
+        <EmotionalRegisterTab
+          debate={debate}
           setSelectedEntry={setSelectedEntry}
           setLocalOverride={setLocalOverride}
         />

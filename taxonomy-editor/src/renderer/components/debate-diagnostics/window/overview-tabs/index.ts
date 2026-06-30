@@ -5,3 +5,4 @@ export { AdaptiveStagingTab } from './AdaptiveStagingTab';
 export { ReflectionsTab } from './ReflectionsTab';
 export { ArgumentNetworkTab } from './ArgumentNetworkTab';
 export { UtilityTab } from './UtilityTab';
+export { EmotionalRegisterTab } from './EmotionalRegisterTab';
