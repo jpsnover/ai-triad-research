@@ -18,6 +18,8 @@ import { loadProvisionalWeights } from '@lib/debate/phaseTransitions';
 import { resolveMultiProviderModels } from '@lib/ai-client/modelRouter';
 import { useTierInfo, isFreeTier } from '../../hooks/useTierInfo';
 import { getClientConfig } from '../../lib/clientConfig';
+import { useGeminiOnboarding } from '../../hooks/useGeminiOnboarding';
+import { GeminiOnboardingModal } from '../settings/GeminiOnboardingModal';
 
 // Ollama (local quantized models) cannot reliably produce structured JSON for debate pipelines.
 const DEBATE_EXCLUDED_BACKENDS = new Set(['ollama']);
@@ -220,6 +222,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [hasApiKey, setHasApiKey] = useState<Record<string, boolean>>({});
   const { tier: tierInfo } = useTierInfo();
   const freeTier = isFreeTier(tierInfo);
+  const { modalProps: geminiModalProps, checkAndShow: checkGeminiOnboarding } = useGeminiOnboarding();
   // Backends usable for multi-provider debates: key present AND authorized for the
   // user's tier (t/772). Single-model flow keeps using hasApiKey (raw key presence).
   const [availableBackends, setAvailableBackends] = useState<Set<string>>(new Set());
@@ -394,6 +397,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
 
   const handleStart = async () => {
     if (!canStart || creating) return;
+    await checkGeminiOnboarding();
     setCreating(true);
 
     let finalTopic = topic.trim();
@@ -1177,6 +1181,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
             </div>
           </div>
         )}
+        <GeminiOnboardingModal {...geminiModalProps} />
       </div>
     </div>
   );

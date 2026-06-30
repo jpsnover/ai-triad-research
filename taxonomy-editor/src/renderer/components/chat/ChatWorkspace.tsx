@@ -19,6 +19,8 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useResizableRightPanel } from '../../hooks/useResizablePanel';
 import { useUserProfile } from '../../hooks/useAuthStatus';
 import { CommunityShareBanner } from '../shared/CommunityShareBanner';
+import { useGeminiOnboarding } from '../../hooks/useGeminiOnboarding';
+import { GeminiOnboardingModal } from '../settings/GeminiOnboardingModal';
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -205,6 +207,7 @@ export function ChatWorkspace() {
     minWidth: 280,
     maxWidth: 600,
   });
+  const { modalProps: geminiModalProps, checkAndShow: checkGeminiOnboarding } = useGeminiOnboarding();
 
   const handleShare = useCallback(async () => {
     if (!activeChat) return;
@@ -254,11 +257,12 @@ export function ChatWorkspace() {
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || chatGenerating) return;
+    await checkGeminiOnboarding();
     const msg = input;
     setInput('');
     getGlobalRecorder()?.record({ type: 'user.action', component: 'chat', level: 'info', message: 'chat.send', data: { chat_id: activeChat?.id, mode: activeChat?.mode, pover: activeChat?.pover, message_length: msg.length } });
     await sendMessage(msg);
-  }, [input, chatGenerating, sendMessage]);
+  }, [input, chatGenerating, sendMessage, checkGeminiOnboarding]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -377,6 +381,7 @@ export function ChatWorkspace() {
         </div>
         </>
       )}
+      <GeminiOnboardingModal {...geminiModalProps} />
     </div>
   );
 }
