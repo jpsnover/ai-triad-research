@@ -1,1 +1,24 @@
 [onnxEmbedding] Using dml EP (available: cpu, dml, webgpu)
+[doctrinal] safetyist: 3/133 Beliefs anchored, 3 floor-applied
+[doctrinal] skeptic: 20/204 Beliefs anchored, 5 floor-applied
+[onnxEmbedding] Model loaded in 37806ms (384d, quantized, EP=dml)
+[ai-adapter] ONNX embedding ready — subprocess cold-starts eliminated
+[pipeline] Opening: removed 1 invalid node ID(s): regulation_adaptive
+[orchestration] *** executeTurnWithRetry ENTERED for accelerationist round 1 ***
+[pipeline] Brief ID removed (unknown): governance_adaptive
+[pipeline] Citation bank built: 15 scoped / 421 full entries, path=bank-scrub (intended=B), 14ms
+[pipeline] Ungrounded claims: 1 factual assertions not traceable to source corpus
+[orchestration] *** executeTurnWithRetry ENTERED for safetyist round 2 ***
+[pipeline] Citation bank built: 15 scoped / 421 full entries, path=bank-scrub (intended=B), 11ms
+[orchestration] *** executeTurnWithRetry ENTERED for skeptic round 3 ***
+[pipeline] Brief ID removed (unknown): capture_institutional
+[pipeline] Brief ID removed (unknown): asymmetry_power
+[pipeline] Brief ID removed (unknown): oversight_democratic
+[pipeline] Brief ID removed (unknown): displacement_labor
+[pipeline] Citation bank built: 15 scoped / 421 full entries, path=bank-scrub (intended=B), 5ms
+[pipeline] Ungrounded claims: 2 factual assertions not traceable to source corpus
+[orchestration] *** executeTurnWithRetry ENTERED for accelerationist round 4 ***
+[pipeline] Brief ID removed (unknown): pol-1003
+[pipeline] Brief ID removed (unknown): pol-006
+[pipeline] Citation bank built: 15 scoped / 421 full entries, path=bank-scrub (intended=B), 6ms
+{"success":false,"error":"\n  Goal:     Generate AI response from claude/claude-opus-4-8\n  Error:    AI call timed out after 120s — no response from claude-opus-4\n  Location: lib/debate/aiAdapter.ts:doGenerateText\n  Resolve:\n  1. Click Retry to attempt the call again, or switch to a faster model"}
