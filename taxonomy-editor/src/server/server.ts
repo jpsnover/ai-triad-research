@@ -1028,6 +1028,50 @@ post('/api/keys', async (_req, res, body) => {
   }
 });
 
+post('/api/keys/validate', async (req, res, body) => {
+  const { key, backend } = (body ?? {}) as { key?: string; backend?: string };
+  if (!key || !backend) { error(res, 'key and backend are required', 400); return; }
+
+  const rateCheck = rateLimiter.checkRate(`key-validate:${getClientIp(req)}`, 5, 60_000);
+  if (!rateCheck.allowed) {
+    res.writeHead(429, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ valid: false, error: 'Rate limit exceeded — try again shortly' }));
+    return;
+  }
+
+  try {
+    let resp: Response;
+    if (backend === 'gemini') {
+      resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
+    } else if (backend === 'claude') {
+      resp = await fetch('https://api.anthropic.com/v1/models', {
+        headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      });
+    } else if (backend === 'groq') {
+      resp = await fetch('https://api.groq.com/openai/v1/models', {
+        headers: { 'Authorization': `Bearer ${key}` },
+      });
+    } else {
+      json(res, { valid: false, error: `Unsupported backend: ${backend}` });
+      return;
+    }
+
+    if (resp.ok) {
+      json(res, { valid: true });
+    } else {
+      json(res, { valid: false, error: 'Invalid API key' });
+    }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'key-validation', level: 'warn',
+      message: 'Key validation request failed',
+      data: { backend },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    json(res, { valid: false, error: 'Could not reach provider — check your network' });
+  }
+});
+
 // Delete the current user's stored key for one backend / all backends. Mirrors
 // the web bridge contract. Anon-blocked by the /api/keys AI-route guard.
 post('/api/keys/delete', async (_req, res, body) => {

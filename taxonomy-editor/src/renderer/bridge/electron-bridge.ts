@@ -75,6 +75,7 @@ export const api: AppAPI = {
   // AI models & keys
   loadAIModels: () => window.electronAPI.loadAIModels(),
   refreshAIModels: () => window.electronAPI.refreshAIModels(),
+  validateApiKey: (key, backend) => window.electronAPI.validateApiKey?.(key, backend) ?? Promise.resolve({ valid: false, error: 'Key validation not available in this version' }),
   setApiKey: (key, backend) => window.electronAPI.setApiKey(key, backend),
   addApiKey: async (key, backend) => {
     const count = await window.electronAPI.addApiKey(key, backend);

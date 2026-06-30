@@ -328,6 +328,37 @@ export function registerIpcHandlers(): void {
     storeApiKey(key, backend as 'gemini' | 'claude' | 'groq' | 'openai' | 'deepseek' | undefined);
   });
 
+  ipcMain.handle('validate-api-key', async (_event, key: string, backend: string): Promise<{ valid: boolean; error?: string }> => {
+    try {
+      let valid = false;
+      if (backend === 'gemini') {
+        const r = await net.fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
+        valid = r.ok;
+      } else if (backend === 'claude') {
+        const r = await net.fetch('https://api.anthropic.com/v1/models', {
+          headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+        });
+        valid = r.ok;
+      } else if (backend === 'groq') {
+        const r = await net.fetch('https://api.groq.com/openai/v1/models', {
+          headers: { 'Authorization': `Bearer ${key}` },
+        });
+        valid = r.ok;
+      } else {
+        return { valid: false, error: `Unsupported backend: ${backend}` };
+      }
+      return valid ? { valid: true } : { valid: false, error: 'Invalid API key' };
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'ipc-handlers', level: 'warn',
+        message: 'Key validation request failed',
+        data: { backend },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      return { valid: false, error: 'Could not reach provider — check your network' };
+    }
+  });
+
   ipcMain.handle('has-api-key', (_event, backend?: string) => {
     if (backend === 'ollama') return true;
     return hasApiKey(backend as 'gemini' | 'claude' | 'groq' | 'openai' | 'deepseek' | undefined);

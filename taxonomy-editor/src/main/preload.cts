@@ -111,6 +111,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   refreshAIModels: (): Promise<unknown> =>
     ipcRenderer.invoke('refresh-ai-models'),
 
+  validateApiKey: (key: string, backend: string): Promise<{ valid: boolean; error?: string }> =>
+    ipcRenderer.invoke('validate-api-key', key, backend),
+
   setApiKey: (key: string, backend?: string): Promise<void> =>
     ipcRenderer.invoke('set-api-key', key, backend),
 

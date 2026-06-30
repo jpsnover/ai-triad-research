@@ -33,6 +33,7 @@ export interface ElectronAPI {
   getFileDiff: (filePath: string) => Promise<string>;
   loadAIModels: () => Promise<unknown>;
   refreshAIModels: () => Promise<unknown>;
+  validateApiKey: (key: string, backend: string) => Promise<{ valid: boolean; error?: string }>;
   setApiKey: (key: string, backend?: string) => Promise<void>;
   hasApiKey: (backend?: string) => Promise<boolean>;
   computeEmbeddings: (texts: string[], ids?: string[]) => Promise<{ vectors: number[][] }>;
