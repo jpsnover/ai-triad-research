@@ -8,6 +8,9 @@ import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useShallow } from 'zustand/react/shallow';
+import { AdminErrorsTab } from './AdminErrorsTab';
+
+type AdminTab = 'submissions' | 'enrichment' | 'errors';
 
 function formatDate(iso: string): string {
   if (!iso) return '';
@@ -155,6 +158,7 @@ function EnrichmentRepairSection() {
 export function AdminPanel() {
   const { submissions, fetchSubmissions, approveSubmission, rejectSubmission } = useCommunityStore();
   const profile = useUserProfile();
+  const [activeTab, setActiveTab] = useState<AdminTab>('submissions');
   const [filter, setFilter] = useState<string>('pending');
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -202,49 +206,63 @@ export function AdminPanel() {
     <div className="admin-panel">
       <div className="admin-header">
         <button className="btn btn-ghost" onClick={handleBack}>&larr; Community</button>
-        <h2>Admin — Submissions</h2>
-        <select
-          className="admin-filter"
-          value={filter}
-          onChange={e => setFilter(e.target.value)}
-        >
-          <option value="pending">Pending</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-          <option value="">All</option>
-        </select>
+        <h2>Admin Panel</h2>
+      </div>
+
+      <div className="admin-tab-bar">
+        <button className={activeTab === 'submissions' ? 'active' : ''} onClick={() => setActiveTab('submissions')}>Submissions</button>
+        <button className={activeTab === 'enrichment' ? 'active' : ''} onClick={() => setActiveTab('enrichment')}>Enrichment</button>
+        <button className={activeTab === 'errors' ? 'active' : ''} onClick={() => setActiveTab('errors')}>Errors</button>
       </div>
 
       {msg && <div className="community-toast">{msg}</div>}
 
-      {submissions.length === 0 ? (
-        <div className="community-empty">No {filter || ''} submissions.</div>
-      ) : (
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Type</th>
-              <th>Item ID</th>
-              <th>Submitted By</th>
-              <th>Date</th>
-              <th>Note</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {submissions.map(sub => (
-              <SubmissionRow
-                key={sub.id}
-                sub={sub}
-                onApprove={() => handleApprove(sub.id)}
-                onReject={() => handleReject(sub.id)}
-              />
-            ))}
-          </tbody>
-        </table>
+      {activeTab === 'submissions' && (
+        <>
+          <div style={{ padding: '8px 16px' }}>
+            <select
+              className="admin-filter"
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
+            >
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="">All</option>
+            </select>
+          </div>
+          {submissions.length === 0 ? (
+            <div className="community-empty">No {filter || ''} submissions.</div>
+          ) : (
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Item ID</th>
+                  <th>Submitted By</th>
+                  <th>Date</th>
+                  <th>Note</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {submissions.map(sub => (
+                  <SubmissionRow
+                    key={sub.id}
+                    sub={sub}
+                    onApprove={() => handleApprove(sub.id)}
+                    onReject={() => handleReject(sub.id)}
+                  />
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
       )}
 
-      <EnrichmentRepairSection />
+      {activeTab === 'enrichment' && <EnrichmentRepairSection />}
+
+      {activeTab === 'errors' && <AdminErrorsTab />}
     </div>
   );
 }

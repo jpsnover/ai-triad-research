@@ -51,9 +51,12 @@ describe('AdminPanel', () => {
     mockProfile = { isAdmin: true };
   });
 
-  it('renders the admin header with submissions heading', () => {
+  it('renders the admin header and tab bar', () => {
     render(<AdminPanel />);
-    expect(screen.getByText('Admin — Submissions')).toBeInTheDocument();
+    expect(screen.getByText('Admin Panel')).toBeInTheDocument();
+    expect(screen.getByText('Submissions')).toBeInTheDocument();
+    expect(screen.getByText('Enrichment')).toBeInTheDocument();
+    expect(screen.getByText('Errors')).toBeInTheDocument();
   });
 
   it('fetches submissions on mount', () => {
@@ -65,7 +68,7 @@ describe('AdminPanel', () => {
     mockProfile = { isAdmin: false };
     render(<AdminPanel />);
     expect(screen.getByText('You do not have admin access.')).toBeInTheDocument();
-    expect(screen.queryByText('Admin — Submissions')).not.toBeInTheDocument();
+    expect(screen.queryByText('Submissions')).not.toBeInTheDocument();
   });
 
   it('shows empty state when no submissions exist', () => {
@@ -89,8 +92,10 @@ describe('AdminPanel', () => {
     expect(mockFetchSubmissions).toHaveBeenCalledWith('approved');
   });
 
-  it('renders enrichment repair section', () => {
+  it('renders enrichment repair section when tab is active', async () => {
+    const user = userEvent.setup();
     render(<AdminPanel />);
+    await user.click(screen.getByText('Enrichment'));
     expect(screen.getByText('Enrichment Repair')).toBeInTheDocument();
     expect(screen.getByText('All nodes are fully enriched.')).toBeInTheDocument();
   });
