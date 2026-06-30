@@ -1,0 +1,20 @@
+{
+  "activePovers": [
+    "accelerationist",
+    "safetyist",
+    "skeptic"
+  ],
+  "model": "claude-opus-4",
+  "rounds": 4,
+  "responseLength": "medium",
+  "protocolId": "structured",
+  "outputDir": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs",
+  "outputFormat": "json",
+  "slug": "exp-phase2-compute-licensing-cheap",
+  "temperature": 0.3,
+  "topic": "Should frontier AI development be gated by compute-threshold licensing, and through what pathways would such a regime reshape the incentives of large labs, open-source developers, insurers, and national competitiveness — given the tension between preventing catastrophic capability concentration and chilling broad-based innovation?",
+  "stageModels": {
+    "cite": "gemini-flash-lite-latest",
+    "brief": "gemini-flash-lite-latest"
+  }
+}

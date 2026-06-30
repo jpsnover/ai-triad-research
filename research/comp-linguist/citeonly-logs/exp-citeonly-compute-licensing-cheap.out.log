@@ -1,0 +1,46 @@
+[onnxEmbedding] Using dml EP (available: cpu, dml, webgpu)
+[doctrinal] safetyist: 3/133 Beliefs anchored, 3 floor-applied
+[doctrinal] skeptic: 20/204 Beliefs anchored, 5 floor-applied
+[onnxEmbedding] Model loaded in 36109ms (384d, quantized, EP=dml)
+[ai-adapter] ONNX embedding ready — subprocess cold-starts eliminated
+[orchestration] *** executeTurnWithRetry ENTERED for safetyist round 1 ***
+[pipeline] Brief ID removed (unknown): skp-intentions-153
+[pipeline] Citation bank built: 15 scoped / 421 full entries, path=bank-scrub (intended=B), 6ms
+[pipeline] Micro-fix(specificity) re-validation failed — falling through to full retry
+[pipeline] Draft validation feedback (attempt 0), retrying: my_claims are all abstract — include a number, named entity, or timeline. Use the source evidence if provided.
+[pipeline] Draft field-level merge: froze statement, turn_symbols, commitment, position_update, regenerated claim_sketches
+[orchestration] *** executeTurnWithRetry ENTERED for accelerationist round 2 ***
+[pipeline] Citation bank built: 15 scoped / 421 full entries, path=bank-scrub (intended=B), 4ms
+[orchestration] *** executeTurnWithRetry ENTERED for safetyist round 3 ***
+[pipeline] Citation bank built: 15 scoped / 421 full entries, path=bank-scrub (intended=B), 6ms
+[pipeline] Micro-fix(specificity) diff-check failed — falling through to full retry
+[pipeline] Draft validation feedback (attempt 0), retrying: my_claims are all abstract — include a number, named entity, or timeline. Use the source evidence if provided.
+[pipeline] Draft field-level merge: froze statement, turn_symbols, commitment, position_update, regenerated claim_sketches
+[orchestration] *** executeTurnWithRetry ENTERED for skeptic round 4 ***
+[pipeline] Brief ID removed (unknown): capture_institutional
+[pipeline] Citation bank built: 15 scoped / 421 full entries, path=bank-scrub (intended=B), 6ms
+[pipeline] Micro-fix(specificity) re-validation failed — falling through to full retry
+[pipeline] Draft validation feedback (attempt 0), retrying: my_claims are all abstract — include a number, named entity, or timeline. Use the source evidence if provided.
+[pipeline] Draft field-level merge: froze statement, turn_symbols, commitment, position_update, regenerated claim_sketches
+{
+  "success": true,
+  "debateId": "d6d8a5d0-11da-49b9-b996-1a7f7b5638ce",
+  "name": "Should frontier AI development be gated by compute-thresh...",
+  "slug": "exp-citeonly-compute-licensing-cheap",
+  "topic": "Should frontier AI development be gated by compute-threshold licensing, and through what pathways would such a regime reshape the incentives of large labs, open-source developers, insurers, and national competitiveness — given the tension between preventing catastrophic capability concentration and chilling broad-based innovation?",
+  "files": {
+    "debate": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-citeonly-compute-licensing-cheap-debate.json",
+    "transcript": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-citeonly-compute-licensing-cheap-debate.json",
+    "diagnostics": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-citeonly-compute-licensing-cheap-diagnostics.json",
+    "harvest": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-citeonly-compute-licensing-cheap-harvest.json",
+    "markdown": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-citeonly-compute-licensing-cheap-debate.md"
+  },
+  "stats": {
+    "rounds": 4,
+    "entries": 21,
+    "apiCalls": 81,
+    "totalTimeMs": 1827475,
+    "claimsAccepted": 35,
+    "claimsRejected": 4
+  }
+}

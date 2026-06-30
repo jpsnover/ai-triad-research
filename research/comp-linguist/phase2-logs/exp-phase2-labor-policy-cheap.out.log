@@ -1,0 +1,37 @@
+[onnxEmbedding] Using dml EP (available: cpu, dml, webgpu)
+[doctrinal] safetyist: 3/133 Beliefs anchored, 3 floor-applied
+[doctrinal] skeptic: 20/204 Beliefs anchored, 5 floor-applied
+[onnxEmbedding] Model loaded in 33320ms (384d, quantized, EP=dml)
+[ai-adapter] ONNX embedding ready — subprocess cold-starts eliminated
+[pipeline] Opening: removed 1 invalid node ID(s): acc-intentions-1003
+[orchestration] *** executeTurnWithRetry ENTERED for accelerationist round 1 ***
+[pipeline] Citation bank built: 15 scoped / 421 full entries, path=bank-scrub (intended=B), 7ms
+[orchestration] *** executeTurnWithRetry ENTERED for safetyist round 2 ***
+[pipeline] Citation bank built: 15 scoped / 421 full entries, path=bank-scrub (intended=B), 6ms
+[orchestration] *** executeTurnWithRetry ENTERED for accelerationist round 3 ***
+[pipeline] Citation bank built: 15 scoped / 421 full entries, path=bank-scrub (intended=B), 6ms
+[pipeline] Auto-split single paragraph into 3 paragraphs
+[orchestration] *** executeTurnWithRetry ENTERED for skeptic round 4 ***
+[pipeline] Citation bank built: 15 scoped / 421 full entries, path=bank-scrub (intended=B), 3ms
+{
+  "success": true,
+  "debateId": "3b713c18-f4ac-4a11-b797-1c3880b7eac4",
+  "name": "As AI automates cognitive labor, should policy prioritize...",
+  "slug": "exp-phase2-labor-policy-cheap",
+  "topic": "As AI automates cognitive labor, should policy prioritize redistributive mechanisms (UBI, robot taxes) or transition mechanisms (retraining, wage insurance), and through what pathways does each reshape the incentives of firms, displaced workers, and innovators — given the tension between cushioning disruption and preserving economic dynamism?",
+  "files": {
+    "debate": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-phase2-labor-policy-cheap-debate.json",
+    "transcript": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-phase2-labor-policy-cheap-debate.json",
+    "diagnostics": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-phase2-labor-policy-cheap-diagnostics.json",
+    "harvest": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-phase2-labor-policy-cheap-harvest.json",
+    "markdown": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-phase2-labor-policy-cheap-debate.md"
+  },
+  "stats": {
+    "rounds": 4,
+    "entries": 26,
+    "apiCalls": 76,
+    "totalTimeMs": 1347590,
+    "claimsAccepted": 30,
+    "claimsRejected": 5
+  }
+}

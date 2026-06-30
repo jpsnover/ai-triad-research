@@ -1,0 +1,16 @@
+{
+  "batch_name": "exp-brief-cite-flash",
+  "started_at": "2026-06-30T09:43:37Z",
+  "debates": [
+    {
+      "last_update_at": "2026-06-30T10:18:13Z",
+      "current_stage": "generating",
+      "current_debater": "Extraction",
+      "total_turns_expected": 9,
+      "started_at": "2026-06-30T09:43:37Z",
+      "status": "running",
+      "current_turn": 137,
+      "name": "exp-brief-cite-flash-cheap-phase1"
+    }
+  ]
+}

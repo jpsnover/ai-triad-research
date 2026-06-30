@@ -1,0 +1,16 @@
+{
+  "debates": [
+    {
+      "status": "running",
+      "total_turns_expected": 9,
+      "name": "exp-phase2-compute-licensing-expensive",
+      "current_turn": 127,
+      "last_update_at": "2026-06-30T13:42:37Z",
+      "current_stage": "generating",
+      "started_at": "2026-06-30T13:05:57Z",
+      "current_debater": "Taxonomy"
+    }
+  ],
+  "started_at": "2026-06-30T13:05:57Z",
+  "batch_name": "exp-phase2"
+}

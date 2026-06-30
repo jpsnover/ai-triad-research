@@ -1,0 +1,517 @@
+[debate-cli] Repo root: C:\Users\jsnov\repos\ai-triad-research
+[debate-cli] Loading taxonomy...
+[debate-cli] Loaded: 161 acc, 286 saf, 300 skp, 402 sit nodes
+[debate-cli] Vocabulary: 45 standardized, 24 colloquial terms
+[debate-cli] Model: claude-opus-4
+[debate-cli] Starting debate: "Should frontier AI development be gated by compute-threshold licensing, and thro..." with accelerationist, safetyist, skeptic, 4 rounds
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[doctrinal.threshold-anomaly] Only 0 Beliefs anchored (<3) — threshold may be too high
+[debate-cli] [setup] Evaluating topic quality
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[debate-cli] [generating] Topic critique
+[usage] {"ts":"2026-06-30T16:14:33.437Z","backend":"claude","model":"claude-opus-4-8","latencyMs":14586,"promptTokens":1777,"completionTokens":1152,"totalTokens":2929}
+[debate-cli] [setup] Topic quality: fair (10/20)
+[debate-cli] [setup] Extracting topic scope
+[debate-cli] [generating] Topic scope extraction
+[usage] {"ts":"2026-06-30T16:14:50.344Z","backend":"claude","model":"claude-opus-4-8","latencyMs":16904,"promptTokens":2966,"completionTokens":1154,"totalTokens":4120}
+[debate-cli] [setup] Topic scope extracted (explicit, 7 off-scope, 6 drift sigs)
+[debate-cli] [opening] skeptic: Skeptic preparing opening statement
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[debate-cli] [opening] skeptic: Skeptic is briefing...
+[debate-cli] [generating] Skeptic opening brief
+[usage] {"ts":"2026-06-30T16:15:00.414Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":4771,"promptTokens":7928,"completionTokens":916,"totalTokens":8844}
+[debate-cli] [opening] skeptic: Skeptic is planning...
+[debate-cli] [generating] Skeptic opening plan
+[usage] {"ts":"2026-06-30T16:15:27.255Z","backend":"claude","model":"claude-opus-4-8","latencyMs":26838,"promptTokens":5418,"completionTokens":1586,"totalTokens":7004}
+[debate-cli] [opening] skeptic: Skeptic is drafting...
+[debate-cli] [generating] Skeptic opening draft
+[usage] {"ts":"2026-06-30T16:15:50.243Z","backend":"claude","model":"claude-opus-4-8","latencyMs":22985,"promptTokens":8473,"completionTokens":1464,"totalTokens":9937}
+[debate-cli] [opening] skeptic: Skeptic is citing...
+[debate-cli] [generating] Skeptic opening cite
+[usage] {"ts":"2026-06-30T16:15:53.954Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":3709,"promptTokens":10518,"completionTokens":473,"totalTokens":10991}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-06-30T16:16:21.116Z","backend":"claude","model":"claude-opus-4-8","latencyMs":27156,"promptTokens":5236,"completionTokens":2384,"totalTokens":7620}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-06-30T16:16:24.535Z","backend":"claude","model":"claude-opus-4-8","latencyMs":3390,"promptTokens":1474,"completionTokens":96,"totalTokens":1570}
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[usage] {"ts":"2026-06-30T16:17:23.723Z","backend":"claude","model":"claude-opus-4-8","latencyMs":4158,"promptTokens":205,"completionTokens":208,"totalTokens":413}
+[usage] {"ts":"2026-06-30T16:17:26.883Z","backend":"claude","model":"claude-opus-4-8","latencyMs":7318,"promptTokens":1277,"completionTokens":500,"totalTokens":1777}
+[debate-engine] [WARNING] summarizeEntry: Unterminated string in JSON at position 1598 (line 1 column 1599). Recovery: Entry will display at full detail only
+[debate-cli] [warning] [WARNING] summarizeEntry: Unterminated string in JSON at position 1598 (line 1 column 1599). Recovery: Entry will display at full detail only
+[debate-cli] [opening] accelerationist: Accelerationist preparing opening statement
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[debate-cli] [opening] accelerationist: Accelerationist is briefing...
+[debate-cli] [generating] Accelerationist opening brief
+[usage] {"ts":"2026-06-30T16:17:32.068Z","backend":"claude","model":"claude-opus-4-8","latencyMs":8344,"promptTokens":184,"completionTokens":415,"totalTokens":599}
+[usage] {"ts":"2026-06-30T16:17:40.314Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":8249,"promptTokens":7631,"completionTokens":1054,"totalTokens":8685}
+[debate-cli] [opening] accelerationist: Accelerationist is planning...
+[debate-cli] [generating] Accelerationist opening plan
+[usage] {"ts":"2026-06-30T16:18:05.533Z","backend":"claude","model":"claude-opus-4-8","latencyMs":25217,"promptTokens":5691,"completionTokens":1557,"totalTokens":7248}
+[debate-cli] [opening] accelerationist: Accelerationist is drafting...
+[debate-cli] [generating] Accelerationist opening draft
+[usage] {"ts":"2026-06-30T16:18:27.462Z","backend":"claude","model":"claude-opus-4-8","latencyMs":21928,"promptTokens":8913,"completionTokens":1487,"totalTokens":10400}
+[debate-cli] [opening] accelerationist: Accelerationist is citing...
+[debate-cli] [generating] Accelerationist opening cite
+[usage] {"ts":"2026-06-30T16:18:30.493Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":3029,"promptTokens":10235,"completionTokens":412,"totalTokens":10647}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-06-30T16:18:49.924Z","backend":"claude","model":"claude-opus-4-8","latencyMs":19427,"promptTokens":5484,"completionTokens":1774,"totalTokens":7258}
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[qbaf-non-convergence] iterations=100 oscillation=true damping=4 nodes=7 edges=1
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[usage] {"ts":"2026-06-30T16:19:29.111Z","backend":"claude","model":"claude-opus-4-8","latencyMs":3745,"promptTokens":197,"completionTokens":188,"totalTokens":385}
+[usage] {"ts":"2026-06-30T16:19:31.801Z","backend":"claude","model":"claude-opus-4-8","latencyMs":6434,"promptTokens":1305,"completionTokens":500,"totalTokens":1805}
+[debate-engine] [WARNING] summarizeEntry: Unterminated string in JSON at position 1576 (line 1 column 1577). Recovery: Entry will display at full detail only
+[debate-cli] [warning] [WARNING] summarizeEntry: Unterminated string in JSON at position 1576 (line 1 column 1577). Recovery: Entry will display at full detail only
+[debate-cli] [opening] safetyist: Safetyist preparing opening statement
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[debate-cli] [opening] safetyist: Safetyist is briefing...
+[debate-cli] [generating] Safetyist opening brief
+[usage] {"ts":"2026-06-30T16:19:41.662Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":5304,"promptTokens":7145,"completionTokens":1106,"totalTokens":8251}
+[debate-cli] [opening] safetyist: Safetyist is planning...
+[debate-cli] [generating] Safetyist opening plan
+[usage] {"ts":"2026-06-30T16:20:06.453Z","backend":"claude","model":"claude-opus-4-8","latencyMs":24790,"promptTokens":6215,"completionTokens":1637,"totalTokens":7852}
+[debate-cli] [opening] safetyist: Safetyist is drafting...
+[debate-cli] [generating] Safetyist opening draft
+[usage] {"ts":"2026-06-30T16:20:31.453Z","backend":"claude","model":"claude-opus-4-8","latencyMs":24993,"promptTokens":9511,"completionTokens":1708,"totalTokens":11219}
+[debate-cli] [opening] safetyist: Safetyist is citing...
+[debate-cli] [generating] Safetyist opening cite
+[usage] {"ts":"2026-06-30T16:20:34.833Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":3379,"promptTokens":9871,"completionTokens":541,"totalTokens":10412}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-06-30T16:21:00.302Z","backend":"claude","model":"claude-opus-4-8","latencyMs":25467,"promptTokens":5846,"completionTokens":2423,"totalTokens":8269}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-06-30T16:21:02.685Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2379,"promptTokens":1666,"completionTokens":81,"totalTokens":1747}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-06-30T16:21:05.442Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2757,"promptTokens":1688,"completionTokens":111,"totalTokens":1799}
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[qbaf-non-convergence] iterations=100 oscillation=true damping=4 nodes=12 edges=5
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[usage] {"ts":"2026-06-30T16:22:00.972Z","backend":"claude","model":"claude-opus-4-8","latencyMs":5028,"promptTokens":198,"completionTokens":321,"totalTokens":519}
+[usage] {"ts":"2026-06-30T16:22:03.362Z","backend":"claude","model":"claude-opus-4-8","latencyMs":7418,"promptTokens":1492,"completionTokens":500,"totalTokens":1992}
+[debate-engine] [WARNING] summarizeEntry: Unterminated string in JSON at position 1554 (line 1 column 1555). Recovery: Entry will display at full detail only
+[debate-cli] [warning] [WARNING] summarizeEntry: Unterminated string in JSON at position 1554 (line 1 column 1555). Recovery: Entry will display at full detail only
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[debate-cli] [evaluation] Neutral evaluation: baseline
+[usage] {"ts":"2026-06-30T16:23:15.154Z","backend":"claude","model":"claude-opus-4-8","latencyMs":38949,"promptTokens":6019,"completionTokens":3444,"totalTokens":9463}
+[debate-cli] [debate] Cross-respond round 1/4 [confrontation]
+[debate-cli] [generating] Round 1: Moderator selection
+[usage] {"ts":"2026-06-30T16:23:20.174Z","backend":"claude","model":"claude-opus-4-8","latencyMs":5009,"promptTokens":10215,"completionTokens":249,"totalTokens":10464}
+[debate-cli] [debate] skeptic: Skeptic responding (round 1)
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[debate-cli] [generating] skeptic: Skeptic is briefing...
+[debate-cli] [generating] Skeptic brief
+[usage] {"ts":"2026-06-30T16:23:28.664Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":4009,"promptTokens":9352,"completionTokens":765,"totalTokens":10117}
+[debate-cli] [generating] skeptic: Skeptic is planning...
+[debate-cli] [generating] Skeptic plan
+[usage] {"ts":"2026-06-30T16:23:51.652Z","backend":"claude","model":"claude-opus-4-8","latencyMs":22987,"promptTokens":3150,"completionTokens":1318,"totalTokens":4468}
+[debate-cli] [generating] skeptic: Skeptic is drafting...
+[debate-cli] [generating] Skeptic draft
+[usage] {"ts":"2026-06-30T16:24:22.583Z","backend":"claude","model":"claude-opus-4-8","latencyMs":30920,"promptTokens":4819,"completionTokens":2045,"totalTokens":6864}
+[debate-cli] [generating] skeptic: Skeptic is quality-checking draft...
+[debate-cli] [generating] Skeptic draft-quality-check
+[usage] {"ts":"2026-06-30T16:24:23.474Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":878,"promptTokens":1772,"completionTokens":36,"totalTokens":1808}
+[debate-cli] [generating] skeptic: Skeptic is citing...
+[debate-cli] [generating] Skeptic cite
+[usage] {"ts":"2026-06-30T16:24:29.713Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":6236,"promptTokens":8087,"completionTokens":612,"totalTokens":8699}
+[debate-cli] [generating] turn-validator judge (skeptic r1)
+[usage] {"ts":"2026-06-30T16:24:39.594Z","backend":"claude","model":"claude-haiku-4-5-20251001","latencyMs":9878,"promptTokens":3178,"completionTokens":822,"totalTokens":4000}
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-06-30T16:25:16.382Z","backend":"claude","model":"claude-opus-4-8","latencyMs":32211,"promptTokens":6082,"completionTokens":2839,"totalTokens":8921}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-06-30T16:25:18.824Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2437,"promptTokens":1576,"completionTokens":107,"totalTokens":1683}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-06-30T16:25:21.522Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2696,"promptTokens":1567,"completionTokens":115,"totalTokens":1682}
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[qbaf-non-convergence] iterations=100 oscillation=true damping=4 nodes=16 edges=11
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[debate-cli] [snapshot] Wrote round_complete recovery file: C:\Users\jsnov\repos\ai-triad-data\debates\cli-runs\exp-phase2-compute-licensing-cheap-partial.json
+[debate-cli] [debate] Cross-respond round 2/4 [confrontation]
+[debate-cli] [generating] Round 2: Moderator selection
+[usage] {"ts":"2026-06-30T16:26:15.282Z","backend":"claude","model":"claude-opus-4-8","latencyMs":9546,"promptTokens":210,"completionTokens":324,"totalTokens":534}
+[usage] {"ts":"2026-06-30T16:26:16.901Z","backend":"claude","model":"claude-opus-4-8","latencyMs":6679,"promptTokens":1374,"completionTokens":500,"totalTokens":1874}
+[debate-engine] [WARNING] summarizeEntry: Unterminated string in JSON at position 1572 (line 1 column 1573). Recovery: Entry will display at full detail only
+[debate-cli] [warning] [WARNING] summarizeEntry: Unterminated string in JSON at position 1572 (line 1 column 1573). Recovery: Entry will display at full detail only
+[usage] {"ts":"2026-06-30T16:26:20.271Z","backend":"claude","model":"claude-opus-4-8","latencyMs":4989,"promptTokens":201,"completionTokens":201,"totalTokens":402}
+[usage] {"ts":"2026-06-30T16:26:20.471Z","backend":"claude","model":"claude-opus-4-8","latencyMs":10223,"promptTokens":12403,"completionTokens":361,"totalTokens":12764}
+[debate-cli] [debate] safetyist: Safetyist responding (round 2)
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[debate-cli] [generating] safetyist: Safetyist is briefing...
+[debate-cli] [generating] Safetyist brief
+[usage] {"ts":"2026-06-30T16:26:29.062Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":3759,"promptTokens":11079,"completionTokens":690,"totalTokens":11769}
+[debate-cli] [generating] safetyist: Safetyist is planning...
+[debate-cli] [generating] Safetyist plan
+[usage] {"ts":"2026-06-30T16:26:53.011Z","backend":"claude","model":"claude-opus-4-8","latencyMs":23948,"promptTokens":3032,"completionTokens":1474,"totalTokens":4506}
+[debate-cli] [generating] safetyist: Safetyist is drafting...
+[debate-cli] [generating] Safetyist draft
+[usage] {"ts":"2026-06-30T16:27:37.416Z","backend":"claude","model":"claude-opus-4-8","latencyMs":44394,"promptTokens":4977,"completionTokens":3434,"totalTokens":8411}
+[debate-cli] [generating] safetyist: Safetyist is quality-checking draft...
+[debate-cli] [generating] Safetyist draft-quality-check
+[usage] {"ts":"2026-06-30T16:27:38.505Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":1080,"promptTokens":1552,"completionTokens":44,"totalTokens":1596}
+[debate-cli] [generating] safetyist: Safetyist is citing...
+[debate-cli] [generating] Safetyist cite
+[usage] {"ts":"2026-06-30T16:27:41.614Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":3108,"promptTokens":8663,"completionTokens":585,"totalTokens":9248}
+[debate-cli] [generating] turn-validator judge (safetyist r2)
+[usage] {"ts":"2026-06-30T16:27:51.605Z","backend":"claude","model":"claude-haiku-4-5-20251001","latencyMs":9989,"promptTokens":2568,"completionTokens":729,"totalTokens":3297}
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-06-30T16:28:09.492Z","backend":"claude","model":"claude-opus-4-8","latencyMs":12336,"promptTokens":5524,"completionTokens":1103,"totalTokens":6627}
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[qbaf-non-convergence] iterations=100 oscillation=true damping=4 nodes=18 edges=13
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[debate-cli] [evaluation] Neutral evaluation: midpoint
+[usage] {"ts":"2026-06-30T16:29:04.113Z","backend":"claude","model":"claude-opus-4-8","latencyMs":6277,"promptTokens":758,"completionTokens":471,"totalTokens":1229}
+[usage] {"ts":"2026-06-30T16:29:37.043Z","backend":"claude","model":"claude-opus-4-8","latencyMs":39205,"promptTokens":7849,"completionTokens":3365,"totalTokens":11214}
+[debate-cli] [snapshot] Wrote round_complete recovery file: C:\Users\jsnov\repos\ai-triad-data\debates\cli-runs\exp-phase2-compute-licensing-cheap-partial.json
+[debate-cli] [debate] Cross-respond round 3/4 [argumentation]
+[debate-cli] [generating] Round 3: Moderator selection
+[usage] {"ts":"2026-06-30T16:29:55.354Z","backend":"claude","model":"claude-opus-4-8","latencyMs":18274,"promptTokens":12531,"completionTokens":870,"totalTokens":13401}
+[debate-cli] [debate] accelerationist: Accelerationist responding (round 3)
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[debate-cli] [generating] accelerationist: Accelerationist is briefing...
+[debate-cli] [generating] Accelerationist brief
+[usage] {"ts":"2026-06-30T16:30:04.012Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":3751,"promptTokens":11907,"completionTokens":647,"totalTokens":12554}
+[debate-cli] [generating] accelerationist: Accelerationist is planning...
+[debate-cli] [generating] Accelerationist plan
+[usage] {"ts":"2026-06-30T16:30:26.712Z","backend":"claude","model":"claude-opus-4-8","latencyMs":22697,"promptTokens":3168,"completionTokens":1387,"totalTokens":4555}
+[debate-cli] [generating] accelerationist: Accelerationist is drafting...
+[debate-cli] [generating] Accelerationist draft
+[usage] {"ts":"2026-06-30T16:31:02.223Z","backend":"claude","model":"claude-opus-4-8","latencyMs":35502,"promptTokens":4818,"completionTokens":2423,"totalTokens":7241}
+[debate-cli] [generating] Accelerationist micro-fix(specificity)
+[usage] {"ts":"2026-06-30T16:31:28.153Z","backend":"claude","model":"claude-opus-4-8","latencyMs":25929,"promptTokens":2376,"completionTokens":2709,"totalTokens":5085}
+[debate-cli] [generating] accelerationist: Accelerationist is quality-checking draft...
+[debate-cli] [generating] Accelerationist draft-quality-check
+[usage] {"ts":"2026-06-30T16:31:29.134Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":975,"promptTokens":2199,"completionTokens":44,"totalTokens":2243}
+[debate-cli] [generating] accelerationist: Accelerationist is citing...
+[debate-cli] [generating] Accelerationist cite
+[usage] {"ts":"2026-06-30T16:31:32.374Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":3238,"promptTokens":10178,"completionTokens":602,"totalTokens":10780}
+[debate-cli] [generating] turn-validator judge (accelerationist r3)
+[usage] {"ts":"2026-06-30T16:31:43.062Z","backend":"claude","model":"claude-haiku-4-5-20251001","latencyMs":10686,"promptTokens":3585,"completionTokens":830,"totalTokens":4415}
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-06-30T16:32:23.061Z","backend":"claude","model":"claude-opus-4-8","latencyMs":35256,"promptTokens":7090,"completionTokens":3539,"totalTokens":10629}
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[qbaf-non-convergence] iterations=100 oscillation=true damping=4 nodes=23 edges=22
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[debate-cli] [gap-injection] Analyzing debate gaps
+[usage] {"ts":"2026-06-30T16:33:22.812Z","backend":"claude","model":"claude-opus-4-8","latencyMs":8809,"promptTokens":206,"completionTokens":192,"totalTokens":398}
+[usage] {"ts":"2026-06-30T16:33:25.412Z","backend":"claude","model":"claude-opus-4-8","latencyMs":6719,"promptTokens":1864,"completionTokens":500,"totalTokens":2364}
+[debate-engine] [WARNING] summarizeEntry: Unterminated string in JSON at position 1509 (line 1 column 1510). Recovery: Entry will display at full detail only
+[debate-cli] [warning] [WARNING] summarizeEntry: Unterminated string in JSON at position 1509 (line 1 column 1510). Recovery: Entry will display at full detail only
+[usage] {"ts":"2026-06-30T16:33:26.413Z","backend":"claude","model":"claude-opus-4-8","latencyMs":3598,"promptTokens":204,"completionTokens":194,"totalTokens":398}
+[usage] {"ts":"2026-06-30T16:33:41.433Z","backend":"claude","model":"claude-opus-4-8","latencyMs":22738,"promptTokens":14185,"completionTokens":1359,"totalTokens":15544}
+[debate-cli] [compression] Compressing debate history
+[debate-cli] [snapshot] Wrote round_complete recovery file: C:\Users\jsnov\repos\ai-triad-data\debates\cli-runs\exp-phase2-compute-licensing-cheap-partial.json
+[debate-cli] [debate] Cross-respond round 4/4 [argumentation]
+[debate-cli] [generating] Round 4: Moderator selection
+[usage] {"ts":"2026-06-30T16:33:55.332Z","backend":"claude","model":"claude-opus-4-8","latencyMs":13865,"promptTokens":16676,"completionTokens":848,"totalTokens":17524}
+[debate-cli] [debate] safetyist: Safetyist responding (round 4)
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[debate-cli] [generating] safetyist: Safetyist is briefing...
+[debate-cli] [generating] Safetyist brief
+[usage] {"ts":"2026-06-30T16:34:03.964Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":4220,"promptTokens":13621,"completionTokens":776,"totalTokens":14397}
+[debate-cli] [generating] safetyist: Safetyist is planning...
+[debate-cli] [generating] Safetyist plan
+[usage] {"ts":"2026-06-30T16:34:30.921Z","backend":"claude","model":"claude-opus-4-8","latencyMs":26955,"promptTokens":3604,"completionTokens":1613,"totalTokens":5217}
+[debate-cli] [generating] safetyist: Safetyist is drafting...
+[debate-cli] [generating] Safetyist draft
+[usage] {"ts":"2026-06-30T16:34:49.803Z","backend":"claude","model":"claude-opus-4-8","latencyMs":18875,"promptTokens":5246,"completionTokens":1303,"totalTokens":6549}
+[debate-cli] [generating] safetyist: Safetyist is quality-checking draft...
+[debate-cli] [generating] Safetyist draft-quality-check
+[usage] {"ts":"2026-06-30T16:34:50.671Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":859,"promptTokens":1632,"completionTokens":44,"totalTokens":1676}
+[debate-cli] [generating] safetyist: Safetyist is citing...
+[debate-cli] [generating] Safetyist cite
+[usage] {"ts":"2026-06-30T16:34:53.802Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":3129,"promptTokens":9238,"completionTokens":603,"totalTokens":9841}
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-06-30T16:35:17.301Z","backend":"claude","model":"claude-opus-4-8","latencyMs":19312,"promptTokens":6064,"completionTokens":1631,"totalTokens":7695}
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[qbaf-non-convergence] iterations=100 oscillation=true damping=4 nodes=26 edges=26
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Loading model 'all-MiniLM-L6-v2'...
+C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+[debate-cli] [compression] Compressing debate history
+[debate-cli] [snapshot] Wrote round_complete recovery file: C:\Users\jsnov\repos\ai-triad-data\debates\cli-runs\exp-phase2-compute-licensing-cheap-partial.json
+[debate-cli] [concluding] Generating synthesis
+[debate-cli] [concluding] Phase 1/3: Extracting agreements and disagreements
+[debate-cli] [evaluation] Neutral evaluation: final
+[debate-cli] [generating] Synthesis Phase 1: Extract
+[usage] {"ts":"2026-06-30T16:36:19.334Z","backend":"claude","model":"claude-opus-4-8","latencyMs":6349,"promptTokens":697,"completionTokens":500,"totalTokens":1197}
+[debate-engine] [WARNING] summarizeEntry: Unterminated string in JSON at position 1586 (line 1 column 1587). Recovery: Entry will display at full detail only
+[debate-cli] [warning] [WARNING] summarizeEntry: Unterminated string in JSON at position 1586 (line 1 column 1587). Recovery: Entry will display at full detail only
+[usage] {"ts":"2026-06-30T16:36:58.192Z","backend":"claude","model":"claude-opus-4-8","latencyMs":45176,"promptTokens":10117,"completionTokens":3951,"totalTokens":14068}
+[usage] {"ts":"2026-06-30T16:36:58.764Z","backend":"claude","model":"claude-opus-4-8","latencyMs":45748,"promptTokens":14600,"completionTokens":3751,"totalTokens":18351}
+[debate-cli] [concluding] Phase 2/3: Building argument map
+[debate-cli] [generating] Synthesis Phase 2: Map
+[usage] {"ts":"2026-06-30T16:38:11.192Z","backend":"claude","model":"claude-opus-4-8","latencyMs":72426,"promptTokens":15361,"completionTokens":6956,"totalTokens":22317}
+[debate-cli] [concluding] Phase 3/3: Evaluating preferences
+[debate-cli] [generating] Synthesis Phase 3: Evaluate
+[usage] {"ts":"2026-06-30T16:38:46.552Z","backend":"claude","model":"claude-opus-4-8","latencyMs":35359,"promptTokens":6944,"completionTokens":2554,"totalTokens":9498}
+[debate-cli] [generating] Missing arguments pass
+[usage] {"ts":"2026-06-30T16:39:05.065Z","backend":"claude","model":"claude-opus-4-8","latencyMs":18510,"promptTokens":6003,"completionTokens":1086,"totalTokens":7089}
+[debate-cli] [generating] Taxonomy refinement pass
+[usage] {"ts":"2026-06-30T16:39:46.251Z","backend":"claude","model":"claude-opus-4-8","latencyMs":41185,"promptTokens":9219,"completionTokens":3787,"totalTokens":13006}
+[debate-cli] [cross-cutting] Analyzing cross-cutting proposals
+[usage] {"ts":"2026-06-30T16:40:52.493Z","backend":"claude","model":"claude-opus-4-8","latencyMs":66240,"promptTokens":8231,"completionTokens":5251,"totalTokens":13482}
+[debate-cli] [generating] Extraction coverage
+[usage] {"ts":"2026-06-30T16:41:09.561Z","backend":"claude","model":"claude-opus-4-8","latencyMs":17045,"promptTokens":2210,"completionTokens":1404,"totalTokens":3614}
+[debate-cli] [generating] Extraction coverage
+[usage] {"ts":"2026-06-30T16:41:14.092Z","backend":"claude","model":"claude-opus-4-8","latencyMs":4528,"promptTokens":1823,"completionTokens":421,"totalTokens":2244}
+[debate-cli] Wrote debate JSON (atomic): C:\Users\jsnov\repos\ai-triad-data\debates\cli-runs\exp-phase2-compute-licensing-cheap-debate.json
+[debate-cli] Wrote debate markdown: C:\Users\jsnov\repos\ai-triad-data\debates\cli-runs\exp-phase2-compute-licensing-cheap-debate.md
+[debate-cli] Wrote diagnostics: C:\Users\jsnov\repos\ai-triad-data\debates\cli-runs\exp-phase2-compute-licensing-cheap-diagnostics.json
+[debate-cli] Wrote harvest: C:\Users\jsnov\repos\ai-triad-data\debates\cli-runs\exp-phase2-compute-licensing-cheap-harvest.json
+[debate-cli] Calibration data logged to C:\Users\jsnov\repos\ai-triad-data\debates/calibration/users/local/calibration-log.jsonl
+[debate-cli] Flight recorder: 317 events → C:\Users\jsnov\repos\ai-triad-data\debates\cli-runs\exp-phase2-compute-licensing-cheap-flight-recorder.jsonl

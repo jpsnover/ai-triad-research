@@ -1,0 +1,35 @@
+[doctrinal] safetyist: 3/133 Beliefs anchored, 3 floor-applied
+[doctrinal] skeptic: 20/204 Beliefs anchored, 5 floor-applied
+[orchestration] *** executeTurnWithRetry ENTERED for safetyist round 1 ***
+[pipeline] Brief ID removed (unknown): liability_strict
+[pipeline] Citation bank built: 15 scoped / 421 full entries, path=bank-scrub (intended=B), 7ms
+[orchestration] *** executeTurnWithRetry ENTERED for accelerationist round 2 ***
+[pipeline] Citation bank built: 15 scoped / 421 full entries, path=bank-scrub (intended=B), 6ms
+[orchestration] *** executeTurnWithRetry ENTERED for skeptic round 3 ***
+[pipeline] Citation bank built: 15 scoped / 421 full entries, path=bank-scrub (intended=B), 6ms
+[pipeline] Citation validation: 2 warning(s): "build what you want, but at this size you pay into the apparatus that watches the output.": Quoted title not found in citation bank — may be fabricated; "you may not train at this size until a regulator clears you.": Quoted title not found in citation bank — may be fabricated
+[orchestration] *** executeTurnWithRetry ENTERED for safetyist round 4 ***
+[pipeline] Citation bank built: 15 scoped / 421 full entries, path=bank-scrub (intended=B), 4ms
+[pipeline] Auto-split single paragraph into 3 paragraphs
+{
+  "success": true,
+  "debateId": "0ea49b5b-139a-4fbf-a6a3-4fa8d1c34d07",
+  "name": "Should frontier AI development be gated by compute-thresh...",
+  "slug": "exp-phase2-compute-licensing-expensive",
+  "topic": "Should frontier AI development be gated by compute-threshold licensing, and through what pathways would such a regime reshape the incentives of large labs, open-source developers, insurers, and national competitiveness — given the tension between preventing catastrophic capability concentration and chilling broad-based innovation?",
+  "files": {
+    "debate": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-phase2-compute-licensing-expensive-debate.json",
+    "transcript": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-phase2-compute-licensing-expensive-debate.json",
+    "diagnostics": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-phase2-compute-licensing-expensive-diagnostics.json",
+    "harvest": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-phase2-compute-licensing-expensive-harvest.json",
+    "markdown": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-phase2-compute-licensing-expensive-debate.md"
+  },
+  "stats": {
+    "rounds": 4,
+    "entries": 24,
+    "apiCalls": 74,
+    "totalTimeMs": 2236937,
+    "claimsAccepted": 33,
+    "claimsRejected": 2
+  }
+}

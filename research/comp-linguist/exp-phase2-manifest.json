@@ -1,0 +1,38 @@
+[
+  {
+    "topic": "compute-licensing",
+    "arm": "expensive",
+    "name": "exp-phase2-compute-licensing-expensive",
+    "status": "already_done",
+    "durationSec": 0,
+    "sessionPath": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-phase2-compute-licensing-expensive-debate.json",
+    "ok": true
+  },
+  {
+    "topic": "compute-licensing",
+    "arm": "cheap",
+    "name": "exp-phase2-compute-licensing-cheap",
+    "status": "already_done",
+    "durationSec": 0,
+    "sessionPath": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-phase2-compute-licensing-cheap-debate.json",
+    "ok": true
+  },
+  {
+    "topic": "labor-policy",
+    "arm": "expensive",
+    "name": "exp-phase2-labor-policy-expensive",
+    "status": "ok_session",
+    "durationSec": -12289,
+    "sessionPath": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-phase2-labor-policy-expensive-debate.json",
+    "ok": true
+  },
+  {
+    "topic": "labor-policy",
+    "arm": "cheap",
+    "name": "exp-phase2-labor-policy-cheap",
+    "status": "ok_session",
+    "durationSec": -13029,
+    "sessionPath": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-phase2-labor-policy-cheap-debate.json",
+    "ok": true
+  }
+]

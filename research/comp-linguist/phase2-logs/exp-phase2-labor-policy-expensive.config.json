@@ -1,0 +1,16 @@
+{
+  "activePovers": [
+    "accelerationist",
+    "safetyist",
+    "skeptic"
+  ],
+  "model": "claude-opus-4",
+  "rounds": 4,
+  "responseLength": "medium",
+  "protocolId": "structured",
+  "outputDir": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs",
+  "outputFormat": "json",
+  "slug": "exp-phase2-labor-policy-expensive",
+  "temperature": 0.3,
+  "topic": "As AI automates cognitive labor, should policy prioritize redistributive mechanisms (UBI, robot taxes) or transition mechanisms (retraining, wage insurance), and through what pathways does each reshape the incentives of firms, displaced workers, and innovators — given the tension between cushioning disruption and preserving economic dynamism?"
+}
