@@ -37,6 +37,7 @@ COPY taxonomy-editor/vite.config.ts ./taxonomy-editor/
 COPY taxonomy-editor/scripts/ ./taxonomy-editor/scripts/
 COPY ai-models.json ./
 COPY .aitriad.json ./
+COPY CHANGELOG.md ./
 COPY taxonomy/schemas/ ./taxonomy/schemas/
 
 WORKDIR /build/taxonomy-editor
