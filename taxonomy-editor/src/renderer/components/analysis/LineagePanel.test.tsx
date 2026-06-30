@@ -4,14 +4,24 @@
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
+let mockStoreState: Record<string, unknown> = { pendingLineageValue: null, accelerationist: undefined, safetyist: undefined, skeptic: undefined, situations: undefined };
 vi.mock('../../hooks/useTaxonomyStore', () => {
-  const hook = () => ({ pendingLineageValue: null, accelerationist: undefined, safetyist: undefined, skeptic: undefined, situations: undefined });
+  const hook = () => mockStoreState;
   hook.setState = () => {};
+  hook.getState = () => mockStoreState;
   return { useTaxonomyStore: hook };
 });
 vi.mock('../../data/lineageLookup', () => ({
-  getAllLineages: () => ({ 'Effective Altruism': {} }),
+  getAllLineages: vi.fn(() => ({ 'Effective Altruism': {} })),
   getLineageInfo: (k: string) => ({ label: k }),
+  lookupLineage: vi.fn((raw: string) => {
+    const catalog: Record<string, boolean> = { 'Effective Altruism': true };
+    const lower = raw.toLowerCase();
+    for (const k of Object.keys(catalog)) {
+      if (k.toLowerCase() === lower) return { key: k, info: {} };
+    }
+    return { key: null, info: null };
+  }),
 }));
 vi.mock('../../data/lineageCategories', () => ({
   CATEGORY_ORDER: ['cat1'],
@@ -30,7 +40,10 @@ describe('LineagePanel (t/1025)', () => {
     // jsdom doesn't implement scrollIntoView; selectItem calls it inside rAF.
     Element.prototype.scrollIntoView = vi.fn();
   });
-  beforeEach(() => { vi.clearAllMocks(); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockStoreState = { pendingLineageValue: null, accelerationist: undefined, safetyist: undefined, skeptic: undefined, situations: undefined };
+  });
   afterEach(() => { vi.restoreAllMocks(); });
 
   it('renders the category group header (collapsed by default)', () => {
@@ -54,5 +67,27 @@ describe('LineagePanel (t/1025)', () => {
     const item = screen.getByText('Effective Altruism');
     fireEvent.click(item);
     expect(onSelectValue).toHaveBeenCalledWith('Effective Altruism');
+  });
+
+  it('deduplicates casing variants from taxonomy data against catalog keys (t/1146)', () => {
+    mockStoreState = {
+      pendingLineageValue: null,
+      accelerationist: {
+        nodes: [
+          { id: 'acc-b-001', label: 'Test Node', category: 'beliefs', graph_attributes: { intellectual_lineage: ['effective altruism'] } },
+        ],
+      },
+      safetyist: undefined,
+      skeptic: undefined,
+      situations: undefined,
+    };
+    render(<LineagePanel />);
+    // Expand the category to see items
+    fireEvent.click(screen.getByText('Category One'));
+    // Should show exactly one "Effective Altruism" (catalog key), not a duplicate "effective altruism"
+    const items = screen.getAllByText('Effective Altruism');
+    expect(items).toHaveLength(1);
+    // Total count should be 1, not 2
+    expect(screen.getByText('(1)')).toBeInTheDocument();
   });
 });

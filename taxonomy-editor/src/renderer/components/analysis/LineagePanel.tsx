@@ -8,7 +8,7 @@ import {
   classifyLineage, classifyLineageL2, getCategoryById,
   getL2Categories, getL2CategoriesForL1, isLineageDataLoaded,
 } from '../../data/lineageCategories';
-import { getAllLineages, getLineageInfo } from '../../data/lineageLookup';
+import { getAllLineages, getLineageInfo, lookupLineage } from '../../data/lineageLookup';
 
 interface LineagePanelProps {
   onSelectValue?: (value: string) => void;
@@ -29,12 +29,22 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
     const keys = new Set(Object.keys(getAllLineages()));
     for (const pov of [accelerationist, safetyist, skeptic] as const) {
       if (pov) for (const n of pov.nodes) {
-        for (const l of n.graph_attributes?.intellectual_lineage ?? []) { const s = typeof l === 'string' ? l : (l as { name?: string })?.name; if (s) keys.add(s); }
+        for (const l of n.graph_attributes?.intellectual_lineage ?? []) {
+          const s = typeof l === 'string' ? l : (l as { name?: string })?.name;
+          if (!s) continue;
+          const resolved = lookupLineage(s).key;
+          keys.add(resolved ?? s);
+        }
       }
     }
     if (situations) {
       for (const n of situations.nodes) {
-        for (const l of n.graph_attributes?.intellectual_lineage ?? []) { const s = typeof l === 'string' ? l : (l as { name?: string })?.name; if (s) keys.add(s); }
+        for (const l of n.graph_attributes?.intellectual_lineage ?? []) {
+          const s = typeof l === 'string' ? l : (l as { name?: string })?.name;
+          if (!s) continue;
+          const resolved = lookupLineage(s).key;
+          keys.add(resolved ?? s);
+        }
       }
     }
     return [...keys].sort();
