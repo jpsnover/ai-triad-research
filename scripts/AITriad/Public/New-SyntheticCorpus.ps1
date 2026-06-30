@@ -51,7 +51,7 @@ function New-SyntheticCorpus {
 
         [int]$CandidatesPerNode = 48,
 
-        [string[]]$Models = @('gemini-2.5-flash', 'claude-sonnet-4-5'),
+        [string[]]$Models = @('gemini-2.5-flash', 'claude-sonnet-4'),
 
         [ValidateRange(0.0, 2.0)]
         [double]$Temperature = 1.0,

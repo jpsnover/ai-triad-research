@@ -257,16 +257,18 @@ function Invoke-EdgeDiscovery {
             _schema_version = '1.0.0'
             _doc            = 'Edge discovery results. Each entry represents a proposed or approved edge between taxonomy nodes.'
             last_modified   = (Get-Date).ToString('yyyy-MM-dd')
+            # t/1093: canonical 8-type vocabulary. Removed CITES, SUPPORTED_BY,
+            # PROPOSES (deprecated). Added CONVERGES_WITH. Resolve-EdgeType
+            # enforces this set at the validation sites below.
             edge_types      = @(
-                [PSCustomObject]@{ type = 'SUPPORTS';     bidirectional = $false; definition = 'Source claim directly strengthens or provides evidence for target.' }
-                [PSCustomObject]@{ type = 'CONTRADICTS';  bidirectional = $true;  definition = 'Source and target make incompatible claims.' }
-                [PSCustomObject]@{ type = 'ASSUMES';      bidirectional = $false; definition = 'Source claim depends on target being true.' }
-                [PSCustomObject]@{ type = 'WEAKENS';      bidirectional = $false; definition = 'Source undermines target without fully contradicting it.' }
-                [PSCustomObject]@{ type = 'RESPONDS_TO';  bidirectional = $false; definition = 'Source was formulated as a direct response to target.' }
-                [PSCustomObject]@{ type = 'TENSION_WITH'; bidirectional = $true;  definition = 'Source and target pull in different directions without direct contradiction.' }
-                [PSCustomObject]@{ type = 'CITES';        bidirectional = $false; definition = 'Source explicitly references or builds upon target.' }
-                [PSCustomObject]@{ type = 'INTERPRETS';   bidirectional = $false; definition = 'Source provides a POV-specific reading of target concept.' }
-                [PSCustomObject]@{ type = 'SUPPORTED_BY'; bidirectional = $false; definition = 'Source claim is backed by evidence in target.' }
+                [PSCustomObject]@{ type = 'SUPPORTS';       bidirectional = $false; definition = 'Source claim directly strengthens or provides evidence for target.' }
+                [PSCustomObject]@{ type = 'CONTRADICTS';    bidirectional = $true;  definition = 'Source and target make incompatible claims.' }
+                [PSCustomObject]@{ type = 'WEAKENS';        bidirectional = $false; definition = 'Source undermines target without fully contradicting it.' }
+                [PSCustomObject]@{ type = 'TENSION_WITH';   bidirectional = $true;  definition = 'Source and target pull in different directions without direct contradiction.' }
+                [PSCustomObject]@{ type = 'RESPONDS_TO';    bidirectional = $false; definition = 'Source was formulated as a direct response to target.' }
+                [PSCustomObject]@{ type = 'ASSUMES';        bidirectional = $false; definition = 'Source claim depends on target being true.' }
+                [PSCustomObject]@{ type = 'INTERPRETS';     bidirectional = $false; definition = 'POV node offers an interpretation of a situation node (target must be situation).' }
+                [PSCustomObject]@{ type = 'CONVERGES_WITH'; bidirectional = $false; definition = 'POV node has reached consensus with a situation node (target must be situation).' }
             )
             edges           = @()
         }
@@ -868,21 +870,32 @@ $BatchSchemaPrompt
                     continue
                 }
                 if ($SourceId -eq $TargetId) { continue }
-                if (-not $ValidEdgeTypes.Contains($Edge.type)) {
-                    Write-Warn "Batch ${BatchNum}: unknown edge type '$($Edge.type)', skipping"
+                # t/1093: gate every edge through Resolve-EdgeType — accept, reclassify, or drop
+                $Resolved = Resolve-EdgeType -Type $Edge.type
+                if ($Resolved.Action -eq 'drop') {
+                    Write-Warn "Batch ${BatchNum}: dropped edge $SourceId→$TargetId type='$($Edge.type)' — $($Resolved.Reason)"
                     continue
+                }
+                $CanonicalType = $Resolved.Type
+                if ($Resolved.Action -eq 'reclassify') {
+                    Write-Verbose "Batch ${BatchNum}: reclassified $SourceId→$TargetId — $($Resolved.Reason)"
                 }
                 $Confidence = [double]$Edge.confidence
                 if ($Confidence -lt 0.5) { continue }
-                $EdgeKey = "$SourceId|$($Edge.type)|$TargetId"
-                if ($ExistingEdgeKeys.Contains($EdgeKey)) { continue }
+                $EdgeKey = "$SourceId|$CanonicalType|$TargetId"
+                if ($ExistingEdgeKeys.Contains($EdgeKey)) {
+                    if ($Resolved.Action -eq 'reclassify') {
+                        Write-Verbose "Batch ${BatchNum}: dedup drop $SourceId→$TargetId ($CanonicalType already exists)"
+                    }
+                    continue
+                }
 
                 if ($Edge.PSObject.Properties['bidirectional']) { $Bidir = [bool]$Edge.bidirectional } else { $Bidir = $false }
                 if ($Edge.PSObject.Properties['rationale'])    { $Rationale = $Edge.rationale }           else { $Rationale = '' }
                 $EdgeObj = [ordered]@{
                     source        = $SourceId
                     target        = $TargetId
-                    type          = $Edge.type
+                    type          = $CanonicalType
                     bidirectional = $Bidir
                     confidence    = $Confidence
                     rationale     = $Rationale
@@ -899,7 +912,7 @@ $BatchSchemaPrompt
 
                 $EdgesList.Add([PSCustomObject]$EdgeObj)
                 [void]$ExistingEdgeKeys.Add($EdgeKey)
-                if ($Bidir) { [void]$ExistingEdgeKeys.Add("$TargetId|$($Edge.type)|$SourceId") }
+                if ($Bidir) { [void]$ExistingEdgeKeys.Add("$TargetId|$CanonicalType|$SourceId") }
                 $BatchEdgeCount++
                 $TotalEdges++
             }
@@ -1171,18 +1184,28 @@ $SchemaPrompt
                     Write-Warn "$($Disc.NodeId): self-edge skipped"
                     continue
                 }
-                if (-not $ValidEdgeTypes.Contains($Edge.type)) {
-                    Write-Warn "$($Disc.NodeId) → $($Edge.target): unknown edge type '$($Edge.type)', skipping"
+                # t/1093: gate via Resolve-EdgeType — accept, reclassify, or drop
+                $Resolved = Resolve-EdgeType -Type $Edge.type
+                if ($Resolved.Action -eq 'drop') {
+                    Write-Warn "$($Disc.NodeId) → $($Edge.target): dropped type='$($Edge.type)' — $($Resolved.Reason)"
                     continue
+                }
+                $CanonicalType = $Resolved.Type
+                if ($Resolved.Action -eq 'reclassify') {
+                    Write-Verbose "$($Disc.NodeId) → $($Edge.target): reclassified — $($Resolved.Reason)"
                 }
                 $Confidence = [double]$Edge.confidence
                 if ($Confidence -lt 0.5) {
                     Write-Warn "$($Disc.NodeId) → $($Edge.target): confidence $Confidence < 0.5, skipping"
                     continue
                 }
-                $EdgeKey = "$($Disc.NodeId)|$($Edge.type)|$($Edge.target)"
+                $EdgeKey = "$($Disc.NodeId)|$CanonicalType|$($Edge.target)"
                 if ($ExistingEdgeKeys.Contains($EdgeKey)) {
-                    Write-Info "$($Disc.NodeId) → $($Edge.target) ($($Edge.type)): already exists, skipping"
+                    if ($Resolved.Action -eq 'reclassify') {
+                        Write-Verbose "$($Disc.NodeId) → $($Edge.target): dedup drop ($CanonicalType already exists)"
+                    } else {
+                        Write-Info "$($Disc.NodeId) → $($Edge.target) ($CanonicalType): already exists, skipping"
+                    }
                     continue
                 }
 
@@ -1191,7 +1214,7 @@ $SchemaPrompt
                 $EdgeObj  = [ordered]@{
                     source        = $Disc.NodeId
                     target        = $Edge.target
-                    type          = $Edge.type
+                    type          = $CanonicalType
                     bidirectional = $Bidir
                     confidence    = $Confidence
                     rationale     = $Rationale
@@ -1301,13 +1324,19 @@ $SchemaPrompt
                     continue
                 }
                 if ($Edge.target -eq $Disc.NodeId) { continue }
-                if (-not $ValidEdgeTypes.Contains($Edge.type)) {
-                    Write-Warn "$($Disc.NodeId) → $($Edge.target): unknown edge type '$($Edge.type)', skipping"
+                # t/1093: gate via Resolve-EdgeType — accept, reclassify, or drop
+                $Resolved = Resolve-EdgeType -Type $Edge.type
+                if ($Resolved.Action -eq 'drop') {
+                    Write-Warn "$($Disc.NodeId) → $($Edge.target): dropped type='$($Edge.type)' — $($Resolved.Reason)"
                     continue
+                }
+                $CanonicalType = $Resolved.Type
+                if ($Resolved.Action -eq 'reclassify') {
+                    Write-Verbose "$($Disc.NodeId) → $($Edge.target): reclassified — $($Resolved.Reason)"
                 }
                 $Confidence = [double]$Edge.confidence
                 if ($Confidence -lt 0.5) { continue }
-                $EdgeKey = "$($Disc.NodeId)|$($Edge.type)|$($Edge.target)"
+                $EdgeKey = "$($Disc.NodeId)|$CanonicalType|$($Edge.target)"
                 if ($ExistingEdgeKeys.Contains($EdgeKey)) { continue }
 
                 if ($Edge.PSObject.Properties['bidirectional']) { $Bidir = [bool]$Edge.bidirectional } else { $Bidir = $false }
@@ -1315,7 +1344,7 @@ $SchemaPrompt
                 $EdgeObj  = [ordered]@{
                     source        = $Disc.NodeId
                     target        = $Edge.target
-                    type          = $Edge.type
+                    type          = $CanonicalType
                     bidirectional = $Bidir
                     confidence    = $Confidence
                     rationale     = $Rationale

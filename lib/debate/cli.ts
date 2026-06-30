@@ -22,6 +22,7 @@ import { FlightRecorder, getGlobalRecorder, setGlobalRecorder } from '../flight-
 import { generateSlug, formatDebateMarkdown, buildDiagnosticsOutput, buildHarvestOutput } from './formatters.js';
 import { ActionableError } from './errors.js';
 import { runExploreFirstPipeline } from './explorationPreset.js';
+import { safeSerialize, atomicWriteSync } from './persistence.js';
 
 // ── CLI Config schema ────────────────────────────────────
 
@@ -78,6 +79,7 @@ interface ParsedArgs {
   perturbationTurn?: number;
   exploreFirst: boolean;
   exploreModel?: string;
+  resumePath?: string;
 }
 
 function parseArgs(): ParsedArgs {
@@ -88,8 +90,12 @@ function parseArgs(): ParsedArgs {
   if (cfgIdx >= 0 && args[cfgIdx + 1]) configPath = args[cfgIdx + 1];
   else if (args.includes('--stdin')) configPath = '-';
 
+  let resumePath: string | undefined;
+  const resumeIdx = args.indexOf('--resume');
+  if (resumeIdx >= 0 && args[resumeIdx + 1]) resumePath = args[resumeIdx + 1];
+
   if (!configPath) {
-    console.error('Usage: npx tsx lib/debate/cli.ts --config <path.json> [--no-turn-validation] [--max-turn-retries 0|1|2] [--perturbation <prompt> --perturbation-turn <N>] [--explore-first [--explore-model <model>]]');
+    console.error('Usage: npx tsx lib/debate/cli.ts --config <path.json> [--no-turn-validation] [--max-turn-retries 0|1|2] [--perturbation <prompt> --perturbation-turn <N>] [--explore-first [--explore-model <model>]] [--resume <partial-path>]');
     process.exit(1);
   }
 
@@ -120,7 +126,7 @@ function parseArgs(): ParsedArgs {
   const emIdx = args.indexOf('--explore-model');
   if (emIdx >= 0 && args[emIdx + 1]) exploreModel = args[emIdx + 1];
 
-  return { configPath, disableTurnValidation, maxTurnRetries, perturbationPrompt, perturbationTurn, exploreFirst, exploreModel };
+  return { configPath, disableTurnValidation, maxTurnRetries, perturbationPrompt, perturbationTurn, exploreFirst, exploreModel, resumePath };
 }
 
 function resolvePerturbationConfig(
@@ -146,7 +152,7 @@ function resolvePerturbationConfig(
 }
 
 async function main(): Promise<void> {
-  const { configPath, disableTurnValidation, maxTurnRetries, perturbationPrompt, perturbationTurn, exploreFirst: cliExploreFirst, exploreModel: cliExploreModel } = parseArgs();
+  const { configPath, disableTurnValidation, maxTurnRetries, perturbationPrompt, perturbationTurn, exploreFirst: cliExploreFirst, exploreModel: cliExploreModel, resumePath } = parseArgs();
   let configText: string;
 
   if (configPath === '-') {
@@ -410,14 +416,33 @@ async function main(): Promise<void> {
     log(`[snapshot] Wrote ${trigger} recovery file: ${partialPath}`);
   };
 
-  // Run debate — either explore-first pipeline or direct
+  // Run debate — resume, explore-first, or direct
   const useExploreFirst = cliExploreFirst || config.exploreFirst;
   let session: import('./types.js').DebateSession;
   let explorationSession: import('./types.js').DebateSession | null = null;
   let activeDebateId: string | undefined;
   recorder.setContextProvider(() => ({ active_debate_id: activeDebateId }));
 
-  if (useExploreFirst) {
+  if (resumePath) {
+    const resolvedResume = path.resolve(resumePath);
+    if (!fs.existsSync(resolvedResume)) {
+      throw new ActionableError({
+        goal: 'Resume debate from checkpoint',
+        problem: `Checkpoint file not found: ${resolvedResume}`,
+        location: 'cli.main',
+        nextSteps: [
+          `Verify the partial file exists at: ${resolvedResume}`,
+          'Look for *-partial.json files in your output directory',
+        ],
+      });
+    }
+    log(`Resuming debate from checkpoint: ${resolvedResume}`);
+    const checkpoint = JSON.parse(fs.readFileSync(resolvedResume, 'utf-8')) as import('./types.js').DebateSession;
+    session = await DebateEngine.resume(checkpoint, engineConfig, adapter, taxonomy, (p) => {
+      log(`[resume:${p.phase}] ${p.speaker ? `${p.speaker}: ` : ''}${p.message}`);
+    });
+    log(`Resume complete: ${session.transcript.length} transcript entries`);
+  } else if (useExploreFirst) {
     const resolvedExploreModel = cliExploreModel ?? config.exploreModel ?? 'groq-openai-gpt-oss-120b';
     log(`Explore-first pipeline: "${topic.slice(0, 80)}..." with ${activePovers.join(', ')}`);
     const result = await runExploreFirstPipeline(
@@ -458,9 +483,6 @@ async function main(): Promise<void> {
   // Generate outputs — slug/outputDir already computed above for snapshot callback
   const outputFormat = config.outputFormat ?? 'json';
 
-  // Clean up partial recovery file on successful completion
-  try { fs.unlinkSync(partialPath); } catch { /* no partial to clean up */ }
-
   function writeOutput(filePath: string, content: string, description: string): void {
     try {
       fs.writeFileSync(filePath, content, 'utf-8');
@@ -481,21 +503,43 @@ async function main(): Promise<void> {
     }
   }
 
-  // Write debate file
-  const debateExt = outputFormat === 'markdown' ? 'md' : 'json';
-  const debatePath = path.join(outputDir, `${slug}-debate.${debateExt}`);
-  if (outputFormat === 'markdown') {
-    writeOutput(debatePath, formatDebateMarkdown(session), 'debate markdown');
-  } else {
-    writeOutput(debatePath, JSON.stringify(session, null, 2), 'debate JSON');
+  // Write structured session JSON FIRST via safe-serialize + atomic write —
+  // this is the durable anchor for both formats. Partial stays on disk until
+  // this write succeeds, so a crash before here is always recoverable.
+  const { json: sessionJson, hadError, errorMessage } = safeSerialize(session);
+  if (hadError) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'cli', level: 'error',
+      message: `Session serialization required fallback: ${errorMessage}`,
+    });
+    log(`[WARNING] Session serialization used fallback replacer: ${errorMessage}`);
   }
 
-  // Always write JSON transcript too if format is markdown
-  let transcriptPath = debatePath;
-  if (outputFormat === 'markdown') {
-    transcriptPath = path.join(outputDir, `${slug}-debate.json`);
-    writeOutput(transcriptPath, JSON.stringify(session, null, 2), 'debate transcript JSON');
+  const jsonPath = path.join(outputDir, `${slug}-debate.json`);
+  try {
+    atomicWriteSync(jsonPath, sessionJson);
+    log(`Wrote debate JSON (atomic): ${jsonPath}`);
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to write debate JSON to '${jsonPath}'`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    throw new ActionableError({
+      goal: 'Write debate output file',
+      problem: `Failed to write debate JSON to '${jsonPath}': ${err instanceof Error ? err.message : err}`,
+      location: 'cli.writeOutput',
+      nextSteps: [
+        'Check available disk space',
+        `Verify write permissions on '${outputDir}'`,
+        `The debate completed successfully (ID: ${session.id}, ${session.transcript.length} entries) — re-run to regenerate output`,
+      ],
+      innerError: err,
+    });
   }
+
+  // Structured session JSON is now durable — safe to delete the partial checkpoint
+  try { if (fs.existsSync(partialPath)) fs.unlinkSync(partialPath); } catch { /* best-effort cleanup */ }
+
+  // Write markdown (always, as a secondary artifact — derivable from session)
+  const markdownPath = path.join(outputDir, `${slug}-debate.md`);
+  writeOutput(markdownPath, formatDebateMarkdown(session), 'debate markdown');
 
   // Write diagnostics
   const diagPath = path.join(outputDir, `${slug}-diagnostics.json`);
@@ -512,13 +556,6 @@ async function main(): Promise<void> {
 
   const harvestPath = path.join(outputDir, `${slug}-harvest.json`);
   writeOutput(harvestPath, JSON.stringify(buildHarvestOutput(session, getNodeLabel, allNodeIds), null, 2), 'harvest');
-
-  // Also write markdown if format is json
-  let markdownPath: string | undefined;
-  if (outputFormat === 'json') {
-    markdownPath = path.join(outputDir, `${slug}-debate.md`);
-    writeOutput(markdownPath, formatDebateMarkdown(session), 'debate markdown');
-  }
 
   // Write exploration outputs if explore-first was used
   if (explorationSession) {
@@ -556,11 +593,11 @@ async function main(): Promise<void> {
     slug,
     topic: session.topic.final,
     files: {
-      debate: debatePath,
-      transcript: transcriptPath,
+      debate: jsonPath,
+      transcript: jsonPath,
       diagnostics: diagPath,
       harvest: harvestPath,
-      markdown: markdownPath ?? (outputFormat === 'markdown' ? debatePath : undefined),
+      markdown: markdownPath,
     },
     stats: {
       rounds: engineConfig.rounds,

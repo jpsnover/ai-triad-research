@@ -7,6 +7,7 @@ import { useTaxonomyStore, MODELS_BY_BACKEND, AI_BACKENDS } from '../../hooks/us
 import type { AIBackend } from '../../hooks/useTaxonomyStore/slices/settingsSlice';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { useTierInfo, isFreeTier } from '../../hooks/useTierInfo';
 import { POVER_INFO } from '../../types/debate';
 import type { SpeakerId } from '../../types/debate';
 import type { ChatMode } from '../../types/chat';
@@ -37,6 +38,8 @@ export function NewChatDialog({ onClose }: NewChatDialogProps) {
   const availableModels = MODELS_BY_BACKEND[selectedBackend] || [];
   const [customModel, setCustomModel] = useState<string>(globalModel);
   const [keyStatus, setKeyStatus] = useState<Record<string, boolean>>({});
+  const { tier: tierInfo } = useTierInfo();
+  const freeTier = isFreeTier(tierInfo);
 
   useEffect(() => {
     const check = async () => {
@@ -143,7 +146,7 @@ export function NewChatDialog({ onClose }: NewChatDialogProps) {
               >
                 {AI_BACKENDS.map((b) => (
                   <option key={b.value} value={b.value}>
-                    {b.label}{keyStatus[b.value] === false ? ' (no key)' : ''}
+                    {b.label}{keyStatus[b.value] === false && !(freeTier && tierInfo?.allowedBackends.includes(b.value)) ? ' (no key)' : ''}
                   </option>
                 ))}
               </select>

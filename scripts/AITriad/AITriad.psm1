@@ -254,6 +254,74 @@ class EndpointTestResult {
     [string] $Error
 }
 
+class AnonymousFlowStepResult {
+    [int]    $Step
+    [string] $Method
+    [string] $Endpoint
+    [string] $Description
+    [string] $BugTags
+    [bool]   $Pass
+    [int]    $StatusCode
+    [int]    $Ms
+    [string] $Error
+}
+
+class FreeTierStatus {
+    [string]   $Tier
+    [int]      $DailyTokenBudget
+    [int]      $TokensUsedToday
+    [int]      $TokensRemainingToday
+    [double]   $BudgetUtilizationPct
+    [int]      $RPMLimit
+    [string[]] $AllowedRoutes
+    [object]   $MilestoneWarnings
+    [string]   $LastResetTime
+    [string]   $BaseUrl
+}
+
+class EdgeTypeResolution {
+    [string] $Action   # accept | reclassify | drop
+    [string] $Type     # canonical type when accept/reclassify; empty when drop
+    [string] $Reason   # human-readable explanation for reclassify/drop
+}
+
+class ServiceWorkerHealthCheck {
+    [string] $Name
+    [bool]   $Pass
+    [string] $Detail
+}
+
+class ServiceWorkerHealth {
+    [string]                     $BaseUrl
+    [bool]                       $FetchedOk
+    [int]                        $StatusCode
+    [int]                        $Bytes
+    [string]                     $Hash
+    [string]                     $SkipWaitingMode   # auto | message | none
+    [bool]                       $ClientsClaim
+    [string[]]                   $Denylist
+    [string[]]                   $MissingDenylist
+    [string]                     $NavigateFallback
+    [int]                        $PrecacheCount
+    [object[]]                   $PrecacheManifest
+    [ServiceWorkerHealthCheck[]] $Checks
+    [bool]                       $OverallPass
+}
+
+class PersonaEndpointTestResult {
+    [string] $Persona
+    [string] $Method
+    [string] $Endpoint
+    [string] $Category
+    [bool]   $ExpectedAccess   # true = expected 2xx, false = expected 401/403
+    [bool]   $ActualAccess     # true = got 2xx, false = got 401/403
+    [bool]   $Pass             # ExpectedAccess == ActualAccess
+    [int]    $StatusCode
+    [int]    $Ms
+    [string] $Note             # 'skipped: no PersonaSecret' etc
+    [string] $Error
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Module-scoped taxonomy store
 # ─────────────────────────────────────────────────────────────────────────────
@@ -473,6 +541,7 @@ Export-ModuleMember -Function @(
     'Invoke-PolicyRefinement'
     'Repair-UnmappedConcepts'
     'Invoke-AITDebate'
+    'Resume-AITDebate'
     'Convert-MD2PDF'
     'Show-Markdown'
     'Show-DebateDiagnostics'
@@ -492,6 +561,7 @@ Export-ModuleMember -Function @(
     'Repair-Markdown'
     'Compare-DebateRuns'
     'Compare-DebateQuality'
+    'Measure-DebateQuality'
     'Invoke-DebateAB'
     'Get-AICostReport'
     'Show-OSSLicenses'
@@ -518,6 +588,12 @@ Export-ModuleMember -Function @(
     'Get-CalibrationTrend'
     'Test-TaxEditorHealth'
     'Test-TaxEditorEndpoints'
+    'Test-AnonymousDebateFlow'
+    'Test-PersonaEndpoints'
+    'Test-ServiceWorkerHealth'
+    'Watch-DebateProgress'
+    'Invoke-DebateBatch'
+    'Get-FreeTierStatus'
     'Invoke-TaxEditorSmokeTest'
     'Test-AzureHealth'
     'Test-GitHubHealth'

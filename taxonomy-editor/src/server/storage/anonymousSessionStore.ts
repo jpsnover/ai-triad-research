@@ -159,15 +159,16 @@ export class AnonymousSessionStore {
     try {
       return JSON.parse(await fsp.readFile(filePath, 'utf-8'));
     } catch (err) {
-      getGlobalRecorder()?.record({
-        type: 'system.error',
-        component: 'anonymous-session-store',
-        level: 'warn',
-        message: 'Failed to read/parse session JSON file',
-        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-      });
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
-      throw err;
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'anonymous-session-store',
+          level: 'warn',
+          message: 'Failed to read/parse session JSON file',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+      }
+      return null;
     }
   }
 
@@ -232,8 +233,18 @@ export class AnonymousSessionStore {
       }
     }
     if (oldest) {
-      await fsp.rm(path.join(this.baseDir, oldest), { recursive: true, force: true });
-      log.server.info(`Anonymous session evicted (LRU): ${oldest.slice(0, 8)}...`);
+      try {
+        await fsp.rm(path.join(this.baseDir, oldest), { recursive: true, force: true });
+        log.server.info(`Anonymous session evicted (LRU): ${oldest.slice(0, 8)}...`);
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'anonymous-session-store',
+          level: 'warn',
+          message: 'Failed to evict LRU session; proceeding with new session',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+      }
     }
   }
 

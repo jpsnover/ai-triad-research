@@ -6,6 +6,7 @@ import type { FetchFn } from '../types.js';
 import { GEMINI_BASE } from './gemini.js';
 
 const GEMINI_EMBED_MODEL = 'gemini-embedding-001';
+const DEFAULT_EMBED_TIMEOUT_MS = 30_000;
 
 export async function callGeminiBatchEmbed(
   fetchFn: FetchFn,
@@ -13,6 +14,7 @@ export async function callGeminiBatchEmbed(
   taskType: string,
   apiKey: string,
   retryConfig: RetryConfig = SERVER_RETRY_CONFIG,
+  timeoutMs: number = DEFAULT_EMBED_TIMEOUT_MS,
 ): Promise<number[][]> {
   const url = `${GEMINI_BASE}/${GEMINI_EMBED_MODEL}:batchEmbedContents?key=${apiKey}`;
   const requests = texts.map(text => ({
@@ -26,6 +28,7 @@ export async function callGeminiBatchEmbed(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ requests }),
+      signal: AbortSignal.timeout(timeoutMs),
     });
 
     if (response.status === 429 || response.status === 503) {

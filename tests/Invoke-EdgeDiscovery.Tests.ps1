@@ -75,7 +75,7 @@ Describe 'Edge validation (gaps 7.1-7.4)' {
         }
     }
 
-    It 'Accepts all 9 canonical edge types' {
+    It 'Accepts all 8 canonical edge types' {
         InModuleScope AITriad {
             $TempDir = Join-Path ([System.IO.Path]::GetTempPath()) "edge-test-$([guid]::NewGuid().ToString('N').Substring(0,8))"
             New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
@@ -100,9 +100,11 @@ Describe 'Edge validation (gaps 7.1-7.4)' {
             }
 
             Mock Invoke-NodeEdgeDiscovery {
+                # t/1093: canonical 8-type vocabulary. CITES/SUPPORTED_BY/PROPOSES removed;
+                # CONVERGES_WITH added.
                 $edges = @()
-                foreach ($t in @('SUPPORTS', 'CONTRADICTS', 'ASSUMES', 'WEAKENS',
-                                 'RESPONDS_TO', 'TENSION_WITH', 'CITES', 'INTERPRETS', 'SUPPORTED_BY')) {
+                foreach ($t in @('SUPPORTS', 'CONTRADICTS', 'WEAKENS', 'TENSION_WITH',
+                                 'RESPONDS_TO', 'ASSUMES', 'INTERPRETS', 'CONVERGES_WITH')) {
                     $edges += [PSCustomObject]@{ target = 'saf-beliefs-001'; type = $t; confidence = 0.8; rationale = "Test $t" }
                 }
                 [PSCustomObject]@{
@@ -114,7 +116,7 @@ Describe 'Edge validation (gaps 7.1-7.4)' {
             $null = Invoke-EdgeDiscovery -NodeId 'acc-beliefs-001' -Force -MaxConcurrent 1 -RepoRoot $TempDir 3>$null 6>$null
 
             $written = $script:CapturedEdgesJson | ConvertFrom-Json
-            $written.edges.Count | Should -Be 9
+            $written.edges.Count | Should -Be 8
 
             Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
         }

@@ -196,8 +196,8 @@ export function formatDebateMarkdown(session: DebateSession): string {
         lines.push('');
         for (const c of cruxes) {
           lines.push(`- ${c.question}${c.type ? ` [${c.type}]` : ''}`);
-          if (c.if_yes) lines.push(`    - If yes: ${c.if_yes}`);
-          if (c.if_no) lines.push(`    - If no: ${c.if_no}`);
+          if (c.if_yes) lines.push(`    - If yes, weakens: ${c.if_yes}`);
+          if (c.if_no) lines.push(`    - If no, weakens: ${c.if_no}`);
           lines.push('');
         }
       }

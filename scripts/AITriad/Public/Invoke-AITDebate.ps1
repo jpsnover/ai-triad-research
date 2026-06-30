@@ -9,14 +9,36 @@
     and Skeptic (skeptic) POVers. Produces debate transcript, diagnostics, and harvest
     output files. Uses the same prompts, logic, and argumentation framework as the
     Taxonomy Editor's debate tool.
+.PARAMETER FeatureFlags
+    Hashtable of feature flags applied for the run. Known keys (case-insensitive):
+    Clarification, Probing, SalienceBeacon, ExploreFirst, AdaptiveStaging,
+    EarlyTermination, TurnValidation. Unknown keys throw an ActionableError.
+    Explicit switches (-Clarify, -Probe, -AdaptiveStaging, -DisableTurnValidation)
+    take precedence over the hashtable when both are provided.
+.PARAMETER ConfrontationRounds
+    Max rounds for the confrontation phase (1-10). When specified without
+    -AdaptiveStaging, disables adaptive staging automatically so these counts
+    are treated as hard limits.
+.PARAMETER ArgumentationRounds
+    Max rounds for the argumentation phase (1-10). When specified without
+    -AdaptiveStaging, disables adaptive staging automatically so these counts
+    are treated as hard limits.
+.PARAMETER ConcludingRounds
+    Max rounds for the concluding phase (1-10). When specified without
+    -AdaptiveStaging, disables adaptive staging automatically so these counts
+    are treated as hard limits.
 .EXAMPLE
-    Invoke-AITDebate -Topic "Should the US impose AI licensing?" -Turns 3
+    Invoke-AITDebate -Topic "Should the US impose AI licensing?" -Rounds 3
 .EXAMPLE
     Invoke-AITDebate -Topic "Scaling limits" -Name "Scaling Debate" -Rounds 4 -Model gemini-3.1-flash-lite
 .EXAMPLE
     Invoke-AITDebate -DocPath ../ai-triad-data/sources/my-doc/snapshot.md -Name "My Doc Debate"
 .EXAMPLE
     Invoke-AITDebate -CrossCuttingNodeId sit-005 -Clarify -Probe
+.EXAMPLE
+    Invoke-AITDebate -Topic "AI liability" -FeatureFlags @{ Clarification = $true; Probing = $true; SalienceBeacon = $true }
+.EXAMPLE
+    Invoke-AITDebate -Topic "AI liability" -ConfrontationRounds 2 -ArgumentationRounds 3 -ConcludingRounds 1
 #>
 function Invoke-AITDebate {
     [CmdletBinding(DefaultParameterSetName = 'Topic')]
@@ -92,10 +114,93 @@ function Invoke-AITDebate {
         [switch]$AdaptiveStaging,
 
         [Parameter()]
-        [hashtable]$StageModels
+        [hashtable]$StageModels,
+
+        # Path to a shared debate-progress.json file. When set, this run writes
+        # status + per-turn updates to that file (see Update-DebateProgress).
+        # Watch with: Watch-DebateProgress -Path <path>
+        [Parameter()]
+        [string]$ProgressFile,
+
+        # Debate name to use when writing progress. Defaults to the slug.
+        [Parameter()]
+        [string]$ProgressDebateName,
+
+        # Batch name to set on the progress file on first write.
+        [Parameter()]
+        [string]$ProgressBatchName,
+
+        # Per-phase round caps. Each phase is "rounds" where every active debater gets one turn,
+        # so total LLM calls per phase ≈ rounds × debater count. Only applied when -AdaptiveStaging
+        # is on (phaseBoundsOverride is an adaptive-staging concept).
+        [Parameter()]
+        [ValidateRange(1, 10)]
+        [int]$ConfrontationRounds,
+
+        [Parameter()]
+        [ValidateRange(1, 10)]
+        [int]$ArgumentationRounds,
+
+        [Parameter()]
+        [ValidateRange(1, 10)]
+        [int]$ConcludingRounds,
+
+        # Feature flags as a hashtable. Known keys (case-insensitive):
+        #   Clarification, Probing, SalienceBeacon, ExploreFirst,
+        #   AdaptiveStaging, EarlyTermination, TurnValidation
+        # Values are coerced to bool. Unknown keys throw an ActionableError so typos surface
+        # rather than silently no-op (the same class of bug as the claude-sonnet-4-5 silent
+        # failure in New-SyntheticCorpus).
+        [Parameter()]
+        [hashtable]$FeatureFlags
     )
 
     Set-StrictMode -Version Latest
+
+    # ── Resolve FeatureFlags onto known switches ────────────
+    # Cmdlet-level switches (-Clarify, -Probe, -AdaptiveStaging) take precedence when
+    # set, so callers can override the hashtable without removing keys from it.
+    $KnownFlagMap = @{
+        clarification    = 'Clarify'
+        probing          = 'Probe'
+        saliencebeacon   = 'SalienceBeacon'
+        explorefirst     = 'ExploreFirst'
+        adaptivestaging  = 'AdaptiveStaging'
+        earlytermination = 'AllowEarlyTermination'
+        turnvalidation   = 'TurnValidation'  # inverted into DisableTurnValidation below
+    }
+    $FlagSalienceBeacon = $false
+    $FlagExploreFirst = $false
+    $FlagAllowEarlyTermination = $false
+    $FlagTurnValidationExplicit = $false
+    $FlagTurnValidation = $true
+    if ($FeatureFlags) {
+        foreach ($Key in $FeatureFlags.Keys) {
+            $LowerKey = $Key.ToString().ToLower()
+            if (-not $KnownFlagMap.ContainsKey($LowerKey)) {
+                New-ActionableError `
+                    -Goal     'Apply feature flags to debate run' `
+                    -Problem  "Unknown feature flag '$Key'" `
+                    -Location 'Invoke-AITDebate -FeatureFlags' `
+                    -NextSteps "Use one of: $(($KnownFlagMap.Values | Sort-Object) -join ', '). Keys are case-insensitive." `
+                    -Throw
+            }
+            $Value = [bool]$FeatureFlags[$Key]
+            switch ($LowerKey) {
+                'clarification'    { if (-not $PSBoundParameters.ContainsKey('Clarify'))         { $Clarify        = $Value } }
+                'probing'          { if (-not $PSBoundParameters.ContainsKey('Probe'))           { $Probe          = $Value } }
+                'adaptivestaging'  { if (-not $PSBoundParameters.ContainsKey('AdaptiveStaging')) { $AdaptiveStaging = $Value } }
+                'saliencebeacon'   { $FlagSalienceBeacon = $Value }
+                'explorefirst'     { $FlagExploreFirst = $Value }
+                'earlytermination' { $FlagAllowEarlyTermination = $Value }
+                'turnvalidation'   { $FlagTurnValidation = $Value; $FlagTurnValidationExplicit = $true }
+            }
+        }
+    }
+    # -DisableTurnValidation switch wins if explicitly set; otherwise honor flag
+    if (-not $PSBoundParameters.ContainsKey('DisableTurnValidation') -and $FlagTurnValidationExplicit) {
+        $DisableTurnValidation = -not $FlagTurnValidation
+    }
 
     # ── Validate prerequisites ────────────────────────────
     if ($Debaters.Count -lt 2) {
@@ -176,6 +281,40 @@ Install Node.js from https://nodejs.org (v18+), then verify: npx --version
     if ($ApiKey) { $Config.apiKey = $ApiKey }
     if ($AdaptiveStaging) { $Config.useAdaptiveStaging = $true }
     if ($StageModels) { $Config.stageModels = $StageModels }
+    if ($FlagSalienceBeacon) { $Config.salienceBeacon = $true }
+    if ($FlagExploreFirst) { $Config.exploreFirst = $true }
+    if ($FlagAllowEarlyTermination) { $Config.allowEarlyTermination = $true }
+
+    # Per-phase round caps. Two paths:
+    #   - With -AdaptiveStaging: pass phaseBoundsOverride; engine treats caps as
+    #     hard upper bounds that adaptive signals can exit early but never exceed.
+    #   - Without -AdaptiveStaging (default): caps are treated as fixed-round
+    #     hard limits. We sum them into -Rounds and disable adaptive staging,
+    #     matching the docstring 'these counts are treated as hard limits'.
+    #     Loses per-phase granularity (engine has no fixed-mode phase concept),
+    #     but the total round count is honored exactly.
+    $AnyPhaseCapSet = $PSBoundParameters.ContainsKey('ConfrontationRounds') -or
+                      $PSBoundParameters.ContainsKey('ArgumentationRounds') -or
+                      $PSBoundParameters.ContainsKey('ConcludingRounds')
+    if ($AnyPhaseCapSet) {
+        if ($AdaptiveStaging) {
+            $PhaseBoundsOverride = @{}
+            if ($PSBoundParameters.ContainsKey('ConfrontationRounds')) { $PhaseBoundsOverride.maxConfrontationRounds = $ConfrontationRounds }
+            if ($PSBoundParameters.ContainsKey('ArgumentationRounds')) { $PhaseBoundsOverride.maxArgumentationRounds = $ArgumentationRounds }
+            if ($PSBoundParameters.ContainsKey('ConcludingRounds'))    { $PhaseBoundsOverride.maxConcludingRounds    = $ConcludingRounds }
+            $Config.phaseBoundsOverride = $PhaseBoundsOverride
+        } else {
+            $PhaseSum = 0
+            if ($PSBoundParameters.ContainsKey('ConfrontationRounds')) { $PhaseSum += $ConfrontationRounds }
+            if ($PSBoundParameters.ContainsKey('ArgumentationRounds')) { $PhaseSum += $ArgumentationRounds }
+            if ($PSBoundParameters.ContainsKey('ConcludingRounds'))    { $PhaseSum += $ConcludingRounds }
+            if ($PSBoundParameters.ContainsKey('Rounds') -and $Rounds -ne $PhaseSum) {
+                Write-Warning ("-Rounds={0} overridden by phase round caps (sum={1}). Use -AdaptiveStaging if you want phase bounds with a separate -Rounds ceiling." -f $Rounds, $PhaseSum)
+            }
+            Write-Verbose ("Per-phase caps sum to {0} rounds; adaptive staging stays off (hard-limit semantics)." -f $PhaseSum)
+            $Config.rounds = $PhaseSum
+        }
+    }
 
     Write-Verbose "Config: topic='$DebateTopic' | slug=$Slug | rounds=$Rounds | protocol=$Protocol"
     Write-Verbose "Config: debaters=$($Debaters -join ',') | responseLength=$ResponseLength | temp=$Temperature"
@@ -235,6 +374,27 @@ Verify the file exists: Get-Item '$CliPath'
             throw "Failed to start debate CLI process (npx tsx): $_`nVerify Node.js is installed and npx is in your PATH: npx --version"
         }
 
+        # ── Progress file setup (t/1095) ──────────────────
+        # When -ProgressFile is set, write per-turn updates so Watch-DebateProgress
+        # (and any operator tailing the file) can see live state — fixes the 3h
+        # silent-hang class of bug from exp-1069.
+        $ProgressActive = -not [string]::IsNullOrWhiteSpace($ProgressFile)
+        $EffectiveDebateName = if ($ProgressDebateName) { $ProgressDebateName } else { $Slug }
+        $CurrentTurn = 0
+        $TotalTurnsExpected = if ($AdaptiveStaging) { 0 } else { [int]$Rounds * @($Debaters).Count }
+        if ($ProgressActive) {
+            Write-Verbose "Progress file: $ProgressFile (debate=$EffectiveDebateName)"
+            Update-DebateProgress -Path $ProgressFile -DebateName $EffectiveDebateName `
+                -BatchName $ProgressBatchName -Fields @{
+                    status               = 'running'
+                    started_at           = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+                    current_turn         = 0
+                    total_turns_expected = $TotalTurnsExpected
+                    current_stage        = 'starting'
+                    current_debater      = $null
+                }
+        }
+
         # Stream stderr for progress — parse per-round/phase info for -Verbose
         $CurrentRound = 0
         $RoundStartTime = [DateTime]::UtcNow
@@ -272,6 +432,18 @@ Verify the file exists: Get-Item '$CliPath'
                         default     { 'DarkGray' }
                     }
                     Write-Host "  [$Phase] $Speaker`: $Message" -ForegroundColor $Color
+
+                    # t/1095: each speaker line is a turn. Write progress so
+                    # Watch-DebateProgress (and hung-detection) see liveness.
+                    if ($ProgressActive) {
+                        $CurrentTurn++
+                        Update-DebateProgress -Path $ProgressFile -DebateName $EffectiveDebateName -Fields @{
+                            status          = 'running'
+                            current_turn    = $CurrentTurn
+                            current_stage   = $Phase
+                            current_debater = $Speaker
+                        }
+                    }
                 } else {
                     Write-Host "  $Line" -ForegroundColor DarkGray
                 }
@@ -308,11 +480,20 @@ $($StdErr -join "`n" | Select-Object -Last 20)
         # ── Parse result ──────────────────────────────────
         $ResultJson = $StdOut -join "`n"
 
-        if ($Proc.ExitCode -ne 0 -and -not $ResultJson) {
+        # t/1123: non-zero exit is always a CLI failure — surface the original error
+        # immediately, don't fall through to the JSON parser (which would throw a
+        # confusing "Failed to parse JSON" error that masks the real cause).
+        if ($Proc.ExitCode -ne 0) {
+            $StderrTail = (@($StdErr) | Select-Object -Last 20) -join "`n"
+            $StdoutPreview = if ($ResultJson) {
+                "Stdout preview (first 500 chars):`n$($ResultJson.Substring(0, [Math]::Min(500, $ResultJson.Length)))"
+            } else { '(stdout was empty)' }
             throw @"
 Debate CLI failed with exit code $($Proc.ExitCode).
-Stderr:
-$($StdErr -join "`n" | Select-Object -Last 20)
+Stderr (last 20 lines):
+$StderrTail
+
+$StdoutPreview
 
 Troubleshooting:
   1. Check API key: ensure GEMINI_API_KEY (or ANTHROPIC_API_KEY/GROQ_API_KEY) is set
@@ -353,6 +534,13 @@ This usually means the CLI produced non-JSON output. Check stderr above for erro
         Write-Verbose "         diagnostics=$($Result.files.diagnostics)"
         if ($Result.files.harvest) { Write-Verbose "         harvest=$($Result.files.harvest)" }
 
+        # t/1095: mark this debate done in the progress file
+        if ($ProgressActive) {
+            Update-DebateProgress -Path $ProgressFile -DebateName $EffectiveDebateName -Fields @{
+                status = 'done'
+            }
+        }
+
         # ── Return structured result ──────────────────────
         [PSCustomObject]@{
             DebateId        = $Result.debateId
@@ -372,6 +560,16 @@ This usually means the CLI produced non-JSON output. Check stderr above for erro
             ClaimsRejected  = $Result.stats.claimsRejected
             Success         = $true
         }
+    }
+    catch {
+        # t/1095: mark debate failed before rethrowing so Watch-DebateProgress sees it
+        if ($ProgressActive) {
+            Update-DebateProgress -Path $ProgressFile -DebateName $EffectiveDebateName -Fields @{
+                status = 'failed'
+                error  = $_.Exception.Message
+            }
+        }
+        throw
     }
     finally {
         Remove-Item -Path $ConfigPath -ErrorAction SilentlyContinue

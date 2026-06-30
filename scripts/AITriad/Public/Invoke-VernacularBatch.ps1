@@ -21,6 +21,8 @@
     Number of parallel AI calls. Default: 10.
 .PARAMETER Force
     Regenerate all nodes, even those with up-to-date plain_description.
+.PARAMETER Id
+    Process only the specified node ID(s). Can be a single ID or a list.
 .EXAMPLE
     Invoke-VernacularBatch
 .EXAMPLE
@@ -33,7 +35,10 @@ function Invoke-VernacularBatch {
         [Parameter()][string]$Model = 'gemini-3.1-flash-lite',
         [Parameter()][string]$Version = 'flash-lite:v1',
         [Parameter()][ValidateRange(1, 50)][int]$Concurrency = 10,
-        [switch]$Force
+        [switch]$Force,
+        [Parameter()]
+        [Alias('NodeId')]
+        [string[]]$Id
     )
 
     Set-StrictMode -Version Latest
@@ -70,6 +75,7 @@ Rules:
     $SkippedExisting = 0
     $SkippedDeprecated = 0
     $SkippedEmpty = 0
+    $SkippedByIdFilter = 0 # New counter
 
     foreach ($FileName in $TaxFiles) {
         $FilePath = Join-Path $TaxonomyPath $FileName
@@ -78,24 +84,37 @@ Rules:
             continue
         }
 
+        Write-Verbose "Processing taxonomy file: $FileName" # Added verbose
+
         $TaxData = Get-Content $FilePath -Raw | ConvertFrom-Json
         $NodeIndex = 0
         foreach ($Node in @($TaxData.nodes)) {
+
+            # New: Filter by Id
+            if (@($Id).Count -gt 0 -and ($Node.id -notin $Id)) {
+                $SkippedByIdFilter++
+                $NodeIndex++
+                continue
+            }
+
             $Desc = $null
             if ($Node.PSObject.Properties['description']) { $Desc = $Node.description }
 
             if ([string]::IsNullOrWhiteSpace($Desc)) {
                 $SkippedEmpty++
+                Write-Verbose "Skipping $($Node.id): Description is empty or whitespace." # Added verbose
                 $NodeIndex++
                 continue
             }
             if ($Desc.Length -lt 20) {
                 $SkippedEmpty++
+                Write-Verbose "Skipping $($Node.id): Description is too short." # Added verbose
                 $NodeIndex++
                 continue
             }
             if ($Desc.StartsWith('[DEPRECATED]')) {
                 $SkippedDeprecated++
+                Write-Verbose "Skipping $($Node.id): Node is deprecated." # Added verbose
                 $NodeIndex++
                 continue
             }
@@ -107,6 +126,7 @@ Rules:
                                 $Node.plain_description_version -eq $Version
                 if ($HasPlain -and $VersionMatch) {
                     $SkippedExisting++
+                    Write-Verbose "Skipping $($Node.id): Plain description is up-to-date." # Added verbose
                     $NodeIndex++
                     continue
                 }
@@ -124,19 +144,16 @@ Rules:
     }
 
     $Total = $NodesToProcess.Count
-    Write-Host "Nodes to process: $Total"
-    Write-Host "Skipped (up-to-date): $SkippedExisting"
-    Write-Host "Skipped (deprecated): $SkippedDeprecated"
-    Write-Host "Skipped (empty/short): $SkippedEmpty"
-    Write-Host ""
+    Write-Verbose "Nodes to process after filtering: $Total" # Changed to verbose
+    Write-Verbose "Skipped (up-to-date): $SkippedExisting" # Changed to verbose
+    Write-Verbose "Skipped (deprecated): $SkippedDeprecated" # Changed to verbose
+    Write-Verbose "Skipped (empty/short): $SkippedEmpty" # Changed to verbose
+    Write-Verbose "Skipped (by ID filter): $SkippedByIdFilter" # New verbose output
+    Write-Verbose "" # Changed to verbose
 
     if ($Total -eq 0) {
-        Write-Host 'Nothing to generate — all nodes are up-to-date.'
-        return [PSCustomObject]@{ Generated = 0; Skipped = $SkippedExisting + $SkippedDeprecated + $SkippedEmpty; Failed = 0 }
-    }
-
-    if (-not $PSCmdlet.ShouldProcess("$Total taxonomy nodes", 'Generate plain descriptions')) {
-        return
+        Write-Host 'Nothing to generate — all nodes are up-to-date or filtered out.' # Updated message
+        return [PSCustomObject]@{ Generated = 0; Skipped = $SkippedExisting + $SkippedDeprecated + $SkippedEmpty + $SkippedByIdFilter; Failed = 0 }
     }
 
     $Generated = [System.Collections.Concurrent.ConcurrentBag[string]]::new()
@@ -169,6 +186,8 @@ Rules:
 
         $UserPrompt = "Rewrite this node description:`n`n$($Item.Desc)"
 
+        Write-Verbose "Processing node $($Item.NodeId)" # Added verbose inside parallel loop
+
         try {
             $AIResult = Invoke-AIApi -Prompt $UserPrompt -SystemInstruction $SysPrompt `
                 -Model $ModelName -Temperature 0.2 -MaxTokens 400
@@ -183,13 +202,16 @@ Rules:
                     Version          = $VersionTag
                 })
                 [void]$GenBag.Add($Item.NodeId)
+                Write-Verbose "Generated plain description for $($Item.NodeId)" # Added verbose
             } else {
                 Write-Warning "$($Item.NodeId): AI returned empty response"
                 [void]$FailBag.Add($Item.NodeId)
+                Write-Verbose "Failed to generate plain description for $($Item.NodeId): AI returned empty response." # Added verbose
             }
         } catch {
             Write-Warning "$($Item.NodeId): $($_.Exception.Message)"
             [void]$FailBag.Add($Item.NodeId)
+            Write-Verbose "Failed to generate plain description for $($Item.NodeId): $($_.Exception.Message)." # Added verbose
         }
 
         $Done = [System.Threading.Interlocked]::Increment($CompRef)
@@ -225,12 +247,12 @@ Rules:
 
         $TaxData | ConvertTo-Json -Depth 20 | Set-Content -Path $FilePath -Encoding UTF8
         $FileName = Split-Path $FilePath -Leaf
-        Write-Host "Updated $($FileResults.Count) nodes in $FileName"
+        Write-Verbose "Updated $($FileResults.Count) nodes in $FileName" # Changed to verbose
     }
 
     $GenCount  = @($Generated).Count
     $FailCount = @($Failed).Count
-    $SkipCount = $SkippedExisting + $SkippedDeprecated + $SkippedEmpty
+    $SkipCount = $SkippedExisting + $SkippedDeprecated + $SkippedEmpty + $SkippedByIdFilter # Updated skip count
 
     Write-Host ""
     Write-Host "Done. Generated: $GenCount | Skipped: $SkipCount | Failed: $FailCount"

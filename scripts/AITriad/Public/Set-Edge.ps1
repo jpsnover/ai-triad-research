@@ -185,7 +185,16 @@ function Set-Edge {
                 }
             }
             if ($Type) {
-                $EdgesData.edges[$EdgeIndex].type = $Type
+                # t/1093: gate manual type changes through the canonical resolver
+                $Resolved = Resolve-EdgeType -Type $Type
+                if ($Resolved.Action -eq 'drop') {
+                    Write-Fail "Refusing to set edge type to '$Type' — $($Resolved.Reason). Valid types: $((Get-CanonicalEdgeType) -join ', ')"
+                    return
+                }
+                if ($Resolved.Action -eq 'reclassify') {
+                    Write-Warning "Edge type '$Type' reclassified — $($Resolved.Reason). Storing as '$($Resolved.Type)'."
+                }
+                $EdgesData.edges[$EdgeIndex].type = $Resolved.Type
             }
 
             $Modified = $true

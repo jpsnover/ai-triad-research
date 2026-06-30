@@ -33,21 +33,14 @@ Return a JSON object with the following structure:
       "strength": "moderate",
       "notes": "Indirect support — the causal link requires additional assumptions."
     }
-  ],
-  "new_edge_types": [
-    {
-      "type": "EXAMPLE_NEW_TYPE",
-      "definition": "Clear definition of what this edge type means.",
-      "bidirectional": false
-    }
   ]
 }
 
 CONSTRAINTS:
   - "source_node_id" MUST exactly match the source node ID provided in the input.
   - Each edge "target" MUST be a valid node ID from the candidate list.
-  - "type" must be from the vocabulary above or declared in "new_edge_types".
+  - "type" MUST be exactly one of the 8 canonical types defined in the vocabulary above.
+    Do not invent new types. If a relationship does not fit one of the 8 types, do not include it.
   - "bidirectional" must be true for CONTRADICTS and TENSION_WITH, false for all others.
   - "confidence" must be a number between 0.5 and 1.0. Do not propose edges below 0.5.
-  - "new_edge_types" is optional — include only if you are proposing a novel type.
   - Return ONLY the JSON object. No markdown, no commentary.

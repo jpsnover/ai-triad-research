@@ -85,13 +85,15 @@ function getBucket(userId: string): DailyTokenBucket {
 // threshold per user per day — so the consumption rate is visible before the hard
 // limit (not just at the rejection point). 80% and 95% also emit flight-recorder
 // events so they surface in dumps.
-const TOKEN_MILESTONES = [50, 80, 95] as const;
+export const TOKEN_MILESTONES = [50, 80, 95] as const;
 
-function checkTokenMilestones(limitKey: string, bucket: DailyTokenBucket, limit: number): void {
+function checkTokenMilestones(limitKey: string, bucket: DailyTokenBucket, limit: number): number | null {
   const pct = (bucket.total / limit) * 100;
+  let crossed: number | null = null;
   for (const m of TOKEN_MILESTONES) {
     if (pct >= m && !bucket.milestonesLogged.has(m)) {
       bucket.milestonesLogged.add(m);
+      crossed = m;
       log.server.warn({ component: 'rate-limiter', type: 'token_milestone', limitKey, milestone: `${m}%`, current: bucket.total, limit }, `Daily token usage at ${m}%`);
       if (m >= 80) {
         getGlobalRecorder()?.record({
@@ -102,14 +104,16 @@ function checkTokenMilestones(limitKey: string, bucket: DailyTokenBucket, limit:
       }
     }
   }
+  return crossed;
 }
 
-export function recordTokenUsage(userId: string, inputTokens: number, outputTokens: number, limit?: number): void {
+export function recordTokenUsage(userId: string, inputTokens: number, outputTokens: number, limit?: number): number | null {
   const bucket = getBucket(userId);
   bucket.inputTokens += inputTokens;
   bucket.outputTokens += outputTokens;
   bucket.total += inputTokens + outputTokens;
-  if (limit && limit > 0) checkTokenMilestones(userId, bucket, limit);
+  if (limit && limit > 0) return checkTokenMilestones(userId, bucket, limit);
+  return null;
 }
 
 export function checkTokenLimit(userId: string, limit: number): RateCheckResult {
@@ -120,7 +124,7 @@ export function checkTokenLimit(userId: string, limit: number): RateCheckResult 
 // t/964: daily token buckets key on the UTC date (today()), so the budget resets
 // at 00:00 UTC. Exposed so the budget UI can show "resets in Xh" without
 // re-deriving the boundary client-side.
-function nextDailyResetUtc(): string {
+export function nextDailyResetUtc(): string {
   const d = new Date();
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1)).toISOString();
 }

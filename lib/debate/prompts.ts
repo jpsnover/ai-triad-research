@@ -2599,14 +2599,14 @@ After completing your analysis, review every free-text field before writing the 
 - PRESERVE: all substantive claims, factual content, and structural relationships (agreement/disagreement classifications, crux logic)
 - NEUTRALIZE: stance-loaded vocabulary (e.g., "reckless," "visionary"), camp-specific rhetorical moves (accelerationist urgency framing, safetyist catastrophism, skeptic dismissiveness), and emotional register tied to one position
 - "point" and "question" fields must read as neutral descriptions of the issue, not as advocacy for either side
-- Attributed fields ("stance", "if_yes", "if_no") may retain position-specific language since they describe a debater's view, but strip emotional amplification (e.g., "argues X is dangerous" → "argues X poses risks")
+- Attributed fields ("stance", "if_yes", "if_no") may retain position-specific language since they describe which debater must concede, but strip emotional amplification (e.g., "argues X is dangerous" → "argues X poses risks")
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "areas_of_agreement": [{"point": "...", "povers": ["accelerationist", "safetyist"], "converged": false, "conceded_by": null, "original_disagreement": null}],
   "areas_of_disagreement": [{"point": "...", "type": "EMPIRICAL or VALUES or DEFINITIONAL", "bdi_layer": "belief or desire or intention", "resolvability": "resolvable_by_evidence or negotiable_via_tradeoffs or requires_term_clarification", "positions": [{"pover": "accelerationist", "stance": "..."}, {"pover": "safetyist", "stance": "..."}]}],
   "cruxes": [
-    {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES", "counterfactual_type": "interventional, backtracking, normative, or none if the crux is not counterfactual in form", "resolution_status": "resolved or irreducible or active", "resolution_evidence": "what resolved it, if applicable"}
+    {"question": "the factual or value question that would change minds", "if_yes": "which debater's position weakens — who must concede or revise, and what they must give up", "if_no": "which debater's position weakens — who must concede or revise, and what they must give up", "type": "EMPIRICAL or VALUES", "counterfactual_type": "interventional, backtracking, normative, or none if the crux is not counterfactual in form", "resolution_status": "resolved or irreducible or active", "resolution_evidence": "what resolved it, if applicable"}
   ],
   "unresolved_questions": ["..."]
 }`;
@@ -2826,7 +2826,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "areas_of_agreement": [{"point": "...", "povers": ["accelerationist", "safetyist"], "converged": false, "conceded_by": null, "original_disagreement": null}],
   "areas_of_disagreement": [{"point": "...", "type": "EMPIRICAL or VALUES or DEFINITIONAL", "bdi_layer": "belief or desire or intention", "resolvability": "resolvable_by_evidence or negotiable_via_tradeoffs or requires_term_clarification", "positions": [{"pover": "accelerationist", "stance": "..."}, {"pover": "safetyist", "stance": "..."}]}],
   "cruxes": [
-    {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES", "counterfactual_type": "interventional, backtracking, normative, or none if the crux is not counterfactual in form"}
+    {"question": "the factual or value question that would change minds", "if_yes": "which debater's position weakens — who must concede or revise, and what they must give up", "if_no": "which debater's position weakens — who must concede or revise, and what they must give up", "type": "EMPIRICAL or VALUES", "counterfactual_type": "interventional, backtracking, normative, or none if the crux is not counterfactual in form"}
   ],
   "unresolved_questions": ["..."],
   "taxonomy_coverage": [{"node_id": "e.g. acc-desires-002", "how_used": "brief description"}],

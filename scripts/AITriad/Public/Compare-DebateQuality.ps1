@@ -33,24 +33,11 @@ function Compare-DebateQuality {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
-    function Resolve-DebatePath([string]$IdOrPath) {
-        if (Test-Path $IdOrPath) { return (Resolve-Path $IdOrPath).Path }
-
-        $DebatesDir = Get-DebatesDir
-        $Direct = Join-Path $DebatesDir "debate-$IdOrPath.json"
-        if (Test-Path $Direct) { return $Direct }
-
-        $Partial = Get-ChildItem $DebatesDir -Filter "debate-$IdOrPath*.json" -Recurse |
-            Where-Object { $_.Name -notmatch 'diagnostics|harvest|transcript' } |
-            Select-Object -First 1
-        if ($Partial) { return $Partial.FullName }
-
-        throw (New-ActionableError `
-            -Goal "Resolve debate identifier" `
-            -Problem "No debate found matching '$IdOrPath'" `
-            -Location "Compare-DebateQuality" `
-            -NextSteps @("Verify the debate ID or file path", "Run Get-AITDebate to list available debates"))
-    }
+    # NOTE: Path resolution and metric extraction moved to private helpers
+    # (Resolve-DebatePath, Get-DebateQualityMetrics) so Measure-DebateQuality
+    # can share them. The local function below is retained only to preserve
+    # the order-of-operations inside the original Extract-QualityMetrics body
+    # that follows; new callers should use Get-DebateQualityMetrics instead.
 
     function Get-SafeProp($Obj, [string]$Name, $Default = $null) {
         if ($null -eq $Obj) { return $Default }
@@ -141,8 +128,8 @@ function Compare-DebateQuality {
         }
     }
 
-    $PathA = Resolve-DebatePath $Baseline
-    $PathB = Resolve-DebatePath $Treatment
+    $PathA = Resolve-DebatePath -IdOrPath $Baseline
+    $PathB = Resolve-DebatePath -IdOrPath $Treatment
 
     $MA = Extract-QualityMetrics $PathA
     $MB = Extract-QualityMetrics $PathB

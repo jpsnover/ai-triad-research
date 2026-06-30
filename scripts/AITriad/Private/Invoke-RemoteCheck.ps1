@@ -5,6 +5,11 @@ function Invoke-RemoteCheck {
     <#
     .SYNOPSIS
         Makes an HTTP request to a remote endpoint and returns a structured result.
+    .DESCRIPTION
+        Default-GET smoke-check helper used by Test-TaxEditorEndpoints and
+        Test-AnonymousDebateFlow. Optional -Body, -Session, and -ExtraHeaders
+        allow POST/PUT flows with cookie persistence across calls (anonymous
+        session smoke test, etc).
     #>
     [CmdletBinding()]
     param(
@@ -15,7 +20,7 @@ function Invoke-RemoteCheck {
         [string]$Path,
 
         [Parameter()]
-        [ValidateSet('GET', 'POST')]
+        [ValidateSet('GET', 'POST', 'PUT', 'DELETE')]
         [string]$Method = 'GET',
 
         [Parameter()]
@@ -25,16 +30,52 @@ function Invoke-RemoteCheck {
         [string]$ExpectedField,
 
         [Parameter()]
-        [int[]]$AcceptableStatusCodes = @(200)
+        [int[]]$AcceptableStatusCodes = @(200),
+
+        # Optional request body. Hashtables/objects are JSON-encoded automatically
+        # and Content-Type is set to application/json.
+        [Parameter()]
+        [object]$Body,
+
+        # Optional shared WebRequestSession for cookie persistence across calls.
+        [Parameter()]
+        [Microsoft.PowerShell.Commands.WebRequestSession]$Session,
+
+        # Optional extra headers merged on top of the default Accept: application/json.
+        [Parameter()]
+        [hashtable]$ExtraHeaders
     )
 
     $Url = "$BaseUrl$Path"
     $Sw = [System.Diagnostics.Stopwatch]::StartNew()
 
+    $Headers = @{ 'Accept' = 'application/json' }
+    if ($ExtraHeaders) {
+        foreach ($K in $ExtraHeaders.Keys) { $Headers[$K] = $ExtraHeaders[$K] }
+    }
+
+    $WebParams = @{
+        Uri             = $Url
+        Method          = $Method
+        TimeoutSec      = $TimeoutSec
+        UseBasicParsing = $true
+        ErrorAction     = 'Stop'
+        Headers         = $Headers
+    }
+    if ($PSBoundParameters.ContainsKey('Body') -and $null -ne $Body) {
+        if ($Body -is [string]) {
+            $WebParams.Body = $Body
+        } else {
+            $WebParams.Body = ($Body | ConvertTo-Json -Depth 10 -Compress)
+        }
+        $WebParams.ContentType = 'application/json'
+    }
+    if ($Session) {
+        $WebParams.WebSession = $Session
+    }
+
     try {
-        $Response = Invoke-WebRequest -Uri $Url -Method $Method `
-            -TimeoutSec $TimeoutSec -UseBasicParsing -ErrorAction Stop `
-            -Headers @{ 'Accept' = 'application/json' }
+        $Response = Invoke-WebRequest @WebParams
         $Sw.Stop()
 
         $StatusCode = $Response.StatusCode

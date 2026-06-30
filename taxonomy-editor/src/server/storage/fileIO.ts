@@ -18,6 +18,7 @@ import dns from 'dns';
 import { execFile } from 'child_process';
 import { loadDataConfig, resolveDataPath, getDataRoot, getProjectRoot, getSourcesRoot, STORAGE_MODE } from '../config.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
+import { safeSerialize } from '../../../../lib/debate/persistence.js';
 import { POV_KEYS } from '../../../../lib/debate/types.js';
 import type { StorageBackend } from './storageBackend.js';
 import { log } from '../logger.js';
@@ -891,7 +892,11 @@ export async function saveDebateSession(session: unknown): Promise<void> {
       throw Object.assign(new ActionableError({ goal: 'Save debate session', problem: `Debate quota exceeded (${q.current}/${q.limit})`, location: 'server/fileIO.ts → saveDebateSession', nextSteps: ['Delete existing debates to free space'] }), { statusCode: 429, quotaInfo: q });
     }
   }
-  await backend.writeFile(debatePath, JSON.stringify(session, null, 2));
+  const { json, hadError, errorMessage } = safeSerialize(session, 2);
+  if (hadError) {
+    log.server.warn({ debateId: s.id, errorMessage }, 'Debate session serialized with sanitizing replacer — non-serializable fields stripped');
+  }
+  await backend.writeFile(debatePath, json);
   // Maintain the lightweight index
   void upsertDebateIndex({
     id: s.id,

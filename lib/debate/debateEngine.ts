@@ -149,6 +149,8 @@ import { computeTaxonomyGapAnalysis } from './taxonomyGapAnalysis.js';
 import { extractSituationDebateRefs } from './situationRefs.js';
 import { checkClaimExclusionBoundary, checkDraftScopeBoundary, filterByExclusionAbsolute, EXCLUSION_RATIO_THRESHOLD, SCOPE_BOUNDARY_THRESHOLD } from './exclusionGuard.js';
 import { ActionableError } from './errors.js';
+import { computeCampInsularityRate, isInsularityCritical, selectCrossCampNode, type InsularityInjection } from './schemeStagnation.js';
+import { nodePovFromId } from './nodeIdUtils.js';
 import type { ContextManifestEntry } from './taxonomyGapAnalysis.js';
 import { resolveTurnValidationConfig, classifyHintKey } from './turnValidator.js';
 import type { TurnValidation, ModeratorState, ModeratorIntervention, SelectionResult, InterventionMove } from './types.js';
@@ -254,6 +256,8 @@ export interface DebateConfig {
   embedFn?: (text: string) => Promise<number[]>;
   /** Enable salience beacon in draft prompts to reduce scope drift (experiment). */
   salienceBeacon?: boolean;
+  /** Enable cross-camp node injection when camp insularity is critical (BEA RUE). Default: false. */
+  enableInsularityIntervention?: boolean;
   /** Exploration summary from a prior cheap-engine run — seeds cruxes, situations, AN priming, and config overrides. */
   explorationSummary?: import('./explorationSummary.js').ExplorationSummary;
   /** Use restructured BRIEF prompt (YOUR TASK → REFERENCE → CURRENT STATE) instead of inline context. Experiment flag (t/1029). */
@@ -355,6 +359,10 @@ export class DebateEngine {
   private _explorationBoosts: Map<string, number> = new Map();
   /** Formatted exploration priming text (AN sketch + convergence areas) for Brief prompt injection. */
   private _explorationPriming: string = '';
+  /** Insularity interventions fired during this debate (for calibration logging). */
+  private _insularityInterventions: { speaker: string; round: number; injected_node_id: string; target_camp: string }[] = [];
+  /** Last relevance scores from getRelevantTaxonomyContext — used by insularity injection. */
+  private _lastRelevanceScores: Map<string, number> | null = null;
   /** Adaptive backoff (ms) imposed after a 429 rate-limit error is detected. */
   private _rateLimitBackoffMs = 0;
   /** Timestamp of the last 429 detection — used with _rateLimitBackoffMs in throttle(). */
@@ -866,6 +874,8 @@ export class DebateEngine {
         attackWeights: [1.0, 1.1, 1.2],
         argumentativeSaturationWeights: weights.argumentative_saturation,
         explorationSummary: this.config.explorationSummary,
+        docMeta: this.docTitles,
+        insularityInterventions: this._insularityInterventions.length > 0 ? this._insularityInterventions : undefined,
       });
       // Resolve data root — env var or .aitriad.json fallback
       const __engineDir = path.dirname(fileURLToPath(import.meta.url));
@@ -891,6 +901,88 @@ export class DebateEngine {
     }
 
     return this.session;
+  }
+
+  // ── Resume from checkpoint ──────────────────────────────
+
+  /**
+   * Resume a debate from a crash-recovery checkpoint. Runs only the
+   * missing tail: synthesis (if not already present) and all post-synthesis
+   * passes. Returns a complete session ready for output.
+   */
+  static async resume(
+    checkpoint: DebateSession,
+    config: DebateConfig,
+    adapter: AIAdapter | ExtendedAIAdapter,
+    taxonomy: LoadedTaxonomy,
+    onProgress?: (p: DebateProgress) => void,
+  ): Promise<DebateSession> {
+    const engine = new DebateEngine(config, adapter, taxonomy);
+    engine.session = checkpoint;
+    engine.onProgress = onProgress;
+    if (adapter.onRetryProgress === undefined) {
+      adapter.onRetryProgress = (info) => {
+        engine.onProgress?.({
+          phase: 'retry',
+          message: `Retry attempt ${info.attempt}/${info.maxRetries}, waiting ${info.backoffSeconds}s...`,
+          retry: { attempt: info.attempt, maxRetries: info.maxRetries, backoffSeconds: info.backoffSeconds },
+        });
+      };
+    }
+
+    // Restore API call counts from the checkpoint diagnostics
+    engine.apiCallCount = checkpoint.diagnostics?.overview.total_ai_calls ?? 0;
+    engine.totalResponseTimeMs = checkpoint.diagnostics?.overview.total_response_time_ms ?? 0;
+
+    // Stamp a new run_id so resumed sessions are distinguishable
+    engine.session.run_id = generateId();
+
+    setPromptCompact(isCompactModel(config.model));
+
+    const hasSynthesis = checkpoint.transcript.some(
+      e => e.type === 'concluding' && (e.metadata as Record<string, unknown>)?.synthesis,
+    );
+
+    getGlobalRecorder()?.record({
+      type: 'lifecycle', component: 'debate-engine', level: 'info',
+      debate_id: checkpoint.id,
+      message: `Resuming debate from checkpoint (hasSynthesis=${hasSynthesis})`,
+    });
+
+    try {
+      if (!hasSynthesis) {
+        await Promise.all([
+          engine.runSynthesis(),
+          engine.runNeutralCheckpoint('final'),
+        ]);
+      }
+
+      await engine.runMissingArgumentsPass();
+      await engine.runTaxonomyRefinementPass();
+      engine.runDialecticTracePass();
+      await engine.runCrossCuttingProposalPass();
+      engine.runTaxonomyGapAnalysisPass();
+      engine.runSituationRefExtraction();
+      engine.computePerturbationResult();
+    } catch (err) {
+      if (config.signal?.aborted) {
+        engine.session.phase = 'cancelled';
+        engine.session.updated_at = nowISO();
+        engine.session.diagnostics!.overview.total_ai_calls = engine.apiCallCount;
+        engine.session.diagnostics!.overview.total_response_time_ms = engine.totalResponseTimeMs;
+        getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-engine', level: 'info', debate_id: engine.session.id, message: 'Resume cancelled via AbortSignal' });
+        return engine.session;
+      }
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'error', debate_id: engine.session?.id, message: 'Debate resume failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      throw err;
+    }
+
+    // Finalize
+    engine.session.updated_at = nowISO();
+    engine.session.diagnostics!.overview.total_ai_calls = engine.apiCallCount;
+    engine.session.diagnostics!.overview.total_response_time_ms = engine.totalResponseTimeMs;
+
+    return engine.session;
   }
 
   // ── Initialization ───────────────────────────────────────
@@ -2025,6 +2117,7 @@ export class DebateEngine {
     }));
     this._lastInjectionManifest = computeInjectionManifest(filteredCtx, pov);
     this._lastInjectionManifest.scoring_mode = scoringMode;
+    this._lastRelevanceScores = scores;
 
     // Flight recorder: taxonomy injection details
     getGlobalRecorder()?.record({
@@ -3409,6 +3502,55 @@ export class DebateEngine {
           .slice(0, 8)
       : undefined;
 
+    // ── Insularity intervention (BEA RUE, t/1130) ──
+    let insularityInjection = '';
+    if (this.config.enableInsularityIntervention) {
+      const allSpeakerRefs = this.session.transcript
+        .filter(e => e.speaker === responder && e.type !== 'opening')
+        .flatMap(e => (e.taxonomy_refs ?? []).map(r => r.node_id));
+
+      const insRate = computeCampInsularityRate(allSpeakerRefs, info.pov);
+      const campSpecificCount = allSpeakerRefs.filter(id => {
+        const p = nodePovFromId(id);
+        return p && p !== 'situations' && p !== 'conflicts';
+      }).length;
+
+      if (insRate != null && isInsularityCritical(insRate, campSpecificCount)) {
+        const speakerInterventions = this._insularityInterventions.filter(i => i.speaker === responder);
+        const lastRoundForSpeaker = speakerInterventions.length > 0
+          ? Math.max(...speakerInterventions.map(i => i.round))
+          : -Infinity;
+        const cooldownOk = round - lastRoundForSpeaker >= 2;
+        const capOk = speakerInterventions.length < 2;
+
+        if (cooldownOk && capOk) {
+          const allCampNodes = Object.entries(
+            this.taxonomy as unknown as Record<string, { nodes?: { id: string; label: string; description?: string }[] } | undefined>,
+          )
+            .filter(([key]) => key !== info.pov && key !== 'policyRegistry' && key !== 'situations' && key !== 'embeddings' && key !== 'lineageCategories')
+            .flatMap(([, file]) => file?.nodes ?? []);
+
+          const injection = selectCrossCampNode(info.pov, allSpeakerRefs, allCampNodes, this._lastRelevanceScores ?? undefined);
+          if (injection) {
+            insularityInjection = `\n\n=== CROSS-CAMP PERSPECTIVE ===\nThe following perspective from the ${injection.target_camp} camp may offer a productive contrast to your current line of reasoning. Consider engaging with it:\n- [${injection.node_id}] ${injection.node_label}`;
+            this._insularityInterventions.push({
+              speaker: responder,
+              round,
+              injected_node_id: injection.node_id,
+              target_camp: injection.target_camp,
+            });
+            availablePovNodeIds.push(injection.node_id);
+            getGlobalRecorder()?.record({
+              type: 'turn.insularity_intervention', component: 'debate-engine', level: 'info',
+              debate_id: this.session?.id,
+              message: `Insularity intervention: injected ${injection.node_id} (${injection.target_camp}) for ${responder}`,
+              data: { speaker: responder, round, ...injection },
+            });
+          }
+        }
+      }
+    }
+
     // Rec 6: Carry forward repair hints from prior accept_with_flag turns
     let priorFlaggedHints: string[] | undefined;
     if (this.session.turn_validations) {
@@ -3431,6 +3573,7 @@ export class DebateEngine {
     const interventionInjection = activeIntervention
       ? buildInterventionBriefInjection(activeIntervention)
       : '';
+
     // Extract last opponent statement for the draft quality pre-check
     const lastOpponentEntry = this.session.transcript
       .filter(e => e.speaker !== responder && e.speaker !== 'system' && e.speaker !== 'user' && e.type !== 'opening')
@@ -3471,7 +3614,7 @@ export class DebateEngine {
       personality: info.personality,
       topic: this.session.topic.final,
       background: this.session.topic.background || undefined,
-      taxonomyContext: taxonomyContext + turnVocabContext + interventionInjection,
+      taxonomyContext: taxonomyContext + turnVocabContext + interventionInjection + insularityInjection,
       commitmentContext,
       establishedPoints,
       edgeContext: debaterEdgeContext,
@@ -4191,8 +4334,8 @@ export class DebateEngine {
       for (const c of cruxes) {
         const crux = c as { question: string; if_yes?: string; if_no?: string; type?: string };
         lines.push(`- ${crux.question}${crux.type ? ` [${crux.type}]` : ''}`);
-        if (crux.if_yes) lines.push(`    - If yes: ${crux.if_yes}`);
-        if (crux.if_no) lines.push(`    - If no: ${crux.if_no}`);
+        if (crux.if_yes) lines.push(`    - If yes, weakens: ${crux.if_yes}`);
+        if (crux.if_no) lines.push(`    - If no, weakens: ${crux.if_no}`);
       }
       lines.push('');
     }
@@ -5488,9 +5631,18 @@ Return ONLY JSON (no markdown, no code fences):
         attack_type: e.attack_type,
       }));
       const result = computeQbafStrengths(qbafNodes, qbafEdges);
-      this.session.last_qbaf_result = { iterations: result.iterations, converged: result.converged, oscillationDetected: result.oscillationDetected };
+      this.session.last_qbaf_result = { iterations: result.iterations, converged: result.converged, oscillationDetected: result.oscillationDetected, dampingLevel: result.dampingLevel };
+      this.session.max_qbaf_damping_level = Math.max(this.session.max_qbaf_damping_level ?? 0, result.dampingLevel ?? 0);
+      this.session.qbaf_runs_total = (this.session.qbaf_runs_total ?? 0) + 1;
+      if ((result.dampingLevel ?? 0) > 0) this.session.qbaf_runs_oscillated = (this.session.qbaf_runs_oscillated ?? 0) + 1;
       if (!result.converged) {
-        console.warn(`[qbaf-non-convergence] iterations=${result.iterations} oscillation=${result.oscillationDetected} nodes=${qbafNodes.length} edges=${qbafEdges.length}`);
+        console.warn(`[qbaf-non-convergence] iterations=${result.iterations} oscillation=${result.oscillationDetected} damping=${result.dampingLevel} nodes=${qbafNodes.length} edges=${qbafEdges.length}`);
+        getGlobalRecorder()?.record({
+          type: 'qbaf.non_convergence', component: 'debate-engine', level: 'warn',
+          debate_id: this.session?.id,
+          message: `QBAF non-convergence: ${result.iterations} iterations, damping level ${result.dampingLevel}`,
+          data: { iterations: result.iterations, oscillationDetected: result.oscillationDetected, dampingLevel: result.dampingLevel, nodes: qbafNodes.length, edges: qbafEdges.length },
+        });
       }
       for (const node of an.nodes) {
         const strength = result.strengths.get(node.id);

@@ -9,6 +9,7 @@ import {
   computeSchemeCoverageFactor,
   computeCampInsularityRate,
   isInsularityCritical,
+  selectCrossCampNode,
   DEFAULT_INSULARITY_THRESHOLD,
   MIN_CITATIONS_FOR_INSULARITY,
 } from './schemeStagnation.js';
@@ -176,5 +177,93 @@ describe('isInsularityCritical', () => {
   it('respects custom threshold', () => {
     expect(isInsularityCritical(0.60, MIN_CITATIONS_FOR_INSULARITY, 0.5)).toBe(true);
     expect(isInsularityCritical(0.40, MIN_CITATIONS_FOR_INSULARITY, 0.5)).toBe(false);
+  });
+});
+
+// ── Cross-camp node selection (BEA RUE, t/1130) ──────
+
+describe('selectCrossCampNode', () => {
+  const candidates = [
+    { id: 'saf-B-010', label: 'Safety concern A' },
+    { id: 'saf-B-011', label: 'Safety concern B' },
+    { id: 'skp-D-020', label: 'Skeptic desire A' },
+    { id: 'skp-D-021', label: 'Skeptic desire B' },
+    { id: 'acc-B-030', label: 'Acc belief A' },
+  ];
+
+  it('returns null when no camp-specific citations', () => {
+    expect(selectCrossCampNode('accelerationist', [], candidates)).toBeNull();
+  });
+
+  it('returns null when only cross-cutting nodes cited', () => {
+    expect(selectCrossCampNode('accelerationist', ['sit-001', 'cc-040'], candidates)).toBeNull();
+  });
+
+  it('selects from the least-engaged camp', () => {
+    const cited = ['acc-B-001', 'acc-B-002', 'saf-B-001'];
+    const result = selectCrossCampNode('accelerationist', cited, candidates);
+    expect(result).not.toBeNull();
+    expect(result!.target_camp).toBe('skeptic');
+    expect(result!.node_id).toMatch(/^skp-/);
+  });
+
+  it('breaks camp ties alphabetically', () => {
+    const cited = ['acc-B-001', 'acc-B-002'];
+    const result = selectCrossCampNode('accelerationist', cited, candidates);
+    expect(result).not.toBeNull();
+    expect(result!.target_camp).toBe('safetyist');
+  });
+
+  it('excludes already-cited nodes', () => {
+    const cited = ['acc-B-001', 'skp-D-020'];
+    const result = selectCrossCampNode('accelerationist', cited, candidates);
+    expect(result).not.toBeNull();
+    if (result!.target_camp === 'skeptic') {
+      expect(result!.node_id).toBe('skp-D-021');
+    }
+  });
+
+  it('returns null when all candidates in target camp are already cited', () => {
+    const cited = ['acc-B-001', 'skp-D-020', 'skp-D-021', 'saf-B-010', 'saf-B-011'];
+    const result = selectCrossCampNode('accelerationist', cited, candidates);
+    expect(result).toBeNull();
+  });
+
+  it('uses nodeScores to rank within the target camp', () => {
+    const cited = ['acc-B-001', 'acc-B-002'];
+    const scores = new Map<string, number>([
+      ['saf-B-010', 0.3],
+      ['saf-B-011', 0.9],
+    ]);
+    const result = selectCrossCampNode('accelerationist', cited, candidates, scores);
+    expect(result).not.toBeNull();
+    expect(result!.target_camp).toBe('safetyist');
+    expect(result!.node_id).toBe('saf-B-011');
+  });
+
+  it('falls back to alphabetical ordering without scores', () => {
+    const cited = ['acc-B-001'];
+    const result = selectCrossCampNode('accelerationist', cited, candidates);
+    expect(result).not.toBeNull();
+    expect(result!.node_id).toBe('saf-B-010');
+  });
+
+  it('populates camp_engagement and insularity_rate', () => {
+    const cited = ['acc-B-001', 'acc-B-002', 'acc-B-003', 'saf-B-001'];
+    const result = selectCrossCampNode('accelerationist', cited, candidates);
+    expect(result).not.toBeNull();
+    expect(result!.camp_engagement).toEqual({
+      accelerationist: 3,
+      safetyist: 1,
+      skeptic: 0,
+    });
+    expect(result!.insularity_rate).toBe(0.75);
+  });
+
+  it('excludes own-camp candidates', () => {
+    const cited = ['saf-B-001', 'saf-B-002'];
+    const result = selectCrossCampNode('safetyist', cited, candidates);
+    expect(result).not.toBeNull();
+    expect(result!.node_id).not.toMatch(/^saf-/);
   });
 });

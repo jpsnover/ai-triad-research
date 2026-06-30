@@ -472,7 +472,8 @@ class PromptAssembler:
         assumes = self.get_ga(node, 'assumes', [])
         policy_actions = self.get_ga(node, 'policy_actions', [])
         lineage = self.get_ga(node, 'intellectual_lineage', [])
-        steelman = self.get_ga(node, 'steelman_vulnerability', '')
+        steelman_raw = self.get_ga(node, 'steelman_vulnerability', '')
+        steelman = ' | '.join(f'{k}: {v}' for k, v in steelman_raw.items()) if isinstance(steelman_raw, dict) else steelman_raw
         fallacies = self.get_ga(node, 'possible_fallacies', [])
         rhetorical_strategy = self.get_ga(node, 'rhetorical_strategy', '')
 

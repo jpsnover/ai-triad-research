@@ -580,7 +580,13 @@ export interface DebateSession {
   /** Adaptive staging diagnostics — signal telemetry, phase transitions, GC events. Present when useAdaptiveStaging is enabled. */
   adaptive_staging_diagnostics?: AdaptiveStagingDiagnostics;
   /** Last QBAF computation result metadata (oscillation detection, iteration count). */
-  last_qbaf_result?: { iterations: number; converged: boolean; oscillationDetected?: boolean };
+  last_qbaf_result?: { iterations: number; converged: boolean; oscillationDetected?: boolean; dampingLevel?: number };
+  /** Peak damping level across all QBAF runs in this debate (0 = no oscillation ever triggered). */
+  max_qbaf_damping_level?: number;
+  /** Total QBAF runs in this debate (one per round). */
+  qbaf_runs_total?: number;
+  /** Number of QBAF runs where progressive damping activated (dampingLevel > 0). */
+  qbaf_runs_oscillated?: number;
   /** Per-crux resolution tracking — state machine tracking crux lifecycle. Absent in pre-crux-resolution debates. */
   crux_tracker?: TrackedCrux[];
   /** How this debate was created: 'cli' (headless runner), 'gui' (Electron app), or absent (pre-origin debates). */

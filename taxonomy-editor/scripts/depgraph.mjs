@@ -98,10 +98,58 @@ function buildReverseIndex() {
   return rev;
 }
 
+function extractExports(filePath) {
+  let content;
+  try { content = fs.readFileSync(filePath, 'utf-8'); } catch { return []; }
+  const exports = [];
+  const namedRe = /export\s+(?:async\s+)?(?:function|const|let|class|type|interface|enum)\s+(\w+)/g;
+  let m;
+  while ((m = namedRe.exec(content)) !== null) exports.push(m[1]);
+  const reExportRe = /export\s*\{([^}]+)\}/g;
+  while ((m = reExportRe.exec(content)) !== null) {
+    for (const name of m[1].split(',')) {
+      const trimmed = name.trim().split(/\s+as\s+/).pop().trim();
+      if (trimmed && !trimmed.startsWith('type ')) exports.push(trimmed);
+    }
+  }
+  if (/export\s+default\s/.test(content)) exports.push('default');
+  return [...new Set(exports)];
+}
+
 // CLI
 const args = process.argv.slice(2);
 
-if (args.includes('--stats')) {
+if (args.includes('--repomap')) {
+  const rev = buildReverseIndex();
+  const groups = {};
+  for (const [file, { imports }] of Object.entries(graph)) {
+    if (file.includes('__tests__') || file.includes('.test.') || file.includes('.spec.')) continue;
+    const dir = path.dirname(file);
+    if (!groups[dir]) groups[dir] = [];
+    const importedBy = (rev[file] || []).length;
+    const absPath = path.resolve(SRC, '..', file);
+    const exports = extractExports(absPath);
+    groups[dir].push({ file: path.basename(file), importedBy, exports });
+  }
+  const dirOrder = Object.keys(groups).sort();
+  const lines = ['# Repository Map', '', 'Auto-generated from import graph. Files ranked by import count within each directory.', ''];
+  for (const dir of dirOrder) {
+    const entries = groups[dir].sort((a, b) => b.importedBy - a.importedBy);
+    if (entries.length === 0) continue;
+    const topEntries = entries.filter(e => e.importedBy > 0 || e.exports.length > 0).slice(0, 8);
+    if (topEntries.length === 0) continue;
+    lines.push(`## ${dir}/`);
+    for (const e of topEntries) {
+      const exList = e.exports.slice(0, 5).join(', ');
+      const more = e.exports.length > 5 ? ` +${e.exports.length - 5} more` : '';
+      lines.push(`- **${e.file}** (${e.importedBy}) — ${exList}${more}`);
+    }
+    lines.push('');
+    if (lines.length > 200) { lines.push('_... truncated at 200 lines_'); break; }
+  }
+  console.log(lines.join('\n'));
+
+} else if (args.includes('--stats')) {
   const rev = buildReverseIndex();
   const byProcess = { main: 0, server: 0, renderer: 0, lib: 0 };
   for (const f of Object.keys(graph)) {

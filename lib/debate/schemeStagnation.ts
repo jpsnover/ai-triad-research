@@ -166,3 +166,92 @@ export function isInsularityCritical(
 ): boolean {
   return totalCampCitations >= MIN_CITATIONS_FOR_INSULARITY && rate > threshold;
 }
+
+// ── Cross-Camp Insularity Intervention ────────────────
+
+const ALL_CAMPS = ['accelerationist', 'safetyist', 'skeptic'] as const;
+
+export interface InsularityInjection {
+  node_id: string;
+  node_label: string;
+  target_camp: string;
+  camp_engagement: Record<string, number>;
+  insularity_rate: number;
+}
+
+/**
+ * Select a cross-camp taxonomy node to inject when camp insularity is critical.
+ *
+ * Strategy (BEA RUE, pp. 288–302):
+ * 1. Count per-camp citations (excluding cross-cutting cc-/sit-/pol- nodes)
+ * 2. Pick the camp the speaker engages LEAST (maximum opposing-camp distance)
+ * 3. From that camp's available nodes, filter out already-cited ones
+ * 4. Rank by nodeScores (hybrid AN+topic relevance) if available; else alphabetical by ID
+ *
+ * @returns InsularityInjection metadata, or null if no eligible candidates
+ */
+export function selectCrossCampNode(
+  speakerPov: string,
+  citedNodeIds: string[],
+  candidateNodes: ReadonlyArray<{ id: string; label: string; description?: string }>,
+  nodeScores?: Map<string, number>,
+): InsularityInjection | null {
+  const campCounts: Record<string, number> = {};
+  let totalCampSpecific = 0;
+  let sameCamp = 0;
+
+  for (const camp of ALL_CAMPS) {
+    campCounts[camp] = 0;
+  }
+
+  for (const id of citedNodeIds) {
+    const pov = nodePovFromId(id);
+    if (!pov || pov === 'situations' || pov === 'conflicts') continue;
+    totalCampSpecific++;
+    if (pov === speakerPov) sameCamp++;
+    if (campCounts[pov] !== undefined) {
+      campCounts[pov]++;
+    }
+  }
+
+  if (totalCampSpecific === 0) return null;
+
+  const otherCamps = ALL_CAMPS.filter(c => c !== speakerPov);
+  if (otherCamps.length === 0) return null;
+
+  otherCamps.sort((a, b) => {
+    const diff = campCounts[a] - campCounts[b];
+    if (diff !== 0) return diff;
+    return a.localeCompare(b);
+  });
+  const targetCamp = otherCamps[0];
+
+  const citedSet = new Set(citedNodeIds);
+  const eligible = candidateNodes.filter(n => {
+    const pov = nodePovFromId(n.id);
+    return pov === targetCamp && !citedSet.has(n.id);
+  });
+
+  if (eligible.length === 0) return null;
+
+  let selected: { id: string; label: string; description?: string };
+  if (nodeScores) {
+    eligible.sort((a, b) => {
+      const diff = (nodeScores.get(b.id) ?? 0) - (nodeScores.get(a.id) ?? 0);
+      if (diff !== 0) return diff;
+      return a.id.localeCompare(b.id);
+    });
+    selected = eligible[0];
+  } else {
+    eligible.sort((a, b) => a.id.localeCompare(b.id));
+    selected = eligible[0];
+  }
+
+  return {
+    node_id: selected.id,
+    node_label: selected.label,
+    target_camp: targetCamp,
+    camp_engagement: { ...campCounts },
+    insularity_rate: totalCampSpecific > 0 ? sameCamp / totalCampSpecific : 0,
+  };
+}

@@ -28,7 +28,7 @@ import { validateDraftStage, validateCiteStage, validatePlanStage, isFillerRelev
 import type { DraftQualityCheckOutput } from './turnValidator.js';
 import type { PoverResponseMeta, MoveAnnotation } from './helpers.js';
 import type { GenerateOptions } from './aiAdapter.js';
-import { parseJsonRobust, wordOverlap, getMoveName } from './helpers.js';
+import { parseJsonRobust, wordOverlap, getMoveName, sanitizeTurnSymbols } from './helpers.js';
 import {
   briefStagePrompt,
   briefStagePromptV2,
@@ -2531,7 +2531,7 @@ export function assemblePipelineResult(
       my_claims: groundedClaims?.length ? groundedClaims : undefined,
       policy_refs: result.cite.policy_refs?.length ? result.cite.policy_refs : undefined,
       position_update: result.draft.position_update || undefined,
-      turn_symbols: result.draft.turn_symbols?.length ? result.draft.turn_symbols : undefined,
+      turn_symbols: result.draft.turn_symbols?.length ? sanitizeTurnSymbols(result.draft.turn_symbols) : undefined,
       pin_response: result.draft.pin_response,
       probe_response: result.draft.probe_response,
       challenge_response: result.draft.challenge_response,
@@ -2831,7 +2831,7 @@ export function assembleOpeningPipelineResult(
       key_assumptions: result.draft.key_assumptions?.length ? result.draft.key_assumptions : undefined,
       my_claims: groundedClaims?.length ? groundedClaims : undefined,
       policy_refs: result.cite.policy_refs?.length ? result.cite.policy_refs : undefined,
-      turn_symbols: result.draft.turn_symbols?.length ? result.draft.turn_symbols : undefined,
+      turn_symbols: result.draft.turn_symbols?.length ? sanitizeTurnSymbols(result.draft.turn_symbols) : undefined,
     },
   };
 }

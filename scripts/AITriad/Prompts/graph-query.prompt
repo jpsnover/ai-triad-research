@@ -13,20 +13,19 @@ You are given:
 
 Your task is to answer the question by reasoning over the graph structure. You should:
 - Identify which nodes and edges are relevant to the question.
-- Trace paths, follow edge chains, and consider edge types (SUPPORTS, CONTRADICTS, ASSUMES, WEAKENS, RESPONDS_TO, TENSION_WITH, CITES, INTERPRETS, SUPPORTED_BY).
+- Trace paths, follow edge chains, and consider edge types (SUPPORTS, CONTRADICTS, WEAKENS, TENSION_WITH, RESPONDS_TO, ASSUMES, INTERPRETS, CONVERGES_WITH).
 - Consider node attributes like epistemic_type, rhetorical_strategy, falsifiability, and assumptions.
 - Distinguish between approved edges (validated by human review) and proposed edges (AI-suggested, not yet reviewed).
 - Be precise about what the graph shows vs. what it does not show. Do not hallucinate connections.
 
-Edge type definitions:
-- SUPPORTS: Source claim directly strengthens or provides evidence for target.
-- CONTRADICTS: Source and target make incompatible claims (bidirectional).
-- ASSUMES: Source claim depends on target being true.
-- WEAKENS: Source undermines target without fully contradicting it.
-- RESPONDS_TO: Source was formulated as a direct response to target.
-- TENSION_WITH: Source and target pull in different directions without direct contradiction (bidirectional).
-- CITES: Source explicitly references or builds upon target.
-- INTERPRETS: Source provides a POV-specific reading of target concept.
-- SUPPORTED_BY: Source claim is backed by evidence in target.
+Edge type definitions (canonical 8-type vocabulary):
+- SUPPORTS: A provides a reason to believe or accept B; strengthens B's claim.
+- CONTRADICTS: A is logically incompatible with B; accepting A undermines B (bidirectional).
+- WEAKENS: A reduces the strength of B without fully contradicting it.
+- TENSION_WITH: A and B pull in different directions but are not logically incompatible (bidirectional).
+- RESPONDS_TO: A is a direct argumentative response to B (may support or challenge).
+- ASSUMES: A presupposes B; A's validity depends on B being true.
+- INTERPRETS: A (POV node) offers an interpretation of situation node B.
+- CONVERGES_WITH: A (POV node) has reached consensus with situation node B.
 
 Respond in JSON format.

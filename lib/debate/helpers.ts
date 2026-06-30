@@ -6,7 +6,7 @@
  * No UI, Zustand, or Electron dependencies.
  */
 
-import type { SpeakerId, TranscriptEntry, TaxonomyRef } from './types.js';
+import type { SpeakerId, TranscriptEntry, TaxonomyRef, TurnSymbol } from './types.js';
 import { POVER_INFO } from './types.js';
 
 export function generateId(): string {
@@ -27,6 +27,17 @@ export function stripCodeFences(text: string): string {
 export function stripExcludes(description: string): string {
   if (!description) return '';
   return description.replace(/\s*Excludes:\s*.*/s, '').trim();
+}
+
+const EMOJI_RE = /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u;
+const FALLBACK_SYMBOL = '\u{1F4AC}';
+
+export function sanitizeTurnSymbols(symbols: TurnSymbol[]): TurnSymbol[] {
+  return symbols.map(s => {
+    if (s.symbol && EMOJI_RE.test(s.symbol)) return s;
+    console.warn(`[turn-symbols] Replacing non-emoji symbol: ${JSON.stringify(s.symbol)}`);
+    return { ...s, symbol: FALLBACK_SYMBOL };
+  });
 }
 
 /**

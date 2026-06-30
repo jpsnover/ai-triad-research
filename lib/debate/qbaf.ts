@@ -42,6 +42,8 @@ export interface QbafResult {
   iterations: number;
   converged: boolean;
   oscillationDetected?: boolean;
+  /** Damping level reached (0=none, 1–4=progressive escalation). */
+  dampingLevel?: number;
 }
 
 // ── Default attack type weights ───────────────────────────
@@ -124,7 +126,9 @@ export function computeQbafStrengths(
   let iterations = 0;
   let priorDelta = Infinity;
   let oscillationCount = 0;
-  let damping = 0; // 0 = no damping, activates on oscillation
+  let dampingLevel = 0;
+  let damping = 0;
+  let priorStrengths: Map<string, number> | null = null;
 
   for (let iter = 0; iter < maxIter; iter++) {
     iterations = iter + 1;
@@ -158,6 +162,9 @@ export function computeQbafStrengths(
       nextStrengths.set(n.id, newStrength);
     }
 
+    // Snapshot for final averaging fallback
+    priorStrengths = new Map(strengths);
+
     // Bulk update (Jacobi: apply all changes after computing all nodes)
     for (const [id, val] of nextStrengths) strengths.set(id, val);
 
@@ -166,21 +173,35 @@ export function computeQbafStrengths(
       break;
     }
 
-    // Oscillation detection: if max_delta isn't decreasing, count it
-    if (maxDelta > priorDelta * 0.95) {
+    // Oscillation detection: delta must shrink ≥5%/iter to count as progress
+    const MIN_PROGRESS_RATIO = 0.95;
+    if (maxDelta > priorDelta * MIN_PROGRESS_RATIO) {
       oscillationCount++;
     } else {
       oscillationCount = 0;
     }
     priorDelta = maxDelta;
 
-    // Activate damping after 3 consecutive non-decreasing iterations
-    if (oscillationCount >= 3 && damping === 0) {
-      damping = 0.3;
+    // Progressive damping: escalate through [0.3, 0.5, 0.7, 0.85]
+    const DAMPING_SCHEDULE = [0.3, 0.5, 0.7, 0.85];
+    // 3 consecutive non-decreasing iterations = sustained stall, not transient
+    const STALL_THRESHOLD = 3;
+    if (oscillationCount >= STALL_THRESHOLD && dampingLevel < DAMPING_SCHEDULE.length) {
+      dampingLevel++;
+      damping = DAMPING_SCHEDULE[dampingLevel - 1];
+      oscillationCount = 0;
     }
   }
 
-  return { strengths, iterations, converged, oscillationDetected: damping > 0 };
+  // Final fallback: average last 2 iterations — exact for 2-cycles, approximate for higher periods
+  if (!converged && priorStrengths) {
+    for (const [id, val] of strengths) {
+      const prev = priorStrengths.get(id) ?? val;
+      strengths.set(id, (val + prev) / 2);
+    }
+  }
+
+  return { strengths, iterations, converged, oscillationDetected: dampingLevel > 0, dampingLevel };
 }
 
 // ── Convergence integration ───────────────────────────────

@@ -15,6 +15,7 @@ import {
   getMoveName,
   maxOverlapVsExisting,
   stripExcludes,
+  sanitizeTurnSymbols,
 } from './helpers.js';
 
 // ── Helpers ───────────────────────────────────────────────
@@ -847,5 +848,50 @@ describe('normalizeClaimsResponse', () => {
 
   it('returns null for object with no claim-like arrays', () => {
     expect(normalizeClaimsResponse({ status: 'ok', count: 3 })).toBeNull();
+  });
+});
+
+// ── sanitizeTurnSymbols ─────────────────────────────────
+
+describe('sanitizeTurnSymbols', () => {
+  it('passes through valid emoji symbols unchanged', () => {
+    const symbols = [
+      { symbol: '🔧', tooltip: 'tool tip' },
+      { symbol: '⚖️', tooltip: 'balance tip' },
+    ];
+    const result = sanitizeTurnSymbols(symbols);
+    expect(result[0].symbol).toBe('🔧');
+    expect(result[1].symbol).toBe('⚖️');
+  });
+
+  it('replaces mojibake with fallback emoji', () => {
+    const symbols = [
+      { symbol: 'üîç', tooltip: 'garbled' },
+      { symbol: '‚öñÔ∏è', tooltip: 'also garbled' },
+    ];
+    const result = sanitizeTurnSymbols(symbols);
+    expect(result[0].symbol).toBe('💬');
+    expect(result[1].symbol).toBe('💬');
+    expect(result[0].tooltip).toBe('garbled');
+  });
+
+  it('replaces plain ASCII text with fallback', () => {
+    const symbols = [{ symbol: 'abc', tooltip: 'not emoji' }];
+    const result = sanitizeTurnSymbols(symbols);
+    expect(result[0].symbol).toBe('💬');
+  });
+
+  it('preserves valid extended pictographic symbols', () => {
+    const symbols = [
+      { symbol: '🚀', tooltip: 'rocket' },
+      { symbol: '🧠', tooltip: 'brain' },
+      { symbol: '⚡', tooltip: 'lightning' },
+    ];
+    const result = sanitizeTurnSymbols(symbols);
+    expect(result.map(s => s.symbol)).toEqual(['🚀', '🧠', '⚡']);
+  });
+
+  it('handles empty array', () => {
+    expect(sanitizeTurnSymbols([])).toEqual([]);
   });
 });

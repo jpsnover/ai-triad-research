@@ -271,10 +271,14 @@ export interface CalibrationDataPoint {
   claims_abandoned_rate: number;
 
   // ── QBAF oscillation ──
-  /** Whether QBAF damping was activated during the debate */
+  /** Whether any QBAF run in this debate required progressive damping. */
   qbaf_oscillation_detected: boolean;
   /** QBAF iterations in the final computation */
   qbaf_iterations: number;
+  /** Peak progressive damping level across all rounds (0 = none, 3 = max schedule) */
+  qbaf_damping_level: number;
+  /** Fraction of QBAF runs that triggered damping (oscillated_runs / total_runs). */
+  qbaf_oscillation_rate: number;
 
   // ── Claim outcomes (t/278 Phase 1) ──
   /** Aggregate claim outcome stats: thrived/survived/died */
@@ -422,6 +426,8 @@ export interface CalibrationDataPoint {
   camp_insularity_rate: number | null;
   /** Max same-camp citation rate across speakers — faithful trigger for per-speaker intervention. */
   camp_insularity_max: number | null;
+  /** Cross-camp node injections triggered by camp insularity (BEA RUE, t/1130). */
+  insularity_interventions: { speaker: string; round: number; injected_node_id: string; target_camp: string; engaged: boolean }[] | null;
 
   // ── Exploration seeding (t/990) ──
   /** Debate ID of the exploration run that seeded this debate. */
@@ -467,6 +473,7 @@ export function extractCalibrationData(
     situationMaxNodes?: number;
     explorationSummary?: import('./explorationSummary.js').ExplorationSummary;
     docMeta?: DocMetaMap;
+    insularityInterventions?: { speaker: string; round: number; injected_node_id: string; target_camp: string }[];
   } = {},
 ): CalibrationDataPoint {
   const now = new Date().toISOString();
@@ -642,7 +649,7 @@ export function extractCalibrationData(
   }
 
   // ── Counterfactual type distribution (RATIO 2024, t/1115) ──
-  const cfTypeDist: { interventional: number; backtracking: number; normative: number } | null =
+  const cfTypeDist: { interventional: number; backtracking: number; normative: number; none: number } | null =
     engineCruxes.length > 0
       ? engineCruxes.reduce(
           (acc, c) => {
@@ -990,7 +997,7 @@ export function extractCalibrationData(
     if (intensity != null) affectIntensities.push(intensity);
     const profile = computeAffectProfile(entry.content);
     if (profile) {
-      const entryRound = (entry as { round?: number }).round ?? 1;
+      const entryRound = (entry.metadata as Record<string, unknown>)?.round as number ?? 1;
       const phase = getDebatePhase(entryRound, rounds);
       const approp = computeAffectAppropriateness(profile, phase);
       if (approp != null) affectAppropScores.push(approp);
@@ -1197,8 +1204,12 @@ export function extractCalibrationData(
       return total > 0 ? abandoned / total : 0;
     })(),
 
-    qbaf_oscillation_detected: session.last_qbaf_result?.oscillationDetected ?? false,
+    qbaf_oscillation_detected: (session.qbaf_runs_oscillated ?? 0) > 0,
     qbaf_iterations: session.last_qbaf_result?.iterations ?? 0,
+    qbaf_damping_level: session.max_qbaf_damping_level ?? 0,
+    qbaf_oscillation_rate: (session.qbaf_runs_total ?? 0) > 0
+      ? (session.qbaf_runs_oscillated ?? 0) / session.qbaf_runs_total!
+      : 0,
 
     claim_outcome_summary: (() => {
       const an = session.argument_network;
@@ -1424,6 +1435,17 @@ export function extractCalibrationData(
     // ── Camp insularity (BEA: Reflective User Engagement, t/1117) ──
     camp_insularity_rate: campInsularityRate != null ? Math.round(campInsularityRate * 1000) / 1000 : null,
     camp_insularity_max: campInsularityMax != null ? Math.round(campInsularityMax * 1000) / 1000 : null,
+    insularity_interventions: config.insularityInterventions?.length
+      ? config.insularityInterventions.map(iv => {
+          const engaged = session.transcript.some(e =>
+            e.speaker === iv.speaker
+            && e.type !== 'opening'
+            && ((e.metadata as Record<string, unknown>)?.round as number ?? 0) > iv.round
+            && (e.taxonomy_refs ?? []).some(r => r.node_id === iv.injected_node_id),
+          );
+          return { ...iv, engaged };
+        })
+      : null,
 
     // ── Exploration seeding ──
     ...(config.explorationSummary ? {

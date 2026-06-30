@@ -230,3 +230,46 @@ describe('computeShapleyContributions', () => {
     expect(Math.abs((approxMap.get('arg2') ?? 0) - (exactMap.get('arg2') ?? 0))).toBeLessThan(0.05);
   });
 });
+
+describe('computeQbafStrengths — progressive damping', () => {
+  it('stabilises a mutual-attack cycle that oscillates under fixed damping', () => {
+    const nodes: QbafNode[] = [
+      { id: 'A1', base_strength: 0.9 },
+      { id: 'A2', base_strength: 0.85 },
+      { id: 'A3', base_strength: 0.8 },
+      { id: 'C', base_strength: 0.7 },
+    ];
+    const edges: QbafEdge[] = [
+      { source: 'A1', target: 'A2', type: 'attacks', weight: 0.9, attack_type: 'rebut' },
+      { source: 'A2', target: 'A1', type: 'attacks', weight: 0.9, attack_type: 'rebut' },
+      { source: 'A2', target: 'A3', type: 'attacks', weight: 0.7, attack_type: 'rebut' },
+      { source: 'A3', target: 'A2', type: 'attacks', weight: 0.7, attack_type: 'rebut' },
+      { source: 'A1', target: 'C', type: 'supports', weight: 0.6 },
+      { source: 'A3', target: 'C', type: 'attacks', weight: 0.5, attack_type: 'undercut' },
+    ];
+
+    const result = computeQbafStrengths(nodes, edges);
+
+    for (const [, s] of result.strengths) {
+      expect(Number.isFinite(s)).toBe(true);
+      expect(s).toBeGreaterThanOrEqual(0);
+      expect(s).toBeLessThanOrEqual(1);
+    }
+    expect(result.dampingLevel).toBeDefined();
+    expect(result.dampingLevel!).toBeGreaterThanOrEqual(0);
+  });
+
+  it('returns dampingLevel 0 for a simple convergent network', () => {
+    const nodes: QbafNode[] = [
+      { id: 'A', base_strength: 0.8 },
+      { id: 'B', base_strength: 0.6 },
+    ];
+    const edges: QbafEdge[] = [
+      { source: 'B', target: 'A', type: 'supports', weight: 0.5 },
+    ];
+
+    const result = computeQbafStrengths(nodes, edges);
+    expect(result.converged).toBe(true);
+    expect(result.dampingLevel).toBe(0);
+  });
+});

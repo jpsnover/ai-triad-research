@@ -20,8 +20,8 @@ describe('SynthesisCrux extraction from synthesis response', () => {
       cruxes: [
         {
           question: 'Does scaling AI models inherently increase existential risk?',
-          if_yes: 'Sentinel\'s position strengthens — pause/regulate scaling',
-          if_no: 'Prometheus\'s position strengthens — scaling is safe to continue',
+          if_yes: 'The Accelerationist must concede that scaling poses existential risk, undermining the case for unrestricted development',
+          if_no: 'The Safetyist must concede that scaling is manageable, weakening the argument for regulatory pause',
           type: 'EMPIRICAL',
           resolution_status: 'active',
           resolution_evidence: null,
@@ -29,8 +29,8 @@ describe('SynthesisCrux extraction from synthesis response', () => {
         },
         {
           question: 'Can AI alignment be solved before AGI arrives?',
-          if_yes: 'Prometheus\'s confidence in safe scaling is justified',
-          if_no: 'Sentinel\'s call for pause gains urgency',
+          if_yes: 'The Safetyist must concede that alignment timelines are sufficient, weakening the pause argument',
+          if_no: 'The Accelerationist must concede that alignment may not keep pace, undermining confidence in safe scaling',
           type: 'EMPIRICAL',
           resolution_status: 'irreducible',
           speakers: ['accelerationist', 'safetyist', 'skeptic'],
