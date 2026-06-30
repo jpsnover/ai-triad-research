@@ -3,7 +3,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DebateEngine, modelTierRank } from './debateEngine.js';
-import type { DebateConfig, DebateProgress } from './debateEngine.js';
+import type { DebateConfig, DebateProgress, LifecycleStage } from './debateEngine.js';
 import type { AIAdapter, ExtendedAIAdapter, GenerateOptions } from './aiAdapter.js';
 import type { LoadedTaxonomy } from './taxonomyLoader.js';
 
@@ -1912,5 +1912,160 @@ describe('maxModelId cap on failover chain (t/1164)', () => {
     expect(chain).toEqual(['gemini-2.5-flash', 'gemini-3.1-flash-lite']);
     expect(chain).not.toContain('claude-sonnet-4-6');
     expect(chain).not.toContain('claude-opus-4-8');
+  });
+});
+
+// ══════════════════════════════════════════════════════════
+// stopAfterStage on resume() (t/1161)
+// ══════════════════════════════════════════════════════════
+
+describe('stopAfterStage on resume() (t/1161)', () => {
+  function createCheckpoint(hasSynthesis = false) {
+    const transcript: any[] = [
+      { id: 'e1', timestamp: '2026-01-01T00:00:01Z', type: 'statement', speaker: 'accelerationist', content: 'AI accelerates progress', taxonomy_refs: [], metadata: {} },
+      { id: 'e2', timestamp: '2026-01-01T00:00:02Z', type: 'statement', speaker: 'safetyist', content: 'AI poses risks', taxonomy_refs: [], metadata: {} },
+      { id: 'e3', timestamp: '2026-01-01T00:00:03Z', type: 'statement', speaker: 'skeptic', content: 'AI hype is overblown', taxonomy_refs: [], metadata: {} },
+    ];
+    if (hasSynthesis) {
+      transcript.push({
+        id: 'e4', timestamp: '2026-01-01T00:00:04Z', type: 'concluding', speaker: 'system',
+        content: 'Synthesis complete', taxonomy_refs: [],
+        metadata: { synthesis: { areas_of_agreement: [], areas_of_disagreement: [] } },
+      });
+    }
+    return {
+      id: 'test-resume-stop',
+      title: 'Test Resume',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      phase: 'debate' as const,
+      topic: { original: 'Test topic', refined: null, final: 'Test topic' },
+      source_type: 'topic' as const,
+      source_ref: '',
+      source_content: '',
+      active_povers: ['accelerationist' as const, 'safetyist' as const, 'skeptic' as const],
+      user_is_pover: false,
+      transcript,
+      context_summaries: [],
+      diagnostics: {
+        enabled: true,
+        entries: {},
+        overview: {
+          total_ai_calls: 0,
+          total_response_time_ms: 0,
+          claims_accepted: 0,
+          claims_rejected: 0,
+          move_type_counts: {},
+          disagreement_type_counts: {},
+        },
+      },
+      argument_network: { nodes: [], edges: [] },
+      commitments: {},
+    };
+  }
+
+  function createCountingAdapter() {
+    let callCount = 0;
+    const adapter: ExtendedAIAdapter = {
+      async generateText() {
+        callCount++;
+        return JSON.stringify({ areas_of_agreement: [], areas_of_disagreement: [], cruxes: [], argument_map: [{ id: 'a1', claim: 'test' }], preferences: [{ conflict: 'x', prevails: 'y', criterion: 'z', rationale: 'r' }] });
+      },
+    };
+    return { adapter, getCallCount: () => callCount };
+  }
+
+  it('synthesis-p1 stop runs only Phase 1 and returns', async () => {
+    const { adapter, getCallCount } = createCountingAdapter();
+    const config = createDefaultConfig({ stopAfterStage: 'synthesis-p1' });
+    const checkpoint = createCheckpoint(false);
+
+    const session = await DebateEngine.resume(checkpoint as any, config, adapter, createMinimalTaxonomy());
+
+    expect(getCallCount()).toBe(1);
+    expect(session.diagnostics!.overview.total_ai_calls).toBe(1);
+    expect(session.diagnostics!.overview.total_elapsed_ms).toBeGreaterThanOrEqual(0);
+  });
+
+  it('synthesis-p3 stop runs all 3 synthesis phases', async () => {
+    const { adapter, getCallCount } = createCountingAdapter();
+    const config = createDefaultConfig({ stopAfterStage: 'synthesis-p3' });
+    const checkpoint = createCheckpoint(false);
+
+    const session = await DebateEngine.resume(checkpoint as any, config, adapter, createMinimalTaxonomy());
+
+    expect(getCallCount()).toBe(3);
+    expect(session.diagnostics!.overview.total_ai_calls).toBe(3);
+    expect(session.diagnostics!.overview.total_elapsed_ms).toBeGreaterThanOrEqual(0);
+  });
+
+  it('missing-arguments stop runs synthesis + missing-arguments pass', async () => {
+    const { adapter, getCallCount } = createCountingAdapter();
+    const config = createDefaultConfig({ stopAfterStage: 'missing-arguments' });
+    const checkpoint = createCheckpoint(false);
+
+    const session = await DebateEngine.resume(checkpoint as any, config, adapter, createMinimalTaxonomy());
+
+    // 3 synthesis phases + 1 missing-arguments call
+    expect(getCallCount()).toBeGreaterThanOrEqual(4);
+    expect(session.diagnostics!.overview.total_elapsed_ms).toBeGreaterThanOrEqual(0);
+  });
+
+  it('taxonomy-refinement stop runs through taxonomy-refinement', async () => {
+    const { adapter, getCallCount } = createCountingAdapter();
+    const config = createDefaultConfig({ stopAfterStage: 'taxonomy-refinement' });
+    const checkpoint = createCheckpoint(false);
+
+    const session = await DebateEngine.resume(checkpoint as any, config, adapter, createMinimalTaxonomy());
+
+    // 3 synthesis + missing-arguments + taxonomy-refinement
+    expect(getCallCount()).toBeGreaterThanOrEqual(5);
+    expect(session.diagnostics!.overview.total_elapsed_ms).toBeGreaterThanOrEqual(0);
+  });
+
+  it('omitting stopAfterStage runs full pipeline (regression)', async () => {
+    const { adapter, getCallCount } = createCountingAdapter();
+    const config = createDefaultConfig();
+    const checkpoint = createCheckpoint(false);
+
+    const session = await DebateEngine.resume(checkpoint as any, config, adapter, createMinimalTaxonomy());
+
+    // Full pipeline: synthesis(3) + missing-args + taxonomy-ref + cross-cutting + extraction-coverage
+    expect(getCallCount()).toBeGreaterThanOrEqual(5);
+    expect(session.diagnostics!.overview.total_elapsed_ms).toBeGreaterThanOrEqual(0);
+  });
+
+  it('already-synthesized checkpoint with synthesis stop returns immediately', async () => {
+    const { adapter, getCallCount } = createCountingAdapter();
+    const config = createDefaultConfig({ stopAfterStage: 'synthesis-p1' });
+    const checkpoint = createCheckpoint(true);
+
+    const session = await DebateEngine.resume(checkpoint as any, config, adapter, createMinimalTaxonomy());
+
+    expect(getCallCount()).toBe(0);
+    expect(session.diagnostics!.overview.total_elapsed_ms).toBeGreaterThanOrEqual(0);
+  });
+
+  it('finalization stop runs the full pipeline (same as omitting)', async () => {
+    const { adapter: adapterFull, getCallCount: getFullCount } = createCountingAdapter();
+    const { adapter: adapterFin, getCallCount: getFinCount } = createCountingAdapter();
+    const configFull = createDefaultConfig();
+    const configFin = createDefaultConfig({ stopAfterStage: 'finalization' });
+
+    await DebateEngine.resume(createCheckpoint(false) as any, configFull, adapterFull, createMinimalTaxonomy());
+    await DebateEngine.resume(createCheckpoint(false) as any, configFin, adapterFin, createMinimalTaxonomy());
+
+    expect(getFinCount()).toBe(getFullCount());
+  });
+
+  it('LifecycleStage type is importable', () => {
+    const stage: LifecycleStage = 'synthesis-p1';
+    expect(stage).toBe('synthesis-p1');
+    const allStages: LifecycleStage[] = [
+      'synthesis-p1', 'synthesis-p2', 'synthesis-p3',
+      'missing-arguments', 'taxonomy-refinement',
+      'extraction-coverage', 'finalization',
+    ];
+    expect(allStages).toHaveLength(7);
   });
 });

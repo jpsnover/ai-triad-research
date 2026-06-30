@@ -198,6 +198,13 @@ export function modelTierRank(model: string): number {
   return 3;
 }
 
+// ── Lifecycle stages (for stopAfterStage on resume) ─────
+
+export type LifecycleStage =
+  | 'synthesis-p1' | 'synthesis-p2' | 'synthesis-p3'
+  | 'missing-arguments' | 'taxonomy-refinement'
+  | 'extraction-coverage' | 'finalization';
+
 // ── Config ───────────────────────────────────────────────
 
 export interface DebateConfig {
@@ -256,6 +263,8 @@ export interface DebateConfig {
   signal?: AbortSignal;
   /** Model cost-tier ceiling for the failover chain. When set, `buildFailoverChain` filters out models with a higher tier rank than this model. Prevents cheap-run cost escalation via fallback. */
   maxModelId?: string;
+  /** When set, `resume()` exits cleanly after the named lifecycle stage completes, returning the partial session. Used by the fault-injection harness to test individual pipeline stages. */
+  stopAfterStage?: LifecycleStage;
   /** Minimum delay (ms) between consecutive API calls. 0 = no throttle (default). Recommended: 500-1000 for free-tier APIs. */
   throttleMs?: number;
   /** Perturbation testing config — inject adversarial prompt at a specific turn for resilience evaluation. Evaluation/benchmark only. */
@@ -836,47 +845,7 @@ export class DebateEngine {
     }
 
     // Compute extraction coverage on sampled turns (t/391)
-    try {
-      const coverageGenFn = (prompt: string) => this.generateWithEvaluator(prompt, 'Extraction coverage');
-      await computeExtractionCoverage(this.session, coverageGenFn);
-
-      const recorder = getGlobalRecorder();
-      if (recorder && this.session.diagnostics?.entries) {
-        for (const [entryId, entryDiag] of Object.entries(this.session.diagnostics.entries)) {
-          const ec = (entryDiag as Record<string, unknown>).extraction_coverage as { coverage_rate: number } | undefined;
-          if (ec && ec.coverage_rate < 0.70) {
-            recorder.record({
-              type: 'an.extraction_coverage_low',
-              component: 'calibration',
-              level: 'warn',
-              debate_id: this.session.id,
-              turn_id: entryId,
-              message: `Extraction coverage ${Math.round(ec.coverage_rate * 100)}% < 70% threshold`,
-              data: { coverage_rate: ec.coverage_rate },
-            });
-          }
-        }
-        const coverageSamples = Object.values(this.session.diagnostics.entries)
-          .map(d => (d as Record<string, unknown>).extraction_coverage as { coverage_rate: number } | undefined)
-          .filter((c): c is { coverage_rate: number } => c != null)
-          .map(c => c.coverage_rate);
-        if (coverageSamples.length > 0) {
-          const aggCoverage = coverageSamples.reduce((a, b) => a + b, 0) / coverageSamples.length;
-          if (aggCoverage < 0.70) {
-            recorder.record({
-              type: 'an.extraction_coverage_error',
-              component: 'calibration',
-              level: 'error',
-              debate_id: this.session.id,
-              message: `Debate-level extraction coverage ${Math.round(aggCoverage * 100)}% < 70% threshold`,
-              data: { aggregate_coverage_rate: aggCoverage, samples: coverageSamples.length },
-            });
-          }
-        }
-      }
-    } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Coverage computation failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-    }
+    await this.runExtractionCoverage();
 
     // Log calibration data point (non-blocking, never fails the debate)
     try {
@@ -957,27 +926,48 @@ export class DebateEngine {
       e => e.type === 'concluding' && (e.metadata as Record<string, unknown>)?.synthesis,
     );
 
+    const stop = config.stopAfterStage;
+    const isSynthesisStop = stop === 'synthesis-p1' || stop === 'synthesis-p2' || stop === 'synthesis-p3';
+    const maxPhase = stop === 'synthesis-p1' ? 1
+      : stop === 'synthesis-p2' ? 2 : undefined;
+
     getGlobalRecorder()?.record({
       type: 'lifecycle', component: 'debate-engine', level: 'info',
       debate_id: checkpoint.id,
-      message: `Resuming debate from checkpoint (hasSynthesis=${hasSynthesis})`,
+      message: `Resuming debate from checkpoint (hasSynthesis=${hasSynthesis}${stop ? `, stopAfterStage=${stop}` : ''})`,
     });
+
+    const resumeStart = Date.now();
 
     try {
       if (!hasSynthesis) {
-        await Promise.all([
-          engine.runSynthesis(),
-          engine.runNeutralCheckpoint('final'),
-        ]);
+        if (isSynthesisStop) {
+          await engine.runSynthesis(maxPhase);
+        } else {
+          await Promise.all([
+            engine.runSynthesis(),
+            engine.runNeutralCheckpoint('final'),
+          ]);
+        }
+        if (isSynthesisStop) return engine.earlyReturn(resumeStart);
+      } else if (isSynthesisStop) {
+        return engine.earlyReturn(resumeStart);
       }
 
       await engine.runMissingArgumentsPass();
+      if (stop === 'missing-arguments') return engine.earlyReturn(resumeStart);
+
       await engine.runTaxonomyRefinementPass();
+      if (stop === 'taxonomy-refinement') return engine.earlyReturn(resumeStart);
+
       engine.runDialecticTracePass();
       await engine.runCrossCuttingProposalPass();
       engine.runTaxonomyGapAnalysisPass();
       engine.runSituationRefExtraction();
       engine.computePerturbationResult();
+
+      await engine.runExtractionCoverage();
+      if (stop === 'extraction-coverage') return engine.earlyReturn(resumeStart);
     } catch (err) {
       if (config.signal?.aborted) {
         engine.session.phase = 'cancelled';
@@ -995,6 +985,7 @@ export class DebateEngine {
     engine.session.updated_at = nowISO();
     engine.session.diagnostics!.overview.total_ai_calls = engine.apiCallCount;
     engine.session.diagnostics!.overview.total_response_time_ms = engine.totalResponseTimeMs;
+    engine.session.diagnostics!.overview.total_elapsed_ms = Date.now() - resumeStart;
 
     return engine.session;
   }
@@ -4284,9 +4275,67 @@ export class DebateEngine {
     }
   }
 
+  // ── Early return (stopAfterStage) ──────────────────────────
+
+  private earlyReturn(startTime: number): DebateSession {
+    this.session.updated_at = nowISO();
+    if (this.session.diagnostics) {
+      this.session.diagnostics.overview.total_ai_calls = this.apiCallCount;
+      this.session.diagnostics.overview.total_response_time_ms = this.totalResponseTimeMs;
+      this.session.diagnostics.overview.total_elapsed_ms = Date.now() - startTime;
+    }
+    return this.session;
+  }
+
+  // ── Extraction coverage ───────────────────────────────────
+
+  private async runExtractionCoverage(): Promise<void> {
+    try {
+      const coverageGenFn = (prompt: string) => this.generateWithEvaluator(prompt, 'Extraction coverage');
+      await computeExtractionCoverage(this.session, coverageGenFn);
+
+      const recorder = getGlobalRecorder();
+      if (!recorder || !this.session.diagnostics?.entries) return;
+
+      for (const [entryId, entryDiag] of Object.entries(this.session.diagnostics.entries)) {
+        const ec = (entryDiag as Record<string, unknown>).extraction_coverage as { coverage_rate: number } | undefined;
+        if (ec && ec.coverage_rate < 0.70) {
+          recorder.record({
+            type: 'an.extraction_coverage_low',
+            component: 'calibration',
+            level: 'warn',
+            debate_id: this.session.id,
+            turn_id: entryId,
+            message: `Extraction coverage ${Math.round(ec.coverage_rate * 100)}% < 70% threshold`,
+            data: { coverage_rate: ec.coverage_rate },
+          });
+        }
+      }
+      const coverageSamples = Object.values(this.session.diagnostics.entries)
+        .map(d => (d as Record<string, unknown>).extraction_coverage as { coverage_rate: number } | undefined)
+        .filter((c): c is { coverage_rate: number } => c != null)
+        .map(c => c.coverage_rate);
+      if (coverageSamples.length > 0) {
+        const aggCoverage = coverageSamples.reduce((a, b) => a + b, 0) / coverageSamples.length;
+        if (aggCoverage < 0.70) {
+          recorder.record({
+            type: 'an.extraction_coverage_error',
+            component: 'calibration',
+            level: 'error',
+            debate_id: this.session.id,
+            message: `Debate-level extraction coverage ${Math.round(aggCoverage * 100)}% < 70% threshold`,
+            data: { aggregate_coverage_rate: aggCoverage, samples: coverageSamples.length },
+          });
+        }
+      }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Coverage computation failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    }
+  }
+
   // ── Synthesis ──────────────────────────────────────────────
 
-  private async runSynthesis(): Promise<void> {
+  private async runSynthesis(maxPhase?: number): Promise<void> {
     this.progress('concluding', undefined, 'Generating synthesis');
 
     const fullTranscript = formatRecentTranscript(this.session.transcript, 50, this.session.context_summaries);
@@ -4308,6 +4357,7 @@ export class DebateEngine {
       (_phase, label) => this.progress('concluding', undefined, label),
       (context, problem, nextStep) => this.warn(context, problem, nextStep),
       () => this.checkAborted(),
+      maxPhase,
     );
 
     const concludingData = result.data;

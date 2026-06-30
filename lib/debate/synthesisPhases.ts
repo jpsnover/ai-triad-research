@@ -106,6 +106,7 @@ export async function runSynthesisPhases(
   onProgress?: SynthesisProgressFn,
   warn?: SynthesisWarnFn,
   checkAborted?: () => void,
+  maxPhase?: number,
 ): Promise<SynthesisPhaseResult> {
   const start = Date.now();
   const data: Record<string, unknown> = {};
@@ -130,6 +131,14 @@ export async function runSynthesisPhases(
     warn?.('Synthesis Phase 1', 'AI returned empty or unparseable output — synthesis data will be incomplete', 'Proceeding with partial synthesis');
   }
   mergePhaseData(data, extractData, PHASE_KEYS.extract);
+
+  if (maxPhase === 1) {
+    return {
+      data,
+      rawResponses: { extract: extractRaw, map: '', evaluate: '' },
+      elapsed_ms: Date.now() - start,
+    };
+  }
 
   // Phase 2: Build argument map
   checkAborted?.();
@@ -160,6 +169,14 @@ export async function runSynthesisPhases(
     }
   }
   mergePhaseData(data, mapData, PHASE_KEYS.map);
+
+  if (maxPhase === 2) {
+    return {
+      data,
+      rawResponses: { extract: extractRaw, map: mapRaw, evaluate: '' },
+      elapsed_ms: Date.now() - start,
+    };
+  }
 
   // Phase 3: Evaluate preferences + policy implications
   checkAborted?.();

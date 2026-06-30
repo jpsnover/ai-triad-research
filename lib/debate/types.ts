@@ -1493,6 +1493,8 @@ export interface DebateOverviewDiagnostics {
   total_input_tokens?: number;
   /** Total output tokens produced across all entries in the debate. */
   total_output_tokens?: number;
+  /** Wall-clock elapsed time for the resume/run pipeline (ms). */
+  total_elapsed_ms?: number;
   /** Situation citation tracking (t/192). Counts how many debate turns cited at least one sit- ID. */
   situation_citations?: {
     /** Number of debate turns that cited at least one sit- ID in taxonomy_refs. */
