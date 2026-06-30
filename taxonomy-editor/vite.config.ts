@@ -5,6 +5,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { execSync } from 'child_process';
+import fs from 'fs';
 import path from 'path';
 
 const isWeb = process.env.VITE_TARGET === 'web';
@@ -71,6 +72,9 @@ export default defineConfig({
     'import.meta.env.VITE_TARGET': JSON.stringify(process.env.VITE_TARGET || 'electron'),
     __APP_VERSION__: JSON.stringify(getGitVersion()),
     __BUILD_DATE__: JSON.stringify(new Date().toISOString()),
+    __CHANGELOG_MD__: JSON.stringify(
+      fs.readFileSync(path.resolve(__dirname, '../CHANGELOG.md'), 'utf-8')
+    ),
     __COMPONENT_VERSIONS__: JSON.stringify({
       react: require('react/package.json').version,
       zustand: require('zustand/package.json').version,
