@@ -215,16 +215,21 @@ function Get-Edge {
         # Type wildcard
         if ($Type -and $E.type -notlike $Type) { continue }
 
-        # Status exact
-        if ($Status -and $E.status -ne $Status) { continue }
+        # Status exact (guard for sparse legacy edges that omit status)
+        if ($Status) {
+            $EdgeStatus = if ($E.PSObject.Properties['status']) { $E.status } else { $null }
+            if ($EdgeStatus -ne $Status) { continue }
+        }
 
-        # Confidence range
-        if ($E.confidence -lt $MinConfidence) { continue }
-        if ($E.confidence -gt $MaxConfidence) { continue }
+        # Confidence range (guard for legacy edges that omit confidence — treat as 0
+        # so they fall out of any positive MinConfidence filter; pass when default 0..1)
+        $EdgeConfidence = if ($E.PSObject.Properties['confidence']) { [double]$E.confidence } else { 0.0 }
+        if ($EdgeConfidence -lt $MinConfidence) { continue }
+        if ($EdgeConfidence -gt $MaxConfidence) { continue }
 
         # Bidirectional filter
         if ($null -ne $Bidirectional) {
-            $IsBidir = [bool]$E.bidirectional
+            $IsBidir = if ($E.PSObject.Properties['bidirectional']) { [bool]$E.bidirectional } else { $false }
             if ($IsBidir -ne $Bidirectional) { continue }
         }
 
@@ -234,15 +239,26 @@ function Get-Edge {
             if ($EStrength -notlike $Strength) { continue }
         }
 
-        # Model wildcard
-        if ($Model -and $E.model -notlike $Model) { continue }
+        # Model wildcard (3,782 legacy edges lack `model`; treat absent as empty
+        # so the filter excludes them when the user asks for a specific pattern)
+        if ($Model) {
+            $EModel = if ($E.PSObject.Properties['model']) { $E.model } else { '' }
+            if ($EModel -notlike $Model) { continue }
+        }
 
-        # Rationale wildcard
-        if ($Rationale -and $E.rationale -notlike $Rationale) { continue }
+        # Rationale wildcard (defensive — currently 100% present, but the field
+        # is optional in the TS Edge interface)
+        if ($Rationale) {
+            $ERationale = if ($E.PSObject.Properties['rationale']) { $E.rationale } else { '' }
+            if ($ERationale -notlike $Rationale) { continue }
+        }
 
-        # Date range filters
-        if ($DiscoveredAfter -and $E.discovered_at -lt $DiscoveredAfter) { continue }
-        if ($DiscoveredBefore -and $E.discovered_at -gt $DiscoveredBefore) { continue }
+        # Date range filters (defensive guard for discovered_at)
+        if ($DiscoveredAfter -or $DiscoveredBefore) {
+            $EDiscoveredAt = if ($E.PSObject.Properties['discovered_at']) { $E.discovered_at } else { $null }
+            if ($DiscoveredAfter -and ($null -eq $EDiscoveredAt -or $EDiscoveredAt -lt $DiscoveredAfter)) { continue }
+            if ($DiscoveredBefore -and ($null -ne $EDiscoveredAt -and $EDiscoveredAt -gt $DiscoveredBefore)) { continue }
+        }
 
         # POV-based filters
         if ($NodePovMap) {
@@ -258,6 +274,11 @@ function Get-Edge {
             }
         }
 
+        # t/1197: every optional field gets a PSObject.Properties guard. The TS Edge
+        # interface (taxonomy-editor/src/renderer/types/taxonomy.ts:320-334) has more
+        # optional fields than the legacy data actually carries — guarding consistently
+        # here prevents PropertyNotFoundException under StrictMode when older edges
+        # (e.g. 3,782 pre-model-tracking entries) are read.
         $Results.Add([PSCustomObject]@{
             PSTypeName    = 'AITriad.Edge'
             Id            = 'edg-{0:D5}' -f ($i + 1)
@@ -265,16 +286,16 @@ function Get-Edge {
             Source        = $E.source
             Target        = $E.target
             Type          = $E.type
-            Bidirectional = [bool]$E.bidirectional
-            Confidence    = $E.confidence
+            Bidirectional = if ($E.PSObject.Properties['bidirectional']) { [bool]$E.bidirectional } else { $false }
+            Confidence    = if ($E.PSObject.Properties['confidence']) { $E.confidence } else { $null }
             Weight        = if ($E.PSObject.Properties['weight']) { $E.weight } else { $null }
-            Status        = $E.status
+            Status        = if ($E.PSObject.Properties['status']) { $E.status } else { $null }
             Strength      = if ($E.PSObject.Properties['strength']) { $E.strength } else { $null }
-            Rationale     = $E.rationale
+            Rationale     = if ($E.PSObject.Properties['rationale']) { $E.rationale } else { $null }
             Notes         = if ($E.PSObject.Properties['notes']) { $E.notes } else { $null }
             DirectionFlag = if ($E.PSObject.Properties['direction_flag']) { $E.direction_flag } else { $null }
-            DiscoveredAt  = $E.discovered_at
-            Model         = $E.model
+            DiscoveredAt  = if ($E.PSObject.Properties['discovered_at']) { $E.discovered_at } else { $null }
+            Model         = if ($E.PSObject.Properties['model']) { $E.model } else { $null }
         })
 
         if ($First -gt 0 -and $Results.Count -ge $First) { break }
