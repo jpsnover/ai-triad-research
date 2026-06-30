@@ -23,8 +23,8 @@ import type {
 } from './types.js';
 import { computeQbafStrengths } from './qbaf.js';
 import type { QbafOptions } from './qbaf.js';
-import { computeAgentUtility } from './calibrationLogger.js';
-import type { AgentUtility } from './calibrationLogger.js';
+import { computeAgentUtility } from './agentUtility.js';
+import type { AgentUtility } from './agentUtility.js';
 
 // ── Types ─────────────────────────────────────────────────
 

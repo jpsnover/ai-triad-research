@@ -56,7 +56,8 @@ export * from './situationRefs.js';
 export * from './newsReport.js';
 export * from './counterfactualCrux.js';
 export * from './beliefTracking.js';
-export * from './lookaheadGate.js';
+// lookaheadGate.ts excluded — imports calibrationLogger which uses node:fs/path. Import directly.
+export * from './agentUtility.js';
 export * from './citationResolution.js';
 export * from './topicCritique.js';
 // schemas.ts deliberately excluded from barrel — it imports zod.
