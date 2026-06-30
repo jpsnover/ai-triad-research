@@ -33,6 +33,13 @@ function computeP95(values: number[]): number {
   return sorted[idx];
 }
 
+function computeMedian(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
 async function probe(): Promise<number | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), cfg().timeoutMs);
@@ -79,12 +86,12 @@ async function runWarmUp(): Promise<void> {
 
   const kept = state.warmUpSamples.slice(warmUpDiscardCount);
   if (kept.length > 0) {
-    state.baseline = kept.reduce((a, b) => a + b, 0) / kept.length;
+    state.baseline = computeMedian(kept);
     getGlobalRecorder()?.record({
       type: 'lifecycle',
       component: 'health-probe',
       level: 'info',
-      message: `Warm-up complete: baseline=${Math.round(state.baseline)}ms from ${kept.length} samples (${warmUpDiscardCount} discarded)`,
+      message: `Warm-up complete: baseline=${Math.round(state.baseline)}ms (median of ${kept.length} samples, ${warmUpDiscardCount} discarded)`,
     });
   }
 
@@ -110,6 +117,14 @@ async function steadyProbe(): Promise<void> {
   const latency = await probe();
   if (latency === null) return;
 
+  if (state.baseline > 0 && latency > state.baseline * cfg().coldStartMultiple) {
+    getGlobalRecorder()?.record({
+      type: 'lifecycle', component: 'health-probe', level: 'debug',
+      message: `Cold-start spike excluded: ${Math.round(latency)}ms (>${cfg().coldStartMultiple}× baseline ${Math.round(state.baseline)}ms)`,
+    });
+    return;
+  }
+
   state.latencies.push(latency);
   if (state.latencies.length > cfg().windowSize) state.latencies.shift();
   if (state.baseline === 0) return;
@@ -118,9 +133,11 @@ async function steadyProbe(): Promise<void> {
   if (elapsed < cfg().gracePeriodMs) return;
 
   const p95 = computeP95(state.latencies);
-  if (p95 > state.baseline * cfg().enterFactor) {
+  const enterThreshold = Math.max(state.baseline * cfg().enterFactor, cfg().thresholdFloorMs);
+  const exitThreshold = Math.max(state.baseline * cfg().exitFactor, cfg().thresholdFloorMs * 0.8);
+  if (p95 > enterThreshold) {
     setThrottleFromProbe('THROTTLED', p95, state.baseline);
-  } else if (p95 < state.baseline * cfg().exitFactor) {
+  } else if (p95 < exitThreshold) {
     setThrottleFromProbe('NORMAL', p95, state.baseline);
   }
 }

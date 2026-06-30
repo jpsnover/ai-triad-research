@@ -41,6 +41,8 @@ export interface ClientConfig {
     exitFactor: number;
     gracePeriodMs: number;
     timeoutMs: number;
+    thresholdFloorMs: number;
+    coldStartMultiple: number;
   };
   debate: {
     defaultConfrontationRounds: number;
@@ -87,11 +89,13 @@ const DEFAULTS: ClientConfig = {
     warmUpCount: 6,
     warmUpDiscardCount: 2,
     warmUpIntervalMs: 5_000,
-    windowSize: 10,
+    windowSize: 20,
     enterFactor: 2.0,
     exitFactor: 1.5,
     gracePeriodMs: 30_000,
     timeoutMs: 10_000,
+    thresholdFloorMs: 500,
+    coldStartMultiple: 50,
   },
   debate: {
     defaultConfrontationRounds: 1,

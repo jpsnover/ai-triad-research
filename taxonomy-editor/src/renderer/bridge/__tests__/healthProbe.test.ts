@@ -15,11 +15,13 @@ const defaultProbeConfig = {
   warmUpCount: 6,
   warmUpDiscardCount: 2,
   warmUpIntervalMs: 5_000,
-  windowSize: 10,
+  windowSize: 20,
   enterFactor: 2.0,
   exitFactor: 1.5,
   gracePeriodMs: 30_000,
   timeoutMs: 10_000,
+  thresholdFloorMs: 500,
+  coldStartMultiple: 50,
 };
 
 let probeConfig = { ...defaultProbeConfig };
@@ -136,7 +138,7 @@ describe('healthProbe', () => {
   });
 
   describe('steady-state transitions', () => {
-    it('triggers THROTTLED when p95 exceeds enterFactor × baseline', async () => {
+    it('triggers THROTTLED when p95 exceeds enterFactor × baseline (floor disabled)', async () => {
       probeConfig = {
         ...defaultProbeConfig,
         warmUpCount: 1,
@@ -144,6 +146,7 @@ describe('healthProbe', () => {
         gracePeriodMs: 0,
         intervalMs: 1_000,
         windowSize: 3,
+        thresholdFloorMs: 0,
       };
 
       let callCount = 0;
@@ -167,7 +170,7 @@ describe('healthProbe', () => {
       mod.stopHealthProbe();
     });
 
-    it('clears THROTTLED when p95 drops below exitFactor × baseline', async () => {
+    it('clears THROTTLED when p95 drops below exitFactor × baseline (floor disabled)', async () => {
       probeConfig = {
         ...defaultProbeConfig,
         warmUpCount: 1,
@@ -175,6 +178,7 @@ describe('healthProbe', () => {
         gracePeriodMs: 0,
         intervalMs: 1_000,
         windowSize: 2,
+        thresholdFloorMs: 0,
       };
 
       let callCount = 0;
@@ -205,6 +209,82 @@ describe('healthProbe', () => {
       await vi.advanceTimersByTimeAsync(1_000);
       expect(mockSetThrottle).toHaveBeenCalledWith('NORMAL', expect.any(Number), 100);
 
+      mod.stopHealthProbe();
+    });
+
+    it('threshold floor prevents false alerts on low-latency baselines (t/1148)', async () => {
+      probeConfig = {
+        ...defaultProbeConfig,
+        warmUpCount: 1,
+        warmUpDiscardCount: 0,
+        gracePeriodMs: 0,
+        intervalMs: 1_000,
+        windowSize: 3,
+        thresholdFloorMs: 500,
+      };
+
+      let callCount = 0;
+      fetchSpy.mockImplementation(async () => {
+        callCount++;
+        // baseline=4ms, steady=50ms — above 2× baseline (8ms) but well below 500ms floor
+        const latency = callCount === 1 ? 4 : 50;
+        vi.advanceTimersByTime(latency);
+        return { ok: true, json: () => Promise.resolve({}) } as unknown as Response;
+      });
+
+      const mod = await loadModule();
+      mod.initHealthProbe();
+      await vi.advanceTimersByTimeAsync(0);
+
+      await vi.advanceTimersByTimeAsync(1_000);
+      await vi.advanceTimersByTimeAsync(1_000);
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      // Should NOT trigger THROTTLED — 50ms is below the 500ms floor
+      expect(mockSetThrottle).not.toHaveBeenCalledWith('THROTTLED', expect.any(Number), expect.any(Number));
+      mod.stopHealthProbe();
+    });
+  });
+
+  describe('cold-start exclusion (t/1148)', () => {
+    it('excludes latency spikes exceeding coldStartMultiple × baseline', async () => {
+      probeConfig = {
+        ...defaultProbeConfig,
+        warmUpCount: 1,
+        warmUpDiscardCount: 0,
+        gracePeriodMs: 0,
+        intervalMs: 1_000,
+        windowSize: 5,
+        thresholdFloorMs: 0,
+        coldStartMultiple: 50,
+      };
+
+      let callCount = 0;
+      fetchSpy.mockImplementation(async () => {
+        callCount++;
+        // baseline=100ms, then a 6000ms cold-start spike, then normal
+        let latency: number;
+        if (callCount === 1) latency = 100;
+        else if (callCount === 2) latency = 6000;
+        else latency = 120;
+        vi.advanceTimersByTime(latency);
+        return { ok: true, json: () => Promise.resolve({}) } as unknown as Response;
+      });
+
+      const mod = await loadModule();
+      mod.initHealthProbe();
+      await vi.advanceTimersByTimeAsync(0);
+
+      // Cold-start spike probe (6000ms > 50 × 100ms = 5000ms) — should be excluded
+      await vi.advanceTimersByTimeAsync(1_000);
+      // Normal probes
+      await vi.advanceTimersByTimeAsync(1_000);
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      const state = mod.getProbeState();
+      // Cold-start was excluded, so only the normal 120ms probes are in the window
+      expect(state.sampleCount).toBe(2);
+      expect(mockSetThrottle).not.toHaveBeenCalledWith('THROTTLED', expect.any(Number), expect.any(Number));
       mod.stopHealthProbe();
     });
   });
