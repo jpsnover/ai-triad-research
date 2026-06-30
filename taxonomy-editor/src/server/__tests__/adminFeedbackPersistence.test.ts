@@ -28,6 +28,7 @@ class MemBackend implements StorageBackend {
   async deleteFile(p: string) { this.files.delete(p); }
   async fileExists(p: string) { return this.files.has(p); }
   async readBinaryFile(p: string) { const v = this.files.get(p); return v != null ? Buffer.from(v) : null; }
+  async writeBinaryFile(p: string, c: Buffer) { this.files.set(p, c.toString('utf-8')); }
 }
 
 let mem: MemBackend;

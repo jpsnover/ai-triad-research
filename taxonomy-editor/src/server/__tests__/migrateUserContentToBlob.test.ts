@@ -28,6 +28,7 @@ class MemoryBackend implements StorageBackend {
   async deleteFile(p: string): Promise<void> { this.files.delete(this.norm(p)); }
   async fileExists(p: string): Promise<boolean> { return this.files.has(this.norm(p)); }
   async readBinaryFile(): Promise<Buffer | null> { return null; }
+  async writeBinaryFile(): Promise<void> { /* stub */ }
 }
 
 let source: MemoryBackend;
