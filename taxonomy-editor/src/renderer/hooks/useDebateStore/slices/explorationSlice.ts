@@ -5,7 +5,7 @@ import type { StateCreator } from 'zustand';
 import type { DebateStore } from '../types';
 import type { ExplorationSummary } from '@lib/debate/explorationSummary';
 import { extractExplorationSummary } from '@lib/debate/explorationSummary';
-import { EXPLORATION_PRESET } from '@lib/debate/explorationPreset';
+import { EXPLORATION_PRESET } from '@lib/debate/explorationPresetConfig';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 export interface ExplorationSlice {

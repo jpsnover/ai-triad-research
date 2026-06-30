@@ -8,24 +8,10 @@ import type { LoadedTaxonomy } from './taxonomyLoader.js';
 import type { DebateSession } from './types.js';
 import { extractExplorationSummary } from './explorationSummary.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
+import { EXPLORATION_PRESET } from './explorationPresetConfig.js';
 
-export const EXPLORATION_PRESET: Partial<DebateConfig> = {
-  responseLength: 'brief',
-  maxTotalRounds: 8,
-  pacing: 'quick',
-  enableClarification: false,
-  enableWisdomEvaluation: false,
-  wisdomAutoReframe: false,
-  enableProbing: false,
-  temperature: 0.8,
-  turnValidation: { maxRetries: 1 },
-  protocolId: 'exploration',
-};
-
-export interface ExploreFirstResult {
-  exploration: DebateSession | null;
-  production: DebateSession;
-}
+export { EXPLORATION_PRESET } from './explorationPresetConfig.js';
+export type { ExploreFirstResult } from './explorationPresetConfig.js';
 
 export async function runExploreFirstPipeline(
   baseConfig: DebateConfig,

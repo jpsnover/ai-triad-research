@@ -13,7 +13,7 @@ import { lineageMarkdownComponents } from '../../utils/lineageMatcher';
 import { speakerLabel, fixMarkdownLinks } from './utils';
 import { TopicCritiqueCard, DIMENSION_LABELS, RATING_COLORS } from './TopicCritique';
 import { MODELS_BY_BACKEND } from '../../hooks/useTaxonomyStore';
-import { EXPLORATION_PRESET } from '@lib/debate/explorationPreset';
+import { EXPLORATION_PRESET } from '@lib/debate/explorationPresetConfig';
 
 export function ClarificationCard({ entry }: { entry: TranscriptEntry }) {
   const meta = entry.metadata as Record<string, unknown> | undefined;
