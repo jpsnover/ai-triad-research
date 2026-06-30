@@ -15,7 +15,12 @@ import {
   speakerLabel, speakerColor, pctFmt, focusMainWindowNode,
   fixMarkdownLinks, stripLeadingHeadings,
 } from './utils';
+import type { AnchorHTMLAttributes } from 'react';
 import { ClaimsView } from './ClaimsView';
+
+const SafeLink = ({ node: _, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { node?: unknown }) => (
+  <a {...props} target="_blank" rel="noopener noreferrer" />
+);
 import { LineageTermsView, VocabTermsView } from './VocabularyPanel';
 import { CommentHighlightedText, useEntryCommentCount, useHasCommentHighlights } from '../chat/CommentHighlights';
 import { useCommentStore } from '../../hooks/useCommentStore';
@@ -384,7 +389,7 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
   const showLineage = useCallback(() => { setEntryDisplayTier(entry.id, 'lineage'); }, [entry.id, setEntryDisplayTier]);
   const hasLineageRefs = useMemo(() => extractLineageNames(entry.content).length > 0, [entry.content]);
   const mdComponents = useMemo(
-    () => getDebateMarkdownComponents(vocabResolutions, vocabResolutions?.length ? showTerms : undefined, showLineage),
+    () => ({ ...getDebateMarkdownComponents(vocabResolutions, vocabResolutions?.length ? showTerms : undefined, showLineage), a: SafeLink }),
     [vocabResolutions, showTerms, showLineage],
   );
 
@@ -796,7 +801,7 @@ export function FactCheckCard({ entry, statementId, findQuery = '', matchOffset 
           }
           return findQuery
             ? <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
-            : <Markdown remarkPlugins={[remarkGfm]} components={lineageMarkdownComponents}>{fixMarkdownLinks(displayContent)}</Markdown>;
+            : <Markdown remarkPlugins={[remarkGfm]} components={{ ...lineageMarkdownComponents, a: SafeLink }}>{fixMarkdownLinks(displayContent)}</Markdown>;
         })()}
       </div>
       {showWebEvidence && (
@@ -804,7 +809,7 @@ export function FactCheckCard({ entry, statementId, findQuery = '', matchOffset 
           <div className="debate-fact-check-web-evidence-header">Web Search Evidence</div>
           <div className="debate-fact-check-web-evidence-body markdown-body">
             {factCheck?.web_search_evidence ? (
-              <Markdown remarkPlugins={[remarkGfm]}>{fixMarkdownLinks(factCheck.web_search_evidence)}</Markdown>
+              <Markdown remarkPlugins={[remarkGfm]} components={{ a: SafeLink }}>{fixMarkdownLinks(factCheck.web_search_evidence)}</Markdown>
             ) : (
               <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
                 {factCheck?.web_search_used
