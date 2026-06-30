@@ -1,5 +1,5 @@
-**Date:** 2026-06-29
-**Working on:** t/1135 CL review round 2 fix (markdown-mode crash hole), t/1139 crux framing fix (completed)
-**Status:** t/1135 round 2 fix applied and verified (2291/2291 tests pass), posted t/1135#7, pinged CL at p/49#145. Awaiting CL re-review. t/1139 done.
-**Key context:** cli.ts now writes structured JSON first via safeSerialize+atomicWriteSync regardless of format, deletes partial after, then writes markdown as secondary artifact. atomicWriteSync cleans up orphaned .tmp on rename failure. Cross-scope GUI changes (debateIO.ts/fileIO.ts) still need routing.
-**Next:** Wait for CL review on t/1135#7. Route cross-scope GUI safe-serialize changes to Taxonomy Editor/Server owners when CL approves.
+**Date:** 2026-06-30
+**Working on:** t/1200 (ONNX embedding cold-start elimination) and t/1162 (real-debate fixture generator)
+**Status:** Complete. Both shipped — `34840c06` and `efc03ac7`. All 4643 tests pass, 10 slow tests properly skipped.
+**Key context:** Vitest 4 requires options as 2nd arg (`it('name', { timeout }, fn)` not `it('name', fn, timeout)`). Real fixtures written to timestamped dirs under `fixtures/real/` (gitignored). `describe.runIf(process.env.RUN_SLOW)` gates slow tests.
+**Next:** Ticket queue empty. Check for new assignments on next session start.

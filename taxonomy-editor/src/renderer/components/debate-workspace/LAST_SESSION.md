@@ -1,5 +1,5 @@
-**Date:** 2026-06-29
-**Working on:** t/1077 — wired driverIsRemote overlay in DebateWorkspace; closed leftover t/1041
-**Status:** complete — both tickets Done, verify gate clean, committed (957e8298)
-**Key context:** initDebatePopoutCloseHandler import comes from useDebateStore/helpers, not @bridge; the overlay hides all four phase action bar variants
-**Next:** t/989 (Explore First workflow + summary preview card) is the only open ticket in queue
+**Date:** 2026-06-30
+**Working on:** t/989 — Explore First workflow (cheap-model discovery before production debates)
+**Status:** Complete — committed 6a1f375d, ticket closed, TL notified
+**Key context:** extractExplorationSummary is a pure function (no bridge/IPC needed); ClarificationActions pre-existing complexity at 50
+**Next:** Check ticket queue for next unblocked work
