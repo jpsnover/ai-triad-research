@@ -16,6 +16,8 @@ const FAILURE_LOG_CUTOFF = 5;
 
 function cfg() { return getClientConfig().healthProbe; }
 
+const RECOVERY_THRESHOLD = 3;
+
 const state = {
   phase: 'idle' as ProbePhase,
   latencies: [] as number[],
@@ -24,6 +26,7 @@ const state = {
   startTime: 0,
   timerId: 0,
   consecutiveFailures: 0,
+  consecutiveGoodPolls: 0,
 };
 
 function computeP95(values: number[]): number {
@@ -135,6 +138,24 @@ async function steadyProbe(): Promise<void> {
   const p95 = computeP95(state.latencies);
   const enterThreshold = Math.max(state.baseline * cfg().enterFactor, cfg().thresholdFloorMs);
   const exitThreshold = Math.max(state.baseline * cfg().exitFactor, cfg().thresholdFloorMs * 0.8);
+
+  if (latency < exitThreshold) {
+    state.consecutiveGoodPolls++;
+  } else {
+    state.consecutiveGoodPolls = 0;
+  }
+
+  if (state.consecutiveGoodPolls >= RECOVERY_THRESHOLD && p95 > exitThreshold) {
+    getGlobalRecorder()?.record({
+      type: 'lifecycle', component: 'health-probe', level: 'info',
+      message: `Recovery: ${RECOVERY_THRESHOLD} consecutive good polls (${Math.round(latency)}ms < ${Math.round(exitThreshold)}ms exit threshold), flushing stale window (p95 was ${Math.round(p95)}ms)`,
+    });
+    state.latencies = [latency];
+    state.consecutiveGoodPolls = 0;
+    setThrottleFromProbe('NORMAL', latency, state.baseline);
+    return;
+  }
+
   if (p95 > enterThreshold) {
     setThrottleFromProbe('THROTTLED', p95, state.baseline);
   } else if (p95 < exitThreshold) {
@@ -159,6 +180,7 @@ export function stopHealthProbe(): void {
   state.warmUpSamples = [];
   state.baseline = 0;
   state.consecutiveFailures = 0;
+  state.consecutiveGoodPolls = 0;
 }
 
 export function getProbeState(): {

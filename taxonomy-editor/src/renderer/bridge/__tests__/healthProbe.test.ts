@@ -289,6 +289,105 @@ describe('healthProbe', () => {
     });
   });
 
+  describe('consecutive-good-poll recovery (t/1151)', () => {
+    it('clears THROTTLED after 3 consecutive good polls even when p95 is still high', async () => {
+      probeConfig = {
+        ...defaultProbeConfig,
+        warmUpCount: 1,
+        warmUpDiscardCount: 0,
+        gracePeriodMs: 0,
+        intervalMs: 1_000,
+        windowSize: 10,
+        thresholdFloorMs: 0,
+      };
+
+      let callCount = 0;
+      fetchSpy.mockImplementation(async () => {
+        callCount++;
+        let latency: number;
+        if (callCount === 1) latency = 100; // warm-up baseline
+        else if (callCount <= 9) latency = 300; // 8 high-latency fills → THROTTLED
+        else latency = 50; // recovery polls (50 < 100 * 1.5 = 150 exit threshold)
+        vi.advanceTimersByTime(latency);
+        return { ok: true, json: () => Promise.resolve({}) } as unknown as Response;
+      });
+
+      const mod = await loadModule();
+      mod.initHealthProbe();
+      await vi.advanceTimersByTimeAsync(0);
+
+      // Fill window with high-latency probes to trigger THROTTLED
+      for (let i = 0; i < 8; i++) await vi.advanceTimersByTimeAsync(1_000);
+      expect(mockSetThrottle).toHaveBeenCalledWith('THROTTLED', expect.any(Number), 100);
+
+      mockSetThrottle.mockClear();
+
+      // 1st and 2nd good polls — not enough yet (p95 of window still high)
+      await vi.advanceTimersByTimeAsync(1_000);
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(mockSetThrottle).not.toHaveBeenCalledWith('NORMAL', expect.any(Number), expect.any(Number));
+
+      // 3rd consecutive good poll triggers recovery
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(mockSetThrottle).toHaveBeenCalledWith('NORMAL', expect.any(Number), 100);
+
+      // Window was flushed — only the recovery sample remains
+      const state = mod.getProbeState();
+      expect(state.sampleCount).toBe(1);
+
+      mod.stopHealthProbe();
+    });
+
+    it('resets consecutive counter when a bad poll interrupts recovery', async () => {
+      probeConfig = {
+        ...defaultProbeConfig,
+        warmUpCount: 1,
+        warmUpDiscardCount: 0,
+        gracePeriodMs: 0,
+        intervalMs: 1_000,
+        windowSize: 10,
+        thresholdFloorMs: 0,
+      };
+
+      let callCount = 0;
+      fetchSpy.mockImplementation(async () => {
+        callCount++;
+        let latency: number;
+        if (callCount === 1) latency = 100;
+        else if (callCount <= 9) latency = 300; // fill → THROTTLED
+        else if (callCount <= 11) latency = 50; // 2 good polls
+        else if (callCount === 12) latency = 300; // bad poll interrupts
+        else latency = 50; // resume good polls
+        vi.advanceTimersByTime(latency);
+        return { ok: true, json: () => Promise.resolve({}) } as unknown as Response;
+      });
+
+      const mod = await loadModule();
+      mod.initHealthProbe();
+      await vi.advanceTimersByTimeAsync(0);
+
+      for (let i = 0; i < 8; i++) await vi.advanceTimersByTimeAsync(1_000);
+      expect(mockSetThrottle).toHaveBeenCalledWith('THROTTLED', expect.any(Number), 100);
+      mockSetThrottle.mockClear();
+
+      // 2 good polls, then a bad one
+      await vi.advanceTimersByTimeAsync(1_000);
+      await vi.advanceTimersByTimeAsync(1_000);
+      await vi.advanceTimersByTimeAsync(1_000); // bad — resets counter
+
+      // Next 2 good polls (only 2 consecutive, not 3)
+      await vi.advanceTimersByTimeAsync(1_000);
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(mockSetThrottle).not.toHaveBeenCalledWith('NORMAL', expect.any(Number), expect.any(Number));
+
+      // 3rd consecutive good poll after the reset → now triggers recovery
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(mockSetThrottle).toHaveBeenCalledWith('NORMAL', expect.any(Number), 100);
+
+      mod.stopHealthProbe();
+    });
+  });
+
   describe('probe failure handling', () => {
     it('records to flight recorder on fetch failure', async () => {
       probeConfig = { ...defaultProbeConfig, warmUpCount: 1, warmUpDiscardCount: 0 };
