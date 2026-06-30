@@ -943,6 +943,21 @@ const rawApi: AppAPI = {
   // Feature flags
   getFlags: () => get<Record<string, boolean>>('/api/flags').catch(bridgeWarn('getFlags failed', {})),
 
+  // Admin Error Dashboard
+  getErrorSummary: () => get('/api/admin/errors/summary'),
+  listErrors: (opts) => {
+    const params = new URLSearchParams();
+    if (opts?.since) params.set('since', opts.since);
+    if (opts?.until) params.set('until', opts.until);
+    if (opts?.userId) params.set('userId', opts.userId);
+    if (opts?.errorName) params.set('errorName', opts.errorName);
+    if (opts?.limit) params.set('limit', String(opts.limit));
+    if (opts?.offset) params.set('offset', String(opts.offset));
+    const qs = params.toString();
+    return get(`/api/admin/errors${qs ? `?${qs}` : ''}`);
+  },
+  getErrorDetail: (id) => get(`/api/admin/errors/${encodeURIComponent(id)}`),
+
   // Admin Review (HTTP to server)
   adminReviewConfigured: () => Promise.resolve(true),
   adminReviewQueue: async () => {

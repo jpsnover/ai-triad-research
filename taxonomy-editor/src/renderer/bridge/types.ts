@@ -287,6 +287,21 @@ export interface AppAPI {
   // --- Feature flags ---
   getFlags: () => Promise<Record<string, boolean>>;
 
+  // --- Admin Error Dashboard ---
+  getErrorSummary: () => Promise<{
+    total: number; today: number; last7d: number; last30d: number;
+    topErrors: Array<{ key: string; count: number; lastSeen: string; affectedUsers: number }>;
+    byDay: Array<{ date: string; count: number }>;
+  }>;
+  listErrors: (opts?: { since?: string; until?: string; userId?: string; errorName?: string; limit?: number; offset?: number }) => Promise<{
+    items: Array<{ id: string; name: string; message: string; timestamp: string; userId?: string; context?: Record<string, unknown> }>;
+    total: number; hasMore: boolean;
+  }>;
+  getErrorDetail: (id: string) => Promise<{
+    entry: { id: string; name: string; message: string; timestamp: string; userId?: string; context?: Record<string, unknown>; stack?: string };
+    relatedDumps: Array<{ dumpId: string; kind: string; timestamp: string }>;
+  } | null>;
+
   // --- Admin Review (Azure Blob in Electron, HTTP in web) ---
   adminReviewConfigured: () => Promise<boolean>;
   adminReviewQueue: () => Promise<{ items: { id: string; domain: string; submitter: string; submitterDisplay: string; submittedAt: string; summary: string; itemCount: number; status: string }[] }>;
