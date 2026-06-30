@@ -91,7 +91,7 @@ Rules:
         foreach ($Node in @($TaxData.nodes)) {
 
             # New: Filter by Id
-            if (@($Id).Count -gt 0 -and ($Node.id -notin $Id)) {
+            if ($null -ne $Id -and @($Id).Count -gt 0 -and ($Node.id -notin $Id)) {
                 $SkippedByIdFilter++
                 $NodeIndex++
                 continue

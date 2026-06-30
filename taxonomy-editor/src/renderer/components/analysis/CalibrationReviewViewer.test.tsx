@@ -35,14 +35,16 @@ const DETAIL = {
   },
 };
 
+const emptyHeaders = new Headers();
+
 function mockFetch() {
   const fetchMock = vi.fn(async (url: string, opts?: RequestInit) => {
     if (url.startsWith('/api/admin/review/detail/')) {
-      return { ok: true, json: async () => DETAIL } as Response;
+      return { ok: true, status: 200, headers: emptyHeaders, json: async () => DETAIL } as Response;
     }
     if (url === '/api/admin/review/action') {
       JSON.parse((opts?.body as string) ?? '{}'); // validate JSON body
-      return { ok: true, json: async () => ({ ok: true }) } as Response;
+      return { ok: true, status: 200, headers: emptyHeaders, json: async () => ({ ok: true }) } as Response;
     }
     throw new Error(`unexpected fetch ${url}`);
   });
