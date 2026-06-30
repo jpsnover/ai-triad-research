@@ -6,6 +6,7 @@ import path from 'path';
 
 import { resolveDataPath } from './fileIO.js';
 import { extractCalibrationData, appendCalibrationLog } from '../../../lib/debate/calibrationLogger.js';
+import { safeSerialize, atomicWriteSync } from '../../../lib/debate/persistence.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 const DEBATES_DIR = resolveDataPath('debates');
@@ -195,7 +196,18 @@ export function saveDebateSession(session: unknown): void {
   } catch { /* telemetry — silent by design;  calibration logging never blocks save */ }
 
   const filePath = debateFilePath(data.id);
-  fs.writeFileSync(filePath, JSON.stringify(session, null, 2) + '\n', 'utf-8');
+  // Crash-safe persistence (t/1140): safe-serialize (circular/non-serializable fields fall
+  // back to a sanitizing replacer and are logged) + atomic temp+rename so a crash mid-write
+  // can't leave a truncated session file.
+  const { json, hadError, errorMessage } = safeSerialize(session, 2);
+  if (hadError) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'debateIO', level: 'warn',
+      message: `Debate session ${data.id} saved via sanitizing fallback (non-serializable fields stripped): ${errorMessage}`,
+      error: { name: 'SerializationFallback', message: errorMessage ?? 'unknown' },
+    });
+  }
+  atomicWriteSync(filePath, json + '\n');
 
   // Update metadata index so next list call skips re-reading this file
   try {
