@@ -1,0 +1,180 @@
+{
+  "id": "fixture-pre-synthesis",
+  "title": "Fixture: Pre-Synthesis Checkpoint",
+  "created_at": "2026-01-01T00:00:00Z",
+  "updated_at": "2026-01-01T00:05:00Z",
+  "phase": "debate",
+  "topic": {
+    "original": "Should AI development be regulated by international treaty?",
+    "refined": null,
+    "final": "Should AI development be regulated by international treaty?"
+  },
+  "source_type": "topic",
+  "source_ref": "",
+  "source_content": "",
+  "active_povers": ["accelerationist", "safetyist", "skeptic"],
+  "user_is_pover": false,
+  "transcript": [
+    {
+      "id": "e-open-1",
+      "timestamp": "2026-01-01T00:00:10Z",
+      "type": "opening",
+      "speaker": "accelerationist",
+      "content": "AI regulation through international treaties would stifle innovation at a critical juncture.",
+      "taxonomy_refs": ["acc-beliefs-001"],
+      "metadata": {}
+    },
+    {
+      "id": "e-open-2",
+      "timestamp": "2026-01-01T00:00:20Z",
+      "type": "opening",
+      "speaker": "safetyist",
+      "content": "Without coordinated international oversight, AI poses existential risks that no single nation can mitigate.",
+      "taxonomy_refs": ["saf-beliefs-001"],
+      "metadata": {}
+    },
+    {
+      "id": "e-open-3",
+      "timestamp": "2026-01-01T00:00:30Z",
+      "type": "opening",
+      "speaker": "skeptic",
+      "content": "Both the catastrophic risks and transformative benefits of AI are overstated by their respective advocates.",
+      "taxonomy_refs": ["skp-beliefs-001"],
+      "metadata": {}
+    },
+    {
+      "id": "e-stmt-1",
+      "timestamp": "2026-01-01T00:01:00Z",
+      "type": "statement",
+      "speaker": "accelerationist",
+      "content": "Historical precedent shows that premature regulation of general-purpose technologies delays beneficial applications disproportionately.",
+      "taxonomy_refs": ["acc-beliefs-002"],
+      "metadata": { "round": 1 }
+    },
+    {
+      "id": "e-stmt-2",
+      "timestamp": "2026-01-01T00:01:30Z",
+      "type": "statement",
+      "speaker": "safetyist",
+      "content": "The dual-use nature of advanced AI systems requires proactive governance frameworks before capabilities outpace oversight.",
+      "taxonomy_refs": ["saf-desires-001"],
+      "metadata": { "round": 1 }
+    },
+    {
+      "id": "e-stmt-3",
+      "timestamp": "2026-01-01T00:02:00Z",
+      "type": "statement",
+      "speaker": "skeptic",
+      "content": "Current AI capabilities are far from the existential thresholds that would justify the overhead of international treaty mechanisms.",
+      "taxonomy_refs": ["skp-beliefs-002"],
+      "metadata": { "round": 1 }
+    }
+  ],
+  "context_summaries": [],
+  "diagnostics": {
+    "enabled": true,
+    "entries": {},
+    "overview": {
+      "total_ai_calls": 12,
+      "total_response_time_ms": 8500,
+      "claims_accepted": 5,
+      "claims_rejected": 1,
+      "move_type_counts": { "assert": 3, "rebut": 2, "concede": 1 },
+      "disagreement_type_counts": { "empirical": 2, "values": 1 }
+    }
+  },
+  "argument_network": {
+    "nodes": [
+      {
+        "id": "an-1",
+        "text": "Premature regulation delays beneficial AI applications",
+        "speaker": "accelerationist",
+        "source_entry_id": "e-stmt-1",
+        "taxonomy_refs": ["acc-beliefs-002"],
+        "turn_number": 4,
+        "base_strength": 0.7,
+        "computed_strength": 0.65,
+        "bdi_category": "belief"
+      },
+      {
+        "id": "an-2",
+        "text": "AI innovation outpaces existing regulatory frameworks",
+        "speaker": "accelerationist",
+        "source_entry_id": "e-stmt-1",
+        "taxonomy_refs": ["acc-beliefs-001"],
+        "turn_number": 4,
+        "base_strength": 0.6,
+        "computed_strength": 0.55,
+        "bdi_category": "belief"
+      },
+      {
+        "id": "an-3",
+        "text": "Dual-use AI requires proactive governance",
+        "speaker": "safetyist",
+        "source_entry_id": "e-stmt-2",
+        "taxonomy_refs": ["saf-desires-001"],
+        "turn_number": 5,
+        "base_strength": 0.75,
+        "computed_strength": 0.7,
+        "bdi_category": "desire"
+      },
+      {
+        "id": "an-4",
+        "text": "International coordination prevents regulatory arbitrage",
+        "speaker": "safetyist",
+        "source_entry_id": "e-stmt-2",
+        "taxonomy_refs": ["saf-beliefs-001"],
+        "turn_number": 5,
+        "base_strength": 0.65,
+        "computed_strength": 0.6,
+        "bdi_category": "belief"
+      },
+      {
+        "id": "an-5",
+        "text": "Current AI capabilities do not justify treaty overhead",
+        "speaker": "skeptic",
+        "source_entry_id": "e-stmt-3",
+        "taxonomy_refs": ["skp-beliefs-002"],
+        "turn_number": 6,
+        "base_strength": 0.55,
+        "computed_strength": 0.5,
+        "bdi_category": "belief"
+      }
+    ],
+    "edges": [
+      { "id": "edge-1", "source": "an-5", "target": "an-3", "type": "attacks", "weight": 0.6 },
+      { "id": "edge-2", "source": "an-1", "target": "an-4", "type": "attacks", "weight": 0.5 },
+      { "id": "edge-3", "source": "an-3", "target": "an-4", "type": "supports", "weight": 0.7 }
+    ]
+  },
+  "commitments": {},
+  "crux_tracker": [
+    {
+      "id": "crux-1",
+      "description": "Whether current AI capabilities are close enough to dangerous thresholds to warrant preemptive regulation",
+      "identified_turn": 5,
+      "state": "engaged",
+      "history": [
+        { "from": "identified", "to": "engaged", "turn": 6, "trigger": "skeptic challenged safetyist threshold claim" }
+      ],
+      "disagreement_type": "empirical",
+      "attacking_claim_ids": ["an-5"],
+      "speakers_involved": ["safetyist", "skeptic"],
+      "last_computed_strength": 0.6,
+      "support_polarity": -0.2
+    },
+    {
+      "id": "crux-2",
+      "description": "Whether innovation speed is a net positive when governance lags behind capabilities",
+      "identified_turn": 4,
+      "state": "identified",
+      "history": [],
+      "disagreement_type": "values",
+      "attacking_claim_ids": ["an-1"],
+      "speakers_involved": ["accelerationist", "safetyist"],
+      "last_computed_strength": 0.5,
+      "support_polarity": 0.1
+    }
+  ],
+  "last_qbaf_result": { "iterations": 3, "converged": true }
+}

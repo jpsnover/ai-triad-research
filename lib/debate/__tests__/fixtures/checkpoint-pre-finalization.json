@@ -1,0 +1,170 @@
+{
+  "id": "fixture-pre-finalization",
+  "title": "Fixture: Pre-Finalization Checkpoint",
+  "created_at": "2026-01-01T00:00:00Z",
+  "updated_at": "2026-01-01T00:10:00Z",
+  "phase": "debate",
+  "topic": {
+    "original": "Should AI development be regulated by international treaty?",
+    "refined": null,
+    "final": "Should AI development be regulated by international treaty?"
+  },
+  "source_type": "topic",
+  "source_ref": "",
+  "source_content": "",
+  "active_povers": ["accelerationist", "safetyist", "skeptic"],
+  "user_is_pover": false,
+  "transcript": [
+    {
+      "id": "e-open-1",
+      "timestamp": "2026-01-01T00:00:10Z",
+      "type": "opening",
+      "speaker": "accelerationist",
+      "content": "AI regulation through international treaties would stifle innovation.",
+      "taxonomy_refs": ["acc-beliefs-001"],
+      "metadata": {}
+    },
+    {
+      "id": "e-stmt-1",
+      "timestamp": "2026-01-01T00:01:00Z",
+      "type": "statement",
+      "speaker": "accelerationist",
+      "content": "Historical precedent shows premature regulation delays beneficial applications.",
+      "taxonomy_refs": ["acc-beliefs-002"],
+      "metadata": { "round": 1 }
+    },
+    {
+      "id": "e-stmt-2",
+      "timestamp": "2026-01-01T00:01:30Z",
+      "type": "statement",
+      "speaker": "safetyist",
+      "content": "Dual-use AI requires proactive governance frameworks.",
+      "taxonomy_refs": ["saf-desires-001"],
+      "metadata": { "round": 1 }
+    },
+    {
+      "id": "e-stmt-3",
+      "timestamp": "2026-01-01T00:02:00Z",
+      "type": "statement",
+      "speaker": "skeptic",
+      "content": "Current capabilities do not justify treaty overhead.",
+      "taxonomy_refs": ["skp-beliefs-002"],
+      "metadata": { "round": 1 }
+    },
+    {
+      "id": "e-synth",
+      "timestamp": "2026-01-01T00:08:00Z",
+      "type": "concluding",
+      "speaker": "system",
+      "content": "Full synthesis complete.",
+      "taxonomy_refs": [],
+      "metadata": {
+        "synthesis": {
+          "areas_of_agreement": [
+            { "point": "AI capabilities are advancing rapidly", "povers": ["accelerationist", "safetyist", "skeptic"] }
+          ],
+          "areas_of_disagreement": [
+            { "point": "Whether current AI capabilities warrant preemptive international regulation", "povers": ["accelerationist", "safetyist"] }
+          ],
+          "cruxes": [
+            { "description": "Proximity to dangerous capability thresholds", "sides": ["safetyist", "skeptic"] }
+          ],
+          "unresolved_questions": [
+            "What specific capabilities would trigger treaty-level governance?"
+          ],
+          "taxonomy_coverage": [
+            { "pov": "accelerationist", "covered": ["acc-beliefs-001", "acc-beliefs-002"], "gaps": [] },
+            { "pov": "safetyist", "covered": ["saf-beliefs-001", "saf-desires-001"], "gaps": [] },
+            { "pov": "skeptic", "covered": ["skp-beliefs-001", "skp-beliefs-002"], "gaps": [] }
+          ],
+          "argument_map": [
+            { "id": "am-1", "claim": "Premature regulation delays beneficial applications", "side": "accelerationist", "supports": [], "rebuts": ["am-2"] },
+            { "id": "am-2", "claim": "Dual-use AI requires proactive governance", "side": "safetyist", "supports": ["am-3"], "rebuts": [] },
+            { "id": "am-3", "claim": "International coordination prevents regulatory arbitrage", "side": "safetyist", "supports": [], "rebuts": [] }
+          ],
+          "preferences": [
+            { "conflict": "Regulation timing", "prevails": "safetyist", "criterion": "precautionary principle", "rationale": "Irreversibility of advanced AI deployment favors earlier governance" }
+          ],
+          "policy_implications": [
+            { "policy": "Establish an international AI safety monitoring body", "support": "strong", "rationale": "All perspectives acknowledge the need for capability tracking" }
+          ]
+        }
+      }
+    }
+  ],
+  "context_summaries": [],
+  "diagnostics": {
+    "enabled": true,
+    "entries": {},
+    "overview": {
+      "total_ai_calls": 20,
+      "total_response_time_ms": 16000,
+      "claims_accepted": 5,
+      "claims_rejected": 1,
+      "move_type_counts": { "assert": 3, "rebut": 2, "concede": 1 },
+      "disagreement_type_counts": { "empirical": 2, "values": 1 }
+    }
+  },
+  "argument_network": {
+    "nodes": [
+      { "id": "an-1", "text": "Premature regulation delays beneficial AI applications", "speaker": "accelerationist", "source_entry_id": "e-stmt-1", "taxonomy_refs": ["acc-beliefs-002"], "turn_number": 2, "base_strength": 0.7, "computed_strength": 0.65, "bdi_category": "belief" },
+      { "id": "an-2", "text": "AI innovation outpaces regulatory frameworks", "speaker": "accelerationist", "source_entry_id": "e-stmt-1", "taxonomy_refs": ["acc-beliefs-001"], "turn_number": 2, "base_strength": 0.6, "computed_strength": 0.55, "bdi_category": "belief" },
+      { "id": "an-3", "text": "Dual-use AI requires proactive governance", "speaker": "safetyist", "source_entry_id": "e-stmt-2", "taxonomy_refs": ["saf-desires-001"], "turn_number": 3, "base_strength": 0.75, "computed_strength": 0.7, "bdi_category": "desire" },
+      { "id": "an-4", "text": "International coordination prevents regulatory arbitrage", "speaker": "safetyist", "source_entry_id": "e-stmt-2", "taxonomy_refs": ["saf-beliefs-001"], "turn_number": 3, "base_strength": 0.65, "computed_strength": 0.6, "bdi_category": "belief" },
+      { "id": "an-5", "text": "Current AI capabilities do not justify treaty overhead", "speaker": "skeptic", "source_entry_id": "e-stmt-3", "taxonomy_refs": ["skp-beliefs-002"], "turn_number": 4, "base_strength": 0.55, "computed_strength": 0.5, "bdi_category": "belief" }
+    ],
+    "edges": [
+      { "id": "edge-1", "source": "an-5", "target": "an-3", "type": "attacks", "weight": 0.6 },
+      { "id": "edge-2", "source": "an-1", "target": "an-4", "type": "attacks", "weight": 0.5 },
+      { "id": "edge-3", "source": "an-3", "target": "an-4", "type": "supports", "weight": 0.7 }
+    ]
+  },
+  "commitments": {},
+  "crux_tracker": [
+    {
+      "id": "crux-1",
+      "description": "Whether current AI capabilities are close enough to dangerous thresholds to warrant preemptive regulation",
+      "identified_turn": 3,
+      "state": "engaged",
+      "history": [{ "from": "identified", "to": "engaged", "turn": 4, "trigger": "skeptic challenged threshold claim" }],
+      "disagreement_type": "empirical",
+      "attacking_claim_ids": ["an-5"],
+      "speakers_involved": ["safetyist", "skeptic"],
+      "last_computed_strength": 0.6,
+      "support_polarity": -0.2
+    },
+    {
+      "id": "crux-2",
+      "description": "Whether innovation speed is a net positive when governance lags",
+      "identified_turn": 2,
+      "state": "identified",
+      "history": [],
+      "disagreement_type": "values",
+      "attacking_claim_ids": ["an-1"],
+      "speakers_involved": ["accelerationist", "safetyist"],
+      "last_computed_strength": 0.5,
+      "support_polarity": 0.1
+    }
+  ],
+  "last_qbaf_result": { "iterations": 3, "converged": true },
+  "missing_arguments": [
+    {
+      "argument": "The enforcement mechanisms for international AI treaties remain undefined and historically weak for technology governance",
+      "side": "skeptic",
+      "why_strong": "Treaty enforcement is the weakest link in international technology governance — prior treaties on bioweapons and nuclear proliferation show significant compliance gaps",
+      "bdi_layer": "belief"
+    }
+  ],
+  "taxonomy_suggestions": [
+    {
+      "node_id": "saf-desires-001",
+      "node_label": "Proactive AI governance frameworks",
+      "node_pov": "safetyist",
+      "suggestion_type": "narrow",
+      "current_description": "Desire for proactive governance of AI development",
+      "proposed_description": "Desire for proactive international governance of dual-use AI capabilities, with specific treaty mechanisms for capability monitoring and compliance verification",
+      "rationale": "Debate evidence shows the safetyist position specifically targets international coordination, not just domestic regulation. The current description is too broad.",
+      "evidence_claim_ids": ["an-3", "an-4"]
+    }
+  ]
+}
