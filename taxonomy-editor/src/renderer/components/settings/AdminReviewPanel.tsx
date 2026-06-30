@@ -12,6 +12,7 @@ import { CommunityReviewViewer } from './CommunityReviewViewer';
 import { FeatureFlagsPanel } from './FeatureFlagsPanel';
 import './FeatureFlagsPanel.css';
 import { RuntimeConfigPanel } from './RuntimeConfigPanel';
+import { SupportAdminPanel } from './SupportAdminPanel';
 import './AdminReviewPanel.css';
 
 // ── Types mirroring server/admin/types.ts ──
@@ -512,7 +513,7 @@ function PaidFallbackKeySection() {
 
 // ── Main panel ──
 
-type AdminTab = 'reviews' | 'feedback' | 'flags' | 'config';
+type AdminTab = 'reviews' | 'feedback' | 'flags' | 'config' | 'support';
 
 export function AdminReviewPanel() {
   const [adminTab, setAdminTab] = useState<AdminTab>('reviews');
@@ -609,10 +610,14 @@ export function AdminReviewPanel() {
             onClick={() => setAdminTab('flags')}>Feature Flags</button>
           <button className={`admin-review-tab${adminTab === 'config' ? ' active' : ''}`}
             onClick={() => setAdminTab('config')}>Config</button>
+          <button className={`admin-review-tab${adminTab === 'support' ? ' active' : ''}`}
+            onClick={() => setAdminTab('support')}>Support</button>
         </div>
       </div>
 
-      {adminTab === 'config' ? (
+      {adminTab === 'support' ? (
+        <SupportAdminPanel />
+      ) : adminTab === 'config' ? (
         <>
           {!isElectronMode() && <PaidFallbackKeySection />}
           <RuntimeConfigPanel />
