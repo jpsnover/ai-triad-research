@@ -800,6 +800,35 @@ const rawApi: AppAPI = {
   // Web mode is same-origin; baseUrl is ignored and the relative path is used.
   communitySubmit: (_baseUrl, payload) => post('/api/community/submit', payload),
 
+  // Support cases
+  createSupportCase: (payload) => post('/api/support/cases', payload),
+  listSupportCases: () => get('/api/support/cases'),
+  getSupportCaseDetail: (caseId) => get(`/api/support/cases/${encodeURIComponent(caseId)}`),
+  uploadCaseAttachment: async (caseId, file) => {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await resilientFetch(`/api/support/cases/${encodeURIComponent(caseId)}/attachments`, {
+      method: 'POST',
+      body: form,
+    }, { timeoutMs: 60_000, maxRetries: 0, critical: true, category: 'mutation' as EndpointCategory });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error((err as { error?: string }).error ?? `Upload failed: ${res.status}`);
+    }
+    return res.json() as Promise<{ id: string; filename: string }>;
+  },
+  downloadCaseAttachment: async (caseId, attachmentId) => {
+    const res = await resilientFetch(
+      `/api/support/cases/${encodeURIComponent(caseId)}/attachments/${encodeURIComponent(attachmentId)}`,
+      {}, { timeoutMs: 30_000, maxRetries: 1, critical: true, category: 'read' as EndpointCategory },
+    );
+    if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+    return res.blob();
+  },
+  listAdminSupportCases: () => get('/api/admin/support/cases'),
+  respondToSupportCase: (caseId, body) => post(`/api/admin/support/cases/${encodeURIComponent(caseId)}/respond`, { body }),
+  updateSupportCaseStatus: (caseId, status) => put(`/api/admin/support/cases/${encodeURIComponent(caseId)}/status`, { status }),
+
   // Calibration
   getCalibrationHistory: () => get('/api/calibration/history').catch(bridgeWarn('getCalibrationHistory failed', { current: null, history: [] })),
   getCalibrationLog: () => get('/api/calibration/log').catch(bridgeWarn('getCalibrationLog failed', { entries: [], validationReport: null })),

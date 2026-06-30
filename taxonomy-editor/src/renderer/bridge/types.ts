@@ -34,6 +34,33 @@ export interface GroundingCitation {
   segments: GroundingSegment[];
 }
 
+export interface SupportCaseCreatePayload {
+  subject: string;
+  description: string;
+  priority: 'low' | 'medium' | 'high';
+  systemInfo: { appVersion: string; browser: string; os: string; deploymentMode: 'web' | 'electron' };
+}
+
+export interface SupportCaseSummary {
+  id: string;
+  subject: string;
+  status: string;
+  priority: string;
+  createdAt: string;
+  updatedAt: string;
+  attachmentCount: number;
+  responseCount: number;
+}
+
+export interface SupportCaseDetail extends SupportCaseSummary {
+  description: string;
+  resolvedAt?: string;
+  userDisplayName?: string;
+  attachments: { id: string; filename: string; mimeType: string; sizeBytes: number; uploadedAt: string }[];
+  responses: { id: string; authorId: string; body: string; createdAt: string }[];
+  systemInfo: SupportCaseCreatePayload['systemInfo'];
+}
+
 export interface AppAPI {
   // --- Taxonomy directories ---
   getTaxonomyDirs: () => Promise<string[]>;
@@ -211,6 +238,16 @@ export interface AppAPI {
   // Submit to a remote community server. In Electron this is proxied through the main
   // process (net.fetch) so it is not blocked by browser CORS; baseUrl is the server origin.
   communitySubmit: (baseUrl: string, payload: { type: 'chat' | 'debate'; data: unknown; note?: string }) => Promise<{ submissionId: string }>;
+
+  // --- Support cases ---
+  createSupportCase: (payload: SupportCaseCreatePayload) => Promise<{ id: string }>;
+  listSupportCases: () => Promise<SupportCaseSummary[]>;
+  getSupportCaseDetail: (caseId: string) => Promise<SupportCaseDetail>;
+  uploadCaseAttachment: (caseId: string, file: File) => Promise<{ id: string; filename: string }>;
+  downloadCaseAttachment: (caseId: string, attachmentId: string) => Promise<Blob>;
+  listAdminSupportCases: () => Promise<SupportCaseSummary[]>;
+  respondToSupportCase: (caseId: string, body: string) => Promise<{ id: string }>;
+  updateSupportCaseStatus: (caseId: string, status: string) => Promise<void>;
 
   // --- Calibration ---
   getCalibrationHistory: () => Promise<{ current: unknown; history: unknown[] }>;

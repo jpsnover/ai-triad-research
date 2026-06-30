@@ -219,6 +219,16 @@ export const api: AppAPI = {
   // Proxy through the main process so the cross-origin POST is not blocked by browser CORS.
   communitySubmit: (baseUrl, payload) => window.electronAPI.communitySubmit(baseUrl, payload),
 
+  // Support cases — desktop stubs (not supported in Electron per HLD)
+  createSupportCase: () => Promise.reject(new Error('Support cases are only available in the web app')),
+  listSupportCases: () => Promise.resolve([]),
+  getSupportCaseDetail: () => Promise.reject(new Error('Support cases are only available in the web app')),
+  uploadCaseAttachment: () => Promise.reject(new Error('Support cases are only available in the web app')),
+  downloadCaseAttachment: () => Promise.reject(new Error('Support cases are only available in the web app')),
+  listAdminSupportCases: () => Promise.resolve([]),
+  respondToSupportCase: () => Promise.reject(new Error('Support cases are only available in the web app')),
+  updateSupportCaseStatus: () => Promise.reject(new Error('Support cases are only available in the web app')),
+
   // Calibration
   getCalibrationHistory: () => window.electronAPI.getCalibrationHistory(),
   getCalibrationLog: () => window.electronAPI.getCalibrationLog(),
