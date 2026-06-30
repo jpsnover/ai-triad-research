@@ -1,3 +1,4 @@
+# Tag: health (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -8,7 +9,7 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
-Describe 'Test-AnonymousDebateFlow' {
+Describe 'Test-AnonymousDebateFlow' -Tag 'health' {
 
     It 'Is exported from the module' {
         Get-Command Test-AnonymousDebateFlow -Module AITriad -ErrorAction Stop | Should -Not -BeNullOrEmpty
@@ -21,7 +22,7 @@ Describe 'Test-AnonymousDebateFlow' {
         }
     }
 
-    It 'Returns 6 results on a fully passing run' {
+    It 'Returns 7 results on a fully passing run' {
         InModuleScope AITriad {
             Mock Invoke-RemoteCheck {
                 [PSCustomObject]@{
@@ -30,8 +31,8 @@ Describe 'Test-AnonymousDebateFlow' {
                 }
             }
             $result = Test-AnonymousDebateFlow -BaseUrl 'https://stub.example.com' 6>$null
-            @($result).Count | Should -Be 6
-            @($result | Where-Object { $_.Pass }).Count | Should -Be 6
+            @($result).Count | Should -Be 7
+            @($result | Where-Object { $_.Pass }).Count | Should -Be 7
         }
     }
 
@@ -94,9 +95,9 @@ Describe 'Test-AnonymousDebateFlow' {
                 }
             }
             $result = Test-AnonymousDebateFlow -BaseUrl 'https://stub.example.com' 6>$null
-            @($result).Count | Should -Be 6
+            @($result).Count | Should -Be 7
             @($result | Where-Object { -not $_.Pass }).Count | Should -Be 1
-            @($result | Where-Object { $_.Pass }).Count | Should -Be 5
+            @($result | Where-Object { $_.Pass }).Count | Should -Be 6
         }
     }
 
@@ -131,7 +132,7 @@ Describe 'Test-AnonymousDebateFlow' {
     }
 }
 
-Describe 'Test-AnonymousDebateFlow - manifest' {
+Describe 'Test-AnonymousDebateFlow - manifest' -Tag 'health' {
     It 'FunctionsToExport includes Test-AnonymousDebateFlow' {
         $manifestPath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psd1'
         $manifest = Test-ModuleManifest -Path $manifestPath

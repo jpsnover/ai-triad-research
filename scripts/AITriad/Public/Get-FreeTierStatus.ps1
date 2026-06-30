@@ -46,6 +46,7 @@ function Get-FreeTierStatus {
         '/api/auth/anonymous',
         '/api/ai/generate',
         '/api/embeddings/compute',
+        '/api/embeddings/query',
         '/api/debates/:id',
         '/api/flight-recorder/server-dump',
         '/api/flight-recorder/download-merged/:dumpId'

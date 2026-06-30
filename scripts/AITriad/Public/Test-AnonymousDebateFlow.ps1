@@ -7,7 +7,7 @@ function Test-AnonymousDebateFlow {
         End-to-end smoke test of the anonymous user journey against a deployed
         Taxonomy Editor.
     .DESCRIPTION
-        Exercises the six API steps an anonymous (free-tier) user touches when
+        Exercises the seven API steps an anonymous (free-tier) user touches when
         running a debate end-to-end:
 
           1. POST /api/auth/anonymous              — create session
@@ -16,8 +16,9 @@ function Test-AnonymousDebateFlow {
           4. PUT  /api/debates/{id}                — minimal debate JSON
           5. POST /api/flight-recorder/server-dump — trigger dump
           6. GET  /api/flight-recorder/download-merged/{dumpId} — download
+          7. POST /api/embeddings/query            — semantic search (t/1171)
 
-        Steps 2-6 share the session cookie issued by step 1. Step 6 uses the
+        Steps 2-7 share the session cookie issued by step 1. Step 6 uses the
         dumpId returned from step 5 (falls back to a sentinel if absent so
         the request still exercises the endpoint).
 
@@ -106,6 +107,12 @@ function Test-AnonymousDebateFlow {
            Desc = 'Download merged dump';
            BugTags = 't/1064'
            PostHook = $null }
+        @{ Step = 7; Method = 'POST'; Path = '/api/embeddings/query';
+           Body = @{ text = 'free-tier semantic search smoke' };
+           OkCodes = @(200);
+           Desc = 'Embeddings query (anon, semantic search)';
+           BugTags = 't/1171'
+           PostHook = $null }
     )
 
     $Results = [System.Collections.Generic.List[AnonymousFlowStepResult]]::new()
@@ -117,7 +124,7 @@ function Test-AnonymousDebateFlow {
             $Def.Path = "/api/flight-recorder/download-merged/$(if ($DumpId) { $DumpId } else { 'unknown' })"
         }
 
-        Write-Verbose "[$($Def.Step)/6] $($Def.Desc) → $($Def.Method) $($Def.Path)"
+        Write-Verbose "[$($Def.Step)/7] $($Def.Desc) → $($Def.Method) $($Def.Path)"
 
         $Params = @{
             BaseUrl               = $BaseUrl
@@ -156,7 +163,7 @@ function Test-AnonymousDebateFlow {
         if ($Detailed) {
             $Status = if ($R.Pass) { 'PASS' } else { 'FAIL' }
             $Color  = if ($R.Pass) { 'Green' } else { 'Red' }
-            Write-Host ("  [{0}/6] {1,-4} {2,-44} {3,5} ms  [{4}]" -f $Def.Step, $Status, $Def.Path, $R.Ms, $R.StatusCode) -ForegroundColor $Color
+            Write-Host ("  [{0}/7] {1,-4} {2,-44} {3,5} ms  [{4}]" -f $Def.Step, $Status, $Def.Path, $R.Ms, $R.StatusCode) -ForegroundColor $Color
             if (-not $R.Pass -and $R.Error) {
                 Write-Host "        $($R.Error)" -ForegroundColor DarkGray
             }
