@@ -269,3 +269,96 @@ describe('AI fault profiles × aiAdapter (Coherent Experience Checklist)', () =>
     }
   });
 });
+
+// ══════════════════════════════════════════════════════════
+
+describe('AbortSignal propagation (t/1159)', () => {
+
+  it('timeout aborts the in-flight fetch — signal.aborted becomes true', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+
+    let receivedSignal: AbortSignal | undefined;
+
+    vi.stubGlobal('fetch', async (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      receivedSignal = init?.signal ?? undefined;
+      return new Promise<Response>(() => {});
+    });
+
+    try {
+      const mod = await getModule();
+      const adapter = mod.createCLIAdapter('/fake/root');
+
+      const err = await runWithTimers(
+        adapter.generateText('test', 'gemini-2.5-flash', { timeoutMs: 5_000 }),
+      ).catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).toMatch(/timed out|aborted/i);
+      expect(receivedSignal).toBeDefined();
+      expect(receivedSignal!.aborted).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('external AbortSignal cancels in-flight fetch', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+
+    let receivedSignal: AbortSignal | undefined;
+
+    vi.stubGlobal('fetch', async (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      receivedSignal = init?.signal ?? undefined;
+      return new Promise<Response>(() => {});
+    });
+
+    try {
+      const mod = await getModule();
+      const adapter = mod.createCLIAdapter('/fake/root');
+
+      const externalController = new AbortController();
+      setTimeout(() => externalController.abort('user cancelled'), 2_000);
+
+      const err = await runWithTimers(
+        adapter.generateText('test', 'gemini-2.5-flash', {
+          timeoutMs: 60_000,
+          signal: externalController.signal,
+        }),
+      ).catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(Error);
+      expect(receivedSignal).toBeDefined();
+      expect(receivedSignal!.aborted).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('normal (non-timeout) calls still succeed with signal present', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+
+    let signalWasPresent = false;
+
+    vi.stubGlobal('fetch', async (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      signalWasPresent = init?.signal instanceof AbortSignal;
+      const body = JSON.stringify({
+        candidates: [{ content: { parts: [{ text: 'Hello' }] } }],
+        usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 },
+      });
+      return new Response(body, { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+
+    try {
+      const mod = await getModule();
+      const adapter = mod.createCLIAdapter('/fake/root');
+
+      const result = await runWithTimers(
+        adapter.generateText('test', 'gemini-2.5-flash', { timeoutMs: 30_000 }),
+      );
+
+      expect(result).toBe('Hello');
+      expect(signalWasPresent).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

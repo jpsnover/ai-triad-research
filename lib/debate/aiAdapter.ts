@@ -247,8 +247,12 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
     return /\b4\d{2}\b/.test(msg);
   }
 
+  function signalFetch(baseFetch: typeof globalThis.fetch, signal: AbortSignal): typeof globalThis.fetch {
+    return (input, init) => baseFetch(input, { ...init, signal });
+  }
+
   async function callWithTimeout(
-    fn: () => Promise<ProviderResult>,
+    fn: (signal: AbortSignal) => Promise<ProviderResult>,
     timeoutMs: number,
     externalSignal?: AbortSignal,
   ): Promise<ProviderResult> {
@@ -264,7 +268,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
       }, timeoutMs);
     });
     try {
-      return await Promise.race([fn(), timeoutPromise]);
+      return await Promise.race([fn(controller.signal), timeoutPromise]);
     } finally {
       clearTimeout(timer!);
     }
@@ -284,8 +288,8 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
     });
 
     const attemptCall = () => callWithTimeout(
-      () => withRetry(
-        () => callProvider(fetch, backend, prompt, apiModelId, apiKey, opts),
+      (signal) => withRetry(
+        () => callProvider(signalFetch(fetch, signal), backend, prompt, apiModelId, apiKey, opts),
         CLI_RETRY_CONFIG, `${backend}/${apiModelId}`, retryLog,
       ),
       timeoutMs,
@@ -344,8 +348,8 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
         const fbTimeoutMs = getDefaultTimeout(fbModel);
         const fbOpts = { ...opts, timeoutMs: fbTimeoutMs };
         const fbResult = await callWithTimeout(
-          () => withRetry(
-            () => callProvider(fetch, fb.backend, prompt, fb.apiModelId, fbKey, fbOpts),
+          (signal) => withRetry(
+            () => callProvider(signalFetch(fetch, signal), fb.backend, prompt, fb.apiModelId, fbKey, fbOpts),
             { ...CLI_RETRY_CONFIG, maxRetries: 2 }, `cascade:${fb.backend}/${fb.apiModelId}`, retryLog,
           ),
           fbTimeoutMs,
