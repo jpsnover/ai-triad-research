@@ -61,6 +61,33 @@ export interface SupportCaseDetail extends SupportCaseSummary {
   systemInfo: SupportCaseCreatePayload['systemInfo'];
 }
 
+export interface OrgPovStance { score: number; rationale?: string }
+export interface OrgTopicEngagement { topic_ref: string; stance?: string; description?: string }
+export interface OrgPolicyEngagement { policy_ref: string; stance: 'supports' | 'opposes' }
+
+export interface Organization {
+  id: string;
+  name: string;
+  short_name?: string;
+  type?: string;
+  description?: string;
+  url?: string;
+  headquarters?: string;
+  founded?: number;
+  status?: string;
+  pov_alignment?: Partial<Record<string, OrgPovStance>>;
+  topic_engagement?: OrgTopicEngagement[];
+  policy_engagement?: OrgPolicyEngagement[];
+  key_figures?: unknown[];
+  external_links?: unknown[];
+  source_refs?: string[];
+  tags?: string[];
+  created_at?: string;
+  last_modified?: string;
+}
+
+export interface OrgFilters { type?: string; pov?: string }
+
 export interface AppAPI {
   // --- Taxonomy directories ---
   getTaxonomyDirs: () => Promise<string[]>;
@@ -248,6 +275,13 @@ export interface AppAPI {
   listAdminSupportCases: () => Promise<SupportCaseSummary[]>;
   respondToSupportCase: (caseId: string, body: string) => Promise<{ id: string }>;
   updateSupportCaseStatus: (caseId: string, status: string) => Promise<void>;
+
+  // --- Organizations ---
+  listOrganizations: (filters?: OrgFilters) => Promise<Organization[]>;
+  getOrganization: (id: string) => Promise<Organization>;
+  getOrganizationsByPov: (pov: string) => Promise<Organization[]>;
+  getOrganizationsByTopic: (topicRef: string) => Promise<Organization[]>;
+  getOrganizationsByPolicy: (policyId: string) => Promise<Organization[]>;
 
   // --- Calibration ---
   getCalibrationHistory: () => Promise<{ current: unknown; history: unknown[] }>;

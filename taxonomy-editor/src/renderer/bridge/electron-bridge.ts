@@ -229,6 +229,13 @@ export const api: AppAPI = {
   respondToSupportCase: () => Promise.reject(new Error('Support cases are only available in the web app')),
   updateSupportCaseStatus: () => Promise.reject(new Error('Support cases are only available in the web app')),
 
+  // Organizations — desktop stubs (data not loaded in Electron initially)
+  listOrganizations: () => Promise.resolve([]),
+  getOrganization: () => Promise.reject(new Error('Organization data is not available in desktop mode')),
+  getOrganizationsByPov: () => Promise.resolve([]),
+  getOrganizationsByTopic: () => Promise.resolve([]),
+  getOrganizationsByPolicy: () => Promise.resolve([]),
+
   // Calibration
   getCalibrationHistory: () => window.electronAPI.getCalibrationHistory(),
   getCalibrationLog: () => window.electronAPI.getCalibrationLog(),

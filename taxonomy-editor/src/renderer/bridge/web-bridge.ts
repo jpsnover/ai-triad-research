@@ -829,6 +829,19 @@ const rawApi: AppAPI = {
   respondToSupportCase: (caseId, body) => post(`/api/admin/support/cases/${encodeURIComponent(caseId)}/respond`, { body }),
   updateSupportCaseStatus: (caseId, status) => put(`/api/admin/support/cases/${encodeURIComponent(caseId)}/status`, { status }),
 
+  // Organizations
+  listOrganizations: (filters) => {
+    const params = new URLSearchParams();
+    if (filters?.type) params.set('type', filters.type);
+    if (filters?.pov) params.set('pov', filters.pov);
+    const qs = params.toString();
+    return get(`/api/organizations${qs ? `?${qs}` : ''}`);
+  },
+  getOrganization: (id) => get(`/api/organizations/${encodeURIComponent(id)}`),
+  getOrganizationsByPov: (pov) => get(`/api/organizations/by-pov/${encodeURIComponent(pov)}`),
+  getOrganizationsByTopic: (topicRef) => get(`/api/organizations/by-topic/${encodeURIComponent(topicRef)}`),
+  getOrganizationsByPolicy: (policyId) => get(`/api/organizations/by-policy/${encodeURIComponent(policyId)}`),
+
   // Calibration
   getCalibrationHistory: () => get('/api/calibration/history').catch(bridgeWarn('getCalibrationHistory failed', { current: null, history: [] })),
   getCalibrationLog: () => get('/api/calibration/log').catch(bridgeWarn('getCalibrationLog failed', { entries: [], validationReport: null })),
