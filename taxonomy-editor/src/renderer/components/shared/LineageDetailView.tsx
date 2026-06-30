@@ -58,14 +58,22 @@ interface LineageDetailViewProps {
   onOpenLink?: (url: string) => void;
 }
 
+const POV_LABELS: Record<string, string> = {
+  accelerationist: 'Accelerationist',
+  safetyist: 'Safetyist',
+  skeptic: 'Skeptic',
+  cross_cutting: 'Cross-cutting',
+};
+
 export function LineageDetailView({ value, onSelectValue, onOpenLink }: LineageDetailViewProps) {
   const [secondaryValue, setSecondaryValue] = useState<string | null>(null);
   const [linkUrl, setLinkUrl] = useState<string | null>(null);
   const [refPreviewNodeId, setRefPreviewNodeId] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; key: string } | null>(null);
+  const [refPovFilter, setRefPovFilter] = useState<string | null>(null);
   const navigateToLineage = useTaxonomyStore(s => s.navigateToLineage);
 
-  useEffect(() => { setLinkUrl(null); setSecondaryValue(null); setRefPreviewNodeId(null); }, [value]);
+  useEffect(() => { setLinkUrl(null); setSecondaryValue(null); setRefPreviewNodeId(null); setRefPovFilter(null); }, [value]);
 
   useEffect(() => {
     if (!ctxMenu) return;
@@ -95,11 +103,39 @@ export function LineageDetailView({ value, onSelectValue, onOpenLink }: LineageD
     }
   }
 
+  const povCounts: Record<string, number> = {};
+  for (const ref of referencingNodes) {
+    povCounts[ref.pov] = (povCounts[ref.pov] ?? 0) + 1;
+  }
+  const filteredRefNodes = refPovFilter
+    ? referencingNodes.filter(r => r.pov === refPovFilter)
+    : referencingNodes;
+
   const renderReferencedBy = () => referencingNodes.length > 0 && (
     <div className="lineage-detail-section">
-      <div className="lineage-detail-label">Referenced By ({referencingNodes.length})</div>
+      <div className="lineage-detail-label" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span>Referenced By ({referencingNodes.length})</span>
+        <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
+          <button
+            className={`btn btn-xs${!refPovFilter ? '' : ' btn-ghost'}`}
+            onClick={() => setRefPovFilter(null)}
+            style={{ fontSize: '0.7rem', padding: '1px 6px' }}
+          >All</button>
+          {Object.entries(povCounts).map(([pov, count]) => (
+            <button
+              key={pov}
+              className={`btn btn-xs${refPovFilter === pov ? '' : ' btn-ghost'}`}
+              onClick={() => setRefPovFilter(refPovFilter === pov ? null : pov)}
+              style={{ fontSize: '0.7rem', padding: '1px 6px' }}
+            >
+              <span className={`pov-badge pov-badge-${pov.slice(0, 3)}`} style={{ fontSize: '0.65rem', marginRight: 3 }}>{pov.slice(0, 3).toUpperCase()}</span>
+              {POV_LABELS[pov] ?? pov} ({count})
+            </button>
+          ))}
+        </span>
+      </div>
       <div className="lineage-detail-links">
-        {referencingNodes.map(ref => (
+        {filteredRefNodes.map(ref => (
           <button
             key={ref.id}
             className={`btn btn-sm${refPreviewNodeId === ref.id ? '' : ' btn-ghost'} lineage-ref-item`}
