@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { getModelCapabilities, filterByCapabilities } from './registry.js';
+import { getModelCapabilities, filterByCapabilities, estimateCost } from './registry.js';
 import type { ModelRegistry } from './registry.js';
 
 const TEST_REGISTRY: ModelRegistry = {
@@ -24,6 +24,10 @@ const TEST_REGISTRY: ModelRegistry = {
   },
   modelCapabilities: {
     'openai-gpt-image-1': { supportsTools: false, supportsVision: false, supportsStreaming: false },
+  },
+  pricing: {
+    'gemini-2.5-flash': { inputPer1M: 0.3, outputPer1M: 2.5, cachedInputPer1M: 0.075 },
+    'gpt-4o': { inputPer1M: 5, outputPer1M: 15 },
   },
 };
 
@@ -98,5 +102,72 @@ describe('filterByCapabilities', () => {
   it('returns empty array when no models match', () => {
     const result = filterByCapabilities(TEST_REGISTRY, ['ollama-gemma'], { supportsTools: true });
     expect(result).toEqual([]);
+  });
+});
+
+describe('estimateCost', () => {
+  it('calculates cost from input and output tokens', () => {
+    const cost = estimateCost(TEST_REGISTRY, 'gpt-4o', {
+      promptTokens: 1000,
+      completionTokens: 500,
+    });
+    // (1000/1M)*5 + (500/1M)*15 = 0.005 + 0.0075 = 0.0125
+    expect(cost).toBeCloseTo(0.0125, 6);
+  });
+
+  it('uses cachedInputPer1M rate for cached tokens when available', () => {
+    const cost = estimateCost(TEST_REGISTRY, 'gemini-2.5-flash', {
+      promptTokens: 10000,
+      completionTokens: 2000,
+      cachedTokens: 8000,
+    });
+    // nonCached: (2000/1M)*0.3 = 0.0006
+    // cached: (8000/1M)*0.075 = 0.0006
+    // output: (2000/1M)*2.5 = 0.005
+    // total = 0.0062
+    expect(cost).toBeCloseTo(0.0062, 6);
+  });
+
+  it('uses full input rate for cached tokens when cachedInputPer1M is absent', () => {
+    const cost = estimateCost(TEST_REGISTRY, 'gpt-4o', {
+      promptTokens: 1000,
+      completionTokens: 0,
+      cachedTokens: 500,
+    });
+    // nonCached: (500/1M)*5 = 0.0025
+    // cached: (500/1M)*5 = 0.0025 (no cachedInputPer1M, uses inputPer1M)
+    // output: 0
+    // total = 0.005
+    expect(cost).toBeCloseTo(0.005, 6);
+  });
+
+  it('returns undefined for unknown model', () => {
+    const cost = estimateCost(TEST_REGISTRY, 'unknown-model', {
+      promptTokens: 1000,
+      completionTokens: 500,
+    });
+    expect(cost).toBeUndefined();
+  });
+
+  it('returns undefined when registry has no pricing', () => {
+    const noPricingRegistry: ModelRegistry = { ...TEST_REGISTRY, pricing: undefined };
+    const cost = estimateCost(noPricingRegistry, 'gpt-4o', {
+      promptTokens: 1000,
+      completionTokens: 500,
+    });
+    expect(cost).toBeUndefined();
+  });
+
+  it('handles zero tokens gracefully', () => {
+    const cost = estimateCost(TEST_REGISTRY, 'gpt-4o', {
+      promptTokens: 0,
+      completionTokens: 0,
+    });
+    expect(cost).toBe(0);
+  });
+
+  it('handles missing token counts as zero', () => {
+    const cost = estimateCost(TEST_REGISTRY, 'gpt-4o', {});
+    expect(cost).toBe(0);
   });
 });

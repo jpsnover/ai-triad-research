@@ -1,13 +1,19 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { BackendId, ModelCapabilities } from './types.js';
+import type { BackendId, ModelCapabilities, TokenUsage } from './types.js';
 
 export interface ModelEntry {
   id: string;
   apiModelId: string;
   label: string;
   backend: string;
+}
+
+export interface ModelPricing {
+  inputPer1M: number;
+  outputPer1M: number;
+  cachedInputPer1M?: number;
 }
 
 export interface ModelRegistry {
@@ -19,6 +25,7 @@ export interface ModelRegistry {
   debateTiers?: Record<string, Record<string, string>>;
   capabilityDefaults?: Record<string, Partial<ModelCapabilities>>;
   modelCapabilities?: Record<string, Partial<ModelCapabilities>>;
+  pricing?: Record<string, ModelPricing>;
 }
 
 export function resolveBackend(model: string): BackendId {
@@ -146,4 +153,23 @@ export function filterByCapabilities(
     if (required.supportsStreaming && !caps.supportsStreaming) return false;
     return true;
   });
+}
+
+export function estimateCost(
+  registry: ModelRegistry,
+  apiModelId: string,
+  usage: TokenUsage,
+): number | undefined {
+  const p = registry.pricing?.[apiModelId];
+  if (!p) return undefined;
+  const inputTokens = usage.promptTokens ?? 0;
+  const outputTokens = usage.completionTokens ?? 0;
+  const cachedTokens = usage.cachedTokens ?? 0;
+  const nonCachedInput = Math.max(0, inputTokens - cachedTokens);
+  const cachedCost = p.cachedInputPer1M != null
+    ? (cachedTokens / 1_000_000) * p.cachedInputPer1M
+    : (cachedTokens / 1_000_000) * p.inputPer1M;
+  const inputCost = (nonCachedInput / 1_000_000) * p.inputPer1M;
+  const outputCost = (outputTokens / 1_000_000) * p.outputPer1M;
+  return inputCost + cachedCost + outputCost;
 }

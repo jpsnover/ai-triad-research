@@ -28,12 +28,15 @@ export interface GenerateOptions {
   tools?: ToolDefinition[];
   /** Task purpose for tiered model routing (e.g., 'summarization', 'draft'). */
   purpose?: string;
+  /** Maximum accumulated cost (USD) before subsequent calls throw a budget-exceeded error. */
+  maxCostUsd?: number;
 }
 
 export interface ProviderResult {
   text: string;
   usage?: TokenUsage;
   toolCalls?: ToolCall[];
+  estimatedCostUsd?: number;
 }
 
 export interface TokenUsage {
@@ -45,12 +48,19 @@ export interface TokenUsage {
 
 export type RateLimitType = 'RPM' | 'TPM' | 'RPD' | 'unknown';
 
+export interface RateLimitHeaders {
+  retryAfterSeconds?: number;
+  remaining?: number;
+  resetAtEpochSeconds?: number;
+}
+
 export interface RetryProgress {
   attempt: number;
   maxRetries: number;
   backoffSeconds: number;
   limitType: RateLimitType;
   limitMessage: string;
+  rateLimitHeaders?: RateLimitHeaders;
 }
 
 export type BackendId = 'gemini' | 'claude' | 'groq' | 'openai' | 'azure' | 'ollama' | 'deepseek';

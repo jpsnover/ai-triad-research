@@ -1,10 +1,10 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-export type { GenerateOptions, ProviderResult, TokenUsage, RateLimitType, RetryProgress, BackendId, ApiKeyBackend, FetchFn, ToolDefinition, ToolCall, ToolResult, ModelCapabilities } from './types.js';
-export type { ModelEntry, ModelRegistry } from './registry.js';
-export { resolveBackend, resolveModel, buildModelIdMap, getApiModelId, getDefaultTimeout, getModelCapabilities, filterByCapabilities } from './registry.js';
-export { withTimeout, withRetry, retryableFetch, parseRateLimitType, CLI_RETRY_CONFIG, SERVER_RETRY_CONFIG } from './retry.js';
+export type { GenerateOptions, ProviderResult, TokenUsage, RateLimitType, RateLimitHeaders, RetryProgress, BackendId, ApiKeyBackend, FetchFn, ToolDefinition, ToolCall, ToolResult, ModelCapabilities } from './types.js';
+export type { ModelEntry, ModelRegistry, ModelPricing } from './registry.js';
+export { resolveBackend, resolveModel, buildModelIdMap, getApiModelId, getDefaultTimeout, getModelCapabilities, filterByCapabilities, estimateCost } from './registry.js';
+export { withTimeout, withRetry, retryableFetch, parseRateLimitType, parseRateLimitHeaders, CLI_RETRY_CONFIG, SERVER_RETRY_CONFIG } from './retry.js';
 export type { RetryConfig } from './retry.js';
 export { generateViaGemini, GEMINI_BASE, GEMINI_SAFETY_SETTINGS, toGeminiSchema } from './providers/gemini.js';
 export { generateViaClaude } from './providers/claude.js';

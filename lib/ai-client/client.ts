@@ -1,9 +1,10 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import { ActionableError } from '../debate/errors.js';
 import type { FetchFn, GenerateOptions, ProviderResult, BackendId } from './types.js';
 import type { ModelRegistry } from './registry.js';
-import { resolveModel, getDefaultTimeout } from './registry.js';
+import { resolveModel, getDefaultTimeout, estimateCost } from './registry.js';
 import { withRetry, type RetryConfig, CLI_RETRY_CONFIG } from './retry.js';
 import { generateViaGemini } from './providers/gemini.js';
 import { generateViaClaude } from './providers/claude.js';
@@ -48,8 +49,17 @@ export function createAIClient(
   registry: ModelRegistry,
   retryConfig: RetryConfig = CLI_RETRY_CONFIG,
 ): AIClient {
+  let accumulatedCostUsd = 0;
   return {
     async generateText(prompt: string, model: string, opts?: GenerateOptions): Promise<ProviderResult> {
+      if (opts?.maxCostUsd != null && accumulatedCostUsd >= opts.maxCostUsd) {
+        throw new ActionableError({
+          goal: 'Generate text via AI',
+          problem: `Budget exceeded: accumulated cost $${accumulatedCostUsd.toFixed(4)} >= cap $${opts.maxCostUsd.toFixed(4)}`,
+          location: 'ai-client.createAIClient',
+          nextSteps: ['Increase the budget cap', 'Start a new session to reset the budget', 'Switch to a cheaper model'],
+        });
+      }
       const { apiModelId, backend } = resolveModel(registry, model);
       const apiKey = await deps.resolveApiKey(backend);
       const effectiveOpts = { ...opts, timeoutMs: opts?.timeoutMs ?? getDefaultTimeout(model) };
@@ -60,6 +70,12 @@ export function createAIClient(
         `${backend}/${apiModelId}`,
         deps.onRetryLog,
       );
+      if (result.usage) {
+        result.estimatedCostUsd = estimateCost(registry, apiModelId, result.usage);
+        if (result.estimatedCostUsd != null) {
+          accumulatedCostUsd += result.estimatedCostUsd;
+        }
+      }
       deps.onUsage?.(backend, apiModelId, performance.now() - t0, result.usage);
       return result;
     },

@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { ActionableError } from '../debate/errors.js';
-import type { RateLimitType, RetryProgress, FetchFn } from './types.js';
+import type { RateLimitType, RateLimitHeaders, RetryProgress, FetchFn } from './types.js';
 
 export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
@@ -27,6 +27,37 @@ export function parseRateLimitType(bodyText: string): { limitType: RateLimitType
     if (msg) return { limitType: 'unknown', limitMessage: msg };
   } catch { /* not JSON */ }
   return { limitType: 'unknown', limitMessage: 'Rate limited by API. Retrying with exponential backoff.' };
+}
+
+export function parseRateLimitHeaders(headers: Headers): RateLimitHeaders {
+  const result: RateLimitHeaders = {};
+
+  const retryAfter = headers.get('retry-after');
+  if (retryAfter != null) {
+    const seconds = Number(retryAfter);
+    if (!Number.isNaN(seconds) && seconds >= 0) {
+      result.retryAfterSeconds = seconds;
+    } else {
+      const date = new Date(retryAfter);
+      if (!isNaN(date.getTime())) {
+        result.retryAfterSeconds = Math.max(0, Math.ceil((date.getTime() - Date.now()) / 1000));
+      }
+    }
+  }
+
+  const remaining = headers.get('x-ratelimit-remaining');
+  if (remaining != null) {
+    const n = Number(remaining);
+    if (!Number.isNaN(n)) result.remaining = n;
+  }
+
+  const reset = headers.get('x-ratelimit-reset');
+  if (reset != null) {
+    const n = Number(reset);
+    if (!Number.isNaN(n)) result.resetAtEpochSeconds = n;
+  }
+
+  return result;
 }
 
 export interface RetryConfig {
@@ -116,6 +147,7 @@ export async function retryableFetch(opts: {
       let retryBody = '';
       try { retryBody = await response.text(); } catch { /* ignore */ }
       const { limitType, limitMessage } = parseRateLimitType(retryBody);
+      const rateLimitHeaders = parseRateLimitHeaders(response.headers);
       if (limitType === 'RPD') {
         throw new ActionableError({
           goal: `Generate text via ${opts.label}`,
@@ -136,8 +168,11 @@ export async function retryableFetch(opts: {
           nextSteps: ['Wait a minute and retry', 'Switch to a different AI provider (Settings → AI Model)', 'Check the API provider status page'],
         });
       }
-      const backoff = Math.min(2 ** attempt, config.maxBackoffS ?? 30);
-      opts.onRetry?.({ attempt, maxRetries: config.maxRetries, backoffSeconds: backoff, limitType, limitMessage });
+      const exponentialBackoff = Math.min(2 ** attempt, config.maxBackoffS ?? 30);
+      const backoff = rateLimitHeaders.retryAfterSeconds != null
+        ? Math.min(rateLimitHeaders.retryAfterSeconds, config.maxBackoffS ?? 30)
+        : exponentialBackoff;
+      opts.onRetry?.({ attempt, maxRetries: config.maxRetries, backoffSeconds: backoff, limitType, limitMessage, rateLimitHeaders });
       await new Promise(r => setTimeout(r, backoff * 1000));
       continue;
     }
