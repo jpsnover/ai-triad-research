@@ -2627,7 +2627,7 @@ export class DebateEngine {
     this.progress('clarification', undefined, 'Synthesizing refined topic');
     const qaPairs = questionTexts.map(q => `Q: ${q}\nA: [Automated: The debate should explore this from all three perspectives.]`).join('\n\n');
     const concludingPromptText = concludingPrompt(this.config.topic, qaPairs, this.config.audience, undefined, lineageCtx);
-    const synthText = await this.generate(concludingPromptText, 'Topic synthesis', 60_000);
+    const synthText = await this.generate(concludingPromptText, 'Topic synthesis', 180_000);
 
     try {
       const parsed = parseJsonRobust(synthText) as { refined_topic?: string };
@@ -4425,7 +4425,7 @@ export class DebateEngine {
         this.config.audience,
       );
 
-      const text = await this.generate(prompt, 'Missing arguments pass', 60_000);
+      const text = await this.generate(prompt, 'Missing arguments pass', 180_000);
       const parsed = parseJsonRobust(text) as { missing_arguments?: unknown[] };
       if (parsed.missing_arguments && Array.isArray(parsed.missing_arguments)) {
         this.session.missing_arguments = parsed.missing_arguments.slice(0, 5);
@@ -4499,7 +4499,7 @@ export class DebateEngine {
         this.config.audience,
       );
 
-      const text = await this.generate(prompt, 'Taxonomy refinement pass', 60_000);
+      const text = await this.generate(prompt, 'Taxonomy refinement pass', 180_000);
       const parsed = parseJsonRobust(text) as { taxonomy_suggestions?: unknown[] };
       if (parsed.taxonomy_suggestions && Array.isArray(parsed.taxonomy_suggestions)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -5430,7 +5430,7 @@ Return ONLY JSON (no markdown, no code fences):
     let text: string;
     const extractStart = Date.now();
     try {
-      text = await this.generateWithEvaluator(prompt, 'Claim extraction', 60_000);
+      text = await this.generateWithEvaluator(prompt, 'Claim extraction', 180_000);
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'ai.error', component: 'debate-engine', level: 'error', debate_id: this.session?.id, message: `Claim extraction adapter error for ${POVER_INFO[speaker].label}`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       trace.status = 'adapter_error';

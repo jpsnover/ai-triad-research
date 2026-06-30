@@ -54,7 +54,7 @@ export async function generateViaClaude(
     'Claude API request',
   );
 
-  const bodyText = await withTimeout(response.text(), 60_000, 'Reading Claude response');
+  const bodyText = await withTimeout(response.text(), 180_000, 'Reading Claude response');
 
   if (response.status === 429 || response.status === 503) {
     throw new ActionableError({
@@ -76,7 +76,7 @@ export async function generateViaClaude(
       timeoutMs,
       'Claude API request (retry without temperature)',
     );
-    const retryBodyText = await withTimeout(retryResponse.text(), 60_000, 'Reading Claude retry response');
+    const retryBodyText = await withTimeout(retryResponse.text(), 180_000, 'Reading Claude retry response');
     if (!retryResponse.ok) {
       throw new ActionableError({
         goal: 'Generate text via Claude',
