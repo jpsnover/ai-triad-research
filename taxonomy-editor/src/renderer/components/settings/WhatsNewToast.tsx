@@ -14,6 +14,16 @@ interface WhatsNewToastProps {
 export function WhatsNewToast({ onOpenChangelog }: WhatsNewToastProps) {
   const [visible, setVisible] = useState(false);
 
+  const dismiss = useCallback(() => {
+    setVisible(false);
+    localStorage.setItem(STORAGE_KEY, __APP_VERSION__);
+  }, []);
+
+  const handleClick = useCallback(() => {
+    dismiss();
+    onOpenChangelog();
+  }, [dismiss, onOpenChangelog]);
+
   useEffect(() => {
     const lastSeen = localStorage.getItem(STORAGE_KEY);
     if (lastSeen !== __APP_VERSION__) {
@@ -27,17 +37,7 @@ export function WhatsNewToast({ onOpenChangelog }: WhatsNewToastProps) {
       dismiss();
     }, 8000);
     return () => clearTimeout(t);
-  }, [visible]);
-
-  const dismiss = useCallback(() => {
-    setVisible(false);
-    localStorage.setItem(STORAGE_KEY, __APP_VERSION__);
-  }, []);
-
-  const handleClick = useCallback(() => {
-    dismiss();
-    onOpenChangelog();
-  }, [dismiss, onOpenChangelog]);
+  }, [visible, dismiss]);
 
   if (!visible) return null;
 
