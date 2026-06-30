@@ -16,6 +16,7 @@ import { useDiagnosticsState } from './useDiagnosticsState';
 import { DiagSearchContext, SearchBar, speakerLabel } from './helpers';
 import { OverviewTabRouter } from './OverviewTabRouter';
 import { EntryDetailRouter } from './EntryDetailRouter';
+import { CopyLinkButton } from '../../shared/CopyLinkButton';
 import type { OverviewTab } from './types';
 
 // ---------------------------------------------------------------------------
@@ -258,6 +259,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
     an, commitments,
     nodeWeights, proxiedModeratorTrace,
     effectiveOverviewTab, perTurnUtilities, matchCount, sq,
+    deepLinkError,
   } = state;
 
   const entryIdx = entry ? debate?.transcript.findIndex(e => e.id === entry.id) ?? -1 : -1;
@@ -303,7 +305,11 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
       </div>
 
       {showHelp && <HelpContent />}
-      {!debate && !showHelp && <p style={{ color: 'var(--text-muted)' }}>Waiting for debate data from main window...</p>}
+      {!debate && !showHelp && (
+        deepLinkError
+          ? <p style={{ color: 'var(--error, #ef4444)', padding: '1rem' }}>{deepLinkError}</p>
+          : <p style={{ color: 'var(--text-muted)' }}>Waiting for debate data from main window...</p>
+      )}
 
       {/* ── Main content area ── */}
       {debate && (
@@ -331,6 +337,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               { id: 'prompt-diff', label: 'Prompt Diff', visible: true },
               { id: 'utility', label: 'Agent Utility', visible: hasAn },
               { id: 'exclusion-overview', label: 'Exclusion Guard', visible: true },
+              { id: 'emotional-register', label: 'Emotional Register', visible: true },
             ];
             return (
               <div style={{
@@ -358,12 +365,12 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         {debate.transcript.map((e, i) => {
                           const stmtId = `S${i + 1}`;
                           return (
-                            <button
+                            <div
                               key={e.id}
                               data-entry-id={e.id}
                               onClick={() => { setSelectedEntry(e.id); setLocalOverride(true); }}
                               style={{
-                                display: 'block', width: '100%', textAlign: 'left',
+                                display: 'flex', alignItems: 'center', width: '100%',
                                 padding: '2px 6px', fontSize: '0.6rem',
                                 border: 'none', borderRadius: 3, cursor: 'pointer',
                                 background: selectedEntry === e.id ? 'rgba(249,115,22,0.12)' : 'transparent',
@@ -372,9 +379,12 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               }}
                               title={`${speakerLabel(e.speaker)} [${e.type}]: ${e.content.slice(0, 80)}`}
                             >
-                              <span style={{ color: '#f97316', fontWeight: 700, marginRight: 4 }}>{stmtId}</span>
-                              {speakerLabel(e.speaker)}
-                            </button>
+                              <span style={{ color: '#f97316', fontWeight: 700, marginRight: 4, flexShrink: 0 }}>{stmtId}</span>
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>{speakerLabel(e.speaker)}</span>
+                              <span onClick={(ev) => ev.stopPropagation()} style={{ flexShrink: 0 }}>
+                                <CopyLinkButton hash={`#diagnostics-window?debateId=${debate.id}&entry=${i}&tab=${entryTab}`} title="Copy link to this entry" />
+                              </span>
+                            </div>
                           );
                         })}
                       </div>

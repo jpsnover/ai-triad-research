@@ -16,6 +16,7 @@ import { PromptDetailPanel } from './PromptsPanel';
 import type { PromptCatalogEntry } from '../../data/promptCatalog';
 import { PROMPT_CATALOG } from '../../data/promptCatalog';
 import { ToolbarPaneRenderer, isFullWidthPanel, PhoneToolClose } from '../shared/ToolbarPaneRenderer';
+import { CopyLinkButton } from '../shared/CopyLinkButton';
 import { LineageDetailView } from '../shared/LineageDetailView';
 import { POVER_INFO } from '../../types/debate';
 import type { ChatSessionSummary, ChatMode, ChatSession } from '../../types/chat';
@@ -192,13 +193,16 @@ export function ChatTab() {
                       <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}>No</button>
                     </div>
                   ) : (
-                    <button
-                      className="chat-session-item-delete"
-                      title="Delete chat"
-                      onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(s.id); }}
-                    >
-                      &times;
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 2 }} onClick={(e) => e.stopPropagation()}>
+                      <CopyLinkButton hash={`#chat-window?id=${s.id}`} title="Copy link to this chat" />
+                      <button
+                        className="chat-session-item-delete"
+                        title="Delete chat"
+                        onClick={() => setConfirmDeleteId(s.id)}
+                      >
+                        &times;
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}
