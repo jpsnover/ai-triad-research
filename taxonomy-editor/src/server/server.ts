@@ -38,6 +38,7 @@ import { runWithUser, getCurrentUser, getCurrentUserId, getStorageUserId, setSes
 import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies, hasEasyAuthSessionCookie, resolveTestPersonaOverride } from './security/accessControl.js';
 import { sanitizeUserText } from './security/contentSanitizer.js';
 import { getRollbackStatus } from './rollbackStatus.js';
+import { LLMS_TXT } from './llmsTxt.js';
 import { getAllFlags, listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
 import { writeDump, isValidDumpId, readMergedDump } from './flightRecorderDumps.js';
 import { drainServerLogLines } from './serverLogBuffer.js';
@@ -446,6 +447,17 @@ get('/health', async (_req, res) => {
 });
 
 // ── Taxonomy directories ──
+
+// t/1143: llms.txt convention (https://llmstxt.org) — a public, static markdown
+// file so IDE agents / AI tools get structured context about the app instead of
+// parsing raw SPA HTML. Static + cacheable.
+get('/llms.txt', (_req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/markdown; charset=utf-8',
+    'Cache-Control': 'public, max-age=3600',
+  });
+  res.end(LLMS_TXT);
+});
 
 get('/api/taxonomy-dirs', async (_req, res) => {
   json(res, await fileIO.getTaxonomyDirs());
@@ -4070,6 +4082,7 @@ async function handleRequestInner(
     || urlPath === '/api/auth/logout' // t/897: logout must work even for authed-but-unauthorized users
     || urlPath.startsWith('/api/auth/fresh-login/') // t/1032: pre-auth fresh sign-in (clears stale cookies, then OAuth)
     || urlPath === '/api/diagnostics/sw-state' // t/1128: pre-auth SW-state beacon from the login page
+    || urlPath === '/llms.txt' // t/1143: public llms.txt discovery file
     || urlPath === '/api/config/client' // t/927: public client config subset (no secrets)
     || urlPath === '/api/user/profile'
     || urlPath === '/api/sync/webhook/github'
