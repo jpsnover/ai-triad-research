@@ -43,6 +43,7 @@ class MemBackend implements StorageBackend {
   async deleteFile(filePath: string): Promise<void> { this.files.delete(this.norm(filePath)); }
   async fileExists(filePath: string): Promise<boolean> { return this.files.has(this.norm(filePath)); }
   async readBinaryFile(): Promise<Buffer | null> { return null; }
+  async writeBinaryFile(): Promise<void> { /* stub */ }
 
   // Test helpers
   put(absPath: string, content: string) { this.files.set(this.norm(absPath), content); }
