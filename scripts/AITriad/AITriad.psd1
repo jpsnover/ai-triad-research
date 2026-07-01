@@ -151,6 +151,13 @@
         'Set-TriadConfig'
         'Invoke-TriadConfigReload'
         'Invoke-VernacularBatch'
+        # t/1224 — Organization data model
+        'Get-Organization'
+        'Find-OrganizationByPOV'
+        'Find-OrganizationByTopic'
+        'Get-OrganizationStakeholders'
+        'Import-Organization'
+        'Compare-OrganizationPositions'
     )
 
     # Aliases exported from this module
