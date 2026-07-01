@@ -484,6 +484,7 @@ const _driverChannel = typeof BroadcastChannel !== 'undefined'
 const _windowId = typeof crypto !== 'undefined' && crypto.randomUUID
   ? crypto.randomUUID() : `w-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 let _activeDriverWindow: string | null = null;
+let _isPopoutWindow = false;
 
 function reloadActiveDebateFromStorage(): void {
   const debateId = useDebateStore.getState().activeDebateId;
@@ -497,7 +498,7 @@ if (_driverChannel) {
     const { type, windowId } = e.data as { type: string; windowId: string };
     if (type === 'claim') {
       _activeDriverWindow = windowId;
-      if (windowId !== _windowId) {
+      if (windowId !== _windowId && !_isPopoutWindow) {
         useDebateStore.setState({ driverIsRemote: true });
       }
     }
@@ -537,6 +538,13 @@ export function releaseDebateDriver(): void {
 
 export function resetDebateDriverLock(): void {
   _activeDriverWindow = null;
+}
+
+export function markAsPopout(): void {
+  _isPopoutWindow = true;
+  _activeDriverWindow = _windowId;
+  useDebateStore.setState({ driverIsRemote: false });
+  _driverChannel?.postMessage({ type: 'claim', windowId: _windowId });
 }
 
 export function initDebatePopoutCloseHandler(api: { onDebatePopoutClosed: (cb: () => void) => () => void }): () => void {

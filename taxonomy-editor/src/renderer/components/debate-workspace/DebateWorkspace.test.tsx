@@ -32,7 +32,10 @@ const mockStore: Record<string, any> = {
 vi.mock('../../hooks/useDebateStore', () => ({
   useDebateStore: Object.assign(
     (selector: any) => selector(mockStore),
-    { getState: () => mockStore },
+    {
+      getState: () => mockStore,
+      setState: (partial: Record<string, any>) => Object.assign(mockStore, partial),
+    },
   ),
 }));
 
@@ -92,8 +95,12 @@ vi.mock('@bridge', () => ({
   },
 }));
 
+const mockMarkAsPopout = vi.fn(() => {
+  mockStore.driverIsRemote = false;
+});
 vi.mock('../../hooks/useDebateStore/helpers', () => ({
   initDebatePopoutCloseHandler: vi.fn(() => vi.fn()),
+  markAsPopout: (...args: any[]) => mockMarkAsPopout(...args),
 }));
 
 vi.mock('@lib/flight-recorder/index', () => ({
@@ -706,5 +713,19 @@ describe('remote driver overlay', () => {
     render(<DebateWorkspace />);
     expect(screen.getByTestId('debate-actions')).toBeInTheDocument();
     expect(screen.queryByText(/Debate running in popout window/)).toBeNull();
+  });
+
+  it('markAsPopout resets driverIsRemote to false (t/1274)', () => {
+    mockStore.driverIsRemote = true;
+    mockMarkAsPopout();
+    expect(mockStore.driverIsRemote).toBe(false);
+  });
+
+  it('does not show remote overlay after markAsPopout even if driverIsRemote was set (t/1274)', () => {
+    mockStore.driverIsRemote = true;
+    mockMarkAsPopout();
+    const { container } = render(<DebateWorkspace />);
+    expect(container.querySelector('.debate-remote-overlay')).toBeNull();
+    expect(screen.getByTestId('debate-actions')).toBeInTheDocument();
   });
 });

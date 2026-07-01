@@ -10,11 +10,13 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../../hooks/useDebateStore';
+import { markAsPopout } from '../../hooks/useDebateStore/helpers';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { DebateWorkspace } from '../debate-workspace';
 import { parseDebateHash, shouldShowLoadError, type DebateLoadTarget } from './popoutLoad';
 
 export function DebatePopoutWindow() {
+  useEffect(() => { markAsPopout(); }, []);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const activeDebateId = useDebateStore(s => s.activeDebateId);
