@@ -1333,8 +1333,13 @@ post('/api/ai/generate', async (req, res, body) => {
       data: { model: requestModel, backend, tier: tier.level, promptLength: prompt?.length ?? 0, debateId },
     });
 
+    const usageOverrides = {
+      ...(effectiveModel ? { model: effectiveModel } : {}),
+      ...(timeout ? { timeoutMs: timeout } : {}),
+    };
+
     if (search) {
-      const result = await ai.generateTextWithSearch(prompt, effectiveModel, explicitKey);
+      const result = await ai.generateTextWithSearchByUsage('server.search', { prompt }, effectiveModel ? { model: effectiveModel } : undefined, explicitKey);
 
       getGlobalRecorder()?.record({
         type: 'ai.response', component: 'ai-generate', level: 'info',
@@ -1347,7 +1352,7 @@ post('/api/ai/generate', async (req, res, body) => {
     } else {
       let result: Awaited<ReturnType<typeof ai.generateText>>;
       try {
-        result = await ai.generateText(prompt, effectiveModel, undefined, timeout, explicitKey);
+        result = await ai.generateTextByUsage('server.chat-response', { prompt }, usageOverrides, undefined, explicitKey);
       } catch (genErr) {
         // t/948: paid Gemini fallback for the free tier. When the entire free pool
         // is rate-limited (upstream 429), retry once with the admin-registered paid
@@ -1365,7 +1370,7 @@ post('/api/ai/generate', async (req, res, body) => {
         // exit cooldown so the next request reverts to the free pool.
         await new Promise(r => setTimeout(r, 3000));
         try {
-          result = await ai.generateText(prompt, effectiveModel, undefined, timeout, paidKey);
+          result = await ai.generateTextByUsage('server.chat-response:paid-fallback', { prompt }, usageOverrides, undefined, paidKey);
           getGlobalRecorder()?.record({
             type: 'ai.response', component: 'ai-generate', level: 'info', duration_ms: Date.now() - t0,
             message: `Paid fallback succeeded for ${backend}/${requestModel}`,
@@ -1447,7 +1452,7 @@ post('/api/ai/generate', async (req, res, body) => {
 post('/api/ai/search', async (_req, res, body) => {
   const { prompt, model } = body as { prompt: string; model?: string };
   try {
-    json(res, await ai.generateTextWithSearch(prompt, model));
+    json(res, await ai.generateTextWithSearchByUsage('server.search', { prompt }, model ? { model } : undefined));
   } catch (err) {
     if (ai.isContextTooLongError(err)) {
       log.server.warn({ component: 'ai-search', model: model ?? 'default' }, 'AI search input exceeds model context window');
@@ -1967,7 +1972,7 @@ post('/api/debates/:id/news-report', async (req, res) => {
 
     const audience = (session.audience as string | undefined) ?? undefined;
     const prompt = newsReportPrompt(topic, synthesisJson, argSummary, highlights, docAnalysis, undefined, audience as import('../../../lib/debate/types.js').DebateAudience | undefined);
-    const result = await ai.generateText(prompt);
+    const result = await ai.generateTextByUsage('server.news-report', { prompt });
     json(res, { article: result.text });
   } catch (err) { error(res, String(err), 500, err); }
 });

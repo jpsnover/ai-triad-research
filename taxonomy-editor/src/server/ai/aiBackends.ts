@@ -32,6 +32,9 @@ import {
   callGeminiBatchEmbed,
   geminiGroundedSearch,
   DEFAULT_MODEL,
+  getUsage,
+  renderTemplate,
+  type UsageConfig,
   type GenerateOptions,
   type ProviderResult,
   type RateLimitType,
@@ -363,6 +366,7 @@ export async function generateText(
   onRetry?: (p: GenerateTextProgress) => void,
   timeoutMs?: number,
   explicitApiKey?: string | string[],
+  options?: { temperature?: number },
 ): Promise<GenerateResult> {
   const resolved = model || DEFAULT_MODEL;
   // t/846: an explicit key may now be a single string or an array (free-tier
@@ -398,7 +402,7 @@ export async function generateText(
 
     const apiModel = getApiModelId(currentModel);
     const opts: GenerateOptions = {
-      temperature: _debateTemperature ?? 0.7,
+      temperature: options?.temperature ?? _debateTemperature ?? 0.7,
       timeoutMs: timeoutMs ?? getDefaultTimeout(currentModel),
     };
 
@@ -490,6 +494,66 @@ export async function generateTextWithSearch(
 
   const apiModel = getApiModelId(resolved);
   return geminiGroundedSearch(fetch, prompt, apiModel, apiKey);
+}
+
+// ── UsageID wrappers (t/1262) ──
+
+/**
+ * Resolve AI call parameters from the UsageID registry, then delegate to
+ * generateText(). Tier-based model overrides and key rotation are preserved —
+ * the registry provides defaults; the caller passes overrides for tier pinning.
+ */
+export async function generateTextByUsage(
+  usageId: string,
+  values: Record<string, string>,
+  overrides?: Partial<UsageConfig>,
+  onRetry?: (p: GenerateTextProgress) => void,
+  explicitApiKey?: string | string[],
+): Promise<GenerateResult> {
+  const repoRoot = getProjectRoot();
+  const config = getUsage(usageId, repoRoot);
+  const merged = overrides ? { ...config, ...overrides } : config;
+
+  const prompt = merged.messageTemplate
+    ? renderTemplate(merged.messageTemplate, values)
+    : merged.message ?? values.prompt ?? '';
+
+  getGlobalRecorder()?.record({
+    type: 'ai.call_by_usage', component: 'ai-backends', level: 'info',
+    message: `generateTextByUsage: ${usageId}`,
+    data: { usageId, model: merged.model, hasOverrides: !!overrides, valueKeys: Object.keys(values) },
+  });
+
+  return generateText(prompt, merged.model, onRetry, merged.timeoutMs, explicitApiKey, { temperature: merged.temperature });
+}
+
+/**
+ * UsageID wrapper for search — resolves config from the registry, then
+ * delegates to generateTextWithSearch(). The execution path (Gemini grounding
+ * or Tavily augmentation) is unchanged; the registry provides observability
+ * and centralized parameter defaults.
+ */
+export async function generateTextWithSearchByUsage(
+  usageId: string,
+  values: Record<string, string>,
+  overrides?: Partial<UsageConfig>,
+  explicitApiKey?: string | string[],
+): Promise<{ text: string; searchQueries?: string[]; citations?: SharedGroundingCitation[] }> {
+  const repoRoot = getProjectRoot();
+  const config = getUsage(usageId, repoRoot);
+  const merged = overrides ? { ...config, ...overrides } : config;
+
+  const prompt = merged.messageTemplate
+    ? renderTemplate(merged.messageTemplate, values)
+    : merged.message ?? values.prompt ?? '';
+
+  getGlobalRecorder()?.record({
+    type: 'ai.call_by_usage', component: 'ai-backends', level: 'info',
+    message: `generateTextWithSearchByUsage: ${usageId}`,
+    data: { usageId, model: merged.model, hasOverrides: !!overrides, valueKeys: Object.keys(values) },
+  });
+
+  return generateTextWithSearch(prompt, merged.model, explicitApiKey);
 }
 
 // ── Embeddings ──
