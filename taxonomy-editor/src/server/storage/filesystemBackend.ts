@@ -5,6 +5,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import type { StorageBackend } from './storageBackend.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
+import { renameWithRetry } from '../../../../lib/debate/persistence.js';
 
 /**
  * FilesystemBackend — local disk implementation of StorageBackend.
@@ -14,6 +15,29 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
  * gracefully (no throws for ENOENT).
  */
 export class FilesystemBackend implements StorageBackend {
+  private async renameWithRetry(oldPath: string, newPath: string): Promise<void> {
+    const maxRetries = 5;
+    for (let i = 0; i <= maxRetries; i++) {
+      try {
+        await fs.rename(oldPath, newPath);
+        return;
+      } catch (err: unknown) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if ((code === 'EPERM' || code === 'EACCES') && i < maxRetries) {
+          const delayMs = 50 * Math.pow(2, i);
+          getGlobalRecorder()?.record({
+            type: 'io.retry', component: 'filesystem-backend', level: 'warn',
+            message: `rename failed (${code}), retry ${i + 1}/${maxRetries} after ${delayMs}ms`,
+            data: { oldPath, newPath, attempt: i + 1, code, delayMs },
+          });
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          continue;
+        }
+        throw err;
+      }
+    }
+  }
+
   async readFile(filePath: string): Promise<string | null> {
     try {
       return await fs.readFile(filePath, 'utf-8');
@@ -34,7 +58,7 @@ export class FilesystemBackend implements StorageBackend {
     await fs.mkdir(path.dirname(filePath), { recursive: true });
     const tmpPath = filePath + '.tmp';
     await fs.writeFile(tmpPath, content, 'utf-8');
-    await fs.rename(tmpPath, filePath);
+    await this.renameWithRetry(tmpPath, filePath);
   }
 
   async listDirectory(dirPath: string): Promise<string[]> {
@@ -85,7 +109,7 @@ export class FilesystemBackend implements StorageBackend {
     await fs.mkdir(path.dirname(filePath), { recursive: true });
     const tmpPath = filePath + '.tmp';
     await fs.writeFile(tmpPath, content);
-    await fs.rename(tmpPath, filePath);
+    await this.renameWithRetry(tmpPath, filePath);
   }
 
   async readBinaryFile(filePath: string): Promise<Buffer | null> {
