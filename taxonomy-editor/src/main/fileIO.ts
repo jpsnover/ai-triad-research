@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 
 import { app } from 'electron';
 import { ActionableError } from '../../../lib/debate/errors.js';
+import { renameSyncWithRetry } from '../../../lib/debate/persistence.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { parseNpy, extractNodeVectors } from '../../../lib/npy.js';
 
@@ -248,7 +249,7 @@ function writeJsonFileAtomic(filePath: string, data: unknown): void {
   const tmpPath = filePath + '.tmp';
   try {
     fs.writeFileSync(tmpPath, content, 'utf-8');
-    fs.renameSync(tmpPath, filePath);
+    renameSyncWithRetry(tmpPath, filePath);
   } catch (err) {
     getGlobalRecorder()?.record({
       type: 'system.error',
