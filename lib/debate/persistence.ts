@@ -38,6 +38,59 @@ export function safeSerialize(value: unknown, indent: number = 2): { json: strin
 }
 
 /**
+ * Rename with exponential-backoff retry for transient Windows file locks.
+ * EPERM / EACCES on rename are almost always caused by antivirus, search
+ * indexer, or another process briefly holding the target file open.
+ */
+export function renameSyncWithRetry(oldPath: string, newPath: string, maxRetries = 5): void {
+  for (let i = 0; i <= maxRetries; i++) {
+    try {
+      fs.renameSync(oldPath, newPath);
+      return;
+    } catch (err: unknown) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if ((code === 'EPERM' || code === 'EACCES') && i < maxRetries) {
+        const delayMs = 50 * Math.pow(2, i);
+        getGlobalRecorder()?.record({
+          type: 'io.retry', component: 'persistence', level: 'warn',
+          message: `renameSyncWithRetry failed (${code}), retry ${i + 1}/${maxRetries} after ${delayMs}ms`,
+          data: { oldPath, newPath, attempt: i + 1, code, delayMs },
+        });
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
+/**
+ * Async rename with exponential-backoff retry for transient Windows file locks.
+ */
+export async function renameWithRetry(oldPath: string, newPath: string, maxRetries = 5): Promise<void> {
+  const fsPromises = await import('fs/promises');
+  for (let i = 0; i <= maxRetries; i++) {
+    try {
+      await fsPromises.rename(oldPath, newPath);
+      return;
+    } catch (err: unknown) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if ((code === 'EPERM' || code === 'EACCES') && i < maxRetries) {
+        const delayMs = 50 * Math.pow(2, i);
+        getGlobalRecorder()?.record({
+          type: 'io.retry', component: 'persistence', level: 'warn',
+          message: `renameWithRetry failed (${code}), retry ${i + 1}/${maxRetries} after ${delayMs}ms`,
+          data: { oldPath, newPath, attempt: i + 1, code, delayMs },
+        });
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
+/**
  * Write content to a file atomically — writes to a temp file then renames.
  * On same-filesystem rename is atomic, so a crash mid-write can't produce
  * a truncated target file.
@@ -46,7 +99,7 @@ export function atomicWriteSync(filePath: string, content: string): void {
   const tmpPath = `${filePath}.tmp`;
   fs.writeFileSync(tmpPath, content, 'utf-8');
   try {
-    fs.renameSync(tmpPath, filePath);
+    renameSyncWithRetry(tmpPath, filePath);
   } catch (err) {
     try { fs.unlinkSync(tmpPath); } catch { /* best-effort cleanup */ }
     throw err;

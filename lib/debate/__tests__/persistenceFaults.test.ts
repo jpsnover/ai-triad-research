@@ -316,3 +316,64 @@ describe('partial result preservation under write failures', () => {
     expect(fs.existsSync(`${checkpointFile}.tmp`)).toBe(false);
   });
 });
+
+// ── EPERM/EACCES retry on rename (t/1271) ─────────────
+
+describe('atomicWriteSync EPERM retry (t/1271)', () => {
+  const testFile = tmpPath('eperm-retry.json');
+
+  afterEach(() => cleanup(testFile));
+
+  it('retries on EPERM and succeeds when lock clears', () => {
+    let callCount = 0;
+    const origRename = fs.renameSync;
+    const spy = vi.spyOn(fs, 'renameSync').mockImplementation((...args: Parameters<typeof fs.renameSync>) => {
+      callCount++;
+      if (callCount <= 2) throw makeStorageError('EPERM', 'operation not permitted');
+      spy.mockRestore();
+      return origRename(...args);
+    });
+
+    atomicWriteSync(testFile, '{"recovered":true}');
+    expect(callCount).toBe(3);
+    expect(JSON.parse(fs.readFileSync(testFile, 'utf-8'))).toEqual({ recovered: true });
+    expect(fs.existsSync(`${testFile}.tmp`)).toBe(false);
+  });
+
+  it('retries on EACCES and succeeds when lock clears', () => {
+    let callCount = 0;
+    const origRename = fs.renameSync;
+    const spy = vi.spyOn(fs, 'renameSync').mockImplementation((...args: Parameters<typeof fs.renameSync>) => {
+      callCount++;
+      if (callCount <= 1) throw makeStorageError('EACCES', 'permission denied');
+      spy.mockRestore();
+      return origRename(...args);
+    });
+
+    atomicWriteSync(testFile, '{"recovered":true}');
+    expect(callCount).toBe(2);
+    expect(JSON.parse(fs.readFileSync(testFile, 'utf-8'))).toEqual({ recovered: true });
+  });
+
+  it('throws after exhausting all retries on persistent EPERM', () => {
+    const spy = vi.spyOn(fs, 'renameSync').mockImplementation(() => {
+      throw makeStorageError('EPERM', 'operation not permitted');
+    });
+
+    expect(() => atomicWriteSync(testFile, '{"data":true}')).toThrow('EPERM');
+    // 1 initial + 5 retries = 6 calls
+    expect(spy).toHaveBeenCalledTimes(6);
+    expect(fs.existsSync(`${testFile}.tmp`)).toBe(false);
+    spy.mockRestore();
+  });
+
+  it('does NOT retry on non-transient errors (EXDEV)', () => {
+    const spy = vi.spyOn(fs, 'renameSync').mockImplementation(() => {
+      throw makeStorageError('EXDEV', 'cross-device link not permitted');
+    });
+
+    expect(() => atomicWriteSync(testFile, '{"data":true}')).toThrow('EXDEV');
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
+  });
+});
