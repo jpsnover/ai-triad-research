@@ -2707,6 +2707,7 @@ ${disagreements}
 ${argumentMap}
 
 Tasks:
+0. **TOPIC RESOLUTION (required).** The reader's first question is "what did the debate conclude about what I actually asked?" Restate the original debate question — "${topic}" — as one sentence, then answer it directly across all three perspectives: name where they converged, where they remain genuinely split, and the one crux that would most move the outcome. This is a direct answer to the original question, not a summary of the agreement/disagreement lists.
 1. For each disagreement, evaluate which position is STRONGER and why.
    Apply these preference criteria (in order of priority):
    a. "empirical_evidence" — which position cites more or better evidence?
@@ -2731,6 +2732,11 @@ After completing your analysis, review every free-text field before writing the 
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
+  "topic_resolution": {
+    "restated_question": "<the debate's original question, one crisp sentence>",
+    "where_it_landed": "<2-4 sentences: directly answer the question across the three perspectives — what each concluded, where they converged, where they remain split. NOT a rehash of the agreement/disagreement lists.>",
+    "what_would_resolve_it": "<the single most decisive crux whose resolution would most change positions>"
+  },
   "preferences": [
     {"conflict": "description of disagreement", "claim_ids": ["C1", "C2"], "prevails": "C2 or undecidable", "criterion": "empirical_evidence or logical_validity or source_authority or specificity or scope", "rationale": "2-3 sentences explaining why", "what_would_change_this": "what evidence would flip the verdict"}
   ],

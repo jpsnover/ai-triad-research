@@ -49,7 +49,7 @@ export interface SynthesisPhaseResult {
 const PHASE_KEYS = {
   extract: ['areas_of_agreement', 'areas_of_disagreement', 'cruxes', 'unresolved_questions'],
   map: ['taxonomy_coverage', 'argument_map', 'taxonomy_proposals', 'taxonomy_modifications'],
-  evaluate: ['preferences', 'policy_implications'],
+  evaluate: ['preferences', 'policy_implications', 'topic_resolution'],
 } as const;
 
 function mergePhaseData(

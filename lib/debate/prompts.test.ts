@@ -938,7 +938,13 @@ describe('synthesis prompts', () => {
     it('returns a non-empty string with evaluation schema', () => {
       const result = synthEvaluatePrompt(TOPIC, '[]', '[]');
       expectNonEmpty(result);
-      expectContains(result, '"preferences"', '"policy_implications"');
+      expectContains(result, '"preferences"', '"policy_implications"', '"topic_resolution"');
+    });
+
+    it('includes topic resolution instruction referencing the topic', () => {
+      const result = synthEvaluatePrompt('Should AI be regulated?', '[]', '[]');
+      expectContains(result, 'TOPIC RESOLUTION', 'restated_question', 'where_it_landed', 'what_would_resolve_it');
+      expect(result).toContain('Should AI be regulated?');
     });
   });
 

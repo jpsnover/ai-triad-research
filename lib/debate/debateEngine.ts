@@ -4365,6 +4365,21 @@ export class DebateEngine {
 
     // Format readable content
     const lines: string[] = [];
+
+    const topicRes = concludingData.topic_resolution as { restated_question?: string; where_it_landed?: string; what_would_resolve_it?: string } | undefined;
+    if (topicRes?.restated_question) {
+      lines.push(`**${topicRes.restated_question}**`);
+      lines.push('');
+      if (topicRes.where_it_landed) {
+        lines.push(topicRes.where_it_landed);
+        lines.push('');
+      }
+      if (topicRes.what_would_resolve_it) {
+        lines.push(`*Decisive crux: ${topicRes.what_would_resolve_it}*`);
+        lines.push('');
+      }
+    }
+
     const agreements = concludingData.areas_of_agreement as { point: string; povers: string[] }[] | undefined;
     const disagreements = concludingData.areas_of_disagreement as { point: string; positions: { pover: string; stance: string }[] }[] | undefined;
     const cruxes = concludingData.cruxes as { question: string; type?: string }[] | undefined;
