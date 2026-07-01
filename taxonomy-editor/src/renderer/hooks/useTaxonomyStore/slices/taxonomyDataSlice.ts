@@ -98,6 +98,7 @@ export interface TaxonomyDataSlice {
   dirty: Set<string>;
   validationErrors: ValidationErrors;
   saveError: string | null;
+  loadError: string | null;
   integrityIssues: ValidationIssue[];
   fixIntegrityErrors: () => void;
   loading: boolean;
@@ -179,6 +180,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
   dirty: new Set(),
   validationErrors: {},
   saveError: null,
+  loadError: null,
   integrityIssues: [],
   loading: false,
   backgroundLoading: false,
@@ -216,7 +218,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       'Accelerationist', 'Safetyist', 'Skeptic', 'Situations',
       'Policy Registry',
     ];
-    set({ loading: true, backgroundLoading: false, loadingProgress: { completed: [], total: steps.length } });
+    set({ loading: true, backgroundLoading: false, loadError: null, loadingProgress: { completed: [], total: steps.length } });
 
     const track = <T,>(label: string, promise: Promise<T>): Promise<T> =>
       promise.then((result) => {
@@ -294,7 +296,8 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       });
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Failed to load taxonomy data', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      set({ loading: false, backgroundLoading: false, saveError: mapErrorToUserMessage(err) });
+      const msg = mapErrorToUserMessage(err);
+      set({ loading: false, backgroundLoading: false, saveError: msg, loadError: msg });
     }
   },
 

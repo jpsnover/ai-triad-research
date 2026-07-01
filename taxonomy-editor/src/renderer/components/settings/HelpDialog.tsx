@@ -43,7 +43,7 @@ const DOCS = [
     desc: 'Convergence diagnostics and phase transition design' },
   { title: 'Full Methodology Paper', path: 'docs/academic-paper-draft.md',
     desc: 'Complete technical paper with algorithms, evaluation, and theoretical grounding' },
-  { title: 'Epistemic Infrastructure Framing', path: 'research/comp-linguist/epistemic-infrastructure-framing.md',
+  { title: 'Epistemic Infrastructure Framing', path: 'research/comp-linguist/analyses/epistemic-infrastructure-framing.md',
     desc: 'The AI Rosetta Stone as epistemic infrastructure for multi-perspective policy analysis' },
   { title: 'Troubleshooting', path: 'docs/troubleshooting.md',
     desc: 'Known issues and their workarounds' },

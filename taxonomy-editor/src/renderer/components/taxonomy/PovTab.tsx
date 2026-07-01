@@ -131,7 +131,7 @@ const PIPELINE_TIMEOUT_MS = 30_000;
 const COLD_START_THRESHOLD_MS = 3_000;
 
 function DataRecovery({ pov }: { pov: string }) {
-  const { loadAll } = useTaxonomyStore();
+  const { loadAll, loadError } = useTaxonomyStore();
   const [steps, setSteps] = useState<RecoveryStep[]>(
     STEP_LABELS.map(label => ({ label, status: 'pending', detail: '' })),
   );
@@ -297,6 +297,16 @@ function DataRecovery({ pov }: { pov: string }) {
   }, [loadAll, pov, updateStep]);
 
   useEffect(() => {
+    if (loadError) {
+      setSteps(prev => prev.map((s, i) => i < 3
+        ? { ...s, status: 'ok', detail: 'prior attempt' }
+        : { ...s, status: 'error', detail: 'Load failed', error: loadError },
+      ));
+      setActiveStep(3);
+      setFailures(1);
+      setDiagnostics(`loadAll: FAILED — ${loadError} (prior attempt)`);
+      return;
+    }
     void runPipeline(0);
     return () => { abortRef.current?.abort(); };
   }, []);

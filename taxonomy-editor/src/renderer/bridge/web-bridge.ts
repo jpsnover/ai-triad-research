@@ -100,6 +100,15 @@ async function get<T = unknown>(path: string, opts?: FetchOptions): Promise<T> {
       nextSteps: ['Check the server is running', 'Verify your authentication'],
     }));
   }
+  const ct = res.headers.get('content-type') || '';
+  if (ct.includes('text/html')) {
+    throw new ActionableError({
+      goal: 'Load data from server',
+      problem: 'Server returned a login page instead of JSON data — authentication may be required',
+      location: `web-bridge.get ${path}`,
+      nextSteps: ['Sign in or navigate to /.auth/anonymous to start an anonymous session'],
+    });
+  }
   return res.json();
 }
 
@@ -189,6 +198,15 @@ async function post<T = unknown>(path: string, body?: unknown, opts?: FetchOptio
       nextSteps: ['Check the server is running', 'Verify your authentication'],
     }));
   }
+  const postCt = res.headers.get('content-type') || '';
+  if (postCt.includes('text/html')) {
+    throw new ActionableError({
+      goal: 'Send data to server',
+      problem: 'Server returned a login page instead of JSON data — authentication may be required',
+      location: `web-bridge.post ${path}`,
+      nextSteps: ['Sign in or navigate to /.auth/anonymous to start an anonymous session'],
+    });
+  }
   return res.json();
 }
 
@@ -222,6 +240,15 @@ async function put<T = unknown>(path: string, body?: unknown, opts?: FetchOption
       nextSteps: ['Check the server is running', 'Verify your authentication'],
     }));
   }
+  const putCt = res.headers.get('content-type') || '';
+  if (putCt.includes('text/html')) {
+    throw new ActionableError({
+      goal: 'Update data on server',
+      problem: 'Server returned a login page instead of JSON data — authentication may be required',
+      location: `web-bridge.put ${path}`,
+      nextSteps: ['Sign in or navigate to /.auth/anonymous to start an anonymous session'],
+    });
+  }
   return res.json();
 }
 
@@ -250,6 +277,15 @@ async function del<T = unknown>(path: string, opts?: FetchOptions): Promise<T> {
       location: 'web-bridge.del',
       nextSteps: ['Check the server is running', 'Verify your authentication'],
     }));
+  }
+  const delCt = res.headers.get('content-type') || '';
+  if (delCt.includes('text/html')) {
+    throw new ActionableError({
+      goal: 'Delete data on server',
+      problem: 'Server returned a login page instead of JSON data — authentication may be required',
+      location: `web-bridge.del ${path}`,
+      nextSteps: ['Sign in or navigate to /.auth/anonymous to start an anonymous session'],
+    });
   }
   return res.json();
 }
