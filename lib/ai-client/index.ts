@@ -23,3 +23,6 @@ export { callProvider, createAIClient } from './client.js';
 export { DEFAULT_MODEL, DEFAULT_TEMPERATURE } from './defaults.js';
 export type { UsageConfig, UsageRegistry, UsageValidationError } from './usageTypes.js';
 export { renderTemplate, loadUsageRegistry, validateUsageConfig } from './usageTypes.js';
+export { loadModelRegistry } from './registry.js';
+export type { UsageCallDeps } from './usageRegistry.js';
+export { callByUsage, getUsage, listUsages, clearUsageRegistryCache } from './usageRegistry.js';

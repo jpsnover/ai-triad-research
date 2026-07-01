@@ -1,6 +1,9 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { ActionableError } from '../debate/errors.js';
 import type { BackendId, ModelCapabilities, TokenUsage } from './types.js';
 
 export interface ModelEntry {
@@ -172,4 +175,27 @@ export function estimateCost(
   const inputCost = (nonCachedInput / 1_000_000) * p.inputPer1M;
   const outputCost = (outputTokens / 1_000_000) * p.outputPer1M;
   return inputCost + cachedCost + outputCost;
+}
+
+export function loadModelRegistry(repoRoot: string): ModelRegistry {
+  const configPath = path.join(repoRoot, 'ai-models.json');
+  if (!fs.existsSync(configPath)) {
+    throw new ActionableError({
+      goal: 'Load AI model registry',
+      problem: `Model registry not found at: ${configPath}`,
+      location: 'registry.loadModelRegistry',
+      nextSteps: ['Run from the ai-triad-research repo root', 'Check ai-models.json exists'],
+    });
+  }
+  try {
+    return JSON.parse(fs.readFileSync(configPath, 'utf-8')) as ModelRegistry;
+  } catch (err) {
+    throw new ActionableError({
+      goal: 'Parse AI model registry',
+      problem: `Failed to parse model registry at ${configPath}: ${err instanceof Error ? err.message : err}`,
+      location: 'registry.loadModelRegistry',
+      nextSteps: ['Check ai-models.json for JSON syntax errors'],
+      innerError: err,
+    });
+  }
 }

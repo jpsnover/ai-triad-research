@@ -12,6 +12,7 @@ export type EventType =
   | 'ai.error'
   | 'ai.retry'
   | 'ai.fallback'
+  | 'ai.call_by_usage'
   // Argument network
   | 'an.extract'
   | 'an.commit'
