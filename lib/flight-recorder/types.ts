@@ -38,6 +38,7 @@ export type EventType =
   | 'turn.evidence'
   | 'turn.citation_bank'
   | 'turn.cite_quality'
+  | 'turn.hallucinated_refs'
   | 'turn.quality_gate'
   | 'turn.micro-fix-preserved'
   | 'turn.orchestration.retry_decision'
@@ -91,9 +92,10 @@ export type EventType =
   | 'sync.conflict'
   // Overlay operations
   | 'overlay.commit'
-  // Storage
+  // Storage / IO
   | 'storage.mode'
   | 'storage.fallback'
+  | 'io.retry'
   // Lock instrumentation
   | 'lock.acquire_attempt'
   | 'lock.acquired'
