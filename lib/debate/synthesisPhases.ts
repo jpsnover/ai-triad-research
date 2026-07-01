@@ -14,6 +14,8 @@ import {
 } from './prompts.js';
 import { formatCruxResolutionContext } from './cruxResolution.js';
 import { parseJsonRobust, stripCodeFences, extractArraysFromPartialJson } from './helpers.js';
+import type { UsageCallDeps } from '../ai-client/usageRegistry.js';
+import { callByUsage } from '../ai-client/usageRegistry.js';
 
 // ── Types ────────────────────────────────────────────────
 
@@ -107,9 +109,16 @@ export async function runSynthesisPhases(
   warn?: SynthesisWarnFn,
   checkAborted?: () => void,
   maxPhase?: number,
+  usageDeps?: UsageCallDeps,
 ): Promise<SynthesisPhaseResult> {
   const start = Date.now();
   const data: Record<string, unknown> = {};
+
+  const synthGenerate = usageDeps
+    ? async (usageId: string, prompt: string, label: string) =>
+        (await callByUsage(usageId, { prompt }, usageDeps)).text
+    : async (_usageId: string, prompt: string, label: string) =>
+        generate(prompt, label);
 
   const policyContext = input.policyLines?.length
     ? `\n\n=== POLICY REGISTRY (reference pol-NNN IDs for policy implications) ===\n${input.policyLines.slice(0, 10).join('\n')}`
@@ -122,7 +131,8 @@ export async function runSynthesisPhases(
   // Phase 1: Extract core synthesis
   checkAborted?.();
   onProgress?.(1, 'Phase 1/3: Extracting agreements and disagreements');
-  const extractRaw = await generate(
+  const extractRaw = await synthGenerate(
+    'synthesis.extract',
     synthExtractPrompt(input.topic, input.transcript, input.audience, cruxContext),
     'Synthesis Phase 1: Extract',
   );
@@ -144,7 +154,8 @@ export async function runSynthesisPhases(
   checkAborted?.();
   onProgress?.(2, 'Phase 2/3: Building argument map');
   const disagreementsSummary = JSON.stringify(extractData.areas_of_disagreement ?? []);
-  const mapRaw = await generate(
+  const mapRaw = await synthGenerate(
+    'synthesis.map',
     synthMapPrompt(input.topic, input.transcript, disagreementsSummary, input.hasSourceDoc ?? false, input.audience),
     'Synthesis Phase 2: Map',
   );
@@ -156,7 +167,8 @@ export async function runSynthesisPhases(
   if (!Array.isArray(argMapArr) || argMapArr.length === 0) {
     warn?.('Synthesis Phase 2', 'argument_map is empty — retrying with focused extraction', 'One retry attempt');
     checkAborted?.();
-    const retryRaw = await generate(
+    const retryRaw = await synthGenerate(
+      'synthesis.map',
       synthMapPrompt(input.topic, input.transcript, disagreementsSummary, input.hasSourceDoc ?? false, input.audience),
       'Synthesis Phase 2: Map (retry)',
     );
@@ -182,7 +194,8 @@ export async function runSynthesisPhases(
   checkAborted?.();
   onProgress?.(3, 'Phase 3/3: Evaluating preferences');
   const argMapSummary = JSON.stringify(mapData.argument_map ?? []);
-  const evalRaw = await generate(
+  const evalRaw = await synthGenerate(
+    'synthesis.evaluate',
     synthEvaluatePrompt(input.topic, disagreementsSummary, argMapSummary, policyContext, input.audience),
     'Synthesis Phase 3: Evaluate',
   );
@@ -194,7 +207,8 @@ export async function runSynthesisPhases(
   if (!Array.isArray(prefsArr) || prefsArr.length === 0) {
     warn?.('Synthesis Phase 3', 'preferences is empty — retrying with focused evaluation', 'One retry attempt');
     checkAborted?.();
-    const retryRaw = await generate(
+    const retryRaw = await synthGenerate(
+      'synthesis.evaluate',
       synthEvaluatePrompt(input.topic, disagreementsSummary, argMapSummary, policyContext, input.audience),
       'Synthesis Phase 3: Evaluate (retry)',
     );

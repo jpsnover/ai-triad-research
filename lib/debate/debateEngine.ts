@@ -175,6 +175,7 @@ import { runModeratorSelection, executeTurnWithRetry } from './orchestration.js'
 import type { ModeratorSelectionCallbacks, ModeratorSelectionInput, TurnRetryCallbacks, TurnRetryInput } from './orchestration.js';
 import { pruneSessionData, pruneModeratorState } from './sessionPruning.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
+import { callByUsage } from '../ai-client/usageRegistry.js';
 import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints } from './turnPipeline.js';
 import type { TurnPipelineInput, OpeningPipelineInput } from './turnPipeline.js';
 import {
@@ -306,6 +307,8 @@ export interface DebateConfig {
   };
   /** Snapshot callback for incremental persistence. Fired after each completed round and before rethrowing on fatal errors. Callers use this to write crash-recovery files. */
   onSnapshot?: (session: DebateSession, trigger: 'round_complete' | 'error') => void;
+  /** UsageID call dependencies. When present, eligible call sites use `callByUsage()` from the usage registry instead of direct adapter calls. */
+  usageDeps?: import('../ai-client/usageRegistry.js').UsageCallDeps;
 }
 
 export interface DebateProgress {
@@ -1236,6 +1239,27 @@ export class DebateEngine {
       this.totalResponseTimeMs += elapsed;
       this.clearRateLimitBackoff();
       return text;
+    } catch (err) {
+      this.lastApiCallTime = Date.now();
+      if (this.isRateLimitError(err)) this.recordRateLimit();
+      throw err;
+    }
+  }
+
+  private async generateViaUsage(usageId: string, prompt: string, label: string): Promise<string> {
+    const deps = this.config.usageDeps;
+    if (!deps) return this.generate(prompt, label);
+    await this.throttle();
+    this.progress('generating', undefined, label);
+    const start = Date.now();
+    try {
+      const result = await callByUsage(usageId, { prompt }, deps);
+      const elapsed = Date.now() - start;
+      this.lastApiCallTime = Date.now();
+      this.apiCallCount++;
+      this.totalResponseTimeMs += elapsed;
+      this.clearRateLimitBackoff();
+      return result.text;
     } catch (err) {
       this.lastApiCallTime = Date.now();
       if (this.isRateLimitError(err)) this.recordRateLimit();
@@ -2377,7 +2401,7 @@ export class DebateEngine {
         structuralContext += '\n' + formatLineageContext(lineageFrame);
       }
       const prompt = critiqueTopicPrompt(this.session.topic.final, structuralContext, this.session.audience);
-      const text = await this.generate(prompt, 'Topic critique');
+      const text = await this.generateViaUsage('debate.topic-critique', prompt, 'Topic critique');
       const critique = parseTopicCritique(text, structuralScore);
 
       // Store lineage frame on the critique
@@ -2604,7 +2628,7 @@ export class DebateEngine {
       prompt = clarificationPrompt(this.config.topic, this.config.sourceContent, this.config.audience, lineageCtx);
     }
 
-    const text = await this.generate(prompt, 'Clarification questions');
+    const text = await this.generateViaUsage('debate.clarification-questions', prompt, 'Clarification questions');
     let structuredQuestions: { question: string; options: string[] }[] = [];
     try {
       const parsed = parseJsonRobust(text) as { questions?: unknown[] };
@@ -2636,7 +2660,7 @@ export class DebateEngine {
     this.progress('clarification', undefined, 'Synthesizing refined topic');
     const qaPairs = questionTexts.map(q => `Q: ${q}\nA: [Automated: The debate should explore this from all three perspectives.]`).join('\n\n');
     const concludingPromptText = concludingPrompt(this.config.topic, qaPairs, this.config.audience, undefined, lineageCtx);
-    const synthText = await this.generate(concludingPromptText, 'Topic synthesis', 180_000);
+    const synthText = await this.generateViaUsage('debate.topic-synthesis', concludingPromptText, 'Topic synthesis');
 
     try {
       const parsed = parseJsonRobust(synthText) as { refined_topic?: string };
@@ -4358,6 +4382,7 @@ export class DebateEngine {
       (context, problem, nextStep) => this.warn(context, problem, nextStep),
       () => this.checkAborted(),
       maxPhase,
+      this.config.usageDeps,
     );
 
     const concludingData = result.data;
@@ -5886,7 +5911,10 @@ Return ONLY JSON (no markdown, no code fences):
               this.session.topic?.text ?? '',
             );
             try {
-              const refreshRaw = await this.adapter.generateText(refreshPrompt, this.resolveStageModel('crux'), { timeoutMs: 15_000 });
+              const cruxModel = this.resolveStageModel('crux');
+              const refreshRaw = this.config.usageDeps
+                ? (await callByUsage('debate.crux-refresh', { prompt: refreshPrompt }, this.config.usageDeps, { model: cruxModel })).text
+                : await this.adapter.generateText(refreshPrompt, cruxModel, { timeoutMs: 15_000 });
               const refreshData = parseJsonRobust(refreshRaw) as {
                 crux_verdicts?: { id: string; verdict: string; reason: string }[];
                 emerging_cruxes?: { description: string; speakers_involved: string[]; disagreement_type: string; reason: string }[];
