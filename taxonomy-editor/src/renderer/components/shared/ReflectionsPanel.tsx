@@ -11,6 +11,7 @@ import { POVER_INFO } from '../../types/debate';
 import type { SpeakerId } from '../../types/debate';
 import { checkDolceCompliance, type ComplianceViolation } from '../../utils/dolceCompliance';
 import { DescriptionToggle, resolveDescription, type DescriptionMode } from './DescriptionToggle';
+import { generatePlainPreview } from '../../utils/regeneratePlainDescription';
 
 const PREFIX_TO_POV: Record<string, 'accelerationist' | 'safetyist' | 'skeptic'> = { acc: 'accelerationist', saf: 'safetyist', skp: 'skeptic' };
 
@@ -140,6 +141,9 @@ function EditCard({ edit, pover, editIndex }: {
   const isIntegrityError = !!applyError && applyError.startsWith('Integrity check failed');
   const [regeneratePhrases, setRegeneratePhrases] = useState(false);
   const showRegenerateToggle = !resolved && (edit.edit_type === 'revise' || edit.edit_type === 'qualify');
+  const [plainPreview, setPlainPreview] = useState<string | null>(null);
+  const [plainLoading, setPlainLoading] = useState(false);
+  const navigateToNode = useTaxonomyStore(s => s.navigateToNode);
 
   const isModified = editedLabel !== edit.proposed_label
                   || editedDescription !== edit.proposed_description;
@@ -200,7 +204,20 @@ function EditCard({ edit, pover, editIndex }: {
           </span>
         )}
         {edit.status === 'approved' && (
-          <span style={{ fontSize: '0.65rem', color: '#22c55e', fontWeight: 600, marginLeft: 'auto' }}>Applied</span>
+          <span style={{ fontSize: '0.65rem', color: '#22c55e', fontWeight: 600, marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+            Applied
+            {edit.edit_type === 'add' && trackedEnrichNodeId && (
+              <code
+                style={{ fontSize: '0.6rem', padding: '1px 5px', borderRadius: 3, background: '#22c55e22', cursor: 'pointer' }}
+                title={`Navigate to ${trackedEnrichNodeId}`}
+                onClick={() => {
+                  const prefix = trackedEnrichNodeId.split('-')[0];
+                  const tab = PREFIX_TO_POV[prefix];
+                  if (tab) navigateToNode(tab, trackedEnrichNodeId);
+                }}
+              >{trackedEnrichNodeId}</code>
+            )}
+          </span>
         )}
         {edit.status === 'dismissed' && (
           <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>Dismissed</span>
@@ -337,6 +354,26 @@ function EditCard({ edit, pover, editIndex }: {
             <>
               {!resolved && edit.proposed_description && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                  {edit.edit_type === 'add' && (
+                    <DescriptionToggle
+                      mode={descMode}
+                      onToggle={async (m) => {
+                        setDescMode(m);
+                        if (m === 'plain' && !plainPreview && !plainLoading) {
+                          setPlainLoading(true);
+                          try {
+                            const preview = await generatePlainPreview(editing ? editedDescription : edit.proposed_description);
+                            setPlainPreview(preview);
+                          } catch (err) {
+                            getGlobalRecorder()?.record({ type: 'system.error', component: 'reflections-panel', level: 'warn', message: 'Plain preview generation failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+                          } finally {
+                            setPlainLoading(false);
+                          }
+                        }
+                      }}
+                      hasPlainDescription={!!plainPreview}
+                    />
+                  )}
                   <span style={{ flex: 1 }} />
                   <button
                     className="btn btn-sm btn-ghost"
@@ -345,7 +382,11 @@ function EditCard({ edit, pover, editIndex }: {
                   >&#9998; Edit</button>
                 </div>
               )}
-              {edit.proposed_description}
+              {descMode === 'plain' && edit.edit_type === 'add' ? (
+                plainLoading
+                  ? <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Generating plain description…</span>
+                  : (plainPreview || edit.proposed_description)
+              ) : edit.proposed_description}
             </>
           )}
         </div>
@@ -512,7 +553,20 @@ function EditCard({ edit, pover, editIndex }: {
       )}
       {enrichStatus?.status === 'success' && (
         <div style={{ fontSize: '0.68rem', color: '#22c55e', marginTop: 4, padding: '4px 8px', background: 'rgba(34,197,94,0.06)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span>{'✓'} Phrases regenerated successfully</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {'✓'} Phrases regenerated successfully
+            {edit.edit_type === 'add' && trackedEnrichNodeId && (
+              <code
+                style={{ fontSize: '0.6rem', padding: '1px 6px', borderRadius: 4, background: '#22c55e22', color: '#22c55e', cursor: 'pointer', fontWeight: 600 }}
+                title={`Navigate to ${trackedEnrichNodeId}`}
+                onClick={() => {
+                  const prefix = trackedEnrichNodeId.split('-')[0];
+                  const tab = PREFIX_TO_POV[prefix];
+                  if (tab) navigateToNode(tab, trackedEnrichNodeId);
+                }}
+              >{trackedEnrichNodeId}</code>
+            )}
+          </span>
           <button
             className="btn btn-sm btn-ghost"
             style={{ fontSize: '0.6rem', padding: '0 4px', color: 'var(--text-muted)' }}
