@@ -1,0 +1,56 @@
+{
+  "_schema_version": "1.0.0",
+  "_doc": "UsageID → AI call parameters. Central registry for experimentation. See docs/design/adr/ for schema rationale.",
+
+  "enrichment.metadata-extraction": {
+    "description": "Extract structured metadata from ingested documents",
+    "model": "gemini-3.1-flash-lite",
+    "temperature": 0.1,
+    "maxTokens": 1024,
+    "timeoutMs": 30000,
+    "jsonMode": true,
+    "systemMessage": "You are a metadata extraction assistant. Extract structured metadata from the provided document including title, authors, publication date, abstract, and key topics. Return valid JSON.",
+    "messageTemplate": "Document URL: {{source_url}}\nTitle: {{fallback_title}}\n\n{{markdown_text}}",
+    "tags": ["enrichment", "ingestion"]
+  },
+
+  "enrichment.vernacular-description": {
+    "description": "Generate plain-language description of a taxonomy node",
+    "model": "gemini-3.1-flash-lite",
+    "temperature": 0.7,
+    "maxTokens": 512,
+    "timeoutMs": 30000,
+    "systemMessage": "You are a science communicator. Rewrite technical taxonomy descriptions in clear, accessible language for a general audience. Preserve accuracy while improving readability.",
+    "messageTemplate": "Node ID: {{node_id}}\nTechnical description: {{description}}\nCategory: {{category}}",
+    "tags": ["enrichment", "vernacular"]
+  },
+
+  "enrichment.batch-summary": {
+    "description": "Summarize a batch of taxonomy nodes for overview display",
+    "model": "gemini-3.1-flash-lite",
+    "temperature": 0.3,
+    "maxTokens": 2048,
+    "timeoutMs": 60000,
+    "systemMessage": "You are a research analyst. Produce concise summaries of taxonomy node clusters, highlighting shared themes and key distinctions.",
+    "messageTemplate": "Summarize the following {{node_count}} nodes:\n\n{{nodes_text}}",
+    "tags": ["enrichment", "summary"]
+  },
+
+  "turn.brief": {
+    "description": "Generate a brief for a debate turn",
+    "model": "gemini-2.5-flash",
+    "temperature": 0.4,
+    "maxTokens": 4096,
+    "timeoutMs": 120000,
+    "systemMessageTemplate": "You are {{speaker}}, a {{persona}} debater in a structured three-agent debate.",
+    "messageTemplate": "Topic: {{topic}}\nPrior moves:\n{{move_history}}\n\nGenerate a brief outlining your key arguments for this turn.",
+    "tags": ["debate", "turn-pipeline"]
+  },
+
+  "turn.brief:experiment-claude": {
+    "_extends": "turn.brief",
+    "description": "Experiment: Claude Sonnet for briefs",
+    "model": "claude-sonnet-4-6",
+    "temperature": 0.5
+  }
+}

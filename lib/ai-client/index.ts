@@ -21,3 +21,5 @@ export type { GroundingSegment, GroundingCitation, GroundedSearchResult } from '
 export type { AIClientDeps, AIClient } from './client.js';
 export { callProvider, createAIClient } from './client.js';
 export { DEFAULT_MODEL, DEFAULT_TEMPERATURE } from './defaults.js';
+export type { UsageConfig, UsageRegistry, UsageValidationError } from './usageTypes.js';
+export { renderTemplate, loadUsageRegistry, validateUsageConfig } from './usageTypes.js';
