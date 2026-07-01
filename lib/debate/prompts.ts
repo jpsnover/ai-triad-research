@@ -977,6 +977,7 @@ Include a "my_claims" array in your response:
   more rather than fewer; only skip a claim if it is purely rhetorical (no assertive content).
 
 TAXONOMY REFERENCES: Tag which nodes you drew from in the taxonomy_refs field, not in prose.
+Every node_id you cite MUST appear verbatim in the taxonomy context above. Do not invent IDs, do not use concept names or slugs, do not cite an ID you have not been shown. If you cannot find a relevant real node, cite fewer.
 Include 3–5 taxonomy_refs per response — draw from at least two BDI sections (Beliefs, Desires, Intentions). Cite a sit-ID when your argument engages a contested concept from the SITUATIONS section.
 Three refs is too few; aim for breadth across your worldview, not just the most obvious node.
 
@@ -1198,11 +1199,11 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"symbol": "single emoji", "tooltip": "<debate idea> is like a <what the emoji depicts>, it <explain the analogy>. But <provocative question>?"}
   ],
   "taxonomy_refs": [
-    {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y. The framing around Z also highlights a tension with the opposing view."},
-    {"node_id": "e.g. acc-beliefs-005", "relevance": "Empirical evidence from this node grounds the argument — without it, the claim rests on assumption rather than data."},
-    {"node_id": "e.g. acc-intentions-003", "relevance": "This strategic framing shapes how the argument is constructed and which counterarguments are anticipated."},
-    {"node_id": "e.g. acc-beliefs-011", "relevance": "Provides the factual foundation for the second claim, connecting real-world outcomes to the normative position."},
-    {"node_id": "e.g. sit-003", "relevance": "This contested concept is where the perspectives diverge most sharply — my argument engages the core definitional dispute directly."}
+    {"node_id": "<a real node_id from the taxonomy context above>", "relevance": "The emphasis on X directly supports the claim that Y. The framing around Z also highlights a tension with the opposing view."},
+    {"node_id": "<a real node_id from the taxonomy context above>", "relevance": "Empirical evidence from this node grounds the argument — without it, the claim rests on assumption rather than data."},
+    {"node_id": "<a real node_id from the taxonomy context above>", "relevance": "This strategic framing shapes how the argument is constructed and which counterarguments are anticipated."},
+    {"node_id": "<a real node_id from the taxonomy context above>", "relevance": "Provides the factual foundation for the second claim, connecting real-world outcomes to the normative position."},
+    {"node_id": "<a real sit-NNN id from the SITUATIONS section>", "relevance": "This contested concept is where the perspectives diverge most sharply — my argument engages the core definitional dispute directly."}
   ],
   "my_claims": [
     {"claim": "near-verbatim headline assertion from your statement", "targets": []},
@@ -1271,11 +1272,11 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"symbol": "single emoji", "tooltip": "<debate idea> is like a <what the emoji depicts>, it <explain the analogy>. But <provocative question>?"}
   ],
   "taxonomy_refs": [
-    {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y, grounding the normative position."},
-    {"node_id": "e.g. acc-beliefs-005", "relevance": "Empirical data from this node challenges the opposing claim and provides evidentiary weight."},
-    {"node_id": "e.g. acc-intentions-003", "relevance": "This reasoning strategy shapes the reframe — without it, the counterargument lacks structural force."},
-    {"node_id": "e.g. sit-005", "relevance": "The debate around this contested concept is where the real disagreement lives — my reframe targets the definitional divergence here."},
-    {"node_id": "e.g. acc-desires-007", "relevance": "The value commitment here motivates why this distinction matters in practice, not just in theory."}
+    {"node_id": "<a real node_id from the taxonomy context above>", "relevance": "The emphasis on X directly supports the claim that Y, grounding the normative position."},
+    {"node_id": "<a real node_id from the taxonomy context above>", "relevance": "Empirical data from this node challenges the opposing claim and provides evidentiary weight."},
+    {"node_id": "<a real node_id from the taxonomy context above>", "relevance": "This reasoning strategy shapes the reframe — without it, the counterargument lacks structural force."},
+    {"node_id": "<a real sit-NNN id from the SITUATIONS section>", "relevance": "The debate around this contested concept is where the real disagreement lives — my reframe targets the definitional divergence here."},
+    {"node_id": "<a real node_id from the taxonomy context above>", "relevance": "The value commitment here motivates why this distinction matters in practice, not just in theory."}
   ],
   "my_claims": [
     {"claim": "near-verbatim headline assertion", "targets": ["AN-3"]},

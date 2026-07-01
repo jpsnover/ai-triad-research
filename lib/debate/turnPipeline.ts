@@ -2504,6 +2504,18 @@ export function assemblePipelineResult(
     const { sanitized, corrections, removed } = sanitizeNodeIds(rawRefs.map(r => r.node_id), validNodeIds);
     if (corrections.length > 0) console.log(`[pipeline] Corrected ${corrections.length} hallucinated node ID(s): ${corrections.map(c => `${c.from}→${c.to}`).join(', ')}`);
     if (removed.length > 0) console.log(`[pipeline] Removed ${removed.length} invalid node ID(s): ${removed.join(', ')}`);
+    if (corrections.length > 0 || removed.length > 0) {
+      getGlobalRecorder()?.record({
+        type: 'turn.hallucinated_refs', component: 'turn-pipeline', level: 'warn',
+        message: `Sanitized ${corrections.length} corrected + ${removed.length} removed hallucinated node IDs`,
+        data: {
+          corrected: corrections.map(c => ({ from: c.from, to: c.to })),
+          removed,
+          total_raw: rawRefs.length,
+          hallucinated_ref_rate: rawRefs.length > 0 ? (corrections.length + removed.length) / rawRefs.length : 0,
+        },
+      });
+    }
     const validSet = new Set(sanitized);
     taxonomyRefs = rawRefs
       .map(r => {
@@ -2807,6 +2819,18 @@ export function assembleOpeningPipelineResult(
     const { sanitized, corrections, removed } = sanitizeNodeIds(rawRefs.map(r => r.node_id), validNodeIds);
     if (corrections.length > 0) console.log(`[pipeline] Opening: corrected ${corrections.length} hallucinated node ID(s): ${corrections.map(c => `${c.from}→${c.to}`).join(', ')}`);
     if (removed.length > 0) console.log(`[pipeline] Opening: removed ${removed.length} invalid node ID(s): ${removed.join(', ')}`);
+    if (corrections.length > 0 || removed.length > 0) {
+      getGlobalRecorder()?.record({
+        type: 'turn.hallucinated_refs', component: 'turn-pipeline', level: 'warn',
+        message: `Opening: sanitized ${corrections.length} corrected + ${removed.length} removed hallucinated node IDs`,
+        data: {
+          corrected: corrections.map(c => ({ from: c.from, to: c.to })),
+          removed,
+          total_raw: rawRefs.length,
+          hallucinated_ref_rate: rawRefs.length > 0 ? (corrections.length + removed.length) / rawRefs.length : 0,
+        },
+      });
+    }
     const validSet = new Set(sanitized);
     taxonomyRefs = rawRefs
       .map(r => {
