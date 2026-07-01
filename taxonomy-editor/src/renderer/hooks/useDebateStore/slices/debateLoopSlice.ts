@@ -1976,7 +1976,8 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
     }
 
     getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'retryReflectionEditAfterFix.result', data: { ok: true, pover, editIndex, edit_type: edit.edit_type, node_id: edit.node_id } });
-    const updated = reflections.map(r => {
+    const freshReflections = get().reflections;
+    const updated = freshReflections.map(r => {
       if (r.pover !== pover) return r;
       return {
         ...r,
@@ -2100,7 +2101,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
       if (saveError) return { ok: false, error: saveError };
 
       // Mark cluster as accepted and dismiss the individual edits
-      const updatedClusters = consensusClusters.map(c =>
+      const updatedClusters = get().consensusClusters.map(c =>
         c.id === clusterId ? { ...c, status: 'accepted' as const } : c
       );
       // Dismiss the per-POV ADD edits that are now covered by the situation node

@@ -572,6 +572,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
     const validation = validatePovNodeId(newId, category);
     if (!validation.valid) {
       console.error(`[taxonomy-store] createPovNode rejected: ${validation.error}`);
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'taxonomy-store', level: 'warn', message: 'createPovNode: validation failed', data: { pov, category, error: validation.error } });
       return '';
     }
     const newNode: PovNode = {
