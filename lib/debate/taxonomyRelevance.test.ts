@@ -916,3 +916,168 @@ describe('selectRelevantNodes — POV diversity floor', () => {
     expect(ids).not.toContain('saf-desires-001');
   });
 });
+
+// ── Corpus coverage in selectRelevantNodes (t/1278) ──────────
+
+describe('selectRelevantNodes — corpus coverage', () => {
+  it('downweights retread nodes below threshold', () => {
+    const nodes = [
+      makeNode('acc-beliefs-001', 'Beliefs'),
+      makeNode('acc-beliefs-002', 'Beliefs'),
+      makeNode('acc-beliefs-003', 'Beliefs'),
+      makeNode('acc-beliefs-004', 'Beliefs'),
+    ];
+
+    const scores = new Map([
+      ['acc-beliefs-001', 0.60],  // retread — will become 0.36 (below 0.48)
+      ['acc-beliefs-002', 0.55],  // not retread
+      ['acc-beliefs-003', 0.50],  // not retread
+      ['acc-beliefs-004', 0.49],  // not retread
+    ]);
+
+    const result = selectRelevantNodes(nodes, scores, {
+      embeddingThreshold: 0.48,
+      minPerCategory: 0,
+      minPerPov: 0,
+      corpusCoverage: {
+        nodeStats: {
+          'acc-beliefs-001': { debate_count: 25, crux_link_count: 0, retread_flag: true },
+        },
+        retreadMultiplier: 0.6,
+      },
+    });
+
+    const ids = result.map(r => r.node.id);
+    // acc-beliefs-001 had score 0.60 * 0.6 = 0.36, now below threshold
+    expect(ids).not.toContain('acc-beliefs-001');
+    expect(ids).toContain('acc-beliefs-002');
+    expect(ids).toContain('acc-beliefs-003');
+  });
+
+  it('never downweights fault-line nodes (crux_link_count >= 2)', () => {
+    const nodes = [
+      makeNode('acc-beliefs-001', 'Beliefs'),
+      makeNode('acc-beliefs-002', 'Beliefs'),
+      makeNode('acc-beliefs-003', 'Beliefs'),
+    ];
+
+    const scores = new Map([
+      ['acc-beliefs-001', 0.55],  // fault-line — retread_flag is false
+      ['acc-beliefs-002', 0.50],
+      ['acc-beliefs-003', 0.49],
+    ]);
+
+    const result = selectRelevantNodes(nodes, scores, {
+      embeddingThreshold: 0.48,
+      minPerCategory: 0,
+      minPerPov: 0,
+      corpusCoverage: {
+        nodeStats: {
+          'acc-beliefs-001': { debate_count: 30, crux_link_count: 3, retread_flag: false },
+        },
+      },
+    });
+
+    const ids = result.map(r => r.node.id);
+    // Fault-line: retread_flag is false, so no downweight applied
+    expect(ids).toContain('acc-beliefs-001');
+    const node001 = result.find(r => r.node.id === 'acc-beliefs-001');
+    expect(node001!.score).toBe(0.55);
+  });
+
+  it('boosts low-coverage nodes above relevance floor', () => {
+    const nodes = [
+      makeNode('acc-beliefs-001', 'Beliefs'),
+      makeNode('acc-beliefs-002', 'Beliefs'),
+      makeNode('acc-beliefs-003', 'Beliefs'),
+      makeNode('acc-beliefs-004', 'Beliefs'),
+    ];
+
+    // Node 004 is just below threshold but low-coverage — boost should push above
+    const scores = new Map([
+      ['acc-beliefs-001', 0.55],
+      ['acc-beliefs-002', 0.50],
+      ['acc-beliefs-003', 0.49],
+      ['acc-beliefs-004', 0.46],  // below 0.48 but above floor (0.48*0.5=0.24)
+    ]);
+
+    const result = selectRelevantNodes(nodes, scores, {
+      embeddingThreshold: 0.48,
+      minPerCategory: 0,
+      minPerPov: 0,
+      corpusCoverage: {
+        nodeStats: {
+          'acc-beliefs-004': { debate_count: 1, crux_link_count: 0, retread_flag: false },
+        },
+        coverageBoost: 0.04,
+        lowCoverageThreshold: 5,
+      },
+    });
+
+    const ids = result.map(r => r.node.id);
+    // 0.46 + 0.04 = 0.50 — above threshold
+    expect(ids).toContain('acc-beliefs-004');
+  });
+
+  it('caps coverage boost promotions', () => {
+    // Create many low-coverage nodes
+    const nodes = Array.from({ length: 12 }, (_, i) =>
+      makeNode(`acc-beliefs-${String(i).padStart(3, '0')}`, 'Beliefs'));
+
+    const scores = new Map(
+      nodes.map((n, i) => [n.id, i < 3 ? 0.55 : 0.46] as [string, number]),
+    );
+
+    const nodeStats: Record<string, { debate_count: number; crux_link_count: number; retread_flag: boolean }> = {};
+    for (let i = 3; i < 12; i++) {
+      nodeStats[`acc-beliefs-${String(i).padStart(3, '0')}`] = { debate_count: 1, crux_link_count: 0, retread_flag: false };
+    }
+
+    const result = selectRelevantNodes(nodes, scores, {
+      embeddingThreshold: 0.48,
+      minPerCategory: 0,
+      minPerPov: 0,
+      corpusCoverage: {
+        nodeStats,
+        coverageBoost: 0.04,
+        maxCoveragePromotions: 3,
+      },
+    });
+
+    const diagnostics = (result as ScoredPovNode[] & { _corpusCoverage?: import('./taxonomyRelevance.js').CorpusCoverageResult })._corpusCoverage;
+    expect(diagnostics).toBeDefined();
+    // Only 3 promoted despite 9 candidates
+    expect(diagnostics!.boostedCount).toBe(3);
+  });
+
+  it('attaches _corpusCoverage diagnostics', () => {
+    const nodes = [
+      makeNode('acc-beliefs-001', 'Beliefs'),
+      makeNode('acc-beliefs-002', 'Beliefs'),
+      makeNode('acc-beliefs-003', 'Beliefs'),
+    ];
+
+    const scores = new Map([
+      ['acc-beliefs-001', 0.60],
+      ['acc-beliefs-002', 0.55],
+      ['acc-beliefs-003', 0.30],  // low-coverage candidate above floor
+    ]);
+
+    const result = selectRelevantNodes(nodes, scores, {
+      embeddingThreshold: 0.48,
+      minPerCategory: 0,
+      minPerPov: 0,
+      corpusCoverage: {
+        nodeStats: {
+          'acc-beliefs-001': { debate_count: 25, crux_link_count: 0, retread_flag: true },
+          'acc-beliefs-003': { debate_count: 2, crux_link_count: 0, retread_flag: false },
+        },
+      },
+    });
+
+    const diagnostics = (result as ScoredPovNode[] & { _corpusCoverage?: import('./taxonomyRelevance.js').CorpusCoverageResult })._corpusCoverage;
+    expect(diagnostics).toBeDefined();
+    expect(diagnostics!.downweightedNodeIds).toContain('acc-beliefs-001');
+    expect(diagnostics!.boostedNodeIds).toContain('acc-beliefs-003');
+  });
+});

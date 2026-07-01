@@ -45,6 +45,21 @@ export interface RelevanceOptions {
   minPerPov?: number;
   /** Branch-aware situation selection — boosts nodes in topic-relevant root categories. */
   situationBranchBoost?: SituationBranchBoostConfig;
+  /** Corpus coverage stats — downweights retread nodes and boosts low-coverage nodes (t/1278). */
+  corpusCoverage?: CorpusCoverageConfig;
+}
+
+export interface CorpusCoverageConfig {
+  /** Node coverage stats from computeCorpusCoverage(). */
+  nodeStats: Record<string, { debate_count: number; crux_link_count: number; retread_flag: boolean }>;
+  /** Score multiplier for retread nodes (default 0.6). */
+  retreadMultiplier?: number;
+  /** Boost for low-coverage nodes above relevance floor (default 0.04). */
+  coverageBoost?: number;
+  /** debate_count below which a node is considered low-coverage (default 5). */
+  lowCoverageThreshold?: number;
+  /** Max low-coverage promotions to apply (default 8). */
+  maxCoveragePromotions?: number;
 }
 
 export interface SituationBranchBoostConfig {
@@ -92,6 +107,13 @@ export interface LineageBoostResult {
   promotedNodeIds: string[];
   /** Number of nodes that crossed the threshold thanks to the boost. */
   promotedCount: number;
+}
+
+export interface CorpusCoverageResult {
+  downweightedNodeIds: string[];
+  boostedNodeIds: string[];
+  downweightedCount: number;
+  boostedCount: number;
 }
 
 export function cosineSimilarity(a: number[], b: number[]): number {
@@ -217,6 +239,56 @@ export function selectRelevantNodes(
     _lineageBoostResult = { boostedNodeIds: boostedIds, promotedNodeIds: promotedIds, promotedCount: promotedIds.length };
   }
 
+  // Apply corpus coverage adjustments (t/1278)
+  let _corpusCoverageResult: CorpusCoverageResult | undefined;
+  if (opts.corpusCoverage) {
+    const cc = opts.corpusCoverage;
+    const retreadMult = cc.retreadMultiplier ?? 0.6;
+    const covBoost = cc.coverageBoost ?? 0.04;
+    const lowThresh = cc.lowCoverageThreshold ?? 5;
+    const maxPromos = cc.maxCoveragePromotions ?? 8;
+    const relevanceFloor = threshold * 0.5;
+
+    const downweightedIds: string[] = [];
+    const boostCandidates: { id: string; score: number }[] = [];
+
+    for (const node of povNodes) {
+      const stats = cc.nodeStats[node.id];
+      if (!stats) continue;
+
+      const current = effectiveScores.get(node.id) ?? 0;
+
+      // Downweight retreads (high debate_count, low crux links) — never touch fault-lines
+      if (stats.retread_flag) {
+        effectiveScores.set(node.id, current * retreadMult);
+        downweightedIds.push(node.id);
+      }
+
+      // Coverage-seeking boost for underexplored nodes above relevance floor
+      if (stats.debate_count < lowThresh && current >= relevanceFloor && !stats.retread_flag) {
+        boostCandidates.push({ id: node.id, score: current });
+      }
+    }
+
+    // Apply coverage boost, capped
+    boostCandidates.sort((a, b) => b.score - a.score);
+    const boostedIds: string[] = [];
+    for (let i = 0; i < Math.min(maxPromos, boostCandidates.length); i++) {
+      const { id } = boostCandidates[i];
+      effectiveScores.set(id, (effectiveScores.get(id) ?? 0) + covBoost);
+      boostedIds.push(id);
+    }
+
+    if (downweightedIds.length > 0 || boostedIds.length > 0) {
+      _corpusCoverageResult = {
+        downweightedNodeIds: downweightedIds,
+        boostedNodeIds: boostedIds,
+        downweightedCount: downweightedIds.length,
+        boostedCount: boostedIds.length,
+      };
+    }
+  }
+
   // Group by category
   const groups: Record<string, ScoredPovNode[]> = {
     'Beliefs': [],
@@ -298,6 +370,9 @@ export function selectRelevantNodes(
   }
   if (_povDiversityResult) {
     (sliced as ScoredPovNode[] & { _povDiversity?: PovDiversityResult })._povDiversity = _povDiversityResult;
+  }
+  if (_corpusCoverageResult) {
+    (sliced as ScoredPovNode[] & { _corpusCoverage?: CorpusCoverageResult })._corpusCoverage = _corpusCoverageResult;
   }
 
   // Apply exclusion ratio filter when embeddings and query vector are provided
