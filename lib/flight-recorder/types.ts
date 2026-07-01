@@ -115,6 +115,10 @@ export type EventType =
   | 'topic.critique'
   | 'topic_scope_extracted'
   | 'topic_scope_extraction_failed'
+  // Auth flow
+  | 'auth.login_attempt'
+  | 'auth.callback_landing'
+  | 'auth.loop_detected'
   // System
   | 'system.error'
   | 'system.info'

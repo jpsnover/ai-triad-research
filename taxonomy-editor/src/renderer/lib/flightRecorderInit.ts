@@ -57,6 +57,36 @@ if (getElectronAPI()) {
   }).catch(() => { /* flight recorder init — silent by design */ });
 }
 
+// ── Auth flow redirect tracking (sessionStorage-based) ──────────────────
+
+const AUTH_REDIRECT_KEY = 'auth-redirect-tracking';
+const AUTH_LOOP_THRESHOLD = 3;
+const AUTH_LOOP_WINDOW_MS = 30_000;
+
+interface AuthRedirectTracking {
+  provider: string;
+  timestamp: number;
+  redirectCount: number;
+}
+
+function getAuthTracking(): AuthRedirectTracking | null {
+  try {
+    const raw = sessionStorage.getItem(AUTH_REDIRECT_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as AuthRedirectTracking;
+  } catch { return null; }
+}
+
+function setAuthTracking(state: AuthRedirectTracking): void {
+  try { sessionStorage.setItem(AUTH_REDIRECT_KEY, JSON.stringify(state)); }
+  catch { /* flight recorder init — silent by design */ }
+}
+
+function clearAuthTracking(): void {
+  try { sessionStorage.removeItem(AUTH_REDIRECT_KEY); }
+  catch { /* flight recorder init — silent by design */ }
+}
+
 // ── Dump throttle state ──────────────────────────────────────────────────
 
 let lastDumpTime = 0;
@@ -433,6 +463,77 @@ export function initFlightRecorder(): FlightRecorder {
         data: { load_generation: loadGeneration },
       });
     });
+  }
+
+  // ── Auth flow instrumentation (web only, main window only) ──
+  if (!isPopup && isWeb) {
+    // On init: detect if we just returned from an OAuth redirect
+    const tracking = getAuthTracking();
+    if (tracking) {
+      const elapsed = Date.now() - tracking.timestamp;
+      if (elapsed > 60_000) {
+        clearAuthTracking();
+      } else {
+        const hasSession = document.cookie.includes('AppServiceAuthSession');
+        recorder.record({
+          type: 'auth.callback_landing',
+          component: 'auth',
+          level: 'info',
+          message: `OAuth callback: provider=${tracking.provider}, redirects=${tracking.redirectCount}`,
+          data: {
+            provider: tracking.provider,
+            principal: (_authState as { principalName?: string } | null)?.principalName ?? null,
+            has_session_cookie: hasSession,
+            redirect_count: tracking.redirectCount,
+            elapsed_ms: elapsed,
+          },
+        });
+
+        if (tracking.redirectCount >= AUTH_LOOP_THRESHOLD && elapsed < AUTH_LOOP_WINDOW_MS) {
+          recorder.record({
+            type: 'auth.loop_detected',
+            component: 'auth',
+            level: 'error',
+            message: `Auth redirect loop detected: ${tracking.redirectCount} redirects in ${elapsed}ms`,
+            data: {
+              provider: tracking.provider,
+              redirect_count: tracking.redirectCount,
+              elapsed_ms: elapsed,
+              threshold: AUTH_LOOP_THRESHOLD,
+              window_ms: AUTH_LOOP_WINDOW_MS,
+            },
+          });
+          clearAuthTracking();
+          void persistDump(recorder, 'explicit', undefined, { reason: 'auth_loop_detected', provider: tracking.provider });
+        } else {
+          clearAuthTracking();
+        }
+      }
+    }
+
+    // Delegated click handler: capture auth login link clicks
+    document.addEventListener('click', (e) => {
+      const anchor = (e.target as HTMLElement).closest?.('a[href*="/api/auth/fresh-login/"]') as HTMLAnchorElement | null;
+      if (!anchor) return;
+      const href = anchor.getAttribute('href') ?? '';
+      const providerMatch = href.match(/\/api\/auth\/fresh-login\/([^/?#]+)/);
+      const provider = providerMatch?.[1] ?? 'unknown';
+
+      const existing = getAuthTracking();
+      const now = Date.now();
+      const count = (existing && existing.provider === provider && (now - existing.timestamp) < AUTH_LOOP_WINDOW_MS)
+        ? existing.redirectCount + 1
+        : 1;
+      setAuthTracking({ provider, timestamp: now, redirectCount: count });
+
+      recorder.record({
+        type: 'auth.login_attempt',
+        component: 'auth',
+        level: 'info',
+        message: `Auth login initiated: provider=${provider}`,
+        data: { provider, redirect_count: count, href },
+      });
+    }, true);
   }
 
   // ── Context provider (full app state snapshot for dump) ──
