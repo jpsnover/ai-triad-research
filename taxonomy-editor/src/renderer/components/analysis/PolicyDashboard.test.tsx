@@ -18,6 +18,9 @@ vi.mock('../policy/PolicySourcesPanel', () => ({
   getPolicySourceIndex: () => Promise.resolve({}),
   PolicySourcesPanel: ({ policyId }: { policyId: string }) => <div>sources-for-{policyId}</div>,
 }));
+vi.mock('../organizations/StakeholderSection', () => ({
+  StakeholderSection: ({ nodeId, queryType }: { nodeId: string; queryType: string }) => <div>stakeholders-{queryType}-{nodeId}</div>,
+}));
 
 const { PolicyDashboard } = await import('./PolicyDashboard');
 
@@ -50,5 +53,7 @@ describe('PolicyDashboard (t/1025)', () => {
     fireEvent.click(screen.getByText('pol-1'));
     expect(screen.getByText('Sources for pol-1')).toBeInTheDocument();
     expect(screen.getByText('sources-for-pol-1')).toBeInTheDocument();
+    // t/1230: stakeholders section renders for the selected policy.
+    expect(screen.getByText('stakeholders-policy-pol-1')).toBeInTheDocument();
   });
 });

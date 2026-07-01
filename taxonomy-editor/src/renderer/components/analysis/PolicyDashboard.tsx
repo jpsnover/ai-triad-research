@@ -6,6 +6,7 @@ import { POV_KEYS } from '@lib/debate/types';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { PolicySourcesPanel, getPolicySourceIndex } from '../policy/PolicySourcesPanel';
 import type { PolicySourceReference } from '../policy/PolicySourcesPanel';
+import { StakeholderSection } from '../organizations/StakeholderSection';
 
 const POV_COLORS: Record<string, string> = {
   accelerationist: 'var(--color-acc)',
@@ -159,6 +160,7 @@ export function PolicyDashboard() {
               <button className="btn btn-ghost btn-sm" onClick={() => setSelectedPolicyId(null)}>Back</button>
             </div>
             <PolicySourcesPanel policyId={selectedPolicyId} />
+            <StakeholderSection nodeId={selectedPolicyId} queryType="policy" />
           </div>
         )}
 
