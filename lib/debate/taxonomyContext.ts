@@ -139,13 +139,13 @@ export function generateNodeGuidance(node: PovNode, category: string): string[] 
 
 /** Compute weighted sort score: Beliefs use relevance×confidence, Desires use relevance×(priority/5), Intentions use relevance×(operationality/5). */
 function weightedScore(node: PovNode, relevance: number, category: string): number {
-  if (category === 'Beliefs' && node.confidence !== undefined) {
+  if (category === 'Beliefs' && node.confidence != null) {
     return relevance * node.confidence;
   }
-  if (category === 'Desires' && node.priority !== undefined) {
+  if (category === 'Desires' && node.priority != null) {
     return relevance * (node.priority / 5);
   }
-  if (category === 'Intentions' && node.operationality !== undefined) {
+  if (category === 'Intentions' && node.operationality != null) {
     return relevance * (node.operationality / 5);
   }
   return relevance;
@@ -153,16 +153,16 @@ function weightedScore(node: PovNode, relevance: number, category: string): numb
 
 /** Build inline weight label for a node: confidence for Beliefs, priority for Desires, operationality for Intentions. */
 function nodeWeightLabel(node: PovNode, category: string): string {
-  if (category === 'Beliefs' && node.confidence !== undefined) {
+  if (category === 'Beliefs' && node.confidence != null) {
     const conf = node.confidence;
     const anchor = node.doctrinally_anchored ? ', doctrinally anchored' : '';
     if (conf < 0.50) return ` [Speculative, confidence: ${conf.toFixed(2)}${anchor}]`;
     return ` (confidence: ${conf.toFixed(2)}${anchor})`;
   }
-  if (category === 'Desires' && node.priority !== undefined) {
+  if (category === 'Desires' && node.priority != null) {
     return ` (priority: ${node.priority}/5)`;
   }
-  if (category === 'Intentions' && node.operationality !== undefined) {
+  if (category === 'Intentions' && node.operationality != null) {
     return ` (operationality: ${node.operationality}/5)`;
   }
   return '';
@@ -228,11 +228,11 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
     lines.push(bdi.framing);
 
     // Add weighting instruction when confidence/priority data is present
-    if (cat === 'Beliefs' && nodes.some(n => n.confidence !== undefined)) {
+    if (cat === 'Beliefs' && nodes.some(n => n.confidence != null)) {
       lines.push('Ordered by evidential confidence. Lead with well-supported claims. When you cite a low-confidence Belief, acknowledge the uncertainty explicitly.');
-    } else if (cat === 'Desires' && nodes.some(n => n.priority !== undefined)) {
+    } else if (cat === 'Desires' && nodes.some(n => n.priority != null)) {
       lines.push('Ordered by priority. Lead with non-negotiable values. Lower-priority desires may be traded off in argument.');
-    } else if (cat === 'Intentions' && nodes.some(n => n.operationality !== undefined)) {
+    } else if (cat === 'Intentions' && nodes.some(n => n.operationality != null)) {
       lines.push('Ordered by operationality. Lead with concrete, actionable strategies. Lower-operationality intentions provide framing context but should not anchor your primary argument.');
     }
 

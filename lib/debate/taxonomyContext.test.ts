@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { formatTaxonomyContext } from './taxonomyContext.js';
-import type { SituationNode } from './taxonomyTypes.js';
+import type { PovNode, SituationNode } from './taxonomyTypes.js';
 
 function makeSit(id: string, label: string, parentId?: string | null): SituationNode {
   return {
@@ -76,6 +76,48 @@ describe('formatTaxonomyContext — hierarchy-grouped situations', () => {
     expect(output).toContain('[sit-100]');
     expect(output).toContain('[sit-001]');
     expect(output).toContain('## Root Category');
+  });
+
+  it('handles null confidence/priority/operationality without throwing (t/1243)', () => {
+    const povNodes: PovNode[] = [
+      {
+        id: 'acc-beliefs-001', label: 'Null-confidence belief', description: 'desc',
+        pov: 'accelerationist', category: 'Beliefs', bdi_layer: 'belief',
+        parent_id: null, children: [], situation_refs: [],
+        confidence: null as unknown as number,
+      },
+      {
+        id: 'acc-desires-001', label: 'Null-priority desire', description: 'desc',
+        pov: 'accelerationist', category: 'Desires', bdi_layer: 'desire',
+        parent_id: null, children: [], situation_refs: [],
+        priority: null as unknown as number,
+      },
+      {
+        id: 'acc-intentions-001', label: 'Null-operationality intention', description: 'desc',
+        pov: 'accelerationist', category: 'Intentions', bdi_layer: 'intention',
+        parent_id: null, children: [], situation_refs: [],
+        operationality: null as unknown as number,
+      },
+    ];
+    const nodeScores = new Map([
+      ['acc-beliefs-001', 0.8], ['acc-desires-001', 0.7], ['acc-intentions-001', 0.6],
+    ]);
+
+    expect(() => formatTaxonomyContext(
+      { povNodes, situationNodes: [], nodeScores },
+      'accelerationist',
+      50,
+    )).not.toThrow();
+
+    const output = formatTaxonomyContext(
+      { povNodes, situationNodes: [], nodeScores },
+      'accelerationist',
+      50,
+    );
+    expect(output).toContain('[acc-beliefs-001]');
+    expect(output).not.toContain('confidence:');
+    expect(output).not.toContain('priority:');
+    expect(output).not.toContain('operationality:');
   });
 
   it('falls back to flat rendering when nodes lack parent_id', () => {
