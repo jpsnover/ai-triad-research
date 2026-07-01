@@ -5,7 +5,6 @@ import fs from 'fs/promises';
 import path from 'path';
 import type { StorageBackend } from './storageBackend.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
-import { renameWithRetry } from '../../../../lib/debate/persistence.js';
 
 /**
  * FilesystemBackend — local disk implementation of StorageBackend.

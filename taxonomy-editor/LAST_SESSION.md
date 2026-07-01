@@ -1,5 +1,5 @@
-**Date:** 2026-06-30
-**Working on:** t/1192 (My Cases), t/1193 (Admin Support), t/1180 (CopyLinkButton wiring) — all done
+**Date:** 2026-07-01
+**Working on:** t/1254 (OAuth login flow FR instrumentation)
 **Status:** Complete — ticket queue empty
-**Key context:** `no-use-before-define` ESLint rule: always declare module-level constants before first reference; diagnostics sidebar entry rows changed from `<button>` to `<div>` for flex layout with CopyLinkButton
+**Key context:** Added auth.login_attempt/callback_landing/loop_detected events to flight recorder; sessionStorage tracks redirect state across OAuth full-page navigations; auto-dumps on loop detection (3+ redirects in 30s); delegated click listener avoids per-component changes
 **Next:** Check ticket queue for new assignments

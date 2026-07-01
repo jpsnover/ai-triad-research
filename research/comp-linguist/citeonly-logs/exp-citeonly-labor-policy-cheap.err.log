@@ -46,267 +46,235 @@ Loading model 'all-MiniLM-L6-v2'...
 C:\Users\jsnov\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
   warnings.warn(
 [debate-cli] [generating] Topic critique
-[0;93m2026-06-30 15:41:33.8936167 [W:onnxruntime:, session_state.cc:1367 onnxruntime::VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.[m
-[0;93m2026-06-30 15:41:33.9242035 [W:onnxruntime:, session_state.cc:1369 onnxruntime::VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.[m
-[usage] {"ts":"2026-06-30T19:41:48.231Z","backend":"claude","model":"claude-opus-4-8","latencyMs":14569,"promptTokens":1808,"completionTokens":1046,"totalTokens":2854}
+[0;93m2026-06-30 17:53:38.7340859 [W:onnxruntime:, session_state.cc:1367 onnxruntime::VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.[m
+[0;93m2026-06-30 17:53:38.7797789 [W:onnxruntime:, session_state.cc:1369 onnxruntime::VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.[m
+[usage] {"ts":"2026-06-30T21:53:51.807Z","backend":"claude","model":"claude-opus-4-8","latencyMs":13560,"promptTokens":1808,"completionTokens":1025,"totalTokens":2833}
 [debate-cli] [setup] Topic quality: fair (12/20)
 [debate-cli] [setup] Extracting topic scope
 [debate-cli] [generating] Topic scope extraction
-[usage] {"ts":"2026-06-30T19:42:04.580Z","backend":"claude","model":"claude-opus-4-8","latencyMs":16347,"promptTokens":2894,"completionTokens":1183,"totalTokens":4077}
-[debate-cli] [setup] Topic scope extracted (inferred, 7 off-scope, 5 drift sigs)
-[debate-cli] [opening] skeptic: Skeptic preparing opening statement
-[debate-cli] [opening] skeptic: Skeptic is briefing...
-[debate-cli] [generating] Skeptic opening brief
-[usage] {"ts":"2026-06-30T19:42:54.080Z","backend":"claude","model":"claude-opus-4-8","latencyMs":49405,"promptTokens":12988,"completionTokens":3708,"totalTokens":16696}
-[debate-cli] [opening] skeptic: Skeptic is planning...
-[debate-cli] [generating] Skeptic opening plan
-[usage] {"ts":"2026-06-30T19:43:17.533Z","backend":"claude","model":"claude-opus-4-8","latencyMs":23451,"promptTokens":7744,"completionTokens":1592,"totalTokens":9336}
-[debate-cli] [opening] skeptic: Skeptic is drafting...
-[debate-cli] [generating] Skeptic opening draft
-[usage] {"ts":"2026-06-30T19:43:44.573Z","backend":"claude","model":"claude-opus-4-8","latencyMs":27038,"promptTokens":10807,"completionTokens":1826,"totalTokens":12633}
-[debate-cli] [opening] skeptic: Skeptic is citing...
-[debate-cli] [generating] Skeptic opening cite
-[usage] {"ts":"2026-06-30T19:43:48.792Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":4216,"promptTokens":12186,"completionTokens":434,"totalTokens":12620}
-[debate-cli] [generating] Claim extraction
-[usage] {"ts":"2026-06-30T19:44:09.642Z","backend":"claude","model":"claude-opus-4-8","latencyMs":20843,"promptTokens":5528,"completionTokens":1760,"totalTokens":7288}
-[debate-cli] [generating] Entailment check
-[usage] {"ts":"2026-06-30T19:44:13.076Z","backend":"claude","model":"claude-opus-4-8","latencyMs":3409,"promptTokens":1681,"completionTokens":118,"totalTokens":1799}
-[debate-cli] [generating] Entailment check
-[usage] {"ts":"2026-06-30T19:44:15.641Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2564,"promptTokens":1693,"completionTokens":117,"totalTokens":1810}
-[usage] {"ts":"2026-06-30T19:44:23.120Z","backend":"claude","model":"claude-opus-4-8","latencyMs":7303,"promptTokens":1471,"completionTokens":500,"totalTokens":1971}
-[debate-engine] [WARNING] summarizeEntry: Unterminated string in JSON at position 1552 (line 1 column 1553). Recovery: Entry will display at full detail only
-[debate-cli] [warning] [WARNING] summarizeEntry: Unterminated string in JSON at position 1552 (line 1 column 1553). Recovery: Entry will display at full detail only
+[usage] {"ts":"2026-06-30T21:54:08.469Z","backend":"claude","model":"claude-opus-4-8","latencyMs":16660,"promptTokens":2923,"completionTokens":1321,"totalTokens":4244}
+[debate-cli] [setup] Topic scope extracted (explicit, 6 off-scope, 6 drift sigs)
 [debate-cli] [opening] accelerationist: Accelerationist preparing opening statement
 [debate-cli] [opening] accelerationist: Accelerationist is briefing...
 [debate-cli] [generating] Accelerationist opening brief
-[usage] {"ts":"2026-06-30T19:45:13.810Z","backend":"claude","model":"claude-opus-4-8","latencyMs":50571,"promptTokens":13895,"completionTokens":4044,"totalTokens":17939}
+[usage] {"ts":"2026-06-30T21:55:00.907Z","backend":"claude","model":"claude-opus-4-8","latencyMs":52185,"promptTokens":13034,"completionTokens":4098,"totalTokens":17132}
 [debate-cli] [opening] accelerationist: Accelerationist is planning...
 [debate-cli] [generating] Accelerationist opening plan
-[usage] {"ts":"2026-06-30T19:45:38.831Z","backend":"claude","model":"claude-opus-4-8","latencyMs":25019,"promptTokens":8113,"completionTokens":1672,"totalTokens":9785}
+[usage] {"ts":"2026-06-30T21:55:24.320Z","backend":"claude","model":"claude-opus-4-8","latencyMs":23395,"promptTokens":8096,"completionTokens":1624,"totalTokens":9720}
 [debate-cli] [opening] accelerationist: Accelerationist is drafting...
 [debate-cli] [generating] Accelerationist opening draft
-[usage] {"ts":"2026-06-30T19:46:04.441Z","backend":"claude","model":"claude-opus-4-8","latencyMs":25609,"promptTokens":11442,"completionTokens":1611,"totalTokens":13053}
+[usage] {"ts":"2026-06-30T21:55:44.419Z","backend":"claude","model":"claude-opus-4-8","latencyMs":20095,"promptTokens":11188,"completionTokens":1372,"totalTokens":12560}
 [debate-cli] [opening] accelerationist: Accelerationist is citing...
 [debate-cli] [generating] Accelerationist opening cite
-[usage] {"ts":"2026-06-30T19:46:07.712Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":3269,"promptTokens":12491,"completionTokens":529,"totalTokens":13020}
-[debate-cli] [opening] accelerationist: Accelerationist retrying (1 issue)
-[debate-cli] [opening] accelerationist: Accelerationist is briefing...
-[debate-cli] [generating] Accelerationist opening brief
-[usage] {"ts":"2026-06-30T19:46:59.410Z","backend":"claude","model":"claude-opus-4-8","latencyMs":51698,"promptTokens":13895,"completionTokens":4075,"totalTokens":17970}
-[debate-cli] [opening] accelerationist: Accelerationist is planning...
-[debate-cli] [generating] Accelerationist opening plan
-[usage] {"ts":"2026-06-30T19:47:25.409Z","backend":"claude","model":"claude-opus-4-8","latencyMs":25998,"promptTokens":8136,"completionTokens":1715,"totalTokens":9851}
-[debate-cli] [opening] accelerationist: Accelerationist is drafting...
-[debate-cli] [generating] Accelerationist opening draft
-[usage] {"ts":"2026-06-30T19:47:49.070Z","backend":"claude","model":"claude-opus-4-8","latencyMs":23659,"promptTokens":11854,"completionTokens":1645,"totalTokens":13499}
-[debate-cli] [opening] accelerationist: Accelerationist is citing...
-[debate-cli] [generating] Accelerationist opening cite
-[usage] {"ts":"2026-06-30T19:47:51.910Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":2838,"promptTokens":12588,"completionTokens":412,"totalTokens":13000}
+[usage] {"ts":"2026-06-30T21:55:47.640Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":3214,"promptTokens":12028,"completionTokens":513,"totalTokens":12541}
 [debate-cli] [generating] Claim extraction
-[usage] {"ts":"2026-06-30T19:48:15.629Z","backend":"claude","model":"claude-opus-4-8","latencyMs":23716,"promptTokens":5776,"completionTokens":2135,"totalTokens":7911}
+[usage] {"ts":"2026-06-30T21:56:05.541Z","backend":"claude","model":"claude-opus-4-8","latencyMs":17870,"promptTokens":5124,"completionTokens":1603,"totalTokens":6727}
 [debate-cli] [generating] Entailment check
-[usage] {"ts":"2026-06-30T19:48:19.259Z","backend":"claude","model":"claude-opus-4-8","latencyMs":3594,"promptTokens":1571,"completionTokens":63,"totalTokens":1634}
+[usage] {"ts":"2026-06-30T21:56:07.576Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2005,"promptTokens":1355,"completionTokens":57,"totalTokens":1412}
+[usage] {"ts":"2026-06-30T21:56:15.113Z","backend":"claude","model":"claude-opus-4-8","latencyMs":6442,"promptTokens":1161,"completionTokens":500,"totalTokens":1661}
+[debate-engine] [WARNING] summarizeEntry: Unterminated string in JSON at position 1550 (line 1 column 1551). Recovery: Entry will display at full detail only
+[debate-cli] [warning] [WARNING] summarizeEntry: Unterminated string in JSON at position 1550 (line 1 column 1551). Recovery: Entry will display at full detail only
+[debate-cli] [opening] skeptic: Skeptic preparing opening statement
+[debate-cli] [opening] skeptic: Skeptic is briefing...
+[debate-cli] [generating] Skeptic opening brief
+[usage] {"ts":"2026-06-30T21:57:09.819Z","backend":"claude","model":"claude-opus-4-8","latencyMs":54084,"promptTokens":12925,"completionTokens":4299,"totalTokens":17224}
+[debate-cli] [opening] skeptic: Skeptic is planning...
+[debate-cli] [generating] Skeptic opening plan
+[usage] {"ts":"2026-06-30T21:57:35.302Z","backend":"claude","model":"claude-opus-4-8","latencyMs":25481,"promptTokens":8468,"completionTokens":1695,"totalTokens":10163}
+[debate-cli] [opening] skeptic: Skeptic is drafting...
+[debate-cli] [generating] Skeptic opening draft
+[usage] {"ts":"2026-06-30T21:57:59.768Z","backend":"claude","model":"claude-opus-4-8","latencyMs":24449,"promptTokens":11823,"completionTokens":1609,"totalTokens":13432}
+[debate-cli] [opening] skeptic: Skeptic is citing...
+[debate-cli] [generating] Skeptic opening cite
+[usage] {"ts":"2026-06-30T21:58:02.580Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":2800,"promptTokens":12260,"completionTokens":410,"totalTokens":12670}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-06-30T21:58:25.632Z","backend":"claude","model":"claude-opus-4-8","latencyMs":23033,"promptTokens":5664,"completionTokens":2055,"totalTokens":7719}
 [debate-cli] [generating] Entailment check
-[usage] {"ts":"2026-06-30T19:48:21.660Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2400,"promptTokens":1569,"completionTokens":85,"totalTokens":1654}
+[usage] {"ts":"2026-06-30T21:58:27.948Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2289,"promptTokens":1560,"completionTokens":72,"totalTokens":1632}
 [debate-cli] [generating] Entailment check
-[usage] {"ts":"2026-06-30T19:48:23.821Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2160,"promptTokens":1570,"completionTokens":76,"totalTokens":1646}
-[usage] {"ts":"2026-06-30T19:48:28.750Z","backend":"claude","model":"claude-opus-4-8","latencyMs":4784,"promptTokens":220,"completionTokens":270,"totalTokens":490}
-[usage] {"ts":"2026-06-30T19:48:32.119Z","backend":"claude","model":"claude-opus-4-8","latencyMs":8153,"promptTokens":1386,"completionTokens":500,"totalTokens":1886}
-[debate-engine] [WARNING] summarizeEntry: Unterminated string in JSON at position 1536 (line 1 column 1537). Recovery: Entry will display at full detail only
-[debate-cli] [warning] [WARNING] summarizeEntry: Unterminated string in JSON at position 1536 (line 1 column 1537). Recovery: Entry will display at full detail only
+[usage] {"ts":"2026-06-30T21:58:30.274Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2324,"promptTokens":1568,"completionTokens":82,"totalTokens":1650}
+[usage] {"ts":"2026-06-30T21:58:36.916Z","backend":"claude","model":"claude-opus-4-8","latencyMs":6386,"promptTokens":200,"completionTokens":427,"totalTokens":627}
+[usage] {"ts":"2026-06-30T21:58:38.455Z","backend":"claude","model":"claude-opus-4-8","latencyMs":7924,"promptTokens":1374,"completionTokens":500,"totalTokens":1874}
+[debate-engine] [WARNING] summarizeEntry: Unterminated string in JSON at position 1644 (line 1 column 1645). Recovery: Entry will display at full detail only
+[debate-cli] [warning] [WARNING] summarizeEntry: Unterminated string in JSON at position 1644 (line 1 column 1645). Recovery: Entry will display at full detail only
 [debate-cli] [opening] safetyist: Safetyist preparing opening statement
 [debate-cli] [opening] safetyist: Safetyist is briefing...
 [debate-cli] [generating] Safetyist opening brief
-[usage] {"ts":"2026-06-30T19:49:28.552Z","backend":"claude","model":"claude-opus-4-8","latencyMs":56327,"promptTokens":12850,"completionTokens":4446,"totalTokens":17296}
+[usage] {"ts":"2026-06-30T21:58:40.572Z","backend":"claude","model":"claude-opus-4-8","latencyMs":3639,"promptTokens":202,"completionTokens":182,"totalTokens":384}
+[usage] {"ts":"2026-06-30T21:59:31.220Z","backend":"claude","model":"claude-opus-4-8","latencyMs":52557,"promptTokens":12479,"completionTokens":4224,"totalTokens":16703}
 [debate-cli] [opening] safetyist: Safetyist is planning...
 [debate-cli] [generating] Safetyist opening plan
-[usage] {"ts":"2026-06-30T19:49:54.541Z","backend":"claude","model":"claude-opus-4-8","latencyMs":25988,"promptTokens":8971,"completionTokens":1594,"totalTokens":10565}
+[usage] {"ts":"2026-06-30T21:59:53.476Z","backend":"claude","model":"claude-opus-4-8","latencyMs":22239,"promptTokens":8791,"completionTokens":1512,"totalTokens":10303}
 [debate-cli] [opening] safetyist: Safetyist is drafting...
 [debate-cli] [generating] Safetyist opening draft
-[usage] {"ts":"2026-06-30T19:50:17.130Z","backend":"claude","model":"claude-opus-4-8","latencyMs":22588,"promptTokens":12224,"completionTokens":1523,"totalTokens":13747}
+[usage] {"ts":"2026-06-30T22:00:15.949Z","backend":"claude","model":"claude-opus-4-8","latencyMs":22470,"promptTokens":11962,"completionTokens":1561,"totalTokens":13523}
 [debate-cli] [opening] safetyist: Safetyist is citing...
 [debate-cli] [generating] Safetyist opening cite
-[usage] {"ts":"2026-06-30T19:50:19.830Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":2698,"promptTokens":12144,"completionTokens":415,"totalTokens":12559}
+[usage] {"ts":"2026-06-30T22:00:19.253Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":3302,"promptTokens":11743,"completionTokens":465,"totalTokens":12208}
 [debate-cli] [generating] Claim extraction
-[usage] {"ts":"2026-06-30T19:50:44.180Z","backend":"claude","model":"claude-opus-4-8","latencyMs":24348,"promptTokens":5990,"completionTokens":2265,"totalTokens":8255}
+[usage] {"ts":"2026-06-30T22:00:44.707Z","backend":"claude","model":"claude-opus-4-8","latencyMs":25434,"promptTokens":5923,"completionTokens":2325,"totalTokens":8248}
 [debate-cli] [generating] Entailment check
-[usage] {"ts":"2026-06-30T19:50:46.670Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2486,"promptTokens":1473,"completionTokens":82,"totalTokens":1555}
-[debate-cli] [generating] Entailment check
-[usage] {"ts":"2026-06-30T19:50:53.150Z","backend":"claude","model":"claude-opus-4-8","latencyMs":6479,"promptTokens":1449,"completionTokens":89,"totalTokens":1538}
-[usage] {"ts":"2026-06-30T19:50:57.560Z","backend":"claude","model":"claude-opus-4-8","latencyMs":4312,"promptTokens":212,"completionTokens":261,"totalTokens":473}
-[usage] {"ts":"2026-06-30T19:50:59.943Z","backend":"claude","model":"claude-opus-4-8","latencyMs":6694,"promptTokens":1269,"completionTokens":500,"totalTokens":1769}
-[debate-engine] [WARNING] summarizeEntry: Unterminated string in JSON at position 1619 (line 1 column 1620). Recovery: Entry will display at full detail only
-[debate-cli] [warning] [WARNING] summarizeEntry: Unterminated string in JSON at position 1619 (line 1 column 1620). Recovery: Entry will display at full detail only
+[usage] {"ts":"2026-06-30T22:00:47.352Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2623,"promptTokens":1514,"completionTokens":124,"totalTokens":1638}
+[usage] {"ts":"2026-06-30T22:00:55.456Z","backend":"claude","model":"claude-opus-4-8","latencyMs":7881,"promptTokens":1316,"completionTokens":500,"totalTokens":1816}
+[debate-engine] [WARNING] summarizeEntry: Unterminated string in JSON at position 1599 (line 1 column 1600). Recovery: Entry will display at full detail only
+[debate-cli] [warning] [WARNING] summarizeEntry: Unterminated string in JSON at position 1599 (line 1 column 1600). Recovery: Entry will display at full detail only
 [debate-cli] [evaluation] Neutral evaluation: baseline
-[usage] {"ts":"2026-06-30T19:51:40.100Z","backend":"claude","model":"claude-opus-4-8","latencyMs":40093,"promptTokens":5721,"completionTokens":3474,"totalTokens":9195}
+[usage] {"ts":"2026-06-30T22:01:30.538Z","backend":"claude","model":"claude-opus-4-8","latencyMs":34938,"promptTokens":5371,"completionTokens":3106,"totalTokens":8477}
 [debate-cli] [debate] Cross-respond round 1/4 [confrontation]
 [debate-cli] [generating] Round 1: Moderator selection
-[usage] {"ts":"2026-06-30T19:51:46.372Z","backend":"claude","model":"claude-opus-4-8","latencyMs":6261,"promptTokens":10220,"completionTokens":315,"totalTokens":10535}
+[usage] {"ts":"2026-06-30T22:01:35.645Z","backend":"claude","model":"claude-opus-4-8","latencyMs":5079,"promptTokens":9913,"completionTokens":249,"totalTokens":10162}
 [debate-cli] [debate] accelerationist: Accelerationist responding (round 1)
 [debate-cli] [generating] accelerationist: Accelerationist is briefing...
 [debate-cli] [generating] Accelerationist brief
-[usage] {"ts":"2026-06-30T19:52:22.583Z","backend":"claude","model":"claude-opus-4-8","latencyMs":36012,"promptTokens":4448,"completionTokens":2689,"totalTokens":7137}
+[usage] {"ts":"2026-06-30T22:02:14.215Z","backend":"claude","model":"claude-opus-4-8","latencyMs":38038,"promptTokens":4039,"completionTokens":2879,"totalTokens":6918}
 [debate-cli] [generating] accelerationist: Accelerationist is planning...
 [debate-cli] [generating] Accelerationist plan
-[usage] {"ts":"2026-06-30T19:52:48.611Z","backend":"claude","model":"claude-opus-4-8","latencyMs":26026,"promptTokens":4790,"completionTokens":1559,"totalTokens":6349}
+[usage] {"ts":"2026-06-30T22:02:45.198Z","backend":"claude","model":"claude-opus-4-8","latencyMs":30979,"promptTokens":4911,"completionTokens":1889,"totalTokens":6800}
 [debate-cli] [generating] accelerationist: Accelerationist is drafting...
 [debate-cli] [generating] Accelerationist draft
-[usage] {"ts":"2026-06-30T19:53:25.193Z","backend":"claude","model":"claude-opus-4-8","latencyMs":36480,"promptTokens":6777,"completionTokens":2392,"totalTokens":9169}
+[usage] {"ts":"2026-06-30T22:03:19.999Z","backend":"claude","model":"claude-opus-4-8","latencyMs":34761,"promptTokens":7160,"completionTokens":2410,"totalTokens":9570}
 [debate-cli] [generating] accelerationist: Accelerationist is quality-checking draft...
 [debate-cli] [generating] Accelerationist draft-quality-check
-[usage] {"ts":"2026-06-30T19:53:26.031Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":814,"promptTokens":1974,"completionTokens":36,"totalTokens":2010}
+[usage] {"ts":"2026-06-30T22:03:20.931Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":882,"promptTokens":2187,"completionTokens":36,"totalTokens":2223}
 [debate-cli] [generating] accelerationist: Accelerationist is citing...
 [debate-cli] [generating] Accelerationist cite
-[usage] {"ts":"2026-06-30T19:53:29.690Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":3657,"promptTokens":10119,"completionTokens":661,"totalTokens":10780}
+[usage] {"ts":"2026-06-30T22:03:23.948Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":3012,"promptTokens":9503,"completionTokens":633,"totalTokens":10136}
 [debate-cli] [generating] turn-validator judge (accelerationist r1)
-[usage] {"ts":"2026-06-30T19:53:40.381Z","backend":"claude","model":"claude-haiku-4-5-20251001","latencyMs":10688,"promptTokens":3540,"completionTokens":781,"totalTokens":4321}
+[usage] {"ts":"2026-06-30T22:03:35.477Z","backend":"claude","model":"claude-haiku-4-5-20251001","latencyMs":11520,"promptTokens":3690,"completionTokens":942,"totalTokens":4632}
 [debate-cli] [generating] Claim extraction
-[usage] {"ts":"2026-06-30T19:54:17.380Z","backend":"claude","model":"claude-opus-4-8","latencyMs":36987,"promptTokens":6708,"completionTokens":3279,"totalTokens":9987}
+[usage] {"ts":"2026-06-30T22:04:08.927Z","backend":"claude","model":"claude-opus-4-8","latencyMs":33433,"promptTokens":6628,"completionTokens":3243,"totalTokens":9871}
 [debate-cli] [generating] Entailment check
-[usage] {"ts":"2026-06-30T19:54:19.752Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2366,"promptTokens":1855,"completionTokens":85,"totalTokens":1940}
+[usage] {"ts":"2026-06-30T22:04:11.267Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2327,"promptTokens":1828,"completionTokens":100,"totalTokens":1928}
 [debate-cli] [generating] Entailment check
-[usage] {"ts":"2026-06-30T19:54:21.892Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2138,"promptTokens":1870,"completionTokens":65,"totalTokens":1935}
-[debate-cli] [generating] Entailment check
-[usage] {"ts":"2026-06-30T19:54:24.010Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2117,"promptTokens":1881,"completionTokens":70,"totalTokens":1951}
+[usage] {"ts":"2026-06-30T22:04:13.645Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2361,"promptTokens":1838,"completionTokens":98,"totalTokens":1936}
 [debate-cli] [snapshot] Wrote round_complete recovery file: C:\Users\jsnov\repos\ai-triad-data\debates\cli-runs\exp-citeonly-labor-policy-cheap-partial.json
 [debate-cli] [debate] Cross-respond round 2/4 [confrontation]
 [debate-cli] [generating] Round 2: Moderator selection
-[usage] {"ts":"2026-06-30T19:54:30.260Z","backend":"claude","model":"claude-opus-4-8","latencyMs":6122,"promptTokens":231,"completionTokens":365,"totalTokens":596}
-[usage] {"ts":"2026-06-30T19:54:32.100Z","backend":"claude","model":"claude-opus-4-8","latencyMs":7961,"promptTokens":1685,"completionTokens":500,"totalTokens":2185}
-[debate-engine] [WARNING] summarizeEntry: Unterminated string in JSON at position 1563 (line 1 column 1564). Recovery: Entry will display at full detail only
-[debate-cli] [warning] [WARNING] summarizeEntry: Unterminated string in JSON at position 1563 (line 1 column 1564). Recovery: Entry will display at full detail only
-[usage] {"ts":"2026-06-30T19:54:32.550Z","backend":"claude","model":"claude-opus-4-8","latencyMs":8385,"promptTokens":12640,"completionTokens":260,"totalTokens":12900}
+[usage] {"ts":"2026-06-30T22:04:18.769Z","backend":"claude","model":"claude-opus-4-8","latencyMs":4857,"promptTokens":12391,"completionTokens":238,"totalTokens":12629}
 [debate-cli] [debate] safetyist: Safetyist responding (round 2)
 [debate-cli] [generating] safetyist: Safetyist is briefing...
 [debate-cli] [generating] Safetyist brief
-[usage] {"ts":"2026-06-30T19:54:37.140Z","backend":"claude","model":"claude-opus-4-8","latencyMs":6879,"promptTokens":198,"completionTokens":142,"totalTokens":340}
-[usage] {"ts":"2026-06-30T19:55:11.793Z","backend":"claude","model":"claude-opus-4-8","latencyMs":39053,"promptTokens":6402,"completionTokens":2922,"totalTokens":9324}
+[usage] {"ts":"2026-06-30T22:04:21.009Z","backend":"claude","model":"claude-opus-4-8","latencyMs":7171,"promptTokens":1645,"completionTokens":500,"totalTokens":2145}
+[debate-engine] [WARNING] summarizeEntry: Unterminated string in JSON at position 1488 (line 1 column 1489). Recovery: Entry will display at full detail only
+[debate-cli] [warning] [WARNING] summarizeEntry: Unterminated string in JSON at position 1488 (line 1 column 1489). Recovery: Entry will display at full detail only
+[usage] {"ts":"2026-06-30T22:04:52.728Z","backend":"claude","model":"claude-opus-4-8","latencyMs":33528,"promptTokens":5884,"completionTokens":2537,"totalTokens":8421}
 [debate-cli] [generating] safetyist: Safetyist is planning...
 [debate-cli] [generating] Safetyist plan
-[usage] {"ts":"2026-06-30T19:55:36.110Z","backend":"claude","model":"claude-opus-4-8","latencyMs":24316,"promptTokens":5180,"completionTokens":1649,"totalTokens":6829}
+[usage] {"ts":"2026-06-30T22:05:17.276Z","backend":"claude","model":"claude-opus-4-8","latencyMs":24547,"promptTokens":4771,"completionTokens":1678,"totalTokens":6449}
 [debate-cli] [generating] safetyist: Safetyist is drafting...
 [debate-cli] [generating] Safetyist draft
-[usage] {"ts":"2026-06-30T19:56:09.400Z","backend":"claude","model":"claude-opus-4-8","latencyMs":33276,"promptTokens":7113,"completionTokens":2291,"totalTokens":9404}
+[usage] {"ts":"2026-06-30T22:05:54.563Z","backend":"claude","model":"claude-opus-4-8","latencyMs":37251,"promptTokens":6721,"completionTokens":2541,"totalTokens":9262}
+[debate-cli] [generating] Safetyist micro-fix(specificity)
+[usage] {"ts":"2026-06-30T22:06:24.127Z","backend":"claude","model":"claude-opus-4-8","latencyMs":29548,"promptTokens":2462,"completionTokens":3035,"totalTokens":5497}
+[debate-cli] [generating] safetyist: Safetyist is drafting (retry 1)...
+[debate-cli] [generating] Safetyist draft
+[usage] {"ts":"2026-06-30T22:06:54.108Z","backend":"claude","model":"claude-opus-4-8","latencyMs":29960,"promptTokens":9369,"completionTokens":2640,"cachedTokens":15903,"totalTokens":12009}
 [debate-cli] [generating] safetyist: Safetyist is quality-checking draft...
 [debate-cli] [generating] Safetyist draft-quality-check
-[usage] {"ts":"2026-06-30T19:56:10.550Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":1141,"promptTokens":2091,"completionTokens":44,"totalTokens":2135}
+[usage] {"ts":"2026-06-30T22:06:55.138Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":1013,"promptTokens":2416,"completionTokens":44,"totalTokens":2460}
 [debate-cli] [generating] safetyist: Safetyist is citing...
 [debate-cli] [generating] Safetyist cite
-[usage] {"ts":"2026-06-30T19:56:13.110Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":2558,"promptTokens":9061,"completionTokens":602,"totalTokens":9663}
+[usage] {"ts":"2026-06-30T22:06:58.309Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":3153,"promptTokens":9226,"completionTokens":625,"totalTokens":9851}
 [debate-cli] [generating] turn-validator judge (safetyist r2)
-[usage] {"ts":"2026-06-30T19:56:24.613Z","backend":"claude","model":"claude-haiku-4-5-20251001","latencyMs":11498,"promptTokens":3423,"completionTokens":890,"totalTokens":4313}
+[usage] {"ts":"2026-06-30T22:07:08.839Z","backend":"claude","model":"claude-haiku-4-5-20251001","latencyMs":10508,"promptTokens":3663,"completionTokens":787,"totalTokens":4450}
 [debate-cli] [generating] Claim extraction
-[usage] {"ts":"2026-06-30T19:56:59.279Z","backend":"claude","model":"claude-opus-4-8","latencyMs":34653,"promptTokens":7007,"completionTokens":3261,"totalTokens":10268}
+[usage] {"ts":"2026-06-30T22:07:41.547Z","backend":"claude","model":"claude-opus-4-8","latencyMs":32677,"promptTokens":7159,"completionTokens":3081,"totalTokens":10240}
 [debate-cli] [generating] Entailment check
-[usage] {"ts":"2026-06-30T19:57:01.800Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2514,"promptTokens":1830,"completionTokens":100,"totalTokens":1930}
+[usage] {"ts":"2026-06-30T22:07:44.539Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2964,"promptTokens":2048,"completionTokens":99,"totalTokens":2147}
 [debate-cli] [generating] Entailment check
-[usage] {"ts":"2026-06-30T19:57:07.719Z","backend":"claude","model":"claude-opus-4-8","latencyMs":5917,"promptTokens":1814,"completionTokens":99,"totalTokens":1913}
+[usage] {"ts":"2026-06-30T22:07:47.529Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2974,"promptTokens":2049,"completionTokens":99,"totalTokens":2148}
 [debate-cli] [evaluation] Neutral evaluation: midpoint
-[usage] {"ts":"2026-06-30T19:57:11.079Z","backend":"claude","model":"claude-opus-4-8","latencyMs":3216,"promptTokens":170,"completionTokens":160,"totalTokens":330}
-[usage] {"ts":"2026-06-30T19:57:15.232Z","backend":"claude","model":"claude-opus-4-8","latencyMs":7368,"promptTokens":1627,"completionTokens":500,"totalTokens":2127}
-[debate-engine] [WARNING] summarizeEntry: Unterminated string in JSON at position 1551 (line 1 column 1552). Recovery: Entry will display at full detail only
-[debate-cli] [warning] [WARNING] summarizeEntry: Unterminated string in JSON at position 1551 (line 1 column 1552). Recovery: Entry will display at full detail only
-[usage] {"ts":"2026-06-30T19:57:54.370Z","backend":"claude","model":"claude-opus-4-8","latencyMs":46504,"promptTokens":8716,"completionTokens":3969,"totalTokens":12685}
+[usage] {"ts":"2026-06-30T22:07:52.576Z","backend":"claude","model":"claude-opus-4-8","latencyMs":4771,"promptTokens":193,"completionTokens":271,"totalTokens":464}
+[usage] {"ts":"2026-06-30T22:07:55.219Z","backend":"claude","model":"claude-opus-4-8","latencyMs":7414,"promptTokens":1855,"completionTokens":500,"totalTokens":2355}
+[debate-engine] [WARNING] summarizeEntry: Unterminated string in JSON at position 1631 (line 1 column 1632). Recovery: Entry will display at full detail only
+[debate-cli] [warning] [WARNING] summarizeEntry: Unterminated string in JSON at position 1631 (line 1 column 1632). Recovery: Entry will display at full detail only
+[usage] {"ts":"2026-06-30T22:08:33.844Z","backend":"claude","model":"claude-opus-4-8","latencyMs":46020,"promptTokens":8258,"completionTokens":3845,"totalTokens":12103}
 [debate-cli] [snapshot] Wrote round_complete recovery file: C:\Users\jsnov\repos\ai-triad-data\debates\cli-runs\exp-citeonly-labor-policy-cheap-partial.json
 [debate-cli] [debate] Cross-respond round 3/4 [argumentation]
 [debate-cli] [generating] Round 3: Moderator selection
-[usage] {"ts":"2026-06-30T19:58:09.220Z","backend":"claude","model":"claude-opus-4-8","latencyMs":14819,"promptTokens":13511,"completionTokens":754,"totalTokens":14265}
+[usage] {"ts":"2026-06-30T22:08:47.262Z","backend":"claude","model":"claude-opus-4-8","latencyMs":13348,"promptTokens":15745,"completionTokens":809,"totalTokens":16554}
 [debate-cli] [generating] Round 3: Moderator intervention (BALANCE)
-[usage] {"ts":"2026-06-30T19:58:16.250Z","backend":"claude","model":"claude-opus-4-8","latencyMs":7028,"promptTokens":3520,"completionTokens":333,"totalTokens":3853}
+[usage] {"ts":"2026-06-30T22:08:55.926Z","backend":"claude","model":"claude-opus-4-8","latencyMs":8663,"promptTokens":6358,"completionTokens":410,"totalTokens":6768}
 [debate-cli] [debate] Moderator: BALANCE → Skeptic
 [debate-cli] [debate] skeptic: Skeptic responding (round 3)
 [debate-cli] [generating] skeptic: Skeptic is briefing...
 [debate-cli] [generating] Skeptic brief
-[usage] {"ts":"2026-06-30T19:58:55.192Z","backend":"claude","model":"claude-opus-4-8","latencyMs":38710,"promptTokens":6256,"completionTokens":2710,"totalTokens":8966}
+[usage] {"ts":"2026-06-30T22:09:36.110Z","backend":"claude","model":"claude-opus-4-8","latencyMs":39673,"promptTokens":7381,"completionTokens":2980,"totalTokens":10361}
 [debate-cli] [generating] skeptic: Skeptic is planning...
 [debate-cli] [generating] Skeptic plan
-[usage] {"ts":"2026-06-30T19:59:20.042Z","backend":"claude","model":"claude-opus-4-8","latencyMs":24846,"promptTokens":5096,"completionTokens":1603,"totalTokens":6699}
+[usage] {"ts":"2026-06-30T22:09:57.859Z","backend":"claude","model":"claude-opus-4-8","latencyMs":21746,"promptTokens":5636,"completionTokens":1412,"totalTokens":7048}
 [debate-cli] [generating] skeptic: Skeptic is drafting...
 [debate-cli] [generating] Skeptic draft
-[usage] {"ts":"2026-06-30T19:59:50.060Z","backend":"claude","model":"claude-opus-4-8","latencyMs":30010,"promptTokens":7011,"completionTokens":2044,"totalTokens":9055}
+[usage] {"ts":"2026-06-30T22:10:30.525Z","backend":"claude","model":"claude-opus-4-8","latencyMs":32647,"promptTokens":7361,"completionTokens":2132,"totalTokens":9493}
 [debate-cli] [generating] skeptic: Skeptic is quality-checking draft...
 [debate-cli] [generating] Skeptic draft-quality-check
-[usage] {"ts":"2026-06-30T19:59:50.832Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":762,"promptTokens":1923,"completionTokens":44,"totalTokens":1967}
+[usage] {"ts":"2026-06-30T22:10:31.613Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":1063,"promptTokens":2055,"completionTokens":66,"totalTokens":2121}
+[debate-cli] [generating] Skeptic draft (quality retry)
+[usage] {"ts":"2026-06-30T22:11:04.564Z","backend":"claude","model":"claude-opus-4-8","latencyMs":32947,"promptTokens":7771,"completionTokens":2109,"cachedTokens":16298,"totalTokens":9880}
+[debate-cli] [generating] Skeptic draft-quality-recheck
+[usage] {"ts":"2026-06-30T22:11:05.475Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":908,"promptTokens":2110,"completionTokens":44,"totalTokens":2154}
 [debate-cli] [generating] skeptic: Skeptic is citing...
 [debate-cli] [generating] Skeptic cite
-[usage] {"ts":"2026-06-30T19:59:54.070Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":3237,"promptTokens":9813,"completionTokens":644,"totalTokens":10457}
+[usage] {"ts":"2026-06-30T22:11:08.698Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":3206,"promptTokens":9528,"completionTokens":681,"totalTokens":10209}
 [debate-cli] [generating] turn-validator judge (skeptic r3)
-[usage] {"ts":"2026-06-30T20:00:13.402Z","backend":"claude","model":"claude-haiku-4-5-20251001","latencyMs":19330,"promptTokens":3292,"completionTokens":1464,"totalTokens":4756}
+[usage] {"ts":"2026-06-30T22:11:18.094Z","backend":"claude","model":"claude-haiku-4-5-20251001","latencyMs":9391,"promptTokens":3366,"completionTokens":691,"totalTokens":4057}
 [debate-cli] [generating] Claim extraction
-[usage] {"ts":"2026-06-30T20:00:48.460Z","backend":"claude","model":"claude-opus-4-8","latencyMs":35045,"promptTokens":7207,"completionTokens":3404,"totalTokens":10611}
+[usage] {"ts":"2026-06-30T22:11:52.642Z","backend":"claude","model":"claude-opus-4-8","latencyMs":34522,"promptTokens":7216,"completionTokens":3353,"totalTokens":10569}
 [debate-cli] [gap-injection] Analyzing debate gaps
-[usage] {"ts":"2026-06-30T20:00:55.700Z","backend":"claude","model":"claude-opus-4-8","latencyMs":7176,"promptTokens":1412,"completionTokens":500,"totalTokens":1912}
-[debate-engine] [WARNING] summarizeEntry: Unterminated string in JSON at position 1537 (line 1 column 1538). Recovery: Entry will display at full detail only
-[debate-cli] [warning] [WARNING] summarizeEntry: Unterminated string in JSON at position 1537 (line 1 column 1538). Recovery: Entry will display at full detail only
-[usage] {"ts":"2026-06-30T20:01:04.523Z","backend":"claude","model":"claude-opus-4-8","latencyMs":15995,"promptTokens":14987,"completionTokens":902,"totalTokens":15889}
-[debate-cli] [compression] Compressing debate history
+[usage] {"ts":"2026-06-30T22:12:00.795Z","backend":"claude","model":"claude-opus-4-8","latencyMs":7910,"promptTokens":1567,"completionTokens":500,"totalTokens":2067}
+[debate-engine] [WARNING] summarizeEntry: Unterminated string in JSON at position 1562 (line 1 column 1563). Recovery: Entry will display at full detail only
+[debate-cli] [warning] [WARNING] summarizeEntry: Unterminated string in JSON at position 1562 (line 1 column 1563). Recovery: Entry will display at full detail only
+[usage] {"ts":"2026-06-30T22:12:16.153Z","backend":"claude","model":"claude-opus-4-8","latencyMs":23264,"promptTokens":14779,"completionTokens":1326,"totalTokens":16105}
 [debate-cli] [snapshot] Wrote round_complete recovery file: C:\Users\jsnov\repos\ai-triad-data\debates\cli-runs\exp-citeonly-labor-policy-cheap-partial.json
 [debate-cli] [debate] Cross-respond round 4/4 [argumentation]
 [debate-cli] [generating] Round 4: Moderator selection
-[usage] {"ts":"2026-06-30T20:01:11.262Z","backend":"claude","model":"claude-opus-4-8","latencyMs":6687,"promptTokens":17721,"completionTokens":370,"totalTokens":18091}
+[usage] {"ts":"2026-06-30T22:12:23.115Z","backend":"claude","model":"claude-opus-4-8","latencyMs":6878,"promptTokens":16173,"completionTokens":311,"totalTokens":16484}
 [debate-cli] [debate] accelerationist: Accelerationist responding (round 4)
 [debate-cli] [generating] accelerationist: Accelerationist is briefing...
 [debate-cli] [generating] Accelerationist brief
-[usage] {"ts":"2026-06-30T20:01:47.281Z","backend":"claude","model":"claude-opus-4-8","latencyMs":35685,"promptTokens":9782,"completionTokens":2708,"totalTokens":12490}
+[usage] {"ts":"2026-06-30T22:13:01.213Z","backend":"claude","model":"claude-opus-4-8","latencyMs":37448,"promptTokens":7494,"completionTokens":2816,"totalTokens":10310}
 [debate-cli] [generating] accelerationist: Accelerationist is planning...
 [debate-cli] [generating] Accelerationist plan
-[usage] {"ts":"2026-06-30T20:02:14.093Z","backend":"claude","model":"claude-opus-4-8","latencyMs":26793,"promptTokens":5375,"completionTokens":1637,"totalTokens":7012}
+[usage] {"ts":"2026-06-30T22:13:30.806Z","backend":"claude","model":"claude-opus-4-8","latencyMs":29590,"promptTokens":5647,"completionTokens":1782,"totalTokens":7429}
 [debate-cli] [generating] accelerationist: Accelerationist is drafting...
 [debate-cli] [generating] Accelerationist draft
-[usage] {"ts":"2026-06-30T20:02:52.182Z","backend":"claude","model":"claude-opus-4-8","latencyMs":38067,"promptTokens":6808,"completionTokens":2452,"totalTokens":9260}
+[usage] {"ts":"2026-06-30T22:14:09.357Z","backend":"claude","model":"claude-opus-4-8","latencyMs":38537,"promptTokens":7109,"completionTokens":2724,"totalTokens":9833}
 [debate-cli] [generating] accelerationist: Accelerationist is quality-checking draft...
 [debate-cli] [generating] Accelerationist draft-quality-check
-[usage] {"ts":"2026-06-30T20:02:53.050Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":847,"promptTokens":2319,"completionTokens":44,"totalTokens":2363}
+[usage] {"ts":"2026-06-30T22:14:10.226Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":857,"promptTokens":1768,"completionTokens":44,"totalTokens":1812}
 [debate-cli] [generating] accelerationist: Accelerationist is citing...
 [debate-cli] [generating] Accelerationist cite
-[usage] {"ts":"2026-06-30T20:02:55.912Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":2850,"promptTokens":10736,"completionTokens":577,"totalTokens":11313}
-[debate-cli] [generating] turn-validator judge (accelerationist r4)
-[usage] {"ts":"2026-06-30T20:03:04.187Z","backend":"claude","model":"claude-haiku-4-5-20251001","latencyMs":8273,"promptTokens":3660,"completionTokens":610,"totalTokens":4270}
+[usage] {"ts":"2026-06-30T22:14:16.374Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":6145,"promptTokens":10269,"completionTokens":702,"totalTokens":10971}
 [debate-cli] [generating] Claim extraction
-[usage] {"ts":"2026-06-30T20:03:40.088Z","backend":"claude","model":"claude-opus-4-8","latencyMs":35889,"promptTokens":7689,"completionTokens":3297,"totalTokens":10986}
+[usage] {"ts":"2026-06-30T22:14:30.841Z","backend":"claude","model":"claude-opus-4-8","latencyMs":14447,"promptTokens":6472,"completionTokens":1290,"totalTokens":7762}
 [debate-cli] [generating] Entailment check
-[usage] {"ts":"2026-06-30T20:03:42.936Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2841,"promptTokens":1972,"completionTokens":96,"totalTokens":2068}
+[usage] {"ts":"2026-06-30T22:14:33.249Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2389,"promptTokens":926,"completionTokens":113,"totalTokens":1039}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-06-30T22:14:35.352Z","backend":"claude","model":"claude-opus-4-8","latencyMs":2091,"promptTokens":922,"completionTokens":83,"totalTokens":1005}
 [debate-cli] [snapshot] Wrote round_complete recovery file: C:\Users\jsnov\repos\ai-triad-data\debates\cli-runs\exp-citeonly-labor-policy-cheap-partial.json
 [debate-cli] [concluding] Generating synthesis
 [debate-cli] [concluding] Phase 1/3: Extracting agreements and disagreements
 [debate-cli] [evaluation] Neutral evaluation: final
 [debate-cli] [generating] Synthesis Phase 1: Extract
-[usage] {"ts":"2026-06-30T20:03:47.165Z","backend":"claude","model":"claude-opus-4-8","latencyMs":4054,"promptTokens":203,"completionTokens":177,"totalTokens":380}
-[usage] {"ts":"2026-06-30T20:03:52.358Z","backend":"claude","model":"claude-opus-4-8","latencyMs":9247,"promptTokens":1773,"completionTokens":500,"totalTokens":2273}
-[debate-engine] [WARNING] summarizeEntry: Unterminated string in JSON at position 1594 (line 1 column 1595). Recovery: Entry will display at full detail only
-[debate-cli] [warning] [WARNING] summarizeEntry: Unterminated string in JSON at position 1594 (line 1 column 1595). Recovery: Entry will display at full detail only
-[retry] claude/claude-opus-4-8 attempt 1/5 failed (fetch failed), waiting 2s...
-[debate-cli] [retry] Retry attempt 1/5, waiting 2s...
-[retry] claude/claude-opus-4-8 attempt 1/5 failed (fetch failed), waiting 2s...
-[debate-cli] [retry] Retry attempt 1/5, waiting 2s...
-[retry] claude/claude-opus-4-8 attempt 1/5 failed (fetch failed), waiting 2s...
-[debate-cli] [retry] Retry attempt 1/5, waiting 2s...
-[retry] claude/claude-opus-4-8 attempt 1/5 failed (fetch failed), waiting 2s...
-[debate-cli] [retry] Retry attempt 1/5, waiting 2s...
-[retry] claude/claude-opus-4-8 attempt 2/5 failed (fetch failed), waiting 4s...
-[debate-cli] [retry] Retry attempt 2/5, waiting 4s...
-[retry] claude/claude-opus-4-8 attempt 2/5 failed (fetch failed), waiting 4s...
-[debate-cli] [retry] Retry attempt 2/5, waiting 4s...
-[retry] claude/claude-opus-4-8 attempt 3/5 failed (fetch failed), waiting 8s...
-[debate-cli] [retry] Retry attempt 3/5, waiting 8s...
-[retry] claude/claude-opus-4-8 attempt 3/5 failed (fetch failed), waiting 8s...
-[debate-cli] [retry] Retry attempt 3/5, waiting 8s...
-[debate-engine] [WARNING] Neutral evaluation: Neutral evaluation (final) failed: 
-  Goal:     Generate AI response from claude/claude-opus-4-8
-  Error:    AI call timed out after 180s — no response from claude-opus-4
-  Location: lib/debate/aiAdapter.ts:doGenerateText
-  Resolve:
-  1. Click Retry to attempt the call again, or switch to a faster model. Recovery: Debate continues without neutral assessment
-[debate-cli] [warning] [WARNING] Neutral evaluation: Neutral evaluation (final) failed: 
-  Goal:     Generate AI response from claude/claude-opus-4-8
-  Error:    AI call timed out after 180s — no response from claude-opus-4
-  Location: lib/debate/aiAdapter.ts:doGenerateText
-  Resolve:
-  1. Click Retry to attempt the call again, or switch to a faster model. Recovery: Debate continues without neutral assessment
-[debate-cli] [snapshot] Wrote error recovery file: C:\Users\jsnov\repos\ai-triad-data\debates\cli-runs\exp-citeonly-labor-policy-cheap-partial.json
-[debate-cli] FATAL: 
-  Goal:     Generate AI response from claude/claude-opus-4-8
-  Error:    AI call timed out after 120s — no response from claude-opus-4
-  Location: lib/debate/aiAdapter.ts:doGenerateText
-  Resolve:
-  1. Click Retry to attempt the call again, or switch to a faster model
+[usage] {"ts":"2026-06-30T22:14:39.593Z","backend":"claude","model":"claude-opus-4-8","latencyMs":4149,"promptTokens":232,"completionTokens":233,"totalTokens":465}
+[usage] {"ts":"2026-06-30T22:14:41.743Z","backend":"claude","model":"claude-opus-4-8","latencyMs":6298,"promptTokens":703,"completionTokens":494,"totalTokens":1197}
+[usage] {"ts":"2026-06-30T22:15:26.620Z","backend":"claude","model":"claude-opus-4-8","latencyMs":51071,"promptTokens":10384,"completionTokens":4127,"totalTokens":14511}
+[usage] {"ts":"2026-06-30T22:15:36.513Z","backend":"claude","model":"claude-opus-4-8","latencyMs":60963,"promptTokens":12906,"completionTokens":5180,"totalTokens":18086}
+[debate-cli] [concluding] Phase 2/3: Building argument map
+[debate-cli] [generating] Synthesis Phase 2: Map
+[usage] {"ts":"2026-06-30T22:17:02.154Z","backend":"claude","model":"claude-opus-4-8","latencyMs":85624,"promptTokens":13476,"completionTokens":8174,"totalTokens":21650}
+[debate-cli] [concluding] Phase 3/3: Evaluating preferences
+[debate-cli] [generating] Synthesis Phase 3: Evaluate
+[usage] {"ts":"2026-06-30T22:18:01.123Z","backend":"claude","model":"claude-opus-4-8","latencyMs":58952,"promptTokens":7835,"completionTokens":4831,"totalTokens":12666}
+[debate-cli] [generating] Missing arguments pass
+[usage] {"ts":"2026-06-30T22:18:20.390Z","backend":"claude","model":"claude-opus-4-8","latencyMs":19250,"promptTokens":5969,"completionTokens":1099,"totalTokens":7068}
+[debate-cli] [generating] Taxonomy refinement pass
+[usage] {"ts":"2026-06-30T22:19:11.489Z","backend":"claude","model":"claude-opus-4-8","latencyMs":51095,"promptTokens":10488,"completionTokens":4346,"totalTokens":14834}
+[debate-cli] [cross-cutting] Analyzing cross-cutting proposals
+[usage] {"ts":"2026-06-30T22:19:46.244Z","backend":"claude","model":"claude-opus-4-8","latencyMs":34737,"promptTokens":7961,"completionTokens":2615,"totalTokens":10576}
+[debate-cli] Wrote debate JSON (atomic): C:\Users\jsnov\repos\ai-triad-data\debates\cli-runs\exp-citeonly-labor-policy-cheap-debate.json
+[debate-cli] Wrote debate markdown: C:\Users\jsnov\repos\ai-triad-data\debates\cli-runs\exp-citeonly-labor-policy-cheap-debate.md
+[debate-cli] Wrote diagnostics: C:\Users\jsnov\repos\ai-triad-data\debates\cli-runs\exp-citeonly-labor-policy-cheap-diagnostics.json
+[debate-cli] Wrote harvest: C:\Users\jsnov\repos\ai-triad-data\debates\cli-runs\exp-citeonly-labor-policy-cheap-harvest.json
+[debate-cli] Calibration data logged to C:\Users\jsnov\repos\ai-triad-data\debates/calibration/users/local/calibration-log.jsonl
+[debate-cli] Flight recorder: 344 events → C:\Users\jsnov\repos\ai-triad-data\debates\cli-runs\exp-citeonly-labor-policy-cheap-flight-recorder.jsonl

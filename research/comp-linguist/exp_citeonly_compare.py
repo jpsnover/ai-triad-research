@@ -17,14 +17,17 @@ for jf in glob.glob(os.path.join(DATA,'calibration/**/calibration-log.jsonl'),re
             if d: idx[d]=e
         except: pass
 
-def cal(path):
+def cal(slug):
+    # full session lives at debates/debate-<id>.json; id comes from <slug>-harvest.json
+    h=os.path.join(CR,f'{slug}-harvest.json')
     try:
-        i=json.load(open(path,encoding='utf-8')).get('id')
+        d=json.load(open(h,encoding='utf-8'))
+        i=d.get('debate_id') or d.get('id')
         return idx.get(i)
     except: return None
 
-def diag(path):
-    p=path.replace('-debate.json','-diagnostics.json')
+def diag(slug):
+    p=os.path.join(CR,f'{slug}-diagnostics.json')
     if os.path.exists(p):
         return json.load(open(p,encoding='utf-8')).get('overview',{})
     return {}
@@ -39,14 +42,14 @@ KEY = [  # the 3 regressions + context
 ]
 
 for topic in ['compute-licensing','labor-policy']:
-    exp = os.path.join(CR,f'exp-phase2-{topic}-expensive-debate.json')
-    cite= os.path.join(CR,f'exp-citeonly-{topic}-cheap-debate.json')
-    bc  = os.path.join(CR,f'exp-phase2-{topic}-cheap-debate.json')
+    exp = f'exp-phase2-{topic}-expensive'
+    cite= f'exp-citeonly-{topic}-cheap'
+    bc  = f'exp-phase2-{topic}-cheap'
     ce, cc, cb = cal(exp), cal(cite), cal(bc)
     print(f"\n{'='*72}\nTOPIC: {topic}")
     if not (ce and cc and cb):
         print(f"  missing calib — exp={bool(ce)} cite-only={bool(cc)} brief+cite={bool(cb)}"); continue
-    de,dc,db = diag(exp),diag(cite),diag(bc)
+    de,dc,db = diag(exp),diag(cite),diag(bc)  # noqa
     def spd(d):
         v=d.get('total_response_time_ms'); return f"{v/1000:.0f}s" if v else "?"
     print(f"  SPEED   expensive={spd(de)}  cite-only={spd(dc)}  brief+cite={spd(db)}")

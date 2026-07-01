@@ -1480,6 +1480,29 @@ export class GitHubAPIBackend implements StorageBackend {
     }
   }
 
+  private async renameWithRetry(oldPath: string, newPath: string): Promise<void> {
+    const maxRetries = 5;
+    for (let i = 0; i <= maxRetries; i++) {
+      try {
+        await fs.rename(oldPath, newPath);
+        return;
+      } catch (err: unknown) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if ((code === 'EPERM' || code === 'EACCES') && i < maxRetries) {
+          const delayMs = 50 * Math.pow(2, i);
+          this.recordEvent({
+            type: 'io.retry', component: 'cache', level: 'warn',
+            message: `rename failed (${code}), retry ${i + 1}/${maxRetries} after ${delayMs}ms`,
+            data: { oldPath, newPath, attempt: i + 1, code, delayMs },
+          });
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          continue;
+        }
+        throw err;
+      }
+    }
+  }
+
   private async saveManifest(): Promise<void> {
     if (!this.manifest) return;
 
@@ -1488,7 +1511,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const content = JSON.stringify(this.manifest, null, 2);
 
     await fs.writeFile(tmpPath, content, 'utf-8');
-    await fs.rename(tmpPath, manifestPath);
+    await this.renameWithRetry(tmpPath, manifestPath);
 
     this.recordEvent({
       type: 'cache.manifest.swap',
@@ -1541,7 +1564,7 @@ export class GitHubAPIBackend implements StorageBackend {
 
     const tmpPath = diskPath + '.tmp';
     await fs.writeFile(tmpPath, content, 'utf-8');
-    await fs.rename(tmpPath, diskPath);
+    await this.renameWithRetry(tmpPath, diskPath);
 
     await this.withManifestLock(async () => {
       if (!this.manifest) {
@@ -1573,7 +1596,7 @@ export class GitHubAPIBackend implements StorageBackend {
 
     const tmpPath = diskPath + '.tmp';
     await fs.writeFile(tmpPath, content);
-    await fs.rename(tmpPath, diskPath);
+    await this.renameWithRetry(tmpPath, diskPath);
 
     await this.withManifestLock(async () => {
       if (!this.manifest) {

@@ -1,0 +1,16 @@
+{
+  "activePovers": [
+    "accelerationist",
+    "safetyist",
+    "skeptic"
+  ],
+  "model": "claude-opus-4",
+  "rounds": 3,
+  "responseLength": "medium",
+  "protocolId": "structured",
+  "outputDir": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs",
+  "outputFormat": "json",
+  "slug": "exp-topicres-open",
+  "temperature": 0.3,
+  "topic": "How should democratic nations govern frontier AI development?"
+}

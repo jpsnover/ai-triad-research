@@ -1,0 +1,43 @@
+[onnxEmbedding] Using dml EP (available: cpu, dml, webgpu)
+[doctrinal] safetyist: 3/140 Beliefs anchored, 3 floor-applied
+[doctrinal] skeptic: 19/213 Beliefs anchored, 6 floor-applied
+[onnxEmbedding] Model loaded in 39946ms (384d, quantized, EP=dml)
+[ai-adapter] ONNX embedding ready — subprocess cold-starts eliminated
+[orchestration] *** executeTurnWithRetry ENTERED for safetyist round 1 ***
+[pipeline] Citation bank built: 15 scoped / 421 full entries, path=bank-scrub (intended=B), 10ms
+[pipeline] Micro-fix(specificity) re-validation failed — falling through to full retry
+[pipeline] Draft validation feedback (attempt 0), retrying: my_claims are all abstract — include a number, named entity, or timeline. Use the source evidence if provided.
+[pipeline] Draft field-level merge: froze statement, turn_symbols, commitment, position_update, regenerated claim_sketches
+[orchestration] *** executeTurnWithRetry ENTERED for skeptic round 2 ***
+[pipeline] Brief ID removed (unknown): capture_institutional
+[pipeline] Brief ID removed (unknown): asymmetry_power
+[pipeline] Brief ID removed (unknown): compliance_performative
+[pipeline] Brief ID removed (unknown): documented_present_harm
+[pipeline] Citation bank built: 15 scoped / 421 full entries, path=bank-scrub (intended=B), 8ms
+[orchestration] *** executeTurnWithRetry ENTERED for safetyist round 3 ***
+[pipeline] Brief ID removed (unknown): transparency_accountability
+[pipeline] Brief ID removed (unknown): accountability_institutional
+[pipeline] Brief ID removed (unknown): oversight_human_control
+[pipeline] Citation bank built: 15 scoped / 421 full entries, path=bank-scrub (intended=B), 5ms
+{
+  "success": true,
+  "debateId": "9ee89249-8e77-45b9-9589-b08c126e0060",
+  "name": "Under what conditions, and through which enforcement mech...",
+  "slug": "exp-topicres-structured",
+  "topic": "Under what conditions, and through which enforcement mechanisms, would compute-threshold licensing for frontier AI reduce catastrophic risk without entrenching incumbents?",
+  "files": {
+    "debate": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-topicres-structured-debate.json",
+    "transcript": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-topicres-structured-debate.json",
+    "diagnostics": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-topicres-structured-diagnostics.json",
+    "harvest": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-topicres-structured-harvest.json",
+    "markdown": "C:\\Users\\jsnov\\repos\\ai-triad-data\\debates\\cli-runs\\exp-topicres-structured-debate.md"
+  },
+  "stats": {
+    "rounds": 3,
+    "entries": 24,
+    "apiCalls": 67,
+    "totalTimeMs": 1694775,
+    "claimsAccepted": 33,
+    "claimsRejected": 0
+  }
+}

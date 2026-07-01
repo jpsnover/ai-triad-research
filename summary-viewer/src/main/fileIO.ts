@@ -6,6 +6,7 @@ import path from 'path';
 
 import { app } from 'electron';
 import { ActionableError } from '../../../lib/debate/errors';
+import { renameSyncWithRetry } from '../../../lib/debate/persistence';
 
 // Walk up from __dirname to find repo root (contains .aitriad.json or package.json with name "summary-viewer")
 function findProjectRoot(): string {
@@ -122,7 +123,7 @@ function writeJsonFileAtomic(filePath: string, data: unknown): void {
   const tmpPath = filePath + '.tmp';
   try {
     fs.writeFileSync(tmpPath, content, 'utf-8');
-    fs.renameSync(tmpPath, filePath);
+    renameSyncWithRetry(tmpPath, filePath);
   } catch (err) {
     try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
     const msg = err instanceof Error ? err.message : String(err);

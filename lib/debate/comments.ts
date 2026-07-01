@@ -12,6 +12,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import type { DebateSession, ArgumentNetworkNode, TranscriptEntry } from './types.js';
+import { renameSyncWithRetry } from './persistence.js';
 
 // ── Types & Enums ─────────────────────────────────────────
 
@@ -149,7 +150,7 @@ export function saveComments(commentsPath: string, file: CommentsFile): void {
   const json = JSON.stringify(file, null, 2);
   const tmpPath = commentsPath + '.tmp';
   fs.writeFileSync(tmpPath, json, 'utf-8');
-  fs.renameSync(tmpPath, commentsPath);
+  renameSyncWithRetry(tmpPath, commentsPath);
 }
 
 // ── CRUD Operations ───────────────────────────────────────

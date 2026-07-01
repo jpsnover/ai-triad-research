@@ -3,6 +3,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { renameSyncWithRetry } from './persistence.js';
 
 export interface DebateSessionSummary {
   id: string;
@@ -174,7 +175,7 @@ export function listDebateSessionsIndexed(debatesDir: string): DebateSessionSumm
       const canonical = `debate-${data.id}.json`;
       const canonicalPath = path.join(debatesDir, canonical);
       if (filePath !== canonicalPath) {
-        fs.renameSync(filePath, canonicalPath);
+        renameSyncWithRetry(filePath, canonicalPath);
       }
 
       const summary = extractSummary(data);

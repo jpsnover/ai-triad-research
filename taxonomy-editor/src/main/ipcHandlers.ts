@@ -57,6 +57,7 @@ import { checkForDataUpdates, pullDataUpdates, getChangedFiles, getFileDiff } fr
 import { diagnosePythonEmbeddings } from './diagnosePython.js';
 import type { NodeEmbeddingInput, NliPair } from './embeddings.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
+import { renameSyncWithRetry } from '../../../lib/debate/persistence.js';
 import { stampNodeAuthorship } from '../server/storage/editMeta.js';
 import {
   isAzureReviewConfigured,
@@ -583,7 +584,7 @@ export function registerIpcHandlers(): void {
     const filePath = path.join(conflictsDir, `${conflictId}.json`);
     const tmpPath = filePath + '.tmp';
     fs.writeFileSync(tmpPath, JSON.stringify(conflict, null, 2) + '\n', 'utf-8');
-    fs.renameSync(tmpPath, filePath);
+    renameSyncWithRetry(tmpPath, filePath);
     console.log(`[harvest] Created conflict: ${conflictId}`);
     return { created: true, path: filePath };
   });
@@ -605,7 +606,7 @@ export function registerIpcHandlers(): void {
         node.debate_refs.push(debateId);
         const tmpPath = filePath + '.tmp';
         fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
-        fs.renameSync(tmpPath, filePath);
+        renameSyncWithRetry(tmpPath, filePath);
         console.log(`[harvest] Added debate_ref ${debateId} to ${nodeId}`);
       }
       return { updated: true };
@@ -637,7 +638,7 @@ export function registerIpcHandlers(): void {
       }
       const tmpPath = filePath + '.tmp';
       fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
-      fs.renameSync(tmpPath, filePath);
+      renameSyncWithRetry(tmpPath, filePath);
       console.log(`[harvest] Updated steelman on ${nodeId} from_${attackerPov}`);
       return { updated: true };
     }
@@ -652,7 +653,7 @@ export function registerIpcHandlers(): void {
     data.verdict = verdict;
     const tmpPath = filePath + '.tmp';
     fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
-    fs.renameSync(tmpPath, filePath);
+    renameSyncWithRetry(tmpPath, filePath);
     console.log(`[harvest] Added verdict to conflict: ${conflictId}`);
     return { updated: true };
   });
@@ -667,7 +668,7 @@ export function registerIpcHandlers(): void {
     queue.queued_at = new Date().toISOString();
     const tmpPath = queuePath + '.tmp';
     fs.writeFileSync(tmpPath, JSON.stringify(queue, null, 2) + '\n', 'utf-8');
-    fs.renameSync(tmpPath, queuePath);
+    renameSyncWithRetry(tmpPath, queuePath);
     console.log(`[harvest] Queued concept: ${concept.label}`);
     return { queued: true };
   });
@@ -729,7 +730,7 @@ export function registerIpcHandlers(): void {
     const filePath = path.join(proposalDir, filename);
     const tmpPath = filePath + '.tmp';
     fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
-    fs.renameSync(tmpPath, filePath);
+    renameSyncWithRetry(tmpPath, filePath);
     return { saved: true };
   });
 

@@ -1,5 +1,5 @@
-**Date:** 2026-06-30
-**Working on:** Ticket queue — t/1221 audit (uncommitted Done tickets), t/1222 process enforcement, t/1217 Organizations work breakdown, design reviews for t/1218 + t/1219
-**Status:** Completing commit-all + verify for end of session
-**Key context:** Added "Definition of Done" section to root AGENTS.md (overlay commit) to prevent the t/1221 anti-pattern (4 agents marked tickets Done without committing). Created t/1224-t/1227 for Organizations feature implementation.
-**Next:** Push all repos (needs user auth), verify t/1228 barrel fix resolves the vite build issue, check t/1224-t/1227 progress
+**Date:** 2026-07-01
+**Working on:** UsageID API rollout (all 3 migration designs approved + 2/3 implemented), Organizations feature (4/5 sub-tickets done), EPERM retry fix chain (t/1271 done, t/1272 done, t/1273 broke CI)
+**Status:** CI blocker t/1276 (urgent) — Server Storage's t/1273 broke 59 githubApi tests (fs/promises mock gap). Routed to Server Storage. t/1261 (PS UsageID migration) design approved, implementing.
+**Key context:** Server Storage claimed verify passed on t/1273 but it was red — Definition of Done violation to follow up on. 27+ commits unpushed on main; push/deploy pending CI fix.
+**Next:** Verify t/1276 CI fix lands, then coordinate push/deploy cycle. Review t/1261 when PowerShell completes. Follow up on Server Storage's false verify claim.

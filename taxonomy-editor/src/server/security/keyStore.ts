@@ -22,6 +22,7 @@ import { createRequire } from 'module';
 import type { AIBackend } from '../config.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
+import { renameSyncWithRetry } from '../../../../lib/debate/persistence.js';
 
 const require = createRequire(import.meta.url);
 import { log } from '../logger.js';
@@ -163,7 +164,7 @@ class LocalFileKeyStore extends BaseKeyStore {
     fs.mkdirSync(path.dirname(p), { recursive: true });
     const tmp = `${p}.tmp-${crypto.randomBytes(6).toString('hex')}`;
     fs.writeFileSync(tmp, buf, mode !== undefined ? { mode } : undefined);
-    fs.renameSync(tmp, p);
+    renameSyncWithRetry(tmp, p);
   }
 
   private encrypt(plaintext: string, key: Buffer): Buffer {
@@ -290,7 +291,7 @@ class LocalFileKeyStore extends BaseKeyStore {
       }
       // 3. Swap material, then move each re-encrypted file into place.
       this.writeFileAtomic(this.materialPath(), newMaterial, 0o600);
-      for (const { final, tmp } of staged) fs.renameSync(tmp, final);
+      for (const { final, tmp } of staged) renameSyncWithRetry(tmp, final);
     } catch (err) {
       for (const { tmp } of staged) { try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch { /* telemetry — silent by design */ } }
       getGlobalRecorder()?.record({

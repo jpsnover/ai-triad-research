@@ -68,10 +68,9 @@ export function renameSyncWithRetry(oldPath: string, newPath: string, maxRetries
  * Async rename with exponential-backoff retry for transient Windows file locks.
  */
 export async function renameWithRetry(oldPath: string, newPath: string, maxRetries = 5): Promise<void> {
-  const fsPromises = await import('fs/promises');
   for (let i = 0; i <= maxRetries; i++) {
     try {
-      await fsPromises.rename(oldPath, newPath);
+      await fs.promises.rename(oldPath, newPath);
       return;
     } catch (err: unknown) {
       const code = (err as NodeJS.ErrnoException).code;

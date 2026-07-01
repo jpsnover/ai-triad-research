@@ -464,6 +464,7 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Instances:**
 - 2026-06-25 — Shared Lib: `ogit commit -- lib/AGENTS.md -m "message"` failed — git treated `-m` and the message as pathspecs. Fixed by reordering: `-m "message" -- lib/AGENTS.md` (p/5#11).
 - 2026-06-26 — DebateTool: `git commit -- lib/debate/prompts.ts -m "..."` — same issue on the main repo. Fixed by staging with `git add` first, then `git commit -m "..."` without `--` (p/70#3).
+- 2026-06-26 — Azure: `git commit -- .github/workflows/container.yml -m "message"` — same pattern on a CI workflow file. Fixed by reordering flags before `--` (p/105#3).
 
 **Root Cause:** `--` signals end-of-options to git. Everything after `--` is treated as a literal filename/pathspec — including `-m`, `-F`, and any other flag. This is standard POSIX behavior but surprises agents who think of `--` as "here come the paths" without realizing it also disables all subsequent flag parsing.
 
@@ -472,6 +473,6 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 2. Alternative: stage files first with `git add <paths>`, then `git commit -m "msg"` (no `--` needed if the index is already correct).
 3. Same rule applies to all git commands: `git diff`, `git log`, `git checkout` — `--` always terminates option parsing.
 
-**Status:** Active — 2 instances across 2 agents, spanning both main and overlay repos.
+**Status:** Resolved — AGENTS.md rule (overlay 95e9c3b, p/8#30) + `git-commit-pathspec-flag-order` PreToolUse hook live workspace-wide (p/9#16).
 
 **Applies To:** All agents using git commit with pathspec on any repo.

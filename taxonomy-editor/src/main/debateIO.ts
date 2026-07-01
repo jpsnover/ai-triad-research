@@ -6,7 +6,7 @@ import path from 'path';
 
 import { resolveDataPath } from './fileIO.js';
 import { extractCalibrationData, appendCalibrationLog } from '../../../lib/debate/calibrationLogger.js';
-import { safeSerialize, atomicWriteSync } from '../../../lib/debate/persistence.js';
+import { safeSerialize, atomicWriteSync, renameSyncWithRetry } from '../../../lib/debate/persistence.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 const DEBATES_DIR = resolveDataPath('debates');
@@ -102,7 +102,7 @@ export async function listDebateSessions(): Promise<DebateSessionSummary[]> {
         const src = path.join(cliRunsDir, f);
         const data = JSON.parse(fs.readFileSync(src, 'utf-8'));
         const dest = path.join(DEBATES_DIR, `debate-${data.id}.json`);
-        if (src !== dest) fs.renameSync(src, dest);
+        if (src !== dest) renameSyncWithRetry(src, dest);
       } catch (err) {
         getGlobalRecorder()?.record({ type: 'system.error', component: 'debateIO', level: 'warn', message: `Skipping corrupt cli-runs file: ${f}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       }
@@ -257,5 +257,5 @@ export function saveDebateComments(debateId: string, data: unknown): void {
   const filePath = commentsFilePath(debateId);
   const tmpPath = filePath + '.tmp';
   fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
-  fs.renameSync(tmpPath, filePath);
+  renameSyncWithRetry(tmpPath, filePath);
 }
