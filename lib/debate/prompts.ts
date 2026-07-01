@@ -2220,7 +2220,7 @@ Write claims that directly reference, build on, or challenge these nodes' conten
 
 export function draftStagePrompt(input: StagePromptInput, brief: string, plan: string): string {
   const phaseDirective = input.phase === 'concluding'
-    ? 'Focus on convergence. Name what you agree on, narrow remaining disagreements, and propose conditional agreements.'
+    ? `Open with your direct answer to the original debate question${input.topic ? ` ("${input.topic}")` : ''} — what is your verdict, in one sentence? Then name what you agree on, narrow remaining disagreements, and propose conditional agreements.`
     : input.phase === 'argumentation'
     ? 'Probe deeper. Find cruxes, test edge cases, and name areas of agreement explicitly.'
     : 'Engage directly with what was said. If you disagree, explain why with specifics and classify your disagreement type. Challenge the strongest point first, not the weakest.';

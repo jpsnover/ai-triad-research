@@ -368,7 +368,8 @@ export async function runModeratorSelection(
   if (concludingTarget) {
     // Deterministic synthesis — skip Stage 1 LLM, fire COMMIT directly
     responder = concludingTarget as Exclude<SpeakerId, 'user'>;
-    focusPoint = 'Provide your final commitment: concessions, conditions for change, and sharpest remaining disagreements';
+    const topicRef = resolution ? ` on the question: "${resolution}"` : '';
+    focusPoint = `Deliver your final verdict${topicRef}. State your answer to the original question, then your concessions, conditions for change, and sharpest remaining disagreements`;
     addressing = 'all';
     selectionResultObj = {
       responder: concludingTarget,
