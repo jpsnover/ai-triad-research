@@ -1348,3 +1348,62 @@ describe('lifecycle integration', () => {
     expect(state.argumentation_exit_threshold).toBeCloseTo(0.72 + 2 * w.phase_bounds.regression_ratchet);
   });
 });
+
+// ── t/1256 regression: max-rounds cap must not starve concluding phase ──
+
+describe('max-rounds concluding starvation (t/1256)', () => {
+  const signals: Signal[] = [];
+  const w = loadProvisionalWeights();
+  const speakers = 3;
+  const minConcluding = Math.min(w.phase_bounds.min_concluding_rounds, w.phase_bounds.max_concluding_rounds) * speakers;
+
+  it('force-transitions argumentation → concluding at maxTotalRounds', () => {
+    const state = makePhaseState({
+      current_phase: 'argumentation',
+      rounds_in_phase: 10,
+      total_rounds_elapsed: 10,
+    });
+    const config = makeConfig({ maxTotalRounds: 10 });
+    const ctx = makeSignalContext();
+    const result = evaluatePhaseTransition(state, ctx, signals, config);
+    expect(result.action).toBe('force_transition');
+    expect(result.new_phase).toBe('concluding');
+  });
+
+  it('does NOT terminate concluding when rounds_in_phase < min_concluding_rounds', () => {
+    const state = makePhaseState({
+      current_phase: 'concluding',
+      rounds_in_phase: 0,
+      total_rounds_elapsed: 10,
+    });
+    const config = makeConfig({ maxTotalRounds: 10 });
+    const ctx = makeSignalContext({
+      phase: {
+        current: 'concluding', allPovsResponded: true, cruxNodes: [],
+        cruxResolution: [], priorCruxClusters: [], regressionCount: 0,
+        argumentationExitThreshold: 0.72, concludingExitThreshold: 0.70,
+      },
+    });
+    const result = evaluatePhaseTransition(state, ctx, signals, config);
+    expect(result.action).not.toBe('terminate');
+  });
+
+  it('terminates concluding once min_concluding_rounds are met', () => {
+    const state = makePhaseState({
+      current_phase: 'concluding',
+      rounds_in_phase: minConcluding,
+      total_rounds_elapsed: 10 + minConcluding,
+    });
+    const config = makeConfig({ maxTotalRounds: 10 });
+    const ctx = makeSignalContext({
+      phase: {
+        current: 'concluding', allPovsResponded: true, cruxNodes: [],
+        cruxResolution: [], priorCruxClusters: [], regressionCount: 0,
+        argumentationExitThreshold: 0.72, concludingExitThreshold: 0.70,
+      },
+    });
+    const result = evaluatePhaseTransition(state, ctx, signals, config);
+    expect(result.action).toBe('terminate');
+    expect(result.reason).toContain('Max total rounds');
+  });
+});

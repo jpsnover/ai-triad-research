@@ -574,7 +574,7 @@ export function evaluatePhaseTransition(
 
   // Global: maxTotalRounds hard cap — safety net when per-phase signals don't converge
   if (state.total_rounds_elapsed >= config.maxTotalRounds) {
-    if (state.current_phase === 'concluding') {
+    if (state.current_phase === 'concluding' && state.rounds_in_phase >= pb.min_concluding_rounds) {
       return { action: 'terminate', reason: `Max total rounds (${state.total_rounds_elapsed} >= ${config.maxTotalRounds})`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed, max: config.maxTotalRounds } };
     }
     return { action: 'force_transition', new_phase: 'concluding', reason: `Max total rounds (${state.total_rounds_elapsed} >= ${config.maxTotalRounds})`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed, max: config.maxTotalRounds } };
