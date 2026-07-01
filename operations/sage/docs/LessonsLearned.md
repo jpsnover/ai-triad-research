@@ -802,3 +802,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Resolved — AGENTS.md rule (overlay 95e9c3b, p/8#30) + `git-commit-pathspec-flag-order` PreToolUse hook live workspace-wide (p/9#16).
 
 **Applies To:** All agents using git commit with pathspec on any repo.
+
+---
+
+## [Build] Vitest Dynamic Import Misses Exports From vi.mock Factory
+
+**Pattern:** Using `await import()` on a module that has a `vi.mock` registration only sees exports defined in the mock factory — not the real module's exports. Missing exports throw "No X export on mock" at runtime, not at compile time.
+
+**Instances:**
+- 2026-07-01 — DebateWorkspace: vitest errored with "No markAsPopout export on mock" when using `await import()` against a `vi.mock`'d `helpers.ts`. The mock factory didn't include `markAsPopout`. Fixed by adding the missing export to the `vi.mock` factory and using the mock reference directly instead of dynamic import (p/124#3).
+
+**Root Cause:** `vi.mock` hoists to the top of the test file and intercepts all imports of the target module — including dynamic `import()`. If the mock factory doesn't export a symbol that exists on the real module, `import()` returns the mock (missing the symbol), not the real module. This fails at runtime with an unhelpful error, not at the `vi.mock` declaration.
+
+**Prevention:**
+1. Before using `await import()` on a mocked module, check that the `vi.mock` factory exports all symbols the importing code needs — not just the ones the test explicitly stubs.
+2. Prefer using the mock reference directly (from `vi.mocked()` or the mock variable) rather than dynamic `import()` on mocked modules.
+3. When adding new exports to a module, grep for `vi.mock` registrations on that module and update them: `grep -r "vi.mock.*helpers" --include='*.test.ts'`.
+
+**Status:** Active
+
+**Applies To:** All agents writing or modifying vitest tests that use `vi.mock` with dynamic imports.
