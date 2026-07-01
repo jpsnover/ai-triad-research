@@ -212,7 +212,7 @@ function Convert-UsageTemplate {
         $ctx = if ($UsageIdContext) { " for UsageID '$UsageIdContext'" } else { '' }
         throw (New-ActionableError `
             -Goal 'Render usage template' `
-            -Problem "Missing template value(s)$ctx: $($missing -join ', ')" `
+            -Problem "Missing template value(s)${ctx}: $($missing -join ', ')" `
             -Location 'Convert-UsageTemplate' `
             -NextSteps @(
                 'Add the missing keys to the -Values hashtable passed to Invoke-AIByUsage',
