@@ -68,6 +68,20 @@
   background: var(--bg-panel);
 }
 
+.crv-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-weight: 400;
+}
+
+.crv-select-all-count {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .crv-section-meta {
   margin-left: auto;
   font-weight: 400;

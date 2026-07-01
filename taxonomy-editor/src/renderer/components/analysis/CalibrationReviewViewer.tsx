@@ -128,18 +128,45 @@ function lineagePatch(original: Record<string, unknown> | null, editedText: stri
   return patch;
 }
 
+// ── Select-all header checkbox (indeterminate when partially selected) ──
+
+function SelectAllCheckbox({ ids, selected, onToggleAll }: {
+  ids: string[];
+  selected: Set<string>;
+  onToggleAll: (ids: string[], select: boolean) => void;
+}) {
+  const selectedCount = ids.filter(id => selected.has(id)).length;
+  const all = ids.length > 0 && selectedCount === ids.length;
+  const some = selectedCount > 0 && !all;
+  return (
+    <label className="crv-select-all" title={all ? 'Deselect all in this section' : 'Select all in this section'}>
+      <input
+        type="checkbox"
+        checked={all}
+        ref={el => { if (el) el.indeterminate = some; }}
+        onChange={() => onToggleAll(ids, !all)}
+        aria-label="Select all in this section"
+      />
+      <span className="crv-select-all-count">{selectedCount}/{ids.length}</span>
+    </label>
+  );
+}
+
 // ── JSONL kind section (calibration-log / extraction-metrics) ──
 
-function JsonlSection({ title, block, selected, onToggle }: {
+function JsonlSection({ title, block, selected, onToggle, onToggleAll }: {
   title: string;
   block: JsonlKindBlock;
   selected: Set<string>;
   onToggle: (itemId: string) => void;
+  onToggleAll: (ids: string[], select: boolean) => void;
 }) {
   if (block.entries.length === 0) return null;
+  const ids = block.entries.map(e => e.itemId);
   return (
     <section className="crv-section">
       <h4 className="crv-section-head">
+        <SelectAllCheckbox ids={ids} selected={selected} onToggleAll={onToggleAll} />
         {title}
         <span className="crv-section-meta">{block.entries.length} pending · core n={block.coreCount ?? 0}</span>
       </h4>
@@ -163,19 +190,22 @@ function JsonlSection({ title, block, selected, onToggle }: {
 
 // ── Lineage section (editable, conflict-aware) ──
 
-function LineageSection({ entries, selected, onToggle, editing, drafts, onToggleEdit, onDraftChange }: {
+function LineageSection({ entries, selected, onToggle, onToggleAll, editing, drafts, onToggleEdit, onDraftChange }: {
   entries: LineageDetailEntry[];
   selected: Set<string>;
   onToggle: (itemId: string) => void;
+  onToggleAll: (ids: string[], select: boolean) => void;
   editing: string | null;
   drafts: Record<string, string>;
   onToggleEdit: (itemId: string, initial: string) => void;
   onDraftChange: (itemId: string, value: string) => void;
 }) {
   if (entries.length === 0) return null;
+  const ids = entries.map(e => e.itemId);
   return (
     <section className="crv-section">
       <h4 className="crv-section-head">
+        <SelectAllCheckbox ids={ids} selected={selected} onToggleAll={onToggleAll} />
         Lineage Enrichments
         <span className="crv-section-meta">{entries.length} pending</span>
       </h4>
@@ -290,6 +320,15 @@ export function CalibrationReviewViewer({ groupId, onActionComplete }: Calibrati
     });
   }, []);
 
+  /** Select or deselect every id in a section (respects the visible rows only). */
+  const toggleAll = useCallback((ids: string[], select: boolean) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      for (const id of ids) { if (select) next.add(id); else next.delete(id); }
+      return next;
+    });
+  }, []);
+
   /** Build the edits map for the promoted ids, or null if a lineage draft is invalid JSON. */
   const buildEdits = useCallback((ids: string[]): Record<string, Record<string, unknown>> | null => {
     const edits: Record<string, Record<string, unknown>> = {};
@@ -371,12 +410,13 @@ export function CalibrationReviewViewer({ groupId, onActionComplete }: Calibrati
         <p className="crv-placeholder">Nothing pending for this user — all entries promoted or rejected.</p>
       ) : (
         <>
-          <JsonlSection title="Calibration Log" block={detail.calibrationLog} selected={selected} onToggle={toggle} />
-          <JsonlSection title="Extraction Metrics" block={detail.extractionMetrics} selected={selected} onToggle={toggle} />
+          <JsonlSection title="Calibration Log" block={detail.calibrationLog} selected={selected} onToggle={toggle} onToggleAll={toggleAll} />
+          <JsonlSection title="Extraction Metrics" block={detail.extractionMetrics} selected={selected} onToggle={toggle} onToggleAll={toggleAll} />
           <LineageSection
             entries={detail.lineageEnrichments.entries}
             selected={selected}
             onToggle={toggle}
+            onToggleAll={toggleAll}
             editing={editing}
             drafts={drafts}
             onToggleEdit={(itemId, initial) => {

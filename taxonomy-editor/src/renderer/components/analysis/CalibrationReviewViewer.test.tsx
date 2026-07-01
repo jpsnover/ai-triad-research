@@ -164,6 +164,33 @@ describe('CalibrationReviewViewer', () => {
     });
   });
 
+  it('select-all in a section selects all its rows (t/1267)', async () => {
+    mockFetch();
+    render(<CalibrationReviewViewer groupId="calibration:jpsnover" />);
+    await waitFor(() => expect(screen.getByText('Lineage Enrichments')).toBeInTheDocument());
+
+    const selectAlls = screen.getAllByLabelText('Select all in this section');
+    expect(selectAlls).toHaveLength(3); // one per section
+    fireEvent.click(selectAlls[2]); // Lineage section has 2 entries
+
+    expect(screen.getByText('Promote selected (2)')).toBeInTheDocument();
+    expect(screen.getByText('2/2')).toBeInTheDocument();
+  });
+
+  it('shows indeterminate state when only some rows are selected (t/1267)', async () => {
+    mockFetch();
+    render(<CalibrationReviewViewer groupId="calibration:jpsnover" />);
+    await waitFor(() => expect(screen.getByText('Lineage Enrichments')).toBeInTheDocument());
+
+    const govRow = screen.getByText('Governance').closest('label')!;
+    fireEvent.click(govRow.querySelector('input[type="checkbox"]')!);
+
+    const lineageSelectAll = screen.getAllByLabelText('Select all in this section')[2] as HTMLInputElement;
+    expect(lineageSelectAll.indeterminate).toBe(true);
+    expect(lineageSelectAll.checked).toBe(false);
+    expect(screen.getByText('1/2')).toBeInTheDocument();
+  });
+
   it('shows an error when detail fails to load', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404, json: async () => ({}) } as Response)));
     render(<CalibrationReviewViewer groupId="calibration:ghost" />);
