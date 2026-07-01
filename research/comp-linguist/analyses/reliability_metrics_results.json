@@ -1,0 +1,29 @@
+{
+  "source": "q0-calibration-v3-results.json",
+  "overall": {
+    "n": 41,
+    "pearson_r": 0.335,
+    "icc_2_1": 0.322,
+    "krippendorff_alpha": 0.307
+  },
+  "by_bdi": {
+    "Beliefs": {
+      "n": 24,
+      "pearson_r": 0.177,
+      "icc_2_1": 0.088,
+      "krippendorff_alpha": -0.024
+    },
+    "Intentions": {
+      "n": 9,
+      "pearson_r": 0.709,
+      "icc_2_1": 0.695,
+      "krippendorff_alpha": 0.68
+    },
+    "Desires": {
+      "n": 8,
+      "pearson_r": 0.655,
+      "icc_2_1": 0.09,
+      "krippendorff_alpha": -0.181
+    }
+  }
+}
