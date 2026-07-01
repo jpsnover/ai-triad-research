@@ -63,9 +63,9 @@ export const AFFECT_SATURATION_RATE: Record<AffectCategory, number> = {
 };
 
 export const AFFECT_PHASE_BASELINES: Record<Exclude<DebatePhase, 'terminated'>, AffectProfile> = {
-  confrontation: { urgency: 0.30, fear: 0.25, hope: 0.20, outrage: 0.20, empathy: 0.15 },
-  argumentation: { urgency: 0.20, fear: 0.15, hope: 0.35, outrage: 0.10, empathy: 0.25 },
-  concluding:    { urgency: 0.25, fear: 0.10, hope: 0.45, outrage: 0.05, empathy: 0.30 },
+  confrontation: { urgency: 0.30, fear: 0.20, hope: 0.17, outrage: 0.17, empathy: 0.14 },
+  argumentation: { urgency: 0.20, fear: 0.12, hope: 0.30, outrage: 0.09, empathy: 0.24 },
+  concluding:    { urgency: 0.25, fear: 0.08, hope: 0.39, outrage: 0.04, empathy: 0.29 },
 };
 
 const INTENSITY_WEIGHTS: Record<AffectCategory, number> = {
@@ -79,10 +79,24 @@ const INTENSITY_WEIGHTS: Record<AffectCategory, number> = {
 const MAX_ACCEPTABLE_DEVIATION = 0.35;
 const MIN_WORD_COUNT = 20;
 
+// Suffix-aware boundary matching: matches the term plus common English inflections.
+// Removes fragment false-positives (dire→"direct") while keeping inflected forms (risk→"risks").
+// Minor known gap: e-ending verbs miss -ing form (improve→"improving") — low frequency, acceptable.
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const affectRegexCache = new Map<string, RegExp>();
+function affectMatch(term: string, lower: string): boolean {
+  let re = affectRegexCache.get(term);
+  if (!re) {
+    re = new RegExp('\\b' + escapeRe(term) + '(s|es|ing|ed)?\\b');
+    affectRegexCache.set(term, re);
+  }
+  return re.test(lower);
+}
+
 function categoryScore(text: string, category: AffectCategory): number {
   const wordCount = Math.max(1, text.split(/\s+/).length);
   const lower = text.toLowerCase();
-  const hits = AFFECT_LEXICONS[category].filter(term => lower.includes(term)).length;
+  const hits = AFFECT_LEXICONS[category].filter(term => affectMatch(term, lower)).length;
   const rate = (hits / wordCount) * 100;
   return Math.min(1.0, rate / AFFECT_SATURATION_RATE[category]);
 }
@@ -93,7 +107,7 @@ export function computeAffectEvidence(text: string): Record<AffectCategory, stri
   const lower = text.toLowerCase();
   const result = { ...empty };
   for (const cat of AFFECT_CATEGORIES) {
-    result[cat] = AFFECT_LEXICONS[cat].filter(term => lower.includes(term));
+    result[cat] = AFFECT_LEXICONS[cat].filter(term => affectMatch(term, lower));
   }
   return result;
 }

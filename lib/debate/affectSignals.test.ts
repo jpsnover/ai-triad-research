@@ -156,4 +156,17 @@ describe('computeAffectEvidence', () => {
       if (ev[cat].length === 0) expect(profile[cat]).toBe(0);
     }
   });
+
+  it('excludes fragment false-positives (dire→"direct")', () => {
+    const text = pad('The direct approach takes a different direction from the previous strategy.');
+    const ev = computeAffectEvidence(text);
+    expect(ev.fear).not.toContain('dire');
+  });
+
+  it('keeps inflected forms (risk→"risks")', () => {
+    const text = pad('The risks of this approach are significant and the threats multiply as benefits decrease.');
+    const ev = computeAffectEvidence(text);
+    expect(ev.fear).toContain('risk');
+    expect(ev.fear).toContain('threat');
+  });
 });
