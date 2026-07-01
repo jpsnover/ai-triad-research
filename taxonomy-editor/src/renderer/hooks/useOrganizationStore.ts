@@ -35,7 +35,7 @@ export const useOrganizationStore = create<OrganizationState>((set, get) => ({
       set({ organizations: orgs, loading: false });
     } catch (err) {
       getGlobalRecorder()?.record({
-        type: 'system.error',
+        type: 'state.error',
         component: 'organization-store',
         level: 'error',
         message: 'Failed to fetch organizations',

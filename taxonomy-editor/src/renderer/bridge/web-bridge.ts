@@ -980,7 +980,7 @@ const rawApi: AppAPI = {
   growWindow: async () => {},
   shrinkWindow: async () => {},
   isMaximized: async () => false,
-  openExternal: async (url) => { window.open(url, '_blank'); },
+  openExternal: async (url) => { if (/^https?:\/\//i.test(url)) window.open(url, '_blank'); },
 
   // Event listeners
   onDiagnosticsStateUpdate: (cb) => {

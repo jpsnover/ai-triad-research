@@ -55,7 +55,7 @@ export function StakeholderSection({ nodeId, queryType }: StakeholderSectionProp
       if (!cancelled) { setOrgs(result); setLoading(false); }
     }).catch((err) => {
       getGlobalRecorder()?.record({
-        type: 'system.error', component: 'stakeholder-section', level: 'error',
+        type: 'state.error', component: 'stakeholder-section', level: 'error',
         message: 'Failed to fetch stakeholder organizations',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
