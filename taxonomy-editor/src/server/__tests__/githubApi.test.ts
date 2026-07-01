@@ -30,6 +30,22 @@ vi.mock('fs/promises', () => ({
   },
 }));
 
+// persistence.ts does `import fs from 'fs'` then calls `fs.promises.rename` (the
+// `.promises` property on the *fs* module — distinct from the `fs/promises`
+// module mocked above). saveManifest's atomic write goes through the mocked
+// `fs/promises` (no-op), so the real rename would ENOENT on a temp file that was
+// never written. Stub only fs.promises.rename to a resolved no-op — preserve all
+// other (real) fs behavior — to match the fs/promises mock's intent.
+vi.mock('fs', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  const src = (actual.default ?? actual) as Record<string, unknown>;
+  const patched = {
+    ...src,
+    promises: { ...(src.promises as object), rename: vi.fn().mockResolvedValue(undefined) },
+  };
+  return { ...patched, default: patched };
+});
+
 // Mock githubAppAuth — provide predictable test credentials
 vi.mock('../security/githubAppAuth', () => ({
   getCredentials: vi.fn().mockResolvedValue({
