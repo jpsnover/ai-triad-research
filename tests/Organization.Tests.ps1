@@ -4,6 +4,19 @@
 
 #Requires -Module Pester
 
+BeforeDiscovery {
+    $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
+    $configPath = Join-Path $repoRoot '.aitriad.json'
+    if (Test-Path $configPath) {
+        $cfg = Get-Content -Raw $configPath | ConvertFrom-Json
+        $dataRoot = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $cfg.data_root))
+        $orgPath = Join-Path $dataRoot 'taxonomy' 'Origin' 'organizations.json'
+        $HasDataRepo = Test-Path $orgPath
+    } else {
+        $HasDataRepo = $false
+    }
+}
+
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
@@ -71,7 +84,7 @@ Describe 'Organization edge-type registry (t/1224)' -Tag 'taxonomy' {
 # ─────────────────────────────────────────────────────────────────────────────
 # organizations.json integrity
 # ─────────────────────────────────────────────────────────────────────────────
-Describe 'organizations.json integrity (t/1224 AC#4)' -Tag 'taxonomy' {
+Describe 'organizations.json integrity (t/1224 AC#4)' -Tag 'taxonomy' -Skip:(-not $HasDataRepo) {
 
     It 'Loads via Get-OrganizationsStore' {
         InModuleScope AITriad {
@@ -181,7 +194,7 @@ Describe 'organizations.json integrity (t/1224 AC#4)' -Tag 'taxonomy' {
 # ─────────────────────────────────────────────────────────────────────────────
 # Get-Organization
 # ─────────────────────────────────────────────────────────────────────────────
-Describe 'Get-Organization' -Tag 'taxonomy' {
+Describe 'Get-Organization' -Tag 'taxonomy' -Skip:(-not $HasDataRepo) {
 
     It 'Is exported' {
         Get-Command Get-Organization -Module AITriad -ErrorAction Stop | Should -Not -BeNullOrEmpty
@@ -216,7 +229,7 @@ Describe 'Get-Organization' -Tag 'taxonomy' {
 # ─────────────────────────────────────────────────────────────────────────────
 # Find-OrganizationByPOV
 # ─────────────────────────────────────────────────────────────────────────────
-Describe 'Find-OrganizationByPOV' -Tag 'taxonomy' {
+Describe 'Find-OrganizationByPOV' -Tag 'taxonomy' -Skip:(-not $HasDataRepo) {
 
     It 'Is exported' {
         Get-Command Find-OrganizationByPOV -Module AITriad | Should -Not -BeNullOrEmpty
@@ -250,7 +263,7 @@ Describe 'Find-OrganizationByPOV' -Tag 'taxonomy' {
 # ─────────────────────────────────────────────────────────────────────────────
 # Find-OrganizationByTopic
 # ─────────────────────────────────────────────────────────────────────────────
-Describe 'Find-OrganizationByTopic' -Tag 'taxonomy' {
+Describe 'Find-OrganizationByTopic' -Tag 'taxonomy' -Skip:(-not $HasDataRepo) {
 
     It 'Is exported' {
         Get-Command Find-OrganizationByTopic -Module AITriad | Should -Not -BeNullOrEmpty
@@ -275,7 +288,7 @@ Describe 'Find-OrganizationByTopic' -Tag 'taxonomy' {
 # ─────────────────────────────────────────────────────────────────────────────
 # Get-OrganizationStakeholders
 # ─────────────────────────────────────────────────────────────────────────────
-Describe 'Get-OrganizationStakeholders' -Tag 'taxonomy' {
+Describe 'Get-OrganizationStakeholders' -Tag 'taxonomy' -Skip:(-not $HasDataRepo) {
 
     It 'Is exported' {
         Get-Command Get-OrganizationStakeholders -Module AITriad | Should -Not -BeNullOrEmpty
@@ -302,7 +315,7 @@ Describe 'Get-OrganizationStakeholders' -Tag 'taxonomy' {
 # ─────────────────────────────────────────────────────────────────────────────
 # Compare-OrganizationPositions
 # ─────────────────────────────────────────────────────────────────────────────
-Describe 'Compare-OrganizationPositions' -Tag 'taxonomy' {
+Describe 'Compare-OrganizationPositions' -Tag 'taxonomy' -Skip:(-not $HasDataRepo) {
 
     It 'Is exported' {
         Get-Command Compare-OrganizationPositions -Module AITriad | Should -Not -BeNullOrEmpty
@@ -328,7 +341,7 @@ Describe 'Compare-OrganizationPositions' -Tag 'taxonomy' {
 # ─────────────────────────────────────────────────────────────────────────────
 # Import-Organization (WhatIf only to avoid file writes)
 # ─────────────────────────────────────────────────────────────────────────────
-Describe 'Import-Organization' -Tag 'taxonomy' {
+Describe 'Import-Organization' -Tag 'taxonomy' -Skip:(-not $HasDataRepo) {
 
     It 'Is exported' {
         Get-Command Import-Organization -Module AITriad | Should -Not -BeNullOrEmpty
@@ -358,7 +371,7 @@ Describe 'Import-Organization' -Tag 'taxonomy' {
 # ─────────────────────────────────────────────────────────────────────────────
 # Review-fixes regression (t/1224#4)
 # ─────────────────────────────────────────────────────────────────────────────
-Describe 'Test-OrganizationIntegrity -Path (t/1224#4 fix 1)' -Tag 'taxonomy' {
+Describe 'Test-OrganizationIntegrity -Path (t/1224#4 fix 1)' -Tag 'taxonomy' -Skip:(-not $HasDataRepo) {
     It 'Validates a fixture file supplied via -Path, not the live registry' {
         InModuleScope AITriad {
             $fixture = Join-Path ([System.IO.Path]::GetTempPath()) "orgs-fixture-$(Get-Random).json"
