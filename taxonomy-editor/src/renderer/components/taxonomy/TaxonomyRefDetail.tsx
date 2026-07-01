@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { POV_KEYS } from '@lib/debate/types';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import { useDescriptionMode, resolveDescription } from '../shared/DescriptionToggle';
 
 /** Raw node shape as loaded from POV JSON files, used read-only in Diagnostics. */
 export interface TaxRefNode {
@@ -8,6 +9,7 @@ export interface TaxRefNode {
   label?: string;
   category?: string;
   description?: string;
+  plain_description?: string | null;
   pov?: string;
   parent_id?: string | null;
   parent_relationship?: string | null;
@@ -209,19 +211,21 @@ const chipStyle: React.CSSProperties = {
 };
 
 function ContentTab({ node, isSituation }: { node: TaxRefNode; isSituation?: boolean }) {
+  const [descMode] = useDescriptionMode();
   const ga = node.graph_attributes;
+  const descText = resolveDescription(node, descMode).text;
   const div = isSituation ? node.interpretation_divergence : undefined;
   const divColor = div != null ? (div > 0.40 ? '#22c55e' : div >= 0.20 ? '#f59e0b' : '#ef4444') : undefined;
   const divLabel = div != null ? (div > 0.40 ? 'high' : div >= 0.20 ? 'moderate' : 'low') : undefined;
   return (
     <>
-      {node.description && (
+      {descText && (
         <div>
           <div style={{ ...sectionHeader, marginTop: 0 }}>Description</div>
           <div style={{
             padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6,
             background: 'var(--bg-secondary)', whiteSpace: 'pre-wrap', fontSize: '0.82rem',
-          }}>{node.description}</div>
+          }}>{descText}</div>
         </div>
       )}
 

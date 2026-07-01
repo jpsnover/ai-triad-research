@@ -7,6 +7,7 @@ import { getLineageInfo, getAllLineages } from '../../data/lineageLookup';
 import { getCategoryLabel, classifyLineage, getL2CategoryLabel } from '../../data/lineageCategories';
 import { POV_KEYS } from '@lib/debate/types';
 import type { PovNode } from '../../types/taxonomy';
+import { useDescriptionMode, resolveDescription } from './DescriptionToggle';
 
 // ── See Also helpers ──
 
@@ -66,6 +67,7 @@ const POV_LABELS: Record<string, string> = {
 };
 
 export function LineageDetailView({ value, onSelectValue, onOpenLink }: LineageDetailViewProps) {
+  const [descMode] = useDescriptionMode();
   const [secondaryValue, setSecondaryValue] = useState<string | null>(null);
   const [linkUrl, setLinkUrl] = useState<string | null>(null);
   const [refPreviewNodeId, setRefPreviewNodeId] = useState<string | null>(null);
@@ -300,7 +302,7 @@ export function LineageDetailView({ value, onSelectValue, onOpenLink }: LineageD
         </div>
         <div className="lineage-detail-section">
           <div className="lineage-detail-label">Description</div>
-          <p className="lineage-detail-text">{refNode.description}</p>
+          <p className="lineage-detail-text">{resolveDescription(refNode, descMode).text}</p>
         </div>
         {svText && (
           <div className="lineage-detail-section">

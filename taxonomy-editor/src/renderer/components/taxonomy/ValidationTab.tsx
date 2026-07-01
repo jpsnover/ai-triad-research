@@ -8,6 +8,7 @@ import { useResizablePanel, useResizableRightPanel } from '../../hooks/useResiza
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { GoldenClaim, Verdict, SpeakerFilter, VerdictFilter } from '../../types/validation';
 import type { PovNode } from '../../types/taxonomy';
+import { useDescriptionMode, resolveDescription } from '../shared/DescriptionToggle';
 
 type SearchPovFilter = 'same' | 'all' | 'accelerationist' | 'safetyist' | 'skeptic';
 
@@ -306,6 +307,7 @@ function AttributionPanel({
 }) {
   const store = useTaxonomyStore();
   const { results, setVerdict, beliefsOnly, setBeliefsOnly } = useValidationStore();
+  const [descMode] = useDescriptionMode();
   const [searchText, setSearchText] = useState('');
   const [searchPov, setSearchPov] = useState<SearchPovFilter>('same');
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
@@ -373,7 +375,7 @@ function AttributionPanel({
         <div className={`validation-node-card${isIncorrect ? ' incorrect' : ''}`}>
           <div className="validation-node-id">{claim.attributed_node}</div>
           <div className="validation-node-label">{primaryNode.label}</div>
-          <div className="validation-node-desc">{primaryNode.description}</div>
+          <div className="validation-node-desc">{resolveDescription(primaryNode, descMode).text}</div>
           <div className="validation-node-score">
             Score: <span style={{ color: scoreColor(claim.similarity_score) }}>
               {claim.similarity_score.toFixed(3)}
@@ -397,7 +399,7 @@ function AttributionPanel({
               return corrNode ? (
                 <>
                   <div className="validation-node-label">{corrNode.label}</div>
-                  <div className="validation-node-desc">{corrNode.description}</div>
+                  <div className="validation-node-desc">{resolveDescription(corrNode, descMode).text}</div>
                 </>
               ) : null;
             })()}
@@ -429,12 +431,12 @@ function AttributionPanel({
                     </div>
                     <div className="validation-node-label">{node.label}</div>
                     {!isAltExpanded && (
-                      <div className="validation-node-desc-preview">{truncate(node.description, 120)}</div>
+                      <div className="validation-node-desc-preview">{truncate(resolveDescription(node, descMode).text, 120)}</div>
                     )}
                   </button>
                   {isAltExpanded && (
                     <div className="validation-expanded-detail">
-                      <div className="validation-node-desc">{node.description}</div>
+                      <div className="validation-node-desc">{resolveDescription(node, descMode).text}</div>
                       {node.confidence != null && (
                         <div className="validation-node-meta">Confidence: {node.confidence.toFixed(3)}</div>
                       )}
@@ -503,12 +505,12 @@ function AttributionPanel({
                   </div>
                   <div className="validation-node-label">{n.label}</div>
                   {!isExpanded && (
-                    <div className="validation-node-desc-preview">{truncate(n.description, 120)}</div>
+                    <div className="validation-node-desc-preview">{truncate(resolveDescription(n, descMode).text, 120)}</div>
                   )}
                 </button>
                 {isExpanded && (
                   <div className="validation-expanded-detail">
-                    <div className="validation-node-desc">{n.description}</div>
+                    <div className="validation-node-desc">{resolveDescription(n, descMode).text}</div>
                     {n.confidence != null && (
                       <div className="validation-node-meta">Confidence: {n.confidence.toFixed(3)}</div>
                     )}
