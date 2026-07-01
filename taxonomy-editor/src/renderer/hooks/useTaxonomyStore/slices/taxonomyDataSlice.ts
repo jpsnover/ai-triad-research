@@ -563,7 +563,10 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
   createPovNode: (pov, category) => {
     const state = get();
     const file = state[pov];
-    if (!file) return '';
+    if (!file) {
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'taxonomy-store', level: 'warn', message: 'createPovNode: POV file not loaded', data: { pov, category } });
+      return '';
+    }
     const existingIds = file.nodes.map(n => n.id);
     const newId = generatePovNodeId(pov, category, existingIds);
     const validation = validatePovNodeId(newId, category);

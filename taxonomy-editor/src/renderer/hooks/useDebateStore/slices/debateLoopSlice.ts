@@ -1762,7 +1762,16 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
 
     let createdNodeId: string | null = null;
     if (edit.edit_type === 'add') {
-      const newId = taxStore.createPovNode(povKey, edit.category);
+      let newId = taxStore.createPovNode(povKey, edit.category);
+      if (!newId && !useTaxonomyStore.getState()[povKey]) {
+        await taxStore.loadAll(true);
+        newId = taxStore.createPovNode(povKey, edit.category);
+      }
+      if (!newId) {
+        const duration = Math.round(performance.now() - startTime);
+        getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-edit', level: 'error', message: 'applyReflectionEdit.result', data: { ok: false, error: 'createPovNode returned empty', pover, editIndex, pov_loaded: !!useTaxonomyStore.getState()[povKey], duration_ms: duration } });
+        return { ok: false, error: 'Failed to create taxonomy node. Taxonomy data may not be loaded.' };
+      }
       createdNodeId = newId;
       if (newId) {
         const debateId = get().activeDebateId;
@@ -1930,7 +1939,8 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
 
     getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'applyReflectionEdit.result', data: { ok: true, pover, editIndex, edit_type: edit.edit_type, node_id: edit.node_id, enrichNodeId, duration_ms: duration } });
     trackDebateExtraction(get().activeDebateId ?? undefined, edit.edit_type, edit.node_id);
-    const updated = reflections.map(r => {
+    const freshReflections = get().reflections;
+    const updated = freshReflections.map(r => {
       if (r.pover !== pover) return r;
       return {
         ...r,
