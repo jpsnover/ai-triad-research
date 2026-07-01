@@ -77,8 +77,9 @@ export function SupportAdminPanel() {
     setLoading(true);
     setError(null);
     try {
-      const result = await api.listAdminSupportCases();
-      setCases(result);
+      const raw = await api.listAdminSupportCases();
+      const items: SupportCaseSummary[] = Array.isArray(raw) ? raw : (raw as { items: SupportCaseSummary[] }).items ?? [];
+      setCases(items);
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error',

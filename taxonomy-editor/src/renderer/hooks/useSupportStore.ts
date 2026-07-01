@@ -46,7 +46,8 @@ export const useSupportStore = create<SupportState>((set, get) => ({
   fetchCases: async () => {
     set({ loading: true, error: null });
     try {
-      const cases = (await api.listSupportCases()) as SupportCaseSummary[];
+      const raw = await api.listSupportCases();
+      const cases: SupportCaseSummary[] = Array.isArray(raw) ? raw : (raw as { items: SupportCaseSummary[] }).items ?? [];
       cases.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
       set({ cases, loading: false, unreadCount: computeUnread(cases) });
     } catch (err) {
