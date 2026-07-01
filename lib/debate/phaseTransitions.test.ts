@@ -1406,4 +1406,46 @@ describe('max-rounds concluding starvation (t/1256)', () => {
     expect(result.action).toBe('terminate');
     expect(result.reason).toContain('Max total rounds');
   });
+
+  it('does NOT force_transition concluding→concluding (t/1277 regression)', () => {
+    // Simulates the infinite-loop scenario: already concluding, past maxTotalRounds,
+    // rounds_in_phase < min_concluding_rounds. Must NOT force_transition (resets rounds_in_phase).
+    const state = makePhaseState({
+      current_phase: 'concluding',
+      rounds_in_phase: 1,
+      total_rounds_elapsed: 11,
+    });
+    const config = makeConfig({ maxTotalRounds: 10 });
+    const ctx = makeSignalContext({
+      phase: {
+        current: 'concluding', allPovsResponded: true, cruxNodes: [],
+        cruxResolution: [], priorCruxClusters: [], regressionCount: 0,
+        argumentationExitThreshold: 0.72, concludingExitThreshold: 0.70,
+      },
+    });
+    const result = evaluatePhaseTransition(state, ctx, signals, config);
+    // Must NOT be force_transition to concluding (that resets rounds_in_phase → infinite loop)
+    if (result.action === 'force_transition') {
+      expect(result.new_phase).not.toBe('concluding');
+    }
+  });
+
+  it('terminates at absolute ceiling maxTotalRounds + min_concluding_rounds (t/1277)', () => {
+    // Even if rounds_in_phase is somehow reset, the absolute ceiling must terminate.
+    const state = makePhaseState({
+      current_phase: 'concluding',
+      rounds_in_phase: 0,
+      total_rounds_elapsed: 10 + minConcluding,
+    });
+    const config = makeConfig({ maxTotalRounds: 10 });
+    const ctx = makeSignalContext({
+      phase: {
+        current: 'concluding', allPovsResponded: true, cruxNodes: [],
+        cruxResolution: [], priorCruxClusters: [], regressionCount: 0,
+        argumentationExitThreshold: 0.72, concludingExitThreshold: 0.70,
+      },
+    });
+    const result = evaluatePhaseTransition(state, ctx, signals, config);
+    expect(result.action).toBe('terminate');
+  });
 });
