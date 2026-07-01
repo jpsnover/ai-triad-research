@@ -518,3 +518,114 @@ describe('extractCalibrationData exploration seeding fields', () => {
     expect(dp.seeded_an_node_count).toBe(explorationSummary.argument_sketch.nodes.length);
   });
 });
+
+describe('extractCalibrationData peer_referencing_rate (t/1279)', () => {
+  it('computes cross-POV engagement rate from AN edges', () => {
+    const session = makeMinimalSession({
+      transcript: [
+        { id: 'e1', type: 'opening', speaker: 'accelerationist', content: 'Opening', timestamp: '', taxonomy_refs: [] },
+        { id: 'e2', type: 'opening', speaker: 'safetyist', content: 'Opening', timestamp: '', taxonomy_refs: [] },
+        { id: 'e3', type: 'statement', speaker: 'accelerationist', content: 'Rebuttal', timestamp: '', taxonomy_refs: [] },
+        { id: 'e4', type: 'statement', speaker: 'safetyist', content: 'Independent', timestamp: '', taxonomy_refs: [] },
+      ] as any,
+      argument_network: {
+        nodes: [
+          { id: 'AN-1', text: 'acc claim 1', speaker: 'accelerationist', source_entry_id: 'e1', taxonomy_refs: [], turn_number: 1 },
+          { id: 'AN-2', text: 'saf claim 1', speaker: 'safetyist', source_entry_id: 'e2', taxonomy_refs: [], turn_number: 1 },
+          { id: 'AN-3', text: 'acc rebuttal', speaker: 'accelerationist', source_entry_id: 'e3', taxonomy_refs: [], turn_number: 2 },
+          { id: 'AN-4', text: 'saf standalone', speaker: 'safetyist', source_entry_id: 'e4', taxonomy_refs: [], turn_number: 2 },
+        ] as any,
+        edges: [
+          { id: 'E-1', source: 'AN-3', target: 'AN-2', type: 'attacks' },
+        ] as any,
+      },
+    });
+
+    const dp = extractCalibrationData(session, 'local');
+    // accelerationist: e1 (no cross-POV edge), e3 (attacks saf claim) → 1/2 = 0.5
+    // safetyist: e2 (no cross-POV edge), e4 (no cross-POV edge) → 0/2 = 0.0
+    // mean = (0.5 + 0.0) / 2 = 0.25
+    expect(dp.peer_referencing_rate).toBe(0.25);
+    expect(dp.peer_referencing_per_speaker).toEqual({
+      accelerationist: 0.5,
+      safetyist: 0,
+    });
+  });
+
+  it('returns 1.0 when every turn has cross-POV engagement', () => {
+    const session = makeMinimalSession({
+      transcript: [
+        { id: 'e1', type: 'statement', speaker: 'accelerationist', content: 'A', timestamp: '', taxonomy_refs: [] },
+        { id: 'e2', type: 'statement', speaker: 'safetyist', content: 'B', timestamp: '', taxonomy_refs: [] },
+      ] as any,
+      argument_network: {
+        nodes: [
+          { id: 'AN-1', text: 'a', speaker: 'accelerationist', source_entry_id: 'e1', taxonomy_refs: [], turn_number: 1 },
+          { id: 'AN-2', text: 'b', speaker: 'safetyist', source_entry_id: 'e2', taxonomy_refs: [], turn_number: 1 },
+        ] as any,
+        edges: [
+          { id: 'E-1', source: 'AN-1', target: 'AN-2', type: 'supports' },
+          { id: 'E-2', source: 'AN-2', target: 'AN-1', type: 'attacks' },
+        ] as any,
+      },
+    });
+
+    const dp = extractCalibrationData(session, 'local');
+    expect(dp.peer_referencing_rate).toBe(1);
+    expect(dp.peer_referencing_per_speaker!.accelerationist).toBe(1);
+    expect(dp.peer_referencing_per_speaker!.safetyist).toBe(1);
+  });
+
+  it('returns null when no AN data is available', () => {
+    const session = makeMinimalSession({
+      transcript: [
+        { id: 'e1', type: 'statement', speaker: 'accelerationist', content: 'A', timestamp: '', taxonomy_refs: [] },
+      ] as any,
+    });
+
+    const dp = extractCalibrationData(session, 'local');
+    expect(dp.peer_referencing_rate).toBeNull();
+    expect(dp.peer_referencing_per_speaker).toBeNull();
+  });
+
+  it('excludes revoice_of edges from engagement count', () => {
+    const session = makeMinimalSession({
+      transcript: [
+        { id: 'e1', type: 'statement', speaker: 'accelerationist', content: 'A', timestamp: '', taxonomy_refs: [] },
+        { id: 'e2', type: 'statement', speaker: 'safetyist', content: 'B', timestamp: '', taxonomy_refs: [] },
+      ] as any,
+      argument_network: {
+        nodes: [
+          { id: 'AN-1', text: 'a', speaker: 'accelerationist', source_entry_id: 'e1', taxonomy_refs: [], turn_number: 1 },
+          { id: 'AN-2', text: 'b', speaker: 'safetyist', source_entry_id: 'e2', taxonomy_refs: [], turn_number: 1 },
+        ] as any,
+        edges: [
+          { id: 'E-1', source: 'AN-1', target: 'AN-2', type: 'revoice_of' },
+        ] as any,
+      },
+    });
+
+    const dp = extractCalibrationData(session, 'local');
+    expect(dp.peer_referencing_rate).toBe(0);
+  });
+
+  it('excludes same-speaker edges from engagement count', () => {
+    const session = makeMinimalSession({
+      transcript: [
+        { id: 'e1', type: 'statement', speaker: 'accelerationist', content: 'A', timestamp: '', taxonomy_refs: [] },
+      ] as any,
+      argument_network: {
+        nodes: [
+          { id: 'AN-1', text: 'a', speaker: 'accelerationist', source_entry_id: 'e1', taxonomy_refs: [], turn_number: 1 },
+          { id: 'AN-2', text: 'b', speaker: 'accelerationist', source_entry_id: 'e1', taxonomy_refs: [], turn_number: 1 },
+        ] as any,
+        edges: [
+          { id: 'E-1', source: 'AN-1', target: 'AN-2', type: 'supports' },
+        ] as any,
+      },
+    });
+
+    const dp = extractCalibrationData(session, 'local');
+    expect(dp.peer_referencing_rate).toBe(0);
+  });
+});

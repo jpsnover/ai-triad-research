@@ -338,6 +338,12 @@ export interface CalibrationDataPoint {
   /** Cross-camp node injections triggered by camp insularity (BEA RUE, t/1130). */
   insularity_interventions: { speaker: string; round: number; injected_node_id: string; target_camp: string; engaged: boolean }[] | null;
 
+  // ── Peer referencing (Marandi: peer-referencing ↔ diversity trade-off, t/1279) ──
+  /** Fraction of speaker turns with ≥1 cross-POV dialectical edge (attack/support targeting another POV's claim). Mean across speakers. */
+  peer_referencing_rate: number | null;
+  /** Per-speaker peer referencing rates. */
+  peer_referencing_per_speaker: Record<string, number> | null;
+
   // ── Exploration seeding (t/990) ──
   /** Debate ID of the exploration run that seeded this debate. */
   exploration_source_id?: string;
@@ -955,6 +961,43 @@ export function extractCalibrationData(
     ? Math.max(...speakerInsularityRates)
     : null;
 
+  // ── Peer referencing rate (Marandi: peer-referencing ↔ diversity, t/1279) ──
+  // Fraction of speaker turns with ≥1 cross-POV dialectical edge in the AN.
+  const anNodes = session.argument_network?.nodes ?? [];
+  const anEdges = session.argument_network?.edges ?? [];
+  const nodeSpeaker = new Map<string, string>();
+  for (const n of anNodes) {
+    if (typeof n.speaker === 'string') nodeSpeaker.set(n.id, n.speaker);
+  }
+  // Collect source_entry_ids of turns that have cross-POV engagement
+  const engagedEntryIds = new Set<string>();
+  for (const edge of anEdges) {
+    if (edge.type === 'revoice_of') continue;
+    const srcSpeaker = nodeSpeaker.get(edge.source);
+    const tgtSpeaker = nodeSpeaker.get(edge.target);
+    if (srcSpeaker && tgtSpeaker && srcSpeaker !== tgtSpeaker) {
+      const srcNode = anNodes.find(n => n.id === edge.source);
+      if (srcNode?.source_entry_id) engagedEntryIds.add(srcNode.source_entry_id);
+    }
+  }
+  // Per-speaker: engaged turns / total turns
+  const peerRefPerSpeaker: Record<string, number> = {};
+  const debaterSpeakers = [...speakers].filter(s => s !== 'system' && s !== 'moderator' && s !== 'user');
+  for (const speaker of debaterSpeakers) {
+    const speakerEntries = (session.transcript ?? [])
+      .filter((e: { type: string; speaker: string; id?: string }) =>
+        (e.type === 'opening' || e.type === 'statement') && e.speaker === speaker);
+    const totalTurnsSpeaker = speakerEntries.length;
+    if (totalTurnsSpeaker === 0) continue;
+    const engagedTurns = speakerEntries.filter((e: { id?: string }) =>
+      e.id != null && engagedEntryIds.has(e.id)).length;
+    peerRefPerSpeaker[speaker] = engagedTurns / totalTurnsSpeaker;
+  }
+  const peerRefValues = Object.values(peerRefPerSpeaker);
+  const peerReferencingRate = anNodes.length > 0 && peerRefValues.length > 0
+    ? peerRefValues.reduce((a, b) => a + b, 0) / peerRefValues.length
+    : null;
+
   return {
     schema_version: 1,
     debate_id: session.id,
@@ -1355,6 +1398,12 @@ export function extractCalibrationData(
           );
           return { ...iv, engaged };
         })
+      : null,
+
+    // ── Peer referencing (Marandi: peer-referencing ↔ diversity, t/1279) ──
+    peer_referencing_rate: peerReferencingRate != null ? Math.round(peerReferencingRate * 1000) / 1000 : null,
+    peer_referencing_per_speaker: anNodes.length > 0 && peerRefValues.length > 0
+      ? Object.fromEntries(Object.entries(peerRefPerSpeaker).map(([k, v]) => [k, Math.round(v * 1000) / 1000]))
       : null,
 
     // ── Exploration seeding ──
