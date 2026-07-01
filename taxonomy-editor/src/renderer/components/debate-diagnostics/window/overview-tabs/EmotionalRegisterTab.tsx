@@ -52,6 +52,7 @@ export function EmotionalRegisterTab({ debate, setSelectedEntry, setLocalOverrid
     const results: TurnAffect[] = [];
     for (const entry of debate.transcript) {
       if (entry.type !== 'statement' && entry.type !== 'opening') continue;
+      if (entry.speaker === 'system' || entry.speaker === 'moderator') continue;
       const content = typeof entry.content === 'string' ? entry.content : '';
       const profile = computeAffectProfile(content);
       if (!profile) continue;

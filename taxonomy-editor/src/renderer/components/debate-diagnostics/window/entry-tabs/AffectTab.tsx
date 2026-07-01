@@ -7,10 +7,10 @@ import {
   computeAffectProfile,
   computeAffectIntensity,
   computeAffectAppropriateness,
+  computeAffectEvidence,
   AFFECT_CATEGORIES,
   AFFECT_PHASE_BASELINES,
   type AffectCategory,
-  type AffectProfile,
 } from '@lib/debate/affectSignals';
 import { getDebatePhase } from '@lib/debate/types';
 
@@ -39,15 +39,16 @@ const CATEGORY_LABELS: Record<AffectCategory, string> = {
 export function AffectTab({ entry, debate, entryIdx }: AffectTabProps) {
   const content = typeof entry.content === 'string' ? entry.content : '';
 
-  const { profile, intensity, phase, appropriateness, baseline } = useMemo(() => {
+  const { profile, intensity, phase, appropriateness, baseline, evidence } = useMemo(() => {
     const p = computeAffectProfile(content);
     const i = computeAffectIntensity(content);
+    const ev = computeAffectEvidence(content);
     const entryRound = (entry.metadata as Record<string, unknown>)?.round as number ?? 1;
     const totalRounds = (debate.config as Record<string, unknown>)?.rounds as number ?? 5;
     const ph = getDebatePhase(entryRound, totalRounds);
     const a = p && ph !== 'terminated' ? computeAffectAppropriateness(p, ph) : null;
     const bl = ph !== 'terminated' ? AFFECT_PHASE_BASELINES[ph] : null;
-    return { profile: p, intensity: i, phase: ph, appropriateness: a, baseline: bl };
+    return { profile: p, intensity: i, phase: ph, appropriateness: a, baseline: bl, evidence: ev };
   }, [content, entry.metadata, debate.config]);
 
   if (!profile) {
@@ -77,40 +78,47 @@ export function AffectTab({ entry, debate, entryIdx }: AffectTabProps) {
           {AFFECT_CATEGORIES.map(cat => {
             const val = profile[cat];
             const baseVal = baseline?.[cat];
+            const terms = evidence[cat];
             return (
-              <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: '0.7rem', fontWeight: 600, minWidth: 60, textAlign: 'right', color: CATEGORY_COLORS[cat] }}>
-                  {CATEGORY_LABELS[cat]}
-                </span>
-                <div style={{ flex: 1, height: 16, background: 'var(--bg-secondary, #222)', borderRadius: 3, overflow: 'hidden', position: 'relative' }}>
-                  {/* Actual value bar */}
-                  <div style={{
-                    width: `${val * 100}%`,
-                    height: '100%',
-                    background: CATEGORY_COLORS[cat],
-                    borderRadius: 3,
-                    opacity: 0.7,
-                    transition: 'width 0.3s ease',
-                  }} />
-                  {/* Baseline marker */}
-                  {baseVal != null && (
-                    <div
-                      title={`${phase} baseline: ${baseVal.toFixed(2)}`}
-                      style={{
-                        position: 'absolute',
-                        left: `${baseVal * 100}%`,
-                        top: 0,
-                        bottom: 0,
-                        width: 2,
-                        background: 'var(--text-primary)',
-                        opacity: 0.5,
-                      }}
-                    />
-                  )}
+              <div key={cat} style={{ marginBottom: 2 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 600, minWidth: 60, textAlign: 'right', color: CATEGORY_COLORS[cat] }}>
+                    {CATEGORY_LABELS[cat]}
+                  </span>
+                  <div style={{ flex: 1, height: 16, background: 'var(--bg-secondary, #222)', borderRadius: 3, overflow: 'hidden', position: 'relative' }}>
+                    <div style={{
+                      width: `${val * 100}%`,
+                      height: '100%',
+                      background: CATEGORY_COLORS[cat],
+                      borderRadius: 3,
+                      opacity: 0.7,
+                      transition: 'width 0.3s ease',
+                    }} />
+                    {baseVal != null && (
+                      <div
+                        title={`${phase} baseline: ${baseVal.toFixed(2)}`}
+                        style={{
+                          position: 'absolute',
+                          left: `${baseVal * 100}%`,
+                          top: 0,
+                          bottom: 0,
+                          width: 2,
+                          background: 'var(--text-primary)',
+                          opacity: 0.5,
+                        }}
+                      />
+                    )}
+                  </div>
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700, minWidth: 36, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    {val.toFixed(2)}
+                  </span>
                 </div>
-                <span style={{ fontSize: '0.65rem', fontWeight: 700, minWidth: 36, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                  {val.toFixed(2)}
-                </span>
+                <div style={{ marginLeft: 68, fontSize: '0.6rem', color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.3 }}>
+                  {terms.length > 0
+                    ? <span>{'← '}{terms.map((t, i) => <React.Fragment key={t}>{i > 0 && ', '}<span style={{ color: CATEGORY_COLORS[cat], fontStyle: 'normal' }}>{t}</span></React.Fragment>)}</span>
+                    : <span>no terms matched</span>
+                  }
+                </div>
               </div>
             );
           })}
