@@ -44,7 +44,7 @@ function Test-OrganizationIntegrity {
     Set-StrictMode -Version Latest
 
     if (-not $Path) { $Path = Get-OrganizationsFilePath }
-    $store = Get-OrganizationsStore -Force
+    $store = Get-OrganizationsStore -Force -Path $Path
 
     $validTypes    = @('think_tank','advocacy','regulatory','academic','corporate','intergovernmental','civil_society','standards_body','research_lab')
     $validPovs     = @('accelerationist','safetyist','skeptic')

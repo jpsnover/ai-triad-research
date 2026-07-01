@@ -101,9 +101,13 @@ function Import-Organization {
     }
 
     # Upsert
-    $existing = @($store.organizations)
+    if ($store.PSObject.Properties['organizations']) {
+        $existing = @($store.organizations)
+    } else {
+        $existing = @()
+    }
     $index = -1
-    for ($i = 0; $i -lt $existing.Count; $i++) {
+    for ($i = 0; $i -lt @($existing).Count; $i++) {
         $rid = if ($existing[$i].PSObject.Properties['id']) { [string]$existing[$i].id } else { '' }
         if ($rid -eq $incomingId) { $index = $i; break }
     }
@@ -115,9 +119,22 @@ function Import-Organization {
         Write-Verbose "Adding new organization: $incomingId"
     }
 
-    $store.organizations = @($existing)
-    if ($store.PSObject.Properties['org_count']) { $store.org_count = @($existing).Count }
-    if ($store.PSObject.Properties['last_modified']) { $store.last_modified = (Get-Date).ToString('yyyy-MM-dd') }
+    if ($store.PSObject.Properties['organizations']) {
+        $store.organizations = @($existing)
+    } else {
+        Add-Member -InputObject $store -MemberType NoteProperty -Name 'organizations' -Value (@($existing))
+    }
+    if ($store.PSObject.Properties['org_count']) {
+        $store.org_count = @($existing).Count
+    } else {
+        Add-Member -InputObject $store -MemberType NoteProperty -Name 'org_count' -Value (@($existing).Count)
+    }
+    $stamp = (Get-Date).ToString('yyyy-MM-dd')
+    if ($store.PSObject.Properties['last_modified']) {
+        $store.last_modified = $stamp
+    } else {
+        Add-Member -InputObject $store -MemberType NoteProperty -Name 'last_modified' -Value $stamp
+    }
 
     if (-not $PSCmdlet.ShouldProcess($path, "Upsert organization $incomingId")) {
         return (ConvertTo-OrganizationObject -Raw $incoming)

@@ -355,6 +355,51 @@ Describe 'Import-Organization' -Tag 'taxonomy' {
 # ─────────────────────────────────────────────────────────────────────────────
 # Manifest exports
 # ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# Review-fixes regression (t/1224#4)
+# ─────────────────────────────────────────────────────────────────────────────
+Describe 'Test-OrganizationIntegrity -Path (t/1224#4 fix 1)' -Tag 'taxonomy' {
+    It 'Validates a fixture file supplied via -Path, not the live registry' {
+        InModuleScope AITriad {
+            $fixture = Join-Path ([System.IO.Path]::GetTempPath()) "orgs-fixture-$(Get-Random).json"
+            try {
+                $badPayload = @{
+                    _schema_version = '1.0.0'
+                    organizations   = @(
+                        @{
+                            id   = 'org-100'
+                            name = 'Bad'
+                            type = 'advocacy'
+                            pov_alignment = @{
+                                safetyist = @{ score = 2.5; rationale = 'out of range on purpose' }
+                            }
+                        }
+                    )
+                } | ConvertTo-Json -Depth 8
+                Set-Content -Path $fixture -Value $badPayload -Encoding utf8NoBOM
+                $r = Test-OrganizationIntegrity -Path $fixture
+                $r.Pass   | Should -Be $false
+                $r.Errors | Should -BeGreaterOrEqual 1
+                @($r.Issues | Where-Object { $_.OrgId -eq 'org-100' }).Count | Should -BeGreaterOrEqual 1
+                # Cache must not be polluted by the fixture — live registry re-validates clean
+                $live = Test-OrganizationIntegrity
+                $live.Pass | Should -Be $true
+            } finally {
+                if (Test-Path $fixture) { Remove-Item $fixture -Force -ErrorAction SilentlyContinue }
+            }
+        }
+    }
+}
+
+Describe 'Import-Organization strict-mode guard (t/1224#4 fix 2)' -Tag 'taxonomy' {
+    It 'Handles a store missing the organizations key without throwing PropertyNotFoundException' {
+        InModuleScope AITriad {
+            Mock Get-OrganizationsStore { [PSCustomObject]@{ _schema_version = '1.0.0' } }
+            { Import-Organization -Id org-991 -Name 'guard test' -Type advocacy -WhatIf } | Should -Not -Throw
+        }
+    }
+}
+
 Describe 'Organization cmdlets - manifest export (t/1224)' -Tag 'taxonomy' {
     It 'AITriad.psd1 FunctionsToExport lists all 6 organization cmdlets' {
         $manifestPath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psd1'

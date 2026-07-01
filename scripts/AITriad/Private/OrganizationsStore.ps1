@@ -27,13 +27,24 @@ function Get-OrganizationsStore {
         _schema_version, _doc, org_count, last_modified, organizations[].
     .PARAMETER Force
         Bypass the cache and re-read from disk.
+    .PARAMETER Path
+        Override the source file path. Defaults to Get-OrganizationsFilePath.
+        Used by Test-OrganizationIntegrity so callers can validate a snapshot
+        or fixture file without touching the live registry.
     #>
     [CmdletBinding()]
-    param([switch]$Force)
+    param(
+        [switch]$Force,
+        [string]$Path
+    )
 
     Set-StrictMode -Version Latest
 
-    $path = Get-OrganizationsFilePath
+    if ($Path) {
+        $path = $Path
+    } else {
+        $path = Get-OrganizationsFilePath
+    }
     if (-not (Test-Path $path)) {
         throw (New-ActionableError `
             -Goal 'Load organizations registry' `
