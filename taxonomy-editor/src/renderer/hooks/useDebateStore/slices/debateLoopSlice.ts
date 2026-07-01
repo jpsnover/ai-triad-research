@@ -808,7 +808,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
           input, stageGenerate,
           (_stage, label) => set({ debateActivity: label }),
         ),
-        assembleResult: (result) => assemblePipelineResult(result),
+        assembleResult: (result) => assemblePipelineResult(result, getAllKnownNodeIds()),
         callJudge: async (jp: string, label: string) => {
           const r = await generateTextWithProgress(jp, vConfig.judgeModel, label, set);
           return r.text;
@@ -943,7 +943,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
                 avoidClaims: guidance.avoidClaims,             // "do not use these for these reasons"
               };
               const regenPipelineResult = await runTurnPipeline(regenPipelineInput, stageGenerate, (_stage, label) => set({ debateActivity: `Regenerating: ${label}` }));
-              const regenAssembled = assemblePipelineResult(regenPipelineResult);
+              const regenAssembled = assemblePipelineResult(regenPipelineResult, getAllKnownNodeIds());
               if (!regenAssembled) return null;
               const { statement: newStatement, meta: newMeta } = regenAssembled;
               return { statement: newStatement, debaterClaims: newMeta.my_claims };
