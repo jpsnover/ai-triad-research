@@ -87,6 +87,17 @@ function categoryScore(text: string, category: AffectCategory): number {
   return Math.min(1.0, rate / AFFECT_SATURATION_RATE[category]);
 }
 
+export function computeAffectEvidence(text: string): Record<AffectCategory, string[]> {
+  const empty: Record<AffectCategory, string[]> = { urgency: [], fear: [], hope: [], outrage: [], empathy: [] };
+  if (text.split(/\s+/).length < MIN_WORD_COUNT) return empty;
+  const lower = text.toLowerCase();
+  const result = { ...empty };
+  for (const cat of AFFECT_CATEGORIES) {
+    result[cat] = AFFECT_LEXICONS[cat].filter(term => lower.includes(term));
+  }
+  return result;
+}
+
 export function computeAffectProfile(text: string): AffectProfile | null {
   if (text.split(/\s+/).length < MIN_WORD_COUNT) return null;
   const profile = {} as AffectProfile;

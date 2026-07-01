@@ -3,6 +3,7 @@ import {
   computeAffectProfile,
   computeAffectIntensity,
   computeAffectAppropriateness,
+  computeAffectEvidence,
   AFFECT_PHASE_BASELINES,
   type AffectProfile,
 } from './affectSignals.js';
@@ -108,5 +109,51 @@ describe('computeAffectAppropriateness', () => {
     const extreme: AffectProfile = { urgency: 1.0, fear: 1.0, hope: 0, outrage: 1.0, empathy: 0 };
     const score = computeAffectAppropriateness(extreme, 'concluding')!;
     expect(score).toBeLessThanOrEqual(0.2);
+  });
+});
+
+describe('computeAffectEvidence', () => {
+  it('returns empty arrays for short text', () => {
+    const ev = computeAffectEvidence('Too short.');
+    for (const terms of Object.values(ev)) {
+      expect(terms).toEqual([]);
+    }
+  });
+
+  it('returns matched urgency terms', () => {
+    const text = pad('We must act immediately. This is urgent and the crisis demands swift action.');
+    const ev = computeAffectEvidence(text);
+    expect(ev.urgency).toContain('immediately');
+    expect(ev.urgency).toContain('urgent');
+    expect(ev.urgency).toContain('crisis');
+    expect(ev.urgency).toContain('swift');
+  });
+
+  it('returns matched hope terms', () => {
+    const text = pad('This promising opportunity could transform our approach. A real breakthrough with positive potential.');
+    const ev = computeAffectEvidence(text);
+    expect(ev.hope).toContain('promising');
+    expect(ev.hope).toContain('opportunity');
+    expect(ev.hope).toContain('transform');
+    expect(ev.hope).toContain('breakthrough');
+    expect(ev.hope).toContain('positive');
+    expect(ev.hope).toContain('potential');
+  });
+
+  it('returns empty arrays for categories with no matches', () => {
+    const text = pad('This promising opportunity could transform our approach with positive potential for progress.');
+    const ev = computeAffectEvidence(text);
+    expect(ev.hope.length).toBeGreaterThan(0);
+    expect(ev.outrage).toEqual([]);
+  });
+
+  it('is consistent with computeAffectProfile scores', () => {
+    const text = pad('The catastrophic danger threatens vulnerable communities. This urgent crisis demands immediate action.');
+    const ev = computeAffectEvidence(text);
+    const profile = computeAffectProfile(text)!;
+    for (const cat of Object.keys(ev) as (keyof typeof ev)[]) {
+      if (ev[cat].length > 0) expect(profile[cat]).toBeGreaterThan(0);
+      if (ev[cat].length === 0) expect(profile[cat]).toBe(0);
+    }
   });
 });

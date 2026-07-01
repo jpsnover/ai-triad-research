@@ -901,6 +901,7 @@ export function extractCalibrationData(
   const affectAppropScores: number[] = [];
   for (const entry of session.transcript ?? []) {
     if (entry.type !== 'opening' && entry.type !== 'statement') continue;
+    if (entry.speaker === 'system' || entry.speaker === 'moderator') continue;
     if (!entry.content) continue;
     const intensity = computeAffectIntensity(entry.content);
     if (intensity != null) affectIntensities.push(intensity);
