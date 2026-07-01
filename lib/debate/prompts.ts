@@ -1599,10 +1599,10 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your response text",
   "taxonomy_refs": [
-    {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y, grounding the normative position."},
-    {"node_id": "e.g. acc-beliefs-005", "relevance": "Empirical data here challenges the opposing claim and provides evidentiary weight."},
-    {"node_id": "e.g. acc-intentions-003", "relevance": "This reasoning strategy shapes the reframe and anticipates the counterargument."},
-    {"node_id": "e.g. acc-desires-009", "relevance": "The value commitment motivates why this distinction matters beyond abstract theorizing."}
+    {"node_id": "<a real node_id from the taxonomy context above>", "relevance": "The emphasis on X directly supports the claim that Y, grounding the normative position."},
+    {"node_id": "<a real node_id from the taxonomy context above>", "relevance": "Empirical data here challenges the opposing claim and provides evidentiary weight."},
+    {"node_id": "<a real node_id from the taxonomy context above>", "relevance": "This reasoning strategy shapes the reframe and anticipates the counterargument."},
+    {"node_id": "<a real node_id from the taxonomy context above>", "relevance": "The value commitment motivates why this distinction matters beyond abstract theorizing."}
   ],
   "my_claims": [
     {"claim": "near-verbatim headline assertion", "targets": ["AN-1"]},
@@ -1842,16 +1842,16 @@ ${draft}
 ${input.taxonomyContext}
 
 Ground the opening statement in the taxonomy. For each connection:
-1. TAXONOMY REFS: Tag 3-5 taxonomy nodes that the statement draws from. Cover at least two BDI sections. For each, explain in 1-4 sentences how the node informed the argument.
+1. TAXONOMY REFS: Tag 3-5 taxonomy nodes that the statement draws from. Cover at least two BDI sections. For each, explain in 1-4 sentences how the node informed the argument. Every node_id MUST appear verbatim in the TAXONOMY CONTEXT above — do not invent IDs.
 2. POLICY REFS: Identify any policy actions the argument supports, opposes, or implies. For each, explain in 1-2 sentences how the argument connects to the policy.
 3. GROUNDING CONFIDENCE: Rate 0-1 how well the statement is grounded in the taxonomy (1.0 = every claim traceable to a node, 0.5 = loosely connected, 0.0 = no taxonomy basis).
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "taxonomy_refs": [
-    {"node_id": "acc-beliefs-003", "relevance": "1-4 sentences: how this node informed the argument"},
-    {"node_id": "acc-desires-002", "relevance": "1-4 sentences explaining connection"},
-    {"node_id": "acc-intentions-001", "relevance": "1-4 sentences explaining connection"}
+    {"node_id": "<a real node_id from TAXONOMY CONTEXT>", "relevance": "1-4 sentences: how this node informed the argument"},
+    {"node_id": "<a real node_id from TAXONOMY CONTEXT>", "relevance": "1-4 sentences explaining connection"},
+    {"node_id": "<a real node_id from TAXONOMY CONTEXT>", "relevance": "1-4 sentences explaining connection"}
   ],
   "policy_refs": [
     {"policy_id": "pol-001", "relevance": "1-2 sentences: how the argument relates to this policy"},
@@ -2413,7 +2413,7 @@ ${draft}
 ${input.taxonomyContext}
 ${refsHistoryBlock}${buildPlannedNodesBlock(plan)}${planBlock}
 Ground the draft statement in the taxonomy. For each connection:
-1. TAXONOMY REFS: Tag 3-5 taxonomy nodes that the statement draws from. Cover at least two BDI sections. For each, explain in 1-4 sentences how the node informed the argument.
+1. TAXONOMY REFS: Tag 3-5 taxonomy nodes that the statement draws from. Cover at least two BDI sections. For each, explain in 1-4 sentences how the node informed the argument. Every node_id MUST appear verbatim in the TAXONOMY CONTEXT above — do not invent IDs.
 2. POLICY REFS: Identify any policy actions the argument supports, opposes, or implies. For each, explain in 1-2 sentences how the argument connects to the policy — what it supports, what it challenges, or what it implies for implementation. Do not just list IDs.
 3. GROUNDING CONFIDENCE: Rate 0-1 how well the statement is grounded in the taxonomy (1.0 = every claim traceable to a node, 0.5 = loosely connected, 0.0 = no taxonomy basis).
 
@@ -2422,9 +2422,9 @@ Do NOT include move_annotations — dialectical moves are tracked from the argum
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "taxonomy_refs": [
-    {"node_id": "acc-beliefs-003", "relevance": "1-4 sentences: how this node informed the argument"},
-    {"node_id": "acc-desires-002", "relevance": "1-4 sentences explaining connection"},
-    {"node_id": "acc-intentions-001", "relevance": "1-4 sentences explaining connection"}
+    {"node_id": "<a real node_id from TAXONOMY CONTEXT>", "relevance": "1-4 sentences: how this node informed the argument"},
+    {"node_id": "<a real node_id from TAXONOMY CONTEXT>", "relevance": "1-4 sentences explaining connection"},
+    {"node_id": "<a real node_id from TAXONOMY CONTEXT>", "relevance": "1-4 sentences explaining connection"}
   ],
   "policy_refs": [
     {"policy_id": "pol-001", "relevance": "1-2 sentences: how the argument relates to this policy"},
@@ -2677,7 +2677,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
       {"claim_id": "C2", "claim": "the attacking claim text", "claimant": "safetyist", "attack_type": "rebut or undercut or undermine", "scheme": "COUNTEREXAMPLE or DISTINGUISH or REDUCE or REFRAME or CONCEDE or ESCALATE", "argumentation_scheme": "ARGUMENT_FROM_EVIDENCE or ARGUMENT_FROM_ANALOGY or PRACTICAL_REASONING etc", "critical_question_addressed": 2}
     ]}
   ],
-  "taxonomy_coverage": [{"node_id": "e.g. acc-desires-002", "how_used": "brief description"}],
+  "taxonomy_coverage": [{"node_id": "<a real node_id from transcript context>", "how_used": "brief description"}],
   "taxonomy_proposals": [
     {"label": "Mitigating Workforce Displacement Risk", "description": "A Desire within safetyist discourse that [differentia].\nEncompasses: [concrete sub-themes].\nExcludes: [neighboring concepts].", "pov": "accelerationist or safetyist or skeptic or situations", "category": "Beliefs or Desires or Intentions", "rationale": "why this debate surfaced a gap", "source_claims": ["C1", "C3"]}
   ],
@@ -2836,7 +2836,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"question": "the factual or value question that would change minds", "if_yes": "which debater's position weakens — who must concede or revise, and what they must give up", "if_no": "which debater's position weakens — who must concede or revise, and what they must give up", "type": "EMPIRICAL or VALUES", "counterfactual_type": "interventional, backtracking, normative, or none if the crux is not counterfactual in form"}
   ],
   "unresolved_questions": ["..."],
-  "taxonomy_coverage": [{"node_id": "e.g. acc-desires-002", "how_used": "brief description"}],
+  "taxonomy_coverage": [{"node_id": "<a real node_id from transcript context>", "how_used": "brief description"}],
   "argument_map": [
     {"claim_id": "C1", "claim": "near-verbatim from transcript", "claimant": "accelerationist", "type": "empirical or normative or definitional", "supported_by": [{"claim_id": "C3", "scheme": "argument_from_evidence or argument_from_analogy or argument_from_authority or argument_from_consequences or causal_argument or practical_reasoning", "warrant": "1 sentence: WHY C3 supports C1"}], "attacked_by": [
       {"claim_id": "C2", "claim": "the attacking claim text", "claimant": "safetyist", "attack_type": "rebut or undercut or undermine", "scheme": "COUNTEREXAMPLE or DISTINGUISH or REDUCE or REFRAME or CONCEDE or ESCALATE", "argumentation_scheme": "ARGUMENT_FROM_EVIDENCE or ARGUMENT_FROM_ANALOGY or PRACTICAL_REASONING etc", "critical_question_addressed": 2}
@@ -2947,7 +2947,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "verdict": "supported" | "disputed" | "unverifiable" | "false",
   "explanation": "brief explanation of your assessment",
   "sources": [
-    {"node_id": "e.g. acc-desires-002"},
+    {"node_id": "<a real node_id>"},
     {"conflict_id": "e.g. conflict-xyz"}
   ],
   "points": [
