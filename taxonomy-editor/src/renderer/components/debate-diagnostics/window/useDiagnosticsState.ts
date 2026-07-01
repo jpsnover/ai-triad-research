@@ -165,11 +165,8 @@ export function useDiagnosticsState(initialData?: Record<string, unknown>) {
     }
   }, []);
 
-  // Initial load
-  const taxLoadedRef = useRef(false);
+  // Initial load — no ref guard; the cancellation signal handles StrictMode double-invocation
   useEffect(() => {
-    if (taxLoadedRef.current) return;
-    taxLoadedRef.current = true;
     const signal = { cancelled: false };
     void loadTaxonomyData(signal);
     return () => { signal.cancelled = true; };
