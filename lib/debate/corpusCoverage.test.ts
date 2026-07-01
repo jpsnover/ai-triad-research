@@ -1,13 +1,33 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { computeCorpusCoverage, saveCoverageMap, loadCoverageMap } from './corpusCoverage.js';
 
-vi.mock('node:fs');
-const mockFs = vi.mocked(fs);
+// ── Mock fns (module-level, survive across describes) ─────
+
+const mockExistsSync = vi.fn();
+const mockReaddirSync = vi.fn();
+const mockReadFileSync = vi.fn();
+const mockWriteFileSync = vi.fn();
+const mockMkdirSync = vi.fn();
+
+vi.mock('fs', () => ({
+  default: {
+    existsSync: (...args: unknown[]) => mockExistsSync(...args),
+    readdirSync: (...args: unknown[]) => mockReaddirSync(...args),
+    readFileSync: (...args: unknown[]) => mockReadFileSync(...args),
+    writeFileSync: (...args: unknown[]) => mockWriteFileSync(...args),
+    mkdirSync: (...args: unknown[]) => mockMkdirSync(...args),
+  },
+  existsSync: (...args: unknown[]) => mockExistsSync(...args),
+  readdirSync: (...args: unknown[]) => mockReaddirSync(...args),
+  readFileSync: (...args: unknown[]) => mockReadFileSync(...args),
+  writeFileSync: (...args: unknown[]) => mockWriteFileSync(...args),
+  mkdirSync: (...args: unknown[]) => mockMkdirSync(...args),
+}));
+
+// ── Helpers ───────────────────────────────────────────────
 
 function makeDebate(id: string, transcriptRefs: string[][], anRefs: string[][] = []) {
   return JSON.stringify({
@@ -49,8 +69,34 @@ function makeCruxRegistry(entries: { related_taxonomy_nodes: string[] }[]) {
   });
 }
 
+function setupMocks(config: {
+  existsSync?: (p: string) => boolean;
+  readdirSync?: string[];
+  readFileSync?: (p: string) => string;
+  writeFileSync?: (p: string, content: string) => void;
+}) {
+  if (config.existsSync) {
+    mockExistsSync.mockImplementation((p: unknown) => config.existsSync!(String(p)));
+  }
+  if (config.readdirSync) {
+    mockReaddirSync.mockReturnValue(config.readdirSync);
+  }
+  if (config.readFileSync) {
+    mockReadFileSync.mockImplementation((p: unknown) => config.readFileSync!(String(p)));
+  }
+  if (config.writeFileSync) {
+    mockWriteFileSync.mockImplementation((p: unknown, content: unknown) =>
+      config.writeFileSync!(String(p), String(content)),
+    );
+    if (!config.existsSync) {
+      mockExistsSync.mockReturnValue(true);
+    }
+    mockMkdirSync.mockReturnValue(undefined);
+  }
+}
+
 describe('computeCorpusCoverage', () => {
-  afterEach(() => {
+  beforeEach(() => {
     vi.clearAllMocks();
   });
 
@@ -60,23 +106,21 @@ describe('computeCorpusCoverage', () => {
     const debate1 = makeDebate('d1', [['acc-beliefs-001', 'saf-desires-002']]);
     const debate2 = makeDebate('d2', [['acc-beliefs-001']]);
 
-    mockFs.existsSync.mockImplementation((p: fs.PathLike) => {
-      const s = String(p);
-      if (s === debatesDir) return true;
-      if (s.includes('cli-runs')) return false;
-      if (s.includes('crux-registry.json')) return true;
-      return false;
-    });
-    mockFs.readdirSync.mockReturnValue(['debate-d1.json', 'debate-d2.json'] as any);
-    mockFs.readFileSync.mockImplementation((p: fs.PathOrFileDescriptor) => {
-      const s = String(p);
-      if (s.includes('debate-d1')) return debate1;
-      if (s.includes('debate-d2')) return debate2;
-      if (s.includes('crux-registry')) return makeCruxRegistry([]);
-      return '';
+    setupMocks({
+      existsSync: (p) => {
+        if (p.includes('debates')) return !p.includes('cli-runs');
+        if (p.includes('crux-registry')) return true;
+        return false;
+      },
+      readdirSync: ['debate-d1.json', 'debate-d2.json'],
+      readFileSync: (p) => {
+        if (p.includes('debate-d1')) return debate1;
+        if (p.includes('debate-d2')) return debate2;
+        if (p.includes('crux-registry')) return makeCruxRegistry([]);
+        return '';
+      },
     });
 
-    // threshold=2 so acc-beliefs-001 (in 2 debates) is flagged as retread
     const result = computeCorpusCoverage(debatesDir, dataRoot, 2);
 
     expect(result.debates_scanned).toBe(2);
@@ -90,25 +134,22 @@ describe('computeCorpusCoverage', () => {
   it('protects fault-line nodes from retread flag', () => {
     const debatesDir = '/data/debates';
     const dataRoot = '/data';
-    const debate1 = makeDebate('d1', [['acc-beliefs-001']]);
-    const debate2 = makeDebate('d2', [['acc-beliefs-001']]);
 
-    mockFs.existsSync.mockImplementation((p: fs.PathLike) => {
-      const s = String(p);
-      if (s === debatesDir) return true;
-      if (s.includes('cli-runs')) return false;
-      if (s.includes('crux-registry.json')) return true;
-      return false;
-    });
-    mockFs.readdirSync.mockReturnValue(['debate-d1.json', 'debate-d2.json'] as any);
-    mockFs.readFileSync.mockImplementation((p: fs.PathOrFileDescriptor) => {
-      const s = String(p);
-      if (s.includes('debate-')) return makeDebate('d', [['acc-beliefs-001']]);
-      if (s.includes('crux-registry')) return makeCruxRegistry([
-        { related_taxonomy_nodes: ['acc-beliefs-001'] },
-        { related_taxonomy_nodes: ['acc-beliefs-001'] },
-      ]);
-      return '';
+    setupMocks({
+      existsSync: (p) => {
+        if (p.includes('debates')) return !p.includes('cli-runs');
+        if (p.includes('crux-registry')) return true;
+        return false;
+      },
+      readdirSync: ['debate-d1.json', 'debate-d2.json'],
+      readFileSync: (p) => {
+        if (p.includes('debate-')) return makeDebate('d', [['acc-beliefs-001']]);
+        if (p.includes('crux-registry')) return makeCruxRegistry([
+          { related_taxonomy_nodes: ['acc-beliefs-001'] },
+          { related_taxonomy_nodes: ['acc-beliefs-001'] },
+        ]);
+        return '';
+      },
     });
 
     const result = computeCorpusCoverage(debatesDir, dataRoot, 2);
@@ -124,19 +165,18 @@ describe('computeCorpusCoverage', () => {
     const dataRoot = '/data';
     const debate = makeDebate('d1', [], [['skp-intentions-003']]);
 
-    mockFs.existsSync.mockImplementation((p: fs.PathLike) => {
-      const s = String(p);
-      if (s === debatesDir) return true;
-      if (s.includes('cli-runs')) return false;
-      if (s.includes('crux-registry.json')) return true;
-      return false;
-    });
-    mockFs.readdirSync.mockReturnValue(['debate-d1.json'] as any);
-    mockFs.readFileSync.mockImplementation((p: fs.PathOrFileDescriptor) => {
-      const s = String(p);
-      if (s.includes('debate-')) return debate;
-      if (s.includes('crux-registry')) return makeCruxRegistry([]);
-      return '';
+    setupMocks({
+      existsSync: (p) => {
+        if (p.includes('debates')) return !p.includes('cli-runs');
+        if (p.includes('crux-registry')) return true;
+        return false;
+      },
+      readdirSync: ['debate-d1.json'],
+      readFileSync: (p) => {
+        if (p.includes('debate-')) return debate;
+        if (p.includes('crux-registry')) return makeCruxRegistry([]);
+        return '';
+      },
     });
 
     const result = computeCorpusCoverage(debatesDir, dataRoot);
@@ -145,10 +185,9 @@ describe('computeCorpusCoverage', () => {
   });
 
   it('returns empty stats when debates dir does not exist', () => {
-    mockFs.existsSync.mockImplementation((p: fs.PathLike) => {
-      const s = String(p);
-      if (s.includes('crux-registry')) return false;
-      return false;
+    setupMocks({
+      existsSync: () => false,
+      readFileSync: () => '',
     });
 
     const result = computeCorpusCoverage('/nonexistent', '/data');
@@ -159,6 +198,10 @@ describe('computeCorpusCoverage', () => {
 });
 
 describe('saveCoverageMap / loadCoverageMap', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('round-trips a coverage map', () => {
     const map = {
       version: 1 as const,
@@ -170,9 +213,11 @@ describe('saveCoverageMap / loadCoverageMap', () => {
     };
 
     let written = '';
-    mockFs.existsSync.mockReturnValue(true);
-    mockFs.writeFileSync.mockImplementation((_p, content) => { written = String(content); });
-    mockFs.readFileSync.mockImplementation(() => written);
+    setupMocks({
+      existsSync: () => true,
+      writeFileSync: (_p, content) => { written = content; },
+      readFileSync: () => written,
+    });
 
     saveCoverageMap(map, '/data');
     const loaded = loadCoverageMap('/data');
@@ -182,7 +227,10 @@ describe('saveCoverageMap / loadCoverageMap', () => {
   });
 
   it('returns null for missing file', () => {
-    mockFs.existsSync.mockReturnValue(false);
+    setupMocks({
+      existsSync: () => false,
+    });
+
     expect(loadCoverageMap('/data')).toBeNull();
   });
 });

@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+import fs from 'fs';
+import path from 'path';
 import { loadRegistry } from './cruxRegistry.js';
 import type { CruxRegistry, CruxRegistryEntry } from './types.js';
 
