@@ -73,6 +73,8 @@ A crux is the system's most concentrated unit of relevance engineering. It answe
 
 A debate about AI regulation might surface dozens of arguments. But the crux might be: *"Can pre-deployment testing be made fast enough to not significantly delay release cycles?"* If that factual question were answered, accelerationists and safetyists would both update their positions. The crux distills an ocean of argumentation into the single most relevant question.
 
+The system locates that crux by *intervention*: it removes each pivotal argument from the network and recomputes what survives, and the argument whose removal most changes the outcome is the crux — the claim with the largest causal contribution to the debate's resolution. Treating the argument network as a causal model this way (cf. ARGORA, Jin et al., 2026, which independently arrives at the same remove-and-recompute diagnostic) turns crux-finding from an intuition into a computation.
+
 Across debates, cruxes aggregate. The system tracks which cruxes recur — these are the structural fault lines of AI policy discourse, the deep disagreements that no single debate resolves. These recurring cruxes are where wisdom lives: not in any one answer, but in the precise articulation of what remains contested and why.
 
 ### Strategic Evaluation: Game-Theoretic Wisdom Extraction
@@ -227,4 +229,4 @@ The result is not a database of AI policy positions (that's information). It's n
 
 ---
 
-*Drafted: 2026-05-06 · Reframed: 2026-05-11 · Updated: 2026-05-22 (game-theoretic strategy, situation-driven topic discovery) · Updated: 2026-05-25 (Belief confidence, Desire priority, doctrinal anchoring, Intention operationality, lineage pipeline) · Updated: 2026-07-01 (affect/emotional register metric; node counts refreshed to 770 POV / 1,182 total) · Computational Linguist · AI Triad Research*
+*Drafted: 2026-05-06 · Reframed: 2026-05-11 · Updated: 2026-05-22 (game-theoretic strategy, situation-driven topic discovery) · Updated: 2026-05-25 (Belief confidence, Desire priority, doctrinal anchoring, Intention operationality, lineage pipeline) · Updated: 2026-07-01 (affect/emotional register metric; node counts refreshed to 770 POV / 1,182 total) · Updated: 2026-07-01 (causal/interventional framing of crux identification, cf. ARGORA) · Computational Linguist · AI Triad Research*
