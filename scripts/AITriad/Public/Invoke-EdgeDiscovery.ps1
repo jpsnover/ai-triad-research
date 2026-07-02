@@ -622,8 +622,19 @@ Omit pairs with no relationship. No markdown fences.
             }
 
             try {
-                $Response = Invoke-AIApi -Prompt $ClassifyPrompt -Model $Model -ApiKey $ResolvedKey `
-                    -Temperature $Temperature -MaxTokens 16384 -TimeoutSec 120
+                # t/1261: route through UsageID registry. Template variables
+                # render from -Values; -Override preserves the caller's runtime
+                # model + temperature choices.
+                $Response = Invoke-AIByUsage -UsageId 'enrichment.edge-discovery.classify' `
+                    -Values @{
+                        edge_type_list = $EdgeTypeList
+                        pair_lines     = $PairLines
+                    } `
+                    -Override @{
+                        model       = $Model
+                        temperature = $Temperature
+                    } `
+                    -ApiKey $ResolvedKey
 
                 if ($null -eq $Response -or -not $Response.Text) {
                     Write-Host " no response" -ForegroundColor Red
@@ -1033,7 +1044,19 @@ $ScreenCandJson
 "@
 
             try {
-                $ScreenResult = Invoke-AIApi -Prompt $ScreenFullPrompt -Model $ScreenModel -ApiKey $ScreenKey -Temperature 0.1 -MaxTokens 4096 -TimeoutSec 30 -JsonMode $true -ResponseSchema $ScreenSchema
+                # t/1261: route through UsageID registry. -Override preserves
+                # the caller's runtime screen model + the inline ScreenSchema.
+                $ScreenResult = Invoke-AIByUsage -UsageId 'enrichment.edge-discovery.screen' `
+                    -Values @{
+                        screen_prompt   = $ScreenPrompt
+                        source_json     = $ScreenSourceJson
+                        candidates_json = $ScreenCandJson
+                    } `
+                    -Override @{
+                        model          = $ScreenModel
+                        responseSchema = $ScreenSchema
+                    } `
+                    -ApiKey $ScreenKey
                 $ScreenText = $ScreenResult.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
                 $ScreenParsed = $ScreenText | ConvertFrom-Json
                 if ($ScreenParsed.PSObject.Properties['related_ids'] -and $ScreenParsed.related_ids.Count -gt 0) {

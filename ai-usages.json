@@ -169,5 +169,36 @@
     "jsonMode": true,
     "messageTemplate": "{{prompt}}",
     "tags": ["debate", "synthesis"]
+  },
+
+  "enrichment.edge-discovery.classify": {
+    "description": "Classify edge relationships between batches of high-similarity taxonomy node pairs. Emits SUPPORTS/CONTRADICTS/etc per pair with confidence + rationale (t/1261)",
+    "model": "gemini-2.5-flash",
+    "temperature": 0.1,
+    "maxTokens": 16384,
+    "timeoutMs": 120000,
+    "messageTemplate": "Classify the relationship between each pair of taxonomy nodes below. These pairs have high semantic similarity and likely have a meaningful relationship.\n\nEDGE TYPES:\n{{edge_type_list}}\n\nPAIRS TO CLASSIFY:\n{{pair_lines}}\n\nFor each pair, determine:\n1. The edge type (from the list above, or \"NONE\" if no meaningful relationship)\n2. Direction: which node is source and which is target\n3. Confidence (0.0-1.0)\n4. Weight (0.0-1.0): strength of the relationship\n5. Brief rationale\n\nReturn JSON: {\"edges\": [{\"source\": \"id\", \"target\": \"id\", \"type\": \"TYPE\", \"confidence\": 0.8, \"weight\": 0.7, \"rationale\": \"...\"}]}\nOmit pairs with no relationship. No markdown fences.",
+    "tags": ["enrichment", "edge-discovery"]
+  },
+
+  "enrichment.edge-discovery.screen": {
+    "description": "Two-phase screen pass: cheap-model filter of candidate node pairs before expensive classification. Returns related_ids subset (t/1261)",
+    "model": "gemini-3.1-flash-lite",
+    "temperature": 0.1,
+    "maxTokens": 4096,
+    "timeoutMs": 30000,
+    "jsonMode": true,
+    "responseSchema": {
+      "type": "object",
+      "properties": {
+        "related_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["related_ids"]
+    },
+    "messageTemplate": "{{screen_prompt}}\n\n--- SOURCE NODE ---\n{{source_json}}\n\n--- CANDIDATES ---\n{{candidates_json}}",
+    "tags": ["enrichment", "edge-discovery", "screen"]
   }
 }

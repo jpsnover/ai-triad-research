@@ -27,6 +27,7 @@ Describe 'Get-AIMetadata date_published validation (gap 2.1)' -Tag 'ingestion' {
             RawResponse = @{}
         }
         Mock Invoke-AIApi { $mockResponse } -ModuleName AIEnrich
+        Mock Invoke-AIByUsage { $mockResponse } -ModuleName AIEnrich
 
         $result = Get-AIMetadata -MarkdownText 'test doc' 3>$null 6>$null
         $result.date_published | Should -Be '2024'
@@ -42,6 +43,7 @@ Describe 'Get-AIMetadata date_published validation (gap 2.1)' -Tag 'ingestion' {
             RawResponse = @{}
         }
         Mock Invoke-AIApi { $mockResponse } -ModuleName AIEnrich
+        Mock Invoke-AIByUsage { $mockResponse } -ModuleName AIEnrich
 
         $result = Get-AIMetadata -MarkdownText 'test doc' 3>$null 6>$null
         $result.date_published | Should -Be '2024-03'
@@ -57,6 +59,7 @@ Describe 'Get-AIMetadata date_published validation (gap 2.1)' -Tag 'ingestion' {
             RawResponse = @{}
         }
         Mock Invoke-AIApi { $mockResponse } -ModuleName AIEnrich
+        Mock Invoke-AIByUsage { $mockResponse } -ModuleName AIEnrich
 
         $result = Get-AIMetadata -MarkdownText 'test doc' 3>$null 6>$null
         $result.date_published | Should -Be '2024-03-15'
@@ -72,6 +75,7 @@ Describe 'Get-AIMetadata date_published validation (gap 2.1)' -Tag 'ingestion' {
             RawResponse = @{}
         }
         Mock Invoke-AIApi { $mockResponse } -ModuleName AIEnrich
+        Mock Invoke-AIByUsage { $mockResponse } -ModuleName AIEnrich
 
         $result = Get-AIMetadata -MarkdownText 'test doc' 3>$null 6>$null
         $result.date_published | Should -Be '2024-03-01'
@@ -87,6 +91,7 @@ Describe 'Get-AIMetadata date_published validation (gap 2.1)' -Tag 'ingestion' {
             RawResponse = @{}
         }
         Mock Invoke-AIApi { $mockResponse } -ModuleName AIEnrich
+        Mock Invoke-AIByUsage { $mockResponse } -ModuleName AIEnrich
 
         $result = Get-AIMetadata -MarkdownText 'test doc' 3>$null 6>$null
         $result.date_published | Should -Be '2024-03-15'
@@ -102,6 +107,7 @@ Describe 'Get-AIMetadata date_published validation (gap 2.1)' -Tag 'ingestion' {
             RawResponse = @{}
         }
         Mock Invoke-AIApi { $mockResponse } -ModuleName AIEnrich
+        Mock Invoke-AIByUsage { $mockResponse } -ModuleName AIEnrich
 
         $result = Get-AIMetadata -MarkdownText 'test doc' 3>$null 6>$null
         $result.date_published | Should -BeNullOrEmpty
@@ -117,6 +123,7 @@ Describe 'Get-AIMetadata date_published validation (gap 2.1)' -Tag 'ingestion' {
             RawResponse = @{}
         }
         Mock Invoke-AIApi { $mockResponse } -ModuleName AIEnrich
+        Mock Invoke-AIByUsage { $mockResponse } -ModuleName AIEnrich
 
         $result = Get-AIMetadata -MarkdownText 'test doc' 3>$null 6>$null
         $result.date_published | Should -BeNullOrEmpty
@@ -136,6 +143,7 @@ Describe 'Get-AIMetadata title/one_liner length limits (gap 2.2)' -Tag 'ingestio
             RawResponse = @{}
         }
         Mock Invoke-AIApi { $mockResponse } -ModuleName AIEnrich
+        Mock Invoke-AIByUsage { $mockResponse } -ModuleName AIEnrich
 
         $result = Get-AIMetadata -MarkdownText 'test doc' 3>$null 6>$null
         $result.title.Length | Should -Be 200
@@ -152,6 +160,7 @@ Describe 'Get-AIMetadata title/one_liner length limits (gap 2.2)' -Tag 'ingestio
             RawResponse = @{}
         }
         Mock Invoke-AIApi { $mockResponse } -ModuleName AIEnrich
+        Mock Invoke-AIByUsage { $mockResponse } -ModuleName AIEnrich
 
         $result = Get-AIMetadata -MarkdownText 'test doc' 3>$null 6>$null
         $result.title | Should -Be 'Normal Title'
@@ -167,6 +176,7 @@ Describe 'Get-AIMetadata title/one_liner length limits (gap 2.2)' -Tag 'ingestio
             RawResponse = @{}
         }
         Mock Invoke-AIApi { $mockResponse } -ModuleName AIEnrich
+        Mock Invoke-AIByUsage { $mockResponse } -ModuleName AIEnrich
 
         $result = Get-AIMetadata -MarkdownText 'test doc' -FallbackTitle 'Fallback' 3>$null 6>$null
         $result.title | Should -Be 'Fallback'
@@ -183,6 +193,7 @@ Describe 'Get-AIMetadata title/one_liner length limits (gap 2.2)' -Tag 'ingestio
             RawResponse = @{}
         }
         Mock Invoke-AIApi { $mockResponse } -ModuleName AIEnrich
+        Mock Invoke-AIByUsage { $mockResponse } -ModuleName AIEnrich
 
         $result = Get-AIMetadata -MarkdownText 'test doc' 3>$null 6>$null
         $result.one_liner.Length | Should -Be 300
@@ -202,6 +213,7 @@ Describe 'Get-AIMetadata author deduplication (gap 2.3)' -Tag 'ingestion' {
             RawResponse = @{}
         }
         Mock Invoke-AIApi { $mockResponse } -ModuleName AIEnrich
+        Mock Invoke-AIByUsage { $mockResponse } -ModuleName AIEnrich
 
         $result = Get-AIMetadata -MarkdownText 'test doc' 3>$null 6>$null
         $result.authors.Count | Should -Be 1
@@ -218,6 +230,7 @@ Describe 'Get-AIMetadata author deduplication (gap 2.3)' -Tag 'ingestion' {
             RawResponse = @{}
         }
         Mock Invoke-AIApi { $mockResponse } -ModuleName AIEnrich
+        Mock Invoke-AIByUsage { $mockResponse } -ModuleName AIEnrich
 
         $result = Get-AIMetadata -MarkdownText 'test doc' 3>$null 6>$null
         $result.authors.Count | Should -Be 1
@@ -234,6 +247,7 @@ Describe 'Get-AIMetadata author deduplication (gap 2.3)' -Tag 'ingestion' {
             RawResponse = @{}
         }
         Mock Invoke-AIApi { $mockResponse } -ModuleName AIEnrich
+        Mock Invoke-AIByUsage { $mockResponse } -ModuleName AIEnrich
 
         $result = Get-AIMetadata -MarkdownText 'test doc' 3>$null 6>$null
         $result.authors.Count | Should -Be 3
@@ -249,6 +263,7 @@ Describe 'Get-AIMetadata author deduplication (gap 2.3)' -Tag 'ingestion' {
             RawResponse = @{}
         }
         Mock Invoke-AIApi { $mockResponse } -ModuleName AIEnrich
+        Mock Invoke-AIByUsage { $mockResponse } -ModuleName AIEnrich
 
         $result = Get-AIMetadata -MarkdownText 'test doc' 3>$null 6>$null
         $result.authors.Count | Should -Be 0

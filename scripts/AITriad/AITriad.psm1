@@ -697,6 +697,8 @@ Export-ModuleMember -Function @(
     'Get-OrganizationStakeholders'
     'Import-Organization'
     'Compare-OrganizationPositions'
+    # t/1261 — UsageID registry
+    'Invoke-AIByUsage'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

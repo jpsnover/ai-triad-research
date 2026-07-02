@@ -158,6 +158,8 @@
         'Get-OrganizationStakeholders'
         'Import-Organization'
         'Compare-OrganizationPositions'
+        # t/1261 — UsageID registry
+        'Invoke-AIByUsage'
     )
 
     # Aliases exported from this module

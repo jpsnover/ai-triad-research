@@ -866,7 +866,24 @@ $Excerpt
 "@
 
     $InitialMaxTokens = 1024
-    $AIResult = Invoke-AIApi -Prompt $Prompt -Model $Model -ApiKey $ApiKey -Temperature 0.1 -MaxTokens $InitialMaxTokens -JsonMode
+    # t/1261: route through UsageID registry when AITriad is loaded (which owns
+    # Invoke-AIByUsage). Falls back to direct Invoke-AIApi when AIEnrich is used
+    # standalone (tests, or dev sessions without AITriad).
+    if (Get-Command Invoke-AIByUsage -ErrorAction SilentlyContinue) {
+        $AIResult = Invoke-AIByUsage -UsageId 'enrichment.metadata-extraction' `
+            -Values @{ prompt = $Prompt } `
+            -Override @{
+                messageTemplate = '{{prompt}}'
+                systemMessage   = ''
+                model           = $Model
+                maxTokens       = $InitialMaxTokens
+                temperature     = 0.1
+                jsonMode        = $true
+            } `
+            -ApiKey $ApiKey
+    } else {
+        $AIResult = Invoke-AIApi -Prompt $Prompt -Model $Model -ApiKey $ApiKey -Temperature 0.1 -MaxTokens $InitialMaxTokens -JsonMode
+    }
     if ($null -eq $AIResult) { return $null }
 
     $RawText = $AIResult.Text
@@ -892,7 +909,22 @@ $Excerpt
             }
             if ($null -eq $Parsed) {
                 Write-Warning "$($AIResult.Backend): repair failed — retrying with higher token limit"
-                $RetryResult = Invoke-AIApi -Prompt $Prompt -Model $Model -ApiKey $ApiKey -Temperature 0.1 -MaxTokens 2048 -JsonMode
+                # t/1261: retry path — UsageID when AITriad loaded, fallback otherwise
+                if (Get-Command Invoke-AIByUsage -ErrorAction SilentlyContinue) {
+                    $RetryResult = Invoke-AIByUsage -UsageId 'enrichment.metadata-extraction' `
+                        -Values @{ prompt = $Prompt } `
+                        -Override @{
+                            messageTemplate = '{{prompt}}'
+                            systemMessage   = ''
+                            model           = $Model
+                            maxTokens       = 2048
+                            temperature     = 0.1
+                            jsonMode        = $true
+                        } `
+                        -ApiKey $ApiKey
+                } else {
+                    $RetryResult = Invoke-AIApi -Prompt $Prompt -Model $Model -ApiKey $ApiKey -Temperature 0.1 -MaxTokens 2048 -JsonMode
+                }
                 if ($RetryResult) {
                     $RetryJson = $RetryResult.Text `
                         -replace '(?s)^```json\s*', '' `

@@ -44,7 +44,7 @@ function Get-UsageRegistry {
     if ($Path) { $p = $Path } else { $p = Get-UsageRegistryPath }
 
     if (-not (Test-Path $p)) {
-        throw (New-ActionableError `
+        throw (New-ActionableError -PassThru `
             -Goal 'Load ai-usages registry' `
             -Problem "ai-usages.json not found at $p" `
             -Location 'Get-UsageRegistry' `
@@ -63,7 +63,7 @@ function Get-UsageRegistry {
         $raw = Get-Content -Raw -Path $p -Encoding utf8
         $parsed = $raw | ConvertFrom-Json
     } catch {
-        throw (New-ActionableError `
+        throw (New-ActionableError -PassThru `
             -Goal 'Parse ai-usages registry' `
             -Problem "Failed to parse ai-usages.json: $($_.Exception.Message)" `
             -Location 'Get-UsageRegistry' `
@@ -117,13 +117,13 @@ function Get-UsageConfig {
 
     if (-not $Registry) { $Registry = Get-UsageRegistry }
     if (-not $Registry.PSObject.Properties[$UsageId]) {
-        throw (New-ActionableError `
+        throw (New-ActionableError -PassThru `
             -Goal 'Resolve usage config' `
             -Problem "UsageID '$UsageId' not found in ai-usages.json" `
             -Location 'Get-UsageConfig' `
             -NextSteps @(
                 'Check spelling: Invoke-AIByUsage tab-completes UsageIDs',
-                "List available usages with: (Get-UsageRegistry).PSObject.Properties.Name | Where-Object { $_ -notmatch '^_' }",
+                'List available usages with: (Get-UsageRegistry).PSObject.Properties.Name | Where-Object { $_ -notmatch ''^_'' }',
                 "Add a new entry to ai-usages.json for '$UsageId'"
             ))
     }
@@ -135,7 +135,7 @@ function Get-UsageConfig {
     $max = 8
     while ($cursor -and $chain.Count -lt $max) {
         if (-not $visited.Add($cursor)) {
-            throw (New-ActionableError `
+            throw (New-ActionableError -PassThru `
                 -Goal 'Resolve usage config' `
                 -Problem "_extends cycle detected: $($chain -join ' → ') → $cursor" `
                 -Location 'Get-UsageConfig' `
@@ -150,7 +150,7 @@ function Get-UsageConfig {
         }
     }
     if ($chain.Count -ge $max) {
-        throw (New-ActionableError `
+        throw (New-ActionableError -PassThru `
             -Goal 'Resolve usage config' `
             -Problem "_extends chain exceeded max depth ($max)" `
             -Location 'Get-UsageConfig' `
@@ -210,7 +210,7 @@ function Convert-UsageTemplate {
     }
     if ($missing.Count -gt 0) {
         $ctx = if ($UsageIdContext) { " for UsageID '$UsageIdContext'" } else { '' }
-        throw (New-ActionableError `
+        throw (New-ActionableError -PassThru `
             -Goal 'Render usage template' `
             -Problem "Missing template value(s)${ctx}: $($missing -join ', ')" `
             -Location 'Convert-UsageTemplate' `

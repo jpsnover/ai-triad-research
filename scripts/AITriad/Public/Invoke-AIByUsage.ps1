@@ -99,7 +99,7 @@ function Invoke-AIByUsage {
     }
 
     if ([string]::IsNullOrWhiteSpace($userMessage)) {
-        throw (New-ActionableError `
+        throw (New-ActionableError -PassThru `
             -Goal 'Invoke AI by UsageID' `
             -Problem "UsageID '$UsageId' produced an empty user message after template rendering" `
             -Location 'Invoke-AIByUsage' `
@@ -110,7 +110,7 @@ function Invoke-AIByUsage {
     }
 
     if (-not $config.ContainsKey('model')) {
-        throw (New-ActionableError `
+        throw (New-ActionableError -PassThru `
             -Goal 'Invoke AI by UsageID' `
             -Problem "UsageID '$UsageId' does not declare a model" `
             -Location 'Invoke-AIByUsage' `
