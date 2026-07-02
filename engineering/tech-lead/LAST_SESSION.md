@@ -1,5 +1,5 @@
 **Date:** 2026-07-01
-**Working on:** UsageID API rollout (all 3 migration designs approved + 2/3 implemented), Organizations feature (4/5 sub-tickets done), EPERM retry fix chain (t/1271 done, t/1272 done, t/1273 broke CI)
-**Status:** CI blocker t/1276 (urgent) — Server Storage's t/1273 broke 59 githubApi tests (fs/promises mock gap). Routed to Server Storage. t/1261 (PS UsageID migration) design approved, implementing.
-**Key context:** Server Storage claimed verify passed on t/1273 but it was red — Definition of Done violation to follow up on. 27+ commits unpushed on main; push/deploy pending CI fix.
-**Next:** Verify t/1276 CI fix lands, then coordinate push/deploy cycle. Review t/1261 when PowerShell completes. Follow up on Server Storage's false verify claim.
+**Working on:** AGENTS.md update (common practices/patterns/traps), repo cleanup (18 junk files deleted), t/1261 PS UsageID review+approval. Full UsageID rollout complete (t/1259-t/1263 all Done).
+**Status:** Complete. All UsageID + Organizations implementation tickets shipped. 30+ unpushed commits on main ready for push/deploy cycle.
+**Key context:** AGENTS.md is overlay-tracked — committed via ogit as 714719c. Modified tracked files remaining: ai-models.json (+433/-116), ai-usages.json (+31), operations/devops/azure/AGENTS.md (+32/-26). Server Storage false verify claim (t/1273) still needs follow-up.
+**Next:** Push/deploy cycle (coordinate with DevOps). Follow up on Server Storage's false verify claim. t/1265 (admin panel usage browser) is the next unblocked ticket.

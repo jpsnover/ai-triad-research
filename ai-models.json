@@ -32,27 +32,9 @@
   ],
   "models": [
     {
-      "id": "gemini-3.5-flash",
-      "apiModelId": "gemini-3.5-flash",
-      "label": "Gemini 3.5 Flash",
-      "backend": "gemini"
-    },
-    {
-      "id": "gemini-3.1-pro-preview",
-      "apiModelId": "gemini-3.1-pro-preview",
-      "label": "Gemini 3.1 Pro",
-      "backend": "gemini"
-    },
-    {
-      "id": "gemini-flash-lite-latest",
-      "apiModelId": "gemini-3.1-flash-lite",
-      "label": "Gemini Flash Lite (latest)",
-      "backend": "gemini"
-    },
-    {
-      "id": "gemini-3.1-flash-lite",
-      "apiModelId": "gemini-3.1-flash-lite",
-      "label": "Gemini 3.1 Flash Lite",
+      "id": "gemini-2.5-flash",
+      "apiModelId": "gemini-2.5-flash",
+      "label": "Gemini 2.5 Flash",
       "backend": "gemini"
     },
     {
@@ -62,28 +44,226 @@
       "backend": "gemini"
     },
     {
-      "id": "gemini-2.5-flash",
-      "apiModelId": "gemini-2.5-flash",
-      "label": "Gemini 2.5 Flash",
+      "id": "gemini-2.0-flash",
+      "apiModelId": "gemini-2.0-flash",
+      "label": "Gemini 2.0 Flash",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-2.0-flash-001",
+      "apiModelId": "gemini-2.0-flash-001",
+      "label": "Gemini 2.0 Flash 001",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-2.0-flash-lite-001",
+      "apiModelId": "gemini-2.0-flash-lite-001",
+      "label": "Gemini 2.0 Flash-Lite 001",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-2.0-flash-lite",
+      "apiModelId": "gemini-2.0-flash-lite",
+      "label": "Gemini 2.0 Flash-Lite",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-2.5-flash-preview-tts",
+      "apiModelId": "gemini-2.5-flash-preview-tts",
+      "label": "Gemini 2.5 Flash Preview TTS",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-2.5-pro-preview-tts",
+      "apiModelId": "gemini-2.5-pro-preview-tts",
+      "label": "Gemini 2.5 Pro Preview TTS",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemma-4-26b-a4b-it",
+      "apiModelId": "gemma-4-26b-a4b-it",
+      "label": "Gemma 4 26B A4B IT",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemma-4-31b-it",
+      "apiModelId": "gemma-4-31b-it",
+      "label": "Gemma 4 31B IT",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-flash-latest",
+      "apiModelId": "gemini-flash-latest",
+      "label": "Gemini Flash Latest",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-flash-lite-latest",
+      "apiModelId": "gemini-flash-lite-latest",
+      "label": "Gemini Flash-Lite Latest",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-pro-latest",
+      "apiModelId": "gemini-pro-latest",
+      "label": "Gemini Pro Latest",
       "backend": "gemini"
     },
     {
       "id": "gemini-2.5-flash-lite",
       "apiModelId": "gemini-2.5-flash-lite",
-      "label": "Gemini 2.5 Flash Lite",
+      "label": "Gemini 2.5 Flash-Lite",
       "backend": "gemini"
     },
     {
-      "id": "claude-opus-4",
-      "apiModelId": "claude-opus-4-8",
-      "label": "Opus 4.8",
-      "backend": "claude"
+      "id": "gemini-2.5-flash-image",
+      "apiModelId": "gemini-2.5-flash-image",
+      "label": "Nano Banana",
+      "backend": "gemini"
     },
     {
-      "id": "claude-sonnet-4",
-      "apiModelId": "claude-sonnet-4-6",
-      "label": "Sonnet 4.6",
-      "backend": "claude"
+      "id": "gemini-3-pro-preview",
+      "apiModelId": "gemini-3-pro-preview",
+      "label": "Gemini 3 Pro Preview",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-3-flash-preview",
+      "apiModelId": "gemini-3-flash-preview",
+      "label": "Gemini 3 Flash Preview",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-3.1-pro-preview",
+      "apiModelId": "gemini-3.1-pro-preview",
+      "label": "Gemini 3.1 Pro Preview",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-3.1-pro-preview-customtools",
+      "apiModelId": "gemini-3.1-pro-preview-customtools",
+      "label": "Gemini 3.1 Pro Preview Custom Tools",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-3.1-flash-lite-preview",
+      "apiModelId": "gemini-3.1-flash-lite-preview",
+      "label": "Gemini 3.1 Flash Lite Preview",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-3.1-flash-lite",
+      "apiModelId": "gemini-3.1-flash-lite",
+      "label": "Gemini 3.1 Flash Lite",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-3-pro-image-preview",
+      "apiModelId": "gemini-3-pro-image-preview",
+      "label": "Nano Banana Pro",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-3-pro-image",
+      "apiModelId": "gemini-3-pro-image",
+      "label": "Nano Banana Pro",
+      "backend": "gemini"
+    },
+    {
+      "id": "nano-banana-pro-preview",
+      "apiModelId": "nano-banana-pro-preview",
+      "label": "Nano Banana Pro",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-3.1-flash-image-preview",
+      "apiModelId": "gemini-3.1-flash-image-preview",
+      "label": "Nano Banana 2",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-3.1-flash-image",
+      "apiModelId": "gemini-3.1-flash-image",
+      "label": "Nano Banana 2",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-3.1-flash-lite-image",
+      "apiModelId": "gemini-3.1-flash-lite-image",
+      "label": "Nano Banana 2 Lite",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-3.5-flash",
+      "apiModelId": "gemini-3.5-flash",
+      "label": "Gemini 3.5 Flash",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-omni-flash-preview",
+      "apiModelId": "gemini-omni-flash-preview",
+      "label": "Gemini Omni Flash Preview",
+      "backend": "gemini"
+    },
+    {
+      "id": "lyria-3-clip-preview",
+      "apiModelId": "lyria-3-clip-preview",
+      "label": "Lyria 3 Clip Preview",
+      "backend": "gemini"
+    },
+    {
+      "id": "lyria-3-pro-preview",
+      "apiModelId": "lyria-3-pro-preview",
+      "label": "Lyria 3 Pro Preview",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-3.1-flash-tts-preview",
+      "apiModelId": "gemini-3.1-flash-tts-preview",
+      "label": "Gemini 3.1 Flash TTS Preview",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-robotics-er-1.5-preview",
+      "apiModelId": "gemini-robotics-er-1.5-preview",
+      "label": "Gemini Robotics-ER 1.5 Preview",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-robotics-er-1.6-preview",
+      "apiModelId": "gemini-robotics-er-1.6-preview",
+      "label": "Gemini Robotics-ER 1.6 Preview",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-2.5-computer-use-preview-10-2025",
+      "apiModelId": "gemini-2.5-computer-use-preview-10-2025",
+      "label": "Gemini 2.5 Computer Use Preview 10-2025",
+      "backend": "gemini"
+    },
+    {
+      "id": "antigravity-preview-05-2026",
+      "apiModelId": "antigravity-preview-05-2026",
+      "label": "Antigravity Agent Preview",
+      "backend": "gemini"
+    },
+    {
+      "id": "deep-research-max-preview-04-2026",
+      "apiModelId": "deep-research-max-preview-04-2026",
+      "label": "Deep Research Max Preview (Apr-21-2026)",
+      "backend": "gemini"
+    },
+    {
+      "id": "deep-research-preview-04-2026",
+      "apiModelId": "deep-research-preview-04-2026",
+      "label": "Deep Research Preview (Apr-21-2026)",
+      "backend": "gemini"
+    },
+    {
+      "id": "deep-research-pro-preview-12-2025",
+      "apiModelId": "deep-research-pro-preview-12-2025",
+      "label": "Deep Research Pro Preview (Dec-12-2025)",
+      "backend": "gemini"
     },
     {
       "id": "claude-haiku-4-5",
@@ -92,9 +272,39 @@
       "backend": "claude"
     },
     {
-      "id": "groq-canopylabs-orpheus-v1-english",
-      "apiModelId": "canopylabs/orpheus-v1-english",
-      "label": "Canopylabs/Orpheus V1 English",
+      "id": "claude-sonnet-4-5",
+      "apiModelId": "claude-sonnet-4-5",
+      "label": "Sonnet 4.5 (alias)",
+      "backend": "claude"
+    },
+    {
+      "id": "claude-sonnet-4-6",
+      "apiModelId": "claude-sonnet-4-6",
+      "label": "Sonnet 4.6 (alias)",
+      "backend": "claude"
+    },
+    {
+      "id": "claude-opus-4-6",
+      "apiModelId": "claude-opus-4-6",
+      "label": "Opus 4.6 (alias)",
+      "backend": "claude"
+    },
+    {
+      "id": "groq-groq-compound-mini",
+      "apiModelId": "groq/compound-mini",
+      "label": "Groq/Compound Mini",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-llama-3.3-70b-versatile",
+      "apiModelId": "llama-3.3-70b-versatile",
+      "label": "Llama 3.3 70b Versatile",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-qwen-qwen3.6-27b",
+      "apiModelId": "qwen/qwen3.6-27b",
+      "label": "Qwen/Qwen3.6 27b",
       "backend": "groq"
     },
     {
@@ -104,33 +314,9 @@
       "backend": "groq"
     },
     {
-      "id": "groq-llama-3.1-8b-instant",
-      "apiModelId": "llama-3.1-8b-instant",
-      "label": "Llama 3.1 8b Instant",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-groq-compound-mini",
-      "apiModelId": "groq/compound-mini",
-      "label": "Groq/Compound Mini",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-openai-gpt-oss-20b",
-      "apiModelId": "openai/gpt-oss-20b",
-      "label": "Openai/Gpt Oss 20b",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-qwen-qwen3-32b",
-      "apiModelId": "qwen/qwen3-32b",
-      "label": "Qwen/Qwen3 32b",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-allam-2-7b",
-      "apiModelId": "allam-2-7b",
-      "label": "Allam 2 7b",
+      "id": "groq-canopylabs-orpheus-v1-english",
+      "apiModelId": "canopylabs/orpheus-v1-english",
+      "label": "Canopylabs/Orpheus V1 English",
       "backend": "groq"
     },
     {
@@ -140,9 +326,21 @@
       "backend": "groq"
     },
     {
-      "id": "groq-llama-3.3-70b-versatile",
-      "apiModelId": "llama-3.3-70b-versatile",
-      "label": "Llama 3.3 70b Versatile",
+      "id": "groq-qwen-qwen3-32b",
+      "apiModelId": "qwen/qwen3-32b",
+      "label": "Qwen/Qwen3 32b",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-openai-gpt-oss-20b",
+      "apiModelId": "openai/gpt-oss-20b",
+      "label": "Openai/Gpt Oss 20b",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-llama-3.1-8b-instant",
+      "apiModelId": "llama-3.1-8b-instant",
+      "label": "Llama 3.1 8b Instant",
       "backend": "groq"
     },
     {
@@ -158,16 +356,10 @@
       "backend": "groq"
     },
     {
-      "id": "openai-gpt-3.5-turbo",
-      "apiModelId": "gpt-3.5-turbo",
-      "label": "Gpt 3.5 Turbo",
-      "backend": "openai"
-    },
-    {
-      "id": "openai-gpt-3.5-turbo-16k",
-      "apiModelId": "gpt-3.5-turbo-16k",
-      "label": "Gpt 3.5 Turbo 16k",
-      "backend": "openai"
+      "id": "groq-allam-2-7b",
+      "apiModelId": "allam-2-7b",
+      "label": "Allam 2 7b",
+      "backend": "groq"
     },
     {
       "id": "openai-gpt-4-0613",
@@ -179,6 +371,18 @@
       "id": "openai-gpt-4",
       "apiModelId": "gpt-4",
       "label": "Gpt 4",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-3.5-turbo",
+      "apiModelId": "gpt-3.5-turbo",
+      "label": "Gpt 3.5 Turbo",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.5-pro-2026-04-23",
+      "apiModelId": "gpt-5.5-pro-2026-04-23",
+      "label": "Gpt 5.5 Pro 2026 04 23",
       "backend": "openai"
     },
     {
@@ -644,9 +848,9 @@
       "backend": "openai"
     },
     {
-      "id": "openai-gpt-5.5-pro-2026-04-23",
-      "apiModelId": "gpt-5.5-pro-2026-04-23",
-      "label": "Gpt 5.5 Pro 2026 04 23",
+      "id": "openai-gpt-3.5-turbo-16k",
+      "apiModelId": "gpt-3.5-turbo-16k",
+      "label": "Gpt 3.5 Turbo 16k",
       "backend": "openai"
     },
     {
@@ -660,30 +864,6 @@
       "apiModelId": "deepseek-v4-pro",
       "label": "Deepseek V4 Pro",
       "backend": "deepseek"
-    },
-    {
-      "id": "azure-gpt-4o",
-      "apiModelId": "gpt-4o",
-      "label": "GPT-4o (Azure)",
-      "backend": "azure"
-    },
-    {
-      "id": "azure-gpt-4o-mini",
-      "apiModelId": "gpt-4o-mini",
-      "label": "GPT-4o Mini (Azure)",
-      "backend": "azure"
-    },
-    {
-      "id": "azure-gpt-4.1",
-      "apiModelId": "gpt-4.1",
-      "label": "GPT-4.1 (Azure)",
-      "backend": "azure"
-    },
-    {
-      "id": "azure-gpt-4.1-mini",
-      "apiModelId": "gpt-4.1-mini",
-      "label": "GPT-4.1 Mini (Azure)",
-      "backend": "azure"
     },
     {
       "id": "ollama-gemma4-e4b-it-q4-k-m",
@@ -791,39 +971,145 @@
     "ollama": 131072
   },
   "capabilityDefaults": {
-    "gemini":   { "supportsTools": true,  "supportsVision": true,  "supportsStreaming": true,  "maxContextTokens": 1048576 },
-    "claude":   { "supportsTools": true,  "supportsVision": true,  "supportsStreaming": true,  "maxContextTokens": 200000 },
-    "groq":     { "supportsTools": true,  "supportsVision": false, "supportsStreaming": true,  "maxContextTokens": 131072 },
-    "openai":   { "supportsTools": true,  "supportsVision": true,  "supportsStreaming": true,  "maxContextTokens": 128000 },
-    "azure":    { "supportsTools": true,  "supportsVision": true,  "supportsStreaming": true,  "maxContextTokens": 128000 },
-    "deepseek": { "supportsTools": true,  "supportsVision": false, "supportsStreaming": true,  "maxContextTokens": 65536 },
-    "ollama":   { "supportsTools": false, "supportsVision": false, "supportsStreaming": true,  "maxContextTokens": 131072 }
+    "gemini": {
+      "supportsTools": true,
+      "supportsVision": true,
+      "supportsStreaming": true,
+      "maxContextTokens": 1048576
+    },
+    "claude": {
+      "supportsTools": true,
+      "supportsVision": true,
+      "supportsStreaming": true,
+      "maxContextTokens": 200000
+    },
+    "groq": {
+      "supportsTools": true,
+      "supportsVision": false,
+      "supportsStreaming": true,
+      "maxContextTokens": 131072
+    },
+    "openai": {
+      "supportsTools": true,
+      "supportsVision": true,
+      "supportsStreaming": true,
+      "maxContextTokens": 128000
+    },
+    "azure": {
+      "supportsTools": true,
+      "supportsVision": true,
+      "supportsStreaming": true,
+      "maxContextTokens": 128000
+    },
+    "deepseek": {
+      "supportsTools": true,
+      "supportsVision": false,
+      "supportsStreaming": true,
+      "maxContextTokens": 65536
+    },
+    "ollama": {
+      "supportsTools": false,
+      "supportsVision": false,
+      "supportsStreaming": true,
+      "maxContextTokens": 131072
+    }
   },
   "modelCapabilities": {
     "_comment": "Per-model overrides where capabilities differ from backend defaults.",
-    "openai-gpt-3.5-turbo":              { "supportsVision": false, "maxContextTokens": 4096 },
-    "openai-gpt-3.5-turbo-16k":          { "supportsVision": false, "maxContextTokens": 16384 },
-    "openai-gpt-3.5-turbo-1106":         { "supportsVision": false, "maxContextTokens": 16384 },
-    "openai-gpt-3.5-turbo-0125":         { "supportsVision": false, "maxContextTokens": 16384 },
-    "openai-gpt-3.5-turbo-instruct":     { "supportsTools": false, "supportsVision": false, "supportsStreaming": true, "maxContextTokens": 4096 },
-    "openai-gpt-3.5-turbo-instruct-0914":{ "supportsTools": false, "supportsVision": false, "supportsStreaming": true, "maxContextTokens": 4096 },
-    "openai-gpt-4-0613":                 { "supportsVision": false, "maxContextTokens": 8192 },
-    "openai-gpt-4":                      { "supportsVision": false, "maxContextTokens": 8192 },
-    "openai-gpt-image-1":                { "supportsTools": false, "supportsVision": false, "supportsStreaming": false },
-    "openai-gpt-image-1-mini":           { "supportsTools": false, "supportsVision": false, "supportsStreaming": false },
-    "openai-gpt-image-1.5":              { "supportsTools": false, "supportsVision": false, "supportsStreaming": false },
-    "openai-gpt-image-2":                { "supportsTools": false, "supportsVision": false, "supportsStreaming": false },
-    "openai-gpt-image-2-2026-04-21":     { "supportsTools": false, "supportsVision": false, "supportsStreaming": false },
-    "openai-gpt-4o-mini-tts":            { "supportsTools": false, "supportsVision": false },
-    "openai-gpt-4o-mini-tts-2025-03-20": { "supportsTools": false, "supportsVision": false },
-    "openai-gpt-4o-mini-tts-2025-12-15": { "supportsTools": false, "supportsVision": false },
-    "openai-gpt-4.1":                    { "maxContextTokens": 1047576 },
-    "openai-gpt-4.1-2025-04-14":         { "maxContextTokens": 1047576 },
-    "openai-gpt-4.1-mini":               { "maxContextTokens": 1047576 },
-    "openai-gpt-4.1-mini-2025-04-14":    { "maxContextTokens": 1047576 },
-    "groq-canopylabs-orpheus-v1-english":    { "supportsTools": false },
-    "groq-canopylabs-orpheus-arabic-saudi":  { "supportsTools": false },
-    "deepseek-reasoner":                 { "supportsTools": false }
+    "openai-gpt-3.5-turbo": {
+      "supportsVision": false,
+      "maxContextTokens": 4096
+    },
+    "openai-gpt-3.5-turbo-16k": {
+      "supportsVision": false,
+      "maxContextTokens": 16384
+    },
+    "openai-gpt-3.5-turbo-1106": {
+      "supportsVision": false,
+      "maxContextTokens": 16384
+    },
+    "openai-gpt-3.5-turbo-0125": {
+      "supportsVision": false,
+      "maxContextTokens": 16384
+    },
+    "openai-gpt-3.5-turbo-instruct": {
+      "supportsTools": false,
+      "supportsVision": false,
+      "supportsStreaming": true,
+      "maxContextTokens": 4096
+    },
+    "openai-gpt-3.5-turbo-instruct-0914": {
+      "supportsTools": false,
+      "supportsVision": false,
+      "supportsStreaming": true,
+      "maxContextTokens": 4096
+    },
+    "openai-gpt-4-0613": {
+      "supportsVision": false,
+      "maxContextTokens": 8192
+    },
+    "openai-gpt-4": {
+      "supportsVision": false,
+      "maxContextTokens": 8192
+    },
+    "openai-gpt-image-1": {
+      "supportsTools": false,
+      "supportsVision": false,
+      "supportsStreaming": false
+    },
+    "openai-gpt-image-1-mini": {
+      "supportsTools": false,
+      "supportsVision": false,
+      "supportsStreaming": false
+    },
+    "openai-gpt-image-1.5": {
+      "supportsTools": false,
+      "supportsVision": false,
+      "supportsStreaming": false
+    },
+    "openai-gpt-image-2": {
+      "supportsTools": false,
+      "supportsVision": false,
+      "supportsStreaming": false
+    },
+    "openai-gpt-image-2-2026-04-21": {
+      "supportsTools": false,
+      "supportsVision": false,
+      "supportsStreaming": false
+    },
+    "openai-gpt-4o-mini-tts": {
+      "supportsTools": false,
+      "supportsVision": false
+    },
+    "openai-gpt-4o-mini-tts-2025-03-20": {
+      "supportsTools": false,
+      "supportsVision": false
+    },
+    "openai-gpt-4o-mini-tts-2025-12-15": {
+      "supportsTools": false,
+      "supportsVision": false
+    },
+    "openai-gpt-4.1": {
+      "maxContextTokens": 1047576
+    },
+    "openai-gpt-4.1-2025-04-14": {
+      "maxContextTokens": 1047576
+    },
+    "openai-gpt-4.1-mini": {
+      "maxContextTokens": 1047576
+    },
+    "openai-gpt-4.1-mini-2025-04-14": {
+      "maxContextTokens": 1047576
+    },
+    "groq-canopylabs-orpheus-v1-english": {
+      "supportsTools": false
+    },
+    "groq-canopylabs-orpheus-arabic-saudi": {
+      "supportsTools": false
+    },
+    "deepseek-reasoner": {
+      "supportsTools": false
+    }
   },
   "debateTiers": {
     "_comment": "Preferred model per backend for multi-provider debate mode. Basic = fast/cheap, Advanced = frontier.",
@@ -929,5 +1215,5 @@
       "cachedInputPer1M": 0.14
     }
   },
-  "lastRefreshed": "2026-06-15T09:39:55.533Z"
+  "lastRefreshed": "2026-07-01T19:18:05.888Z"
 }

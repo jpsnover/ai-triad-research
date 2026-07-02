@@ -1,5 +1,5 @@
 **Date:** 2026-07-01
-**Working on:** t/1277 (HOTFIX: concluding phase infinite loop regression from t/1256)
-**Status:** Complete. Commit `5de7dc51`. Verify passes.
-**Key context:** t/1256's force_transition concluding→concluding reset rounds_in_phase→infinite loop. Fix: never force_transition when already concluding + absolute ceiling at maxTotalRounds+min_concluding_rounds. Prior session: t/1263, t/1268, t/1271 all complete.
-**Next:** Ticket queue empty at last check. Check for new assignments on next session start.
+**Working on:** t/1277 (hotfix), t/1279 (peer_referencing_rate), t/1278 (corpus coverage lever)
+**Status:** All complete. t/1280 (diversity-injection round) blocked on CL design spec.
+**Key context:** ESM mocking trap — taxonomy-editor vitest config doesn't alias 'node:fs' to 'fs'; always use `import fs from 'fs'` + factory `vi.mock('fs', ...)` pattern (not vi.spyOn). Commits: 5de7dc51, 9216c79c, 7eb7c398, ad03ed22, 543589de.
+**Next:** Check ticket queue. t/1280 unblocked only when CL provides design spec (trigger, round count, measurement criteria).

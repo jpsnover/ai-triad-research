@@ -87,12 +87,31 @@ CLAUDE.local.md
 GEMINI.local.md
 
 # --- Orca managed ---
-.orca/
-**/MEMORY.md
+**/.orca/**/*.db
+**/.orca/**/*.db-wal
+**/.orca/**/*.db-shm
+**/.orca/**/.manifest-*.json
+**/.orca/**/.executions.jsonl
+**/.orca/**/.runtime-context-*.json
+**/.orca/**/*.orca-managed
+**/.orca/**/runner.js
+**/.orca/**/validate-doc-metadata.js
+**/.orca/**/activity-hook.js
+**/.orca/deprecated/
+.claude/skills/
+.gemini/skills/
+.codex/skills/
+.agents/skills/
+.factory/skills/
+.github/copilot/skills/
+**/skills/**/activity-hook.js
+**/skills/**/runner.js
+**/skills/**/validate-doc-metadata.js
 .orca.local.yaml
 AGENTS.local.md
 CLAUDE.local.md
 GEMINI.local.md
+**/MEMORY.md
 # --- End Orca managed ---
 
 # Orca: generated sub-agent files (t/897)
