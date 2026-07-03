@@ -49,6 +49,14 @@ scripts/AITriad/Provider/obj/
 /.summarise-queue.json
 /TAXONOMY_VERSION
 
+# Generated taxonomy proposal outputs (any naming variant)
+proposals-*.json
+
+# Research data belongs in ai-triad-data (repo review F-001)
+research/**/fine_tuned_model/
+research/**/training_corpus*.json
+research/**/results/
+
 # Orca — all runtime artifacts, configs, and generated files
 .orca.yaml
 **/.orca.yaml
