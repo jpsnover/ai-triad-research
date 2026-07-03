@@ -282,6 +282,8 @@ export interface DebateConfig {
   salienceBeacon?: boolean;
   /** Enable cross-camp node injection when camp insularity is critical (BEA RUE). Default: false. */
   enableInsularityIntervention?: boolean;
+  /** Enable stagnation-gated diversity-injection round (t/1280). Off by default — experiment flag. */
+  enableDiversityRound?: boolean;
   /** Exploration summary from a prior cheap-engine run — seeds cruxes, situations, AN priming, and config overrides. */
   explorationSummary?: import('./explorationSummary.js').ExplorationSummary;
   /** Use restructured BRIEF prompt (YOUR TASK → REFERENCE → CURRENT STATE) instead of inline context. Experiment flag (t/1029). */
@@ -3113,6 +3115,10 @@ export class DebateEngine {
       }
 
       this.emitSnapshot('round_complete');
+
+      if (this.shouldTriggerDiversityRound(round, phase)) {
+        await this.runDiversityRound(round + 1);
+      }
     }
   }
 
@@ -3338,6 +3344,10 @@ export class DebateEngine {
       }
 
       this.emitSnapshot('round_complete');
+
+      if (!terminated && this.shouldTriggerDiversityRound(round, state.current_phase)) {
+        await this.runDiversityRound(round + 1);
+      }
     }
 
     // Store adaptive diagnostics on session
@@ -4044,6 +4054,254 @@ export class DebateEngine {
 
     pruneSessionData(this.session);
     pruneModeratorState(this._moderatorState!);
+  }
+
+  // ── Diversity-injection round (t/1280) ─────────────────────
+
+  private shouldTriggerDiversityRound(round: number, phase: string): boolean {
+    if (!this.config.enableDiversityRound) return false;
+    if (phase !== 'argumentation') return false;
+    if (this.session.diversity_round_fired != null) return false;
+    if (round < 3) return false;
+
+    const signals = this.session.convergence_signals ?? [];
+    const recentSignals = signals.filter(s => s.round >= round - 1);
+    if (recentSignals.length < 2) return false;
+    const recycledCount = recentSignals.filter(
+      s => s.argument_redundancy?.semantically_recycled === true,
+    ).length;
+    const repetitionRate = recycledCount / recentSignals.length;
+    if (repetitionRate < 0.5) return false;
+
+    const diag = this.session.diagnostics;
+    if (!diag) return false;
+    const traces: { round: number; an_nodes_added_ids: string[] }[] = [];
+    for (const entryDiag of Object.values(diag.entries)) {
+      if (entryDiag.extraction_trace) {
+        traces.push({
+          round: entryDiag.extraction_trace.round,
+          an_nodes_added_ids: entryDiag.extraction_trace.an_nodes_added_ids,
+        });
+      }
+    }
+    const recentTraces = traces
+      .filter(t => t.round >= round - 1)
+      .sort((a, b) => b.round - a.round);
+    if (recentTraces.length < 2) return false;
+    const noNewAN = recentTraces.slice(0, 2).every(t => t.an_nodes_added_ids.length === 0);
+    if (!noNewAN) return false;
+
+    return true;
+  }
+
+  private async runDiversityRound(round: number): Promise<void> {
+    this.session.diversity_round_fired = round;
+    const phase: DebatePhase = 'argumentation';
+
+    this.addEntry({
+      type: 'system',
+      speaker: 'system',
+      content: `[Diversity round] Stagnation detected — running independent generation (round ${round}). Each POV generates without peer context to surface suppressed arguments.`,
+      taxonomy_refs: [],
+      metadata: { diversity_round: true, trigger_round: round },
+    });
+    this.progress('debate', undefined, `Diversity-injection round ${round} (independent generation)`);
+
+    for (const pov of this.config.activePovers) {
+      if (pov === 'user') continue;
+      this.checkAborted();
+
+      const info = POVER_INFO[pov];
+      this.progress('debate', pov, `${info.label} — independent exploration (diversity round)`);
+
+      const priorRefs = this.session.transcript
+        .filter(e => e.speaker === pov && e.type !== 'opening')
+        .slice(-2)
+        .flatMap(e => (e.taxonomy_refs ?? []).map(r => r.node_id));
+
+      const taxonomyContext = await this.getRelevantTaxonomyContext(info.pov, priorRefs);
+      const commitmentContext = this.getCommitmentContext(pov);
+      const establishedPoints = this.getEstablishedPointsContext(pov);
+      const { text: edgeContext } = this.formatDebaterEdgeContext(info.pov);
+
+      const selfTranscript = this.session.transcript.filter(
+        e => e.speaker === pov || e.speaker === 'system' || e.speaker === 'user' || e.type === 'opening',
+      );
+      const recentTranscript = formatRecentTranscript(selfTranscript, 8, this.session.context_summaries);
+
+      const debaterTurns = this.session.transcript
+        .filter(e => e.speaker === pov && (e.type === 'opening' || e.type === 'statement'));
+      const priorMoves = debaterTurns
+        .filter(e => e.metadata)
+        .flatMap(e => ((e.metadata as Record<string, unknown>)?.move_types as (string | import('./helpers').MoveAnnotation)[]) ?? [])
+        .map(m => getMoveName(m))
+        .slice(-6);
+      let turnsSinceLastConcession = debaterTurns.length;
+      for (let i = debaterTurns.length - 1; i >= 0; i--) {
+        const moves = ((debaterTurns[i].metadata as Record<string, unknown>)?.move_types as (string | import('./helpers').MoveAnnotation)[]) ?? [];
+        if (moves.some(m => getMoveName(m).includes('CONCEDE'))) {
+          turnsSinceLastConcession = debaterTurns.length - 1 - i;
+          break;
+        }
+      }
+
+      const taxMap = this.taxonomy as unknown as Record<string, { nodes?: { id: string }[] } | undefined>;
+      const povFile = taxMap[info.pov];
+      const availablePovNodeIds = [
+        ...(povFile?.nodes?.map(n => n.id) ?? []),
+        ...(taxMap.situations?.nodes?.map(n => n.id) ?? []),
+      ];
+
+      const pipelineInput: TurnPipelineInput = {
+        label: info.label,
+        pov: info.pov,
+        personality: info.personality,
+        topic: this.session.topic.final,
+        background: this.session.topic.background || undefined,
+        taxonomyContext,
+        commitmentContext,
+        establishedPoints,
+        edgeContext,
+        concessionHint: '',
+        recentTranscript,
+        focusPoint: 'Explore fresh perspectives and under-represented arguments from your worldview that have not yet been raised in this debate.',
+        addressing: 'general',
+        phase,
+        priorMoves,
+        turnsSinceLastConcession,
+        priorRefs,
+        availablePovNodeIds,
+        availablePolicyIds: [...this.getPolicyIds()],
+        topicScope: this.session.topic.scope ?? undefined,
+        topicStructure: this.session.topic_structure ?? undefined,
+        salienceBeacon: this.config.salienceBeacon ?? false,
+        sourceContent: this.session.document_analysis ? undefined : this.config.sourceContent,
+        documentAnalysis: this.session.document_analysis,
+        audience: this.config.audience,
+        model: this.resolveModelForSpeaker(pov),
+        briefModel: this.config.stageModels?.brief,
+        planModel: this.config.stageModels?.plan,
+        draftModel: this.config.stageModels?.draft,
+        citeModel: this.config.stageModels?.cite,
+        useBackgroundPrompt: this.config.useBackgroundPrompt,
+        ...(this.config.temperature != null ? {
+          stageTemperatures: {
+            brief_temperature: this.config.temperature,
+            plan_temperature: this.config.temperature,
+            draft_temperature: this.config.temperature,
+            cite_temperature: this.config.temperature,
+          },
+        } : {}),
+      };
+
+      const boundStageGenerate = this.stageGenerate.bind(this);
+      const envelopeGenerate = this.adapter.generate
+        ? async (request: import('./cacheTypes').GenerateRequest, label: string) => {
+            await this.throttle();
+            this.progress('generating', undefined, label);
+            const start = Date.now();
+            try {
+              const resp = await this.adapter.generate!(request);
+              this.lastApiCallTime = Date.now();
+              this.apiCallCount++;
+              this.totalResponseTimeMs += Date.now() - start;
+              this.clearRateLimitBackoff();
+              return resp;
+            } catch (err) {
+              this.lastApiCallTime = Date.now();
+              if (this.isRateLimitError(err)) this.recordRateLimit();
+              throw err;
+            }
+          }
+        : undefined;
+
+      const knownIds = this.getKnownNodeIds();
+      const vConfig = resolveTurnValidationConfig(this.config.turnValidation);
+      const preCheckGenerate = !vConfig.skipPreCheck ? boundStageGenerate : undefined;
+      pipelineInput.preCheckModel = vConfig.preCheckModel;
+      pipelineInput.skipPreCheck = vConfig.skipPreCheck;
+
+      const retryCallbacks: TurnRetryCallbacks = {
+        runPipeline: (input) => runTurnPipeline(
+          input, boundStageGenerate,
+          (_stage, label) => this.progress('generating', pov, label),
+          envelopeGenerate,
+          preCheckGenerate,
+        ),
+        assembleResult: (result) => assemblePipelineResult(result, knownIds),
+        callJudge: (p, l) => this.generateWithModel(p, l, vConfig.judgeModel, 20000),
+        callJudgeFallback: this.config.model !== vConfig.judgeModel
+          ? (p, l) => this.generateWithModel(p, l, this.config.model, 20000)
+          : undefined,
+      };
+
+      const retryInput: TurnRetryInput = {
+        pipelineInput,
+        validationConfig: this.config.turnValidation,
+        model: this.resolveModelForSpeaker(pov),
+        speaker: pov,
+        round,
+        priorTurns: this.session.transcript
+          .filter(e => e.speaker === pov && e.type !== 'opening')
+          .slice(-2),
+        recentTurns: this.session.transcript
+          .filter(e => e.speaker !== 'system' && e.speaker !== 'user')
+          .slice(-2),
+        knownNodeIds: this.getKnownNodeIds(),
+        policyIds: this.getPolicyIds(),
+        audience: this.config.audience,
+      };
+
+      this.checkAborted();
+      getGlobalRecorder()?.setEventContext({
+        debate_id: this.session.id,
+        run_id: this.session.run_id,
+        speaker: pov,
+        phase,
+        round,
+        turn_index: this.session.transcript.length,
+      });
+
+      const turnResult = await this.executeWithModelFailover(pov, async (model) => {
+        pipelineInput.model = model;
+        retryInput.model = model;
+        return executeTurnWithRetry(retryInput, retryCallbacks);
+      });
+      const { statement, taxonomyRefs, meta, validation, pipelineResult } = turnResult;
+      this.enrichTaxonomyRefs(taxonomyRefs);
+      this.updateHintStreaks(pov, validation.repairHints ?? []);
+
+      const caveats = [...(validation.repairHints ?? [])];
+      const evidenceDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'evidence');
+      const ungrounded = (evidenceDiag?.work_product as Record<string, unknown>)?.ungrounded_claims as
+        Array<{ claim: string; reason: string }> | undefined;
+      if (ungrounded?.length) {
+        for (const uc of ungrounded) caveats.push(`[Ungrounded] ${uc.claim}`);
+      }
+
+      const entry = this.addEntry({
+        type: 'statement',
+        speaker: pov,
+        content: statement,
+        taxonomy_refs: taxonomyRefs,
+        policy_refs: meta.policy_refs,
+        addressing: 'all',
+        caveats: caveats.length > 0 ? caveats : undefined,
+        model: this.config.speakerModels ? this.resolveModelForSpeaker(pov) : undefined,
+        metadata: {
+          round,
+          debate_phase: phase,
+          move_types: meta.move_types ?? [],
+          diversity_round: true,
+          extracted_claims_accepted: meta.extracted_claims_accepted ?? 0,
+        },
+      });
+
+      this.checkAborted();
+      await this.extractClaims(statement, pov, entry.id, taxonomyRefs.map(r => r.node_id), meta.my_claims);
+    }
+
+    this.emitSnapshot('round_complete');
   }
 
   // ── Probing questions ──────────────────────────────────────

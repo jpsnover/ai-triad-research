@@ -614,6 +614,8 @@ export interface DebateSession {
     round: number;
     timestamp: string;
   };
+  /** Round at which a diversity-injection round fired (max 1 per debate). Absent if never triggered. */
+  diversity_round_fired?: number;
 }
 
 // ── Perturbation testing (HDE Section B2) ───────────────
