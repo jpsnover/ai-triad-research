@@ -8,6 +8,7 @@
  */
 
 import type { PovNode, SituationNode } from './taxonomyTypes.js';
+import { cosineSimilarity } from '../embeddings/similarity.js';
 import type { TrackedCrux, ArgumentNetworkNode } from './types.js';
 import { stripExcludes } from './helpers.js';
 import { filterByExclusionRatio, type ExclusionFilterResult } from './exclusionGuard.js';
@@ -116,17 +117,7 @@ export interface CorpusCoverageResult {
   boostedCount: number;
 }
 
-export function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length || a.length === 0) return 0;
-  let dot = 0, normA = 0, normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  const denom = Math.sqrt(normA) * Math.sqrt(normB);
-  return denom > 0 ? dot / denom : 0;
-}
+export { cosineSimilarity } from '../embeddings/similarity.js';
 
 /**
  * Compute relevance scores for all nodes against a query embedding.
