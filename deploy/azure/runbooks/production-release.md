@@ -30,9 +30,11 @@
    gh workflow run container.yml --ref main
    ```
 
-2. Wait for the build to complete:
+2. Wait for the build to complete (use `gh run watch` — never poll in a loop):
    ```bash
+   # Get the run ID, then watch it to completion
    gh run list --workflow=container.yml --limit=1
+   gh run watch <run-id> --exit-status
    ```
 
 3. Verify the image exists in GHCR:
