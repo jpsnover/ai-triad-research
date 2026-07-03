@@ -26,7 +26,7 @@ function Invoke-TaxEditorSmokeTest {
     [CmdletBinding()]
     param(
         [Parameter(Position = 0)]
-        [string]$BaseUrl = 'https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io',
+        [string]$BaseUrl = (Get-TaxEditorBaseUrl),
 
         [Parameter()]
         [ValidateRange(1, 120)]

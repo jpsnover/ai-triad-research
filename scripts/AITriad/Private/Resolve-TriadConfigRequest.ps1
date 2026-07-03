@@ -13,7 +13,7 @@ function Resolve-TriadConfigRequest {
 
     Set-StrictMode -Version Latest
 
-    $DefaultUrl = 'https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io'
+    $DefaultUrl = (Get-TaxEditorBaseUrl)
 
     if (-not $BaseUrl) {
         $BaseUrl = $env:TAXONOMY_EDITOR_URL

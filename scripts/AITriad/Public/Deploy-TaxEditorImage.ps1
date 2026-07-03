@@ -49,7 +49,7 @@ function Deploy-TaxEditorImage {
         [string]$AppName = 'taxonomy-editor',
 
         [Parameter()]
-        [string]$BaseUrl = 'https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io',
+        [string]$BaseUrl = (Get-TaxEditorBaseUrl),
 
         [Parameter()]
         [switch]$SkipHealthCheck

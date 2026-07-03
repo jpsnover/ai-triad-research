@@ -81,7 +81,7 @@ function Get-AzureFlightRecorder {
         [string]$SessionCookie,
 
         [Parameter()]
-        [string]$BaseUrl = 'https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io'
+        [string]$BaseUrl = (Get-TaxEditorBaseUrl)
     )
 
     $BaseUrl = $BaseUrl.TrimEnd('/')

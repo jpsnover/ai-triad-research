@@ -25,7 +25,7 @@ function Sync-TaxEditorData {
     [CmdletBinding()]
     param(
         [Parameter()]
-        [string]$BaseUrl = 'https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io',
+        [string]$BaseUrl = (Get-TaxEditorBaseUrl),
 
         [Parameter()]
         [ValidateSet('fetch-only', 'reset-main')]
