@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import './NeutralEvaluationPanel.css';
 
 // ── Types (mirrored from lib/debate/neutralEvaluator.ts) ──
 

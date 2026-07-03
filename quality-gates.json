@@ -3,7 +3,7 @@
   "loc_ceilings": {
     "lib/debate/debateEngine.ts": 6100,
     "taxonomy-editor/src/server/server.ts": 5000,
-    "taxonomy-editor/src/renderer/styles.css": 18700,
+    "taxonomy-editor/src/renderer/styles.css": 17800,
     "lib/debate/prompts.ts": 4650
   },
   "max_file_bytes": 5242880

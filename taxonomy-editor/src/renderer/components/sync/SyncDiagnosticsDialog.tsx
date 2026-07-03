@@ -10,6 +10,7 @@ import {
 } from '../../utils/syncApi';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { GitProgressBanner } from './GitProgressBanner';
+import './SyncDiagnosticsDialog.css';
 
 interface SyncDiagnosticsDialogProps {
   open: boolean;

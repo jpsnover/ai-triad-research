@@ -8,6 +8,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '@bridge';
+import './CalibrationDashboard.css';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { CalibrationDataPoint } from '@lib/debate/calibrationLogger';
 import { useChartTooltip, ChartTooltipLayer } from './chartTooltip';

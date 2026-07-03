@@ -9,6 +9,7 @@
  * "coming in Phase 2" tooltip so the layout doesn't shift when they're enabled.
  */
 
+import './UnsyncedChangesDrawer.css';
 import { useEffect, useState, useCallback } from 'react';
 import {
   listUnsynced,

@@ -3,6 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import './SituationDebatePanel.css';
 import type { SituationNode } from '../../types/taxonomy';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useTaxonomyStore, MODELS_BY_BACKEND } from '../../hooks/useTaxonomyStore';
