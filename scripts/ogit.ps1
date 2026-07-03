@@ -9,10 +9,12 @@
 #
 # Always resolves paths relative to the git repo root, so it works from any subdirectory.
 
+# Primary: ask git for the repo root. Fallback: the script lives at <repo>/scripts/ogit.ps1,
+# so $PSScriptRoot/.. is the repo root — reliable even in nested non-interactive pwsh sessions
+# where git may not be in PATH or rev-parse returns nothing.
 $repoRoot = git rev-parse --show-toplevel 2>$null
 if (-not $repoRoot) {
-    Write-Error "ogit.ps1: not inside a git repository"
-    exit 1
+    $repoRoot = (Resolve-Path "$PSScriptRoot/..").Path
 }
 
 & git --git-dir="$repoRoot/.orca-git" --work-tree="$repoRoot" @args
