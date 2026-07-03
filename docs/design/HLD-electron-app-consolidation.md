@@ -1,6 +1,6 @@
 # HLD: Electron App Consolidation Decision (repo-review B-206)
 
-**Date:** 2026-07-03 · **Author:** Technical Lead · **Status:** awaiting owner decision
+**Date:** 2026-07-03 · **Author:** Technical Lead · **Status:** **DECIDED — Option B** (owner sign-off 2026-07-03: keep 3 apps, aggressive shared-lib extraction; re-evaluate consolidation at the Phase 4 checkpoint per the trigger below)
 **Inputs:** duplication scan in `docs/reviews/2026-07-repo-review/FINDINGS.md` (F-012, F-013, F-015)
 
 ## Question
