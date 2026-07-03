@@ -167,6 +167,19 @@ jobs:
         working-directory: ${{ matrix.app }}
         run: npm run build
 
+  # ── Quality gates: LOC ceilings + large-file guard (t/1292, B-408) ──
+  # Warning-only until 2026-07-17. To enforce: remove continue-on-error.
+  quality-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+        with:
+          fetch-depth: 0
+
+      - name: Check quality gates
+        continue-on-error: true
+        run: bash scripts/check-quality-gates.sh
+
   test-container:
     needs: [test-powershell, test-electron]
     if: >-
