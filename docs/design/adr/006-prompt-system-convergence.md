@@ -1,6 +1,6 @@
 # ADR-006: Prompt-System Convergence — UsageID Scope Definition
 
-**Status:** proposed
+**Status:** accepted (owner sign-off 2026-07-03)
 **Date:** 2026-07-03
 **Author:** Technical Lead
 
