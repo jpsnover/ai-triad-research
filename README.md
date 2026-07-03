@@ -9,37 +9,43 @@ Multi-perspective research platform for AI policy and safety literature. Organiz
 
 ## Repository Structure
 
-This project uses two repositories:
+This project uses three repositories:
 
-| Repository | Contents | Size |
-|-----------|----------|------|
-| **[ai-triad-research](https://github.com/jpsnover/ai-triad-research)** (this repo) | PowerShell module, Electron apps, prompts, schemas | ~10 MB |
-| **[ai-triad-data](https://github.com/jpsnover/ai-triad-data)** | Taxonomy, sources, summaries, conflicts, debates | ~410 MB |
+| Repository | Contents |
+|-----------|----------|
+| **[ai-triad-research](https://github.com/jpsnover/ai-triad-research)** (this repo) | PowerShell module, shared TypeScript lib, Electron apps, prompts, schemas |
+| **[ai-triad-data](https://github.com/jpsnover/ai-triad-data)** | Taxonomy, summaries, conflicts, debates |
+| **ai-triad-sources** | Ingested source documents (~680 documents: PDFs, snapshots) |
 
 ```
 ai-triad-research/              CODE REPO
-├── scripts/AITriad/            PowerShell module (40+ cmdlets)
+├── scripts/AITriad/            PowerShell module (145 cmdlets)
 │   ├── Public/                 Exported functions
 │   ├── Private/                Internal helpers
 │   └── Prompts/                AI prompt templates
 ├── scripts/AIEnrich.psm1       Multi-backend AI API abstraction
 ├── scripts/DocConverters.psm1  PDF/DOCX/HTML → Markdown
-├── taxonomy-editor/            Electron + React desktop app
+├── lib/                        Shared TypeScript (debate engine, ai-client, flight recorder)
+├── taxonomy-editor/            Electron + React desktop app / hosted web app
 ├── poviewer/                   POV analysis viewer (Electron)
 ├── summary-viewer/             Summary browser (Electron)
 ├── taxonomy/schemas/           JSON validation schemas
+├── deploy/azure/               Bicep IaC for the hosted web app
 ├── ai-models.json              AI model configuration
+├── ai-usages.json              UsageID → AI call parameter registry
 ├── .aitriad.json               Data path configuration
 └── docs/                       Documentation
 
 ai-triad-data/                  DATA REPO
-├── taxonomy/Origin/            4 POV taxonomies + edges + embeddings
-├── sources/                    134 ingested documents (PDFs, snapshots)
-├── summaries/                  92 AI-generated POV summaries
-├── conflicts/                  713 auto-detected factual conflicts
+├── taxonomy/Origin/            POV taxonomies + edges + embeddings
+├── summaries/                  ~700 AI-generated POV summaries
+├── conflicts/                  ~1,250 auto-detected factual conflicts
 ├── debates/                    Structured debate sessions
 ├── .summarise-queue.json       Pending summary queue
 └── TAXONOMY_VERSION            Schema version trigger
+
+ai-triad-sources/               SOURCES REPO
+└── src-*/                      One directory per ingested document
 ```
 
 ## Quick Start
@@ -53,7 +59,7 @@ ai-triad-data/                  DATA REPO
 ### Setup
 
 ```powershell
-# 1. Clone both repos as siblings
+# 1. Clone the repos as siblings (sources repo optional unless ingesting)
 cd ~/source/repos
 git clone https://github.com/jpsnover/ai-triad-research.git
 git clone https://github.com/jpsnover/ai-triad-data.git
@@ -70,7 +76,7 @@ Register-AIBackend
 
 # 5. Verify everything works
 Test-Dependencies
-Get-Tax | Measure-Object   # Should show 318 nodes
+Get-Tax | Measure-Object   # Should show several hundred nodes (785 POV nodes as of 2026-07)
 ```
 
 ### Data Path Configuration
@@ -80,13 +86,18 @@ The file `.aitriad.json` tells the code where to find data:
 ```json
 {
   "data_root": "../ai-triad-data",
+  "sources_root": "../ai-triad-sources",
   "taxonomy_dir": "taxonomy/Origin",
   "sources_dir": "sources",
   "summaries_dir": "summaries",
   "conflicts_dir": "conflicts",
-  "debates_dir": "debates"
+  "debates_dir": "debates",
+  "queue_file": ".summarise-queue.json",
+  "version_file": "TAXONOMY_VERSION"
 }
 ```
+
+Note: source documents resolve under `sources_root` (a separate repo), not `data_root`.
 
 **Override with environment variable:**
 ```powershell

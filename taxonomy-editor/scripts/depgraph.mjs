@@ -132,7 +132,7 @@ if (args.includes('--repomap')) {
     groups[dir].push({ file: path.basename(file), importedBy, exports });
   }
   const dirOrder = Object.keys(groups).sort();
-  const lines = ['# Repository Map', '', 'Auto-generated from import graph. Files ranked by import count within each directory.', ''];
+  const lines = ['# Repository Map', '', 'Auto-generated from import graph. Files ranked by import count within each directory (top 8 per directory — leaf components with no importers are omitted).', '', '**Coverage:** taxonomy-editor + lib only. poviewer and summary-viewer are NOT indexed here.', ''];
   for (const dir of dirOrder) {
     const entries = groups[dir].sort((a, b) => b.importedBy - a.importedBy);
     if (entries.length === 0) continue;
@@ -145,7 +145,6 @@ if (args.includes('--repomap')) {
       lines.push(`- **${e.file}** (${e.importedBy}) — ${exList}${more}`);
     }
     lines.push('');
-    if (lines.length > 200) { lines.push('_... truncated at 200 lines_'); break; }
   }
   console.log(lines.join('\n'));
 
