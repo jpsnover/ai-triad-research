@@ -38,6 +38,16 @@ secrets.json
 /build/
 taxonomy-editor/release/
 scripts/AITriad/Provider/bin/
+
+# Research data artifacts — moved to ai-triad-data/research-artifacts/comp-linguist (t/1289).
+# Keep large corpora/model/results OUT of the code repo (two-repo policy).
+research/**/fine_tuned_model/
+research/**/training_corpus*.json
+research/**/results/
+research/**/_annotation_template.json
+research/comp-linguist/debate_claims_corpus.json
+research/comp-linguist/_situations_backup.json
+research/comp-linguist/_confusable_neighbors.json
 scripts/AITriad/Provider/obj/
 
 # Data — lives in ai-triad-data repo (see .aitriad.json)

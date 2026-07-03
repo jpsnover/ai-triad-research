@@ -29,6 +29,8 @@ import numpy as np
 SCRIPT_DIR = Path(__file__).resolve().parent
 RESEARCH_DIR = SCRIPT_DIR.parent
 REPO_ROOT = RESEARCH_DIR.parent.parent
+# Large data artifacts (corpora, model, results) live in the sibling data repo (t/1289).
+ARTIFACTS_DIR = REPO_ROOT.parent / "ai-triad-data" / "research-artifacts" / "comp-linguist"
 
 DEFAULT_CONFIG = {
     "data_root": REPO_ROOT / ".." / "ai-triad-data",
@@ -481,7 +483,7 @@ def load_golden_set(research_dir: Path) -> list[dict]:
 
 def main():
     parser = argparse.ArgumentParser(description="Build training corpus for contrastive fine-tuning")
-    parser.add_argument("--output", "-o", default=str(RESEARCH_DIR / "training_corpus.json"),
+    parser.add_argument("--output", "-o", default=str(ARTIFACTS_DIR / "training_corpus.json"),
                         help="Output path for training corpus JSON")
     parser.add_argument("--skip-passages", action="store_true",
                         help="Skip Phase 1 (passage extraction) for faster iteration")

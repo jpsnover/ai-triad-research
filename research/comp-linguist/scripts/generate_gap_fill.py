@@ -18,6 +18,8 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 RESEARCH_DIR = SCRIPT_DIR.parent
 REPO_ROOT = RESEARCH_DIR.parent.parent
+# Large data artifacts (corpora, model, results) live in the sibling data repo (t/1289).
+ARTIFACTS_DIR = REPO_ROOT.parent / "ai-triad-data" / "research-artifacts" / "comp-linguist"
 
 
 def log(msg: str):
@@ -127,7 +129,7 @@ def generate_claims_gemini(prompt: str) -> list[str]:
 
 def main():
     parser = argparse.ArgumentParser(description="Generate synthetic claims for gap nodes")
-    parser.add_argument("--corpus", default=str(RESEARCH_DIR / "training_corpus.json"),
+    parser.add_argument("--corpus", default=str(ARTIFACTS_DIR / "training_corpus.json"),
                         help="Training corpus JSON (to identify gap nodes)")
     parser.add_argument("--output", "-o", default=str(RESEARCH_DIR / "gap_fill_claims.json"),
                         help="Output path for generated claims")

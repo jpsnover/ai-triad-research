@@ -42,7 +42,7 @@ import { execSync, spawn } from 'child_process';
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname).replace(/^\/([A-Z]:)/, '$1');
 const REPO_ROOT = path.resolve(__dirname, '../../..');
-const RESULTS_DIR = path.resolve(__dirname, '../results');
+const RESULTS_DIR = path.join(REPO_ROOT, '..', 'ai-triad-data', 'research-artifacts', 'comp-linguist', 'results');
 const CLI_PATH = path.join(REPO_ROOT, 'lib/debate/cli.ts');
 
 const DEFAULT_LEVELS = [10, 15, 20, 25, 30, 35];

@@ -36,6 +36,8 @@ from torch.utils.data import DataLoader
 SCRIPT_DIR = Path(__file__).resolve().parent
 RESEARCH_DIR = SCRIPT_DIR.parent
 REPO_ROOT = RESEARCH_DIR.parent.parent
+# Large data artifacts (corpora, model, results) live in the sibling data repo (t/1289).
+ARTIFACTS_DIR = REPO_ROOT.parent / "ai-triad-data" / "research-artifacts" / "comp-linguist"
 
 MODEL_NAME = "all-MiniLM-L6-v2"
 
@@ -237,9 +239,9 @@ def train(model: SentenceTransformer, examples: list[InputExample],
 
 def main():
     parser = argparse.ArgumentParser(description="Train claim matcher via contrastive fine-tuning")
-    parser.add_argument("--corpus", default=str(RESEARCH_DIR / "training_corpus.json"),
+    parser.add_argument("--corpus", default=str(ARTIFACTS_DIR / "training_corpus.json"),
                         help="Path to training corpus JSON")
-    parser.add_argument("--output-dir", default=str(RESEARCH_DIR / "fine_tuned_model"),
+    parser.add_argument("--output-dir", default=str(ARTIFACTS_DIR / "fine_tuned_model"),
                         help="Output directory for fine-tuned model")
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--batch-size", type=int, default=64)

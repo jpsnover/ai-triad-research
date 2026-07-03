@@ -35,6 +35,8 @@ from sentence_transformers.cross_encoder.evaluation import CERerankingEvaluator
 SCRIPT_DIR = Path(__file__).resolve().parent
 RESEARCH_DIR = SCRIPT_DIR.parent
 REPO_ROOT = RESEARCH_DIR.parent.parent
+# Large data artifacts (corpora, model, results) live in the sibling data repo (t/1289).
+ARTIFACTS_DIR = REPO_ROOT.parent / "ai-triad-data" / "research-artifacts" / "comp-linguist"
 
 BI_ENCODER_MODEL = "all-MiniLM-L6-v2"
 CROSS_ENCODER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
@@ -179,7 +181,7 @@ def build_cross_encoder_examples(corpus, node_descriptions, neg_per_pos=3):
 
 def main():
     parser = argparse.ArgumentParser(description="Train cross-encoder reranker for claim matching")
-    parser.add_argument("--corpus", default=str(RESEARCH_DIR / "training_corpus.json"))
+    parser.add_argument("--corpus", default=str(ARTIFACTS_DIR / "training_corpus.json"))
     parser.add_argument("--output-dir", default=str(RESEARCH_DIR / "cross_encoder_model"))
     parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--batch-size", type=int, default=16)

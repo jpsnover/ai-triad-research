@@ -1,9 +1,0 @@
-{
-  "topic": "Will narrow AI automation cause structural unemployment that governments are unprepared for, or will new industries absorb displaced workers as they have in previous technological transitions?",
-  "name": "injection-experiment-L25-F7-R1",
-  "model": "gemini-2.5-flash",
-  "useAdaptiveStaging": true,
-  "pacing": "tight",
-  "outputDir": "C:\\Users\\jsnov\\repos\\ai-triad-research\\research\\comp-linguist\\results\\tmp-L25-F7-R1-1779488707385",
-  "outputFormat": "json"
-}
