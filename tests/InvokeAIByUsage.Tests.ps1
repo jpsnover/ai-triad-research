@@ -310,7 +310,10 @@ Omit pairs with no relationship. No markdown fences.
                 -Values @{ edge_type_list = $EdgeTypeList; pair_lines = $PairLines } `
                 -Override @{ model = 'gemini-2.5-flash'; temperature = 0.1 } | Out-Null
 
-            $script:captured.Prompt      | Should -Be $legacyPrompt
+            # t/1287: normalize line endings before byte-for-byte comparison —
+            # heredocs in this file get CRLF on Windows checkout but the rendered
+            # template comes from JSON (LF), so the intent is content-parity, not EOL bytes.
+            ($script:captured.Prompt -replace "`r`n", "`n") | Should -Be ($legacyPrompt -replace "`r`n", "`n")
             $script:captured.Model       | Should -Be 'gemini-2.5-flash'
             $script:captured.Temperature | Should -Be 0.1
             $script:captured.MaxTokens   | Should -Be 16384
@@ -365,7 +368,8 @@ $ScreenCandJson
                 } `
                 -Override @{ model = 'gemini-3.1-flash-lite'; responseSchema = $ScreenSchema } | Out-Null
 
-            $script:captured.Prompt      | Should -Be $legacyPrompt
+            # t/1287: line-ending-insensitive comparison (see classify test above).
+            ($script:captured.Prompt -replace "`r`n", "`n") | Should -Be ($legacyPrompt -replace "`r`n", "`n")
             $script:captured.Model       | Should -Be 'gemini-3.1-flash-lite'
             $script:captured.Temperature | Should -Be 0.1
             $script:captured.MaxTokens   | Should -Be 4096
