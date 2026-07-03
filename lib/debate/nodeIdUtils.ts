@@ -66,7 +66,9 @@ export function isNodeOfPov(id: string, pov: string): boolean {
 }
 
 // Legacy ID normalization lives in index.ts (normalizeNodeId).
-// It handles cc-→sit- and goals→desires/data→beliefs/methods→intentions mappings.
+// It handles goals→desires/data→beliefs/methods→intentions BDI category renames.
+// WARNING: cc- and sit- are SEPARATE node namespaces with colliding numeric
+// suffixes (cc-001 ≠ sit-001). Never map cc-NNN → sit-NNN.
 
 // ── Fuzzy ID correction ─────────────────────────────────
 

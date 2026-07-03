@@ -6,6 +6,7 @@
  * Consumed by taxonomy-editor (Electron app) and the future CLI debate runner.
  */
 
+import { ActionableError } from './errors.js';
 export * from './errors.js';
 export * from './types.js';
 export * from './taxonomyTypes.js';
@@ -82,9 +83,20 @@ export function normalizePov(pov: string): string {
   return pov === 'cross-cutting' ? 'situations' : pov;
 }
 
-/** Normalize legacy node IDs: old slugs → new BDI/Situations slugs. */
+/** Normalize legacy node IDs: old BDI category slugs → new terminology. */
 export function normalizeNodeId(id: string): string {
-  if (id.startsWith('cc-')) return 'sit-' + id.slice(3);
+  if (id.startsWith('cc-')) {
+    throw new ActionableError({
+      goal: 'Normalize a legacy node ID',
+      problem: `cc- and sit- are distinct node namespaces with colliding numeric suffixes (e.g. cc-001 ≠ sit-001). Blind cc→sit mapping would silently rewire references to wrong nodes.`,
+      location: 'lib/debate/index.ts — normalizeNodeId',
+      nextSteps: [
+        'Use the original cc- ID as-is — both cc- and sit- prefixes are valid in production data.',
+        'If you need the sit- equivalent, look it up via the taxonomy data (do not assume numeric suffix equality).',
+        'See B-301 Stages 2-3 for the full cc/sit reconciliation plan.',
+      ],
+    });
+  }
   return id
     .replace(/^(acc|saf|skp)-goals-/, '$1-desires-')
     .replace(/^(acc|saf|skp)-data-/, '$1-beliefs-')
