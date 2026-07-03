@@ -31,3 +31,13 @@
 **Phase 2 may proceed.** The two indicators still at baseline (tracked count/size) have a single, in-flight owner (t/1289) and don't block Phase 2's tracks (shared-metadata consolidation, server route extraction, config docs). Per EXECUTION-NOTES: start with the two decision items — **B-206** (app-consolidation HLD) and **B-213** (prompt-system ADR) — both requiring owner sign-off; and land **B-408** (growth-arrest CI gates) before any monolith surgery.
 
 Re-measure tracked size + file count after t/1289 lands and append the numbers here.
+
+## Final re-measurement (2026-07-03, after t/1289 landed as `b3c1733c`)
+
+| Indicator | Baseline | Target | Final | Verdict |
+|---|---|---|---|---|
+| Tracked size (`git ls-files`) | ~309 MB | <60 MB | **58 MB** | ✅ Met |
+| Tracked file count | 2,203 | ~1,950 | **2,129** | Close (research kept 9.4 MB of small live files; acceptable) |
+| On-disk weight (excl. node_modules/.git) | ~800 MB | ≤250 MB | **186 MB** | ✅ Beaten |
+
+All Phase 1 weight targets met or beaten. Phase 2 in flight: t/1292 (growth gates) Done and CI-green; t/1295 (server extraction) In Progress with the route-table baseline snapshot committed; Shared Lib track A started (t/1293 In Progress). Phase 1 is closed.
