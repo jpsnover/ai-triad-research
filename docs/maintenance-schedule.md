@@ -92,3 +92,4 @@ Append a row after completing any weekly, monthly, quarterly, or per-release tas
 | 2026-06-25 | Dead code scan | Taxonomy Editor | 163 orphans via depgraph. 3 dead files removed (debateTopics.ts, lineageL2Clusters.ts+JSON, useClientConfig.ts). 1 false positive (clustering.ts — dynamic import). Rest are test files, entry points, and lib/ scope. |
 | 2026-06-25 | ESLint warning review | Taxonomy Editor | No new warning categories found. |
 | 2026-06-25 | SBOM currency check | Taxonomy Editor | Pending — check in next session. |
+| 2026-07-04 | Dependency audit (npm+pip) | DevOps | t/1311: 89→66 alerts. 13 high→0 high. Python lock file re-pinned (pdfminer.six, GitPython, requests). Merged sigstore Dependabot PRs (#87-89). pypdf 5→6 deferred to t/1313. |
