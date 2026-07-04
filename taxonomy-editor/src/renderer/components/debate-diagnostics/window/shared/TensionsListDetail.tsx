@@ -55,10 +55,10 @@ export function TensionsListDetail({ content }: { content: string }) {
   const sel = selected != null ? tensions[selected] : null;
   const relationColor = (r: string) => r === 'CONTRADICTS' ? '#ef4444' : r === 'TENSION_WITH' ? '#f59e0b' : '#22c55e';
   const relationIcon = (r: string) => r === 'TENSION_WITH' ? '⟷' : r === 'CONTRADICTS' ? '✕' : '✓';
-  const sourcePov = (id: string) => id.startsWith('acc-') ? 'acc' : id.startsWith('saf-') ? 'saf' : id.startsWith('skp-') ? 'skp' : id.startsWith('cc-') ? 'cc' : '';
+  const sourcePov = (id: string) => id.startsWith('acc-') ? 'acc' : id.startsWith('saf-') ? 'saf' : id.startsWith('skp-') ? 'skp' : id.startsWith('sit-') ? 'sit' : '';
   const povColor = (id: string) => {
     const p = sourcePov(id);
-    return p === 'acc' ? '#f97316' : p === 'saf' ? '#3b82f6' : p === 'skp' ? '#a855f7' : p === 'cc' ? '#22c55e' : '#888';
+    return p === 'acc' ? '#f97316' : p === 'saf' ? '#3b82f6' : p === 'skp' ? '#a855f7' : p === 'sit' ? '#22c55e' : '#888';
   };
 
   const selRationale = sel ? edgeRationale.get(`${sel.source}|${sel.target}|${sel.relation}`) : undefined;

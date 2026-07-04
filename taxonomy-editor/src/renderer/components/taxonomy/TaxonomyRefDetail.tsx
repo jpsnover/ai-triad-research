@@ -83,7 +83,7 @@ export function TaxonomyRefDetail({ nodeId, node, pov, onClose, edges }: Props) 
     (ga?.possible_fallacies && ga.possible_fallacies.length > 0)
   );
 
-  const isSituation = nodeId.startsWith('sit-') || nodeId.startsWith('cc-');
+  const isSituation = nodeId.startsWith('sit-');
   const interps = node?.interpretations;
   const hasAccInterp = !!(interps?.accelerationist);
   const hasSafInterp = !!(interps?.safetyist);

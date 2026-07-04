@@ -26,10 +26,6 @@ describe('edgeNodeColor', () => {
     expect(edgeNodeColor('sit-042')).toBe('var(--color-sit)');
   });
 
-  it('returns sit color for cc- prefix', () => {
-    expect(edgeNodeColor('cc-B-001')).toBe('var(--color-sit)');
-  });
-
   it('returns muted color for unknown prefix', () => {
     expect(edgeNodeColor('pol-A-001')).toBe('var(--text-muted)');
   });

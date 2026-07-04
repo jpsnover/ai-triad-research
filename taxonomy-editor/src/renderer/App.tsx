@@ -398,7 +398,7 @@ function MainApp() {
         tab = pov as typeof tab;
       } else if (nodeId.startsWith('conflict-')) {
         tab = 'conflicts';
-      } else if (nodeId.startsWith('cc-') || nodeId.startsWith('pol-')) {
+      } else if (nodeId.startsWith('pol-')) {
         tab = 'situations';
       } else {
         return; // Unknown prefix

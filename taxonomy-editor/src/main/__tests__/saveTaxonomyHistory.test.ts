@@ -148,10 +148,10 @@ describe('Electron save path stamps node edit history (t/781)', () => {
     const file = path.join(dir, 'cross_cutting.json');
     try {
       // Seed an existing file in the same bare-array shape with no prior history.
-      fs.writeFileSync(file, JSON.stringify([{ id: 'cc-001', label: 'Original' }], null, 2));
+      fs.writeFileSync(file, JSON.stringify([{ id: 'sit-201', label: 'Original' }], null, 2));
 
       // Renderer sends a bare array (no { nodes } wrapper).
-      saveWithStamp(file, [{ id: 'cc-001', label: 'Edited label' }]);
+      saveWithStamp(file, [{ id: 'sit-201', label: 'Edited label' }]);
 
       // Persisted shape stays a bare array, and the node carries stamped history.
       const reloaded = JSON.parse(fs.readFileSync(file, 'utf-8')) as Array<Record<string, unknown>>;

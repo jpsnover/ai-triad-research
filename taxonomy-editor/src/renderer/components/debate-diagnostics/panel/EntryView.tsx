@@ -382,7 +382,7 @@ export function EntryView({ entryId }: { entryId: string }) {
                 {s.stage === 'brief' && Array.isArray((s.work_product as Record<string, unknown>).strongest_angles) && (
                   <div style={{ marginBottom: 6 }}>
                     {((s.work_product as Record<string, unknown>).strongest_angles as { angle: string; why: string; grounding?: { node_id: string; why: string }[] }[]).map((a, i) => {
-                      const sitGrounding = (a.grounding ?? []).filter(g => g.node_id.startsWith('sit-') || g.node_id.startsWith('cc-'));
+                      const sitGrounding = (a.grounding ?? []).filter(g => g.node_id.startsWith('sit-'));
                       const sitNodes = useTaxonomyStore.getState().situations?.nodes;
                       return (
                         <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${stageColors[s.stage]}40` }}>

@@ -14,7 +14,7 @@ describe('checkDolceCompliance', () => {
   });
 
   it('returns empty for compliant situation node', () => {
-    expect(checkDolceCompliance(COMPLIANT_SITUATION, 'cc-001')).toEqual([]);
+    expect(checkDolceCompliance(COMPLIANT_SITUATION, 'sit-201')).toEqual([]);
   });
 
   it('returns MISSING for empty description', () => {
@@ -33,13 +33,13 @@ describe('checkDolceCompliance', () => {
     expect(rules(v)).not.toContain('GENUS');
   });
 
-  it('accepts "A situation where" for cc- nodes', () => {
-    const v = checkDolceCompliance('A situation where regulators face information asymmetry. Encompasses: x, y. Excludes: z.', 'cc-040');
+  it('accepts "A situation where" for situation nodes', () => {
+    const v = checkDolceCompliance('A situation where regulators face information asymmetry. Encompasses: x, y. Excludes: z.', 'sit-240');
     expect(rules(v)).not.toContain('GENUS');
   });
 
   it('flags wrong genus for situation node', () => {
-    const v = checkDolceCompliance('A critique of regulatory optimism. Encompasses: x, y. Excludes: z.', 'cc-051');
+    const v = checkDolceCompliance('A critique of regulatory optimism. Encompasses: x, y. Excludes: z.', 'sit-251');
     expect(rules(v)).toContain('GENUS');
   });
 
@@ -72,7 +72,7 @@ describe('checkDolceCompliance', () => {
   });
 
   it('skips discourse check for situation nodes', () => {
-    const v = checkDolceCompliance(COMPLIANT_SITUATION, 'cc-001');
+    const v = checkDolceCompliance(COMPLIANT_SITUATION, 'sit-201');
     expect(rules(v)).not.toContain('DISCOURSE');
   });
 

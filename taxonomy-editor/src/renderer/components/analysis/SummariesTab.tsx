@@ -252,7 +252,7 @@ export function SummariesTab() {
     if (nodeId.startsWith('acc-')) { setActiveTab('accelerationist'); navigateToNode('accelerationist', nodeId); }
     else if (nodeId.startsWith('saf-')) { setActiveTab('safetyist'); navigateToNode('safetyist', nodeId); }
     else if (nodeId.startsWith('skp-')) { setActiveTab('skeptic'); navigateToNode('skeptic', nodeId); }
-    else if (nodeId.startsWith('sit-') || nodeId.startsWith('cc-')) { setActiveTab('situations'); navigateToNode('situations', nodeId); }
+    else if (nodeId.startsWith('sit-')) { setActiveTab('situations'); navigateToNode('situations', nodeId); }
     else if (nodeId.startsWith('conflict-')) { setActiveTab('conflicts'); navigateToNode('conflicts', nodeId); }
   }, [setActiveTab, navigateToNode]);
 

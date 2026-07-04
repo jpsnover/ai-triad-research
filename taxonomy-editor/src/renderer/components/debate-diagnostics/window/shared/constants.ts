@@ -23,10 +23,9 @@ export const AIF_TOOLTIPS: Record<string, string> = {
 import { POV_META, povKeyFromNodeId, type PovMetaKey } from '@lib/electron-shared/povMeta';
 
 /** POV node ID prefix → CSS color variable mapping (derived from POV_META). */
-export const POV_NODE_COLOR: Record<string, string> = Object.fromEntries([
-  ...Object.values(POV_META).map(m => [m.prefix, `var(${m.cssVar})`]),
-  ['cc-', `var(${POV_META.situations.cssVar})`],
-]);
+export const POV_NODE_COLOR: Record<string, string> = Object.fromEntries(
+  Object.values(POV_META).map(m => [m.prefix, `var(${m.cssVar})`]),
+);
 
 /** Returns CSS color for a node ID via POV_META lookup. */
 export function nodeIdColor(id: string): string {

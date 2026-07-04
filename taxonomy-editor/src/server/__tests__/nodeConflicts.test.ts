@@ -49,9 +49,9 @@ describe('computeNodeConflicts (both-edited detection)', () => {
   });
 
   it('surfaces the main-side editor identity/time from _edit_meta', () => {
-    const base = [node('cc-001', { label: 'L' })];
-    const branch = [node('cc-001', { label: 'mine' })];
-    const main = [node('cc-001', {
+    const base = [node('sit-201', { label: 'L' })];
+    const branch = [node('sit-201', { label: 'mine' })];
+    const main = [node('sit-201', {
       label: 'theirs',
       _edit_meta: { last_edited_by: 'jpsnover', last_edited_at: '2026-06-10T12:00:00.000Z' },
     })];

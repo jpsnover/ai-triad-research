@@ -113,9 +113,6 @@ describe('POV_NODE_COLOR', () => {
     expect(POV_NODE_COLOR['sit-']).toBe('var(--color-sit)');
   });
 
-  it('maps cc- prefix to situation color (cross-cutting)', () => {
-    expect(POV_NODE_COLOR['cc-']).toBe('var(--color-sit)');
-  });
 });
 
 describe('DEBATER_COLORS', () => {
