@@ -8,6 +8,7 @@ import { loadApiKey } from './apiKeyStore.js';
 import { net } from 'electron';
 import { PROJECT_ROOT, resolveDataPath } from './fileIO.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
+import { createEmbeddingIO, type EmbeddingsFile } from '../../../lib/electron-shared/embeddingIO.js';
 import {
   tryWarmup as onnxTryWarmup,
   computeEmbedding as onnxComputeEmbedding,
@@ -114,43 +115,17 @@ export function getEmbeddingInfo(): { backend: string; execution_provider?: stri
 
 // ---------- Local embeddings from embeddings.json ----------
 
-interface EmbeddingsFile {
-  model: string;
-  dimension: number;
-  node_count: number;
-  nodes: Record<string, { pov: string; vector: number[]; exclusion_vector?: number[] | null }>;
-}
-
-let embeddingsCache: EmbeddingsFile | null = null;
-let embeddingsCachePath: string | null = null;
-
-function getEmbeddingsPath(): string {
-  return path.join(resolveDataPath('taxonomy/Origin'), 'embeddings.json');
-}
-
-function loadEmbeddingsFile(): EmbeddingsFile | null {
-  const filePath = getEmbeddingsPath();
-  if (embeddingsCache && embeddingsCachePath === filePath) {
-    return embeddingsCache;
-  }
-  try {
-    const raw = fs.readFileSync(filePath, 'utf-8');
-    embeddingsCache = JSON.parse(raw) as EmbeddingsFile;
-    embeddingsCachePath = filePath;
-    console.log(`[embeddings] Loaded ${embeddingsCache.node_count} local embeddings (${embeddingsCache.dimension}d)`);
-    return embeddingsCache;
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'embeddings',
-      level: 'error',
-      message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    console.warn('[embeddings] Could not load embeddings.json:', err);
-    return null;
-  }
-}
+const io = createEmbeddingIO({
+  resolveDataPath,
+  embedScriptPath: EMBED_SCRIPT,
+  recordError: (err) => getGlobalRecorder()?.record({
+    type: 'system.error',
+    component: 'embeddings',
+    level: 'error',
+    message: 'Operation failed',
+    error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+  }),
+});
 
 /**
  * Compute embeddings for a list of texts.
@@ -163,7 +138,7 @@ export async function computeEmbeddings(
   texts: string[],
   ids?: string[],
 ): Promise<number[][]> {
-  const localData = loadEmbeddingsFile();
+  const localData = io.loadEmbeddingsFile();
   const results: (number[] | null)[] = new Array(texts.length).fill(null);
   const missingIndices: number[] = [];
 
@@ -224,7 +199,7 @@ export async function computeQueryEmbedding(text: string): Promise<number[]> {
     }
   }
   try {
-    return await computeQueryViaLocalPython(text);
+    return await io.computeQueryViaLocalPython(text);
   } catch (err) {
     getGlobalRecorder()?.record({
       type: 'system.error',
@@ -260,7 +235,7 @@ function stripExcludes(text: string): string {
 export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise<void> {
   if (nodes.length === 0) return;
 
-  const filePath = getEmbeddingsPath();
+  const filePath = io.getEmbeddingsPath();
   const items = nodes.map(n => ({ id: n.id, text: n.text }));
   const inputJson = JSON.stringify(items);
 
@@ -394,8 +369,7 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
   console.log(`[embeddings] Updated embeddings.json (${data.node_count} total nodes)`);
 
   // Invalidate in-memory cache so next read picks up new data
-  embeddingsCache = null;
-  embeddingsCachePath = null;
+  io.invalidateCache();
 }
 
 // ---------- NLI cross-encoder classification ----------
@@ -453,41 +427,6 @@ export async function classifyNli(pairs: NliPair[]): Promise<NliResult[]> {
     );
     child.stdin!.write(inputJson);
     child.stdin!.end();
-  });
-}
-
-// ---------- Local Python embedding ----------
-
-function computeQueryViaLocalPython(text: string): Promise<number[]> {
-  return new Promise((resolve, reject) => {
-    execFile(
-      PYTHON,
-      [EMBED_SCRIPT, 'encode', text],
-      { timeout: 60_000, maxBuffer: 10 * 1024 * 1024 },
-      (err, stdout, stderr) => {
-        if (err) {
-          reject(new Error(`Python embed failed: ${err.message}\n${stderr}`));
-          return;
-        }
-        try {
-          const vector = JSON.parse(stdout) as number[];
-          if (!Array.isArray(vector) || vector.length === 0) {
-            reject(new Error('Python embed returned empty vector'));
-            return;
-          }
-          resolve(vector);
-        } catch (parseErr) {
-          getGlobalRecorder()?.record({
-            type: 'system.error',
-            component: 'embeddings',
-            level: 'error',
-            message: 'Operation failed',
-            error: { name: (parseErr as Error).name ?? 'Error', message: String(parseErr), stack: (parseErr as Error).stack },
-          });
-          reject(new Error(`Failed to parse Python output: ${parseErr}`));
-        }
-      },
-    );
   });
 }
 
