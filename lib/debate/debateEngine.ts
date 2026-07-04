@@ -415,10 +415,10 @@ export class DebateEngine {
     if (!sitNodes.length || !anForRescore) return;
 
     const injectedSitIds = new Set(
-      this._contextManifests.flatMap(m => m.injected_node_ids).filter(id => id.startsWith('sit-')),
+      this._contextManifests.flatMap(m => m.injected_node_ids).filter(id => id.startsWith('sit-') || id.startsWith('cc-')),
     );
     const referencedSitIds = new Set(
-      this.session.transcript.flatMap(e => e.taxonomy_refs).map(r => r.node_id).filter(id => id.startsWith('sit-')),
+      this.session.transcript.flatMap(e => e.taxonomy_refs).map(r => r.node_id).filter(id => id.startsWith('sit-') || id.startsWith('cc-')),
     );
 
     this._situationScoreAdjustments = reScoreSituationsForCruxes({
@@ -1698,11 +1698,11 @@ export class DebateEngine {
     for (const entry of this.session.transcript) {
       if (entry.type !== 'statement' && entry.type !== 'opening') continue;
       totalDebateTurns++;
-      const hasSit = entry.taxonomy_refs.some(r => r.node_id.startsWith('sit-'));
+      const hasSit = entry.taxonomy_refs.some(r => r.node_id.startsWith('sit-') || r.node_id.startsWith('cc-'));
       if (hasSit) {
         turnsWithSit++;
         for (const r of entry.taxonomy_refs) {
-          if (r.node_id.startsWith('sit-')) uniqueSitIds.add(r.node_id);
+          if (r.node_id.startsWith('sit-') || r.node_id.startsWith('cc-')) uniqueSitIds.add(r.node_id);
         }
       }
     }

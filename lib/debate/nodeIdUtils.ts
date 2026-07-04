@@ -19,6 +19,9 @@ export const POV_PREFIXES: Record<string, string> = {
 /** Situation node ID prefix. */
 export const SITUATION_PREFIX = 'sit-';
 
+/** Legacy cross-cutting node ID prefix (production data uses both cc- and sit-). */
+export const LEGACY_CC_PREFIX = 'cc-';
+
 /** Conflict node ID prefix. */
 export const CONFLICT_PREFIX = 'conflict-';
 
@@ -28,6 +31,13 @@ export const CATEGORY_SLUGS: Record<string, string> = {
   'beliefs': 'Beliefs',
   'intentions': 'Intentions',
 };
+
+// ── Situation ID detection (dual-tolerance: sit- and cc-) ──
+
+/** Check if a node ID is a situation node (accepts both sit- and legacy cc- prefixes). */
+export function isSituationId(id: string): boolean {
+  return id.startsWith(SITUATION_PREFIX) || id.startsWith(LEGACY_CC_PREFIX);
+}
 
 // ── ID → POV resolution ──────────────────────────────────
 
@@ -40,7 +50,7 @@ export function nodePovFromId(id: string): string | null {
   for (const [prefix, pov] of Object.entries(POV_PREFIXES)) {
     if (id.startsWith(prefix)) return pov;
   }
-  if (id.startsWith(SITUATION_PREFIX)) return 'situations';
+  if (isSituationId(id)) return 'situations';
   if (id.startsWith(CONFLICT_PREFIX)) return 'conflicts';
   return null;
 }
@@ -53,7 +63,7 @@ export function nodeTypeFromId(id: string): 'pov' | 'situation' | 'conflict' | n
   for (const prefix of Object.keys(POV_PREFIXES)) {
     if (id.startsWith(prefix)) return 'pov';
   }
-  if (id.startsWith(SITUATION_PREFIX)) return 'situation';
+  if (isSituationId(id)) return 'situation';
   if (id.startsWith(CONFLICT_PREFIX)) return 'conflict';
   return null;
 }
