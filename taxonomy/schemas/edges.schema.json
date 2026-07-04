@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jsnov/ai-triad-research/taxonomy/schemas/edges.schema.json",
+  "title": "Edges File",
+  "description": "Schema for the taxonomy edges file (edges.json). Contains the canonical edge type registry and all edge instances connecting taxonomy nodes. Edge types follow AIF (Argument Interchange Format) conventions. QBAF mapping note: SUPPORTS, CONTRADICTS, WEAKENS, and ASSUMES are mapped to QBAF strength computation; RESPONDS_TO, TENSION_WITH, INTERPRETS, and CONVERGES_WITH are currently semantically inert in strength computation (mapping decision tracked separately in B-305).",
+  "type": "object",
+  "required": ["_schema_version", "last_modified", "edge_types", "edges"],
+  "additionalProperties": false,
+  "properties": {
+    "_schema_version": {
+      "type": "string",
+      "description": "Schema version identifier"
+    },
+    "_doc": {
+      "type": "string",
+      "description": "Documentation string describing the file's purpose"
+    },
+    "last_modified": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "Last modification date in ISO 8601 format (YYYY-MM-DD)"
+    },
+    "edge_types": {
+      "type": "array",
+      "description": "Canonical edge type registry. Exactly 8 types aligned with Resolve-EdgeType.ps1.",
+      "items": { "$ref": "#/$defs/EdgeTypeDefinition" }
+    },
+    "edges": {
+      "type": "array",
+      "description": "All edge instances connecting taxonomy nodes",
+      "items": { "$ref": "#/$defs/Edge" }
+    }
+  },
+  "$defs": {
+    "CanonicalEdgeType": {
+      "type": "string",
+      "enum": [
+        "SUPPORTS",
+        "CONTRADICTS",
+        "ASSUMES",
+        "WEAKENS",
+        "RESPONDS_TO",
+        "TENSION_WITH",
+        "INTERPRETS",
+        "CONVERGES_WITH"
+      ],
+      "description": "The 8 canonical edge types. Source of truth: scripts/AITriad/Private/Resolve-EdgeType.ps1."
+    },
+    "EdgeTypeDefinition": {
+      "type": "object",
+      "required": ["type", "description", "direction"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "$ref": "#/$defs/CanonicalEdgeType" },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the edge type's semantics"
+        },
+        "aif_equiv": {
+          "type": "string",
+          "description": "AIF (Argument Interchange Format) equivalent notation"
+        },
+        "direction": {
+          "type": "string",
+          "enum": ["directed", "bidirectional"],
+          "description": "Whether the relationship is directional (source→target) or bidirectional"
+        },
+        "domain": {
+          "type": "string",
+          "description": "Domain constraint description for valid source/target node types"
+        }
+      }
+    },
+    "Edge": {
+      "type": "object",
+      "required": ["source", "target", "type", "bidirectional", "confidence", "rationale", "status", "discovered_at"],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Source node ID (e.g., acc-desires-001, sit-003)"
+        },
+        "target": {
+          "type": "string",
+          "description": "Target node ID"
+        },
+        "type": { "$ref": "#/$defs/CanonicalEdgeType" },
+        "bidirectional": {
+          "type": "boolean",
+          "description": "Whether this edge represents a bidirectional relationship"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Confidence that this edge genuinely exists (0.0-1.0). Only edges ≥0.5 should be proposed."
+        },
+        "weight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Relationship strength independent of existence confidence (0.0-1.0)"
+        },
+        "modulated_weight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Weight modulated by endpoint confidence/priority. Computed by modulateEdgeWeights.ts."
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Explanation of why this edge exists, referencing both node contents"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["proposed", "approved", "rejected"],
+          "description": "Review status of the edge"
+        },
+        "discovered_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "description": "Date the edge was discovered (YYYY-MM-DD)"
+        },
+        "model": {
+          "type": "string",
+          "description": "AI model that discovered/proposed this edge"
+        },
+        "strength": {
+          "type": "string",
+          "enum": ["strong", "moderate", "weak"],
+          "description": "Qualitative strength label"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Additional context, caveats, or nuance"
+        }
+      }
+    }
+  }
+}

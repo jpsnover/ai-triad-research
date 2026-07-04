@@ -194,6 +194,16 @@ export function checkEdgeDomainRange(
             `CONVERGES_WITH indicates a POV node aligns with a consensus situation node`));
         }
         break;
+
+      case 'WEAKENS':
+      case 'RESPONDS_TO':
+      case 'ASSUMES':
+        break;
+
+      default:
+        issues.push(issue('warning', 'UNKNOWN_EDGE_TYPE', `${e.source}->${e.target}`,
+          `Edge type '${e.type}' is not in the canonical 8-type vocabulary`,
+          `Reclassify to a canonical type or remove`));
     }
   }
 
