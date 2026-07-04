@@ -33,11 +33,14 @@ process.stdin.on('end', () => {
         for (const [id, strength] of result.strengths) {
           strengths[id] = strength;
         }
-        return {
+        const out = {
           strengths,
           iterations: result.iterations,
           converged: result.converged,
         };
+        if (result.oscillationDetected != null) out.oscillationDetected = result.oscillationDetected;
+        if (result.dampingLevel != null) out.dampingLevel = result.dampingLevel;
+        return out;
       });
       process.stdout.write(JSON.stringify(results));
     } else {
@@ -58,6 +61,8 @@ process.stdin.on('end', () => {
         iterations: result.iterations,
         converged: result.converged,
       };
+      if (result.oscillationDetected != null) output.oscillationDetected = result.oscillationDetected;
+      if (result.dampingLevel != null) output.dampingLevel = result.dampingLevel;
 
       process.stdout.write(JSON.stringify(output));
     }

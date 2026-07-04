@@ -104,6 +104,8 @@ export interface ConflictQbaf {
   computed_at: string;
   algorithm: string;
   iterations: number;
+  oscillation_detected?: boolean;
+  damping_level?: number;
 }
 
 export interface DialecticTraceStep {

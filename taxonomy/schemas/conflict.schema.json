@@ -162,6 +162,7 @@
     },
     "QbafAnalysis": {
       "type": "object",
+      "$comment": "Governs the inline 'qbaf' field in conflict files only. The flat files in qbaf-conflicts/ are a separate artifact produced by Invoke-QbafConflictAnalysis and are NOT governed by this schema.",
       "description": "QBAF (Quantitative Bipolar Argumentation Framework) strength computation results.",
       "required": ["graph", "computed_at", "algorithm"],
       "additionalProperties": false,
@@ -312,15 +313,27 @@
         },
         "algorithm": {
           "type": "string",
-          "enum": ["df-quad"],
+          "enum": ["df-quad", "df-quad-sum-clamp"],
+          "$comment": "df-quad = classic DF-QuAD. df-quad-sum-clamp = sum-and-clamp bipolar variant used by lib/debate/qbaf.ts (see docs/aggregative-semantics-review.md). Existing data stores 'df-quad'; new writes should use 'df-quad-sum-clamp'.",
           "description": "Gradual semantics algorithm used."
         },
         "iterations": {
           "type": "integer",
           "minimum": 1,
           "description": "Number of propagation iterations until convergence."
+        },
+        "oscillation_detected": {
+          "type": "boolean",
+          "description": "True if the propagation detected oscillation and applied damping."
+        },
+        "damping_level": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4,
+          "description": "Damping tier applied (0 = none, 1-4 = progressive damping). Present only when oscillation_detected is true."
         }
-      }
+      },
+      "$comment_unmapped_edges": "4 of 8 canonical edge types (RESPONDS_TO, TENSION_WITH, INTERPRETS, CONVERGES_WITH) are deliberately unmapped in QBAF strength computation — they represent dialectical or structural relations, not attack/support. Full mapping is a separate design decision."
     },
     "DialecticTrace": {
       "type": "object",
