@@ -186,6 +186,24 @@ jobs:
         continue-on-error: true
         run: bash scripts/check-quality-gates.sh
 
+  # ── Commit hygiene: flags anonymous / undersized commit subjects (t/1319) ──
+  # Warning-only. Points at data-repo CONTRIBUTING.md for guidance.
+  commit-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+        with:
+          fetch-depth: 0
+
+      - name: Check commit-subject hygiene
+        continue-on-error: true
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+        run: bash scripts/check-commit-hygiene.sh
+
   # ── Doc accuracy gates: claims-lint + REPO_MAP freshness (t/1324, B-403) ──
   # Warning-only until 2026-07-17. To enforce: remove continue-on-error.
   doc-accuracy:
