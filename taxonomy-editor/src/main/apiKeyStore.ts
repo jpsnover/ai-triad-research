@@ -46,7 +46,7 @@ export function loadApiKeys(backend?: Backend): string[] {
     const parsed = JSON.parse(decrypted);
     if (Array.isArray(parsed)) return parsed.filter((k): k is string => typeof k === 'string');
   } catch {
-    /* not JSON — legacy single raw key, fall through to wrap */
+    /* telemetry — silent by design; not a JSON array = legacy single-key file, handled below (expected, not an error) */
   }
   // Backward compat: legacy file holds a single raw key string.
   return decrypted ? [decrypted] : [];
@@ -123,7 +123,7 @@ function parseKeys(val: unknown): string[] {
       const parsed = JSON.parse(val);
       if (Array.isArray(parsed)) return parsed.filter((k): k is string => typeof k === 'string');
     } catch {
-      /* not JSON — legacy single raw key */
+      /* telemetry — silent by design; not JSON = legacy single raw key, wrapped below (expected, not an error) */
     }
     return [val];
   }
