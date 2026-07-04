@@ -19,7 +19,7 @@ from pathlib import Path
 DATA_ROOT = Path("C:/Users/jsnov/repos/ai-triad-data/conflicts")
 
 REQUIRED_FIELDS = ["claim_id", "claim_label", "description", "status", "linked_taxonomy_nodes", "instances", "human_notes"]
-VALID_STATUSES = {"open", "closed", "resolved"}
+VALID_STATUSES = {"open", "resolved", "wont-fix"}
 
 
 def load_individual_conflicts(conflicts_dir: Path) -> tuple[list[dict], list[str]]:

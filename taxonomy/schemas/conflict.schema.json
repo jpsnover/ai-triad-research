@@ -34,8 +34,8 @@
     },
     "status": {
       "type": "string",
-      "enum": ["open", "closed", "resolved"],
-      "description": "Current resolution status. open: actively disputed. closed: no longer relevant. resolved: consensus reached."
+      "enum": ["open", "resolved", "wont-fix"],
+      "description": "Current resolution status. open: actively disputed. resolved: consensus reached. wont-fix: acknowledged but not worth resolving."
     },
     "linked_taxonomy_nodes": {
       "oneOf": [
@@ -55,7 +55,7 @@
       "type": "array",
       "description": "Human-authored annotations on this conflict.",
       "items": {
-        "type": "string"
+        "$ref": "#/$defs/ConflictNote"
       }
     },
     "verdict": {
@@ -75,9 +75,44 @@
     "qbaf": {
       "$ref": "#/$defs/QbafAnalysis",
       "description": "Optional QBAF strength computation. Absent on pre-QBAF conflicts."
+    },
+    "_schema_version": {
+      "type": "string",
+      "description": "Schema version tag. Present in consolidated wrapper files."
+    },
+    "source": {
+      "type": "string",
+      "description": "Origin of this conflict record (e.g., 'debate-harvest')."
+    },
+    "source_debate_id": {
+      "type": "string",
+      "description": "Debate ID that produced this conflict, when source is 'debate-harvest'."
     }
   },
   "$defs": {
+    "ConflictNote": {
+      "type": "object",
+      "description": "A human-authored annotation on a conflict.",
+      "required": ["author", "date", "note"],
+      "additionalProperties": false,
+      "properties": {
+        "author": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Who wrote this note."
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "ISO 8601 date when the note was written."
+        },
+        "note": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The note content."
+        }
+      }
+    },
     "ConflictInstance": {
       "type": "object",
       "required": ["doc_id", "stance", "assertion", "date_flagged"],
