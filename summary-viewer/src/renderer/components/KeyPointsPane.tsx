@@ -23,11 +23,13 @@ function checkDolce(desc: string, pov?: string): { pass: boolean; issues: string
   return { pass: issues.length === 0, issues };
 }
 
+import { POV_META } from '../../../../lib/electron-shared/povMeta';
+
 const POV_CONFIG: Record<string, { label: string; colorVar: string; bgVar: string }> = {
-  accelerationist: { label: 'Accelerationist', colorVar: 'var(--color-acc)', bgVar: 'var(--bg-acc)' },
-  safetyist: { label: 'Safetyist', colorVar: 'var(--color-saf)', bgVar: 'var(--bg-saf)' },
-  skeptic: { label: 'Skeptic', colorVar: 'var(--color-skp)', bgVar: 'var(--bg-skp)' },
-  'situations': { label: 'Situations', colorVar: 'var(--text-secondary)', bgVar: 'var(--bg-secondary)' },
+  accelerationist: { label: POV_META.accelerationist.label, colorVar: `var(${POV_META.accelerationist.cssVar})`, bgVar: 'var(--bg-acc)' },
+  safetyist:       { label: POV_META.safetyist.label,       colorVar: `var(${POV_META.safetyist.cssVar})`,       bgVar: 'var(--bg-saf)' },
+  skeptic:         { label: POV_META.skeptic.label,          colorVar: `var(${POV_META.skeptic.cssVar})`,         bgVar: 'var(--bg-skp)' },
+  situations:      { label: POV_META.situations.label,       colorVar: 'var(--text-secondary)',                   bgVar: 'var(--bg-secondary)' },
 };
 
 const STANCE_LABELS: Record<string, string> = {

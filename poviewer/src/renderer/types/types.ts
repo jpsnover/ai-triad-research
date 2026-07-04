@@ -5,7 +5,8 @@
 export type Theme = 'light' | 'dark' | 'bkc' | 'system';
 
 // === POV Camps ===
-export type PovCamp = 'accelerationist' | 'safetyist' | 'skeptic' | 'situations';
+import { POV_META, type PovMetaKey } from '../../../../lib/electron-shared/povMeta';
+export type PovCamp = PovMetaKey;
 
 export type Alignment = 'agrees' | 'contradicts' | 'extends' | 'qualifies';
 
@@ -115,17 +116,17 @@ export interface TaxonomyMeta {
   isLoading: boolean;
 }
 
-// === POV Colors ===
+// === POV Colors & Labels (canonical source: lib/electron-shared/povMeta) ===
 export const POV_COLORS: Record<PovCamp, string> = {
-  accelerationist: '#27AE60',
-  safetyist: '#E74C3C',
-  skeptic: '#F39C12',
-  'situations': '#8E44AD',
+  accelerationist: POV_META.accelerationist.color,
+  safetyist: POV_META.safetyist.color,
+  skeptic: POV_META.skeptic.color,
+  situations: POV_META.situations.color,
 };
 
 export const POV_LABELS: Record<PovCamp, string> = {
-  accelerationist: 'Accelerationist',
-  safetyist: 'Safetyist',
-  skeptic: 'Skeptic',
-  'situations': 'Situations',
+  accelerationist: POV_META.accelerationist.label,
+  safetyist: POV_META.safetyist.label,
+  skeptic: POV_META.skeptic.label,
+  situations: POV_META.situations.label,
 };
