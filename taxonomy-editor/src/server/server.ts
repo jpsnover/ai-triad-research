@@ -44,6 +44,7 @@ import * as supportStore from './support/supportStore.js';
 import { isCaseStatus } from './support/types.js';
 import * as organizations from './organizations.js';
 import { isPov } from './organizations.js';
+import { json, error, param, query, type Handler } from './httpKit.js';
 import { getAllFlags, listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
 import { writeDump, isValidDumpId, readMergedDump } from './flightRecorderDumps.js';
 import { drainServerLogLines } from './serverLogBuffer.js';
@@ -273,38 +274,14 @@ async function ensureSessionBranch(): Promise<void> {
 
 // ── Express-like micro-router (zero dependencies) ──
 
-type Handler = (req: http.IncomingMessage, res: http.ServerResponse, body: unknown) => Promise<void> | void;
+// Handler type + the json/error/param/query helpers live in ./httpKit.ts (t/1295)
+// so extracted route clusters (routes/*.ts) share the same contract.
 const routes: { method: string; path: string; handler: Handler }[] = [];
 
 function get(p: string, h: Handler) { routes.push({ method: 'GET', path: p, handler: h }); }
 function post(p: string, h: Handler) { routes.push({ method: 'POST', path: p, handler: h }); }
 function put(p: string, h: Handler) { routes.push({ method: 'PUT', path: p, handler: h }); }
 function del(p: string, h: Handler) { routes.push({ method: 'DELETE', path: p, handler: h }); }
-
-function json(res: http.ServerResponse, data: unknown, status = 200) {
-  res.writeHead(status, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify(data));
-}
-
-function error(res: http.ServerResponse, message: string, status = 500, cause?: unknown) {
-  // M4: don't leak internal detail (file paths, stack) to clients on server
-  // errors in production — record the real message server-side, return generic.
-  const route: string = (res as any).__routePath ?? 'server';
-  if (status >= 500 && process.env.NODE_ENV === 'production') {
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: route,
-      level: 'error',
-      message: `${route}: server error (detail withheld from client)`,
-      error: { name: (cause as Error)?.name ?? 'Error', message, stack: (cause as Error)?.stack },
-    });
-    json(res, { error: 'Internal server error', requestId: getRequestId() }, status);
-    return;
-  }
-  // t/853: strip ActionableError internals (location, resolve steps) from <500
-  // responses in production; keep the user-actionable summary.
-  json(res, { error: clientSafeMessage(message, cause), requestId: getRequestId() }, status);
-}
 
 // Best-effort client IP for rate limiting — first X-Forwarded-For hop (Azure
 // ingress sets it) else the socket address. (M7)
@@ -322,21 +299,6 @@ function respondRateLimited(res: http.ServerResponse): void {
   const bodyResp = rateLimitResponseBody(resetsAt, Date.now());
   res.setHeader('Retry-After', String(bodyResp.retryAfter));
   json(res, bodyResp, 429);
-}
-
-function param(req: http.IncomingMessage, name: string, routePath: string): string {
-  // Simple :param extraction from URL
-  const urlParts = new URL(req.url!, `http://localhost`).pathname.split('/');
-  const routeParts = routePath.split('/');
-  for (let i = 0; i < routeParts.length; i++) {
-    if (routeParts[i] === `:${name}`) return decodeURIComponent(urlParts[i]);
-  }
-  return '';
-}
-
-function query(req: http.IncomingMessage, name: string): string | null {
-  const url = new URL(req.url!, `http://localhost`);
-  return url.searchParams.get(name);
 }
 
 // ── Health ──
