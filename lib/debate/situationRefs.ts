@@ -80,7 +80,7 @@ export function extractSituationDebateRefs(
   const explicitMap = new Map<string, Set<string>>(); // sit-id → set of entry IDs
   for (const entry of debateTurns) {
     for (const ref of entry.taxonomy_refs) {
-      if (ref.node_id.startsWith('sit-') || ref.node_id.startsWith('cc-')) {
+      if (ref.node_id.startsWith('sit-')) {
         if (!explicitMap.has(ref.node_id)) explicitMap.set(ref.node_id, new Set());
         explicitMap.get(ref.node_id)!.add(entry.id);
       }

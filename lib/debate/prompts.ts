@@ -384,7 +384,7 @@ const TAXONOMY_USAGE = `Your taxonomy context is organized into three sections t
 - REASONING APPROACH (Intentions): Your argumentative strategies. Draw on these when constructing arguments or choosing how to frame an issue.
 
 BDI PRECEDENCE (when a claim spans categories): mechanism/method → Intention, desired end-state without mechanism → Desire, empirical/testable → Belief.
-- SITUATIONS (sit- or cc- IDs): Contested concepts where perspectives diverge. When your argument touches a concept listed in the SITUATIONS section, you MUST cite its ID (sit- or cc- prefix) in taxonomy_refs — even if you also cite POV nodes. Situations are the meeting points where disagreements become concrete; citing them connects your argument to the shared contested ground rather than staying in your own silo.
+- SITUATIONS (sit- IDs): Contested concepts where perspectives diverge. When your argument touches a concept listed in the SITUATIONS section, you MUST cite its ID (sit- prefix) in taxonomy_refs — even if you also cite POV nodes. Situations are the meeting points where disagreements become concrete; citing them connects your argument to the shared contested ground rather than staying in your own silo.
 
 Reference nodes from across all three sections — not just the one most obvious for your point. The strongest arguments connect empirical grounding to normative commitments through reasoning, anchored in the specific contested concepts (situations) under discussion.
 
@@ -978,7 +978,7 @@ Include a "my_claims" array in your response:
 
 TAXONOMY REFERENCES: Tag which nodes you drew from in the taxonomy_refs field, not in prose.
 Every node_id you cite MUST appear verbatim in the taxonomy context above. Do not invent IDs, do not use concept names or slugs, do not cite an ID you have not been shown. If you cannot find a relevant real node, cite fewer.
-Include 3–5 taxonomy_refs per response — draw from at least two BDI sections (Beliefs, Desires, Intentions). Cite a situation ID (sit- or cc- prefix) when your argument engages a contested concept from the SITUATIONS section.
+Include 3–5 taxonomy_refs per response — draw from at least two BDI sections (Beliefs, Desires, Intentions). Cite a situation ID (sit- prefix) when your argument engages a contested concept from the SITUATIONS section.
 Three refs is too few; aim for breadth across your worldview, not just the most obvious node.
 
 ROTATE YOUR CITATIONS: If the prompt lists "YOUR RECENT CITATIONS," at least one — ideally two — of

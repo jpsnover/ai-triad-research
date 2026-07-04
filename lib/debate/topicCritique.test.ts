@@ -472,7 +472,7 @@ describe('formatStructuralContext', () => {
       abstraction_level: 1, situation_activation: 2, total: 6,
       activated_nodes: [
         { id: 'sit-001', similarity: 0.7 },
-        { id: 'cc-001', similarity: 0.6 },
+        { id: 'sit-201', similarity: 0.6 },
       ],
       pov_distribution: {},
       bdi_distribution: {},

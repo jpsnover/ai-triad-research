@@ -19,9 +19,6 @@ export const POV_PREFIXES: Record<string, string> = {
 /** Situation node ID prefix. */
 export const SITUATION_PREFIX = 'sit-';
 
-/** Legacy cross-cutting node ID prefix (production data uses both cc- and sit-). */
-export const LEGACY_CC_PREFIX = 'cc-';
-
 /** Conflict node ID prefix. */
 export const CONFLICT_PREFIX = 'conflict-';
 
@@ -32,11 +29,11 @@ export const CATEGORY_SLUGS: Record<string, string> = {
   'intentions': 'Intentions',
 };
 
-// ── Situation ID detection (dual-tolerance: sit- and cc-) ──
+// ── Situation ID detection ───────────────────────────────
 
-/** Check if a node ID is a situation node (accepts both sit- and legacy cc- prefixes). */
+/** Check if a node ID is a situation node. Legacy cc- IDs must be resolved via normalizeNodeId first. */
 export function isSituationId(id: string): boolean {
-  return id.startsWith(SITUATION_PREFIX) || id.startsWith(LEGACY_CC_PREFIX);
+  return id.startsWith(SITUATION_PREFIX);
 }
 
 // ── ID → POV resolution ──────────────────────────────────

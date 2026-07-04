@@ -88,7 +88,7 @@ function makeStageInput(overrides: Partial<StagePromptInput> = {}): StagePromptI
 
 function makeSituationInput(): SituationDebateInput {
   return {
-    id: 'cc-001',
+    id: 'sit-201',
     label: 'AI Labor Displacement',
     description: 'AI systems replacing human jobs at scale.',
     interpretations: {
@@ -1014,7 +1014,7 @@ describe('formatSituationDebateContext', () => {
   it('returns a non-empty string with situation structure', () => {
     const result = formatSituationDebateContext(makeSituationInput());
     expectNonEmpty(result);
-    expectContains(result, 'cc-001', 'AI Labor Displacement', 'SITUATION', 'POV INTERPRETATIONS');
+    expectContains(result, 'sit-201', 'AI Labor Displacement', 'SITUATION', 'POV INTERPRETATIONS');
   });
 
   it('includes optional sections when provided', () => {

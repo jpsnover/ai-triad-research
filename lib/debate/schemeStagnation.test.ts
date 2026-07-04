@@ -140,13 +140,13 @@ describe('computeCampInsularityRate', () => {
   });
 
   it('excludes cross-cutting and situation nodes from the ratio', () => {
-    const nodes = ['acc-B-001', 'acc-D-002', 'sit-001', 'cc-040'];
+    const nodes = ['acc-B-001', 'acc-D-002', 'sit-001', 'sit-040'];
     // Only 2 camp-specific nodes, both own-camp
     expect(computeCampInsularityRate(nodes, 'accelerationist')).toBe(1.0);
   });
 
   it('returns null when only cross-cutting nodes present', () => {
-    const nodes = ['sit-001', 'sit-002', 'cc-040'];
+    const nodes = ['sit-001', 'sit-002', 'sit-040'];
     expect(computeCampInsularityRate(nodes, 'safetyist')).toBeNull();
   });
 
@@ -196,7 +196,7 @@ describe('selectCrossCampNode', () => {
   });
 
   it('returns null when only cross-cutting nodes cited', () => {
-    expect(selectCrossCampNode('accelerationist', ['sit-001', 'cc-040'], candidates)).toBeNull();
+    expect(selectCrossCampNode('accelerationist', ['sit-001', 'sit-040'], candidates)).toBeNull();
   });
 
   it('selects from the least-engaged camp', () => {

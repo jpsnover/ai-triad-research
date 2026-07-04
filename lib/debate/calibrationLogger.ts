@@ -704,7 +704,7 @@ export function extractCalibrationData(
       for (const id of manifest.situationNodeIds) injectedSitIds.add(id);
     }
     for (const ref of entry.taxonomy_refs ?? []) {
-      if (typeof ref.node_id === 'string' && (ref.node_id.startsWith('sit-') || ref.node_id.startsWith('cc-'))) {
+      if (typeof ref.node_id === 'string' && ref.node_id.startsWith('sit-')) {
         sitNodesReferenced++;
       }
     }
@@ -743,7 +743,7 @@ export function extractCalibrationData(
         if (entry.type !== 'statement' && entry.type !== 'opening') continue;
         if (!cruxPovs.has(entry.speaker)) continue;
         const sitRef = (entry.taxonomy_refs ?? []).some(
-          (r: { node_id: string }) => (r.node_id.startsWith('sit-') || r.node_id.startsWith('cc-')) && injectedSitIds.has(r.node_id),
+          (r: { node_id: string }) => r.node_id.startsWith('sit-') && injectedSitIds.has(r.node_id),
         );
         if (sitRef) { hasSitRef = true; break; }
       }

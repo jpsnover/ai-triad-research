@@ -22,7 +22,7 @@ export function getPovMeta(key: PovMetaKey): PovMeta {
 }
 
 export function povKeyFromNodeId(nodeId: string): PovMetaKey | undefined {
-  if (nodeId.startsWith('sit-') || nodeId.startsWith('cc-')) return 'situations';
+  if (nodeId.startsWith('sit-')) return 'situations';
   for (const key of POV_KEYS) {
     if (nodeId.startsWith(POV_META[key].prefix)) return key;
   }
