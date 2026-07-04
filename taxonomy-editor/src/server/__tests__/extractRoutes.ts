@@ -52,12 +52,19 @@ export function extractRoutes(entryFile: string, seen = new Set<string>()): Rout
 }
 
 /**
- * Pairs of same-method routes where registration order changes which handler
- * wins: equal segment count and a static-vs-:param overlap at some position
- * such that a concrete request path matches both. These are the only routes
- * whose relative order must be preserved during extraction.
+ * Pairs of same-method routes whose patterns are **unifiable** — i.e. some
+ * concrete request path matches both — so `matchRoute` (first-match) resolves
+ * them by registration order. Predicate (per TL t/1295#7, necessary+sufficient):
+ * same method, same segment count, and at every position either the literals
+ * are equal or at least one side is a `:param`. This subsumes static-vs-param
+ * and also catches param-vs-param collisions (`/x/:a/y` ⟷ `/x/:b/y`). These are
+ * the only routes whose relative registration order must be preserved.
+ *
+ * Each entry encodes the earlier-registered route on the LEFT, so a snapshot of
+ * this list gates BOTH membership (which pairs collide) AND order (a flip swaps
+ * the sides and changes the string).
  */
-export function findOrderSensitiveOverlaps(routes: RouteEntry[]): string[] {
+export function findCollisionPairs(routes: RouteEntry[]): string[] {
   const pairs: string[] = [];
   for (let i = 0; i < routes.length; i++) {
     for (let j = i + 1; j < routes.length; j++) {
@@ -65,18 +72,13 @@ export function findOrderSensitiveOverlaps(routes: RouteEntry[]): string[] {
       if (a.method !== b.method) continue;
       const ap = a.path.split('/'), bp = b.path.split('/');
       if (ap.length !== bp.length) continue;
-      let compatible = true, differsByStaticVsParam = false;
+      let unifiable = true;
       for (let k = 0; k < ap.length; k++) {
         const aParam = ap[k].startsWith(':'), bParam = bp[k].startsWith(':');
-        if (aParam || bParam) {
-          if (aParam !== bParam) differsByStaticVsParam = true; // one literal, one :param here
-          continue; // a param matches any literal → still compatible
-        }
-        if (ap[k] !== bp[k]) { compatible = false; break; } // two different literals → disjoint
+        if (aParam || bParam) continue;              // a param matches any segment
+        if (ap[k] !== bp[k]) { unifiable = false; break; } // two differing literals → disjoint
       }
-      if (compatible && differsByStaticVsParam) {
-        pairs.push(`${a.method} ${a.path}  ⟷  ${b.path}  (order matters: registration order wins)`);
-      }
+      if (unifiable) pairs.push(`${a.method} ${a.path}  ⟷  ${b.path}  (first-registered wins)`);
     }
   }
   return pairs.sort();
