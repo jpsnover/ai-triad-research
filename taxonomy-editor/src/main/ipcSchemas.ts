@@ -13,11 +13,9 @@ export const SafePath = z.string().min(1).max(500);
 /**
  * Node ID validator. Accepts:
  *  - `{pov}-{category}-NNN` (e.g. `acc-belief-001`)
- *  - `cc-NNN`  — legacy cross-cutting nodes
- *  - `sit-NNN` — cross-cutting → situations migration (t/1308; migrated range sit-201..sit-446)
+ *  - `sit-NNN` — situations (formerly cross-cutting `cc-NNN`; migrated t/1308, mapping: `taxonomy/Origin/cc-to-sit-mapping.json`)
  *  - `pol-NNN` — policy actions
  *
- * The `cc-` branch is retained during the cc→sit migration for dual tolerance; it is
- * removed in Phase 2 once PowerShell posts apply-complete (t/1316 Phase 2).
+ * `cc-` is no longer accepted — removed in t/1316 Phase 2 after the cc→sit migration applied.
  */
-export const NodeId = z.string().regex(/^[a-z]{2,3}-[a-z]+-\d{3}$|^cc-\d{3}$|^sit-\d{3}$|^pol-\d{3}$/);
+export const NodeId = z.string().regex(/^[a-z]{2,3}-[a-z]+-\d{3}$|^sit-\d{3}$|^pol-\d{3}$/);

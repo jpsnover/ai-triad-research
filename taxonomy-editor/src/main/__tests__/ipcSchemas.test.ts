@@ -20,10 +20,15 @@ describe('IPC NodeId schema — cc→sit migration dual tolerance (t/1316)', () 
     }
   });
 
-  it('Phase 1: retains dual tolerance — cc-, pov-category, and pol- still accepted', () => {
-    for (const id of ['cc-001', 'acc-belief-001', 'saf-desires-042', 'pol-007']) {
+  it('accepts pov-category and pol- ids', () => {
+    for (const id of ['acc-belief-001', 'saf-desires-042', 'pol-007']) {
       expect(NodeId.safeParse(id).success).toBe(true);
     }
+  });
+
+  it('Phase 2: cc- is no longer accepted (migrated to sit-)', () => {
+    expect(NodeId.safeParse('cc-001').success).toBe(false);
+    expect(NodeId.safeParse('cc-446').success).toBe(false);
   });
 
   it('rejects malformed ids', () => {
