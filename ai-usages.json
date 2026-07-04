@@ -1,7 +1,6 @@
 {
   "_schema_version": "1.0.0",
   "_doc": "UsageID → AI call parameters. Central registry for experimentation. See docs/design/adr/ for schema rationale.",
-
   "enrichment.metadata-extraction": {
     "description": "Extract structured metadata from ingested documents",
     "model": "gemini-3.1-flash-lite",
@@ -11,9 +10,11 @@
     "jsonMode": true,
     "systemMessage": "You are a metadata extraction assistant. Extract structured metadata from the provided document including title, authors, publication date, abstract, and key topics. Return valid JSON.",
     "messageTemplate": "Document URL: {{source_url}}\nTitle: {{fallback_title}}\n\n{{markdown_text}}",
-    "tags": ["enrichment", "ingestion"]
+    "tags": [
+      "enrichment",
+      "ingestion"
+    ]
   },
-
   "enrichment.vernacular-description": {
     "description": "Generate plain-language description of a taxonomy node",
     "model": "gemini-3.1-flash-lite",
@@ -22,9 +23,105 @@
     "timeoutMs": 30000,
     "systemMessage": "You are a science communicator. Rewrite technical taxonomy descriptions in clear, accessible language for a general audience. Preserve accuracy while improving readability.",
     "messageTemplate": "Node ID: {{node_id}}\nTechnical description: {{description}}\nCategory: {{category}}",
-    "tags": ["enrichment", "vernacular"]
+    "tags": [
+      "enrichment",
+      "vernacular"
+    ]
   },
-
+  "enrichment.situation-bdi-decomposition": {
+    "description": "Decompose a situation node's per-POV interpretations into BDI (belief/desire/intention) layers. CL-owned; used by the t/1306 backfill and t/1307 crux->situation creation path.",
+    "model": "claude-sonnet-4-6",
+    "temperature": 0.3,
+    "maxTokens": 1600,
+    "timeoutMs": 60000,
+    "jsonMode": true,
+    "responseSchema": {
+      "type": "object",
+      "properties": {
+        "accelerationist": {
+          "type": "object",
+          "properties": {
+            "belief": {
+              "type": "string"
+            },
+            "desire": {
+              "type": "string"
+            },
+            "intention": {
+              "type": "string"
+            },
+            "summary": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "belief",
+            "desire",
+            "intention",
+            "summary"
+          ]
+        },
+        "safetyist": {
+          "type": "object",
+          "properties": {
+            "belief": {
+              "type": "string"
+            },
+            "desire": {
+              "type": "string"
+            },
+            "intention": {
+              "type": "string"
+            },
+            "summary": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "belief",
+            "desire",
+            "intention",
+            "summary"
+          ]
+        },
+        "skeptic": {
+          "type": "object",
+          "properties": {
+            "belief": {
+              "type": "string"
+            },
+            "desire": {
+              "type": "string"
+            },
+            "intention": {
+              "type": "string"
+            },
+            "summary": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "belief",
+            "desire",
+            "intention",
+            "summary"
+          ]
+        }
+      },
+      "required": [
+        "accelerationist",
+        "safetyist",
+        "skeptic"
+      ]
+    },
+    "systemMessage": "You are an ontology engineer for a multi-perspective AI-policy taxonomy grounded in DOLCE Descriptions & Situations and a Belief-Desire-Intention (BDI) model. A SITUATION is a shared, contested concept that three perspectives -- accelerationist, safetyist, skeptic -- each interpret differently. For the given situation, produce each perspective's interpretation DECOMPOSED into three BDI layers plus a one-line summary.\n\nApply the BDI disambiguation test:\n- belief (empirical): what this perspective takes as TRUE about the situation -- a claim that could in principle be proven true or false with evidence. NOT what they want.\n- desire (normative): what this perspective holds OUGHT to happen regarding the situation -- a value commitment. NOT an empirical claim.\n- intention (strategic): HOW this perspective would act on or reason about the situation -- a method or approach. NOT a value or a fact.\n- summary: one plain sentence capturing this perspective's overall stance.\n\nRules:\n1. ANCHOR to any existing interpretation text provided for a perspective -- decompose THAT stance into its belief/desire/intention components; do not invent a new position. If a perspective's interpretation is empty, derive it from the situation description and that perspective's worldview (accelerationist: capability growth, scaling, transformative upside; safetyist: alignment, catastrophic/existential risk, deployment caution; skeptic: immediate harms, institutional capture, labor/bias, accountability).\n2. PRESERVE genuine disagreement. The three perspectives must diverge -- do not converge them into a shared consensus. Even if they share a belief, they should differ on desire or intention. Sycophantic agreement is a failure.\n3. Keep each field to 1-2 crisp sentences, in the perspective's own voice.\n4. Correct category assignment is mandatory: an empirical claim in the desire slot, or a value in the belief slot, is an error.",
+    "messageTemplate": "Situation ID: {{situation_id}}\nLabel: {{label}}\nDescription: {{description}}\n\nExisting per-POV interpretations (flat text or empty -- anchor to these where present):\n{{existing_interpretations}}",
+    "tags": [
+      "enrichment",
+      "situation",
+      "bdi-decomposition"
+    ]
+  },
   "enrichment.batch-summary": {
     "description": "Summarize a batch of taxonomy nodes for overview display",
     "model": "gemini-3.1-flash-lite",
@@ -33,9 +130,11 @@
     "timeoutMs": 60000,
     "systemMessage": "You are a research analyst. Produce concise summaries of taxonomy node clusters, highlighting shared themes and key distinctions.",
     "messageTemplate": "Summarize the following {{node_count}} nodes:\n\n{{nodes_text}}",
-    "tags": ["enrichment", "summary"]
+    "tags": [
+      "enrichment",
+      "summary"
+    ]
   },
-
   "turn.brief": {
     "description": "Generate a brief for a debate turn",
     "model": "gemini-2.5-flash",
@@ -44,45 +143,51 @@
     "timeoutMs": 120000,
     "systemMessageTemplate": "You are {{speaker}}, a {{persona}} debater in a structured three-agent debate.",
     "messageTemplate": "Topic: {{topic}}\nPrior moves:\n{{move_history}}\n\nGenerate a brief outlining your key arguments for this turn.",
-    "tags": ["debate", "turn-pipeline"]
+    "tags": [
+      "debate",
+      "turn-pipeline"
+    ]
   },
-
   "turn.brief:experiment-claude": {
     "_extends": "turn.brief",
     "description": "Experiment: Claude Sonnet for briefs",
     "model": "claude-sonnet-4-6",
     "temperature": 0.5
   },
-
   "server.chat-response": {
     "description": "Server-side AI text generation (/api/ai/generate)",
     "model": "gemini-flash-lite-latest",
     "temperature": 0.7,
     "timeoutMs": 120000,
     "messageTemplate": "{{prompt}}",
-    "tags": ["server", "chat"]
+    "tags": [
+      "server",
+      "chat"
+    ]
   },
-
   "server.chat-response:paid-fallback": {
     "_extends": "server.chat-response",
     "description": "Paid Gemini fallback when free-tier keys are exhausted"
   },
-
   "server.search": {
     "description": "Server-side AI search via Gemini grounding or Tavily augmentation",
     "model": "gemini-flash-lite-latest",
     "messageTemplate": "{{prompt}}",
-    "tags": ["server", "search"]
+    "tags": [
+      "server",
+      "search"
+    ]
   },
-
   "server.news-report": {
     "description": "Generate a news article from a completed debate synthesis",
     "model": "gemini-flash-lite-latest",
     "temperature": 0.7,
     "messageTemplate": "{{prompt}}",
-    "tags": ["server", "debate"]
+    "tags": [
+      "server",
+      "debate"
+    ]
   },
-
   "debate.topic-critique": {
     "description": "Evaluate and rewrite a debate topic for frame quality (conditionality, mechanism, stakeholder, tension, scope)",
     "model": "gemini-2.5-flash",
@@ -91,9 +196,11 @@
     "timeoutMs": 120000,
     "jsonMode": true,
     "messageTemplate": "{{prompt}}",
-    "tags": ["debate", "setup"]
+    "tags": [
+      "debate",
+      "setup"
+    ]
   },
-
   "debate.clarification-questions": {
     "description": "Generate 1-3 clarifying questions with answer options to narrow the debate topic",
     "model": "gemini-2.5-flash",
@@ -102,9 +209,11 @@
     "timeoutMs": 120000,
     "jsonMode": true,
     "messageTemplate": "{{prompt}}",
-    "tags": ["debate", "setup"]
+    "tags": [
+      "debate",
+      "setup"
+    ]
   },
-
   "debate.topic-synthesis": {
     "description": "Synthesize original topic + clarification answers into a refined debate question",
     "model": "gemini-2.5-flash",
@@ -113,9 +222,11 @@
     "timeoutMs": 180000,
     "jsonMode": true,
     "messageTemplate": "{{prompt}}",
-    "tags": ["debate", "setup"]
+    "tags": [
+      "debate",
+      "setup"
+    ]
   },
-
   "debate.crux-refresh": {
     "description": "Evaluate whether active cruxes are resolved/superseded after concession cascades",
     "model": "gemini-2.5-flash",
@@ -124,9 +235,11 @@
     "timeoutMs": 15000,
     "jsonMode": true,
     "messageTemplate": "{{prompt}}",
-    "tags": ["debate", "crux"]
+    "tags": [
+      "debate",
+      "crux"
+    ]
   },
-
   "debate.evidence-search": {
     "description": "Verify empirical claims via web search grounding (doc-only — execution requires generateTextWithSearch)",
     "model": "gemini-2.5-flash",
@@ -134,10 +247,12 @@
     "maxTokens": 1024,
     "timeoutMs": 30000,
     "jsonMode": true,
-    "tags": ["debate", "fact-check"],
+    "tags": [
+      "debate",
+      "fact-check"
+    ],
     "_doc": "Not wired to callByUsage — uses generateTextWithSearch (Grounding API). Config-only for model/timeout visibility."
   },
-
   "synthesis.extract": {
     "description": "Phase 1/3: Extract agreements, disagreements, cruxes, and unresolved questions from debate transcript",
     "model": "gemini-2.5-flash",
@@ -146,9 +261,11 @@
     "timeoutMs": 120000,
     "jsonMode": true,
     "messageTemplate": "{{prompt}}",
-    "tags": ["debate", "synthesis"]
+    "tags": [
+      "debate",
+      "synthesis"
+    ]
   },
-
   "synthesis.map": {
     "description": "Phase 2/3: Build argument map with claim relationships, taxonomy coverage, and node proposals",
     "model": "gemini-2.5-flash",
@@ -157,9 +274,11 @@
     "timeoutMs": 120000,
     "jsonMode": true,
     "messageTemplate": "{{prompt}}",
-    "tags": ["debate", "synthesis"]
+    "tags": [
+      "debate",
+      "synthesis"
+    ]
   },
-
   "synthesis.evaluate": {
     "description": "Phase 3/3: Evaluate argument strength, topic resolution, preference ordering, and policy implications",
     "model": "gemini-2.5-flash",
@@ -168,9 +287,11 @@
     "timeoutMs": 120000,
     "jsonMode": true,
     "messageTemplate": "{{prompt}}",
-    "tags": ["debate", "synthesis"]
+    "tags": [
+      "debate",
+      "synthesis"
+    ]
   },
-
   "enrichment.edge-discovery.classify": {
     "description": "Classify edge relationships between batches of high-similarity taxonomy node pairs. Emits SUPPORTS/CONTRADICTS/etc per pair with confidence + rationale (t/1261)",
     "model": "gemini-2.5-flash",
@@ -178,9 +299,11 @@
     "maxTokens": 16384,
     "timeoutMs": 120000,
     "messageTemplate": "Classify the relationship between each pair of taxonomy nodes below. These pairs have high semantic similarity and likely have a meaningful relationship.\n\nEDGE TYPES:\n{{edge_type_list}}\n\nPAIRS TO CLASSIFY:\n{{pair_lines}}\n\nFor each pair, determine:\n1. The edge type (from the list above, or \"NONE\" if no meaningful relationship)\n2. Direction: which node is source and which is target\n3. Confidence (0.0-1.0)\n4. Weight (0.0-1.0): strength of the relationship\n5. Brief rationale\n\nReturn JSON: {\"edges\": [{\"source\": \"id\", \"target\": \"id\", \"type\": \"TYPE\", \"confidence\": 0.8, \"weight\": 0.7, \"rationale\": \"...\"}]}\nOmit pairs with no relationship. No markdown fences.",
-    "tags": ["enrichment", "edge-discovery"]
+    "tags": [
+      "enrichment",
+      "edge-discovery"
+    ]
   },
-
   "enrichment.edge-discovery.screen": {
     "description": "Two-phase screen pass: cheap-model filter of candidate node pairs before expensive classification. Returns related_ids subset (t/1261)",
     "model": "gemini-3.1-flash-lite",
@@ -193,12 +316,20 @@
       "properties": {
         "related_ids": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         }
       },
-      "required": ["related_ids"]
+      "required": [
+        "related_ids"
+      ]
     },
     "messageTemplate": "{{screen_prompt}}\n\n--- SOURCE NODE ---\n{{source_json}}\n\n--- CANDIDATES ---\n{{candidates_json}}",
-    "tags": ["enrichment", "edge-discovery", "screen"]
+    "tags": [
+      "enrichment",
+      "edge-discovery",
+      "screen"
+    ]
   }
 }
