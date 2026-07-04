@@ -1,133 +1,42 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { PovKey } from '@lib/debate/types';
-export type Pov = PovKey;
+// ── Shared taxonomy types (canonical source: lib/debate/taxonomyTypes.ts) ──
 
-export type Category = 'Desires' | 'Beliefs' | 'Intentions';
+export type {
+  Pov,
+  Category,
+  FallacyTier,
+  PossibleFallacy,
+  GraphAttributes,
+  ParentRelationship,
+  WeightHistoryEntry,
+  TextEditSource,
+  TextHistoryEntry,
+  NodeEditMeta,
+  EditHistoryEntry,
+  PovNode,
+  ChangeAction,
+  ChangeHistoryEntry,
+  ConcessionType,
+  ConcessionRecord,
+  BdiInterpretation,
+  Interpretation,
+  SituationNode,
+  CrossCuttingNode,
+  EdgeStatus,
+  CanonicalEdgeType,
+  EdgeType,
+  Edge,
+  EdgeTypeDefinition,
+  EdgesFile,
+} from '@lib/debate/taxonomyTypes';
 
-export type FallacyTier = 'formal' | 'informal_structural' | 'informal_contextual' | 'cognitive_bias';
+export { interpretationText, isBdiInterpretation } from '@lib/debate/taxonomyTypes';
 
-export interface PossibleFallacy {
-  fallacy: string;
-  /** Fallacy tier — required on new entries, absent on pre-standard data. */
-  type?: FallacyTier;
-  confidence: 'likely' | 'possible' | 'borderline';
-  explanation: string;
-}
+// ── TE-only types ──
 
-export interface GraphAttributes {
-  epistemic_type?: string;
-  rhetorical_strategy?: string;
-  assumes?: string[];
-  falsifiability?: string;
-  audience?: string;
-  emotional_register?: string;
-  policy_actions?: { policy_id?: string; action: string; framing: string }[];
-  intellectual_lineage?: string[];
-  /** Pre-Phase-6c: string. Post-Phase-6c: per-POV object. Check typeof. */
-  steelman_vulnerability?: string | {
-    from_accelerationist?: string;
-    from_safetyist?: string;
-    from_skeptic?: string;
-  };
-  possible_fallacies?: PossibleFallacy[];
-  /** AIF node scope — added in dolce-phase-4. Absent in older nodes. */
-  node_scope?: 'claim' | 'scheme' | 'bridging';
-  /** Genus-differentia rewrite of the node description for embedding-based attribution. */
-  attribution_text?: string;
-  /** Set before AI enrichment starts, cleared on success. Presence means enrichment incomplete. */
-  _phrase_regen_pending?: boolean;
-}
-
-export type ParentRelationship = 'is_a' | 'part_of' | 'specializes';
-
-export type ConcessionType = 'full' | 'conditional' | 'tactical';
-
-/** Entry in a node's confidence or priority change history. */
-export interface WeightHistoryEntry {
-  date: string;
-  value: number;
-  delta: number;
-  reason: string;
-  supersedes?: string;
-  attack_claim?: string;
-  robustness?: number;
-  model_confirmations?: string[];
-}
-
-export interface ConcessionRecord {
-  debate_id: string;
-  speaker: string;
-  text: string;
-  turn: number;
-  conceded_to: string;
-  concession_type: ConcessionType;
-  bdi_impact: 'belief' | 'desire' | 'intention';
-}
-
-export type TextEditSource = 'interactive' | 'debate_reflection' | 'batch_audit' | 'initial';
-
-export interface TextHistoryEntry {
-  date: string;
-  previous?: string;
-  value: string;
-  source: TextEditSource;
-  debate_id?: string;
-  reason?: string;
-}
-
-export interface NodeEditMeta {
-  last_edited_by: string;
-  last_edited_at: string;
-  created_by?: string;
-  created_at?: string;
-}
-
-export interface EditHistoryEntry {
-  user: string;
-  timestamp: string;
-  fields_changed: string[];
-  summary?: string;
-  source?: TextEditSource;
-  debate_id?: string;
-  reason?: string;
-}
-
-export interface PovNode {
-  id: string;
-  category: Category;
-  label: string;
-  description: string;
-  parent_id: string | null;
-  parent_relationship?: ParentRelationship | null;
-  parent_rationale?: string | null;
-  children: string[];
-  situation_refs: string[];
-  conflict_ids?: string[];
-  graph_attributes?: GraphAttributes;
-  debate_refs?: string[];
-  /** Belief confidence (0.0-1.0). Multi-signal formula. Absent in pre-weighted nodes. */
-  confidence?: number;
-  /** Confidence change log. Absent in pre-weighted nodes. */
-  confidence_history?: WeightHistoryEntry[];
-  /** True if this Belief is cosine-similar to its POV's doctrinal boundaries. */
-  doctrinally_anchored?: boolean;
-  /** Pre-floor evidential confidence — preserved when doctrinal floor is applied. */
-  evidential_confidence?: number;
-  /** Desire priority (1-5). Absent in pre-weighted nodes and non-Desire categories. */
-  priority?: number;
-  /** Priority change log. Absent in pre-weighted nodes. */
-  priority_history?: WeightHistoryEntry[];
-  /** Concession history — tracks cross-debate concessions affecting this node. */
-  concession_history?: ConcessionRecord[];
-  plain_description?: string | null;
-  plain_description_version?: string | null;
-  label_history?: TextHistoryEntry[];
-  description_history?: TextHistoryEntry[];
-  _edit_meta?: NodeEditMeta;
-  _edit_history?: EditHistoryEntry[];
-}
+import type { Pov, PovNode, SituationNode } from '@lib/debate/taxonomyTypes';
 
 export interface PovTaxonomyFile {
   _schema_version: string;
@@ -137,62 +46,6 @@ export interface PovTaxonomyFile {
   last_modified: string;
   nodes: PovNode[];
 }
-
-/** BDI-decomposed interpretation — separates empirical claims, normative commitments, and strategic reasoning. */
-export interface BdiInterpretation {
-  belief: string;
-  desire: string;
-  intention: string;
-  summary: string;
-}
-
-/** Interpretation is either a plain string (legacy) or BDI-decomposed object. */
-export type Interpretation = string | BdiInterpretation;
-
-/** Extract display text from an interpretation (handles both formats). */
-export function interpretationText(interp: Interpretation | undefined): string {
-  if (!interp) return '';
-  if (typeof interp === 'string') return interp;
-  return interp.summary;
-}
-
-export interface SituationNode {
-  id: string;
-  label: string;
-  description: string;
-  interpretations: {
-    accelerationist: Interpretation;
-    safetyist: Interpretation;
-    skeptic: Interpretation;
-  };
-  linked_nodes: string[];
-  conflict_ids: string[];
-  graph_attributes?: GraphAttributes;
-  /** Cross-POV disagreement classification — added in dolce-phase-4. Absent in older nodes. */
-  disagreement_type?: 'definitional' | 'interpretive' | 'structural';
-  debate_refs?: string[];
-  /** Parent situation node ID for hierarchy. Absent on root nodes. */
-  parent_id?: string | null;
-  /** Relationship to parent: is_a, part_of, or specializes. */
-  parent_relationship?: 'is_a' | 'part_of' | 'specializes' | null;
-  /** Rationale for the parent relationship. */
-  parent_rationale?: string | null;
-  /** Mean pairwise cosine distance across the three POV interpretation embeddings (0-1). */
-  interpretation_divergence?: number;
-  /** Tracks origin when this node was created via consensus detection. */
-  convergence_source?: {
-    debate_id: string;
-    convergence_type: 'full' | 'partial' | 'conditional';
-    original_proposals: Record<string, { proposed_label: string; evidence_entries: string[] }>;
-    similarity_scores: Record<string, number>;
-  };
-  plain_description?: string | null;
-  plain_description_version?: string | null;
-  _edit_meta?: NodeEditMeta;
-}
-
-/** @deprecated Use SituationNode */
-export type CrossCuttingNode = SituationNode;
 
 export interface SituationsFile {
   _schema_version: string;
@@ -291,60 +144,8 @@ export interface ConflictFile {
   linked_taxonomy_nodes: string[];
   instances: ConflictInstance[];
   human_notes: ConflictNote[];
-  /** QBAF argument graph + resolution. Absent on pre-QBAF conflicts. */
   qbaf?: ConflictQbaf;
-  /** Resolution verdict from debate harvest. */
   verdict?: ConflictVerdict;
 }
 
 export type TabId = 'accelerationist' | 'safetyist' | 'skeptic' | 'situations' | 'conflicts' | 'cruxes' | 'debate' | 'chat' | 'summaries' | 'validation' | 'organizations';
-
-// ── Edge types (from taxonomy/Origin/edges.json) ─────────
-
-export type EdgeStatus = 'proposed' | 'approved' | 'rejected';
-
-/** Canonical edge types (AIF-aligned, Phase 5). Legacy types still appear in pre-migration data. */
-export type CanonicalEdgeType =
-  | 'SUPPORTS'
-  | 'CONTRADICTS'
-  | 'ASSUMES'
-  | 'WEAKENS'
-  | 'RESPONDS_TO'
-  | 'TENSION_WITH'
-  | 'INTERPRETS'
-  | 'CONVERGES_WITH';
-
-/** Accept both canonical and legacy edge types — backward-compat handler (kept permanently). */
-export type EdgeType = CanonicalEdgeType | (string & {});
-
-export interface Edge {
-  source: string;
-  target: string;
-  type: EdgeType;
-  bidirectional: boolean;
-  confidence: number;
-  weight?: number;
-  rationale?: string;
-  status: EdgeStatus;
-  discovered_at: string;
-  model: string;
-  strength?: 'strong' | 'moderate' | 'weak';
-  notes?: string;
-  direction_flag?: 'ok' | 'suspect' | null;
-}
-
-export interface EdgeTypeDefinition {
-  type: EdgeType;
-  bidirectional: boolean;
-  definition: string;
-  llm_proposed?: boolean;
-}
-
-export interface EdgesFile {
-  _schema_version: string;
-  _doc: string;
-  last_modified: string;
-  edge_types: EdgeTypeDefinition[];
-  edges: Edge[];
-  discovery_log?: unknown[];
-}

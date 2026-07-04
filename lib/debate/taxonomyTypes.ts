@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-// Subset of taxonomy types used by debate logic.
-// Full taxonomy types live in taxonomy-editor/src/renderer/types/taxonomy.ts.
+// Canonical taxonomy types — shared across all apps.
+// TE's types/taxonomy.ts re-exports these; TE-only types stay there.
 
 import type { PovKey } from './types.js';
 export type Pov = PovKey;
@@ -36,6 +36,8 @@ export interface GraphAttributes {
   possible_fallacies?: PossibleFallacy[];
   /** AIF node scope — added in dolce-phase-4. Absent in older nodes. */
   node_scope?: 'claim' | 'scheme' | 'bridging';
+  attribution_text?: string;
+  _phrase_regen_pending?: boolean;
 }
 
 export type ParentRelationship = 'is_a' | 'part_of' | 'specializes';
@@ -63,6 +65,23 @@ export interface TextHistoryEntry {
   previous?: string;
   value: string;
   source: TextEditSource;
+  debate_id?: string;
+  reason?: string;
+}
+
+export interface NodeEditMeta {
+  last_edited_by: string;
+  last_edited_at: string;
+  created_by?: string;
+  created_at?: string;
+}
+
+export interface EditHistoryEntry {
+  user: string;
+  timestamp: string;
+  fields_changed: string[];
+  summary?: string;
+  source?: TextEditSource;
   debate_id?: string;
   reason?: string;
 }
@@ -106,6 +125,8 @@ export interface PovNode {
   plain_description?: string | null;
   /** Model+prompt version string (e.g., "flash-lite:v1") for staleness detection. */
   plain_description_version?: string | null;
+  _edit_meta?: NodeEditMeta;
+  _edit_history?: EditHistoryEntry[];
 }
 
 export type ChangeAction = 'created' | 'modified' | 'deprecated';
@@ -174,6 +195,7 @@ export interface SituationNode {
   debate_refs?: string[];
   /** Mean pairwise cosine distance across the three POV interpretation embeddings (0–1). */
   interpretation_divergence?: number;
+  parent_rationale?: string | null;
   /** Present when this situation node was created from debate consensus detection (t/510). */
   convergence_source?: {
     debate_id: string;
@@ -188,6 +210,7 @@ export interface SituationNode {
   plain_description?: string | null;
   /** Model+prompt version string (e.g., "flash-lite:v1") for staleness detection. */
   plain_description_version?: string | null;
+  _edit_meta?: NodeEditMeta;
 }
 
 /** @deprecated Use SituationNode. Kept for backward compatibility. */
@@ -220,12 +243,13 @@ export interface Edge {
   weight?: number;
   /** Weight modulated by endpoint confidence/priority. Computed by modulateEdgeWeights.ts. */
   modulated_weight?: number;
-  rationale: string;
+  rationale?: string;
   status: EdgeStatus;
   discovered_at: string;
   model: string;
   strength?: 'strong' | 'moderate' | 'weak';
   notes?: string;
+  direction_flag?: 'ok' | 'suspect' | null;
 }
 
 export interface EdgeTypeDefinition {
