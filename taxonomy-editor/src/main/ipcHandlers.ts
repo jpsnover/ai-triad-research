@@ -72,10 +72,8 @@ import { z } from 'zod';
 import path from 'path';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
-// IPC input schemas for high-risk handlers
-const VALID_POV = z.enum(['accelerationist', 'safetyist', 'skeptic', 'situations', 'cross_cutting']);
-const SafePath = z.string().min(1).max(500);
-const NodeId = z.string().regex(/^[a-z]{2,3}-[a-z]+-\d{3}$|^cc-\d{3}$|^pol-\d{3}$/);
+// IPC input schemas for high-risk handlers (extracted to ipcSchemas.ts for unit testing)
+import { VALID_POV, SafePath, NodeId } from './ipcSchemas.js';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle('load-ai-models', () => {
