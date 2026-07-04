@@ -160,6 +160,8 @@
         'Compare-OrganizationPositions'
         # t/1261 — UsageID registry
         'Invoke-AIByUsage'
+        # t/1308 — cc→sit migration
+        'Invoke-CcToSitMigration'
     )
 
     # Aliases exported from this module

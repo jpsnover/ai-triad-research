@@ -699,6 +699,8 @@ Export-ModuleMember -Function @(
     'Compare-OrganizationPositions'
     # t/1261 — UsageID registry
     'Invoke-AIByUsage'
+    # t/1308 — cc→sit migration
+    'Invoke-CcToSitMigration'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'
