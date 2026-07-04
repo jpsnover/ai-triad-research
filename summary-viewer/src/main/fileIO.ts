@@ -370,8 +370,8 @@ const CATEGORY_PREFIX_MAP: Record<string, string> = {
   'Intentions': 'intentions',
 };
 
-/** Valid ID shapes per the taxonomy schema. Situations: cc-NNN. POV: {acc|saf|skp}-{desires|beliefs|intentions}-NNN. */
-const NODE_ID_PATTERN = /^(acc|saf|skp)-(desires|beliefs|intentions)-\d{3}$|^cc-\d{3}$/;
+/** Valid ID shapes per the taxonomy schema. Situations: cc-NNN or sit-NNN (cc→sit migration, dual tolerance). POV: {acc|saf|skp}-{desires|beliefs|intentions}-NNN. */
+const NODE_ID_PATTERN = /^(acc|saf|skp)-(desires|beliefs|intentions)-\d{3}$|^(cc|sit)-\d{3}$/;
 
 export interface AddTaxonomyNodeRequest {
   pov: string;
@@ -434,7 +434,7 @@ export function addTaxonomyNode(req: AddTaxonomyNodeRequest): AddTaxonomyNodeRes
     let newId: string;
 
     if (isCrossCutting) {
-      // Situation IDs: cc-NNN
+      // Situation IDs: cc-NNN or sit-NNN (cc→sit migration)
       const prefix = `${povPrefix}-`;
       let maxNum = 0;
       for (const node of raw.nodes) {
@@ -468,7 +468,7 @@ export function addTaxonomyNode(req: AddTaxonomyNodeRequest): AddTaxonomyNodeRes
       return {
         success: false,
         nodeId: '',
-        error: `Generated node ID "${newId}" does not conform to the taxonomy schema (expected {acc|saf|skp}-{desires|beliefs|intentions}-NNN or cc-NNN). Refusing to write. Check pov="${req.pov}" and category="${req.category}".`,
+        error: `Generated node ID "${newId}" does not conform to the taxonomy schema (expected {acc|saf|skp}-{desires|beliefs|intentions}-NNN or cc-NNN/sit-NNN). Refusing to write. Check pov="${req.pov}" and category="${req.category}".`,
       };
     }
 
