@@ -1,5 +1,5 @@
-**Date:** 2026-06-29
-**Working on:** t/1032 auth sign-in investigation + full repo sync/push to main
-**Status:** Complete — t/1032 closed (user verified login works), 86 files committed and pushed (27e8c385)
-**Key context:** ~50 garbage files (shell-escape artifacts) remain in working tree untracked; t/1127 SW login fix needs verification on main before deploy; CL flagged _exp-1069-coarse-batch-resume.json should have been excluded
-**Next:** Verify t/1127 commit is on main, trigger container build + Azure deploy, clean up garbage files
+**Date:** 2026-07-04
+**Working on:** t/1311 Dependabot triage, t/1313 pypdf investigation, t/1308 pipeline freeze support, t/1284 deploy polling, t/1292 CI quality gates
+**Status:** Complete — t/1292 committed (15a721a1), t/1284 committed (eca010ee), t/1311 closed, t/1313 closed (no pypdf alerts exist), t/1308 pipeline investigation posted
+**Key context:** TL's URGENT request to disable ai-triad-data pipeline — no automated pipeline exists (commits are user-authored); findings posted on t/1308#14, awaiting TL response. 2 open Dependabot alerts remain (js-yaml medium, uuid medium — both npm, not DevOps scope).
+**Next:** Check for TL response on t/1308 pipeline guard decision; monthly Azure cost review is overdue

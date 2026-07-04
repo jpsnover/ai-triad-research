@@ -1,0 +1,31 @@
+{
+  "$comment": "Doc accuracy claims — CI verifies reality matches these values. Update when docs change. See t/1324, B-403.",
+  "claims": [
+    {
+      "id": "cmdlet-count",
+      "type": "value_check",
+      "description": "AGENTS.md cmdlet count ≈ actual Public/ count",
+      "measure": "ls scripts/AITriad/Public | wc -l",
+      "expect": "145",
+      "tolerance": 5,
+      "source": "AGENTS.md:174 — '145 cmdlets in Public/'"
+    },
+    {
+      "id": "module-version",
+      "type": "value_check",
+      "description": "AGENTS.md module version matches psd1 ModuleVersion",
+      "measure": "grep -oP \"ModuleVersion\\s*=\\s*'\\K[^']+\" scripts/AITriad/AITriad.psd1",
+      "expect": "0.8.6",
+      "tolerance": 0,
+      "source": "AGENTS.md:174 — 'AITriad.psd1 (v0.8.6)'"
+    },
+    {
+      "id": "no-planned-markers-on-existing-files",
+      "type": "zero_check",
+      "description": "No 'planned — not yet implemented' marker naming a file that actually exists",
+      "measure": "grep -oP '`[^`]+`.*planned.*not yet implemented' AGENTS.md 2>/dev/null | grep -oP '`\\K[^`]+' | while read f; do [ -e \"$f\" ] && echo \"$f\"; done || true",
+      "ci_skip": true,
+      "source": "AGENTS.md — any 'planned' marker"
+    }
+  ]
+}

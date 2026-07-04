@@ -22,8 +22,8 @@ Codified list of recurring maintenance tasks. Each task has a cadence, owner, an
 
 | Task | Owner | Command / Procedure |
 |------|-------|---------------------|
-| Dependency audit (npm) | Tech Lead → route to Taxonomy Editor | `cd taxonomy-editor && npm audit` — triage per `docs/security/dependency-policy.md` CVE SLA |
-| Dependency audit (pip) | Tech Lead → route to PowerShell agent | `pip-audit -r scripts/requirements.txt` — triage per dependency policy CVE SLA |
+| Dependency audit (npm) | Tech Lead → route to Taxonomy Editor | `cd taxonomy-editor && npm audit` — triage per `docs/security/dependency-policy.md` CVE SLA. Verify per-package counts via `gh api .../dependabot/alerts --jq` — never derive counts by subtraction from UI totals |
+| Dependency audit (pip) | Tech Lead → route to PowerShell agent | `pip-audit -r scripts/requirements.txt` — triage per dependency policy CVE SLA. Verify per-package counts via API — never derive by subtraction |
 | Review Dependabot PRs | Tech Lead | Check GitHub PR queue for Dependabot updates, review + merge or close |
 | CodeQL alert review | Tech Lead | GitHub Security tab → review new alerts, triage, ticket actionable ones |
 | Flight recorder spot check | Tech Lead | Pull a recent flight recorder dump, scan for recurring `system.error` patterns |

@@ -180,6 +180,40 @@ jobs:
         continue-on-error: true
         run: bash scripts/check-quality-gates.sh
 
+  # ── Doc accuracy gates: claims-lint + REPO_MAP freshness (t/1324, B-403) ──
+  # Warning-only until 2026-07-17. To enforce: remove continue-on-error.
+  doc-accuracy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+
+      - name: Check doc claims
+        continue-on-error: true
+        run: bash scripts/check-doc-claims.sh
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: '*/package-lock.json'
+
+      - name: Check REPO_MAP freshness
+        continue-on-error: true
+        run: |
+          cd taxonomy-editor && npm ci --ignore-scripts > /dev/null 2>&1
+          node scripts/depgraph.mjs --repomap > /tmp/repomap-fresh.md
+          cd ..
+          DRIFT=$(diff REPO_MAP.md /tmp/repomap-fresh.md | wc -l || echo "0")
+          if [ "$DRIFT" -gt 20 ]; then
+            echo "::warning file=REPO_MAP.md,title=REPO_MAP stale::REPO_MAP.md has $DRIFT lines of drift. Regenerate: cd taxonomy-editor && node scripts/depgraph.mjs --repomap > ../REPO_MAP.md"
+          else
+            echo "  REPO_MAP.md drift: $DRIFT lines (threshold: 20) OK"
+          fi
+          if grep -qi "truncated" /tmp/repomap-fresh.md; then
+            echo "::error file=REPO_MAP.md,title=REPO_MAP truncated::REPO_MAP.md output contains truncation marker"
+            exit 1
+          fi
+
   test-container:
     needs: [test-powershell, test-electron]
     if: >-
