@@ -4,6 +4,7 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { Edge, EdgeType, EdgeStatus } from '../../types/taxonomy';
+import { POV_META, povKeyFromNodeId, type PovMetaKey } from '@lib/electron-shared/povMeta';
 
 interface RelatedEdgesPanelProps {
   width?: number;
@@ -130,8 +131,6 @@ function EdgeGroup({
     </div>
   );
 }
-
-import { POV_META, povKeyFromNodeId, type PovMetaKey } from '@lib/electron-shared/povMeta';
 
 function otherNodePovKey(edge: Edge, nodeId: string): PovMetaKey | undefined {
   const otherId = edge.source === nodeId ? edge.target : edge.source;
