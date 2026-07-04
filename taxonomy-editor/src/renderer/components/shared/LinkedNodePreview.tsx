@@ -1,15 +1,14 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { GraphAttributes } from '../../types/taxonomy';
 import { useDescriptionMode, resolveDescription } from './DescriptionToggle';
 
-const POV_LABELS: Record<string, string> = {
-  accelerationist: 'Accelerationist',
-  safetyist: 'Safetyist',
-  skeptic: 'Skeptic',
-};
+const POV_LABELS: Record<string, string> = Object.fromEntries(
+  Object.entries(POV_META).map(([k, v]) => [k, v.label]),
+);
 
 const CONFLICT_STATUS_LABELS: Record<string, string> = {
   open: 'Open',

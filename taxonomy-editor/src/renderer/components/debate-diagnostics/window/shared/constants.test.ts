@@ -125,9 +125,9 @@ describe('DEBATER_COLORS', () => {
     expect(DEBATER_COLORS.skeptic).toBeTruthy();
   });
 
-  it('colors are valid hex values', () => {
+  it('colors are CSS var references', () => {
     for (const color of Object.values(DEBATER_COLORS)) {
-      expect(color).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(color).toMatch(/^var\(--color-/);
     }
   });
 });

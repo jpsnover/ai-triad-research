@@ -9,18 +9,9 @@ interface RelatedEdgesPanelProps {
   width?: number;
 }
 
-const POV_COLOR: Record<string, string> = {
-  'acc-': 'var(--color-acc)',
-  'saf-': 'var(--color-saf)',
-  'skp-': 'var(--color-skp)',
-  'cc-': 'var(--color-sit)',
-};
-
 function nodeColor(id: string): string {
-  for (const [prefix, color] of Object.entries(POV_COLOR)) {
-    if (id.startsWith(prefix)) return color;
-  }
-  return 'var(--text-muted)';
+  const key = povKeyFromNodeId(id);
+  return key ? `var(${POV_META[key].cssVar})` : 'var(--text-muted)';
 }
 
 const STATUS_LABEL: Record<EdgeStatus, string> = {
@@ -140,19 +131,11 @@ function EdgeGroup({
   );
 }
 
-const POV_PREFIXES = ['acc-', 'saf-', 'skp-', 'cc-'] as const;
-type PovPrefix = typeof POV_PREFIXES[number];
+import { POV_META, povKeyFromNodeId, type PovMetaKey } from '@lib/electron-shared/povMeta';
 
-const POV_LABELS: Record<PovPrefix, string> = {
-  'acc-': 'Accelerationist',
-  'saf-': 'Safetyist',
-  'skp-': 'Skeptic',
-  'cc-': 'Situations',
-};
-
-function otherNodePrefix(edge: Edge, nodeId: string): PovPrefix | null {
+function otherNodePovKey(edge: Edge, nodeId: string): PovMetaKey | undefined {
   const otherId = edge.source === nodeId ? edge.target : edge.source;
-  return POV_PREFIXES.find(p => otherId.startsWith(p)) ?? null;
+  return povKeyFromNodeId(otherId);
 }
 
 export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
@@ -160,21 +143,21 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [statusFilter, setStatusFilter] = useState<EdgeStatus | ''>('');
   const [confidenceThreshold, setConfidenceThreshold] = useState(0.75);
-  const [hiddenPovs, setHiddenPovs] = useState<Set<PovPrefix>>(new Set());
+  const [hiddenPovs, setHiddenPovs] = useState<Set<PovMetaKey>>(new Set());
   const panelRef = useRef<HTMLDivElement>(null);
 
   const nodeId = relatedNodeId;
 
   // Per-POV counts after status/confidence filter (before POV filter)
   const povCounts = useMemo(() => {
-    const counts = { 'acc-': 0, 'saf-': 0, 'skp-': 0, 'cc-': 0 } as Record<PovPrefix, number>;
+    const counts: Record<PovMetaKey, number> = { accelerationist: 0, safetyist: 0, skeptic: 0, situations: 0 };
     if (!edgesFile || !nodeId) return counts;
     for (const edge of edgesFile.edges) {
       if (edge.source !== nodeId && edge.target !== nodeId) continue;
       if (statusFilter && edge.status !== statusFilter) continue;
       if (edge.confidence < confidenceThreshold) continue;
-      const prefix = otherNodePrefix(edge, nodeId);
-      if (prefix) counts[prefix]++;
+      const key = otherNodePovKey(edge, nodeId);
+      if (key) counts[key]++;
     }
     return counts;
   }, [edgesFile, nodeId, statusFilter, confidenceThreshold]);
@@ -182,7 +165,7 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
   // Reset hidden POVs when node changes
   useEffect(() => { setHiddenPovs(new Set()); }, [nodeId]);
 
-  const togglePov = useCallback((prefix: PovPrefix) => {
+  const togglePov = useCallback((prefix: PovMetaKey) => {
     setHiddenPovs(prev => {
       const next = new Set(prev);
       if (next.has(prefix)) next.delete(prefix); else next.add(prefix);
@@ -199,8 +182,8 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
       if (edge.source !== nodeId && edge.target !== nodeId) continue;
       if (statusFilter && edge.status !== statusFilter) continue;
       if (edge.confidence < confidenceThreshold) continue;
-      const prefix = otherNodePrefix(edge, nodeId);
-      if (prefix && hiddenPovs.has(prefix)) continue;
+      const key = otherNodePovKey(edge, nodeId);
+      if (key && hiddenPovs.has(key)) continue;
 
       const existing = groups.get(edge.type);
       if (existing) {
@@ -326,16 +309,16 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
 
       {/* POV filter buttons */}
       <div className="related-edges-pov-filters">
-        {POV_PREFIXES.filter(p => povCounts[p] > 0).map(prefix => (
+        {(Object.keys(POV_META) as PovMetaKey[]).filter(k => povCounts[k] > 0).map(k => (
           <button
-            key={prefix}
-            className={`related-edges-pov-btn${hiddenPovs.has(prefix) ? ' related-edges-pov-btn-hidden' : ''}`}
-            style={{ '--pov-color': POV_COLOR[prefix] } as React.CSSProperties}
-            onClick={() => togglePov(prefix)}
-            title={`${hiddenPovs.has(prefix) ? 'Show' : 'Hide'} ${POV_LABELS[prefix]}`}
+            key={k}
+            className={`related-edges-pov-btn${hiddenPovs.has(k) ? ' related-edges-pov-btn-hidden' : ''}`}
+            style={{ '--pov-color': `var(${POV_META[k].cssVar})` } as React.CSSProperties}
+            onClick={() => togglePov(k)}
+            title={`${hiddenPovs.has(k) ? 'Show' : 'Hide'} ${POV_META[k].label}`}
           >
-            {POV_LABELS[prefix]}
-            <span className="related-edges-pov-btn-count">{povCounts[prefix]}</span>
+            {POV_META[k].label}
+            <span className="related-edges-pov-btn-count">{povCounts[k]}</span>
           </button>
         ))}
       </div>

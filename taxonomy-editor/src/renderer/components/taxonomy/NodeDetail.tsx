@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { POV_META } from '@lib/electron-shared/povMeta';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { Pov, PovNode, Category, TabId } from '../../types/taxonomy';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
@@ -123,9 +124,9 @@ const CATEGORY_SINGULAR: Record<Category, string> = {
   'Intentions': 'An Intention',
 };
 const POV_LABELS: Record<Pov, string> = {
-  accelerationist: 'Accelerationist',
-  safetyist: 'Safetyist',
-  skeptic: 'Skeptic',
+  accelerationist: POV_META.accelerationist.label,
+  safetyist: POV_META.safetyist.label,
+  skeptic: POV_META.skeptic.label,
 };
 
 type NodeDetailTabId = 'content' | 'related' | 'attributes' | 'phrases' | 'sources' | 'facts' | 'research' | 'history';
@@ -480,12 +481,12 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
                   <div className="ga-promoted-text">
                     {(['from_accelerationist', 'from_safetyist', 'from_skeptic'] as const).map(key => {
                       const vuln = node.graph_attributes!.steelman_vulnerability as Record<string, string | undefined>;
-                      const colorMap: Record<string, string> = { from_accelerationist: 'var(--color-acc)', from_safetyist: 'var(--color-saf)', from_skeptic: 'var(--color-skp)' };
-                      const labelMap: Record<string, string> = { from_accelerationist: 'Accelerationist', from_safetyist: 'Safetyist', from_skeptic: 'Skeptic' };
+                      const povKey = key.replace('from_', '') as 'accelerationist' | 'safetyist' | 'skeptic';
+                      const meta = POV_META[povKey];
                       if (!vuln[key] && readOnly) return null;
                       return (
                         <div key={key} style={{ marginBottom: 4 }}>
-                          <strong style={{ color: colorMap[key] }}>{labelMap[key]}:</strong>
+                          <strong style={{ color: `var(${meta.cssVar})` }}>{meta.label}:</strong>
                           {readOnly ? (
                             <span> {vuln[key]}</span>
                           ) : (

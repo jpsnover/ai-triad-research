@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo } from 'react';
-import { POV_NODE_COLOR } from './constants';
+import { nodeIdColor } from './constants';
 import type { TaxRefEdge, TaxRefNode } from '../../../taxonomy/TaxonomyRefDetail';
 
 // NOTE: AifBadge stays in DiagnosticsWindow.tsx (parent) — not used by these components directly.
@@ -11,10 +11,7 @@ import type { TaxRefEdge, TaxRefNode } from '../../../taxonomy/TaxonomyRefDetail
 
 /** Returns a CSS color for a taxonomy node ID based on its POV prefix. */
 export function edgeNodeColor(id: string): string {
-  for (const [prefix, color] of Object.entries(POV_NODE_COLOR)) {
-    if (id.startsWith(prefix)) return color;
-  }
-  return 'var(--text-muted)';
+  return nodeIdColor(id);
 }
 
 /** Truncates a string to `max` characters, appending ellipsis if needed. */

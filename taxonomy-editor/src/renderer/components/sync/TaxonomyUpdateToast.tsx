@@ -19,6 +19,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import './TaxonomyUpdateToast.css';
@@ -33,16 +34,8 @@ export interface TaxonomyUpdatedEvent {
   povs: string[];
 }
 
-const POV_LABELS: Record<string, string> = {
-  accelerationist: 'Accelerationist',
-  safetyist: 'Safetyist',
-  skeptic: 'Skeptic',
-  'cross-cutting': 'Cross-cutting',
-  situations: 'Situations',
-};
-
 function povLabel(key: string): string {
-  return POV_LABELS[key] ?? key;
+  return POV_META[key as PovMetaKey]?.label ?? (key === 'cross-cutting' ? 'Cross-cutting' : key);
 }
 
 const TOAST_TTL_MS = 8000;

@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { POV_META, povKeyFromNodeId, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import { POV_KEYS } from '@lib/debate/types';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { useDescriptionMode, resolveDescription } from '../shared/DescriptionToggle';
@@ -370,23 +371,6 @@ export const EDGE_TYPE_COLORS: Record<string, string> = {
 
 /* ── POV filter / edge grouping (mirrors RelatedEdgesPanel UX) ─── */
 
-const POV_PREFIXES = ['acc-', 'saf-', 'skp-', 'sit-', 'cc-'] as const;
-type PovPrefix = typeof POV_PREFIXES[number];
-
-const POV_LABELS: Record<PovPrefix, string> = {
-  'acc-': 'Accelerationist',
-  'saf-': 'Safetyist',
-  'skp-': 'Skeptic',
-  'sit-': 'Situations',
-  'cc-': 'Situations',
-};
-const POV_COLOR: Record<PovPrefix, string> = {
-  'acc-': 'var(--color-acc)',
-  'saf-': 'var(--color-saf)',
-  'skp-': 'var(--color-skp)',
-  'sit-': 'var(--color-sit)',
-  'cc-': 'var(--color-sit)',
-};
 
 const EDGE_TYPE_PRIORITY = [
   'SUPPORTS', 'CONTRADICTS', 'ASSUMES', 'WEAKENS',
@@ -397,9 +381,8 @@ function otherNodeId(edge: TaxRefEdge, nodeId: string) {
   return edge.source === nodeId ? edge.target : edge.source;
 }
 
-function otherPrefix(edge: TaxRefEdge, nodeId: string): PovPrefix | null {
-  const id = otherNodeId(edge, nodeId);
-  return POV_PREFIXES.find(p => id.startsWith(p)) ?? null;
+function otherPovKey(edge: TaxRefEdge, nodeId: string): PovMetaKey | undefined {
+  return povKeyFromNodeId(otherNodeId(edge, nodeId));
 }
 
 function TaxRefEdgeGroup({
@@ -526,7 +509,7 @@ function EdgeDetailPanel({ edge, typeColor, srcLabel, tgtLabel, pct, onClose }: 
 function RelatedTab({ node, nodeId, edges }: { node: TaxRefNode; nodeId: string; edges?: TaxRefEdge[] }) {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [confidenceThreshold, setConfidenceThreshold] = useState(0.75);
-  const [hiddenPovs, setHiddenPovs] = useState<Set<PovPrefix>>(new Set());
+  const [hiddenPovs, setHiddenPovs] = useState<Set<PovMetaKey>>(new Set());
   const [selectedEdgeKey, setSelectedEdgeKey] = useState<string | null>(null);
 
   const { accelerationist, safetyist, skeptic } = useTaxonomyStore();
@@ -545,7 +528,7 @@ function RelatedTab({ node, nodeId, edges }: { node: TaxRefNode; nodeId: string;
     return edges.find(e => e.source === src && e.target === tgt && e.type === typ) ?? null;
   }, [selectedEdgeKey, edges]);
 
-  const togglePov = useCallback((prefix: PovPrefix) => {
+  const togglePov = useCallback((prefix: PovMetaKey) => {
     setHiddenPovs(prev => {
       const next = new Set(prev);
       if (next.has(prefix)) next.delete(prefix); else next.add(prefix);
@@ -555,16 +538,14 @@ function RelatedTab({ node, nodeId, edges }: { node: TaxRefNode; nodeId: string;
 
   // POV counts (after status/confidence filter, before POV filter)
   const povCounts = useMemo(() => {
-    const counts: Record<PovPrefix, number> = { 'acc-': 0, 'saf-': 0, 'skp-': 0, 'sit-': 0, 'cc-': 0 };
+    const counts: Record<PovMetaKey, number> = { accelerationist: 0, safetyist: 0, skeptic: 0, situations: 0 };
     if (!edges) return counts;
     for (const e of edges) {
       if (statusFilter && e.status !== statusFilter) continue;
       if (e.confidence < confidenceThreshold) continue;
-      const p = otherPrefix(e, nodeId);
-      if (p) counts[p]++;
+      const k = otherPovKey(e, nodeId);
+      if (k) counts[k]++;
     }
-    // Merge cc- into sit-
-    counts['sit-'] += counts['cc-'];
     return counts;
   }, [edges, nodeId, statusFilter, confidenceThreshold]);
 
@@ -576,8 +557,8 @@ function RelatedTab({ node, nodeId, edges }: { node: TaxRefNode; nodeId: string;
     for (const e of edges) {
       if (statusFilter && e.status !== statusFilter) continue;
       if (e.confidence < confidenceThreshold) continue;
-      const p = otherPrefix(e, nodeId);
-      if (p && (hiddenPovs.has(p) || (p === 'cc-' && hiddenPovs.has('sit-')))) continue;
+      const k = otherPovKey(e, nodeId);
+      if (k && hiddenPovs.has(k)) continue;
       const arr = groups.get(e.type);
       if (arr) arr.push(e); else groups.set(e.type, [e]);
       total++;
@@ -591,8 +572,7 @@ function RelatedTab({ node, nodeId, edges }: { node: TaxRefNode; nodeId: string;
     return { groupedEdges: sorted, totalEdges: total };
   }, [edges, nodeId, statusFilter, confidenceThreshold, hiddenPovs]);
 
-  // De-dup POV prefixes for display (cc- merged into sit-)
-  const displayPovs = (['acc-', 'saf-', 'skp-', 'sit-'] as PovPrefix[]).filter(p => povCounts[p] > 0);
+  const displayPovs = (Object.keys(POV_META) as PovMetaKey[]).filter(k => povCounts[k] > 0);
 
   return (
     <>
@@ -608,16 +588,16 @@ function RelatedTab({ node, nodeId, edges }: { node: TaxRefNode; nodeId: string;
 
           {/* POV filter pills */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-            {displayPovs.map(prefix => (
+            {displayPovs.map(k => (
               <button
-                key={prefix}
-                className={`related-edges-pov-btn${hiddenPovs.has(prefix) ? ' related-edges-pov-btn-hidden' : ''}`}
-                style={{ '--pov-color': POV_COLOR[prefix] } as React.CSSProperties}
-                onClick={() => togglePov(prefix)}
-                title={`${hiddenPovs.has(prefix) ? 'Show' : 'Hide'} ${POV_LABELS[prefix]}`}
+                key={k}
+                className={`related-edges-pov-btn${hiddenPovs.has(k) ? ' related-edges-pov-btn-hidden' : ''}`}
+                style={{ '--pov-color': `var(${POV_META[k].cssVar})` } as React.CSSProperties}
+                onClick={() => togglePov(k)}
+                title={`${hiddenPovs.has(k) ? 'Show' : 'Hide'} ${POV_META[k].label}`}
               >
-                {POV_LABELS[prefix]}
-                <span className="related-edges-pov-btn-count">{povCounts[prefix]}</span>
+                {POV_META[k].label}
+                <span className="related-edges-pov-btn-count">{povCounts[k]}</span>
               </button>
             ))}
           </div>

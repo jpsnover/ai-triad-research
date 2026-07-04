@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { getLineageInfo, getAllLineages } from '../../data/lineageLookup';
 import { getCategoryLabel, classifyLineage, getL2CategoryLabel } from '../../data/lineageCategories';
+import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import { POV_KEYS } from '@lib/debate/types';
 import type { PovNode } from '../../types/taxonomy';
 import { useDescriptionMode, resolveDescription } from './DescriptionToggle';
@@ -60,9 +61,7 @@ interface LineageDetailViewProps {
 }
 
 const POV_LABELS: Record<string, string> = {
-  accelerationist: 'Accelerationist',
-  safetyist: 'Safetyist',
-  skeptic: 'Skeptic',
+  ...Object.fromEntries(Object.entries(POV_META).map(([k, v]) => [k, v.label])),
   cross_cutting: 'Cross-cutting',
 };
 

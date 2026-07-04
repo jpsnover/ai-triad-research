@@ -2,22 +2,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo } from 'react';
+import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { Pov } from '../../types/taxonomy';
-
-const POV_COLORS: Record<string, string> = {
-  accelerationist: 'var(--color-acc)',
-  safetyist: 'var(--color-saf)',
-  skeptic: 'var(--color-skp)',
-  'situations': 'var(--color-sit)',
-};
-
-const POV_LABELS: Record<string, string> = {
-  accelerationist: 'Accelerationist',
-  safetyist: 'Safetyist',
-  skeptic: 'Skeptic',
-  'situations': 'Situations',
-};
 
 interface PolicyUsage {
   nodeId: string;
@@ -147,7 +134,7 @@ export function PolicyAlignmentPanel() {
                 <span className="policy-alignment-id">{pol.id}</span>
                 <span className="policy-alignment-povs">
                   {pol.povs.map(p => (
-                    <span key={p} className="policy-alignment-pov-dot" style={{ background: POV_COLORS[p] || '#888' }} title={POV_LABELS[p] || p} />
+                    <span key={p} className="policy-alignment-pov-dot" style={{ background: POV_META[p as PovMetaKey]?.cssVar ? `var(${POV_META[p as PovMetaKey].cssVar})` : '#888' }} title={POV_META[p as PovMetaKey]?.label || p} />
                   ))}
                 </span>
                 <span className="policy-alignment-action">{pol.action}</span>
@@ -167,8 +154,8 @@ export function PolicyAlignmentPanel() {
                     {pol.usages.map((u, i) => (
                       <div key={i} className="policy-alignment-framing">
                         <div className="policy-alignment-framing-header">
-                          <span className="policy-alignment-framing-pov" style={{ color: POV_COLORS[u.pov] || '#888' }}>
-                            {POV_LABELS[u.pov] || u.pov}
+                          <span className="policy-alignment-framing-pov" style={{ color: POV_META[u.pov as PovMetaKey]?.cssVar ? `var(${POV_META[u.pov as PovMetaKey].cssVar})` : '#888' }}>
+                            {POV_META[u.pov as PovMetaKey]?.label || u.pov}
                           </span>
                           <span className="policy-alignment-framing-node">{u.nodeId}</span>
                         </div>

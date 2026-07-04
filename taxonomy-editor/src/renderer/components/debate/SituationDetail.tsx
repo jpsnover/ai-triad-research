@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useRef } from 'react';
+import { POV_META } from '@lib/electron-shared/povMeta';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { SituationNode } from '../../types/taxonomy';
 import { interpretationText } from '../../types/taxonomy';
@@ -36,10 +37,10 @@ type SitTab = 'overview' | 'attributes' | 'accelerationist' | 'safetyist' | 'ske
 const SIT_TABS: { id: SitTab; label: string; color: string }[] = [
   { id: 'overview', label: 'Overview', color: 'var(--text-primary)' },
   { id: 'attributes', label: 'Attributes', color: 'var(--text-primary)' },
-  { id: 'accelerationist', label: 'Accelerationist', color: 'var(--color-acc)' },
-  { id: 'safetyist', label: 'Safetyist', color: 'var(--color-saf)' },
-  { id: 'skeptic', label: 'Skeptic', color: 'var(--color-skp)' },
-  { id: 'debate', label: 'Debate', color: 'var(--color-sit)' },
+  { id: 'accelerationist', label: POV_META.accelerationist.label, color: `var(${POV_META.accelerationist.cssVar})` },
+  { id: 'safetyist', label: POV_META.safetyist.label, color: `var(${POV_META.safetyist.cssVar})` },
+  { id: 'skeptic', label: POV_META.skeptic.label, color: `var(${POV_META.skeptic.cssVar})` },
+  { id: 'debate', label: 'Debate', color: `var(${POV_META.situations.cssVar})` },
   { id: 'sources', label: 'Sources', color: 'var(--text-primary)' },
   { id: 'research', label: 'Research', color: 'var(--text-primary)' },
 ];

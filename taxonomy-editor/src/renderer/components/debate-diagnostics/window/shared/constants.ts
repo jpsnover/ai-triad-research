@@ -20,19 +20,24 @@ export const AIF_TOOLTIPS: Record<string, string> = {
   'PA-node': 'PA-node (Preference Application) — resolves conflicts by determining which argument prevails and why, based on criteria like evidence strength or logical validity.',
 };
 
-/** POV node ID prefix → CSS color variable mapping. */
-export const POV_NODE_COLOR: Record<string, string> = {
-  'acc-': 'var(--color-acc)',
-  'saf-': 'var(--color-saf)',
-  'skp-': 'var(--color-skp)',
-  'sit-': 'var(--color-sit)',
-  'cc-': 'var(--color-sit)',
-};
+import { POV_META, povKeyFromNodeId, type PovMetaKey } from '@lib/electron-shared/povMeta';
 
-/** Debater name → highlight color. */
-export const DEBATER_COLORS: Record<string, string> = {
-  accelerationist: '#f97316', safetyist: '#3b82f6', skeptic: '#a855f7',
-};
+/** POV node ID prefix → CSS color variable mapping (derived from POV_META). */
+export const POV_NODE_COLOR: Record<string, string> = Object.fromEntries([
+  ...Object.values(POV_META).map(m => [m.prefix, `var(${m.cssVar})`]),
+  ['cc-', `var(${POV_META.situations.cssVar})`],
+]);
+
+/** Returns CSS color for a node ID via POV_META lookup. */
+export function nodeIdColor(id: string): string {
+  const key = povKeyFromNodeId(id);
+  return key ? `var(${POV_META[key].cssVar})` : 'var(--text-muted)';
+}
+
+/** Debater name → CSS color variable. */
+export const DEBATER_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(POV_META).filter(([k]) => k !== 'situations').map(([k, v]) => [k, `var(${v.cssVar})`]),
+);
 
 export function debaterColor(name: string): string {
   return DEBATER_COLORS[name.toLowerCase()] ?? '#888';

@@ -27,6 +27,8 @@
       "@lib/flight-recorder/*": ["../lib/flight-recorder/*"],
       "@lib/flight-recorder/index": ["../lib/flight-recorder/index.ts"],
       "@lib/ai-client/*": ["../lib/ai-client/*"],
+      "@lib/electron-shared/*": ["../lib/electron-shared/*"],
+      "@lib/embeddings/*": ["../lib/embeddings/*"],
       "zod": ["node_modules/zod"]
     }
   },

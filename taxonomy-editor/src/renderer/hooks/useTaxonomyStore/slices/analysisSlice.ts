@@ -8,6 +8,7 @@ import { distinctionAnalysisPrompt, nodeCritiquePrompt } from '../../../prompts/
 import type { NodeCritiqueContext } from '../../../prompts/analysis';
 import { mapErrorToUserMessage } from '../../../utils/errorMessages';
 import { api } from '@bridge';
+import { POV_META } from '@lib/electron-shared/povMeta';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 // ── Exported types ──
@@ -200,11 +201,9 @@ export const createAnalysisSlice: StateCreator<TaxonomyStore, [], [], AnalysisSl
   runNodeCritique: async (pov, node) => {
     const model = get().geminiModel;
     const state = get();
-    const POV_LABELS: Record<string, string> = {
-      accelerationist: 'Accelerationist',
-      safetyist: 'Safetyist',
-      skeptic: 'Skeptic',
-    };
+    const POV_LABELS: Record<string, string> = Object.fromEntries(
+      Object.entries(POV_META).map(([k, v]) => [k, v.label]),
+    );
 
     set({
       analysisLoading: true,

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useCallback, useEffect, useState } from 'react';
+import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { api } from '@bridge';
 import './CommunityReviewViewer.css';
@@ -65,17 +66,13 @@ function formatDate(iso: string): string {
 }
 
 const SPEAKER_COLORS: Record<string, string> = {
-  accelerationist: '#10b981',
-  safetyist: '#3b82f6',
-  skeptic: '#f59e0b',
+  ...Object.fromEntries(Object.entries(POV_META).map(([k, v]) => [k, v.color])),
   system: '#6b7280',
   user: '#8b5cf6',
 };
 
 const SPEAKER_LABELS: Record<string, string> = {
-  accelerationist: 'Accelerationist',
-  safetyist: 'Safetyist',
-  skeptic: 'Skeptic',
+  ...Object.fromEntries(Object.entries(POV_META).map(([k, v]) => [k, v.label])),
   system: 'System',
   user: 'User',
 };

@@ -4,6 +4,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { DebateSession } from '../../../types/debate';
 import { POVER_INFO } from '../../../types/debate';
+import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import { POV_KEYS } from '@lib/debate/types';
 import { api, isElectronMode } from '@bridge';
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
@@ -128,7 +129,7 @@ function buildDebateSnapshot(debate: DebateSession, taxonomies?: Map<string, Tax
   }
 
   if (taxonomies) {
-    const povLabels: Record<string, string> = { accelerationist: 'Accelerationist', safetyist: 'Safetyist', skeptic: 'Skeptic' };
+    const povLabels: Record<string, string> = Object.fromEntries(Object.entries(POV_META).map(([k, v]) => [k, v.label]));
     for (const [pov, nodes] of taxonomies) {
       lines.push(buildTaxonomySection(povLabels[pov] ?? pov, nodes));
     }

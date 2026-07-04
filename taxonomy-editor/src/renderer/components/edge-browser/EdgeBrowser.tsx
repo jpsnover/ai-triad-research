@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { POV_META } from '@lib/electron-shared/povMeta';
 import { api } from '@bridge';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
@@ -50,10 +51,7 @@ const DEFAULT_FILTERS: FilterState = {
 
 const POVS = [
   { value: '', label: 'All Perspectives' },
-  { value: 'accelerationist', label: 'Accelerationist' },
-  { value: 'safetyist', label: 'Safetyist' },
-  { value: 'skeptic', label: 'Skeptic' },
-  { value: 'situations', label: 'Situations' },
+  ...Object.entries(POV_META).map(([k, v]) => ({ value: k, label: v.label })),
 ];
 
 const EDGE_TYPES = [

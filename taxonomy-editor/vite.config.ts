@@ -94,6 +94,8 @@ export default defineConfig({
       '@lib/flight-recorder': path.resolve(__dirname, '../lib/flight-recorder'),
       '@lib/diff': path.resolve(__dirname, '../lib/diff'),
       '@lib/ai-client': path.resolve(__dirname, '../lib/ai-client'),
+      '@lib/electron-shared': path.resolve(__dirname, '../lib/electron-shared'),
+      '@lib/embeddings': path.resolve(__dirname, '../lib/embeddings'),
       // Allow lib/ files to resolve packages from taxonomy-editor's node_modules
       'zod': path.resolve(__dirname, 'node_modules/zod'),
       'jszip': path.resolve(__dirname, 'node_modules/jszip'),

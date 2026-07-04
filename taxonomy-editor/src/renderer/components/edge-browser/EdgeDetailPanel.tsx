@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useEffect, useRef, useState } from 'react';
-import { nodePovFromId } from '@lib/debate/nodeIdUtils';
+import { POV_META, povKeyFromNodeId } from '@lib/electron-shared/povMeta';
 import { api } from '@bridge';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { Edge } from '../../types/taxonomy';
@@ -12,30 +12,14 @@ interface EdgeDetailPanelProps {
   width?: number;
 }
 
-const POV_COLOR: Record<string, string> = {
-  'acc-': 'var(--color-acc)',
-  'saf-': 'var(--color-saf)',
-  'skp-': 'var(--color-skp)',
-  'cc-': 'var(--color-sit)',
-};
-
 function nodeColor(id: string): string {
-  for (const [prefix, color] of Object.entries(POV_COLOR)) {
-    if (id.startsWith(prefix)) return color;
-  }
-  return 'var(--text-muted)';
+  const key = povKeyFromNodeId(id);
+  return key ? `var(${POV_META[key].cssVar})` : 'var(--text-muted)';
 }
 
-const POV_LABEL: Record<string, string> = {
-  accelerationist: 'Accelerationist',
-  safetyist: 'Safetyist',
-  skeptic: 'Skeptic',
-  situations: 'Situations',
-};
-
 function povLabel(id: string): string {
-  const pov = nodePovFromId(id);
-  return (pov && POV_LABEL[pov]) || 'Unknown';
+  const key = povKeyFromNodeId(id);
+  return key ? POV_META[key].label : 'Unknown';
 }
 
 /**
