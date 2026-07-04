@@ -13,7 +13,7 @@
     "build": "tsc -p tsconfig.main.json && vite build && npm run licenses"
   },
   "dependencies": {
-    "@google/genai": "^1.42.0",
+    "@google/genai": "^2.10.0",
     "pdfjs-dist": "^4.10.38",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
