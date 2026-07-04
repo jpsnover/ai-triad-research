@@ -8,6 +8,7 @@
 
 import type { SpeakerId, TranscriptEntry, TaxonomyRef, TurnSymbol } from './types.js';
 import { POVER_INFO } from './types.js';
+import type { Pov, Category, GraphAttributes } from './taxonomyTypes.js';
 
 export function generateId(): string {
   return crypto.randomUUID();
@@ -769,6 +770,37 @@ export function looksTruncated(s: string): boolean {
   if (depth > 0) return true;
   const last = trimmed.slice(-1);
   return !(last === '}' || last === ']' || last === '"');
+}
+
+export function defaultGraphAttributes(pov: Pov, category: Category): GraphAttributes {
+  const epistemicByCategory: Record<Category, string> = {
+    Beliefs: 'empirical_claim',
+    Desires: 'normative_prescription',
+    Intentions: 'strategic_recommendation',
+  };
+  const scopeByCategory: Record<Category, 'claim' | 'scheme'> = {
+    Beliefs: 'claim',
+    Desires: 'claim',
+    Intentions: 'scheme',
+  };
+  const rhetoricalByPov: Record<Pov, string> = {
+    accelerationist: 'techno_optimism',
+    safetyist: 'precautionary_framing',
+    skeptic: 'structural_critique',
+  };
+  const emotionalByPov: Record<Pov, string> = {
+    accelerationist: 'aspirational',
+    safetyist: 'cautionary',
+    skeptic: 'measured',
+  };
+  return {
+    epistemic_type: epistemicByCategory[category],
+    rhetorical_strategy: rhetoricalByPov[pov],
+    emotional_register: emotionalByPov[pov],
+    node_scope: scopeByCategory[category],
+    assumes: [],
+    falsifiability: 'medium',
+  };
 }
 
 export function maxOverlapVsExisting(text: string, existing: { text: string }[]): number {

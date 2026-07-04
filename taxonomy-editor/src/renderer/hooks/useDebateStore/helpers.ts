@@ -19,6 +19,8 @@ import { useDebateStore } from './store';
 declare const __APP_VERSION__: string;
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { hashString, looksTruncated, defaultGraphAttributes } from '@lib/debate/helpers';
+export { hashString, looksTruncated, defaultGraphAttributes };
 import { triggerManualDump } from '../../lib/flightRecorderInit';
 import { mapErrorToUserMessage } from '../../utils/errorMessages';
 import { formatTaxonomyContext } from '../../utils/taxonomyContext';
@@ -625,27 +627,7 @@ export function recordDiagnostic(
   try { api.sendDiagnosticsState({ debate: updatedDebate, selectedEntry: get().selectedDiagEntry }); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate?.id, component: 'debate-store', level: 'warn', message: 'Diagnostics broadcast to popout failed (recordDiagnostic)', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
 }
 
-/** djb2 hash for prompt fingerprinting. */
-export function hashString(s: string): string {
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
-  return (h >>> 0).toString(16);
-}
-
-/** Heuristic: does response body look cut off mid-JSON? */
-export function looksTruncated(s: string): boolean {
-  if (!s) return false;
-  const trimmed = s.trimEnd();
-  if (trimmed.length === 0) return false;
-  let depth = 0;
-  for (const c of trimmed) {
-    if (c === '{' || c === '[') depth++;
-    else if (c === '}' || c === ']') depth--;
-  }
-  if (depth > 0) return true;
-  const last = trimmed.slice(-1);
-  return !(last === '}' || last === ']' || last === '"');
-}
+// hashString and looksTruncated: imported from @lib/debate/helpers
 
 /** Incrementally refresh debate.extraction_summary given a new trace. */
 export function updateExtractionSummary(
@@ -2587,38 +2569,7 @@ export function buildContextCompressionPrompt(
   return contextCompressionPrompt(entries, audience);
 }
 
-// ── Reflection helpers ───────────────────────────────────
-
-export function defaultGraphAttributes(pov: Pov, category: Category): GraphAttributes {
-  const epistemicByCategory: Record<Category, string> = {
-    Beliefs: 'empirical_claim',
-    Desires: 'normative_prescription',
-    Intentions: 'strategic_recommendation',
-  };
-  const scopeByCategory: Record<Category, 'claim' | 'scheme'> = {
-    Beliefs: 'claim',
-    Desires: 'claim',
-    Intentions: 'scheme',
-  };
-  const rhetoricalByPov: Record<Pov, string> = {
-    accelerationist: 'techno_optimism',
-    safetyist: 'precautionary_framing',
-    skeptic: 'structural_critique',
-  };
-  const emotionalByPov: Record<Pov, string> = {
-    accelerationist: 'aspirational',
-    safetyist: 'cautionary',
-    skeptic: 'measured',
-  };
-  return {
-    epistemic_type: epistemicByCategory[category],
-    rhetorical_strategy: rhetoricalByPov[pov],
-    emotional_register: emotionalByPov[pov],
-    node_scope: scopeByCategory[category],
-    assumes: [],
-    falsifiability: 'medium',
-  };
-}
+// defaultGraphAttributes: imported from @lib/debate/helpers
 
 // ── Reflection types ─────────────────────────────────────
 
