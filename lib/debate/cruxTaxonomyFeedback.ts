@@ -2,8 +2,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import type { CruxRegistry, CruxRegistryEntry } from './types.js';
-import type { SituationNode, PovNode, WeightHistoryEntry } from './taxonomyTypes.js';
+import type { SituationNode, PovNode, WeightHistoryEntry, BdiInterpretation } from './taxonomyTypes.js';
 import { nowISO } from './helpers.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 const PROMOTION_THRESHOLD = 3;
 const WEIGHT_ADJUSTMENT_THRESHOLD = 2;
@@ -18,13 +19,22 @@ export interface PromotionCandidate {
   draft_situation: DraftSituationNode;
 }
 
+export interface BdiInterpretations {
+  accelerationist: BdiInterpretation;
+  safetyist: BdiInterpretation;
+  skeptic: BdiInterpretation;
+}
+
 export interface DraftSituationNode {
   label: string;
   description: string;
   disagreement_type: CruxRegistryEntry['disagreement_type'];
   related_taxonomy_nodes: string[];
   occurrence_count: number;
+  interpretations?: BdiInterpretations;
 }
+
+export type BdiEnrichFn = (values: Record<string, string>) => Promise<string>;
 
 export interface WeightAdjustment {
   node_id: string;
@@ -59,6 +69,57 @@ export function buildDraftSituationNode(entry: CruxRegistryEntry): DraftSituatio
     related_taxonomy_nodes: [...entry.related_taxonomy_nodes],
     occurrence_count: entry.occurrences.length,
   };
+}
+
+const BDI_FIELDS = ['belief', 'desire', 'intention', 'summary'] as const;
+const POV_KEYS_BDI = ['accelerationist', 'safetyist', 'skeptic'] as const;
+
+export async function enrichDraftWithBDI(
+  draft: DraftSituationNode,
+  cruxId: string,
+  enrichFn: BdiEnrichFn,
+): Promise<boolean> {
+  try {
+    const text = await enrichFn({
+      situation_id: `pending-from-crux-${cruxId}`,
+      label: draft.label,
+      description: draft.description,
+      existing_interpretations: '',
+    });
+    const parsed = JSON.parse(text) as BdiInterpretations;
+    for (const pov of POV_KEYS_BDI) {
+      const interp = parsed[pov];
+      if (!interp || BDI_FIELDS.some(f => typeof interp[f] !== 'string' || !interp[f])) {
+        throw new Error(`Missing or empty BDI field(s) for ${pov}`);
+      }
+    }
+    draft.interpretations = parsed;
+    return true;
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'cruxTaxonomyFeedback',
+      level: 'warn',
+      data: {
+        event: 'bdi_enrichment_failed',
+        cruxId,
+        label: draft.label,
+        error: err instanceof Error ? err.message : String(err),
+      },
+    });
+    return false;
+  }
+}
+
+export async function findAndEnrichPromotionCandidates(
+  registry: CruxRegistry,
+  enrichFn: BdiEnrichFn,
+): Promise<PromotionCandidate[]> {
+  const candidates = findPromotionCandidates(registry);
+  for (const c of candidates) {
+    await enrichDraftWithBDI(c.draft_situation, c.entry.id, enrichFn);
+  }
+  return candidates;
 }
 
 export function computeWeightAdjustments(registry: CruxRegistry): WeightAdjustment[] {

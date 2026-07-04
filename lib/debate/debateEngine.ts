@@ -106,6 +106,7 @@ import { retrieveEvidence } from './evidenceRetriever.js';
 import { buildEvidenceQbaf } from './evidenceQbaf.js';
 import { updateCruxTracker, formatCruxResolutionContext, detectConcessionCascade, transitionCrux } from './cruxResolution.js';
 import { persistDebateCruxes, loadRegistry, findRelevantPriorCruxes, formatPriorCruxContext } from './cruxRegistry.js';
+import { findAndEnrichPromotionCandidates } from './cruxTaxonomyFeedback.js';
 import { computeConvergenceSignals, boostConvergenceOnConcession, boostConvergenceFromTaxonomyEdges } from './convergenceSignals.js';
 import { computeProcessReward } from './processReward.js';
 import { runSynthesisPhases } from './synthesisPhases.js';
@@ -878,7 +879,27 @@ export class DebateEngine {
       if (this.config.embedFn && this.session.crux_tracker?.length) {
         try {
           const generateFn = (prompt: string) => this.generateWithEvaluator(prompt, 'Crux decontextualization');
-          await persistDebateCruxes(this.session, dataRoot, this.config.embedFn, generateFn);
+          const cruxResult = await persistDebateCruxes(this.session, dataRoot, this.config.embedFn, generateFn);
+
+          if ((cruxResult.merged > 0 || cruxResult.created > 0) && this.config.usageDeps) {
+            try {
+              const registry = loadRegistry(dataRoot);
+              const enrichFn = async (values: Record<string, string>) => {
+                const result = await callByUsage('enrichment.situation-bdi-decomposition', values, this.config.usageDeps!);
+                return result.text;
+              };
+              const candidates = await findAndEnrichPromotionCandidates(registry, enrichFn);
+              if (candidates.length > 0) {
+                this.session.promotion_candidates = candidates.map(c => ({
+                  crux_id: c.entry.id,
+                  draft: c.draft_situation,
+                  irreducible_count: c.irreducible_count,
+                }));
+              }
+            } catch (enrichErr) {
+              getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Crux promotion enrichment failed', error: { name: (enrichErr as Error).name ?? 'Error', message: String(enrichErr), stack: (enrichErr as Error).stack } });
+            }
+          }
         } catch (err) {
           getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Crux registry persistence failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
         }

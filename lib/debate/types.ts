@@ -616,6 +616,12 @@ export interface DebateSession {
   };
   /** Round at which a diversity-injection round fired (max 1 per debate). Absent if never triggered. */
   diversity_round_fired?: number;
+  /** Crux-to-situation promotion candidates with BDI-enriched drafts (populated post-debate). */
+  promotion_candidates?: Array<{
+    crux_id: string;
+    draft: import('./cruxTaxonomyFeedback.js').DraftSituationNode;
+    irreducible_count: number;
+  }>;
 }
 
 // ── Perturbation testing (HDE Section B2) ───────────────

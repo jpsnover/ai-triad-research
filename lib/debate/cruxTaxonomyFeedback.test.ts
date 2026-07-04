@@ -5,12 +5,14 @@ import { describe, it, expect } from 'vitest';
 import {
   findPromotionCandidates,
   buildDraftSituationNode,
+  enrichDraftWithBDI,
   computeWeightAdjustments,
   applyConfidenceAdjustment,
   applyPriorityAdjustment,
   formatPromotionReport,
   formatWeightAdjustmentReport,
 } from './cruxTaxonomyFeedback.js';
+import type { DraftSituationNode, BdiEnrichFn } from './cruxTaxonomyFeedback.js';
 import type { CruxRegistry, CruxRegistryEntry, CruxOccurrence } from './types.js';
 import type { PovNode } from './taxonomyTypes.js';
 
@@ -294,5 +296,107 @@ describe('formatWeightAdjustmentReport', () => {
     expect(report).toContain('WEIGHT ADJUSTMENTS');
     expect(report).toContain('-0.05');
     expect(report).toContain('acc-beliefs-001');
+  });
+});
+
+// ── enrichDraftWithBDI ────────────────────────────────
+
+function makeDraft(overrides: Partial<DraftSituationNode> = {}): DraftSituationNode {
+  return {
+    label: 'Derived from crux: test crux',
+    description: 'Test description',
+    disagreement_type: 'empirical',
+    related_taxonomy_nodes: ['acc-beliefs-001'],
+    occurrence_count: 3,
+    ...overrides,
+  };
+}
+
+const VALID_BDI_RESPONSE = JSON.stringify({
+  accelerationist: {
+    belief: 'AI capabilities are advancing rapidly.',
+    desire: 'Unrestricted AI development should continue.',
+    intention: 'Invest in scaling compute and data.',
+    summary: 'Accelerationists see rapid progress as proof of AI potential.',
+  },
+  safetyist: {
+    belief: 'Current AI systems lack robust alignment.',
+    desire: 'AI development should be slowed until alignment is solved.',
+    intention: 'Fund alignment research and impose deployment gates.',
+    summary: 'Safetyists prioritize alignment over capability gains.',
+  },
+  skeptic: {
+    belief: 'AI hype outpaces demonstrated real-world impact.',
+    desire: 'Resources should address immediate harms over speculative risk.',
+    intention: 'Regulate current deployments and audit for bias.',
+    summary: 'Skeptics focus on tangible harms and accountability.',
+  },
+});
+
+describe('enrichDraftWithBDI', () => {
+  it('attaches BDI interpretations to draft on success', async () => {
+    const draft = makeDraft();
+    const enrichFn: BdiEnrichFn = async () => VALID_BDI_RESPONSE;
+    const result = await enrichDraftWithBDI(draft, 'crux-123', enrichFn);
+    expect(result).toBe(true);
+    expect(draft.interpretations).toBeDefined();
+    expect(draft.interpretations!.accelerationist.belief).toContain('advancing rapidly');
+    expect(draft.interpretations!.safetyist.desire).toContain('slowed');
+    expect(draft.interpretations!.skeptic.intention).toContain('Regulate');
+  });
+
+  it('passes correct template values to enrichFn', async () => {
+    const draft = makeDraft({ label: 'My label', description: 'My desc' });
+    let capturedValues: Record<string, string> = {};
+    const enrichFn: BdiEnrichFn = async (values) => {
+      capturedValues = values;
+      return VALID_BDI_RESPONSE;
+    };
+    await enrichDraftWithBDI(draft, 'crux-456', enrichFn);
+    expect(capturedValues.situation_id).toBe('pending-from-crux-crux-456');
+    expect(capturedValues.label).toBe('My label');
+    expect(capturedValues.description).toBe('My desc');
+    expect(capturedValues.existing_interpretations).toBe('');
+  });
+
+  it('returns false and leaves interpretations undefined on AI failure', async () => {
+    const draft = makeDraft();
+    const enrichFn: BdiEnrichFn = async () => { throw new Error('API timeout'); };
+    const result = await enrichDraftWithBDI(draft, 'crux-789', enrichFn);
+    expect(result).toBe(false);
+    expect(draft.interpretations).toBeUndefined();
+  });
+
+  it('returns false on invalid JSON response', async () => {
+    const draft = makeDraft();
+    const enrichFn: BdiEnrichFn = async () => 'not valid json';
+    const result = await enrichDraftWithBDI(draft, 'crux-bad', enrichFn);
+    expect(result).toBe(false);
+    expect(draft.interpretations).toBeUndefined();
+  });
+
+  it('returns false when a POV is missing BDI fields', async () => {
+    const incomplete = JSON.stringify({
+      accelerationist: { belief: 'test', desire: 'test', intention: 'test', summary: 'test' },
+      safetyist: { belief: 'test', desire: '', intention: 'test', summary: 'test' },
+      skeptic: { belief: 'test', desire: 'test', intention: 'test', summary: 'test' },
+    });
+    const draft = makeDraft();
+    const enrichFn: BdiEnrichFn = async () => incomplete;
+    const result = await enrichDraftWithBDI(draft, 'crux-inc', enrichFn);
+    expect(result).toBe(false);
+    expect(draft.interpretations).toBeUndefined();
+  });
+
+  it('returns false when a POV is entirely missing', async () => {
+    const missingPov = JSON.stringify({
+      accelerationist: { belief: 'test', desire: 'test', intention: 'test', summary: 'test' },
+      skeptic: { belief: 'test', desire: 'test', intention: 'test', summary: 'test' },
+    });
+    const draft = makeDraft();
+    const enrichFn: BdiEnrichFn = async () => missingPov;
+    const result = await enrichDraftWithBDI(draft, 'crux-miss', enrichFn);
+    expect(result).toBe(false);
+    expect(draft.interpretations).toBeUndefined();
   });
 });
