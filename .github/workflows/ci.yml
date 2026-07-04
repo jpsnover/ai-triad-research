@@ -29,6 +29,7 @@ jobs:
     outputs:
       powershell: ${{ steps.filter.outputs.powershell }}
       electron: ${{ steps.filter.outputs.electron }}
+      debate: ${{ steps.filter.outputs.debate }}
     steps:
       - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d  # v4.0.1
         id: filter
@@ -45,6 +46,11 @@ jobs:
               - 'summary-viewer/**'
               - 'workflow-app/**'
               - 'lib/**'
+              - '.github/workflows/ci.yml'
+            debate:
+              - 'lib/debate/**'
+              - 'evals/**'
+              - 'ai-usages.json'
               - '.github/workflows/ci.yml'
 
   test-powershell:
@@ -213,6 +219,31 @@ jobs:
             echo "::error file=REPO_MAP.md,title=REPO_MAP truncated::REPO_MAP.md output contains truncation marker"
             exit 1
           fi
+
+  # ── Debate engine structural evals (t/1329) ──
+  # Runs deterministic regression checks on golden debate outputs.
+  # Warning-only until 2026-07-17. To enforce: remove continue-on-error.
+  debate-eval:
+    needs: [changes]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.debate == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
+        with:
+          node-version: '22'
+
+      - name: Run structural evals
+        continue-on-error: true
+        run: node evals/run.mjs
+
+      - name: Tier 2 — AI-powered quality evals (placeholder)
+        if: env.GEMINI_FREE_TIER_KEY != ''
+        run: |
+          echo "::notice::Tier 2 AI evals would run here — awaiting GEMINI_FREE_TIER_KEY provisioning"
 
   test-container:
     needs: [test-powershell, test-electron]
