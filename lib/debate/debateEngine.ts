@@ -39,7 +39,6 @@ import type {
   ConvergenceSignals as ConvergenceSignalsType,
   ProcessRewardEntry,
   TopicScope,
-  TopicScopeRiskLevel,
   EntailmentRepairEvent,
 } from './types.js';
 import { POVER_INFO, getDebatePhase, POV_KEYS, type PovKey } from './types.js';
@@ -62,10 +61,6 @@ import { pruneArgumentNetwork, needsGc } from './networkGc.js';
 import type { PovNode, SituationNode } from './taxonomyTypes.js';
 import type { TaxonomyContext } from './taxonomyContext.js';
 import {
-  clarificationPrompt,
-  documentClarificationPrompt,
-  situationClarificationPrompt,
-  concludingPrompt,
   crossRespondSelectionPrompt,
   formatCriticalQuestions,
   selectReframingMetaphor,
@@ -77,8 +72,6 @@ import {
   crossCuttingNodePrompt,
   moderatorSelectionPrompt,
   moderatorInterventionPrompt,
-  decomposeResolutionPrompt,
-  topicScopeExtractionPrompt,
   setPromptCompact,
   isCompactModel,
   setTopicScope,
@@ -94,9 +87,7 @@ import { extractCalibrationData, appendCalibrationLog, readCalibrationLog, compu
 import { computeStrategicHints } from './strategicHints.js';
 import { evaluateLookahead } from './lookaheadGate.js';
 import type { LookaheadDiagnostics } from './lookaheadGate.js';
-import { computeStructuralScore, critiqueTopicPrompt, formatStructuralContext, formatLineageContext, parseTopicCritique, computeLineageDistribution } from './topicCritique.js';
 import { classifyTopicComplexity, extractTopicStructure } from './topicStructure.js';
-import type { LineageFrameEntry } from './topicCritique.js';
 import {
   optimizeRelevanceThreshold,
   applyRelevanceThresholdAdaptation,
@@ -187,6 +178,7 @@ import {
   MAX_GAP_INJECTIONS,
 } from './gapCheck.js';
 import type { UnengagedNode } from './gapCheck.js';
+import { TopicPipeline } from './topicPipeline.js';
 
 // ── Model tier ranking (for maxModelId cap filtering) ────
 
@@ -396,6 +388,8 @@ export class DebateEngine {
   private _rateLimitBackoffMs = 0;
   /** Timestamp of the last 429 detection — used with _rateLimitBackoffMs in throttle(). */
   private _lastRateLimitTime = 0;
+  /** Extracted TopicPipeline collaborator — owns topic critique, scope, clarification, and drift. */
+  private _topicPipeline!: TopicPipeline;
 
   /** Get the set of hint keys currently suppressed for this debate. */
   private getSuppressedHints(): Set<string> {
@@ -707,15 +701,32 @@ export class DebateEngine {
     // Embed doctrinal boundaries + compute anchoring (t/114)
     await this.setupDoctrinalAnchoring();
 
+    // Construct TopicPipeline collaborator (Cluster 1 — t/1300)
+    this._topicPipeline = new TopicPipeline({
+      session: this.session,
+      config: this.config,
+      adapter: this.adapter,
+      taxonomy: this.taxonomy,
+      sourceEvidenceIndex: this.sourceEvidenceIndex,
+      generate: (prompt, label) => this.generate(prompt, label),
+      generateViaUsage: (usageId, prompt, label) => this.generateViaUsage(usageId, prompt, label),
+      generateWithModel: (prompt, label, model) => this.generateWithModel(prompt, label, model),
+      resolveStageModel: (key) => this.resolveStageModel(key as keyof NonNullable<DebateConfig['stageModels']>),
+      addEntry: (entry) => this.addEntry(entry),
+      recordDiagnostic: (entryId, data) => this.recordDiagnostic(entryId, data),
+      progress: (phase, speaker, message) => this.progress(phase, speaker, message),
+      warn: (operation, error, recovery) => this.warn(operation, error, recovery),
+    });
+
     try {
       // Phase 0.5: Topic critique (free-form topics only, before clarification)
       if (this.config.enableWisdomEvaluation !== false &&
           this.config.sourceType !== 'document' && this.config.sourceType !== 'url' && this.config.sourceType !== 'situations') {
-        await this.runTopicCritique();
+        await this._topicPipeline.runTopicCritique();
       }
 
       // Phase 0.75: Topic scope extraction (t/336 — foundation for topic-alignment enforcement)
-      await this.extractTopicScope();
+      await this._topicPipeline.extractTopicScope();
       setTopicScope(this.session.topic.scope ?? null);
 
       // Phase 0.76: Topic structure extraction for structured topics (t/1050)
@@ -765,7 +776,7 @@ export class DebateEngine {
 
       // Phase 1: Clarification (optional)
       if (this.config.enableClarification) {
-        await this.runClarification();
+        await this._topicPipeline.runClarification();
       }
 
       // Phase 1.5: Document pre-analysis
@@ -2338,477 +2349,6 @@ export class DebateEngine {
     return formatEstablishedPoints(allNodes, POVER_INFO[poverId].label, 14, an.edges);
   }
 
-  // ── Phase: Topic Critique ──────────────────────────────────
-
-  private async runTopicCritique(): Promise<void> {
-    // Skip if already computed (run-once guard)
-    if (this.session.topic.critique) return;
-
-    this.progress('setup', undefined, 'Evaluating topic quality');
-
-    try {
-      // Phase A: Structural scoring (deterministic)
-      const adapter = this.adapter;
-      let topicEmbedding: number[] | undefined;
-      if (adapter.computeQueryEmbedding) {
-        try {
-          const { vector } = await adapter.computeQueryEmbedding(this.session.topic.final);
-          topicEmbedding = vector;
-        } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Topic embedding for structural scoring failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); }
-      }
-
-      // Collect POV nodes for structural analysis
-      const povNodes: { id: string; pov: string; category: import('./taxonomyTypes.js').Category }[] = [];
-      for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
-        for (const node of this.taxonomy[pov]?.nodes ?? []) {
-          povNodes.push({ id: node.id, pov, category: node.category });
-        }
-      }
-
-      let structuralScore;
-      if (topicEmbedding && topicEmbedding.length > 0) {
-        structuralScore = computeStructuralScore({
-          topicEmbedding,
-          povNodes,
-          situationNodes: this.taxonomy.situations?.nodes ?? [],
-          embeddings: this.taxonomy.embeddings,
-          evidenceIndex: this.sourceEvidenceIndex ?? undefined,
-        });
-      } else {
-        // No embedding available — return zeroed structural score
-        structuralScore = computeStructuralScore({
-          topicEmbedding: [],
-          povNodes,
-          situationNodes: this.taxonomy.situations?.nodes ?? [],
-          embeddings: {},
-        });
-      }
-
-      // Lineage distribution (deterministic — from activated nodes' intellectual_lineage)
-      let lineageFrame: LineageFrameEntry[] = [];
-      const lc = this.taxonomy.lineageCategories;
-      if (lc && structuralScore.activated_nodes.length > 0) {
-        // Build per-node lineage lookup from taxonomy nodes
-        const lineageByNode: Record<string, string[]> = {};
-        for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
-          for (const node of this.taxonomy[pov]?.nodes ?? []) {
-            const ga = (node as { graph_attributes?: { intellectual_lineage?: (string | { name: string })[] } }).graph_attributes;
-            const lineage = ga?.intellectual_lineage;
-            if (lineage && lineage.length > 0) {
-              lineageByNode[node.id] = lineage.map(v => typeof v === 'string' ? v : v.name);
-            }
-          }
-        }
-
-        // Build name→cluster and cluster→label lookups from lineage categories
-        const nameToCluster: Record<string, string> = {};
-        for (const [name, val] of Object.entries(lc.mapping)) {
-          nameToCluster[name] = val.l2;
-        }
-        const clusterLabels: Record<string, string> = {};
-        for (const cat of lc.level2_categories) {
-          clusterLabels[cat.id] = cat.label;
-        }
-
-        lineageFrame = computeLineageDistribution({
-          activatedNodeIds: structuralScore.activated_nodes.map(n => n.id),
-          lineageByNode,
-          nameToCluster,
-          clusterLabels,
-        });
-      }
-
-      // Phase B: Frame analysis (single LLM call)
-      let structuralContext = formatStructuralContext(structuralScore);
-      if (lineageFrame.length > 0) {
-        structuralContext += '\n' + formatLineageContext(lineageFrame);
-      }
-      const prompt = critiqueTopicPrompt(this.session.topic.final, structuralContext, this.session.audience);
-      const text = await this.generateViaUsage('debate.topic-critique', prompt, 'Topic critique');
-      const critique = parseTopicCritique(text, structuralScore);
-
-      // Store lineage frame on the critique
-      if (lineageFrame.length > 0) {
-        critique.lineage_frame = lineageFrame;
-      }
-
-      this.session.topic.critique = critique;
-      this.progress('setup', undefined, `Topic quality: ${critique.rating} (${critique.composite_score}/20)`);
-
-      // Reframing: apply rewritten topic when below threshold
-      const threshold = this.config.wisdomReframeThreshold ?? 10;
-      const autoReframe = this.config.wisdomAutoReframe !== false;
-
-      if (critique.composite_score < threshold && critique.rewritten_topic && autoReframe) {
-        this.progress('setup', undefined, 'Reframing topic for productive disagreement');
-
-        // Preserve original in refined, apply rewritten topic
-        this.session.topic.refined = this.session.topic.final;
-        this.session.topic.final = critique.rewritten_topic;
-        critique.reframe_applied = true;
-
-        // Post-reframe re-score (deterministic only) to validate structural improvement
-        if (topicEmbedding && adapter.computeQueryEmbedding) {
-          try {
-            const { vector: reframedEmbedding } = await adapter.computeQueryEmbedding(critique.rewritten_topic);
-            const reframedStructural = computeStructuralScore({
-              topicEmbedding: reframedEmbedding,
-              povNodes,
-              situationNodes: this.taxonomy.situations?.nodes ?? [],
-              embeddings: this.taxonomy.embeddings,
-              evidenceIndex: this.sourceEvidenceIndex ?? undefined,
-            });
-            // Only keep the reframe if structural score didn't regress
-            if (reframedStructural.total < structuralScore.total) {
-              // Revert — reframing made structural coverage worse
-              this.session.topic.final = this.session.topic.refined!;
-              this.session.topic.refined = null;
-              critique.reframe_applied = false;
-              critique.reframe_changes = 'Reverted: structural score regressed after reframing';
-              this.addEntry({
-                type: 'system', speaker: 'system',
-                content: `Topic wisdom score: ${critique.composite_score}/20 (below ${threshold}). Reframing reverted: structural score regressed (${reframedStructural.total} < ${structuralScore.total}).`,
-                taxonomy_refs: [], metadata: {},
-              });
-            } else {
-              critique.reframe_changes = `Reframed topic applied (structural: ${structuralScore.total} → ${reframedStructural.total})`;
-              this.addEntry({
-                type: 'system', speaker: 'system',
-                content: `Topic wisdom score: ${critique.composite_score}/20 (below ${threshold}). Reframed: ${critique.reframe_changes}`,
-                taxonomy_refs: [], metadata: {},
-              });
-            }
-          } catch (err) {
-            getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Topic re-score after reframe failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-            critique.reframe_changes = 'Reframed topic applied (post-reframe re-score unavailable)';
-            this.addEntry({
-              type: 'system', speaker: 'system',
-              content: `Topic wisdom score: ${critique.composite_score}/20 (below ${threshold}). Reframed (re-score skipped).`,
-              taxonomy_refs: [], metadata: {},
-            });
-          }
-        } else {
-          critique.reframe_changes = 'Reframed topic applied (no embedding available for re-score)';
-          this.addEntry({
-            type: 'system', speaker: 'system',
-            content: `Topic wisdom score: ${critique.composite_score}/20 (below ${threshold}). Reframed (no re-score).`,
-            taxonomy_refs: [], metadata: {},
-          });
-        }
-
-        this.progress('setup', undefined, `Topic reframed: ${critique.reframe_changes}`);
-      } else if (critique.composite_score < threshold && !autoReframe) {
-        // Score-only mode: log but don't reframe
-        this.addEntry({
-          type: 'system', speaker: 'system',
-          content: `Topic wisdom score: ${critique.composite_score}/20 (below ${threshold}). Auto-reframe disabled — topic unchanged.`,
-          taxonomy_refs: [], metadata: {},
-        });
-      } else {
-        // Score above threshold — log for diagnostics
-        const exploratoryNote = critique.exploratory ? ' [exploratory — low evidence coverage]' : '';
-        this.addEntry({
-          type: 'system', speaker: 'system',
-          content: `Topic wisdom score: ${critique.composite_score}/20. No reframing needed.${exploratoryNote}`,
-          taxonomy_refs: [], metadata: {},
-        });
-      }
-    } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Topic critique failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      this.warn('Topic critique', err, 'Topic quality evaluation skipped — does not affect debate flow');
-    }
-  }
-
-  // ── Phase: Topic Scope Extraction (t/336) ──────────────────
-  private async extractTopicScope(): Promise<void> {
-    if (this.session.topic.scope) return;
-
-    this.progress('setup', undefined, 'Extracting topic scope');
-
-    try {
-      const scopeAdditions = this.session.topic.critique?.scope_additions;
-      const prompt = topicScopeExtractionPrompt(this.session.topic.final, scopeAdditions);
-      const scopeModel = this.resolveStageModel('scope');
-      const text = await this.generateWithModel(prompt, 'Topic scope extraction', scopeModel);
-      const parsed = parseJsonRobust(text) as Record<string, unknown> | null;
-      if (!parsed || typeof parsed !== 'object') {
-        this.warn('Topic scope extraction', 'LLM returned unparseable response', 'Scope extraction skipped — debate continues without scope enforcement');
-        return;
-      }
-
-      const validRiskLevels: TopicScopeRiskLevel[] = ['low', 'medium', 'high', 'catastrophic', 'unspecified'];
-      const riskLevel = validRiskLevels.includes(parsed.risk_level as TopicScopeRiskLevel)
-        ? parsed.risk_level as TopicScopeRiskLevel
-        : 'unspecified';
-
-      const toStringArray = (v: unknown): string[] =>
-        Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : [];
-
-      const scope: TopicScope = {
-        core_proposition: typeof parsed.core_proposition === 'string' ? parsed.core_proposition : this.session.topic.final,
-        relevant_disciplines: toStringArray(parsed.relevant_disciplines),
-        on_scope_evidence: toStringArray(parsed.on_scope_evidence),
-        key_tensions: toStringArray(parsed.key_tensions),
-        off_scope_topics: toStringArray(parsed.off_scope_topics),
-        drift_signatures: toStringArray(parsed.drift_signatures),
-        example_ceiling: typeof parsed.example_ceiling === 'string' ? parsed.example_ceiling : '',
-        risk_level: riskLevel,
-        domain: typeof parsed.domain === 'string' ? parsed.domain : '',
-        product_type: typeof parsed.product_type === 'string' ? parsed.product_type : null,
-        time_horizon: typeof parsed.time_horizon === 'string' ? parsed.time_horizon : null,
-        excluded_scenarios: toStringArray(parsed.excluded_scenarios),
-        explicit_qualifiers: toStringArray(parsed.explicit_qualifiers),
-        constraint_confidence: parsed.constraint_confidence === 'explicit' ? 'explicit' : 'inferred',
-      };
-
-      if (scope.off_scope_topics.length < 3 || scope.drift_signatures.length < 2) {
-        this.warn('Topic scope extraction', `Sparse output: ${scope.off_scope_topics.length} off_scope_topics, ${scope.drift_signatures.length} drift_signatures`, 'Scope stored but enforcement may be weak');
-      }
-
-      this.session.topic.scope = scope;
-      this.progress('setup', undefined, `Topic scope extracted (${scope.constraint_confidence}, ${scope.off_scope_topics.length} off-scope, ${scope.drift_signatures.length} drift sigs)`);
-      getGlobalRecorder()?.record({
-        type: 'topic_scope_extracted', component: 'debate-engine', level: 'info',
-        message: `Topic scope extracted (${scope.constraint_confidence})`,
-        data: {
-          core_proposition: scope.core_proposition,
-          risk_level: scope.risk_level,
-          off_scope_count: scope.off_scope_topics.length,
-          drift_sig_count: scope.drift_signatures.length,
-          constraint_confidence: scope.constraint_confidence,
-        },
-      });
-    } catch (err) {
-      getGlobalRecorder()?.record({
-        type: 'topic_scope_extraction_failed', component: 'debate-engine', level: 'warn',
-        debate_id: this.session?.id,
-        message: `Topic scope extraction failed: ${err instanceof Error ? err.message : String(err)}`,
-        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-      });
-      this.warn('Topic scope extraction', err, 'Scope extraction skipped — debate continues without scope enforcement');
-    }
-  }
-
-  // ── Lineage context for topic framing ────────────────────
-
-  private buildLineageContext(): string | undefined {
-    // Prefer pre-computed lineage frame from topic critique (free-form debates)
-    const lineageFrame = this.session.topic.critique?.lineage_frame;
-    if (lineageFrame && lineageFrame.length > 0) {
-      return formatLineageContext(lineageFrame);
-    }
-
-    // Fallback: compute from all taxonomy nodes (document/situation debates)
-    const lc = this.taxonomy.lineageCategories;
-    if (!lc) return undefined;
-
-    const allNodeIds: string[] = [];
-    const lineageByNode: Record<string, string[]> = {};
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
-      for (const node of this.taxonomy[pov]?.nodes ?? []) {
-        allNodeIds.push(node.id);
-        const ga = (node as { graph_attributes?: { intellectual_lineage?: (string | { name: string })[] } }).graph_attributes;
-        const lineage = ga?.intellectual_lineage;
-        if (lineage && lineage.length > 0) {
-          lineageByNode[node.id] = lineage.map(v => typeof v === 'string' ? v : v.name);
-        }
-      }
-    }
-
-    const nameToCluster: Record<string, string> = {};
-    for (const [name, val] of Object.entries(lc.mapping)) {
-      nameToCluster[name] = val.l2;
-    }
-    const clusterLabels: Record<string, string> = {};
-    for (const cat of lc.level2_categories) {
-      clusterLabels[cat.id] = cat.label;
-    }
-
-    const frame = computeLineageDistribution({
-      activatedNodeIds: allNodeIds,
-      lineageByNode,
-      nameToCluster,
-      clusterLabels,
-    });
-    if (frame.length === 0) return undefined;
-    return formatLineageContext(frame);
-  }
-
-  // ── Phase: Clarification ───────────────────────────────────
-
-  private async runClarification(): Promise<void> {
-    this.progress('clarification', undefined, 'Generating clarifying questions');
-    this.session.phase = 'clarification';
-
-    const lineageCtx = this.buildLineageContext();
-
-    let prompt: string;
-    if (this.config.sourceType === 'document' || this.config.sourceType === 'url') {
-      prompt = documentClarificationPrompt(this.config.topic, this.config.sourceContent ?? '', this.config.audience, lineageCtx);
-    } else if (this.config.sourceType === 'situations') {
-      prompt = situationClarificationPrompt(this.config.topic, this.config.sourceContent ?? '', this.config.audience, lineageCtx);
-    } else {
-      prompt = clarificationPrompt(this.config.topic, this.config.sourceContent, this.config.audience, lineageCtx);
-    }
-
-    const text = await this.generateViaUsage('debate.clarification-questions', prompt, 'Clarification questions');
-    let structuredQuestions: { question: string; options: string[] }[] = [];
-    try {
-      const parsed = parseJsonRobust(text) as { questions?: unknown[] };
-      const raw = parsed.questions ?? [];
-      // Handle both old format (string[]) and new format ({question, options}[])
-      structuredQuestions = raw.map((q: string | { question: string; options?: string[] }) =>
-        typeof q === 'string' ? { question: q, options: [] } : { question: q.question, options: q.options ?? [] }
-      );
-    } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Parsing clarification questions failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      this.warn('Parsing clarification questions', err, 'Using raw AI response as a single question');
-      structuredQuestions = [{ question: text, options: [] }];
-    }
-
-    const questionTexts = structuredQuestions.map(q =>
-      typeof q.question === 'string' ? q.question : JSON.stringify(q.question)
-    );
-
-    const clarEntry = this.addEntry({
-      type: 'clarification',
-      speaker: 'system',
-      content: questionTexts.join('\n'),
-      taxonomy_refs: [],
-      metadata: { questions: structuredQuestions },
-    });
-    this.recordDiagnostic(clarEntry.id, { prompt, raw_response: text });
-
-    // Auto-generate answers and synthesize refined topic
-    this.progress('clarification', undefined, 'Synthesizing refined topic');
-    const qaPairs = questionTexts.map(q => `Q: ${q}\nA: [Automated: The debate should explore this from all three perspectives.]`).join('\n\n');
-    const concludingPromptText = concludingPrompt(this.config.topic, qaPairs, this.config.audience, undefined, lineageCtx);
-    const synthText = await this.generateViaUsage('debate.topic-synthesis', concludingPromptText, 'Topic synthesis');
-
-    try {
-      const parsed = parseJsonRobust(synthText) as { refined_topic?: string };
-      if (parsed.refined_topic) {
-        this.session.topic.refined = parsed.refined_topic;
-        this.session.topic.final = parsed.refined_topic;
-      }
-    } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Parsing refined topic failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      this.warn('Parsing refined topic from clarification', err, 'Keeping original topic unchanged');
-    }
-
-    this.addEntry({
-      type: 'answer',
-      speaker: 'user',
-      content: `[Automated clarification] Refined topic: ${this.session.topic.final}`,
-      taxonomy_refs: [],
-    });
-
-    await this.decomposeResolutionIntoClauses();
-    await this.embedResolutionAnchors();
-  }
-
-  /** Decomposes `topic.final` into atomic clauses and persists them on
-   *  `topic.clauses`. Used by the moderator prompt to keep interventions
-   *  anchored. Non-fatal: if decomposition fails, clauses remain undefined
-   *  and the moderator falls back to resolution-only anchoring. */
-  private async decomposeResolutionIntoClauses(): Promise<void> {
-    const resolution = this.session.topic.final;
-    if (!resolution || resolution.trim().length === 0) return;
-
-    try {
-      const prompt = decomposeResolutionPrompt(resolution);
-      const text = await this.generate(prompt, 'Resolution clause decomposition');
-      const parsed = parseJsonRobust(text) as { clauses?: unknown };
-      if (Array.isArray(parsed.clauses)) {
-        const clauses = parsed.clauses
-          .filter((c): c is string => typeof c === 'string' && c.trim().length > 0)
-          .map(c => c.trim());
-        if (clauses.length > 0) {
-          this.session.topic.clauses = clauses;
-        }
-      }
-    } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Resolution clause decomposition failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      this.warn('Resolution clause decomposition', err, 'Moderator will anchor to resolution text only');
-    }
-  }
-
-  /** Embeds the resolution and each clause for per-turn ArCo and
-   *  clause-coverage signals. Persists to `topic.embedding` and
-   *  `topic.clause_embeddings`. Non-fatal — if the adapter doesn't expose
-   *  computeQueryEmbedding or the call fails, drift signals downgrade to
-   *  the deterministic fallbacks. */
-  private async embedResolutionAnchors(): Promise<void> {
-    const adapter = this.adapter as ExtendedAIAdapter;
-    if (!adapter.computeQueryEmbedding) return;
-    const resolution = this.session.topic.final;
-    if (!resolution || resolution.trim().length === 0) return;
-
-    try {
-      const { vector } = await adapter.computeQueryEmbedding(resolution.slice(0, 1000));
-      if (vector && vector.length > 0) {
-        this.session.topic.embedding = vector;
-      }
-    } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Resolution embedding failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      this.warn('Resolution embedding', err, 'ArCo drift signal will be unavailable');
-    }
-
-    const clauses = this.session.topic.clauses;
-    if (!clauses || clauses.length === 0) return;
-    const clauseVectors: number[][] = [];
-    for (const clause of clauses) {
-      try {
-        const { vector } = await adapter.computeQueryEmbedding(clause.slice(0, 500));
-        if (vector && vector.length > 0) clauseVectors.push(vector);
-      } catch (err) {
-        getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Clause embedding failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      }
-    }
-    if (clauseVectors.length === clauses.length) {
-      this.session.topic.clause_embeddings = clauseVectors;
-    }
-  }
-
-  /** Aggregate recent convergence_signals into the topic-drift summary
-   *  consumed by the moderator's selection prompt. Returns undefined when
-   *  no signals yet exist (e.g., before the first turn). */
-  private computeTopicDriftState(): ModeratorSelectionInput['topicDriftState'] {
-    const signals = this.session.convergence_signals ?? [];
-    if (signals.length === 0) return undefined;
-
-    const RECENT_WINDOW = 6;
-    const recent = signals.slice(-RECENT_WINDOW);
-    const latest = signals[signals.length - 1];
-
-    const totalClauses = this.session.topic.clauses?.length ?? 0;
-    const coveredSet = new Set<number>();
-    let consecutiveOffClause = 0;
-    for (let i = signals.length - 1; i >= 0; i--) {
-      const c = signals[i].clause_coverage;
-      if (!c) break;
-      if (c.no_clause_engaged) consecutiveOffClause++;
-      else break;
-    }
-    for (const s of recent) {
-      const c = s.clause_coverage;
-      if (c && c.best_clause_id != null) coveredSet.add(c.best_clause_id + 1);
-    }
-    const covered = Array.from(coveredSet).sort((a, b) => a - b);
-    const uncovered: number[] = [];
-    for (let i = 1; i <= totalClauses; i++) {
-      if (!coveredSet.has(i)) uncovered.push(i);
-    }
-
-    return {
-      phaseMeanSimilarity: latest.arco?.phase_mean,
-      driftWarning: latest.arco?.drift_warning ?? false,
-      coveredClauses: covered,
-      uncoveredClauses: uncovered,
-      consecutiveOffClause,
-    };
-  }
-
   // ── Phase: Document pre-analysis ───────────────────────────
 
   private async runDocumentAnalysis(): Promise<void> {
@@ -3409,7 +2949,7 @@ export class DebateEngine {
       sourceDocSummary,
       resolution: this.session.topic.final,
       resolutionClauses: this.session.topic.clauses,
-      topicDriftState: this.computeTopicDriftState(),
+      topicDriftState: this._topicPipeline.computeTopicDriftState(),
       transcript: this.session.transcript,
       contextSummaries: this.session.context_summaries,
       argumentNetwork: this.session.argument_network ?? undefined,
