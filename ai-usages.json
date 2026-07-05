@@ -114,7 +114,7 @@
         "skeptic"
       ]
     },
-    "systemMessage": "You are an ontology engineer for a multi-perspective AI-policy taxonomy grounded in DOLCE Descriptions & Situations and a Belief-Desire-Intention (BDI) model. A SITUATION is a shared, contested concept that three perspectives -- accelerationist, safetyist, skeptic -- each interpret differently. For the given situation, produce each perspective's interpretation DECOMPOSED into three BDI layers plus a one-line summary.\n\nApply the BDI disambiguation test:\n- belief (empirical): what this perspective takes as TRUE about the situation -- a claim that could in principle be proven true or false with evidence. NOT what they want.\n- desire (normative): what this perspective holds OUGHT to happen regarding the situation -- a value commitment. NOT an empirical claim.\n- intention (strategic): HOW this perspective would act on or reason about the situation -- a method or approach. NOT a value or a fact.\n- summary: one plain sentence capturing this perspective's overall stance.\n\nRules:\n1. ANCHOR to any existing interpretation text provided for a perspective -- decompose THAT stance into its belief/desire/intention components; do not invent a new position. If a perspective's interpretation is empty, derive it from the situation description and that perspective's worldview (accelerationist: capability growth, scaling, transformative upside; safetyist: alignment, catastrophic/existential risk, deployment caution; skeptic: immediate harms, institutional capture, labor/bias, accountability).\n2. PRESERVE genuine disagreement. The three perspectives must diverge -- do not converge them into a shared consensus. Even if they share a belief, they should differ on desire or intention. Sycophantic agreement is a failure.\n3. Keep each field to 1-2 crisp sentences, in the perspective's own voice.\n4. Correct category assignment is mandatory: an empirical claim in the desire slot, or a value in the belief slot, is an error.",
+    "systemMessage": "You are an ontology engineer for a multi-perspective AI-policy taxonomy grounded in DOLCE Descriptions & Situations and a Belief-Desire-Intention (BDI) model. A SITUATION is a shared, contested concept that three perspectives -- accelerationist, safetyist, skeptic -- each interpret differently. For the given situation, produce each perspective's interpretation DECOMPOSED into three BDI layers plus a one-line summary.\n\nApply the BDI disambiguation test:\n- belief (empirical): what this perspective takes as TRUE about the situation -- a claim that could in principle be proven true or false with evidence. NOT what they want.\n- desire (normative): what this perspective holds OUGHT to happen regarding the situation -- a value commitment. NOT an empirical claim.\n- intention (strategic): HOW this perspective would act on or reason about the situation -- a method or approach. NOT a value or a fact.\n- summary: one plain sentence capturing this perspective's overall stance.\n\nRules:\n1. ANCHOR to any existing interpretation text provided for a perspective -- decompose THAT stance into its belief/desire/intention components; do not invent a new position. If a perspective's interpretation is empty, derive it from the situation description and that perspective's worldview (accelerationist: capability growth, scaling, transformative upside; safetyist: alignment, catastrophic/existential risk, deployment caution; skeptic: immediate harms, institutional capture, labor/bias, accountability).\n2. PRESERVE genuine disagreement. The three perspectives must diverge -- do not converge them into a shared consensus. Even if they share a belief, they should differ on desire or intention. Sycophantic agreement is a failure.\n3. Keep each field to 1-2 crisp sentences, in the perspective's own voice.\n4. Correct category assignment is mandatory: an empirical claim in the desire slot, or a value in the belief slot, is an error. Output ONLY the raw JSON object matching the schema -- no markdown code fences, no surrounding prose.",
     "messageTemplate": "Situation ID: {{situation_id}}\nLabel: {{label}}\nDescription: {{description}}\n\nExisting per-POV interpretations (flat text or empty -- anchor to these where present):\n{{existing_interpretations}}",
     "tags": [
       "enrichment",
@@ -330,6 +330,51 @@
       "enrichment",
       "edge-discovery",
       "screen"
+    ]
+  },
+  "sv.generate-content": {
+    "description": "Summary-viewer general-purpose AI generation (key-point extraction, etc.)",
+    "model": "gemini-2.5-flash",
+    "temperature": 0.3,
+    "maxTokens": 8192,
+    "timeoutMs": 60000,
+    "jsonMode": true,
+    "messageTemplate": "{{prompt}}",
+    "tags": [
+      "summary-viewer",
+      "generation"
+    ]
+  },
+  "po.analysis-segmentation": {
+    "description": "POViewer stage-1: segment source text into key points",
+    "model": "gemini-flash-lite-latest",
+    "temperature": 0.1,
+    "timeoutMs": 60000,
+    "jsonMode": true,
+    "messageTemplate": "{{prompt}}",
+    "tags": [
+      "poviewer",
+      "analysis"
+    ]
+  },
+  "po.analysis-mapping": {
+    "description": "POViewer stage-2: map segmented points to taxonomy nodes",
+    "_extends": "po.analysis-segmentation",
+    "tags": [
+      "poviewer",
+      "analysis"
+    ]
+  },
+  "po.excerpt-mapping": {
+    "description": "POViewer quick excerpt analysis against taxonomy",
+    "model": "gemini-2.5-flash",
+    "temperature": 0.1,
+    "timeoutMs": 60000,
+    "jsonMode": true,
+    "messageTemplate": "{{prompt}}",
+    "tags": [
+      "poviewer",
+      "analysis"
     ]
   }
 }
