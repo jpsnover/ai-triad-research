@@ -225,13 +225,14 @@ function Test-OntologyCompliance {
     $GenusFailIds = [System.Collections.Generic.List[string]]::new()
     foreach ($Entry in $AllNodes.Values) {
         $N = $Entry.Node; $Pov = $Entry.POV
-        if (-not $N.description) { $GenusFail++; continue }
+        $NDesc = if ($N.PSObject.Properties['description']) { [string]$N.description } else { '' }
+        if (-not $NDesc) { $GenusFail++; continue }
 
         if ($Pov -eq 'situations') {
-            $IsGenus = $N.description -match '^A\s+situation\s+that\s+'
+            $IsGenus = $NDesc -match '^A\s+situation\s+that\s+'
         }
         else {
-            $IsGenus = $N.description -match '^An?\s+(Belief|Desire|Intention)\s+within\s+'
+            $IsGenus = $NDesc -match '^An?\s+(Belief|Desire|Intention)\s+within\s+'
         }
 
         if ($IsGenus) { $GenusOk++ }
@@ -262,9 +263,10 @@ function Test-OntologyCompliance {
     $BoundaryFailIds = [System.Collections.Generic.List[string]]::new()
     foreach ($Entry in $AllNodes.Values) {
         $N = $Entry.Node
-        if (-not $N.description) { $BoundaryFail++; continue }
-        $HasEncompasses = $N.description -match 'Encompasses:'
-        $HasExcludes    = $N.description -match 'Excludes:'
+        $NDesc = if ($N.PSObject.Properties['description']) { [string]$N.description } else { '' }
+        if (-not $NDesc) { $BoundaryFail++; continue }
+        $HasEncompasses = $NDesc -match 'Encompasses:'
+        $HasExcludes    = $NDesc -match 'Excludes:'
         if ($HasEncompasses -and $HasExcludes) { $BoundaryOk++ }
         else {
             $BoundaryFail++
@@ -357,6 +359,96 @@ function Test-OntologyCompliance {
         Add-Check -Category 'BDI' -Check 'bdi_layer values' -Status 'fail' `
             -Detail "$BadBdi occurrence(s) of legacy bdi_layer values" `
             -Fix 'Run Invoke-BDIMigration.ps1 to fix value→desire, conceptual→intention'
+    }
+
+    # Situation interpretations: per-POV BDI decomposition (t/1312)
+    # Every non-deprecated situation must carry a proper interpretations block where
+    # {accelerationist, safetyist, skeptic} each have non-empty belief + desire +
+    # intention. Deprecation is signalled by a description that starts with '[DEPRECATED]'.
+    $SitPass = 0
+    $SitEmpty = 0
+    $SitNonDecomposed = 0
+    $SitNonDep = 0
+    $SitDeprecated = 0
+    $SitNonDecomposedIds = [System.Collections.Generic.List[string]]::new()
+    $SitEmptyIds        = [System.Collections.Generic.List[string]]::new()
+    foreach ($Entry in $AllNodes.Values) {
+        if ($Entry.POV -ne 'situations') { continue }
+        $N = $Entry.Node
+
+        # Exemption: [DEPRECATED] description prefix (CL confirmed t/1312#2)
+        $Desc = if ($N.PSObject.Properties['description']) { [string]$N.description } else { '' }
+        if ($Desc.TrimStart().StartsWith('[DEPRECATED]')) {
+            $SitDeprecated++
+            continue
+        }
+        $SitNonDep++
+
+        $Interps = if ($N.PSObject.Properties['interpretations']) { $N.interpretations } else { $null }
+
+        # 'empty': block missing/null, or all three POV entries are falsy/blank
+        $HasAnyPov = $false
+        if ($Interps) {
+            foreach ($Pov in 'accelerationist','safetyist','skeptic') {
+                if ($Interps.PSObject.Properties[$Pov]) {
+                    $Val = $Interps.$Pov
+                    if ($Val) { $HasAnyPov = $true; break }
+                }
+            }
+        }
+        if (-not $HasAnyPov) {
+            $SitEmpty++
+            if ($SitEmptyIds.Count -lt 10) { $SitEmptyIds.Add([string]$N.id) }
+            continue
+        }
+
+        # Full-BDI: each POV entry must be a dict with non-empty belief/desire/intention
+        $AllOk = $true
+        foreach ($Pov in 'accelerationist','safetyist','skeptic') {
+            if (-not $Interps.PSObject.Properties[$Pov]) { $AllOk = $false; break }
+            $P = $Interps.$Pov
+            # Reject strings (legacy flat text) — must be a nested object
+            if ($P -is [string]) { $AllOk = $false; break }
+            if (-not $P -or -not $P.PSObject.Properties['belief'] -or -not $P.PSObject.Properties['desire'] -or -not $P.PSObject.Properties['intention']) {
+                $AllOk = $false; break
+            }
+            $B = if ($P.belief)    { [string]$P.belief    } else { '' }
+            $D = if ($P.desire)    { [string]$P.desire    } else { '' }
+            $I = if ($P.intention) { [string]$P.intention } else { '' }
+            if (-not $B.Trim() -or -not $D.Trim() -or -not $I.Trim()) { $AllOk = $false; break }
+        }
+        if ($AllOk) {
+            $SitPass++
+        } else {
+            $SitNonDecomposed++
+            if ($SitNonDecomposedIds.Count -lt 10) { $SitNonDecomposedIds.Add([string]$N.id) }
+        }
+    }
+
+    $SitFail = $SitNonDecomposed + $SitEmpty
+    if ($SitFail -eq 0) {
+        Add-Check -Category 'BDI' `
+            -Check   'Situation interpretations: per-POV BDI decomposition' `
+            -Status  'pass' `
+            -Detail  "$SitPass / $SitNonDep non-deprecated situations carry full per-POV BDI decomposition ($SitDeprecated exempt via [DEPRECATED] prefix)."
+    } else {
+        $IdSample = @()
+        if ($SitNonDecomposedIds.Count -gt 0) {
+            $more = if ($SitNonDecomposed -gt $SitNonDecomposedIds.Count) { " (+ $($SitNonDecomposed - $SitNonDecomposedIds.Count) more)" } else { '' }
+            $IdSample += "non-decomposed sample: $($SitNonDecomposedIds -join ', ')$more"
+        }
+        if ($SitEmptyIds.Count -gt 0) {
+            $more = if ($SitEmpty -gt $SitEmptyIds.Count) { " (+ $($SitEmpty - $SitEmptyIds.Count) more)" } else { '' }
+            $IdSample += "empty sample: $($SitEmptyIds -join ', ')$more"
+        }
+        Add-Check -Category 'BDI' `
+            -Check   'Situation interpretations: per-POV BDI decomposition' `
+            -Status  'fail' `
+            -Detail  "$SitPass / $SitNonDep non-deprecated situations have full per-POV BDI decomposition (all three POVs carry non-empty belief + desire + intention). $SitFail fail: $SitNonDecomposed non-decomposed, $SitEmpty missing the interpretations block. $($IdSample -join '; ')" `
+            -Fix @(
+                'Run the situation BDI-decomposition backfill to expand non-decomposed / empty interpretations.',
+                "For any NEW situation, call the CL-owned UsageID via Invoke-AIByUsage -UsageId 'enrichment.situation-bdi-decomposition' -Values @{situation_id=...; label=...; description=...; existing_interpretations=...} — reuse the prompt, do not fork it."
+            )
     }
 
     # ══════════════════════════════════════════════════════════════════════════
