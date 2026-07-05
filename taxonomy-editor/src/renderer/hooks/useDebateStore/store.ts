@@ -10,6 +10,8 @@ import { createClarificationSlice } from './slices/clarificationSlice';
 import { createArgumentNetworkSlice } from './slices/argumentNetworkSlice';
 import { createSynthesisSlice } from './slices/synthesisSlice';
 import { createDebateLoopSlice } from './slices/debateLoopSlice';
+import { createDebatePhaseSlice } from './slices/debatePhaseSlice';
+import { createDebateReflectionSlice } from './slices/debateReflectionSlice';
 import { createExplorationSlice } from './slices/explorationSlice';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { api } from '@bridge';
@@ -22,6 +24,8 @@ export const useDebateStore = create<DebateStore>()((...a) => ({
   ...createArgumentNetworkSlice(...a),
   ...createSynthesisSlice(...a),
   ...createDebateLoopSlice(...a),
+  ...createDebatePhaseSlice(...a),
+  ...createDebateReflectionSlice(...a),
   ...createExplorationSlice(...a),
 }));
 
