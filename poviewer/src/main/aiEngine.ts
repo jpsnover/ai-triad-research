@@ -8,10 +8,11 @@ import {
   buildStage1Prompt,
   buildStage2Prompt,
 } from './promptTemplates.js';
-import { loadPromptOverrides, loadAiSettings } from './fileIO.js';
+import { loadPromptOverrides, loadAiSettings, getProjectRoot } from './fileIO.js';
 import type { RawPoint, RawMapping, AnalysisResult, AnalysisStatus } from './analysisTypes.js';
-import { ActionableError, errorMessage } from '../../../lib/debate/errors.js';
+import { ActionableError } from '../../../lib/debate/errors.js';
 import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
+import { callByUsage } from '../../../lib/ai-client/usageRegistry.js';
 
 // Re-export types for convenience
 export type { RawPoint, RawMapping, AnalysisResult };
@@ -31,78 +32,40 @@ function emitProgress(
   }
 }
 
-async function callGemini(
+async function callAI(
+  usageId: string,
   prompt: string,
   model: string,
   apiKey: string,
   signal: AbortSignal,
 ): Promise<string> {
-  const { GoogleGenAI, HarmCategory, HarmBlockThreshold } = await import('@google/genai');
-  const ai = new GoogleGenAI({ apiKey });
+  if (signal.aborted) throw new Error('Analysis cancelled');
 
-  const maxRetries = 3;
-  let lastError: Error | null = null;
+  const result = await callByUsage(
+    usageId,
+    { prompt },
+    {
+      repoRoot: getProjectRoot(),
+      fetch: globalThis.fetch,
+      resolveApiKey: () => apiKey,
+    },
+    { model },
+  );
 
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    if (signal.aborted) throw new Error('Analysis cancelled');
-
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-          temperature: 0.1,
-          safetySettings: [
-            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-          ],
-        },
-      });
-
-      const text = response.text;
-      if (!text) throw new ActionableError({
-            goal: 'Get AI-generated analysis from Gemini',
-            problem: 'Gemini returned an empty response',
-            location: 'aiEngine.ts:callGemini',
-            nextSteps: [
-              'Retry the request — transient API issues can cause empty responses',
-              'Check that the prompt is not too long (may exceed model context window)',
-              'Verify the Gemini model name is valid in AI settings',
-            ],
-          });
-      return text;
-    } catch (err: unknown) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-
-      // Don't retry on cancellation or auth errors
-      if (signal.aborted) throw lastError;
-      if (lastError.message.includes('401') || lastError.message.includes('403')) {
-        throw lastError;
-      }
-
-      // Exponential backoff for rate limiting
-      if (attempt < maxRetries - 1) {
-        const delay = Math.pow(2, attempt) * 1000;
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
+  if (!result.text) {
+    throw new ActionableError({
+      goal: 'Get AI-generated analysis',
+      problem: 'AI returned an empty response',
+      location: 'aiEngine.ts:callAI',
+      nextSteps: [
+        'Retry the request — transient API issues can cause empty responses',
+        'Check that the prompt is not too long (may exceed model context window)',
+        'Verify the model name is valid in AI settings',
+      ],
+    });
   }
 
-  throw new ActionableError({
-    goal: 'Call Gemini API with retry',
-    problem: `All ${maxRetries} retries exhausted: ${lastError ? errorMessage(lastError) : 'unknown error'}`,
-    location: 'aiEngine.ts:callGemini',
-    nextSteps: [
-      'Check your internet connection',
-      'Verify your GEMINI_API_KEY is valid and has not expired',
-      'Check the Google AI Studio dashboard for quota or rate-limit issues',
-      'Try again after a short wait — the API may be temporarily overloaded',
-    ],
-    innerError: lastError ?? undefined,
-  });
+  return result.text;
 }
 
 function parseJsonArray<T>(raw: string): T[] {
@@ -215,7 +178,7 @@ export async function runAnalysis(
     emitProgress(sourceId, 'stage1_running', 10);
 
     const stage1Prompt = buildStage1Prompt(stage1Template, sourceText);
-    const stage1Raw = await callGemini(stage1Prompt, model, apiKey, signal);
+    const stage1Raw = await callAI('po.analysis-segmentation', stage1Prompt, model, apiKey, signal);
 
     if (signal.aborted) throw new Error('Analysis cancelled');
 
@@ -245,7 +208,7 @@ export async function runAnalysis(
       JSON.stringify(pointsSummary, null, 2),
       taxonomyJson,
     );
-    const stage2Raw = await callGemini(stage2Prompt, model, apiKey, signal);
+    const stage2Raw = await callAI('po.analysis-mapping', stage2Prompt, model, apiKey, signal);
 
     if (signal.aborted) throw new Error('Analysis cancelled');
 
@@ -358,7 +321,7 @@ export async function analyzeExcerpt(
     .replace('{{taxonomy}}', taxonomyJson);
 
   const controller = new AbortController();
-  const raw = await callGemini(prompt, model, apiKey, controller.signal);
+  const raw = await callAI('po.excerpt-mapping', prompt, model, apiKey, controller.signal);
   let results = parseJsonArray<ExcerptMapping>(raw);
 
   const validIds = extractNodeIds(taxonomyJson);
