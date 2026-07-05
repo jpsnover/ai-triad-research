@@ -47,9 +47,43 @@ function Get-Prompt {
         $Text = $Text -replace [regex]::Escape("{{$Key}}"), $Replacements[$Key]
     }
 
+    # t/1334 — fragment injection: for any {{name}} placeholder that had no caller
+    # value, check for Prompts/<name>.fragment.prompt and inline its contents.
+    # Single-pass / non-recursive: fragments are NOT re-scanned for nested placeholders.
+    # Caller replacements above have already run, so they take precedence.
+    if (-not (Get-Variable -Name 'PromptFragmentCache' -Scope Script -ErrorAction SilentlyContinue)) {
+        $script:PromptFragmentCache = @{}
+    }
+    $PromptsDir = Join-Path $script:ModuleRoot 'Prompts'
+    $FragmentMatches = [regex]::Matches($Text, '\{\{([A-Za-z0-9_-]+)\}\}')
+    $FragmentReplacements = @{}
+    foreach ($M in $FragmentMatches) {
+        $FragName = $M.Groups[1].Value
+        if ($FragmentReplacements.ContainsKey($FragName)) { continue }
+        # Caller-supplied wins (redundant guard — the replacement above already ran, but
+        # this documents intent explicitly)
+        if ($Replacements.ContainsKey($FragName)) { continue }
+        if (-not $script:PromptFragmentCache.ContainsKey($FragName)) {
+            $FragPath = Join-Path $PromptsDir "$FragName.fragment.prompt"
+            if (Test-Path $FragPath) {
+                $script:PromptFragmentCache[$FragName] = (Get-Content -Path $FragPath -Raw -Encoding UTF8).TrimEnd()
+            } else {
+                # Cache a $null sentinel so we don't stat the disk again for missing fragments
+                $script:PromptFragmentCache[$FragName] = $null
+            }
+        }
+        $FragContent = $script:PromptFragmentCache[$FragName]
+        if ($null -ne $FragContent) {
+            $FragmentReplacements[$FragName] = $FragContent
+        }
+    }
+    foreach ($FragName in $FragmentReplacements.Keys) {
+        $Text = $Text -replace [regex]::Escape("{{$FragName}}"), $FragmentReplacements[$FragName]
+    }
+
     # Warn if any placeholders remain unresolved (unless caller expects to substitute later)
-    if (-not $AllowUnresolved -and $Text -match '\{\{[A-Z_]+\}\}') {
-        $Remaining = [regex]::Matches($Text, '\{\{[A-Z_]+\}\}') | ForEach-Object { $_.Value } | Select-Object -Unique
+    if (-not $AllowUnresolved -and $Text -match '\{\{[A-Za-z0-9_-]+\}\}') {
+        $Remaining = [regex]::Matches($Text, '\{\{[A-Za-z0-9_-]+\}\}') | ForEach-Object { $_.Value } | Select-Object -Unique
         Write-Warning "Unresolved placeholders in prompt '$Name': $($Remaining -join ', '). These will appear as literal text in the AI prompt."
     }
 
