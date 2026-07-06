@@ -10,6 +10,7 @@ import {
   type EmbeddingsFile,
   type EmbeddingNode,
 } from '../../../lib/electron-shared/embeddingIO.js';
+import { resolveEmbeddings } from '../../../lib/embeddings/embeddingResolver.js';
 
 const EMBED_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'embed_taxonomy.py');
 const PYTHON = process.platform === 'win32' ? 'python' : 'python3';
@@ -35,11 +36,7 @@ export function loadEmbeddings(): Record<string, number[]> | null {
   return result;
 }
 
-/**
- * Compute embeddings for arbitrary texts via local Python batch-encode.
- * Used for within-document semantic search (paragraphs not in embeddings.json).
- */
-export function computeEmbeddings(texts: string[]): Promise<number[][]> {
+function batchEncodeViaPython(texts: string[]): Promise<number[][]> {
   const items = texts.map((text, i) => ({ id: String(i), text }));
   const inputJson = JSON.stringify(items);
 
@@ -60,7 +57,7 @@ export function computeEmbeddings(texts: string[]): Promise<number[][]> {
             reject(new Error('Python batch-encode returned incomplete results'));
             return;
           }
-          resolve(vectors);
+          resolve(vectors as number[][]);
         } catch (parseErr) {
           getGlobalRecorder()?.record({
             type: 'system.error',
@@ -76,6 +73,16 @@ export function computeEmbeddings(texts: string[]): Promise<number[][]> {
     child.stdin!.write(inputJson);
     child.stdin!.end();
   });
+}
+
+/**
+ * Compute embeddings for arbitrary texts via local Python batch-encode.
+ * Used for within-document semantic search (paragraphs not in embeddings.json).
+ */
+export function computeEmbeddings(texts: string[]): Promise<number[][]> {
+  return resolveEmbeddings(texts, undefined, null, [
+    { name: 'python-batch', compute: batchEncodeViaPython },
+  ]);
 }
 
 /**

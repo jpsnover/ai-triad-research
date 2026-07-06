@@ -16,6 +16,7 @@ import {
   getExecutionProvider as onnxGetEP,
   dispose as onnxDispose,
 } from '../../../lib/embeddings/onnxEmbedding.js';
+import { resolveEmbeddings, type EmbeddingFallback } from '../../../lib/embeddings/embeddingResolver.js';
 console.log('[embeddings] About to import tavily...');
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../lib/search/tavily.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
@@ -139,44 +140,12 @@ export async function computeEmbeddings(
   ids?: string[],
 ): Promise<number[][]> {
   const localData = io.loadEmbeddingsFile();
-  const results: (number[] | null)[] = new Array(texts.length).fill(null);
-  const missingIndices: number[] = [];
-
-  // Try local lookup by ID
-  if (ids && localData) {
-    for (let i = 0; i < texts.length; i++) {
-      const nodeId = ids[i];
-      if (nodeId && localData.nodes[nodeId]) {
-        results[i] = localData.nodes[nodeId].vector;
-      } else {
-        missingIndices.push(i);
-      }
-    }
-  } else {
-    // No IDs provided — everything is missing
-    for (let i = 0; i < texts.length; i++) {
-      missingIndices.push(i);
-    }
+  const chain: EmbeddingFallback[] = [];
+  if (_onnxReady) {
+    chain.push({ name: 'onnx', compute: (t) => onnxComputeEmbeddings(t) });
   }
-
-  // If there are missing entries, use ONNX → Gemini API fallback
-  if (missingIndices.length > 0) {
-    console.log(`[embeddings] ${missingIndices.length} of ${texts.length} texts need embedding`);
-    const missingTexts = missingIndices.map(i => texts[i]);
-    let apiVectors: number[][];
-    if (_onnxReady) {
-      apiVectors = await onnxComputeEmbeddings(missingTexts);
-    } else {
-      apiVectors = await computeEmbeddingsViaApi(missingTexts);
-    }
-    for (let j = 0; j < missingIndices.length; j++) {
-      results[missingIndices[j]] = apiVectors[j];
-    }
-  } else {
-    console.log(`[embeddings] All ${texts.length} embeddings served from local cache`);
-  }
-
-  return results as number[][];
+  chain.push({ name: 'gemini-api', compute: (t) => computeEmbeddingsViaApi(t) });
+  return resolveEmbeddings(texts, ids, localData, chain);
 }
 
 /**

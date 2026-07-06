@@ -20,6 +20,8 @@ import { getApiKey, getApiKeys, getProjectRoot, EMBED_SCRIPT, resolveDataPath, t
 import * as keyRotator from '../security/keyRotator.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../../lib/search/tavily.js';
+import { resolveEmbeddings, type EmbeddingFallback } from '../../../../lib/embeddings/embeddingResolver.js';
+import type { EmbeddingsFile } from '../../../../lib/electron-shared/embeddingIO.js';
 import {
   resolveBackend,
   callProvider,
@@ -558,13 +560,6 @@ export async function generateTextWithSearchByUsage(
 
 // ── Embeddings ──
 
-interface EmbeddingsFile {
-  model: string;
-  dimension: number;
-  node_count: number;
-  nodes: Record<string, { pov: string; vector: number[]; exclusion_vector?: number[] | null }>;
-}
-
 let embeddingsCache: EmbeddingsFile | null = null;
 
 function getEmbeddingsPath(): string {
@@ -610,79 +605,49 @@ function callGeminiBatchApi(texts: string[], taskType: string, apiKey: string): 
 
 export async function computeEmbeddings(texts: string[], ids?: string[], explicitApiKey?: string): Promise<number[][]> {
   const local = loadEmbeddingsFile();
-  const results: (number[] | null)[] = new Array(texts.length).fill(null);
-  const missing: number[] = [];
+  const chain: EmbeddingFallback[] = [];
 
-  if (ids && local) {
-    for (let i = 0; i < texts.length; i++) {
-      const nid = ids[i];
-      if (nid && local.nodes[nid]) results[i] = local.nodes[nid].vector;
-      else missing.push(i);
-    }
-  } else {
-    for (let i = 0; i < texts.length; i++) missing.push(i);
-  }
-
-  if (missing.length > 0) {
-    const missingTexts = missing.map(i => texts[i]);
-    const missingIds = ids ? missing.map(i => ids[i] ?? `_idx_${i}`) : missing.map((_, j) => `_idx_${j}`);
-    let computed: number[][] | null = null;
-
-    // Try Gemini batch API first
-    const apiKey = explicitApiKey ?? await getApiKey('gemini');
-    if (apiKey) {
-      try {
+  const apiKey = explicitApiKey ?? await getApiKey('gemini');
+  if (apiKey) {
+    chain.push({
+      name: 'gemini-batch',
+      compute: async (t) => {
         const all: number[][] = [];
-        for (let i = 0; i < missingTexts.length; i += BATCH_SIZE) {
-          const batch = missingTexts.slice(i, i + BATCH_SIZE);
-          all.push(...await callGeminiBatchApi(batch, 'RETRIEVAL_DOCUMENT', apiKey));
+        for (let i = 0; i < t.length; i += BATCH_SIZE) {
+          all.push(...await callGeminiBatchApi(t.slice(i, i + BATCH_SIZE), 'RETRIEVAL_DOCUMENT', apiKey));
         }
-        computed = all;
-      } catch (err) {
-        getGlobalRecorder()?.record({
-          type: 'ai.fallback', component: 'embeddings', level: 'warn',
-          message: `Gemini batch embed failed — trying local Python fallback`,
-          data: { count: missingTexts.length, error: String(err) },
-        });
-      }
-    }
-
-    // Fallback: local Python batch-encode
-    if (!computed && await isPythonEmbeddingAvailable()) {
-      try {
-        computed = await computeBatchViaLocalPython(missingTexts, missingIds);
-        getGlobalRecorder()?.record({
-          type: 'ai.fallback', component: 'embeddings', level: 'info',
-          message: `Local Python batch-encode succeeded as fallback`,
-          data: { count: missingTexts.length },
-        });
-      } catch (err) {
-        getGlobalRecorder()?.record({
-          type: 'system.error', component: 'embeddings', level: 'error',
-          message: 'Local Python batch-encode fallback also failed',
-          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-        });
-      }
-    }
-
-    if (!computed) {
-      throw new ActionableError({
-        goal: 'Compute embeddings',
-        problem: apiKey
-          ? 'Gemini embedding API failed and local Python fallback unavailable'
-          : 'No Gemini API key configured and local Python fallback unavailable',
-        location: 'aiBackends.computeEmbeddings',
-        nextSteps: [
-          'Set your Gemini API key in Settings',
-          'Or install Python with sentence-transformers: pip install sentence-transformers',
-        ],
-      });
-    }
-
-    for (let j = 0; j < missing.length; j++) results[missing[j]] = computed[j];
+        return all;
+      },
+    });
   }
 
-  return results as number[][];
+  if (await isPythonEmbeddingAvailable()) {
+    chain.push({
+      name: 'python-batch',
+      compute: (t, missingIds) => {
+        const finalIds = missingIds
+          ? missingIds.map((id, j) => id ?? `_idx_${j}`)
+          : t.map((_, j) => `_idx_${j}`);
+        return computeBatchViaLocalPython(t, finalIds);
+      },
+    });
+  }
+
+  try {
+    return await resolveEmbeddings(texts, ids, local, chain);
+  } catch {
+    throw new ActionableError({
+      goal: 'Compute embeddings',
+      problem: apiKey
+        ? 'Gemini embedding API failed and local Python fallback unavailable'
+        : 'No Gemini API key configured and local Python fallback unavailable',
+      location: 'aiBackends.computeEmbeddings',
+      nextSteps: [
+        'Set your Gemini API key in Settings',
+        'Or install Python with sentence-transformers: pip install sentence-transformers',
+      ],
+    });
+  }
 }
 
 function computeBatchViaLocalPython(texts: string[], ids: string[]): Promise<number[][]> {
