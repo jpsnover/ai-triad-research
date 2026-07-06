@@ -90,7 +90,6 @@ import { resolveRepoRoot, resolveDataRoot, resolveSourcesDir } from './taxonomyL
 import { updateCruxTracker, formatCruxResolutionContext, detectConcessionCascade, transitionCrux } from './cruxResolution.js';
 import { persistDebateCruxes, loadRegistry, findRelevantPriorCruxes, formatPriorCruxContext } from './cruxRegistry.js';
 import { findAndEnrichPromotionCandidates } from './cruxTaxonomyFeedback.js';
-import { buildMediumTierSummary, buildDistantTierSummary } from './tieredCompression.js';
 import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext.js';
 import { formatVocabularyContext } from './vocabularyContext.js';
 import { disambiguateTerms } from './vocabularyDisambiguation.js';
@@ -98,8 +97,6 @@ import type { CampOrigin } from '../dictionary/types.js';
 import type { ContextInjectionManifest } from './taxonomyContext.js';
 import { documentAnalysisPrompt, buildTaxonomySample } from './documentAnalysis.js';
 import type { DocumentAnalysis } from './types.js';
-import { runNeutralEvaluation, buildSpeakerMapping } from './neutralEvaluator.js';
-import type { SpeakerMapping, NeutralEvaluation } from './neutralEvaluator.js';
 import {
   cosineSimilarity,
   scoreNodeRelevance,
@@ -314,7 +311,7 @@ export class DebateEngine {
   /** Activated situation nodes from last context injection — for AN situation grounding (t/243). */
   private _activatedSituations: { id: string; text: string }[] = [];
   /** Speaker mapping for neutral evaluator — built once, reused across checkpoints. */
-  private _neutralMapping: SpeakerMapping | null = null;
+
   /** Whether the midpoint neutral evaluation has already run this debate. */
   private _midpointEvalDone = false;
   // _openingEmbeddings, _openingClaims, _gapInjectionCount → moved to ClaimExtractionPipeline (t/1300 C2)
@@ -770,7 +767,7 @@ export class DebateEngine {
       await this._claimPipeline.cacheOpeningClaims();
 
       // Neutral evaluator: baseline checkpoint (after openings, before cross-respond)
-      await this.runNeutralCheckpoint('baseline');
+      await this._synthesisPipeline.runNeutralCheckpoint('baseline');
 
       // Ensure phase transitions to 'debate' even if openings were partial
       if (this.session.phase === 'opening') {
@@ -787,7 +784,7 @@ export class DebateEngine {
       // Phase 4: Synthesis + final neutral evaluation in parallel
       await Promise.all([
         this._synthesisPipeline.runSynthesis(),
-        this.runNeutralCheckpoint('final'),
+        this._synthesisPipeline.runNeutralCheckpoint('final'),
       ]);
 
       // Phase 4b: Missing arguments pass (needs synthesis output, so runs after)
@@ -960,6 +957,7 @@ export class DebateEngine {
       session: engine.session,
       config: engine.config,
       taxonomy: engine.taxonomy,
+      adapter: engine.adapter,
       generate: (prompt, label, timeoutMs?) => engine.generate(prompt, label, timeoutMs),
       generateWithEvaluator: (prompt, label) => engine.generateWithEvaluator(prompt, label),
       addEntry: (entry) => engine.addEntry(entry),
@@ -995,7 +993,7 @@ export class DebateEngine {
         } else {
           await Promise.all([
             engine._synthesisPipeline.runSynthesis(),
-            engine.runNeutralCheckpoint('final'),
+            engine._synthesisPipeline.runNeutralCheckpoint('final'),
           ]);
         }
         if (isSynthesisStop) return engine.earlyReturn(resumeStart);
@@ -1171,6 +1169,7 @@ export class DebateEngine {
       session: this.session,
       config: this.config,
       taxonomy: this.taxonomy,
+      adapter: this.adapter,
       generate: (prompt, label, timeoutMs?) => this.generate(prompt, label, timeoutMs),
       generateWithEvaluator: (prompt, label) => this.generateWithEvaluator(prompt, label),
       addEntry: (entry) => this.addEntry(entry),
@@ -2709,7 +2708,7 @@ export class DebateEngine {
       }
 
       if (round === midpointRound && !this._midpointEvalDone) {
-        await this.runNeutralCheckpoint('midpoint');
+        await this._synthesisPipeline.runNeutralCheckpoint('midpoint');
         this._midpointEvalDone = true;
       }
 
@@ -2719,7 +2718,7 @@ export class DebateEngine {
       }
 
       if (this.session.transcript.length >= 12) {
-        await this.compressContext();
+        await this._synthesisPipeline.compressContext();
       }
 
       this.emitSnapshot('round_complete');
@@ -2938,7 +2937,7 @@ export class DebateEngine {
       }
 
       if (round === midpointRound && !this._midpointEvalDone) {
-        await this.runNeutralCheckpoint('midpoint');
+        await this._synthesisPipeline.runNeutralCheckpoint('midpoint');
         this._midpointEvalDone = true;
       }
 
@@ -2948,7 +2947,7 @@ export class DebateEngine {
       }
 
       if (this.session.transcript.length >= 12) {
-        await this.compressContext();
+        await this._synthesisPipeline.compressContext();
       }
 
       this.emitSnapshot('round_complete');
@@ -3987,181 +3986,6 @@ export class DebateEngine {
         taxonomy_refs: [],
         metadata: { questions, round },
       });
-    }
-  }
-
-  // ── Neutral evaluator ────────────────────────────────────
-
-  /**
-   * Run a persona-free neutral evaluation at the specified checkpoint.
-   * Results are stored on the session — they never feed back into the debate.
-   */
-  private async runNeutralCheckpoint(checkpoint: 'baseline' | 'midpoint' | 'final'): Promise<NeutralEvaluation | null> {
-    try {
-      this.progress('evaluation', undefined, `Neutral evaluation: ${checkpoint}`);
-
-      // Build speaker mapping once and reuse for consistency
-      if (!this._neutralMapping) {
-        this._neutralMapping = buildSpeakerMapping(
-          this.config.activePovers as Exclude<SpeakerId, 'user'>[],
-        );
-        this.session.neutral_speaker_mapping = this._neutralMapping;
-      }
-
-      const evaluation = await runNeutralEvaluation(checkpoint, {
-        adapter: this.adapter,
-        topic: this.session.topic.final || this.session.topic.original,
-        transcript: this.session.transcript,
-        contextSummaries: this.session.context_summaries,
-        activePovers: this.config.activePovers,
-        model: this.config.model,
-        speakerMapping: this._neutralMapping,
-      });
-
-      // Store on session
-      if (!this.session.neutral_evaluations) {
-        this.session.neutral_evaluations = [];
-      }
-      this.session.neutral_evaluations.push(evaluation);
-
-      // Add a transcript entry so diagnostics are visible per-entry
-      const cruxCount = evaluation.cruxes?.length ?? 0;
-      const claimCount = evaluation.claims?.length ?? 0;
-      const rawNotes = evaluation.overall_assessment?.notes ?? '';
-      // De-anonymize Speaker A/B/C → display names so the transcript is readable
-      let notes = rawNotes;
-      if (this._neutralMapping) {
-        for (const [label, povId] of Object.entries(this._neutralMapping.reverse)) {
-          const displayName = POVER_INFO[povId as Exclude<SpeakerId, 'user'>]?.label ?? povId;
-          notes = notes.replaceAll(label, displayName);
-        }
-      }
-      const evalEntry = this.addEntry({
-        type: 'system',
-        speaker: 'system',
-        content: `[Neutral evaluation: ${checkpoint}] ${cruxCount} cruxes, ${claimCount} claims evaluated. ${notes}`,
-        taxonomy_refs: [],
-        metadata: { neutral_checkpoint: checkpoint },
-      });
-      this.recordDiagnostic(evalEntry.id, {
-        prompt: evaluation.diagnostics_prompt,
-        raw_response: evaluation.diagnostics_raw_response,
-        model: this.config.model,
-        response_time_ms: evaluation.diagnostics_response_time_ms,
-      });
-
-      return evaluation;
-    } catch (err) {
-      getGlobalRecorder()?.record({ type: 'ai.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: `Neutral evaluation (${checkpoint}) failed`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      this.warn('Neutral evaluation', `Neutral evaluation (${checkpoint}) failed: ${errorMsg}`, 'Debate continues without neutral assessment');
-      return null;
-    }
-  }
-
-  // ── Context compression ────────────────────────────────────
-
-  private async compressContext(): Promise<void> {
-    const keepRecent = 8;
-    const keepMedium = 8;
-    const filteredEntries = this.session.transcript.filter(e => e.type !== 'system');
-    if (filteredEntries.length < 12) return;
-
-    // Find entries not yet compressed
-    const lastSummaryIdx = this.session.context_summaries.length > 0
-      ? this.session.transcript.findIndex(e => e.id === this.session.context_summaries[this.session.context_summaries.length - 1].up_to_entry_id)
-      : -1;
-
-    const compressibleStart = lastSummaryIdx + 1;
-    const compressibleEnd = this.session.transcript.length - keepRecent;
-    if (compressibleEnd <= compressibleStart + 3) return;
-
-    const toCompress = this.session.transcript.slice(compressibleStart, compressibleEnd);
-    if (toCompress.length < 4) return;
-
-    this.progress('compression', undefined, 'Compressing debate history');
-
-    const an = this.session.argument_network;
-
-    // Tiered compression: split into medium (structural) and distant (LLM summary)
-    const mediumEntries = toCompress.slice(-keepMedium);
-    const distantEntries = toCompress.slice(0, -keepMedium);
-
-    // Medium tier: deterministic structural summary from argument network
-    if (mediumEntries.length > 0 && an) {
-      const mediumSummary = buildMediumTierSummary(
-        mediumEntries, an.nodes, an.edges, this.session.commitments ?? {},
-      );
-      this.session.context_summaries.push({
-        up_to_entry_id: mediumEntries[mediumEntries.length - 1].id,
-        summary: mediumSummary,
-        tier: 'medium',
-      });
-    }
-
-    // Distant tier: purely structural summary (no LLM call)
-    // Avoids ambiguity collapse risk (Gur-Arieh et al., 2026) — LLM summarization
-    // can flatten deliberative nuance, collapse hedged positions into confident ones,
-    // and smuggle normative judgments into what appears neutral.
-    if (distantEntries.length >= 4 && an) {
-      const distantSummary = buildDistantTierSummary(
-        an.nodes, an.edges, this.session.commitments ?? {}, this.session.crux_tracker,
-        this.session.unanswered_claims_ledger, distantEntries,
-      );
-
-      this.session.context_summaries.push({
-        up_to_entry_id: distantEntries[distantEntries.length - 1].id,
-        summary: distantSummary,
-        tier: 'distant',
-      });
-
-      // Context-rot metrics (structural compression)
-      const inChars = distantEntries.reduce((s, e) => s + (typeof e.content === 'string' ? e.content.length : 0), 0);
-      const outChars = distantSummary.length;
-      if (this.session.context_rot) {
-        this.session.context_rot.stages.push({
-          stage: 'transcript_compression',
-          in_units: 'chars', in_count: inChars,
-          out_units: 'chars', out_count: outChars,
-          ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
-          flags: {
-            entries_compressed: distantEntries.length,
-            compression_ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
-            window_size: keepRecent,
-            tier: 'distant',
-            method: 'structural',
-          },
-        });
-      }
-    } else if (toCompress.length >= 4 && an) {
-      // Not enough entries for two tiers — use structural summary for all
-      const summary = buildDistantTierSummary(
-        an.nodes, an.edges, this.session.commitments ?? {}, this.session.crux_tracker,
-        this.session.unanswered_claims_ledger, toCompress,
-      );
-
-      this.session.context_summaries.push({
-        up_to_entry_id: toCompress[toCompress.length - 1].id,
-        summary,
-        tier: 'distant',
-      });
-
-      const inChars = toCompress.reduce((s, e) => s + (typeof e.content === 'string' ? e.content.length : 0), 0);
-      const outChars = summary.length;
-      if (this.session.context_rot) {
-        this.session.context_rot.stages.push({
-          stage: 'transcript_compression',
-          in_units: 'chars', in_count: inChars,
-          out_units: 'chars', out_count: outChars,
-          ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
-          flags: {
-            entries_compressed: toCompress.length,
-            compression_ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
-            window_size: keepRecent,
-            method: 'structural',
-          },
-        });
-      }
     }
   }
 

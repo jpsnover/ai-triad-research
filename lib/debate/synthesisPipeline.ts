@@ -8,24 +8,31 @@
 // runTaxonomyRefinementPass   → taxonomy_suggestions  (post-debate entries merged with turn-validator hints)
 // runDialecticTracePass       → dialectic_traces
 // runExtractionCoverage       → diagnostics.entries[*].extraction_coverage  (via computeExtractionCoverage)
+// runNeutralCheckpoint        → neutral_evaluations[], neutral_speaker_mapping, transcript[system]
+// compressContext             → context_summaries[], context_rot.stages[]
 // ────────────────────────────────────────────────────────────
 
+import type { AIAdapter } from './aiAdapter.js';
 import type { DebateConfig } from './debateEngine.js';
 import type { DebateSession, TranscriptEntry, SpeakerId } from './types.js';
 import type { LoadedTaxonomy } from './taxonomyLoader.js';
 import type { EntryDiagnostics } from './types.js';
+import type { SpeakerMapping, NeutralEvaluation } from './neutralEvaluator.js';
 import { POVER_INFO, POV_KEYS } from './types.js';
 import { formatRecentTranscript, parseJsonRobust } from './helpers.js';
 import { runSynthesisPhases } from './synthesisPhases.js';
 import { missingArgumentsPrompt, taxonomyRefinementPrompt } from './prompts.js';
 import { generateDialecticTraces } from './dialecticTrace.js';
 import { computeExtractionCoverage } from './calibrationLogger.js';
+import { runNeutralEvaluation, buildSpeakerMapping } from './neutralEvaluator.js';
+import { buildMediumTierSummary, buildDistantTierSummary } from './tieredCompression.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 export interface SynthesisContext {
   session: DebateSession;
   config: DebateConfig;
   taxonomy: LoadedTaxonomy;
+  adapter: AIAdapter;
   generate: (prompt: string, label: string, timeoutMs?: number) => Promise<string>;
   generateWithEvaluator: (prompt: string, label: string) => Promise<string>;
   addEntry: (entry: Omit<TranscriptEntry, 'id' | 'timestamp'>) => TranscriptEntry;
@@ -37,6 +44,7 @@ export interface SynthesisContext {
 
 export class SynthesisPipeline {
   private ctx: SynthesisContext;
+  private _neutralMapping: SpeakerMapping | null = null;
 
   constructor(ctx: SynthesisContext) {
     this.ctx = ctx;
@@ -341,6 +349,160 @@ export class SynthesisPipeline {
       }
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.ctx.session?.id, message: 'Coverage computation failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    }
+  }
+
+  async runNeutralCheckpoint(checkpoint: 'baseline' | 'midpoint' | 'final'): Promise<NeutralEvaluation | null> {
+    try {
+      this.ctx.progress('evaluation', undefined, `Neutral evaluation: ${checkpoint}`);
+
+      if (!this._neutralMapping) {
+        this._neutralMapping = buildSpeakerMapping(
+          this.ctx.config.activePovers as Exclude<SpeakerId, 'user'>[],
+        );
+        this.ctx.session.neutral_speaker_mapping = this._neutralMapping;
+      }
+
+      const evaluation = await runNeutralEvaluation(checkpoint, {
+        adapter: this.ctx.adapter,
+        topic: this.ctx.session.topic.final || this.ctx.session.topic.original,
+        transcript: this.ctx.session.transcript,
+        contextSummaries: this.ctx.session.context_summaries,
+        activePovers: this.ctx.config.activePovers,
+        model: this.ctx.config.model,
+        speakerMapping: this._neutralMapping,
+      });
+
+      if (!this.ctx.session.neutral_evaluations) {
+        this.ctx.session.neutral_evaluations = [];
+      }
+      this.ctx.session.neutral_evaluations.push(evaluation);
+
+      const cruxCount = evaluation.cruxes?.length ?? 0;
+      const claimCount = evaluation.claims?.length ?? 0;
+      const rawNotes = evaluation.overall_assessment?.notes ?? '';
+      let notes = rawNotes;
+      if (this._neutralMapping) {
+        for (const [label, povId] of Object.entries(this._neutralMapping.reverse)) {
+          const displayName = POVER_INFO[povId as Exclude<SpeakerId, 'user'>]?.label ?? povId;
+          notes = notes.replaceAll(label, displayName);
+        }
+      }
+      const evalEntry = this.ctx.addEntry({
+        type: 'system',
+        speaker: 'system',
+        content: `[Neutral evaluation: ${checkpoint}] ${cruxCount} cruxes, ${claimCount} claims evaluated. ${notes}`,
+        taxonomy_refs: [],
+        metadata: { neutral_checkpoint: checkpoint },
+      });
+      this.ctx.recordDiagnostic(evalEntry.id, {
+        prompt: evaluation.diagnostics_prompt,
+        raw_response: evaluation.diagnostics_raw_response,
+        model: this.ctx.config.model,
+        response_time_ms: evaluation.diagnostics_response_time_ms,
+      });
+
+      return evaluation;
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'ai.error', component: 'debate-engine', level: 'warn', debate_id: this.ctx.session?.id, message: `Neutral evaluation (${checkpoint}) failed`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      this.ctx.warn('Neutral evaluation', `Neutral evaluation (${checkpoint}) failed: ${errorMsg}`, 'Debate continues without neutral assessment');
+      return null;
+    }
+  }
+
+  async compressContext(): Promise<void> {
+    const keepRecent = 8;
+    const keepMedium = 8;
+    const filteredEntries = this.ctx.session.transcript.filter(e => e.type !== 'system');
+    if (filteredEntries.length < 12) return;
+
+    const lastSummaryIdx = this.ctx.session.context_summaries.length > 0
+      ? this.ctx.session.transcript.findIndex(e => e.id === this.ctx.session.context_summaries[this.ctx.session.context_summaries.length - 1].up_to_entry_id)
+      : -1;
+
+    const compressibleStart = lastSummaryIdx + 1;
+    const compressibleEnd = this.ctx.session.transcript.length - keepRecent;
+    if (compressibleEnd <= compressibleStart + 3) return;
+
+    const toCompress = this.ctx.session.transcript.slice(compressibleStart, compressibleEnd);
+    if (toCompress.length < 4) return;
+
+    this.ctx.progress('compression', undefined, 'Compressing debate history');
+
+    const an = this.ctx.session.argument_network;
+
+    const mediumEntries = toCompress.slice(-keepMedium);
+    const distantEntries = toCompress.slice(0, -keepMedium);
+
+    if (mediumEntries.length > 0 && an) {
+      const mediumSummary = buildMediumTierSummary(
+        mediumEntries, an.nodes, an.edges, this.ctx.session.commitments ?? {},
+      );
+      this.ctx.session.context_summaries.push({
+        up_to_entry_id: mediumEntries[mediumEntries.length - 1].id,
+        summary: mediumSummary,
+        tier: 'medium',
+      });
+    }
+
+    if (distantEntries.length >= 4 && an) {
+      const distantSummary = buildDistantTierSummary(
+        an.nodes, an.edges, this.ctx.session.commitments ?? {}, this.ctx.session.crux_tracker,
+        this.ctx.session.unanswered_claims_ledger, distantEntries,
+      );
+
+      this.ctx.session.context_summaries.push({
+        up_to_entry_id: distantEntries[distantEntries.length - 1].id,
+        summary: distantSummary,
+        tier: 'distant',
+      });
+
+      const inChars = distantEntries.reduce((s, e) => s + (typeof e.content === 'string' ? e.content.length : 0), 0);
+      const outChars = distantSummary.length;
+      if (this.ctx.session.context_rot) {
+        this.ctx.session.context_rot.stages.push({
+          stage: 'transcript_compression',
+          in_units: 'chars', in_count: inChars,
+          out_units: 'chars', out_count: outChars,
+          ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
+          flags: {
+            entries_compressed: distantEntries.length,
+            compression_ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
+            window_size: keepRecent,
+            tier: 'distant',
+            method: 'structural',
+          },
+        });
+      }
+    } else if (toCompress.length >= 4 && an) {
+      const summary = buildDistantTierSummary(
+        an.nodes, an.edges, this.ctx.session.commitments ?? {}, this.ctx.session.crux_tracker,
+        this.ctx.session.unanswered_claims_ledger, toCompress,
+      );
+
+      this.ctx.session.context_summaries.push({
+        up_to_entry_id: toCompress[toCompress.length - 1].id,
+        summary,
+        tier: 'distant',
+      });
+
+      const inChars = toCompress.reduce((s, e) => s + (typeof e.content === 'string' ? e.content.length : 0), 0);
+      const outChars = summary.length;
+      if (this.ctx.session.context_rot) {
+        this.ctx.session.context_rot.stages.push({
+          stage: 'transcript_compression',
+          in_units: 'chars', in_count: inChars,
+          out_units: 'chars', out_count: outChars,
+          ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
+          flags: {
+            entries_compressed: toCompress.length,
+            compression_ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
+            window_size: keepRecent,
+            method: 'structural',
+          },
+        });
+      }
     }
   }
 }
