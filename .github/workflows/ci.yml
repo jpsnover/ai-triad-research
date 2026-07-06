@@ -4,6 +4,15 @@
 # Before: Triggers automatically on push/PR to main. No manual setup needed.
 # After:  All checks must pass before merging. The test-container job depends on
 #         test-powershell and test-electron completing successfully.
+#
+# ── continue-on-error flip taxonomy ──
+# FLIP 2026-07-17 (remove continue-on-error to enforce):
+#   quality-gates (t/1292)
+#   doc-accuracy  (t/1324)
+# NEVER-FLIP (annotation-only by design — continue-on-error stays permanently):
+#   debate-eval        — nondeterministic AI scores, signal not gate (t/1329)
+#   commit-hygiene     — visibility not friction, never fails CI (t/1319)
+#   schema-validation  — report-only until B-404 deliberately flips it
 
 name: CI
 
@@ -193,7 +202,7 @@ jobs:
         run: bash scripts/check-quality-gates.sh
 
   # ── Commit hygiene: flags anonymous / undersized commit subjects (t/1319) ──
-  # Warning-only until 2026-07-17. To enforce: remove continue-on-error.
+  # Annotation-only by design — never flips (t/1319). Visibility, not friction.
   commit-hygiene:
     runs-on: ubuntu-latest
     steps:
