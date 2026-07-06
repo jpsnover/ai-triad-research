@@ -128,6 +128,35 @@ The deploy workflow handles this automatically when health checks or acceptance 
 
 **2026-07-04 — Owner decision: NO production deploy until explicitly authorized.** Current prod is stable on ca8e7428 (July 1 code) against the migrated data. The cc→sit migration (t/1308) landed in the data repo but the code repo has accumulated significant changes (quality gates, doc-accuracy gates, dependency patches, cc→sit code-side tightening). Risk assessment deferred a deploy despite green CI. Do not dispatch `deploy-azure.yml` until the owner explicitly lifts this hold.
 
+## Alerts & Monitoring
+
+### Azure Monitor Alerts (Bicep-managed)
+
+All alerts route to the `ag-aitriad-restart-alert` action group, which emails `ALERT_EMAIL` (GitHub Actions variable). **If `ALERT_EMAIL` is not set, all alerts evaluate but notify nobody** — this was the root cause of the 2026-07-05 outage going undetected.
+
+| Alert | Severity | Trigger | Window |
+|-------|----------|---------|--------|
+| `alert-image-pull-failure` | 0 (Critical) | Any `ImagePullBackOff` event | 5min eval / 10min |
+| `alert-restart-loop` | 1 (Error) | 5+ `ContainerBackOff`/`StoppingContainer`/`ImagePullBackOff` in window | 5min / 10min |
+| `alert-github-rate-limit-warning` | 2 (Warning) | Rate limit remaining < 1,000 | 5min / 5min |
+| `alert-github-rate-limit-critical` | 1 (Error) | 429 or degraded rate limit | 1min / 5min |
+| `alert-github-api-error-spike` | 1 (Error) | 5+ GitHub API errors | 5min / 5min |
+| `alert-cache-degraded` | 2 (Warning) | 50+ cache misses | 5min / 5min |
+| `alert-fallback-active` | 1 (Error) | App serving from fallback data | 5min / 5min |
+| `alert-branch-divergence` | 3 (Info) | Session branch 10+ commits behind | 15min / 15min |
+
+### External Availability Probe (GitHub Actions)
+
+`health-monitor.yml` runs every 15 minutes, checking `/health`, `/healthz`, and `/api/data/available`. 3/3 consecutive failures create a GitHub issue with label `health-alert`. Recovery auto-closes the issue. This catches connection timeouts (the 2026-07-05 outage signature — curl returns "000" on timeout).
+
+**Owner action:** watch the repository for issues with the `health-alert` label to receive email notifications.
+
+### Response Steps
+
+1. **ImagePullBackOff alert:** Check GHCR package visibility (`ghcr.io/jpsnover/taxonomy-editor` must be public). Verify `registries` is empty on the container app (`az containerapp show --name taxonomy-editor -g ai-triad --query 'properties.configuration.registries'`). If a credential was re-added, remove it and create a new revision.
+2. **Restart loop alert:** Check container logs (`az containerapp logs show --name taxonomy-editor -g ai-triad --type console`). May indicate app crash, OOM, or bad deploy. Rollback to previous revision if needed.
+3. **Health check issue:** Run `Invoke-TaxEditorSmokeTest -Detailed` for full diagnosis. Check Azure status page for platform outages.
+
 ## Registry Auth (GHCR)
 
 **`ghcr.io/jpsnover/taxonomy-editor` must remain a public package.** Anonymous pulls are the production auth mode — no registry credentials are configured on the container apps. A visibility flip on the GHCR package = outage.

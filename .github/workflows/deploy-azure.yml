@@ -187,6 +187,7 @@ jobs:
               githubWebhookSecret=${{ secrets.SYNC_GITHUB_WEBHOOK_SECRET }} \
               freeTierGeminiKey=${{ secrets.FREE_TIER_GEMINI_KEY }} \
               geminiPaidKey=${{ secrets.GEMINI_PAID_KEY }} \
+              budgetAlertEmail=${{ vars.ALERT_EMAIL }} \
             --no-pretty-print 2>&1) || true
           echo "$RESULT"
 
@@ -229,6 +230,7 @@ jobs:
             githubWebhookSecret=${{ secrets.SYNC_GITHUB_WEBHOOK_SECRET }}
             freeTierGeminiKey=${{ secrets.FREE_TIER_GEMINI_KEY }}
             geminiPaidKey=${{ secrets.GEMINI_PAID_KEY }}
+            budgetAlertEmail=${{ vars.ALERT_EMAIL }}
 
       - name: Get current active revision
         id: current_revision

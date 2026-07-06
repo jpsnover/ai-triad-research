@@ -746,9 +746,47 @@ resource restartLoopAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-pre
         {
           query: '''
             ContainerAppSystemLogs_CL
-            | where Reason_s in ("ContainerBackOff", "StoppingContainer")
+            | where Reason_s in ("ContainerBackOff", "StoppingContainer", "ImagePullBackOff")
             | summarize RestartCount = count() by RevisionName_s
             | where RestartCount > 5
+          '''
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+        }
+      ]
+    }
+    actions: {
+      actionGroups: budgetAlertConfigured ? [ restartAlertActionGroup.id ] : []
+    }
+  }
+}
+
+// ── Image Pull Failure Alert ──
+// Fires on any ImagePullBackOff event — severity 0 (critical) because this is
+// a hard-down scenario (no app container starts). Added after the 2026-07-05
+// outage where an expired GHCR PAT caused ImagePullBackOff on replica recycle.
+
+resource imagePullFailureAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+  name: 'alert-image-pull-failure'
+  location: location
+  tags: tags
+  properties: {
+    displayName: 'Image Pull Failure (Critical)'
+    description: 'ImagePullBackOff detected — container image cannot be pulled. App is hard-down. Check GHCR package visibility and registry config.'
+    severity: 0
+    enabled: true
+    scopes: [ logAnalytics.id ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT10M'
+    criteria: {
+      allOf: [
+        {
+          query: '''
+            ContainerAppSystemLogs_CL
+            | where Reason_s == "ImagePullBackOff"
+            | summarize Count = count() by RevisionName_s
+            | where Count > 0
           '''
           timeAggregation: 'Count'
           operator: 'GreaterThan'
