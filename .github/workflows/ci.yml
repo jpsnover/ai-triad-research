@@ -207,6 +207,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+        continue-on-error: true
         with:
           fetch-depth: 0
 
@@ -268,8 +269,10 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.FREE_TIER_GEMINI_KEY }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+        continue-on-error: true
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
+        continue-on-error: true
         with:
           node-version: '22'
 
@@ -302,6 +305,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+        continue-on-error: true
 
       - name: Checkout data repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
@@ -316,10 +320,13 @@ jobs:
         continue-on-error: true
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
+        continue-on-error: true
         with:
           node-version: '22'
 
       - name: Install dependencies (ajv)
+        # Never-flip job — every step must carry continue-on-error (t/1329 lesson).
+        continue-on-error: true
         run: npm ci --ignore-scripts
 
       - name: Validate schemas
