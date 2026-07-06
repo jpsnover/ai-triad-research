@@ -344,6 +344,14 @@ export interface CalibrationDataPoint {
   /** Per-speaker peer referencing rates. */
   peer_referencing_per_speaker: Record<string, number> | null;
 
+  // ── Local sufficiency (Wachsmuth: Local Sufficiency, t/1341) ──
+  /** Mean per-claim sufficiency score over eligible claims [0,1]. Excludes final-round claims (maturity window). */
+  local_sufficiency_mean: number | null;
+  /** Fraction of eligible claims with zero incoming 'supports' edges (bare assertion rate). */
+  unsupported_claim_rate: number | null;
+  /** Per-speaker mean sufficiency score. */
+  local_sufficiency_by_speaker: Record<string, number> | null;
+
   // ── Exploration seeding (t/990) ──
   /** Debate ID of the exploration run that seeded this debate. */
   exploration_source_id?: string;
@@ -998,6 +1006,77 @@ export function extractCalibrationData(
     ? peerRefValues.reduce((a, b) => a + b, 0) / peerRefValues.length
     : null;
 
+  // ── Local sufficiency (Wachsmuth: Local Sufficiency, t/1341) ──
+  let localSufficiencyMean: number | null = null;
+  let unsupportedClaimRate: number | null = null;
+  let localSufficiencyBySpeaker: Record<string, number> | null = null;
+  if (an && an.nodes.length > 0) {
+    const entryRoundMap = new Map<string, number>();
+    let maxRound = 0;
+    for (const entry of session.transcript ?? []) {
+      const round = (entry.metadata as Record<string, unknown>)?.round as number ?? 0;
+      if (entry.id) entryRoundMap.set(entry.id, round);
+      if (round > maxRound) maxRound = round;
+    }
+
+    const strengthMult = (s?: 'decisive' | 'substantial' | 'tangential'): number => {
+      if (s === 'decisive') return 1.0;
+      if (s === 'substantial') return 0.7;
+      if (s === 'tangential') return 0.3;
+      return 0.7; // absent default
+    };
+
+    const eligibleClaims = an.nodes.filter(n => {
+      if (n.speaker === 'system' || n.speaker === 'document') return false;
+      if (maxRound > 1) {
+        const round = entryRoundMap.get(n.source_entry_id) ?? 0;
+        if (round >= maxRound) return false;
+      }
+      return true;
+    });
+
+    if (eligibleClaims.length > 0) {
+      const incomingSupports = new Map<string, typeof anEdges>();
+      for (const edge of anEdges) {
+        if (edge.type !== 'supports') continue;
+        const existing = incomingSupports.get(edge.target) ?? [];
+        existing.push(edge);
+        incomingSupports.set(edge.target, existing);
+      }
+
+      const perSpeakerScores: Record<string, number[]> = {};
+      let unsupportedCount = 0;
+      const scores: number[] = [];
+
+      for (const claim of eligibleClaims) {
+        const supports = incomingSupports.get(claim.id) ?? [];
+        if (supports.length === 0) {
+          unsupportedCount++;
+          scores.push(0);
+          (perSpeakerScores[claim.speaker] ??= []).push(0);
+          continue;
+        }
+        const weightedSupport = supports.reduce((sum, e) => {
+          const w = e.weight ?? 0.5;
+          const sm = strengthMult(e.strength);
+          const warrantBonus = e.warrant?.trim() ? 1.25 : 1.0;
+          return sum + w * sm * warrantBonus;
+        }, 0);
+        const s = Math.min(1, weightedSupport / 1.0);
+        scores.push(s);
+        (perSpeakerScores[claim.speaker] ??= []).push(s);
+      }
+
+      localSufficiencyMean = scores.reduce((a, b) => a + b, 0) / scores.length;
+      unsupportedClaimRate = unsupportedCount / eligibleClaims.length;
+      const bySpeaker: Record<string, number> = {};
+      for (const [speaker, vals] of Object.entries(perSpeakerScores)) {
+        bySpeaker[speaker] = vals.reduce((a, b) => a + b, 0) / vals.length;
+      }
+      if (Object.keys(bySpeaker).length > 0) localSufficiencyBySpeaker = bySpeaker;
+    }
+  }
+
   return {
     schema_version: 1,
     debate_id: session.id,
@@ -1404,6 +1483,13 @@ export function extractCalibrationData(
     peer_referencing_rate: peerReferencingRate != null ? Math.round(peerReferencingRate * 1000) / 1000 : null,
     peer_referencing_per_speaker: anNodes.length > 0 && peerRefValues.length > 0
       ? Object.fromEntries(Object.entries(peerRefPerSpeaker).map(([k, v]) => [k, Math.round(v * 1000) / 1000]))
+      : null,
+
+    // ── Local sufficiency (Wachsmuth: Local Sufficiency, t/1341) ──
+    local_sufficiency_mean: localSufficiencyMean != null ? Math.round(localSufficiencyMean * 1000) / 1000 : null,
+    unsupported_claim_rate: unsupportedClaimRate != null ? Math.round(unsupportedClaimRate * 1000) / 1000 : null,
+    local_sufficiency_by_speaker: localSufficiencyBySpeaker
+      ? Object.fromEntries(Object.entries(localSufficiencyBySpeaker).map(([k, v]) => [k, Math.round(v * 1000) / 1000]))
       : null,
 
     // ── Exploration seeding ──
