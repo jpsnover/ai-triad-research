@@ -39,6 +39,7 @@ export interface ElectronAPI {
   computeEmbeddings: (texts: string[]) => Promise<number[][]>;
   computeQueryEmbedding: (text: string) => Promise<number[]>;
   generateContent: (systemPrompt: string, userPrompt: string, model?: string) => Promise<string>;
+  loadPrompt: (promptName: string) => Promise<string>;
   openInTaxonomyEditor: (nodeId: string) => Promise<{ ok: boolean; error?: string }>;
   onMenuSettings: (callback: () => void) => () => void;
 

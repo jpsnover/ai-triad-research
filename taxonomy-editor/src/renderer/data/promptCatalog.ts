@@ -5,6 +5,11 @@
  * Catalog of all AI prompts used in the system.
  * Each entry provides a title, description, source location, and either
  * a static template or a generate function for node-specific prompts.
+ *
+ * REGISTRY: This file is the third propagation point for prompt changes.
+ * When adding or renaming .prompt files in scripts/AITriad/Prompts/,
+ * update the corresponding promptFiles arrays here to keep the catalog
+ * in sync. See also: POV Summary Propagation Map in root AGENTS.md.
  */
 
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';

@@ -37,6 +37,7 @@ import {
   twoStringsAndOptional,
   unknownArray,
 } from '../../../lib/electron-shared/utils/validatedIpc';
+import { loadPromptWithFragments } from '../../../lib/electron-shared/promptLoader';
 
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 
@@ -173,5 +174,13 @@ export function registerIpcHandlers(): void {
 
   validatedHandle('persist-edges', unknownArray, (_event, edges) => {
     return persistEdges(edges as Parameters<typeof persistEdges>[0]);
+  });
+
+  // === Prompt loading ===
+
+  const promptsDir = path.join(PROJECT_ROOT, 'scripts', 'AITriad', 'Prompts');
+
+  validatedHandle('load-prompt', oneString, (_event, promptName) => {
+    return loadPromptWithFragments(promptsDir, promptName);
   });
 }

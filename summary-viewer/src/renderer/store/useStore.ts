@@ -7,9 +7,7 @@ import { rankBySimilarity } from '../utils/similarity';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import type { SemanticResult } from '../utils/similarity';
 import { buildPotentialEdgesSystemPrompt, buildPotentialEdgesUserPrompt } from '../prompts/potentialEdges';
-import { buildHierarchyPlacementSystemPrompt, buildHierarchyPlacementUserPrompt } from '../prompts/hierarchyPlacement';
-import { buildAttributeExtractionSystemPrompt, buildAttributeExtractionUserPrompt } from '../prompts/attributeExtraction';
-import { buildEdgeDiscoverySystemPrompt, buildEdgeDiscoveryUserPrompt } from '../prompts/edgeDiscovery';
+import { buildHierarchyPlacementUserPrompt, buildAttributeExtractionUserPrompt, buildEdgeDiscoveryUserPrompt } from '../prompts/userPromptBuilders';
 import type { AIBackend, AIModel } from './aiModels';
 import { getStoredBackend, getStoredModel, storeBackend, storeModel, DEFAULT_MODELS } from './aiModels';
 import { nodePovFromId } from '@lib/debate';
@@ -426,7 +424,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
         updateStep(1, 'skipped');
       } else {
         const newNode = siblingNodes.find(n => n.id === nodeId);
-        const systemPrompt = buildHierarchyPlacementSystemPrompt();
+        const systemPrompt = await window.electronAPI.loadPrompt('hierarchy-placement-single');
         const userPrompt = buildHierarchyPlacementUserPrompt(
           { id: nodeId, label: label || '', description: description || '', category },
           otherNodes.map(n => ({
@@ -471,7 +469,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
     // ── Step 2: Attribute extraction ─────────────────────────────────────
     updateStep(2, 'running');
     try {
-      const systemPrompt = buildAttributeExtractionSystemPrompt();
+      const systemPrompt = await window.electronAPI.loadPrompt('attribute-extraction-single');
       const userPrompt = buildAttributeExtractionUserPrompt({
         id: nodeId,
         label: label || '',
@@ -574,7 +572,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
         graph_attributes: sourceNodeFull?.graph_attributes as Record<string, unknown> | undefined,
       };
 
-      const systemPrompt = buildEdgeDiscoverySystemPrompt();
+      const systemPrompt = await window.electronAPI.loadPrompt('edge-discovery-single');
       const userPrompt = buildEdgeDiscoveryUserPrompt(sourceNode, candidates);
 
       const raw = await window.electronAPI.generateContent(systemPrompt, userPrompt, model);

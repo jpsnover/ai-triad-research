@@ -1,0 +1,41 @@
+EDGE TYPE VOCABULARY:
+
+  SUPPORTS (directional: source -> target)
+    The source directly strengthens or provides evidence for the target.
+
+  CONTRADICTS (bidirectional)
+    Incompatible claims. If one is true, the other is weakened or false.
+    Must involve genuine logical tension, not mere disagreement in emphasis.
+
+  ASSUMES (directional: source -> target)
+    The source depends on the target being true.
+
+  WEAKENS (directional: source -> target)
+    Partial challenge -- undermines but doesn't fully contradict.
+
+  RESPONDS_TO (directional: source -> target)
+    The source was formulated as a direct response to the target.
+
+  TENSION_WITH (bidirectional)
+    Structural tension -- pull in different directions without direct contradiction.
+    Common across POV boundaries.
+
+  INTERPRETS (directional: source -> target)
+    The source provides a POV-specific reading of the target concept.
+
+EDGE ATTRIBUTES:
+
+  confidence (required, number 0.5-1.0):
+    0.9-1.0: Explicit relationship.
+    0.7-0.9: Strongly implied.
+    0.5-0.7: Plausible but indirect.
+
+  weight (required, number 0.1-1.0):
+    How strong the relationship is (independent of confidence).
+    0.8-1.0: Central -- core argument directly engages target.
+    0.5-0.8: Significant but secondary.
+    0.1-0.5: Peripheral -- tangential connection.
+
+  rationale (required, string): 1-2 sentences referencing content of both nodes.
+
+  strength (optional, "strong" | "moderate" | "weak")

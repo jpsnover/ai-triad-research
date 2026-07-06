@@ -1,0 +1,8 @@
+  - When placing, specify the relationship type:
+    "is_a": the new node is a more specific version of the parent.
+    "part_of": the new node is a component or aspect of the parent.
+    "specializes": the new node is a concrete implementation of the parent's principle.
+  - Provide a 1-2 sentence rationale for the placement.
+  - The parent must be MORE GENERAL than the child.
+  - Maximum hierarchy depth is 2 (parent + leaf). Do not place under a node that
+    already has a parent (no grandchildren).

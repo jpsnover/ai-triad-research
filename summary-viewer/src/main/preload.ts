@@ -55,6 +55,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   generateContent: (systemPrompt: string, userPrompt: string, model?: string): Promise<string> =>
     ipcRenderer.invoke('generate-content', systemPrompt, userPrompt, model),
 
+  loadPrompt: (promptName: string): Promise<string> =>
+    ipcRenderer.invoke('load-prompt', promptName),
+
   openInTaxonomyEditor: (nodeId: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('open-in-taxonomy-editor', nodeId),
 
