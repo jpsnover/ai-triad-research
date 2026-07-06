@@ -39,13 +39,6 @@ function maskApiKey(key: string): string {
   const visible = getConfig().server.apiKeyMaskLength; // t/929: runtime-configurable (default 4)
   return key.length <= visible ? '••••' : `••••${key.slice(-visible)}`;
 }
-function recordSupportError(err: unknown, op: string): void {
-  getGlobalRecorder()?.record({
-    type: 'system.error', component: 'support', level: 'error', message: `support: ${op} failed`,
-    error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-  });
-}
-
 export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
   const { get, post, put, del } = r;
   const { serverRecorder, ensureSessionBranch, appendServerLogs } = ctx;
@@ -500,7 +493,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
 
       json(res, { ok: true, id: entry.id });
     } catch (err) {
-      serverRecorder.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to store feedback', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to store feedback', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       error(res, String(err));
     }
   });
@@ -562,7 +555,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
 
       json(res, { ok: true, id: entry.id });
     } catch (err) {
-      serverRecorder.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to store error report', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to store error report', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       error(res, String(err));
     }
   });
@@ -683,7 +676,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
   get('/api/admin/support/cases', async (_req, res) => {
     if (!requireAdmin(res)) return;
     try { json(res, { items: await supportStore.listAllCases() }); }
-    catch (err) { recordSupportError(err, 'admin list cases'); error(res, String(err), 500, err); }
+    catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'support', level: 'error', message: 'support: admin list cases failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
   });
 
   post('/api/admin/support/cases/:id/respond', async (req, res, body) => {
@@ -695,7 +688,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
       const c = await supportStore.addResponse(id, getStorageUserId(), text);
       if (!c) { error(res, 'Case not found', 404); return; }
       json(res, c);
-    } catch (err) { recordSupportError(err, 'admin respond'); error(res, String(err), 500, err); }
+    } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'support', level: 'error', message: 'support: admin respond failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
   });
 
   put('/api/admin/support/cases/:id/status', async (req, res, body) => {
@@ -707,7 +700,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
       const c = await supportStore.setStatus(id, status);
       if (!c) { error(res, 'Case not found', 404); return; }
       json(res, c);
-    } catch (err) { recordSupportError(err, 'admin set status'); error(res, String(err), 500, err); }
+    } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'support', level: 'error', message: 'support: admin set status failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
   });
 
   // t/871: deployment / rollback status — what's running, what to roll back to.
@@ -752,7 +745,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
       fs.appendFileSync(path.join(telemetryDir, `${date}.jsonl`), line);
       json(res, { ok: true });
     } catch (err) {
-      serverRecorder.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to write telemetry event', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to write telemetry event', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       error(res, String(err));
     }
   });
