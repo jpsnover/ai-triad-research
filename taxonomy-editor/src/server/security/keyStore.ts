@@ -375,7 +375,7 @@ class AzureKeyVaultKeyStore extends BaseKeyStore {
   async get(backend: AIBackend, userId: string): Promise<string | null> {
     const name = this.secretName(backend, userId);
     const hit = this.cache.get(name);
-    if (hit && hit.expires > Date.now()) return hit.value;
+    if (hit && hit.expires > Date.now()) return hit.value || null;
     try {
       const client = await this.getClient();
       const resp = await client.getSecret(name);
@@ -383,16 +383,20 @@ class AzureKeyVaultKeyStore extends BaseKeyStore {
       if (value) this.cache.set(name, { value, expires: Date.now() + this.cacheTtlMs });
       return value;
     } catch (err: unknown) {
+      const code = (err as { code?: string; statusCode?: number })?.code;
+      const status = (err as { statusCode?: number })?.statusCode;
+      const isNotFound = code === 'SecretNotFound' || status === 404;
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'key-store',
-        level: 'error',
-        message: 'Operation failed',
+        level: isNotFound ? 'debug' : 'error',
+        message: isNotFound ? `Secret not found: ${name}` : 'Operation failed',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      const code = (err as { code?: string; statusCode?: number })?.code;
-      const status = (err as { statusCode?: number })?.statusCode;
-      if (code === 'SecretNotFound' || status === 404) return null;
+      if (isNotFound) {
+        this.cache.set(name, { value: '', expires: Date.now() + this.cacheTtlMs });
+        return null;
+      }
       log.server.warn({ secretName: name, err }, 'Key Vault getSecret failed');
       return null;
     }
