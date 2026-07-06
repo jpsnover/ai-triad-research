@@ -1,0 +1,114 @@
+# Metric Provenance Register
+
+**Ticket:** t/1343
+**Author:** Computational Linguist
+**Created:** 2026-07-06
+**Covers:** all 120 `CalibrationDataPoint` fields in `lib/debate/calibrationLogger.ts`, plus the node-level scoring instruments and CL-owned algorithmic parameters.
+
+## Why this register exists
+
+Every scalar the system emits implies a measurement instrument. This register classifies each one so that false precision is a visible, countable property of the system rather than a critique waiting to be written.
+
+**Classes:**
+
+| Class | Meaning | Evidence requirement |
+|---|---|---|
+| `metadata` | Session identity/context. Not an instrument. | none |
+| `observation` | Direct count or ratio of system events with no embedded judgment beyond what to count. | none |
+| `echo` | Records the parameter value a debate ran under. The *parameter* it echoes is classified in the Parameters table. | none |
+| `stipulated` | Instrument or parameter asserted by design. No evidence pointer exists. | none by definition |
+| `derived` | Value or formula produced by analysis of data. | pointer to the analysis |
+| `human-validated` | Checked against human judgment. | pointer to the study |
+| `validated-negative` | Checked against human judgment and found NOT to measure what it claims. | pointer to the study |
+
+**Rule (no grade inflation):** anything without an evidence pointer is `stipulated` by definition. New metrics and parameters must declare their class at PR time and be added here in the same PR (enforced via the CL review checklist).
+
+## Headline counts (2026-07-06)
+
+Of the 120 calibration fields: **25 metadata/echo · 36 observations · 54 stipulated instruments · 5 derived · 0 human-validated.**
+Of the node-level scoring instruments: **1 human-validated (Intentions), 1 validated-negative (Desires), the rest stipulated.**
+The honest summary: nearly every judgment-bearing number in the system is currently stipulated. t/1342 (affect) is the first planned conversion.
+
+---
+
+## 1. Parameters (values with judgment baked in)
+
+| Parameter | Provenance | Evidence / notes | Last validated |
+|---|---|---|---|
+| `relevance_threshold` (0.48 base) | **derived** | Pairwise cosine-distribution analysis over 1,182 nodes (2026-05): 0.3 admitted 93.3% of pairs; 0.48 ≈ 65%. Self-tunes ±0.02–0.03 in [0.35, 0.60] from utilization telemetry (`calibrationOptimizer.ts`). | 2026-05 |
+| `argumentation_exit_threshold` | stipulated | Optimizer produces recommend-only adjustments from quality score; not auto-applied. | — |
+| `qbaf_damping_level` | **derived** | Raised in response to observed oscillation telemetry (`qbaf_oscillation_*`). | 2026-06 |
+| `attack_weights` [1.0, 1.1, 1.2] | stipulated | Rebut/undercut/undermine escalation asserted. | — |
+| `draft_temperature` (0.7) | stipulated | Informed by the temperature-per-task audit but no formal optimization. | — |
+| `argumentative_saturation_weights` | stipulated | Composite signal weights asserted. | — |
+| `semantic_recycling_threshold` | stipulated | | — |
+| `cluster_min_similarity` | stipulated | | — |
+| `duplicate_similarity_threshold` | stipulated | | — |
+| `fire_confidence_threshold` | stipulated | | — |
+| `polarity_resolved_threshold` | stipulated | | — |
+| `recent_window` | stipulated | | — |
+| `max_nodes_cap`, `situation_max_nodes` | stipulated | | — |
+| `gc_trigger` (175/150/200) | stipulated | | — |
+| `kp_divisor`, `budget_hard_multiplier` | stipulated | | — |
+| Embedding field weights (0.611/0.389/0/0/0) | **derived** | Ablation study: `assumes` gives +14% MRR; `lineage` hurts separation 9.4%; naive concatenation −26%. | 2026-05 |
+| Affect distortion weights (fear/outrage > hope/empathy) | stipulated | Flagged in the framing paper; t/1342 will derive or drop. | — |
+| Local-sufficiency strength multipliers (1.0/0.7/0.3) + warrant bonus (1.25) | stipulated | CL-authored in the t/1341 spec. Own numbers, same rule. | — |
+| `OverallRating` weights (20/15/15/10/15/10/10/5) | stipulated | `Measure-DebateQuality`. Never validated against human judgment of debate quality; also our evaluation currency, so must never become an auto-tune objective. | — |
+| Persona utility weights (`PERSONA_UTILITY_WEIGHTS`) | stipulated | `agentUtility.ts`. | — |
+| Crux concession weight (1.5×) | stipulated | `agentUtility.ts` concession_asymmetry. | — |
+| PRM component weights + concession scores (1.0/0.8/0.0) | stipulated | `processReward.ts`. | — |
+| Affect phase baselines (`AFFECT_PHASE_BASELINES`) | stipulated | | — |
+
+## 2. Session metadata (6)
+
+`schema_version`, `debate_id`, `timestamp`, `origin`, `model`, `rounds` — **metadata**. Not instruments.
+
+## 3. Parameter echoes (12)
+
+`argumentation_exit_threshold`, `relevance_threshold`, `attack_weights`, `draft_temperature`, `argumentative_saturation_weights`, `recent_window`, `polarity_resolved_threshold`, `max_nodes_cap`, `semantic_recycling_threshold`, `cluster_min_similarity`, `duplicate_similarity_threshold`, `fire_confidence_threshold`, `kp_divisor`, `budget_hard_multiplier`, `situation_max_nodes`, `gc_trigger`, `qbaf_damping_level` — **echo**. Each records what the debate ran under; the value's provenance is in Table 1. (Counted once; fields appearing in both tables are echoes here.)
+
+## 4. Observations (36)
+
+Direct counts and count-ratios of system events. No embedded judgment beyond what to count.
+
+`an_nodes_at_synthesis`, `gc_runs`, `near_miss_duplicate_count`, `hit_api_ceiling`, `total_api_calls`, `situation_nodes_injected`, `situation_nodes_referenced`, `qbaf_oscillation_detected`, `qbaf_iterations`, `qbaf_oscillation_rate`, `confidence_deferrals`, `confidence_bottleneck`, `low_value_claims_rejected`, `topic_reframed`, `scope_extraction_populated`, `max_prompt_chars`, `mean_prompt_chars`, `max_component_chars`, `extraction_coverage_samples`, `insularity_interventions`, `exploration_source_id`, `exploration_source_model`, `seeded_crux_count`, `seeded_effective_situation_count`, `seeded_ineffective_situation_count`, `seeded_an_node_count`, `counterfactual_type_distribution`, `lineage_frame`, `avg_utilization_rate`, `avg_primary_utilization`, `structural_error_rate`, `relevance_score_variance`, `taxonomy_mapped_ratio`, `claims_per_1k_words`, `draft_repair_rate`, `taxonomy_demotion_rate`, `demoted_node_reference_rate`, `moderator_drift_intervention_rate`, `evidence_breadth_per_claim`.
+
+## 5. Stipulated instruments (54)
+
+Formulas, detectors, or LLM judgments whose validity against human judgment has not been checked. Grouped by what carries the judgment.
+
+**LLM-as-judge (unvalidated judge):** `engaging_real_disagreement`, `crux_addressed_ratio`, `crux_resolution_divergence_rate`, `topic_alignment_rate`, `topic_scope_extracted`, `topic_scope_confidence`, `topic_scope_disciplines`, `topic_scope_off_topics`, `topic_scope_drift_sigs`, `extraction_coverage_rate`, `avg_grounding_confidence`, `min_grounding_confidence`, `mean_extraction_confidence`, `low_confidence_claims_rate`, `entailment_pass_rate`, `entailment_repair_rate`, `entailment_sampling_coverage`, `topic_wisdom_total`, `topic_weakest`.
+
+**Embedded thresholds/definitions:** `argumentative_saturation_at_transition`, `argumentative_saturation_signals_at_transition`, `repetition_rate`, `claims_forgotten_rate`, `recycling_novelty_agreement`, `borderline_claim_survival_rate`, `claims_abandoned_rate`, `claim_outcome_summary`, `confidence_escalations` (0.40 floor), `situation_crux_alignment`, `qbaf_preference_concordance`, `avg_branch_cohesion`, `cohesion_clear_theme`, `camp_insularity_rate`, `camp_insularity_max`, `peer_referencing_rate`, `peer_referencing_per_speaker`, `lineage_effectiveness`, `concession_cascades`.
+
+**Composite formulas with asserted weights:** `agent_utilities`, `concession_asymmetry_per_speaker`, `process_reward_series`, `process_reward_mean`, `process_reward_stddev`, `process_reward_min`, `sycophancy_guard_fired`, `max_sycophancy_score`, `topic_coherence_per_speaker`.
+
+**Lexicon/map-based:** `affect_intensity_mean`, `affect_intensity_variance`, `affect_appropriateness` (t/1342 pending), `source_authority_mean` (venue-tier map asserted), `source_recency_mean`, `local_sufficiency_mean`, `unsupported_claim_rate`, `local_sufficiency_by_speaker` (t/1341 multipliers).
+
+## 6. Derived instruments (5)
+
+| Field | Evidence |
+|---|---|
+| `clarity_mean_sentence_length` | Standard readability construct from the literature; formula established, application to debate register unvalidated. |
+| `clarity_lexical_diversity` | Type-token ratio, established construct; same caveat. |
+| `clarity_jargon_density` | Established construct family; same caveat. |
+| `relevance_threshold` (as tuned value) | Distribution analysis + utilization write-back (Table 1). |
+| Embedding field weighting (feeds several relevance metrics) | Ablation study (Table 1). |
+
+## 7. Node-level scoring instruments (outside calibrationLogger, in scope as inputs)
+
+| Instrument | Provenance | Evidence | Last validated |
+|---|---|---|---|
+| BDI claim scoring, Intentions (`bdi_confidence` 0.71) | **human-validated** | q0 calibration v3 + t/1264 reliability analysis: r=0.71, ICC(2,1)=0.70, Krippendorff α=0.68. | 2026-07-04 |
+| BDI claim scoring, Desires | **validated-negative** | t/1264/t/1266: r=0.65 is a rank artifact of a near-constant predictor; ICC=0.09, α=−0.18. Do not treat Desire scores as calibrated. | 2026-07-04 |
+| BDI claim scoring, Beliefs (0.3) | stipulated | q0 showed weak agreement; treated as unscored default 0.5 in QBAF paths. | — |
+| Belief confidence multi-signal formula | stipulated | Signal selection and combination asserted. | — |
+| Desire priority 5-level assignments | stipulated | | — |
+| Intention operationality 1–5 formula | stipulated | | — |
+| Doctrinal floor values | stipulated | Identity commitments; deliberately not evidence-based (disclosed in framing paper). | — |
+
+## Maintenance
+
+- Every PR adding or modifying a metric, threshold, weight, or lexicon must state its provenance class and update this register in the same PR (CL review checklist item).
+- When a validation study lands (e.g., t/1342), move the affected rows and update the headline counts.
+- Sentinel candidates (metrics that must stay OUT of every auto-tune objective so drift is detectable): `entailment_pass_rate`, human spot-ratings, golden-set scores.
