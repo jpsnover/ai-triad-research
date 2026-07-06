@@ -128,6 +128,14 @@ The deploy workflow handles this automatically when health checks or acceptance 
 
 **2026-07-04 — Owner decision: NO production deploy until explicitly authorized.** Current prod is stable on ca8e7428 (July 1 code) against the migrated data. The cc→sit migration (t/1308) landed in the data repo but the code repo has accumulated significant changes (quality gates, doc-accuracy gates, dependency patches, cc→sit code-side tightening). Risk assessment deferred a deploy despite green CI. Do not dispatch `deploy-azure.yml` until the owner explicitly lifts this hold.
 
+## Registry Auth (GHCR)
+
+**`ghcr.io/jpsnover/taxonomy-editor` must remain a public package.** Anonymous pulls are the production auth mode — no registry credentials are configured on the container apps. A visibility flip on the GHCR package = outage.
+
+If the image ever needs to go private, design around **ACR + managed identity**. Do not rotate or re-add a PAT — PATs rot, and the 2026-07-05 outage (expired GHCR PAT → ImagePullBackOff on every replica recycle) is the proof.
+
+**Snapshot semantics:** ACA bakes registry credentials into the **revision snapshot at revision-creation time**. Changing app-level registry config (adding, removing, or updating credentials) does NOT affect existing revisions — restarts of a pre-existing revision still pull with whatever credential was frozen in its snapshot. To apply a registry config change, you must create a **new revision** (revision copy). `az containerapp registry remove` exits 0 even when ARM rejects the change (409 ContainerAppRegistryInUse) — always read back `properties.configuration.registries` to verify.
+
 ## Known Issues
 
 - **Duplicate dispatch**: `gh workflow run` occasionally emits two `workflow_dispatch` events. The deploy workflow has `cancel-in-progress: true` so the duplicate is cancelled automatically. If you see a failed run alongside a successful one for the same commit, check both before investigating.

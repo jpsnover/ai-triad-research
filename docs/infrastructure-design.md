@@ -509,7 +509,7 @@ The CI pipeline validates version consistency:
 | **Base image staleness** | MEDIUM | Manual rebuild via `base-image.yml`; consider automated CVE scanning |
 | **Cold start latency** | LOW | ~10-15s delay from scale-to-zero. App data loads in 3-5s. Acceptable for research use. |
 | **Single-region** | LOW | Outage = complete downtime. Acceptable for research team. |
-| **GHCR image pull auth** | LOW | `ghcrPassword` in Key Vault; manual rotation needed |
+| **GHCR package visibility** | LOW | Anonymous pulls — `ghcr.io/jpsnover/taxonomy-editor` must stay public (visibility flip = outage). See `deploy/azure/runbooks/production-release.md` Registry Auth section. |
 
 ## 11. Glossary
 

@@ -122,7 +122,7 @@ Optional GitHub App integration for syncing the data repository:
 | `authDisabled` | Disable authentication |
 | `authOptional` | Optional authentication |
 | `gitSyncEnabled` | Enable GitHub data sync |
-| `ghcrPassword` | PAT for authenticated image pulls |
+| ~~`ghcrPassword`~~ | **Removed** — GHCR pulls are anonymous (package is public). See `deploy/azure/runbooks/production-release.md` Registry Auth. |
 
 ### Environment Variables (Runtime)
 
