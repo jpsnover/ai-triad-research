@@ -77,7 +77,15 @@ function formatValue(value: unknown): string {
   let out: string;
   try {
     out = JSON.stringify(value);
-  } catch {
+  } catch (err) {
+    // Recoverable display fallback (e.g. circular refs / BigInt) — debug level, not an error path.
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'TaxonomyDiffPanel',
+      level: 'debug',
+      message: 'formatValue: value not JSON-serializable, using String() fallback',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     out = String(value);
   }
   return out.length > MAX_VALUE_CHARS ? `${out.slice(0, MAX_VALUE_CHARS)}…` : out;
