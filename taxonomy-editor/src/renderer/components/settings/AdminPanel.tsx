@@ -14,7 +14,10 @@ type AdminTab = 'submissions' | 'enrichment' | 'errors';
 
 function formatDate(iso: string): string {
   if (!iso) return '';
-  try { return new Date(iso).toLocaleString(); } catch { return iso; }
+  try { return new Date(iso).toLocaleString(); } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'AdminPanel', level: 'error', message: 'formatDate failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    return iso;
+  }
 }
 
 function SubmissionRow({ sub, onApprove, onReject }: {
