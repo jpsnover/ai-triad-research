@@ -105,6 +105,7 @@ export function showDumpToast(opts: {
           const resp = await fetch(`/api/flight-recorder/download-merged/${encodeURIComponent(opts.dumpId!)}`);
           if (!resp.ok) {
             let diag: DiagnosticBody | undefined;
+            // eslint-disable-next-line local/require-flight-recorder-in-catch -- dump toast error parsing cannot record through itself
             try { diag = await resp.json() as DiagnosticBody; } catch { /* not JSON */ }
             if (diag && (diag.goal || diag.problem)) {
               showDiagnosticPanel(diag);

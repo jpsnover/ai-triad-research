@@ -8,6 +8,7 @@
  * Uses bare fetch() intentionally — resilience.ts IS the bridge's retry layer,
  * so it can't depend on itself. Same approved-exception pattern as flightRecorderInit.ts.
  */
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 export interface ClientConfig {
   resilience: {
@@ -148,7 +149,15 @@ export async function initClientConfig(): Promise<void> {
       const data = await resp.json() as ClientConfig;
       cached = { ...DEFAULTS, ...data };
     }
-  } catch { /* startup config fetch — best-effort, defaults are fine */ }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'clientConfig',
+      level: 'warn',
+      message: 'Startup config fetch failed (using defaults)',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+  }
   initialized = true;
   notifyListeners();
 }
@@ -162,5 +171,13 @@ export async function refreshClientConfig(): Promise<void> {
       cached = { ...DEFAULTS, ...data };
       notifyListeners();
     }
-  } catch { /* config refresh — best-effort */ }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'clientConfig',
+      level: 'warn',
+      message: 'Config refresh failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+  }
 }

@@ -74,6 +74,7 @@ function getAuthTracking(): AuthRedirectTracking | null {
     const raw = sessionStorage.getItem(AUTH_REDIRECT_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as AuthRedirectTracking;
+  // eslint-disable-next-line local/require-flight-recorder-in-catch -- flight recorder init code cannot record to itself
   } catch { return null; }
 }
 
@@ -165,6 +166,7 @@ async function persistDump(
           serverFilename = serverResult.filename;
           console.log(`[flight-recorder] Server dump saved: ${serverResult.filePath}`);
         }
+      // eslint-disable-next-line local/require-flight-recorder-in-catch -- flight recorder dump code cannot record to itself
       } catch { /* server dump is best-effort */ }
 
       // Fire-and-forget: trigger admin-level server dump correlated by dumpId.

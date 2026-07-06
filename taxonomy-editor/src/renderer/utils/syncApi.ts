@@ -325,6 +325,13 @@ async function tracked<T>(
     store.completeOp();
     return result;
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'syncApi',
+      level: 'error',
+      message: `Tracked sync operation '${operation}' failed`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     store.failOp(err instanceof Error ? err.message : String(err));
     throw err;
   }

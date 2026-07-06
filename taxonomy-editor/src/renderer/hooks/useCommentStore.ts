@@ -3,6 +3,7 @@
 
 import { create } from 'zustand';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type {
   Comment,
   CommentType,
@@ -162,7 +163,14 @@ export const useCommentStore = create<CommentStore>((set, get) => {
         const file = data as CommentsFile;
         if (!Array.isArray(file.comments)) file.comments = [];
         set({ commentsFile: file, loading: false });
-      } catch {
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'useCommentStore',
+          level: 'error',
+          message: `Failed to load comments for debate '${debateId}'`,
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
         set({ commentsFile: emptyFile(debateId), loading: false });
       }
     },

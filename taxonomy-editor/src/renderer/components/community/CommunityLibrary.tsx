@@ -10,7 +10,18 @@ type Tab = 'chats' | 'debates';
 
 function formatDate(iso: string): string {
   if (!iso) return '';
-  try { return new Date(iso).toLocaleDateString(); } catch { return iso; }
+  try {
+    return new Date(iso).toLocaleDateString();
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'CommunityLibrary',
+      level: 'warn',
+      message: `Date parse fallback for '${iso}'`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return iso;
+  }
 }
 
 function RemoveConfirmPopover({ item, onConfirm, onCancel }: {

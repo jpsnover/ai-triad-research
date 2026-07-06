@@ -86,6 +86,13 @@ async function get<T = unknown>(path: string, opts?: FetchOptions): Promise<T> {
       category: cat,
     });
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'web-bridge',
+      level: 'error',
+      message: `GET ${path} network error`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     if (err instanceof DOMException && err.name === 'AbortError') {
       throwTimeoutError('GET', path, timeoutMs);
     }
@@ -128,6 +135,13 @@ async function post<T = unknown>(path: string, body?: unknown, opts?: FetchOptio
       category: cat,
     });
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'web-bridge',
+      level: 'error',
+      message: `POST ${path} network error`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     if (err instanceof DOMException && err.name === 'AbortError') {
       throwTimeoutError('POST', path, timeoutMs);
     }
@@ -226,6 +240,13 @@ async function put<T = unknown>(path: string, body?: unknown, opts?: FetchOption
       category: cat,
     });
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'web-bridge',
+      level: 'error',
+      message: `PUT ${path} network error`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     if (err instanceof DOMException && err.name === 'AbortError') {
       throwTimeoutError('PUT', path, timeoutMs);
     }
@@ -264,6 +285,13 @@ async function del<T = unknown>(path: string, opts?: FetchOptions): Promise<T> {
       category: cat,
     });
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'web-bridge',
+      level: 'error',
+      message: `DELETE ${path} network error`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     if (err instanceof DOMException && err.name === 'AbortError') {
       throwTimeoutError('DELETE', path, timeoutMs);
     }
@@ -299,7 +327,15 @@ function readByokKeys(backend: string): string[] {
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) return parsed.filter((k: unknown) => typeof k === 'string' && k);
-  } catch { /* legacy raw string */ }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'web-bridge',
+      level: 'warn',
+      message: `BYOK key JSON parse fallback for backend '${backend}'`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+  }
   return [raw];
 }
 
