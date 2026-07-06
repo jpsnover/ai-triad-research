@@ -7,15 +7,19 @@ import { POV_KEYS } from '@lib/debate/types';
 const categoryEnum = z.enum(['Desires', 'Beliefs', 'Intentions']);
 
 const povNodeSchema = z.object({
-  id: z.string().min(1, 'ID is required'),
+  id: z.string().regex(/^(acc|saf|skp)-(desires|beliefs|intentions)-\d{3}$/, 'ID must match {pov}-{category}-{NNN}'),
   category: categoryEnum,
   label: z.string().min(1, 'Label is required'),
   description: z.string().min(1, 'Description is required'),
   parent_id: z.string().nullable(),
+  parent_relationship: z.enum(['is_a', 'part_of', 'specializes']).nullable().optional(),
   children: z.array(z.string()),
-  situation_refs: z.array(z.string()),
-  conflict_ids: z.array(z.string()).optional(),
-});
+  situation_refs: z.array(z.string().regex(/^sit-\d{3}$/, 'Situation ref must match sit-NNN')),
+  conflict_ids: z.array(z.string().regex(/^conflict-[a-z0-9-]+$/, 'Conflict ID must match conflict-{slug}')).optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  priority: z.number().int().min(1).max(5).optional(),
+  operationality: z.number().int().min(1).max(5).optional(),
+}).passthrough();
 
 export const povTaxonomyFileSchema = z.object({
   _schema_version: z.string(),

@@ -90,7 +90,7 @@
         "parent_id": {
           "type": ["string", "null"],
           "description": "ID of the parent node if this node is a sub-claim. Null for top-level nodes. Must reference another node ID within the same POV file.",
-          "examples": ["acc-goals-001", null]
+          "examples": ["acc-desires-001", null]
         },
         "parent_relationship": {
           "type": ["string", "null"],
@@ -200,6 +200,21 @@
           "type": "array",
           "description": "Last 5 modifications to this node (FIFO). Each entry records a date, action, and changed fields.",
           "items": { "$ref": "#/$defs/ChangeHistoryEntry" }
+        },
+        "intellectual_lineage": {
+          "type": "array",
+          "description": "AI-populated lineage data tracing this node's intellectual origins.",
+          "items": {}
+        },
+        "_edit_meta": {
+          "type": "object",
+          "description": "Server-authoritative authorship metadata stamped on save.",
+          "properties": {
+            "last_edited_by": { "type": "string" },
+            "last_edited_at": { "type": "string" },
+            "created_by": { "type": "string" },
+            "created_at": { "type": "string" }
+          }
         }
       }
     },

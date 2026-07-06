@@ -63,7 +63,7 @@ Validate taxonomy files against their JSON schemas:
 Look for:
 - Nodes missing required fields (`id`, `label`, `description`, `category`)
 - Category values not in `{Beliefs, Desires, Intentions}`
-- Node IDs not matching pattern `^(acc|saf|skp)-(goals|data|methods)-\d{3}$`
+- Node IDs not matching pattern `^(acc|saf|skp)-(desires|beliefs|intentions)-\d{3}$`
 - `parent_relationship` values not in `{is_a, part_of, specializes}`
 
 **1.3 Embedding Consistency**
