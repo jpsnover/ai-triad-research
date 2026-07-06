@@ -1,0 +1,9 @@
+{
+  "topic": "Is alignment research the most important priority for AI safety?",
+  "sourceType": "topic",
+  "activePovers": ["accelerationist", "safetyist", "skeptic"],
+  "model": "gemini-2.0-flash-lite",
+  "rounds": 1,
+  "responseLength": "brief",
+  "quality_floor": 30
+}

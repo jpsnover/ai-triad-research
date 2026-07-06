@@ -23,6 +23,7 @@ import { generateSlug, formatDebateMarkdown, buildDiagnosticsOutput, buildHarves
 import { ActionableError } from './errors.js';
 import { runExploreFirstPipeline } from './explorationPreset.js';
 import { safeSerialize, atomicWriteSync } from './persistence.js';
+import { computeQualityScore } from './qualityScore.js';
 
 // ── CLI Config schema ────────────────────────────────────
 
@@ -63,6 +64,10 @@ interface CLIConfig {
   utilityModels?: { summary?: string; scope?: string; moderator?: string; crux?: string };
   exploreFirst?: boolean;
   exploreModel?: string;
+}
+
+interface GoldenFixtureConfig extends CLIConfig {
+  quality_floor: number;
 }
 
 // ── Main ─────────────────────────────────────────────────
@@ -613,10 +618,131 @@ async function main(): Promise<void> {
   console.log(JSON.stringify(result, null, 2));
 }
 
-main().catch(err => {
-  const msg = err instanceof Error ? err.message : String(err);
-  log(`FATAL: ${msg}`);
-  getGlobalRecorder()?.record({ type: 'system.error', component: 'cli', level: 'error', message: 'Fatal unhandled error', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-  console.log(JSON.stringify({ success: false, error: msg }));
-  process.exit(1);
-});
+async function runCiGolden(): Promise<void> {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const repoRoot = resolveRepoRoot(__dirname);
+  const goldenDir = path.join(repoRoot, 'evals', 'golden');
+
+  if (!fs.existsSync(goldenDir)) {
+    console.error(`Golden fixtures directory not found: ${goldenDir}`);
+    process.exit(1);
+  }
+
+  const files = fs.readdirSync(goldenDir)
+    .filter(f => f.endsWith('.json'))
+    .sort();
+
+  if (files.length === 0) {
+    console.error('No golden fixture files found in evals/golden/');
+    process.exit(1);
+  }
+
+  log(`CI Golden: ${files.length} fixtures in ${goldenDir}`);
+  log('Loading taxonomy...');
+  const taxonomy = loadTaxonomy(repoRoot);
+  const vocab = loadVocabulary(repoRoot);
+
+  if (!getGlobalRecorder()) {
+    const recorder = new FlightRecorder({ capacity: 2000, dumpOnError: false });
+    setGlobalRecorder(recorder);
+  }
+
+  const { extractCalibrationData } = await import('./calibrationLogger.js');
+
+  const results: Array<{
+    fixture: string;
+    debateId: string;
+    score: number;
+    tier: string;
+    quality_floor: number;
+    passed: boolean;
+    error?: string;
+  }> = [];
+
+  for (const file of files) {
+    const fixturePath = path.join(goldenDir, file);
+    log(`Running fixture: ${file}`);
+
+    try {
+      const config: GoldenFixtureConfig = JSON.parse(
+        fs.readFileSync(fixturePath, 'utf-8'),
+      );
+
+      const adapter = createCLIAdapter(repoRoot, config.apiKey);
+      const model = config.model ?? 'gemini-2.0-flash-lite';
+      const activePovers = (config.activePovers ?? ['accelerationist', 'safetyist', 'skeptic']) as Exclude<SpeakerId, 'user'>[];
+      const qualityFloor = config.quality_floor ?? 30;
+
+      const engineConfig: DebateConfig = {
+        topic: config.topic ?? '',
+        sourceType: 'topic',
+        sourceRef: '',
+        sourceContent: '',
+        activePovers,
+        protocolId: config.protocolId ?? 'structured',
+        model,
+        rounds: config.rounds ?? 1,
+        responseLength: (config.responseLength ?? 'brief') as 'brief' | 'medium' | 'detailed',
+        turnValidation: { enabled: true },
+        vocabulary: vocab.standardized.length > 0
+          ? { standardizedTerms: vocab.standardized as import('../dictionary/types').StandardizedTerm[], colloquialTerms: vocab.colloquial as import('../dictionary/types').ColloquialTerm[] }
+          : undefined,
+      };
+
+      const engine = new DebateEngine(engineConfig, adapter, taxonomy);
+      const session = await engine.run((p) => {
+        log(`  [${p.phase}] ${p.speaker ? `${p.speaker}: ` : ''}${p.message}`);
+      });
+
+      const dataPoint = extractCalibrationData(session, 'ci-golden');
+      const scoreResult = computeQualityScore(dataPoint);
+      const passed = scoreResult.score >= qualityFloor;
+
+      results.push({
+        fixture: file,
+        debateId: session.id,
+        score: scoreResult.score,
+        tier: scoreResult.tier,
+        quality_floor: qualityFloor,
+        passed,
+      });
+
+      log(`  Score: ${scoreResult.score} (${scoreResult.tier}), floor: ${qualityFloor} → ${passed ? 'PASS' : 'FAIL'}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Golden fixture ${file} failed`, error: { name: (err as Error).name ?? 'Error', message: msg, stack: (err as Error).stack } });
+      results.push({
+        fixture: file,
+        debateId: '',
+        score: 0,
+        tier: 'Error',
+        quality_floor: 30,
+        passed: false,
+        error: msg,
+      });
+      log(`  ERROR: ${msg}`);
+    }
+  }
+
+  const overall = results.every(r => r.passed);
+  console.log(JSON.stringify({ results, overall }, null, 2));
+  process.exit(overall ? 0 : 1);
+}
+
+if (process.argv.includes('--ci-golden')) {
+  runCiGolden().catch(err => {
+    const msg = err instanceof Error ? err.message : String(err);
+    log(`FATAL: ${msg}`);
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'cli', level: 'error', message: 'Fatal CI golden error', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    console.log(JSON.stringify({ results: [], overall: false, error: msg }, null, 2));
+    process.exit(1);
+  });
+} else {
+  main().catch(err => {
+    const msg = err instanceof Error ? err.message : String(err);
+    log(`FATAL: ${msg}`);
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'cli', level: 'error', message: 'Fatal unhandled error', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    console.log(JSON.stringify({ success: false, error: msg }));
+    process.exit(1);
+  });
+}

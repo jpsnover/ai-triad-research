@@ -1,0 +1,9 @@
+{
+  "topic": "Should AI development be regulated by international treaty?",
+  "sourceType": "topic",
+  "activePovers": ["accelerationist", "safetyist", "skeptic"],
+  "model": "gemini-2.0-flash-lite",
+  "rounds": 1,
+  "responseLength": "brief",
+  "quality_floor": 30
+}
