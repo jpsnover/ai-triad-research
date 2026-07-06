@@ -1,0 +1,24 @@
+{
+  "_comment_1": "Fork-guard fixture for t/1344 — same JSON scored by Measure-DebateQuality (PS) and computeQualityScore (TS).",
+  "_comment_2": "Values chosen so all 8 metrics land at non-trivial (non-0, non-1) values; drift in any single term shifts the total off 70.9.",
+  "_comment_3": "Expected score arithmetic (weights sum to 100): 0.72*20 + 0.65*15 + 0.58*15 + 0.61*10 + 0.83*15 + 0.78*10 + 0.82*10 + 0.69*5 = 70.85 -> round(1dp) -> 70.9 -> tier Good.",
+  "title": "Fork-guard fixture — cross-runtime quality parity",
+  "debate_model": "fixture",
+  "debate_temperature": 0.0,
+  "protocol_id": "fixture",
+  "app_version": "t1344",
+  "created_at": "2026-07-06T00:00:00Z",
+  "transcript": [{"x": 1}],
+  "calibration_log": {
+    "crux_addressed_ratio": 0.72,
+    "taxonomy_mapped_ratio": 0.65,
+    "situation_crux_alignment": 0.58,
+    "avg_branch_cohesion": 0.61,
+    "topic_alignment_rate": 0.83,
+    "repetition_rate": 0.22,
+    "claims_forgotten_rate": 0.18,
+    "draft_repair_rate": 0.31,
+    "avg_utilization_rate": 0.5,
+    "concession_cascades": 0
+  }
+}
