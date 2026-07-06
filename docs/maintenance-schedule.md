@@ -27,6 +27,7 @@ Codified list of recurring maintenance tasks. Each task has a cadence, owner, an
 | Review Dependabot PRs | Tech Lead | Check GitHub PR queue for Dependabot updates, review + merge or close |
 | CodeQL alert review | Tech Lead | GitHub Security tab → review new alerts, triage, ticket actionable ones |
 | Flight recorder spot check | Tech Lead | Pull a recent flight recorder dump, scan for recurring `system.error` patterns |
+| Calibration drift report | DebateTool | `npx tsx lib/debate/calibrationDriftReport.ts` or `computeDriftReport(readCalibrationLog(dataRoot))` — check 5 quality metrics for sustained degradation (t/1330) |
 | SBOM currency check | Taxonomy Editor agent | `cd taxonomy-editor && npm run licenses && git diff THIRD-PARTY-NOTICES.txt` — commit if changed |
 
 ## Monthly
