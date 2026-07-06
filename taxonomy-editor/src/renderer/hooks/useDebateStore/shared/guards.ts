@@ -10,6 +10,8 @@ export function isDailyLimitError(err: unknown): boolean {
 
 export const DAILY_LIMIT_MESSAGE = 'Daily AI usage limit reached (resets at midnight UTC). Resume tomorrow, or add your own API key in Settings to continue now.';
 
+export let _abortController: AbortController | null = null;
+
 /**
  * Guard against race conditions in async debate operations.
  * Captures the active debate ID at call time; returns a checker that
@@ -26,8 +28,6 @@ export function createDebateGuard(get: () => { activeDebateId: string | null }):
     return true;
   };
 }
-
-export let _abortController: AbortController | null = null;
 
 export function cancelAndResetAbort(): void {
   _abortController?.abort();
