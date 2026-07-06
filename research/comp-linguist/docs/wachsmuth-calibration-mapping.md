@@ -67,14 +67,21 @@ parsing that we don't perform.
 |-----------|------|----------|
 | `extraction_coverage_rate` | calibrationLogger.ts:372 | Fraction of verifiable elements covered by claims |
 | `claims_per_1k_words` | calibrationLogger.ts:235 | Extraction density — more claims per word = finer-grained |
+| `local_sufficiency_mean` | calibrationLogger.ts (t/1341) | Per-claim weighted-support score from AN supports edges (strength × weight × warrant bonus) |
+| `unsupported_claim_rate` | calibrationLogger.ts (t/1341) | Fraction of eligible claims with zero incoming supports — the "bare assertion" rate |
+| `local_sufficiency_by_speaker` | calibrationLogger.ts (t/1341) | Per-speaker mean sufficiency |
 
-**Coverage: WEAK.** Extraction coverage measures whether the system captured all
-verifiable information, not whether individual arguments marshal sufficient
-evidence. We have no metric asking: "Given claim C, do the stated premises
-constitute adequate support?"
+**Coverage: MODERATE** *(upgraded from WEAK, 2026-07-06, t/1341)*. The Tier-1
+structural proxy measures whether claims marshal any weighted premise support.
+Semantic adequacy — "do these premises actually suffice for this conclusion?" —
+remains open for a Tier-2 LLM-judged pass. Empirical baseline from the first
+three scored sessions: `unsupported_claim_rate` ≈ 0.55–0.90 (debate ANs are
+systematically attack-heavy; this replicates Wachsmuth's own finding that local
+sufficiency is argumentation's weakest dimension). Note: the warrant bonus is
+currently non-discriminating — extraction populates `warrant` on 100% of
+supports edges — so warrant *quality* must carry the Tier-2 signal.
 
-**Gap classification: MATERIAL.** Logical sufficiency is the core of cogency and
-the most under-represented leaf in the Logical family.
+**Gap classification: MINOR (Tier-2 open).** Was MATERIAL before t/1341.
 
 ---
 
@@ -220,7 +227,7 @@ via the existing move annotation system with additional scoring logic.
 |-----------|--------|---------------|-------------|
 | Local Acceptability | Logical | Partial | Minor |
 | Local Relevance | Logical | Moderate | Minor |
-| **Local Sufficiency** | **Logical** | **Weak** | **Material** |
+| Local Sufficiency | Logical | Moderate (t/1341) | Minor — Tier-2 open |
 | Global Acceptability | Dialectical | Strong | — |
 | Global Relevance | Dialectical | Strong | — |
 | Global Sufficiency | Dialectical | Strong | — |
