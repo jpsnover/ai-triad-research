@@ -9,7 +9,7 @@ import type { ReflectionResult, ConsensusCluster } from '../types';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { trackDebateAbandon } from '../../../lib/analyticsEmitter';
-import { cancelAndResetAbort } from '../helpers';
+import { cancelAndResetAbort } from '../shared/guards';
 
 export interface ConfigSlice {
   // Generation state

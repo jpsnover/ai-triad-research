@@ -27,7 +27,7 @@ import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { trackDebateTurn, trackDebateExtraction } from '../../../lib/analyticsEmitter';
 import { triggerManualDump } from '../../../lib/flightRecorderInit';
-import { generateId, nowISO, stripCodeFences, parseAIJson, parseAtMention, formatRecentTranscript, parsePoverResponse } from '@lib/debate/helpers';
+import { generateId, nowISO, stripCodeFences, parseAIJson, parseAtMention, formatRecentTranscript, parsePoverResponse, hashString, looksTruncated, defaultGraphAttributes } from '@lib/debate/helpers';
 import { getMoveName, SUPPORT_MOVES } from '@lib/debate/helpers';
 import { formatTaxonomyContext } from '../../../utils/taxonomyContext';
 import { formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatConcessionCandidatesHint, computeClaimTaxonomyAttribution } from '../../../prompts/argumentNetwork';
@@ -82,48 +82,13 @@ import { useTaxonomyStore } from '../../useTaxonomyStore';
 import { usePromptConfigStore } from '../../usePromptConfigStore';
 import { mapErrorToUserMessage } from '../../../utils/errorMessages';
 import { cosineSimilarity, scoreNodesLexical } from '../../../utils/taxonomyRelevance';
-import {
-  getConfiguredModel,
-  getSpeakerModel,
-  generateTextWithProgress,
-  createDebateGuard,
-  pushWarning,
-  recordDiagnostic,
-  phaseGuardedSet,
-  enrichPolicyRefs,
-  serializeNodeSourceMap,
-  buildLineageContext,
-  formatEdgeContext,
-  formatDebaterEdgeContext,
-  getRelevantTaxonomyContext,
-  makeStageGenerate,
-  getAllKnownNodeIds,
-  getAllPolicyIds,
-  findNodeMetaInStore,
-  routeTurnValidatorHintsIntoSuggestions,
-  getSourceEvidenceIndex,
-  getDocTitles,
-  extractClaimsAndUpdateAN,
-  summarizeTranscriptEntry,
-  hashString,
-  looksTruncated,
-  commitAnNodes,
-  defaultGraphAttributes,
-  detectZeroClaims,
-  runNeutralCheckpoint,
-  recordSignalHistory,
-  getSignalValue,
-  movingAverageSignal,
-  newAbortController,
-  incrementGapInjectionCount,
-  _abortController,
-  _gapInjectionCount,
-  getTaxonomyContext,
-  claimDebateDriver,
-  releaseDebateDriver,
-  isDailyLimitError,
-  DAILY_LIMIT_MESSAGE,
-} from '../helpers';
+import { getConfiguredModel, getSpeakerModel } from '../shared/modelConfig';
+import { generateTextWithProgress, phaseGuardedSet, summarizeTranscriptEntry, makeStageGenerate, routeTurnValidatorHintsIntoSuggestions, getSourceEvidenceIndex, getDocTitles } from '../shared/generation';
+import { createDebateGuard, newAbortController, _abortController, claimDebateDriver, releaseDebateDriver, isDailyLimitError, DAILY_LIMIT_MESSAGE } from '../shared/guards';
+import { pushWarning, recordDiagnostic, recordSignalHistory, getSignalValue, movingAverageSignal, incrementGapInjectionCount, _gapInjectionCount } from '../shared/diagnostics';
+import { runNeutralCheckpoint } from '../shared/neutralCheckpoint';
+import { buildLineageContext, enrichPolicyRefs, serializeNodeSourceMap, formatEdgeContext, formatDebaterEdgeContext, getRelevantTaxonomyContext, getAllKnownNodeIds, getAllPolicyIds, findNodeMetaInStore, getTaxonomyContext } from '../shared/taxonomyContext';
+import { extractClaimsAndUpdateAN, commitAnNodes, detectZeroClaims } from '../shared/argumentNetwork';
 
 export interface DebateLoopSlice {
   askQuestion: (input: string) => Promise<void>;

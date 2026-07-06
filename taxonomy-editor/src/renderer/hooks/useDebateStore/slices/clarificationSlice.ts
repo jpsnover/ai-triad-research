@@ -35,30 +35,13 @@ import { loadProvisionalWeights } from '@lib/debate/phaseTransitions';
 import { useTaxonomyStore } from '../../useTaxonomyStore';
 import { mapErrorToUserMessage } from '../../../utils/errorMessages';
 import { isLineageDataLoaded } from '../../../data/lineageCategories';
-import {
-  getConfiguredModel,
-  getSpeakerModel,
-  generateTextWithProgress,
-  createDebateGuard,
-  pushWarning,
-  buildLineageContext,
-  getRelevantTaxonomyContext,
-  formatDebaterEdgeContext,
-  enrichPolicyRefs,
-  serializeNodeSourceMap,
-  recordDiagnostic,
-  summarizeTranscriptEntry,
-  extractClaimsAndUpdateAN,
-  makeStageGenerate,
-  getAllKnownNodeIds,
-  runNeutralCheckpoint,
-  newAbortController,
-  _abortController,
-  claimDebateDriver,
-  releaseDebateDriver,
-  isDailyLimitError,
-  DAILY_LIMIT_MESSAGE,
-} from '../helpers';
+import { getConfiguredModel, getSpeakerModel } from '../shared/modelConfig';
+import { generateTextWithProgress, summarizeTranscriptEntry, makeStageGenerate } from '../shared/generation';
+import { createDebateGuard, newAbortController, _abortController, claimDebateDriver, releaseDebateDriver, isDailyLimitError, DAILY_LIMIT_MESSAGE } from '../shared/guards';
+import { pushWarning, recordDiagnostic } from '../shared/diagnostics';
+import { runNeutralCheckpoint } from '../shared/neutralCheckpoint';
+import { buildLineageContext, getRelevantTaxonomyContext, formatDebaterEdgeContext, enrichPolicyRefs, serializeNodeSourceMap, getAllKnownNodeIds } from '../shared/taxonomyContext';
+import { extractClaimsAndUpdateAN } from '../shared/argumentNetwork';
 
 export interface ClarificationSlice {
   runClarification: () => Promise<void>;

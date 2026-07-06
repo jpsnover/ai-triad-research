@@ -98,7 +98,7 @@ vi.mock('@bridge', () => ({
 const mockMarkAsPopout = vi.fn(() => {
   mockStore.driverIsRemote = false;
 });
-vi.mock('../../hooks/useDebateStore/helpers', () => ({
+vi.mock('../../hooks/useDebateStore/shared/guards', () => ({
   initDebatePopoutCloseHandler: vi.fn(() => vi.fn()),
   markAsPopout: (...args: any[]) => mockMarkAsPopout(...args),
 }));

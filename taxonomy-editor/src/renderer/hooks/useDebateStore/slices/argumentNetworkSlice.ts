@@ -6,7 +6,8 @@ import type { DebateStore } from '../types';
 import type { SpeakerId } from '../../../types/debate';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { mapErrorToUserMessage } from '../../../utils/errorMessages';
-import { extractClaimsAndUpdateAN, pushWarning } from '../helpers';
+import { extractClaimsAndUpdateAN } from '../shared/argumentNetwork';
+import { pushWarning } from '../shared/diagnostics';
 
 export interface ArgumentNetworkSlice {
   updateAnNodeSubScore: (nodeId: string, key: string, value: number) => void;

@@ -26,13 +26,9 @@ import type { MoveAnnotation } from '@lib/debate/helpers';
 import { getMoveName } from '@lib/debate/helpers';
 import { disambiguateTerms } from '@lib/debate/vocabularyDisambiguation';
 import type { CampOrigin, StandardizedTerm, ColloquialTerm } from '@lib/dictionary/types';
-import {
-  resetDoctrinalAnchoringCache,
-  resetNeutralMapping,
-  resetSignalHistory,
-  resetGapInjectionCount,
-  setGapInjectionCount,
-} from '../helpers';
+import { resetDoctrinalAnchoringCache } from '../shared/taxonomyContext';
+import { resetNeutralMapping } from '../shared/neutralCheckpoint';
+import { resetSignalHistory, resetGapInjectionCount, setGapInjectionCount } from '../shared/diagnostics';
 
 declare const __APP_VERSION__: string;
 

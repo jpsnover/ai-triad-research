@@ -50,6 +50,15 @@ module.exports = {
       from: { path: '(^|/)src/main/' },
       to: { path: '(^|/)src/renderer/' },
     },
+
+    // ── shared → slices: shared helpers must not import slice modules (prevents cycles) ──
+    {
+      name: 'debate-shared-not-to-slices',
+      comment: 'useDebateStore/shared/ must not import from useDebateStore/slices/ — shared modules are leaves.',
+      severity: 'error',
+      from: { path: '(^|/)hooks/useDebateStore/shared/' },
+      to: { path: '(^|/)hooks/useDebateStore/slices/' },
+    },
   ],
   options: {
     doNotFollow: {

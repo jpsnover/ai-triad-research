@@ -10,7 +10,8 @@ import { nowISO } from '@lib/debate/helpers';
 import { computeStructuralScore, critiqueTopicPrompt, parseTopicCritique, formatStructuralContext, computeLineageDistribution, formatLineageContext } from '@lib/debate/topicCritique';
 import type { LineageFrameEntry } from '@lib/debate/topicCritique';
 import { useTaxonomyStore } from '../../useTaxonomyStore';
-import { getConfiguredModel, generateTextWithProgress } from '../helpers';
+import { getConfiguredModel } from '../shared/modelConfig';
+import { generateTextWithProgress } from '../shared/generation';
 import { getLineageMapping, getL2Categories, isLineageDataLoaded } from '../../../data/lineageCategories';
 
 export interface TopicCritiqueSlice {

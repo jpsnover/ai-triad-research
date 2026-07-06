@@ -33,26 +33,13 @@ import { computeTreePriority } from '@lib/debate/desirePriority';
 import { computeOperationality } from '@lib/debate/intentionOperationality';
 import { useTaxonomyStore } from '../../useTaxonomyStore';
 import { mapErrorToUserMessage } from '../../../utils/errorMessages';
-import {
-  getConfiguredModel,
-  generateTextWithProgress,
-  createDebateGuard,
-  pushWarning,
-  getRelevantTaxonomyContext,
-  formatDebaterEdgeContext,
-  recordDiagnostic,
-  enrichPolicyRefs,
-  serializeNodeSourceMap,
-  getNodeLabelForFactCheck,
-  phaseGuardedSet,
-  runNeutralCheckpoint,
-  newAbortController,
-  _abortController,
-  getTaxonomyContext,
-  isDailyLimitError,
-  DAILY_LIMIT_MESSAGE,
-  commitAnNodes,
-} from '../helpers';
+import { getConfiguredModel } from '../shared/modelConfig';
+import { generateTextWithProgress, phaseGuardedSet } from '../shared/generation';
+import { createDebateGuard, newAbortController, _abortController, isDailyLimitError, DAILY_LIMIT_MESSAGE } from '../shared/guards';
+import { pushWarning, recordDiagnostic } from '../shared/diagnostics';
+import { runNeutralCheckpoint } from '../shared/neutralCheckpoint';
+import { getRelevantTaxonomyContext, formatDebaterEdgeContext, enrichPolicyRefs, serializeNodeSourceMap, getNodeLabelForFactCheck, getTaxonomyContext } from '../shared/taxonomyContext';
+import { commitAnNodes } from '../shared/argumentNetwork';
 
 export interface SynthesisSlice {
   requestSynthesis: () => Promise<void>;
