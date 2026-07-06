@@ -72,16 +72,6 @@ export function requireAdmin(res: http.ServerResponse): boolean {
 
 // ── Aggregation ──
 
-function recordHandlerError(domain: string, op: string, err: unknown): void {
-  getGlobalRecorder()?.record({
-    type: 'system.error',
-    component: 'admin-review',
-    level: 'error',
-    message: `Review handler "${domain}" failed during ${op}`,
-    error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-  });
-}
-
 /**
  * Aggregate pending review groups across all registered handlers, newest first.
  * A single handler throwing is recorded and skipped — one failing domain must not
@@ -89,12 +79,21 @@ function recordHandlerError(domain: string, op: string, err: unknown): void {
  */
 export async function getReviewQueue(userId?: string): Promise<ReviewItem[]> {
   const all: ReviewItem[] = [];
+  const failedDomains: string[] = [];
   for (const handler of handlers.values()) {
     try {
       all.push(...await handler.getPendingItems(userId));
-    } catch (err) {
-      recordHandlerError(handler.domain, 'getPendingItems', err);
+    } catch { // eslint-disable-line local/require-flight-recorder-in-catch -- aggregate warn after loop
+      failedDomains.push(handler.domain);
     }
+  }
+  if (failedDomains.length) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'admin-review',
+      level: 'warn',
+      message: `getReviewQueue: ${failedDomains.length} handler(s) failed [${failedDomains.join(', ')}]`,
+    });
   }
   all.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
   return all;
@@ -107,15 +106,24 @@ export async function getReviewQueue(userId?: string): Promise<ReviewItem[]> {
 export async function getReviewStats(userId?: string): Promise<ReviewStats> {
   const byDomain: Record<string, number> = {};
   let total = 0;
+  const failedDomains: string[] = [];
   for (const handler of handlers.values()) {
     try {
       const items = await handler.getPendingItems(userId);
       byDomain[handler.domain] = items.length;
       total += items.length;
-    } catch (err) {
-      recordHandlerError(handler.domain, 'getPendingItems', err);
+    } catch { // eslint-disable-line local/require-flight-recorder-in-catch -- aggregate warn after loop
+      failedDomains.push(handler.domain);
       byDomain[handler.domain] = 0;
     }
+  }
+  if (failedDomains.length) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'admin-review',
+      level: 'warn',
+      message: `getReviewStats: ${failedDomains.length} handler(s) failed [${failedDomains.join(', ')}]`,
+    });
   }
   return { total, byDomain };
 }
@@ -163,9 +171,13 @@ export async function executeReviewAction(action: ReviewAction): Promise<void> {
   try {
     await handler.executeAction(action);
   } catch (err) {
-    // Record with domain context before rethrowing so the route's generic catch
-    // isn't the only trail — a failed promote/reject needs the owning domain.
-    recordHandlerError(handler.domain, `executeAction:${action.action}`, err);
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'admin-review',
+      level: 'error',
+      message: `Review handler "${handler.domain}" failed during executeAction:${action.action}`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     throw err;
   }
 }
