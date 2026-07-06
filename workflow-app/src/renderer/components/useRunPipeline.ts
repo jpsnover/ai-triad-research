@@ -81,6 +81,48 @@ function extractSummary(stepId: string, log: string): string {
   }
 }
 
+// Data-repo top-level surfaces each pipeline step writes, for a scoped `git add`
+// (data-repo CONTRIBUTING.md §5). Only surfaces verified to exist are listed; a step
+// whose write location isn't reliably known maps to `null`, which forces the safe
+// full-tree fallback in the main process rather than silently under-staging. `[]` =
+// read-only step (contributes no surfaces but doesn't trigger the fallback).
+const STEP_SURFACES: Record<string, string[] | null> = {
+  import: null,
+  summarize: ['summaries'],
+  conflicts: ['conflicts'],
+  health: [],
+  proposals: null,
+  review: null,
+  integrity: [],
+  backfill: null,
+  attributes: null,
+  lineage: null,
+  steelman: null,
+  embeddings: null,
+  edges: null,
+};
+
+// Builds the provenance override handed to the git-commit step (t/1333). `steps` is
+// the run's data-producing step set (the main process derives the subject workflow
+// name + `Steps:` trailer from it). `touchedDirs` is the union of mapped surfaces; if
+// ANY executed step has an unknown surface we return [] so the main process takes the
+// surfaced full-tree fallback — never a silent partial stage.
+function buildCommitContext(executed: string[], runId: string): Record<string, unknown> {
+  const st = usePipelineStore.getState();
+  const summaries = executed
+    .map(id => st.steps[id]?.summary)
+    .filter((x): x is string => !!x && x !== 'Skipped');
+  const commitSummary = summaries.length ? summaries.join('; ') : 'automated data pipeline update';
+
+  const surfaceSets = executed.map(id => STEP_SURFACES[id]);
+  const anyUnknown = surfaceSets.some(set => set == null);
+  const touchedDirs = anyUnknown
+    ? []
+    : Array.from(new Set(surfaceSets.flat().filter((d): d is string => d != null)));
+
+  return { steps: executed, runId, commitSummary, touchedDirs };
+}
+
 export function useRunPipeline() {
   useEffect(() => {
     outputCleanup = window.electronAPI.onStepOutput((text) => {
@@ -101,7 +143,7 @@ export function useRunPipeline() {
     };
   }, []);
 
-  const runSingle = useCallback(async (stepId: string) => {
+  const runSingle = useCallback(async (stepId: string, configOverride?: Record<string, unknown>) => {
     const s = usePipelineStore.getState();
     s.clearLog(stepId);
     s.setStepStatus(stepId, 'running');
@@ -110,7 +152,7 @@ export function useRunPipeline() {
     s.markStepStart(stepId);
 
     try {
-      const config = s.steps[stepId]?.config || {};
+      const config = { ...(s.steps[stepId]?.config || {}), ...(configOverride || {}) };
       const result = await window.electronAPI.runStep(stepId, config);
       const endState = usePipelineStore.getState();
       endState.markStepEnd(stepId);
@@ -146,11 +188,22 @@ export function useRunPipeline() {
     const s = usePipelineStore.getState();
     s.setPipelineRunning(true);
 
+    // Commit provenance (t/1333): a stable id for this run + the steps that actually
+    // produced data, so the git-commit message can self-describe.
+    const runId = `run-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+    const executed: string[] = [];
+
     for (const def of s.definitions) {
       if (cancelRequested) break;
 
       const current = usePipelineStore.getState().steps[def.id];
-      if (current?.status === 'success' || current?.status === 'skipped') continue;
+      if (current?.status === 'skipped') continue;
+      if (current?.status === 'success') {
+        // Already ran this session; its output is uncommitted, so it still counts
+        // toward the commit's surfaces (git-commit/push themselves never do).
+        if (def.id !== 'git-commit' && def.id !== 'git-push') executed.push(def.id);
+        continue;
+      }
 
       // Auto-expand the current step so the user can watch progress
       usePipelineStore.getState().setExpandedStep(def.id);
@@ -178,12 +231,27 @@ export function useRunPipeline() {
         }
       }
 
-      await runSingle(def.id);
+      // Thread run provenance into the commit step (context-threading only — the
+      // message shape lives in the main process, t/1333).
+      let override: Record<string, unknown> | undefined;
+      if (def.id === 'git-commit') {
+        override = buildCommitContext(executed, runId);
+        if (!(override.touchedDirs as string[]).length) {
+          usePipelineStore.getState().appendLog(def.id,
+            'Commit surfaces could not be scoped from this run — staging the full tree (git add -A), ' +
+            'recorded as "(unknown — full-tree add)" in the commit body.\n');
+        }
+      }
+
+      await runSingle(def.id, override);
 
       const result = usePipelineStore.getState().steps[def.id];
       if (result?.status === 'error') {
         usePipelineStore.getState().setPipelineRunning(false);
         return;
+      }
+      if (result?.status === 'success' && def.id !== 'git-commit' && def.id !== 'git-push') {
+        executed.push(def.id);
       }
     }
 

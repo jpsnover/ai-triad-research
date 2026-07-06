@@ -1,6 +1,7 @@
 import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 
 export interface StepDefinition {
   id: string;
@@ -159,6 +160,80 @@ function getPowerShellCommand(): string {
   return 'pwsh';
 }
 
+/** workflow-app's own version, for the `Tool:` commit trailer. Best-effort; never throws. */
+function getToolVersion(): string {
+  try {
+    const pkgPath = path.join(getProjectRoot(), 'workflow-app', 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) as { version?: string };
+    return pkg.version ?? 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+/**
+ * Builds the data-repo commit command with a self-describing subject + provenance
+ * trailers (data-repo CONTRIBUTING.md §3) and an explicit-pathspec stage when the
+ * orchestrator supplies the touched surfaces (§5). Falls back to a full-tree
+ * `git add -A` — with the surface explicitly flagged `(unknown — full-tree add)` in
+ * the commit body AND a warning echoed to the run log — when scope can't be
+ * determined, rather than silently scoping or hard-failing the commit step (t/1333).
+ *
+ * Caller-supplied context (via the git-commit step config, threaded by the renderer):
+ *   steps: string[]        — pipeline steps that produced data this run
+ *   runId: string          — stable id for the run
+ *   commitSummary: string  — one-line what-changed
+ *   touchedDirs: string[]  — data-repo surfaces to stage; empty → full-tree fallback
+ */
+export function buildGitCommitCommand(dataRoot: string, config: Record<string, unknown>): string {
+  const steps = Array.isArray(config.steps) ? (config.steps as string[]) : [];
+  const runId = (config.runId as string) || 'no-run-id';
+  const summary =
+    (config.commitSummary as string) ||
+    (config.commitMessage as string) ||
+    'automated data pipeline update';
+  const triggeredBy = process.env.ORCA_AGENT_ID
+    ? `agent:${process.env.ORCA_AGENT_ID}`
+    : `user:${os.userInfo().username}`;
+
+  // workflowName: '+'-joined executed step set, truncated ~40 chars (TL t/1333#2).
+  // The full list is preserved in the `Steps:` trailer (PowerShell t/1333).
+  let workflowName = steps.join('+') || 'adhoc';
+  if (workflowName.length > 40) workflowName = `${steps[0]}+${steps.length - 1}-more`;
+
+  const touchedDirs = Array.isArray(config.touchedDirs) ? (config.touchedDirs as string[]) : [];
+  const scoped = touchedDirs.length > 0;
+  const surfaces = scoped ? touchedDirs.join(', ') : '(unknown — full-tree add)';
+
+  const subject = `pipeline(${workflowName}): ${summary}`;
+  const trailers = [
+    '',
+    `Run-Id: ${runId}`,
+    `Triggered-By: ${triggeredBy}`,
+    `Surfaces: ${surfaces}`,
+  ];
+  if (steps.length) trailers.push(`Steps: ${steps.join(', ')}`);
+  trailers.push(`Tool: workflow-app v${getToolVersion()}`);
+  const message = `${subject}${trailers.join('\n')}`.replace(/'/g, "''");
+
+  // Stage: explicit pathspec when scoped (Test-Path-guarded so a listed-but-absent
+  // surface can't brick the commit); surfaced full-tree fallback otherwise.
+  let stage: string;
+  if (scoped) {
+    const surfaceList = touchedDirs.map(d => `'${d.replace(/'/g, "''")}'`).join(', ');
+    stage =
+      `$surfaces = @(${surfaceList}) | Where-Object { Test-Path $_ }; ` +
+      `if ($surfaces) { git add -- $surfaces } ` +
+      `else { Write-Warning 'None of the scoped commit surfaces exist on disk — nothing staged.' }`;
+  } else {
+    stage =
+      `Write-Warning 'Commit surfaces unknown - staging full tree (git add -A). ` +
+      `See data-repo CONTRIBUTING.md section 5.'; git add -A`;
+  }
+
+  return `Set-Location '${dataRoot}'; ${stage}; git commit -m '${message}'`;
+}
+
 function buildPsCommand(stepId: string, config: Record<string, unknown>): string {
   const projectRoot = getProjectRoot().replace(/\\/g, '/');
   const moduleImport = `Import-Module '${projectRoot}/scripts/AITriad/AITriad.psm1' -Force -ErrorAction Stop`;
@@ -218,11 +293,8 @@ function buildPsCommand(stepId: string, config: Record<string, unknown>): string
       return `${moduleImport}; Repair-PovLineage -Verbose`;
     case 'steelman':
       return `${moduleImport}; Repair-PovAttributes -Priority critical -Verbose`;
-    case 'git-commit': {
-      const dataRoot = getDataRoot().replace(/\\/g, '/');
-      const message = (config.commitMessage as string) || 'chore: pipeline update';
-      return `Set-Location '${dataRoot}'; git add -A; git commit -m '${message.replace(/'/g, "''")}'`;
-    }
+    case 'git-commit':
+      return buildGitCommitCommand(getDataRoot().replace(/\\/g, '/'), config);
     case 'git-push': {
       const dataRoot = getDataRoot().replace(/\\/g, '/');
       return `Set-Location '${dataRoot}'; git push`;
