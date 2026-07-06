@@ -4,7 +4,7 @@
 function Invoke-BDIWeightAssignment {
     <#
     .SYNOPSIS
-        Assigns confidence (Beliefs) and priority (Desires) to taxonomy nodes.
+        Assigns confidence (Beliefs), priority (Desires), and operationality (Intentions) to taxonomy nodes.
     .DESCRIPTION
         Implements the multi-signal formulas from docs/weighted-bdi-proposal.md:
 
