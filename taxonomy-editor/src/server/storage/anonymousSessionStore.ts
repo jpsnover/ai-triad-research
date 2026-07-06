@@ -189,7 +189,7 @@ export class AnonymousSessionStore {
     const newSize = Buffer.byteLength(serialized, 'utf-8');
     let oldSize = 0;
     try { oldSize = (await fsp.stat(file)).size; } catch {
-      /* new item — file doesn't exist yet */
+      /* telemetry — silent by design: new item, file doesn't exist yet */
     }
     const projected = (await this.sessionSize(sessionId)) - oldSize + newSize;
     if (projected > this.maxSessionSizeBytes) {

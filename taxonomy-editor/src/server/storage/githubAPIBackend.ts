@@ -1498,6 +1498,12 @@ export class GitHubAPIBackend implements StorageBackend {
           await new Promise(resolve => setTimeout(resolve, delayMs));
           continue;
         }
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'github-api', level: 'error',
+          message: `rename failed permanently (${code})`,
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+          data: { oldPath, newPath, code },
+        });
         throw err;
       }
     }

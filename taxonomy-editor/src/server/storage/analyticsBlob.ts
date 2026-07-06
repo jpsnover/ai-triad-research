@@ -27,16 +27,6 @@ function isNotFound(err: unknown): boolean {
     : false;
 }
 
-function recordError(err: unknown, op: string, level: 'warn' | 'error'): void {
-  getGlobalRecorder()?.record({
-    type: 'system.error',
-    component: 'analytics-blob',
-    level,
-    message: `analytics blob ${op} failed`,
-    error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-  });
-}
-
 async function streamToString(readable: NodeJS.ReadableStream | undefined): Promise<string> {
   if (!readable) return '';
   const chunks: Buffer[] = [];
@@ -65,7 +55,11 @@ export class BlobAnalyticsBackend implements AnalyticsBackend {
       const content = lines.join('\n') + '\n';
       await appendClient.appendBlock(content, Buffer.byteLength(content, 'utf-8'));
     } catch (err) {
-      recordError(err, 'append', 'error');
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'analytics-blob', level: 'error',
+        message: 'analytics blob append failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
     }
   }
 
@@ -77,7 +71,11 @@ export class BlobAnalyticsBackend implements AnalyticsBackend {
       return text.split('\n').filter(Boolean);
     } catch (err) {
       if (isNotFound(err)) return [];
-      recordError(err, 'readLines', 'error');
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'analytics-blob', level: 'error',
+        message: 'analytics blob readLines failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       return [];
     }
   }
@@ -90,7 +88,11 @@ export class BlobAnalyticsBackend implements AnalyticsBackend {
         if (match) dates.push(match[1]);
       }
     } catch (err) {
-      recordError(err, 'listDates', 'error');
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'analytics-blob', level: 'error',
+        message: 'analytics blob listDates failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
     }
     return dates;
   }
@@ -103,12 +105,20 @@ export class BlobAnalyticsBackend implements AnalyticsBackend {
           try {
             await this.client.getBlobClient(`${date}.ndjson`).delete();
           } catch (err) {
-            if (!isNotFound(err)) recordError(err, 'prune', 'warn');
+            if (!isNotFound(err)) getGlobalRecorder()?.record({
+              type: 'system.error', component: 'analytics-blob', level: 'warn',
+              message: 'analytics blob prune delete failed',
+              error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+            });
           }
         }
       }
     } catch (err) {
-      recordError(err, 'prune', 'warn');
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'analytics-blob', level: 'warn',
+        message: 'analytics blob prune failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
     }
   }
 }

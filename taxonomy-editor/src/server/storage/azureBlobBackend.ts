@@ -73,7 +73,6 @@ function recordBlobError(err: unknown, op: string, blob: string, level: 'warn' |
  *  original error via innerError (stack). Never includes credentials — auth is
  *  via the credential object, not the message. */
 function wrapBlobError(err: unknown, op: string, blob: string): ActionableError {
-  recordBlobError(err, op, blob, 'error');
   return new ActionableError({
     goal: `Azure Blob ${op}`,
     problem: `Blob operation "${op}" failed for "${blob}": ${(err as Error)?.message ?? String(err)}`,
@@ -140,6 +139,11 @@ export class AzureBlobBackend implements StorageBackend {
       return await streamToBuffer(resp.readableStreamBody);
     } catch (err) {
       if (isNotFound(err)) { recordBlobError(err, 'readFile', blob, 'warn'); return null; }
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'azure-blob-backend', level: 'error',
+        message: `readFile failed: ${blob}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       throw wrapBlobError(err, 'readFile', blob);
     }
   }
@@ -153,6 +157,11 @@ export class AzureBlobBackend implements StorageBackend {
         blobHTTPHeaders: { blobContentType: 'application/json; charset=utf-8' },
       });
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'azure-blob-backend', level: 'error',
+        message: `writeFile failed: ${blob}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       throw wrapBlobError(err, 'writeFile', blob);
     }
   }
@@ -164,6 +173,11 @@ export class AzureBlobBackend implements StorageBackend {
         blobHTTPHeaders: { blobContentType: 'application/octet-stream' },
       });
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'azure-blob-backend', level: 'error',
+        message: `writeBinaryFile failed: ${blob}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       throw wrapBlobError(err, 'writeBinaryFile', blob);
     }
   }
@@ -174,6 +188,11 @@ export class AzureBlobBackend implements StorageBackend {
       await this.containerFor(blob).getBlobClient(blob).delete();
     } catch (err) {
       if (isNotFound(err)) { recordBlobError(err, 'deleteFile', blob, 'warn'); return; } // no-op on missing
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'azure-blob-backend', level: 'error',
+        message: `deleteFile failed: ${blob}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       throw wrapBlobError(err, 'deleteFile', blob);
     }
   }
@@ -183,6 +202,11 @@ export class AzureBlobBackend implements StorageBackend {
     try {
       return await this.containerFor(blob).getBlobClient(blob).exists();
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'azure-blob-backend', level: 'error',
+        message: `fileExists failed: ${blob}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       throw wrapBlobError(err, 'fileExists', blob);
     }
   }
@@ -199,6 +223,11 @@ export class AzureBlobBackend implements StorageBackend {
         if (seg) names.add(seg);
       }
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'azure-blob-backend', level: 'error',
+        message: `listDirectory failed: ${dir}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       throw wrapBlobError(err, 'listDirectory', dir);
     }
     return [...names];
