@@ -12,6 +12,9 @@ function runBridge(input: object): any {
     input: JSON.stringify(input),
     encoding: 'utf8',
     timeout: 10_000,
+    // tsx must resolve from lib/node_modules — CI installs lib but never the
+    // repo root, so an inherited cwd (e.g. taxonomy-editor/) finds no tsx.
+    cwd: resolve(__dirname, '..'),
   });
   return JSON.parse(result);
 }
