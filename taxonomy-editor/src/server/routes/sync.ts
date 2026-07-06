@@ -70,7 +70,10 @@ export function registerSyncRoutes(r: Router, ctx: ServerCtx): void {
       // Validate by checking if credentials resolve
       const creds = await getCredentials();
       json(res, { ok: true, configured: !!creds });
-    } catch (err) { error(res, String(err), 500, err); }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'sync', level: 'error', message: 'sync request failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 500, err);
+    }
   });
 
   get('/api/sync/status', async (_req, res) => {
@@ -121,7 +124,10 @@ export function registerSyncRoutes(r: Router, ctx: ServerCtx): void {
       const { main_sha, cache, ...safe } = full;
       void main_sha; void cache;
       json(res, safe);
-    } catch (err) { error(res, String(err), 500, err); }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'sync', level: 'error', message: 'sync request failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 500, err);
+    }
   });
 
   get('/api/sync/diagnostics', async (_req, res) => {
@@ -158,7 +164,10 @@ export function registerSyncRoutes(r: Router, ctx: ServerCtx): void {
         rate_limit_remaining: githubBackend.getRateLimitRemaining(),
         active_sessions: sessionManager.getActiveBranches(),
       });
-    } catch (err) { error(res, String(err), 500, err); }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'sync', level: 'error', message: 'sync request failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 500, err);
+    }
   });
 
   get('/api/sync/unsynced', async (_req, res) => {
@@ -178,7 +187,10 @@ export function registerSyncRoutes(r: Router, ctx: ServerCtx): void {
         path: f.filename,
         status: statusMap[f.status] || 'M',
       })));
-    } catch (err) { error(res, String(err), 500, err); }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'sync', level: 'error', message: 'sync request failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 500, err);
+    }
   });
 
   get('/api/sync/diff', async (req, res) => {
@@ -195,7 +207,10 @@ export function registerSyncRoutes(r: Router, ctx: ServerCtx): void {
       const cmp = await githubBackend.compareBranches('main', branch);
       const file = cmp.files.find(f => f.filename === p);
       json(res, { path: p, diff: file?.patch ?? '' });
-    } catch (err) { error(res, String(err), 400, err); }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'sync', level: 'warn', message: 'sync request rejected', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 400, err);
+    }
   });
 
   get('/api/sync/node-diff', async (_req, res) => {
@@ -249,7 +264,10 @@ export function registerSyncRoutes(r: Router, ctx: ServerCtx): void {
       }
 
       json(res, { enabled: true, session_branch: branch, files, totals });
-    } catch (err) { error(res, String(err), 500, err); }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'sync', level: 'error', message: 'sync request failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 500, err);
+    }
   });
 
   // Phase 5D (t/654): nodes edited on the user's session branch that were ALSO
@@ -330,7 +348,10 @@ export function registerSyncRoutes(r: Router, ctx: ServerCtx): void {
         return;
       }
       error(res, 'Per-file discard is not supported. Use "Discard All" to reset.', 400);
-    } catch (err) { error(res, String(err), 400, err); }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'sync', level: 'warn', message: 'sync request rejected', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 400, err);
+    }
   });
 
   post('/api/sync/commit', async (_req, res, body) => {
@@ -355,7 +376,10 @@ export function registerSyncRoutes(r: Router, ctx: ServerCtx): void {
       // Phase 5F: best-effort notify other web clients. Response is already sent;
       // broadcastTaxonomyUpdate never throws, so the save result is unaffected (t/652).
       await ctx.broadcastTaxonomyUpdate(githubBackend, pending, userId);
-    } catch (err) { error(res, String(err), 500, err); }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'sync', level: 'error', message: 'sync request failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 500, err);
+    }
   });
 
   post('/api/sync/create-pr', async (_req, res, body) => {
@@ -381,7 +405,10 @@ export function registerSyncRoutes(r: Router, ctx: ServerCtx): void {
         branch,
         created: true,
       });
-    } catch (err) { error(res, String(err), 500, err); }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'sync', level: 'error', message: 'sync request failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 500, err);
+    }
   });
 
   post('/api/sync/resync', async (_req, res, body) => {
@@ -435,7 +462,10 @@ export function registerSyncRoutes(r: Router, ctx: ServerCtx): void {
         conflict_files: mergeResult.conflicts ? [] : undefined,
         message: mergeResult.message,
       });
-    } catch (err) { error(res, String(err), 500, err); }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'sync', level: 'error', message: 'sync request failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 500, err);
+    }
   });
 
   // ── Phase 4: interactive rebase conflict resolution ──
