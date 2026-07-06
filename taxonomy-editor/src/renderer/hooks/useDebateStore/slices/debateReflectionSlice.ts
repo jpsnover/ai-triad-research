@@ -608,7 +608,8 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
                 try {
                   const { vector } = await api.computeQueryEmbedding(phrase.slice(0, 500));
                   if (vector?.length > 0) vectors.push(vector);
-                } catch { /* per-phrase resilience — outer catch records if entire enrichment fails */ }
+                // eslint-disable-next-line local/require-flight-recorder-in-catch -- per-phrase resilience: individual embedding failures are expected; outer catch records if entire enrichment fails
+                } catch { /* per-phrase resilience */ }
               }
               if (vectors.length > 0) {
                 const povShort = povKey === 'accelerationist' ? 'acc' : povKey === 'safetyist' ? 'saf' : 'skp';
@@ -896,6 +897,7 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
           try {
             const { vector } = await api.computeQueryEmbedding(phrase.slice(0, 500));
             if (vector?.length > 0) vectors.push(vector);
+          // eslint-disable-next-line local/require-flight-recorder-in-catch -- per-phrase resilience: individual embedding failures are expected; outer catch records if entire enrichment fails
           } catch { /* per-phrase resilience */ }
         }
         if (vectors.length > 0) {
