@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 interface ApiKeyDialogProps {
   onClose: () => void;
@@ -21,6 +22,13 @@ export default function ApiKeyDialog({ onClose, onSaved }: ApiKeyDialogProps) {
       await window.electronAPI.setApiKey(key.trim());
       onSaved();
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'api-key',
+        level: 'error',
+        message: 'Failed to save API key',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       setError(String(err));
     } finally {
       setSaving(false);

@@ -4,6 +4,7 @@
 import { useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useAnalysisStore, mergeAnalysisIntoSource } from '../store/useAnalysisStore';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { AnalysisProgressEvent, AnalysisResult } from '../types/analysis';
 import FilterBar from './FilterBar';
 import SearchBar from './SearchBar';
@@ -53,8 +54,16 @@ export default function SourceViewer() {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Analysis failed';
       if (message !== 'Analysis cancelled') {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'source-viewer',
+          level: 'error',
+          message: 'Source analysis failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         updateSource(source.id, { status: 'error' });
       } else {
+        /* telemetry — silent by design (user cancelled) */
         updateSource(source.id, { status: 'pending' });
       }
     } finally {

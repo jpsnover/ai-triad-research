@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import type { Source, SourceType } from '../types/types';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 interface Props {
   open: boolean;
@@ -85,6 +86,13 @@ export default function AddSourceDialog({ open, onClose }: Props) {
             snapshotText = await window.electronAPI.readSourceFile(fp);
           }
         } catch (err) {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'add-source',
+            level: 'error',
+            message: 'Failed to read source file',
+            error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          });
           setError(`Failed to read file: ${err instanceof Error ? err.message : 'Unknown error'}`);
           return;
         }

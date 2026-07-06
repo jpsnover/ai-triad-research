@@ -15,7 +15,8 @@
     "baseUrl": ".",
     "typeRoots": ["./node_modules/@types"],
     "paths": {
-      "@renderer/*": ["src/renderer/*"]
+      "@renderer/*": ["src/renderer/*"],
+      "@lib/flight-recorder/*": ["../lib/flight-recorder/*"]
     }
   },
   "include": ["src/**/*", "../lib/**/*"],

@@ -24,6 +24,7 @@ export function useAnnotations(sourceId: string | null) {
           setLoaded(true);
         })
         .catch(() => {
+          /* telemetry — silent by design */
           setAnnotations([]);
           setLoaded(true);
         });

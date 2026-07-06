@@ -6,6 +6,7 @@ import path from 'path';
 import { ipcMain, clipboard } from 'electron';
 import { z } from 'zod';
 import { ActionableError } from '../../../lib/debate/errors';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import {
   discoverSources,
   loadSummary,
@@ -58,6 +59,7 @@ export function registerIpcHandlers(): void {
       const raw = fs.readFileSync(configPath, 'utf-8');
       return JSON.parse(raw);
     } catch {
+      /* telemetry — silent by design */
       return null;
     }
   });
@@ -82,6 +84,13 @@ export function registerIpcHandlers(): void {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] compute-query-embedding failed:', msg);
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc',
+        level: 'error',
+        message: 'compute-query-embedding failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       const diagnosis = diagnosePythonEmbeddings();
       throw new ActionableError({
         goal: 'Compute query embedding for semantic search',
@@ -124,6 +133,13 @@ export function registerIpcHandlers(): void {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] compute-embeddings failed:', msg);
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc',
+        level: 'error',
+        message: 'compute-embeddings failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       const diagnosis = diagnosePythonEmbeddings();
       throw new ActionableError({
         goal: 'Compute embeddings for taxonomy search',
@@ -147,6 +163,13 @@ export function registerIpcHandlers(): void {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] generate-content failed:', msg);
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc',
+        level: 'error',
+        message: 'generate-content failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       throw new ActionableError({
         goal: 'Generate AI content',
         problem: `AI generation failed: ${msg}`,

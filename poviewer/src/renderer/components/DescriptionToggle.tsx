@@ -11,7 +11,7 @@ function getStoredMode(): DescriptionMode {
   try {
     const v = localStorage.getItem(STORAGE_KEY);
     if (v === 'formal' || v === 'plain') return v;
-  } catch { /* silent — localStorage may be unavailable */ }
+  } catch { /* telemetry — silent by design */ }
   return 'plain';
 }
 
@@ -20,7 +20,7 @@ export function useDescriptionMode(): [DescriptionMode, (mode: DescriptionMode) 
 
   const setMode = useCallback((m: DescriptionMode) => {
     setModeState(m);
-    try { localStorage.setItem(STORAGE_KEY, m); } catch { /* silent */ }
+    try { localStorage.setItem(STORAGE_KEY, m); } catch { /* telemetry — silent by design */ }
   }, []);
 
   return [mode, setMode];

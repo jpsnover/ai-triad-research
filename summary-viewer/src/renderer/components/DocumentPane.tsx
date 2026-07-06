@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useStore } from '../store/useStore';
@@ -319,6 +320,13 @@ export default function DocumentPane() {
         matches[0].el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'document-pane',
+        level: 'error',
+        message: 'Similar search failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.error('[DocumentPane] Similar search failed:', err);
       setMatchCount(0);
       setSimilarSections([]);

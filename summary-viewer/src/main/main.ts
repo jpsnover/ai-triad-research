@@ -5,6 +5,7 @@ import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
 import fs from 'fs';
 import http from 'http';
 import path from 'path';
+import { FlightRecorder, setGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { registerIpcHandlers } from './ipcHandlers';
 
 /** Apply security hardening to every BrowserWindow (will-navigate + setWindowOpenHandler). */
@@ -134,6 +135,7 @@ function createWindow(): void {
               const content = fs.readFileSync(noticesPath, 'utf-8');
               licensesWindow.loadURL(`data:text/plain;charset=utf-8,${encodeURIComponent(content)}`);
             } catch {
+              /* telemetry — silent by design */
               licensesWindow.loadURL(`data:text/plain;charset=utf-8,${encodeURIComponent('License notices file not found. Run npm run licenses to generate.')}`);
             }
           },
@@ -197,6 +199,9 @@ function registerOpenInTaxonomyEditor(): void {
 }
 
 app.whenReady().then(() => {
+  const mainRecorder = new FlightRecorder({ capacity: 2000, dumpOnError: true });
+  setGlobalRecorder(mainRecorder);
+
   registerIpcHandlers();
   registerOpenInTaxonomyEditor();
   createWindow();

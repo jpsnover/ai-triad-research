@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useStore } from '../store/useStore';
 import type { AIBackend, AIModel } from '../store/aiModels';
 import { AI_BACKENDS, MODELS_BY_BACKEND, initAIModels } from '../store/aiModels';
@@ -51,6 +52,13 @@ export default function SettingsDialog({ onClose }: SettingsDialogProps) {
       setKeyInput('');
       setKeySuccess(`${AI_BACKENDS.find(b => b.value === aiBackend)?.label} key saved`);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'settings',
+        level: 'error',
+        message: 'Failed to save API key in settings',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       setKeyError(String(err));
     } finally {
       setSavingKey(false);
@@ -67,6 +75,13 @@ export default function SettingsDialog({ onClose }: SettingsDialogProps) {
       setRefreshResult(result);
       forceUpdate(n => n + 1);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'settings',
+        level: 'error',
+        message: 'Failed to refresh AI models',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       setRefreshError(err instanceof Error ? err.message : String(err));
     } finally {
       setRefreshing(false);

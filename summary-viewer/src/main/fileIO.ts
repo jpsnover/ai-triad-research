@@ -7,6 +7,7 @@ import path from 'path';
 import { app } from 'electron';
 import { ActionableError } from '../../../lib/debate/errors';
 import { renameSyncWithRetry } from '../../../lib/debate/persistence';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 // Walk up from __dirname to find repo root (contains .aitriad.json or package.json with name "summary-viewer")
 function findProjectRoot(): string {
@@ -69,7 +70,7 @@ function loadDataConfig(): AiTriadConfig {
         console.log(`[fileIO] Loaded config from ${configPath}`);
         return { ...defaults, ...raw };
       }
-    } catch { /* try next */ }
+    } catch { /* telemetry — silent by design */ /* try next */ }
   }
 
   console.log(`[fileIO] Using default config (packaged=${IS_PACKAGED}, data_root=${defaults.data_root})`);
@@ -104,6 +105,13 @@ function parseJsonFile(filePath: string): unknown {
     } else {
       diagnosis = `${basename} contains malformed JSON. It may have been hand-edited incorrectly or truncated. Parse error: ${msg}`;
     }
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'fileIO',
+      level: 'error',
+      message: `JSON parse error in ${path.basename(filePath)}: ${msg}`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     throw new ActionableError({
       goal: `Parse JSON file ${path.basename(filePath)}`,
       problem: diagnosis,
@@ -125,8 +133,15 @@ function writeJsonFileAtomic(filePath: string, data: unknown): void {
     fs.writeFileSync(tmpPath, content, 'utf-8');
     renameSyncWithRetry(tmpPath, filePath);
   } catch (err) {
-    try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
+    try { fs.unlinkSync(tmpPath); } catch { /* telemetry — silent by design */ /* ignore */ }
     const msg = err instanceof Error ? err.message : String(err);
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'fileIO',
+      level: 'error',
+      message: `Failed to write JSON file ${path.basename(filePath)}: ${msg}`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     throw new ActionableError({
       goal: `Write JSON file ${path.basename(filePath)}`,
       problem: `Failed to write: ${msg}`,
@@ -249,6 +264,7 @@ export function discoverSources(): DiscoveredSource[] {
         hasSummary,
       });
     } catch {
+      /* telemetry — silent by design */
       // Skip sources with invalid metadata
     }
   }
@@ -333,6 +349,7 @@ export function loadTaxonomy(): Record<string, TaxonomyNode> {
         }
       }
     } catch {
+      /* telemetry — silent by design */
       // Skip invalid taxonomy files
     }
   }
@@ -346,6 +363,7 @@ export function readPolicyRegistry(): unknown {
   try {
     return JSON.parse(fs.readFileSync(filePath, 'utf-8').replace(/^\uFEFF/, ''));
   } catch {
+    /* telemetry \u2014 silent by design */
     return null;
   }
 }
@@ -513,12 +531,20 @@ export function addTaxonomyNode(req: AddTaxonomyNodeRequest): AddTaxonomyNodeRes
           }
         }
       } catch {
+        /* telemetry — silent by design */
         // Non-fatal — taxonomy node was created successfully even if summary update fails
       }
     }
 
     return { success: true, nodeId: newId };
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'fileIO',
+      level: 'error',
+      message: 'addTaxonomyNode failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     return { success: false, nodeId: '', error: String(err) };
   }
 }
@@ -605,6 +631,13 @@ export function updateNodeFields(
     writeJsonFileAtomic(filePath, raw);
     return { success: true };
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'fileIO',
+      level: 'error',
+      message: 'updateNodeFields failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     return { success: false, error: String(err) };
   }
 }
@@ -669,6 +702,13 @@ export function persistEdges(
     writeJsonFileAtomic(edgesPath, edgesFile);
     return { success: true, count: added };
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'fileIO',
+      level: 'error',
+      message: 'persistEdges failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     return { success: false, count: 0, error: String(err) };
   }
 }
@@ -694,6 +734,7 @@ export function getNodesByPovCategory(pov: string, category?: string): unknown[]
     }
     return nodes;
   } catch {
+    /* telemetry — silent by design */
     return [];
   }
 }

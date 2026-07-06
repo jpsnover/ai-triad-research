@@ -6,6 +6,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { TextLayer } from 'pdfjs-dist';
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import { useAppStore } from '../store/useAppStore';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import {
   buildTextIndex,
   findPositionForOffset,
@@ -164,6 +165,13 @@ function SelectionContextMenu({ x, y, selectedText, onClose }: ContextMenuProps)
       const mappings = await window.electronAPI.analyzeExcerpt(selectedText);
       setResults(mappings);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'pdf-viewer',
+        level: 'error',
+        message: 'Excerpt analysis failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       setError(err instanceof Error ? err.message : 'Analysis failed');
     } finally {
       setAnalyzing(false);
@@ -337,8 +345,16 @@ function PdfPageView({
         if (!cancelled) setRendered(true);
       } catch (err: unknown) {
         if (err instanceof Error && err.message !== 'Rendering cancelled') {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'pdf-viewer',
+            level: 'error',
+            message: `Error rendering page ${pageIndex + 1}`,
+            error: { name: err.name, message: err.message },
+          });
           console.error(`Error rendering page ${pageIndex + 1}:`, err);
         }
+        /* telemetry — silent by design (rendering cancelled) */
       }
     }
 
@@ -504,10 +520,18 @@ export default function PdfViewer({ source }: Props) {
         setLoading(false);
       } catch (err) {
         if (!cancelled) {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'pdf-viewer',
+            level: 'error',
+            message: 'Failed to load PDF',
+            error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          });
           console.error('Failed to load PDF:', err);
           setError(err instanceof Error ? err.message : 'Failed to load PDF');
           setLoading(false);
         }
+        /* telemetry — silent by design (cancelled) */
       }
     }
 

@@ -12,6 +12,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@renderer': path.resolve(__dirname, 'src/renderer'),
+      '@lib/flight-recorder': path.resolve(__dirname, '../lib/flight-recorder'),
     },
     // Ensure shared lib files (lib/electron-shared/) resolve React from this project
     dedupe: ['react', 'react-dom'],

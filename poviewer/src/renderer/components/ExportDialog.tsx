@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 interface Props {
   open: boolean;
@@ -41,6 +42,13 @@ export default function ExportDialog({ open, onClose }: Props) {
         setResult(`Exported to: ${path}`);
       }
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'export',
+        level: 'error',
+        message: 'Export bundle failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       setResult(`Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setExporting(false);

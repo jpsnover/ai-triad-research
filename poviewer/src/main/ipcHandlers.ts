@@ -4,6 +4,8 @@
 import { ipcMain, dialog, shell, BrowserWindow } from 'electron';
 import { z } from 'zod';
 import fs from 'fs';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+import { ActionableError } from '../../../lib/debate/errors.js';
 import {
   readTaxonomyFile,
   getTaxonomyDirs,
@@ -124,7 +126,12 @@ export function registerIpcHandlers(): void {
 
   validatedHandle('open-external-url', oneString, (_event, url) => {
     if (!/^https?:\/\//i.test(url)) {
-      throw new Error(`Blocked non-HTTP URL: ${url}`);
+      throw new ActionableError({
+        goal: 'Open external URL in default browser',
+        problem: `Blocked non-HTTP URL: ${url}`,
+        location: 'ipcHandlers.ts:open-external-url',
+        nextSteps: ['Only https:// and http:// URLs are allowed'],
+      });
     }
     shell.openExternal(url);
   });
@@ -231,6 +238,13 @@ export function registerIpcHandlers(): void {
       }
       console.log(`[TaxonomyWatcher] Broadcast taxonomy-changed for ${pov}`);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'taxonomy-watcher',
+        level: 'error',
+        message: `Failed to re-read taxonomy for ${pov}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.error(`[TaxonomyWatcher] Failed to re-read ${pov}:`, err);
     }
   });

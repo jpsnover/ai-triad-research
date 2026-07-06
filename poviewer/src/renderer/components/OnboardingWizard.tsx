@@ -32,6 +32,7 @@ export default function OnboardingWizard({ onComplete }: Props) {
         setError(result.error || 'Invalid API key');
       }
     } catch (err) {
+      /* telemetry — silent by design */
       setError(err instanceof Error ? err.message : 'Validation failed');
     } finally {
       setValidating(false);

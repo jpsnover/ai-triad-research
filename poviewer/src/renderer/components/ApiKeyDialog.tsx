@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAnalysisStore } from '../store/useAnalysisStore';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 interface Props {
   open: boolean;
@@ -39,6 +40,7 @@ export default function ApiKeyDialog({ open, onClose }: Props) {
         setErrorMsg(result.error || 'Invalid API key');
       }
     } catch (err) {
+      /* telemetry — silent by design */
       setStatus('invalid');
       setErrorMsg(err instanceof Error ? err.message : 'Validation failed');
     }
@@ -50,6 +52,13 @@ export default function ApiKeyDialog({ open, onClose }: Props) {
       setHasApiKey(true);
       onClose();
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'api-key',
+        level: 'error',
+        message: 'Failed to save API key',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       setErrorMsg(err instanceof Error ? err.message : 'Failed to save key');
     }
   };

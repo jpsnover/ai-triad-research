@@ -16,7 +16,8 @@
     "paths": {
       "@renderer/*": ["src/renderer/*"],
       "@lib/debate": ["../lib/debate/index.ts"],
-      "@lib/debate/*": ["../lib/debate/*"]
+      "@lib/debate/*": ["../lib/debate/*"],
+      "@lib/flight-recorder/*": ["../lib/flight-recorder/*"]
     }
   },
   "include": ["src/**/*", "../lib/**/*"],

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 // AI backend, model types, and dynamic model catalog — mirrors taxonomy-editor pattern.
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai';
 export type AIModel = string;
@@ -48,24 +49,24 @@ export function getStoredBackend(): AIBackend {
   try {
     const stored = localStorage.getItem(STORAGE_KEY_BACKEND);
     if (stored === 'gemini' || stored === 'claude' || stored === 'groq' || stored === 'openai') return stored;
-  } catch { /* ignore */ }
+  } catch { /* telemetry — silent by design */ }
   return 'gemini';
 }
 
 export function storeBackend(backend: AIBackend): void {
-  try { localStorage.setItem(STORAGE_KEY_BACKEND, backend); } catch { /* ignore */ }
+  try { localStorage.setItem(STORAGE_KEY_BACKEND, backend); } catch { /* telemetry — silent by design */ }
 }
 
 export function getStoredModel(): AIModel {
   try {
     const stored = localStorage.getItem(STORAGE_KEY_MODEL);
     if (stored) return stored;
-  } catch { /* ignore */ }
+  } catch { /* telemetry — silent by design */ }
   return DEFAULT_MODELS[getStoredBackend()];
 }
 
 export function storeModel(model: AIModel): void {
-  try { localStorage.setItem(STORAGE_KEY_MODEL, model); } catch { /* ignore */ }
+  try { localStorage.setItem(STORAGE_KEY_MODEL, model); } catch { /* telemetry — silent by design */ }
 }
 
 interface AIModelsConfig {
@@ -102,6 +103,13 @@ export async function initAIModels(): Promise<void> {
 
     console.log(`[AI Models] Loaded ${config.models.length} models from ai-models.json`);
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'ai-models',
+      level: 'warn',
+      message: 'Failed to load ai-models.json, using built-in defaults',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     console.warn('[AI Models] Failed to load ai-models.json, using built-in defaults:', err);
   }
 }

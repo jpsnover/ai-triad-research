@@ -118,7 +118,7 @@ function findExcerptOffset(
       if (match) {
         return { start: match.index, end: Math.min(match.index + verbatim.length, snapshotText.length) };
       }
-    } catch { /* fall through */ }
+    } catch { /* telemetry — silent by design */ }
   }
 
   // Try to find the key_point text in the snapshot
@@ -139,7 +139,7 @@ function findExcerptOffset(
         const end = Math.min(start + Math.max(quoted.length, 200), snapshotText.length);
         return { start, end };
       }
-    } catch { /* regex failed, fall through */ }
+    } catch { /* telemetry — silent by design */ }
   }
 
   // Try section reference (e.g., "Section II, paragraph 1")
@@ -163,7 +163,7 @@ function findExcerptOffset(
     if (match) {
       return { start: match.index, end: Math.min(match.index + 200, snapshotText.length) };
     }
-  } catch { /* fall through */ }
+  } catch { /* telemetry — silent by design */ }
 
   // Last resort: no offset
   return { start: 0, end: 0 };

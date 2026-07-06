@@ -6,6 +6,7 @@ import path from 'path';
 import os from 'os';
 import type { AiSettings, PromptOverrides } from './analysisTypes.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
 
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
@@ -29,7 +30,7 @@ function resolveSourcesDir(): string {
         return path.isAbsolute(raw.sources_root) ? raw.sources_root : path.resolve(PROJECT_ROOT, raw.sources_root);
       }
     }
-  } catch { /* fall through */ }
+  } catch { /* fall through */ /* telemetry — silent by design */ }
   return path.join(PROJECT_ROOT, 'sources');
 }
 const SOURCES_DIR = resolveSourcesDir();
@@ -283,6 +284,7 @@ export function discoverSources(): DiscoveredSource[] {
       });
     } catch {
       // Skip sources with invalid metadata
+      /* telemetry — silent by design */
     }
   }
 
@@ -441,6 +443,13 @@ export function watchTaxonomyFiles(onChange: (pov: string) => void): void {
       activeWatchers.push(watcher);
       console.log(`[TaxonomyWatcher] Watching ${filename}`);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'taxonomy-watcher',
+        level: 'error',
+        message: `Failed to watch taxonomy file ${filename}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.error(`[TaxonomyWatcher] Failed to watch ${filename}:`, err);
     }
   }

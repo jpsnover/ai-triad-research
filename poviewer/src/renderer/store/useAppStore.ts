@@ -5,6 +5,7 @@ import { create } from 'zustand';
 import type { PovCamp, Theme, Point, Source, Notebook, TaxonomyMeta, SearchMode } from '../types/types';
 import { HARDCODED_NOTEBOOKS } from '../data/hardcodedData';
 import { discoveredToSource, type TaxNodeLookup } from '../utils/pipelineAdapter';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 interface PovFilters {
   accelerationist: boolean;
@@ -90,7 +91,7 @@ function getThemeFromStorage(): Theme {
   try {
     const saved = localStorage.getItem('poviewer-theme');
     if (saved === 'light' || saved === 'dark' || saved === 'bkc' || saved === 'system') return saved;
-  } catch { /* fallback */ }
+  } catch { /* telemetry — silent by design */ }
   return 'light';
 }
 
@@ -163,7 +164,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                 taxNodes[node.id] = { label: node.label, description: node.description, plain_description: node.plain_description };
               }
             }
-          } catch { /* taxonomy file may not exist */ }
+          } catch { /* telemetry — silent by design */ }
         }
       }
 
@@ -206,8 +207,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         pipelineLoaded: true,
       });
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'app-store',
+        level: 'error',
+        message: 'Failed to load from pipeline, falling back to hardcoded',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.error('[useAppStore] Failed to load from pipeline:', err);
-      // Fallback to hardcoded
       set({
         notebooks: HARDCODED_NOTEBOOKS,
         activeNotebookId: HARDCODED_NOTEBOOKS[0].id,

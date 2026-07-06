@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { create } from 'zustand';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { SourceInfo, PipelineSummary, TaxonomyNode, SelectedKeyPoint, Theme, PotentialEdge, PolicyRegistryEntry, EnrichmentState, EnrichmentProgress, FullTaxonomyNode } from '../types/types';
 import { rankBySimilarity } from '../utils/similarity';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
@@ -133,6 +134,13 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
 
       set({ sources, summaries, taxonomy, policyRegistry: polReg?.policies ?? [], loaded: true });
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'store',
+        level: 'error',
+        message: 'Failed to load sources',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.error('[SummaryViewer] Failed to load sources:', err);
       set({ loaded: true });
     }
@@ -179,6 +187,13 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
           snapshots: { ...state.snapshots, [docId]: text },
         }));
       } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'store',
+          level: 'error',
+          message: 'Failed to load snapshot for key point',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         console.error('[SummaryViewer] Failed to load snapshot:', err);
       }
     }
@@ -199,6 +214,13 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
           snapshots: { ...state.snapshots, [docId]: text },
         }));
       } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'store',
+          level: 'error',
+          message: 'Failed to load snapshot for document search',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         console.error('[SummaryViewer] Failed to load snapshot:', err);
       }
     }
@@ -244,6 +266,13 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
       }
     } catch (err) {
       // Dedup check failed — proceed with creation (better to risk a duplicate than block the user)
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'store',
+        level: 'warn',
+        message: 'Semantic dedup check failed, proceeding with taxonomy node creation',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.warn('[addToTaxonomy] Semantic dedup check failed, proceeding with creation:', err);
     }
 
@@ -303,6 +332,13 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
       const results = rankBySimilarity(queryVector, cache, 0.4, 50);
       set({ similarResults: results, similarLoading: false });
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'store',
+        level: 'error',
+        message: 'Similar search failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       set({ similarError: mapErrorToUserMessage(err), similarLoading: false });
     }
   },
@@ -351,6 +387,13 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
 
       set({ potentialEdges: validEdges, potentialEdgesLoading: false });
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'store',
+        level: 'error',
+        message: 'Potential edges discovery failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       set({ potentialEdgesError: mapErrorToUserMessage(err), potentialEdgesLoading: false });
     }
   },
@@ -408,6 +451,13 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
         updateStep(0, 'skipped');
       }
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'store',
+        level: 'error',
+        message: 'Enrichment step 0 (source linking) failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       updateStep(0, 'failed', String(err));
     }
 
@@ -462,6 +512,13 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
       }
       } // end else (!pov guard)
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'store',
+        level: 'error',
+        message: 'Enrichment step 1 (parent placement) failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.error('[Enrichment] Parent placement failed:', err);
       updateStep(1, 'failed', mapErrorToUserMessage(err));
     }
@@ -487,6 +544,13 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
       }
       updateStep(2, 'done');
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'store',
+        level: 'error',
+        message: 'Enrichment attribute extraction failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.error('[Enrichment] Attribute extraction failed:', err);
       updateStep(2, 'failed', mapErrorToUserMessage(err));
     }
@@ -557,7 +621,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
           candidates = allNodes.filter(n => selectedSet.has(n.id));
         }
       } catch {
-        // Embedding filtering failed — fall back to all nodes capped at 80
+        /* telemetry — silent by design */
         candidates = allNodes.slice(0, 80);
       }
 
@@ -604,6 +668,13 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
       }
       updateStep(3, 'done');
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'store',
+        level: 'error',
+        message: 'Enrichment edge discovery failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.error('[Enrichment] Edge discovery failed:', err);
       updateStep(3, 'failed', mapErrorToUserMessage(err));
     }

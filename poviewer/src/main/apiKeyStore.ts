@@ -58,6 +58,7 @@ export async function validateApiKey(key: string): Promise<{ valid: boolean; err
     });
     return { valid: true };
   } catch (err: unknown) {
+    /* telemetry — silent by design */
     const message = err instanceof Error ? err.message : 'Unknown error';
     return { valid: false, error: message };
   }

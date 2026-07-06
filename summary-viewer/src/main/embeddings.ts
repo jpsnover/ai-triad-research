@@ -4,6 +4,7 @@
 import path from 'path';
 import { execFile } from 'child_process';
 import { resolveDataPath, PROJECT_ROOT } from './fileIO';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import {
   createEmbeddingIO,
   type EmbeddingsFile,
@@ -61,6 +62,13 @@ export function computeEmbeddings(texts: string[]): Promise<number[][]> {
           }
           resolve(vectors);
         } catch (parseErr) {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'embeddings',
+            level: 'error',
+            message: 'Failed to parse batch-encode output',
+            error: { name: (parseErr as Error).name ?? 'Error', message: String(parseErr) },
+          });
           reject(new Error(`Failed to parse batch-encode output: ${parseErr}`));
         }
       },

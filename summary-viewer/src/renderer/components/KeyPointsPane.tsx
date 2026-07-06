@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useStore } from '../store/useStore';
 import type { KeyPoint, PipelineSummary, GraphAttributes, TaxonomyNode } from '../types/types';
 import { rankBySimilarity } from '../utils/similarity';
@@ -259,10 +260,17 @@ Write 3-5 sentences covering:
         try {
           const parsed = JSON.parse(trimmed);
           raw = parsed.comparison || parsed.response || parsed.text || parsed.answer || Object.values(parsed)[0] as string || raw;
-        } catch { /* use raw */ }
+        } catch { /* telemetry — silent by design */ }
       }
       setComparison(raw);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'key-points',
+        level: 'error',
+        message: 'Taxonomy comparison generation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       setComparison(`Error: ${err instanceof Error ? err.message : String(err)}`);
     }
     setComparing(false);
@@ -354,6 +362,13 @@ Return ONLY the rewritten description text (no JSON, no markdown, no explanation
         setFixedDescription(cleaned || 'Fix failed — response did not include Encompasses/Excludes');
       }
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'key-points',
+        level: 'error',
+        message: 'DOLCE description fix failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.error('DOLCE fix failed:', err);
     } finally {
       setFixingDolce(false);
@@ -381,7 +396,7 @@ Return ONLY the rewritten description text (no JSON, no markdown, no explanation
         .map(r => ({ ...r, node: taxonomy[r.id] }))
         .filter(r => r.node);
       setSimilarItems(withNodes);
-    } catch { setSimilarItems([]); }
+    } catch { /* telemetry — silent by design */ setSimilarItems([]); }
     setSimilarLoading(false);
   }, [uc, taxonomy, embeddingCache, similarItems]);
 

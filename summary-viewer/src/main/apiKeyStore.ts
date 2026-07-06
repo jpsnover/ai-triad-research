@@ -45,7 +45,7 @@ export function loadApiKey(backend?: Backend): string | null {
       const encrypted = fs.readFileSync(fp);
       const key = safeStorage.decryptString(encrypted);
       if (key) return key;
-    } catch { /* fall through */ }
+    } catch { /* telemetry — silent by design */ /* fall through */ }
   }
 
   // 2. Backend-specific env var
