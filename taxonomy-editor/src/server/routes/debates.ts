@@ -25,7 +25,10 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
 
   get('/api/debates/:id', async (req, res) => {
     try { json(res, await fileIO.loadDebateSession(param(req, 'id', '/api/debates/:id'))); }
-    catch (err) { error(res, String(err), 404, err); }
+    catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debates', level: 'warn', message: 'Failed to load debate session', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 404, err);
+    }
   });
 
   put('/api/debates', async (_req, res, body) => {
@@ -77,7 +80,10 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
     try {
       await fileIO.deleteDebateSession(param(req, 'id', '/api/debates/:id'));
       json(res, { ok: true });
-    } catch (err) { error(res, String(err), 500, err); }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debates', level: 'error', message: 'Failed to delete debate session', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 500, err);
+    }
   });
 
   get('/api/debates/:id/comments', async (req, res) => {
@@ -88,7 +94,10 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
       if (!(await fileIO.loadDebateSession(id))) { error(res, 'Debate not found', 404); return; }
       json(res, await fileIO.loadDebateComments(id));
     }
-    catch (err) { error(res, String(err), 404, err); }
+    catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debates', level: 'warn', message: 'Failed to load debate comments', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 404, err);
+    }
   });
 
   put('/api/debates/:id/comments', async (req, res, body) => {
@@ -96,7 +105,10 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
       const debateId = param(req, 'id', '/api/debates/:id/comments');
       await fileIO.saveDebateComments(debateId, body);
       json(res, { ok: true });
-    } catch (err) { error(res, String(err), 500, err); }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debates', level: 'error', message: 'Failed to save debate comments', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 500, err);
+    }
   });
 
   post('/api/debates/export', (_req, res, body) => {
@@ -131,6 +143,9 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
       const prompt = newsReportPrompt(topic, synthesisJson, argSummary, highlights, docAnalysis, undefined, audience as import('../../../../lib/debate/types.js').DebateAudience | undefined);
       const result = await ai.generateTextByUsage('server.news-report', { prompt });
       json(res, { article: result.text });
-    } catch (err) { error(res, String(err), 500, err); }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debates', level: 'error', message: 'News report generation failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 500, err);
+    }
   });
 }
