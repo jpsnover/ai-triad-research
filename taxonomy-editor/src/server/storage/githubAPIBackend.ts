@@ -275,7 +275,7 @@ export class GitHubAPIBackend implements StorageBackend {
    * read-modify-write flows in community/calibration curation, where the same
    * shared file is appended to multiple times within one request.
    */
-  async readFile(filePath: string, opts?: { ref?: string }): Promise<string | null> {
+  async readFile(filePath: string, opts?: { ref?: string; optional?: boolean }): Promise<string | null> {
     const repoPath = this.toRepoPath(filePath);
 
     // Check session overlay first
@@ -330,7 +330,7 @@ export class GitHubAPIBackend implements StorageBackend {
 
     // Pinned ref (e.g. 'main') for shared data; else the effective session ref.
     const ref = opts?.ref ?? this.getEffectiveRef();
-    const result = await this.fetchFileFromGitHub(repoPath, ref);
+    const result = await this.fetchFileFromGitHub(repoPath, ref, opts?.optional);
     if (result === null) return null;
 
     // Write-through to disk cache
@@ -1159,6 +1159,7 @@ export class GitHubAPIBackend implements StorageBackend {
     pathAndQuery: string,
     body?: unknown,
     callId?: string,
+    apiOpts?: { optional?: boolean },
   ): Promise<{ ok: boolean; status: number; data: unknown; error?: string; etag?: string }> {
     // t/803: correlate GitHub API calls to the originating HTTP request. Never
     // embed the user's email/principal in the id (it was PII in every log line).
@@ -1229,10 +1230,11 @@ export class GitHubAPIBackend implements StorageBackend {
         let data: unknown = null;
         try { data = text ? JSON.parse(text) : null; } catch { /* telemetry — silent by design */ data = text; }
 
+        const is404Optional = !res.ok && res.status === 404 && apiOpts?.optional;
         this.recordEvent({
-          type: res.ok ? 'github.api.response' : 'github.api.error',
+          type: res.ok ? 'github.api.response' : (is404Optional ? 'github.api.miss' : 'github.api.error'),
           component: 'github-api',
-          level: res.ok ? 'debug' : 'error',
+          level: res.ok ? 'debug' : (is404Optional ? 'debug' : 'error'),
           duration_ms: durationMs,
           call_id: callId,
           request_id: requestId,
@@ -1659,13 +1661,15 @@ export class GitHubAPIBackend implements StorageBackend {
   private async fetchFileFromGitHub(
     repoPath: string,
     ref: string,
+    optional?: boolean,
   ): Promise<{ content: string; sha: string; etag: string } | null> {
     const creds = await this.getCredsCached();
     if (!creds) return null;
 
     const qRef = ref === 'main' ? '' : `?ref=${encodeURIComponent(ref)}`;
     const resp = await this.apiRequest(creds, 'GET',
-      `/repos/${creds.repo}/contents/${repoPath}${qRef}`);
+      `/repos/${creds.repo}/contents/${repoPath}${qRef}`,
+      undefined, undefined, optional ? { optional: true } : undefined);
 
     if (!resp.ok) return null;
 

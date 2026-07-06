@@ -128,7 +128,7 @@ export class AzureBlobBackend implements StorageBackend {
       : this.userContentClient;
   }
 
-  async readFile(filePath: string, _opts?: { ref?: string }): Promise<string | null> {
+  async readFile(filePath: string, _opts?: { ref?: string; optional?: boolean }): Promise<string | null> {
     return (await this.readBinaryFile(filePath))?.toString('utf-8') ?? null;
   }
 

@@ -1531,3 +1531,60 @@ describe('GitHubAPIBackend — session overlay memory cap (t/727)', () => {
     b.shutdown();
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// OPTIONAL 404 LOG LEVEL (t/1339)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('GitHubAPIBackend — optional 404 log level', () => {
+  it('logs non-optional 404 at error level with github.api.error type', async () => {
+    apiHandlers.push((url, init) => {
+      if ((init?.method ?? 'GET') === 'GET' && url.includes('/contents/')) {
+        return { status: 404, body: { message: 'Not Found' } };
+      }
+      return null as never;
+    });
+
+    const recorder = createTestRecorder();
+    const backend = await createBackend(recorder);
+
+    const result = await backend.readFile('/missing/file.json');
+    expect(result).toBeNull();
+
+    const errorEvents = recorder.events.filter(
+      e => e.type === 'github.api.error' && e.data?.status === 404,
+    );
+    expect(errorEvents.length).toBeGreaterThan(0);
+    expect(errorEvents[0].level).toBe('error');
+
+    backend.shutdown();
+  });
+
+  it('logs optional 404 at debug level with github.api.miss type', async () => {
+    apiHandlers.push((url, init) => {
+      if ((init?.method ?? 'GET') === 'GET' && url.includes('/contents/')) {
+        return { status: 404, body: { message: 'Not Found' } };
+      }
+      return null as never;
+    });
+
+    const recorder = createTestRecorder();
+    const backend = await createBackend(recorder);
+
+    const result = await backend.readFile('/missing/optional.json', { optional: true });
+    expect(result).toBeNull();
+
+    const missEvents = recorder.events.filter(
+      e => e.type === 'github.api.miss' && e.data?.status === 404,
+    );
+    expect(missEvents.length).toBeGreaterThan(0);
+    expect(missEvents[0].level).toBe('debug');
+
+    const errorEvents = recorder.events.filter(
+      e => e.type === 'github.api.error' && e.data?.status === 404,
+    );
+    expect(errorEvents).toHaveLength(0);
+
+    backend.shutdown();
+  });
+});

@@ -72,6 +72,7 @@ export type EventType =
   | 'github.api.request'
   | 'github.api.response'
   | 'github.api.error'
+  | 'github.api.miss'
   | 'github.api.rate_limit'
   | 'github.api.circuit_break'
   | 'github.api.conflict'

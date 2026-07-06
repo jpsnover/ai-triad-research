@@ -22,8 +22,10 @@ export interface StorageBackend {
   /** Read a file as UTF-8. Returns null if the file does not exist.
    *  `opts.ref` pins the read to a specific ref (e.g. 'main') for shared data
    *  that lives on main rather than a per-user session branch (community
-   *  submissions, calibration logs). Backends without branches ignore it. */
-  readFile(filePath: string, opts?: { ref?: string }): Promise<string | null>;
+   *  submissions, calibration logs). Backends without branches ignore it.
+   *  `opts.optional` signals the file may legitimately not exist — backends
+   *  that log 404s can downgrade from error to debug level. */
+  readFile(filePath: string, opts?: { ref?: string; optional?: boolean }): Promise<string | null>;
 
   /** Write content to a file (UTF-8). Creates parent directories and uses
    *  atomic write (tmp+rename) where the backend supports it.
