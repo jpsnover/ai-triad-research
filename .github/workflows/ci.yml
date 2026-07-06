@@ -193,7 +193,7 @@ jobs:
         run: bash scripts/check-quality-gates.sh
 
   # ── Commit hygiene: flags anonymous / undersized commit subjects (t/1319) ──
-  # Warning-only. Points at data-repo CONTRIBUTING.md for guidance.
+  # Warning-only until 2026-07-17. To enforce: remove continue-on-error.
   commit-hygiene:
     runs-on: ubuntu-latest
     steps:
@@ -247,7 +247,8 @@ jobs:
   # ── Debate engine evals (t/1329 Tier 1 + t/1332 Tier 2) ──
   # Tier 1: deterministic regression checks on golden debate outputs (no AI).
   # Tier 2: AI-powered golden debate subset via --ci-golden (needs GEMINI key).
-  # Warning-only until 2026-07-17. To enforce: remove continue-on-error.
+  # Annotation-only by design — never flips (t/1329). Nondeterministic AI
+  # scores are signal, not a gate; continue-on-error stays permanently.
   debate-eval:
     needs: [changes]
     if: >-
