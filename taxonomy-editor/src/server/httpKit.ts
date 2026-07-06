@@ -53,3 +53,27 @@ export function query(req: IncomingMessage, name: string): string | null {
   const url = new URL(req.url!, `http://localhost`);
   return url.searchParams.get(name);
 }
+
+// ── Route registrar (t/1295) ──
+// The surface extracted cluster modules (routes/*.ts) use to register routes into
+// the server's shared table, so server.ts only wires the registrar.
+
+type RouteRecord = { method: string; path: string; handler: Handler };
+
+export interface Router {
+  get(path: string, h: Handler): void;
+  post(path: string, h: Handler): void;
+  put(path: string, h: Handler): void;
+  del(path: string, h: Handler): void;
+}
+
+/** A Router that appends to the caller's existing `routes` array — same shape and
+ *  order semantics as server.ts's local get/post/put/del helpers. */
+export function createRouter(routes: RouteRecord[]): Router {
+  return {
+    get: (p, h) => { routes.push({ method: 'GET', path: p, handler: h }); },
+    post: (p, h) => { routes.push({ method: 'POST', path: p, handler: h }); },
+    put: (p, h) => { routes.push({ method: 'PUT', path: p, handler: h }); },
+    del: (p, h) => { routes.push({ method: 'DELETE', path: p, handler: h }); },
+  };
+}
