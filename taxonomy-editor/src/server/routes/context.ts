@@ -9,6 +9,7 @@
 
 import type { GitHubAPIBackend } from '../storage/githubAPIBackend.js';
 import type { SessionBranchManager } from '../storage/sessionBranchManager.js';
+import type { FlightRecorder } from '../../../../lib/flight-recorder/flightRecorder.js';
 
 export interface ServerCtx {
   /** Live GitHub API backend (null until initialised / in non-GitHub modes). */
@@ -21,4 +22,10 @@ export interface ServerCtx {
     pending: { writes: { path: string; content: string }[]; deletes: string[] } | null,
     user: string,
   ) => Promise<void>;
+  /** Server-side flight recorder instance (admin dump endpoints). (t/1295 admin) */
+  readonly serverRecorder: FlightRecorder;
+  /** Ensure the caller's session branch exists before a write (no-op on blob). */
+  readonly ensureSessionBranch: () => Promise<void>;
+  /** Append the server ring-buffer log lines to a dump's NDJSON (admin dump). */
+  readonly appendServerLogs: (ndjson: string) => string;
 }
