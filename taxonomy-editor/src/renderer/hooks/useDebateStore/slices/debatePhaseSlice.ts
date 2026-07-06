@@ -4,6 +4,7 @@
 import type { StateCreator } from 'zustand';
 import type { DebateStore } from '../types';
 import type { ReflectionEdit, ReflectionResult, ConsensusProposal, ConsensusCluster } from '../types';
+import { formatGapHint } from '../shared/prompts';
 import type {
   DebateSession,
   SpeakerId,
@@ -91,9 +92,6 @@ import {
   phaseGuardedSet,
   enrichPolicyRefs,
   serializeNodeSourceMap,
-  buildDebateResponsePrompt,
-  buildCrossRespondPrompt,
-  formatGapHint,
   formatEdgeContext,
   formatDebaterEdgeContext,
   getRelevantTaxonomyContext,

@@ -21,6 +21,7 @@ import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { hashString, looksTruncated, defaultGraphAttributes } from '@lib/debate/helpers';
 export { hashString, looksTruncated, defaultGraphAttributes };
+import { buildFactCheckPrompt } from './shared/prompts';
 import { triggerManualDump } from '../../lib/flightRecorderInit';
 import { mapErrorToUserMessage } from '../../utils/errorMessages';
 import { formatTaxonomyContext } from '../../utils/taxonomyContext';
@@ -33,18 +34,11 @@ import { trace, newCallId, TraceEventName } from '../../lib/trace';
 import { documentAnalysisPrompt, buildTaxonomySample, documentAnalysisContext } from '@lib/debate/documentAnalysis';
 import { updateConvergenceTracker } from '../../utils/convergenceScoring';
 import {
-  clarificationPrompt,
   situationClarificationPrompt,
   documentClarificationPrompt,
   formatSituationDebateContext,
-  concludingPrompt,
   userSeedClaimsPrompt,
   openingStatementPrompt,
-  debateResponsePrompt,
-  crossRespondPrompt,
-  probingQuestionsPrompt,
-  factCheckPrompt,
-  contextCompressionPrompt,
   entrySummarizationPrompt,
   missingArgumentsPrompt,
   taxonomyRefinementPrompt,
@@ -108,10 +102,9 @@ import type { TurnAttempt, TurnValidation, TurnValidationTrail, TaxonomySuggesti
 import { formatVocabularyContext } from '@lib/debate/vocabularyContext';
 import { evaluateLookaheadPerClaim, buildClaimAnalysis } from '@lib/debate/lookaheadGate';
 import type { LookaheadDiagnostics, LookaheadGateResult, ClaimAnalysis, PerClaimResult } from '@lib/debate/lookaheadGate';
-import { computeStructuralScore, critiqueTopicPrompt, parseTopicCritique, formatCritiqueForRefinement, formatStructuralContext, computeLineageDistribution, formatLineageContext } from '@lib/debate/topicCritique';
+import { computeStructuralScore, critiqueTopicPrompt, parseTopicCritique, formatStructuralContext, computeLineageDistribution, formatLineageContext } from '@lib/debate/topicCritique';
 import { decomposeResolutionPrompt, topicScopeExtractionPrompt, setTopicScope } from '@lib/debate/prompts';
 import type { TopicScope, TopicScopeRiskLevel } from '@lib/debate/types';
-import type { TopicCritique, LineageFrameEntry } from '@lib/debate/topicCritique';
 import { shouldRunGapCheck, findUnengagedHighRelevanceNodes, collectEngagedNodeIds, MAX_GAP_INJECTIONS } from '@lib/debate/gapCheck';
 import { runNeutralEvaluation, buildSpeakerMapping } from '@lib/debate/neutralEvaluator';
 import type { NeutralEvaluation, SpeakerMapping } from '@lib/debate/neutralEvaluator';
@@ -2434,11 +2427,7 @@ export function formatEdgeContext(activePovers: string[]): string {
   return lines.join('\n');
 }
 
-// ── Prompt builders (delegate to prompts/debate.ts) ──────
-
-export function buildClarificationPrompt(topic: string, sourceContent?: string, audience?: DebateAudience, lineageContext?: string): string {
-  return clarificationPrompt(topic, sourceContent, audience, lineageContext);
-}
+// ── Store-dependent helpers (not movable to shared/prompts) ──────
 
 /** Build lineage context string from pre-computed critique or fallback from all taxonomy nodes. */
 export function buildLineageContext(): string | undefined {
@@ -2483,91 +2472,6 @@ export function buildLineageContext(): string | undefined {
   return formatLineageContext(frame);
 }
 
-export function buildSynthesisPrompt(
-  originalTopic: string,
-  clarifications: { speaker: string; questions: string[]; answers: string }[],
-  audience?: DebateAudience,
-  critique?: TopicCritique | null,
-): string {
-  let qaPairs = '';
-  for (const c of clarifications) {
-    qaPairs += `\n${c.speaker} asked:\n`;
-    for (const q of c.questions) qaPairs += `  - ${q}\n`;
-    qaPairs += `User answered: ${c.answers}\n`;
-  }
-  const critiqueContext = critique ? formatCritiqueForRefinement(critique) : undefined;
-  return concludingPrompt(originalTopic, qaPairs, audience, critiqueContext);
-}
-
-
-export function buildDebateResponsePrompt(
-  poverId: Exclude<SpeakerId, 'user'>,
-  topic: string,
-  taxonomyContext: string,
-  recentTranscript: string,
-  question: string,
-  addressing: string,
-  sourceContent?: string,
-  length: string = 'medium',
-  docAnalysis?: DocumentAnalysis,
-  audience?: DebateAudience,
-): string {
-  const info = POVER_INFO[poverId];
-  return debateResponsePrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, question, addressing, sourceContent, length, docAnalysis, audience, buildLineageContext());
-}
-
-export function formatGapHint(gapInjections?: GapInjection[]): string {
-  const args = gapInjections?.[0]?.arguments;
-  if (!args || args.length === 0) return '';
-  const lines = args.map((g, i) =>
-    `  ${i + 1}. [${g.gap_type}] ${g.argument} (Why missing: ${g.why_missing})`,
-  );
-  return `\n\n## Identified Debate Gaps (unaddressed)\nThe following gaps were identified mid-debate but have NOT yet been substantively addressed by any debater. Prioritize steering the conversation toward these:\n${lines.join('\n')}\n`;
-}
-
-
-
-export function buildCrossRespondPrompt(
-  poverId: Exclude<SpeakerId, 'user'>,
-  topic: string,
-  taxonomyContext: string,
-  recentTranscript: string,
-  focusPoint: string,
-  addressing: string,
-  length: string = 'medium',
-  sourceContent?: string,
-  docAnalysis?: DocumentAnalysis,
-): string {
-  const info = POVER_INFO[poverId];
-  return crossRespondPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, focusPoint, addressing, length, sourceContent, docAnalysis, info.doctrinal_boundaries);
-}
-
-export function buildProbingQuestionsPrompt(
-  topic: string,
-  transcript: string,
-  unreferencedNodes: string[],
-  hasSourceDocument: boolean = false,
-  audience?: DebateAudience,
-): string {
-  return probingQuestionsPrompt(topic, transcript, unreferencedNodes, hasSourceDocument, undefined, audience);
-}
-
-export function buildFactCheckPrompt(
-  selectedText: string,
-  statementContext: string,
-  taxonomyNodes: string,
-  conflictData: string,
-  audience?: DebateAudience,
-): string {
-  return factCheckPrompt(selectedText, statementContext, taxonomyNodes, conflictData, audience);
-}
-
-export function buildContextCompressionPrompt(
-  entries: string,
-  audience?: DebateAudience,
-): string {
-  return contextCompressionPrompt(entries, audience);
-}
 
 // defaultGraphAttributes: imported from @lib/debate/helpers
 

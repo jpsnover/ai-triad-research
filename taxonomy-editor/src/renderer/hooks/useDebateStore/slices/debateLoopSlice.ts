@@ -3,6 +3,7 @@
 
 import type { StateCreator } from 'zustand';
 import type { DebateStore } from '../types';
+import { buildDebateResponsePrompt, buildCrossRespondPrompt, formatGapHint } from '../shared/prompts';
 import type { ReflectionEdit, ReflectionResult, ConsensusProposal, ConsensusCluster } from '../types';
 import type {
   DebateSession,
@@ -91,9 +92,7 @@ import {
   phaseGuardedSet,
   enrichPolicyRefs,
   serializeNodeSourceMap,
-  buildDebateResponsePrompt,
-  buildCrossRespondPrompt,
-  formatGapHint,
+  buildLineageContext,
   formatEdgeContext,
   formatDebaterEdgeContext,
   getRelevantTaxonomyContext,
@@ -212,6 +211,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
         get().responseLength,
         drDocAnalysis,
         activeDebate.audience,
+        buildLineageContext(),
       );
 
       try {

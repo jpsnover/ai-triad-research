@@ -3,6 +3,7 @@
 
 import type { StateCreator } from 'zustand';
 import type { DebateStore } from '../types';
+import { buildClarificationPrompt, buildSynthesisPrompt } from '../shared/prompts';
 import type {
   DebateSession,
   SpeakerId,
@@ -40,9 +41,7 @@ import {
   generateTextWithProgress,
   createDebateGuard,
   pushWarning,
-  buildClarificationPrompt,
   buildLineageContext,
-  buildSynthesisPrompt,
   getRelevantTaxonomyContext,
   formatDebaterEdgeContext,
   enrichPolicyRefs,
