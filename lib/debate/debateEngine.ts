@@ -66,8 +66,6 @@ import {
   selectReframingMetaphor,
   probingQuestionsPrompt,
   entrySummarizationPrompt,
-  missingArgumentsPrompt,
-  taxonomyRefinementPrompt,
   midDebateGapPrompt,
   crossCuttingNodePrompt,
   moderatorSelectionPrompt,
@@ -83,7 +81,7 @@ import {
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims, factCheckToBaseStrength, computeClaimTaxonomyAttribution, sampleNodesForEntailment, type RawExtractedClaim } from './argumentNetwork.js';
 import { embedDoctrinalBoundaries, computeDoctrinalAnchoring, checkThresholdAnomalies } from './doctrinalAnchoring.js';
 import type { BoundaryEmbeddings, DoctrinalAnchoringConfig } from './doctrinalAnchoring.js';
-import { extractCalibrationData, appendCalibrationLog, readCalibrationLog, computeExtractionCoverage } from './calibrationLogger.js';
+import { extractCalibrationData, appendCalibrationLog, readCalibrationLog } from './calibrationLogger.js';
 import { computeStrategicHints } from './strategicHints.js';
 import { evaluateLookahead } from './lookaheadGate.js';
 import type { LookaheadDiagnostics } from './lookaheadGate.js';
@@ -92,7 +90,6 @@ import { resolveRepoRoot, resolveDataRoot, resolveSourcesDir } from './taxonomyL
 import { updateCruxTracker, formatCruxResolutionContext, detectConcessionCascade, transitionCrux } from './cruxResolution.js';
 import { persistDebateCruxes, loadRegistry, findRelevantPriorCruxes, formatPriorCruxContext } from './cruxRegistry.js';
 import { findAndEnrichPromotionCandidates } from './cruxTaxonomyFeedback.js';
-import { runSynthesisPhases } from './synthesisPhases.js';
 import { buildMediumTierSummary, buildDistantTierSummary } from './tieredCompression.js';
 import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext.js';
 import { formatVocabularyContext } from './vocabularyContext.js';
@@ -127,7 +124,6 @@ import {
   wordOverlap,
 } from './helpers.js';
 import { computeCoverageMap, computeStrengthWeightedCoverage } from './coverageTracker.js';
-import { generateDialecticTraces } from './dialecticTrace.js';
 import { computeTaxonomyGapAnalysis } from './taxonomyGapAnalysis.js';
 import { checkClaimExclusionBoundary, checkDraftScopeBoundary, filterByExclusionAbsolute, EXCLUSION_RATIO_THRESHOLD, SCOPE_BOUNDARY_THRESHOLD } from './exclusionGuard.js';
 import { ActionableError } from './errors.js';
@@ -162,6 +158,7 @@ import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOp
 import type { TurnPipelineInput, OpeningPipelineInput } from './turnPipeline.js';
 import { TopicPipeline } from './topicPipeline.js';
 import { ClaimExtractionPipeline } from './claimExtractionPipeline.js';
+import { SynthesisPipeline } from './synthesisPipeline.js';
 
 // ── Model tier ranking (for maxModelId cap filtering) ────
 
@@ -370,6 +367,7 @@ export class DebateEngine {
   private _topicPipeline!: TopicPipeline;
   /** Extracted ClaimExtractionPipeline collaborator — owns claim extraction, drift tracking, gap injection, and post-debate analysis. */
   private _claimPipeline!: ClaimExtractionPipeline;
+  private _synthesisPipeline!: SynthesisPipeline;
 
   /** Get the set of hint keys currently suppressed for this debate. */
   private getSuppressedHints(): Set<string> {
@@ -788,18 +786,18 @@ export class DebateEngine {
 
       // Phase 4: Synthesis + final neutral evaluation in parallel
       await Promise.all([
-        this.runSynthesis(),
+        this._synthesisPipeline.runSynthesis(),
         this.runNeutralCheckpoint('final'),
       ]);
 
       // Phase 4b: Missing arguments pass (needs synthesis output, so runs after)
-      await this.runMissingArgumentsPass();
+      await this._synthesisPipeline.runMissingArgumentsPass();
 
       // Phase 4c: Taxonomy refinement suggestions (needs synthesis + argument network)
-      await this.runTaxonomyRefinementPass();
+      await this._synthesisPipeline.runTaxonomyRefinementPass();
 
       // Phase 4d: Dialectic trace generation (needs synthesis preferences + argument network)
-      this.runDialecticTracePass();
+      this._synthesisPipeline.runDialecticTracePass();
 
       // Phase 4e: Cross-cutting node promotion (needs synthesis areas_of_agreement)
       await this._claimPipeline.runCrossCuttingProposalPass();
@@ -842,7 +840,7 @@ export class DebateEngine {
     }
 
     // Compute extraction coverage on sampled turns (t/391)
-    await this.runExtractionCoverage();
+    await this._synthesisPipeline.runExtractionCoverage();
 
     // Log calibration data point (non-blocking, never fails the debate)
     try {
@@ -958,6 +956,19 @@ export class DebateEngine {
       getActivatedSituations: () => engine._activatedSituations,
     });
 
+    engine._synthesisPipeline = new SynthesisPipeline({
+      session: engine.session,
+      config: engine.config,
+      taxonomy: engine.taxonomy,
+      generate: (prompt, label, timeoutMs?) => engine.generate(prompt, label, timeoutMs),
+      generateWithEvaluator: (prompt, label) => engine.generateWithEvaluator(prompt, label),
+      addEntry: (entry) => engine.addEntry(entry),
+      recordDiagnostic: (entryId, data) => engine.recordDiagnostic(entryId, data),
+      progress: (phase, speaker, message) => engine.progress(phase, speaker, message),
+      warn: (operation, error, recovery) => engine.warn(operation, error, recovery),
+      checkAborted: () => engine.checkAborted(),
+    });
+
     setPromptCompact(isCompactModel(config.model));
 
     const hasSynthesis = checkpoint.transcript.some(
@@ -980,10 +991,10 @@ export class DebateEngine {
     try {
       if (!hasSynthesis) {
         if (isSynthesisStop) {
-          await engine.runSynthesis(maxPhase);
+          await engine._synthesisPipeline.runSynthesis(maxPhase);
         } else {
           await Promise.all([
-            engine.runSynthesis(),
+            engine._synthesisPipeline.runSynthesis(),
             engine.runNeutralCheckpoint('final'),
           ]);
         }
@@ -992,19 +1003,19 @@ export class DebateEngine {
         return engine.earlyReturn(resumeStart);
       }
 
-      await engine.runMissingArgumentsPass();
+      await engine._synthesisPipeline.runMissingArgumentsPass();
       if (stop === 'missing-arguments') return engine.earlyReturn(resumeStart);
 
-      await engine.runTaxonomyRefinementPass();
+      await engine._synthesisPipeline.runTaxonomyRefinementPass();
       if (stop === 'taxonomy-refinement') return engine.earlyReturn(resumeStart);
 
-      engine.runDialecticTracePass();
+      engine._synthesisPipeline.runDialecticTracePass();
       await engine._claimPipeline.runCrossCuttingProposalPass();
       engine._claimPipeline.runTaxonomyGapAnalysisPass();
       engine._claimPipeline.runSituationRefExtraction();
       engine.computePerturbationResult();
 
-      await engine.runExtractionCoverage();
+      await engine._synthesisPipeline.runExtractionCoverage();
       if (stop === 'extraction-coverage') return engine.earlyReturn(resumeStart);
     } catch (err) {
       if (config.signal?.aborted) {
@@ -1153,6 +1164,20 @@ export class DebateEngine {
       incrementApiCallCount: () => { this.apiCallCount++; },
       getKnownNodeIds: () => this.getKnownNodeIds(),
       getActivatedSituations: () => this._activatedSituations,
+    });
+
+    // Construct SynthesisPipeline collaborator (Cluster 3 — t/1300)
+    this._synthesisPipeline = new SynthesisPipeline({
+      session: this.session,
+      config: this.config,
+      taxonomy: this.taxonomy,
+      generate: (prompt, label, timeoutMs?) => this.generate(prompt, label, timeoutMs),
+      generateWithEvaluator: (prompt, label) => this.generateWithEvaluator(prompt, label),
+      addEntry: (entry) => this.addEntry(entry),
+      recordDiagnostic: (entryId, data) => this.recordDiagnostic(entryId, data),
+      progress: (phase, speaker, message) => this.progress(phase, speaker, message),
+      warn: (operation, error, recovery) => this.warn(operation, error, recovery),
+      checkAborted: () => this.checkAborted(),
     });
   }
 
@@ -4150,342 +4175,5 @@ export class DebateEngine {
       this.session.diagnostics.overview.total_elapsed_ms = Date.now() - startTime;
     }
     return this.session;
-  }
-
-  // ── Extraction coverage ───────────────────────────────────
-
-  private async runExtractionCoverage(): Promise<void> {
-    try {
-      const coverageGenFn = (prompt: string) => this.generateWithEvaluator(prompt, 'Extraction coverage');
-      await computeExtractionCoverage(this.session, coverageGenFn);
-
-      const recorder = getGlobalRecorder();
-      if (!recorder || !this.session.diagnostics?.entries) return;
-
-      for (const [entryId, entryDiag] of Object.entries(this.session.diagnostics.entries)) {
-        const ec = (entryDiag as Record<string, unknown>).extraction_coverage as { coverage_rate: number } | undefined;
-        if (ec && ec.coverage_rate < 0.70) {
-          recorder.record({
-            type: 'an.extraction_coverage_low',
-            component: 'calibration',
-            level: 'warn',
-            debate_id: this.session.id,
-            turn_id: entryId,
-            message: `Extraction coverage ${Math.round(ec.coverage_rate * 100)}% < 70% threshold`,
-            data: { coverage_rate: ec.coverage_rate },
-          });
-        }
-      }
-      const coverageSamples = Object.values(this.session.diagnostics.entries)
-        .map(d => (d as Record<string, unknown>).extraction_coverage as { coverage_rate: number } | undefined)
-        .filter((c): c is { coverage_rate: number } => c != null)
-        .map(c => c.coverage_rate);
-      if (coverageSamples.length > 0) {
-        const aggCoverage = coverageSamples.reduce((a, b) => a + b, 0) / coverageSamples.length;
-        if (aggCoverage < 0.70) {
-          recorder.record({
-            type: 'an.extraction_coverage_error',
-            component: 'calibration',
-            level: 'error',
-            debate_id: this.session.id,
-            message: `Debate-level extraction coverage ${Math.round(aggCoverage * 100)}% < 70% threshold`,
-            data: { aggregate_coverage_rate: aggCoverage, samples: coverageSamples.length },
-          });
-        }
-      }
-    } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Coverage computation failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-    }
-  }
-
-  // ── Synthesis ──────────────────────────────────────────────
-
-  private async runSynthesis(maxPhase?: number): Promise<void> {
-    this.progress('concluding', undefined, 'Generating synthesis');
-
-    const fullTranscript = formatRecentTranscript(this.session.transcript, 50, this.session.context_summaries);
-
-    const policyLines = this.taxonomy.policyRegistry.length > 0
-      ? this.taxonomy.policyRegistry.slice(0, 10).map(p => `${p.id}: ${p.action}`)
-      : undefined;
-
-    const result = await runSynthesisPhases(
-      {
-        topic: this.session.topic.final,
-        transcript: fullTranscript,
-        audience: this.config.audience,
-        cruxTracker: this.session.crux_tracker,
-        policyLines,
-        hasSourceDoc: this.config.sourceType === 'document' || this.config.sourceType === 'url',
-      },
-      (prompt, label) => this.generate(prompt, label),
-      (_phase, label) => this.progress('concluding', undefined, label),
-      (context, problem, nextStep) => this.warn(context, problem, nextStep),
-      () => this.checkAborted(),
-      maxPhase,
-      this.config.usageDeps,
-    );
-
-    const concludingData = result.data;
-    const elapsed = result.elapsed_ms;
-
-    // Format readable content
-    const lines: string[] = [];
-
-    const topicRes = concludingData.topic_resolution as { restated_question?: string; where_it_landed?: string; what_would_resolve_it?: string } | undefined;
-    if (topicRes?.restated_question) {
-      lines.push(`**${topicRes.restated_question}**`);
-      lines.push('');
-      if (topicRes.where_it_landed) {
-        lines.push(topicRes.where_it_landed);
-        lines.push('');
-      }
-      if (topicRes.what_would_resolve_it) {
-        lines.push(`*Decisive crux: ${topicRes.what_would_resolve_it}*`);
-        lines.push('');
-      }
-    }
-
-    const agreements = concludingData.areas_of_agreement as { point: string; povers: string[] }[] | undefined;
-    const disagreements = concludingData.areas_of_disagreement as { point: string; positions: { pover: string; stance: string }[] }[] | undefined;
-    const cruxes = concludingData.cruxes as { question: string; type?: string }[] | undefined;
-
-    if (agreements?.length) {
-      lines.push('**Areas of Agreement:**');
-      lines.push('');
-      for (const a of agreements) {
-        const povers = (a.povers ?? []).map(p => POVER_INFO[p as Exclude<SpeakerId, 'user'>]?.label ?? p).join(', ');
-        lines.push(`- ${a.point} (${povers})`);
-      }
-      lines.push('');
-    }
-    if (disagreements?.length) {
-      lines.push('**Areas of Disagreement:**');
-      lines.push('');
-      for (const d of disagreements) {
-        const bdiTag = (d as Record<string, unknown>).bdi_layer ? ` [${(d as Record<string, unknown>).bdi_layer}]` : '';
-        const typeTag = (d as Record<string, unknown>).type ? ` {${(d as Record<string, unknown>).type}}` : '';
-        lines.push(`- ${d.point}${typeTag}${bdiTag}`);
-        for (const pos of d.positions ?? []) {
-          const label = POVER_INFO[pos.pover as Exclude<SpeakerId, 'user'>]?.label ?? pos.pover;
-          lines.push(`    - ${label}: ${pos.stance}`);
-        }
-        const resolvability = (d as Record<string, unknown>).resolvability;
-        if (typeof resolvability === 'string' && resolvability) {
-          lines.push(`    - *Resolution path: ${resolvability.replace(/_/g, ' ')}*`);
-        }
-      }
-      lines.push('');
-    }
-    if (cruxes?.length) {
-      lines.push('**Cruxes:**');
-      lines.push('');
-      for (const c of cruxes) {
-        const crux = c as { question: string; if_yes?: string; if_no?: string; type?: string };
-        lines.push(`- ${crux.question}${crux.type ? ` [${crux.type}]` : ''}`);
-        if (crux.if_yes) lines.push(`    - If yes, weakens: ${crux.if_yes}`);
-        if (crux.if_no) lines.push(`    - If no, weakens: ${crux.if_no}`);
-      }
-      lines.push('');
-    }
-
-    const unresolvedQuestions = concludingData.unresolved_questions as string[] | undefined;
-    if (unresolvedQuestions?.length) {
-      lines.push('**Unresolved Questions:**');
-      lines.push('');
-      for (const q of unresolvedQuestions) lines.push(`- ${q}`);
-      lines.push('');
-    }
-
-    const preferences = concludingData.preferences as { conflict: string; prevails: string; criterion: string; rationale: string; what_would_change_this?: string }[] | undefined;
-    if (preferences?.length) {
-      lines.push('**Resolution Analysis:**');
-      lines.push('');
-      for (const p of preferences) {
-        if (p.prevails === 'undecidable') {
-          lines.push(`- **${p.conflict}** — Undecidable`);
-        } else {
-          lines.push(`- **${p.conflict}** — Stronger: ${p.prevails} (${p.criterion?.replace(/_/g, ' ')})`);
-        }
-        lines.push(`    - *${p.rationale}*`);
-        if (p.what_would_change_this) {
-          lines.push(`    - Would change if: ${p.what_would_change_this}`);
-        }
-      }
-      lines.push('');
-    }
-
-    // If we parsed synthesis data but lines are empty, try to extract statement-like content
-    // Fall back to stripped text (without code fences/JSON wrapper) if parsing failed entirely
-    let content: string;
-    if (lines.length > 0) {
-      content = lines.join('\n');
-    } else if (typeof concludingData.summary === 'string') {
-      content = concludingData.summary;
-    } else {
-      content = JSON.stringify(concludingData, null, 2);
-    }
-
-    const entry = this.addEntry({
-      type: 'concluding',
-      speaker: 'system',
-      content,
-      taxonomy_refs: [],
-      metadata: { synthesis: concludingData },
-    });
-
-    this.recordDiagnostic(entry.id, {
-      raw_response: JSON.stringify(result.rawResponses),
-      model: this.config.model,
-      response_time_ms: elapsed,
-    });
-  }
-
-  // ── Missing arguments pass ─────────────────────────────────
-
-  /**
-   * Post-synthesis pass: a fresh LLM (no transcript context) identifies
-   * the 3-5 strongest arguments that were never raised during the debate.
-   * Failure never blocks synthesis.
-   */
-  private async runMissingArgumentsPass(): Promise<void> {
-    try {
-      // Wait briefly for synthesis to produce data we can reference
-      const synthEntry = this.session.transcript.find(e => e.type === 'concluding');
-      const concludingText = synthEntry?.content ?? '';
-      if (!concludingText) return; // No synthesis yet — will be called after synthesis completes
-
-      // Build compact taxonomy summary (labels + BDI categories)
-      const summaryLines: string[] = [];
-      for (const povKey of POV_KEYS) {
-        const povData = this.taxonomy[povKey];
-        if (!povData?.nodes) continue;
-        for (const node of povData.nodes) {
-          const cat = node.category ?? 'unknown';
-          summaryLines.push(`[${node.id}] ${node.label} (${cat}) — ${povKey}`);
-        }
-      }
-      const taxonomySummary = summaryLines.slice(0, 80).join('\n'); // Cap at ~80 nodes
-
-      const prompt = missingArgumentsPrompt(
-        this.session.topic.final,
-        taxonomySummary,
-        concludingText.slice(0, 4000), // Cap synthesis text
-        this.config.audience,
-      );
-
-      const text = await this.generate(prompt, 'Missing arguments pass', 180_000);
-      const parsed = parseJsonRobust(text) as { missing_arguments?: unknown[] };
-      if (parsed.missing_arguments && Array.isArray(parsed.missing_arguments)) {
-        this.session.missing_arguments = parsed.missing_arguments.slice(0, 5);
-      }
-    } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Missing arguments pass failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      this.warn('Missing arguments pass', err, 'Non-critical — debate results unaffected');
-    }
-  }
-
-  // ── Taxonomy refinement pass ───────────────────────────────
-
-  /**
-   * Post-debate pass: analyze debate outcomes against referenced taxonomy nodes
-   * and suggest description revisions with before/after text.
-   */
-  private async runTaxonomyRefinementPass(): Promise<void> {
-    try {
-      const synthEntry = this.session.transcript.find(e => e.type === 'concluding');
-      const concludingText = synthEntry?.content ?? '';
-      if (!concludingText) return;
-
-      // Collect all taxonomy node IDs referenced during the debate
-      const refIds = new Set<string>();
-      for (const entry of this.session.transcript) {
-        for (const ref of entry.taxonomy_refs ?? []) {
-          refIds.add(ref.node_id);
-        }
-      }
-      if (refIds.size === 0) return;
-
-      // Resolve referenced nodes to their full descriptions from loaded taxonomy
-      const referencedNodes: { id: string; label: string; pov: string; category: string; description: string }[] = [];
-      for (const povKey of POV_KEYS) {
-        const povData = this.taxonomy[povKey];
-        if (!povData?.nodes) continue;
-        for (const node of povData.nodes) {
-          if (refIds.has(node.id)) {
-            referencedNodes.push({
-              id: node.id,
-              label: node.label,
-              pov: povKey,
-              category: node.category ?? 'unknown',
-              description: node.description,
-            });
-          }
-        }
-      }
-      if (referencedNodes.length === 0) return;
-
-      // Build argument map summary from AN
-      const an = this.session.argument_network;
-      let anSummary = '(no argument network)';
-      if (an && an.nodes.length > 0) {
-        const lines = an.nodes.slice(0, 30).map(n => {
-          const attacks = an.edges.filter(e => e.target === n.id && e.type === 'attacks');
-          const supports = an.edges.filter(e => e.target === n.id && e.type === 'supports');
-          let line = `${n.id} (${n.speaker}): "${n.text}"`;
-          if (attacks.length) line += ` [attacked ${attacks.length}x]`;
-          if (supports.length) line += ` [supported ${supports.length}x]`;
-          return line;
-        });
-        anSummary = lines.join('\n');
-      }
-
-      const prompt = taxonomyRefinementPrompt(
-        this.session.topic.final,
-        concludingText.slice(0, 4000),
-        referencedNodes.slice(0, 25), // Cap nodes sent to prompt
-        anSummary,
-        this.config.audience,
-      );
-
-      const text = await this.generate(prompt, 'Taxonomy refinement pass', 180_000);
-      const parsed = parseJsonRobust(text) as { taxonomy_suggestions?: unknown[] };
-      if (parsed.taxonomy_suggestions && Array.isArray(parsed.taxonomy_suggestions)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const postDebate = parsed.taxonomy_suggestions.slice(0, 10).map((s: any) => ({
-          ...s,
-          source: 'post-debate' as const,
-        }));
-        // Merge with any turn-validator hints already appended during the debate.
-        const existing = this.session.taxonomy_suggestions ?? [];
-        const turnValidator = existing.filter(s => s.source === 'turn-validator');
-        this.session.taxonomy_suggestions = [...postDebate, ...turnValidator];
-      }
-    } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Taxonomy refinement pass failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      this.warn('Taxonomy refinement pass', err, 'Non-critical — debate results unaffected');
-    }
-  }
-
-  // ── Dialectic trace generation ──────────────────────────────
-
-  /**
-   * Post-synthesis pass: generate dialectic traces from the argument network
-   * and synthesis preferences. Each trace is a minimal argument path explaining
-   * why a position prevailed — the dialectic structure as explanation.
-   *
-   * Synchronous — no AI calls needed, just graph traversal.
-   * Failure never blocks synthesis results.
-   */
-  private runDialecticTracePass(): void {
-    try {
-      const traces = generateDialecticTraces(this.session);
-      if (traces.length > 0) {
-        this.session.dialectic_traces = traces;
-      }
-    } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Dialectic trace pass failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      this.warn('Dialectic trace pass', err, 'Non-critical — debate results unaffected');
-    }
   }
 }
