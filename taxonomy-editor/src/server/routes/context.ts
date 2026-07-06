@@ -8,8 +8,17 @@
 // Grown per cluster as it's extracted; the debates slice uses nothing from it.
 
 import type { GitHubAPIBackend } from '../storage/githubAPIBackend.js';
+import type { SessionBranchManager } from '../storage/sessionBranchManager.js';
 
 export interface ServerCtx {
   /** Live GitHub API backend (null until initialised / in non-GitHub modes). */
   readonly getGithubBackend: () => GitHubAPIBackend | null;
+  /** Live per-user session-branch manager (null in filesystem mode). (t/1295 sync) */
+  readonly getSessionManager: () => SessionBranchManager | null;
+  /** Best-effort broadcast of a committed taxonomy change to other web clients. */
+  readonly broadcastTaxonomyUpdate: (
+    backend: GitHubAPIBackend,
+    pending: { writes: { path: string; content: string }[]; deletes: string[] } | null,
+    user: string,
+  ) => Promise<void>;
 }
