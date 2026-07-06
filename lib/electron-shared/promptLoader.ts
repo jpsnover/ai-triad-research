@@ -3,10 +3,15 @@ import path from 'path';
 
 const promptCache = new Map<string, string>();
 
+const SAFE_NAME = /^[a-zA-Z0-9_-]+$/;
+
 export function loadPromptWithFragments(
   promptsDir: string,
   promptName: string,
 ): string {
+  if (!SAFE_NAME.test(promptName)) {
+    throw new Error(`Invalid prompt name: ${promptName}`);
+  }
   const cacheKey = `${promptsDir}:${promptName}`;
   const cached = promptCache.get(cacheKey);
   if (cached !== undefined) return cached;
