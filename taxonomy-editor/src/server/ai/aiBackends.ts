@@ -635,7 +635,12 @@ export async function computeEmbeddings(texts: string[], ids?: string[], explici
 
   try {
     return await resolveEmbeddings(texts, ids, local, chain);
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'ai-backends', level: 'error',
+      message: 'Embedding computation failed (Gemini + local fallback exhausted)',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     throw new ActionableError({
       goal: 'Compute embeddings',
       problem: apiKey

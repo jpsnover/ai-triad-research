@@ -484,7 +484,7 @@ get('/api/taxonomy/synthetic/:pov', async (req, res) => {
     const data = await fileIO.loadSyntheticCorpus(pov);
     if (data === null) { json(res, null); return; }
     json(res, data);
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to load synthetic corpus', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 // ── Taxonomy CRUD ──
@@ -493,7 +493,7 @@ get('/api/taxonomy/:pov', async (req, res) => {
   try {
     const pov = param(req, 'pov', '/api/taxonomy/:pov');
     json(res, await fileIO.readTaxonomyFile(pov));
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to read taxonomy file', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 put('/api/taxonomy/:pov', async (req, res, body) => {
@@ -515,7 +515,7 @@ put('/api/taxonomy/:pov', async (req, res, body) => {
     }
     await fileIO.writeTaxonomyFile(pov, body);
     json(res, { ok: true });
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to write taxonomy file', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 // ── Node Edit History ──
@@ -528,7 +528,7 @@ get('/api/taxonomy/:pov/node/:nodeId/history', async (req, res) => {
     const node = data?.nodes?.find(n => n.id === nodeId);
     if (!node) { error(res, `Node ${nodeId} not found in ${pov}`, 404); return; }
     json(res, { nodeId, history: node._edit_history ?? [], edit_meta: node._edit_meta ?? null });
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to load node edit history', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 // ── Conflicts ──
@@ -563,7 +563,7 @@ put('/api/conflicts/:id', async (req, res, body) => {
     await fileIO.writeConflictFile(id, body);
     conflictsCache = null;
     json(res, { ok: true });
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to write conflict', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 post('/api/conflicts/:id', async (req, res, body) => {
@@ -573,7 +573,7 @@ post('/api/conflicts/:id', async (req, res, body) => {
     await fileIO.createConflictFile(id, body);
     conflictsCache = null;
     json(res, { ok: true });
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to create conflict', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 del('/api/conflicts/:id', async (req, res) => {
@@ -583,7 +583,7 @@ del('/api/conflicts/:id', async (req, res) => {
     await fileIO.deleteConflictFile(id);
     conflictsCache = null;
     json(res, { ok: true });
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to delete conflict', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 // ── Policy registry ──
@@ -598,7 +598,7 @@ get('/api/policy-registry', async (_req, res) => {
 get('/api/organizations', async (req, res) => {
   try {
     json(res, await organizations.listOrganizations({ type: query(req, 'type'), pov: query(req, 'pov') }));
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to list organizations', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 // GET /api/organizations/by-pov/:pov?direction=for|against&threshold=0.3
@@ -610,21 +610,21 @@ get('/api/organizations/by-pov/:pov', async (req, res) => {
     const tRaw = Number(query(req, 'threshold'));
     const threshold = Number.isFinite(tRaw) ? tRaw : 0.3;
     json(res, await organizations.organizationsByPov(pov, direction, threshold));
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to query organizations by POV', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 // GET /api/organizations/by-topic/:topicRef  — orgs engaged with a situation (sit-*)
 get('/api/organizations/by-topic/:topicRef', async (req, res) => {
   try {
     json(res, await organizations.organizationsByTopic(param(req, 'topicRef', '/api/organizations/by-topic/:topicRef')));
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to query organizations by topic', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 // GET /api/organizations/by-policy/:policyId  — orgs supporting/opposing a policy (pol-*)
 get('/api/organizations/by-policy/:policyId', async (req, res) => {
   try {
     json(res, await organizations.organizationsByPolicy(param(req, 'policyId', '/api/organizations/by-policy/:policyId')));
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to query organizations by policy', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 // GET /api/organizations/:id  — single org (registered last; :id must not shadow the by-* literals)
@@ -633,7 +633,7 @@ get('/api/organizations/:id', async (req, res) => {
     const org = await organizations.getOrganizationById(param(req, 'id', '/api/organizations/:id'));
     if (!org) { error(res, 'Organization not found', 404); return; }
     json(res, org);
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to load organization', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 // ── Lineage categories ──
@@ -935,7 +935,7 @@ get('/api/models', async (_req, res) => {
 post('/api/models/refresh', async (_req, res) => {
   try {
     json(res, await ai.refreshAIModels());
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to refresh AI models', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 get('/api/keys/has', async (req, res) => {
@@ -1492,7 +1492,7 @@ post('/api/embeddings/compute', async (req, res, body) => {
     if (gate.blocked) return;
     const vectors = await ai.computeEmbeddings(texts, ids, gate.key);
     json(res, { vectors });
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to compute embeddings', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 // t/1171: same free-tier exemption + rate limiting + key as /compute, so anonymous
@@ -1504,7 +1504,7 @@ post('/api/embeddings/query', async (req, res, body) => {
     if (gate.blocked) return;
     const vector = await ai.computeQueryEmbedding(text, gate.key);
     json(res, { vector });
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to compute query embedding', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 post('/api/embeddings/update-nodes', async (_req, res, body) => {
@@ -1512,7 +1512,7 @@ post('/api/embeddings/update-nodes', async (_req, res, body) => {
   try {
     await ai.updateNodeEmbeddings(nodes);
     json(res, { ok: true });
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to update node embeddings', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 post('/api/nli/classify', async (_req, res, body) => {
@@ -1520,7 +1520,7 @@ post('/api/nli/classify', async (_req, res, body) => {
   try {
     const results = await ai.classifyNli(pairs);
     json(res, { results });
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to classify NLI pairs', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 // ── Debate sessions ──
@@ -1548,7 +1548,7 @@ get('/api/calibration/log', (_req, res) => {
     }
 
     json(res, { entries, validationReport });
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to load parameter entries', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 // ── Calibration parameter history ──
@@ -1558,7 +1558,7 @@ get('/api/calibration/history', async (_req, res) => {
     const history = readParameterHistory(getDataRoot());
     const current = captureSnapshot();
     json(res, { current, history });
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to load parameter history', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 // ── Flight recorder dump ──
@@ -1606,7 +1606,7 @@ post('/api/flight-recorder/dump', (_req, res, body) => {
     const filename = path.basename(filePath);
     log.fr.info({ filePath }, 'Dump written');
     json(res, { filePath, filename });
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to write flight-recorder dump', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 // Server-side flight recorder dump
@@ -1621,7 +1621,7 @@ post('/api/flight-recorder/server-dump', (_req, res) => {
     fs.writeFileSync(filePath, ndjson, 'utf-8');
     log.fr.info({ filePath }, 'Server dump written');
     json(res, { filePath, filename });
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to write server flight-recorder dump', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 
@@ -1729,7 +1729,7 @@ get('/api/flight-recorder/download/:filename', (req, res) => {
       'Content-Disposition': `attachment; filename="${filename}"`,
     });
     res.end(content);
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to download flight-recorder dump', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 get('/api/flight-recorder/view/:filename', (req, res) => {
@@ -1763,7 +1763,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const outputHtml = viewerHtml.replace('</body>', `${autoLoadScript}\n</body>`);
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(outputHtml);
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to render flight-recorder viewer', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 // ── Chat sessions ──
@@ -1772,7 +1772,7 @@ get('/api/chats', async (_req, res) => { json(res, await fileIO.listChatSessions
 
 get('/api/chats/:id', async (req, res) => {
   try { json(res, await fileIO.loadChatSession(param(req, 'id', '/api/chats/:id'))); }
-  catch (err) { error(res, String(err), 404, err); }
+  catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'warn', message: 'Failed to load chat session', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 404, err); }
 });
 
 put('/api/chats', async (_req, res, body) => {
@@ -1796,7 +1796,7 @@ del('/api/chats/:id', async (req, res) => {
   try {
     await fileIO.deleteChatSession(param(req, 'id', '/api/chats/:id'));
     json(res, { ok: true });
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to delete chat session', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 // ── Community Library ──
@@ -1970,13 +1970,6 @@ get('/api/config/client', (_req, res) => {
 // User endpoints require a signed-in (non-anonymous) caller and are scoped to the
 // caller's own cases (a case owned by another user simply 404s). Admin endpoints
 // are requireAdmin-gated. The client renders the "Sign in to file a case" prompt.
-function recordSupportError(err: unknown, op: string): void {
-  getGlobalRecorder()?.record({
-    type: 'system.error', component: 'support', level: 'error', message: `support: ${op} failed`,
-    error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-  });
-}
-
 post('/api/support/cases', async (_req, res, body) => {
   if (isAnonymousUser()) { error(res, 'Sign in to file a support case', 401); return; }
   try {
@@ -1997,13 +1990,13 @@ post('/api/support/cases', async (_req, res, body) => {
     const { principalName } = callerIdentity();
     const c = await supportStore.createCase(userId, principalName || userId, { subject, description, systemInfo, priority });
     json(res, { id: c.id, case: c });
-  } catch (err) { recordSupportError(err, 'create case'); error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'support', level: 'error', message: 'support: create case failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 get('/api/support/cases', async (_req, res) => {
   if (isAnonymousUser()) { error(res, 'Sign in to view support cases', 401); return; }
   try { json(res, { items: await supportStore.listCasesForUser(getStorageUserId()) }); }
-  catch (err) { recordSupportError(err, 'list cases'); error(res, String(err), 500, err); }
+  catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'support', level: 'error', message: 'support: list cases failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 get('/api/support/cases/:id', async (req, res) => {
@@ -2012,7 +2005,7 @@ get('/api/support/cases/:id', async (req, res) => {
     const c = await supportStore.getCase(getStorageUserId(), param(req, 'id', '/api/support/cases/:id'));
     if (!c) { error(res, 'Case not found', 404); return; }
     json(res, c);
-  } catch (err) { recordSupportError(err, 'get case'); error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'support', level: 'error', message: 'support: get case failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 post('/api/support/cases/:id/attachments', async (req, res, body) => {
@@ -2029,7 +2022,7 @@ post('/api/support/cases/:id/attachments', async (req, res, body) => {
     });
     if (!result.ok) { error(res, result.error, result.status); return; }
     json(res, { attachment: result.attachment });
-  } catch (err) { recordSupportError(err, 'upload attachment'); error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'support', level: 'error', message: 'support: upload attachment failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 get('/api/support/cases/:id/attachments/:aid', async (req, res) => {
@@ -2047,7 +2040,7 @@ get('/api/support/cases/:id/attachments/:aid', async (req, res) => {
       'Content-Length': String(found.bytes.length),
     });
     res.end(found.bytes);
-  } catch (err) { recordSupportError(err, 'download attachment'); error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'support', level: 'error', message: 'support: download attachment failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 
@@ -2059,7 +2052,7 @@ post('/api/harvest/conflict', async (_req, res, body) => {
     const created = await fileIO.harvestCreateConflict(body as Record<string, unknown>);
     if (created) conflictsCache = null;
     json(res, { created });
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to create harvested conflict', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 post('/api/harvest/debate-ref', async (_req, res, body) => {
@@ -2067,7 +2060,7 @@ post('/api/harvest/debate-ref', async (_req, res, body) => {
     await ensureSessionBranch();
     const { nodeId, debateId } = body as { nodeId: string; debateId: string };
     json(res, { updated: await fileIO.harvestAddDebateRef(nodeId, debateId) });
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to add debate reference during harvest', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 post('/api/harvest/steelman', async (_req, res, body) => {
@@ -2075,7 +2068,7 @@ post('/api/harvest/steelman', async (_req, res, body) => {
     await ensureSessionBranch();
     const { nodeId, attackerPov, newText } = body as { nodeId: string; attackerPov: string; newText: string };
     json(res, { updated: await fileIO.harvestUpdateSteelman(nodeId, attackerPov, newText) });
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to update steelman during harvest', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 post('/api/harvest/verdict', async (_req, res, body) => {
@@ -2323,7 +2316,7 @@ put('/api/proposals/:filename', async (req, res, body) => {
   try {
     await fileIO.saveProposal(param(req, 'filename', '/api/proposals/:filename'), body);
     json(res, { saved: true });
-  } catch (err) { error(res, String(err), 500, err); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to save proposal', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 // ── PowerShell prompts ──
@@ -2454,7 +2447,7 @@ post('/api/diagnostics/sw-state', (req, res, body) => {
       { component: 'sw-diagnostics', sw: info, ip: getClientIp(req), ua: (req.headers['user-agent'] || '').slice(0, 200) },
       'Login-page service-worker state beacon (t/1128)',
     );
-  } catch { /* telemetry — best-effort; never fail a diagnostics beacon */ }
+  } catch { /* telemetry — silent by design: never fail a diagnostics beacon */ }
   res.writeHead(204);
   res.end();
 });
