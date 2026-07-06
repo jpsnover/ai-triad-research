@@ -54,6 +54,14 @@ export function query(req: IncomingMessage, name: string): string | null {
   return url.searchParams.get(name);
 }
 
+/** Best-effort client IP: first X-Forwarded-For hop (behind the Azure ingress
+ *  proxy), else the raw socket address. Used for per-IP rate-limit keys. */
+export function getClientIp(req: IncomingMessage): string {
+  const xff = req.headers['x-forwarded-for'];
+  if (typeof xff === 'string' && xff.length > 0) return xff.split(',')[0].trim();
+  return req.socket.remoteAddress || 'unknown';
+}
+
 // ── Route registrar (t/1295) ──
 // The surface extracted cluster modules (routes/*.ts) use to register routes into
 // the server's shared table, so server.ts only wires the registrar.

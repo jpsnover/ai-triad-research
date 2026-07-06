@@ -44,10 +44,11 @@ import * as supportStore from './support/supportStore.js';
 import { isCaseStatus } from './support/types.js';
 import * as organizations from './organizations.js';
 import { isPov } from './organizations.js';
-import { json, error, param, query, createRouter, type Handler } from './httpKit.js';
+import { json, error, param, query, getClientIp, createRouter, type Handler } from './httpKit.js';
 import { registerDebatesRoutes } from './routes/debates.js';
 import { registerSyncRoutes } from './routes/sync.js';
 import { registerAdminRoutes } from './routes/admin.js';
+import { registerKeysRoutes } from './routes/keys.js';
 import type { ServerCtx } from './routes/context.js';
 import { getAllFlags, listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
 import { writeDump, isValidDumpId, readMergedDump } from './flightRecorderDumps.js';
@@ -302,11 +303,7 @@ const serverCtx: ServerCtx = {
 
 // Best-effort client IP for rate limiting — first X-Forwarded-For hop (Azure
 // ingress sets it) else the socket address. (M7)
-function getClientIp(req: http.IncomingMessage): string {
-  const xff = req.headers['x-forwarded-for'];
-  if (typeof xff === 'string' && xff.length > 0) return xff.split(',')[0].trim();
-  return req.socket.remoteAddress || 'unknown';
-}
+// getClientIp moved to httpKit.ts (t/1347) — shared by server.ts + routes/*.ts.
 
 // Structured 429 for GitHub-API rate-limit exhaustion (t/685). Surfaces seconds
 // until the limit resets via a `retryAfter` field and a Retry-After header, so
@@ -938,10 +935,9 @@ post('/api/models/refresh', async (_req, res) => {
   } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to refresh AI models', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
-get('/api/keys/has', async (req, res) => {
-  const backend = (query(req, 'backend') || 'gemini') as AIBackend;
-  json(res, await hasApiKey(backend));
-});
+// t/1347: /api/keys/* cluster extracted to routes/keys.ts, registered here at the
+// cluster's original first-route position (the interspersed /api/auth/* routes stay).
+registerKeysRoutes(router, serverCtx);
 
 // t/897: Easy Auth's /.auth/logout left AppServiceAuthSession valid, so "Sign
 // Out" didn't terminate the session (next browser user inherited it). This GET
@@ -975,156 +971,6 @@ get('/api/auth/fresh-login/:provider', (req, res) => {
   res.end();
 });
 
-post('/api/keys', async (_req, res, body) => {
-  const { key, backend } = body as { key: string; backend?: string };
-  const target = (backend || 'gemini') as AIBackend;
-  try {
-    await storeApiKey(key, target);
-    json(res, { ok: true });
-  } catch (err) {
-    // Never log the key material itself — only the backend it was destined for.
-    getGlobalRecorder()?.record({
-      type: 'system.error', component: 'key-store', level: 'error',
-      message: 'Failed to store API key',
-      data: { backend: target },
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    error(res, String(err), 500, err);
-  }
-});
-
-post('/api/keys/validate', async (req, res, body) => {
-  const { key, backend } = (body ?? {}) as { key?: string; backend?: string };
-  if (!key || !backend) { error(res, 'key and backend are required', 400); return; }
-
-  const rateCheck = rateLimiter.checkRate(`key-validate:${getClientIp(req)}`, 5, 60_000);
-  if (!rateCheck.allowed) {
-    res.writeHead(429, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ valid: false, error: 'Rate limit exceeded — try again shortly' }));
-    return;
-  }
-
-  try {
-    let resp: Response;
-    if (backend === 'gemini') {
-      resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
-    } else if (backend === 'claude') {
-      resp = await fetch('https://api.anthropic.com/v1/models', {
-        headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      });
-    } else if (backend === 'groq') {
-      resp = await fetch('https://api.groq.com/openai/v1/models', {
-        headers: { 'Authorization': `Bearer ${key}` },
-      });
-    } else {
-      json(res, { valid: false, error: `Unsupported backend: ${backend}` });
-      return;
-    }
-
-    if (resp.ok) {
-      json(res, { valid: true });
-    } else {
-      json(res, { valid: false, error: 'Invalid API key' });
-    }
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error', component: 'key-validation', level: 'warn',
-      message: 'Key validation request failed',
-      data: { backend },
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    json(res, { valid: false, error: 'Could not reach provider — check your network' });
-  }
-});
-
-// Delete the current user's stored key for one backend / all backends. Mirrors
-// the web bridge contract. Anon-blocked by the /api/keys AI-route guard.
-post('/api/keys/delete', async (_req, res, body) => {
-  try {
-    const { backend } = body as { backend?: string };
-    await deleteApiKey((backend || 'gemini') as AIBackend);
-    json(res, { ok: true });
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error', component: 'server', level: 'error',
-      message: 'Failed to delete API key',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    error(res, String(err), 500, err);
-  }
-});
-
-post('/api/keys/delete-all', async (_req, res) => {
-  try {
-    await deleteAllApiKeys();
-    json(res, { ok: true });
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error', component: 'server', level: 'error',
-      message: 'Failed to delete all API keys',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    error(res, String(err), 500, err);
-  }
-});
-
-// ── Multi-key management (t/835) ──
-// Per-backend key lists with masked display. Under the /api/keys prefix, so the
-// anon AI-route guard already blocks unauthenticated callers. Keys are never
-// returned in full — only a masked suffix.
-function maskApiKey(key: string): string {
-  const visible = getConfig().server.apiKeyMaskLength; // t/929: runtime-configurable (default 4)
-  return key.length <= visible ? '••••' : `••••${key.slice(-visible)}`;
-}
-function maskedKeyList(keys: string[]): { index: number; masked: string }[] {
-  return keys.map((k, index) => ({ index, masked: maskApiKey(k) }));
-}
-
-get('/api/keys/:backend', async (req, res) => {
-  try {
-    const backend = param(req, 'backend', '/api/keys/:backend') as AIBackend;
-    json(res, { backend, keys: maskedKeyList(await getStoredApiKeys(backend)) });
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error', component: 'server', level: 'error',
-      message: 'Failed to list API keys',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    error(res, String(err), 500, err);
-  }
-});
-
-post('/api/keys/:backend/add', async (req, res, body) => {
-  try {
-    const backend = param(req, 'backend', '/api/keys/:backend/add') as AIBackend;
-    const { key } = (body ?? {}) as { key?: string };
-    if (!key || !key.trim()) { error(res, 'key is required', 400); return; }
-    json(res, { backend, keys: maskedKeyList(await addApiKey(key, backend)) });
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error', component: 'server', level: 'error',
-      message: 'Failed to add API key',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    error(res, String(err), 500, err);
-  }
-});
-
-del('/api/keys/:backend/:index', async (req, res) => {
-  try {
-    const backend = param(req, 'backend', '/api/keys/:backend/:index') as AIBackend;
-    const index = parseInt(param(req, 'index', '/api/keys/:backend/:index'), 10);
-    if (Number.isNaN(index)) { error(res, 'index must be a number', 400); return; }
-    json(res, { backend, keys: maskedKeyList(await removeApiKey(index, backend)) });
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error', component: 'server', level: 'error',
-      message: 'Failed to remove API key',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    error(res, String(err), 500, err);
-  }
-});
 
 // ── AI generation ──
 
