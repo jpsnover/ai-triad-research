@@ -26,7 +26,7 @@ import { UsernamePromptDialog } from '../shared/UsernamePromptDialog';
 import { DiagnosticsChatSidebar } from '../debate-diagnostics/chat';
 import type { NavigateCommand } from '../debate-diagnostics/chat';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
-import { initDebatePopoutCloseHandler } from '../../hooks/useDebateStore/helpers';
+import { initDebatePopoutCloseHandler } from '../../hooks/useDebateStore/shared/guards';
 import { useCommunityStore } from '../../hooks/useCommunityStore';
 import { useUserProfile } from '../../hooks/useAuthStatus';
 import { CommunityShareBanner } from '../shared/CommunityShareBanner';

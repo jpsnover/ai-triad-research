@@ -10,7 +10,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../../hooks/useDebateStore';
-import { markAsPopout } from '../../hooks/useDebateStore/helpers';
+import { markAsPopout } from '../../hooks/useDebateStore/shared/guards';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { DebateWorkspace } from '../debate-workspace';
 import { parseDebateHash, shouldShowLoadError, type DebateLoadTarget } from './popoutLoad';
