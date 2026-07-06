@@ -83,16 +83,6 @@ async function postAction(body: ReviewActionBody): Promise<{ ok: boolean }> {
   return bridgePost<{ ok: boolean }>('/api/admin/review/action', body);
 }
 
-function record(message: string, err: unknown): void {
-  getGlobalRecorder()?.record({
-    type: 'system.error',
-    component: 'calibration-review-viewer',
-    level: 'error',
-    message,
-    error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-  });
-}
-
 // ── Helpers ──
 
 /** Key portion of a qualified `${kind}::${key}` item id. */
@@ -116,8 +106,16 @@ function lineagePatch(original: Record<string, unknown> | null, editedText: stri
   let parsed: unknown;
   try {
     parsed = JSON.parse(editedText);
-  } catch {
-    return null; /* invalid JSON — surfaced to the user as validation, not an error */
+  } catch (err) {
+    // Invalid JSON is a user-input validation failure (surfaced to the user), not an error.
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'calibration-review-viewer',
+      level: 'warn',
+      message: 'Invalid JSON in lineage edit — treated as validation failure',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return null;
   }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
   const orig = original ?? {};
@@ -288,7 +286,13 @@ export function CalibrationReviewViewer({ groupId, onActionComplete }: Calibrati
       setDrafts({});
       setEditing(null);
     } catch (err) {
-      record('Failed to load calibration review detail', err);
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'calibration-review-viewer',
+        level: 'error',
+        message: 'Failed to load calibration review detail',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       setError('Could not load this review group. It may have been resolved already.');
     } finally {
       setLoading(false);
@@ -365,7 +369,13 @@ export function CalibrationReviewViewer({ groupId, onActionComplete }: Calibrati
       onActionComplete?.();
       await load();
     } catch (err) {
-      record('Failed to promote calibration review items', err);
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'calibration-review-viewer',
+        level: 'error',
+        message: 'Failed to promote calibration review items',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       flash('Promote failed — see flight recorder');
     } finally {
       setBusy(false);
@@ -383,7 +393,13 @@ export function CalibrationReviewViewer({ groupId, onActionComplete }: Calibrati
       onActionComplete?.();
       await load();
     } catch (err) {
-      record('Failed to reject calibration review items', err);
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'calibration-review-viewer',
+        level: 'error',
+        message: 'Failed to reject calibration review items',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       flash('Reject failed — see flight recorder');
     } finally {
       setBusy(false);
