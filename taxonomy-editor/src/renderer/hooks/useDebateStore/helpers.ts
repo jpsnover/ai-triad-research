@@ -129,8 +129,8 @@ import { getLineageMapping, getL2Categories, isLineageDataLoaded } from '../../d
 // ── Doctrinal anchoring cache ────────────────────────────────────────
 // Tracks which POVs have had doctrinal anchoring applied in this session.
 // Once anchored, PovNode objects are mutated in place (doctrinally_anchored, confidence floor).
-export let _doctrinalAnchoringApplied = new Set<string>();
-export let _boundaryEmbeddingsCache: BoundaryEmbeddings | null = null;
+let _doctrinalAnchoringApplied = new Set<string>();
+let _boundaryEmbeddingsCache: BoundaryEmbeddings | null = null;
 
 // ── Synthetic embeddings cache ───────────────────────────────────────
 // Loaded once per session from synthetic_embeddings.json via the bridge.
@@ -178,7 +178,7 @@ function mergeSyntheticVectors(
 // ── Adaptive staging signal history ──────────────────────────────────
 // Per-round signal values for priorSignals.get() and priorSignals.movingAverage().
 // Keyed by signal ID → array of { round, value } entries.
-export const _signalHistory = new Map<string, { round: number; value: number }[]>();
+const _signalHistory = new Map<string, { round: number; value: number }[]>();
 
 export function recordSignalHistory(signalId: string, round: number, value: number): void {
   let arr = _signalHistory.get(signalId);
@@ -215,7 +215,7 @@ export function setGapInjectionCount(n: number): void { _gapInjectionCount = n; 
 export function incrementGapInjectionCount(): void { _gapInjectionCount++; }
 
 // ── Neutral evaluation speaker mapping ──────────────────────────────
-export let _neutralMapping: SpeakerMapping | null = null;
+let _neutralMapping: SpeakerMapping | null = null;
 export function resetNeutralMapping(): void { _neutralMapping = null; }
 
 /**
@@ -359,7 +359,7 @@ export function isDailyLimitError(err: unknown): boolean {
 export const DAILY_LIMIT_MESSAGE = 'Daily AI usage limit reached (resets at midnight UTC). Resume tomorrow, or add your own API key in Settings to continue now.';
 
 /** Normalize progress from either flat shape (Electron IPC) or nested retry shape (lib DebateProgress). */
-export function normalizeProgress(p: Record<string, unknown>): { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string; phase?: string } {
+function normalizeProgress(p: Record<string, unknown>): { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string; phase?: string } {
   // Lib DebateProgress: { phase: 'retry', retry: { attempt, maxRetries, backoffSeconds }, message }
   const retry = p.retry as { attempt: number; maxRetries: number; backoffSeconds: number } | undefined;
   if (retry && typeof retry === 'object') {
@@ -538,7 +538,7 @@ export function releaseDebateDriver(): void {
   }
 }
 
-export function resetDebateDriverLock(): void {
+function resetDebateDriverLock(): void {
   _activeDriverWindow = null;
 }
 
@@ -630,7 +630,7 @@ export function recordDiagnostic(
 // hashString and looksTruncated: imported from @lib/debate/helpers
 
 /** Incrementally refresh debate.extraction_summary given a new trace. */
-export function updateExtractionSummary(
+function updateExtractionSummary(
 
   get: () => any,
 
@@ -713,7 +713,7 @@ export function updateExtractionSummary(
 // `commitAnNodes` centralises the atomic mint-then-set pattern, asserts
 // no ID collisions, and logs before/after state so any clobber is visible.
 
-export function snapshotAnLengths(get: () => any): { nodeCount: number; edgeCount: number; maxNodeId: number } {
+function snapshotAnLengths(get: () => any): { nodeCount: number; edgeCount: number; maxNodeId: number } {
   const d = get().activeDebate;
   const an = d?.argument_network ?? { nodes: [], edges: [] };
   let maxId = 0;
@@ -724,7 +724,7 @@ export function snapshotAnLengths(get: () => any): { nodeCount: number; edgeCoun
   return { nodeCount: an.nodes.length, edgeCount: an.edges.length, maxNodeId: maxId };
 }
 
-export function assertNoDuplicateAnIds(label: string, existing: { id: string }[], incoming: { id: string }[]): void {
+function assertNoDuplicateAnIds(label: string, existing: { id: string }[], incoming: { id: string }[]): void {
   const existingIds = new Set(existing.map(n => n.id));
   const dupsWithExisting: string[] = [];
   const seenInIncoming = new Set<string>();
@@ -741,7 +741,7 @@ export function assertNoDuplicateAnIds(label: string, existing: { id: string }[]
   }
 }
 
-export interface AnCommitResult {
+interface AnCommitResult {
   idBase: number;
   edgeIdBase: number;
   idMap: Record<string, string>;
@@ -824,7 +824,7 @@ export function commitAnNodes<N extends { id: string }, E extends { id: string; 
  * Run an AN-length invariant check after any set() that might have touched
  * argument_network. If the array shrunk, something clobbered it.
  */
-export function checkAnInvariants(label: string, get: () => any, expectedMinCount: number): void {
+function checkAnInvariants(label: string, get: () => any, expectedMinCount: number): void {
   const d = get().activeDebate;
   const count = d?.argument_network?.nodes?.length ?? 0;
   if (count < expectedMinCount) {
@@ -2002,7 +2002,7 @@ export function getTaxonomyContext(pov: string): TaxonomyContext {
 
 import type { NodeScoringSource, RelevanceSourceEntry } from './types';
 
-export interface TaxonomyContextWithSources extends TaxonomyContext {
+interface TaxonomyContextWithSources extends TaxonomyContext {
   nodeSourceMap?: Map<string, NodeScoringSource>;
 }
 
