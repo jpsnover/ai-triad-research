@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import crypto from 'crypto';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 let _client: CommunityReviewClient | null = null;
 
@@ -173,6 +174,12 @@ class CommunityReviewClient {
       return Buffer.concat(chunks).toString('utf-8');
     } catch (err: unknown) {
       if ((err as { statusCode?: number }).statusCode === 404) return null;
+      // Filters 404 (expected → null) but rethrows other errors — record before rethrow so
+      // the original blob-read context isn't lost at the terminal handler (t/1323 rule 1).
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'community-review-io', level: 'error',
+        message: 'readBlob failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       throw err;
     }
   }
@@ -192,6 +199,11 @@ class CommunityReviewClient {
       return true;
     } catch (err: unknown) {
       if ((err as { statusCode?: number }).statusCode === 404) return false;
+      // Filters 404 (expected → false) but rethrows other errors — record before rethrow (t/1323 rule 1).
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'community-review-io', level: 'error',
+        message: 'deleteBlob failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       throw err;
     }
   }
@@ -213,13 +225,26 @@ class CommunityReviewClient {
     const prefix = 'community/_submissions/';
     const files = (await this.listBlobs(prefix)).filter(f => f.startsWith('sub-') && f.endsWith('.json'));
     const subs: Submission[] = [];
+    let skipped = 0;
+    const skippedIds: string[] = [];
     for (const f of files) {
       try {
         const raw = await this.readBlob(prefix + f);
         if (!raw) continue;
         const s = JSON.parse(raw) as Submission;
         if (s.status === 'pending') subs.push(s);
-      } catch { /* skip malformed */ }
+      } catch {
+        skipped++;
+        if (skippedIds.length < 5) skippedIds.push(f);
+        /* telemetry — silent by design; per-item skip aggregated after the loop (t/1323 rule 2) */
+      }
+    }
+    if (skipped > 0) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'community-review-io', level: 'warn',
+        message: `Skipped ${skipped} malformed submission file(s)`,
+        data: { skipped, total: files.length, first_skipped: skippedIds },
+      });
     }
     return subs.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
   }
