@@ -39,7 +39,9 @@ export default tseslint.config(
         allowNamedExports: false,
       }],
       'complexity': ['warn', { max: 15 }],
-      'local/require-flight-recorder-in-catch': 'warn',
+      // ADR-003 enforcement (t/1323, repo-review B-401): every catch records to the
+      // flight recorder. Flipped warn→error once the tree was clean (0 violations).
+      'local/require-flight-recorder-in-catch': 'error',
     },
   },
   {
