@@ -238,8 +238,9 @@ jobs:
             exit 1
           fi
 
-  # ── Debate engine structural evals (t/1329) ──
-  # Runs deterministic regression checks on golden debate outputs.
+  # ── Debate engine evals (t/1329 Tier 1 + t/1332 Tier 2) ──
+  # Tier 1: deterministic regression checks on golden debate outputs (no AI).
+  # Tier 2: AI-powered golden debate subset via --ci-golden (needs GEMINI key).
   # Warning-only until 2026-07-17. To enforce: remove continue-on-error.
   debate-eval:
     needs: [changes]
@@ -247,6 +248,8 @@ jobs:
       always() && !cancelled() &&
       (github.event_name != 'pull_request' || needs.changes.outputs.debate == 'true')
     runs-on: ubuntu-latest
+    env:
+      GEMINI_API_KEY: ${{ secrets.FREE_TIER_GEMINI_KEY }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
 
@@ -254,14 +257,19 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Run structural evals
+      - name: Run structural evals (Tier 1)
         continue-on-error: true
         run: node evals/run.mjs
 
-      - name: Tier 2 — AI-powered quality evals (placeholder)
-        if: env.GEMINI_FREE_TIER_KEY != ''
-        run: |
-          echo "::notice::Tier 2 AI evals would run here — awaiting GEMINI_FREE_TIER_KEY provisioning"
+      - name: Install debate engine dependencies (Tier 2)
+        if: env.GEMINI_API_KEY != ''
+        run: npm ci --ignore-scripts && cd lib && npm ci --ignore-scripts
+
+      - name: Run golden debate evals (Tier 2)
+        if: env.GEMINI_API_KEY != ''
+        continue-on-error: true
+        timeout-minutes: 10
+        run: npx tsx lib/debate/cli.ts --ci-golden
 
   test-container:
     needs: [test-powershell, test-electron]
