@@ -109,7 +109,10 @@ interface ParsedDump {
 
 function parseDumpNdjson(ndjson: string): ParsedDump {
   const result: ParsedDump = { header: null, dictionary: [], context: null, events: [], triggers: [] };
-  for (const line of ndjson.split('\n')) {
+  const skippedLineNumbers: number[] = [];
+  const lines = ndjson.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     if (!line.trim()) continue;
     try {
       const rec = JSON.parse(line) as Record<string, unknown>;
@@ -120,7 +123,20 @@ function parseDumpNdjson(ndjson: string): ParsedDump {
         case 'trigger': result.triggers.push(rec); break;
         default: result.events.push(rec); break;
       }
-    } catch { /* skip malformed lines */ }
+      // t/1323 rule 2: a per-line skip in a bulk parse is aggregated into ONE
+      // record after the loop (per-line recording would flood on a corrupt dump).
+      // Line numbers only, not content — dumps may hold user data.
+      // eslint-disable-next-line local/require-flight-recorder-in-catch -- aggregated after the loop (rule 2)
+    } catch {
+      skippedLineNumbers.push(i + 1);
+    }
+  }
+  if (skippedLineNumbers.length > 0) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'flight-recorder-dumps', level: 'warn',
+      message: `Skipped ${skippedLineNumbers.length} malformed NDJSON line(s) while parsing a dump`,
+      data: { skippedCount: skippedLineNumbers.length, firstSkippedLineNumbers: skippedLineNumbers.slice(0, 5) },
+    });
   }
   return result;
 }
