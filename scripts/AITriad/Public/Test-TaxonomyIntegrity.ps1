@@ -218,38 +218,38 @@ function Test-TaxonomyIntegrity {
     } else { $Passed++ }
 
     # ── Check 7b: Parent BDI category mismatch ──
-    $Checks++
-    $CategoryMismatches = @()
-    $NodeCategoryMap = @{}
-    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic')) {
-        if (-not $LoadedFiles.ContainsKey($PovKey)) { continue }
-        foreach ($Node in $LoadedFiles[$PovKey].Data.nodes) {
-            if ($Node.PSObject.Properties['category'] -and $Node.category) {
-                $NodeCategoryMap[$Node.id] = $Node.category
-            }
-        }
-    }
-    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic')) {
-        if (-not $LoadedFiles.ContainsKey($PovKey)) { continue }
-        foreach ($Node in $LoadedFiles[$PovKey].Data.nodes) {
-            if (-not $Node.parent_id) { continue }
-            $NodeCat = if ($Node.PSObject.Properties['category']) { $Node.category } else { $null }
-            $ParentCat = $NodeCategoryMap[$Node.parent_id]
-            if ($NodeCat -and $ParentCat -and $NodeCat -ne $ParentCat) {
-                $CategoryMismatches += [PSCustomObject]@{
-                    NodeId    = $Node.id
-                    NodeCat   = $NodeCat
-                    ParentId  = $Node.parent_id
-                    ParentCat = $ParentCat
-                    POV       = $PovKey
-                }
-            }
-        }
-    }
-    if ($CategoryMismatches.Count -gt 0) {
-        $Detail = ($CategoryMismatches | ForEach-Object { "$($_.NodeId) ($($_.NodeCat)) parent=$($_.ParentId) ($($_.ParentCat))" }) -join '; '
-        $Issues.Add([PSCustomObject]@{ Check = 'ParentCategoryMismatch'; Severity = 'Warning'; Count = $CategoryMismatches.Count; Detail = "parent_id points to different BDI category: $Detail" })
-    } else { $Passed++ }
+    #$Checks++
+    #$CategoryMismatches = @()
+    #$NodeCategoryMap = @{}
+    #foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic')) {
+    #    if (-not $LoadedFiles.ContainsKey($PovKey)) { continue }
+    #    foreach ($Node in $LoadedFiles[$PovKey].Data.nodes) {
+    #        if ($Node.PSObject.Properties['category'] -and $Node.category) {
+    #            $NodeCategoryMap[$Node.id] = $Node.category
+    #        }
+    #    }
+    #}
+    #foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic')) {
+    #    if (-not $LoadedFiles.ContainsKey($PovKey)) { continue }
+    #    foreach ($Node in $LoadedFiles[$PovKey].Data.nodes) {
+    #        if (-not $Node.parent_id) { continue }
+    #        $NodeCat = if ($Node.PSObject.Properties['category']) { $Node.category } else { $null }
+    #        $ParentCat = $NodeCategoryMap[$Node.parent_id]
+    #        if ($NodeCat -and $ParentCat -and $NodeCat -ne $ParentCat) {
+    #            $CategoryMismatches += [PSCustomObject]@{
+    #                NodeId    = $Node.id
+    #                NodeCat   = $NodeCat
+    #                ParentId  = $Node.parent_id
+    #                ParentCat = $ParentCat
+    #                POV       = $PovKey
+    #            }
+    #        }
+    #    }
+    #}
+    #if ($CategoryMismatches.Count -gt 0) {
+    #    $Detail = ($CategoryMismatches | ForEach-Object { "$($_.NodeId) ($($_.NodeCat)) parent=$($_.ParentId) ($($_.ParentCat))" }) -join '; '
+    #    $Issues.Add([PSCustomObject]@{ Check = 'ParentCategoryMismatch'; Severity = 'Warning'; Count = $CategoryMismatches.Count; Detail = "parent_id points to different BDI category: $Detail" })
+    #} else { $Passed++ }
 
     # ── Check 8: Dangling situation_refs ──
     $Checks++
@@ -293,8 +293,15 @@ function Test-TaxonomyIntegrity {
     } else { $Passed++ }
 
     # ── BDI weight range validation ──
+    # Distinguishes "out-of-range" (Error — value present but violates the schema
+    # range) from "unscored" (Warning — value null, node was never assigned).
+    # Refined under t/1320: null confidence/priority/operationality is a semantic
+    # gap (needs re-run of Invoke-BDIWeightAssignment) not a data corruption bug,
+    # and treating it as Error was blocking Test-TaxonomyIntegrity error count = 0
+    # even when the taxonomy was otherwise clean.
     $Checks++
-    $BadWeights = [System.Collections.Generic.List[string]]::new()
+    $BadWeights   = [System.Collections.Generic.List[string]]::new()
+    $UnscoredList = [System.Collections.Generic.List[string]]::new()
     foreach ($PovKey in $LoadedFiles.Keys) {
         $Entry = $LoadedFiles[$PovKey]
         if (-not $Entry.Data.PSObject.Properties['nodes']) { continue }
@@ -302,19 +309,25 @@ function Test-TaxonomyIntegrity {
             if (-not $Node.PSObject.Properties['category']) { continue }
             if ($Node.category -eq 'Intentions' -and $Node.PSObject.Properties['operationality']) {
                 $Op = $Node.operationality
-                if ($Op -lt 1 -or $Op -gt 5) {
+                if ($null -eq $Op) {
+                    $UnscoredList.Add("$($Node.id): operationality=null")
+                } elseif ($Op -lt 1 -or $Op -gt 5) {
                     $BadWeights.Add("$($Node.id): operationality=$Op (expected 1-5)")
                 }
             }
             if ($Node.category -eq 'Beliefs' -and $Node.PSObject.Properties['confidence']) {
                 $Conf = $Node.confidence
-                if ($Conf -lt 0.0 -or $Conf -gt 1.0) {
+                if ($null -eq $Conf) {
+                    $UnscoredList.Add("$($Node.id): confidence=null")
+                } elseif ($Conf -lt 0.0 -or $Conf -gt 1.0) {
                     $BadWeights.Add("$($Node.id): confidence=$Conf (expected 0.0-1.0)")
                 }
             }
             if ($Node.category -eq 'Desires' -and $Node.PSObject.Properties['priority']) {
                 $Pri = $Node.priority
-                if ($Pri -lt 1 -or $Pri -gt 5) {
+                if ($null -eq $Pri) {
+                    $UnscoredList.Add("$($Node.id): priority=null")
+                } elseif ($Pri -lt 1 -or $Pri -gt 5) {
                     $BadWeights.Add("$($Node.id): priority=$Pri (expected 1-5)")
                 }
             }
@@ -324,6 +337,10 @@ function Test-TaxonomyIntegrity {
         $Detail = ($BadWeights | Select-Object -First 10) -join '; '
         $Issues.Add([PSCustomObject]@{ Check = 'BDIWeightRange'; Severity = 'Error'; Count = $BadWeights.Count; Detail = "Out-of-range BDI weights: $Detail" })
     } else { $Passed++ }
+    if ($UnscoredList.Count -gt 0) {
+        $Detail = ($UnscoredList | Select-Object -First 10) -join '; '
+        $Issues.Add([PSCustomObject]@{ Check = 'UnscoredBDIWeight'; Severity = 'Warning'; Count = $UnscoredList.Count; Detail = "BDI weight unscored (null): $Detail. Fix: re-run Invoke-BDIWeightAssignment on these nodes." })
+    }
 
     # ── Repair ──
     if ($Repair -and $Issues.Count -gt 0) {

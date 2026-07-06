@@ -37,14 +37,15 @@ Describe 'Situation BDI-decomposition compliance check (t/1312)' -Tag 'taxonomy'
         $script:BdiCheck.Check | Should -BeLike 'Situation interpretations: per-POV BDI decomposition*'
     }
 
-    It 'The Detail line has the CL-approved shape (pass/total + fail breakdown)' {
-        # Approved wording: "$Pass / $NonDep non-deprecated situations have full per-POV BDI decomposition
-        # (all three POVs carry non-empty belief + desire + intention). $Fail fail: $NonDecomposed non-decomposed,
-        # $Empty missing the interpretations block."
+    It 'The Detail line has the CL-approved shape (pass/total accounting)' {
+        # Both pass and fail states share the "$Pass / $NonDep non-deprecated" prefix.
+        # Fail-state breakdown (non-decomposed / missing) only appears when status=='fail'.
         $script:BdiCheck.Detail | Should -Match '\d+ / \d+ non-deprecated situations'
-        $script:BdiCheck.Detail | Should -Match 'belief \+ desire \+ intention'
-        $script:BdiCheck.Detail | Should -Match 'non-decomposed'
-        $script:BdiCheck.Detail | Should -Match 'missing the interpretations block'
+        if ($script:BdiCheck.Status -eq 'fail') {
+            $script:BdiCheck.Detail | Should -Match 'belief \+ desire \+ intention'
+            $script:BdiCheck.Detail | Should -Match 'non-decomposed'
+            $script:BdiCheck.Detail | Should -Match 'missing the interpretations block'
+        }
     }
 
     It 'Detail does NOT include a ticket-ref (CL Q3 answer)' {
@@ -53,25 +54,25 @@ Describe 'Situation BDI-decomposition compliance check (t/1312)' -Tag 'taxonomy'
         $script:BdiCheck.Detail | Should -Not -Match 't/1306'
     }
 
-    It 'Fix instructions reference the CL-owned UsageID (creation-path adopters)' {
-        $script:BdiCheck.Fix | Should -Match 'enrichment.situation-bdi-decomposition'
-        $script:BdiCheck.Fix | Should -Match 'Invoke-AIByUsage'
+    It 'Fix instructions reference the CL-owned UsageID (creation-path adopters) — only emitted on fail' {
+        # Add-Check only stores Fix hints when status is 'fail'; on 'pass' Fix is empty.
+        # Verify the passing-state Fix is empty AND that the check name still signals
+        # what would be recommended if the corpus regresses.
+        if ($script:BdiCheck.Status -eq 'pass') {
+            $script:BdiCheck.Fix | Should -BeNullOrEmpty
+        } else {
+            $script:BdiCheck.Fix | Should -Match 'enrichment.situation-bdi-decomposition'
+            $script:BdiCheck.Fix | Should -Match 'Invoke-AIByUsage'
+        }
     }
 
-    It 'Live-data baseline: 128 pass / 283 fail non-deprecated situations (t/1306 backfill in flight)' {
-        # This is the trip-wire — will need updating as the backfill lands. Match the exact
-        # baseline reproduced by CL and this ticket's design in t/1312#1.
-        $script:BdiCheck.Status | Should -Be 'fail'
-        $script:BdiCheck.Detail | Should -Match '128 / 411'
-        $script:BdiCheck.Detail | Should -Match '283 fail'
-        $script:BdiCheck.Detail | Should -Match '250 non-decomposed'
-        $script:BdiCheck.Detail | Should -Match '33 missing'
-    }
-
-    It 'Detail includes first-N offending IDs (CL Q4 answer: first 10 of N)' {
-        # Non-decomposed and empty samples both appear
-        $script:BdiCheck.Detail | Should -Match 'non-decomposed sample:'
-        $script:BdiCheck.Detail | Should -Match 'empty sample:'
+    It 'Live-data baseline: 411 / 411 non-deprecated situations pass, 1 exempt (post-t/1306 backfill)' {
+        # Trip-wire updated after CL's t/1306 backfill merged (CL sign-off p/23#62,
+        # data-repo commit f202ddd2). Situation corpus is now fully BDI-decomposed;
+        # the 1 exempt node uses the [DEPRECATED] description prefix per CL's Q1 answer.
+        $script:BdiCheck.Status | Should -Be 'pass'
+        $script:BdiCheck.Detail | Should -Match '411 / 411'
+        $script:BdiCheck.Detail | Should -Match '1 exempt via \[DEPRECATED\] prefix'
     }
 
     It 'Deprecation is signalled by the [DEPRECATED] description prefix (CL Q1 answer)' {
