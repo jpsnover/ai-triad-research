@@ -217,9 +217,9 @@ function makeTurn(
 // ── BDI palette ──────────────────────────────────────────
 
 function bdiOf(nodeId: string): 'B' | 'D' | 'I' | '?' {
-  // POV node ids: {pov}-{B|D|I}-{NNN}
-  const m = /^(?:acc|saf|skp|cc)-([BDI])-/.exec(nodeId);
-  if (m) return m[1] as 'B' | 'D' | 'I';
+  // t/1325: single-letter category segment (acc-B-NNN etc.) never existed
+  // in any ID scheme, and cc- was migrated to sit- (t/1308). Situations
+  // don't carry a BDI segment. Nothing to match — always '?'.
   if (nodeId.startsWith('sit-')) return '?';
   return '?';
 }

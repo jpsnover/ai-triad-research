@@ -24,13 +24,12 @@ Return a JSON object with the following structure:
       "rationale": "If scaling laws hold, then investing in compute is the rational strategy.",
       "strength": "moderate"
     }
-  ],
-  "new_edge_types": []
+  ]
 }
 
 CONSTRAINTS:
   - Each edge "source" and "target" MUST be valid node IDs from the input group.
-  - "type" must be from the vocabulary above or declared in "new_edge_types".
+  - "type" must be one of the canonical vocabulary values listed above. Types outside the vocabulary are silently dropped downstream — do not invent new types.
   - "bidirectional" must be true for CONTRADICTS and TENSION_WITH, false for others.
   - "confidence" must be between 0.5 and 1.0. Do not propose edges below 0.5.
   - Return ONLY the JSON object. No markdown, no commentary.

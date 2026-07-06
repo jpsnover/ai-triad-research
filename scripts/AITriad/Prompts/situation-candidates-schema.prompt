@@ -8,9 +8,24 @@ Respond in JSON format:
       "description": "...",
       "relationship_type": "shared_concept | contested_topic | related_theme",
       "interpretations": {
-        "accelerationist": "...",
-        "safetyist": "...",
-        "skeptic": "..."
+        "accelerationist": {
+          "belief": "...",
+          "desire": "...",
+          "intention": "...",
+          "summary": "..."
+        },
+        "safetyist": {
+          "belief": "...",
+          "desire": "...",
+          "intention": "...",
+          "summary": "..."
+        },
+        "skeptic": {
+          "belief": "...",
+          "desire": "...",
+          "intention": "...",
+          "summary": "..."
+        }
       },
       "confidence": 0.85,
       "rationale": "..."
