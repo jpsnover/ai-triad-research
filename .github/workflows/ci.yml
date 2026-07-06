@@ -279,6 +279,10 @@ jobs:
 
       - name: Install debate engine dependencies (Tier 2)
         if: env.GEMINI_API_KEY != ''
+        # Annotation-only by design — never flips (t/1329). EVERY step in this
+        # job must carry continue-on-error or a failure here hard-gates CI via
+        # the container build's ci-gate (bug found on Tier 2's first live run).
+        continue-on-error: true
         run: npm ci --ignore-scripts && cd lib && npm ci --ignore-scripts
 
       - name: Run golden debate evals (Tier 2)
