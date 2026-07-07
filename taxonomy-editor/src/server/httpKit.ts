@@ -9,7 +9,7 @@
 
 import type { IncomingMessage, ServerResponse } from 'http';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
-import { getRequestId } from './logger.js';
+import { log, getRequestId } from './logger.js';
 import { clientSafeMessage } from './security/accessControl.js';
 
 export type Handler = (req: IncomingMessage, res: ServerResponse, body: unknown) => Promise<void> | void;
@@ -23,6 +23,13 @@ export function error(res: ServerResponse, message: string, status = 500, cause?
   // M4: don't leak internal detail (file paths, stack) to clients on server
   // errors in production — record the real message server-side, return generic.
   const route: string = (res as unknown as { __routePath?: string }).__routePath ?? 'server';
+  // t/1362: every 500 logs at error level to Pino — the always-on safety net so
+  // server errors are visible in container logs (az containerapp logs show)
+  // without a browser-triggered FR dump. The FR record below is prod+dump-gated;
+  // this is not. Full message stays server-side (never leaked to the client body).
+  if (status >= 500) {
+    log.server.error({ component: route, status, err: cause }, `${route}: server error (${status}) — ${message}`);
+  }
   if (status >= 500 && process.env.NODE_ENV === 'production') {
     getGlobalRecorder()?.record({
       type: 'system.error',

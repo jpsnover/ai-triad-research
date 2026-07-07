@@ -1204,6 +1204,10 @@ post('/api/ai/generate', async (req, res, body) => {
       res.end(JSON.stringify({ error: 'Upstream AI provider rate limit — retry shortly', limitType: 'upstream_rate_limit', retryAfterMs: retry, retryable: true }));
       return;
     }
+    // t/1362: also log at error level via Pino so the 500 is visible in
+    // `az containerapp logs show` — the FR record alone requires a browser-
+    // triggered dump, which may be impossible if the UI is broken.
+    log.server.error({ component: 'ai-generate', model: model ?? 'default', err }, 'AI generate failed');
     getGlobalRecorder()?.record({
       type: 'system.error', component: 'ai-generate', level: 'error',
       message: `AI generate failed: ${String(err)}`,
