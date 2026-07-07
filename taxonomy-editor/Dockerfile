@@ -36,6 +36,7 @@ COPY taxonomy-editor/tsconfig.server.json ./taxonomy-editor/
 COPY taxonomy-editor/vite.config.ts ./taxonomy-editor/
 COPY taxonomy-editor/scripts/ ./taxonomy-editor/scripts/
 COPY ai-models.json ./
+COPY ai-usages.json ./
 COPY .aitriad.json ./
 COPY CHANGELOG.md ./
 COPY taxonomy/schemas/ ./taxonomy/schemas/
@@ -82,6 +83,7 @@ COPY --from=prod-deps --chown=aitriad:aitriad /deps/node_modules ./node_modules/
 
 # 2. Stable config and scripts (change occasionally)
 COPY --chown=aitriad:aitriad ai-models.json ./
+COPY --chown=aitriad:aitriad ai-usages.json ./
 COPY --chown=aitriad:aitriad .aitriad.json ./
 COPY --chown=aitriad:aitriad taxonomy/schemas/ ./taxonomy/schemas/
 COPY --chown=aitriad:aitriad scripts/ ./scripts/
