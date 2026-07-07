@@ -4,6 +4,7 @@
 import { POV_META } from '@lib/electron-shared/povMeta';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { TabId } from '../../types/taxonomy';
+import { CampGlyph, povToCamp } from './CampGlyph';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'accelerationist', label: POV_META.accelerationist.label },
@@ -23,6 +24,7 @@ export function TabBar() {
           className={activeTab === tab.id ? 'active' : ''}
           onClick={() => setActiveTab(tab.id)}
         >
+          {povToCamp(tab.id) && <CampGlyph camp={povToCamp(tab.id)!} size={14} />}
           {tab.label}
         </button>
       ))}

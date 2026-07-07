@@ -5,12 +5,15 @@
 
 :root,
 [data-theme="light"] {
-  /* POV colors */
-  --color-acc: #16a34a;
-  --color-saf: #dc2626;
-  --color-skp: #ca8a04;
-  --color-sit: #7c3aed;
+  /* POV colors — orange/blue/violet triad (Phase 2, WCAG AA verified) */
+  --color-acc: #b84e13;
+  --color-saf: #2b5fad;
+  --color-skp: #7b4fa6;
+  --color-sit: #0f766e;
   --color-conflicts: #64748b;
+  --tint-acc: rgba(184, 78, 19, 0.10);
+  --tint-saf: rgba(43, 95, 173, 0.10);
+  --tint-skp: rgba(123, 79, 166, 0.10);
 
   /* Category accent colors */
   --cat-desires: #0d9488;
@@ -59,12 +62,15 @@
 /* ─── Dark theme ────────────────────────────────────────── */
 
 [data-theme="dark"] {
-  /* POV colors */
-  --color-acc: #2ecc71;
-  --color-saf: #e74c3c;
-  --color-skp: #f1c40f;
-  --color-sit: #9b59b6;
+  /* POV colors — orange/blue/violet triad (Phase 2, WCAG AA verified) */
+  --color-acc: #e89450;
+  --color-saf: #7da3d6;
+  --color-skp: #a888c8;
+  --color-sit: #2dd4bf;
   --color-conflicts: #95a5a6;
+  --tint-acc: rgba(232, 148, 80, 0.12);
+  --tint-saf: rgba(125, 163, 214, 0.12);
+  --tint-skp: rgba(168, 136, 200, 0.12);
 
   /* Category accent colors */
   --cat-desires: #2eaaaa;
@@ -113,12 +119,15 @@
 /* ─── BKC theme (Berkman Klein Center Transparency Hub) ─── */
 
 [data-theme="bkc"] {
-  /* POV colors */
-  --color-acc: #4d7a8b;
-  --color-saf: #7c101c;
-  --color-skp: #a349a4;
-  --color-sit: #09465b;
+  /* POV colors — orange/blue/violet triad (Phase 2, WCAG AA verified) */
+  --color-acc: #cc7e45;
+  --color-saf: #6d94c2;
+  --color-skp: #a882be;
+  --color-sit: #2bb8a4;
   --color-conflicts: #7a6a82;
+  --tint-acc: rgba(204, 126, 69, 0.12);
+  --tint-saf: rgba(109, 148, 194, 0.12);
+  --tint-skp: rgba(168, 130, 190, 0.12);
 
   /* Category accent colors */
   --cat-desires: #2e4953;
@@ -165,12 +174,15 @@
 }
 
 [data-theme="harvard"] {
-  /* POV colors */
-  --color-acc: #2D6A4F;
-  --color-saf: #A51C30;
-  --color-skp: #B8860B;
-  --color-sit: #5B2C87;
+  /* POV colors — orange/blue/violet triad (Phase 2, WCAG AA verified) */
+  --color-acc: #a35012;
+  --color-saf: #275498;
+  --color-skp: #6d4595;
+  --color-sit: #0f766e;
   --color-conflicts: #6B705C;
+  --tint-acc: rgba(163, 80, 18, 0.10);
+  --tint-saf: rgba(39, 84, 152, 0.10);
+  --tint-skp: rgba(109, 69, 149, 0.10);
 
   /* Category accent colors */
   --cat-desires: #1B7A6D;
@@ -220,7 +232,7 @@
 
 :root {
   /* Typography */
-  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-prose: 'Source Serif 4', Georgia, serif;
   --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
 
@@ -253,6 +265,13 @@
   /* Transitions */
   --transition-fast: 120ms ease;
   --transition-base: 180ms ease;
+}
+
+.prose {
+  font-family: var(--font-prose);
+  font-size: var(--text-prose);
+  line-height: var(--leading-prose);
+  max-width: 68ch;
 }
 
 * {
@@ -364,7 +383,7 @@ body {
 .tab-bar button[data-tab="skeptic"].active          { border-bottom-color: var(--color-skp); color: var(--color-skp); }
 .tab-bar button[data-tab="situations"].active    { border-bottom-color: var(--color-sit);  color: var(--color-sit); }
 .tab-bar button[data-tab="conflicts"].active        { border-bottom-color: var(--color-conflicts); color: var(--color-conflicts); }
-.tab-bar button[data-tab="debate"].active           { border-bottom-color: var(--focus-ring); color: var(--focus-ring); }
+.tab-bar button[data-tab="debate"].active           { border-bottom-color: var(--text-primary); color: var(--text-primary); }
 
 /* ─── App body (toolbar + tab content) ─────────────────── */
 

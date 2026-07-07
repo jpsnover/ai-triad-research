@@ -1,5 +1,6 @@
 // Barrel file — re-exports all components in this directory
 export * from './BottomNav';
+export * from './CampGlyph';
 export * from './DataSourceCard';
 export * from './DeleteConfirmDialog';
 export * from './DeploymentErrorScreen';
