@@ -132,18 +132,44 @@ export async function pruneDumps(dataRoot: string, index?: DumpIndex): Promise<v
   }
 }
 
+// t/1352: map the StorageBackend implementation to a stable diagnostic label so
+// a dump's destination is visible from the flight-recorder log without reading
+// source. constructor.name is reliable here — server code is tsc-compiled, not
+// minified.
+const STORAGE_BACKEND_LABELS: Record<string, string> = {
+  AzureBlobBackend: 'blob',
+  GitHubAPIBackend: 'github-api',
+  FilesystemBackend: 'local-fs',
+};
+function storageBackendLabel(backend: object): string {
+  return STORAGE_BACKEND_LABELS[backend.constructor.name] ?? backend.constructor.name;
+}
+
 /** Write one half of a paired dump through the durable backend, update the
  *  retention index, and prune. Returns the (logical) dump path. Async: the
  *  backend is blob-backed in production so dumps survive replica recycling and
  *  are readable from any replica (t/1350). */
 export async function writeDump(dataRoot: string, kind: 'client' | 'server', dumpId: string, ndjson: string): Promise<string> {
+  const backend = getUserContentBackend();
   const filePath = path.join(dumpsDir(dataRoot), `${kind}-${dumpId}.jsonl`);
-  await getUserContentBackend().writeFile(filePath, ndjson);
+  const sizeBytes = Buffer.byteLength(ndjson, 'utf-8');
+  await backend.writeFile(filePath, ndjson);
+
+  // t/1352: record where the dump landed (which backend) so storage-related dump
+  // diagnostics are a single FR grep, not a source read. Diagnostic context, not
+  // a failure → debug level.
+  getGlobalRecorder()?.record({
+    type: 'flight-recorder.dump.written',
+    component: 'flight-recorder-dumps',
+    level: 'debug',
+    message: `Dump ${kind}-${dumpId} written to ${storageBackendLabel(backend)} storage`,
+    data: { storageBackend: storageBackendLabel(backend), dumpId, path: filePath, sizeBytes, kind },
+  });
 
   const index = await readDumpIndex(dataRoot);
   const entry = index[dumpId] ?? { ts: Date.now() };
   entry.ts = Date.now();
-  entry[kind] = Buffer.byteLength(ndjson, 'utf-8');
+  entry[kind] = sizeBytes;
   index[dumpId] = entry;
   await pruneDumps(dataRoot, index); // prunes + persists the updated index
   return filePath;
