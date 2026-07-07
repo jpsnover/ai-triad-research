@@ -199,7 +199,10 @@ function Test-PersonaEndpoints {
         $EndpointList = @($Endpoints | ForEach-Object { "$($_.Method) $($_.Path)" } | Select-Object -Unique)
         $PathWidth = [Math]::Min(48, ([Math]::Max(20, ($EndpointList | Measure-Object Length -Maximum).Maximum)))
 
-        $Header = '  {0,-' + $PathWidth + '}' -f 'Endpoint'
+        # Note: '-f' binds tighter than '+' — using string interpolation for the
+        # width so the whole format string is one literal, not `'X' + $w + ('}' -f ...)`
+        # which throws "Format item ends prematurely" (DevOps p/169#4).
+        $Header = "  {0,-$PathWidth}" -f 'Endpoint'
         foreach ($P in $PersonaList) { $Header += ('  {0,-13}' -f $P) }
         Write-Host ''
         Write-Host $Header -ForegroundColor White
@@ -208,7 +211,7 @@ function Test-PersonaEndpoints {
         foreach ($Ep in $Endpoints) {
             $Label = "$($Ep.Method) $($Ep.Path)"
             if ($Label.Length -gt $PathWidth) { $Label = $Label.Substring(0, $PathWidth - 1) + '…' }
-            $Line = '  {0,-' + $PathWidth + '}' -f $Label
+            $Line = "  {0,-$PathWidth}" -f $Label
             $Color = 'Gray'
             foreach ($P in $PersonaList) {
                 $Cell = @($Results | Where-Object { $_.Persona -eq $P -and $_.Endpoint -eq $Ep.Path })[0]

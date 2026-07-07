@@ -234,6 +234,23 @@ Describe 'Test-PersonaEndpoints classifier lattice (t/1355)' -Tag 'health' {
             $r.PSObject.Properties['BodyKind']    | Should -Not -BeNullOrEmpty
         }
     }
+
+    It '-Detailed renders the matrix without throwing "Format item ends prematurely" (DevOps p/169#4 hotfix regression guard)' {
+        # This bug blocked the t/1375 deploy gate: `'  {0,-' + $PathWidth + '}' -f 'Endpoint'`
+        # was parsed as `'  {0,-' + $PathWidth + ('}' -f 'Endpoint')` because -f binds
+        # tighter than +. The fix is `"  {0,-$PathWidth}" -f 'Endpoint'` — one literal
+        # format string via interpolation.
+        InModuleScope AITriad {
+            Mock -CommandName Invoke-RemoteCheck -MockWith {
+                [PSCustomObject]@{
+                    Success = $true; StatusCode = 200; ResponseMs = 1
+                    Body = $null; ContentType = 'application/json'; RawBody = '{}'; Error = $null
+                }
+            } -ModuleName AITriad
+            { Test-PersonaEndpoints -BaseUrl 'https://stub' -Persona anonymous -Detailed 6>$null } |
+                Should -Not -Throw
+        }
+    }
 }
 
 Describe 'Test-PersonaEndpoints - manifest' -Tag 'health' {
