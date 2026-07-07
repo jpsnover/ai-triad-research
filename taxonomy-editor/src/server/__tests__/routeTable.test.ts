@@ -20,8 +20,8 @@ const serverEntry = path.join(here, '..', 'server.ts');
 describe('server.ts route table (t/1295 — zero-behaviour-change guard)', () => {
   const routes = extractRoutes(serverEntry);
 
-  it('registers exactly 178 routes', () => {
-    expect(routes.length).toBe(178); // +1: GET /api/debates/quota-status (t/1360)
+  it('registers exactly 179 routes', () => {
+    expect(routes.length).toBe(179); // +GET /api/debates/quota-status (t/1360), +POST /api/keys/verify-stored (t/1363)
   });
 
   // GATE 1 — set identity: sorted (method, path) multiset. Fails on any add/drop.

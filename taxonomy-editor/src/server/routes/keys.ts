@@ -34,6 +34,35 @@ function maskedKeyList(keys: string[]): { index: number; masked: string }[] {
   return keys.map((k, index) => ({ index, masked: maskApiKey(k) }));
 }
 
+/** Validate one raw key against its provider's lightweight list-models endpoint.
+ *  Shared by POST /api/keys/validate and /api/keys/verify-stored (t/1363) so both
+ *  probe identically. Never logs or returns the raw key — only a valid/error
+ *  verdict; a provider-unreachable error is a result, not a swallowed failure,
+ *  but is still recorded (warn) for network diagnostics. */
+async function validateProviderKey(backend: string, key: string): Promise<{ valid: boolean; error?: string }> {
+  try {
+    let resp: Response;
+    if (backend === 'gemini') {
+      resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
+    } else if (backend === 'claude') {
+      resp = await fetch('https://api.anthropic.com/v1/models', { headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' } });
+    } else if (backend === 'groq') {
+      resp = await fetch('https://api.groq.com/openai/v1/models', { headers: { 'Authorization': `Bearer ${key}` } });
+    } else {
+      return { valid: false, error: `Unsupported backend: ${backend}` };
+    }
+    return resp.ok ? { valid: true } : { valid: false, error: 'Invalid API key' };
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'key-validation', level: 'warn',
+      message: 'Key validation request failed',
+      data: { backend },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return { valid: false, error: 'Could not reach provider — check your network' };
+  }
+}
+
 export function registerKeysRoutes(r: Router, _ctx: ServerCtx): void {
   const { get, post, del } = r;
 
@@ -71,36 +100,39 @@ export function registerKeysRoutes(r: Router, _ctx: ServerCtx): void {
       return;
     }
 
-    try {
-      let resp: Response;
-      if (backend === 'gemini') {
-        resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
-      } else if (backend === 'claude') {
-        resp = await fetch('https://api.anthropic.com/v1/models', {
-          headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-        });
-      } else if (backend === 'groq') {
-        resp = await fetch('https://api.groq.com/openai/v1/models', {
-          headers: { 'Authorization': `Bearer ${key}` },
-        });
-      } else {
-        json(res, { valid: false, error: `Unsupported backend: ${backend}` });
-        return;
-      }
+    json(res, await validateProviderKey(backend, key));
+  });
 
-      if (resp.ok) {
-        json(res, { valid: true });
-      } else {
-        json(res, { valid: false, error: 'Invalid API key' });
-      }
+  // t/1363: validate the current user's STORED keys for a backend against their
+  // providers, returning per-key masked verdicts — the server half of the Settings
+  // "Verify" button (client committed in e376c03e, parent t/1349). Raw keys never
+  // leave the server: only masked suffixes appear in the response.
+  post('/api/keys/verify-stored', async (req, res, body) => {
+    const { backend } = (body ?? {}) as { backend?: string };
+    if (!backend) { error(res, 'backend is required', 400); return; }
+
+    const rateCheck = rateLimiter.checkRate(`key-verify-stored:${getClientIp(req)}`, 5, 60_000);
+    if (!rateCheck.allowed) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Rate limit exceeded — try again shortly' }));
+      return;
+    }
+
+    try {
+      const keys = await getStoredApiKeys(backend as AIBackend);
+      const results = await Promise.all(keys.map(async (key, index) => {
+        const verdict = await validateProviderKey(backend, key);
+        return { index, masked: maskApiKey(key), valid: verdict.valid, ...(verdict.error ? { error: verdict.error } : {}) };
+      }));
+      json(res, { results });
     } catch (err) {
       getGlobalRecorder()?.record({
-        type: 'system.error', component: 'key-validation', level: 'warn',
-        message: 'Key validation request failed',
+        type: 'system.error', component: 'key-verify-stored', level: 'error',
+        message: 'Stored key verification failed',
         data: { backend },
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      json(res, { valid: false, error: 'Could not reach provider — check your network' });
+      error(res, String(err), 500, err);
     }
   });
 
