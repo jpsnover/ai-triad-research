@@ -55,6 +55,7 @@
     "@xterm/xterm": "^6.0.0",
     "jsqr": "^1.4.0",
     "jszip": "^3.10.1",
+    "lucide-react": "^1.23.0",
     "node-pty": "^1.1.0",
     "onnxruntime-node": "^1.26.0",
     "pino": "^10.3.1",
