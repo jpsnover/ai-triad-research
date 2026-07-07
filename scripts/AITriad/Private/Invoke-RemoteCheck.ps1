@@ -79,6 +79,20 @@ function Invoke-RemoteCheck {
         $Sw.Stop()
 
         $StatusCode = $Response.StatusCode
+        $ContentType = ''
+        if ($Response.Headers -and $Response.Headers['Content-Type']) {
+            # Headers[key] returns string[] in PS7 — take the first entry.
+            $ContentType = @($Response.Headers['Content-Type'])[0]
+        }
+        # RawBody is a short slice for shape-matching (SPA-shell detection, etc). t/1355.
+        $RawBody = ''
+        if ($Response.Content) {
+            $RawBody = if ($Response.Content.Length -gt 400) {
+                $Response.Content.Substring(0, 400)
+            } else {
+                $Response.Content
+            }
+        }
         $Body = $null
         if ($Response.Content) {
             try { $Body = $Response.Content | ConvertFrom-Json } catch { $Body = $null }
@@ -92,25 +106,46 @@ function Invoke-RemoteCheck {
         }
 
         [PSCustomObject]@{
-            Success    = $Success
-            StatusCode = $StatusCode
-            ResponseMs = $Sw.ElapsedMilliseconds
-            Body       = $Body
-            Error      = $null
+            Success     = $Success
+            StatusCode  = $StatusCode
+            ResponseMs  = $Sw.ElapsedMilliseconds
+            Body        = $Body
+            ContentType = $ContentType
+            RawBody     = $RawBody
+            Error       = $null
         }
     }
     catch {
         $Sw.Stop()
         $StatusCode = 0
+        $ContentType = ''
+        $RawBody = ''
         if ($_.Exception.PSObject.Properties['Response'] -and $_.Exception.Response) {
             $StatusCode = [int]$_.Exception.Response.StatusCode
+            # Best-effort content-type extraction from the error-response headers
+            # (used by the persona-endpoint 401/403 classifier — non-200 with HTML
+            # body is a real signal for auth-shell distinguisher).
+            try {
+                if ($_.Exception.Response.Content -and $_.Exception.Response.Content.Headers.ContentType) {
+                    $ContentType = $_.Exception.Response.Content.Headers.ContentType.MediaType
+                }
+            } catch { }
+            try {
+                $ErrResp = $_.ErrorDetails
+                if ($ErrResp -and $ErrResp.Message) {
+                    $ErrText = [string]$ErrResp.Message
+                    $RawBody = if ($ErrText.Length -gt 400) { $ErrText.Substring(0, 400) } else { $ErrText }
+                }
+            } catch { }
         }
         [PSCustomObject]@{
-            Success    = $false
-            StatusCode = $StatusCode
-            ResponseMs = $Sw.ElapsedMilliseconds
-            Body       = $null
-            Error      = $_.Exception.Message
+            Success     = $false
+            StatusCode  = $StatusCode
+            ResponseMs  = $Sw.ElapsedMilliseconds
+            Body        = $null
+            ContentType = $ContentType
+            RawBody     = $RawBody
+            Error       = $_.Exception.Message
         }
     }
 }

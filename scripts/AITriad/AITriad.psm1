@@ -314,11 +314,13 @@ class PersonaEndpointTestResult {
     [string] $Endpoint
     [string] $Category
     [bool]   $ExpectedAccess   # true = expected 2xx, false = expected 401/403
-    [bool]   $ActualAccess     # true = got 2xx, false = got 401/403
-    [bool]   $Pass             # ExpectedAccess == ActualAccess
+    [bool]   $ActualAccess     # true = got 2xx, false = got 401/403 (or 200-but-shell)
+    [bool]   $Pass             # ExpectedAccess == ActualAccess after shell reclassification (t/1355)
     [int]    $StatusCode
+    [string] $ContentType      # t/1355 — used to distinguish real JSON response from SPA fall-through
+    [string] $BodyKind         # t/1355 — 'json' | 'html' | 'empty' | 'unparsed'
     [int]    $Ms
-    [string] $Note             # 'skipped: no PersonaSecret' etc
+    [string] $Note             # 'skipped: no PersonaSecret'; '200-but-SPA-shell' etc.
     [string] $Error
 }
 
@@ -701,6 +703,7 @@ Export-ModuleMember -Function @(
     'Invoke-AIByUsage'
     # t/1308 — cc→sit migration
     'Invoke-CcToSitMigration'
+    'Test-AIApiKey'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

@@ -116,6 +116,126 @@ Describe 'Test-PersonaEndpoints' -Tag 'health' {
     }
 }
 
+Describe 'Test-PersonaEndpoints classifier lattice (t/1355)' -Tag 'health' {
+
+    It 'Cell 1: 200 + text/html SPA shell + ExpectedAccess=false → soft-PASS with Note (no data leak)' {
+        InModuleScope AITriad {
+            # Production-shape SPA sign-in page inlined here (rather than a $using: var
+            # from BeforeAll) — InModuleScope is not a remoting scope, so $using: fails.
+            $shellBody = "<!DOCTYPE html>`n<html lang=`"en`">`n<head><title>Sign In — Taxonomy Editor</title></head>`n<body><div id=`"root`"></div></body>`n</html>"
+            Mock Invoke-RemoteCheck {
+                [PSCustomObject]@{
+                    Success     = $true
+                    StatusCode  = 200
+                    ResponseMs  = 42
+                    Body        = $null
+                    ContentType = 'text/html; charset=utf-8'
+                    RawBody     = $shellBody
+                    Error       = $null
+                }
+            }
+            $r = Test-PersonaEndpoints -BaseUrl 'https://stub.example.com' -Persona anonymous -Category Admin 6>$null |
+                Where-Object { $_.Endpoint -eq '/api/admin/review/stats' } |
+                Select-Object -First 1
+            $r                | Should -Not -BeNullOrEmpty
+            $r.StatusCode     | Should -Be 200
+            $r.ExpectedAccess | Should -Be $false
+            $r.ActualAccess   | Should -Be $false        # reclassified: shell != real access
+            $r.Pass           | Should -Be $true         # soft-pass
+            $r.BodyKind       | Should -Be 'html'
+            $r.ContentType    | Should -Match '^text/html'
+            $r.Note           | Should -Match 'SPA-shell'
+        }
+    }
+
+    It 'Cell 2 (CRITICAL): 200 + real JSON + ExpectedAccess=false → HARD-FAIL (real bypass, must NOT be masked)' {
+        InModuleScope AITriad {
+            Mock Invoke-RemoteCheck {
+                # Simulates a REAL auth bypass — an admin endpoint returns real admin
+                # data to an anonymous caller with proper JSON. This MUST fail;
+                # the shell-detection refinement is designed to preserve this signal.
+                [PSCustomObject]@{
+                    Success     = $true
+                    StatusCode  = 200
+                    ResponseMs  = 55
+                    Body        = [PSCustomObject]@{ pendingCount = 42; approvedToday = 7 }
+                    ContentType = 'application/json; charset=utf-8'
+                    RawBody     = '{"pendingCount":42,"approvedToday":7}'
+                    Error       = $null
+                }
+            }
+            $r = Test-PersonaEndpoints -BaseUrl 'https://stub.example.com' -Persona anonymous -Category Admin 6>$null |
+                Where-Object { $_.Endpoint -eq '/api/admin/review/stats' } |
+                Select-Object -First 1
+            $r                | Should -Not -BeNullOrEmpty
+            $r.StatusCode     | Should -Be 200
+            $r.ExpectedAccess | Should -Be $false
+            $r.ActualAccess   | Should -Be $true         # real grant (not reclassified)
+            $r.Pass           | Should -Be $false        # ← the guarded property
+            $r.BodyKind       | Should -Be 'json'
+            $r.Note           | Should -BeNullOrEmpty    # no soft-pass Note applied
+        }
+    }
+
+    It 'Cell 3: 200 + real JSON + ExpectedAccess=true → PASS (normal grant)' {
+        InModuleScope AITriad {
+            Mock Invoke-RemoteCheck {
+                [PSCustomObject]@{
+                    Success     = $true
+                    StatusCode  = 200
+                    ResponseMs  = 30
+                    Body        = [PSCustomObject]@{ nodes = @(); edges = @() }
+                    ContentType = 'application/json; charset=utf-8'
+                    RawBody     = '{"nodes":[],"edges":[]}'
+                    Error       = $null
+                }
+            }
+            $r = Test-PersonaEndpoints -BaseUrl 'https://stub.example.com' -Persona anonymous -Category Data 6>$null |
+                Where-Object { $_.Endpoint -eq '/api/taxonomy/accelerationist' } |
+                Select-Object -First 1
+            $r                | Should -Not -BeNullOrEmpty
+            $r.StatusCode     | Should -Be 200
+            $r.ExpectedAccess | Should -Be $true
+            $r.ActualAccess   | Should -Be $true
+            $r.Pass           | Should -Be $true
+            $r.BodyKind       | Should -Be 'json'
+        }
+    }
+
+    It 'Cell 4: 401 + ExpectedAccess=false → PASS (proper gate)' {
+        InModuleScope AITriad {
+            Mock Invoke-RemoteCheck {
+                [PSCustomObject]@{
+                    Success     = $false
+                    StatusCode  = 401
+                    ResponseMs  = 25
+                    Body        = $null
+                    ContentType = 'application/json; charset=utf-8'
+                    RawBody     = '{"error":"unauthorized"}'
+                    Error       = 'HTTP 401'
+                }
+            }
+            $r = Test-PersonaEndpoints -BaseUrl 'https://stub.example.com' -Persona anonymous -Category Admin 6>$null |
+                Where-Object { $_.Endpoint -eq '/api/admin/review/stats' } |
+                Select-Object -First 1
+            $r                | Should -Not -BeNullOrEmpty
+            $r.StatusCode     | Should -Be 401
+            $r.ExpectedAccess | Should -Be $false
+            $r.ActualAccess   | Should -Be $false
+            $r.Pass           | Should -Be $true
+            $r.Note           | Should -BeNullOrEmpty    # no shell note for a real 401
+        }
+    }
+
+    It 'PersonaEndpointTestResult exposes ContentType and BodyKind fields (t/1355 shape check)' {
+        InModuleScope AITriad {
+            $r = [PersonaEndpointTestResult]::new()
+            $r.PSObject.Properties['ContentType'] | Should -Not -BeNullOrEmpty
+            $r.PSObject.Properties['BodyKind']    | Should -Not -BeNullOrEmpty
+        }
+    }
+}
+
 Describe 'Test-PersonaEndpoints - manifest' -Tag 'health' {
     It 'FunctionsToExport includes Test-PersonaEndpoints' {
         $manifestPath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psd1'

@@ -152,12 +152,44 @@ function Test-PersonaEndpoints {
 
             $Check = Invoke-RemoteCheck @Params
 
-            $ActualAccess = ($Check.StatusCode -ge 200 -and $Check.StatusCode -lt 300)
+            $Http2xx = ($Check.StatusCode -ge 200 -and $Check.StatusCode -lt 300)
+
+            # t/1355 — classify the response body so we can distinguish "real API grant"
+            # from "SPA-shell fall-through". A 2xx that returns text/html with a page shape
+            # (DOCTYPE + Sign-In title) is the sign-in page, not real access — the request
+            # never reached the intended handler.
+            $CT = if ($Check.PSObject.Properties['ContentType']) { [string]$Check.ContentType } else { '' }
+            $RawBody = if ($Check.PSObject.Properties['RawBody']) { [string]$Check.RawBody } else { '' }
+            $IsHtml = $CT -match '^text/html'
+            $IsShell = $IsHtml -and (
+                ($RawBody -match '(?i)<title>\s*Sign In') -or
+                ($RawBody -match '(?i)<!DOCTYPE\s+html')
+            )
+            $BodyKind = if ($null -ne $Check.Body) { 'json' }
+                        elseif ($IsHtml)          { 'html' }
+                        elseif ([string]::IsNullOrEmpty($RawBody)) { 'empty' }
+                        else                      { 'unparsed' }
+
+            # SPA-shell soft-pass — only applies when the persona was NOT expected to have
+            # access, we got 2xx, and the body is the shell (not real data). The request
+            # fell through to the sign-in page; the auth-gate contract is honored.
+            # A 2xx with real JSON and ExpectedAccess=false STILL hard-fails — that's the
+            # critical property this refinement must not break.
+            $ActualAccess = $Http2xx
+            $ShellNote = $null
+            if (-not $Expected -and $Http2xx -and $IsShell) {
+                $ActualAccess = $false
+                $ShellNote = '200-but-SPA-shell — request fell through to sign-in page, no data leak'
+            }
+
             $R.ActualAccess = $ActualAccess
             $R.Pass         = ($Expected -eq $ActualAccess)
             $R.StatusCode   = $Check.StatusCode
+            $R.ContentType  = $CT
+            $R.BodyKind     = $BodyKind
             $R.Ms           = $Check.ResponseMs
             $R.Error        = $Check.Error
+            if ($ShellNote) { $R.Note = $ShellNote }
             $Results.Add($R)
         }
     }
