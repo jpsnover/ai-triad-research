@@ -10,9 +10,14 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import type { ServerResponse } from 'http';
 import { error } from '../httpKit.js';
 import { log } from '../logger.js';
+import { setGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
+import type { FlightRecorder, RecordInput } from '../../../../lib/flight-recorder/flightRecorder.js';
 
-function fakeRes(): ServerResponse {
-  return { writeHead: vi.fn(), end: vi.fn(), setHeader: vi.fn() } as unknown as ServerResponse;
+function fakeRes(method = 'GET', routePath = '/api/test'): ServerResponse {
+  return {
+    writeHead: vi.fn(), end: vi.fn(), setHeader: vi.fn(),
+    req: { method }, __routePath: routePath,
+  } as unknown as ServerResponse;
 }
 
 describe('httpKit error() Pino safety net (t/1362)', () => {
@@ -31,5 +36,30 @@ describe('httpKit error() Pino safety net (t/1362)', () => {
     const spy = vi.spyOn(log.server, 'error').mockImplementation(() => {});
     error(fakeRes(), 'not found', 404);
     expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe('httpKit error() 4xx flight-recorder correlation (t/1379)', () => {
+  afterEach(() => { setGlobalRecorder(null as unknown as FlightRecorder); vi.restoreAllMocks(); });
+
+  it('records a 4xx to the FR at warn with method/path/status/requestId/errorMessage', () => {
+    const records: RecordInput[] = [];
+    setGlobalRecorder({ record: (e: RecordInput) => records.push(e) } as unknown as FlightRecorder);
+    error(fakeRes('POST', '/api/debates/:id/news-report'), 'A synthesis must exist', 400);
+    const evt = records.find(r => r.type === 'lifecycle' && (r.data as Record<string, unknown>)?.status === 400);
+    expect(evt).toBeDefined();
+    expect(evt!.level).toBe('warn');
+    const data = evt!.data as Record<string, unknown>;
+    expect(data.method).toBe('POST');
+    expect(data.path).toBe('/api/debates/:id/news-report');
+    expect(data.errorMessage).toBe('A synthesis must exist');
+    expect('requestId' in data).toBe(true);
+  });
+
+  it('does NOT emit the lifecycle 4xx event for a 5xx (that uses the system.error path)', () => {
+    const records: RecordInput[] = [];
+    setGlobalRecorder({ record: (e: RecordInput) => records.push(e) } as unknown as FlightRecorder);
+    error(fakeRes('GET', '/api/x'), 'boom', 500, new Error('boom'));
+    expect(records.find(r => r.type === 'lifecycle')).toBeUndefined();
   });
 });
