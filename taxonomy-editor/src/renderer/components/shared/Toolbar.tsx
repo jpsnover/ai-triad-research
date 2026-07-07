@@ -2,6 +2,13 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useRef } from 'react';
+import {
+  Search, LayoutGrid, MessageSquare, MessageCircle, ArrowLeft,
+  Ellipsis, Crosshair, TriangleAlert, CirclePlus, BookText,
+  CircleCheck, GitFork, Link, Layers, BarChart3, ShieldAlert,
+  BookOpen, LineChart, Terminal, FileText, CircleHelp, Star,
+  RefreshCw, Settings, User, Users, Shield, LogOut,
+} from 'lucide-react';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { api, isElectronMode } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
@@ -11,6 +18,7 @@ import { useAuthStatus, useUserProfile } from '../../hooks/useAuthStatus';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import { useTierInfo } from '../../hooks/useTierInfo';
 import { FeedbackPopover } from './FeedbackPopover';
+import './Toolbar.css';
 
 type ToolbarPanel = 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard' | 'vocabulary' | 'calibration';
 
@@ -77,13 +85,11 @@ function ToolbarAuthButton() {
       <button
         className={`toolbar-icon toolbar-auth-btn${showPopover ? ' toolbar-icon-active' : ''}`}
         onClick={() => setShowPopover(v => !v)}
+        aria-label={auth.anonymous ? 'Sign in' : auth.user ?? 'Account'}
         data-tooltip={auth.anonymous ? 'Sign in' : auth.user}
       >
         {auth.anonymous ? (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
+          <User size={20} />
         ) : (
           <span className="toolbar-auth-avatar">{initial}</span>
         )}
@@ -146,13 +152,13 @@ function ToolbarAuthButton() {
               <div className="toolbar-auth-divider" />
               <a className="toolbar-more-item" href="#community" style={{ textDecoration: 'none', color: 'inherit' }}
                 onClick={() => setShowPopover(false)}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+                <Users size={18} />
                 <span>Community Library</span>
               </a>
               {adminFeatures && (
                 <a className="toolbar-more-item" href="#admin" style={{ textDecoration: 'none', color: 'inherit' }}
                   onClick={() => setShowPopover(false)}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+                  <Shield size={18} />
                   <span>Admin Review</span>
                   {reviewCount > 0 && (
                     <span className="toolbar-auth-admin-badge" style={{ marginLeft: 6 }}>
@@ -164,7 +170,7 @@ function ToolbarAuthButton() {
               <div className="toolbar-auth-divider" />
               <a className="toolbar-more-item" href="/api/auth/logout" style={{ textDecoration: 'none', color: 'inherit' }}
                 onClick={() => { getGlobalRecorder()?.record({ type: 'auth.logout_initiated', component: 'auth', level: 'info', message: 'User initiated logout', data: { target: '/api/auth/logout', source: 'toolbar' } }); setShowPopover(false); }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
+                <LogOut size={18} />
                 <span>Sign out</span>
               </a>
             </>
@@ -219,7 +225,6 @@ export function Toolbar() {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && previousView && !showHelp && !showSettings) {
         const target = e.target as HTMLElement;
-        // Don't intercept Escape in inputs (they use it to blur)
         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
         e.preventDefault();
         navigateBack();
@@ -238,9 +243,6 @@ export function Toolbar() {
 
   const switchTab = (tab: 'situations' | 'conflicts' | 'cruxes' | 'debate' | 'chat' | 'summaries' | 'validation') => {
     clearCurrentPanel();
-    // NodeDetail's Related tab sets relatedNodeId without setting toolbarPanel.
-    // Clear it so the next tab's effects don't re-open a Related view on a
-    // leftover node id.
     useTaxonomyStore.setState({ relatedNodeId: null, selectedEdge: null });
     setToolbarPanel(null);
     setActiveTab(tab);
@@ -248,11 +250,9 @@ export function Toolbar() {
 
   const toggle = (panel: ToolbarPanel) => {
     if (toolbarPanel === panel) {
-      // Close the panel
       clearCurrentPanel();
       setToolbarPanel(null);
     } else {
-      // Open the panel — some panels need initialization
       if (panel === 'related' && selectedNodeId) {
         showRelatedEdges(selectedNodeId);
       } else if (panel === 'attrFilter' && !attributeFilter) {
@@ -265,6 +265,8 @@ export function Toolbar() {
     }
   };
 
+  const isTaxonomyActive = toolbarPanel === null && !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'summaries', 'validation'].includes(activeTab);
+
   return (
     <div className="toolbar">
       <div className="toolbar-top">
@@ -273,31 +275,25 @@ export function Toolbar() {
             <button
               className="toolbar-icon toolbar-back"
               onClick={navigateBack}
+              aria-label="Back"
               data-tooltip="Back"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12" />
-                <polyline points="12 19 5 12 12 5" />
-              </svg>
+              <ArrowLeft size={20} />
             </button>
             <div className="toolbar-separator" />
           </>
         )}
-        {/* Search */}
+        {/* Primary nav — icon-over-label stacks */}
         <button
-          className={`toolbar-icon${toolbarPanel === 'search' ? ' toolbar-icon-active' : ''}`}
+          className={`toolbar-nav${toolbarPanel === 'search' ? ' toolbar-nav-active' : ''}`}
           onClick={() => toggle('search')}
-          data-tooltip="Search"
+          aria-label="Search"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
+          <Search size={20} />
+          <span className="toolbar-nav-label">Search</span>
         </button>
-        <div className="toolbar-separator" />
-        {/* Taxonomy */}
         <button
-          className={`toolbar-icon${toolbarPanel === null && !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'summaries', 'validation'].includes(activeTab) ? ' toolbar-icon-active' : ''}`}
+          className={`toolbar-nav${isTaxonomyActive ? ' toolbar-nav-active' : ''}`}
           onClick={() => {
             clearCurrentPanel();
             setToolbarPanel(null);
@@ -305,48 +301,38 @@ export function Toolbar() {
               setActiveTab('accelerationist');
             }
           }}
-          data-tooltip="Taxonomy"
+          aria-label="Taxonomy"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="7" height="7" rx="1" />
-            <rect x="14" y="3" width="7" height="7" rx="1" />
-            <rect x="3" y="14" width="7" height="7" rx="1" />
-            <rect x="14" y="14" width="7" height="7" rx="1" />
-          </svg>
+          <LayoutGrid size={20} />
+          <span className="toolbar-nav-label">Taxonomy</span>
         </button>
-        {/* Debate */}
         <button
-          className={`toolbar-icon${activeTab === 'debate' && toolbarPanel === null ? ' toolbar-icon-active' : ''}`}
+          className={`toolbar-nav${activeTab === 'debate' && toolbarPanel === null ? ' toolbar-nav-active' : ''}`}
           onClick={() => switchTab('debate')}
-          data-tooltip="Debate"
+          aria-label="Debate"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
+          <MessageSquare size={20} />
+          <span className="toolbar-nav-label">Debate</span>
         </button>
-        {/* Chat (popout) */}
         <button
-          className="toolbar-icon"
+          className="toolbar-nav"
           onClick={() => void api.openChatWindow()}
-          data-tooltip="Chat"
+          aria-label="Chat"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-          </svg>
+          <MessageCircle size={20} />
+          <span className="toolbar-nav-label">Chat</span>
         </button>
-        <div className="toolbar-separator" />
+      </div>
+      <div className="toolbar-bottom">
         {/* Other Tools */}
         <div className="toolbar-more-wrap" ref={moreRef}>
           <button
             className={`toolbar-icon${moreHasActive || showMore ? ' toolbar-icon-active' : ''}`}
             onClick={() => setShowMore(v => !v)}
+            aria-label="Other Tools"
             data-tooltip="Other Tools"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="5" cy="12" r="1.5" />
-              <circle cx="12" cy="12" r="1.5" />
-              <circle cx="19" cy="12" r="1.5" />
-            </svg>
+            <Ellipsis size={20} />
           </button>
           {showMore && (
             <div className="toolbar-more-popover" role="menu">
@@ -354,32 +340,21 @@ export function Toolbar() {
                 className={`toolbar-more-item${activeTab === 'situations' && toolbarPanel === null ? ' active' : ''}`}
                 onClick={() => { switchTab('situations'); setShowMore(false); }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                <Crosshair size={18} />
                 <span>Situations</span>
               </button>
               <button
                 className={`toolbar-more-item${activeTab === 'conflicts' && toolbarPanel === null ? ' active' : ''}`}
                 onClick={() => { switchTab('conflicts'); setShowMore(false); }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                  <line x1="12" y1="9" x2="12" y2="13" />
-                  <line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
+                <TriangleAlert size={18} />
                 <span>Conflicts</span>
               </button>
               <button
                 className={`toolbar-more-item${activeTab === 'cruxes' && toolbarPanel === null ? ' active' : ''}`}
                 onClick={() => { switchTab('cruxes'); setShowMore(false); }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="16" />
-                  <line x1="8" y1="12" x2="16" y2="12" />
-                </svg>
+                <CirclePlus size={18} />
                 <span>Cruxes</span>
               </button>
               {summariesFlag && (
@@ -387,12 +362,7 @@ export function Toolbar() {
                 className={`toolbar-more-item${activeTab === 'summaries' && toolbarPanel === null ? ' active' : ''}`}
                 onClick={() => { switchTab('summaries'); setShowMore(false); }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                  <line x1="8" y1="7" x2="16" y2="7" />
-                  <line x1="8" y1="11" x2="14" y2="11" />
-                </svg>
+                <BookText size={18} />
                 <span>Summaries</span>
               </button>
               )}
@@ -400,10 +370,7 @@ export function Toolbar() {
                 className={`toolbar-more-item${activeTab === 'validation' && toolbarPanel === null ? ' active' : ''}`}
                 onClick={() => { switchTab('validation'); setShowMore(false); }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                  <polyline points="22 4 12 14.01 9 11.01" />
-                </svg>
+                <CircleCheck size={18} />
                 <span>Validation</span>
               </button>
               <div className="toolbar-more-divider" />
@@ -411,80 +378,49 @@ export function Toolbar() {
                 className={`toolbar-more-item${toolbarPanel === 'lineage' ? ' active' : ''}`}
                 onClick={() => { toggle('lineage'); setShowMore(false); }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 3v18" />
-                  <path d="M8 7l4-4 4 4" />
-                  <path d="M5 12h14" />
-                  <path d="M8 17l-3 3" />
-                  <path d="M16 17l3 3" />
-                </svg>
+                <GitFork size={18} />
                 <span>Intellectual Lineage</span>
               </button>
               <button
                 className={`toolbar-more-item${toolbarPanel === 'edges' ? ' active' : ''}`}
                 onClick={() => { toggle('edges'); setShowMore(false); }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="5" cy="12" r="3" />
-                  <circle cx="19" cy="12" r="3" />
-                  <line x1="8" y1="12" x2="16" y2="12" />
-                </svg>
+                <Link size={18} />
                 <span>Edge Browser</span>
               </button>
               <button
                 className={`toolbar-more-item${toolbarPanel === 'policyAlignment' ? ' active' : ''}`}
                 onClick={() => { toggle('policyAlignment'); setShowMore(false); }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                  <path d="M2 17l10 5 10-5" />
-                  <path d="M2 12l10 5 10-5" />
-                </svg>
+                <Layers size={18} />
                 <span>Policy Alignment</span>
               </button>
               <button
                 className={`toolbar-more-item${toolbarPanel === 'policyDashboard' ? ' active' : ''}`}
                 onClick={() => { toggle('policyDashboard'); setShowMore(false); }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="12" width="4" height="9" rx="1" />
-                  <rect x="10" y="7" width="4" height="14" rx="1" />
-                  <rect x="17" y="3" width="4" height="18" rx="1" />
-                </svg>
+                <BarChart3 size={18} />
                 <span>Policy Dashboard</span>
               </button>
               <button
                 className={`toolbar-more-item${toolbarPanel === 'fallacy' ? ' active' : ''}`}
                 onClick={() => { toggle('fallacy'); setShowMore(false); }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 9v4" />
-                  <path d="M12 17h.01" />
-                  <path d="M3.6 15.4L10.3 4.6a2 2 0 0 1 3.4 0l6.7 10.8A2 2 0 0 1 18.7 19H5.3a2 2 0 0 1-1.7-3.6z" />
-                </svg>
+                <ShieldAlert size={18} />
                 <span>Possible Fallacies</span>
               </button>
               <button
                 className={`toolbar-more-item${toolbarPanel === 'vocabulary' ? ' active' : ''}`}
                 onClick={() => { toggle('vocabulary'); setShowMore(false); }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                  <path d="M8 7h8" />
-                  <path d="M8 11h6" />
-                  <path d="M8 15h4" />
-                </svg>
+                <BookOpen size={18} />
                 <span>Vocabulary</span>
               </button>
               <button
                 className={`toolbar-more-item${toolbarPanel === 'calibration' ? ' active' : ''}`}
                 onClick={() => { toggle('calibration'); setShowMore(false); }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 3v18h18" />
-                  <path d="M7 16l4-8 4 4 4-6" />
-                </svg>
+                <LineChart size={18} />
                 <span>Calibration</span>
               </button>
               <div className="toolbar-more-divider" />
@@ -493,10 +429,7 @@ export function Toolbar() {
                 className={`toolbar-more-item${toolbarPanel === 'console' ? ' active' : ''}`}
                 onClick={() => { toggle('console'); setShowMore(false); }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="4 17 10 11 4 5" />
-                  <line x1="12" y1="19" x2="20" y2="19" />
-                </svg>
+                <Terminal size={18} />
                 <span>Console</span>
               </button>
               )}
@@ -504,40 +437,29 @@ export function Toolbar() {
                 className={`toolbar-more-item${toolbarPanel === 'prompts' ? ' active' : ''}`}
                 onClick={() => { toggle('prompts'); setShowMore(false); }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                  <polyline points="10 9 9 9 8 9" />
-                </svg>
+                <FileText size={18} />
                 <span>Prompts</span>
               </button>
             </div>
           )}
         </div>
-      </div>
-      <div className="toolbar-bottom">
+        <div className="toolbar-separator" />
         <button
           className="toolbar-icon"
           onClick={() => setShowHelp(true)}
+          aria-label="Help"
           data-tooltip="Help"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
+          <CircleHelp size={20} />
         </button>
         <div className="toolbar-feedback-wrap" ref={feedbackRef}>
           <button
             className={`toolbar-icon${showFeedback ? ' toolbar-icon-active' : ''}`}
             onClick={() => setShowFeedback(v => !v)}
+            aria-label="Feedback"
             data-tooltip="Feedback"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 18.5L3 22l1-7L1 8h7l4-7 4 7h7l-3 7 1 7z" />
-            </svg>
+            <Star size={20} />
           </button>
           {showFeedback && <FeedbackPopover onClose={() => setShowFeedback(false)} />}
         </div>
@@ -546,22 +468,18 @@ export function Toolbar() {
           className={`toolbar-icon${loading ? ' toolbar-icon-spin' : ''}`}
           onClick={() => { if (!loading) void loadAll(); }}
           disabled={loading}
+          aria-label="Reload taxonomy data"
           data-tooltip="Reload taxonomy data"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="23 4 23 10 17 10" />
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-          </svg>
+          <RefreshCw size={20} />
         </button>
         <button
           className="toolbar-icon"
           onClick={() => setShowSettings(true)}
+          aria-label="Settings"
           data-tooltip="Settings"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
+          <Settings size={20} />
         </button>
       </div>
       {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}

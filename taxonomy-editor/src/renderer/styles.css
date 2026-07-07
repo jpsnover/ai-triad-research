@@ -14,6 +14,7 @@
   --tint-acc: rgba(184, 78, 19, 0.10);
   --tint-saf: rgba(43, 95, 173, 0.10);
   --tint-skp: rgba(123, 79, 166, 0.10);
+  --tint-sit: rgba(15, 118, 110, 0.10);
 
   /* Category accent colors */
   --cat-desires: #0d9488;
@@ -71,6 +72,7 @@
   --tint-acc: rgba(232, 148, 80, 0.12);
   --tint-saf: rgba(125, 163, 214, 0.12);
   --tint-skp: rgba(168, 136, 200, 0.12);
+  --tint-sit: rgba(45, 212, 191, 0.12);
 
   /* Category accent colors */
   --cat-desires: #2eaaaa;
@@ -128,6 +130,7 @@
   --tint-acc: rgba(204, 126, 69, 0.12);
   --tint-saf: rgba(109, 148, 194, 0.12);
   --tint-skp: rgba(168, 130, 190, 0.12);
+  --tint-sit: rgba(43, 184, 164, 0.12);
 
   /* Category accent colors */
   --cat-desires: #2e4953;
@@ -183,6 +186,7 @@
   --tint-acc: rgba(163, 80, 18, 0.10);
   --tint-saf: rgba(39, 84, 152, 0.10);
   --tint-skp: rgba(109, 69, 149, 0.10);
+  --tint-sit: rgba(15, 118, 110, 0.10);
 
   /* Category accent colors */
   --cat-desires: #1B7A6D;
@@ -359,29 +363,33 @@ body {
 
 .tab-bar button {
   -webkit-app-region: no-drag;
-  padding: 6px 16px;
+  padding: var(--sp-2) var(--sp-4);
   border: none;
   background: none;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   cursor: pointer;
-  font-size: var(--text-md);
-  font-weight: 600;
-  border-bottom: 3px solid transparent;
-  transition: color 0.2s, border-color 0.2s;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
 }
 
 .tab-bar button:hover {
-  color: var(--text-secondary);
-}
-
-.tab-bar button.active {
   color: var(--text-primary);
 }
 
-.tab-bar button[data-tab="accelerationist"].active { border-bottom-color: var(--color-acc); color: var(--color-acc); }
-.tab-bar button[data-tab="safetyist"].active       { border-bottom-color: var(--color-saf); color: var(--color-saf); }
-.tab-bar button[data-tab="skeptic"].active          { border-bottom-color: var(--color-skp); color: var(--color-skp); }
-.tab-bar button[data-tab="situations"].active    { border-bottom-color: var(--color-sit);  color: var(--color-sit); }
+.tab-bar button.active {
+  font-weight: 600;
+}
+
+.tab-bar button[data-tab="accelerationist"].active { border-bottom-color: var(--color-acc); color: var(--color-acc); background: var(--tint-acc); }
+.tab-bar button[data-tab="safetyist"].active       { border-bottom-color: var(--color-saf); color: var(--color-saf); background: var(--tint-saf); }
+.tab-bar button[data-tab="skeptic"].active          { border-bottom-color: var(--color-skp); color: var(--color-skp); background: var(--tint-skp); }
+.tab-bar button[data-tab="situations"].active    { border-bottom-color: var(--color-sit);  color: var(--color-sit); background: var(--tint-sit); }
 .tab-bar button[data-tab="conflicts"].active        { border-bottom-color: var(--color-conflicts); color: var(--color-conflicts); }
 .tab-bar button[data-tab="debate"].active           { border-bottom-color: var(--text-primary); color: var(--text-primary); }
 
@@ -855,7 +863,7 @@ body {
 /* ─── Toolbar (left icon rail) ─────────────────────────── */
 
 .toolbar {
-  width: 44px;
+  width: 64px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -1065,7 +1073,7 @@ body {
 
 /* ─── Compact mode for short viewports (Electron only) ─── */
 @media (max-height: 700px) {
-  .electron .toolbar { width: 38px; padding: 4px 0; }
+  .electron .toolbar { width: 56px; padding: 4px 0; }
   .electron .toolbar-icon { width: 32px; height: 30px; }
   .electron .toolbar-separator { margin: 2px 0; }
 }
@@ -16320,7 +16328,7 @@ th[data-tooltip]::after {
 
 @media (min-width: 1024px) and (max-width: 1199px) {
   .toolbar {
-    width: 38px;
+    width: 52px;
     padding: 6px 0;
   }
 

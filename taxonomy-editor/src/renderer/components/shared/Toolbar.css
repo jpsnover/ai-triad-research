@@ -1,0 +1,72 @@
+/* Toolbar Phase 3a — labeled nav rail + icon-over-label stacks */
+
+.toolbar-nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 56px;
+  height: 52px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  position: relative;
+  padding: 0;
+}
+
+.toolbar-nav:hover {
+  background: var(--bg-hover, var(--hover-bg));
+  color: var(--text-secondary);
+}
+
+.toolbar-nav-active {
+  background: var(--bg-hover, var(--hover-bg));
+  color: var(--text-primary);
+}
+
+.toolbar-nav-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--text-primary);
+  border-radius: 1px;
+}
+
+.toolbar-nav-label {
+  font-size: var(--text-2xs);
+  line-height: 1;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+@media (max-height: 700px) {
+  .electron .toolbar-nav {
+    width: 48px;
+    height: 44px;
+  }
+  .electron .toolbar-nav svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (max-height: 560px) {
+  .electron .toolbar-nav {
+    width: 44px;
+    height: 40px;
+  }
+  .electron .toolbar-nav svg {
+    width: 16px;
+    height: 16px;
+  }
+  .electron .toolbar-nav-label {
+    display: none;
+  }
+}
