@@ -315,6 +315,7 @@ export function subscribeResilience(cb: ResilienceListener): () => void {
 }
 
 function notifyListeners(): void {
+  emitConnectionPoolEvent();
   if (listeners.size === 0) return;
   const state = getResilienceState();
   for (const cb of listeners) cb(state);
@@ -342,6 +343,33 @@ export function resetResilience(): void {
   circuits.clear();
   throttles.clear();
   listeners.clear();
+}
+
+// ── Connection pool metrics (injectable to avoid circular import with web-bridge) ──
+
+export interface ConnectionPoolMetrics {
+  activeWebSockets: number;
+  connectingWebSockets: number;
+}
+
+let connectionPoolProvider: (() => ConnectionPoolMetrics) | null = null;
+
+export function registerConnectionPoolProvider(provider: () => ConnectionPoolMetrics): void {
+  connectionPoolProvider = provider;
+}
+
+function emitConnectionPoolEvent(): void {
+  const pool = connectionPoolProvider?.() ?? { activeWebSockets: 0, connectingWebSockets: 0 };
+  const circuitSnapshot: Record<string, { state: CircuitState; failures: number }> = {};
+  for (const cat of ALL_CATEGORIES) {
+    const c = getCircuit(cat);
+    circuitSnapshot[cat] = { state: c.state, failures: c.consecutiveFailures };
+  }
+  getGlobalRecorder()?.record({
+    type: 'network.connection_pool', component: 'web-bridge', level: 'debug',
+    message: `Connection pool: ${pool.activeWebSockets} open WS, ${pool.connectingWebSockets} connecting`,
+    data: { ...pool, circuits: circuitSnapshot },
+  });
 }
 
 // ── Flight recorder helper ──

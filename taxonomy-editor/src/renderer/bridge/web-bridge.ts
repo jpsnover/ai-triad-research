@@ -10,7 +10,7 @@ import { instrumentBridge } from './instrumentBridge';
 import { ActionableError } from '@lib/debate/errors';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { encryptKeysForSharing, decryptKeysFromSharing } from '../utils/keyShareCrypto';
-import { resilientFetch, categorizeEndpoint, type EndpointCategory } from './resilience';
+import { resilientFetch, categorizeEndpoint, registerConnectionPoolProvider, type EndpointCategory } from './resilience';
 import { onQuotaMilestone } from '../hooks/useQuotaWarning';
 export { getResilienceState, subscribeResilience, resetResilience } from './resilience';
 export type { ResilienceStatus, CircuitState, ThrottleState, EndpointCategory } from './resilience';
@@ -444,6 +444,11 @@ function addEventListener(type: string, callback: EventCallback): () => void {
 let terminalWs: WebSocket | null = null;
 const terminalDataCallbacks = new Set<(data: string) => void>();
 const terminalExitCallbacks = new Set<() => void>();
+
+registerConnectionPoolProvider(() => ({
+  activeWebSockets: [eventWs, terminalWs].filter(ws => ws?.readyState === WebSocket.OPEN).length,
+  connectingWebSockets: [eventWs, terminalWs].filter(ws => ws?.readyState === WebSocket.CONNECTING).length,
+}));
 
 function ensureTerminalSocket(): WebSocket {
   if (terminalWs && terminalWs.readyState === WebSocket.OPEN) return terminalWs;
