@@ -101,6 +101,7 @@ exports[`server.ts route table (t/1295 — zero-behaviour-change guard) > ordere
   "POST /api/nli/classify",
   "GET /api/debates",
   "GET /api/debates/list",
+  "GET /api/debates/quota-status",
   "GET /api/debates/:id",
   "PUT /api/debates",
   "DELETE /api/debates/:id",
@@ -231,6 +232,7 @@ exports[`server.ts route table (t/1295 — zero-behaviour-change guard) > route 
   "GET /api/debates/:id",
   "GET /api/debates/:id/comments",
   "GET /api/debates/list",
+  "GET /api/debates/quota-status",
   "GET /api/dictionary",
   "GET /api/doc-titles",
   "GET /api/edges",
@@ -368,6 +370,7 @@ exports[`server.ts route table (t/1295 — zero-behaviour-change guard) > unifia
 [
   "GET /api/admin/errors/summary  ⟷  /api/admin/errors/:id  (first-registered wins)",
   "GET /api/debates/list  ⟷  /api/debates/:id  (first-registered wins)",
+  "GET /api/debates/quota-status  ⟷  /api/debates/:id  (first-registered wins)",
   "GET /api/keys/has  ⟷  /api/keys/:backend  (first-registered wins)",
   "GET /api/taxonomy/synthetic-embeddings  ⟷  /api/taxonomy/:pov  (first-registered wins)",
 ]

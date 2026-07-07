@@ -27,7 +27,7 @@ import { getGlobalRecorder, redactRecord } from '../../../../lib/flight-recorder
 import { parseNpy, extractNodeVectors } from '../../../../lib/npy.js';
 import { getStorageUserId, isAnonymousUser, getAnonymousSessionId } from '../security/userContext.js';
 import { getAnonymousSessionStore } from './anonymousSessionStore.js';
-import { checkQuota } from '../security/quotas.js';
+import { checkQuota, type QuotaCheckResult } from '../security/quotas.js';
 // ── Backend injection ──
 
 // Taxonomy / conflicts / calibration / summaries / sources use `backend`.
@@ -895,6 +895,16 @@ export async function loadDebateSession(id: string): Promise<unknown> {
   return JSON.parse(raw);
 }
 
+/** Debate quota status for the current (non-anonymous) user — the exact count +
+ *  cap the save path enforces. Shared by saveDebateSession and the read-only
+ *  GET /api/debates/quota-status pre-check (t/1360) so the pre-check can never
+ *  diverge from enforcement (Shared Utility Rule). */
+export async function getDebatesQuotaStatus(): Promise<QuotaCheckResult> {
+  const files = (await getUserContentBackend().listDirectory(getDebatesDir()))
+    .filter(f => f.startsWith('debate-') && f.endsWith('.json'));
+  return checkQuota('debates', files.length);
+}
+
 export async function saveDebateSession(session: unknown): Promise<void> {
   const s = session as { id: string; title?: string; topic?: { final?: string; original?: string }; created_at?: string; updated_at?: string; phase?: string };
   assertSafeId(s.id, 'debate id');
@@ -903,8 +913,7 @@ export async function saveDebateSession(session: unknown): Promise<void> {
   const debatePath = path.join(getDebatesDir(), `debate-${s.id}.json`);
   const isNew = (await backend.readFile(debatePath)) === null;
   if (isNew) {
-    const files = (await backend.listDirectory(getDebatesDir())).filter(f => f.startsWith('debate-') && f.endsWith('.json'));
-    const q = checkQuota('debates', files.length);
+    const q = await getDebatesQuotaStatus();
     if (!q.allowed) {
       throw Object.assign(new ActionableError({ goal: 'Save debate session', problem: `Debate quota exceeded (${q.current}/${q.limit})`, location: 'server/fileIO.ts → saveDebateSession', nextSteps: ['Delete existing debates to free space'] }), { statusCode: 429, quotaInfo: q });
     }

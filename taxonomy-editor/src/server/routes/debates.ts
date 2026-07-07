@@ -23,6 +23,20 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
   get('/api/debates', async (_req, res) => { json(res, await fileIO.listDebateSessions()); });
   get('/api/debates/list', async (_req, res) => { json(res, await fileIO.listDebateSessionsMeta()); });
 
+  // t/1360: read-only quota pre-check for the New Debate button (t/1358). MUST be
+  // registered before /api/debates/:id — the :id wildcard would otherwise match
+  // "quota-status" (both GET, 3 segments; literal wins by first-match). Delegates
+  // to fileIO.getDebatesQuotaStatus() so the pre-check never diverges from the
+  // count the save path enforces.
+  get('/api/debates/quota-status', async (_req, res) => {
+    try {
+      json(res, await fileIO.getDebatesQuotaStatus());
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debates', level: 'error', message: 'Failed to check debate quota', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 500, err);
+    }
+  });
+
   get('/api/debates/:id', async (req, res) => {
     try { json(res, await fileIO.loadDebateSession(param(req, 'id', '/api/debates/:id'))); }
     catch (err) {
