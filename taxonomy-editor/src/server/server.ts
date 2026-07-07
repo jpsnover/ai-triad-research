@@ -1497,14 +1497,20 @@ get('/api/flight-recorder/download-merged/:dumpId', async (req, res) => {
       json(res, {
         error: 'merged_dump_unavailable',
         goal: `Download the merged flight-recorder dump for dumpId ${dumpId}`,
-        problem: 'No readable dump file exists for this dumpId. The client dump may not have finished uploading, it was pruned by retention (last 20 dumps / 50 MB), or the dumpId is wrong.',
-        location: `admin/flight-recorder-dumps/client-${dumpId}.jsonl${includeServer ? ` (and server-${dumpId}.jsonl)` : ''} under the server data root`,
+        // t/1353: since t/1350 dumps persist through the durable storage backend
+        // (Azure Blob in production), so replica recycling / ephemeral-/tmp loss is
+        // no longer a cause — the remaining causes are upload timing, retention,
+        // a wrong dumpId, or a transient backend read failure.
+        problem: 'No readable dump exists for this dumpId in durable storage. Likely: the client dump has not finished uploading yet, the pair was pruned by retention (last 20 dumps / 50 MB), the dumpId is wrong, or a transient storage-backend read failure.',
+        location: `admin/flight-recorder-dumps/client-${dumpId}.jsonl${includeServer ? ` (and server-${dumpId}.jsonl)` : ''} in the durable storage backend (Azure Blob in production, local filesystem in dev)`,
         nextSteps: [
           'Re-trigger the dump and wait for the "Flight recorder dump saved" toast before clicking download.',
+          "Grep the server flight-recorder log for a `flight-recorder.dump.written` event with this dumpId (t/1352) — it records whether the write landed and which backend received it (blob / github-api / local-fs).",
           'Confirm the client upload succeeded — POST /api/flight-recorder/dump should have returned 200 for this dumpId.',
           includeServer
             ? 'For server-side events, confirm the correlated server dump was written (POST /api/admin/flight-recorder/dump, admin only).'
             : 'Server-side events are admin-only in this deployment, so this download would include client events only.',
+          'If the FR log shows a successful write but the read still 404s, inspect the storage backend directly (the admin/flight-recorder-dumps/ prefix in the user-content blob container) — this points to a transient read, not ephemeral loss.',
           `dumpId used: ${dumpId} — verify it matches the saved dump's id.`,
         ],
         dumpId,
