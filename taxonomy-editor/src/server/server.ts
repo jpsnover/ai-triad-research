@@ -50,6 +50,7 @@ import { registerSyncRoutes } from './routes/sync.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerKeysRoutes } from './routes/keys.js';
 import { registerCommunityRoutes } from './routes/community.js';
+import { registerHarvestRoutes } from './routes/harvest.js';
 import type { ServerCtx } from './routes/context.js';
 import { getAllFlags, listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
 import { writeDump, isValidDumpId, readMergedDump } from './flightRecorderDumps.js';
@@ -292,6 +293,10 @@ function del(p: string, h: Handler) { routes.push({ method: 'DELETE', path: p, h
 // (routes/*.ts). getGithubBackend is a live getter (not a snapshot) so clusters
 // registered at module-load don't capture a stale null before async init assigns it.
 const router = createRouter(routes);
+// Conflicts response cache (read/written by the /api/conflicts routes below).
+// Declared above serverCtx so ctx.invalidateConflictsCache() can null it after a
+// harvest write from the extracted routes/harvest.ts (t/1347).
+let conflictsCache: { data: unknown[]; ts: number } | null = null;
 const serverCtx: ServerCtx = {
   getGithubBackend: () => githubBackend,
   getSessionManager: () => sessionManager,
@@ -299,6 +304,7 @@ const serverCtx: ServerCtx = {
   serverRecorder,
   ensureSessionBranch,
   appendServerLogs,
+  invalidateConflictsCache: () => { conflictsCache = null; },
 };
 
 // Best-effort client IP for rate limiting — first X-Forwarded-For hop (Azure
@@ -519,9 +525,8 @@ get('/api/taxonomy/:pov/node/:nodeId/history', async (req, res) => {
 });
 
 // ── Conflicts ──
-
-let conflictsCache: { data: unknown[]; ts: number } | null = null;
 // t/929: conflicts cache TTL is runtime-configurable — getConfig().server.conflictsCacheTtlMs (default 5m).
+// `conflictsCache` is declared above serverCtx (t/1347) so ctx.invalidateConflictsCache can null it.
 
 get('/api/conflicts', async (_req, res) => {
   if (conflictsCache && Date.now() - conflictsCache.ts < getConfig().server.conflictsCacheTtlMs) {
@@ -1747,71 +1752,8 @@ get('/api/support/cases/:id/attachments/:aid', async (req, res) => {
 
 
 // ── Harvest ──
-
-post('/api/harvest/conflict', async (_req, res, body) => {
-  try {
-    await ensureSessionBranch();
-    const created = await fileIO.harvestCreateConflict(body as Record<string, unknown>);
-    if (created) conflictsCache = null;
-    json(res, { created });
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to create harvested conflict', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
-});
-
-post('/api/harvest/debate-ref', async (_req, res, body) => {
-  try {
-    await ensureSessionBranch();
-    const { nodeId, debateId } = body as { nodeId: string; debateId: string };
-    json(res, { updated: await fileIO.harvestAddDebateRef(nodeId, debateId) });
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to add debate reference during harvest', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
-});
-
-post('/api/harvest/steelman', async (_req, res, body) => {
-  try {
-    await ensureSessionBranch();
-    const { nodeId, attackerPov, newText } = body as { nodeId: string; attackerPov: string; newText: string };
-    json(res, { updated: await fileIO.harvestUpdateSteelman(nodeId, attackerPov, newText) });
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to update steelman during harvest', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
-});
-
-post('/api/harvest/verdict', async (_req, res, body) => {
-  const { conflictId, verdict } = body as { conflictId: string; verdict: Record<string, unknown> };
-  try {
-    json(res, { updated: await fileIO.harvestAddVerdict(conflictId, verdict) });
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error', component: 'harvest', level: 'error',
-      message: 'Failed to add harvest verdict', data: { conflictId },
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    error(res, String(err), 500, err);
-  }
-});
-
-post('/api/harvest/concept', async (_req, res, body) => {
-  try {
-    json(res, { queued: await fileIO.harvestQueueConcept(body as Record<string, unknown>) });
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error', component: 'harvest', level: 'error',
-      message: 'Failed to queue harvest concept',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    error(res, String(err), 500, err);
-  }
-});
-
-post('/api/harvest/manifest', async (_req, res, body) => {
-  try {
-    json(res, { saved: await fileIO.harvestSaveManifest(body as Record<string, unknown>) });
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error', component: 'harvest', level: 'error',
-      message: 'Failed to save harvest manifest',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    error(res, String(err), 500, err);
-  }
-});
+// t/1347: /api/harvest/* cluster extracted to routes/harvest.ts (registrar at group position).
+registerHarvestRoutes(router, serverCtx);
 
 // ── Summaries & Sources ──
 

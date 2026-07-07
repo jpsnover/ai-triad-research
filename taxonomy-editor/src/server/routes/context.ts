@@ -28,4 +28,6 @@ export interface ServerCtx {
   readonly ensureSessionBranch: () => Promise<void>;
   /** Append the server ring-buffer log lines to a dump's NDJSON (admin dump). */
   readonly appendServerLogs: (ndjson: string) => string;
+  /** Invalidate the server-local conflicts cache after a harvest write (t/1347). */
+  readonly invalidateConflictsCache: () => void;
 }
