@@ -21,7 +21,7 @@ describe('server.ts route table (t/1295 — zero-behaviour-change guard)', () =>
   const routes = extractRoutes(serverEntry);
 
   it('registers exactly 179 routes', () => {
-    expect(routes.length).toBe(179); // +GET /api/debates/quota-status (t/1360), +POST /api/keys/verify-stored (t/1363)
+    expect(routes.length).toBe(180); // +GET /api/admin/usages (t/1265)
   });
 
   // GATE 1 — set identity: sorted (method, path) multiset. Fails on any add/drop.

@@ -16,7 +16,8 @@ import type { ServerCtx } from './context.js';
 import { json, error, param, query } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { log } from '../logger.js';
-import { getDataRoot, rotateApiKeyMaterial, STORAGE_MODE, getPaidGeminiFallbackKey, setPaidGeminiFallbackKey, deletePaidGeminiFallbackKey } from '../config.js';
+import { getDataRoot, getProjectRoot, rotateApiKeyMaterial, STORAGE_MODE, getPaidGeminiFallbackKey, setPaidGeminiFallbackKey, deletePaidGeminiFallbackKey } from '../config.js';
+import { loadUsageRegistry } from '../../../../lib/ai-client/usageTypes.js';
 import { getConfig, getConfigState, writeConfig, forceReload as reloadRuntimeConfig, diffFromDefaults } from '../runtimeConfig.js';
 import { requireAdmin, getReviewQueue, getReviewStats, getReviewDetail, executeReviewAction } from '../community/admin/reviewRegistry.js';
 import type { ReviewAction } from '../community/admin/types.js';
@@ -747,6 +748,23 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to write telemetry event', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       error(res, String(err));
+    }
+  });
+
+  // t/1265: UsageID registry browser — read-only view of ai-usages.json for the
+  // admin panel. Returns the resolved registry (with _extends already merged).
+  get('/api/admin/usages', (_req, res) => {
+    if (!requireAdmin(res)) return;
+    try {
+      const registry = loadUsageRegistry(getProjectRoot());
+      json(res, { usages: registry });
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'server', level: 'error',
+        message: 'GET /api/admin/usages failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      error(res, String(err), 500, err);
     }
   });
 

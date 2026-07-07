@@ -1065,6 +1065,9 @@ const rawApi: AppAPI = {
   // Feature flags
   getFlags: () => get<Record<string, boolean>>('/api/flags').catch(bridgeWarn('getFlags failed', {})),
 
+  // UsageID registry
+  getUsageRegistry: () => get('/api/admin/usages').then((r: { usages: Record<string, unknown> }) => r.usages) as ReturnType<AppAPI['getUsageRegistry']>,
+
   // Admin Error Dashboard
   getErrorSummary: () => get('/api/admin/errors/summary'),
   listErrors: (opts) => {

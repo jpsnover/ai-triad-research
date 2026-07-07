@@ -9,8 +9,9 @@ import { useDebateStore } from '../../hooks/useDebateStore';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useShallow } from 'zustand/react/shallow';
 import { AdminErrorsTab } from './AdminErrorsTab';
+import { UsageBrowserTab } from './UsageBrowserTab';
 
-type AdminTab = 'submissions' | 'enrichment' | 'errors';
+type AdminTab = 'submissions' | 'enrichment' | 'errors' | 'usages';
 
 function formatDate(iso: string): string {
   if (!iso) return '';
@@ -216,6 +217,7 @@ export function AdminPanel() {
         <button className={activeTab === 'submissions' ? 'active' : ''} onClick={() => setActiveTab('submissions')}>Submissions</button>
         <button className={activeTab === 'enrichment' ? 'active' : ''} onClick={() => setActiveTab('enrichment')}>Enrichment</button>
         <button className={activeTab === 'errors' ? 'active' : ''} onClick={() => setActiveTab('errors')}>Errors</button>
+        <button className={activeTab === 'usages' ? 'active' : ''} onClick={() => setActiveTab('usages')}>Usages</button>
       </div>
 
       {msg && <div className="community-toast">{msg}</div>}
@@ -266,6 +268,8 @@ export function AdminPanel() {
       {activeTab === 'enrichment' && <EnrichmentRepairSection />}
 
       {activeTab === 'errors' && <AdminErrorsTab />}
+
+      {activeTab === 'usages' && <UsageBrowserTab />}
     </div>
   );
 }

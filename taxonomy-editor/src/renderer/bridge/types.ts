@@ -376,6 +376,9 @@ export interface AppAPI {
     relatedDumps: Array<{ dumpId: string; kind: string; timestamp: string }>;
   } | null>;
 
+  // --- UsageID registry ---
+  getUsageRegistry: () => Promise<Record<string, { description: string; model: string; temperature?: number; maxTokens?: number; timeoutMs?: number; tags?: string[]; _extends?: string }>>;
+
   // --- Deep-link URL ---
   getWebAppUrl: () => Promise<string | null>;
 

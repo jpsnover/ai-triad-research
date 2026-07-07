@@ -323,6 +323,9 @@ export const api: AppAPI = {
   // Feature flags — single-user desktop, no server flags
   getFlags: () => Promise.resolve({}),
 
+  // UsageID registry — stub (desktop has no server-side usage registry)
+  getUsageRegistry: () => Promise.resolve({}),
+
   // Admin Error Dashboard — stubs (desktop has no server-side error collection)
   getErrorSummary: () => Promise.resolve({ total: 0, today: 0, last7d: 0, last30d: 0, topErrors: [], byDay: [] }),
   listErrors: () => Promise.resolve({ items: [], total: 0, hasMore: false }),
