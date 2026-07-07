@@ -40,12 +40,15 @@
     "depgraph:reverse": "node scripts/depgraph.mjs --reverse",
     "depgraph:orphans": "node scripts/depgraph.mjs --orphans",
     "depcruise": "depcruise --config .dependency-cruiser.cjs src/ ../lib/",
-    "verify": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.server.json --noEmit && eslint src/ --max-warnings=335 && npm run depcruise && vitest run && vite build"
+    "verify": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.server.json --noEmit && eslint src/ --max-warnings=4256 && npm run depcruise && vitest run && vite build"
   },
   "dependencies": {
     "@azure/identity": "^4.13.1",
     "@azure/keyvault-secrets": "^4.8.0",
     "@azure/storage-blob": "^12.32.0",
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@fontsource/source-serif-4": "^5.2.9",
     "@huggingface/transformers": "^4.2.0",
     "@types/ws": "^8.18.1",
     "@xterm/addon-fit": "^0.11.0",

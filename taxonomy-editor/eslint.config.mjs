@@ -8,11 +8,13 @@
 import tseslint from 'typescript-eslint';
 import requireFlightRecorderInCatch from './eslint-rules/require-flight-recorder-in-catch.js';
 import noUnmanagedModuleResources from './eslint-rules/no-unmanaged-module-resources.js';
+import noInlineStyle from './eslint-rules/no-inline-style.js';
 
 const localPlugin = {
   rules: {
     'require-flight-recorder-in-catch': requireFlightRecorderInCatch,
     'no-unmanaged-module-resources': noUnmanagedModuleResources,
+    'no-inline-style': noInlineStyle,
   },
 };
 
@@ -49,6 +51,7 @@ export default tseslint.config(
     rules: {
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       'local/no-unmanaged-module-resources': 'warn',
+      'local/no-inline-style': 'warn',
     },
   },
   {
