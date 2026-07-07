@@ -8,6 +8,7 @@ import { log } from '../logger.js';
 import { getStorageUserId } from './userContext.js';
 import { getConfig as getRuntimeConfig } from '../runtimeConfig.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
+import { isAdmin } from '../community/community.js';
 
 export interface QuotaLimits {
   maxChats: number;
@@ -74,8 +75,9 @@ function getConfig(): QuotaConfig {
 }
 
 export function getQuotaLimits(userId?: string): QuotaLimits {
-  const config = getConfig();
   const uid = userId ?? getStorageUserId();
+  if (isAdmin(uid)) return { maxChats: Infinity, maxDebates: Infinity };
+  const config = getConfig();
   const entry = config.elevated.find(e => e.userId === uid);
   return {
     maxChats: entry?.maxChats ?? config.defaults.maxChats,
