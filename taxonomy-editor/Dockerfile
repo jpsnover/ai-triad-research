@@ -43,7 +43,23 @@ COPY taxonomy/schemas/ ./taxonomy/schemas/
 WORKDIR /build/taxonomy-editor
 RUN npm run build:container
 
-# ── Stage 2: Runtime ──
+# ── Stage 2: Production dependencies (with build tools for native modules) ──
+FROM node:22-bookworm-slim AS prod-deps
+
+# node-pty requires make/g++/python3 for compilation when prebuilds
+# are unavailable. The runtime base image is intentionally slim (no
+# build tools), so compile here and copy the result.
+# hadolint ignore=DL3008
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++
+
+WORKDIR /deps
+COPY taxonomy-editor/package.json taxonomy-editor/package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
+
+# ── Stage 3: Runtime ──
 FROM ghcr.io/jpsnover/ai-triad-base:2026-07-06 AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-research"
@@ -60,9 +76,9 @@ WORKDIR /app
 
 # ── Layers ordered by change frequency (least → most) ──
 
-# 1. Node production dependencies (changes when package-lock.json changes)
+# 1. Node production dependencies (pre-compiled in prod-deps stage)
 COPY --chown=aitriad:aitriad taxonomy-editor/package.json taxonomy-editor/package-lock.json ./
-RUN --mount=type=cache,target=/home/aitriad/.npm npm ci --omit=dev
+COPY --from=prod-deps --chown=aitriad:aitriad /deps/node_modules ./node_modules/
 
 # 2. Stable config and scripts (change occasionally)
 COPY --chown=aitriad:aitriad ai-models.json ./
