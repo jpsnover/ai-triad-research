@@ -257,15 +257,42 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
       const result = await api.generateNewsReport(activeDebate.id);
       set({ newsReport: result.article, newsReportLoading: false });
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      const isMissingSynthesis = /synthesis must exist/i.test(errMsg);
+
       getGlobalRecorder()?.record({
         type: 'system.error',
         debate_id: activeDebate?.id,
         component: 'debate-store',
-        level: 'error',
-        message: 'News report generation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        level: isMissingSynthesis ? 'warn' : 'error',
+        message: isMissingSynthesis ? 'News report failed — synthesis not persisted, attempting save & retry' : 'News report generation failed',
+        error: { name: (err as Error).name ?? 'Error', message: errMsg, stack: (err as Error).stack },
       });
-      set({ newsReportError: `News report generation failed: ${err instanceof Error ? err.message : String(err)}`, newsReportLoading: false });
+
+      if (isMissingSynthesis) {
+        try {
+          await get().saveDebate('news-report-save-retry');
+          const retryResult = await api.generateNewsReport(activeDebate.id);
+          set({ newsReport: retryResult.article, newsReportLoading: false });
+          return;
+        } catch (retryErr) {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            debate_id: activeDebate?.id,
+            component: 'debate-store',
+            level: 'error',
+            message: 'News report save & retry failed',
+            error: { name: (retryErr as Error).name ?? 'Error', message: String(retryErr), stack: (retryErr as Error).stack },
+          });
+          set({
+            newsReportError: 'Your debate synthesis wasn\'t saved to the server. The auto-save attempt failed — please save the debate manually and try again.',
+            newsReportLoading: false,
+          });
+          return;
+        }
+      }
+
+      set({ newsReportError: `News report generation failed: ${errMsg}`, newsReportLoading: false });
     }
   },
 
