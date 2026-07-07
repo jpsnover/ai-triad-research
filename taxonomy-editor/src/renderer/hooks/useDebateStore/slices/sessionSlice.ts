@@ -83,6 +83,16 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
   },
 
   createDebate: async (topic, povers, userIsPover, sourceType = 'topic', sourceRef = '', sourceContent = '', debateModel, protocolId, debateTemperature, debateAudience, options) => {
+    try {
+      const quota = await api.getDebateQuotaStatus();
+      if (!quota.allowed) {
+        const msg = `You've reached the debate limit (${quota.current}/${quota.limit}). Delete existing debates to start a new one.`;
+        set({ debateError: msg });
+        throw new Error(msg);
+      }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Quota pre-check failed — proceeding (save-time check is safety net)', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    }
     resetDoctrinalAnchoringCache();
     resetNeutralMapping();
     resetSignalHistory();

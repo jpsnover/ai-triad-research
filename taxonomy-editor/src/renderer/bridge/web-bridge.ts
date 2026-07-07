@@ -753,6 +753,7 @@ const rawApi: AppAPI = {
   runEvidenceQbaf: (claimText, claimId, model) => post('/api/evidence-qbaf', { claimText, claimId, model }).catch(bridgeWarn('runEvidenceQbaf failed', null)),
 
   // Debate sessions
+  getDebateQuotaStatus: () => get('/api/debates/quota-status'),
   listDebateSessions: () => get('/api/debates'),
   listDebateSessionsMeta: () => get('/api/debates/list'),
   loadDebateSession: (id) => get(`/api/debates/${encodeURIComponent(id)}`),

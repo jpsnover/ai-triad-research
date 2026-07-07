@@ -151,6 +151,7 @@ export const api: AppAPI = {
   nliClassify: (pairs) => window.electronAPI.nliClassify(pairs),
 
   // Debate sessions
+  getDebateQuotaStatus: () => Promise.resolve({ allowed: true, resource: 'debates', current: 0, limit: Infinity }),
   listDebateSessions: () => window.electronAPI.listDebateSessions(),
   listDebateSessionsMeta: () => window.electronAPI.listDebateSessions(), // Electron mode: local fs is fast, reuse full list
   loadDebateSession: (id) => window.electronAPI.loadDebateSession(id),

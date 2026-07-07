@@ -202,6 +202,7 @@ export interface AppAPI {
   } | null>;
 
   // --- Debate sessions ---
+  getDebateQuotaStatus: () => Promise<{ allowed: boolean; resource: string; current: number; limit: number }>;
   listDebateSessions: () => Promise<unknown[]>;
   listDebateSessionsMeta: () => Promise<unknown[]>;
   loadDebateSession: (id: string) => Promise<unknown>;

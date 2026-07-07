@@ -85,6 +85,7 @@ export function DebateTab() {
   const isTablet = breakpoint === 'tablet' || breakpoint === 'tablet-lg';
   const nav = useMobileNav();
   const [showNewDialog, setShowNewDialog] = useState(false);
+  const [quotaError, setQuotaError] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [editMode, setEditMode] = useState(false);
@@ -98,6 +99,20 @@ export function DebateTab() {
   const { debates: communityDebates, loading: communityLoading, fetchDebates: fetchCommunityDebates, copyItem } = useCommunityStore();
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [selectedCommunityDebate, setSelectedCommunityDebate] = useState<CommunityDebate | null>(null);
+
+  const handleNewDebate = useCallback(async () => {
+    setQuotaError(null);
+    try {
+      const quota = await api.getDebateQuotaStatus();
+      if (!quota.allowed) {
+        setQuotaError(`Debate limit reached (${quota.current}/${quota.limit}). Delete existing debates to free up quota.`);
+        return;
+      }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-tab', level: 'warn', message: 'Quota pre-check failed — opening dialog anyway', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    }
+    setShowNewDialog(true);
+  }, []);
 
   // Custom sort order (persisted to localStorage)
   const [customOrder, setCustomOrder] = useState<string[]>(() => {
@@ -277,7 +292,7 @@ export function DebateTab() {
                       Edit
                     </button>
                   )}
-                  <button className="btn btn-sm" onClick={() => setShowNewDialog(true)}>
+                  <button className="btn btn-sm" onClick={handleNewDebate}>
                     + New
                   </button>
                   <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
@@ -592,7 +607,7 @@ export function DebateTab() {
               <div className="debate-empty-state">
                 <h2>Perspective Debater</h2>
                 <p>Select a debate from the list or create a new one.</p>
-                <button className="btn" onClick={() => setShowNewDialog(true)}>
+                <button className="btn" onClick={handleNewDebate}>
                   + New Debate
                 </button>
               </div>
@@ -601,6 +616,12 @@ export function DebateTab() {
         </>
       )}
 
+      {quotaError && (
+        <div className="debate-error" style={{ margin: '8px 12px', padding: '8px 12px', borderRadius: 6, background: 'var(--error-bg, #fef2f2)', color: 'var(--error-text, #991b1b)', border: '1px solid var(--error-border, #fca5a5)' }}>
+          <span>{quotaError}</span>
+          <button style={{ marginLeft: 8, cursor: 'pointer', background: 'none', border: 'none', color: 'inherit', fontWeight: 'bold' }} onClick={() => setQuotaError(null)}>&times;</button>
+        </div>
+      )}
       {showNewDialog && (
         <NewDebateDialog onClose={() => setShowNewDialog(false)} />
       )}

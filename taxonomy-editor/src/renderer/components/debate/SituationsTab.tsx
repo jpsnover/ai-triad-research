@@ -244,8 +244,12 @@ export function SituationsTab() {
   const createSituationDebate = useDebateStore(s => s.createSituationDebate);
   const handleDebate = useCallback(async () => {
     if (!selectedNode) return;
-    await createSituationDebate(selectedNode.id);
-    setActiveTab('debate');
+    try {
+      await createSituationDebate(selectedNode.id);
+      setActiveTab('debate');
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'situations-tab', level: 'error', message: 'Failed to create situation debate', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    }
   }, [selectedNode, createSituationDebate, setActiveTab]);
 
   // Search preview rendered via shared SearchPreview component
