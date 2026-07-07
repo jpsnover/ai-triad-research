@@ -286,7 +286,7 @@ export function detectZeroClaims(
   });
   pushWarning(get, set, msg);
   // Auto-trigger flight recorder dump for diagnosis
-  try { triggerManualDump(); } catch { /* flight recorder dump — silent by design */ }
+  try { void triggerManualDump(); } catch { /* flight recorder dump — silent by design */ }
 }
 
 export async function extractClaimsAndUpdateAN(

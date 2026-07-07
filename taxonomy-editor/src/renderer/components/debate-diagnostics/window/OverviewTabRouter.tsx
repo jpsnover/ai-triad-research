@@ -554,7 +554,7 @@ export function OverviewTabRouter({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>Flight Recorder Context Snapshot</span>
               <button
-                onClick={() => triggerManualDump()}
+                onClick={() => { void triggerManualDump(); }}
                 style={{ fontSize: '0.65rem', padding: '2px 8px', background: '#f59e0b', color: '#000', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}
               >Dump Now</button>
             </div>

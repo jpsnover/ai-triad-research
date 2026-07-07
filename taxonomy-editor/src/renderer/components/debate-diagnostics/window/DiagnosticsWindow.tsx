@@ -290,7 +290,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
         {debate && !showHelp && <SearchBar query={searchQuery} setQuery={setSearchQuery} matchCount={matchCount} inputRef={searchInputRef} />}
         {(!debate || showHelp) && <div style={{ flex: 1 }} />}
         <button
-          onClick={() => { triggerManualDump(); }}
+          onClick={() => { void triggerManualDump(); }}
           title="Dump flight recorder to disk (Ctrl+Alt+D)"
           style={{ background: 'none', color: '#ef4444', border: '1px solid #ef4444', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
         >

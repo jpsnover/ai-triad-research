@@ -247,6 +247,49 @@ export function showDumpToast(opts: {
 }
 
 /**
+ * Show a pending toast while a flight recorder dump is in progress.
+ * Returns a dismiss function — caller is responsible for calling it when the dump completes.
+ */
+export function showDumpPendingToast(): () => void {
+  const container = getOrCreateContainer();
+
+  const toast = document.createElement('div');
+  Object.assign(toast.style, {
+    position: 'relative',
+    background: 'var(--bg-secondary, #1e1e2e)',
+    color: 'var(--text-primary, #cdd6f4)',
+    border: '1px solid var(--accent-color, #89b4fa)',
+    borderRadius: '6px',
+    padding: '10px 14px',
+    fontSize: '12px',
+    fontFamily: 'var(--font-mono, monospace)',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+    pointerEvents: 'auto',
+    maxWidth: '420px',
+    opacity: '0',
+    transform: 'translateY(10px)',
+    transition: 'opacity 0.2s, transform 0.2s',
+  });
+
+  const title = document.createElement('div');
+  title.textContent = 'Saving flight recorder dump…';
+  Object.assign(title.style, {
+    fontWeight: '600',
+    color: 'var(--accent-color, #89b4fa)',
+  });
+  toast.appendChild(title);
+
+  container.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateY(0)';
+  });
+
+  return () => removeToast(toast);
+}
+
+/**
  * Show an error toast when a flight recorder dump fails to persist.
  * Offers a retry button and (web-only) a client-side blob download fallback.
  */

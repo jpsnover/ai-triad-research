@@ -15,7 +15,7 @@ import type { RecordInput, TriggerType } from '@lib/flight-recorder/types';
 import { api } from '@bridge';
 import { getClientConfig } from './clientConfig';
 import { getResilienceState } from '../bridge/resilience';
-import { showDumpToast, showDumpErrorToast } from './dumpToast';
+import { showDumpToast, showDumpErrorToast, showDumpPendingToast } from './dumpToast';
 
 declare const __APP_VERSION__: string;
 declare const __BUILD_DATE__: string;
@@ -145,6 +145,12 @@ async function persistDump(
       level: 'warn',
       message: 'Failed to build flight recorder dump',
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    showDumpErrorToast({
+      errorMessage: `Failed to build dump: ${String(err)}`,
+      isWeb,
+      ndjson: '',
+      onRetry: () => { void persistDump(recorder, triggerType, error, context); },
     });
     return;
   }
@@ -358,7 +364,7 @@ export function initFlightRecorder(): FlightRecorder {
       };
 
       // Set up manual dump trigger for popup — request main window to dump
-      (globalThis as unknown as { __triggerManualDump: () => void }).__triggerManualDump = () => {
+      (globalThis as unknown as { __triggerManualDump: () => Promise<void> | void }).__triggerManualDump = () => {
         shim.record({ type: 'lifecycle', component: 'flight-recorder', level: 'info', message: 'Manual dump requested from popup' });
         if (hasElectronIPC) {
           try {
@@ -758,7 +764,7 @@ export function initFlightRecorder(): FlightRecorder {
   document.addEventListener('keydown', (event) => {
     if (event.ctrlKey && event.altKey && event.key === 'd') {
       event.preventDefault();
-      void persistDump(recorder, 'manual');
+      void triggerManualDump();
       console.log('[flight-recorder] Manual dump triggered via Ctrl+Alt+D');
     }
   });
@@ -772,7 +778,7 @@ export function initFlightRecorder(): FlightRecorder {
   (globalThis as unknown as { __onErrorBoundaryCatch: (err: Error, stack?: string) => void }).__onErrorBoundaryCatch = dumpOnReactError;
 
   // ── ErrorBoundary "Dump Log" button hook ──
-  (globalThis as unknown as { __triggerManualDump: () => void }).__triggerManualDump = triggerManualDump;
+  (globalThis as unknown as { __triggerManualDump: () => Promise<void> }).__triggerManualDump = triggerManualDump;
 
   // ── Listen for dump requests from popup windows (via main process relay) ──
   const eApi = (window as unknown as { electronAPI?: { onTriggerDump?: (cb: () => void) => () => void; sendDumpResult?: (r: { filePath: string }) => void } }).electronAPI;
@@ -792,13 +798,26 @@ export function initFlightRecorder(): FlightRecorder {
   return recorder;
 }
 
+let _dumpInFlight = false;
+
+/** Whether a flight recorder dump is currently in progress. */
+export function isDumpInProgress(): boolean { return _dumpInFlight; }
+
 /**
  * Trigger a manual flight recorder dump from any UI component.
+ * Shows an immediate pending toast, guards against overlapping dumps.
  */
-export function triggerManualDump(): void {
+export async function triggerManualDump(): Promise<void> {
   const recorder = getGlobalRecorder();
-  if (!recorder) return;
-  void persistDump(recorder, 'manual');
+  if (!recorder || _dumpInFlight) return;
+  _dumpInFlight = true;
+  const dismissPending = showDumpPendingToast();
+  try {
+    await persistDump(recorder, 'manual');
+  } finally {
+    _dumpInFlight = false;
+    dismissPending();
+  }
 }
 
 /**
