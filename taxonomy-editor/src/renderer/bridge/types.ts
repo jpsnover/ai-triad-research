@@ -138,6 +138,7 @@ export interface AppAPI {
   loadAIModels: () => Promise<unknown>;
   refreshAIModels: () => Promise<unknown>;
   validateApiKey: (key: string, backend: string) => Promise<{ valid: boolean; error?: string }>;
+  verifyStoredKeys: (backend: string) => Promise<{ results: { index: number; masked: string; valid: boolean; error?: string }[] }>;
   setApiKey: (key: string, backend?: string) => Promise<void>;
   addApiKey: (key: string, backend: string) => Promise<{ count: number }>;
   removeApiKey: (index: number, backend: string) => Promise<void>;

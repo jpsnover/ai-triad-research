@@ -594,6 +594,7 @@ const rawApi: AppAPI = {
   loadAIModels: () => get('/api/models'),
   refreshAIModels: () => post('/api/models/refresh'),
   validateApiKey: (key, backend) => post('/api/keys/validate', { key, backend }),
+  verifyStoredKeys: (backend) => post('/api/keys/verify-stored', { backend }),
   setApiKey: async (key, backend) => {
     const storageKey = backend ? `byok-${backend}` : 'byok-api-key';
     sessionStorage.setItem(storageKey, JSON.stringify([key]));

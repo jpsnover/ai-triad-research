@@ -40,6 +40,8 @@ function ShowKeysSection({ onKeysChanged }: { onKeysChanged?: () => void }) {
   const [confirmingRemove, setConfirmingRemove] = useState<{ backend: string; index: number } | null>(null);
   const [confirmingDeleteAll, setConfirmingDeleteAll] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [verifyStatus, setVerifyStatus] = useState<Record<string, { index: number; valid: boolean; error?: string }[]>>({});
+  const [verifying, setVerifying] = useState<string | null>(null);
 
   const backendLabel: Record<string, string> = Object.fromEntries(
     AI_BACKENDS.map(b => [b.value, b.label]),
@@ -126,6 +128,23 @@ function ShowKeysSection({ onKeysChanged }: { onKeysChanged?: () => void }) {
     }
   }, []);
 
+  const handleVerifyKeys = useCallback(async (backend: string) => {
+    setVerifying(backend);
+    try {
+      const { results } = await api.verifyStoredKeys(backend);
+      setVerifyStatus(prev => ({ ...prev, [backend]: results }));
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'settings-dialog', level: 'error',
+        message: `Failed to verify API keys for ${backend}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      setVerifyStatus(prev => ({ ...prev, [backend]: [{ index: 0, valid: false, error: 'Verification failed — check network' }] }));
+    } finally {
+      setVerifying(null);
+    }
+  }, []);
+
   const modelsForBackend = (backend: string) => {
     const models = MODELS_BY_BACKEND[backend as keyof typeof MODELS_BY_BACKEND];
     if (!models || models.length === 0) return 'no models configured';
@@ -160,6 +179,17 @@ function ShowKeysSection({ onKeysChanged }: { onKeysChanged?: () => void }) {
                   <span className="settings-key-summary-models" title={modelsForBackend(b.value)}>
                     {modelsForBackend(b.value)}
                   </span>
+                  {keys.length > 0 && (
+                    <button
+                      className="btn btn-sm"
+                      style={{ marginLeft: 'auto', fontSize: '0.72rem', padding: '2px 8px' }}
+                      onClick={() => void handleVerifyKeys(b.value)}
+                      disabled={verifying === b.value}
+                      title="Verify keys against provider"
+                    >
+                      {verifying === b.value ? 'Verifying...' : 'Verify'}
+                    </button>
+                  )}
                 </div>
                 {keys.map(k => {
                   const isConfirming = confirmingRemove?.backend === b.value && confirmingRemove?.index === k.index;
@@ -183,11 +213,23 @@ function ShowKeysSection({ onKeysChanged }: { onKeysChanged?: () => void }) {
                       </div>
                     );
                   }
+                  const keyResult = verifyStatus[b.value]?.find(r => r.index === k.index);
                   return (
                     <div key={k.index} className="settings-key-summary-row" style={{ paddingLeft: 16 }}>
                       <span className="settings-key-summary-masked" style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>
                         {k.masked}
                       </span>
+                      {keyResult && (
+                        <span
+                          title={keyResult.valid ? 'Key is valid' : keyResult.error ?? 'Invalid key'}
+                          style={{ fontSize: '0.75rem', marginLeft: 4, color: keyResult.valid ? 'var(--success-text, #16a34a)' : 'var(--error-text, #dc2626)' }}
+                        >
+                          {keyResult.valid ? '✓' : '✗'}
+                          {!keyResult.valid && keyResult.error && (
+                            <span style={{ marginLeft: 4, fontSize: '0.7rem', opacity: 0.8 }}>{keyResult.error}</span>
+                          )}
+                        </span>
+                      )}
                       <button
                         className="settings-key-delete-btn"
                         onClick={() => setConfirmingRemove({ backend: b.value, index: k.index })}

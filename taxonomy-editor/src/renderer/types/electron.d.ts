@@ -34,6 +34,7 @@ export interface ElectronAPI {
   loadAIModels: () => Promise<unknown>;
   refreshAIModels: () => Promise<unknown>;
   validateApiKey: (key: string, backend: string) => Promise<{ valid: boolean; error?: string }>;
+  verifyStoredKeys?: (backend: string) => Promise<{ results: { index: number; masked: string; valid: boolean; error?: string }[] }>;
   setApiKey: (key: string, backend?: string) => Promise<void>;
   hasApiKey: (backend?: string) => Promise<boolean>;
   computeEmbeddings: (texts: string[], ids?: string[]) => Promise<{ vectors: number[][] }>;
