@@ -483,7 +483,12 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         // Scale-out restored after t/683 (ed489b9): AnonymousSessionStore is now
         // file-backed on the shared /mnt/shared volume, so debate state is
         // replica-independent — the single-replica stopgap is no longer needed.
-        minReplicas: 1
+        // minReplicas reverted 1->0 (t/1354, 2026-07-07): prod was costing
+        // ~$24 in its first 6 days of July alone (~$120+/mo projected) from
+        // running 1 vCPU/2GiB continuously. Owner accepted the cold-start
+        // latency tradeoff this reintroduces (previously fixed for the same
+        // reason in e247ef75, 2026-05-05) in exchange for scale-to-zero savings.
+        minReplicas: 0
         maxReplicas: 5
         rules: [
           {
