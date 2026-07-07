@@ -16,9 +16,9 @@ const povNodeSchema = z.object({
   children: z.array(z.string()),
   situation_refs: z.array(z.string().regex(/^sit-\d{3}$/, 'Situation ref must match sit-NNN')),
   conflict_ids: z.array(z.string().regex(/^conflict-[a-z0-9-]+$/, 'Conflict ID must match conflict-{slug}')).optional(),
-  confidence: z.number().min(0).max(1).optional(),
-  priority: z.number().int().min(1).max(5).optional(),
-  operationality: z.number().int().min(1).max(5).optional(),
+  confidence: z.number().min(0).max(1).nullish(),
+  priority: z.number().int().min(1).max(5).nullish(),
+  operationality: z.number().int().min(1).max(5).nullish(),
 }).passthrough();
 
 export const povTaxonomyFileSchema = z.object({
