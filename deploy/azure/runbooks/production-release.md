@@ -126,7 +126,9 @@ The deploy workflow handles this automatically when health checks or acceptance 
 
 ## Deploy Hold
 
-**2026-07-04 — Owner decision: NO production deploy until explicitly authorized.** Current prod is stable on ca8e7428 (July 1 code) against the migrated data. The cc→sit migration (t/1308) landed in the data repo but the code repo has accumulated significant changes (quality gates, doc-accuracy gates, dependency patches, cc→sit code-side tightening). Risk assessment deferred a deploy despite green CI. Do not dispatch `deploy-azure.yml` until the owner explicitly lifts this hold.
+**Lifted.** The 2026-07-04 hold (below) was superseded by subsequent authorized deploys (revisions `taxonomy-editor--anonpull` on 2026-07-05, `taxonomy-editor--deploy-d6a05b2-9294` on 2026-07-07) — this note just wasn't updated at the time. No hold is in effect as of 2026-07-07; deploys proceed under normal owner-request authorization.
+
+**2026-07-04 — Owner decision (historical, superseded above): NO production deploy until explicitly authorized.** Current prod is stable on ca8e7428 (July 1 code) against the migrated data. The cc→sit migration (t/1308) landed in the data repo but the code repo has accumulated significant changes (quality gates, doc-accuracy gates, dependency patches, cc→sit code-side tightening). Risk assessment deferred a deploy despite green CI.
 
 ## Alerts & Monitoring
 
