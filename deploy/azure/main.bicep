@@ -776,7 +776,7 @@ resource imagePullFailureAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-1
   tags: tags
   properties: {
     displayName: 'Image Pull Failure (Critical)'
-    description: 'ImagePullBackOff detected — container image cannot be pulled. App is hard-down. Check GHCR package visibility and registry config.'
+    description: 'Container image cannot be pulled. App is hard-down. Check GHCR package visibility and registry config.'
     severity: 0
     enabled: true
     scopes: [ logAnalytics.id ]
@@ -785,9 +785,14 @@ resource imagePullFailureAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-1
     criteria: {
       allOf: [
         {
+          // ACA's own diagnostic logs never emit the raw Kubernetes reason
+          // string "ImagePullBackOff" — verified against the 2026-07-05 GHCR
+          // PAT outage, which produced Reason_s "ContainerBackOff" /
+          // "ContainerCrashing" with Log_s describing the pull failure.
           query: '''
             ContainerAppSystemLogs_CL
-            | where Reason_s == "ImagePullBackOff"
+            | where Reason_s in ("ContainerBackOff", "ContainerCrashing")
+            | where Log_s has "pull"
             | summarize Count = count() by RevisionName_s
             | where Count > 0
           '''
