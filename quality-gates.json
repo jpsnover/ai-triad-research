@@ -2,7 +2,7 @@
   "$comment": "LOC ceilings for monolith files — ratchet DOWN as extraction tickets (B-209/210/211) land. See docs/reviews/2026-07-repo-review/BACKLOG.md B-408.",
   "loc_ceilings": {
     "lib/debate/debateEngine.ts": 4028,
-    "taxonomy-editor/src/server/server.ts": 3459,
+    "taxonomy-editor/src/server/server.ts": 3315,
     "taxonomy-editor/src/renderer/styles.css": 17800,
     "lib/debate/prompts.ts": 4650
   },

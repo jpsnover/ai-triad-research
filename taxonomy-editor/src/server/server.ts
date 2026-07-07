@@ -49,6 +49,7 @@ import { registerDebatesRoutes } from './routes/debates.js';
 import { registerSyncRoutes } from './routes/sync.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerKeysRoutes } from './routes/keys.js';
+import { registerCommunityRoutes } from './routes/community.js';
 import type { ServerCtx } from './routes/context.js';
 import { getAllFlags, listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
 import { writeDump, isValidDumpId, readMergedDump } from './flightRecorderDumps.js';
@@ -60,7 +61,6 @@ import * as community from './community/community.js';
 import * as fileIO from './storage/fileIO.js';
 import { FEEDBACK_CATEGORIES, isFeedbackCategory, paginateFeedback } from './storage/feedbackStore.js';
 import { stripEdgeRationale, type EdgesData } from './community/edgesApi.js';
-import { rateLimitResponseBody } from './security/rateLimitResponse.js';
 import { escapeForInlineScript } from './flightRecorderViewer.js';
 import { stampNodeAuthorship, diffNodes, changedFields } from './storage/editMeta.js';
 import { computeNodeConflicts } from './community/nodeConflicts.js';
@@ -304,16 +304,6 @@ const serverCtx: ServerCtx = {
 // Best-effort client IP for rate limiting — first X-Forwarded-For hop (Azure
 // ingress sets it) else the socket address. (M7)
 // getClientIp moved to httpKit.ts (t/1347) — shared by server.ts + routes/*.ts.
-
-// Structured 429 for GitHub-API rate-limit exhaustion (t/685). Surfaces seconds
-// until the limit resets via a `retryAfter` field and a Retry-After header, so
-// clients can back off instead of seeing an opaque 500.
-function respondRateLimited(res: http.ServerResponse): void {
-  const resetsAt = githubBackend ? new Date(githubBackend.getRateLimitResetsAt()).getTime() : 0;
-  const bodyResp = rateLimitResponseBody(resetsAt, Date.now());
-  res.setHeader('Retry-After', String(bodyResp.retryAfter));
-  json(res, bodyResp, 429);
-}
 
 // ── Health ──
 
@@ -1657,153 +1647,9 @@ del('/api/chats/:id', async (req, res) => {
 
 // ── Community Library ──
 
-// Admin hard-delete of a published community item, with an audit trail (t/748).
-// Renderer sends DELETE with an optional JSON body { reason }.
-del('/api/community/:type/:id', async (req, res, body) => {
-  if (!community.isAdmin()) { json(res, { error: 'Forbidden' }, 403); return; }
-  try {
-    const type = param(req, 'type', '/api/community/:type/:id');
-    if (type !== 'chats' && type !== 'debates') { error(res, 'type must be "chats" or "debates"', 400); return; }
-    const id = param(req, 'id', '/api/community/:type/:id');
-    const reason = (body as { reason?: string } | undefined)?.reason;
-    await community.removeCommunityItem(type, id, typeof reason === 'string' ? reason : undefined);
-    json(res, { ok: true });
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'server',
-      level: 'error',
-      message: 'Failed to remove community item',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    error(res, (err as Error).message ?? String(err), (err as { statusCode?: number }).statusCode ?? 500, err);
-  }
-});
-
-get('/api/community/chats', async (_req, res) => {
-  try { json(res, await community.listCommunityChats()); }
-  catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'server',
-      level: 'error',
-      message: 'Failed to list community chats',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    error(res, String(err));
-  }
-});
-
-get('/api/community/chats/:id', async (req, res) => {
-  try {
-    const id = param(req, 'id', '/api/community/chats/:id');
-    const item = await community.loadCommunityItem('chats', id);
-    if (!item) { json(res, { found: false }, 200); return; }
-    json(res, item);
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'server',
-      level: 'error',
-      message: 'Failed to load community chat item',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    error(res, String(err), 404);
-  }
-});
-
-get('/api/community/debates', async (_req, res) => {
-  try { json(res, await community.listCommunityDebates()); }
-  catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'server',
-      level: 'error',
-      message: 'Failed to list community debates',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    error(res, String(err));
-  }
-});
-
-get('/api/community/debates/:id', async (req, res) => {
-  try {
-    const id = param(req, 'id', '/api/community/debates/:id');
-    const item = await community.loadCommunityItem('debates', id);
-    if (!item) { json(res, { found: false }, 200); return; }
-    json(res, item);
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'server',
-      level: 'error',
-      message: 'Failed to load community debate item',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    error(res, String(err), 404);
-  }
-});
-
-post('/api/community/submit', async (_req, res, body) => {
-  try {
-    const { type, data, note } = body as { type: 'chat' | 'debate'; data: unknown; note?: string };
-    if (!type || !data) { json(res, { error: 'type and data required' }, 400); return; }
-
-    // Pre-flight: a community submission must reach GitHub (it's shared data on
-    // main). If the API is exhausted, fail fast with a structured 429 instead of
-    // attempting a write that 403s mid-flight and surfaces as a 500 — and never
-    // leaves a half-written/uncommittable submission behind (t/685).
-    if (githubBackend && githubBackend.getRateLimitRemaining() <= 0) {
-      respondRateLimited(res);
-      return;
-    }
-
-    // M6: per-user submission rate limit (5/hour) — throttles burst abuse of the
-    // shared community queue (distinct from the 20-pending cap in community.ts).
-    const submitRate = rateLimiter.checkRate(`community-submit:${getStorageUserId()}`, 5, 3_600_000);
-    if (!submitRate.allowed) {
-      const retryAfter = Math.max(1, Math.ceil((submitRate.retryAfterMs ?? 3_600_000) / 1000));
-      res.setHeader('Retry-After', String(retryAfter));
-      json(res, { error: 'rate_limited', message: 'Too many community submissions; please try again later.', retryAfter }, 429);
-      return;
-    }
-
-    json(res, await community.submitToCommunity(type, data, note));
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'server',
-      level: 'error',
-      message: 'Community submission failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    // Map a rate-limit failure that slipped past the pre-check to 429, not 500.
-    const status = (err as { statusCode?: number }).statusCode;
-    if (status === 429 || status === 403 || /rate.?limit/i.test(String(err))) {
-      respondRateLimited(res);
-      return;
-    }
-    json(res, { error: String(err) }, status ?? 500);
-  }
-});
-
-post('/api/community/copy', async (_req, res, body) => {
-  try {
-    const { type, communityId } = body as { type: 'chats' | 'debates'; communityId: string };
-    if (!type || !communityId) { json(res, { error: 'type and communityId required' }, 400); return; }
-    json(res, await community.copyFromCommunity(type, communityId));
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'server',
-      level: 'error',
-      message: 'Failed to copy from community',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    const status = (err as { statusCode?: number }).statusCode ?? 500;
-    json(res, { error: String(err) }, status);
-  }
-});
+// t/1347: /api/community/* cluster extracted to routes/community.ts (registered here at
+// the group's position; the community-only respondRateLimited helper moved with it).
+registerCommunityRoutes(router, serverCtx);
 
 
 // Public (spec §8.2): client-relevant subset, no secrets, cached 60s.
