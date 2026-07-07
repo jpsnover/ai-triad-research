@@ -111,13 +111,13 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
   // dumpId it used for its own dump; we write the server ring buffer alongside as
   // server-{dumpId}.jsonl, joinable to client-{dumpId}.jsonl on requestId. Admin
   // only — the server recorder may hold other users' request internals.
-  post('/api/admin/flight-recorder/dump', (_req, res, body) => {
+  post('/api/admin/flight-recorder/dump', async (_req, res, body) => {
     if (!requireAdmin(res)) return;
     try {
       const { dumpId } = (body ?? {}) as { dumpId?: string };
       if (!isValidDumpId(dumpId)) { error(res, 'dumpId must be a UUID-safe string', 400); return; }
       const ndjson = appendServerLogs(serverRecorder.buildDump('manual').ndjson);
-      const filePath = writeDump(getDataRoot(), 'server', dumpId, ndjson);
+      const filePath = await writeDump(getDataRoot(), 'server', dumpId, ndjson);
       log.fr.info({ filePath, dumpId }, 'Correlated server dump written');
       json(res, { ok: true, filename: path.basename(filePath), dumpId });
     } catch (err) {

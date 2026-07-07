@@ -53,12 +53,22 @@ describe('writeDump (t/908)', () => {
   beforeEach(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), 'frdump-')); });
   afterEach(() => { fs.rmSync(root, { recursive: true, force: true }); });
 
-  it('writes a paired client + server dump joinable by dumpId', () => {
-    writeDump(root, 'client', 'abc', '{"seq":1}\n');
-    writeDump(root, 'server', 'abc', '{"seq":2}\n');
+  it('writes a paired client + server dump joinable by dumpId', async () => {
+    await writeDump(root, 'client', 'abc', '{"seq":1}\n');
+    await writeDump(root, 'server', 'abc', '{"seq":2}\n');
     const dir = dumpsDir(root);
     expect(fs.existsSync(path.join(dir, 'client-abc.jsonl'))).toBe(true);
     expect(fs.existsSync(path.join(dir, 'server-abc.jsonl'))).toBe(true);
+  });
+
+  it('records each written dump in the sidecar retention index (t/1350)', async () => {
+    await writeDump(root, 'client', 'abc', '{"seq":1}\n');
+    await writeDump(root, 'server', 'abc', '{"seq":22}\n');
+    const index = JSON.parse(fs.readFileSync(path.join(dumpsDir(root), 'dumps-index.json'), 'utf-8'));
+    expect(index.abc).toBeDefined();
+    expect(index.abc.client).toBe(Buffer.byteLength('{"seq":1}\n'));
+    expect(index.abc.server).toBe(Buffer.byteLength('{"seq":22}\n'));
+    expect(typeof index.abc.ts).toBe('number');
   });
 });
 
@@ -176,7 +186,7 @@ describe('readMergedDump (t/939)', () => {
   beforeEach(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), 'frdump-merge-')); });
   afterEach(() => { fs.rmSync(root, { recursive: true, force: true }); });
 
-  it('merges paired files from disk', () => {
+  it('merges paired files from disk', async () => {
     const clientNdjson = ndjson(
       { _type: 'header', capacity: 100 },
       { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'click' },
@@ -185,52 +195,52 @@ describe('readMergedDump (t/939)', () => {
       { _type: 'header', capacity: 200 },
       { _type: 'event', _wall: '2026-01-01T00:00:02Z', type: 'api' },
     );
-    writeDump(root, 'client', 'test-id', clientNdjson);
-    writeDump(root, 'server', 'test-id', serverNdjson);
+    await writeDump(root, 'client', 'test-id', clientNdjson);
+    await writeDump(root, 'server', 'test-id', serverNdjson);
 
-    const merged = readMergedDump(root, 'test-id');
+    const merged = await readMergedDump(root, 'test-id');
     expect(merged).not.toBeNull();
     const lines = merged!.trim().split('\n').map(l => JSON.parse(l));
     expect(lines[0].merged).toBe(true);
     expect(lines[0].total_events).toBe(2);
   });
 
-  it('returns null when neither file exists', () => {
-    expect(readMergedDump(root, 'nonexistent')).toBeNull();
+  it('returns null when neither file exists', async () => {
+    expect(await readMergedDump(root, 'nonexistent')).toBeNull();
   });
 
-  it('handles single-side (client only) gracefully', () => {
-    writeDump(root, 'client', 'solo', ndjson(
+  it('handles single-side (client only) gracefully', async () => {
+    await writeDump(root, 'client', 'solo', ndjson(
       { _type: 'header' },
       { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'click' },
     ));
-    const merged = readMergedDump(root, 'solo');
+    const merged = await readMergedDump(root, 'solo');
     expect(merged).not.toBeNull();
     const lines = merged!.trim().split('\n').map(l => JSON.parse(l));
     expect(lines[0].sources).toEqual(['client']);
   });
 
-  it('excludes the server half when includeServer:false (t/1064 — non-admin merge)', () => {
-    writeDump(root, 'client', 'gated', ndjson(
+  it('excludes the server half when includeServer:false (t/1064 — non-admin merge)', async () => {
+    await writeDump(root, 'client', 'gated', ndjson(
       { _type: 'header' },
       { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'click' },
     ));
-    writeDump(root, 'server', 'gated', ndjson(
+    await writeDump(root, 'server', 'gated', ndjson(
       { _type: 'header' },
       { _type: 'event', _wall: '2026-01-01T00:00:02Z', type: 'api' },
     ));
-    const merged = readMergedDump(root, 'gated', { includeServer: false });
+    const merged = await readMergedDump(root, 'gated', { includeServer: false });
     expect(merged).not.toBeNull();
     const lines = merged!.trim().split('\n').map(l => JSON.parse(l));
     expect(lines[0].sources).toEqual(['client']); // server events withheld from non-admin
     expect(lines[0].total_events).toBe(1);
   });
 
-  it('returns null for a server-only dumpId when includeServer:false', () => {
-    writeDump(root, 'server', 'srvonly', ndjson(
+  it('returns null for a server-only dumpId when includeServer:false', async () => {
+    await writeDump(root, 'server', 'srvonly', ndjson(
       { _type: 'header' },
       { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'api' },
     ));
-    expect(readMergedDump(root, 'srvonly', { includeServer: false })).toBeNull();
+    expect(await readMergedDump(root, 'srvonly', { includeServer: false })).toBeNull();
   });
 });

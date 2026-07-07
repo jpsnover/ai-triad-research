@@ -13,13 +13,47 @@
  * orphaned.
  */
 
-import fs from 'fs';
 import path from 'path';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { getConfig } from './runtimeConfig.js';
+import { getUserContentBackend } from './storage/fileIO.js';
 
 export const MAX_DUMP_GROUPS = 20;
 export const MAX_DUMP_BYTES = 50 * 1024 * 1024;
+
+// t/1350: dumps persist through the durable StorageBackend (Azure Blob in
+// production — survives ACA replica recycling and is shared across replicas),
+// NOT the ephemeral container filesystem. The backend exposes no per-file
+// size/mtime, so retention is driven by a sidecar index (dumps-index.json,
+// written through the same backend) that records each dump's write time and
+// per-half byte size. The tested selectExpiredDumps() pure function is fed from
+// the index instead of fs.statSync, so the 20-group/50 MB cap is unchanged.
+export interface DumpIndexEntry { ts: number; client?: number; server?: number }
+export type DumpIndex = Record<string, DumpIndexEntry>;
+
+function indexPath(dataRoot: string): string {
+  return path.join(dumpsDir(dataRoot), 'dumps-index.json');
+}
+
+async function readDumpIndex(dataRoot: string): Promise<DumpIndex> {
+  try {
+    const raw = await getUserContentBackend().readFile(indexPath(dataRoot), { optional: true });
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === 'object' ? parsed as DumpIndex : {};
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'flight-recorder-dumps', level: 'warn',
+      message: 'Dump retention index unreadable — starting fresh',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return {};
+  }
+}
+
+async function writeDumpIndex(dataRoot: string, index: DumpIndex): Promise<void> {
+  await getUserContentBackend().writeFile(indexPath(dataRoot), JSON.stringify(index));
+}
 
 /** dumpIds are client-generated UUIDs; constrain to a safe filename segment. */
 export function isValidDumpId(id: unknown): id is string {
@@ -65,19 +99,30 @@ export function selectExpiredDumps(files: DumpFileInfo[], maxGroups = MAX_DUMP_G
   return toDelete;
 }
 
-/** Apply retention to the dump dir (best-effort). */
-export function pruneDumps(dir: string): void {
+/** Apply retention against the durable backend using the sidecar index
+ *  (best-effort). Evicts whole expired dumpId groups oldest-first and persists
+ *  the updated index. Accepts an in-memory `index` from writeDump to avoid a
+ *  redundant read; otherwise loads it. */
+export async function pruneDumps(dataRoot: string, index?: DumpIndex): Promise<void> {
+  const backend = getUserContentBackend();
   try {
-    const files: DumpFileInfo[] = fs.readdirSync(dir)
-      .map(name => ({ name, m: DUMP_RE.exec(name) }))
-      .filter((x): x is { name: string; m: RegExpExecArray } => x.m !== null)
-      .map(({ name, m }) => {
-        const stat = fs.statSync(path.join(dir, name));
-        return { name, dumpId: m[2], mtime: stat.mtimeMs, size: stat.size };
-      });
-    for (const name of selectExpiredDumps(files, getConfig().flightRecorder.maxRetainedDumps, getConfig().flightRecorder.maxTotalDumpSizeBytes)) {
-      try { fs.unlinkSync(path.join(dir, name)); } catch { /* telemetry — silent by design */ }
+    const idx = index ?? await readDumpIndex(dataRoot);
+    const files: DumpFileInfo[] = [];
+    for (const [dumpId, e] of Object.entries(idx)) {
+      if (typeof e.client === 'number') files.push({ name: `client-${dumpId}.jsonl`, dumpId, mtime: e.ts, size: e.client });
+      if (typeof e.server === 'number') files.push({ name: `server-${dumpId}.jsonl`, dumpId, mtime: e.ts, size: e.server });
     }
+    const toDelete = selectExpiredDumps(files, getConfig().flightRecorder.maxRetainedDumps, getConfig().flightRecorder.maxTotalDumpSizeBytes);
+    for (const name of toDelete) {
+      try { await backend.deleteFile(path.join(dumpsDir(dataRoot), name)); } catch { /* telemetry — silent by design */ }
+    }
+    // selectExpiredDumps evicts whole groups, so any deleted file drops its whole
+    // dumpId from the index.
+    for (const name of toDelete) {
+      const id = DUMP_RE.exec(name)?.[2];
+      if (id) delete idx[id];
+    }
+    await writeDumpIndex(dataRoot, idx);
   } catch (err) {
     getGlobalRecorder()?.record({
       type: 'system.error', component: 'flight-recorder-dumps', level: 'warn',
@@ -87,13 +132,20 @@ export function pruneDumps(dir: string): void {
   }
 }
 
-/** Write one half of a paired dump and run retention. Returns the file path. */
-export function writeDump(dataRoot: string, kind: 'client' | 'server', dumpId: string, ndjson: string): string {
-  const dir = dumpsDir(dataRoot);
-  fs.mkdirSync(dir, { recursive: true });
-  const filePath = path.join(dir, `${kind}-${dumpId}.jsonl`);
-  fs.writeFileSync(filePath, ndjson, 'utf-8');
-  pruneDumps(dir);
+/** Write one half of a paired dump through the durable backend, update the
+ *  retention index, and prune. Returns the (logical) dump path. Async: the
+ *  backend is blob-backed in production so dumps survive replica recycling and
+ *  are readable from any replica (t/1350). */
+export async function writeDump(dataRoot: string, kind: 'client' | 'server', dumpId: string, ndjson: string): Promise<string> {
+  const filePath = path.join(dumpsDir(dataRoot), `${kind}-${dumpId}.jsonl`);
+  await getUserContentBackend().writeFile(filePath, ndjson);
+
+  const index = await readDumpIndex(dataRoot);
+  const entry = index[dumpId] ?? { ts: Date.now() };
+  entry.ts = Date.now();
+  entry[kind] = Buffer.byteLength(ndjson, 'utf-8');
+  index[dumpId] = entry;
+  await pruneDumps(dataRoot, index); // prunes + persists the updated index
   return filePath;
 }
 
@@ -229,22 +281,20 @@ export function mergeDumps(clientNdjson: string | null, serverNdjson: string | n
  * non-admins — they still get their own client dump merged (t/1064). When false,
  * the server file is never read, so a server-only dumpId yields null for them.
  */
-export function readMergedDump(
+export async function readMergedDump(
   dataRoot: string,
   dumpId: string,
   opts: { includeServer?: boolean } = {},
-): string | null {
+): Promise<string | null> {
   const includeServer = opts.includeServer !== false;
+  const backend = getUserContentBackend();
   const dir = dumpsDir(dataRoot);
-  const clientPath = path.join(dir, `client-${dumpId}.jsonl`);
-  const serverPath = path.join(dir, `server-${dumpId}.jsonl`);
 
-  const clientExists = fs.existsSync(clientPath);
-  const serverExists = includeServer && fs.existsSync(serverPath);
-  if (!clientExists && !serverExists) return null;
-
-  const clientNdjson = clientExists ? fs.readFileSync(clientPath, 'utf-8') : null;
-  const serverNdjson = serverExists ? fs.readFileSync(serverPath, 'utf-8') : null;
+  const clientNdjson = await backend.readFile(path.join(dir, `client-${dumpId}.jsonl`), { optional: true });
+  const serverNdjson = includeServer
+    ? await backend.readFile(path.join(dir, `server-${dumpId}.jsonl`), { optional: true })
+    : null;
+  if (clientNdjson === null && serverNdjson === null) return null;
 
   return mergeDumps(clientNdjson, serverNdjson);
 }

@@ -51,34 +51,34 @@ describe('_local user flight recorder access (t/1111)', () => {
       return records.map(r => JSON.stringify(r)).join('\n') + '\n';
     }
 
-    it('readMergedDump with includeServer:true returns both client and server events', () => {
-      writeDump(root, 'client', 'local-test', ndjson(
+    it('readMergedDump with includeServer:true returns both client and server events', async () => {
+      await writeDump(root, 'client', 'local-test', ndjson(
         { _type: 'header', capacity: 100 },
         { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'click' },
       ));
-      writeDump(root, 'server', 'local-test', ndjson(
+      await writeDump(root, 'server', 'local-test', ndjson(
         { _type: 'header', capacity: 200 },
         { _type: 'event', _wall: '2026-01-01T00:00:02Z', type: 'api.call' },
       ));
 
-      const merged = readMergedDump(root, 'local-test', { includeServer: true });
+      const merged = await readMergedDump(root, 'local-test', { includeServer: true });
       expect(merged).not.toBeNull();
       const lines = merged!.trim().split('\n').map(l => JSON.parse(l));
       expect(lines[0].sources).toEqual(['client', 'server']);
       expect(lines[0].total_events).toBe(2);
     });
 
-    it('readMergedDump with includeServer:false withholds server events (non-admin web path)', () => {
-      writeDump(root, 'client', 'web-test', ndjson(
+    it('readMergedDump with includeServer:false withholds server events (non-admin web path)', async () => {
+      await writeDump(root, 'client', 'web-test', ndjson(
         { _type: 'header', capacity: 100 },
         { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'click' },
       ));
-      writeDump(root, 'server', 'web-test', ndjson(
+      await writeDump(root, 'server', 'web-test', ndjson(
         { _type: 'header', capacity: 200 },
         { _type: 'event', _wall: '2026-01-01T00:00:02Z', type: 'api.call' },
       ));
 
-      const merged = readMergedDump(root, 'web-test', { includeServer: false });
+      const merged = await readMergedDump(root, 'web-test', { includeServer: false });
       expect(merged).not.toBeNull();
       const lines = merged!.trim().split('\n').map(l => JSON.parse(l));
       expect(lines[0].sources).toEqual(['client']);

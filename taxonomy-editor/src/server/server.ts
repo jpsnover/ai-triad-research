@@ -1408,7 +1408,7 @@ get('/api/calibration/history', async (_req, res) => {
 });
 
 // ── Flight recorder dump ──
-post('/api/flight-recorder/dump', (_req, res, body) => {
+post('/api/flight-recorder/dump', async (_req, res, body) => {
   try {
     const { ndjson, dumpId } = body as { ndjson: string; dumpId?: string };
     if (!ndjson || typeof ndjson !== 'string') { error(res, 'Missing ndjson field', 400); return; }
@@ -1418,7 +1418,7 @@ post('/api/flight-recorder/dump', (_req, res, body) => {
     // legacy timestamped behavior.
     if (dumpId !== undefined) {
       if (!isValidDumpId(dumpId)) { error(res, 'dumpId must be a UUID-safe string', 400); return; }
-      const filePath = writeDump(getDataRoot(), 'client', dumpId, ndjson);
+      const filePath = await writeDump(getDataRoot(), 'client', dumpId, ndjson);
       json(res, { filePath, filename: path.basename(filePath), dumpId });
       return;
     }
@@ -1475,7 +1475,7 @@ post('/api/flight-recorder/server-dump', (_req, res) => {
 // Merge-FlightRecorderDumps cmdlet — interleaves events by _wall, tags _source,
 // merges headers/dictionaries/contexts; handles a single side gracefully. Admin
 // only: the merge includes the full server ring buffer (other users' internals).
-get('/api/flight-recorder/download-merged/:dumpId', (req, res) => {
+get('/api/flight-recorder/download-merged/:dumpId', async (req, res) => {
   const dumpId = param(req, 'dumpId', '/api/flight-recorder/download-merged/:dumpId');
   if (!isValidDumpId(dumpId)) { error(res, 'dumpId must be a UUID-safe string', 400); return; }
   // t/1064: the download must NOT fail just because the caller isn't an admin —
@@ -1486,7 +1486,7 @@ get('/api/flight-recorder/download-merged/:dumpId', (req, res) => {
   // callers still get their own client dump.
   const includeServer = community.isAdmin() || STORAGE_MODE !== 'github-api';
   try {
-    const merged = readMergedDump(getDataRoot(), dumpId, { includeServer });
+    const merged = await readMergedDump(getDataRoot(), dumpId, { includeServer });
     if (merged === null) {
       // Actionable, copy-pasteable diagnostics (ADR-001 shape) instead of a bare
       // "failed" — relative paths only, no secrets/absolute fs layout.
