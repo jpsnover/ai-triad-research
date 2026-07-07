@@ -26,6 +26,17 @@ function Get-AzureFlightRecorder {
     .PARAMETER Filename
         Download a specific dump file by name.
 
+    .PARAMETER Merged
+        Download the client + server pair for a given DumpId and produce a
+        single merged JSONL timeline via Merge-FlightRecorderDumps. Works
+        against GitHub — no session cookie or running app required.
+
+    .PARAMETER DumpId
+        Correlation ID for -Merged. Resolves the client/server pair on
+        GitHub (paired naming: client-{DumpId}.jsonl + server-{DumpId}.jsonl,
+        or legacy: flight-recorder-{DumpId}.jsonl + server-flight-recorder-{DumpId}.jsonl).
+        Single-side dumps merge gracefully with a warning.
+
     .PARAMETER OutputPath
         Directory to save downloaded files. Default: current directory.
 
@@ -53,6 +64,15 @@ function Get-AzureFlightRecorder {
 
     .EXAMPLE
         Get-AzureFlightRecorder -Filename 'server-flight-recorder-2026-06-12T10-30-00.000Z.jsonl'
+
+    .EXAMPLE
+        # Download and merge a paired client + server dump by correlation ID (t/1377)
+        Get-AzureFlightRecorder -Merged -DumpId 'a1b2c3d4' -Open
+
+    .EXAMPLE
+        # Chain: get latest available dumpId from -List, then merge it
+        $latest = (Get-AzureFlightRecorder -List | Where-Object Name -Match '^client-(.+)\.jsonl$' | Select-Object -First 1).Name -replace '^client-','' -replace '\.jsonl$',''
+        Get-AzureFlightRecorder -Merged -DumpId $latest
     #>
     [CmdletBinding(DefaultParameterSetName = 'List')]
     param(
@@ -67,6 +87,12 @@ function Get-AzureFlightRecorder {
 
         [Parameter(ParameterSetName = 'ByName', Mandatory)]
         [string]$Filename,
+
+        [Parameter(ParameterSetName = 'Merged', Mandatory)]
+        [switch]$Merged,
+
+        [Parameter(ParameterSetName = 'Merged', Mandatory)]
+        [string]$DumpId,
 
         [Parameter()]
         [string]$OutputPath = '.',
@@ -266,6 +292,52 @@ function Get-AzureFlightRecorder {
         Write-Warning 'No flight recorder dumps found.'
         Write-Warning 'Trigger a dump with: Get-AzureFlightRecorder -TriggerDump'
         return
+    }
+
+    # ── Merged (t/1377): download the client/server pair for a DumpId, merge locally ──
+    if ($PSCmdlet.ParameterSetName -eq 'Merged') {
+        $pair = Find-GitHubDumpPair -DumpId $DumpId -Files $ghFiles
+        $hasClient = $null -ne $pair.Client
+        $hasServer = $null -ne $pair.Server
+
+        if (-not $hasClient -and -not $hasServer) {
+            Write-Warning "No dump files matching DumpId '$DumpId' in $DataRepo (checked paired + legacy schemes)."
+            Write-Warning 'Use: Get-AzureFlightRecorder -List   to see available filenames.'
+            return
+        }
+        if (-not $hasClient) {
+            Write-Warning "No client-side dump for DumpId '$DumpId' — merging server-only."
+        }
+        if (-not $hasServer) {
+            Write-Warning "No server-side dump for DumpId '$DumpId' — merging client-only."
+        }
+        Write-Host "Pair discovered (scheme=$($pair.Scheme)): client=$(if ($hasClient){$pair.Client.name}else{'(missing)'}) server=$(if ($hasServer){$pair.Server.name}else{'(missing)'})" -ForegroundColor Cyan
+
+        # Download available sides
+        $clientLocal = $null
+        $serverLocal = $null
+        if ($hasClient) { $clientLocal = Save-GitHubDumpFile -Name $pair.Client.name -Size $pair.Client.size }
+        if ($hasServer) { $serverLocal = Save-GitHubDumpFile -Name $pair.Server.name -Size $pair.Server.size }
+
+        # Merge — Merge-FlightRecorderDumps handles single-side gracefully
+        $mergedName = "merged-$DumpId.jsonl"
+        $outDir = Resolve-Path $OutputPath -ErrorAction SilentlyContinue
+        if (-not $outDir) { $outDir = (New-Item -ItemType Directory -Path $OutputPath -Force).FullName } else { $outDir = $outDir.Path }
+        $mergedPath = Join-Path $outDir $mergedName
+
+        $mergeParams = @{ OutputPath = $mergedPath; PassThru = $true }
+        if ($clientLocal) { $mergeParams.ClientPath = $clientLocal.FullName }
+        if ($serverLocal) { $mergeParams.ServerPath = $serverLocal.FullName }
+        $mergedInfo = Merge-FlightRecorderDumps @mergeParams
+
+        # Tag the result so pipeline consumers can distinguish merged output from single-file downloads
+        if ($mergedInfo) {
+            $mergedInfo | Add-Member -NotePropertyName Source -NotePropertyValue 'GitHub+Merged' -Force
+            $mergedInfo | Add-Member -NotePropertyName DumpId -NotePropertyValue $DumpId -Force
+            $mergedInfo | Add-Member -NotePropertyName Scheme -NotePropertyValue $pair.Scheme -Force
+        }
+        if ($Open -and $mergedInfo) { $mergedInfo | Show-FlightRecorder }
+        return $mergedInfo
     }
 
     # ── ByName ──
