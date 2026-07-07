@@ -684,6 +684,9 @@ resource authConfig 'Microsoft.App/containerApps/authConfigs@2024-10-02-preview'
 @description('Email address for budget alerts')
 param budgetAlertEmail string = ''
 
+@description('First day of the current month at deploy time — Azure Consumption budgets reject a monthly startDate prior to the current month')
+param budgetStartDate string = utcNow('yyyy-MM-01')
+
 var budgetAlertConfigured = !empty(budgetAlertEmail)
 
 resource budget 'Microsoft.Consumption/budgets@2023-11-01' = if (budgetAlertConfigured) {
@@ -693,7 +696,7 @@ resource budget 'Microsoft.Consumption/budgets@2023-11-01' = if (budgetAlertConf
     amount: 5
     timeGrain: 'Monthly'
     timePeriod: {
-      startDate: '2026-05-01'
+      startDate: budgetStartDate
     }
     notifications: {
       warning80: {
