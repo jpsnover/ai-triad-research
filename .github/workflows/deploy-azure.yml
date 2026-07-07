@@ -474,7 +474,10 @@ jobs:
         run: |
           Import-Module ./scripts/AITriad/AITriad.psm1 -Force
           $BaseUrl = "${{ steps.health_check.outputs.base_url }}"
-          $Results = Test-PersonaEndpoints -BaseUrl $BaseUrl -Detailed
+          # -Detailed omitted: its table-rendering branch has a pre-existing format-string
+          # bug (reported to PowerShell, p/169#4) unrelated to the gate decision below,
+          # which only needs the Pass/Note fields on each result.
+          $Results = Test-PersonaEndpoints -BaseUrl $BaseUrl
           $Fails = @($Results | Where-Object { -not $_.Pass -and -not $_.Note })
 
           if ($Fails.Count -gt 0) {
