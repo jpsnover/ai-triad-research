@@ -8,6 +8,7 @@
  */
 
 import { useState, useMemo } from 'react';
+import { EmptyState } from '../shared/EmptyState';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge } from '../../types/debate';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import { explainNodeStrength } from '../../utils/qbafExplain';
@@ -111,7 +112,12 @@ export function ArgumentGraph({ nodes, edges, selectedNodeId, onSelectNode, turn
   const positions = useMemo(() => layoutNodes(filteredNodes), [filteredNodes]);
 
   if (filteredNodes.length === 0) {
-    return <div className="ag-empty">No argument network nodes yet</div>;
+    return (
+      <EmptyState
+        headline="No argument network nodes yet"
+        direction="Add nodes to the taxonomy to see them here."
+      />
+    );
   }
 
   return (
