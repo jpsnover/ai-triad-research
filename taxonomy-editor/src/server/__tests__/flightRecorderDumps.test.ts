@@ -11,6 +11,8 @@ import path from 'path';
 import {
   isValidDumpId, selectExpiredDumps, writeDump, dumpsDir, mergeDumps, readMergedDump, type DumpFileInfo,
 } from '../flightRecorderDumps.js';
+import { setGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
+import type { FlightRecorder, RecordInput } from '../../../../lib/flight-recorder/flightRecorder.js';
 
 describe('isValidDumpId (t/908)', () => {
   it('accepts UUID-safe ids, rejects traversal/empty/oversized', () => {
@@ -69,6 +71,24 @@ describe('writeDump (t/908)', () => {
     expect(index.abc.client).toBe(Buffer.byteLength('{"seq":1}\n'));
     expect(index.abc.server).toBe(Buffer.byteLength('{"seq":22}\n'));
     expect(typeof index.abc.ts).toBe('number');
+  });
+
+  it('emits a debug flight-recorder.dump.written FR event with backend + size (t/1352)', async () => {
+    const records: RecordInput[] = [];
+    setGlobalRecorder({ record: (e: RecordInput) => records.push(e) } as unknown as FlightRecorder);
+    try {
+      await writeDump(root, 'client', 'evt-id', '{"seq":1}\n');
+    } finally {
+      setGlobalRecorder(null as unknown as FlightRecorder);
+    }
+    const evt = records.find(r => r.type === 'flight-recorder.dump.written');
+    expect(evt).toBeDefined();
+    expect(evt!.level).toBe('debug');
+    const data = evt!.data as Record<string, unknown>;
+    expect(data.storageBackend).toBe('local-fs'); // FilesystemBackend in tests
+    expect(data.dumpId).toBe('evt-id');
+    expect(data.sizeBytes).toBe(Buffer.byteLength('{"seq":1}\n'));
+    expect(typeof data.path).toBe('string');
   });
 });
 

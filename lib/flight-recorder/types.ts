@@ -96,6 +96,7 @@ export type EventType =
   // Storage / IO
   | 'storage.mode'
   | 'storage.fallback'
+  | 'flight-recorder.dump.written' // t/1352: dump persisted — records which backend received it
   | 'io.retry'
   // Lock instrumentation
   | 'lock.acquire_attempt'
