@@ -467,8 +467,28 @@ jobs:
             echo "accepted=true" >> $GITHUB_OUTPUT
           fi
 
+      - name: Persona matrix (pre-traffic shift)
+        id: persona
+        if: steps.health_check.outputs.healthy == 'true'
+        shell: pwsh
+        run: |
+          Import-Module ./scripts/AITriad/AITriad.psm1 -Force
+          $BaseUrl = "${{ steps.health_check.outputs.base_url }}"
+          $Results = Test-PersonaEndpoints -BaseUrl $BaseUrl -Detailed
+          $Fails = @($Results | Where-Object { -not $_.Pass -and -not $_.Note })
+
+          if ($Fails.Count -gt 0) {
+            Write-Host "::error::Persona matrix: $($Fails.Count) real auth-gate regression(s) — NOT shifting traffic"
+            foreach ($F in $Fails) {
+              Write-Host "  FAIL  persona=$($F.Persona) $($F.Method) $($F.Endpoint) expected=$($F.ExpectedAccess) actual=$($F.ActualAccess) status=$($F.StatusCode)"
+            }
+            Add-Content -Path $env:GITHUB_OUTPUT -Value 'accepted=false'
+          } else {
+            Add-Content -Path $env:GITHUB_OUTPUT -Value 'accepted=true'
+          }
+
       - name: Shift traffic to new revision
-        if: steps.health_check.outputs.healthy == 'true' && steps.acceptance.outputs.accepted == 'true'
+        if: steps.health_check.outputs.healthy == 'true' && steps.acceptance.outputs.accepted == 'true' && steps.persona.outputs.accepted == 'true'
         run: |
           echo "New revision healthy — waiting for provisioning to settle..."
           sleep 30
@@ -488,7 +508,7 @@ jobs:
           exit 1
 
       - name: Collect failure diagnostics
-        if: steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false'
+        if: steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false' || steps.persona.outputs.accepted == 'false'
         run: |
           echo "=== Revision Status ==="
           az containerapp revision show \
@@ -514,7 +534,7 @@ jobs:
             --type system --tail 50 2>/dev/null || echo "(no system logs)"
 
       - name: Re-authenticate before rollback
-        if: (steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false') && steps.current_revision.outputs.revision != ''
+        if: (steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false' || steps.persona.outputs.accepted == 'false') && steps.current_revision.outputs.revision != ''
         uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43  # v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -522,7 +542,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Rollback on failure
-        if: (steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false') && steps.current_revision.outputs.revision != ''
+        if: (steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false' || steps.persona.outputs.accepted == 'false') && steps.current_revision.outputs.revision != ''
         run: |
           echo "::error::New revision unhealthy — rolling back to ${{ steps.current_revision.outputs.revision }}"
           # Deactivate the failed revision
@@ -539,13 +559,13 @@ jobs:
           exit 1
 
       - name: Fail if unhealthy (no previous revision to rollback to)
-        if: (steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false') && steps.current_revision.outputs.revision == ''
+        if: (steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false' || steps.persona.outputs.accepted == 'false') && steps.current_revision.outputs.revision == ''
         run: |
           echo "::error::Health check failed and no previous revision exists for rollback"
           exit 1
 
       - name: Post-deploy verification (traffic shifted)
-        if: steps.acceptance.outputs.accepted == 'true'
+        if: steps.acceptance.outputs.accepted == 'true' && steps.persona.outputs.accepted == 'true'
         continue-on-error: true
         run: |
           APP_URL="${{ steps.deploy.outputs.appUrl }}"
