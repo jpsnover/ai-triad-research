@@ -82,11 +82,27 @@ export const conflictFileSchema = z.object({
 
 export type ValidationErrors = Record<string, string>;
 
+function describeInput(input: unknown): string {
+  if (input === null) return 'null';
+  if (input === undefined) return 'undefined';
+  if (Array.isArray(input)) return 'array';
+  return typeof input;
+}
+
+function enrichZodMessage(issue: z.ZodIssue): string {
+  const msg = issue.message;
+  if (issue.code === 'invalid_type' && !msg.includes('expected')) {
+    const received = describeInput(issue.input);
+    return `${msg} (expected ${issue.expected}, received ${received})`;
+  }
+  return msg;
+}
+
 export function extractZodErrors(error: z.ZodError): ValidationErrors {
   const errors: ValidationErrors = {};
   for (const issue of error.issues) {
     const path = issue.path.join('.');
-    errors[path] = issue.message;
+    errors[path] = enrichZodMessage(issue);
   }
   return errors;
 }
@@ -106,7 +122,7 @@ export function extractPovErrors(
     if (parts[0] === 'nodes' && typeof parts[1] === 'number' && nodes[parts[1]]) {
       parts[1] = nodes[parts[1]].id;
     }
-    errors[parts.join('.')] = issue.message;
+    errors[parts.join('.')] = enrichZodMessage(issue);
   }
   return errors;
 }
@@ -122,7 +138,7 @@ export function extractConflictErrors(
   const errors: ValidationErrors = {};
   for (const issue of error.issues) {
     const path = issue.path.join('.');
-    errors[`${claimId}.${path}`] = issue.message;
+    errors[`${claimId}.${path}`] = enrichZodMessage(issue);
   }
   return errors;
 }

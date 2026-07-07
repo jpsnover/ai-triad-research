@@ -118,7 +118,7 @@ export function SaveBar() {
             <div key={file} className="save-bar-error-group">
               <div className="save-bar-error-file">{file}</div>
               {errs.map((e, i) => (
-                <div key={i} className="save-bar-error-item">
+                <div key={i} className="save-bar-error-item" title={`${e.path}: ${e.message}`}>
                   <span className="save-bar-error-path">{e.path}</span>
                   <span className="save-bar-error-msg">{e.message}</span>
                 </div>

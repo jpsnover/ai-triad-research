@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { povTaxonomyFileSchema } from './validation';
+import { povTaxonomyFileSchema, extractPovErrors } from './validation';
 
 function validNode(overrides: Record<string, unknown> = {}) {
   return {
@@ -130,6 +130,15 @@ describe('povTaxonomyFileSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts null weight fields (nullish)', () => {
+    const result = povTaxonomyFileSchema.safeParse(validFile({
+      confidence: null,
+      priority: null,
+      operationality: null,
+    }));
+    expect(result.success).toBe(true);
+  });
+
   it('passes through enrichment fields without rejection', () => {
     const result = povTaxonomyFileSchema.safeParse(validFile({
       graph_attributes: { node_scope: 'claim', custom_field: 'anything' },
@@ -141,5 +150,40 @@ describe('povTaxonomyFileSchema', () => {
       intellectual_lineage: ['source-a'],
     }));
     expect(result.success).toBe(true);
+  });
+});
+
+describe('extractPovErrors', () => {
+  it('includes expected/received in invalid_type messages', () => {
+    const result = povTaxonomyFileSchema.safeParse(validFile({ confidence: 'not-a-number' }));
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const errors = extractPovErrors(result.error, [validNode({ confidence: 'not-a-number' })]);
+      const msg = errors['nodes.acc-desires-001.confidence'];
+      expect(msg).toBeDefined();
+      expect(msg).toContain('expected');
+      expect(msg).toContain('number');
+    }
+  });
+
+  it('remaps array indices to node IDs', () => {
+    const result = povTaxonomyFileSchema.safeParse(validFile({ label: '' }));
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const errors = extractPovErrors(result.error, [validNode({ label: '' })]);
+      expect(errors['nodes.acc-desires-001.label']).toBeDefined();
+      expect(errors['nodes.0.label']).toBeUndefined();
+    }
+  });
+
+  it('preserves descriptive messages for range violations', () => {
+    const result = povTaxonomyFileSchema.safeParse(validFile({ confidence: 1.5 }));
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const errors = extractPovErrors(result.error, [validNode({ confidence: 1.5 })]);
+      const msg = errors['nodes.acc-desires-001.confidence'];
+      expect(msg).toBeDefined();
+      expect(msg.length).toBeGreaterThan(5);
+    }
   });
 });
