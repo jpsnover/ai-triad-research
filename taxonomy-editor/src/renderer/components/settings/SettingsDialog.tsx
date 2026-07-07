@@ -316,7 +316,8 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         const has = await api.hasApiKey(b.value);
         return [b.value, has] as [string, boolean];
       }),
-    ).then((results) => setHasKey(Object.fromEntries(results)));
+    ).then((results) => setHasKey(Object.fromEntries(results)))
+      .catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'settings-dialog', level: 'warn', message: 'hasApiKey check failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); });
   }, [keySuccess, keyRefreshTrigger]);
 
   const handleSaveKey = async () => {

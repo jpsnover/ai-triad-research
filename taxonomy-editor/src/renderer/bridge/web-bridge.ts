@@ -377,7 +377,7 @@ let eventWs: WebSocket | null = null;
 let eventWsReconnectAttempts = 0;
 
 function ensureEventSocket(): void {
-  if (eventWs && eventWs.readyState === WebSocket.OPEN) return;
+  if (eventWs && (eventWs.readyState === WebSocket.OPEN || eventWs.readyState === WebSocket.CONNECTING)) return;
 
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   eventWs = new WebSocket(`${protocol}//${location.host}/ws/events`);

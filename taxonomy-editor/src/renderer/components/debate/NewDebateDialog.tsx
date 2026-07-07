@@ -285,7 +285,8 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
         const has = await api.hasApiKey(b.value);
         return [b.value, has] as [string, boolean];
       }),
-    ).then(results => setHasApiKey(Object.fromEntries(results)));
+    ).then(results => setHasApiKey(Object.fromEntries(results)))
+      .catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'new-debate-dialog', level: 'warn', message: 'hasApiKey check failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); });
     // Multi-provider flow: real availability (key AND tier authorization). Filtering to
     // available===true means resolveMultiProviderModels never assigns a speaker to a
     // backend the server would reject with 403 at generation time (t/772).
