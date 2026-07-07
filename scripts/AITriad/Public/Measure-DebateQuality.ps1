@@ -95,7 +95,10 @@ function Measure-DebateQuality {
 
             # Clamp to [0, 100]: each component is a 0-1 ratio in well-formed data,
             # but defensively guard against malformed values outside that range.
-            $OverallRating = [Math]::Round([Math]::Max(0, [Math]::Min(100, $Score)), 1)
+            # 0.0 / 100.0 are double literals so PS picks Math.Min(double,double) /
+            # Math.Max(double,double) rather than the (int,int) overload — the latter
+            # silently coerces $Score to Int32 and destroys the 1-dp precision (t/1346).
+            $OverallRating = [Math]::Round([Math]::Max(0.0, [Math]::Min(100.0, $Score)), 1)
             $Tier = if     ($OverallRating -ge 75) { 'Excellent' }
                     elseif ($OverallRating -ge 60) { 'Good' }
                     elseif ($OverallRating -ge 40) { 'Fair' }

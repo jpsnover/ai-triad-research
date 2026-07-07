@@ -145,6 +145,25 @@ Describe 'Measure-DebateQuality' -Tag 'debate' {
             $result.Dimensions.PSObject.Properties[$k] | Should -Not -BeNullOrEmpty
         }
     }
+
+    # ── t/1346: pin OverallRating to a 1-dp double so the [Math]::Min(int,double)
+    # int-coercion regression cannot re-slip past the existing "-BeGreaterThan/-BeLessThan" checks. ──
+    It 'OverallRating is Double with 1-dp precision (t/1346 regression guard: FixtureHigh -> 90.2)' {
+        # Raw arithmetic on FixtureHigh (all metrics 0.9/0.8/0.05):
+        #   0.9*20 + 0.9*15 + 0.9*15 + 0.8*10 + 0.9*15 + 0.95*10 + 0.95*10 + 0.95*5 = 90.25
+        # [Math]::Round(90.25, 1) with banker's rounding -> 90.2 (Double).
+        # Before the t/1346 fix, this returned exactly 90 (Decimal) because
+        # [Math]::Min(100, $Score) resolved to Min(int,int), coercing $Score to Int32.
+        $result = Measure-DebateQuality -Path $script:FixtureHigh
+        $result.OverallRating              | Should -Be 90.2
+        $result.OverallRating.GetType().Name | Should -Be 'Double'
+    }
+
+    It 'OverallRating is Double with 1-dp precision (t/1346 regression guard: FixtureLow -> 17.5)' {
+        $result = Measure-DebateQuality -Path $script:FixtureLow
+        $result.OverallRating              | Should -Be 17.5
+        $result.OverallRating.GetType().Name | Should -Be 'Double'
+    }
 }
 
 Describe 'Measure-DebateQuality - manifest' -Tag 'debate' {

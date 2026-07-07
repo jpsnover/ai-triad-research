@@ -71,20 +71,19 @@ BeforeAll {
 
 Describe 'Debate quality-score cross-runtime parity (t/1344)' -Tag 'debate' {
 
-    It 'PS Measure-DebateQuality scores the fixture in the Good band (~70.85 raw)' {
+    It 'PS Measure-DebateQuality scores the fixture to 70.8 / tier Good' {
         if ($script:NodeMissing) {
             Set-ItResult -Skipped -Because 'node/tsx missing on PATH — PARITY GUARD NOT RUN (CI regression?)'
             return
         }
-        # Fixture raw arithmetic = 70.85. Both a strict 1-dp round (70.8/70.9) and
-        # the current cmdlet's integer-truncated return (71 — see follow-up bug
-        # for the [Math]::Min(100, <double>) int-overload coercion) fall inside
-        # this window. This asserts "PS produced a plausible mid-band score",
-        # not the exact value — the parity assertion below is the actual guard.
-        $script:PsResult               | Should -Not -BeNullOrEmpty
-        [double]$script:PsResult.OverallRating | Should -BeGreaterOrEqual 70.5
-        [double]$script:PsResult.OverallRating | Should -BeLessOrEqual   71.5
-        $script:PsResult.Tier          | Should -Be 'Good'
+        # Fixture raw arithmetic = 70.85. Post-t/1346 fix, [Math]::Round uses .NET's
+        # banker's rounding (MidpointRounding.ToEven), so 70.85 -> 70.8 (Double).
+        # Pre-t/1346, this returned 71 (Decimal) because [Math]::Min(100, $Score)
+        # picked the (int,int) overload and coerced $Score to Int32.
+        $script:PsResult                     | Should -Not -BeNullOrEmpty
+        $script:PsResult.OverallRating       | Should -Be 70.8
+        $script:PsResult.OverallRating.GetType().Name | Should -Be 'Double'
+        $script:PsResult.Tier                | Should -Be 'Good'
     }
 
     It 'TS computeQualityScore (via npx tsx) scores the same fixture' {
@@ -109,6 +108,12 @@ Describe 'Debate quality-score cross-runtime parity (t/1344)' -Tag 'debate' {
         if (-not $script:TsResult) {
             throw "TS scorer produced no result — cannot compare. stderr:`n$($script:TsStderr)"
         }
+        # NOTE on why the diff will always be ~0.1 and not 0 for midpoint scores:
+        # JS Math.round is halves-away-from-zero (70.85 -> 70.9). .NET [Math]::Round
+        # defaults to MidpointRounding.ToEven / banker's (70.85 -> 70.8). Both are
+        # legitimate; unifying them is a follow-up if the tolerance ever needs to
+        # shrink. Today's ±0.5 tolerance is loose enough to absorb this + any
+        # numeric-precision jitter, while still catching a weight change.
         $diff = [Math]::Abs([double]$script:PsResult.OverallRating - [double]$script:TsResult.score)
         $diff | Should -BeLessThan 0.5 -Because "PS=$($script:PsResult.OverallRating) TS=$($script:TsResult.score) — formula fork detected between qualityScore.ts and Measure-DebateQuality"
         $script:PsResult.Tier | Should -Be $script:TsResult.tier
