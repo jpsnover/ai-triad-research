@@ -51,6 +51,8 @@ import { registerAdminRoutes } from './routes/admin.js';
 import { registerKeysRoutes } from './routes/keys.js';
 import { registerCommunityRoutes } from './routes/community.js';
 import { registerHarvestRoutes } from './routes/harvest.js';
+import { registerOrganizationsRoutes } from './routes/organizations.js';
+import { registerTaxonomyRoutes } from './routes/taxonomy.js';
 import type { ServerCtx } from './routes/context.js';
 import { getAllFlags, listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
 import { writeDump, isValidDumpId, readMergedDump } from './flightRecorderDumps.js';
@@ -453,76 +455,10 @@ put('/api/taxonomy-dir/active', (_req, res, body) => {
   }
 });
 
-// ── Synthetic corpus (must precede the :pov wildcard) ──
-
-get('/api/taxonomy/synthetic-embeddings', async (_req, res) => {
-  try {
-    const data = await fileIO.loadSyntheticEmbeddings();
-    json(res, data);
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'server',
-      level: 'error',
-      message: 'Failed to load synthetic embeddings',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    error(res, String(err));
-  }
-});
-
-get('/api/taxonomy/synthetic/:pov', async (req, res) => {
-  try {
-    const pov = param(req, 'pov', '/api/taxonomy/synthetic/:pov');
-    const data = await fileIO.loadSyntheticCorpus(pov);
-    if (data === null) { json(res, null); return; }
-    json(res, data);
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to load synthetic corpus', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
-});
-
-// ── Taxonomy CRUD ──
-
-get('/api/taxonomy/:pov', async (req, res) => {
-  try {
-    const pov = param(req, 'pov', '/api/taxonomy/:pov');
-    json(res, await fileIO.readTaxonomyFile(pov));
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to read taxonomy file', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
-});
-
-put('/api/taxonomy/:pov', async (req, res, body) => {
-  if (isAnonymousUser()) { error(res, 'Anonymous users cannot save taxonomy edits. Sign in to save.', 403); return; }
-  try {
-    await ensureSessionBranch();
-    const pov = param(req, 'pov', '/api/taxonomy/:pov');
-    const incoming = body as { nodes?: unknown[] };
-    if (incoming.nodes && Array.isArray(incoming.nodes)) {
-      let oldNodes: unknown[] = [];
-      try {
-        const existing = await fileIO.readTaxonomyFile(pov) as { nodes?: unknown[] };
-        oldNodes = existing?.nodes ?? [];
-      } catch { /* telemetry — silent by design: first write or missing file — treat as empty */ }
-      incoming.nodes = stampNodeAuthorship(
-        oldNodes as Parameters<typeof stampNodeAuthorship>[0],
-        incoming.nodes as Parameters<typeof stampNodeAuthorship>[1],
-      );
-    }
-    await fileIO.writeTaxonomyFile(pov, body);
-    json(res, { ok: true });
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to write taxonomy file', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
-});
-
-// ── Node Edit History ──
-
-get('/api/taxonomy/:pov/node/:nodeId/history', async (req, res) => {
-  try {
-    const pov = param(req, 'pov', '/api/taxonomy/:pov/node/:nodeId/history');
-    const nodeId = param(req, 'nodeId', '/api/taxonomy/:pov/node/:nodeId/history');
-    const data = await fileIO.readTaxonomyFile(pov) as { nodes?: Array<{ id: string; _edit_history?: unknown[]; _edit_meta?: unknown }> };
-    const node = data?.nodes?.find(n => n.id === nodeId);
-    if (!node) { error(res, `Node ${nodeId} not found in ${pov}`, 404); return; }
-    json(res, { nodeId, history: node._edit_history ?? [], edit_meta: node._edit_meta ?? null });
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to load node edit history', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
-});
+// ── Taxonomy: synthetic corpus + CRUD + node edit history ──
+// t/1383: /api/taxonomy/* cluster extracted to routes/taxonomy.ts (registrar at group position;
+// synthetic-embeddings registers before :pov, preserving the collision-pair order).
+registerTaxonomyRoutes(router, serverCtx);
 
 // ── Conflicts ──
 // t/929: conflicts cache TTL is runtime-configurable — getConfig().server.conflictsCacheTtlMs (default 5m).
@@ -584,49 +520,9 @@ get('/api/policy-registry', async (_req, res) => {
   json(res, await fileIO.readPolicyRegistry());
 });
 
-// ── Organizations (t/1225, per t/1217 HLD) — read-only public taxonomy data ──
-
-// GET /api/organizations?type=&pov=  — list all (optional type / pov-alignment filters)
-get('/api/organizations', async (req, res) => {
-  try {
-    json(res, await organizations.listOrganizations({ type: query(req, 'type'), pov: query(req, 'pov') }));
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to list organizations', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
-});
-
-// GET /api/organizations/by-pov/:pov?direction=for|against&threshold=0.3
-get('/api/organizations/by-pov/:pov', async (req, res) => {
-  try {
-    const pov = param(req, 'pov', '/api/organizations/by-pov/:pov');
-    if (!isPov(pov)) { error(res, `Unknown POV camp: ${pov}`, 400); return; }
-    const direction = query(req, 'direction') === 'against' ? 'against' : 'for';
-    const tRaw = Number(query(req, 'threshold'));
-    const threshold = Number.isFinite(tRaw) ? tRaw : 0.3;
-    json(res, await organizations.organizationsByPov(pov, direction, threshold));
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to query organizations by POV', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
-});
-
-// GET /api/organizations/by-topic/:topicRef  — orgs engaged with a situation (sit-*)
-get('/api/organizations/by-topic/:topicRef', async (req, res) => {
-  try {
-    json(res, await organizations.organizationsByTopic(param(req, 'topicRef', '/api/organizations/by-topic/:topicRef')));
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to query organizations by topic', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
-});
-
-// GET /api/organizations/by-policy/:policyId  — orgs supporting/opposing a policy (pol-*)
-get('/api/organizations/by-policy/:policyId', async (req, res) => {
-  try {
-    json(res, await organizations.organizationsByPolicy(param(req, 'policyId', '/api/organizations/by-policy/:policyId')));
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to query organizations by policy', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
-});
-
-// GET /api/organizations/:id  — single org (registered last; :id must not shadow the by-* literals)
-get('/api/organizations/:id', async (req, res) => {
-  try {
-    const org = await organizations.getOrganizationById(param(req, 'id', '/api/organizations/:id'));
-    if (!org) { error(res, 'Organization not found', 404); return; }
-    json(res, org);
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to load organization', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
-});
+// ── Organizations (t/1225) ──
+// t/1383: /api/organizations/* cluster extracted to routes/organizations.ts (registrar at group position).
+registerOrganizationsRoutes(router, serverCtx);
 
 // ── Lineage categories ──
 
