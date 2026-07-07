@@ -34,6 +34,7 @@ function Invoke-QbafConflictAnalysis {
         [ValidateRange(0.5, 1.0)]
         [double]$Threshold = 0.85,
 
+        [Alias('OutputPath')]
         [string]$OutputDir = '',
 
         [switch]$DryRun,

@@ -25,6 +25,7 @@ function Convert-MD2PDF {
         [string[]]$Path,
 
         [Parameter()]
+        [Alias('OutputPath')]
         [string]$OutputDirectory,
 
         [Parameter()]

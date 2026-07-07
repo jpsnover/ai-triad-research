@@ -48,7 +48,7 @@ function Invoke-AITDebate {
 
         [Parameter(Mandatory, ParameterSetName = 'Document')]
         [ValidateScript({ Test-Path $_ })]
-        [Alias('DocumentPath')]
+        [Alias('DocumentPath', 'Path')]
         [string]$DocPath,
 
         [Parameter(Mandatory, ParameterSetName = 'Url')]
@@ -91,6 +91,7 @@ function Invoke-AITDebate {
         [int]$ProbeEvery = 2,
 
         [Parameter()]
+        [Alias('OutputPath')]
         [string]$OutputDirectory,
 
         [Parameter()]

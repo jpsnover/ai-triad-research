@@ -48,6 +48,7 @@ function Invoke-TaxonomyProposal {
         [string]$RepoRoot    = $script:RepoRoot,
         [switch]$DryRun,
         [switch]$IncludeHarvestQueue,
+        [Alias('OutputPath')]
         [string]$OutputFile  = '',
         [hashtable]$HealthData = $null
     )

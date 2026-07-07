@@ -55,6 +55,7 @@ function Find-SituationCandidates {
         [ValidateRange(0.50, 0.95)]
         [double]$MinSimilarity = 0.60,
 
+        [Alias('OutputPath')]
         [string]$OutputFile,
 
         [switch]$NoAI,

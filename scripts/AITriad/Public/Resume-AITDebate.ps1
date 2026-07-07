@@ -47,6 +47,7 @@ function Resume-AITDebate {
         [string]$From,
 
         [Parameter()]
+        [Alias('OutputPath')]
         [string]$OutputDirectory,
 
         [Parameter()]

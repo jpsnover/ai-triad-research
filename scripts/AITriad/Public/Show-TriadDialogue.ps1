@@ -46,6 +46,7 @@ function Show-TriadDialogue {
         [ValidateRange(1, 15)]
         [int]$Rounds = 3,
 
+        [Alias('OutputPath')]
         [string]$OutputFile,
 
         [ValidateScript({ Test-AIModelId $_ })]

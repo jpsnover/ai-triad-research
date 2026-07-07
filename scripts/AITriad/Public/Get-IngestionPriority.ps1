@@ -36,6 +36,7 @@ function Get-IngestionPriority {
         [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'all')]
         [string]$POV = 'all',
 
+        [Alias('OutputPath')]
         [string]$OutputFile,
 
         [switch]$NoAI,

@@ -38,9 +38,11 @@ function Invoke-DebateBatch {
     param(
         [Parameter(Mandatory, Position = 0)]
         [ValidateScript({ Test-Path $_ })]
+        [Alias('Path')]
         [string]$ConfigPath,
 
         [Parameter()]
+        [Alias('OutputPath')]
         [string]$OutputDirectory,
 
         [Parameter()]

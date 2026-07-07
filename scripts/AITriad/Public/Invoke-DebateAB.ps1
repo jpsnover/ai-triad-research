@@ -33,6 +33,7 @@ function Invoke-DebateAB {
     param(
         [Parameter(Mandatory)]
         [ValidateScript({ Test-Path $_ })]
+        [Alias('Path')]
         [string]$DocPath,
 
         [int]$LimitA = 50000,

@@ -38,6 +38,7 @@ function Get-TaxonomyHealth {
     [CmdletBinding()]
     param(
         [string]$RepoRoot   = $script:RepoRoot,
+        [Alias('OutputPath')]
         [string]$OutputFile  = '',
         [switch]$Detailed,
         [switch]$GraphMode,

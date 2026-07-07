@@ -34,6 +34,7 @@ function Invoke-HierarchyProposal {
         [ValidateRange(0.20, 0.80)]
         [double]$MinSimilarity = 0.40,
 
+        [Alias('OutputPath')]
         [string]$OutputDir = '',
 
         [switch]$DryRun,
