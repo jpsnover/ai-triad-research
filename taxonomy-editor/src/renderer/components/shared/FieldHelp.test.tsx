@@ -11,7 +11,7 @@ describe('FieldHelp', () => {
 
   it('renders the help button with "?" text', () => {
     render(<FieldHelp text={helpText} />);
-    expect(screen.getByRole('button', { name: '?' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show help' })).toBeInTheDocument();
   });
 
   it('does not show the tooltip by default', () => {
@@ -21,13 +21,13 @@ describe('FieldHelp', () => {
 
   it('shows the tooltip on mouse enter', async () => {
     render(<FieldHelp text={helpText} />);
-    await userEvent.hover(screen.getByRole('button', { name: '?' }));
+    await userEvent.hover(screen.getByRole('button', { name: 'Show help' }));
     expect(screen.getByText(helpText)).toBeInTheDocument();
   });
 
   it('hides the tooltip on mouse leave', async () => {
     render(<FieldHelp text={helpText} />);
-    const btn = screen.getByRole('button', { name: '?' });
+    const btn = screen.getByRole('button', { name: 'Show help' });
     await userEvent.hover(btn);
     expect(screen.getByText(helpText)).toBeInTheDocument();
     await userEvent.unhover(btn);
@@ -36,7 +36,7 @@ describe('FieldHelp', () => {
 
   it('sets the title attribute for native tooltip fallback', () => {
     render(<FieldHelp text={helpText} />);
-    expect(screen.getByRole('button', { name: '?' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Show help' })).toHaveAttribute(
       'title',
       helpText,
     );
