@@ -21,6 +21,8 @@ Their Proposition 1 formally proves that **DF-QuAD is an instance of their aggre
 
 This means our DF-QuAD implementation is not an ad-hoc formula — it's a principled member of a well-defined family of semantics with known formal properties. This is useful for our academic paper: we can cite this subsumption result to justify our choice within the broader landscape.
 
+> **ERRATUM (2026-07-08, CL, t/1402):** The paragraph above is wrong about our implementation. The subsumption result covers DF-QuAD's *product* aggregation (∏(1−m), correctly stated in the bullet), but `qbaf.ts`'s default has been **sum-and-clamp** aggregation with a multiplicative combine since the engine's founding commit (`d6db1fa9`) — the very code quoted in B1 below. The subsumption claim therefore does NOT apply to our default semantics, and this section must not be cited in the paper until t/1402 resolves (either by implementing true DF-QuAD or by renaming our semantics honestly). Ironically, this document contained both halves of the discrepancy — the product form in A1 and our Σ-and-clamp code in B1 — without connecting them.
+
 ### A2. Semantic Choice Is Context-Dependent, Not Universal
 
 Their main finding — 515 variants, no single best — reinforces what we've seen across all reviewed papers: the choice of specific semantics matters less than the architectural decision to use formal argumentation at all. ArgRAG showed "only minor differences," the unified framework paper called it "orthogonal," and now this paper shows the choice depends on contextual requirements (ordering, repetition, weakening behavior).
