@@ -1,10 +1,8 @@
 /* DebateWorkspace — Design Elevation Phase 4b (t/1371) */
 
-/* Transcript column: centered, constrained width for readability */
+/* Transcript column: full panel width (panel bounds provide readability constraint) */
 .debate-transcript-column {
-  max-width: 76ch;
   width: 100%;
-  margin-inline: auto;
 }
 
 /* Phase transition hairlines — replace phase-transition-card boxes */
