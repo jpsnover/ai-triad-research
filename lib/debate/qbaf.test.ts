@@ -2,7 +2,17 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { computeQbafStrengths, computeEdgeAttribution, computeShapleyContributions } from './qbaf.js';
+import {
+  computeQbafStrengths,
+  computeEdgeAttribution,
+  computeShapleyContributions,
+  computeQbafConvergence,
+  computeFactCheckStrength,
+  dfQuadAggregate,
+  dfQuadCombine,
+  saturatingSumAggregate,
+  saturatingSumCombine,
+} from './qbaf.js';
 import type { QbafNode, QbafEdge } from './qbaf.js';
 
 describe('computeQbafStrengths — NaN guard', () => {
@@ -271,5 +281,196 @@ describe('computeQbafStrengths — progressive damping', () => {
     const result = computeQbafStrengths(nodes, edges);
     expect(result.converged).toBe(true);
     expect(result.dampingLevel).toBe(0);
+  });
+});
+
+// ── dfQuadAggregate ─────────────────────────────────────
+
+describe('dfQuadAggregate', () => {
+  it('returns 0 for empty influences', () => {
+    expect(dfQuadAggregate([])).toBe(0);
+  });
+
+  it('returns the value for a single influence', () => {
+    expect(dfQuadAggregate([0.4])).toBeCloseTo(0.4);
+  });
+
+  it('computes probabilistic sum for two influences', () => {
+    // 1 - (1-0.3)(1-0.5) = 1 - 0.7*0.5 = 0.65
+    expect(dfQuadAggregate([0.3, 0.5])).toBeCloseTo(0.65);
+  });
+
+  it('saturates below 1.0 for large inputs', () => {
+    // 1 - (1-0.9)^3 = 1 - 0.001 = 0.999
+    expect(dfQuadAggregate([0.9, 0.9, 0.9])).toBeCloseTo(0.999);
+    expect(dfQuadAggregate([0.9, 0.9, 0.9])).toBeLessThan(1.0);
+  });
+
+  it('clamps negative inputs to 0', () => {
+    expect(dfQuadAggregate([-0.5, 0.3])).toBeCloseTo(0.3);
+  });
+
+  it('clamps inputs above 1 to 1', () => {
+    // clamp(1.5)=1 → (1-1)=0 → product=0 → result=1
+    expect(dfQuadAggregate([1.5, 0.3])).toBeCloseTo(1.0);
+  });
+});
+
+// ── dfQuadCombine ───────────────────────────────────────
+
+describe('dfQuadCombine', () => {
+  it('returns base when no attack or support', () => {
+    expect(dfQuadCombine(0.6, 0, 0)).toBeCloseTo(0.6);
+  });
+
+  it('boosts toward 1 when support exceeds attack', () => {
+    // base=0.5, sup=0.4, att=0.1 → 0.5 + (1-0.5)*0.3 = 0.65
+    expect(dfQuadCombine(0.5, 0.1, 0.4)).toBeCloseTo(0.65);
+  });
+
+  it('reduces toward 0 when attack exceeds support', () => {
+    // base=0.5, sup=0.1, att=0.4 → 0.5 - 0.5*0.3 = 0.35
+    expect(dfQuadCombine(0.5, 0.4, 0.1)).toBeCloseTo(0.35);
+  });
+
+  it('pure support pushes toward 1 but never exceeds it', () => {
+    // base=0.8, sup=0.5, att=0 → 0.8 + 0.2*0.5 = 0.9
+    expect(dfQuadCombine(0.8, 0, 0.5)).toBeCloseTo(0.9);
+  });
+
+  it('pure attack pushes toward 0 but never below it', () => {
+    // base=0.2, sup=0, att=0.5 → 0.2 - 0.2*0.5 = 0.1
+    expect(dfQuadCombine(0.2, 0.5, 0)).toBeCloseTo(0.1);
+  });
+
+  it('equal support and attack returns base', () => {
+    expect(dfQuadCombine(0.7, 0.3, 0.3)).toBeCloseTo(0.7);
+  });
+});
+
+// ── saturatingSumAggregate ──────────────────────────────
+
+describe('saturatingSumAggregate', () => {
+  it('returns 0 for empty influences', () => {
+    expect(saturatingSumAggregate([])).toBe(0);
+  });
+
+  it('sums and clamps to [0,1]', () => {
+    expect(saturatingSumAggregate([0.3, 0.5])).toBeCloseTo(0.8);
+    expect(saturatingSumAggregate([0.6, 0.7])).toBe(1.0);
+  });
+});
+
+// ── saturatingSumCombine ───────────────────────────────
+
+describe('saturatingSumCombine', () => {
+  it('returns base when no attack or support', () => {
+    expect(saturatingSumCombine(0.6, 0, 0)).toBeCloseTo(0.6);
+  });
+
+  it('multiplies base by (1 - att) × (1 + sup)', () => {
+    // base=0.5, att=0.2, sup=0.3 → 0.5 * 0.8 * 1.3 = 0.52
+    expect(saturatingSumCombine(0.5, 0.2, 0.3)).toBeCloseTo(0.52);
+  });
+});
+
+// ── algorithm preset selection ──────────────────────────
+
+describe('algorithm preset selection', () => {
+  const nodes: QbafNode[] = [
+    { id: 'sup', base_strength: 0.8 },
+    { id: 'target', base_strength: 0.5 },
+  ];
+  const edges: QbafEdge[] = [
+    { source: 'sup', target: 'target', type: 'supports', weight: 0.6 },
+  ];
+
+  it('dfquad is the default algorithm', () => {
+    const noAlgo = computeQbafStrengths(nodes, edges);
+    const explicit = computeQbafStrengths(nodes, edges, { algorithm: 'dfquad' });
+    expect(noAlgo.strengths.get('target')).toBeCloseTo(
+      explicit.strengths.get('target')!,
+    );
+  });
+
+  it('saturating-sum can be selected explicitly', () => {
+    const result = computeQbafStrengths(nodes, edges, { algorithm: 'saturating-sum' });
+    // saturating-sum: base * (1-0) * (1 + aggSup) where aggSup = clamp(0.8*0.6) = 0.48
+    // → 0.5 * 1 * 1.48 = 0.74
+    expect(result.strengths.get('target')!).toBeCloseTo(0.74, 1);
+  });
+
+  it('custom hooks override algorithm preset', () => {
+    const customAgg = (influences: number[]): number => {
+      return influences.length > 0 ? 0.42 : 0;
+    };
+    const result = computeQbafStrengths(nodes, edges, {
+      algorithm: 'saturating-sum',
+      aggregateSupports: customAgg,
+    });
+    // Custom hook used for supports, saturating-sum combine still active
+    // combine: base * (1-0) * (1 + 0.42) = 0.5 * 1.42 = 0.71
+    expect(result.strengths.get('target')!).toBeCloseTo(0.71, 1);
+  });
+
+  it('attacks-only case produces same results for both algorithms', () => {
+    const atkNodes: QbafNode[] = [
+      { id: 'a1', base_strength: 0.7 },
+      { id: 'target', base_strength: 0.6 },
+    ];
+    const atkEdges: QbafEdge[] = [
+      { source: 'a1', target: 'target', type: 'attacks', weight: 0.4 },
+    ];
+    const dfquad = computeQbafStrengths(atkNodes, atkEdges, { algorithm: 'dfquad' });
+    const satsum = computeQbafStrengths(atkNodes, atkEdges, { algorithm: 'saturating-sum' });
+    // single attacker, no support: both reduce base by same factor
+    expect(dfquad.strengths.get('target')!).toBeCloseTo(
+      satsum.strengths.get('target')!, 1,
+    );
+  });
+});
+
+// ── computeQbafConvergence ──────────────────────────────
+
+describe('computeQbafConvergence', () => {
+  it('returns undefined for empty claim list', () => {
+    expect(computeQbafConvergence([], new Map())).toBeUndefined();
+  });
+
+  it('returns undefined when no claims have strengths', () => {
+    expect(computeQbafConvergence(['a', 'b'], new Map())).toBeUndefined();
+  });
+
+  it('averages strengths of matched claims', () => {
+    const strengths = new Map([['a', 0.8], ['b', 0.4], ['c', 0.6]]);
+    expect(computeQbafConvergence(['a', 'b'], strengths)).toBeCloseTo(0.6);
+  });
+});
+
+// ── computeFactCheckStrength ────────────────────────────
+
+describe('computeFactCheckStrength', () => {
+  it('returns base strength with no evidence', () => {
+    const result = computeFactCheckStrength(0.7, []);
+    expect(result.adjusted_strength).toBeCloseTo(0.7);
+    expect(result.original_strength).toBe(0.7);
+    expect(result.support_count).toBe(0);
+    expect(result.attack_count).toBe(0);
+  });
+
+  it('increases strength with supporting evidence', () => {
+    const result = computeFactCheckStrength(0.5, [
+      { id: 'e1', text: 'supports', relation: 'supports', source_reliability: 0.9, relevance: 0.8 },
+    ]);
+    expect(result.adjusted_strength).toBeGreaterThan(0.5);
+    expect(result.support_count).toBe(1);
+  });
+
+  it('decreases strength with attacking evidence', () => {
+    const result = computeFactCheckStrength(0.5, [
+      { id: 'e1', text: 'attacks', relation: 'attacks', source_reliability: 0.9, relevance: 0.8 },
+    ]);
+    expect(result.adjusted_strength).toBeLessThan(0.5);
+    expect(result.attack_count).toBe(1);
   });
 });

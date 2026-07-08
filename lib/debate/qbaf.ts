@@ -3,8 +3,17 @@
 
 /**
  * QBAF — Quantitative Bipolar Argumentation Framework.
- * Implements DF-QuAD (Discontinuity-Free Quantitative Argumentation Debate)
- * gradual semantics for computing argument acceptability strengths.
+ *
+ * Two built-in gradual semantics (selectable via `QbafOptions.algorithm`):
+ *
+ * **dfquad** (default) — DF-QuAD (Rago, Toni, Aurisicchio & Baroni, KR 2016).
+ *   Aggregation: probabilistic sum  1 − ∏(1 − xᵢ)
+ *   Combine:     if sup≥att → base + (1−base)×(sup−att)
+ *                if att>sup → base − base×(att−sup)
+ *
+ * **saturating-sum** — sum-and-clamp aggregation with multiplicative combine.
+ *   Aggregation: clamp(Σ xᵢ)
+ *   Combine:     clamp(base × (1 − aggAtt) × (1 + aggSup))
  */
 
 // ── Types ─────────────────────────────────────────────────
@@ -22,18 +31,22 @@ export interface QbafEdge {
   attack_type?: 'rebut' | 'undercut' | 'undermine';
 }
 
+export type QbafAlgorithm = 'dfquad' | 'saturating-sum';
+
 export interface QbafOptions {
+  /** Preset algorithm selecting aggregation + combine functions. Default: 'dfquad'. */
+  algorithm?: QbafAlgorithm;
   /** Maximum iterations before forced termination. Default: 100. */
   maxIterations?: number;
   /** Convergence threshold — max delta between iterations. Default: 0.001. */
   convergenceThreshold?: number;
   /** Weight multipliers by attack type. Default: rebut=1.0, undercut=1.05, undermine=1.1. */
   attackWeights?: Partial<Record<'rebut' | 'undercut' | 'undermine', number>>;
-  /** Aggregate attack influences into a single value. Default: sum-and-clamp to [0,1]. */
+  /** Aggregate attack influences into a single value. Overrides algorithm preset. */
   aggregateAttacks?: (attackInfluences: number[]) => number;
-  /** Aggregate support influences into a single value. Default: sum-and-clamp to [0,1]. */
+  /** Aggregate support influences into a single value. Overrides algorithm preset. */
   aggregateSupports?: (supportInfluences: number[]) => number;
-  /** Combine base strength with aggregated attack/support. Default: DF-QuAD formula. */
+  /** Combine base strength with aggregated attack/support. Overrides algorithm preset. */
   combine?: (base: number, aggAtt: number, aggSup: number) => number;
 }
 
@@ -54,32 +67,52 @@ const DEFAULT_ATTACK_WEIGHTS: Record<string, number> = {
   undermine: 1.1,
 };
 
-// ── Default aggregation functions ─────────────────────────
+// ── Saturating-sum semantics (legacy default pre-t/1402) ──
 
-function defaultAggregate(influences: number[]): number {
+export function saturatingSumAggregate(influences: number[]): number {
   let sum = 0;
   for (const v of influences) sum += v;
   return clamp(sum);
 }
 
-function defaultCombine(base: number, aggAtt: number, aggSup: number): number {
+export function saturatingSumCombine(base: number, aggAtt: number, aggSup: number): number {
   return clamp(base * (1 - aggAtt) * (1 + aggSup));
 }
 
-// ── DF-QuAD Engine ────────────────────────────────────────
+// ── DF-QuAD semantics (Rago et al., KR 2016) ─────────────
+
+export function dfQuadAggregate(influences: number[]): number {
+  let product = 1;
+  for (const v of influences) product *= (1 - clamp(v));
+  return 1 - product;
+}
+
+export function dfQuadCombine(base: number, aggAtt: number, aggSup: number): number {
+  if (aggSup >= aggAtt) {
+    return base + (1 - base) * (aggSup - aggAtt);
+  } else {
+    return base - base * (aggAtt - aggSup);
+  }
+}
+
+// ── Algorithm preset resolution ───────────────────────────
+
+function resolveAlgorithm(algorithm: QbafAlgorithm | undefined): {
+  aggregate: (influences: number[]) => number;
+  combine: (base: number, aggAtt: number, aggSup: number) => number;
+} {
+  if (algorithm === 'saturating-sum') {
+    return { aggregate: saturatingSumAggregate, combine: saturatingSumCombine };
+  }
+  return { aggregate: dfQuadAggregate, combine: dfQuadCombine };
+}
+
+// ── QBAF Engine ──────────────────────────────────────────
 
 /**
- * Compute QBAF acceptability strengths using DF-QuAD gradual semantics.
- *
- * For each node v:
- *   σ(v) = τ(v) × (1 - aggAtt) × (1 + aggSup)
- *   clamped to [0, 1]
- *
- * where:
- *   τ(v) = base strength
- *   aggAtt = Σ (σ(attacker) × edge_weight × attack_type_multiplier), clamped to [0, 1]
- *   aggSup = Σ (σ(supporter) × edge_weight), clamped to [0, 1]
- *
+ * Compute QBAF acceptability strengths using gradual semantics.
+ * Algorithm selectable via `options.algorithm` (default: 'dfquad').
+ * Custom aggregation/combine hooks override the algorithm preset.
  * Iterates until convergence or maxIterations.
  */
 export function computeQbafStrengths(
@@ -90,9 +123,10 @@ export function computeQbafStrengths(
   const maxIter = options?.maxIterations ?? 100;
   const threshold = options?.convergenceThreshold ?? 0.001;
   const atkWeights = { ...DEFAULT_ATTACK_WEIGHTS, ...options?.attackWeights };
-  const aggAttFn = options?.aggregateAttacks ?? defaultAggregate;
-  const aggSupFn = options?.aggregateSupports ?? defaultAggregate;
-  const combineFn = options?.combine ?? defaultCombine;
+  const preset = resolveAlgorithm(options?.algorithm);
+  const aggAttFn = options?.aggregateAttacks ?? preset.aggregate;
+  const aggSupFn = options?.aggregateSupports ?? preset.aggregate;
+  const combineFn = options?.combine ?? preset.combine;
 
   if (nodes.length === 0) {
     return { strengths: new Map(), iterations: 0, converged: true };
@@ -251,7 +285,7 @@ export interface FactCheckQbafResult {
 /**
  * Compute QBAF-adjusted claim strength incorporating web evidence.
  * Models the claim as a QBAF node, web evidence as supporting/attacking nodes,
- * and runs DF-QuAD to get the adjusted strength.
+ * and runs the QBAF engine to get the adjusted strength.
  */
 export function computeFactCheckStrength(
   claimBaseStrength: number,

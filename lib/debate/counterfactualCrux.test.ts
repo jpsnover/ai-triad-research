@@ -125,14 +125,14 @@ describe('computeCounterfactualCruxes — flip detection', () => {
    * AN-1 (base=0.25, died baseline — would die without support)
    * AN-2 (base=0.9) → supports AN-1 with weight=0.9
    *
-   * With support:
-   *   aggSup = 0.9 * 0.9 = 0.81
-   *   σ(AN-1) = 0.25 * (1 - 0) * (1 + 0.81) ≈ 0.4525  → survived
+   * With support (DF-QuAD):
+   *   aggSup = dfQuadAggregate([0.9 × 0.9]) = 0.81
+   *   σ(AN-1) = 0.25 + (1 − 0.25) × 0.81 = 0.8575  → thrived
    *
    * Without the support edge:
    *   σ(AN-1) = 0.25  → died
    *
-   * Removing the support flips AN-1 from survived → died.
+   * Removing the support flips AN-1 from thrived → died.
    */
   it('detects flip when removing a decisive support drops a claim to died', () => {
     const nodes = [
@@ -147,7 +147,7 @@ describe('computeCounterfactualCruxes — flip detection', () => {
     expect(crux).toBeDefined();
     expect(crux!.flipping_argument_id).toBe('AN-2');
     expect(crux!.edge_type).toBe('supports');
-    expect(crux!.original_outcome).toBe('survived');
+    expect(crux!.original_outcome).toBe('thrived');
     expect(crux!.counterfactual_outcome).toBe('died');
     // Removing the support decreases strength
     expect(crux!.strength_delta).toBeLessThan(0);
