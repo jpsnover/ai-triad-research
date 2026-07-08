@@ -1,0 +1,101 @@
+/* ChatWorkspace — Phase 4d design elevation overrides.
+   Styles here override the frozen monolith (styles.css) selectors. */
+
+/* ── Message bubbles ─────────────────────────────────── */
+
+.chat-message {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+}
+
+.chat-message-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.chat-message-avatar.camp-acc { background: var(--tint-acc); color: var(--color-acc); }
+.chat-message-avatar.camp-saf { background: var(--tint-saf); color: var(--color-saf); }
+.chat-message-avatar.camp-skp { background: var(--tint-skp); color: var(--color-skp); }
+
+.chat-message-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.chat-message-user {
+  flex-direction: row-reverse;
+}
+
+.chat-message-user .chat-message-body {
+  text-align: right;
+}
+
+.chat-message-user .chat-taxonomy-refs {
+  text-align: left;
+}
+
+/* ── Message prose ───────────────────────────────────── */
+
+.chat-message-content.markdown-body {
+  font-family: var(--font-prose);
+  font-size: var(--text-prose);
+  line-height: var(--leading-prose);
+  max-width: 68ch;
+}
+
+/* ── Composer ────────────────────────────────────────── */
+
+.chat-input-bar {
+  box-shadow: var(--shadow-2);
+}
+
+.chat-input {
+  border-radius: var(--radius-lg);
+}
+
+/* ── Reference pills collapsed ───────────────────────── */
+
+.chat-refs-collapsed {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: var(--sp-1) 0;
+  text-decoration: underline;
+}
+
+.chat-refs-collapsed:hover {
+  color: var(--text-secondary);
+}
+
+/* ── Header inline-style hoists ──────────────────────── */
+
+.chat-share-btn {
+  flex-shrink: 0;
+  font-size: var(--text-2xs);
+}
+
+.chat-share-error {
+  color: var(--red, #ef4444);
+  font-size: var(--text-xs);
+  padding: var(--sp-1) var(--sp-3);
+}
+
+/* ── Camp speaker colors ─────────────────────────────── */
+
+.camp-speaker-acc { color: var(--color-acc); }
+.camp-speaker-saf { color: var(--color-saf); }
+.camp-speaker-skp { color: var(--color-skp); }
+
+/* ── Taxonomy pill cursor (hoist from inline) ────────── */
+
+.taxonomy-pill[data-clickable] {
+  cursor: pointer;
+}

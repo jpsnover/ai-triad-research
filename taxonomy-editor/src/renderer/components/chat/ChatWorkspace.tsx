@@ -21,6 +21,9 @@ import { useUserProfile } from '../../hooks/useAuthStatus';
 import { CommunityShareBanner } from '../shared/CommunityShareBanner';
 import { useGeminiOnboarding } from '../../hooks/useGeminiOnboarding';
 import { GeminiOnboardingModal } from '../settings/GeminiOnboardingModal';
+import { CampGlyph, povToCamp } from '../shared/CampGlyph';
+import { EmptyState } from '../shared/EmptyState';
+import './ChatWorkspace.css';
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -29,11 +32,6 @@ function speakerLabel(speaker: string): string {
   if (speaker === 'system') return 'System';
   const info = POVER_INFO[speaker as keyof typeof POVER_INFO];
   return info?.label || speaker;
-}
-
-function speakerColor(speaker: string): string | undefined {
-  if (speaker === 'user' || speaker === 'system') return undefined;
-  return POVER_INFO[speaker as keyof typeof POVER_INFO]?.color;
 }
 
 function nodeIdToTab(nodeId: string): string {
@@ -49,7 +47,7 @@ function TaxonomyPill({ taxRef, selected, onClick }: { taxRef: TaxonomyRef; sele
       className={`taxonomy-pill tab-${tab}${selected ? ' selected' : ''}`}
       title={taxRef.relevance || taxRef.node_id}
       onClick={onClick}
-      style={{ cursor: onClick ? 'pointer' : undefined }}
+      data-clickable={onClick ? '' : undefined}
     >
       {taxRef.node_id}
     </span>
@@ -57,9 +55,20 @@ function TaxonomyPill({ taxRef, selected, onClick }: { taxRef: TaxonomyRef; sele
 }
 
 function TaxonomyRefsSection({ refs, selectedNodeId, onSelectNode }: { refs: TaxonomyRef[]; selectedNodeId: string | null; onSelectNode: (id: string | null) => void }) {
+  const [expanded, setExpanded] = useState(false);
   const [showReasoning, setShowReasoning] = useState(false);
 
   if (!refs || refs.length === 0) return null;
+
+  if (!expanded) {
+    return (
+      <div className="chat-taxonomy-refs">
+        <button className="chat-refs-collapsed" onClick={() => setExpanded(true)}>
+          {refs.length} {refs.length === 1 ? 'reference' : 'references'}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="chat-taxonomy-refs">
@@ -78,6 +87,12 @@ function TaxonomyRefsSection({ refs, selectedNodeId, onSelectNode }: { refs: Tax
         >
           {showReasoning ? 'Hide reasoning' : 'Show reasoning'}
         </button>
+        <button
+          className="chat-taxonomy-toggle"
+          onClick={() => { setExpanded(false); setShowReasoning(false); }}
+        >
+          Collapse
+        </button>
       </div>
       {showReasoning && (
         <div className="chat-taxonomy-reasoning">
@@ -85,7 +100,7 @@ function TaxonomyRefsSection({ refs, selectedNodeId, onSelectNode }: { refs: Tax
             <div key={r.node_id} className="chat-taxonomy-reasoning-item">
               <span
                 className={`taxonomy-pill tab-${nodeIdToTab(r.node_id)}${r.node_id === selectedNodeId ? ' selected' : ''}`}
-                style={{ cursor: 'pointer' }}
+                data-clickable=""
                 onClick={() => onSelectNode(r.node_id === selectedNodeId ? null : r.node_id)}
               >
                 {r.node_id}
@@ -102,20 +117,27 @@ function TaxonomyRefsSection({ refs, selectedNodeId, onSelectNode }: { refs: Tax
 // ── Chat message ─────────────────────────────────────────
 
 function ChatMessage({ entry, selectedNodeId, onSelectNode }: { entry: ChatEntry; selectedNodeId: string | null; onSelectNode: (id: string | null) => void }) {
-  const color = speakerColor(entry.speaker);
   const isUser = entry.speaker === 'user';
+  const camp = povToCamp(entry.speaker);
 
   return (
     <div className={`chat-message chat-speaker-${entry.speaker}${isUser ? ' chat-message-user' : ''}`}>
-      <div className="chat-message-header">
-        <span className="chat-message-speaker" style={color ? { color } : undefined}>
-          {speakerLabel(entry.speaker)}
-        </span>
+      {camp && (
+        <div className={`chat-message-avatar camp-${camp}`}>
+          <CampGlyph camp={camp} size={14} />
+        </div>
+      )}
+      <div className="chat-message-body">
+        <div className="chat-message-header">
+          <span className={`chat-message-speaker${camp ? ` camp-speaker-${camp}` : ''}`}>
+            {speakerLabel(entry.speaker)}
+          </span>
+        </div>
+        <div className="chat-message-content markdown-body prose">
+          <Markdown remarkPlugins={[remarkGfm]}>{entry.content}</Markdown>
+        </div>
+        <TaxonomyRefsSection refs={entry.taxonomy_refs} selectedNodeId={selectedNodeId} onSelectNode={onSelectNode} />
       </div>
-      <div className="chat-message-content markdown-body">
-        <Markdown remarkPlugins={[remarkGfm]}>{entry.content}</Markdown>
-      </div>
-      <TaxonomyRefsSection refs={entry.taxonomy_refs} selectedNodeId={selectedNodeId} onSelectNode={onSelectNode} />
     </div>
   );
 }
@@ -288,12 +310,16 @@ export function ChatWorkspace() {
   if (!activeChat) {
     return (
       <div className="chat-workspace">
-        <div className="chat-empty">Select a chat or start a new one.</div>
+        <EmptyState
+          headline="No chat selected"
+          direction="Select a chat or start a new one."
+        />
       </div>
     );
   }
 
   const poverInfo = POVER_INFO[activeChat.pover as keyof typeof POVER_INFO];
+  const headerCamp = povToCamp(activeChat.pover);
 
   return (
     <div className={`chat-workspace${selectedNode ? ' has-detail-pane' : ''}`}>
@@ -301,7 +327,7 @@ export function ChatWorkspace() {
         {/* Header */}
         <div className="chat-header">
           <div className="chat-header-left">
-            <span className="chat-header-pover" style={{ color: poverInfo?.color ?? '#888' }}>
+            <span className={`chat-header-pover${headerCamp ? ` camp-speaker-${headerCamp}` : ''}`}>
               {poverInfo?.label ?? activeChat.pover}
             </span>
             <ModeSelector mode={activeChat.mode} onChange={(m) => { getGlobalRecorder()?.record({ type: 'user.action', component: 'chat', level: 'info', message: 'chat.mode_switch', data: { chat_id: activeChat.id, from: activeChat.mode, to: m } }); void changeMode(m); }} />
@@ -310,11 +336,10 @@ export function ChatWorkspace() {
             {activeChat.topic}
           </div>
           <button
-            className="btn btn-sm"
+            className="btn btn-sm chat-share-btn"
             onClick={handleShare}
             disabled={shareState !== 'idle'}
             title="Submit this chat for community review"
-            style={{ flexShrink: 0, fontSize: '0.72rem' }}
           >
             {shareState === 'sharing' ? 'Sharing...' : 'Share'}
           </button>
@@ -329,7 +354,7 @@ export function ChatWorkspace() {
           />
         )}
         {shareState === 'error' && shareError && (
-          <div style={{ color: 'var(--red, #ef4444)', fontSize: '0.75rem', padding: '4px 12px' }}>
+          <div className="chat-share-error">
             {'Failed: ' + shareError}
           </div>
         )}
