@@ -13,8 +13,10 @@ Failure patterns related to JSON schemas, data files, and data repo operations.
 - 2026-05-22 — Computational Linguist: `embeddings.json` parsing failed with `'str' object has no attribute 'get'` because code iterated top-level keys directly, but node entries are nested under `data['nodes']` — top level has metadata keys (`model`, `dimension`, `field_weights`) (p/7#5).
 - 2026-05-25 — Computational Linguist: `'list' object has no attribute 'items'` when accessing `stage_diagnostics` — assumed dict but it's a list. Fixed by checking type first and iterating as list (p/7#11).
 - 2026-05-26 — Shared Lib: `embed_taxonomy.py` batch-encode passed bare string array but the function expects `[{id, text}]` objects. Fixed by matching the expected input format. Reference: `relinkVocabulary.ts` (p/5#7).
+- 2026-07-06 — Computational Linguist: inline Python formatting of `list_tickets` output threw TypeError joining `blocker_summaries` — assumed elements were strings but they're objects. Fixed by coercing each element (`str()`/field access) before join (p/7#16).
+- 2026-07-06 — Computational Linguist: inline Python concatenated debate session `origin` field assuming string — it's a dict in some sessions (TypeError). Fixed with `str(d.get(k,''))` coercion at read site (p/7#18).
 
-**Root Cause:** Code written based on assumed schema/interface rather than inspecting the actual structure or function signature. Project data files commonly wrap payloads under a key (`nodes`, `graph_attributes`) with metadata at the top level, field types vary (list vs dict, nested objects vs flat strings), and function APIs expect structured objects not bare primitives.
+**Root Cause:** Code written based on assumed schema/interface rather than inspecting the actual structure or function signature. Applies across all project data: taxonomy JSON files wrap payloads under keys with metadata at top level, debate session fields vary in type across sessions (string vs dict), and tool/API return values are structured objects not bare primitives. Field types vary — never assume string without checking.
 
 **Prevention:**
 1. Always inspect a sample of the actual data before writing code that reads it — `head` a JSON file or `jq` a few records.
@@ -24,7 +26,7 @@ Failure patterns related to JSON schemas, data files, and data repo operations.
 
 **Status:** Resolved — "Data File Convention" added to root AGENTS.md under Taxonomy Model (p/8#22).
 
-**Applies To:** All agents working with taxonomy JSON data or writing data processing scripts.
+**Applies To:** All agents working with any JSON field from project data, debate sessions, or tool/API returns — not just taxonomy files.
 
 ---
 

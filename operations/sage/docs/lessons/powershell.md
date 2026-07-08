@@ -126,3 +126,24 @@ Failure patterns related to PowerShell strict mode, module system, and language 
 **Status:** Active
 
 **Applies To:** All agents writing PowerShell scripts.
+
+---
+
+## [PowerShell] Empty-String Args to Native Executables
+
+**Pattern:** `ssh-keygen -N '""'` sets the passphrase to the literal two-character string `""` instead of empty — causing silent authentication failure ("Permission denied (publickey)") that takes ~20 min to diagnose.
+
+**Instances:**
+- 2026-07-03 — Technical Lead: during t/1308 migration push, `ssh-keygen -N '""'` set a key passphrase to literal `""`. Server accepted the key but signing failed silently. Diagnosed via `ssh-keygen -y -P <candidate>` read-back; fixed in-place with `ssh-keygen -p`. ~20 min lost (p/8#35).
+
+**Root Cause:** PowerShell's quoting rules for native executable arguments. `'""'` is a single-quoted string containing two double-quote characters — it does not collapse to empty. The correct form is `-N ''` (PS7 standard arg passing). Same multi-parser argument corruption family as bash-$-substitution and @'...'@ here-string patterns.
+
+**Prevention:**
+1. Use `-N ''` for empty passphrase in PowerShell — never `'""'` or `""`.
+2. After setting a passphrase or credential via native executable, **verify the effect immediately** (e.g., `ssh-keygen -y -P '' -f <key>` should succeed).
+3. Full trap taxonomy in `docs/powershell-native-quoting-traps.md`.
+4. New Common Traps bullet added to root AGENTS.md (p/8#35).
+
+**Status:** Resolved — root AGENTS.md Common Traps updated + `docs/powershell-native-quoting-traps.md` created.
+
+**Applies To:** All agents passing empty-string or special-character arguments to native executables from PowerShell.

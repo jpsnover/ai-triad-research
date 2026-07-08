@@ -281,8 +281,10 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-05-22 — Computational Linguist: `embeddings.json` parsing failed with `'str' object has no attribute 'get'` because code iterated top-level keys directly, but node entries are nested under `data['nodes']` — top level has metadata keys (`model`, `dimension`, `field_weights`) (p/7#5).
 - 2026-05-25 — Computational Linguist: `'list' object has no attribute 'items'` when accessing `stage_diagnostics` — assumed dict but it's a list. Fixed by checking type first and iterating as list (p/7#11).
 - 2026-05-26 — Shared Lib: `embed_taxonomy.py` batch-encode passed bare string array but the function expects `[{id, text}]` objects. Fixed by matching the expected input format. Reference: `relinkVocabulary.ts` (p/5#7).
+- 2026-07-06 — Computational Linguist: inline Python formatting of `list_tickets` output threw TypeError joining `blocker_summaries` — assumed elements were strings but they're objects. Fixed by coercing each element before join (p/7#16).
+- 2026-07-06 — Computational Linguist: inline Python concatenated debate session `origin` field assuming string — it's a dict in some sessions (TypeError). Fixed with `str(d.get(k,''))` coercion at read site (p/7#18).
 
-**Root Cause:** Code written based on assumed schema/interface rather than inspecting the actual structure or function signature. Project data files commonly wrap payloads under a key (`nodes`, `graph_attributes`) with metadata at the top level, field types vary (list vs dict, nested objects vs flat strings), and function APIs expect structured objects not bare primitives.
+**Root Cause:** Code written based on assumed schema/interface rather than inspecting the actual structure or function signature. Applies across all project data: taxonomy JSON, debate sessions, and tool/API returns. Field types vary — never assume string without checking.
 
 **Prevention:**
 1. Always inspect a sample of the actual data before writing code that reads it — `head` a JSON file or `jq` a few records.
@@ -381,6 +383,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-05-24 — Project Manager: push to `ai-triad-data` rejected after `embeddings.json` modified both locally and remotely. Resolved with stash/pull --rebase/take theirs/push (p/31#1).
 - 2026-05-24 — Technical Lead: push to code repo main rejected with 3 unpushed CI fixes. Resolved with stash/pull --rebase, merge conflict in `logger.ts` (kept cached `usePretty` approach), rebase --continue/stash pop/push (p/8#11).
 - 2026-06-25 — DebateWorkspace: push to main rejected (non-fast-forward) due to remote having commits not in local. Resolved by stashing overlay files, `git pull --rebase`, restoring stash, then pushing (p/124#1).
+- 2026-07-04 — Server Community: push rejected after committing flight-recorder fix. Remote main had new commits from other agents. Resolved with `git stash && git pull --rebase && git stash pop` then push (p/160#1).
 
 **Root Cause:** Multiple agents work in parallel on the same branches. The window between local commits and push allows remote to advance, causing non-fast-forward rejections. More agents = more contention.
 
@@ -390,6 +393,8 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. For code conflicts, understand the intent of both changes before resolving — don't blindly take either side.
 4. Minimize the commit-to-push window — do both in quick succession.
 5. Standard resolution flow: `git stash && git pull --rebase origin main` → resolve conflicts → `git rebase --continue && git stash pop && git push`.
+
+**Status:** Active — 4 instances across 4 agents. Not escalating: self-correcting (git rejects the push), well-known resolution flow, all agents resolved independently.
 
 **Applies To:** All agents pushing to shared branches in either repo.
 
@@ -464,6 +469,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-06-19 — ElectronMain: (a) `ogit` failed with "command not found" in Bash tool — it's a shell alias only available in interactive shells. Fixed by expanding to `git --git-dir=.orca-git --work-tree=.`. (b) `git add` of a new nested `AGENTS.md` rejected as "ignored by .gitignore" — `.orca-gitignore` has `!**/AGENTS.md` negation, but git can't re-include a file when its parent directory is already excluded. Fixed with `git add -f` (p/98#1).
 - 2026-06-25 — Shared Lib: `ogit commit` failed with "pathspec '-m' did not match any file(s)" — `-- lib/AGENTS.md` pathspec was placed before `-m` flag, so git treated `-m` as a pathspec. Fixed by moving `-- lib/AGENTS.md` after `-m "message"` (p/5#11).
 - 2026-06-25 — Conflict: `ogit add taxonomy-editor/.../conflict/AGENTS.md` failed ("paths are ignored by .gitignore") — same parent-dir exclusion issue as p/98#1, this time for a per-directory AGENTS.md under `taxonomy-editor/`. Fixed with `ogit add -f` (p/122#1).
+- 2026-07-06 — Orca Support: `git --git-dir=.orca-git --work-tree=. add -f ...` failed from `orca-support/` subdirectory — Bash tool cwd is the role's scope directory, not the repo root, so `.orca-git` wasn't found. Fixed by switching to PowerShell with explicit `cd` to repo root (p/13#10).
 
 **Root Cause:** (1) `ogit` is defined as a shell alias (`alias ogit='git --git-dir=.orca-git --work-tree=.'`), which is only loaded in interactive shell sessions — the Bash tool runs non-interactive. (2) The overlay repo shares the working tree with the main repo, so `.gitignore` affects `ogit add`. Negation patterns (`!**/AGENTS.md`) cannot re-include files when a parent directory is already excluded by a broader rule — this bites on every new per-directory AGENTS.md. (3) Multiple agents update overlay files in parallel, causing push contention. (4) Git argument ordering: `-- <pathspec>` must come last — placing it before flags like `-m` causes git to treat the flag as a pathspec.
 
@@ -727,6 +733,8 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-06-25 — DebateUI: `git commit -F msg -- <paths>` failed for newly-created files. Fix: `git add <new-files>` first, then pathspec commit. Self-resolved (deedd783, p/83#3).
+- 2026-07-06 — Technical Lead: `git commit -- <pathspec>` on a new file errored "pathspec did not match". Fixed by explicit `git add` then commit (369001bb, p/8#51).
+- 2026-07-06 — Computational Linguist: same error on a newly created file. Fixed by `git add` then pathspec commit (p/7#26).
 
 **Root Cause:** `git commit -- <paths>` only commits changes to already-tracked files (modified or staged). Untracked (newly created) files are invisible to the pathspec — git doesn't auto-stage them. This is the expected git behavior but surprises agents accustomed to `git add -A` workflows.
 
@@ -843,3 +851,275 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active
 
 **Applies To:** All agents writing Bash scripts that use `rg` or other Claude Code shell functions.
+
+---
+
+## [Process] Ping-Acknowledge-Then-Idle
+
+**Pattern:** Agents acknowledge a ping (reply, update status) then go idle without re-checking their ticket queue — missing unblocked assigned work that should have started immediately.
+
+**Instances:**
+- 2026-07-03 — Fleet audit (p/8#32): 4 agents found idle with unblocked high-priority tickets after being woken by pings. Each had replied to the ping but never checked their queue before sleeping. Hours of lost productivity across the fleet.
+
+**Root Cause:** Startup behavior only checked ticket queue on fresh session start. Ping-triggered auto-prompts re-entered the session mid-life, so the queue check was skipped. Agents treated pings as isolated messages rather than general "you're awake now, check for work" signals.
+
+**Prevention:**
+1. Before going idle after ANY prompt (ping, email, auto-prompt — not just session start), re-check ticket queue for unblocked assigned work.
+2. Root AGENTS.md startup behavior updated to enforce this (p/8#32, 2026-07-03).
+
+**Status:** Resolved — root AGENTS.md rule updated to require queue re-check before idle after any prompt.
+
+**Applies To:** All agents with ticket-driven workflows.
+
+---
+
+## [Process] One-Directional Git Ancestry Check → False Divergence Alarm
+
+**Pattern:** Diagnosing "remote diverged" based on a one-directional `merge-base --is-ancestor` check and misreading a reverse diff — pattern-matching an expected failure shape without verifying the actual mechanism.
+
+**Instances:**
+- 2026-07-03 — Technical Lead: during cc→sit migration (t/1308#12), diagnosed "remote diverged during freeze" and began planning recovery. Root cause hypothesis was that CI committed to `ai-triad-data` during the migration window. DevOps falsified this (t/1308#15): no CI pipeline exists in the data repo, and the commits were the owner's, made before the freeze. Corrected in t/1308#15.
+
+**Root Cause:** Two compounding diagnostic errors: (1) `merge-base --is-ancestor` was only checked in one direction — A ancestor of B doesn't tell you whether B is ancestor of A, so the divergence conclusion was incomplete; (2) a reverse diff was interpreted without labeling which direction (local→remote vs remote→local), leading to misread additions/deletions. Same anti-pattern class as the [Build] Deploy Preflight False-Red (AlertsManagement) — pattern-matching symptoms to a plausible failure without testing the mechanism.
+
+**Prevention:**
+1. Divergence claims require the **two-directional ancestry test**: check `merge-base --is-ancestor` in BOTH directions (A→B and B→A) before concluding divergence.
+2. Always run `git status -sb` for ahead/behind counts — they directly show the relationship without interpretation.
+3. Reverse diffs must be **labeled with direction** before interpreting +/- lines ("this is remote minus local" or "local minus remote").
+4. Before planning recovery, verify the *mechanism* of the hypothesized failure — "CI committed during our window" is testable ("does CI exist in this repo?").
+
+**Status:** Active
+
+**Applies To:** All agents performing git divergence diagnosis, especially during migrations or freeze windows.
+
+---
+
+## [PowerShell] Empty-String Args to Native Executables
+
+**Pattern:** `ssh-keygen -N '""'` sets the passphrase to the literal two-character string `""` instead of empty — causing silent authentication failure ("Permission denied (publickey)") that takes ~20 min to diagnose.
+
+**Instances:**
+- 2026-07-03 — Technical Lead: during t/1308 migration push, `ssh-keygen -N '""'` set a key passphrase to literal `""`. Server accepted the key but signing failed silently. Diagnosed via `ssh-keygen -y -P <candidate>` read-back; fixed in-place with `ssh-keygen -p`. ~20 min lost (p/8#35).
+
+**Root Cause:** PowerShell's quoting rules for native executable arguments. `'""'` is a single-quoted string containing two double-quote characters — it does not collapse to empty. The correct form is `-N ''` (PS7 standard arg passing). Same multi-parser argument corruption family as bash-$-substitution and @'...'@ here-string patterns.
+
+**Prevention:**
+1. Use `-N ''` for empty passphrase in PowerShell — never `'""'` or `""`.
+2. After setting a passphrase or credential via native executable, **verify the effect immediately** (e.g., `ssh-keygen -y -P '' -f <key>` should succeed).
+3. Full trap taxonomy in `docs/powershell-native-quoting-traps.md`.
+4. New Common Traps bullet added to root AGENTS.md (p/8#35).
+
+**Status:** Resolved — root AGENTS.md Common Traps updated + `docs/powershell-native-quoting-traps.md` created.
+
+**Applies To:** All agents passing empty-string or special-character arguments to native executables from PowerShell.
+
+---
+
+## [Process] Gate Blindness via Pre-Existing Noise (False-Green)
+
+**Pattern:** A verification gate already exits non-zero from tolerated warnings, so new genuine errors don't change the exit code — "verify green" claims pass with live failures undetected.
+
+**Instances:**
+- 2026-07-03 — verify's eslint step was already failing from old warnings. New `RelatedEdgesPanel` errors (t/1304) survived a "green verify" claim because the exit code was already non-zero. Root cause analysis in t/1304#5, fix in c2f79267, gate repair tracked in t/1323 (p/8#37).
+
+**Root Cause:** When a gate is already failing for tolerated/ignored reasons, agents learn to treat its failure as normal. New genuine failures blend into existing noise. Same family as [Build] Deploy Preflight False-Red (AlertsManagement) but **inverted** — false-green instead of false-red.
+
+**Prevention:**
+1. Gates must be kept at **zero tolerated noise** — fix or suppress existing warnings before relying on the gate.
+2. Use **explicit baselines** (e.g., eslint `--max-warnings N`) so any new warning changes the exit code.
+3. Periodically **assert a deliberate failure actually fails the gate**.
+4. When claiming "verify green," check the actual exit code and output — not just "it ran without surprising me."
+
+**Status:** Active — gate repair tracked in t/1323.
+
+**Applies To:** All agents running verify gates, CI pipelines, or any pass/fail quality checks.
+
+---
+
+## [Build] Ad-Hoc `tsc` Produces Phantom Errors vs Real Build Gate
+
+**Pattern:** Running bare `tsc` or `tsc -p tsconfig.*.json` outside the project's actual build gate produces misleading errors — missing `@types/node` (no `node_modules`), TS5101 baseUrl deprecation, TS2882 CSS shims — that the real build (`npm run build`) never hits.
+
+**Instances:**
+- 2026-07-04 — ElectronMain (workflow-app, t/1333): `tsc -p tsconfig.main.json` errored TS2688 because deps were never installed. Bare `tsc` on renderer errored TS5101 and TS2882 — both non-issues because renderer is type-checked via `vite build`. Fixed by `npm install` + `npm run build` (the actual gate). workflow-app has no verify gate of its own (p/98#3).
+
+**Root Cause:** Electron apps have split type-checking: main process via `tsc -p tsconfig.main.json`, renderer via `vite build`. Ad-hoc `tsc` commands that don't match the real pipeline produce false positives or catch environment problems (missing deps), not code problems.
+
+**Prevention:**
+1. Always use the project's actual build gate (`npm run build`, `npm run verify`) — not ad-hoc `tsc`.
+2. Run `npm install` before any type-checking in a project where `node_modules` doesn't exist yet.
+3. Know which tsconfig covers which code: `tsconfig.main.json` = main process; renderer = `vite build`.
+
+**Status:** Active
+
+**Applies To:** All agents working in Electron apps.
+
+---
+
+## [Process] Gate-Flip Hygiene — Exemptions Must Live in Workflow Comments
+
+**Pattern:** Two agents independently mislabeled a permanently annotation-only CI job (`debate-eval`) as "warning-only until 7/17" — a scheduled flip date that doesn't apply to this job. Scheduled flip dates create gravitational pull that sweeps in exempt jobs.
+
+**Instances:**
+- 2026-07-06 — Two agents independently added "warning-only until 7/17" to `debate-eval` despite it being permanently annotation-only and exempt from the flip sweep (t/1329#4, t/1332#4).
+
+**Root Cause:** The exemption existed only in ticket history, not at point of use. Agents pattern-matched the job to the "warning-only until flip date" convention without verifying this job's specific lifecycle.
+
+**Prevention:**
+1. Jobs exempt from a flip sweep need the exemption **in the workflow file comment**, not in ticket history.
+2. Verify the specific job's intended lifecycle before applying fleet-wide conventions.
+
+**Status:** Active
+
+**Applies To:** All agents modifying CI workflow files or gate annotations.
+
+---
+
+## [Build] Registry Credential on Public Image Turns Credential Rot into Outage
+
+**Pattern:** A stored GHCR PAT expired, but ACA authenticates EVERY pull when a registry credential is configured — so the dead PAT broke pulls of a PUBLIC image that anonymous pulls would have served fine. Total production outage, undetected 11+ hours.
+
+**Instances:**
+- 2026-07-05 — PROD OUTAGE: expired GHCR PAT → ACA authenticated pulls → ImagePullBackOff on 100%-traffic revision. No alerting. Restored via cached healthy revision, permanently fixed by removing credential. Hardening: t/1335, t/1336, t/1337 (p/8#41).
+
+**Root Cause:** (1) Registry credentials on public images force authenticated pulls where anonymous would succeed — credential expiry becomes outage. (2) No alerting on ACA revision health. (3) Bicep re-adds the credential on deploy (IaC drift).
+
+**Prevention:**
+1. Never configure registry credentials for public images.
+2. Remove from Bicep, not just CLI (IaC drift restores it).
+3. Add Degraded-revision alert + external uptime probe.
+4. Verify-then-promote traffic gate for new revisions.
+
+**Status:** Active — hardening in t/1335, t/1336, t/1337.
+
+**Applies To:** DevOps, Azure infrastructure, container deployment.
+
+---
+
+## [Build] ACA Revision Snapshots Freeze Config at Creation + az CLI Swallows 409
+
+**Pattern:** ACA bakes registry credentials into each revision's snapshot at CREATION time. App-level config changes do NOT affect existing revisions. Compounding: `az containerapp registry remove` exits 0 while ARM silently rejects with 409.
+
+**Instances:**
+- 2026-07-05 — During outage remediation: "30-60 second" estimate became ~75 min because the mental model ("config applies live") was wrong. `az containerapp registry remove` appeared to succeed but ARM rejected with 409. Only a new revision picked up the change (p/8#42).
+
+**Root Cause:** (1) Revision snapshots are immutable — config is baked at creation, survives restarts. (2) az CLI swallows ARM 409 errors — exit 0 with no output on failure.
+
+**Prevention:**
+1. Always read back config after mutations — don't trust az CLI exit codes.
+2. Config changes require a new revision (revision copy), not just a restart.
+3. Factor immutable snapshots into maintenance time estimates.
+
+**Status:** Active — design constraints in t/1335.
+
+**Applies To:** DevOps, Azure infrastructure, ACA config changes.
+
+---
+
+## [Build] Multi-Agent Git — Worktree Landing Race Creates Duplicate Commits
+
+**Pattern:** Agent commits X on shared local main, cherry-picks X' into a worktree and pushes X'. Original X lingers unpushed and later sweeps to origin = byte-identical duplicates.
+
+**Instances:**
+- 2026-07-05 — Happened twice on t/1295 (commits 4 and 5) before root-cause. Agent committed on shared local main, cherry-picked into worktree, pushed. Originals swept to origin later (p/8#45).
+
+**Root Cause:** Local main is shared across all agents. Committing there as a staging step leaves orphaned commits that travel to origin when any agent pushes.
+
+**Prevention (ratified fix, t/1295#15, p/8#46):**
+1. Create worktree off fresh `origin/main`, not the shared local ref.
+2. Copy changed files in, add+commit+push INSIDE the worktree — nothing lingers on shared tree.
+3. Sync shared tree with file-scoped `git checkout origin/main -- <files>` — never reset.
+4. Run verify gate inside the worktree.
+
+**Status:** Active — ratified fix in place. Pairs with shared-branch pathspec rule.
+
+**Applies To:** All agents using git worktrees on shared local repos.
+
+---
+
+## [Build] Python 3.12 Rejects Mid-Pattern Inline Regex Flags
+
+**Pattern:** Inline regex flags like `(?m)` placed mid-pattern (not at position 0) are a hard error in Python 3.12+ — `re.error: missing -, : or )`. Worked silently in earlier Python versions.
+
+**Instances:**
+- 2026-07-06 — Computational Linguist: inline Python regex used a mid-pattern `(?m)` flag, hard error in Python 3.12. Fixed by moving to `re.M` flag argument: `re.findall(pat, s, re.M)` (p/7#20).
+
+**Root Cause:** Python 3.11 deprecated inline flags not at the start of the pattern; Python 3.12 made it a hard error. Agents writing inline Python snippets may use patterns from training data or older docs that place flags mid-pattern.
+
+**Prevention:**
+1. Always pass regex flags via the `flags=` argument: `re.findall(pat, s, re.M)` — never embed `(?m)` mid-pattern.
+2. Inline flags (`(?m)`, `(?i)`, `(?s)`) are only valid at **position 0** of the pattern string in Python 3.12+.
+3. When writing inline Python regex, prefer explicit flag arguments over inline flag syntax entirely.
+
+**Status:** Active
+
+**Applies To:** All agents writing inline Python regex (scripts, one-liners, data processing).
+
+---
+
+## [Build] Windows Junction Trap — Symlinked node_modules Blocks Worktree Cleanup
+
+**Pattern:** `ln -s` on Windows Git Bash creates a directory JUNCTION (not a symlink). Junctions into a worktree's `node_modules` block `git worktree remove` and risk `rm -rf` following the junction into the real `node_modules`.
+
+**Instances:**
+- 2026-07-06 — ServerAPI: symlinked main tree's `node_modules` into a landing-worktree to run `npm run verify`. Windows created a junction; `git worktree remove` failed, and a naive `rm -rf` on the worktree would have destroyed the real `node_modules`. Resolved with `git worktree remove --force` + `git worktree prune`; confirmed real `node_modules` intact (906 entries). Recommendation: don't symlink `node_modules` — verify in main tree + `git diff`, or `npm ci` in worktree (p/79#5).
+
+**Root Cause:** Git Bash `ln -s <dir>` on Windows creates an NTFS directory junction, not a POSIX symlink. Junctions are followed by `rm -rf` and `rmdir` — cleanup of the worktree risks destroying the junction target. `git worktree remove` also fails because it encounters the junction during cleanup.
+
+**Prevention:**
+1. **Never symlink `node_modules` into a landing-worktree on Windows** — the junction will block cleanup and risk the real deps.
+2. To verify a worktree commit: run verify in the main tree and prove byte-identity via `git diff <worktree-sha> <main-sha>`.
+3. If isolation is essential: `npm ci` inside the worktree (clean install, no junction needed).
+4. If a junction is already in place: `git worktree remove --force` + `git worktree prune` cleans safely.
+
+**Status:** Active
+
+**Applies To:** All agents using git worktrees on Windows, especially landing flows that need `node_modules`.
+
+---
+
+## [Build] Uncommitted Fixes Mask Committed Breakage — Dirty Working Tree as False Witness
+
+**Pattern:** A multi-step refactor deletes a module and fixes its importers, but only the deletion is committed — the importer fixes remain uncommitted in the shared working tree. Local verify passes (reads dirty tree), committed state is broken. Compounding: diagnosing "is main green?" by building the dirty shared tree produces a false-green that overrules a clean-worktree agent who was correct.
+
+**Instances:**
+- 2026-07-06 — Technical Lead (t/1303 Phase C): deleted a module and fixed 2 importers but left the importer fixes uncommitted. Local verify green, committed state red for hours. TL then "verified main is green" using the dirty shared tree, contradicting a clean-worktree agent who was correctly seeing the breakage. Diagnostic standard established in t/1303#7 (p/8#49).
+
+**Root Cause:** `tsc` and `npm run verify` read the working tree, not the git index. In a multi-agent environment, the shared working tree accumulates uncommitted changes from multiple agents — it's never a reliable proxy for committed state. When two agents disagree about whether main is broken, building the dirty tree settles nothing.
+
+**Prevention:**
+1. **Commit ALL files in a refactor atomically** — deletions and their importer fixes in the same commit. Never commit a deletion without its dependents.
+2. After committing, run verify to confirm the COMMITTED state is green (the existing Definition of Done rule).
+3. **Disputes about committed state are settled at the git object level**, not by building the working tree:
+   - `git show HEAD:<path>` — does the file/export exist in committed code?
+   - `git grep <pattern> HEAD` — search committed content only
+   - `git cat-file -e <sha>:<path>` — verify a path exists at a specific commit
+   - `git stash && npm run verify && git stash pop` — build committed state only
+4. Pairs with the "Verify Before Pushing" rule in root AGENTS.md as its diagnostic complement.
+
+**Status:** Active — diagnostic standard ratified in t/1303#7.
+
+**Applies To:** All agents on shared working trees, especially when diagnosing "is main broken?"
+
+---
+
+## [Process] Overwrite/Clobber Claims Without Blob-SHA Comparison
+
+**Pattern:** A "commit X overwrote file F" claim is asserted, retracted, and re-confirmed across multiple diagnostic rounds — because agents reason from commit dates and symptom counts instead of comparing actual content. Three rounds of churn before the definitive check.
+
+**Instances:**
+- 2026-07-06 — Computational Linguist + 2nd agent (t/1351): a git-forensics clobber claim went through 3 diagnostic rounds across 2 agents. Ancestry got inverted twice. Resolved only when blob SHAs were compared: `git rev-parse X:path` vs `git rev-parse X~1:path` — identical blob = file untouched, debate over in one command (p/7#22).
+
+**Root Cause:** Timeline reasoning ("commit X came after Y, so X must have overwritten Y's changes") is unreliable — commits can touch many files, and the accused commit may not have modified the file in question at all. Without content identity (blob SHA), agents pattern-match symptoms to a plausible narrative and waste rounds arguing about it.
+
+**Prevention:**
+1. For any overwrite/clobber/data-loss claim, **blob-SHA comparison is the FIRST check** — before timeline reasoning:
+   - `git rev-parse <commit>:<path>` vs `git rev-parse <commit>~1:<path>` — identical SHA = file untouched at that commit.
+   - `git diff <commit>~1 <commit> -- <path>` — empty diff = no change.
+2. If blob SHAs differ, THEN examine what changed: `git show <commit> -- <path>`.
+3. Never conclude "X overwrote F" from commit dates or symptom counts alone.
+4. Same diagnostic-discipline family as #44 (one-directional ancestry → false divergence) and #54 (dirty tree as false witness): settle git disputes at the object level, not by inference.
+
+**Status:** Active
+
+**Applies To:** All agents performing git forensics — overwrite claims, data-loss triage, clobber investigations.

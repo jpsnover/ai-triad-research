@@ -65,3 +65,107 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 **Status:** Active
 
 **Applies To:** All agents on this Windows dev environment with dual shell access.
+
+---
+
+## [Process] Ping-Acknowledge-Then-Idle
+
+**Pattern:** Agents acknowledge a ping (reply, update status) then go idle without re-checking their ticket queue — missing unblocked assigned work that should have started immediately.
+
+**Instances:**
+- 2026-07-03 — Fleet audit (p/8#32): 4 agents found idle with unblocked high-priority tickets after being woken by pings. Hours of lost productivity.
+
+**Root Cause:** Startup behavior only checked ticket queue on fresh session start. Ping-triggered auto-prompts re-entered the session mid-life, so the queue check was skipped.
+
+**Prevention:**
+1. Before going idle after ANY prompt (ping, email, auto-prompt), re-check ticket queue for unblocked assigned work.
+2. Root AGENTS.md startup behavior updated to enforce this (p/8#32).
+
+**Status:** Resolved — root AGENTS.md rule updated.
+
+**Applies To:** All agents with ticket-driven workflows.
+
+---
+
+## [Process] One-Directional Git Ancestry Check → False Divergence Alarm
+
+**Pattern:** Diagnosing "remote diverged" based on a one-directional `merge-base --is-ancestor` check and misreading a reverse diff — pattern-matching an expected failure shape without verifying the mechanism.
+
+**Instances:**
+- 2026-07-03 — Technical Lead: during cc→sit migration (t/1308#12), diagnosed "remote diverged during freeze" and began planning recovery. DevOps falsified it (t/1308#15): no CI exists in the data repo; commits were the owner's, pre-freeze. Same anti-pattern class as [Build] Deploy Preflight False-Red (AlertsManagement).
+
+**Root Cause:** (1) `merge-base --is-ancestor` checked in one direction only — incomplete divergence conclusion; (2) reverse diff interpreted without labeling direction, misreading +/- lines.
+
+**Prevention:**
+1. Divergence claims require **two-directional ancestry test**: `merge-base --is-ancestor` in BOTH directions.
+2. Always run `git status -sb` for ahead/behind counts.
+3. Label reverse diffs with direction before interpreting +/- lines.
+4. Before planning recovery, verify the *mechanism* — "CI committed during our window" is testable ("does CI exist in this repo?").
+
+**Status:** Active
+
+**Applies To:** All agents performing git divergence diagnosis, especially during migrations or freeze windows.
+
+---
+
+## [Process] Gate Blindness via Pre-Existing Noise (False-Green)
+
+**Pattern:** A verification gate already exits non-zero from tolerated warnings, so new genuine errors don't change the exit code — "verify green" claims pass with live failures undetected.
+
+**Instances:**
+- 2026-07-03 — verify's eslint step was already failing from old warnings. New `RelatedEdgesPanel` errors (t/1304) survived a "green verify" claim because the exit code was already non-zero. Root cause analysis in t/1304#5, fix in c2f79267, gate repair tracked in t/1323 (p/8#37).
+
+**Root Cause:** When a gate is already failing for tolerated/ignored reasons, agents learn to treat its failure as normal ("it always fails"). New genuine failures blend into the existing noise and go undetected. Same family as [Build] Deploy Preflight False-Red (AlertsManagement) but **inverted** — false-green instead of false-red.
+
+**Prevention:**
+1. Gates must be kept at **zero tolerated noise** — fix or suppress existing warnings before relying on the gate to catch new ones.
+2. If warnings are temporarily tolerated, use **explicit baselines** (e.g., eslint `--max-warnings N`) so any *new* warning changes the exit code.
+3. Periodically **assert a deliberate failure actually fails the gate** — inject a known error and confirm the gate catches it.
+4. When claiming "verify green," check the actual exit code and output — not just "it ran without surprising me."
+
+**Status:** Active — gate repair tracked in t/1323.
+
+**Applies To:** All agents running verify gates, CI pipelines, or any pass/fail quality checks.
+
+---
+
+## [Process] Gate-Flip Hygiene — Exemptions Must Live in Workflow Comments
+
+**Pattern:** Two agents independently mislabeled a permanently annotation-only CI job (`debate-eval`) as "warning-only until 7/17" — a scheduled flip date that doesn't apply to this job. A scheduled flip date creates gravitational pull: agents assume all non-blocking jobs share the same deadline.
+
+**Instances:**
+- 2026-07-06 — Two agents independently added "warning-only until 7/17" to `debate-eval` job context, despite that job being permanently annotation-only and exempt from the flip sweep (t/1329#4, t/1332#4).
+
+**Root Cause:** The exemption for `debate-eval` existed only in ticket history, not at the point of use. When agents encountered the job during unrelated work, they pattern-matched it to the "warning-only until flip date" convention without checking whether this specific job was exempt. Scheduled flip dates act as attractors — anything that looks similar gets pulled in.
+
+**Prevention:**
+1. Jobs exempt from a flip sweep need the exemption stated **in the workflow file comment**, not in ticket history — point-of-use beats point-of-decision.
+2. When adding or updating gate annotations, verify the specific job's intended lifecycle before applying fleet-wide conventions.
+3. Same principle as gate blindness (#46): gate metadata must be self-describing at point of use.
+
+**Status:** Active — structural fix in flight: full flip/never-flip taxonomy going into ci.yml's header comment (p/28#30).
+
+**Applies To:** All agents modifying CI workflow files or gate annotations.
+
+---
+
+## [Process] Overwrite/Clobber Claims Without Blob-SHA Comparison
+
+**Pattern:** A "commit X overwrote file F" claim is asserted, retracted, and re-confirmed across multiple diagnostic rounds — because agents reason from commit dates and symptom counts instead of comparing actual content. Three rounds of churn before the definitive check.
+
+**Instances:**
+- 2026-07-06 — Computational Linguist + 2nd agent (t/1351): a git-forensics clobber claim went through 3 diagnostic rounds across 2 agents. Ancestry got inverted twice. Resolved only when blob SHAs were compared: `git rev-parse X:path` vs `git rev-parse X~1:path` — identical blob = file untouched, debate over in one command (p/7#22).
+
+**Root Cause:** Timeline reasoning ("commit X came after Y, so X must have overwritten Y's changes") is unreliable — commits can touch many files, and the accused commit may not have modified the file in question at all. Without content identity (blob SHA), agents pattern-match symptoms to a plausible narrative and waste rounds arguing about it.
+
+**Prevention:**
+1. For any overwrite/clobber/data-loss claim, **blob-SHA comparison is the FIRST check** — before timeline reasoning:
+   - `git rev-parse <commit>:<path>` vs `git rev-parse <commit>~1:<path>` — identical SHA = file untouched at that commit.
+   - `git diff <commit>~1 <commit> -- <path>` — empty diff = no change.
+2. If blob SHAs differ, THEN examine what changed: `git show <commit> -- <path>`.
+3. Never conclude "X overwrote F" from commit dates or symptom counts alone.
+4. Same diagnostic-discipline family as #44 (one-directional ancestry → false divergence) and #54 (dirty tree as false witness): settle git disputes at the object level, not by inference.
+
+**Status:** Active
+
+**Applies To:** All agents performing git forensics — overwrite claims, data-loss triage, clobber investigations.

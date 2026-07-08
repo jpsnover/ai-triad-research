@@ -167,6 +167,7 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 - 2026-05-24 — Project Manager: push to `ai-triad-data` rejected after `embeddings.json` modified both locally and remotely. Resolved with stash/pull --rebase/take theirs/push (p/31#1).
 - 2026-05-24 — Technical Lead: push to code repo main rejected with 3 unpushed CI fixes. Resolved with stash/pull --rebase, merge conflict in `logger.ts` (kept cached `usePretty` approach), rebase --continue/stash pop/push (p/8#11).
 - 2026-06-25 — DebateWorkspace: push to main rejected (non-fast-forward) due to remote having commits not in local. Resolved by stashing overlay files, `git pull --rebase`, restoring stash, then pushing (p/124#1).
+- 2026-07-04 — Server Community: push rejected after committing flight-recorder fix. Remote main had new commits from other agents. Resolved with `git stash && git pull --rebase && git stash pop` then push (p/160#1).
 
 **Root Cause:** Multiple agents work in parallel on the same branches. The window between local commits and push allows remote to advance, causing non-fast-forward rejections. More agents = more contention.
 
@@ -177,7 +178,7 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 4. Minimize the commit-to-push window — do both in quick succession.
 5. Standard resolution flow: `git stash && git pull --rebase origin main` → resolve conflicts → `git rebase --continue && git stash pop && git push`.
 
-**Status:** Active — 3 instances across 3 agents; approaching escalation threshold.
+**Status:** Active — 4 instances across 4 agents. Crosses escalation threshold but NOT escalating: git rejects the push (no silent corruption), resolution flow is well-known (stash/pull --rebase/pop/push), and all agents resolved it independently. An AGENTS.md rule would add process overhead without preventing a self-correcting failure.
 
 **Applies To:** All agents pushing to shared branches in either repo.
 
@@ -214,6 +215,7 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 - 2026-06-19 — ElectronMain: (a) `ogit` failed with "command not found" in Bash tool — it's a shell alias only available in interactive shells. Fixed by expanding to `git --git-dir=.orca-git --work-tree=.`. (b) `git add` of a new nested `AGENTS.md` rejected as "ignored by .gitignore" — `.orca-gitignore` has `!**/AGENTS.md` negation, but git can't re-include a file when its parent directory is already excluded. Fixed with `git add -f` (p/98#1).
 - 2026-06-25 — Shared Lib: `ogit commit` failed with "pathspec '-m' did not match any file(s)" — `-- lib/AGENTS.md` pathspec was placed before `-m` flag, so git treated `-m` as a pathspec. Fixed by moving `-- lib/AGENTS.md` after `-m "message"` (p/5#11).
 - 2026-06-25 — Conflict: `ogit add taxonomy-editor/.../conflict/AGENTS.md` failed ("paths are ignored by .gitignore") — same parent-dir exclusion issue as p/98#1, this time for a per-directory AGENTS.md under `taxonomy-editor/`. Fixed with `ogit add -f` (p/122#1).
+- 2026-07-06 — Orca Support: `git --git-dir=.orca-git --work-tree=. add -f ...` failed from `orca-support/` subdirectory — Bash tool cwd is the role's scope directory, not the repo root, so `.orca-git` wasn't found. Fixed by switching to PowerShell with explicit `cd` to repo root (p/13#10).
 
 **Root Cause:** (1) `ogit` is defined as a shell alias (`alias ogit='git --git-dir=.orca-git --work-tree=.'`), which is only loaded in interactive shell sessions — the Bash tool runs non-interactive. (2) The overlay repo shares the working tree with the main repo, so `.gitignore` affects `ogit add`. Negation patterns (`!**/AGENTS.md`) cannot re-include files when a parent directory is already excluded by a broader rule — this bites on every new per-directory AGENTS.md. (3) Multiple agents update overlay files in parallel, causing push contention. (4) Git argument ordering: `-- <pathspec>` must come last — placing it before flags like `-m` causes git to treat the flag as a pathspec.
 
@@ -401,6 +403,8 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 
 **Instances:**
 - 2026-06-25 — DebateUI: `git commit -F msg -- <paths>` failed for newly-created files. Fix: `git add <new-files>` first, then pathspec commit. Self-resolved (deedd783, p/83#3).
+- 2026-07-06 — Technical Lead: `git commit -- <pathspec>` on a new file errored "pathspec did not match". Fixed by explicit `git add` then commit (369001bb, p/8#51).
+- 2026-07-06 — Computational Linguist: same error on a newly created file. Fixed by `git add` then pathspec commit (p/7#26).
 
 **Root Cause:** `git commit -- <paths>` only commits changes to already-tracked files (modified or staged). Untracked (newly created) files are invisible to the pathspec — git doesn't auto-stage them. This is the expected git behavior but surprises agents accustomed to `git add -A` workflows.
 
@@ -517,3 +521,155 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active
 
 **Applies To:** All agents writing Bash scripts that use `rg` or other Claude Code shell functions.
+
+---
+
+## [Build] Ad-Hoc `tsc` Produces Phantom Errors vs Real Build Gate
+
+**Pattern:** Running bare `tsc` or `tsc -p tsconfig.*.json` outside the project's actual build gate produces misleading errors — missing `@types/node` (no `node_modules`), TS5101 baseUrl deprecation, TS2882 CSS shims — that the real build (`npm run build`) never hits.
+
+**Instances:**
+- 2026-07-04 — ElectronMain (workflow-app, t/1333): `tsc -p tsconfig.main.json` errored TS2688 "Cannot find type definition file for 'node'" because deps were never installed (`@types/node` comes transitively via electron). Bare `tsc` on renderer errored TS5101 (baseUrl deprecation) and TS2882 (App.css shim) — both are non-issues because renderer is type-checked via `vite build`, not bare `tsc`. Fixed by `npm install` + verifying via `npm run build` (the actual gate). Note: workflow-app has no verify/test gate of its own (p/98#3).
+
+**Root Cause:** Electron apps have split type-checking: main process via `tsc -p tsconfig.main.json`, renderer via `vite build` (which uses esbuild with its own resolution). Running ad-hoc `tsc` commands that don't match the real pipeline produces false positives (renderer CSS/baseUrl errors) or catches missing-deps issues that are environment problems, not code problems. Agents waste time debugging phantom errors.
+
+**Prevention:**
+1. Always use the project's actual build gate (`npm run build`, `npm run verify`) — not ad-hoc `tsc` commands.
+2. If a project has no verify gate, use `npm run build` as the minimum check.
+3. Run `npm install` before any type-checking in a project where `node_modules` doesn't exist yet.
+4. Know which tsconfig covers which code: `tsconfig.main.json` = main process only; renderer = `vite build`. Bare `tsc` on renderer code is not the real gate.
+
+**Status:** Active
+
+**Applies To:** All agents working in Electron apps (taxonomy-editor, workflow-app, poviewer, summary-viewer).
+
+---
+
+## [Build] Registry Credential on Public Image Turns Credential Rot into Outage
+
+**Pattern:** A stored GHCR PAT expired, but ACA authenticates EVERY pull when a registry credential is configured — so the dead PAT broke pulls of a PUBLIC image that anonymous pulls would have served fine. Total production outage, undetected for 11+ hours.
+
+**Instances:**
+- 2026-07-05 — **PROD OUTAGE**: stored GHCR PAT expired → ACA authenticated every pull → ImagePullBackOff on the 100%-traffic revision → total outage. No alerting: ACA marked revision "Degraded" and nothing watched it. Undetected 11+ hours. Restored by routing traffic to a still-cached healthy revision, permanently fixed by removing the credential. Hardening: t/1335 (Bicep re-adds dead cred — deploy-blocking), t/1336 (Degraded-revision alert + external uptime probe), t/1337 (verify-then-promote traffic gate) (p/8#41).
+
+**Root Cause:** Three compounding failures: (1) **Registry credentials on public images are pure downside** — they force authenticated pulls where anonymous would succeed, turning credential expiry into an outage instead of a no-op. (2) **No alerting on ACA revision health** — ACA marked the revision "Degraded" but nothing watched for that state or probed externally. (3) **Bicep re-adds the credential on deploy** — removing it via CLI is ephemeral; the next deploy from IaC restores the dead cred (same class as the ACA env var drift trap).
+
+**Prevention:**
+1. **Never configure registry credentials for public images** — authenticated pulls gain nothing and create a credential-rot time bomb.
+2. Remove the credential from Bicep (t/1335), not just CLI — IaC drift will restore it otherwise.
+3. Add a **Degraded-revision alert** and an **external uptime probe** (t/1336) — internal ACA health markers are insufficient if nothing watches them.
+4. Implement a **verify-then-promote traffic gate** (t/1337) — new revisions should prove healthy before receiving traffic.
+5. For any configured credential, set a rotation reminder or use a mechanism with auto-renewal (e.g., managed identity instead of PAT).
+
+**Status:** Active — hardening tracked in t/1335, t/1336, t/1337.
+
+**Applies To:** DevOps, Azure infrastructure, anyone touching container deployment or registry configuration.
+
+---
+
+## [Build] ACA Revision Snapshots Freeze Config at Creation + az CLI Swallows 409
+
+**Pattern:** ACA bakes registry credentials (and other config) into each revision's snapshot at CREATION time. App-level config changes do NOT affect existing revisions — restarts still pull with the frozen credential. Only a NEW revision picks up config changes. Compounding: `az containerapp registry remove` exits 0 while ARM silently rejects with 409 ContainerAppRegistryInUse.
+
+**Instances:**
+- 2026-07-05 — During outage remediation (p/8#42): TL's "30-60 second maintenance window" estimate became ~75 minutes because the mental model ("config applies live") was wrong. `az containerapp registry remove` appeared to succeed (exit 0, no output) but ARM rejected with 409. Registry credential remained frozen in the revision snapshot. Only creating a new revision (revision copy) picked up the removal. Both facts now in t/1335 design constraints.
+
+**Root Cause:** Two compounding ACA behaviors: (1) **Revision snapshots are immutable** — registry credentials, env vars, and other config are baked in at creation time and survive restarts. App-level changes only take effect when a new revision is created. (2) **az CLI swallows ARM 409 errors** — `az containerapp registry remove` returns exit code 0 and prints nothing when ARM responds with 409 ContainerAppRegistryInUse, giving a false impression of success.
+
+**Prevention:**
+1. After ANY registry or config change, **always read back** `properties.configuration.registries` (or the relevant config section) to verify the change actually took effect.
+2. Understand that **existing revisions are immutable** — to apply config changes, you must create a new revision (revision copy or new deployment).
+3. Never trust `az containerapp` exit codes alone for config mutations — read-after-write verification is mandatory.
+4. Factor immutable revision snapshots into maintenance time estimates — "remove and restart" doesn't work; "remove, create new revision, route traffic" is the real sequence.
+
+**Status:** Active — design constraints captured in t/1335.
+
+**Applies To:** DevOps, Azure infrastructure, anyone performing ACA config changes during incidents.
+
+---
+
+## [Build] Multi-Agent Git — Worktree Landing Race Creates Duplicate Commits
+
+**Pattern:** An agent's land flow commits X on the SHARED local main, then cherry-picks a copy X' inside a git worktree and pushes X'. The original X lingers unpushed on the shared ref and later sweeps to origin when another agent pushes — producing byte-identical duplicate commits on origin.
+
+**Instances:**
+- 2026-07-05 — Happened twice on t/1295 (commits 4 and 5) before root-cause was identified. Agent committed on shared local main, then cherry-picked into worktree and pushed. The original commits stayed on shared main and were pushed later by a different agent (p/8#45).
+
+**Root Cause:** The landing flow treats local main as a scratch pad — commit there, then cherry-pick into an isolated worktree for push. But local main is SHARED across all agents on the same machine. The original commit persists on the shared ref after the cherry-pick, invisible to the agent who pushed via worktree. When any agent later pushes from local main, the orphaned commit travels to origin as a duplicate.
+
+**Prevention (ratified fix, t/1295#15, p/8#46):**
+1. Create worktree off **fresh `origin/main`** — never the shared local ref.
+2. Copy only your changed files into the worktree, `add + commit + push` INSIDE it — one SHA, nothing lingers on the shared tree.
+3. Sync the shared tree back with file-scoped `git checkout origin/main -- <files>` — **never a reset** that could drop other agents' commits.
+4. Run verify gate inside the worktree per Definition of Done.
+5. After push, verify local main has no orphaned duplicates: `git log origin/main..main`.
+
+**Status:** Active — ratified fix in place (t/1295#15). Pairs with the shared-branch pathspec rule (Git Commit Rule in root AGENTS.md).
+
+**Applies To:** All agents using git worktrees on shared local repos, especially multi-agent landing flows.
+
+---
+
+## [Build] Python 3.12 Rejects Mid-Pattern Inline Regex Flags
+
+**Pattern:** Inline regex flags like `(?m)` placed mid-pattern (not at position 0) are a hard error in Python 3.12+ — `re.error: missing -, : or )`. Worked silently in earlier Python versions.
+
+**Instances:**
+- 2026-07-06 — Computational Linguist: inline Python regex used a mid-pattern `(?m)` flag, hard error in Python 3.12. Fixed by moving to `re.M` flag argument: `re.findall(pat, s, re.M)` (p/7#20).
+
+**Root Cause:** Python 3.11 deprecated inline flags not at the start of the pattern; Python 3.12 made it a hard error. Agents writing inline Python snippets may use patterns from training data or older docs that place flags mid-pattern.
+
+**Prevention:**
+1. Always pass regex flags via the `flags=` argument: `re.findall(pat, s, re.M)` — never embed `(?m)` mid-pattern.
+2. Inline flags (`(?m)`, `(?i)`, `(?s)`) are only valid at **position 0** of the pattern string in Python 3.12+.
+3. When writing inline Python regex, prefer explicit flag arguments over inline flag syntax entirely.
+
+**Status:** Active
+
+**Applies To:** All agents writing inline Python regex (scripts, one-liners, data processing).
+
+---
+
+## [Build] Windows Junction Trap — Symlinked node_modules Blocks Worktree Cleanup
+
+**Pattern:** `ln -s` on Windows Git Bash creates a directory JUNCTION (not a symlink). Junctions into a worktree's `node_modules` block `git worktree remove` and risk `rm -rf` following the junction into the real `node_modules`.
+
+**Instances:**
+- 2026-07-06 — ServerAPI: symlinked main tree's `node_modules` into a landing-worktree to run `npm run verify`. Windows created a junction; `git worktree remove` failed, and a naive `rm -rf` on the worktree would have destroyed the real `node_modules`. Resolved with `git worktree remove --force` + `git worktree prune`; confirmed real `node_modules` intact (906 entries). Recommendation: don't symlink `node_modules` — verify in main tree + `git diff`, or `npm ci` in worktree (p/79#5).
+
+**Root Cause:** Git Bash `ln -s <dir>` on Windows creates an NTFS directory junction, not a POSIX symlink. Junctions are followed by `rm -rf` and `rmdir` — cleanup of the worktree risks destroying the junction target. `git worktree remove` also fails because it encounters the junction during cleanup.
+
+**Prevention:**
+1. **Never symlink `node_modules` into a landing-worktree on Windows** — the junction will block cleanup and risk the real deps.
+2. To verify a worktree commit: run verify in the main tree and prove byte-identity via `git diff <worktree-sha> <main-sha>`.
+3. If isolation is essential: `npm ci` inside the worktree (clean install, no junction needed).
+4. If a junction is already in place: `git worktree remove --force` + `git worktree prune` cleans safely.
+
+**Status:** Active
+
+**Applies To:** All agents using git worktrees on Windows, especially landing flows that need `node_modules`.
+
+---
+
+## [Build] Uncommitted Fixes Mask Committed Breakage — Dirty Working Tree as False Witness
+
+**Pattern:** A multi-step refactor deletes a module and fixes its importers, but only the deletion is committed — the importer fixes remain uncommitted in the shared working tree. Local verify passes (reads dirty tree), committed state is broken. Compounding: diagnosing "is main green?" by building the dirty shared tree produces a false-green that overrules a clean-worktree agent who was correct.
+
+**Instances:**
+- 2026-07-06 — Technical Lead (t/1303 Phase C): deleted a module and fixed 2 importers but left the importer fixes uncommitted. Local verify green, committed state red for hours. TL then "verified main is green" using the dirty shared tree, contradicting a clean-worktree agent who was correctly seeing the breakage. Diagnostic standard established in t/1303#7 (p/8#49).
+
+**Root Cause:** `tsc` and `npm run verify` read the working tree, not the git index. In a multi-agent environment, the shared working tree accumulates uncommitted changes from multiple agents — it's never a reliable proxy for committed state. When two agents disagree about whether main is broken, building the dirty tree settles nothing.
+
+**Prevention:**
+1. **Commit ALL files in a refactor atomically** — deletions and their importer fixes in the same commit. Never commit a deletion without its dependents.
+2. After committing, run verify to confirm the COMMITTED state is green (the existing Definition of Done rule).
+3. **Disputes about committed state are settled at the git object level**, not by building the working tree:
+   - `git show HEAD:<path>` — does the file/export exist in committed code?
+   - `git grep <pattern> HEAD` — search committed content only
+   - `git cat-file -e <sha>:<path>` — verify a path exists at a specific commit
+   - `git stash && npm run verify && git stash pop` — build committed state only
+4. Pairs with the "Verify Before Pushing" rule in root AGENTS.md as its diagnostic complement.
+
+**Status:** Active — diagnostic standard ratified in t/1303#7.
+
+**Applies To:** All agents on shared working trees, especially when diagnosing "is main broken?"
