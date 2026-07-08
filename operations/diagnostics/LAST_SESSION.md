@@ -1,5 +1,5 @@
-**Date:** 2026-07-02
-**Working on:** Completed /triage-flight-recorder skill live test (t/1286), resolved skill scoping to workspace-wide (t/1286#4), verified all EPERM retry fixes committed across 10 files (4 commits: 982548f7, 230d240a, b4dd4ee4, 11086e2d)
-**Status:** Complete — no open tickets, CI green, all pending items resolved
-**Key context:** Zero bare fs.renameSync/fs.rename calls remain in codebase; all use retry helpers. The /triage-flight-recorder skill is workspace-scoped deliberately (not role-restricted).
-**Next:** Check ticket queue for new work; run session startup health checks
+**Date:** 2026-07-07
+**Working on:** Triaged flight recorders, diagnosed Zod schema bug (t/1380), analyzed dual validation path architecture for TL (p/47#72).
+**Status:** All diagnosed and ticketed. t/1380 fix (`.optional()` → `.nullish()`) is in Taxonomy Editor's working tree but not yet committed. Reported dual-path finding to TL: t/1321 tightened the Zod schema for CI (report-only), but the same schema is hard-enforced by the client save gate (`taxonomyDataSlice.ts:383`) — a shared-schema side effect.
+**Key context:** Two consumers of `povTaxonomyFileSchema`: CI job (report-only, `continue-on-error`) and client save gate (hard-enforcing, blocks saves). Schema tightening in one path affects both. TL aware — may need a design decision on whether to split schemas.
+**Next:** Monitor t/1380 commit. All Diagnostics tickets are Done — idle until new work arrives.

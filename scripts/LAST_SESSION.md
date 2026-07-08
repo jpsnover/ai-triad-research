@@ -1,5 +1,5 @@
-**Date:** 2026-06-30
-**Working on:** t/1198 (scope-detection helper) then t/1163 (PS integration fault tests under parent t/1160)
-**Status:** Both Done. Queue empty.
-**Key context:** t/1163 needed a small production-code change to surface structured ActionableError JSON from CLI stderr — added Private/Get-StructuredErrorFromStderr.ps1 + AITRIAD_DEBATE_CLI_OVERRIDE env var test seam in Invoke-AITDebate. AC#2 design originally targeted AIEnrich's $script:ModelRegistry; actual validator is in AITriad/Private/AIModelValidation.ps1 using $script:ValidModelIds — test mutates the correct script var. 11/11 new + 244/244 regression on health/debate/config tags. No commits yet.
-**Next:** Working tree has substantial uncommitted state from this session (Invoke-AITDebate.ps1, Get-Edge.ps1, Get-FreeTierStatus.ps1, Resume-AITDebate.ps1, Test-AnonymousDebateFlow.ps1 + 5 new files in scripts/ and tests/). Surface for user direction on commit grouping before going further.
+**Date:** 2026-07-06
+**Working on:** t/1344 cross-runtime debate-quality parity guard (Pester + tsx shim) — Done. Also filed t/1346 (Measure-DebateQuality Min/Max int-coercion bug, Todo).
+**Status:** Complete. `4f1eeb19` on origin/main; 36/36 debate-tag Pester pass; AC#3 deliberate-fail proof captured in t/1344#3.
+**Key context:** Data-repo (`../ai-triad-data`) pushes fine via SSH remote (`git@github.com:jpsnover/ai-triad-data.git`) — the HTTP 408 era ended 2026-07-04. Do NOT reintroduce that claim in tickets/emails; TL corrected it four times (t/1319#2, t/1319#4, t/1312#4, p/24#84). Locked in memory as [[project-data-repo-push-ssh-remote]].
+**Next:** t/1346 (self-assigned bug) if the queue stays otherwise empty — one-line `[Math]::Min(100.0, $Score)` cast in `Measure-DebateQuality.ps1:98` + a pinned-decimal Pester assertion. Also awaiting TL routing decision on t/1344#3 note 3 (whether DevOps needs a follow-up to add `npm ci` to the test-powershell CI job so the parity guard runs instead of loud-skipping).

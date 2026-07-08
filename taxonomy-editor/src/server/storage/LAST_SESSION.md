@@ -1,5 +1,5 @@
-**Date:** 2026-06-30
-**Working on:** t/1155 (error report helpers + redact), t/1216 (writeBinaryFile), t/1229 (readOrganizations) — all committed and pushed to origin/main
-**Status:** Complete — all three tickets done, queue empty
-**Key context:** t/1216 writeBinaryFile bypasses GitHubAPIBackend overlay (string-only Map) and writes directly to GitHub, matching readBinaryFile's pattern; test mock stubs committed separately by another agent (a8e67589)
+**Date:** 2026-07-06
+**Working on:** t/1339 (optionality-aware 404 log level downgrade in GitHub API backend)
+**Status:** Complete — committed 5ef24896, ticket Done
+**Key context:** `optional?: boolean` added to StorageBackend.readFile opts; threaded through GitHubAPIBackend readFile→fetchFileFromGitHub→apiRequest; new EventType 'github.api.miss' in lib/flight-recorder/types.ts (cross-scope edit to Shared Lib)
 **Next:** Check ticket queue for new assignments

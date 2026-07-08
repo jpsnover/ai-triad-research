@@ -1,5 +1,5 @@
-**Date:** 2026-07-01
-**Working on:** AGENTS.md update (common practices/patterns/traps), repo cleanup (18 junk files deleted), t/1261 PS UsageID review+approval. Full UsageID rollout complete (t/1259-t/1263 all Done).
-**Status:** Complete. All UsageID + Organizations implementation tickets shipped. 30+ unpushed commits on main ready for push/deploy cycle.
-**Key context:** AGENTS.md is overlay-tracked — committed via ogit as 714719c. Modified tracked files remaining: ai-models.json (+433/-116), ai-usages.json (+31), operations/devops/azure/AGENTS.md (+32/-26). Server Storage false verify claim (t/1273) still needs follow-up.
-**Next:** Push/deploy cycle (coordinate with DevOps). Follow up on Server Storage's false verify claim. t/1265 (admin panel usage browser) is the next unblocked ticket.
+**Date:** 2026-07-06 — PHASE 2 FORMALLY CLOSED (CHECKPOINT-2 committed 369001bb)
+**Working on:** t/1295 CLOSED (B-209; persona matrix → t/1337 deploy gate). t/1300/t/1303/t/1321 closed. Worktree Landing Procedure (AGENTS.md fbfc078 + /land-from-worktree skill) and Deviation Flagging Rule (26a3e8c + Done-hook, live per-agent at next session start) are fleet law. Shell-debris junk swept from lib/research/scripts.
+**Status:** Recorder-flip critical path: ServerAPI annotating 57 catches (+absorbed orphan aiBackends@638) → ElectronMain re-census → flip. Reviews still owed: t/1335#4, t/1336#2 (Azure, done — Bicep strip independently verified), t/1297#6 (Shared Lib), t/1327 smokes (routed to ElectronMain), t/1333 live run.
+**Key context:** t/1336 found ALL 9 Azure alerts notified nobody (budgetAlertEmail never wired) — owner must set ALERT_EMAIL GH variable; alerts go live on next deploy (interacts with deploy hold). B-404 flip: report-only triage (enrichment additionalProperties) → TaxEditor recommendation → deliberate flip. 7/17: quality-gates + doc-accuracy only (taxonomy in ci.yml header, dfcb4b84).
+**Next:** t/1335/t/1336/t/1297 formal reviews; recorder-flip endgame; then propose multi-user plan sequencing to owner.

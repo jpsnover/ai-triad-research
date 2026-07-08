@@ -1,5 +1,5 @@
-**Date:** 2026-07-04
-**Working on:** t/1329 debate-eval CI job, deploy hold runbook, t/1332 Tier 2 follow-up filed
-**Status:** Complete — t/1329 committed (55dbca5a), runbook deploy hold (954a7ecf), t/1332 filed for DebateTool
-**Key context:** Deploy hold in effect (owner decision 2026-07-04). Warning-only CI gates (quality-gates, doc-accuracy, debate-eval) all flip to enforcing on 2026-07-17. t/1308 pipeline freeze still awaiting TL response.
-**Next:** Verify CI runs green after push; monthly Azure cost review overdue; check TL response on t/1308 pipeline guard
+**Date:** 2026-07-07
+**Working on:** t/1354 (cost anomaly), t/1375 (persona-matrix promotion gate), t/1351 (invalid ticket closure)
+**Status:** Complete — t/1354: prod minReplicas 1→0 deployed live (98322cc8), owner accepted cold-start tradeoff. t/1375: persona gate wired + deployed to prod (0a17d803, fe65c2b1) AND proven end-to-end via staging deliberate-failure test (TL-required follow-up, t/1375#4) — throwaway test branch, deleted after. Found + routed a PowerShell format-string bug along the way (p/169#4, fixed a257509c). Deploy hold confirmed lifted (was stale since 2026-07-05 deploys).
+**Key context:** Deploy hold from 2026-07-04 is OVER — production-release.md updated to reflect this. Prod now scale-to-zero (minReplicas:0) — verify no session-state regressions if reported. `gh run watch` is unreliable in this environment (reports false completion) — poll `gh run view --json status,conclusion` directly instead. Self-reported a skipped pre-implementation design-review comment on t/1375 (TL-authored ticket) — TL said: post a lightweight comment before implementing for infra/pipeline changes going forward, even when mechanical.
+**Next:** Queue empty. Open: reconcile AGENTS.md's stale "$0-5/month" cost target vs real $30/mo budget (owner decision, flagged in t/1354#1); q/29 still pending (FREE_TIER_GEMINI_KEY).

@@ -1,5 +1,5 @@
-**Date:** 2026-06-30
-**Working on:** Production deploys (8bc7826e, b2208706, 8c693a66), deploy workflow fixes (selective CI gate, cancel-in-progress), release runbook, security posture review (t/1099 egress lockdown)
-**Status:** Complete — all tickets closed, all deploys verified healthy
-**Key context:** Latest deploy on main is 6b3707b6 (CI disk cleanup fix, deployed 2026-06-30). GEMINI_PAID_KEY GH Actions secret still needs manual addition by user from c:\tmp\paidgeminikey.txt.
-**Next:** Check ticket queue for new work; remind user about GEMINI_PAID_KEY secret if relevant
+**Date:** 2026-07-07
+**Working on:** Production deploy after multi-day hold (t/1335 GHCR fix + t/1336 monitoring), plus 6 blockers found/fixed along the way.
+**Status:** Complete. Deploy live (revision taxonomy-editor--deploy-2d3a9c8-2890, 100% traffic, 16/16 endpoints). Both t/1335 and t/1336 closed per TL ruling. t/1355 filed (LOW, PowerShell) for Test-PersonaEndpoints body-shape hardening.
+**Key context:** Fixed en route: stale base image tag, node-pty needing prod-deps build stage, budget startDate must use utcNow() not hardcoded date, and a real bug where alert-image-pull-failure's query never matched ACA's actual log vocabulary (ContainerBackOff/ContainerCrashing, not literal "ImagePullBackOff") — found via historical backtest against the real 2026-07-05 outage data, fixed, proven via live Fired alerts.
+**Next:** Check ticket queue. ACA validates image manifests synchronously at deploy time — can't fault-inject via bad tags; use historical backtest + Data Collector API log injection instead for alert testing.
