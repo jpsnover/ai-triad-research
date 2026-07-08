@@ -30,6 +30,8 @@ import { api } from '@bridge';
 import { EditConflictBadge, type NodeConflict } from '../conflict/edit-conflicts';
 import { triggerPovNodeRegeneration } from '../../utils/regeneratePlainDescription';
 import { useDescriptionMode, resolveDescription, DescriptionToggle } from '../shared/DescriptionToggle';
+import { EmptyState } from '../shared/EmptyState';
+import './NodeDetail.css';
 
 interface MoveTarget {
   label: string;
@@ -37,10 +39,11 @@ interface MoveTarget {
   isTransfer?: boolean;
 }
 
-function OverflowMenu({ moveTargets, onDelete, onAIAnalysis }: {
+function OverflowMenu({ moveTargets, onDelete, onAIAnalysis, onPin }: {
   moveTargets: MoveTarget[];
   onDelete: () => void;
   onAIAnalysis: () => void;
+  onPin?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -68,6 +71,11 @@ function OverflowMenu({ moveTargets, onDelete, onAIAnalysis }: {
           <button className="overflow-menu-item" onClick={() => { onAIAnalysis(); setOpen(false); }}>
             AI Analysis
           </button>
+          {onPin && (
+            <button className="overflow-menu-item" onClick={() => { onPin(); setOpen(false); }}>
+              Pin for Comparison
+            </button>
+          )}
           <div className="overflow-menu-divider" />
           {categoryMoves.map(t => (
             <button key={t.label} className="overflow-menu-item" onClick={() => { t.action(); setOpen(false); }}>
@@ -315,43 +323,48 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
   return (
     <div ref={formRef} className="node-detail-tabbed">
       <div className="nd-header">
-        <div className="nd-header-title">
-          {readOnly ? (
-            <span className="nd-header-label">{node.label}</span>
-          ) : (
-            <input
-              className={`nd-header-label nd-header-label-editable ${err('label') ? 'has-error' : ''}`}
-              value={node.label}
-              onChange={(e) => update({ label: e.target.value })}
-              placeholder="Label"
-              aria-label="Label"
-            />
-          )}
-          <span className="nd-header-id">{node.id}</span>
+        <div className="nd-header-top">
+          <div className="nd-header-title">
+            {readOnly ? (
+              <span className="nd-header-label">{node.label}</span>
+            ) : (
+              <input
+                className={`nd-header-label nd-header-label-editable ${err('label') ? 'has-error' : ''}`}
+                value={node.label}
+                onChange={(e) => update({ label: e.target.value })}
+                placeholder="Label"
+                aria-label="Label"
+              />
+            )}
+          </div>
+          <div className="nd-header-actions">
+            {onSimilarSearch && (
+              <button className="nd-header-btn" onClick={onSimilarSearch} title="Find similar taxonomy elements">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              </button>
+            )}
+            {!readOnly && (
+              <OverflowMenu
+                moveTargets={moveTargets}
+                onDelete={() => setShowDelete(true)}
+                onAIAnalysis={() => void useTaxonomyStore.getState().runNodeCritique(pov, node)}
+                onPin={onPin}
+              />
+            )}
+            {readOnly && onPin && (
+              <button className="nd-header-btn" onClick={onPin} title="Pin for comparison">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="nd-header-meta">
           <span className="nd-header-cat" data-cat={node.category}>
             {node.category.toUpperCase()}
             <FieldHelp text={BDI_GUIDANCE[node.category]} />
           </span>
+          <span className="nd-header-id">{node.id}</span>
           <EditConflictBadge conflict={conflict} resolveUrl={resolveUrl} />
-        </div>
-        <div className="nd-header-actions">
-          {onSimilarSearch && (
-            <button className="nd-header-btn" onClick={onSimilarSearch} title="Find similar taxonomy elements">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            </button>
-          )}
-          {onPin && (
-            <button className="nd-header-btn" onClick={onPin} title="Pin for comparison">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
-            </button>
-          )}
-          {!readOnly && (
-            <OverflowMenu
-              moveTargets={moveTargets}
-              onDelete={() => setShowDelete(true)}
-              onAIAnalysis={() => void useTaxonomyStore.getState().runNodeCritique(pov, node)}
-            />
-          )}
         </div>
       </div>
 
@@ -419,7 +432,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
         {activeTab === 'content' && (
           <>
             {!readOnly && err('label') && (
-              <div className="error-text" style={{ marginBottom: 8 }}>{err('label')}</div>
+              <div className="error-text">{err('label')}</div>
             )}
 
             <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
@@ -431,7 +444,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
                 <DescriptionToggle mode={descMode} onToggle={setDescMode} hasPlainDescription={!!node.plain_description} />
               </div>
               {descMode === 'formal' ? (
-                <>
+                <div className="prose">
                   <HighlightedTextarea
                     value={node.description}
                     onChange={(v) => update({ description: v })}
@@ -439,7 +452,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
                     readOnly={readOnly}
                   />
                   {err('description') && <div className="error-text">{err('description')}</div>}
-                </>
+                </div>
               ) : (
                 <>
                   {node.plain_description === null ? (
@@ -485,7 +498,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
                       const meta = POV_META[povKey];
                       if (!vuln[key] && readOnly) return null;
                       return (
-                        <div key={key} style={{ marginBottom: 4 }}>
+                        <div key={key} className="vulnerability-subsection">
                           <strong style={{ color: `var(${meta.cssVar})` }}>{meta.label}:</strong>
                           {readOnly ? (
                             <span> {vuln[key]}</span>
@@ -588,7 +601,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
               {selectedEdge ? (
                 <EdgeDetailPanel width={0} />
               ) : (
-                <div className="node-detail-related-empty">Select an edge to view details</div>
+                <EmptyState headline="No edge selected" direction="Select an edge to view details" />
               )}
             </div>
           </div>
@@ -734,17 +747,17 @@ function RelatedCruxes({ nodeId }: { nodeId: string }) {
   };
 
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div className="related-cruxes">
       <div
-        style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: expanded ? 6 : 0, color: 'var(--text-primary)', cursor: 'pointer', userSelect: 'none' }}
+        className="related-cruxes-header"
         onClick={() => setExpanded(!expanded)}
         title={expanded ? 'Collapse' : 'Expand'}
       >
-        <span style={{ display: 'inline-block', width: 14, fontSize: '0.7rem' }}>{expanded ? '▾' : '▸'}</span>
+        <span className="related-cruxes-chevron">{expanded ? '▾' : '▸'}</span>
         Related Cruxes ({related.length})
       </div>
       {expanded && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div className="related-cruxes-list">
           {related.map(crux => (
             <CruxChip key={crux.id} crux={crux} onClick={() => handleCruxClick(crux.id)} />
           ))}
@@ -760,29 +773,18 @@ function CruxChip({ crux, onClick }: { crux: AggregatedCrux; onClick: () => void
 
   return (
     <button
-      className="btn btn-sm btn-ghost"
+      className="btn btn-sm btn-ghost crux-chip"
       onClick={onClick}
       title={`${crux.statement}\n\nType: ${crux.type} | Status: ${dominant}`}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        textAlign: 'left', padding: '4px 8px', fontSize: '0.75rem',
-        lineHeight: 1.3, width: '100%',
-      }}
     >
       <span
-        style={{
-          display: 'inline-block', width: 7, height: 7, borderRadius: '50%',
-          backgroundColor: CRUX_TYPE_COLORS[crux.type] ?? 'var(--text-muted)',
-          flexShrink: 0,
-        }}
+        className="crux-chip-dot"
+        style={{ backgroundColor: CRUX_TYPE_COLORS[crux.type] ?? 'var(--text-muted)' }}
       />
-      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <span className="crux-chip-label">
         {crux.statement}
       </span>
-      <span style={{
-        fontSize: '0.65rem', flexShrink: 0,
-        color: dominant === 'resolved' ? 'var(--color-saf)' : dominant === 'irreducible' ? 'var(--color-skp)' : 'var(--text-muted)',
-      }}>
+      <span className={`crux-chip-status crux-chip-status-${dominant}`}>
         {dominant}
       </span>
     </button>
@@ -873,8 +875,8 @@ function EvidenceGraphSection({ nodeId }: { nodeId: string }) {
   if (evidenceNodes.length === 0) return null;
 
   return (
-    <div style={{ marginBottom: 12 }}>
-      <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 6, color: 'var(--text-primary)' }}>
+    <div className="evidence-graph">
+      <div className="evidence-graph-title">
         Evidence Graph ({evidenceNodes.length} claim{evidenceNodes.length !== 1 ? 's' : ''})
       </div>
       {evidenceNodes.map(node => {
@@ -888,63 +890,41 @@ function EvidenceGraphSection({ nodeId }: { nodeId: string }) {
         const barPct = Math.round(eg.computed_strength * 100);
         const barColor = eg.computed_strength >= 0.7 ? '#22c55e' : eg.computed_strength >= 0.4 ? '#f59e0b' : '#ef4444';
         return (
-          <div key={node.id} style={{
-            marginBottom: 8, padding: '8px 10px', borderRadius: 6,
-            border: '1px solid var(--border-color)', background: 'var(--bg-secondary)',
-          }}>
-            <div style={{ fontSize: '0.75rem', marginBottom: 6, lineHeight: 1.4 }}>
+          <div key={node.id} className="evidence-claim-card">
+            <div className="evidence-claim-text">
               {node.text}
               {node.attribution_text_genus && <div className="claim-attribution-text"><span className="claim-attribution-label">Attribution:</span>{node.attribution_text_genus}</div>}
             </div>
-            {/* Strength bar */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <div style={{
-                flex: 1, height: 6, borderRadius: 3,
-                background: 'var(--bg-primary)',
-              }}>
-                <div style={{
-                  width: `${barPct}%`, height: '100%', borderRadius: 3,
-                  background: barColor, transition: 'width 0.3s',
-                }} />
+            <div className="evidence-strength-row">
+              <div className="evidence-strength-track">
+                <div className="evidence-strength-fill" style={{ width: `${barPct}%`, background: barColor }} />
               </div>
-              <span style={{
-                fontSize: '0.7rem', fontWeight: 700, color: barColor, minWidth: 40,
-              }}>
+              <span className="evidence-strength-value" style={{ color: barColor }}>
                 {(eg.computed_strength ?? 0).toFixed(2)}
               </span>
-              <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+              <span className="evidence-strength-iter">
                 {eg.qbaf_iterations} iter
               </span>
             </div>
-            {/* Evidence items */}
             {sorted.map(item => (
-              <div key={item.id} style={{
-                marginBottom: 4, padding: '4px 8px', borderRadius: 4,
-                borderLeft: `3px solid ${item.relation === 'support' ? '#22c55e' : '#ef4444'}`,
-                background: item.relation === 'support' ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                  <span style={{
-                    fontSize: '0.6rem', fontWeight: 700, padding: '1px 5px', borderRadius: 3,
-                    background: item.relation === 'support' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
-                    color: item.relation === 'support' ? '#22c55e' : '#ef4444',
-                  }}>
+              <div key={item.id} className={`evidence-item ${item.relation === 'support' ? 'evidence-item-support' : 'evidence-item-contradict'}`}>
+                <div className="evidence-item-header">
+                  <span className={`evidence-item-badge ${item.relation === 'support' ? 'evidence-item-badge-support' : 'evidence-item-badge-contradict'}`}>
                     {item.relation === 'support' ? 'SUPPORTS' : 'CONTRADICTS'}
                   </span>
-                  <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+                  <span className="evidence-item-sim">
                     {(item.similarity * 100).toFixed(0)}% sim
                   </span>
-                  <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span className="evidence-item-source">
                     {item.source_doc_id}
                   </span>
                 </div>
-                <div style={{ fontSize: '0.7rem', lineHeight: 1.4, color: 'var(--text-primary)' }}>
+                <div className="evidence-item-text">
                   {item.text}
                 </div>
               </div>
             ))}
-            {/* Summary line */}
-            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 4 }}>
+            <div className="evidence-summary">
               {supports.length} supporting, {contradicts.length} contradicting
             </div>
           </div>

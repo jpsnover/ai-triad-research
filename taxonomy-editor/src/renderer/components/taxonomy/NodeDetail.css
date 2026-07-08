@@ -1,0 +1,210 @@
+/* NodeDetail Phase 4a — header restructure + hoisted inline styles */
+
+.nd-header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.nd-header-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+/* ── RelatedCruxes (hoisted from inline styles) ── */
+
+.related-cruxes {
+  margin-bottom: var(--sp-3);
+}
+
+.related-cruxes-header {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.related-cruxes-chevron {
+  display: inline-block;
+  width: 14px;
+  font-size: var(--text-xs);
+}
+
+.related-cruxes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+/* ── CruxChip (hoisted from inline styles) ── */
+
+.crux-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+  padding: 4px 8px;
+  font-size: var(--text-xs);
+  line-height: 1.3;
+  width: 100%;
+}
+
+.crux-chip-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.crux-chip-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crux-chip-status {
+  font-size: var(--text-2xs);
+  flex-shrink: 0;
+}
+
+.crux-chip-status-resolved { color: var(--color-saf); }
+.crux-chip-status-irreducible { color: var(--color-skp); }
+.crux-chip-status-active { color: var(--text-muted); }
+
+/* ── EvidenceGraphSection (hoisted from inline styles) ── */
+
+.evidence-graph {
+  margin-bottom: var(--sp-3);
+}
+
+.evidence-graph-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+}
+
+.evidence-claim-card {
+  margin-bottom: var(--sp-2);
+  padding: var(--sp-2) 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.evidence-claim-text {
+  font-size: var(--text-xs);
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.evidence-strength-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+
+.evidence-strength-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-primary);
+}
+
+.evidence-strength-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.evidence-strength-value {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  min-width: 40px;
+}
+
+.evidence-strength-iter {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.evidence-item {
+  margin-bottom: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.evidence-item-support {
+  border-left: 3px solid #22c55e;
+  background: rgba(34, 197, 94, 0.06);
+}
+
+.evidence-item-contradict {
+  border-left: 3px solid #ef4444;
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.evidence-item-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.evidence-item-badge {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.evidence-item-badge-support {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.evidence-item-badge-contradict {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.evidence-item-sim {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.evidence-item-source {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  flex: 1;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evidence-item-text {
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  color: var(--text-primary);
+}
+
+.evidence-summary {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ── Vulnerability subsection (partial hoist — dynamic color stays inline) ── */
+
+.vulnerability-subsection {
+  margin-bottom: 4px;
+}

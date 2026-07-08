@@ -1310,6 +1310,8 @@ body {
   font-weight: 700;
   padding: 6px 12px;
   margin-bottom: 4px;
+  cursor: pointer;
+  user-select: none;
 }
 
 .category-label[data-cat="Desires"]       { color: var(--cat-desires); }
@@ -1369,15 +1371,16 @@ body {
 /* ─── Node list items ──────────────────────────────────── */
 
 .node-item {
-  padding: var(--node-item-padding, 8px 12px);
+  padding: var(--node-item-padding, 4px 12px);
   border-radius: var(--radius-md);
   cursor: pointer;
-  font-size: var(--node-item-font, 0.85rem);
+  font-size: var(--node-item-font, var(--text-sm));
   line-height: 1.4;
   color: var(--text-primary);
   transition: background 0.15s;
-  border-left: 4px solid transparent;
+  border-left: 3px solid transparent;
   margin-bottom: var(--node-item-gap, 2px);
+  min-height: 28px;
 }
 
 [data-pane-spacing="concise"] .node-item {
@@ -1399,6 +1402,7 @@ body {
 
 .node-item.selected {
   background: var(--bg-panel);
+  font-weight: 600;
 }
 
 .node-item-id {
@@ -3286,25 +3290,20 @@ body {
 
 .nd-header {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  flex-direction: column;
   padding: 0 14px 10px;
-  gap: 12px;
+  gap: 4px;
 }
 
 .nd-header-title {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  flex-wrap: wrap;
   min-width: 0;
   flex: 1;
 }
 
 .nd-header-label {
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: var(--text-md);
-  font-weight: 400;
+  font-family: var(--font-prose);
+  font-size: var(--text-xl);
+  font-weight: 600;
   line-height: 1.3;
   color: var(--text-primary);
   letter-spacing: -0.01em;
@@ -3336,10 +3335,12 @@ body {
 }
 
 .nd-header-id {
-  font-size: var(--text-xs);
+  font-size: var(--text-2xs);
   color: var(--text-muted);
   font-family: var(--font-mono, monospace);
-  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--chip-bg, var(--bg-panel));
   white-space: nowrap;
 }
 
@@ -3348,12 +3349,10 @@ body {
   font-size: var(--text-2xs);
   font-weight: 600;
   letter-spacing: 0.06em;
-  padding: 2px 10px;
-  border-radius: var(--radius-lg);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
   white-space: nowrap;
   flex-shrink: 0;
-  position: relative;
-  top: -2px;
 }
 
 .nd-header-cat[data-cat="DESIRES"] {

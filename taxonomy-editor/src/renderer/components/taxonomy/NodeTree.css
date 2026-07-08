@@ -1,0 +1,16 @@
+/* NodeTree Phase 4a — hoisted inline styles + POV-tinted selection */
+
+.node-tree-cluster-loading {
+  padding: var(--sp-4);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* POV-tinted selected rows */
+.node-tree[data-pov="accelerationist"] .node-item.selected { background: var(--tint-acc); }
+.node-tree[data-pov="safetyist"] .node-item.selected { background: var(--tint-saf); }
+.node-tree[data-pov="skeptic"] .node-item.selected { background: var(--tint-skp); }
+
+.node-tree[data-pov="accelerationist"] .node-tree-parent-header.selected { background: var(--tint-acc); }
+.node-tree[data-pov="safetyist"] .node-tree-parent-header.selected { background: var(--tint-saf); }
+.node-tree[data-pov="skeptic"] .node-tree-parent-header.selected { background: var(--tint-skp); }

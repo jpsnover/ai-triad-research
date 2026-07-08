@@ -3,8 +3,9 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
-import type { PovNode, Category } from '../../types/taxonomy';
+import type { PovNode, Pov, Category } from '../../types/taxonomy';
 import { EditConflictBadge, type NodeConflict } from '../conflict/edit-conflicts';
+import './NodeTree.css';
 
 export type SortMode = 'id' | 'label' | 'similarity' | 'priority';
 
@@ -17,6 +18,7 @@ interface NodeTreeProps {
   nodes: PovNode[];
   selectedNodeId: string | null;
   onSelect: (id: string) => void;
+  pov?: Pov;
   sortMode?: SortMode;
   similarScores?: Map<string, number> | null;
   clusters?: ClusterGroup[] | null;
@@ -178,7 +180,7 @@ function computeVisibleIds(
   return ids;
 }
 
-export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', similarScores, clusters, clusterLoading, misfits, onVisibleIdsChange, conflicts, resolveUrl }: NodeTreeProps) {
+export function NodeTree({ nodes, selectedNodeId, onSelect, pov, sortMode = 'id', similarScores, clusters, clusterLoading, misfits, onVisibleIdsChange, conflicts, resolveUrl }: NodeTreeProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => loadCollapsed());
 
   // Collapse all parent/cluster groups when sort mode changes
@@ -234,7 +236,7 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
     const nodeMap = new Map(nodes.map(n => [n.id, n]));
     const sortedClusters = [...clusters].sort((a, b) => a.label.localeCompare(b.label));
     return (
-      <div>
+      <div className="node-tree" data-pov={pov}>
         {sortedClusters.map((cluster, ci) => {
           const key = `cluster-${ci}`;
           // Default collapsed for cluster view
@@ -246,7 +248,6 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
               <div
                 className="category-label cluster-label"
                 onClick={() => toggleGroup(`${key}-expanded`)}
-                style={{ cursor: 'pointer', userSelect: 'none' }}
               >
                 <span className={`category-toggle ${isCollapsed ? 'collapsed' : ''}`}>&#9660;</span>
                 {cluster.label} <span className="category-count">({clusterNodes.length})</span>
@@ -272,7 +273,7 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
   // Loading state for clusters
   if (sortMode === 'similarity' && clusterLoading) {
     return (
-      <div style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+      <div className="node-tree-cluster-loading">
         Clustering nodes...
       </div>
     );
@@ -295,7 +296,7 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
   const flatMode = sortMode === 'id' || sortMode === 'priority';
 
   return (
-    <div>
+    <div className="node-tree" data-pov={pov}>
       {CATEGORY_ORDER.map((cat) => {
         const catNodes = sortNodes(grouped.get(cat) || [], sortMode, similarScores ?? null);
         const isCollapsed = collapsed.has(cat);
@@ -306,7 +307,6 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
               className="category-label"
               data-cat={cat}
               onClick={() => toggleGroup(cat)}
-              style={{ cursor: 'pointer', userSelect: 'none' }}
             >
               <span className={`category-toggle ${isCollapsed ? 'collapsed' : ''}`}>&#9660;</span>
               {cat} <span className="category-count">({catNodes.length})</span>

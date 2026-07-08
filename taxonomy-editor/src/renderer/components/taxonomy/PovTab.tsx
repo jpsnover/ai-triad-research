@@ -788,6 +788,7 @@ export function PovTab({ pov }: PovTabProps) {
               nodes={file.nodes}
               selectedNodeId={selectedNodeId}
               onSelect={(id: string) => { nav.push({ view: 'detail', id }); setSelectedNodeId(id); }}
+              pov={pov}
               sortMode={sortMode}
               similarScores={similarScoresMap}
               clusters={clusterGroups}
