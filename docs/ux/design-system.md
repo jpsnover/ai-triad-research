@@ -64,6 +64,7 @@ All colors are CSS custom properties on `:root` scoped by `data-theme`.
 |---|---|
 | `--danger` | Destructive actions, errors (#ef4444 / #C53B4A) |
 | `--success` | Confirmations, positive actions (#22c55e / #2D6A4F) |
+| `--warning` | Flag verdicts, mid-range score bands (light #a16207, dark #f59e0b, bkc #d9a441, harvard #8B6508 — all ≥4.5:1 vs `--bg-secondary`; added t/1386) |
 | `--focus-ring` | Focus indicators (#3b82f6 / #A51C30) |
 
 ### Detail Backgrounds
