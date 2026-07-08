@@ -49,6 +49,7 @@ vi.mock('../shared', () => ({
     draft: { label: 'DRAFT', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
     cite: { label: 'CITE', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
   },
+  ArtifactBlock: ({ label, text }: { label: string; text: string }) => <div data-testid={`artifact-${label}`}>{text}</div>,
 }));
 vi.mock('../../../TaxonomyRefDetail', () => ({
   TaxonomyRefDetail: () => <div data-testid="taxonomy-ref-detail" />,

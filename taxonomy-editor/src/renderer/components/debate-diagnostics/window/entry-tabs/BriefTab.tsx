@@ -4,8 +4,8 @@
 import React, { Fragment } from 'react';
 import type { DebateSession, TurnValidationTrail } from '../../../../types/debate';
 import { humanizeSpeakerIds } from '../../../../utils/humanizeSpeakers';
-import { Highlight, CopyButton } from '../helpers';
-import { classifyHintTarget, HINT_TARGET_STYLE } from '../shared';
+import { Highlight } from '../helpers';
+import { classifyHintTarget, HINT_TARGET_STYLE, ArtifactBlock } from '../shared';
 import { TaxonomyRefDetail, type TaxRefNode, type TaxRefEdge } from '../../../taxonomy/TaxonomyRefDetail';
 
 export interface BriefTabProps {
@@ -273,20 +273,8 @@ export function BriefTab(props: BriefTabProps) {
               <span>Turn {ai + 1}</span>
               <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
             </div>
-            {/* Raw Prompt */}
-            <details>
-              <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                Raw Prompt <CopyButton text={attempt.prompt} />
-              </summary>
-              <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.prompt}</pre>
-            </details>
-            {/* Raw Response */}
-            <details>
-              <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                Raw Response <CopyButton text={attempt.raw_response} />
-              </summary>
-              <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.raw_response}</pre>
-            </details>
+            <ArtifactBlock label="Raw Prompt" text={attempt.prompt} />
+            <ArtifactBlock label="Raw Response" text={attempt.raw_response} />
             {/* Validation Score */}
             {(() => {
               if (turnScore != null && dims) {

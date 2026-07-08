@@ -84,6 +84,8 @@ function DispositionChart({ signals }: { signals: ConvergenceSignals[] }) {
     };
   });
 
+  const gridY = (val: number) => H - PAD - val * (H - 2 * PAD);
+
   return (
     <div style={{ marginBottom: 8 }}>
       <div className="conv-chart-title" title={TOOLTIPS.chartTitle}>
@@ -91,10 +93,17 @@ function DispositionChart({ signals }: { signals: ConvergenceSignals[] }) {
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none"
         style={{ display: 'block', width: '100%', height: H, maxWidth: 720 }}>
-        <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="var(--border)" strokeWidth={0.5} />
-        <line x1={PAD} y1={PAD} x2={PAD} y2={H - PAD} stroke="var(--border)" strokeWidth={0.5} />
-        <text x={PAD - 2} y={PAD + 4} textAnchor="end" fontSize={7} fill="var(--text-muted)">1.0</text>
-        <text x={PAD - 2} y={H - PAD + 4} textAnchor="end" fontSize={7} fill="var(--text-muted)">0.0</text>
+        {[0.25, 0.5, 0.75].map(v => (
+          <line key={v} x1={PAD} y1={gridY(v)} x2={W - PAD} y2={gridY(v)}
+            stroke="var(--border-color, rgba(128,128,128,0.2))" strokeWidth={0.5} strokeDasharray="3,3" />
+        ))}
+        <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="var(--border-color, rgba(128,128,128,0.3))" strokeWidth={0.5} />
+        <line x1={PAD} y1={PAD} x2={PAD} y2={H - PAD} stroke="var(--border-color, rgba(128,128,128,0.3))" strokeWidth={0.5} />
+        {[0, 0.25, 0.5, 0.75, 1].map(v => (
+          <text key={v} x={PAD - 2} y={gridY(v) + 3} textAnchor="end" fontSize={7} fill="var(--text-muted)">
+            {v.toFixed(v === 0 || v === 1 ? 1 : 2)}
+          </text>
+        ))}
         {linesBySpkr.map(l => (
           <polyline key={l.speaker} fill="none" stroke={speakerColor(l.speaker as SpeakerId)}
             strokeWidth={1.5} points={l.points} />

@@ -211,25 +211,31 @@ export function EmotionalRegisterTab({ debate, setSelectedEntry, setLocalOverrid
 
             {/* Intensity sparkline */}
             <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: 4 }}>Intensity trend</div>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 1, height: 28 }}>
-              {turns.map((t, i) => {
-                const pct = maxIntensity > 0 ? (t.intensity / maxIntensity) * 100 : 0;
-                return (
-                  <div
-                    key={i}
-                    title={`Turn ${t.turn}: intensity ${t.intensity.toFixed(3)}`}
-                    style={{
-                      flex: 1, minWidth: 3, maxWidth: 12,
-                      height: `${Math.max(pct, 4)}%`,
-                      background: color,
-                      opacity: 0.7,
-                      borderRadius: '2px 2px 0 0',
-                      cursor: 'pointer',
-                    }}
-                    onClick={() => { setSelectedEntry(t.entryId); setLocalOverride(true); }}
-                  />
-                );
-              })}
+            <div style={{ position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 1, height: 28 }}>
+                {turns.map((t, i) => {
+                  const pctVal = maxIntensity > 0 ? (t.intensity / maxIntensity) * 100 : 0;
+                  return (
+                    <div
+                      key={i}
+                      title={`Turn ${t.turn}: intensity ${t.intensity.toFixed(3)}`}
+                      style={{
+                        flex: 1, minWidth: 3, maxWidth: 12,
+                        height: `${Math.max(pctVal, 4)}%`,
+                        background: color,
+                        opacity: 0.7,
+                        borderRadius: '2px 2px 0 0',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => { setSelectedEntry(t.entryId); setLocalOverride(true); }}
+                    />
+                  );
+                })}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.55rem', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
+                <span>{Math.min(...turns.map(t => t.intensity)).toFixed(3)}</span>
+                <span style={{ fontWeight: 600, color }}>{turns[turns.length - 1].intensity.toFixed(3)}</span>
+              </div>
             </div>
           </div>
         );

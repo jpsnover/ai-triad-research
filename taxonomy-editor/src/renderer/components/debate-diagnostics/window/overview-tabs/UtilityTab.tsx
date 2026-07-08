@@ -57,26 +57,32 @@ export function UtilityTab({ debate, perTurnUtilities, setSelectedEntry, setLoca
               <span title="Fraction of cruxes this agent has addressed">crux: <strong>{u.crux_engagement.toFixed(3)}</strong></span>
             </div>
             {/* Sparkline — composite utility over turns */}
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 1, height: 32 }}>
-              {perTurnUtilities.map((snap, i) => {
-                const val = snap.byAgent[speaker]?.composite ?? 0;
-                const pct = maxComposite > 0 ? (val / maxComposite) * 100 : 0;
-                const isThisSpeaker = snap.speaker === speaker;
-                return (
-                  <div
-                    key={i}
-                    title={`Turn ${snap.turn}: ${val.toFixed(3)}`}
-                    style={{
-                      flex: 1, minWidth: 3, maxWidth: 12,
-                      height: `${Math.max(pct, 4)}%`,
-                      background: isThisSpeaker ? color : `${color}40`,
-                      borderRadius: '2px 2px 0 0',
-                      cursor: 'pointer',
-                    }}
-                    onClick={() => { if (snap.entryId) { setSelectedEntry(snap.entryId); setLocalOverride(true); } }}
-                  />
-                );
-              })}
+            <div style={{ position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 1, height: 32 }}>
+                {perTurnUtilities.map((snap, i) => {
+                  const val = snap.byAgent[speaker]?.composite ?? 0;
+                  const pctVal = maxComposite > 0 ? (val / maxComposite) * 100 : 0;
+                  const isThisSpeaker = snap.speaker === speaker;
+                  return (
+                    <div
+                      key={i}
+                      title={`Turn ${snap.turn}: ${val.toFixed(3)}`}
+                      style={{
+                        flex: 1, minWidth: 3, maxWidth: 12,
+                        height: `${Math.max(pctVal, 4)}%`,
+                        background: isThisSpeaker ? color : `${color}40`,
+                        borderRadius: '2px 2px 0 0',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => { if (snap.entryId) { setSelectedEntry(snap.entryId); setLocalOverride(true); } }}
+                    />
+                  );
+                })}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.55rem', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
+                <span>{Math.min(...perTurnUtilities.map(s => s.byAgent[speaker]?.composite ?? 0)).toFixed(3)}</span>
+                <span style={{ fontWeight: 600, color }}>{u.composite.toFixed(3)}</span>
+              </div>
             </div>
           </div>
         );

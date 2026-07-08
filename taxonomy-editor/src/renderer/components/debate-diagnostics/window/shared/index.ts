@@ -10,3 +10,4 @@ export * from './INodeRow';
 export * from './TensionsListDetail';
 export * from './DebateExchangeRich';
 export * from './ModeratorTab';
+export * from './ArtifactBlock';

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { DebateSession, ArgumentNetworkNode, ArgumentNetworkEdge } from '../../../../types/debate';
 import type { WeightHistoryEntry } from '../../../../types/taxonomy';
 import { computeQbafStrengths } from '@lib/debate/qbaf';
@@ -126,6 +126,7 @@ export function ArgumentNetworkTab({
 
   return (
     <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+      <ArgNetMinimap nodes={an.nodes} edges={an.edges} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
           {an.nodes.length} I-nodes · {caCount} CA · {raCount} RA{modCount > 0 ? ` · ${modCount} moderator decisions` : ''}
@@ -266,6 +267,91 @@ export function ArgumentNetworkTab({
       })}
       {/* Confidence evolution trace — shows taxonomy nodes whose confidence changed from this debate */}
       <ConfidenceImpactTrace debateId={debate.id} />
+    </div>
+  );
+}
+
+const MINIMAP_SPEAKER_COLORS: Record<string, string> = {
+  accelerationist: 'var(--color-acc, #b84e13)',
+  safetyist: 'var(--color-saf, #2b5fad)',
+  skeptic: 'var(--color-skp, #7b4fa6)',
+};
+const MINIMAP_DEGRADE_CEILING = 80;
+
+function ArgNetMinimap({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] }) {
+  const layout = useMemo(() => {
+    if (nodes.length === 0 || nodes.length > MINIMAP_DEGRADE_CEILING) return null;
+
+    const speakers = [...new Set(nodes.map(n => n.speaker))];
+    const W = 280, H = 140, CX = W / 2, CY = H / 2, R = 52;
+    const arcPerSpeaker = (2 * Math.PI) / Math.max(speakers.length, 1);
+    const positions = new Map<string, { x: number; y: number }>();
+
+    speakers.forEach((spk, si) => {
+      const spkNodes = nodes.filter(n => n.speaker === spk);
+      const arcStart = si * arcPerSpeaker - Math.PI / 2;
+      spkNodes.forEach((n, ni) => {
+        const angle = arcStart + ((ni + 0.5) / spkNodes.length) * arcPerSpeaker;
+        const jitter = spkNodes.length > 10 ? (ni % 2 === 0 ? 0.82 : 1.15) : 1;
+        positions.set(n.id, {
+          x: CX + R * jitter * Math.cos(angle),
+          y: CY + R * jitter * Math.sin(angle),
+        });
+      });
+    });
+
+    return { W, H, CX, CY, positions, speakers };
+  }, [nodes, edges]);
+
+  if (nodes.length > MINIMAP_DEGRADE_CEILING) {
+    return (
+      <div style={{ padding: '6px 10px', marginBottom: 8, fontSize: '0.6rem', color: 'var(--text-muted)', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
+        Network too large for minimap ({nodes.length} nodes, {edges.length} edges)
+      </div>
+    );
+  }
+
+  if (!layout || nodes.length === 0) return null;
+
+  const { W, H, positions } = layout;
+
+  return (
+    <div style={{ marginBottom: 8, textAlign: 'center' }}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: 360, height: H }}>
+        {edges.map((e, i) => {
+          const s = positions.get(e.source);
+          const t = positions.get(e.target);
+          if (!s || !t) return null;
+          return (
+            <line key={i} x1={s.x} y1={s.y} x2={t.x} y2={t.y}
+              stroke={e.type === 'attacks' ? 'var(--danger, #ef4444)' : 'var(--success, #22c55e)'}
+              strokeWidth={0.6} opacity={0.35} />
+          );
+        })}
+        {nodes.map(n => {
+          const pos = positions.get(n.id);
+          if (!pos) return null;
+          return (
+            <circle key={n.id} cx={pos.x} cy={pos.y} r={3}
+              fill={MINIMAP_SPEAKER_COLORS[n.speaker] ?? 'var(--text-muted)'}
+              opacity={0.8} />
+          );
+        })}
+      </svg>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 12, fontSize: '0.55rem', color: 'var(--text-muted)', marginTop: 2 }}>
+        {layout.speakers.map(s => (
+          <span key={s} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: MINIMAP_SPEAKER_COLORS[s] ?? 'var(--text-muted)' }} />
+            {speakerLabel(s)}
+          </span>
+        ))}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--danger, #ef4444)' }} /> attack
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--success, #22c55e)' }} /> support
+        </span>
+      </div>
     </div>
   );
 }
