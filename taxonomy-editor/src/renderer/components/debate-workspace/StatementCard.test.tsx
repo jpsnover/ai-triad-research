@@ -3,7 +3,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { PhaseTransitionCard, ConvergenceInlineCard, HighlightedText, EntryCommentBadge } from './StatementCard';
+import { PhaseTransitionCard, PhaseHairline, ConvergenceInlineCard, HighlightedText, EntryCommentBadge } from './StatementCard';
 
 // ── Mocks ────────────────────────────────────────────────────
 
@@ -66,6 +66,7 @@ vi.mock('./TaxonomyRefs', () => ({
 }));
 vi.mock('../../utils/lineageMatcher', () => ({
   lineageMarkdownComponents: {},
+  extractLineageNames: () => [],
 }));
 vi.mock('../../utils/vocabularyAnnotations', () => ({
   getDebateMarkdownComponents: () => ({}),
@@ -73,22 +74,37 @@ vi.mock('../../utils/vocabularyAnnotations', () => ({
 
 afterEach(() => { vi.clearAllMocks(); });
 
-// ── PhaseTransitionCard ─────────────────────────────────────
+// ── PhaseTransitionCard (hairline) ──────────────────────────
 
 describe('PhaseTransitionCard', () => {
-  it('renders transition summary content', () => {
-    render(<PhaseTransitionCard type="TRANSITION_SUMMARY" content="Moving to next phase" />);
-    expect(screen.getByText(/Moving to next phase/)).toBeInTheDocument();
+  it('renders transition summary as labeled hairline', () => {
+    render(<PhaseTransitionCard type="TRANSITION_SUMMARY" />);
+    expect(screen.getByText('Entering Synthesis')).toBeInTheDocument();
   });
 
-  it('renders regression notice', () => {
-    render(<PhaseTransitionCard type="REGRESSION_NOTICE" content="Regression detected" />);
-    expect(screen.getByText(/Regression detected/)).toBeInTheDocument();
+  it('renders regression notice as labeled hairline', () => {
+    render(<PhaseTransitionCard type="REGRESSION_NOTICE" />);
+    expect(screen.getByText('Returning to Exploration')).toBeInTheDocument();
   });
 
-  it('renders final commit', () => {
-    render(<PhaseTransitionCard type="FINAL_COMMIT" content="Final commitments" />);
-    expect(screen.getByText(/Final commitments/)).toBeInTheDocument();
+  it('renders final commit as labeled hairline', () => {
+    render(<PhaseTransitionCard type="FINAL_COMMIT" />);
+    expect(screen.getByText('Final Positions')).toBeInTheDocument();
+  });
+});
+
+// ── PhaseHairline ───────────────────────────────────────────
+
+describe('PhaseHairline', () => {
+  it('renders labeled hairline', () => {
+    render(<PhaseHairline label="Opening Statements" />);
+    expect(screen.getByText('Opening Statements')).toBeInTheDocument();
+  });
+
+  it('uses hairline CSS class', () => {
+    const { container } = render(<PhaseHairline label="Cross-Examination" />);
+    expect(container.querySelector('.phase-hairline')).toBeTruthy();
+    expect(container.querySelector('.phase-hairline-label')).toBeTruthy();
   });
 });
 

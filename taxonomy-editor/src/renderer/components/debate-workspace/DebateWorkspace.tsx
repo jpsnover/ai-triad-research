@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, Fragment } from 'react';
 import { api } from '@bridge';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -31,11 +31,13 @@ import { useCommunityStore } from '../../hooks/useCommunityStore';
 import { useUserProfile } from '../../hooks/useAuthStatus';
 import { CommunityShareBanner } from '../shared/CommunityShareBanner';
 import { CoverageBadge } from './TaxonomyRefs';
-import { StatementCard, ProbingCard, FactCheckCard, EntryDeleteControls, HighlightedText } from './StatementCard';
+import { StatementCard, ProbingCard, FactCheckCard, EntryDeleteControls, HighlightedText, PhaseHairline } from './StatementCard';
 import { PhaseProgressBar, SessionPhaseStepper, ProgressIndicator, DebaterToggles, DebateActions } from './DebateActionBar';
 import { ClarificationActions, ClaimsEditor, RefinedTopicEditor, TopicScoreComparison } from './ClarificationPanel';
 import { OpeningActions } from './OpeningPanel';
 import { ExplorationSummaryCard } from './ExplorationSummaryCard';
+import { EmptyState } from '../shared/EmptyState';
+import './DebateWorkspace.css';
 
 // ── Phase 7: Context menu state ──────────────────────────
 interface ContextMenuState {
@@ -842,10 +844,12 @@ export function DebateWorkspace({ onExport, exportStatus }: {
         )}
 
         {/* Transcript */}
+        <div className="debate-transcript-column">
         {activeDebate.transcript.length === 0 && !debateGenerating && (
-          <div className="debate-transcript-empty">
-            The debate is ready to begin. Clarification questions will appear here.
-          </div>
+          <EmptyState
+            headline="The debate is ready to begin"
+            direction="Clarification questions will appear here."
+          />
         )}
         {activeDebate.transcript.map((entry, idx) => {
           const matchOffset = findOffsets.get(entry.id) ?? 0;
@@ -856,6 +860,19 @@ export function DebateWorkspace({ onExport, exportStatus }: {
           // Skip the clarification transcript card — the interactive ClarificationActions panel
           // below the transcript already shows the questions as clickable pills.
           if (entry.type === 'clarification') return null;
+
+          // Phase transition hairlines — detect phase boundaries in the transcript
+          const prevVisibleIdx = activeDebate.transcript.slice(0, idx).findLastIndex(e => e.type !== 'clarification');
+          const prevType = prevVisibleIdx >= 0 ? activeDebate.transcript[prevVisibleIdx].type : null;
+          let hairline: React.ReactNode = null;
+          if (entry.type === 'opening' && prevType !== 'opening') {
+            hairline = <PhaseHairline key={`hairline-opening-${idx}`} label="Opening Statements" />;
+          } else if ((entry.type === 'statement' || entry.type === 'cross_respond') && prevType !== 'statement' && prevType !== 'cross_respond' && prevType !== 'probing' && prevType !== 'fact-check' && prevType !== 'system' && prevType !== 'question') {
+            hairline = <PhaseHairline key={`hairline-debate-${idx}`} label="Cross-Examination" />;
+          } else if ((entry.type === 'synthesis' || entry.type === 'concluding') && prevType !== 'synthesis' && prevType !== 'concluding') {
+            hairline = <PhaseHairline key={`hairline-synthesis-${idx}`} label="Synthesis" />;
+          }
+
           const isStatement = entry.type !== 'probing' && entry.type !== 'fact-check';
           const card = entry.type === 'probing'
             ? <ProbingCard key={entry.id} entry={entry} statementId={statementId} />
@@ -863,16 +880,19 @@ export function DebateWorkspace({ onExport, exportStatus }: {
             ? <FactCheckCard key={entry.id} entry={entry} statementId={statementId} findQuery={findQuery} matchOffset={matchOffset} findCurrentIndex={findCurrentIndex} />
             : <StatementCard key={entry.id} entry={entry} statementId={statementId} findQuery={findQuery} matchOffset={matchOffset} findCurrentIndex={findCurrentIndex} entryIndex={idx} totalEntries={activeDebate.transcript.length} />;
           return (
-            <div
-              key={entry.id}
-              className={`debate-entry-wrapper${diagnosticsEnabled && selectedDiagEntry === entry.id ? ' diag-selected' : ''}`}
-              onClick={diagnosticsEnabled ? () => selectDiagEntry(entry.id) : undefined}
-            >
-              {card}
-              {!isStatement && <EntryDeleteControls entry={entry} totalEntries={activeDebate.transcript.length} entryIndex={idx} />}
-            </div>
+            <Fragment key={entry.id}>
+              {hairline}
+              <div
+                className={`debate-entry-wrapper${diagnosticsEnabled && selectedDiagEntry === entry.id ? ' diag-selected' : ''}`}
+                onClick={diagnosticsEnabled ? () => selectDiagEntry(entry.id) : undefined}
+              >
+                {card}
+                {!isStatement && <EntryDeleteControls entry={entry} totalEntries={activeDebate.transcript.length} entryIndex={idx} />}
+              </div>
+            </Fragment>
           );
         })}
+        </div>
         {debateGenerating && (
           <div className="debate-statement debate-generating">
             <div className="debate-statement-header">

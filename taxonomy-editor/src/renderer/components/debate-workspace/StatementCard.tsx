@@ -17,6 +17,8 @@ import {
 } from './utils';
 import type { AnchorHTMLAttributes } from 'react';
 import { ClaimsView } from './ClaimsView';
+import { CampGlyph, povToCamp } from '../shared/CampGlyph';
+import './StatementCard.css';
 
 const SafeLink = ({ node: _, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { node?: unknown }) => (
   <a {...props} target="_blank" rel="noopener noreferrer" />
@@ -29,35 +31,31 @@ import { TaxonomyRefsSection } from './TaxonomyRefs';
 
 // ── Small helper components ─────────────────────────────
 
-export function PhaseTransitionCard({ type, content }: {
+export function PhaseTransitionCard({ type }: {
   type: 'TRANSITION_SUMMARY' | 'REGRESSION_NOTICE' | 'FINAL_COMMIT';
-  content: string;
+  content?: string;
 }) {
-  const icon = type === 'TRANSITION_SUMMARY' ? '>>>' : type === 'REGRESSION_NOTICE' ? '<<<' : '|||';
   const label = type === 'TRANSITION_SUMMARY' ? 'Entering Synthesis'
     : type === 'REGRESSION_NOTICE' ? 'Returning to Exploration'
     : 'Final Positions';
-  const colorClass = type === 'TRANSITION_SUMMARY' ? 'phase-transition-synthesis'
-    : type === 'REGRESSION_NOTICE' ? 'phase-transition-regression'
-    : 'phase-transition-commit';
 
   return (
-    <div className={`phase-transition-card ${colorClass}`}>
-      <div className="phase-transition-header">
-        <span className="phase-transition-icon">{icon}</span>
-        <span className="phase-transition-label">{label}</span>
-      </div>
-      <div className="phase-transition-content">{content}</div>
+    <div className="phase-hairline">
+      <span className="phase-hairline-label">{label}</span>
     </div>
   );
 }
 
-const CONV_LBL: React.CSSProperties = { color: 'var(--text-muted)', fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.03em' };
-const CONV_VAL: React.CSSProperties = { color: 'var(--text-primary)', fontSize: '0.72rem' };
-const CONV_CELL: React.CSSProperties = { padding: '4px 6px', borderRadius: 3, background: 'var(--bg-tertiary, rgba(255,255,255,0.03))' };
+export function PhaseHairline({ label }: { label: string }) {
+  return (
+    <div className="phase-hairline">
+      <span className="phase-hairline-label">{label}</span>
+    </div>
+  );
+}
 
 function ConvBadge({ text, color }: { text: string; color: string }) {
-  return <span style={{ color, marginLeft: 4, fontSize: '0.62rem' }}>{text}</span>;
+  return <span className="convergence-badge" style={{ color }}>{text}</span>;
 }
 
 function bandBadge(value: number, bands: [number, string, string][]): ReactNode {
@@ -70,9 +68,9 @@ function bandBadge(value: number, bands: [number, string, string][]): ReactNode 
 
 function ConvCell({ label, span, children }: { label: string; span?: boolean; children: ReactNode }) {
   return (
-    <div style={span ? { ...CONV_CELL, gridColumn: '1 / -1' } : CONV_CELL}>
-      <div style={CONV_LBL}>{label}</div>
-      <div style={CONV_VAL}>{children}</div>
+    <div className={span ? 'convergence-cell-span' : 'convergence-cell'}>
+      <div className="convergence-label">{label}</div>
+      <div className="convergence-value">{children}</div>
     </div>
   );
 }
@@ -85,7 +83,7 @@ const CONCESSION_DEFAULT = { bg: 'rgba(148,163,184,0.15)', fg: '#94a3b8', label:
 
 export function ConvergenceInlineCard({ signal }: { signal: ConvergenceSignals | undefined }) {
   if (!signal) {
-    return <div style={{ padding: 8, color: 'var(--text-muted)', fontSize: '0.8rem' }}>No convergence data for this turn.</div>;
+    return <div className="convergence-empty">No convergence data for this turn.</div>;
   }
   const { move_polarity: md, dialectical_engagement: ed, argument_redundancy: rr,
     dominant_counterargument: so, concession_opportunity: co, position_drift: pd, crux_engagement_rate: cr } = signal;
@@ -99,7 +97,7 @@ export function ConvergenceInlineCard({ signal }: { signal: ConvergenceSignals |
   const crFollow = cr?.cumulative_follow_through ?? 0;
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, padding: '4px 0' }}>
+    <div className="convergence-grid">
       <ConvCell label="Polarity">
         <span style={{ color: '#ef4444' }}>{md?.confrontational ?? 0}C</span>{' / '}
         <span style={{ color: '#22c55e' }}>{md?.collaborative ?? 0}S</span>
@@ -125,7 +123,7 @@ export function ConvergenceInlineCard({ signal }: { signal: ConvergenceSignals |
       </ConvCell>
       <ConvCell label="Concession">
         {co?.strong_attacks_faced ?? 0} attacks, used: {co?.concession_used ? 'Y' : 'N'} —{' '}
-        <span style={{ padding: '1px 6px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, background: coStyle.bg, color: coStyle.fg }}>
+        <span className="concession-badge" style={{ background: coStyle.bg, color: coStyle.fg }}>
           {coStyle.label}
         </span>
       </ConvCell>
@@ -365,6 +363,7 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
 }) {
   const color = speakerColor(entry.speaker);
   const isPover = entry.speaker !== 'system' && entry.speaker !== 'user';
+  const camp = isPover ? povToCamp(entry.speaker) : undefined;
   const activeDebate = useDebateStore(s => s.activeDebate);
   const defaultTier = useDebateStore(s => s.responseLength);
   const setEntryDisplayTier = useDebateStore(s => s.setEntryDisplayTier);
@@ -406,6 +405,10 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
       data-is-pover={isPover ? 'true' : 'false'}
     >
       <div className="debate-statement-header">
+        {camp && <CampGlyph camp={camp} size={16} />}
+        <span className="debate-statement-speaker" style={color ? { color } : undefined}>
+          {speakerLabel(entry.speaker)}
+        </span>
         {statementId && (
           <span
             className="debate-statement-id"
@@ -415,19 +418,12 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
             {statementId}
           </span>
         )}
-        <span className="debate-statement-speaker" style={color ? { color } : undefined}>
-          {speakerLabel(entry.speaker)}
-        </span>
         {(() => {
           const modelId = entry.model ?? activeDebate?.speaker_models?.[entry.speaker];
           if (!modelId) return null;
           const short = modelId.replace(/^(gemini-|claude-|groq-|openai-|deepseek-|ollama-)/, '');
           return (
-            <span className="debate-model-badge" title={modelId} style={{
-              fontSize: '0.65rem', padding: '1px 5px', borderRadius: 3, marginLeft: 4,
-              background: 'var(--bg-tertiary)', color: 'var(--text-muted)',
-              border: '1px solid var(--border)', fontFamily: 'monospace',
-            }}>
+            <span className="debate-model-badge" title={modelId}>
               {short}
             </span>
           );
@@ -548,7 +544,7 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
             ))}
           </div>
           {showSymbolTooltips && (
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '2px 8px 4px', lineHeight: 1.5 }}>
+            <div className="debate-turn-symbol-tooltips">
               {turnSymbols.map((s, i) => (
                 <div key={i}>{s.symbol} — {s.tooltip}</div>
               ))}
@@ -584,7 +580,7 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
       ) : (
         <>
           {!hasHighlights && (
-            <div className="debate-statement-content markdown-body">
+            <div className="debate-statement-content markdown-body prose">
               {findQuery
                 ? <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
                 : entry.type === 'concluding'
@@ -610,23 +606,14 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
             const topic = match?.[1]?.trim();
             if (!topic) return null;
             return (
-              <div style={{
-                marginTop: 10, padding: '8px 12px', borderRadius: 6,
-                background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)',
-                display: 'flex', alignItems: 'center', gap: 10,
-              }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', flex: 1 }}>
+              <div className="debate-explore-suggestion">
+                <span className="debate-explore-suggestion-text">
                   Redirect the debate to explore this topic?
                 </span>
                 <button
+                  className="debate-explore-btn"
                   disabled={!!debateGenerating}
                   onClick={(e) => { e.stopPropagation(); void askQuestion(`Explore this: ${topic}`); }}
-                  style={{
-                    padding: '6px 18px', fontSize: '0.8rem', fontWeight: 700,
-                    background: '#3b82f6', color: '#fff', border: 'none',
-                    borderRadius: 5, cursor: debateGenerating ? 'not-allowed' : 'pointer',
-                    opacity: debateGenerating ? 0.5 : 1, whiteSpace: 'nowrap',
-                  }}
                   title={`Ask debaters to explore: ${topic}`}
                 >
                   Explore This

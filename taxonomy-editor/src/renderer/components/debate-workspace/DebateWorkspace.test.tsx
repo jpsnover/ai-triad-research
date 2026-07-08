@@ -139,6 +139,9 @@ vi.mock('../shared/UsernamePromptDialog', () => ({
 vi.mock('../shared/CommunityShareBanner', () => ({
   CommunityShareBanner: () => <div data-testid="share-banner" />,
 }));
+vi.mock('../shared/EmptyState', () => ({
+  EmptyState: ({ headline }: any) => <div data-testid="empty-state">{headline}</div>,
+}));
 vi.mock('../debate-diagnostics/chat', () => ({
   DiagnosticsChatSidebar: () => <div data-testid="diag-chat" />,
 }));
@@ -168,6 +171,7 @@ vi.mock('./StatementCard', () => ({
   StatementCard: ({ entry }: any) => <div data-testid={`statement-${entry.id}`} />,
   ProbingCard: ({ entry }: any) => <div data-testid={`probing-${entry.id}`} />,
   FactCheckCard: ({ entry }: any) => <div data-testid={`factcheck-${entry.id}`} />,
+  PhaseHairline: ({ label }: any) => <div data-testid={`hairline-${label}`} />,
   EntryDeleteControls: () => null,
   HighlightedText: ({ text }: any) => <span>{text}</span>,
 }));

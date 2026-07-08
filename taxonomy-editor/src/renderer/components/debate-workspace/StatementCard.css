@@ -1,0 +1,159 @@
+/* StatementCard — Design Elevation Phase 4b (t/1371) */
+
+/* Card recipe: shadow + left-border accent, no full border */
+.debate-statement {
+  border: none;
+  border-left: 3px solid var(--border-color);
+  box-shadow: var(--shadow-1);
+  padding: var(--sp-4);
+}
+
+/* Camp-colored left borders */
+.debate-statement.debate-speaker-accelerationist {
+  border-left-color: var(--color-acc);
+}
+.debate-statement.debate-speaker-safetyist {
+  border-left-color: var(--color-saf);
+}
+.debate-statement.debate-speaker-skeptic {
+  border-left-color: var(--color-skp);
+}
+
+/* Speaker header: CampGlyph + name + turn number */
+.debate-statement-header {
+  gap: 6px;
+}
+
+.debate-statement-header .camp-glyph {
+  flex-shrink: 0;
+}
+
+/* Turn number — mono, small, muted */
+.debate-statement-id {
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  padding: 0;
+  margin-right: 0;
+  border-radius: 0;
+  letter-spacing: 0;
+}
+.debate-statement-id:target {
+  background: rgba(249, 115, 22, 0.12);
+  box-shadow: none;
+}
+
+/* Prose treatment for statement content */
+.debate-statement-content.prose {
+  font-family: var(--font-prose);
+  font-size: var(--text-prose);
+  line-height: var(--leading-prose);
+}
+
+/* Model badge — hoisted from inline */
+.debate-model-badge {
+  font-size: 0.65rem;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+}
+
+/* Turn symbol tooltips — hoisted from inline */
+.debate-turn-symbol-tooltips {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  padding: 2px 8px 4px;
+  line-height: 1.5;
+}
+
+/* Explore topic suggestion — hoisted from inline */
+.debate-explore-suggestion {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.debate-explore-suggestion-text {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+.debate-explore-btn {
+  padding: 6px 18px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.debate-explore-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Convergence grid — hoisted from inline */
+.convergence-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.convergence-cell {
+  padding: 4px 6px;
+  border-radius: 3px;
+  background: var(--bg-tertiary, rgba(255, 255, 255, 0.03));
+}
+
+.convergence-cell-span {
+  padding: 4px 6px;
+  border-radius: 3px;
+  background: var(--bg-tertiary, rgba(255, 255, 255, 0.03));
+  grid-column: 1 / -1;
+}
+
+.convergence-label {
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.convergence-value {
+  color: var(--text-primary);
+  font-size: 0.72rem;
+}
+
+.convergence-badge {
+  margin-left: 4px;
+  font-size: 0.62rem;
+}
+
+.convergence-empty {
+  padding: 8px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* Concession badge — hoisted from inline */
+.concession-badge {
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 700;
+}
