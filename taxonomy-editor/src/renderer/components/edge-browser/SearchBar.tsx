@@ -361,10 +361,10 @@ export function SearchBar() {
         {countText() && <span className="find-count">{countText()}</span>}
         {!isSemantic && (
           <>
-            <button className="btn btn-sm" onClick={findPrev} disabled={results.length === 0} title="Previous (Shift+Enter)">
+            <button className="btn btn-sm" onClick={findPrev} disabled={results.length === 0} title="Previous (Shift+Enter)" aria-label="Previous match">
               &uarr;
             </button>
-            <button className="btn btn-sm" onClick={findNext} disabled={results.length === 0} title="Next (Enter)">
+            <button className="btn btn-sm" onClick={findNext} disabled={results.length === 0} title="Next (Enter)" aria-label="Next match">
               &darr;
             </button>
           </>

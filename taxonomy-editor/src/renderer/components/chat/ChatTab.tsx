@@ -110,7 +110,7 @@ export function ChatTab() {
                   + New
                 </button>
               )}
-              <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
+              <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
             </div>
           </div>
           <div className="list-view-tabs">

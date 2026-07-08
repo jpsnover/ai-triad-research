@@ -395,7 +395,7 @@ export function SituationsTab() {
               <button className="btn btn-sm" onClick={createSituationNode}>
                 + New
               </button>
-              <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
+              <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
             </div>
           </div>
           <div className="list-panel-items">
@@ -497,7 +497,7 @@ export function SituationsTab() {
               <div className="webview-pane">
                 <div className="webview-pane-header">
                   <span className="webview-pane-url">{lineageLinkUrl}</span>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setLineageLinkUrl(null)}>&times;</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setLineageLinkUrl(null)} aria-label="Close">&times;</button>
                 </div>
                 {import.meta.env.VITE_TARGET === 'web'
                   ? <iframe src={lineageLinkUrl} className="webview-frame" sandbox="allow-scripts allow-same-origin" />
@@ -522,7 +522,7 @@ export function SituationsTab() {
                 </div>
               ) : (
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-                  <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
+                  <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
                 </div>
               )}
               {selectedNode ? (

@@ -501,12 +501,14 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
               className="debate-entry-delete-btn"
               onClick={(e) => { e.stopPropagation(); setDeleteConfirm('single'); }}
               title="Delete this entry"
+              aria-label="Delete this entry"
             >&times;</button>
             {entryIndex < totalEntries - 1 && (
               <button
                 className="debate-entry-delete-btn"
                 onClick={(e) => { e.stopPropagation(); setDeleteConfirm('after'); }}
                 title="Delete this and all entries after it"
+                aria-label="Delete this and all entries after it"
               >&times;&darr;</button>
             )}
           </span>

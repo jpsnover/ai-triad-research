@@ -16,11 +16,13 @@ export function TabBar() {
   const { activeTab, setActiveTab } = useTaxonomyStore();
 
   return (
-    <div className="tab-bar">
+    <div className="tab-bar" role="tablist" aria-label="POV perspectives">
       {TABS.map((tab) => (
         <button
           key={tab.id}
+          role="tab"
           data-tab={tab.id}
+          aria-selected={activeTab === tab.id}
           className={activeTab === tab.id ? 'active' : ''}
           onClick={() => setActiveTab(tab.id)}
         >

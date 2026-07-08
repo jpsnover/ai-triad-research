@@ -136,7 +136,7 @@ export function CommentCreationPopover({ popover, onClose }: CommentCreationPopo
     <div ref={panelRef} className="comment-creation-popover" style={style}>
       <div className="comment-popover-header">
         <span className="comment-popover-title">Add Comment</span>
-        <button className="comment-popover-close" onClick={onClose} title="Cancel (Esc)">&times;</button>
+        <button className="comment-popover-close" onClick={onClose} title="Cancel (Esc)" aria-label="Cancel">&times;</button>
       </div>
 
       {needsUsername ? (

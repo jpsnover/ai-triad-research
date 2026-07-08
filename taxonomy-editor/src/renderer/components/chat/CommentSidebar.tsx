@@ -38,7 +38,7 @@ export function CommentSidebar() {
         <span className="comment-sidebar-title">
           Comments ({filterCount > 0 ? `${comments.length}/${totalCount}` : totalCount})
         </span>
-        <button className="comment-sidebar-close" onClick={toggleSidebar} title="Close">&times;</button>
+        <button className="comment-sidebar-close" onClick={toggleSidebar} title="Close" aria-label="Close">&times;</button>
       </div>
 
       {/* Filter bar (t/234) */}

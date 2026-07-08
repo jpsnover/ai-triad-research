@@ -132,7 +132,7 @@ export function CruxesTab() {
             <h2>Cruxes</h2>
             <div className="list-panel-header-actions">
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{filteredCruxes.length} of {cruxes.length}</span>
-              <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
+              <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
             </div>
           </div>
 
@@ -215,7 +215,7 @@ export function CruxesTab() {
             </div>
           ) : (
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-              <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
+              <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
             </div>
           )}
           {selectedCrux ? (

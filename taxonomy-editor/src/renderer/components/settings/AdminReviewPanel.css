@@ -508,7 +508,6 @@
   color: var(--text-primary);
 }
 
-.admin-fallback-key-input:focus {
-  outline: none;
+.admin-fallback-key-input:focus-visible {
   border-color: var(--accent);
 }

@@ -179,7 +179,7 @@ export function AttributeFilterPanel({ width }: AttributeFilterPanelProps) {
           <span className="attr-filter-count">{results.length}</span>
         </div>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-          <button className="pane-collapse-btn" onClick={() => setCollapsed(true)} title="Collapse">&lsaquo;</button>
+          <button className="pane-collapse-btn" onClick={() => setCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
           <button className="btn btn-ghost btn-sm" onClick={clearAttributeFilter}>
             Close
           </button>

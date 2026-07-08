@@ -94,7 +94,7 @@ export function AttributeInfoPanel({ width }: AttributeInfoPanelProps) {
           </h3>
         </div>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-          <button className="pane-collapse-btn" onClick={() => setCollapsed(true)} title="Collapse">&lsaquo;</button>
+          <button className="pane-collapse-btn" onClick={() => setCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
           <button className="btn btn-ghost btn-sm" onClick={clearAttributeInfo}>
             Close
           </button>

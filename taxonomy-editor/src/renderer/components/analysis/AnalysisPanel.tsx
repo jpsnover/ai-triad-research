@@ -392,7 +392,7 @@ export function AnalysisPanel({ width }: AnalysisPanelProps) {
               Refresh
             </button>
           )}
-          <button className="pane-collapse-btn" onClick={() => setCollapsed(true)} title="Collapse">&lsaquo;</button>
+          <button className="pane-collapse-btn" onClick={() => setCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
           <button className="btn btn-ghost btn-sm" onClick={clearAnalysis}>
             Close
           </button>

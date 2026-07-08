@@ -188,7 +188,7 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
       <div className="edge-detail-header">
         <h3>Edge Detail</h3>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-          <button className="pane-collapse-btn" onClick={() => setCollapsed(true)} title="Collapse">&lsaquo;</button>
+          <button className="pane-collapse-btn" onClick={() => setCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
           <button
             className="edge-detail-close"
             onClick={() => selectEdge(null)}

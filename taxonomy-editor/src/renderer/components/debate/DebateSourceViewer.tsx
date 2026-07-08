@@ -212,8 +212,8 @@ export function DebateSourceViewer({ content, sourceType, sourceRef }: DebateSou
               <span className="debate-source-search-count">
                 {activeMatchIdx + 1}/{matches.length}
               </span>
-              <button className="btn btn-sm" onClick={() => { setActiveMatchIdx(i => (i > 0 ? i - 1 : matches.length - 1)); }} title="Previous">&uarr;</button>
-              <button className="btn btn-sm" onClick={() => { setActiveMatchIdx(i => (i < matches.length - 1 ? i + 1 : 0)); }} title="Next">&darr;</button>
+              <button className="btn btn-sm" onClick={() => { setActiveMatchIdx(i => (i > 0 ? i - 1 : matches.length - 1)); }} title="Previous" aria-label="Previous match">&uarr;</button>
+              <button className="btn btn-sm" onClick={() => { setActiveMatchIdx(i => (i < matches.length - 1 ? i + 1 : 0)); }} title="Next" aria-label="Next match">&darr;</button>
             </>
           )}
           {sourceType === 'url' && (

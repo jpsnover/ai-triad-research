@@ -295,7 +295,7 @@ export function DebateTab() {
                   <button className="btn btn-sm" onClick={handleNewDebate}>
                     + New
                   </button>
-                  <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
+                  <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
                 </>
               ) : (
                 <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>

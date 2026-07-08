@@ -52,7 +52,7 @@ export function DiagnosticsDrawer() {
         <div className="diag-drawer-handle" />
         <div className="diag-drawer-header">
           <h3>Diagnostics</h3>
-          <button className="diag-drawer-close" onClick={close}>&times;</button>
+          <button className="diag-drawer-close" onClick={close} aria-label="Close">&times;</button>
         </div>
         <div className="diag-drawer-body">
           {open && <Suspense fallback={null}><DiagnosticsWindow /></Suspense>}

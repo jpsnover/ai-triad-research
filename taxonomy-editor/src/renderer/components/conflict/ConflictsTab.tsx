@@ -274,7 +274,7 @@ export function ConflictsTab() {
               <button className="btn btn-sm" onClick={() => setShowNew(true)}>
                 + New
               </button>
-              <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
+              <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
             </div>
           </div>
           <div className="list-panel-items">
@@ -343,7 +343,7 @@ export function ConflictsTab() {
             </div>
           ) : (
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-              <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
+              <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
             </div>
           )}
           {selectedConflict ? (

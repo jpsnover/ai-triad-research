@@ -355,7 +355,7 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
               else void handleCrossRespond();
             }} disabled={disableAnalysis}>Retry</button>
           )}
-          <button className={dailyLimitPaused ? 'debate-daily-limit-dismiss' : 'debate-error-dismiss'} onClick={() => setError(null)} title="Dismiss">&times;</button>
+          <button className={dailyLimitPaused ? 'debate-daily-limit-dismiss' : 'debate-error-dismiss'} onClick={() => setError(null)} title="Dismiss" aria-label="Dismiss">&times;</button>
         </div>
       )}
       <TokenBudgetIndicator />

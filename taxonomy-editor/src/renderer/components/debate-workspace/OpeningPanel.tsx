@@ -27,7 +27,7 @@ export function OpeningActions() {
         {debateError && (
           <div className="debate-error">
             <span className="debate-error-text">{debateError}</span>
-            <button className="debate-error-dismiss" onClick={() => setError(null)} title="Dismiss">&times;</button>
+            <button className="debate-error-dismiss" onClick={() => setError(null)} title="Dismiss" aria-label="Dismiss">&times;</button>
           </div>
         )}
         <div className="debate-action-hint">Delivering opening statements...</div>
@@ -50,7 +50,7 @@ export function OpeningActions() {
           <div className="debate-error">
             <span className="debate-error-text">{debateError}</span>
             <button className="debate-error-retry" onClick={() => { setError(null); void runOpeningStatements(); }}>Retry</button>
-            <button className="debate-error-dismiss" onClick={() => setError(null)} title="Dismiss">&times;</button>
+            <button className="debate-error-dismiss" onClick={() => setError(null)} title="Dismiss" aria-label="Dismiss">&times;</button>
           </div>
         )}
         <div className="debate-action-hint">It's your turn. Deliver your opening statement.</div>
@@ -90,7 +90,7 @@ export function OpeningActions() {
           <div className="debate-error">
             <span className="debate-error-text">{debateError}</span>
             <button className="debate-error-retry" onClick={() => { setError(null); void runOpeningStatements(); }}>Retry</button>
-            <button className="debate-error-dismiss" onClick={() => setError(null)} title="Dismiss">&times;</button>
+            <button className="debate-error-dismiss" onClick={() => setError(null)} title="Dismiss" aria-label="Dismiss">&times;</button>
           </div>
         )}
         <div className="debate-action-hint">

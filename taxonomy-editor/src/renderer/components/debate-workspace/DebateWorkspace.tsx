@@ -735,7 +735,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
               {activeDebate.source_ref && (
                 <span className="debate-source-ref">{activeDebate.source_ref}</span>
               )}
-              <button className="debate-inspect-close" onClick={() => setShowCCDetails(false)} title="Close">&times;</button>
+              <button className="debate-inspect-close" onClick={() => setShowCCDetails(false)} title="Close" aria-label="Close">&times;</button>
             </div>
             <div className="debate-cc-details-body">
               <DebateSourceViewer

@@ -32,6 +32,7 @@ export function FieldHelp({ text }: FieldHelpProps) {
         onMouseEnter={() => setShow(true)}
         onMouseLeave={() => setShow(false)}
         title={text}
+        aria-label="Show help"
       >
         ?
       </button>

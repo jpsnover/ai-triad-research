@@ -830,6 +830,7 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
             lineHeight: 1,
           }}
           title={`Close pane ${paneIndex + 1} (Ctrl+W)`}
+          aria-label="Close"
         >&times;</button>
       </div>
 

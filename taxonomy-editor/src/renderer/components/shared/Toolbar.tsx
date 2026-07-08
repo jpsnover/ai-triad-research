@@ -268,7 +268,7 @@ export function Toolbar() {
   const isTaxonomyActive = toolbarPanel === null && !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'summaries', 'validation'].includes(activeTab);
 
   return (
-    <div className="toolbar">
+    <nav className="toolbar" aria-label="Primary">
       <div className="toolbar-top">
         {previousView && toolbarPanel !== null && activeTab !== 'debate' && (
           <>
@@ -484,6 +484,6 @@ export function Toolbar() {
       </div>
       {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
       {showHelp && <HelpDialog onClose={() => setShowHelp(false)} />}
-    </div>
+    </nav>
   );
 }

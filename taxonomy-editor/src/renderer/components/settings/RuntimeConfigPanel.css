@@ -172,8 +172,7 @@
   font-family: inherit;
 }
 
-.rc-field-input:focus {
-  outline: none;
+.rc-field-input:focus-visible {
   border-color: var(--accent-blue, #3b82f6);
 }
 

@@ -424,17 +424,20 @@ export function PromptDiffContent({ debate, focusedEntryId: externalFocusedEntry
             disabled={totalMatches === 0}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '0 4px' }}
             title="Previous (Shift+F3)"
+            aria-label="Previous match"
           >&#9650;</button>
           <button
             onClick={() => totalMatches > 0 && setActiveMatchIndex(prev => (prev + 1) % totalMatches)}
             disabled={totalMatches === 0}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '0 4px' }}
             title="Next (F3)"
+            aria-label="Next match"
           >&#9660;</button>
           <button
             onClick={() => { setSearchOpen(false); setSearchTerm(''); setActiveMatchIndex(0); }}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.85rem', padding: '0 4px' }}
             title="Close (Esc)"
+            aria-label="Close"
           >&times;</button>
         </div>
       )}
