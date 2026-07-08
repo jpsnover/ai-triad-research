@@ -8,6 +8,7 @@ import { useDebateStore } from '../../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { EntryView } from './EntryView';
 import { OverviewView } from './OverviewView';
+import './DiagnosticsPanel.css';
 
 export function DiagnosticsPanel() {
   const { selectedDiagEntry, selectDiagEntry, activeDebate } = useDebateStore(
@@ -66,17 +67,17 @@ export function DiagnosticsPanel() {
         <div className="diagnostics-panel-header">
           <h3>Debate Diagnostics</h3>
           {activeDebate && (
-            <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)', fontFamily: 'monospace', opacity: 0.7 }} title="Session start — matches flight recorder filename">
+            <span className="diag-panel-timestamp" title="Session start — matches flight recorder filename">
               {new Date(activeDebate.created_at).toISOString().replace(/\.\d{3}Z$/, 'Z')}
             </span>
           )}
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+          <div className="diag-panel-actions">
             {selectedDiagEntry && (
-              <button className="btn btn-sm" onClick={() => selectDiagEntry(null)} style={{ fontSize: '0.65rem' }}>
+              <button className="btn btn-sm diag-panel-action-btn" onClick={() => selectDiagEntry(null)}>
                 Overview
               </button>
             )}
-            <button className="btn btn-sm" onClick={async () => {
+            <button onClick={async () => {
               await api.openDiagnosticsWindow();
               useDebateStore.getState().setDiagPopoutOpen(true);
               const debate = useDebateStore.getState().activeDebate;
@@ -84,17 +85,17 @@ export function DiagnosticsPanel() {
               setTimeout(() => {
                 void api.sendDiagnosticsState({ debate, selectedEntry: entry });
               }, 1000);
-            }} style={{ fontSize: '0.65rem' }} title="Open in separate window">
+            }} className="btn btn-sm diag-panel-action-btn" title="Open in separate window">
               Popout
             </button>
-            <button className="btn btn-sm" onClick={async () => {
+            <button onClick={async () => {
               await api.openPovProgressionWindow();
               const debate = useDebateStore.getState().activeDebate;
               const entry = useDebateStore.getState().selectedDiagEntry;
               setTimeout(() => {
                 void api.sendDiagnosticsState({ debate, selectedEntry: entry });
               }, 1000);
-            }} style={{ fontSize: '0.65rem' }} title="Show how each Perspective's taxonomy context and citations evolve across turns">
+            }} className="btn btn-sm diag-panel-action-btn" title="Show how each Perspective's taxonomy context and citations evolve across turns">
               Perspective Progression
             </button>
           </div>

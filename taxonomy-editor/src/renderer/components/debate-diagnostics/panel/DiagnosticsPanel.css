@@ -1,0 +1,14 @@
+.diag-panel-timestamp {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  opacity: 0.7;
+}
+.diag-panel-actions {
+  margin-left: auto;
+  display: flex;
+  gap: var(--sp-1);
+}
+.diag-panel-action-btn {
+  font-size: var(--text-2xs);
+}
