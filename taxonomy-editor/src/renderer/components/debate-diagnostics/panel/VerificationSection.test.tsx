@@ -147,46 +147,44 @@ describe('VerificationSection — verdict badges', () => {
     expect(disputedBadge.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('applies green background color to "verified" verdict badge', () => {
+  it('applies pass verdict class to "verified" verdict badge', () => {
     const transcript = [makeFactCheck('verified', 'a verified claim')];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
-    // The verdict badge in the summary row has style background set to VERDICT_COLORS['verified']
     const badges = screen.getAllByText(/verified/);
-    // At least one badge element should have the green color applied
-    const greenBadge = badges.find(
-      el => (el as HTMLElement).style?.background === 'rgb(22, 163, 74)',
+    const passBadge = badges.find(
+      el => (el as HTMLElement).classList?.contains('verdict-chip--pass'),
     );
-    expect(greenBadge).toBeDefined();
+    expect(passBadge).toBeDefined();
   });
 
-  it('applies red background color to "disputed" verdict badge', () => {
+  it('applies fail verdict class to "disputed" verdict badge', () => {
     const transcript = [makeFactCheck('disputed', 'a disputed claim')];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
     const badges = screen.getAllByText(/disputed/);
-    const redBadge = badges.find(
-      el => (el as HTMLElement).style?.background === 'rgb(220, 38, 38)',
+    const failBadge = badges.find(
+      el => (el as HTMLElement).classList?.contains('verdict-chip--fail'),
     );
-    expect(redBadge).toBeDefined();
+    expect(failBadge).toBeDefined();
   });
 
-  it('applies amber color to "unverifiable" verdict badge', () => {
+  it('applies flag verdict class to "unverifiable" verdict badge', () => {
     const transcript = [makeFactCheck('unverifiable', 'an unverifiable claim')];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
     const badges = screen.getAllByText(/unverifiable/);
-    const amberBadge = badges.find(
-      el => (el as HTMLElement).style?.background === 'rgb(161, 98, 7)',
+    const flagBadge = badges.find(
+      el => (el as HTMLElement).classList?.contains('verdict-chip--flag'),
     );
-    expect(amberBadge).toBeDefined();
+    expect(flagBadge).toBeDefined();
   });
 
-  it('applies grey color to "pending" verdict badge', () => {
+  it('applies flag verdict class to "pending" verdict badge', () => {
     const transcript = [makeFactCheck('pending', 'a pending claim')];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
     const badges = screen.getAllByText(/pending/);
-    const greyBadge = badges.find(
-      el => (el as HTMLElement).style?.background === 'rgb(107, 114, 128)',
+    const flagBadge = badges.find(
+      el => (el as HTMLElement).classList?.contains('verdict-chip--flag'),
     );
-    expect(greyBadge).toBeDefined();
+    expect(flagBadge).toBeDefined();
   });
 });
 

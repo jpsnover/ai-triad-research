@@ -4,6 +4,8 @@
 import { useState, useMemo } from 'react';
 import type { ArgumentNetworkNode } from '../../../types/debate';
 import { CollapsibleSection } from './helpers';
+import { VerdictChip } from '../window/shared/VerdictChip';
+import type { Verdict } from '../window/shared/VerdictChip';
 
 export interface VerificationSectionProps {
   transcript: Array<{ type: string; content: string; metadata?: Record<string, unknown> }>;
@@ -11,15 +13,14 @@ export interface VerificationSectionProps {
 }
 
 const VERDICT_ORDER = ['verified', 'supported', 'disputed', 'false', 'unverifiable', 'pending', 'unknown'];
-const VERDICT_COLORS: Record<string, string> = {
-  verified: '#16a34a',
-  supported: '#16a34a',
-  disputed: '#dc2626',
-  false: '#dc2626',
-  unverifiable: '#a16207',
-  pending: '#6b7280',
-  unknown: '#6b7280',
-};
+
+function mapFactCheckVerdict(v: string): Verdict {
+  switch (v) {
+    case 'verified': case 'supported': return 'pass';
+    case 'disputed': case 'false': return 'fail';
+    default: return 'flag';
+  }
+}
 
 interface ParsedFactCheck {
   verdict: string;
@@ -130,7 +131,7 @@ export function VerificationSection({ transcript, anNodes }: VerificationSection
               style={{
                 width: `${(stats.coverage * 100).toFixed(1)}%`,
                 height: '100%',
-                background: stats.coverage >= 0.75 ? '#16a34a' : stats.coverage >= 0.4 ? '#a16207' : '#dc2626',
+                background: stats.coverage >= 0.75 ? 'var(--success)' : stats.coverage >= 0.4 ? 'var(--warning)' : 'var(--danger)',
                 transition: 'width 0.2s',
               }}
             />
@@ -142,14 +143,12 @@ export function VerificationSection({ transcript, anNodes }: VerificationSection
           <span className="diag-k">Verdicts:</span>
           <div className="diag-badges">
             {sortedVerdicts.map(([v, n]) => (
-              <span
+              <VerdictChip
                 key={v}
-                className="diag-badge"
-                style={{ background: VERDICT_COLORS[v] ?? '#6b7280', color: '#fff' }}
-                title={`${stats.autoVerdictCounts[v] ?? 0} auto, ${stats.userVerdictCounts[v] ?? 0} user`}
-              >
-                {v} ({n})
-              </span>
+                verdict={mapFactCheckVerdict(v)}
+                label={`${v} (${n})`}
+                tooltip={`${stats.autoVerdictCounts[v] ?? 0} auto, ${stats.userVerdictCounts[v] ?? 0} user`}
+              />
             ))}
           </div>
         </div>
@@ -160,9 +159,7 @@ export function VerificationSection({ transcript, anNodes }: VerificationSection
             <div key={i} className="factcheck-detail-row" onClick={() => setExpandedIdx(expandedIdx === i ? null : i)} role="button" tabIndex={0}
               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedIdx(expandedIdx === i ? null : i); } }}>
               <div className="factcheck-detail-header">
-                <span className="diag-badge" style={{ background: VERDICT_COLORS[fc.verdict] ?? '#6b7280', color: '#fff', fontSize: '0.55rem' }}>
-                  {fc.verdict}
-                </span>
+                <VerdictChip verdict={mapFactCheckVerdict(fc.verdict)} label={fc.verdict} />
                 <span className="factcheck-detail-claim">{fc.checkedText}</span>
                 <span className="diag-muted" style={{ fontSize: '0.55rem' }}>{fc.isAuto ? 'auto' : 'user'}{fc.webSearchUsed ? ' · web' : ''}</span>
               </div>

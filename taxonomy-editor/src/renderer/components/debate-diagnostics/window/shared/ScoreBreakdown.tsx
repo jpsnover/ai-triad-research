@@ -4,6 +4,7 @@
 import { DIMENSION_WEIGHTS } from './constants';
 import type { TurnValidation, TurnValidationDimensions } from '../../../../types/debate';
 import { humanizeSpeakerIds } from '../../../../utils/humanizeSpeakers';
+import { VerdictChip, mapOutcomeToVerdict } from './VerdictChip';
 
 // NOTE: TrafficLight stays in DiagnosticsWindow.tsx (parent). It is not used by these
 // components directly — ScoreBreakdown uses its own inline pass/fail indicators.
@@ -18,7 +19,7 @@ function DimensionScoreRow({ name, pass, weight, details }: {
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: '0.72rem', padding: '3px 0' }}>
       <span style={{
         display: 'inline-flex', alignItems: 'center', gap: 4, minWidth: 100,
-        color: pass ? '#16a34a' : '#dc2626', fontWeight: 600,
+        color: pass ? 'var(--success)' : 'var(--danger)', fontWeight: 600,
       }}>
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'currentColor', flexShrink: 0 }} />
         {name}
@@ -28,7 +29,7 @@ function DimensionScoreRow({ name, pass, weight, details }: {
       </span>
       <span style={{
         minWidth: 36, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem',
-        color: pass ? '#16a34a' : '#dc2626',
+        color: pass ? 'var(--success)' : 'var(--danger)',
       }}>
         {weighted.toFixed(2)}
       </span>
@@ -79,18 +80,18 @@ export function ScoreBreakdown({ dims, processReward, judgeUsed }: {
   );
 }
 
+const OUTCOME_LABELS: Record<string, string> = {
+  pass: 'PASS',
+  accept_with_flag: 'ACCEPT (flagged)',
+  retry: 'RETRY',
+  skipped: 'SKIPPED',
+};
+
 export function OutcomeBadge({ outcome }: { outcome: TurnValidation['outcome'] }) {
-  const palette: Record<TurnValidation['outcome'], { bg: string; fg: string; text: string }> = {
-    pass:              { bg: 'rgba(34,197,94,0.15)',  fg: '#16a34a', text: 'PASS' },
-    accept_with_flag:  { bg: 'rgba(234,179,8,0.18)',  fg: '#b45309', text: 'ACCEPT (flagged)' },
-    retry:             { bg: 'rgba(239,68,68,0.15)',  fg: '#dc2626', text: 'RETRY' },
-    skipped:           { bg: 'rgba(148,163,184,0.18)', fg: '#475569', text: 'SKIPPED' },
-  };
-  const c = palette[outcome] ?? palette.pass;
   return (
-    <span style={{
-      background: c.bg, color: c.fg, fontWeight: 700, fontSize: '0.7rem',
-      padding: '2px 8px', borderRadius: 10, letterSpacing: 0.5,
-    }}>{c.text}</span>
+    <VerdictChip
+      verdict={mapOutcomeToVerdict(outcome)}
+      label={OUTCOME_LABELS[outcome] ?? outcome}
+    />
   );
 }

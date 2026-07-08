@@ -6,6 +6,8 @@ import { api } from '@bridge';
 import type { EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge } from '../../../../types/debate';
 import { POVER_INFO } from '../../../../types/debate';
 import { Highlight, Section, CopyButton } from '../helpers';
+import { ScoreBadge, VerdictChip } from '../shared';
+import type { Verdict } from '../shared/VerdictChip';
 
 interface ArgumentNetwork {
   nodes: ArgumentNetworkNode[];
@@ -108,23 +110,26 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
             const anNode = an?.nodes.find(n => n.id === c.id);
             const ec = anNode?.extraction_confidence;
             const ecBand = ec != null ? (ec >= 1.0 ? 'near-verbatim' : ec >= 0.8 ? 'faithful compression' : ec >= 0.6 ? 'implicit premise' : 'minimum') : null;
-            const ecColor = ec != null ? (ec >= 0.8 ? '#22c55e' : ec >= 0.6 ? '#f59e0b' : '#ef4444') : '#6b7280';
             const repair = diag.entailment_repairs?.find(r => r.node_id === c.id);
             const hasEntailmentData = (diag.entailment_repairs?.length ?? 0) > 0;
-            const verdictColor = repair ? (repair.verdict === 'entailed' ? '#22c55e' : repair.verdict === 'partial' ? '#f59e0b' : '#ef4444') : null;
+            const entailmentVerdict: Verdict | null = repair ? (repair.verdict === 'entailed' ? 'pass' : repair.verdict === 'partial' ? 'flag' : 'fail') : null;
             return (
               <details key={i} open style={{ margin: '4px 0' }}>
                 <summary style={{ cursor: 'pointer' }}>
                   <span style={{ color: '#22c55e' }}>✓ {c.id}</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nThreshold: < 10-15% = rejected as not grounded.\n${c.overlap_pct}% = ${c.overlap_pct < 50 ? 'moderate' : 'strong'} lexical grounding.`} style={{ color: 'var(--text-muted)', fontSize: '0.65rem', cursor: 'default' }}>{c.overlap_pct}%</span>{' '}
                   {ec != null && (
-                    <span data-tooltip={`Extraction Confidence: ${ec.toFixed(2)}\nBand: ${ecBand}\n\nFIRE metric — how faithfully this claim was extracted from the speaker's statement.\n1.0 = near-verbatim (overlap ≥70%)\n0.8 = faithful compression (≥50%)\n0.6 = implicit premise (≥30%)\n0.5 = minimum (below 30%)`} style={{ padding: '0 4px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 600, background: `${ecColor}18`, color: ecColor, cursor: 'default', marginRight: 4 }}>
-                      FIRE {ec.toFixed(1)} {ecBand}
-                    </span>
+                    <ScoreBadge
+                      value={ec}
+                      label="FIRE"
+                      tooltip={`Extraction Confidence: ${ec.toFixed(2)}\nBand: ${ecBand}\n\nFIRE metric — how faithfully this claim was extracted from the speaker's statement.\n1.0 = near-verbatim (overlap ≥70%)\n0.8 = faithful compression (≥50%)\n0.6 = implicit premise (≥30%)\n0.5 = minimum (below 30%)`}
+                    />
                   )}
-                  {repair && (
-                    <span data-tooltip={`Entailment: ${repair.verdict}\n${repair.explanation}`} style={{ padding: '0 4px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 600, background: `${verdictColor}18`, color: verdictColor!, cursor: 'default', marginRight: 4 }}>
-                      {repair.verdict === 'entailed' ? '✓' : repair.verdict === 'partial' ? '~' : '✗'} {repair.verdict}
-                    </span>
+                  {repair && entailmentVerdict && (
+                    <VerdictChip
+                      verdict={entailmentVerdict}
+                      label={`${repair.verdict === 'entailed' ? '✓' : repair.verdict === 'partial' ? '~' : '✗'} ${repair.verdict}`}
+                      tooltip={`Entailment: ${repair.verdict}\n${repair.explanation}`}
+                    />
                   )}
                   {!repair && hasEntailmentData && (
                     <span style={{ fontSize: '0.5rem', color: 'var(--text-muted)', opacity: 0.6, marginRight: 4 }}>not sampled</span>

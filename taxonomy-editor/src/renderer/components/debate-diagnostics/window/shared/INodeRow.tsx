@@ -7,6 +7,7 @@ import { POVER_INFO } from '../../../../types/debate';
 import type { SpeakerId } from '../../../../types/debate';
 import { explainNodeStrength } from '../../../../utils/qbafExplain';
 import { SUB_SCORE_TIPS, BELIEF_KEYS } from './constants';
+import { ScoreBadge } from './ScoreBadge';
 
 // NOTE: speakerLabel stays in DiagnosticsWindow.tsx (parent). A local copy is provided here
 // for self-contained compilation. When integrating, pass speakerLabel as a prop or import
@@ -64,28 +65,26 @@ function SubScoreRow({ node, onUpdateSubScore }: { node: ArgumentNetworkNode; on
   return (
     <div style={{ paddingLeft: 18, marginTop: 3, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
       {Object.entries(node.bdi_sub_scores).filter(([, v]) => v != null).map(([key, val]) => {
-        const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
         const v = val as number;
-        const c = v >= 0.7 ? '#22c55e' : v >= 0.4 ? '#f59e0b' : '#ef4444';
         const editable = isBelief && BELIEF_KEYS.has(key);
 
         if (!editable) {
           return (
-            <span key={key} title={subScoreTip(key, v)} style={{ padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)', fontWeight: 600, cursor: 'default' }}>
-              <span style={{ color: c, fontSize: '0.9rem', marginRight: 3 }}>●</span>{label}: {(v ?? 0).toFixed(2)}
-            </span>
+            <ScoreBadge key={key} value={v} label={key} tooltip={subScoreTip(key, v)} />
           );
         }
 
+        const accentColor = v >= 0.7 ? 'var(--success)' : v >= 0.4 ? 'var(--warning)' : 'var(--danger)';
+        const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
         return (
           <span key={key} title={subScoreTip(key, v)} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontWeight: 600 }}>
-            <span style={{ color: 'var(--text-secondary)' }}><span style={{ color: c, fontSize: '0.9rem', marginRight: 3 }}>●</span>{label}:</span>
+            <span style={{ color: 'var(--text-secondary)' }}>{label}:</span>
             <input
               type="range"
               min={0} max={1} step={0.05}
               value={v ?? 0}
               onChange={(e) => onUpdateSubScore(node.id, key, parseFloat(e.target.value))}
-              style={{ width: 48, height: 10, accentColor: c, cursor: 'pointer' }}
+              style={{ width: 48, height: 10, accentColor, cursor: 'pointer' }}
             />
             <span style={{ color: 'var(--text-secondary)', minWidth: 26 }}>{(v ?? 0).toFixed(2)}</span>
           </span>
@@ -219,14 +218,13 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
           {(() => {
             const base = node.base_strength ?? 0.5;
             const computed = computedStrength ?? node.computed_strength ?? base;
-            const band = computed >= 0.8 ? 'Strong' : computed >= 0.5 ? 'Moderate' : computed >= 0.3 ? 'Weak' : 'Very Weak';
-            const bandColor = computed >= 0.8 ? '#22c55e' : computed >= 0.5 ? '#3b82f6' : computed >= 0.3 ? '#f59e0b' : '#ef4444';
             const delta = computed - base;
             return (
-              <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }} title={`Strength: ${computed.toFixed(2)} (base: ${base.toFixed(2)}, delta: ${delta >= 0 ? '+' : ''}${delta.toFixed(2)})`}>
-                <span style={{ color: bandColor, fontSize: '0.9rem', marginRight: 3 }}>●</span>{band} {computed.toFixed(2)}
-                {Math.abs(delta) > 0.01 && <span style={{ color: 'var(--text-muted)', marginLeft: 3 }}>{delta > 0 ? '+' : ''}{delta.toFixed(2)}</span>}
-              </span>
+              <ScoreBadge
+                value={computed}
+                label="strength"
+                tooltip={`Strength: ${computed.toFixed(2)} (base: ${base.toFixed(2)}, delta: ${delta >= 0 ? '+' : ''}${delta.toFixed(2)})`}
+              />
             );
           })()}
           {/* Col 6: Edge count */}

@@ -110,27 +110,27 @@ describe('OutcomeBadge', () => {
     expect(screen.getByText('SKIPPED')).toBeInTheDocument();
   });
 
-  it('applies green color for pass outcome', () => {
+  it('applies pass verdict class for pass outcome', () => {
     const { container } = render(<OutcomeBadge outcome="pass" />);
     const badge = container.firstChild as HTMLElement;
-    expect(badge.style.color).toBe('rgb(22, 163, 74)');
+    expect(badge.classList.contains('verdict-chip--pass')).toBe(true);
   });
 
-  it('applies red color for retry outcome', () => {
+  it('applies fail verdict class for retry outcome', () => {
     const { container } = render(<OutcomeBadge outcome="retry" />);
     const badge = container.firstChild as HTMLElement;
-    expect(badge.style.color).toBe('rgb(220, 38, 38)');
+    expect(badge.classList.contains('verdict-chip--fail')).toBe(true);
   });
 
-  it('applies amber color for accept_with_flag outcome', () => {
+  it('applies flag verdict class for accept_with_flag outcome', () => {
     const { container } = render(<OutcomeBadge outcome="accept_with_flag" />);
     const badge = container.firstChild as HTMLElement;
-    expect(badge.style.color).toBe('rgb(180, 83, 9)');
+    expect(badge.classList.contains('verdict-chip--flag')).toBe(true);
   });
 
-  it('applies slate color for skipped outcome', () => {
+  it('applies fail verdict class for skipped outcome', () => {
     const { container } = render(<OutcomeBadge outcome="skipped" />);
     const badge = container.firstChild as HTMLElement;
-    expect(badge.style.color).toBe('rgb(71, 85, 105)');
+    expect(badge.classList.contains('verdict-chip--fail')).toBe(true);
   });
 });

@@ -1,0 +1,44 @@
+.score-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-2xs, 0.65rem);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.score-badge-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.score-badge-bar {
+  display: inline-block;
+  width: 40px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-secondary);
+  position: relative;
+  overflow: hidden;
+}
+
+.score-badge-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: var(--score-pct, 0%);
+  border-radius: 3px;
+  background: var(--score-band-color);
+}
+
+.score-badge-value {
+  font-weight: 700;
+  color: var(--score-band-color);
+}
+
+.score-badge--success { --score-band-color: var(--success); }
+.score-badge--warning { --score-band-color: var(--warning); }
+.score-badge--danger  { --score-band-color: var(--danger); }

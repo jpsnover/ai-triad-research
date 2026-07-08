@@ -46,6 +46,7 @@
   /* Semantic */
   --danger: #ef4444;
   --success: #22c55e;
+  --warning: #a16207;
   --focus-ring: #3b82f6;
 
   /* Scrollbar */
@@ -104,6 +105,7 @@
   /* Semantic */
   --danger: #ef4444;
   --success: #22c55e;
+  --warning: #f59e0b;
   --focus-ring: #60a5fa;
 
   /* Scrollbar */
@@ -162,6 +164,7 @@
   /* Semantic */
   --danger: #fb2c36;
   --success: #00ff4c;
+  --warning: #d9a441;
   --focus-ring: #4d7a8b;
 
   /* Scrollbar */
@@ -218,6 +221,7 @@
   /* Semantic */
   --danger: #C53B4A;
   --success: #2D6A4F;
+  --warning: #8B6508;
   --focus-ring: #A51C30;
 
   /* Scrollbar */

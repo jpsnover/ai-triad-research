@@ -11,3 +11,5 @@ export * from './TensionsListDetail';
 export * from './DebateExchangeRich';
 export * from './ModeratorTab';
 export * from './ArtifactBlock';
+export * from './ScoreBadge';
+export * from './VerdictChip';

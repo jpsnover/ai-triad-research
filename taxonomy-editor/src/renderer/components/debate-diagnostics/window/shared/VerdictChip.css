@@ -1,0 +1,25 @@
+.verdict-chip {
+  display: inline-block;
+  font-size: var(--text-2xs, 0.65rem);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+  cursor: default;
+}
+
+.verdict-chip--pass {
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  color: var(--success);
+}
+
+.verdict-chip--flag {
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
+  color: var(--warning);
+}
+
+.verdict-chip--fail {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
+}

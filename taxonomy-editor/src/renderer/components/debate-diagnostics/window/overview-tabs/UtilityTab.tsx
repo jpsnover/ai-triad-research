@@ -6,6 +6,7 @@ import type { DebateSession } from '../../../../types/debate';
 import { speakerLabel } from '../helpers';
 import { UTILITY_WEIGHTS } from '../types';
 import type { UtilitySnapshot } from '../types';
+import { ScoreBadge } from '../shared';
 
 interface UtilityTabProps {
   debate: DebateSession;
@@ -47,14 +48,14 @@ export function UtilityTab({ debate, perTurnUtilities, setSelectedEntry, setLoca
           <div key={speaker} style={{ marginBottom: 16, padding: '10px 12px', borderRadius: 6, background: 'var(--bg-primary)', borderLeft: `3px solid ${color}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
               <strong style={{ fontSize: '0.8rem', color }}>{speakerLabel(speaker)}</strong>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{u.composite.toFixed(3)}</span>
+              <ScoreBadge value={u.composite} label="composite" tooltip={`Composite utility: ${u.composite.toFixed(3)} — weighted sum of position strength, attack effectiveness, and crux engagement`} />
               <span title={trend.label} style={{ fontSize: '0.85rem', fontWeight: 700, color: trend.color }}>{trend.icon}</span>
               {w && <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)' }}>weights: pos={w.position} atk={w.attack} crux={w.crux}</span>}
             </div>
-            <div style={{ display: 'flex', gap: 16, fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
-              <span title="Mean computed_strength of undefeated nodes (>= 0.3)">pos: <strong>{u.position_strength.toFixed(3)}</strong></span>
-              <span title="Fraction of opponent nodes weakened below 0.3">atk: <strong>{u.attack_effectiveness.toFixed(3)}</strong></span>
-              <span title="Fraction of cruxes this agent has addressed">crux: <strong>{u.crux_engagement.toFixed(3)}</strong></span>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
+              <ScoreBadge value={u.position_strength} label="position_strength" compact tooltip="Mean computed_strength of undefeated nodes (>= 0.3)" />
+              <ScoreBadge value={u.attack_effectiveness} label="attack_effectiveness" compact tooltip="Fraction of opponent nodes weakened below 0.3" />
+              <ScoreBadge value={u.crux_engagement} label="crux_engagement" compact tooltip="Fraction of cruxes this agent has addressed" />
             </div>
             {/* Sparkline — composite utility over turns */}
             <div style={{ position: 'relative' }}>

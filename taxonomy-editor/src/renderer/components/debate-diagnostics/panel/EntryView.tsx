@@ -12,6 +12,8 @@ import { getMoveName } from '@lib/debate/helpers';
 import type { MoveAnnotation } from '@lib/debate/helpers';
 import { api } from '@bridge';
 import { CollapsibleSection, speakerLabel } from './helpers';
+import { ScoreBadge, VerdictChip } from '../window/shared';
+import type { Verdict } from '../window/shared/VerdictChip';
 
 function QbafClaimStrengthSection({ entryId, activeDebate }: { entryId: string; activeDebate: { argument_network?: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] } } | null }) {
   const qbafEnabled = useFlag('release-qbaf-analysis');
@@ -54,9 +56,9 @@ function QbafClaimStrengthSection({ entryId, activeDebate }: { entryId: string; 
             <div className="diag-qbaf-claim-text">{node.text}</div>
             {node.attribution_text_genus && <div className="claim-attribution-text"><span className="claim-attribution-label">Attribution:</span>{node.attribution_text_genus}</div>}
             <div className="diag-qbaf-strength-row">
-              <span className="diag-k">Intrinsic:</span> <span className="diag-v">{base.toFixed(2)}</span>
+              <ScoreBadge value={base} label="intrinsic" tooltip={`Intrinsic (base) strength: ${base.toFixed(2)}`} />
               <span className="diag-qbaf-arrow">→</span>
-              <span className="diag-k">Dialectical:</span> <span className="diag-v">{computed.toFixed(2)}</span>
+              <ScoreBadge value={computed} label="dialectical" tooltip={`Dialectical (computed) strength: ${computed.toFixed(2)}`} />
               {Math.abs(delta) > 0.01 && (
                 <span className={`qbaf-delta ${delta > 0 ? 'qbaf-delta-up' : 'qbaf-delta-down'}`}>
                   ({delta > 0 ? '+' : ''}{delta.toFixed(2)})
@@ -144,34 +146,30 @@ export function EntryView({ entryId }: { entryId: string }) {
           const modDrift = modTrace?.drift_detected === true;
           const intMeta = entry.intervention_metadata;
           const modRedirect = modDrift && intMeta && ['REDIRECT', 'CHALLENGE'].includes(intMeta.move);
-          let state: 'green' | 'amber' | 'red';
+          let verdict: Verdict;
           let label: string;
           let tip: string;
           if (!ta.topic_aligned || modRedirect) {
-            state = 'red'; label = modRedirect ? 'drift redirect' : 'off-scope'; tip = modRedirect ? `Moderator ${intMeta!.move} for drift` : 'Topic alignment failed after all retries';
+            verdict = 'fail'; label = modRedirect ? 'drift redirect' : 'off-scope'; tip = modRedirect ? `Moderator ${intMeta!.move} for drift` : 'Topic alignment failed after all retries';
           } else if (ta.repaired) {
-            state = 'amber'; label = 'repaired'; tip = 'Off-scope draft repaired on retry';
+            verdict = 'flag'; label = 'repaired'; tip = 'Off-scope draft repaired on retry';
           } else if (modDrift || hasDemotedRef) {
-            state = 'amber'; label = 'drift noted'; tip = modDrift ? 'Moderator flagged drift concern' : 'References demoted taxonomy node';
+            verdict = 'flag'; label = 'drift noted'; tip = modDrift ? 'Moderator flagged drift concern' : 'References demoted taxonomy node';
           } else {
-            state = 'green'; label = 'on-scope'; tip = 'All topic alignment checks passed';
+            verdict = 'pass'; label = 'on-scope'; tip = 'All topic alignment checks passed';
           }
-          const colors = { green: '#22c55e', amber: '#f59e0b', red: '#ef4444' };
-          const bgs = { green: 'rgba(34,197,94,0.15)', amber: 'rgba(245,158,11,0.15)', red: 'rgba(239,68,68,0.15)' };
           return (
-            <span className="diag-badge" title={tip} style={{
-              fontSize: '0.5rem', cursor: 'help',
-              background: bgs[state], color: colors[state],
-            }}>{label}</span>
+            <VerdictChip verdict={verdict} label={label} tooltip={tip} />
           );
         })()}
         {diag?.entailment_repairs && diag.entailment_repairs.some(r => r.verdict !== 'entailed') && (() => {
           const repaired = diag.entailment_repairs!.filter(r => r.verdict !== 'entailed');
           return (
-            <span className="diag-badge" title={`${repaired.length} claim${repaired.length !== 1 ? 's' : ''} repaired by entailment verification`} style={{
-              fontSize: '0.5rem', cursor: 'help',
-              background: 'rgba(245,158,11,0.15)', color: '#f59e0b',
-            }}>{repaired.length} repaired</span>
+            <VerdictChip
+              verdict="flag"
+              label={`${repaired.length} repaired`}
+              tooltip={`${repaired.length} claim${repaired.length !== 1 ? 's' : ''} repaired by entailment verification`}
+            />
           );
         })()}
       </div>
@@ -464,13 +462,10 @@ export function EntryView({ entryId }: { entryId: string }) {
                     </div>
                     <div className="diag-kv">
                       <span className="diag-k">Result:</span>
-                      <span className="diag-badge" style={{
-                        fontSize: '0.5rem',
-                        background: diag.topic_alignment.topic_aligned ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
-                        color: diag.topic_alignment.topic_aligned ? '#22c55e' : '#ef4444',
-                      }}>
-                        {diag.topic_alignment.topic_aligned ? 'yes' : 'no'}
-                      </span>
+                      <VerdictChip
+                        verdict={diag.topic_alignment.topic_aligned ? 'pass' : 'fail'}
+                        label={diag.topic_alignment.topic_aligned ? 'yes' : 'no'}
+                      />
                     </div>
                     {(diag.topic_alignment.scope_used?.off_scope_topics?.length ?? 0) > 0 && (
                       <div style={{ marginTop: 2 }}>
@@ -551,24 +546,21 @@ export function EntryView({ entryId }: { entryId: string }) {
           {diag.extracted_claims.accepted.map((c, i) => {
             const anNode = activeDebate?.argument_network?.nodes.find(n => n.id === c.id);
             const ec = anNode?.extraction_confidence;
-            const ecBand = ec != null ? (ec >= 1.0 ? 'near-verbatim' : ec >= 0.8 ? 'faithful' : ec >= 0.6 ? 'implicit' : 'minimum') : null;
-            const ecColor = ec != null ? (ec >= 0.8 ? '#22c55e' : ec >= 0.6 ? '#f59e0b' : '#ef4444') : '#6b7280';
             const repair = diag.entailment_repairs?.find(r => r.node_id === c.id);
             const hasEntailmentData = (diag.entailment_repairs?.length ?? 0) > 0;
-            const verdictColor = repair ? (repair.verdict === 'entailed' ? '#22c55e' : repair.verdict === 'partial' ? '#f59e0b' : '#ef4444') : null;
             return (
               <div key={i} className="diag-claim diag-claim-accepted">
                 <span className="diag-claim-status">✓ {c.id}</span>
                 <span className="diag-claim-overlap">{c.overlap_pct}%</span>
                 {ec != null && (
-                  <span title={`FIRE ${ec.toFixed(2)} — ${ecBand}`} style={{ padding: '0 3px', borderRadius: 3, fontSize: '0.5rem', fontWeight: 600, background: `${ecColor}18`, color: ecColor }}>
-                    {ec.toFixed(1)}
-                  </span>
+                  <ScoreBadge value={ec} label="FIRE" tooltip={`FIRE ${ec.toFixed(2)} — extraction confidence`} />
                 )}
                 {repair && (
-                  <span title={`Entailment: ${repair.verdict} — ${repair.explanation}`} style={{ padding: '0 3px', borderRadius: 3, fontSize: '0.5rem', fontWeight: 600, background: `${verdictColor}18`, color: verdictColor! }}>
-                    {repair.verdict === 'entailed' ? '✓' : repair.verdict === 'partial' ? '~' : '✗'}
-                  </span>
+                  <VerdictChip
+                    verdict={repair.verdict === 'entailed' ? 'pass' : repair.verdict === 'partial' ? 'flag' : 'fail'}
+                    label={repair.verdict === 'entailed' ? '✓' : repair.verdict === 'partial' ? '~' : '✗'}
+                    tooltip={`Entailment: ${repair.verdict} — ${repair.explanation}`}
+                  />
                 )}
                 {!repair && hasEntailmentData && (
                   <span style={{ fontSize: '0.45rem', color: 'var(--text-muted)', opacity: 0.5 }}>ns</span>
