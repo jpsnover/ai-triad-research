@@ -6,6 +6,7 @@ import type { DebateSession, ConvergenceSignals } from '../../types/debate';
 import { POVER_INFO } from '../../types/debate';
 import type { SpeakerId } from '../../types/debate';
 import { SUPPORT_MOVES } from '@lib/debate/helpers';
+import './ConvergenceSignalsPanel.css';
 
 interface Props {
   debate: DebateSession;
@@ -32,12 +33,12 @@ function speakerLabel(speaker: SpeakerId): string {
 
 function speakerColor(speaker: SpeakerId): string {
   const colors: Record<string, string> = {
-    accelerationist: '#f59e0b',
-    safetyist: '#3b82f6',
-    skeptic: '#a855f7',
-    user: '#10b981',
+    accelerationist: 'var(--color-acc, #f59e0b)',
+    safetyist: 'var(--color-saf, #3b82f6)',
+    skeptic: 'var(--color-skp, #a855f7)',
+    user: 'var(--success)',
   };
-  return colors[speaker] ?? '#94a3b8';
+  return colors[speaker] ?? 'var(--text-muted)';
 }
 
 function pct(v: number): string {
@@ -46,16 +47,13 @@ function pct(v: number): string {
 
 function OutcomeBadge({ outcome }: { outcome: 'taken' | 'missed' | 'none' }) {
   const styles: Record<string, { bg: string; fg: string; label: string }> = {
-    taken: { bg: 'rgba(34,197,94,0.15)', fg: '#22c55e', label: 'Taken' },
-    missed: { bg: 'rgba(239,68,68,0.15)', fg: '#ef4444', label: 'Missed' },
-    none: { bg: 'rgba(148,163,184,0.15)', fg: '#94a3b8', label: 'N/A' },
+    taken: { bg: 'color-mix(in srgb, var(--success) 15%, transparent)', fg: 'var(--success)', label: 'Taken' },
+    missed: { bg: 'color-mix(in srgb, var(--danger) 15%, transparent)', fg: 'var(--danger)', label: 'Missed' },
+    none: { bg: 'color-mix(in srgb, var(--text-muted) 15%, transparent)', fg: 'var(--text-muted)', label: 'N/A' },
   };
   const s = styles[outcome];
   return (
-    <span style={{
-      background: s.bg, color: s.fg, padding: '1px 6px', borderRadius: 3,
-      fontSize: '0.6rem', fontWeight: 700, whiteSpace: 'nowrap',
-    }}>{s.label}</span>
+    <span className="conv-outcome-badge" style={{ background: s.bg, color: s.fg }}>{s.label}</span>
   );
 }
 
@@ -63,10 +61,10 @@ function MiniBar({ value, max, color }: { value: number; max: number; color: str
   const w = max > 0 ? Math.min(1, value / max) * 100 : 0;
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      <div style={{ width: 50, height: 6, background: 'var(--bg-tertiary, #333)', borderRadius: 3 }}>
-        <div style={{ width: `${w}%`, height: '100%', background: color, borderRadius: 3 }} />
+      <div style={{ width: 50, height: 6, background: 'var(--bg-tertiary, #333)', borderRadius: 'var(--radius-sm)' }}>
+        <div style={{ width: `${w}%`, height: '100%', background: color, borderRadius: 'var(--radius-sm)' }} />
       </div>
-      <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{value.toFixed(2)}</span>
+      <span className="conv-minibar-value">{value.toFixed(2)}</span>
     </div>
   );
 }
@@ -88,8 +86,7 @@ function DispositionChart({ signals }: { signals: ConvergenceSignals[] }) {
 
   return (
     <div style={{ marginBottom: 8 }}>
-      <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 2, cursor: 'default' }}
-        title={TOOLTIPS.chartTitle}>
+      <div className="conv-chart-title" title={TOOLTIPS.chartTitle}>
         Collaborative Ratio Over Time
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none"
@@ -103,7 +100,7 @@ function DispositionChart({ signals }: { signals: ConvergenceSignals[] }) {
             strokeWidth={1.5} points={l.points} />
         ))}
       </svg>
-      <div style={{ display: 'flex', gap: 12, fontSize: '0.6rem' }}>
+      <div className="conv-chart-legend">
         {speakers.map(s => (
           <span key={s} style={{ color: speakerColor(s as SpeakerId) }}>
             {speakerLabel(s as SpeakerId)}
@@ -128,22 +125,18 @@ function SummaryStats({ signals }: { signals: ConvergenceSignals[] }) {
   });
 
   return (
-    <div style={{
-      display: 'grid', gridTemplateColumns: `repeat(${speakers.length}, 1fr)`, gap: 8, marginBottom: 12,
-    }}>
+    <div className="conv-summary-grid" style={{ gridTemplateColumns: `repeat(${speakers.length}, 1fr)` }}>
       {stats.map(s => (
-        <div key={s.speaker} style={{
-          padding: 8, borderRadius: 6, background: 'var(--bg-tertiary, #2a2a2a)',
-          border: `1px solid ${speakerColor(s.speaker as SpeakerId)}33`,
-        }}>
-          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: speakerColor(s.speaker as SpeakerId), marginBottom: 4 }}>
+        <div key={s.speaker} className="conv-summary-card"
+          style={{ borderLeft: `3px solid ${speakerColor(s.speaker as SpeakerId)}` }}>
+          <div className="conv-card-speaker" style={{ color: speakerColor(s.speaker as SpeakerId) }}>
             {speakerLabel(s.speaker as SpeakerId)}
           </div>
-          <div style={{ fontSize: '0.72rem', color: '#e2e8f0', display: 'grid', gap: 2 }}>
-            <div title={TOOLTIPS.collabRatio} style={{ cursor: 'default' }}>Collab ratio: <strong>{pct(s.avgCollabRatio)}</strong></div>
-            <div title={TOOLTIPS.concessions} style={{ cursor: 'default' }}>Concessions: <strong>{s.takenCount}/{s.opportunityCount}</strong> opportunities</div>
-            <div title={TOOLTIPS.recycling} style={{ cursor: 'default' }}>Avg redundancy: <strong>{pct(s.avgRecycling)}</strong></div>
-            <div title={TOOLTIPS.cruxMoves} style={{ cursor: 'default' }}>Crux moves: <strong>{s.cruxTotal}</strong></div>
+          <div className="conv-card-stats">
+            <div title={TOOLTIPS.collabRatio}>Collab ratio: <strong>{pct(s.avgCollabRatio)}</strong></div>
+            <div title={TOOLTIPS.concessions}>Concessions: <strong>{s.takenCount}/{s.opportunityCount}</strong> opportunities</div>
+            <div title={TOOLTIPS.recycling}>Avg redundancy: <strong>{pct(s.avgRecycling)}</strong></div>
+            <div title={TOOLTIPS.cruxMoves}>Crux moves: <strong>{s.cruxTotal}</strong></div>
           </div>
         </div>
       ))}
@@ -165,7 +158,7 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
 
   if (signals.length === 0) {
     return (
-      <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+      <div className="conv-empty">
         No convergence signals recorded yet. Signals are computed after each claim extraction during debate turns.
       </div>
     );
@@ -221,43 +214,43 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
       <SummaryStats signals={signals} />
       <DispositionChart signals={signals} />
 
-      <div style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
-        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Filter:</span>
+      <div className="conv-filter-bar">
+        <span className="conv-filter-label">Filter:</span>
         <button
           onClick={() => setFilterSpeaker('all')}
+          className="conv-filter-btn"
           style={{
-            padding: '2px 8px', fontSize: '0.6rem', borderRadius: 3, cursor: 'pointer',
             border: '1px solid var(--border)',
-            background: filterSpeaker === 'all' ? '#f59e0b' : 'transparent',
-            color: filterSpeaker === 'all' ? '#000' : 'var(--text-primary)',
+            background: filterSpeaker === 'all' ? 'var(--warning, #f59e0b)' : 'transparent',
+            color: filterSpeaker === 'all' ? 'var(--bg-primary)' : 'var(--text-primary)',
           }}
         >All</button>
         {speakerFilter.map(s => (
           <button
             key={s}
             onClick={() => setFilterSpeaker(s)}
+            className="conv-filter-btn"
             style={{
-              padding: '2px 8px', fontSize: '0.6rem', borderRadius: 3, cursor: 'pointer',
               border: `1px solid ${speakerColor(s)}`,
               background: filterSpeaker === s ? speakerColor(s) : 'transparent',
-              color: filterSpeaker === s ? '#000' : speakerColor(s),
+              color: filterSpeaker === s ? 'var(--bg-primary)' : speakerColor(s),
             }}
           >{speakerLabel(s)}</button>
         ))}
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
-        <table style={{ borderCollapse: 'collapse', fontSize: '0.65rem' }}>
+        <table className="conv-table">
           <thead>
-            <tr style={{ borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--bg-secondary)' }}>
-              <th style={{ padding: '4px 4px', textAlign: 'left' }}>Rnd</th>
-              <th style={{ padding: '4px 4px', textAlign: 'left' }}>Speaker</th>
-              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'default' }} title={TOOLTIPS.confCollab}>Conf/Collab</th>
-              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'default' }} title={TOOLTIPS.engagement}>Dialectical Engagement</th>
-              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'default' }} title={TOOLTIPS.recyclingCol}>Argument Redundancy</th>
-              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'default' }} title={TOOLTIPS.concessionCol}>Concession</th>
-              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'default' }} title={TOOLTIPS.drift}>Drift</th>
-              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'default' }} title={TOOLTIPS.cruxCol}>Crux</th>
+            <tr>
+              <th>Rnd</th>
+              <th>Speaker</th>
+              <th style={{ textAlign: 'center' }} title={TOOLTIPS.confCollab}>Conf/Collab</th>
+              <th style={{ textAlign: 'center' }} title={TOOLTIPS.engagement}>Dialectical Engagement</th>
+              <th style={{ textAlign: 'center' }} title={TOOLTIPS.recyclingCol}>Argument Redundancy</th>
+              <th style={{ textAlign: 'center' }} title={TOOLTIPS.concessionCol}>Concession</th>
+              <th style={{ textAlign: 'center' }} title={TOOLTIPS.drift}>Drift</th>
+              <th style={{ textAlign: 'center' }} title={TOOLTIPS.cruxCol}>Crux</th>
             </tr>
           </thead>
           <tbody>
@@ -266,36 +259,34 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
                 key={sig.entry_id}
                 onClick={() => setSelectedIdx(selectedIdx === i ? null : i)}
                 style={{
-                  borderBottom: '1px solid var(--border)',
-                  cursor: 'pointer',
-                  background: selectedIdx === i ? 'rgba(245,158,11,0.1)' : undefined,
+                  background: selectedIdx === i ? 'color-mix(in srgb, var(--warning, #f59e0b) 10%, transparent)' : undefined,
                 }}
               >
-                <td style={{ padding: '4px 4px' }}>{sig.round}</td>
-                <td style={{ padding: '4px 4px', color: speakerColor(sig.speaker) }}>
+                <td>{sig.round}</td>
+                <td style={{ color: speakerColor(sig.speaker) }}>
                   {speakerLabel(sig.speaker)}
                 </td>
-                <td style={{ padding: '4px 4px', textAlign: 'center' }}>
-                  <span style={{ color: '#ef4444' }}>{sig.move_polarity?.confrontational ?? 0}</span>
+                <td style={{ textAlign: 'center' }}>
+                  <span style={{ color: 'var(--danger)' }}>{sig.move_polarity?.confrontational ?? 0}</span>
                   {' / '}
-                  <span style={{ color: '#22c55e' }}>{sig.move_polarity?.collaborative ?? 0}</span>
+                  <span style={{ color: 'var(--success)' }}>{sig.move_polarity?.collaborative ?? 0}</span>
                 </td>
-                <td style={{ padding: '4px 4px', textAlign: 'center' }}>
-                  <MiniBar value={sig.dialectical_engagement?.ratio ?? 0} max={1} color="#3b82f6" />
+                <td style={{ textAlign: 'center' }}>
+                  <MiniBar value={sig.dialectical_engagement?.ratio ?? 0} max={1} color="var(--color-saf, #3b82f6)" />
                 </td>
-                <td style={{ padding: '4px 4px', textAlign: 'center' }}>
+                <td style={{ textAlign: 'center' }}>
                   {(() => {
                     const effective = Math.max(sig.argument_redundancy?.max_self_overlap ?? 0, sig.argument_redundancy?.semantic_max_similarity ?? 0);
-                    return <MiniBar value={effective} max={1} color={sig.argument_redundancy?.semantically_recycled ? '#ef4444' : effective > 0.5 ? '#f59e0b' : '#22c55e'} />;
+                    return <MiniBar value={effective} max={1} color={sig.argument_redundancy?.semantically_recycled ? 'var(--danger)' : effective > 0.5 ? 'var(--warning, #f59e0b)' : 'var(--success)'} />;
                   })()}
                 </td>
-                <td style={{ padding: '4px 4px', textAlign: 'center' }}>
+                <td style={{ textAlign: 'center' }}>
                   <OutcomeBadge outcome={sig.concession_opportunity?.outcome ?? 'none'} />
                 </td>
-                <td style={{ padding: '4px 4px', textAlign: 'center' }}>
+                <td style={{ textAlign: 'center' }}>
                   {pct(sig.position_drift?.drift ?? 0)}
                 </td>
-                <td style={{ padding: '4px 4px', textAlign: 'center' }}>
+                <td style={{ textAlign: 'center' }}>
                   {sig.crux_engagement_rate?.used_this_turn ? '1' : '0'}
                   <span style={{ color: 'var(--text-muted)' }}> ({sig.crux_engagement_rate?.cumulative_count ?? 0})</span>
                 </td>
@@ -313,110 +304,104 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
         const co = selected.concession_opportunity;
         const pd = selected.position_drift;
         const cr = selected.crux_engagement_rate;
-        const lbl: React.CSSProperties = { color: '#94a3b8', fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.03em' };
-        const val: React.CSSProperties = { color: '#e2e8f0', fontSize: '0.7rem' };
-        const cell: React.CSSProperties = { padding: '3px 6px', borderRadius: 3, background: 'rgba(255,255,255,0.03)' };
         return (
-          <div style={{
-            marginTop: 6, padding: 8, background: 'var(--bg-tertiary, #2a2a2a)',
-            borderRadius: 4, maxHeight: 280, overflow: 'auto', color: '#e2e8f0',
-            borderLeft: `3px solid ${speakerColor(selected.speaker)}`,
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <span style={{ fontWeight: 700, fontSize: '0.75rem', color: speakerColor(selected.speaker) }}>
+          <div className="conv-detail"
+            style={{ borderLeft: `3px solid ${speakerColor(selected.speaker)}` }}>
+            <div className="conv-detail-header">
+              <span className="conv-detail-speaker" style={{ color: speakerColor(selected.speaker) }}>
                 Round {selected.round} — {speakerLabel(selected.speaker)}
               </span>
-              <span style={{ fontSize: '0.6rem', color: '#94a3b8' }}>← → to navigate, Esc to close</span>
+              <span className="conv-detail-hint">← → to navigate, Esc to close</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
-              <div style={cell}>
-                <div style={lbl}>Polarity</div>
-                <div style={val}>
-                  <span style={{ color: '#ef4444' }}>{md?.confrontational ?? 0}C</span>{' / '}
-                  <span style={{ color: '#22c55e' }}>{md?.collaborative ?? 0}S</span>
+            <div className="conv-detail-grid">
+              <div className="conv-detail-cell">
+                <div className="conv-detail-lbl">Polarity</div>
+                <div className="conv-detail-val">
+                  <span style={{ color: 'var(--danger)' }}>{md?.confrontational ?? 0}C</span>{' / '}
+                  <span style={{ color: 'var(--success)' }}>{md?.collaborative ?? 0}S</span>
                   {' = '}<strong>{pct(md?.ratio ?? 0)}</strong>
                   {(md?.ratio ?? 0) >= 0.5
-                    ? <span style={{ color: '#22c55e', marginLeft: 4, fontSize: '0.62rem' }}>cooperative</span>
-                    : <span style={{ color: '#ef4444', marginLeft: 4, fontSize: '0.62rem' }}>confrontational</span>}
+                    ? <span className="conv-status-good">cooperative</span>
+                    : <span className="conv-status-bad">confrontational</span>}
                 </div>
               </div>
-              <div style={cell}>
-                <div style={lbl}>Dialectical Engagement</div>
-                <div style={val}>
+              <div className="conv-detail-cell">
+                <div className="conv-detail-lbl">Dialectical Engagement</div>
+                <div className="conv-detail-val">
                   {ed?.targeted ?? 0}/{(ed?.targeted ?? 0) + (ed?.standalone ?? 0)} targeted = <strong>{pct(ed?.ratio ?? 0)}</strong>
                   {(ed?.ratio ?? 0) >= 0.7
-                    ? <span style={{ color: '#22c55e', marginLeft: 4, fontSize: '0.62rem' }}>deep</span>
+                    ? <span className="conv-status-good">deep</span>
                     : (ed?.ratio ?? 0) >= 0.4
-                      ? <span style={{ color: '#f59e0b', marginLeft: 4, fontSize: '0.62rem' }}>moderate</span>
-                      : <span style={{ color: '#ef4444', marginLeft: 4, fontSize: '0.62rem' }}>standalone</span>}
+                      ? <span className="conv-status-warn">moderate</span>
+                      : <span className="conv-status-bad">standalone</span>}
                 </div>
               </div>
-              <div style={cell}>
-                <div style={lbl}>Argument Redundancy</div>
-                <div style={val}>
+              <div className="conv-detail-cell">
+                <div className="conv-detail-lbl">Argument Redundancy</div>
+                <div className="conv-detail-val">
                   avg <strong>{pct(rr?.avg_self_overlap ?? 0)}</strong>, max <strong>{pct(rr?.max_self_overlap ?? 0)}</strong>
                   {rr?.semantic_max_similarity != null && (
                     <>, sem <strong>{pct(rr.semantic_max_similarity)}</strong></>
                   )}
                   {rr?.semantically_recycled
-                    ? <span style={{ color: '#ef4444', marginLeft: 4, fontSize: '0.62rem' }}>semantic repeat</span>
+                    ? <span className="conv-status-bad">semantic repeat</span>
                     : (rr?.max_self_overlap ?? 0) >= 0.5
-                      ? <span style={{ color: '#f59e0b', marginLeft: 4, fontSize: '0.62rem' }}>repeating</span>
-                      : <span style={{ color: '#22c55e', marginLeft: 4, fontSize: '0.62rem' }}>fresh</span>}
+                      ? <span className="conv-status-warn">repeating</span>
+                      : <span className="conv-status-good">fresh</span>}
                 </div>
               </div>
-              <div style={cell}>
-                <div style={lbl}>Dominant Counterargument</div>
-                <div style={val}>
+              <div className="conv-detail-cell">
+                <div className="conv-detail-lbl">Dominant Counterargument</div>
+                <div className="conv-detail-val">
                   {so ? (
                     <>{so.node_id} str={(so.strength ?? 0).toFixed(2)} by {speakerLabel(so.attacker as SpeakerId)}
                       {(so.strength ?? 0) >= 0.7
-                        ? <span style={{ color: '#ef4444', marginLeft: 4, fontSize: '0.62rem' }}>strong</span>
+                        ? <span className="conv-status-bad">strong</span>
                         : (so.strength ?? 0) >= 0.5
-                          ? <span style={{ color: '#f59e0b', marginLeft: 4, fontSize: '0.62rem' }}>moderate</span>
-                          : <span style={{ color: '#22c55e', marginLeft: 4, fontSize: '0.62rem' }}>weak</span>}
+                          ? <span className="conv-status-warn">moderate</span>
+                          : <span className="conv-status-good">weak</span>}
                     </>
-                  ) : <span style={{ color: '#64748b' }}>none</span>}
+                  ) : <span style={{ color: 'var(--text-muted)' }}>none</span>}
                 </div>
               </div>
-              <div style={cell}>
-                <div style={lbl}>Concession</div>
-                <div style={val}>
+              <div className="conv-detail-cell">
+                <div className="conv-detail-lbl">Concession</div>
+                <div className="conv-detail-val">
                   {co?.strong_attacks_faced ?? 0} attacks, used: {co?.concession_used ? 'Y' : 'N'} — <OutcomeBadge outcome={co?.outcome ?? 'none'} />
                 </div>
               </div>
-              <div style={cell}>
-                <div style={lbl}>Position Drift</div>
-                <div style={val}>
+              <div className="conv-detail-cell">
+                <div className="conv-detail-lbl">Position Drift</div>
+                <div className="conv-detail-val">
                   opening: <strong>{pct(pd?.overlap_with_opening ?? 0)}</strong>, drift: <strong>{pct(pd?.drift ?? 0)}</strong>
                   {(pd?.overlap_with_opening ?? 0) >= 0.6
-                    ? <span style={{ color: '#f59e0b', marginLeft: 4, fontSize: '0.62rem' }}>anchored</span>
+                    ? <span className="conv-status-warn">anchored</span>
                     : (pd?.overlap_with_opening ?? 0) < 0.3
-                      ? <span style={{ color: '#3b82f6', marginLeft: 4, fontSize: '0.62rem' }}>shifted</span>
-                      : <span style={{ color: '#22c55e', marginLeft: 4, fontSize: '0.62rem' }}>evolved</span>}
+                      ? <span className="conv-status-info">shifted</span>
+                      : <span className="conv-status-good">evolved</span>}
                 </div>
               </div>
-              <div style={{ ...cell, gridColumn: '1 / -1' }}>
-                <div style={lbl}>Crux Engagement</div>
-                <div style={val}>
+              <div className="conv-detail-cell" style={{ gridColumn: '1 / -1' }}>
+                <div className="conv-detail-lbl">Crux Engagement</div>
+                <div className="conv-detail-val">
                   this turn: {cr?.used_this_turn ? 'Yes' : 'No'} | cumulative: {cr?.cumulative_count ?? 0} | follow-through: {cr?.cumulative_follow_through ?? 0}
                   {(cr?.cumulative_count ?? 0) > 0 && (cr?.cumulative_follow_through ?? 0) === 0 && (
-                    <span style={{ color: '#f59e0b', marginLeft: 6, fontSize: '0.62rem' }}>no follow-through</span>
+                    <span className="conv-status-warn">no follow-through</span>
                   )}
                   {(cr?.cumulative_count ?? 0) > 0 && (cr?.cumulative_follow_through ?? 0) > 0 && (
-                    <span style={{ color: '#22c55e', marginLeft: 6, fontSize: '0.62rem' }}>resolving</span>
+                    <span className="conv-status-good">resolving</span>
                   )}
                 </div>
               </div>
             </div>
             {concessionVerbatims.length > 0 && (
-              <div style={{ marginTop: 6, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 4 }}>
-                <div style={{ ...lbl, marginBottom: 3 }}>Concession Verbatims ({concessionVerbatims.length})</div>
+              <div className="conv-verbatim-section">
+                <div className="conv-detail-lbl" style={{ marginBottom: 3 }}>Concession Verbatims ({concessionVerbatims.length})</div>
                 {concessionVerbatims.map((cv, i) => (
-                  <div key={i} style={{ marginBottom: 4, padding: '3px 6px', borderRadius: 3, background: 'rgba(34,197,94,0.06)', borderLeft: '2px solid rgba(34,197,94,0.4)' }}>
-                    <div style={{ fontSize: '0.62rem', color: '#94a3b8' }}>{cv.sourceId} → {cv.targetId} via {cv.scheme}</div>
-                    <div style={{ fontSize: '0.68rem', color: '#e2e8f0', fontStyle: 'italic' }}>"{cv.sourceText}"</div>
-                    {cv.targetText && <div style={{ fontSize: '0.62rem', color: '#94a3b8', marginTop: 1 }}>conceding: "{cv.targetText}"</div>}
+                  <div key={i} className="conv-verbatim-entry">
+                    <div className="conv-verbatim-ids">{cv.sourceId} → {cv.targetId} via {cv.scheme}</div>
+                    <div className="conv-verbatim-text">"{cv.sourceText}"</div>
+                    {cv.targetText && <div className="conv-verbatim-target">conceding: "{cv.targetText}"</div>}
                   </div>
                 ))}
               </div>
