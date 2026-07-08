@@ -184,7 +184,7 @@ describe('EntryDetailRouter', () => {
     expect(setEntryTab).toHaveBeenCalledWith('draft');
   });
 
-  it('enables Moderator-Pre tab when proxiedModeratorTrace is provided', () => {
+  it('enables Moderator-Pre tab when proxiedModeratorTrace is provided', async () => {
     render(
       <EntryDetailRouter
         {...makeProps({
@@ -193,7 +193,10 @@ describe('EntryDetailRouter', () => {
       />,
     );
 
-    const modBtn = screen.getByRole('button', { name: /Moderator-Pre/i });
+    // Moderator-Pre is in the overflow menu — auto-selected as activeTab when it's the only tab with data,
+    // so the trigger shows "Moderator-Pre ▾" instead of "More ▾"
+    await userEvent.click(screen.getByRole('button', { name: /Moderator-Pre/i }));
+    const modBtn = screen.getByRole('menuitem', { name: /Moderator-Pre/i });
     expect(modBtn).not.toBeDisabled();
   });
 
@@ -251,7 +254,7 @@ describe('EntryDetailRouter', () => {
     expect(claimsBtn).not.toBeDisabled();
   });
 
-  it('shows count badge on Taxonomy Refs tab', () => {
+  it('shows count badge on Taxonomy Refs tab in overflow menu', async () => {
     const entry = {
       id: 'e1',
       type: 'statement',
@@ -267,8 +270,9 @@ describe('EntryDetailRouter', () => {
       />,
     );
 
-    // The tax-refs tab button includes a count badge "(1)"
-    const taxRefsBtn = screen.getByRole('button', { name: /Taxonomy Refs/i });
+    // Taxonomy Refs is in the overflow menu — open it first
+    await userEvent.click(screen.getByRole('button', { name: /More ▾/i }));
+    const taxRefsBtn = screen.getByRole('menuitem', { name: /Taxonomy Refs/i });
     expect(taxRefsBtn).toBeInTheDocument();
     expect(taxRefsBtn.textContent).toContain('(1)');
   });

@@ -156,6 +156,15 @@
   flex-shrink: 0;
 }
 
+.diag-sidebar-section-header {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  padding: 8px 8px 2px;
+  user-select: none;
+}
+
 .diag-sidebar-transcript {
   margin-left: var(--sp-2);
   margin-top: 2px;

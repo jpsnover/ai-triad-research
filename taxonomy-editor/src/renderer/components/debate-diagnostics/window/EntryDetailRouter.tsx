@@ -29,13 +29,16 @@ import { TaxonomyRefDetail, type TaxRefEdge } from '../../taxonomy/TaxonomyRefDe
 import { speakerLabel } from './helpers';
 import { api } from '@bridge';
 import { EntryTab, OverviewTab, UtilitySnapshot } from './types';
-import { ModeratorTab } from './shared';
+import { ModeratorTab, OverflowMenu } from './shared';
+import type { OverflowItem } from './shared/OverflowMenu';
 import {
   DraftTab, ClaimsTab, EvidenceTab, CitationsTab,
   TaxRefsTab, DetailsTab, BriefTab, PlanTab, LookaheadTab, CiteTab,
   ExclusionGuardTab, AffectTab,
 } from './entry-tabs';
 import './EntryDetailRouter.css';
+
+const VISIBLE_TAB_IDS: Set<EntryTab> = new Set(['details', 'brief', 'plan', 'evidence', 'claims', 'draft']);
 
 // TensionsListDetail, DebateExchangeRich, ModeratorTab → extracted to ./shared/
 // ---------------------------------------------------------------------------
@@ -533,7 +536,7 @@ export function EntryDetailRouter({
       {/* ── Tabbed view ── */}
       <div className="edr-tabbed-view">
         <div className="edr-tab-bar">
-          {tabs.map(t => (
+          {tabs.filter(t => VISIBLE_TAB_IDS.has(t.id)).map(t => (
             <button
               key={t.id}
               onClick={() => tabEnabled(t) && setEntryTab(t.id)}
@@ -549,6 +552,18 @@ export function EntryDetailRouter({
               {t.count != null && <span className="edr-tab-count">({t.count})</span>}
             </button>
           ))}
+          <OverflowMenu
+            items={tabs.filter(t => !VISIBLE_TAB_IDS.has(t.id)).map((t): OverflowItem => ({
+              id: t.id,
+              label: t.label,
+              enabled: tabEnabled(t),
+              count: t.count,
+              ranEmpty: t.ranEmpty,
+              tooltip: t.has ? t.label : t.ranEmpty ? `${t.label} — stage ran, no output` : `${t.label} (no data)`,
+            }))}
+            activeId={!VISIBLE_TAB_IDS.has(activeTab) ? activeTab : null}
+            onSelect={(id) => setEntryTab(id as EntryTab)}
+          />
           <div className="edr-spacer" />
           {active.has && active.id !== 'tax-refs' && (
             <button

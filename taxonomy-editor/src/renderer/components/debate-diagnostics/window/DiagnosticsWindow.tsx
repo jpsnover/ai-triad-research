@@ -322,28 +322,41 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             const hasAn = !!(an && an.nodes.length > 0);
             const hasCommitments = !!(commitments && Object.keys(commitments).length > 0);
             const plateau = debate.extraction_summary?.plateau_detected === true;
-            const tabs: { id: OverviewTab; label: string; badge?: string; visible: boolean }[] = [
-              { id: 'topic-scope', label: 'Topic Scope', visible: !!debate.topic?.scope },
-              { id: 'argument-network', label: 'Arg Net', visible: hasAn },
-              { id: 'commitments', label: 'Commitments', visible: hasCommitments },
-              { id: 'transcript', label: `Transcript (${debate.transcript.filter(e => e.type === 'statement' || e.type === 'opening').length} stmts / ${debate.transcript.length} total)`, visible: true },
-              { id: 'extraction', label: 'Extraction', badge: plateau ? '⚠' : undefined, visible: true },
-              { id: 'convergence', label: `Convergence (${debate.convergence_signals?.length ?? 0})`, visible: !!(debate.convergence_signals && debate.convergence_signals.length > 0) },
-              { id: 'reflections', label: 'Post-Debate Reflections', visible: debate.transcript.some(e => e.type === 'reflection') },
-              { id: 'gaps', label: 'Gaps', visible: !!(debate.taxonomy_gap_analysis || (debate.gap_injections && debate.gap_injections.length > 0) || (debate.cross_cutting_proposals && debate.cross_cutting_proposals.length > 0)) },
-              { id: 'grounding', label: `Grounding (${debate.transcript.reduce((n, e) => n + (e.taxonomy_refs?.length ? 1 : 0), 0)})`, visible: debate.transcript.some(e => e.taxonomy_refs && e.taxonomy_refs.length > 0) },
-              { id: 'lineage', label: `Lineage (${debate.topic.critique?.lineage_frame?.length ?? 0})`, visible: !!(debate.topic.critique?.lineage_frame && debate.topic.critique.lineage_frame.length > 0) },
-              { id: 'adaptive', label: 'Adaptive', visible: !!(debate as unknown as Record<string, unknown>).adaptive_staging_diagnostics },
-              { id: 'pov-progression', label: 'Perspective Progression', visible: true },
-              { id: 'fr-context', label: 'Flight Recorder', visible: true },
-              { id: 'prompt-diff', label: 'Prompt Diff', visible: true },
-              { id: 'utility', label: 'Agent Utility', visible: hasAn },
-              { id: 'exclusion-overview', label: 'Exclusion Guard', visible: true },
-              { id: 'emotional-register', label: 'Emotional Register', visible: true },
+            type SidebarTab = { id: OverviewTab; label: string; badge?: string; visible: boolean };
+            const sections: { header: string; tabs: SidebarTab[] }[] = [
+              { header: 'DEBATE', tabs: [
+                { id: 'topic-scope', label: 'Topic Scope', visible: !!debate.topic?.scope },
+                { id: 'argument-network', label: 'Arg Net', visible: hasAn },
+                { id: 'commitments', label: 'Commitments', visible: hasCommitments },
+                { id: 'transcript', label: `Transcript (${debate.transcript.filter(e => e.type === 'statement' || e.type === 'opening').length} stmts / ${debate.transcript.length} total)`, visible: true },
+                { id: 'convergence', label: `Convergence (${debate.convergence_signals?.length ?? 0})`, visible: !!(debate.convergence_signals && debate.convergence_signals.length > 0) },
+                { id: 'gaps', label: 'Gaps', visible: !!(debate.taxonomy_gap_analysis || (debate.gap_injections && debate.gap_injections.length > 0) || (debate.cross_cutting_proposals && debate.cross_cutting_proposals.length > 0)) },
+                { id: 'pov-progression', label: 'Perspective Progression', visible: true },
+                { id: 'reflections', label: 'Post-Debate Reflections', visible: debate.transcript.some(e => e.type === 'reflection') },
+              ]},
+              { header: 'EVIDENCE', tabs: [
+                { id: 'extraction', label: 'Extraction', badge: plateau ? '⚠' : undefined, visible: true },
+                { id: 'grounding', label: `Grounding (${debate.transcript.reduce((n, e) => n + (e.taxonomy_refs?.length ? 1 : 0), 0)})`, visible: debate.transcript.some(e => e.taxonomy_refs && e.taxonomy_refs.length > 0) },
+                { id: 'lineage', label: `Lineage (${debate.topic.critique?.lineage_frame?.length ?? 0})`, visible: !!(debate.topic.critique?.lineage_frame && debate.topic.critique.lineage_frame.length > 0) },
+              ]},
+              { header: 'ENGINE', tabs: [
+                { id: 'utility', label: 'Agent Utility', visible: hasAn },
+                { id: 'exclusion-overview', label: 'Exclusion Guard', visible: true },
+                { id: 'emotional-register', label: 'Emotional Register', visible: true },
+                { id: 'adaptive', label: 'Adaptive', visible: !!(debate as unknown as Record<string, unknown>).adaptive_staging_diagnostics },
+                { id: 'prompt-diff', label: 'Prompt Diff', visible: true },
+                { id: 'fr-context', label: 'Flight Recorder', visible: true },
+              ]},
             ];
             return (
               <div className="diag-tab-sidebar">
-                {tabs.filter(t => t.visible).map(t => (
+                {sections.map(section => {
+                  const visibleTabs = section.tabs.filter(t => t.visible);
+                  if (visibleTabs.length === 0) return null;
+                  return (
+                    <div key={section.header}>
+                      <div className="diag-sidebar-section-header">{section.header}</div>
+                      {visibleTabs.map(t => (
                   <div key={t.id}>
                     <button
                       onClick={() => { setOverviewTab(t.id); setSelectedEntry(null); setLocalOverride(true); }}
@@ -384,7 +397,10 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       </div>
                     )}
                   </div>
-                ))}
+                      ))}
+                    </div>
+                  );
+                })}
               </div>
             );
           })()}

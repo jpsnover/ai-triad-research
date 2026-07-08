@@ -13,3 +13,4 @@ export * from './ModeratorTab';
 export * from './ArtifactBlock';
 export * from './ScoreBadge';
 export * from './VerdictChip';
+export * from './OverflowMenu';
