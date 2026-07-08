@@ -35,6 +35,7 @@ import {
   TaxRefsTab, DetailsTab, BriefTab, PlanTab, LookaheadTab, CiteTab,
   ExclusionGuardTab, AffectTab,
 } from './entry-tabs';
+import './EntryDetailRouter.css';
 
 // TensionsListDetail, DebateExchangeRich, ModeratorTab → extracted to ./shared/
 // ---------------------------------------------------------------------------
@@ -118,10 +119,10 @@ export function EntryDetailRouter({
     setLocalOverride(true);
   };
   const navBtnStyle = (disabled: boolean): React.CSSProperties => ({
-    padding: '2px 8px', fontSize: '0.7rem', fontWeight: 600,
-    borderRadius: 4, border: '1px solid var(--border)',
-    background: disabled ? 'transparent' : 'rgba(249,115,22,0.1)',
-    color: disabled ? 'var(--text-muted)' : '#f97316',
+    padding: '2px 8px', fontSize: 'var(--text-2xs)', fontWeight: 600,
+    borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)',
+    background: disabled ? 'transparent' : 'color-mix(in srgb, var(--accent, #f97316) 10%, transparent)',
+    color: disabled ? 'var(--text-muted)' : 'var(--accent, #f97316)',
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.5 : 1,
   });
@@ -339,15 +340,15 @@ export function EntryDetailRouter({
     const enabled = tabEnabled(t);
     return {
       padding: '6px 12px',
-      fontSize: '0.75rem',
+      fontSize: 'var(--text-xs)',
       fontWeight: 600,
       border: '1px solid var(--border)',
       borderBottom: t.id === activeTab ? '1px solid var(--bg-primary)' : '1px solid var(--border)',
       background: t.id === activeTab ? 'var(--bg-primary)' : 'transparent',
-      color: !enabled ? 'var(--text-muted)' : t.ranEmpty ? '#d97706' : (t.id === activeTab ? '#f97316' : 'var(--text-primary)'),
+      color: !enabled ? 'var(--text-muted)' : t.ranEmpty ? 'var(--warning, #d97706)' : (t.id === activeTab ? 'var(--accent, #f97316)' : 'var(--text-primary)'),
       cursor: enabled ? 'pointer' : 'not-allowed',
       opacity: enabled ? 1 : 0.5,
-      borderRadius: '6px 6px 0 0',
+      borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
       marginRight: 2,
       marginBottom: -1,
       position: 'relative',
@@ -356,24 +357,20 @@ export function EntryDetailRouter({
   };
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+    <div className="edr-root">
       {/* ── Entry header ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+      <div className="edr-header">
         {stmtId && (
           <span
             title={`Statement ${stmtId}`}
-            style={{
-              padding: '1px 7px', borderRadius: 10,
-              background: 'rgba(249,115,22,0.12)', color: '#f97316',
-              fontSize: '0.7rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
-            }}
+            className="edr-stmt-badge"
           >{stmtId}</span>
         )}
-        <strong style={{ fontSize: '0.85rem' }}>{speakerLabel(entry.speaker)}</strong>
-        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{entry.type}</span>
+        <strong className="edr-speaker">{speakerLabel(entry.speaker)}</strong>
+        <span className="edr-entry-type">{entry.type}</span>
         <button
           onClick={() => { void api.clipboardWriteText(entry.id); }}
-          style={{ fontSize: '0.55rem', color: 'var(--text-muted)', fontFamily: 'monospace', background: 'none', border: '1px solid var(--border)', borderRadius: 3, padding: '1px 4px', cursor: 'pointer', opacity: 0.7 }}
+          className="edr-copy-id-btn"
           title={`Copy turn_id for flight recorder correlation: ${entry.id}`}
         >{entry.id.slice(0, 8)}</button>
         {diag?.topic_alignment && (() => {
@@ -398,41 +395,33 @@ export function EntryDetailRouter({
           } else {
             state = 'green'; label = 'on-scope'; tip = 'All topic alignment checks passed';
           }
-          const colors = { green: '#16a34a', amber: '#d97706', red: '#dc2626' };
-          const bgs = { green: 'rgba(22,163,74,0.15)', amber: 'rgba(245,158,11,0.15)', red: 'rgba(220,38,38,0.15)' };
+          const colors = { green: 'var(--success)', amber: 'var(--warning, #d97706)', red: 'var(--danger)' };
+          const bgs = { green: 'color-mix(in srgb, var(--success) 15%, transparent)', amber: 'color-mix(in srgb, var(--warning, #f59e0b) 15%, transparent)', red: 'color-mix(in srgb, var(--danger) 15%, transparent)' };
           return (
-            <span title={tip} style={{
-              padding: '1px 6px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 600,
-              background: bgs[state], color: colors[state], cursor: 'help',
+            <span title={tip} className="edr-scope-badge" style={{
+              background: bgs[state], color: colors[state],
             }}>{label}</span>
           );
         })()}
         {diag?.entailment_repairs && diag.entailment_repairs.some(r => r.verdict !== 'entailed') && (() => {
           const repaired = diag.entailment_repairs!.filter(r => r.verdict !== 'entailed');
           return (
-            <span title={`${repaired.length} claim${repaired.length !== 1 ? 's' : ''} repaired by entailment verification`} style={{
-              padding: '1px 6px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 600,
-              background: 'rgba(245,158,11,0.15)', color: '#d97706', cursor: 'help',
+            <span title={`${repaired.length} claim${repaired.length !== 1 ? 's' : ''} repaired by entailment verification`} className="edr-scope-badge" style={{
+              background: 'color-mix(in srgb, var(--warning, #f59e0b) 15%, transparent)', color: 'var(--warning, #d97706)',
             }}>{repaired.length} repaired</span>
           );
         })()}
         {pipelineError && (
-          <span title="Pipeline stages completed but post-pipeline processing (claim extraction, evidence, AN update) failed — check flight recorder" style={{
-            padding: '1px 6px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 600,
-            background: 'rgba(220,38,38,0.15)', color: '#dc2626', cursor: 'help',
+          <span title="Pipeline stages completed but post-pipeline processing (claim extraction, evidence, AN update) failed — check flight recorder" className="edr-scope-badge" style={{
+            background: 'color-mix(in srgb, var(--danger) 15%, transparent)', color: 'var(--danger)',
           }}>pipeline error</span>
         )}
-        {!diag && !proxiedModeratorTrace && entry.type !== 'intervention' && <span style={{ color: '#f59e0b', fontSize: '0.65rem' }}>(no diagnostic capture &mdash; turn was generated before diagnostics was always-on)</span>}
-        <span style={{ flex: 1 }} />
+        {!diag && !proxiedModeratorTrace && entry.type !== 'intervention' && <span className="edr-no-diag-note">(no diagnostic capture &mdash; turn was generated before diagnostics was always-on)</span>}
+        <span className="edr-spacer" />
         <button
           onClick={() => { setSelectedEntry(null); setLocalOverride(true); }}
           title="Back to overview"
-          style={{
-            padding: '2px 8px', fontSize: '0.7rem', fontWeight: 600,
-            borderRadius: 4, border: '1px solid var(--border)',
-            background: 'rgba(249,115,22,0.1)', color: '#f97316',
-            cursor: 'pointer',
-          }}
+          className="edr-back-btn"
         >{'◀'} Back</button>
         <button
           onClick={() => goToIdx(entryIdx - 1)}
@@ -446,19 +435,14 @@ export function EntryDetailRouter({
           title="Next statement"
           style={navBtnStyle(entryIdx >= totalEntries - 1)}
         >Next {'▶'}</button>
-        <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+        <span className="edr-counter">
           {entryIdx + 1} / {totalEntries}
         </span>
         {diag?.stage_diagnostics?.some(s => s.prompt) && debate && (
           <button
             onClick={() => { setSelectedEntry(entry.id); setOverviewTab('prompt-diff'); setLocalOverride(true); }}
             title="View Prompt Diff for this entry"
-            style={{
-              marginLeft: 8, padding: '2px 8px', fontSize: '0.65rem', fontWeight: 600,
-              borderRadius: 4, border: 'none',
-              background: 'rgba(245,158,11,0.15)', color: '#f59e0b',
-              cursor: 'pointer',
-            }}
+            className="edr-prompt-diff-btn"
           >Prompt Diff</button>
         )}
       </div>
@@ -474,24 +458,20 @@ export function EntryDetailRouter({
           commitment_snapshot?: Record<string, { asserted: number; conceded: number; challenged: number }>;
         };
         return (
-          <div style={{
-            margin: '0 0 10px', padding: '8px 12px', borderRadius: 6,
-            background: 'rgba(249,115,22,0.08)', borderLeft: '3px solid #f97316',
-            fontSize: '0.72rem',
-          }}>
-            <div style={{ fontWeight: 700, color: '#f97316', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+          <div className="edr-mod-trace">
+            <div className="edr-mod-trace-header">
               Moderator Deliberation
             </div>
             {t.selected && (
-              <div style={{ marginBottom: 3 }}>
+              <div className="edr-mod-trace-row">
                 <strong>Selected:</strong> {t.selected}
-                {t.selection_reason && <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 3, background: 'rgba(249,115,22,0.15)', color: '#f97316', fontSize: '0.6rem', fontWeight: 600 }}>{t.selection_reason.replace(/_/g, ' ')}</span>}
-                {t.excluded_last_speaker && <span style={{ marginLeft: 6, color: 'var(--text-muted)', fontSize: '0.65rem' }}>(excluded last speaker: {t.excluded_last_speaker})</span>}
+                {t.selection_reason && <span className="edr-mod-trace-reason">{t.selection_reason.replace(/_/g, ' ')}</span>}
+                {t.excluded_last_speaker && <span className="edr-mod-trace-excluded">(excluded last speaker: {t.excluded_last_speaker})</span>}
               </div>
             )}
-            {t.focus_point && <div style={{ marginBottom: 3 }}><strong>Focus:</strong> {t.focus_point}</div>}
+            {t.focus_point && <div className="edr-mod-trace-row"><strong>Focus:</strong> {t.focus_point}</div>}
             {t.candidates && t.candidates.length > 0 && (
-              <div style={{ marginBottom: 3 }}>
+              <div className="edr-mod-trace-row">
                 <strong>Candidates:</strong>{' '}
                 {t.candidates.map((c, i) => (
                   <span key={i} style={{ marginRight: 8, fontWeight: c.debater === t.selected ? 700 : 400, opacity: c.debater === t.selected ? 1 : 0.7 }}
@@ -528,21 +508,21 @@ export function EntryDetailRouter({
               </div>
             )}
             {t.convergence_score != null && (
-              <div style={{ marginBottom: 3 }}>
+              <div className="edr-mod-trace-row">
                 <strong>Convergence:</strong> {(t.convergence_score * 100).toFixed(0)}%
-                {t.convergence_triggered && <span style={{ color: '#22c55e', marginLeft: 4, fontWeight: 700 }}>triggered</span>}
+                {t.convergence_triggered && <span className="edr-mod-trace-convergence-triggered">triggered</span>}
               </div>
             )}
-            {t.recent_scheme && <div style={{ marginBottom: 3 }}><strong>Recent scheme:</strong> {t.recent_scheme}</div>}
+            {t.recent_scheme && <div className="edr-mod-trace-row"><strong>Recent scheme:</strong> {t.recent_scheme}</div>}
             {t.argument_network_snapshot && (
-              <div style={{ marginBottom: 3 }}>
+              <div className="edr-mod-trace-row">
                 <strong>AN snapshot:</strong> {t.argument_network_snapshot.total_claims} claims, {t.argument_network_snapshot.total_edges} edges, {t.argument_network_snapshot.unaddressed_claims} unaddressed
               </div>
             )}
             {t.commitment_snapshot && (
-              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4 }}>
+              <div className="edr-mod-trace-commitments">
                 {Object.entries(t.commitment_snapshot).map(([name, c]) => (
-                  <span key={name} style={{ marginRight: 10 }}>{name}: {c.asserted}A {c.conceded}C {c.challenged}Ch</span>
+                  <span key={name} className="edr-mod-trace-commitment-entry">{name}: {c.asserted}A {c.conceded}C {c.challenged}Ch</span>
                 ))}
               </div>
             )}
@@ -551,8 +531,8 @@ export function EntryDetailRouter({
       })()}
 
       {/* ── Tabbed view ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', margin: '8px 0 0', minHeight: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', borderBottom: '1px solid var(--border)' }}>
+      <div className="edr-tabbed-view">
+        <div className="edr-tab-bar">
           {tabs.map(t => (
             <button
               key={t.id}
@@ -561,19 +541,19 @@ export function EntryDetailRouter({
               style={tabBtnStyle(t)}
               title={t.has ? t.label : t.ranEmpty ? `${t.label} — stage ran, no output` : `${t.label} (no data)`}
             >
-              {t.ranEmpty && <span style={{ marginRight: 3, fontSize: '0.6rem' }}>∅</span>}
+              {t.ranEmpty && <span className="edr-tab-ran-empty-marker">∅</span>}
               {t.label}
               {!t.has && !t.ranEmpty && pipelineError && (t.id === 'claims' || t.id === 'evidence' || t.id === 'citations') && (
-                <span title="Skipped — pipeline error" style={{ marginLeft: 3, color: '#dc2626', fontSize: '0.55rem' }}>⚠</span>
+                <span title="Skipped — pipeline error" className="edr-tab-pipeline-warn">⚠</span>
               )}
-              {t.count != null && <span style={{ marginLeft: 4, color: 'var(--text-muted)', fontWeight: 400 }}>({t.count})</span>}
+              {t.count != null && <span className="edr-tab-count">({t.count})</span>}
             </button>
           ))}
-          <div style={{ flex: 1 }} />
+          <div className="edr-spacer" />
           {active.has && active.id !== 'tax-refs' && (
             <button
               onClick={handleCopy}
-              style={{ fontSize: '0.75rem', padding: '3px 10px', border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg-secondary)', color: 'var(--text-primary)', cursor: 'pointer', marginBottom: 4 }}
+              className="edr-tab-copy-btn"
               title="Copy tab content"
             >Copy</button>
           )}
@@ -584,20 +564,7 @@ export function EntryDetailRouter({
             e.preventDefault();
             setTextCopyMenu({ x: e.clientX, y: e.clientY, text: sel });
           }
-        }} style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          minHeight: 0,
-          overflowY: 'auto',
-          background: 'var(--bg-primary)',
-          border: '1px solid var(--border)',
-          borderTop: 'none',
-          borderRadius: '0 6px 6px 6px',
-          padding: activeTab === 'tax-refs' ? '8px 10px' : 0,
-          outline: 'none',
-          userSelect: 'text',
-        }}>
+        }} className="edr-tab-content" style={activeTab === 'tax-refs' ? { padding: '8px 10px' } : { padding: 0 }}>
           {/* ══════════════ TAX-REFS TAB ══════════════ */}
           {activeTab === 'tax-refs' && (
             <TaxRefsTab
@@ -641,7 +608,7 @@ export function EntryDetailRouter({
 
           {/* ══════════════ MODERATOR TAB ══════════════ */}
           {activeTab === 'moderator' && modTrace && (
-            <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+            <div className="edr-tab-pane">
               <ModeratorTab trace={modTrace} />
             </div>
           )}
@@ -675,7 +642,7 @@ export function EntryDetailRouter({
 
           {/* ══════════════ DRAFT TAB (delegated) ══════════════ */}
           {activeTab === 'draft' && (draftStage || entry.content) && (
-            <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+            <div className="edr-tab-pane">
               <DraftTab
                 entry={entry as any}
                 diag={diag}
@@ -720,11 +687,11 @@ export function EntryDetailRouter({
 
           {/* ══════════════ CLAIMS TAB (delegated) ══════════════ */}
           {activeTab === 'claims' && (
-            <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+            <div className="edr-tab-pane">
               {tabs.find(t => t.id === 'claims')?.ranEmpty && (
-                <div style={{ marginBottom: 10, padding: '8px 12px', borderRadius: 6, background: 'rgba(217,119,6,0.08)', borderLeft: '3px solid #d97706', fontSize: '0.72rem' }}>
-                  <div style={{ fontWeight: 600, color: '#d97706' }}>Stage ran — no output</div>
-                  <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>The pipeline completed but claim extraction produced no claims for this entry. This may indicate the entry content was too short or off-topic for extraction.</div>
+                <div className="edr-ran-empty-notice">
+                  <div className="edr-ran-empty-label">Stage ran — no output</div>
+                  <div className="edr-ran-empty-desc">The pipeline completed but claim extraction produced no claims for this entry. This may indicate the entry content was too short or off-topic for extraction.</div>
                 </div>
               )}
               <ClaimsTab
@@ -751,11 +718,11 @@ export function EntryDetailRouter({
 
           {/* ══════════════ EVIDENCE TAB (delegated) ══════════════ */}
           {activeTab === 'evidence' && (
-            <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+            <div className="edr-tab-pane">
               {tabs.find(t => t.id === 'evidence')?.ranEmpty && (
-                <div style={{ marginBottom: 10, padding: '8px 12px', borderRadius: 6, background: 'rgba(217,119,6,0.08)', borderLeft: '3px solid #d97706', fontSize: '0.72rem' }}>
-                  <div style={{ fontWeight: 600, color: '#d97706' }}>Stage ran — no output</div>
-                  <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>The pipeline completed but the evidence stage produced no facts or key points for this entry.</div>
+                <div className="edr-ran-empty-notice">
+                  <div className="edr-ran-empty-label">Stage ran — no output</div>
+                  <div className="edr-ran-empty-desc">The pipeline completed but the evidence stage produced no facts or key points for this entry.</div>
                 </div>
               )}
               <EvidenceTab
@@ -769,11 +736,11 @@ export function EntryDetailRouter({
 
           {/* ══════════════ CITATIONS TAB (delegated) ══════════════ */}
           {activeTab === 'citations' && (
-            <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+            <div className="edr-tab-pane">
               {tabs.find(t => t.id === 'citations')?.ranEmpty && (
-                <div style={{ marginBottom: 10, padding: '8px 12px', borderRadius: 6, background: 'rgba(217,119,6,0.08)', borderLeft: '3px solid #d97706', fontSize: '0.72rem' }}>
-                  <div style={{ fontWeight: 600, color: '#d97706' }}>Stage ran — no output</div>
-                  <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>The draft stage completed but produced no citation resolution data. The cite stage may have been skipped or the entry contained no references to verify.</div>
+                <div className="edr-ran-empty-notice">
+                  <div className="edr-ran-empty-label">Stage ran — no output</div>
+                  <div className="edr-ran-empty-desc">The draft stage completed but produced no citation resolution data. The cite stage may have been skipped or the entry contained no references to verify.</div>
                 </div>
               )}
               <CitationsTab
@@ -789,22 +756,12 @@ export function EntryDetailRouter({
         {textCopyMenu && (
           <div
             onMouseDown={e => e.stopPropagation()}
-            style={{
-              position: 'fixed', left: textCopyMenu.x, top: textCopyMenu.y, zIndex: 9999,
-              background: 'var(--bg-primary)', border: '1px solid var(--border)',
-              borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-              padding: '4px 0', minWidth: 120, fontSize: '0.72rem',
-            }}
+            className="edr-context-menu"
+            style={{ left: textCopyMenu.x, top: textCopyMenu.y }}
           >
             <button
               onClick={() => { void navigator.clipboard.writeText(textCopyMenu.text); setTextCopyMenu(null); }}
-              style={{
-                display: 'block', width: '100%', textAlign: 'left',
-                padding: '5px 12px', border: 'none', background: 'transparent',
-                color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.72rem',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.1)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              className="edr-context-menu-item"
             >Copy</button>
             <button
               onClick={() => {
@@ -817,13 +774,7 @@ export function EntryDetailRouter({
                 }
                 setTextCopyMenu(null);
               }}
-              style={{
-                display: 'block', width: '100%', textAlign: 'left',
-                padding: '5px 12px', border: 'none', background: 'transparent',
-                color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.72rem',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.1)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              className="edr-context-menu-item"
             >Select All</button>
           </div>
         )}

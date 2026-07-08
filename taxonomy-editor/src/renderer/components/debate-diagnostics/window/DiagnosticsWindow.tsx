@@ -18,6 +18,7 @@ import { OverviewTabRouter } from './OverviewTabRouter';
 import { EntryDetailRouter } from './EntryDetailRouter';
 import { CopyLinkButton } from '../../shared/CopyLinkButton';
 import type { OverviewTab } from './types';
+import './DiagnosticsWindow.css';
 
 // ---------------------------------------------------------------------------
 // HelpContent — static reference panel
@@ -25,18 +26,18 @@ import type { OverviewTab } from './types';
 
 function HelpContent() {
   return (
-    <div style={{ fontSize: '0.8rem', lineHeight: 1.6, maxWidth: 650 }}>
-      <h3 style={{ color: '#f59e0b', marginTop: 0 }}>Argument Interchange Format (AIF)</h3>
+    <div className="diag-help">
+      <h3>Argument Interchange Format (AIF)</h3>
       <p>
         The AIF is a formal ontology for representing argumentation, established by
         Chesnevar et al. (2006). It provides a shared vocabulary for describing how
         arguments are constructed, how they relate to each other, and how conflicts
         between them are resolved.
       </p>
-      <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+      <p className="diag-help-ref">
         Reference: Chesnevar, C., McGinnis, J., Modgil, S., Rahwan, I., Reed, C., Simari, G., South, M., Vreeswijk, G., &amp; Willmott, S. (2006).
         &quot;Towards an Argument Interchange Format.&quot; <em>The Knowledge Engineering Review</em>, 21(4), 293-316.
-        [<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://jmvidal.cse.sc.edu/library/chesnevar06a.pdf'); }} style={{ color: '#f59e0b' }}>PDF</a>]
+        [<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://jmvidal.cse.sc.edu/library/chesnevar06a.pdf'); }}>PDF</a>]
       </p>
       <p>The core building blocks are:</p>
       <ul>
@@ -45,17 +46,17 @@ function HelpContent() {
           or &quot;Current AI systems exhibit bias.&quot; In this tool, each <strong>AN-</strong> entry
           in the Argument Network is an I-node.</li>
         <li><strong>RA-nodes (Rule Application)</strong> — inference schemes that explain WHY
-          one claim supports another. When you see a <span style={{ color: '#22c55e' }}>support</span> edge
+          one claim supports another. When you see a <span className="diag-help-support">support</span> edge
           with a <em>warrant</em>, that warrant is the RA-node: the reasoning pattern connecting
           evidence to conclusion.</li>
         <li><strong>CA-nodes (Conflict Application)</strong> — attack relationships between claims.
           Three types:
           <ul>
-            <li><strong style={{ color: '#ef4444' }}>Rebut</strong> — directly contradicts the conclusion
+            <li><strong className="diag-help-attack">Rebut</strong> — directly contradicts the conclusion
               (&quot;No, scaling is NOT sufficient&quot;)</li>
-            <li><strong style={{ color: '#ef4444' }}>Undercut</strong> — accepts the evidence but denies the
+            <li><strong className="diag-help-attack">Undercut</strong> — accepts the evidence but denies the
               inference (&quot;The evidence is real but doesn&apos;t prove what you claim&quot;)</li>
-            <li><strong style={{ color: '#ef4444' }}>Undermine</strong> — attacks the credibility of the
+            <li><strong className="diag-help-attack">Undermine</strong> — attacks the credibility of the
               premise itself (&quot;That study was flawed&quot;)</li>
           </ul>
         </li>
@@ -65,7 +66,7 @@ function HelpContent() {
           logical validity.</li>
       </ul>
 
-      <h3 style={{ color: '#f59e0b' }}>The Argument Network</h3>
+      <h3>The Argument Network</h3>
       <p>
         The Argument Network is built incrementally during the debate. After each debater
         speaks, the tool extracts 1-4 key claims from their statement and maps how those
@@ -75,35 +76,35 @@ function HelpContent() {
       <ul>
         <li><strong>AN-1, AN-2, ...</strong> — claim identifiers, in order of appearance</li>
         <li><strong>(Accelerationist), (Safetyist), (Skeptic)</strong> — who made the claim</li>
-        <li><span style={{ color: '#ef4444' }}>&larr; AN-6 rebut via REFRAME</span> — claim AN-6 attacks
+        <li><span className="diag-help-attack">&larr; AN-6 rebut via REFRAME</span> — claim AN-6 attacks
           this claim. &quot;rebut&quot; is the attack type; &quot;REFRAME&quot; is the dialectical scheme
           (the argumentative strategy used)</li>
-        <li><span style={{ color: '#22c55e' }}>&larr; AN-3 supports</span> — claim AN-3 provides evidence
+        <li><span className="diag-help-support">&larr; AN-3 supports</span> — claim AN-3 provides evidence
           or reasoning for this claim</li>
         <li><strong>Warrant</strong> — the reasoning link explaining WHY the support or attack
           relationship holds. This is the AIF S-node made visible.</li>
       </ul>
 
-      <h3 style={{ color: '#f59e0b' }}>Dialectical Schemes</h3>
-      <table style={{ fontSize: '0.75rem', borderCollapse: 'collapse', width: '100%' }}>
+      <h3>Dialectical Schemes</h3>
+      <table>
         <thead>
-          <tr style={{ borderBottom: '1px solid var(--border)' }}>
-            <th style={{ textAlign: 'left', padding: '4px 8px' }}>Scheme</th>
-            <th style={{ textAlign: 'left', padding: '4px 8px' }}>AIF Type</th>
-            <th style={{ textAlign: 'left', padding: '4px 8px' }}>What it does</th>
+          <tr>
+            <th>Scheme</th>
+            <th>AIF Type</th>
+            <th>What it does</th>
           </tr>
         </thead>
         <tbody>
-          <tr><td style={{ padding: '3px 8px' }}>CONCEDE</td><td>Support (RA)</td><td>Accept opponent&apos;s point</td></tr>
-          <tr><td style={{ padding: '3px 8px' }}>DISTINGUISH</td><td>Undercut (CA)</td><td>Accept evidence, deny it applies here</td></tr>
-          <tr><td style={{ padding: '3px 8px' }}>REFRAME</td><td>Scheme shift</td><td>Shift the interpretive frame</td></tr>
-          <tr><td style={{ padding: '3px 8px' }}>COUNTEREXAMPLE</td><td>Rebut (CA)</td><td>Specific case contradicting the claim</td></tr>
-          <tr><td style={{ padding: '3px 8px' }}>REDUCE</td><td>Rebut (CA)</td><td>Show the logic leads to absurdity</td></tr>
-          <tr><td style={{ padding: '3px 8px' }}>ESCALATE</td><td>Scheme shift</td><td>Connect to a broader principle</td></tr>
+          <tr><td>CONCEDE</td><td>Support (RA)</td><td>Accept opponent&apos;s point</td></tr>
+          <tr><td>DISTINGUISH</td><td>Undercut (CA)</td><td>Accept evidence, deny it applies here</td></tr>
+          <tr><td>REFRAME</td><td>Scheme shift</td><td>Shift the interpretive frame</td></tr>
+          <tr><td>COUNTEREXAMPLE</td><td>Rebut (CA)</td><td>Specific case contradicting the claim</td></tr>
+          <tr><td>REDUCE</td><td>Rebut (CA)</td><td>Show the logic leads to absurdity</td></tr>
+          <tr><td>ESCALATE</td><td>Scheme shift</td><td>Connect to a broader principle</td></tr>
         </tbody>
       </table>
 
-      <h3 style={{ color: '#f59e0b' }}>Commitment Stores</h3>
+      <h3>Commitment Stores</h3>
       <p>
         Each debater has a commitment store tracking what they&apos;ve <strong>asserted</strong> (claimed
         to be true), <strong>conceded</strong> (accepted from an opponent), and <strong>challenged</strong> (questioned
@@ -111,7 +112,7 @@ function HelpContent() {
         Commitments are injected into each debater&apos;s prompt to enforce consistency.
       </p>
 
-      <h3 style={{ color: '#f59e0b' }}>Methodology: AIF-Informed, Not AIF-Formal</h3>
+      <h3>Methodology: AIF-Informed, Not AIF-Formal</h3>
       <p>
         This tool adopts AIF <strong>vocabulary</strong> (I-nodes, CA-nodes, RA-nodes,
         attack types, schemes, warrants) but deliberately does not implement the full
@@ -122,7 +123,7 @@ function HelpContent() {
         properties on the edge connecting two I-nodes.
       </p>
 
-      <h4 style={{ color: '#f59e0b', fontSize: '0.8rem' }}>Why not the full bipartite graph?</h4>
+      <h4>Why not the full bipartite graph?</h4>
 
       <p><strong>LLM extraction reliability.</strong> Claims are extracted from debate
         statements by a background AI call after each turn. Asking the LLM to produce
@@ -156,22 +157,22 @@ function HelpContent() {
         types. A bipartite graph would not change this architecture but would make
         the extractor&apos;s job harder.</p>
 
-      <h4 style={{ color: '#f59e0b', fontSize: '0.8rem' }}>What we preserve from AIF</h4>
-      <table style={{ fontSize: '0.75rem', borderCollapse: 'collapse', width: '100%', marginBottom: 12 }}>
+      <h4>What we preserve from AIF</h4>
+      <table className="diag-help-table-spaced">
         <thead>
-          <tr style={{ borderBottom: '1px solid var(--border)' }}>
-            <th style={{ textAlign: 'left', padding: '4px 8px' }}>AIF Concept</th>
-            <th style={{ textAlign: 'left', padding: '4px 8px' }}>How We Implement It</th>
+          <tr>
+            <th>AIF Concept</th>
+            <th>How We Implement It</th>
           </tr>
         </thead>
         <tbody>
-          <tr><td style={{ padding: '3px 8px' }}>I-nodes (claims)</td><td>AN-1, AN-2, ... in argument_network.nodes</td></tr>
-          <tr><td style={{ padding: '3px 8px' }}>CA-nodes (conflict)</td><td>attack_type (rebut/undercut/undermine) on edges</td></tr>
-          <tr><td style={{ padding: '3px 8px' }}>RA-nodes (inference)</td><td>warrant + scheme on support edges</td></tr>
-          <tr><td style={{ padding: '3px 8px' }}>PA-nodes (preference)</td><td>Synthesis preferences (prevails, criterion, rationale)</td></tr>
-          <tr><td style={{ padding: '3px 8px' }}>Schemes</td><td>COUNTEREXAMPLE, DISTINGUISH, etc. on edges</td></tr>
-          <tr><td style={{ padding: '3px 8px' }}>Commitment stores</td><td>Per-debater asserted/conceded/challenged</td></tr>
-          <tr><td style={{ padding: '3px 8px' }}>Locutions</td><td>Transcript entry types (statement, question, probing)</td></tr>
+          <tr><td>I-nodes (claims)</td><td>AN-1, AN-2, ... in argument_network.nodes</td></tr>
+          <tr><td>CA-nodes (conflict)</td><td>attack_type (rebut/undercut/undermine) on edges</td></tr>
+          <tr><td>RA-nodes (inference)</td><td>warrant + scheme on support edges</td></tr>
+          <tr><td>PA-nodes (preference)</td><td>Synthesis preferences (prevails, criterion, rationale)</td></tr>
+          <tr><td>Schemes</td><td>COUNTEREXAMPLE, DISTINGUISH, etc. on edges</td></tr>
+          <tr><td>Commitment stores</td><td>Per-debater asserted/conceded/challenged</td></tr>
+          <tr><td>Locutions</td><td>Transcript entry types (statement, question, probing)</td></tr>
         </tbody>
       </table>
 
@@ -184,7 +185,7 @@ function HelpContent() {
         internal representation.
       </p>
 
-      <h3 style={{ color: '#f59e0b' }}>Methods and Algorithms</h3>
+      <h3>Methods and Algorithms</h3>
       <p>
         The debate engine uses a <strong>neural-symbolic architecture</strong>: LLMs generate
         content and make soft judgments while symbolic components (QBAF propagation, BFS graph
@@ -213,14 +214,14 @@ function HelpContent() {
           synthesis) governed by a neural-symbolic trigger architecture: the LLM recommends,
           the engine validates against deterministic constraints.</li>
       </ul>
-      <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+      <p className="diag-help-ref">
         Full methodology: see <code>docs/academic-paper-draft.md</code> in the project repository
         for the complete technical paper describing all algorithms, evaluation results, and
         theoretical grounding. Additional detail in <code>docs/debate-engine-design.md</code>,{' '}
         <code>docs/document-processing-pipeline.md</code>, and <code>docs/design/adaptive-debate-staging.md</code>.
       </p>
 
-      <h3 style={{ color: '#f59e0b' }}>Per-Entry Diagnostics</h3>
+      <h3>Per-Entry Diagnostics</h3>
       <p>
         Click any transcript entry to see its internals: each pipeline stage (Brief, Plan, Draft, Cite),
         the raw response, which claims were extracted (with validation scores), the taxonomy
@@ -266,23 +267,23 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
 
   return (
     <DiagSearchContext.Provider value={sq}>
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
-    <div style={{ padding: 12, flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+    <div className="diag-window">
+    <div className="diag-window-content">
 
       {/* ── Header bar ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <h2 style={{ margin: 0, fontSize: '1rem', color: '#f59e0b', whiteSpace: 'nowrap' }}>Debate Diagnostics</h2>
+      <div className="diag-window-header">
+        <h2 className="diag-window-title">Debate Diagnostics</h2>
         {debate && (
           <>
             <button
               onClick={() => { void api.clipboardWriteText(debate.id); }}
-              style={{ fontSize: '0.62rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', fontFamily: 'monospace', background: 'none', border: '1px solid var(--border)', borderRadius: 3, padding: '1px 5px', cursor: 'pointer', opacity: 0.7 }}
+              className="diag-window-id-btn"
               title={`Copy debate ID: ${debate.id}`}
             >{debate.id}</button>
-            <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', fontFamily: 'monospace', opacity: 0.7 }} title={`Session start — matches flight recorder filename`}>
+            <span className="diag-window-ts" title={`Session start — matches flight recorder filename`}>
               {new Date(debate.created_at).toISOString().replace(/\.\d{3}Z$/, 'Z')}
             </span>
-            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 260, userSelect: 'all', fontFamily: 'monospace' }} title={debate.title}>
+            <span className="diag-window-debate-title" title={debate.title}>
               {debate.title}
             </span>
           </>
@@ -292,13 +293,14 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
         <button
           onClick={() => { void triggerManualDump(); }}
           title="Dump flight recorder to disk (Ctrl+Alt+D)"
-          style={{ background: 'none', color: '#ef4444', border: '1px solid #ef4444', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
+          className="diag-dump-btn"
         >
           Dump Log
         </button>
         <button
           onClick={() => setShowHelp(!showHelp)}
-          style={{ background: showHelp ? '#f59e0b' : 'none', color: showHelp ? '#000' : '#f59e0b', border: '1px solid #f59e0b', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
+          className="diag-help-btn"
+          style={{ background: showHelp ? 'var(--warning, #f59e0b)' : 'none', color: showHelp ? '#000' : 'var(--warning, #f59e0b)' }}
         >
           {showHelp ? 'Close Help' : 'Help'}
         </button>
@@ -313,7 +315,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
 
       {/* ── Main content area ── */}
       {debate && (
-        <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        <div className="diag-window-body">
 
           {/* Vertical tab sidebar — always visible */}
           {(() => {
@@ -340,28 +342,24 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               { id: 'emotional-register', label: 'Emotional Register', visible: true },
             ];
             return (
-              <div style={{
-                display: 'flex', flexDirection: 'column', gap: 2,
-                borderRight: '1px solid var(--border)', paddingRight: 8, marginRight: 8,
-                minWidth: 120, maxWidth: 150, overflowY: 'auto', flexShrink: 0,
-              }}>
+              <div className="diag-tab-sidebar">
                 {tabs.filter(t => t.visible).map(t => (
                   <div key={t.id}>
                     <button
                       onClick={() => { setOverviewTab(t.id); setSelectedEntry(null); setLocalOverride(true); }}
                       style={{
                         display: 'block', width: '100%', textAlign: 'left',
-                        padding: '4px 8px', fontSize: '0.7rem', fontWeight: 600,
-                        borderRadius: 4, cursor: 'pointer',
+                        padding: '4px 8px', fontSize: 'var(--text-2xs)', fontWeight: 600,
+                        borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                         border: 'none',
-                        background: t.id === effectiveOverviewTab ? '#f59e0b' : 'transparent',
+                        background: t.id === effectiveOverviewTab ? 'var(--warning, #f59e0b)' : 'transparent',
                         color: t.id === effectiveOverviewTab ? '#000' : 'var(--text-primary)',
                       }}
                     >
                       {t.label}{t.badge ? ` ${t.badge}` : ''}
                     </button>
                     {t.id === 'transcript' && effectiveOverviewTab === 'transcript' && (
-                      <div ref={sidebarTranscriptRef} style={{ marginLeft: 8, marginTop: 2, maxHeight: 300, overflowY: 'auto' }}>
+                      <div ref={sidebarTranscriptRef} className="diag-sidebar-transcript">
                         {debate.transcript.map((e, i) => {
                           const stmtId = `S${i + 1}`;
                           return (
@@ -369,19 +367,15 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               key={e.id}
                               data-entry-id={e.id}
                               onClick={() => { setSelectedEntry(e.id); setLocalOverride(true); }}
+                              className="diag-sidebar-entry"
                               style={{
-                                display: 'flex', alignItems: 'center', width: '100%',
-                                padding: '2px 6px', fontSize: '0.6rem',
-                                border: 'none', borderRadius: 3, cursor: 'pointer',
-                                background: selectedEntry === e.id ? 'rgba(249,115,22,0.12)' : 'transparent',
-                                color: 'var(--text-primary)',
-                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                                background: selectedEntry === e.id ? 'color-mix(in srgb, var(--accent, #f97316) 12%, transparent)' : 'transparent',
                               }}
                               title={`${speakerLabel(e.speaker)} [${e.type}]: ${e.content.slice(0, 80)}`}
                             >
-                              <span style={{ color: '#f97316', fontWeight: 700, marginRight: 4, flexShrink: 0 }}>{stmtId}</span>
-                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>{speakerLabel(e.speaker)}</span>
-                              <span onClick={(ev) => ev.stopPropagation()} style={{ flexShrink: 0 }}>
+                              <span className="diag-sidebar-stmt-id">{stmtId}</span>
+                              <span className="diag-sidebar-speaker">{speakerLabel(e.speaker)}</span>
+                              <span onClick={(ev) => ev.stopPropagation()} className="diag-sidebar-copylink">
                                 <CopyLinkButton hash={`#diagnostics-window?debateId=${debate.id}&entry=${i}&tab=${entryTab}`} title="Copy link to this entry" />
                               </span>
                             </div>
@@ -399,7 +393,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           {(() => {
             const hideOverviewForEntry = effectiveOverviewTab === 'transcript' && !!selectedEntry;
             return (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'row', minHeight: 0, minWidth: 0 }}>
+          <div className="diag-window-master-detail">
             {/* Overview pane — hidden when a transcript child is selected */}
             {!hideOverviewForEntry && (
             <div style={{
@@ -437,7 +431,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
 
             {/* Entry detail pane */}
             {selectedEntry && entry && effectiveOverviewTab !== 'prompt-diff' && effectiveOverviewTab !== 'utility' && (
-              <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div className="diag-window-entry-pane">
                 <EntryDetailRouter
                   debate={debate}
                   entry={entry}
