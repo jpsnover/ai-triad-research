@@ -25,7 +25,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   cursor: pointer;
   user-select: none;
@@ -35,9 +35,9 @@
 
 .rc-count-badge,
 .rc-dirty-badge {
-  font-size: 0.65rem;
+  font-size: var(--text-2xs);
   padding: 1px 5px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   font-weight: 600;
 }
 
@@ -55,7 +55,7 @@
 
 .rc-file-info {
   padding: 6px 16px;
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
@@ -66,7 +66,7 @@
 .rc-validation-errors,
 .rc-save-errors {
   padding: 8px 16px;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   flex-shrink: 0;
 }
 
@@ -106,7 +106,7 @@
   cursor: pointer;
   user-select: none;
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: var(--text-md);
 }
 
 .rc-section-header:hover {
@@ -114,15 +114,15 @@
 }
 
 .rc-section-toggle {
-  font-size: 0.65rem;
+  font-size: var(--text-2xs);
   width: 12px;
   color: var(--text-muted);
 }
 
 .rc-section-badge {
-  font-size: 0.6rem;
+  font-size: var(--text-2xs);
   padding: 1px 5px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--accent-blue, #3b82f6) 20%, transparent);
   color: var(--accent-blue, #3b82f6);
   font-weight: 600;
@@ -139,14 +139,14 @@
   align-items: center;
   gap: 8px;
   padding: 4px 0;
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
 }
 
 .rc-field--dirty {
   background: color-mix(in srgb, #f59e0b 6%, transparent);
   margin: 0 -8px;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .rc-field-label {
@@ -165,10 +165,10 @@
   width: 120px;
   padding: 3px 6px;
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   font-family: inherit;
 }
 
@@ -177,7 +177,7 @@
 }
 
 .rc-field-hint {
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -190,7 +190,7 @@
 }
 
 .rc-field-default {
-  font-size: 0.65rem;
+  font-size: var(--text-2xs);
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -210,7 +210,7 @@
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: var(--text-md);
   padding: 0 2px;
   line-height: 1;
 }
@@ -228,7 +228,7 @@
   display: flex;
   align-items: center;
   gap: 3px;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   cursor: pointer;
 }
 
@@ -245,10 +245,10 @@
 .rc-tier-tab {
   padding: 4px 12px;
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--bg-primary);
   color: var(--text-muted);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   cursor: pointer;
 }
 
@@ -270,7 +270,7 @@
   padding: 32px 16px;
   text-align: center;
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: var(--text-md);
 }
 
 .rc-error { color: #ef4444; }

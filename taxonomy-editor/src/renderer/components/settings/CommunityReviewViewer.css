@@ -8,14 +8,14 @@
 .crv-loading, .crv-error, .crv-empty {
   padding: 24px;
   text-align: center;
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   color: var(--text-muted);
 }
 
 .crv-error {
   color: var(--danger);
   background: color-mix(in srgb, var(--danger) 10%, transparent);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 /* ── Header ── */
@@ -29,8 +29,8 @@
 
 .crv-type-badge {
   padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 0.7rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
   font-weight: 600;
   text-transform: capitalize;
   background: color-mix(in srgb, var(--focus-ring) 15%, transparent);
@@ -38,13 +38,13 @@
 }
 
 .crv-submitter {
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
 }
 
 .crv-date {
   margin-left: auto;
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
@@ -56,9 +56,9 @@
   flex-wrap: wrap;
   margin-bottom: 12px;
   padding: 8px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--bg-secondary);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--text-secondary);
 }
 
@@ -71,9 +71,9 @@
   margin-bottom: 12px;
   padding: 12px;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--bg-primary);
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
   white-space: pre-wrap;
   color: var(--text-primary);
@@ -91,7 +91,7 @@
 .crv-transcript {
   margin-bottom: 12px;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--bg-primary);
   max-height: 400px;
   overflow-y: auto;
@@ -108,7 +108,7 @@
 }
 
 .crv-transcript-speaker {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -116,9 +116,9 @@
 }
 
 .crv-transcript-type {
-  font-size: 0.65rem;
+  font-size: var(--text-2xs);
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--text-muted) 15%, transparent);
   color: var(--text-muted);
   vertical-align: middle;
@@ -126,7 +126,7 @@
 
 .crv-transcript-content {
   margin-top: 4px;
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
   color: var(--text-primary);
   white-space: pre-wrap;
@@ -135,7 +135,7 @@
 .crv-transcript-toggle {
   width: 100%;
   padding: 8px;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   text-align: center;
   color: var(--focus-ring);
   border-top: 1px solid color-mix(in srgb, var(--border-color) 50%, transparent);
@@ -146,7 +146,7 @@
 }
 
 .crv-section-label {
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -159,9 +159,9 @@
 .crv-sanit {
   margin-bottom: 16px;
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--bg-secondary);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
 }
 
 .crv-sanit-row {
@@ -197,7 +197,7 @@
 
 .crv-edit-field label {
   display: block;
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--text-muted);
   margin-bottom: 3px;
@@ -207,9 +207,9 @@
 .crv-edit-field textarea {
   width: 100%;
   padding: 6px 10px;
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--bg-input);
   color: var(--text-primary);
   font-family: inherit;
@@ -234,9 +234,9 @@
   flex: 1;
   min-width: 0;
   padding: 6px 10px;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--bg-input);
   color: var(--text-primary);
 }
@@ -244,8 +244,8 @@
 .crv-toast {
   margin-bottom: 8px;
   padding: 6px 10px;
-  border-radius: 4px;
-  font-size: 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
   background: var(--bg-panel);
   color: var(--text-primary);
 }

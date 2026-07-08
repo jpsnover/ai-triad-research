@@ -10,8 +10,8 @@
   gap: 4px;
   padding: 1px 6px;
   border: 1px solid var(--color-warning);
-  border-radius: 10px;
-  font-size: 0.72rem;
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
   line-height: 1.4;
   color: var(--text-secondary);
   background: transparent;

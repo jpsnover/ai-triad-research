@@ -94,7 +94,7 @@
 .evidence-claim-card {
   margin-bottom: var(--sp-2);
   padding: var(--sp-2) 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);
 }
@@ -115,13 +115,13 @@
 .evidence-strength-track {
   flex: 1;
   height: 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   background: var(--bg-primary);
 }
 
 .evidence-strength-fill {
   height: 100%;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   transition: width 0.3s;
 }
 
@@ -139,7 +139,7 @@
 .evidence-item {
   margin-bottom: 4px;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .evidence-item-support {
@@ -163,7 +163,7 @@
   font-size: var(--text-2xs);
   font-weight: 700;
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 .evidence-item-badge-support {

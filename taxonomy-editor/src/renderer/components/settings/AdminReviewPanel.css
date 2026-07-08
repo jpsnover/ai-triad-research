@@ -24,7 +24,7 @@
 
 .admin-review-header h2 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--text-lg);
   font-weight: 600;
 }
 
@@ -59,9 +59,9 @@
 .admin-review-filter {
   flex: 1;
   padding: 4px 8px;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--bg-input);
   color: var(--text-primary);
 }
@@ -81,7 +81,7 @@
   padding: 10px 12px;
   margin: 2px 0;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: background 0.1s, border-color 0.1s;
 }
@@ -104,8 +104,8 @@
 .admin-review-domain-badge {
   display: inline-block;
   padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 0.65rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-2xs);
   font-weight: 600;
   text-transform: capitalize;
 }
@@ -126,7 +126,7 @@
 }
 
 .admin-review-card-submitter {
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-primary);
   overflow: hidden;
@@ -136,10 +136,10 @@
 
 .admin-review-card-count {
   margin-left: auto;
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   color: var(--text-muted);
   padding: 1px 6px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--bg-primary);
   flex-shrink: 0;
 }
@@ -148,7 +148,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
@@ -188,7 +188,7 @@
 .admin-review-placeholder {
   text-align: center;
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: var(--text-md);
 }
 
 .admin-review-placeholder svg {
@@ -205,14 +205,14 @@
   justify-content: center;
   padding: 32px;
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
 }
 
 .admin-review-error {
   margin: 8px 12px;
   padding: 8px 12px;
-  border-radius: 4px;
-  font-size: 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
   background: color-mix(in srgb, var(--danger) 12%, transparent);
   color: var(--danger);
   border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
@@ -222,7 +222,7 @@
   padding: 32px 16px;
   text-align: center;
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
 }
 
 /* ── Tab bar ── */
@@ -232,16 +232,16 @@
   gap: 2px;
   margin-left: auto;
   background: var(--bg-primary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 2px;
 }
 
 .admin-review-tab {
   padding: 4px 14px;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -286,13 +286,13 @@
 }
 
 .admin-feedback-stat-value {
-  font-size: 1.1rem;
+  font-size: var(--text-lg);
   font-weight: 700;
   color: var(--text-primary);
 }
 
 .admin-feedback-stat-label {
-  font-size: 0.65rem;
+  font-size: var(--text-2xs);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.3px;
@@ -319,7 +319,7 @@
   gap: 8px;
   padding: 8px 12px;
   align-items: center;
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   border-bottom: 1px solid color-mix(in srgb, var(--border-color) 50%, transparent);
   cursor: pointer;
   transition: background 0.1s;
@@ -331,7 +331,7 @@
 
 .admin-feedback-row--header {
   font-weight: 600;
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   text-transform: uppercase;
   letter-spacing: 0.3px;
   color: var(--text-muted);
@@ -352,7 +352,7 @@
 }
 
 .admin-feedback-col-date {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -362,12 +362,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: monospace;
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
 }
 
 .admin-feedback-col-rating {
   text-align: center;
-  font-size: 1rem;
+  font-size: var(--text-lg);
 }
 
 .admin-feedback-col-text {
@@ -380,14 +380,14 @@
 .admin-feedback-cat-badge {
   display: inline-block;
   padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 0.65rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-2xs);
   font-weight: 600;
 }
 
 .admin-feedback-detail {
   padding: 8px 16px 12px 24px;
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
   border-bottom: 1px solid var(--border-color);
 }
@@ -404,10 +404,10 @@
 .admin-feedback-context {
   margin: 4px 0 0;
   padding: 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
   max-height: 200px;
   overflow: auto;
   white-space: pre-wrap;
@@ -422,7 +422,7 @@
   padding: 10px 16px;
   border-top: 1px solid var(--border-color);
   flex-shrink: 0;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
@@ -435,8 +435,8 @@
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
-  border-radius: 8px;
-  font-size: 0.6rem;
+  border-radius: var(--radius-md);
+  font-size: var(--text-2xs);
   font-weight: 700;
   line-height: 16px;
   text-align: center;
@@ -453,11 +453,11 @@
 
 .admin-fallback-key-section h3 {
   margin: 0 0 4px;
-  font-size: 0.875rem;
+  font-size: var(--text-md);
 }
 
 .admin-fallback-key-desc {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   margin: 0 0 12px;
 }
@@ -470,14 +470,14 @@
 }
 
 .admin-fallback-key-configured {
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
 }
 
 .admin-fallback-key-configured code {
   background: var(--bg-secondary);
   padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
 }
 
 .admin-fallback-key-actions {
@@ -501,9 +501,9 @@
   flex: 1;
   max-width: 320px;
   padding: 4px 8px;
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--bg-primary);
   color: var(--text-primary);
 }

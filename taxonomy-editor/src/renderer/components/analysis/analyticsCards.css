@@ -7,20 +7,20 @@
 .analytics-card {
   flex: 1 1 200px;
   padding: 14px 18px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
 }
 
 .analytics-card-label {
-  font-size: 0.65rem;
+  font-size: var(--text-2xs);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-muted);
 }
 
 .analytics-card-primary {
-  font-size: 1.4rem;
+  font-size: var(--text-xl);
   font-weight: 700;
   color: var(--text-primary);
   margin-top: 4px;
@@ -28,7 +28,7 @@
 
 .analytics-card-rows {
   margin-top: 6px;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--text-secondary);
   display: flex;
   flex-direction: column;
@@ -37,12 +37,12 @@
 
 .analytics-card-sub {
   color: var(--text-muted);
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
 }
 
 .analytics-card-empty {
   margin-top: 10px;
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   color: var(--text-muted);
 }
 
@@ -51,7 +51,7 @@
 .analytics-panel {
   margin-bottom: 20px;
   padding: 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
 }
@@ -67,7 +67,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
 }
 
 .funnel-label {
@@ -83,14 +83,14 @@
 .funnel-bar-track {
   flex: 1;
   height: 16px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   background: var(--bg-primary);
   overflow: hidden;
 }
 
 .funnel-bar {
   height: 100%;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   transition: width 0.3s ease;
 }
 
@@ -103,6 +103,6 @@
 
 .funnel-note {
   margin-top: 10px;
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   color: var(--text-muted);
 }

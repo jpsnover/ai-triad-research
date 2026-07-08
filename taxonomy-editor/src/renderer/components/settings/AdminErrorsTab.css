@@ -17,7 +17,7 @@
   border-bottom: 2px solid transparent;
   background: none;
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
 }
@@ -43,16 +43,16 @@
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
 }
 
 .admin-errors-toolbar select {
   padding: 3px 8px;
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
 }
 
 .admin-errors-toolbar label {
@@ -78,20 +78,20 @@
   flex: 1;
   padding: 12px 16px;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--bg-secondary);
   text-align: center;
 }
 
 .admin-errors-card-count {
-  font-size: 1.4rem;
+  font-size: var(--text-xl);
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1.2;
 }
 
 .admin-errors-card-label {
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   margin-top: 2px;
 }
@@ -101,7 +101,7 @@
 .admin-errors-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
 }
 
 .admin-errors-table th {
@@ -110,7 +110,7 @@
   border-bottom: 2px solid var(--border-color);
   color: var(--text-muted);
   font-weight: 600;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -135,7 +135,7 @@
 
 .admin-errors-key {
   font-family: var(--font-mono, monospace);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   word-break: break-all;
 }
 
@@ -159,11 +159,11 @@
 .admin-errors-detail-loading {
   padding: 12px 16px;
   color: var(--text-muted);
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
 }
 
 .admin-errors-detail h4 {
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   margin: 0 0 8px;
 }
 
@@ -171,7 +171,7 @@
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 4px 16px;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   margin-bottom: 12px;
 }
 
@@ -190,7 +190,7 @@
   border: none;
   color: var(--accent, #3b82f6);
   cursor: pointer;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   padding: 0;
   margin-bottom: 4px;
 }
@@ -199,10 +199,10 @@
 
 .admin-errors-stack {
   font-family: var(--font-mono, monospace);
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 8px;
   overflow-x: auto;
   white-space: pre-wrap;
@@ -213,9 +213,9 @@
 
 .admin-errors-stale-badge {
   display: inline-block;
-  font-size: 0.65rem;
+  font-size: var(--text-2xs);
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: color-mix(in srgb, #f59e0b 20%, transparent);
   color: #b45309;
   font-weight: 600;
@@ -226,14 +226,14 @@
 }
 
 .admin-errors-dumps h5 {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   margin: 0 0 4px;
   color: var(--text-muted);
 }
 
 .admin-errors-dumps a {
   display: block;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--accent, #3b82f6);
   text-decoration: none;
   padding: 2px 0;
@@ -252,7 +252,7 @@
   align-items: center;
   gap: 8px;
   padding: 4px 0;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   border-bottom: 1px solid color-mix(in srgb, var(--border-color) 50%, transparent);
   cursor: pointer;
 }
@@ -264,7 +264,7 @@
 .admin-errors-instance-id {
   font-family: var(--font-mono, monospace);
   color: var(--text-muted);
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
 }
 
 /* ── Empty / loading ── */
@@ -273,19 +273,19 @@
   text-align: center;
   padding: 32px 16px;
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: var(--text-md);
 }
 
 .admin-errors-loading {
   text-align: center;
   padding: 32px 16px;
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: var(--text-md);
 }
 
 .admin-errors-error {
   text-align: center;
   padding: 32px 16px;
   color: #ef4444;
-  font-size: 0.85rem;
+  font-size: var(--text-md);
 }

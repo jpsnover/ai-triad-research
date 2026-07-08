@@ -54,9 +54,9 @@
 
 /* Model badge — hoisted from inline */
 .debate-model-badge {
-  font-size: 0.65rem;
+  font-size: var(--text-2xs);
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   margin-left: 4px;
   background: var(--bg-tertiary);
   color: var(--text-muted);
@@ -66,7 +66,7 @@
 
 /* Turn symbol tooltips — hoisted from inline */
 .debate-turn-symbol-tooltips {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   padding: 2px 8px 4px;
   line-height: 1.5;
@@ -76,7 +76,7 @@
 .debate-explore-suggestion {
   margin-top: 10px;
   padding: 8px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: rgba(59, 130, 246, 0.08);
   border: 1px solid rgba(59, 130, 246, 0.25);
   display: flex;
@@ -85,19 +85,19 @@
 }
 
 .debate-explore-suggestion-text {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   flex: 1;
 }
 
 .debate-explore-btn {
   padding: 6px 18px;
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   background: #3b82f6;
   color: #fff;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -116,44 +116,44 @@
 
 .convergence-cell {
   padding: 4px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   background: var(--bg-tertiary, rgba(255, 255, 255, 0.03));
 }
 
 .convergence-cell-span {
   padding: 4px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   background: var(--bg-tertiary, rgba(255, 255, 255, 0.03));
   grid-column: 1 / -1;
 }
 
 .convergence-label {
   color: var(--text-muted);
-  font-size: 0.62rem;
+  font-size: var(--text-2xs);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
 
 .convergence-value {
   color: var(--text-primary);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
 }
 
 .convergence-badge {
   margin-left: 4px;
-  font-size: 0.62rem;
+  font-size: var(--text-2xs);
 }
 
 .convergence-empty {
   padding: 8px;
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
 }
 
 /* Concession badge — hoisted from inline */
 .concession-badge {
   padding: 1px 6px;
-  border-radius: 3px;
-  font-size: 0.6rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-2xs);
   font-weight: 700;
 }

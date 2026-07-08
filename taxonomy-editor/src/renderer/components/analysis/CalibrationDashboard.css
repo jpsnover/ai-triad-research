@@ -17,7 +17,7 @@
 }
 .cal-dash-header h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-lg);
   font-weight: 600;
 }
 .cal-dash-controls {
@@ -26,16 +26,16 @@
   gap: 8px;
 }
 .cal-dash-select {
-  font-size: 12px;
+  font-size: var(--text-xs);
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--bg-secondary);
   color: var(--text-primary);
 }
 .cal-dash-placeholder {
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: var(--text-sm);
   text-align: center;
   padding: 32px 0;
 }
@@ -52,7 +52,7 @@
   flex-direction: column;
   align-items: center;
   padding: 8px 14px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--bg-secondary);
   min-width: 60px;
 }
@@ -61,12 +61,12 @@
   min-width: 120px;
 }
 .cal-dash-stat-value {
-  font-size: 16px;
+  font-size: var(--text-lg);
   font-weight: 700;
   color: var(--text-primary);
 }
 .cal-dash-stat-label {
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -77,7 +77,7 @@
 .cal-dash-validation {
   margin-bottom: 16px;
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--bg-secondary);
 }
 .cal-dash-validation-header {
@@ -88,15 +88,15 @@
 }
 .cal-dash-validation-badge {
   padding: 2px 10px;
-  border-radius: 4px;
-  font-size: 11px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-2xs);
   font-weight: 700;
   color: #fff;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 .cal-dash-validation-meta {
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--text-secondary);
 }
 .cal-dash-validation-metrics {
@@ -108,9 +108,9 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   padding: 2px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 .cal-dash-val-pass { color: #22c55e; }
 .cal-dash-val-fail { color: #ef4444; }
@@ -121,7 +121,7 @@
 /* Charts */
 .cal-dash-charts { margin-bottom: 16px; }
 .cal-dash-charts h4 {
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 600;
   margin: 0 0 10px;
   color: var(--text-secondary);
@@ -135,7 +135,7 @@
 }
 .cal-dash-chart {
   background: var(--bg-secondary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 8px 10px;
 }
 .cal-dash-chart-header {
@@ -145,17 +145,17 @@
   margin-bottom: 4px;
 }
 .cal-dash-chart-label {
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 600;
 }
 .cal-dash-chart-value {
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 700;
   color: var(--text-primary);
 }
 .cal-dash-chart-mean {
   font-weight: 400;
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--text-secondary);
 }
 .cal-dash-svg {
@@ -167,7 +167,7 @@
 /* Rounds histogram */
 .cal-dash-rounds { margin-bottom: 16px; }
 .cal-dash-rounds h4 {
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 600;
   margin: 0 0 10px;
   color: var(--text-secondary);
@@ -193,13 +193,13 @@
   width: 100%;
   max-width: 20px;
   background: var(--accent);
-  border-radius: 2px 2px 0 0;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   opacity: 0.7;
   transition: opacity 0.15s;
 }
 .cal-dash-hist-bar:hover { opacity: 1; }
 .cal-dash-hist-label {
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--text-secondary);
   margin-top: 2px;
 }

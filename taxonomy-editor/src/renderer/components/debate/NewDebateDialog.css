@@ -61,7 +61,7 @@
   padding: var(--sp-2) var(--sp-3);
   background: var(--bg-secondary);
   border-radius: var(--radius-md);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
 }
 
 /* Per-stage model overrides grid (was inline) */
@@ -91,13 +91,13 @@
 }
 .ndd-info-title {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: var(--text-lg);
 }
 .ndd-info-modal .ndd-info-close {
-  font-size: 0.85rem;
+  font-size: var(--text-md);
 }
 .ndd-info-subtitle {
-  font-size: 0.85rem;
+  font-size: var(--text-md);
   color: var(--text-muted);
   margin-bottom: 0;
 }
@@ -105,11 +105,11 @@
   margin-top: 18px;
 }
 .ndd-info-section-title {
-  font-size: 0.95rem;
+  font-size: var(--text-lg);
   margin-bottom: var(--sp-1);
 }
 .ndd-info-intro {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   margin: 0 0 6px;
 }
@@ -118,35 +118,35 @@
 }
 .ndd-info-item-name {
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: var(--text-md);
 }
 .ndd-info-item-desc {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   color: var(--text-muted);
 }
 
 /* Left column — queued topics, improve-with-AI suggestion box */
 .ndd-queued-empty {
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   padding: var(--sp-3) 0;
 }
 .ndd-flex-1 {
   flex: 1;
 }
 .ndd-fullpage .ndd-topic-card-desc-queued {
-  font-size: 0.65rem;
+  font-size: var(--text-2xs);
   color: var(--text-muted);
 }
 .ndd-improve-section {
   margin-top: var(--sp-2);
 }
 .ndd-fullpage .ndd-btn-xs {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
 }
 .ndd-error-text {
   color: var(--error, #ef4444);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   margin-top: var(--sp-1);
 }
 .ndd-suggestion-box {
@@ -157,14 +157,14 @@
   background: var(--bg-tertiary, rgba(255, 255, 255, 0.03));
 }
 .ndd-suggestion-label {
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
   margin-bottom: var(--sp-1);
 }
 .ndd-suggestion-text {
-  font-size: 0.85rem;
+  font-size: var(--text-md);
   margin: 0 0 var(--sp-2);
 }
 .ndd-suggestion-actions {
@@ -182,7 +182,7 @@
   margin: 0;
 }
 .ndd-fullpage .ndd-learn-btn {
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   padding: 2px 8px;
 }
 .ndd-fullpage .ndd-model-tag-free {
@@ -194,16 +194,16 @@
 }
 .ndd-info-text {
   color: var(--info, #3b82f6);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   margin-top: var(--sp-1);
 }
 .ndd-warning-text {
   color: var(--warning, #f59e0b);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   margin-top: var(--sp-1);
 }
 .ndd-toggle-hint {
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   color: var(--text-muted);
   margin-left: 6px;
 }
@@ -218,7 +218,7 @@
 }
 .ndd-mp-hint {
   color: var(--text-secondary);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   margin-bottom: var(--sp-1);
 }
 .ndd-backend-chips {
@@ -232,12 +232,12 @@
   margin-top: 10px;
 }
 .ndd-step-help {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--text-secondary);
   margin-bottom: 6px;
 }
 .ndd-advanced-help {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--text-secondary);
   margin-bottom: var(--sp-1);
 }
@@ -251,7 +251,7 @@
   margin-bottom: 6px;
 }
 .ndd-stage-label-sm {
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   font-weight: 500;
   text-transform: capitalize;
   display: block;
@@ -259,5 +259,5 @@
 }
 .ndd-fullpage .ndd-stage-select {
   width: 100%;
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
 }
