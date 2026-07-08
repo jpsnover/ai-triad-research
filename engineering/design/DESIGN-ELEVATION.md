@@ -169,7 +169,7 @@ Adopt one rule: **separate siblings with space, separate regions with a single h
 
 ### 6.2 Debate
 - Debate statements are the product's crown jewels — set `StatementCard` content in `.prose`. Speaker header: camp glyph + name in camp color + turn number in mono `--text-2xs`. Card: `--radius-md`, `--shadow-1`, 3px left border in camp color, `--sp-4` padding. No other borders inside the card.
-- Transcript column `max-width: 76ch`, centered; phase transitions marked by a labeled hairline ("Opening statements", "Cross-examination") instead of boxes.
+- Transcript column fills the available panel width (no `max-width` — debate content should use the full space); phase transitions marked by a labeled hairline ("Opening statements", "Cross-examination") instead of boxes.
 - New Debate dialog: group the form into steps or labeled sections with `--sp-6` gaps; primary action bottom-right, filled; secondary as text button. Dialog: `--radius-lg`, `--shadow-3`, one title in `--text-lg`.
 
 ### 6.3 Chat
