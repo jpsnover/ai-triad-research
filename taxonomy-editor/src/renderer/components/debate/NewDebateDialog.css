@@ -1,0 +1,263 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+   Licensed under the MIT License. See LICENSE file in the project root. */
+
+/*
+ * New Debate dialog — Design Elevation Phase 4c (t/1372, DESIGN-ELEVATION §6.2).
+ *
+ * ── DIALOG RECIPE (reuse for every future dialog) ──────────────────────────
+ * Container: var(--radius-lg) + var(--shadow-3) on var(--bg-secondary).
+ * Title:     one line, var(--text-lg), weight 600.
+ * Body:      labeled sections separated by var(--sp-6) vertical rhythm.
+ * Footer:    var(--sp-6) padding; primary action FILLED, bottom-right;
+ *            secondary/cancel as a text button.
+ *
+ * New/hoisted styles live in this co-located file, NOT the frozen styles.css.
+ * ---------------------------------------------------------------------------
+ */
+
+/* Title → recipe scale */
+.ndd-fullpage .ndd-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+/* Footer → sp-6 padding; primary stays filled + bottom-right (default order) */
+.ndd-fullpage .ndd-footer {
+  padding: var(--sp-6);
+  gap: var(--sp-3);
+}
+
+/* Section rhythm → sp-6 between configuration groups */
+.ndd-fullpage .ndd-section-heading {
+  margin-top: var(--sp-6);
+}
+.ndd-fullpage .ndd-section-heading:first-child {
+  margin-top: 0;
+}
+
+/* ── Hoisted inline styles ────────────────────────────────────────────────── */
+
+/* Config info modal (was inline on the modal card + header) */
+.ndd-info-modal {
+  max-width: 640px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--bg-secondary, #1e1e1e);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+  border-radius: var(--radius-lg);
+  padding: var(--sp-6);
+}
+.ndd-info-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Multi-provider backend box (was inline; existing class in styles.css augmented here) */
+.ndd-multi-provider-section {
+  margin-top: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+}
+
+/* Per-stage model overrides grid (was inline) */
+.ndd-stage-models-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+}
+
+/* Debater badge — solid camp-colored chip (t/1366 camp palette). Label + CampGlyph
+   both render white (badge sets color:#fff; glyph uses currentColor). The camp color
+   comes from data-camp so there's no per-row inline style. */
+.ndd-fullpage .ndd-debater-badge[data-camp='acc'] { background: var(--color-acc); }
+.ndd-fullpage .ndd-debater-badge[data-camp='saf'] { background: var(--color-saf); }
+.ndd-fullpage .ndd-debater-badge[data-camp='skp'] { background: var(--color-skp); }
+.ndd-fullpage .ndd-debater-badge .ndd-debater-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ── Hoisted inline styles (Phase 1, t/1372) ──────────────────────────────── */
+
+/* Config info modal (ConfigInfoModal) — hoisted from inline style props */
+.dialog-overlay.ndd-info-overlay {
+  z-index: 1000;
+}
+.ndd-info-title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.ndd-info-modal .ndd-info-close {
+  font-size: 0.85rem;
+}
+.ndd-info-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 0;
+}
+.ndd-info-section {
+  margin-top: 18px;
+}
+.ndd-info-section-title {
+  font-size: 0.95rem;
+  margin-bottom: var(--sp-1);
+}
+.ndd-info-intro {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0 0 6px;
+}
+.ndd-info-item {
+  margin-bottom: var(--sp-2);
+}
+.ndd-info-item-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.ndd-info-item-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Left column — queued topics, improve-with-AI suggestion box */
+.ndd-queued-empty {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  padding: var(--sp-3) 0;
+}
+.ndd-flex-1 {
+  flex: 1;
+}
+.ndd-fullpage .ndd-topic-card-desc-queued {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+.ndd-improve-section {
+  margin-top: var(--sp-2);
+}
+.ndd-fullpage .ndd-btn-xs {
+  font-size: 0.75rem;
+}
+.ndd-error-text {
+  color: var(--error, #ef4444);
+  font-size: 0.75rem;
+  margin-top: var(--sp-1);
+}
+.ndd-suggestion-box {
+  margin-top: 6px;
+  padding: var(--sp-2);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary, rgba(255, 255, 255, 0.03));
+}
+.ndd-suggestion-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: var(--sp-1);
+}
+.ndd-suggestion-text {
+  font-size: 0.85rem;
+  margin: 0 0 var(--sp-2);
+}
+.ndd-suggestion-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* Right column — configuration heading, model badges, hints, multi-provider */
+.ndd-config-heading-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.ndd-fullpage .ndd-config-heading {
+  margin: 0;
+}
+.ndd-fullpage .ndd-learn-btn {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+}
+.ndd-fullpage .ndd-model-tag-free {
+  background: var(--info, #3b82f6);
+  color: #fff;
+}
+.ndd-fullpage .ndd-link-inherit {
+  color: inherit;
+}
+.ndd-info-text {
+  color: var(--info, #3b82f6);
+  font-size: 0.75rem;
+  margin-top: var(--sp-1);
+}
+.ndd-warning-text {
+  color: var(--warning, #f59e0b);
+  font-size: 0.75rem;
+  margin-top: var(--sp-1);
+}
+.ndd-toggle-hint {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-left: 6px;
+}
+.ndd-tier-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: 6px;
+}
+.ndd-tier-label {
+  font-weight: 500;
+}
+.ndd-mp-hint {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  margin-bottom: var(--sp-1);
+}
+.ndd-backend-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+
+/* Right column — step mode + advanced options */
+.ndd-fullpage .ndd-toggle-mt-10 {
+  margin-top: 10px;
+}
+.ndd-step-help {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.ndd-advanced-help {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--sp-1);
+}
+.ndd-fullpage .ndd-evaluator-label {
+  margin-top: var(--sp-2);
+}
+.ndd-fullpage .ndd-stage-label {
+  margin-top: var(--sp-3);
+}
+.ndd-fullpage .ndd-stage-preset-select {
+  margin-bottom: 6px;
+}
+.ndd-stage-label-sm {
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: capitalize;
+  display: block;
+  margin-bottom: 2px;
+}
+.ndd-fullpage .ndd-stage-select {
+  width: 100%;
+  font-size: 0.7rem;
+}

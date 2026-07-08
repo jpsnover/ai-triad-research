@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
-import type { TextareaHTMLAttributes, CSSProperties } from 'react';
+import type { TextareaHTMLAttributes } from 'react';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore, MODELS_BY_BACKEND, AI_BACKENDS, DEBATE_TIERS, FALLBACK_CHAINS, initAIModels, backendForModel } from '../../hooks/useTaxonomyStore';
@@ -11,6 +11,8 @@ import { POVER_INFO, DEBATE_AUDIENCES } from '../../types/debate';
 import type { SpeakerId, DebateSourceType, DebateAudience } from '../../types/debate';
 import { DEBATE_PROTOCOLS } from '../../data/debateProtocols';
 import { AI_POVERS } from '@lib/debate/types';
+import { CampGlyph, povToCamp } from '../shared/CampGlyph';
+import './NewDebateDialog.css';
 import { improveDebateTopicPrompt } from '@lib/debate/prompts';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
@@ -94,68 +96,62 @@ const AUDIENCE_DESCRIPTIONS: Record<string, string> = {
  * sourced from the same data the selectors use, so copy stays in sync.
  */
 function ConfigInfoModal({ onClose }: { onClose: () => void }) {
-  const sectionStyle: CSSProperties = { marginTop: 18 };
-  const itemStyle: CSSProperties = { marginBottom: 8 };
-  const nameStyle: CSSProperties = { fontWeight: 600, fontSize: '0.85rem' };
-  const descStyle: CSSProperties = { fontSize: '0.8rem', color: 'var(--text-muted)' };
-  const introStyle: CSSProperties = { fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 6px' };
   return (
-    <div className="dialog-overlay" style={{ zIndex: 1000 }} onClick={(e) => { e.stopPropagation(); onClose(); }}>
+    <div className="dialog-overlay ndd-info-overlay" onClick={(e) => { e.stopPropagation(); onClose(); }}>
       <div
         className="ndd-info-modal"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 640, width: '90%', maxHeight: '80vh', overflowY: 'auto', background: 'var(--bg-secondary, #1e1e1e)', border: '1px solid var(--border-color, rgba(255,255,255,0.15))', borderRadius: 8, padding: 20 }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0, fontSize: '1.1rem' }}>Debate configuration guide</h2>
-          <button type="button" className="btn" style={{ fontSize: '0.85rem' }} onClick={onClose} aria-label="Close guide">×</button>
+        <div className="ndd-info-modal-header">
+          <h2 className="ndd-info-title">Debate configuration guide</h2>
+          <button type="button" className="btn ndd-info-close" onClick={onClose} aria-label="Close guide">×</button>
         </div>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 0 }}>
+        <p className="ndd-info-subtitle">
           What each setup option controls and what to expect.
         </p>
 
-        <section style={sectionStyle}>
-          <h3 style={{ fontSize: '0.95rem', marginBottom: 4 }}>Format</h3>
-          <p style={introStyle}>How the debate is structured and how speakers take turns.</p>
+        <section className="ndd-info-section">
+          <h3 className="ndd-info-section-title">Format</h3>
+          <p className="ndd-info-intro">How the debate is structured and how speakers take turns.</p>
           {DEBATE_PROTOCOLS.map(p => (
-            <div key={p.id} style={itemStyle}>
-              <div style={nameStyle}>{p.label}</div>
-              <div style={descStyle}>{p.description}</div>
+            <div key={p.id} className="ndd-info-item">
+              <div className="ndd-info-item-name">{p.label}</div>
+              <div className="ndd-info-item-desc">{p.description}</div>
             </div>
           ))}
         </section>
 
-        <section style={sectionStyle}>
-          <h3 style={{ fontSize: '0.95rem', marginBottom: 4 }}>Dialectical Style</h3>
-          <p style={introStyle}>The tone debaters take toward each other's arguments.</p>
+        <section className="ndd-info-section">
+          <h3 className="ndd-info-section-title">Dialectical Style</h3>
+          <p className="ndd-info-intro">The tone debaters take toward each other's arguments.</p>
           {STYLE_PRESETS.map(s => (
-            <div key={s.id} style={itemStyle}>
-              <div style={nameStyle}>{s.label}</div>
-              <div style={descStyle}>{s.desc}</div>
+            <div key={s.id} className="ndd-info-item">
+              <div className="ndd-info-item-name">{s.label}</div>
+              <div className="ndd-info-item-desc">{s.desc}</div>
             </div>
           ))}
         </section>
 
-        <section style={sectionStyle}>
-          <h3 style={{ fontSize: '0.95rem', marginBottom: 4 }}>Target Audience</h3>
-          <p style={introStyle}>Who the debate is written for — shapes framing, depth, and vocabulary.</p>
+        <section className="ndd-info-section">
+          <h3 className="ndd-info-section-title">Target Audience</h3>
+          <p className="ndd-info-intro">Who the debate is written for — shapes framing, depth, and vocabulary.</p>
           {DEBATE_AUDIENCES.map(a => (
-            <div key={a.id} style={itemStyle}>
-              <div style={nameStyle}>{a.label}</div>
-              <div style={descStyle}>{AUDIENCE_DESCRIPTIONS[a.id] ?? ''}</div>
+            <div key={a.id} className="ndd-info-item">
+              <div className="ndd-info-item-name">{a.label}</div>
+              <div className="ndd-info-item-desc">{AUDIENCE_DESCRIPTIONS[a.id] ?? ''}</div>
             </div>
           ))}
         </section>
 
-        <section style={sectionStyle}>
-          <h3 style={{ fontSize: '0.95rem', marginBottom: 4 }}>Debaters</h3>
-          <p style={introStyle}>The three perspectives that argue the topic (pick any combination).</p>
+        <section className="ndd-info-section">
+          <h3 className="ndd-info-section-title">Debaters</h3>
+          <p className="ndd-info-intro">The three perspectives that argue the topic (pick any combination).</p>
           {AI_POVERS.map((id) => {
             const info = POVER_INFO[id];
             return (
-              <div key={id} style={itemStyle}>
-                <div style={nameStyle}>{DEBATER_ICONS[id]} {info.label}</div>
-                <div style={descStyle}>{info.personality}</div>
+              <div key={id} className="ndd-info-item">
+                <div className="ndd-info-item-name">{DEBATER_ICONS[id]} {info.label}</div>
+                <div className="ndd-info-item-desc">{info.personality}</div>
               </div>
             );
           })}
@@ -643,7 +639,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                 {otherTab === 'queued' && (
                   <div className="ndd-potential-topics">
                     {queuedTopics.length === 0 && (
-                      <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '12px 0' }}>
+                      <p className="ndd-queued-empty">
                         No queued topics yet. Use "Queue Topic" to save topics for later.
                       </p>
                     )}
@@ -655,7 +651,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                       >
                         <div className="ndd-topic-card-header">
                           <span className="ndd-topic-card-icon">{'\uD83D\uDCCB'}</span>
-                          <span className="ndd-topic-card-title" style={{ flex: 1 }}>{qt.text.slice(0, 80)}{qt.text.length > 80 ? '…' : ''}</span>
+                          <span className="ndd-topic-card-title ndd-flex-1">{qt.text.slice(0, 80)}{qt.text.length > 80 ? '…' : ''}</span>
                           <span
                             className="ndd-queued-remove"
                             title="Remove from queue"
@@ -664,7 +660,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                             &times;
                           </span>
                         </div>
-                        <p className="ndd-topic-card-desc" style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                        <p className="ndd-topic-card-desc ndd-topic-card-desc-queued">
                           Queued {new Date(qt.timestamp).toLocaleDateString()}
                         </p>
                       </button>
@@ -685,11 +681,10 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
 
             {/* Improve with AI — inline topic refinement (t/910) */}
             {topic.trim() && (
-              <div style={{ marginTop: 8 }}>
+              <div className="ndd-improve-section">
                 <button
                   type="button"
-                  className="btn"
-                  style={{ fontSize: '0.75rem' }}
+                  className="btn ndd-btn-xs"
                   onClick={() => void handleImproveTopic()}
                   disabled={improvingTopic}
                   title="Use AI to sharpen this topic into a clearer, more debatable question"
@@ -697,25 +692,23 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                   {improvingTopic ? 'Improving…' : '✨ Improve with AI'}
                 </button>
                 {improveError && (
-                  <div style={{ color: 'var(--error, #ef4444)', fontSize: '0.75rem', marginTop: 4 }}>{improveError}</div>
+                  <div className="ndd-error-text">{improveError}</div>
                 )}
                 {topicSuggestion && (
-                  <div style={{ marginTop: 6, padding: 8, border: '1px solid var(--border-color, rgba(255,255,255,0.15))', borderRadius: 4, background: 'var(--bg-tertiary, rgba(255,255,255,0.03))' }}>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 4 }}>Suggested topic</div>
-                    <p style={{ fontSize: '0.85rem', margin: '0 0 8px' }}>{topicSuggestion}</p>
-                    <div style={{ display: 'flex', gap: 6 }}>
+                  <div className="ndd-suggestion-box">
+                    <div className="ndd-suggestion-label">Suggested topic</div>
+                    <p className="ndd-suggestion-text">{topicSuggestion}</p>
+                    <div className="ndd-suggestion-actions">
                       <button
                         type="button"
-                        className="btn btn-primary"
-                        style={{ fontSize: '0.75rem' }}
+                        className="btn btn-primary ndd-btn-xs"
                         onClick={() => { setTopic(topicSuggestion); setTopicSuggestion(null); setImproveError(null); }}
                       >
                         Accept
                       </button>
                       <button
                         type="button"
-                        className="btn"
-                        style={{ fontSize: '0.75rem' }}
+                        className="btn ndd-btn-xs"
                         onClick={() => setTopicSuggestion(null)}
                       >
                         Reject
@@ -729,12 +722,11 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
 
           {/* ─── Right Column: Configuration ─── */}
           <div className="ndd-col-right">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <h3 className="ndd-section-heading" style={{ margin: 0 }}>Configuration</h3>
+            <div className="ndd-config-heading-row">
+              <h3 className="ndd-section-heading ndd-config-heading">Configuration</h3>
               <button
                 type="button"
-                className="btn"
-                style={{ fontSize: '0.7rem', padding: '2px 8px' }}
+                className="btn ndd-learn-btn"
                 onClick={() => setShowConfigInfo(true)}
                 title="Learn what each configuration option does"
               >
@@ -769,7 +761,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                     })()}
                   </span>
                   {useCustomModel && !freeTier && <span className="ndd-model-override-tag">override</span>}
-                  {freeTier && <span className="ndd-model-override-tag" style={{ background: 'var(--info, #3b82f6)', color: '#fff' }}>free</span>}
+                  {freeTier && <span className="ndd-model-override-tag ndd-model-tag-free">free</span>}
                   <button
                     className="btn btn-sm ndd-models-btn"
                     onClick={openModelModal}
@@ -781,26 +773,26 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                   </button>
                 </div>
                 {activeModelExcluded && (
-                  <div style={{ color: 'var(--error, #ef4444)', fontSize: '0.75rem', marginTop: 4 }}>
+                  <div className="ndd-error-text">
                     {activeModelBackend} models are not supported for debates. Choose a different model.
                   </div>
                 )}
                 {!activeModelExcluded && !activeModelHasKey && (
-                  <div style={{ color: 'var(--error, #ef4444)', fontSize: '0.75rem', marginTop: 4 }}>
+                  <div className="ndd-error-text">
                     No API key configured for {activeModelBackend}.{' '}
                     {activeModelBackend === 'gemini' && (
-                      <>Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>aistudio.google.com/apikey</a>. </>
+                      <>Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="ndd-link-inherit">aistudio.google.com/apikey</a>. </>
                     )}
                     Configure in Settings or choose a different model.
                   </div>
                 )}
                 {freeTier && activeModelHasKey && !hasApiKey[activeModelBackend] && (
-                  <div style={{ color: 'var(--info, #3b82f6)', fontSize: '0.75rem', marginTop: 4 }}>
+                  <div className="ndd-info-text">
                     Free tier &mdash; {tierInfo!.pinnedModel} &middot; {tierInfo!.limits.requestsPerMinute} req/min &middot; {Math.round(tierInfo!.limits.tokensPerDay / 1000)}K tokens/day
                   </div>
                 )}
                 {activeModelHasKey && fallbackWarnings.length > 0 && (
-                  <div style={{ color: 'var(--warning, #f59e0b)', fontSize: '0.75rem', marginTop: 4 }}>
+                  <div className="ndd-warning-text">
                     Fallback model{fallbackWarnings.length > 1 ? 's' : ''} unavailable (no key): {fallbackWarnings.join(', ')}
                   </div>
                 )}
@@ -808,6 +800,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
             )}
 
             {/* Multi-provider toggle */}
+            {/* eslint-disable-next-line local/no-inline-style -- dynamic: conditional-margin */}
             <label className="ndd-model-toggle" style={{ marginTop: multiProvider ? 0 : 6 }}>
               <input
                 type="checkbox"
@@ -817,30 +810,29 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
               />
               Multi-Provider Mode
               {backendsWithKeys.length < 2 && (
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 6 }}>
+                <span className="ndd-toggle-hint">
                   (need 2+ backends with keys)
                 </span>
               )}
             </label>
 
             {multiProvider && (
-              <div className="ndd-multi-provider-section" style={{ marginTop: 6, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 6, fontSize: '0.8rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <label style={{ fontWeight: 500 }}>Tier:</label>
+              <div className="ndd-multi-provider-section">
+                <div className="ndd-tier-row">
+                  <label className="ndd-tier-label">Tier:</label>
                   <select
-                    className="ndd-model-select"
+                    className="ndd-model-select ndd-flex-1"
                     value={modelTier}
                     onChange={(e) => setModelTier(e.target.value as 'basic' | 'advanced')}
-                    style={{ flex: 1 }}
                   >
                     <option value="basic">Basic (fast / cheap)</option>
                     <option value="advanced">Advanced (frontier)</option>
                   </select>
                 </div>
-                <div style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', marginBottom: 4 }}>
+                <div className="ndd-mp-hint">
                   Each speaker gets a different backend. Click to toggle:
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                <div className="ndd-backend-chips">
                   {backendsWithKeys.map(b => {
                     const tierModels = DEBATE_TIERS[modelTier];
                     const hasModel = tierModels && tierModels[b];
@@ -859,6 +851,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                             return next;
                           });
                         }}
+                        // eslint-disable-next-line local/no-inline-style -- dynamic: state-driven-chip
                         style={{
                           padding: '2px 8px', borderRadius: 4, fontSize: '0.72rem',
                           cursor: (!isExcluded && isLastActive) ? 'not-allowed' : 'pointer',
@@ -914,7 +907,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
             </div>
 
             {/* Step Mode (visible control) */}
-            <label className="ndd-model-toggle" style={{ marginTop: 10 }}>
+            <label className="ndd-model-toggle ndd-toggle-mt-10">
               <input
                 type="checkbox"
                 checked={stepMode}
@@ -922,7 +915,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
               />
               Step-by-Step Mode
             </label>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 6 }}>
+            <div className="ndd-step-help">
               Pause after each phase for manual review before advancing. You can also toggle this during a debate.
             </div>
 
@@ -950,8 +943,8 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                 </div>
 
                 {/* Evaluator Model (cross-vendor split) */}
-                <label className="ndd-field-label" style={{ marginTop: 8 }}>Evaluator Model</label>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 4 }}>
+                <label className="ndd-field-label ndd-evaluator-label">Evaluator Model</label>
+                <div className="ndd-advanced-help">
                   Separate model for claim extraction. Cross-vendor split reduces self-preference bias.
                 </div>
                 <select
@@ -966,12 +959,12 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                 </select>
 
                 {/* Stage Models (per-stage model overrides) */}
-                <label className="ndd-field-label" style={{ marginTop: 12 }}>Stage Models</label>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 4 }}>
+                <label className="ndd-field-label ndd-stage-label">Stage Models</label>
+                <div className="ndd-advanced-help">
                   Use cheaper models for Brief/Plan/Cite stages. Draft always uses the main debate model.
                 </div>
                 <select
-                  className="ndd-model-select"
+                  className="ndd-model-select ndd-stage-preset-select"
                   value={stageModelPreset}
                   onChange={(e) => {
                     const preset = e.target.value as 'same' | 'cost-optimized' | 'custom';
@@ -984,22 +977,20 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                       setStageModels({ brief: cheapModel, plan: '', cite: cheapModel });
                     }
                   }}
-                  style={{ marginBottom: 6 }}
                 >
                   <option value="same">All same model</option>
                   <option value="cost-optimized">Cost-optimized (Brief+Cite on cheap)</option>
                   <option value="custom">Custom</option>
                 </select>
                 {stageModelPreset !== 'same' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 4 }}>
+                  <div className="ndd-stage-models-grid">
                     {(['brief', 'plan', 'cite'] as const).map(stage => (
                       <div key={stage}>
-                        <label style={{ fontSize: '0.7rem', fontWeight: 500, textTransform: 'capitalize', display: 'block', marginBottom: 2 }}>{stage}</label>
+                        <label className="ndd-stage-label-sm">{stage}</label>
                         <select
-                          className="ndd-model-select"
+                          className="ndd-model-select ndd-stage-select"
                           value={stageModels[stage]}
                           onChange={(e) => setStageModels(prev => ({ ...prev, [stage]: e.target.value }))}
-                          style={{ width: '100%', fontSize: '0.7rem' }}
                           disabled={stageModelPreset !== 'custom'}
                         >
                           <option value="">Same as debate model</option>
@@ -1037,8 +1028,8 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                       checked={selected.has(id)}
                       onChange={() => toggle(id)}
                     />
-                    <span className="ndd-debater-badge" style={{ background: info.color }}>
-                      <span className="ndd-debater-icon">{DEBATER_ICONS[id]}</span>
+                    <span className="ndd-debater-badge" data-camp={povToCamp(id)}>
+                      <span className="ndd-debater-icon"><CampGlyph camp={povToCamp(id)!} size={14} /></span>
                       {info.label}
                     </span>
                     <span className="ndd-debater-desc">{info.personality}</span>
@@ -1148,10 +1139,10 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                         ))}
                       </select>
                       {hasApiKey[modalBackend] === false && (
-                        <div style={{ color: 'var(--error, #ef4444)', fontSize: '0.75rem', marginTop: 4 }}>
+                        <div className="ndd-error-text">
                           No API key for {AI_BACKENDS.find(b => b.value === modalBackend)?.label ?? modalBackend}.{' '}
                           {modalBackend === 'gemini' && (
-                            <>Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>aistudio.google.com/apikey</a>. </>
+                            <>Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="ndd-link-inherit">aistudio.google.com/apikey</a>. </>
                           )}
                           Configure in Settings to use these models.
                         </div>
