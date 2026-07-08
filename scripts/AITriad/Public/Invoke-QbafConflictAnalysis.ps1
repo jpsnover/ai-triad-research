@@ -6,16 +6,33 @@ function Invoke-QbafConflictAnalysis {
     .SYNOPSIS
         Analyzes factual claims across summaries using QBAF argumentation strength.
     .DESCRIPTION
-        Reads factual_claims from summaries, clusters similar claims using embedding
-        similarity, extracts attack/support relations, computes QBAF acceptability
-        strengths via the DF-QuAD engine, and outputs QBAF-augmented conflict analysis.
+        Reads factual_claims from summaries and detects attack/support relations
+        between claims across documents via a two-stage pass (t/1403):
 
-        Runs parallel to Find-Conflict (not a replacement yet). Produces richer output
-        with computed_strength, attack_type, and resolution analysis.
+          Stage A (fast, deterministic): claims that share ≥1 linked_taxonomy_nodes
+                 and take opposing/aligned doc_position values become edges.
+          Stage B (embedding + LLM-confirmed): cross-doc claim pairs whose
+                 embeddings have cosine similarity ≥ -Threshold that Stage A
+                 did NOT already claim are LLM-confirmed via
+                 enrichment.qbaf-pair-confirm; only pairs the confirmer agrees
+                 are 'attacks' or 'supports' with confidence ≥ 0.6 add edges.
+
+        Stage B increases recall for claims that address the same underlying
+        question but were mapped to different (or no) taxonomy nodes — the
+        recall gap that motivated t/1403. Falls back gracefully to
+        Stage-A-only when the embedding subsystem (Python + sentence-
+        transformers) or the LLM subsystem is unavailable — total edge count
+        is monotonic across configurations.
+
+        Computes QBAF acceptability strengths via the DF-QuAD engine and
+        outputs QBAF-augmented conflict analysis. Runs parallel to
+        Find-Conflict (not a replacement yet). Produces richer output with
+        computed_strength, attack_type, and resolution analysis.
     .PARAMETER DocId
         Analyze claims from a single document. If omitted, analyzes all summaries.
     .PARAMETER Threshold
-        Cosine similarity threshold for claim clustering. Default: 0.85.
+        Cosine similarity threshold for Stage-B embedding clustering. Default: 0.85.
+        Only pairs with cosine ≥ Threshold are sent to the LLM confirmer.
     .PARAMETER OutputDir
         Output directory for QBAF conflict files. Default: ai-triad-data/qbaf-conflicts/
     .PARAMETER DryRun
@@ -130,10 +147,44 @@ function Invoke-QbafConflictAnalysis {
         return
     }
 
-    # ── Step 2: Detect claim relations using position + taxonomy overlap ───────
-    Write-Step 'Detecting claim relations'
+    # ── Step 1.5: Embed all claim texts for cross-doc similarity clustering (t/1403) ──
+    # Populates $ClaimEmbeddings for the embedding-similar pass in Step 2. Empty
+    # texts are skipped. If the embedding subsystem is unavailable (no Python,
+    # no sentence-transformers), $ClaimEmbeddings stays $null and Step 2 silently
+    # falls back to node-overlap-only — no crash, no silent quality degradation
+    # beyond what the existing code already had.
+    Write-Step 'Embedding claim texts for cross-doc clustering'
+    $ClaimEmbeddings = $null
+    $EmbedTexts = @($AllClaims | ForEach-Object { $_.Text })
+    $EmbedIds   = @($AllClaims | ForEach-Object { $_.Id })
+    try {
+        $ClaimEmbeddings = Get-TextEmbedding -Texts $EmbedTexts -Ids $EmbedIds
+        if ($null -eq $ClaimEmbeddings -or $ClaimEmbeddings.Count -eq 0) {
+            Write-Warn 'Embedding subsystem unavailable — falling back to node-overlap-only relation detection'
+            $ClaimEmbeddings = $null
+        }
+        else {
+            Write-OK "Embedded $($ClaimEmbeddings.Count) claim texts"
+        }
+    }
+    catch {
+        Write-Warn "Embedding step failed: $($_.Exception.Message) — falling back to node-overlap-only"
+        $ClaimEmbeddings = $null
+    }
+
+    # ── Step 2: Two-stage relation detection ───────────────────────────────────
+    # Stage A: node-overlap edges (existing logic, unchanged)
+    # Stage B: embedding-similar pairs above $Threshold that Stage A didn't
+    #          already claim → LLM-confirm each with enrichment.qbaf-pair-confirm
+    #          (t/1403). Adds attacks/supports only when the confirmer agrees
+    #          with confidence ≥ ConfidenceFloor.
+    # Monotonicity: Stage B's candidate set is disjoint from Stage A's edge
+    # set, so total edge count is >= node-overlap-only count.
+    Write-Step 'Detecting claim relations (Stage A: node overlap)'
 
     $Edges = [System.Collections.Generic.List[PSObject]]::new()
+    # Track pair keys claimed by Stage A so Stage B can skip them.
+    $StageAPairs = [System.Collections.Generic.HashSet[string]]::new()
 
     # Claims that share taxonomy nodes but take opposing positions are attacks
     for ($i = 0; $i -lt $AllClaims.Count; $i++) {
@@ -157,7 +208,9 @@ function Invoke-QbafConflictAnalysis {
                     Type       = 'attacks'
                     Weight     = 0.7
                     AttackType = 'rebut'
+                    Source_    = 'node-overlap'
                 })
+                [void]$StageAPairs.Add("$($A.Id)|$($B.Id)")
             }
             elseif ($IsSupport) {
                 $Edges.Add([PSCustomObject]@{
@@ -166,9 +219,103 @@ function Invoke-QbafConflictAnalysis {
                     Type       = 'supports'
                     Weight     = 0.5
                     AttackType = $null
+                    Source_    = 'node-overlap'
                 })
+                [void]$StageAPairs.Add("$($A.Id)|$($B.Id)")
             }
         }
+    }
+
+    $StageAEdgeCount = $Edges.Count
+    Write-OK "Stage A: $StageAEdgeCount node-overlap edges"
+
+    # ── Stage B: embedding-similar cross-doc pairs, LLM-confirmed ─────────────
+    $ConfidenceFloor = 0.6
+    $StageBCandidates = 0
+    $StageBConfirmed  = 0
+    $StageBRejected   = 0
+    $StageBLlmErrors  = 0
+    if ($null -ne $ClaimEmbeddings) {
+        Write-Step "Detecting claim relations (Stage B: embedding cosine >= $Threshold)"
+
+        for ($i = 0; $i -lt $AllClaims.Count; $i++) {
+            for ($j = $i + 1; $j -lt $AllClaims.Count; $j++) {
+                $A = $AllClaims[$i]; $B = $AllClaims[$j]
+                if ($A.DocId -eq $B.DocId) { continue }
+                if ($StageAPairs.Contains("$($A.Id)|$($B.Id)")) { continue }
+
+                # Both sides must have a vector (empty text -> no vector)
+                if (-not $ClaimEmbeddings.ContainsKey($A.Id)) { continue }
+                if (-not $ClaimEmbeddings.ContainsKey($B.Id)) { continue }
+                $VecA = [double[]]@($ClaimEmbeddings[$A.Id])
+                $VecB = [double[]]@($ClaimEmbeddings[$B.Id])
+                if ($VecA.Count -eq 0 -or $VecB.Count -eq 0) { continue }
+                if ($VecA.Count -ne $VecB.Count) { continue }
+
+                # Cosine similarity (both vectors are L2-normalized on emit)
+                $Dot = 0.0
+                for ($d = 0; $d -lt $VecA.Count; $d++) { $Dot += $VecA[$d] * $VecB[$d] }
+                if ($Dot -lt $Threshold) { continue }
+
+                $StageBCandidates++
+
+                # LLM-confirm this specific pair. Failures are non-fatal — a rejected
+                # or errored candidate just doesn't add an edge, and Stage A output
+                # is preserved. Monotonicity holds.
+                try {
+                    $Rendered = Get-Prompt -Name 'qbaf-pair-confirm' -Replacements @{
+                        a_pov  = $A.DocId
+                        a_text = $A.Text
+                        b_pov  = $B.DocId
+                        b_text = $B.Text
+                    }
+                    $Response = Invoke-AIByUsage -UsageId 'enrichment.qbaf-pair-confirm' `
+                        -Values @{ prompt = $Rendered } -ErrorAction Stop
+                    if (-not $Response -or -not $Response.Text) {
+                        $StageBLlmErrors++
+                        continue
+                    }
+                    $Parsed = $Response.Text | ConvertFrom-Json -ErrorAction Stop
+                    if (-not ($Parsed.PSObject.Properties['relation'] -and $Parsed.PSObject.Properties['confidence'])) {
+                        $StageBLlmErrors++
+                        continue
+                    }
+                    $Relation = [string]$Parsed.relation
+                    $Conf     = [double]$Parsed.confidence
+                    if (($Relation -ne 'attacks' -and $Relation -ne 'supports') -or $Conf -lt $ConfidenceFloor) {
+                        $StageBRejected++
+                        continue
+                    }
+
+                    if ($Relation -eq 'attacks') {
+                        $Edges.Add([PSCustomObject]@{
+                            Source     = $A.Id
+                            Target     = $B.Id
+                            Type       = 'attacks'
+                            Weight     = [Math]::Round($Conf, 4)
+                            AttackType = 'rebut'
+                            Source_    = 'embedding+llm'
+                        })
+                    }
+                    else {
+                        $Edges.Add([PSCustomObject]@{
+                            Source     = $A.Id
+                            Target     = $B.Id
+                            Type       = 'supports'
+                            Weight     = [Math]::Round($Conf, 4)
+                            AttackType = $null
+                            Source_    = 'embedding+llm'
+                        })
+                    }
+                    $StageBConfirmed++
+                }
+                catch {
+                    Write-Verbose "qbaf-pair-confirm failed for ($($A.Id), $($B.Id)): $($_.Exception.Message)"
+                    $StageBLlmErrors++
+                }
+            }
+        }
+        Write-OK "Stage B: $StageBCandidates candidates -> $StageBConfirmed confirmed, $StageBRejected rejected, $StageBLlmErrors errors"
     }
 
     Write-OK "Detected $($Edges.Count) relations ($(@($Edges | Where-Object { $_.Type -eq 'attacks' }).Count) attacks, $(@($Edges | Where-Object { $_.Type -eq 'supports' }).Count) supports)"
@@ -177,10 +324,18 @@ function Invoke-QbafConflictAnalysis {
         Write-Host "  [DRY RUN] Would process $($AllClaims.Count) claims with $($Edges.Count) relations" -ForegroundColor Yellow
         if ($PassThru) {
             return [PSCustomObject]@{
-                ClaimCount   = $AllClaims.Count
-                EdgeCount    = $Edges.Count
-                AttackCount  = @($Edges | Where-Object { $_.Type -eq 'attacks' }).Count
-                SupportCount = @($Edges | Where-Object { $_.Type -eq 'supports' }).Count
+                ClaimCount        = $AllClaims.Count
+                EdgeCount         = $Edges.Count
+                AttackCount       = @($Edges | Where-Object { $_.Type -eq 'attacks' }).Count
+                SupportCount      = @($Edges | Where-Object { $_.Type -eq 'supports' }).Count
+                # t/1403 — Stage A/B provenance for AC#3 monotonicity assertions
+                NodeOverlapEdges  = @($Edges | Where-Object { $_.Source_ -eq 'node-overlap' }).Count
+                EmbeddingEdges    = @($Edges | Where-Object { $_.Source_ -eq 'embedding+llm' }).Count
+                EmbeddingEnabled  = ($null -ne $ClaimEmbeddings)
+                StageBCandidates  = $StageBCandidates
+                StageBConfirmed   = $StageBConfirmed
+                StageBRejected    = $StageBRejected
+                StageBLlmErrors   = $StageBLlmErrors
             }
         }
         return
@@ -272,13 +427,21 @@ function Invoke-QbafConflictAnalysis {
         })
         edges = @($Edges | ForEach-Object {
             [ordered]@{
-                source      = $_.Source
-                target      = $_.Target
-                type        = $_.Type
-                weight      = $_.Weight
-                attack_type = $_.AttackType
+                source        = $_.Source
+                target        = $_.Target
+                type          = $_.Type
+                weight        = $_.Weight
+                attack_type   = $_.AttackType
+                # t/1403 — provenance of the edge (node-overlap vs embedding+llm)
+                relation_source = $_.Source_
             }
         })
+        # t/1403 — Stage B diagnostics (present regardless of whether embedding subsystem was up)
+        embedding_enabled = ($null -ne $ClaimEmbeddings)
+        stage_b_candidates = $StageBCandidates
+        stage_b_confirmed  = $StageBConfirmed
+        stage_b_rejected   = $StageBRejected
+        stage_b_llm_errors = $StageBLlmErrors
     }
 
     # Write output

@@ -1,0 +1,18 @@
+Two factual claims from different documents. Assess whether they are in argumentative relation.
+
+CLAIM A ({{a_pov}}): {{a_text}}
+CLAIM B ({{b_pov}}): {{b_text}}
+
+Return JSON:
+{
+  "relation": "attacks" | "supports" | "unrelated",
+  "confidence": 0.0-1.0,
+  "rationale": "one sentence or less"
+}
+
+Definitions:
+- 'attacks'   = the claims answer the same underlying question with contradictory positions.
+- 'supports'  = the claims answer the same underlying question in the same direction, with distinct evidence.
+- 'unrelated' = the claims do not address the same underlying question, even if topically adjacent.
+
+Prefer 'unrelated' when uncertain. Do not invent contradictions from topical proximity alone.

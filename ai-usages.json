@@ -376,5 +376,18 @@
       "poviewer",
       "analysis"
     ]
+  },
+  "enrichment.qbaf-pair-confirm": {
+    "description": "Confirm whether an embedding-similar claim pair is a real attack/support relation (t/1403)",
+    "model": "gemini-3.1-flash-lite",
+    "temperature": 0.1,
+    "maxTokens": 200,
+    "timeoutMs": 30000,
+    "jsonMode": true,
+    "messageTemplate": "{{prompt}}",
+    "tags": [
+      "enrichment",
+      "qbaf"
+    ]
   }
 }
