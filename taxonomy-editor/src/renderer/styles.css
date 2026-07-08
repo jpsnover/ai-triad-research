@@ -8372,7 +8372,7 @@ body {
   margin: 0 0 4px 0;
   color: var(--text-primary);
   padding-bottom: 6px;
-  border-bottom: 3px solid var(--color-acc, #16a34a);
+  border-bottom: 3px solid var(--color-acc, #b84e13);
 }
 
 .sit-detail-tab-active[style] ~ .sit-pov-evidence .sit-pov-evidence-heading {
