@@ -8,11 +8,19 @@
 #
 # This is the single-process, model-stays-warm path the per-call `encode -`
 # spawns lacked: N texts cost one ~6s model load + N×ms, not N×6s.
+#
+# t/1404: Text longer than $MaxCharsPerChunk (default 900, safe margin under
+# all-MiniLM-L6-v2's real 256-token / ~1000-char ceiling) is split into chunks
+# via Split-TextIntoEmbeddingChunks, encoded per-chunk, then mean-pooled and
+# re-normalized via Merge-EmbeddingChunks so content past the first chunk
+# actually influences the returned vector. Previous behavior hard-truncated at
+# 1000 chars, silently discarding everything past the boundary — noticeable
+# to Get-RelevantTaxonomyNodes for chunk-length RAG queries.
 function Invoke-BatchEmbeddings {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Texts,
-        [int]$MaxChars = 1000
+        [ValidateRange(200, 1000)][int]$MaxCharsPerChunk = 900
     )
 
     Set-StrictMode -Version Latest
@@ -26,20 +34,28 @@ function Invoke-BatchEmbeddings {
     if (-not (Test-Path $EmbedScript)) { return $Result }
     if (Get-Command python -ErrorAction SilentlyContinue) { $PythonCmd = 'python' } else { $PythonCmd = 'python3' }
 
-    # Build [{id, text}] payload; id is the index, mapped back to the full text.
-    $Items   = [System.Collections.Generic.List[object]]::new()
-    $IdToText = @{}
+    # Build chunk-level payload with structured IDs "origIdx::chunkN" so we can
+    # group vectors back after encoding (t/1404).
+    $Chunks  = [System.Collections.Generic.List[object]]::new()
+    $ChunkGroups = @{}   # "origIdx" -> chunk count
+    $IdxToText   = @{}   # "origIdx" -> full original text (for caller-facing map)
     for ($i = 0; $i -lt $Distinct.Count; $i++) {
         $Full = $Distinct[$i]
-        if ($Full.Length -gt $MaxChars) { $Trunc = $Full.Substring(0, $MaxChars) } else { $Trunc = $Full }
-        $Items.Add([ordered]@{ id = "$i"; text = $Trunc })
-        $IdToText["$i"] = $Full
+        $Key  = "$i"
+        $IdxToText[$Key] = $Full
+        $Pieces = Split-TextIntoEmbeddingChunks -Text $Full -MaxCharsPerChunk $MaxCharsPerChunk
+        for ($k = 0; $k -lt $Pieces.Count; $k++) {
+            $Chunks.Add([ordered]@{ id = "${Key}::$k"; text = $Pieces[$k] })
+        }
+        $ChunkGroups[$Key] = $Pieces.Count
     }
+
+    if ($Chunks.Count -eq 0) { return $Result }
 
     # ConvertTo-Json collapses a single-element array to a bare object; force an
     # array so embed_taxonomy.py batch-encode always receives a JSON list.
-    $Payload = $Items | ConvertTo-Json -Depth 3 -Compress
-    if ($Items.Count -eq 1) { $Payload = "[$Payload]" }
+    $Payload = @($Chunks) | ConvertTo-Json -Depth 3 -Compress
+    if ($Chunks.Count -eq 1) { $Payload = "[$Payload]" }
 
     $Sw = [System.Diagnostics.Stopwatch]::StartNew()
     $PrevEAP = $ErrorActionPreference
@@ -54,10 +70,17 @@ function Invoke-BatchEmbeddings {
 
     if ($LASTEXITCODE -ne 0 -or -not $Output) { return $Result }
 
-    try { $Map = ($Output | ConvertFrom-Json) } catch { return $Result }
-    foreach ($Prop in $Map.PSObject.Properties) {
-        $OrigText = $IdToText[$Prop.Name]
-        if ($OrigText) { $Result[$OrigText] = [double[]]@($Prop.Value) }
+    try { $ParsedHt = $Output | ConvertFrom-Json -AsHashtable } catch { return $Result }
+
+    # Mean-pool + re-normalize per original index, then remap back to the
+    # caller-facing text -> vector shape.
+    $Ids = [string[]]@(0..($Distinct.Count - 1) | ForEach-Object { $_.ToString() })
+    $Pooled = Merge-EmbeddingChunks -Ids $Ids -ChunkGroups $ChunkGroups -ChunkVectors $ParsedHt
+    foreach ($Key in $Pooled.Keys) {
+        $Vec = $Pooled[$Key]
+        if ($null -eq $Vec -or @($Vec).Count -eq 0) { continue }
+        $OrigText = $IdxToText[$Key]
+        if ($OrigText) { $Result[$OrigText] = $Vec }
     }
     return $Result
 }

@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -11,12 +11,23 @@
     so cosine similarities are directly comparable.
 
     Returns a hashtable mapping each input ID to its embedding vector.
-    Texts are truncated to 2000 chars (model context limit).
+
+    all-MiniLM-L6-v2 has a real context window of 256 word-piece tokens
+    (~900-1000 English chars). Text longer than that is split into chunks
+    of at most `-MaxCharsPerChunk` (default 900, safe margin under the
+    ~1000-char/256-token ceiling), encoded in a single Python subprocess,
+    then mean-pooled and re-normalized in PS — so content past the first
+    chunk boundary actually influences the returned vector (t/1404).
+
+    Returns $null if Python or sentence-transformers is unavailable.
 .PARAMETER Texts
     Array of text strings to embed.
 .PARAMETER Ids
     Optional array of IDs corresponding to each text. If omitted, uses
     zero-based indices as IDs.
+.PARAMETER MaxCharsPerChunk
+    Maximum characters per chunk before word-boundary aware splitting.
+    Default 900 (safe margin under the 256-token / ~1000-char ceiling).
 .OUTPUTS
     [hashtable] — keys are IDs (or indices), values are [double[]] vectors.
     Returns $null if Python or sentence-transformers is unavailable.
@@ -33,7 +44,10 @@ function Get-TextEmbedding {
         [Parameter(Mandatory)]
         [string[]]$Texts,
 
-        [string[]]$Ids
+        [string[]]$Ids,
+
+        [ValidateRange(200, 1000)]
+        [int]$MaxCharsPerChunk = 900
     )
 
     Set-StrictMode -Version Latest
@@ -59,12 +73,34 @@ function Get-TextEmbedding {
 
     if (Get-Command python -ErrorAction SilentlyContinue) { $PythonCmd = 'python' } else { $PythonCmd = 'python3' }
 
-    # Build batch-encode input: [{"id": "...", "text": "..."}]
-    $Items = for ($i = 0; $i -lt $Texts.Count; $i++) {
-        if ($Texts[$i].Length -gt 2000) { $Trunc = $Texts[$i].Substring(0, 2000) } else { $Trunc = $Texts[$i] }
-        [ordered]@{ id = $Ids[$i]; text = $Trunc }
+    # Split each input into chunks that fit inside the model's real context window
+    # (t/1404). Chunk IDs are "origId::chunkN" so we can group them back after encoding.
+    $Chunks = [System.Collections.Generic.List[object]]::new()
+    $ChunkGroups = @{}  # origId -> int (chunk count)
+    for ($i = 0; $i -lt $Texts.Count; $i++) {
+        $OrigId = $Ids[$i]
+        $Text = $Texts[$i]
+        if ([string]::IsNullOrEmpty($Text)) {
+            $ChunkGroups[$OrigId] = 0
+            continue
+        }
+        $Pieces = Split-TextIntoEmbeddingChunks -Text $Text -MaxCharsPerChunk $MaxCharsPerChunk
+        for ($k = 0; $k -lt $Pieces.Count; $k++) {
+            $Chunks.Add([ordered]@{ id = "${OrigId}::$k"; text = $Pieces[$k] })
+        }
+        $ChunkGroups[$OrigId] = $Pieces.Count
     }
-    $InputJson = @($Items) | ConvertTo-Json -Depth 5 -Compress
+
+    if ($Chunks.Count -eq 0) {
+        # All inputs were empty
+        $Result = @{}
+        foreach ($OrigId in $Ids) { $Result[$OrigId] = [double[]]@() }
+        return $Result
+    }
+
+    $InputJson = @($Chunks) | ConvertTo-Json -Depth 5 -Compress
+    # ConvertTo-Json collapses a single-element array to a bare object — force a list.
+    if ($Chunks.Count -eq 1) { $InputJson = "[$InputJson]" }
 
     try {
         # PS 5.1: native stderr becomes terminating error under $ErrorActionPreference='Stop'
@@ -77,12 +113,7 @@ function Get-TextEmbedding {
         }
 
         $Parsed = $Output | ConvertFrom-Json -AsHashtable
-        # Convert arrays to [double[]] for cosine computation
-        $Result = @{}
-        foreach ($Key in $Parsed.Keys) {
-            $Result[$Key] = [double[]]@($Parsed[$Key])
-        }
-        return $Result
+        return Merge-EmbeddingChunks -Ids $Ids -ChunkGroups $ChunkGroups -ChunkVectors $Parsed
     }
     catch {
         Write-Verbose "Get-TextEmbedding: $($_.Exception.Message)"
