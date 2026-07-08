@@ -94,3 +94,4 @@ Append a row after completing any weekly, monthly, quarterly, or per-release tas
 | 2026-06-25 | ESLint warning review | Taxonomy Editor | No new warning categories found. |
 | 2026-06-25 | SBOM currency check | Taxonomy Editor | Pending — check in next session. |
 | 2026-07-04 | Dependency audit (npm+pip) | DevOps | t/1311: 89→66 alerts. 13 high→0 high. Python lock file re-pinned (pdfminer.six, GitPython, requests). Merged sigstore Dependabot PRs (#87-89). pypdf 5→6 deferred to t/1313. |
+| 2026-07-06 | Azure cost review | DevOps | Anomaly found: budget cap $30/mo, spend $25.68 (~86%) by day 6 of July — vs AGENTS.md's stale "$0-5/month" target. Likely driver: prod minReplicas:1 (intentional per t/683, not drift). Filed t/1354, owner decision pending. |
