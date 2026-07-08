@@ -162,6 +162,7 @@
         'Invoke-AIByUsage'
         # t/1308 — cc→sit migration
         'Invoke-CcToSitMigration'
+        'Test-AIApiKey'
     )
 
     # Aliases exported from this module
