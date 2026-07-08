@@ -11,6 +11,7 @@ import {
 import { loadPromptOverrides, loadAiSettings, getProjectRoot } from './fileIO.js';
 import type { RawPoint, RawMapping, AnalysisResult, AnalysisStatus } from './analysisTypes.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
 import { callByUsage } from '../../../lib/ai-client/usageRegistry.js';
 
@@ -39,7 +40,12 @@ async function callAI(
   apiKey: string,
   signal: AbortSignal,
 ): Promise<string> {
-  if (signal.aborted) throw new Error('Analysis cancelled');
+  if (signal.aborted) throw new ActionableError({
+    goal: 'Complete AI analysis',
+    problem: 'Analysis was cancelled by user',
+    location: 'aiEngine.analyzeSegmentation',
+    nextSteps: ['Retry the analysis when ready'],
+  });
 
   const result = await callByUsage(
     usageId,
@@ -137,7 +143,7 @@ function extractNodeIds(taxonomyJson: string): Set<string> {
         }
       }
     }
-  } catch { /* taxonomy parse failed — skip validation */ }
+  } catch { /* taxonomy parse failed — skip validation */ /* telemetry — silent by design */ }
   return ids;
 }
 
@@ -180,7 +186,12 @@ export async function runAnalysis(
     const stage1Prompt = buildStage1Prompt(stage1Template, sourceText);
     const stage1Raw = await callAI('po.analysis-segmentation', stage1Prompt, model, apiKey, signal);
 
-    if (signal.aborted) throw new Error('Analysis cancelled');
+    if (signal.aborted) throw new ActionableError({
+      goal: 'Complete AI analysis',
+      problem: 'Analysis was cancelled by user',
+      location: 'aiEngine.analyzeMapping',
+      nextSteps: ['Retry the analysis when ready'],
+    });
 
     const points = parseJsonArray<RawPoint>(stage1Raw);
 
@@ -210,7 +221,12 @@ export async function runAnalysis(
     );
     const stage2Raw = await callAI('po.analysis-mapping', stage2Prompt, model, apiKey, signal);
 
-    if (signal.aborted) throw new Error('Analysis cancelled');
+    if (signal.aborted) throw new ActionableError({
+      goal: 'Complete AI analysis',
+      problem: 'Analysis was cancelled by user',
+      location: 'aiEngine.analyzeMapping',
+      nextSteps: ['Retry the analysis when ready'],
+    });
 
     let mappings = parseJsonArray<RawMapping>(stage2Raw);
 
@@ -240,6 +256,13 @@ export async function runAnalysis(
 
     return result;
   } catch (err: unknown) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'ai-engine',
+      level: 'error',
+      message: 'runAnalysis failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     const message = err instanceof Error ? err.message : 'Unknown error';
     emitProgress(sourceId, 'error', 0, { error: message });
     throw err;
