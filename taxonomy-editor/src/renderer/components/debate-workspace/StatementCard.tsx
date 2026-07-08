@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useCallback, useMemo, type ReactNode } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef, useLayoutEffect, type ReactNode } from 'react';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useFlag } from '../../hooks/useFeatureFlags';
@@ -395,8 +395,54 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
   const isSubstantive = SUBSTANTIVE_TYPES.has(entry.type);
   const activeTier = isSubstantive ? (entry.display_tier ?? defaultTier) : 'detailed';
   const showTierPills = isSubstantive;
-  const hasHighlights = useHasCommentHighlights(entry.id, activeTier as DetailTier);
-  const { displayContent, isTruncated } = resolveDisplayContent(entry, activeTier, isSubstantive);
+
+  // Flip animation: displayedTier lags activeTier — content swaps at the midpoint of the rotateY flip
+  const [displayedTier, setDisplayedTier] = useState(activeTier);
+  const [flipKey, setFlipKey] = useState(0);
+  const [flipping, setFlipping] = useState(false);
+  const prevTierRef = useRef(activeTier);
+  const midpointTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (prevTierRef.current === activeTier) return;
+    prevTierRef.current = activeTier;
+
+    clearTimeout(midpointTimerRef.current);
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setDisplayedTier(activeTier);
+      return;
+    }
+
+    if (bodyRef.current) {
+      bodyRef.current.style.height = `${bodyRef.current.offsetHeight}px`;
+    }
+
+    setFlipping(true);
+    setFlipKey(k => k + 1);
+
+    midpointTimerRef.current = setTimeout(() => {
+      setDisplayedTier(activeTier);
+    }, 175);
+
+    return () => clearTimeout(midpointTimerRef.current);
+  }, [activeTier]);
+
+  useLayoutEffect(() => {
+    if (!flipping || !bodyRef.current || !innerRef.current) return;
+    const naturalHeight = innerRef.current.scrollHeight;
+    bodyRef.current.style.height = `${naturalHeight}px`;
+  }, [displayedTier, flipping]);
+
+  const handleFlipEnd = useCallback(() => {
+    setFlipping(false);
+    if (bodyRef.current) bodyRef.current.style.height = '';
+  }, []);
+
+  const hasHighlights = useHasCommentHighlights(entry.id, displayedTier as DetailTier);
+  const { displayContent, isTruncated } = resolveDisplayContent(entry, displayedTier, isSubstantive);
 
   return (
     <div
@@ -554,23 +600,25 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
           )}
         </>
       )}
-      {activeTier === 'terms' && vocabResolutions && vocabResolutions.length > 0 ? (
+      <div className="debate-statement-body" ref={bodyRef}>
+        <div key={flipKey} ref={innerRef} className={`debate-flip-inner${flipping ? ' flipping' : ''}`} onAnimationEnd={handleFlipEnd}>
+      {displayedTier === 'terms' && vocabResolutions && vocabResolutions.length > 0 ? (
         <div className="debate-statement-content">
           <VocabTermsView resolutions={vocabResolutions} ambiguities={meta?.vocabulary_ambiguities as { colloquial: string; offset?: number }[] | undefined} />
         </div>
-      ) : activeTier === 'lineage' ? (
+      ) : displayedTier === 'lineage' ? (
         <div className="debate-statement-content">
           <LineageTermsView content={entry.content} />
         </div>
-      ) : activeTier === 'claims' ? (
+      ) : displayedTier === 'claims' ? (
         <div className="debate-statement-content">
           <ClaimsView entryId={entry.id} debate={activeDebate!} />
         </div>
-      ) : activeTier === 'convergence' ? (
+      ) : displayedTier === 'convergence' ? (
         <div className="debate-statement-content">
           <ConvergenceInlineCard signal={activeDebate?.convergence_signals?.find(s => s.entry_id === entry.id)} />
         </div>
-      ) : activeTier === 'reasoning' ? (
+      ) : displayedTier === 'reasoning' ? (
         <TaxonomyRefsSection
           refs={entry.taxonomy_refs}
           policyRefs={entry.policy_refs}
@@ -597,9 +645,11 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
               )}
             </div>
           )}
-          <CommentHighlightedText text={displayContent} entryId={entry.id} activeTier={activeTier as DetailTier} />
+          <CommentHighlightedText text={displayContent} entryId={entry.id} activeTier={displayedTier as DetailTier} />
         </>
       )}
+        </div>
+      </div>
       {activeTier !== 'reasoning' && (
         <>
           <EntryCommentBadge entryId={entry.id} />
