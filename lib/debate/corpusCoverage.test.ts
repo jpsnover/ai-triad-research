@@ -52,20 +52,21 @@ function makeDebate(id: string, transcriptRefs: string[][], anRefs: string[][] =
   });
 }
 
-function makeCruxRegistry(entries: { related_taxonomy_nodes: string[] }[]) {
+function makeAggregatedCruxes(entries: { linked_node_ids: string[] }[]) {
   return JSON.stringify({
-    version: 1,
-    entries: entries.map((e, i) => ({
-      id: `crux-${i}`,
-      description: `Crux ${i}`,
-      embedding: [],
-      disagreement_type: 'empirical',
-      first_seen_debate: 'debate-1',
-      first_seen_date: '2026-01-01',
-      occurrences: [],
-      ...e,
+    generated_at: '2026-05-08T09:19:24Z',
+    total_cruxes: entries.length,
+    source_debates: 1,
+    dedup_threshold: 0.8,
+    cruxes: entries.map((e, i) => ({
+      id: `crux-${String(i + 1).padStart(3, '0')}`,
+      statement: `Test crux ${i}`,
+      type: 'empirical',
+      sources: [],
+      linked_node_ids: e.linked_node_ids,
+      frequency: 1,
+      resolution_summary: { resolved: 0, active: 1, irreducible: 0 },
     })),
-    last_updated: '2026-01-01',
   });
 }
 
@@ -109,14 +110,16 @@ describe('computeCorpusCoverage', () => {
     setupMocks({
       existsSync: (p) => {
         if (p.includes('debates')) return !p.includes('cli-runs');
-        if (p.includes('crux-registry')) return true;
+        if (p.includes('aggregated-cruxes')) return true;
         return false;
       },
       readdirSync: ['debate-d1.json', 'debate-d2.json'],
       readFileSync: (p) => {
         if (p.includes('debate-d1')) return debate1;
         if (p.includes('debate-d2')) return debate2;
-        if (p.includes('crux-registry')) return makeCruxRegistry([]);
+        if (p.includes('aggregated-cruxes')) return makeAggregatedCruxes([
+          { linked_node_ids: ['other-node-999'] },
+        ]);
         return '';
       },
     });
@@ -124,7 +127,7 @@ describe('computeCorpusCoverage', () => {
     const result = computeCorpusCoverage(debatesDir, dataRoot, 2);
 
     expect(result.debates_scanned).toBe(2);
-    expect(result.unique_nodes).toBe(2);
+    expect(result.unique_nodes).toBe(3);
     expect(result.coverageMap.node_stats['acc-beliefs-001'].debate_count).toBe(2);
     expect(result.coverageMap.node_stats['acc-beliefs-001'].retread_flag).toBe(true);
     expect(result.coverageMap.node_stats['saf-desires-002'].debate_count).toBe(1);
@@ -138,15 +141,15 @@ describe('computeCorpusCoverage', () => {
     setupMocks({
       existsSync: (p) => {
         if (p.includes('debates')) return !p.includes('cli-runs');
-        if (p.includes('crux-registry')) return true;
+        if (p.includes('aggregated-cruxes')) return true;
         return false;
       },
       readdirSync: ['debate-d1.json', 'debate-d2.json'],
       readFileSync: (p) => {
         if (p.includes('debate-')) return makeDebate('d', [['acc-beliefs-001']]);
-        if (p.includes('crux-registry')) return makeCruxRegistry([
-          { related_taxonomy_nodes: ['acc-beliefs-001'] },
-          { related_taxonomy_nodes: ['acc-beliefs-001'] },
+        if (p.includes('aggregated-cruxes')) return makeAggregatedCruxes([
+          { linked_node_ids: ['acc-beliefs-001'] },
+          { linked_node_ids: ['acc-beliefs-001'] },
         ]);
         return '';
       },
@@ -168,13 +171,15 @@ describe('computeCorpusCoverage', () => {
     setupMocks({
       existsSync: (p) => {
         if (p.includes('debates')) return !p.includes('cli-runs');
-        if (p.includes('crux-registry')) return true;
+        if (p.includes('aggregated-cruxes')) return true;
         return false;
       },
       readdirSync: ['debate-d1.json'],
       readFileSync: (p) => {
         if (p.includes('debate-')) return debate;
-        if (p.includes('crux-registry')) return makeCruxRegistry([]);
+        if (p.includes('aggregated-cruxes')) return makeAggregatedCruxes([
+          { linked_node_ids: ['skp-intentions-003'] },
+        ]);
         return '';
       },
     });
@@ -184,16 +189,15 @@ describe('computeCorpusCoverage', () => {
     expect(result.coverageMap.node_stats['skp-intentions-003'].debate_count).toBe(1);
   });
 
-  it('returns empty stats when debates dir does not exist', () => {
+  it('throws ActionableError when crux linkage is empty', () => {
     setupMocks({
       existsSync: () => false,
       readFileSync: () => '',
     });
 
-    const result = computeCorpusCoverage('/nonexistent', '/data');
-
-    expect(result.debates_scanned).toBe(0);
-    expect(result.unique_nodes).toBe(0);
+    expect(() => computeCorpusCoverage('/nonexistent', '/data')).toThrow(
+      /Crux linkage resolved to zero linked nodes/,
+    );
   });
 });
 

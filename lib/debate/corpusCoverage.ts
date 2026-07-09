@@ -3,8 +3,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { loadRegistry } from './cruxRegistry.js';
-import type { CruxRegistry, CruxRegistryEntry } from './types.js';
+import { ActionableError } from './errors.js';
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -65,8 +64,19 @@ export function computeCorpusCoverage(
     }
   }
 
-  const registry = loadRegistry(dataRoot);
-  const nodeCruxLinks = countCruxLinks(registry);
+  const nodeCruxLinks = loadCruxLinksFromAggregated(dataRoot);
+  if (nodeCruxLinks.size === 0) {
+    throw new ActionableError({
+      goal: 'Compute corpus coverage map with crux linkage data',
+      problem: 'Crux linkage resolved to zero linked nodes — retread classification requires crux data to distinguish retreads from fault-lines',
+      location: 'computeCorpusCoverage',
+      nextSteps: [
+        `Verify aggregated-cruxes.json exists at ${path.join(dataRoot, 'taxonomy', 'Origin', 'aggregated-cruxes.json')}`,
+        'Check that cruxes[].linked_node_ids arrays are populated (498 of 586 expected)',
+        'If file is missing, regenerate via the CL aggregation pipeline',
+      ],
+    });
+  }
 
   const nodeStats: Record<string, NodeCoverageStats> = {};
   const allNodeIds = new Set([...nodeDebates.keys(), ...nodeCruxLinks.keys()]);
@@ -165,12 +175,30 @@ function collectNodeRefs(
   }
 }
 
-function countCruxLinks(registry: CruxRegistry): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const entry of registry.entries) {
-    for (const nodeId of entry.related_taxonomy_nodes ?? []) {
-      counts.set(nodeId, (counts.get(nodeId) ?? 0) + 1);
-    }
+const AGGREGATED_CRUXES_PATH = path.join('taxonomy', 'Origin', 'aggregated-cruxes.json');
+
+interface AggregatedCruxEntry {
+  linked_node_ids?: string[];
+}
+
+function loadCruxLinksFromAggregated(dataRoot: string): Map<string, number> {
+  const filePath = path.join(dataRoot, AGGREGATED_CRUXES_PATH);
+  if (!fs.existsSync(filePath)) {
+    return new Map();
   }
-  return counts;
+  try {
+    const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    const cruxes: AggregatedCruxEntry[] = raw?.cruxes;
+    if (!Array.isArray(cruxes)) return new Map();
+
+    const counts = new Map<string, number>();
+    for (const entry of cruxes) {
+      for (const nodeId of entry.linked_node_ids ?? []) {
+        counts.set(nodeId, (counts.get(nodeId) ?? 0) + 1);
+      }
+    }
+    return counts;
+  } catch {
+    return new Map();
+  }
 }
