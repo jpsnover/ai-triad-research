@@ -17,7 +17,6 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
 const require = createRequire(import.meta.url);
 import { getApiKey, getApiKeys, getProjectRoot, EMBED_SCRIPT, resolveDataPath, type AIBackend } from '../config.js';
-import * as keyRotator from '../security/keyRotator.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../../lib/search/tavily.js';
 import { resolveEmbeddings, type EmbeddingFallback } from '../../../../lib/embeddings/embeddingResolver.js';
@@ -309,59 +308,6 @@ export function retryAfterMs(err: unknown): number {
   return 30_000;
 }
 
-/**
- * Multi-key round-robin (t/835): try each key once via the rotator, skipping
- * keys in 429 cooldown. On a 429 the key is marked rate-limited and the next key
- * is tried immediately (no backoff). On any other error the key is recorded and
- * the next key is tried. If every key is exhausted, throws the last error so the
- * caller falls back to the next model. Backoff is intentionally skipped here —
- * breadth across keys substitutes for per-key retry; the single-key path retains
- * full withRetry backoff.
- */
-async function callWithKeyRotation(
-  backend: ReturnType<typeof resolveBackend>,
-  keys: string[],
-  prompt: string,
-  apiModel: string,
-  opts: GenerateOptions,
-): Promise<ProviderResult> {
-  const tried = new Set<number>();
-  let lastErr: unknown;
-  while (tried.size < keys.length) {
-    const sel = keyRotator.getNextKey(backend, keys);
-    if (!sel || tried.has(sel.index)) break; // all remaining are rate-limited/tried
-    tried.add(sel.index);
-    // t/846/AC#4: log which key index each attempt uses (visible even on success).
-    getGlobalRecorder()?.record({
-      type: 'ai.request', component: 'ai-adapter', level: 'info',
-      message: `Using key ${sel.index}/${keys.length} for ${backend}`,
-      data: { backend, keyIndex: sel.index, totalKeys: keys.length },
-    });
-    try {
-      const result = await callProvider(fetch, backend, prompt, apiModel, sel.key, opts);
-      // t/924: record which key succeeded — key-pool / rotation visibility.
-      getGlobalRecorder()?.record({
-        type: 'ai.response', component: 'ai-adapter', level: 'info',
-        message: `Key ${sel.index}/${keys.length} succeeded for ${backend}`,
-        data: { backend, keyIndex: sel.index, keysTotal: keys.length, rotationActive: keys.length > 1 },
-      });
-      return result;
-    } catch (err) {
-      lastErr = err;
-      const rateLimited = is429Error(err);
-      if (rateLimited) keyRotator.markRateLimited(backend, sel.index, retryAfterMs(err));
-      getGlobalRecorder()?.record({
-        type: 'ai.fallback', component: 'ai-adapter', level: 'warn',
-        message: rateLimited
-          ? `Key ${sel.index}/${keys.length} for ${backend} rate-limited — rotating to next key`
-          : `Key ${sel.index}/${keys.length} for ${backend} failed — trying next key`,
-        data: { backend, keyIndex: sel.index, totalKeys: keys.length, rateLimited, error: String(err) },
-      });
-    }
-  }
-  throw lastErr ?? new Error(`All ${keys.length} keys for ${backend} exhausted`);
-}
-
 export async function generateText(
   prompt: string,
   model?: string,
@@ -371,8 +317,6 @@ export async function generateText(
   options?: { temperature?: number },
 ): Promise<GenerateResult> {
   const resolved = model || DEFAULT_MODEL;
-  // t/846: an explicit key may now be a single string or an array (free-tier
-  // server keys, comma-separated). An array with >1 key hits callWithKeyRotation.
   const explicitKeys = explicitApiKey === undefined
     ? undefined
     : (Array.isArray(explicitApiKey) ? explicitApiKey.filter(Boolean) : [explicitApiKey]);
@@ -408,9 +352,6 @@ export async function generateText(
       timeoutMs: timeoutMs ?? getDefaultTimeout(currentModel),
     };
 
-    // Single key (including the free-tier explicitApiKey) keeps the full
-    // retry/backoff path. Multiple BYOK keys (t/835) round-robin with immediate
-    // rotation on 429 — see callWithKeyRotation.
     const runWithRetry = (apiKey: string) => withRetry(
       () => callProvider(fetch, backend, prompt, apiModel, apiKey, opts),
       SERVER_RETRY_CONFIG,
@@ -419,9 +360,7 @@ export async function generateText(
     );
 
     try {
-      const result = keys.length > 1
-        ? await callWithKeyRotation(backend, keys, prompt, apiModel, opts)
-        : await runWithRetry(keys[0]);
+      const result = await runWithRetry(keys[0]);
 
       if (mi > 0) {
         getGlobalRecorder()?.record({
