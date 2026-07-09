@@ -61,6 +61,8 @@ export type EventType =
   | 'state.load'
   | 'state.error'
   | 'state.init'
+  // Chat
+  | 'chat.user-message'
   // User interaction
   | 'user.action'
   | 'ui.navigate'
