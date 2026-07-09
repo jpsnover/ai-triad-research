@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { POVER_INFO } from '../../types/debate';
@@ -14,6 +14,7 @@ import { speakerLabel, fixMarkdownLinks } from './utils';
 import { TopicCritiqueCard, DIMENSION_LABELS, RATING_COLORS } from './TopicCritique';
 import { MODELS_BY_BACKEND } from '../../hooks/useTaxonomyStore';
 import { EXPLORATION_PRESET } from '@lib/debate/explorationPresetConfig';
+import './ClarificationPanel.css';
 
 export function ClarificationCard({ entry }: { entry: TranscriptEntry }) {
   const meta = entry.metadata as Record<string, unknown> | undefined;
@@ -319,6 +320,26 @@ export function ClarificationActions() {
   };
 
   const [showExploreModel, setShowExploreModel] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
+  const optionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showOptions) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (optionsRef.current && !optionsRef.current.contains(e.target as Node)) {
+        setShowOptions(false);
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowOptions(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showOptions]);
 
   const moveUp = (index: number) => {
     if (index <= 0) return;
@@ -363,97 +384,102 @@ export function ClarificationActions() {
 
       {!hasClarifications && !isGenerating && (
         <div className="debate-clarification-choice">
-          {activeDebate.topic.critique && (activeDebate.topic.critique as TopicCritique).composite_score < 14 ? (
+          {activeDebate.topic.critique && (activeDebate.topic.critique as TopicCritique).composite_score < 14 && (
             <div className="debate-action-hint debate-refine-nudge">
               Topic scored <strong>{(activeDebate.topic.critique as TopicCritique).composite_score}/20</strong> — refining can sharpen the debate.
             </div>
-          ) : (
-            <div className="debate-action-hint">
-              Configure the debate, then refine the topic or begin.
-            </div>
           )}
-          {openingOrder.length > 0 && (
-            <div className="debate-opening-order">
-              <span className="debate-opening-order-label">Speaking order:</span>
-              <ol className="debate-opening-order-list">
-                {openingOrder.map((poverId, idx) => {
-                  const info = POVER_INFO[poverId];
-                  return (
-                    <li key={poverId} className="debate-opening-order-item">
-                      <span className="debate-opening-order-name" style={{ color: info.color }}>{info.label}</span>
-                      <span className="debate-opening-order-btns">
-                        <button
-                          className="debate-opening-order-btn"
-                          onClick={() => moveUp(idx)}
-                          disabled={idx === 0}
-                          title="Move left"
-                        >&#9664;</button>
-                        <button
-                          className="debate-opening-order-btn"
-                          onClick={() => moveDown(idx)}
-                          disabled={idx === openingOrder.length - 1}
-                          title="Move right"
-                        >&#9654;</button>
-                      </span>
-                    </li>
-                  );
-                })}
-              </ol>
-            </div>
-          )}
-          <div className="debate-initial-rounds">
-            {activeDebate.adaptive_staging?.enabled ? (
-              <span className="debate-initial-rounds-label" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <span style={{ background: '#f59e0b', color: '#000', padding: '2px 8px', borderRadius: 4, fontWeight: 600, fontSize: '0.75rem' }}>
-                  Adaptive
-                </span>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                  {activeDebate.adaptive_staging.step_mode
-                    ? 'Step-by-step — 1 round at a time, manual stage control'
-                    : `Signal-driven phase transitions (${activeDebate.adaptive_staging.pacing} pacing)`}
-                </span>
-                <button
-                  className={`btn btn-sm debate-step-toggle${activeDebate.adaptive_staging.step_mode ? ' active' : ''}`}
-                  onClick={() => void toggleStepMode()}
-                  style={{ fontSize: '0.7rem', padding: '1px 8px' }}
-                  title={activeDebate.adaptive_staging.step_mode ? 'Switch to auto mode' : 'Switch to step-by-step mode'}
-                >
-                  {activeDebate.adaptive_staging.step_mode ? 'Step Mode' : 'Auto Mode'}
-                </button>
-              </span>
-            ) : (
-              <label className="debate-initial-rounds-label">
-                Cross-respond rounds after openings:
-                <select
-                  className="debate-turns-select"
-                  value={initialCrossRespondRounds}
-                  onChange={(e) => setInitialCrossRespondRounds(parseInt(e.target.value, 10))}
-                  title="Number of cross-respond rounds to run automatically after opening statements"
-                >
-                  {[1, 2, 3, 6, 9, 12, 15, 18, 21].map(n => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-              </label>
-            )}
-          </div>
-          <div className="debate-clarification-buttons">
-            <button
-              className="btn btn-refine"
-              onClick={() => void runClarification()}
-            >
-              Refine Topic
-            </button>
-            <button
-              className="btn"
-              onClick={handleBeginDebate}
-              disabled={isGenerating || submitting}
-            >
-              Begin Debate
-            </button>
-            <div className="debate-explore-first-group">
+          <div className="debate-setup-footer">
+            <div className="debate-options-anchor" ref={optionsRef}>
               <button
-                className="btn btn-explore"
+                className="debate-options-trigger"
+                onClick={() => setShowOptions(v => !v)}
+                aria-expanded={showOptions}
+                aria-haspopup="true"
+              >
+                <span className="options-icon">{'⚙'}</span>
+                <span>Debate options</span>
+                <span className="options-summary">
+                  {activeDebate.adaptive_staging?.enabled
+                    ? `Adaptive${activeDebate.adaptive_staging.step_mode ? ' · Step' : ` · ${activeDebate.adaptive_staging.pacing}`}`
+                    : `${initialCrossRespondRounds} rounds`}
+                  {explorationModel ? ` · ${cheapModels.find(m => m.value === explorationModel)?.label?.split(' (')[0] || ''}` : ''}
+                </span>
+              </button>
+              {showOptions && (
+                <div className="debate-options-popover" role="dialog" aria-label="Debate options">
+                  <div className="debate-options-section">
+                    <span className="debate-options-section-label">Pacing</span>
+                    {activeDebate.adaptive_staging?.enabled ? (
+                      <>
+                        <span className="pacing-description">
+                          {activeDebate.adaptive_staging.step_mode
+                            ? 'Step-by-step — 1 round at a time, manual stage control'
+                            : `Signal-driven phase transitions (${activeDebate.adaptive_staging.pacing} pacing)`}
+                        </span>
+                        <div className="step-toggle-row">
+                          <button
+                            className={`btn btn-sm${activeDebate.adaptive_staging.step_mode ? ' active' : ''}`}
+                            onClick={() => void toggleStepMode()}
+                            style={{ fontSize: '0.75rem', padding: '2px 10px' }}
+                          >
+                            {activeDebate.adaptive_staging.step_mode ? 'Step Mode' : 'Auto Mode'}
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8rem' }}>
+                        Cross-respond rounds:
+                        <select
+                          value={initialCrossRespondRounds}
+                          onChange={(e) => setInitialCrossRespondRounds(parseInt(e.target.value, 10))}
+                          title="Number of cross-respond rounds after openings"
+                        >
+                          {[1, 2, 3, 6, 9, 12, 15, 18, 21].map(n => (
+                            <option key={n} value={n}>{n}</option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
+                  </div>
+                  {openingOrder.length > 0 && (
+                    <div className="debate-options-section">
+                      <span className="debate-options-section-label">Speaking order</span>
+                      <div className="debate-opening-order">
+                        <ol className="debate-opening-order-list">
+                          {openingOrder.map((poverId, idx) => {
+                            const info = POVER_INFO[poverId];
+                            return (
+                              <li key={poverId} className="debate-opening-order-item">
+                                <span className="debate-opening-order-name" style={{ color: info.color }}>{info.label}</span>
+                                <span className="debate-opening-order-btns">
+                                  <button className="debate-opening-order-btn" onClick={() => moveUp(idx)} disabled={idx === 0} title="Move left">&#9664;</button>
+                                  <button className="debate-opening-order-btn" onClick={() => moveDown(idx)} disabled={idx === openingOrder.length - 1} title="Move right">&#9654;</button>
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      </div>
+                    </div>
+                  )}
+                  <div className="debate-options-section">
+                    <span className="debate-options-section-label">Exploration model</span>
+                    <select
+                      value={explorationModel || cheapModels[0]?.value || ''}
+                      onChange={e => setExplorationModel(e.target.value)}
+                    >
+                      {cheapModels.map(m => (
+                        <option key={m.value} value={m.value}>{m.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="debate-setup-actions">
+              <button
+                className="btn btn-ghost"
                 onClick={() => void handleExploreFirst()}
                 disabled={isGenerating || submitting}
                 title="Run a quick exploration debate with a cheap model, then review findings before starting a full debate"
@@ -461,26 +487,18 @@ export function ClarificationActions() {
                 Explore First
               </button>
               <button
-                className="btn btn-sm debate-explore-model-toggle"
-                onClick={() => setShowExploreModel(v => !v)}
-                title="Choose exploration model"
+                className={`btn${hasRefinedTopic ? ' btn-primary' : ' btn-ghost'}`}
+                onClick={handleBeginDebate}
+                disabled={isGenerating || submitting}
               >
-                &#9660;
+                Begin Debate
               </button>
-              {showExploreModel && (
-                <div className="debate-explore-model-dropdown">
-                  <label style={{ fontSize: '0.75rem', fontWeight: 500 }}>Exploration model:</label>
-                  <select
-                    className="debate-explore-model-select"
-                    value={explorationModel || cheapModels[0]?.value || ''}
-                    onChange={e => setExplorationModel(e.target.value)}
-                  >
-                    {cheapModels.map(m => (
-                      <option key={m.value} value={m.value}>{m.label}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <button
+                className={`btn${hasRefinedTopic ? ' btn-ghost' : ' btn-refine'}`}
+                onClick={() => void runClarification()}
+              >
+                Refine Topic
+              </button>
             </div>
           </div>
         </div>
