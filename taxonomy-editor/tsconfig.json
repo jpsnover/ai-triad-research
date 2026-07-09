@@ -35,5 +35,5 @@
     }
   },
   "include": ["src/**/*", "../lib/**/*"],
-  "exclude": ["node_modules", "dist", "../lib/node_modules"]
+  "exclude": ["node_modules", "dist", "../lib/node_modules", "**/*.test.ts", "**/*.test.tsx", "**/__tests__/**", "../lib/**/*.test.ts", "../lib/**/__tests__/**"]
 }
