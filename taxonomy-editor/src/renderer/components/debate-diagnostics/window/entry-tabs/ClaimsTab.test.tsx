@@ -208,6 +208,34 @@ describe('ClaimsTab', () => {
     expect(screen.getByText(/0 claims, 1.5s/)).toBeInTheDocument();
   });
 
+  it('renders entailment repair block without crashing (verdictColor regression)', () => {
+    render(
+      <ClaimsTab
+        {...makeProps({
+          diag: {
+            extracted_claims: {
+              accepted: [
+                { id: 'acc-B-001', text: 'Regulation hinders progress', overlap_pct: 60 },
+              ],
+              rejected: [],
+            },
+            entailment_repairs: [
+              {
+                node_id: 'acc-B-001',
+                verdict: 'partial',
+                original_text: 'Regulation hinders progress greatly',
+                repaired_text: 'Regulation may hinder some progress',
+                explanation: 'Softened absolute claim',
+              },
+            ],
+          } as any,
+        })}
+      />,
+    );
+    expect(screen.getByText(/Entailment Repair \(partial\)/)).toBeInTheDocument();
+    expect(screen.getByText('Regulation may hinder some progress')).toBeInTheDocument();
+  });
+
   it('does not show anti-filibuster banner when low_marginal_value is 0', () => {
     render(
       <ClaimsTab

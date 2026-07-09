@@ -113,6 +113,7 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
             const repair = diag.entailment_repairs?.find(r => r.node_id === c.id);
             const hasEntailmentData = (diag.entailment_repairs?.length ?? 0) > 0;
             const entailmentVerdict: Verdict | null = repair ? (repair.verdict === 'entailed' ? 'pass' : repair.verdict === 'partial' ? 'flag' : 'fail') : null;
+            const verdictColor = repair ? (repair.verdict === 'entailed' ? '#22c55e' : repair.verdict === 'partial' ? '#f59e0b' : '#ef4444') : null;
             return (
               <details key={i} open style={{ margin: '4px 0' }}>
                 <summary style={{ cursor: 'pointer' }}>
