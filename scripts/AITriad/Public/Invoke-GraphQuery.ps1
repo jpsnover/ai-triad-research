@@ -296,6 +296,21 @@ $SchemaPrompt
         }
     }
 
+    # t/1449: per-hop edge validation. Node-ID validation catches obvious
+    # hallucinations, but a model can still assert a plausible-looking path
+    # through REAL node IDs that has no actual edges connecting them.
+    # Build a direction-agnostic edge index once, then walk each traced path.
+    $EdgeIndex = @{}
+    foreach ($E in $GraphEdges) {
+        if (-not ($E.PSObject.Properties['source'] -and $E.PSObject.Properties['target'])) { continue }
+        $Src = [string]$E.source
+        $Tgt = [string]$E.target
+        if (-not $Src -or -not $Tgt) { continue }
+        $EdgeIndex["$Src|$Tgt"] = $true
+        $EdgeIndex["$Tgt|$Src"] = $true   # any-direction hop
+    }
+    $UnverifiedHopCount = 0
+
     if ($Response.PSObject.Properties['paths_traced'] -and $Response.paths_traced) {
         foreach ($Path in @($Response.paths_traced)) {
             if ($Path.PSObject.Properties['nodes'] -and $Path.nodes) {
@@ -304,6 +319,25 @@ $SchemaPrompt
                     $Path | Add-Member -NotePropertyName 'unverified_nodes' -NotePropertyValue $InvalidInPath -Force
                     $UnverifiedCount += $InvalidInPath.Count
                 }
+
+                # t/1449: walk consecutive node pairs, verify each hop against the loaded edge set.
+                $PathNodes = @($Path.nodes)
+                $Hops = @()
+                $PathUnverifiedHops = 0
+                for ($i = 0; $i -lt $PathNodes.Count - 1; $i++) {
+                    $Src = [string]$PathNodes[$i]
+                    $Tgt = [string]$PathNodes[$i + 1]
+                    $HopVerified = $EdgeIndex.ContainsKey("$Src|$Tgt")
+                    if (-not $HopVerified) { $PathUnverifiedHops++; $UnverifiedHopCount++ }
+                    $Hops += [PSCustomObject]@{
+                        source   = $Src
+                        target   = $Tgt
+                        verified = $HopVerified
+                    }
+                }
+                $Path | Add-Member -NotePropertyName 'hops' -NotePropertyValue $Hops -Force
+                $Path | Add-Member -NotePropertyName 'unverified_hop_count' -NotePropertyValue $PathUnverifiedHops -Force
+                $Path | Add-Member -NotePropertyName 'fully_verified' -NotePropertyValue ($PathUnverifiedHops -eq 0 -and $InvalidInPath.Count -eq 0) -Force
             }
         }
     }
@@ -322,6 +356,11 @@ $SchemaPrompt
 
     if ($UnverifiedCount -gt 0) {
         Write-Warning "Graph query: $UnverifiedCount cited node ID(s) could not be verified against the taxonomy"
+    }
+    # t/1449: surface unverified-hop count next to node UnverifiedCount so the
+    # caller can see edge hallucinations distinctly from node hallucinations.
+    if ($UnverifiedHopCount -gt 0) {
+        Write-Warning "Graph query: $UnverifiedHopCount traced hop(s) reference edges that do not exist in the taxonomy"
     }
 
     # ── Step 9: Output ──
