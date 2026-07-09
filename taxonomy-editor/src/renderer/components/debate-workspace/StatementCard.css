@@ -50,6 +50,7 @@
   font-family: var(--font-prose);
   font-size: var(--text-prose);
   line-height: var(--leading-prose);
+  max-width: none;
 }
 
 /* Model badge — hoisted from inline */
