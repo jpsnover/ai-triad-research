@@ -53,7 +53,7 @@ function Test-AIApiKey {
     [OutputType([PSCustomObject])]
     param(
         [Parameter(Mandatory, ParameterSetName = 'One', Position = 0)]
-        [ValidateSet('gemini', 'claude', 'groq', 'openai', 'azure')]
+        [ValidateSet('gemini', 'claude', 'groq', 'openai', 'azure', 'ollama')]
         [string]$Backend,
 
         [Parameter(ParameterSetName = 'One')]
@@ -91,17 +91,24 @@ function Test-AIApiKey {
             TestedAt     = [datetime]::UtcNow
         }
 
-        $Key = Resolve-AIApiKey -ExplicitKey $ExplicitKey -Backend $B
-        # Resolve-AIApiKey records source in its own script scope; grab it via GetVariable
-        # (avoids leaking a module-private into the caller). Falls back gracefully.
-        $LastSource = try {
-            & (Get-Module AIEnrich) { $script:LastApiKeySource }
-        } catch { $null }
-        if ($LastSource) { $Result['KeySource'] = $LastSource }
+        # t/1409: Ollama is keyless / local — skip key resolution entirely.
+        # The gate below only applies to the cloud backends.
+        $Key = $null
+        if ($B -ne 'ollama') {
+            $Key = Resolve-AIApiKey -ExplicitKey $ExplicitKey -Backend $B
+            # Resolve-AIApiKey records source in its own script scope; grab it via GetVariable
+            # (avoids leaking a module-private into the caller). Falls back gracefully.
+            $LastSource = try {
+                & (Get-Module AIEnrich) { $script:LastApiKeySource }
+            } catch { $null }
+            if ($LastSource) { $Result['KeySource'] = $LastSource }
 
-        if (-not $Key) {
-            $Result['ErrorMessage'] = "No API key resolvable for backend '$B'."
-            return [PSCustomObject]$Result
+            if (-not $Key) {
+                $Result['ErrorMessage'] = "No API key resolvable for backend '$B'."
+                return [PSCustomObject]$Result
+            }
+        } else {
+            $Result['KeySource'] = '(keyless — local Ollama)'
         }
 
         # Build probe URL + headers per backend
@@ -135,6 +142,13 @@ function Test-AIApiKey {
                 $Ep = $Ep.TrimEnd('/')
                 $Uri = "$Ep/openai/models?api-version=2023-05-15"
                 $Headers['api-key'] = $Key
+            }
+            # t/1409 — Ollama runs locally; probe /api/tags (list installed models)
+            # which needs no auth. $env:OLLAMA_HOST allows a non-default socket.
+            'ollama' {
+                $OllamaHost = if ($env:OLLAMA_HOST) { $env:OLLAMA_HOST.TrimEnd('/') } else { 'http://localhost:11434' }
+                $Uri = "$OllamaHost/api/tags"
+                # No headers — Ollama is keyless.
             }
         }
 
@@ -190,6 +204,9 @@ function Test-AIApiKey {
         if ($env:AZURE_OPENAI_ENDPOINT -and $env:AZURE_OPENAI_API_KEY) {
             $Backends += 'azure'
         }
+        # t/1409 — Ollama is always included in -All (keyless, no reason to gate).
+        # If it's not reachable the probe result will just show the network error.
+        $Backends += 'ollama'
         foreach ($B in $Backends) {
             _Probe-Backend -B $B -ExplicitKey '' -AzureEndpoint $env:AZURE_OPENAI_ENDPOINT -Timeout $TimeoutSec
         }

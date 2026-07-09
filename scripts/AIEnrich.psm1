@@ -334,17 +334,29 @@ function Invoke-AIApi {
     $ApiModelId = $ModelInfo.ApiModelId
 
     # -- Resolve API key ------------------------------------------------------
-    $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
-    if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
-        $EnvHint = switch ($Backend) {
-            'gemini' { 'GEMINI_API_KEY' }
-            'claude' { 'ANTHROPIC_API_KEY / CLAUDE_API_KEY' }
-            'groq'   { 'GROQ_API_KEY' }
-            'openai' { 'OPENAI_API_KEY' }
-            'azure'  { 'AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT' }
+    # t/1409: Ollama runs models locally and has no auth surface — skip both the
+    # key resolution and the missing-key gate. The key-required backends still
+    # gate as before; the $EnvHint switch stays exhaustive so no future backend
+    # produces the blank-token warning (AC#1).
+    $ResolvedKey = ''
+    if ($Backend -eq 'ollama') {
+        $script:LastApiKeySource = '(keyless — local Ollama)'
+    }
+    else {
+        $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
+        if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
+            $EnvHint = switch ($Backend) {
+                'gemini' { 'GEMINI_API_KEY' }
+                'claude' { 'ANTHROPIC_API_KEY / CLAUDE_API_KEY' }
+                'groq'   { 'GROQ_API_KEY' }
+                'openai' { 'OPENAI_API_KEY' }
+                'azure'  { 'AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT' }
+                'ollama' { '(no env var — local, keyless)' }
+                default  { "(unknown backend '$Backend' — expected gemini/claude/groq/openai/azure/ollama)" }
+            }
+            Write-Warning "No API key found for $Backend backend. Set $EnvHint or AI_API_KEY."
+            return $null
         }
-        Write-Warning "No API key found for $Backend backend. Set $EnvHint or AI_API_KEY."
-        return $null
     }
 
     # -- Log AI configuration --------------------------------------------------
@@ -472,6 +484,42 @@ function Invoke-AIApi {
             }
 
             $Body = $GroqBody | ConvertTo-Json -Depth 10
+        }
+
+        # t/1409 — Ollama exposes an OpenAI-compatible /v1/chat/completions endpoint
+        # on http://localhost:11434 with no auth. Request shape matches Groq exactly.
+        'ollama' {
+            $OllamaHost = if ($env:OLLAMA_HOST) { $env:OLLAMA_HOST.TrimEnd('/') } else { 'http://localhost:11434' }
+            $Uri = "$OllamaHost/v1/chat/completions"
+            # No Authorization header — Ollama is local, keyless.
+            $OllamaMessages = [System.Collections.Generic.List[object]]::new()
+            if ($SystemInstruction) {
+                $OllamaMessages.Add(@{ role = 'system'; content = $SystemInstruction })
+            }
+            $OllamaMessages.Add(@{ role = 'user'; content = $Prompt })
+
+            $OllamaBody = @{
+                model       = $ApiModelId
+                messages    = @($OllamaMessages)
+                temperature = $Temperature
+                max_tokens  = $MaxTokens
+            }
+            if ($JsonMode) {
+                if ($ResponseSchema) {
+                    $OllamaBody['response_format'] = @{
+                        type        = 'json_schema'
+                        json_schema = @{
+                            name   = 'response'
+                            schema = $ResponseSchema
+                            strict = $true
+                        }
+                    }
+                } else {
+                    $OllamaBody['response_format'] = @{ type = 'json_object' }
+                }
+            }
+
+            $Body = $OllamaBody | ConvertTo-Json -Depth 10
         }
 
         'azure' {
@@ -722,6 +770,26 @@ function Invoke-AIApi {
             } catch {
                 $TopKeys = ($Response.PSObject.Properties.Name | Select-Object -First 5) -join ', '
                 Write-Warning "Groq: unexpected response shape (top-level keys: $TopKeys). Expected choices[].message.content"
+                return $null
+            }
+        }
+        # t/1409 — Ollama's /v1/chat/completions mirrors the Groq/OpenAI response shape.
+        'ollama' {
+            try {
+                $Choice = $Response.choices[0]
+                $Text = $Choice.message.content
+                $Truncated = ($Choice.finish_reason -eq 'length')
+                $u = $Response.usage
+                if ($u) {
+                    $Usage = [PSCustomObject]@{
+                        InputTokens  = [int]($u.prompt_tokens)
+                        OutputTokens = [int]($u.completion_tokens)
+                        TotalTokens  = [int]($u.total_tokens)
+                    }
+                }
+            } catch {
+                $TopKeys = ($Response.PSObject.Properties.Name | Select-Object -First 5) -join ', '
+                Write-Warning "Ollama: unexpected response shape (top-level keys: $TopKeys). Expected choices[].message.content"
                 return $null
             }
         }
