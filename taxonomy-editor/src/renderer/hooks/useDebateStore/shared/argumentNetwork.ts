@@ -1112,7 +1112,7 @@ export async function extractClaimsAndUpdateAN(
           get().activeDebate?.audience,
         );
         const { text: vText } = await api.generateText(verdictPrompt, fcModel);
-        let vParsed = parseAIJson<{ verdict?: string; explanation?: string; evidence?: string }>(vText);
+        let vParsed = parseAIJson<{ verdict?: string; explanation?: string; evidence?: string; confidence?: string }>(vText);
         if (!vParsed) {
           vParsed = { verdict: 'unverifiable', evidence: vText.trim() };
         }

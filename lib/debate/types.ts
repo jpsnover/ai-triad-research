@@ -104,6 +104,7 @@ export interface SignalContext {
       argumentation_scheme?: string;
     }>;
     nodeCount: number;
+    edgeCount?: number;
   };
 
   transcript: {
@@ -500,6 +501,8 @@ export interface DebateSession {
   model_tier?: ModelTier;
   /** Debate protocol format. Absent in older debates (defaults to 'structured'). */
   protocol_id?: string;
+  /** Legacy config object from older saved debates. */
+  config?: Record<string, unknown>;
   /** AI temperature for this debate (0.0-1.0). Absent uses system default. */
   debate_temperature?: number;
   /** Adaptive staging configuration. Absent means fixed-round mode. */
@@ -510,6 +513,7 @@ export interface DebateSession {
     step_mode?: boolean;
     /** Persisted phase state for GUI round-by-round execution. Initialized on first crossRespond. */
     phase_state?: PhaseState;
+    phase_bounds_override?: PhaseBoundsOverride;
   };
   /** Diagnostic data captured when diagnostics mode is enabled. */
   diagnostics?: DebateDiagnostics;
@@ -803,6 +807,8 @@ export interface TurnValidation {
   judge_recommend?: 'pass' | 'accept_with_flag' | 'retry';
   /** The configured scoreThreshold used for this validation. */
   score_threshold?: number;
+  /** Composite validation score (0-1), derived from stageA + judge scores. */
+  score?: number;
 }
 
 /** Classification of how actionable a repair hint is. */
@@ -1353,12 +1359,14 @@ export interface TurnPipelineResult {
   topicAlignmentResult?: {
     topic_aligned: boolean;
     repaired: boolean;
+    draft_attempt?: number;
   };
   qualityGateResult?: {
     pre_repair: DraftQualityGateResult;
     post_repair?: DraftQualityGateResult;
     repair_outcome?: 'fixed' | 'partial' | 'unchanged';
   };
+  final_text?: string;
 }
 
 // ── Opening pipeline types ───────────────────────────
@@ -1393,6 +1401,16 @@ export interface OpeningPipelineResult {
   cite: OpeningCiteWorkProduct;
   stage_diagnostics: StageDiagnostics[];
   total_time_ms: number;
+  topicAlignmentResult?: {
+    topic_aligned: boolean;
+    repaired: boolean;
+    draft_attempt?: number;
+  };
+  qualityGateResult?: {
+    pre_repair: DraftQualityGateResult;
+    post_repair?: DraftQualityGateResult;
+    repair_outcome?: 'fixed' | 'partial' | 'unchanged';
+  };
 }
 
 /**
@@ -1718,6 +1736,7 @@ export interface PovInfo {
   boundaries: PovBoundaries;
   value_hierarchy: string[];
   epistemic_stance: string[];
+  doctrinal_boundaries?: string[];
 }
 
 export { POVER_INFO } from './poverInfo.js';

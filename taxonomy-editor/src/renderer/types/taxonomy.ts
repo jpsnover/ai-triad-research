@@ -80,6 +80,7 @@ export interface ConflictQbafNode {
   computed_strength: number;
   bdi_category?: string;
   bdi_sub_scores?: Record<string, number>;
+  attribution_text_genus?: string;
 }
 
 export interface ConflictQbafEdge {

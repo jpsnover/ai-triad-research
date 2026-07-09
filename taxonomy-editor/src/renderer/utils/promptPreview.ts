@@ -72,7 +72,7 @@ export function generatePromptPreview(promptId: string): PromptPreviewResult | n
 
   const topic = session.topic?.refined || session.topic?.original || '(no topic)';
   // Use first non-user pover for preview
-  const firstPover = session.povers?.find(p => p !== 'user') ?? 'accelerationist';
+  const firstPover = session.active_povers?.find(p => p !== 'user') ?? 'accelerationist';
   const poverInfo = POVER_INFO[firstPover as keyof typeof POVER_INFO];
   const pov = poverInfo?.pov ?? 'accelerationist';
   const ctx = getTaxCtx(pov);
@@ -141,7 +141,7 @@ export function generatePromptPreview(promptId: string): PromptPreviewResult | n
         break;
       }
       case 'debate-cross-selection': {
-        const povers = session.povers?.filter(p => p !== 'user') ?? [];
+        const povers = session.active_povers?.filter(p => p !== 'user') ?? [];
         text = crossRespondSelectionPrompt(transcript, povers);
         sections.push(section('Prompt', text));
         break;

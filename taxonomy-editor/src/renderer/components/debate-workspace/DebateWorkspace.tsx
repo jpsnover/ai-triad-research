@@ -663,7 +663,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
   const isOpeningPhase = activeDebate.phase === 'opening';
   const isDebatePhase = activeDebate.phase === 'debate'
     || activeDebate.phase === 'closed'
-    || activeDebate.adaptive_staging?.current_phase != null;
+    || activeDebate.adaptive_staging?.phase_state?.current_phase != null;
   const isCrossCutting = activeDebate.source_type === 'situations';
   const isExploration = activeDebate.protocol_id === 'exploration';
   const isExplorationClosed = isExploration && activeDebate.phase === 'closed';

@@ -514,11 +514,11 @@ export function OverviewTabRouter({
             rows: [
               ['ID', debate.id.slice(0, 8) + '...'],
               ['Phase', debate.phase],
-              ['Adaptive Phase', debate.adaptive_staging?.current_phase ?? '(none)'],
+              ['Adaptive Phase', debate.adaptive_staging?.phase_state?.current_phase ?? '(none)'],
               ['Transcript', debate.transcript?.length ?? 0],
               ['AN Nodes', debate.argument_network?.nodes?.length ?? 0],
               ['Convergence Signals', debate.convergence_signals?.length ?? 0],
-              ['Protocol', debate.protocol ?? '(default)'],
+              ['Protocol', debate.protocol_id ?? '(default)'],
             ],
           },
           {

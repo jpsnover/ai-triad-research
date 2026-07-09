@@ -103,7 +103,7 @@ export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
     if (!activeDebate) return;
     // Q-15: Pre-uncheck low-strength items when QBAF is enabled
     const qbafEnabled = useFeatureFlagStore.getState().flags['release-qbaf-analysis'] ?? false;
-    const anNodes: ArgumentNetworkNode[] = (activeDebate as Record<string, unknown>).argument_network?.nodes ?? [];
+    const anNodes: ArgumentNetworkNode[] = activeDebate.argument_network?.nodes ?? [];
     const HARVEST_STRENGTH_THRESHOLD = 0.7;
 
     const conflicts = extractConflictCandidates(activeDebate);

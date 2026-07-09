@@ -137,6 +137,7 @@ export function getTaxonomyContext(pov: string): TaxonomyContext {
 
 interface TaxonomyContextWithSources extends TaxonomyContext {
   nodeSourceMap?: Map<string, NodeScoringSource>;
+  injectionManifest?: Record<string, unknown>;
 }
 
 /** Serialize nodeSourceMap to an array for storage on transcript entry metadata. Only includes refs actually used. */

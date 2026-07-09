@@ -124,10 +124,11 @@ export const useValidationStore = create<ValidationStore>((set, get) => ({
         api.readResearchFile(GOLDEN_SET_PATH),
         api.readResearchFile(VALIDATION_RESULTS_PATH),
       ]);
-      const claims: GoldenClaim[] = goldenSet?.claims ?? [];
+      const claims: GoldenClaim[] = (goldenSet as Record<string, unknown> | null)?.claims as GoldenClaim[] ?? [];
       const restoredResults = new Map<string, ValidationResult>();
-      if (existingResults?.results) {
-        for (const r of existingResults.results) {
+      const parsedResults = (existingResults as Record<string, unknown> | null)?.results as ValidationResult[] | undefined;
+      if (parsedResults) {
+        for (const r of parsedResults) {
           if (r.debate_id) {
             restoredResults.set(`${r.debate_id}::${r.claim_id}`, r);
           } else {

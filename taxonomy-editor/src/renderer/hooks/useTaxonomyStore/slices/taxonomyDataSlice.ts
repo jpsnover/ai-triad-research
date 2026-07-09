@@ -55,6 +55,7 @@ export type PinnedData =
 export interface PolicyRegistryEntry {
   id: string;
   action: string;
+  description?: string;
   source_povs: string[];
   member_count: number;
 }

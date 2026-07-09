@@ -35,7 +35,7 @@ export function PromptsPanel({ onSelectPrompt, onInspectorToggle }: PromptsPanel
     setPanelTab(tab);
     onInspectorToggle?.(tab === 'inspector');
   };
-  const selectedNode = useTaxonomyStore(
+  const selectedNode: { id: string; label: string; description: string } | null = useTaxonomyStore(
     (s) => {
       const nodeId = s.selectedNodeId;
       if (!nodeId) return null;

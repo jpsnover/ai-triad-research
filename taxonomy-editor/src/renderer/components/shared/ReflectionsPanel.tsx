@@ -110,7 +110,7 @@ function EditCard({ edit, pover, editIndex }: {
       retryEnrichment: s.retryEnrichment,
       clearEnrichmentStatus: s.clearEnrichmentStatus,
       anNodes: (s.activeDebate as Record<string, unknown> | null)?.argument_network
-        ? ((s.activeDebate as Record<string, unknown>).argument_network as { nodes: { id: string; text: string; speaker: string }[] }).nodes
+        ? ((s.activeDebate as Record<string, unknown>).argument_network as { nodes: { id: string; text: string; speaker: string; attribution_text_genus?: string }[] }).nodes
         : [],
       enrichmentStatus: s.enrichmentStatus,
     }))
