@@ -8,6 +8,7 @@ import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { FlightRecorder, setGlobalRecorder, getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+import { migrateToSingleKey } from './apiKeyStore.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -316,6 +317,14 @@ void app.whenReady().then(() => {
 
   mainRecorder.startPipeListener(process.pid);
   console.log(`[main] Flight recorder started, pipe listener on PID ${process.pid}`);
+
+  // t/1425: one-time migration — truncate any backend holding >1 API key down to
+  // its first key (BYOK round-robin reversal). Runs after the recorder is live so
+  // each truncation is captured as a flight-recorder event (backend + counts, no keys).
+  const migratedKeyBackends = migrateToSingleKey();
+  if (migratedKeyBackends > 0) {
+    console.log(`[main] apiKeyStore: truncated ${migratedKeyBackends} multi-key backend(s) to single key (t/1425)`);
+  }
 
   registerIpcHandlers();
   console.log('[main] IPC handlers registered');

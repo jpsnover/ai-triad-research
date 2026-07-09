@@ -47,7 +47,7 @@ import {
   deleteChatSession,
 } from './chatIO.js';
 import { debateToText, debateToMarkdown, debateToPdf, debateToPackage } from './debateExport.js';
-import { storeApiKey, hasApiKey, getApiKeySummary, exportKeysForSharing, importKeysFromSharing, deleteApiKey, deleteAllApiKeys, addApiKey, removeApiKey, getMaskedKeys } from './apiKeyStore.js';
+import { storeApiKey, hasApiKey, getApiKeySummary, exportKeysForSharing, importKeysFromSharing, deleteApiKey, deleteAllApiKeys, removeApiKey, getMaskedKeys } from './apiKeyStore.js';
 import type { KeySharePayload } from './apiKeyStore.js';
 import { isDataAvailable, getDataRootPath, setDataRootPath, loadDataConfig, PROJECT_ROOT, getSourcesDir, writeJsonFileAtomic } from './fileIO.js';
 import { computeEmbeddings, computeQueryEmbedding, generateText, generateTextWithSearch, generateChatStream, updateNodeEmbeddings, classifyNli, setDebateTemperature, getEmbeddingInfo } from './embeddings.js';
@@ -375,10 +375,13 @@ export function registerIpcHandlers(): void {
     deleteAllApiKeys();
   });
 
-  // Multi-key management (t/834). get-api-keys returns MASKED keys only — raw keys
-  // never cross the IPC boundary to the renderer.
+  // Single-key management (t/1425, reversing t/834 round-robin). get-api-keys returns
+  // MASKED keys only — raw keys never cross the IPC boundary to the renderer.
+  // 'add-api-key' now REPLACES the backend's key (no append); channel name kept so the
+  // Settings ticket (t/1427) can repoint/rename the UI at its own pace. Returns 1.
   ipcMain.handle('add-api-key', (_event, key: string, backend?: string) => {
-    return addApiKey(key, backend as Parameters<typeof addApiKey>[1]);
+    storeApiKey(key, backend as Parameters<typeof storeApiKey>[1]);
+    return 1;
   });
 
   ipcMain.handle('remove-api-key', (_event, index: number, backend?: string) => {

@@ -7,6 +7,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { app } from 'electron';
 import type { ApiKeyBackend } from '../../../lib/ai-client/types.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 // Single source of truth for backend ids (lib/ai-client, t/958). Prevents the local
 // drift that broke things when 'azure' was added to BackendId — this stays in sync
@@ -21,16 +22,19 @@ function keyFilePath(backend?: Backend): string {
   return path.join(app.getPath('userData'), `api-key${suffix}.enc`);
 }
 
-// ── Multi-key storage (t/834) ──────────────────────────────────────────────
-// Keys are stored per backend as an encrypted JSON array of strings (enables
-// round-robin across keys to multiply rate-limit quota — see t/833). Legacy
-// files written before t/834 hold a single encrypted raw key string; they are
-// read transparently as `[key]` so existing single-key users lose no data.
+// ── Single-key storage (t/1425, reversing t/833/t/834 round-robin) ─────────
+// Exactly ONE key per backend. Keys are stored as an encrypted JSON array of
+// strings for on-disk compatibility with the previous multi-key format and the
+// web key store's export shape, but every write path produces `[key]` — there is
+// no code path that appends a second key. Existing multi-key files are truncated
+// to their first key by migrateToSingleKey() at startup. Legacy files (pre-t/834)
+// holding a single encrypted raw key string are read as `[key]`.
 
 /**
- * Load all stored keys for a backend (RAW). Main-process internal use only —
- * AI calls and the key rotator. Never expose the result to the renderer; use
- * getMaskedKeys()/getApiKeySummary() for anything that crosses the IPC boundary.
+ * Load all stored keys for a backend (RAW). Main-process internal use only — AI
+ * calls. Never expose the result to the renderer; use getMaskedKeys()/
+ * getApiKeySummary() for anything that crosses the IPC boundary. Returns at most
+ * one key going forward; may return more only for a not-yet-migrated legacy file.
  */
 export function loadApiKeys(backend?: Backend): string[] {
   const fp = keyFilePath(backend);
@@ -64,14 +68,6 @@ function saveApiKeys(backend: Backend | undefined, keys: string[]): void {
   fs.writeFileSync(keyFilePath(backend), encrypted);
 }
 
-/** Append a key for a backend (deduped) and return the new key count. */
-export function addApiKey(key: string, backend?: Backend): number {
-  const keys = loadApiKeys(backend);
-  if (!keys.includes(key)) keys.push(key);
-  saveApiKeys(backend, keys);
-  return keys.length;
-}
-
 /** Remove a key by index (no-op if out of range), re-encrypting the remainder. */
 export function removeApiKey(index: number, backend?: Backend): void {
   const keys = loadApiKeys(backend);
@@ -82,14 +78,39 @@ export function removeApiKey(index: number, backend?: Backend): void {
 
 /**
  * Store a key for a backend — REPLACE semantics: sets the backend's keys to `[key]`.
- * Preserves the existing "Save Key" button UX (Save = set this key). Use addApiKey()
- * to append additional keys for round-robin (the multi-key UI).
+ * The ONLY write path (t/1425: exactly one key per backend, no round-robin append).
  */
 export function storeApiKey(key: string, backend?: Backend): void {
   saveApiKeys(backend, [key]);
 }
 
-/** Backward-compat single-key read — returns the first key, or null. */
+/**
+ * One-time migration (t/1425): truncate any backend holding >1 key down to its
+ * first (oldest-registered) key. Call once at app startup. Records an info-level
+ * flight-recorder event per truncated backend — backend id + counts only, NEVER
+ * key values — so a "disappeared" key is traceable. Returns the number of backends
+ * truncated.
+ */
+export function migrateToSingleKey(): number {
+  let truncated = 0;
+  for (const backend of ALL_BACKENDS) {
+    const keys = loadApiKeys(backend);
+    if (keys.length > 1) {
+      saveApiKeys(backend, [keys[0]]);
+      truncated++;
+      getGlobalRecorder()?.record({
+        type: 'system.info',
+        component: 'api-key-store',
+        level: 'info',
+        message: 'Truncated multi-key backend to single key (t/1425)',
+        data: { backend, from: keys.length, to: 1 },
+      });
+    }
+  }
+  return truncated;
+}
+
+/** Backward-compat single-key read — returns the stored key, or null. */
 export function loadApiKey(backend?: Backend): string | null {
   return loadApiKeys(backend)[0] ?? null;
 }
@@ -141,10 +162,10 @@ export function getMaskedKeys(backend?: Backend): string[] {
 
 export interface ApiKeySummaryEntry {
   backend: Backend;
-  hasKey: boolean;            // backward compat (true if any key)
-  maskedKey: string | null;  // backward compat — first key masked
-  keyCount: number;
-  maskedKeys: string[];
+  hasKey: boolean;            // backward compat (true if a key is set)
+  maskedKey: string | null;  // backward compat — the (single) key masked
+  keyCount: number;          // 0 or 1 (t/1425 single-key); kept for renderer compat
+  maskedKeys: string[];      // 0- or 1-element; kept for renderer compat
 }
 
 export function getApiKeySummary(): ApiKeySummaryEntry[] {
@@ -205,8 +226,13 @@ export function importKeysFromSharing(payload: KeySharePayload, passphrase: stri
   const { keys } = JSON.parse(decrypted) as { keys: Record<string, unknown> };
   const imported: string[] = [];
   for (const [backend, val] of Object.entries(keys)) {
-    for (const k of parseKeys(val)) addApiKey(k, backend as Backend);
-    imported.push(backend);
+    // Single-key (t/1425): import only the first key per backend, even if the
+    // payload (possibly exported by an older multi-key build) carries several.
+    const first = parseKeys(val)[0];
+    if (first) {
+      storeApiKey(first, backend as Backend);
+      imported.push(backend);
+    }
   }
   return imported;
 }
