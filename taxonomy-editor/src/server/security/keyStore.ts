@@ -52,14 +52,15 @@ export interface KeyStore {
    */
   rotateKeyMaterial(): Promise<KeyRotationResult>;
 
-  // ── Multi-key (t/835) — stored as a JSON array; legacy single values wrap. ──
-  /** All keys for (backend,user); [] if none. */
+  // ── Single-key per backend (t/1426; replaces t/835 multi-key). ──────────────
+  /** The key for (backend,user) as a one-element list, or []. Truncates legacy
+   *  multi-key values on read and rewrites the store. */
   getKeys(backend: AIBackend, userId: string): Promise<string[]>;
-  /** Replace the full key list (empty list deletes the entry). */
+  /** Store a single key (takes first element; empty list deletes the entry). */
   setKeys(backend: AIBackend, userId: string, keys: string[]): Promise<void>;
-  /** Append a key (deduped, trimmed); returns the new list. */
+  /** Replace the stored key (not append); returns [key]. */
   addKey(backend: AIBackend, userId: string, key: string): Promise<string[]>;
-  /** Remove the key at `index` (no-op if out of range); returns the new list. */
+  /** Remove the key at `index` (only 0 is meaningful); returns the new list. */
   removeKey(backend: AIBackend, userId: string, index: number): Promise<string[]>;
 }
 
@@ -84,8 +85,8 @@ export function parseKeys(raw: string | null): string[] {
 }
 
 /**
- * Shared multi-key logic (t/835) layered over each backend's raw get/set/delete.
- * Keeps the array convention in one place so Local and Key Vault stores agree.
+ * Single-key-per-backend logic (t/1426, replaces t/835 multi-key).
+ * Legacy multi-key values are truncated to the first key on read and rewritten.
  */
 abstract class BaseKeyStore implements KeyStore {
   abstract get(backend: AIBackend, userId: string): Promise<string | null>;
@@ -94,30 +95,43 @@ abstract class BaseKeyStore implements KeyStore {
   abstract rotateKeyMaterial(): Promise<KeyRotationResult>;
 
   async getKeys(backend: AIBackend, userId: string): Promise<string[]> {
-    return parseKeys(await this.get(backend, userId));
+    const keys = parseKeys(await this.get(backend, userId));
+    if (keys.length > 1) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'key-store', level: 'info',
+        message: `Truncated ${keys.length} stored keys to 1 for ${backend}`,
+        data: { backend, truncatedCount: keys.length - 1 },
+      });
+      await this.set(backend, userId, keys[0]);
+      return [keys[0]];
+    }
+    return keys;
   }
 
   async setKeys(backend: AIBackend, userId: string, keys: string[]): Promise<void> {
-    const clean: string[] = [];
-    for (const k of keys) {
-      const t = typeof k === 'string' ? k.trim() : '';
-      if (t && !clean.includes(t)) clean.push(t); // trim + dedupe
-    }
+    const clean = keys
+      .map(k => typeof k === 'string' ? k.trim() : '')
+      .filter(k => k.length > 0);
     if (clean.length === 0) { await this.delete(backend, userId); return; }
-    await this.set(backend, userId, JSON.stringify(clean));
+    if (clean.length > 1) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'key-store', level: 'info',
+        message: `setKeys called with ${clean.length} keys — storing first only`,
+        data: { backend, truncatedCount: clean.length - 1 },
+      });
+    }
+    await this.set(backend, userId, clean[0]);
   }
 
   async addKey(backend: AIBackend, userId: string, key: string): Promise<string[]> {
-    const keys = await this.getKeys(backend, userId);
-    keys.push(key); // setKeys trims + dedupes
-    await this.setKeys(backend, userId, keys);
-    return this.getKeys(backend, userId);
+    const trimmed = key.trim();
+    if (!trimmed) return this.getKeys(backend, userId);
+    await this.set(backend, userId, trimmed);
+    return [trimmed];
   }
 
   async removeKey(backend: AIBackend, userId: string, index: number): Promise<string[]> {
-    const keys = await this.getKeys(backend, userId);
-    if (index >= 0 && index < keys.length) keys.splice(index, 1);
-    await this.setKeys(backend, userId, keys);
+    if (index === 0) await this.delete(backend, userId);
     return this.getKeys(backend, userId);
   }
 }
