@@ -97,7 +97,7 @@ function SubScoreRow({ node, onUpdateSubScore }: { node: ArgumentNetworkNode; on
 // SUB_SCORE_TIPS is re-exported here so callers that import from this module can also access it.
 export { SUB_SCORE_TIPS, BELIEF_KEYS };
 
-const ATTACK_TYPE_WEIGHTS: Record<string, number> = { rebut: 1.0, undercut: 1.1, undermine: 1.2 };
+const ATTACK_TYPE_WEIGHTS: Record<string, number> = { rebut: 1.0, undercut: 1.05, undermine: 1.1 };
 
 const STRENGTH_STYLES: Record<string, { label: string; color: string; bg: string }> = {
   decisive:    { label: 'decisive',    color: 'var(--success)', bg: 'color-mix(in srgb, var(--success) 12%, transparent)' },
@@ -108,8 +108,8 @@ const STRENGTH_STYLES: Record<string, { label: string; color: string; bg: string
 function deriveStrength(edge: { strength?: string; weight?: number }): string {
   if (edge.strength) return edge.strength;
   if (edge.weight == null) return 'substantial';
-  if (edge.weight >= 0.7) return 'decisive';
-  if (edge.weight >= 0.4) return 'substantial';
+  if (edge.weight > 0.85) return 'decisive';
+  if (edge.weight > 0.5) return 'substantial';
   return 'tangential';
 }
 
