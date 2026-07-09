@@ -5,7 +5,7 @@ import { useState } from 'react';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge, TranscriptEntry } from '../../types/debate';
 import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
-import { speakerLabel, STRENGTH_BAND } from './utils';
+import { speakerLabel, STRENGTH_BAND, getNodeLabel } from './utils';
 
 export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap }: {
   node: ArgumentNetworkNode;
@@ -47,7 +47,7 @@ export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap }:
               }
               const conf = attr.attribution_confidence;
               const confColor = conf >= 0.7 ? '#22c55e' : conf >= 0.5 ? '#3b82f6' : '#f59e0b';
-              return <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)' }}><span style={{ color: confColor, fontSize: '0.9rem', marginRight: 3 }}>●</span>{attr.primary_ref} {conf.toFixed(2)}</span>;
+              return <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)' }} title={getNodeLabel(attr.primary_ref)}><span style={{ color: confColor, fontSize: '0.9rem', marginRight: 3 }}>●</span>{attr.primary_ref} {conf.toFixed(2)}</span>;
             })()}
           </span>
           {/* Col 5: Strength */}
