@@ -268,8 +268,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   generateOpening: async () => {
-    const { activeChat, saveChat } = get();
-    if (!activeChat || activeChat.transcript.length > 0) return;
+    const { activeChat, saveChat, chatGenerating } = get();
+    if (!activeChat || activeChat.transcript.length > 0 || chatGenerating) return;
 
     const isStillValid = createChatGuard(get);
     set({ chatGenerating: true, chatError: null });
@@ -326,8 +326,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   sendMessage: async (message) => {
-    const { activeChat } = get();
-    if (!activeChat || !message.trim()) return;
+    const { activeChat, chatGenerating } = get();
+    if (!activeChat || !message.trim() || chatGenerating) return;
 
     const isStillValid = createChatGuard(get);
     set({ chatGenerating: true, chatError: null });

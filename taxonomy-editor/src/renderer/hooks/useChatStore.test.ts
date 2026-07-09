@@ -201,4 +201,30 @@ describe('useChatStore', () => {
       expect(useChatStore.getState().activeChatId).toBe('chat-keep');
     });
   });
+
+  describe('duplicate request guard (t/1453)', () => {
+    it('sendMessage is a no-op when chatGenerating is already true', async () => {
+      useChatStore.setState({
+        activeChat: makeChatSession({ transcript: [{ id: 'e1', timestamp: '2026-01-01T00:00:00Z', speaker: 'ai', content: 'hi', taxonomy_refs: [] }] }) as never,
+        chatGenerating: true,
+      });
+
+      await useChatStore.getState().sendMessage('duplicate request');
+
+      expect(mockApi.generateText).not.toHaveBeenCalled();
+      expect(mockApi.startChatStream).not.toHaveBeenCalled();
+    });
+
+    it('generateOpening is a no-op when chatGenerating is already true', async () => {
+      useChatStore.setState({
+        activeChat: makeChatSession() as never,
+        chatGenerating: true,
+      });
+
+      await useChatStore.getState().generateOpening();
+
+      expect(mockApi.generateText).not.toHaveBeenCalled();
+      expect(mockApi.startChatStream).not.toHaveBeenCalled();
+    });
+  });
 });
