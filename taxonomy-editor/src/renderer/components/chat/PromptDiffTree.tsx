@@ -281,7 +281,7 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
 
       // Extract orchestration-level verdicts — one per attempt, displayed as separate tree nodes
       for (const [ai, attempt] of attempts.entries()) {
-        const av = attempt.validation as Record<string, unknown> | undefined;
+        const av = attempt.validation as unknown as Record<string, unknown> | undefined;
         if (av) {
           verdicts.push({
             attemptIndex: ai,
@@ -299,7 +299,7 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
       }
     } else {
       // Single-run fallback: use diagnostics.entries stage_diagnostics
-      const allStages = (diags?.stage_diagnostics ?? []) as Array<Record<string, unknown>>;
+      const allStages = (diags?.stage_diagnostics ?? []) as unknown as Array<Record<string, unknown>>;
       grouped = STAGE_ORDER.map(stage => ({
         stage,
         runs: allStages

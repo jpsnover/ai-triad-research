@@ -594,8 +594,8 @@ export function PromptDiffWindow() {
 
   // Listen for context updates from Electron (when window is reused)
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window as Record<string, unknown>).electronAPI) {
-      const eApi = (window as Record<string, unknown>).electronAPI as {
+    if (typeof window !== 'undefined' && (window as unknown as Record<string, unknown>).electronAPI) {
+      const eApi = (window as unknown as Record<string, unknown>).electronAPI as {
         onPromptDiffContext?: (cb: (ctx: { debateId: string; entryId: string }) => void) => void;
       };
       eApi.onPromptDiffContext?.((ctx) => {

@@ -28,6 +28,7 @@
       "@lib/search/*": ["../lib/search/*"],
       "@lib/flight-recorder/*": ["../lib/flight-recorder/*"],
       "@lib/flight-recorder/index": ["../lib/flight-recorder/index.ts"],
+      "@lib/diff/*": ["../lib/diff/*"],
       "@lib/ai-client/*": ["../lib/ai-client/*"],
       "@lib/electron-shared/*": ["../lib/electron-shared/*"],
       "@lib/embeddings/*": ["../lib/embeddings/*"],
