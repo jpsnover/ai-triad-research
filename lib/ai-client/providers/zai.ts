@@ -29,7 +29,7 @@ export async function generateViaZai(
         model: apiModelId,
         messages,
         temperature: opts.temperature ?? 0.7,
-        max_tokens: opts.maxTokens ?? 8192,
+        max_tokens: opts.maxTokens ?? 16384,
         ...(opts.responseSchema ? {
           response_format: {
             type: 'json_schema',
@@ -64,7 +64,7 @@ export async function generateViaZai(
   }
 
   let json: {
-    choices?: { message: { content: string } }[];
+    choices?: { finish_reason?: string; message: { content: string; reasoning_content?: string } }[];
     usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
   };
   try {
@@ -85,13 +85,19 @@ export async function generateViaZai(
       nextSteps: ['Retry the request', 'Try a different model'],
     });
   }
-  const text = json.choices[0].message.content;
+  const choice = json.choices[0];
+  const text = choice.message.content;
   if (!text) {
+    const reasoningExhausted = choice.finish_reason === 'length' && !!choice.message.reasoning_content;
     throw new ActionableError({
       goal: 'Generate text via Z.AI',
-      problem: `Z.AI returned empty content (0 chars) after ${response.status} — model may not support this prompt format or response_format. Raw: ${bodyText.slice(0, 300)}`,
+      problem: reasoningExhausted
+        ? `Z.AI exhausted token budget on reasoning_content (finish_reason: "length"), producing 0 output chars. Reasoning preview: ${choice.message.reasoning_content!.slice(0, 150)}`
+        : `Z.AI returned empty content (0 chars) after ${response.status} — model may not support this prompt format or response_format. Raw: ${bodyText.slice(0, 300)}`,
       location: 'ai-client.generateViaZai',
-      nextSteps: ['Try a different model', 'Check if this model supports json_schema response_format', 'Contact Z.AI support'],
+      nextSteps: reasoningExhausted
+        ? ['Increase max_tokens (current budget may be too low for reasoning models)', 'Switch to a non-reasoning model', 'Simplify the prompt to reduce reasoning depth']
+        : ['Try a different model', 'Check if this model supports json_schema response_format', 'Contact Z.AI support'],
     });
   }
   const u = json.usage;
