@@ -119,14 +119,14 @@ describe('TrafficLight', () => {
     const { container } = render(<TrafficLight pass={true} label="OK" />);
     expect(container.textContent).toContain('OK');
     const dot = container.querySelector('span span') as HTMLElement;
-    expect(dot.style.background).toBe('rgb(34, 197, 94)'); // #22c55e
+    expect(dot.style.background).toBe('var(--success)');
   });
 
   it('renders red dot and label when pass=false', () => {
     const { container } = render(<TrafficLight pass={false} label="Fail" />);
     expect(container.textContent).toContain('Fail');
     const dot = container.querySelector('span span') as HTMLElement;
-    expect(dot.style.background).toBe('rgb(239, 68, 68)'); // #ef4444
+    expect(dot.style.background).toBe('var(--danger)');
   });
 });
 

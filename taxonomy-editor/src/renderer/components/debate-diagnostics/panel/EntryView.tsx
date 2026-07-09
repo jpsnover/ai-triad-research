@@ -73,7 +73,7 @@ function QbafClaimStrengthSection({ entryId, activeDebate }: { entryId: string; 
                     <div key={i} className={`diag-qbaf-edge ${e.type === 'attacks' ? 'diag-qbaf-attack' : 'diag-qbaf-support'}`}>
                       <span>{e.type === 'attacks' ? '⚔' : '✓'} {e.source}</span>
                       {e.attack_type && <span className="diag-badge diag-badge-move">{e.attack_type}</span>}
-                      {e.argumentation_scheme && <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(99,102,241,0.15)', color: '#6366f1', marginLeft: 2 }}>{e.argumentation_scheme}</span>}
+                      {e.argumentation_scheme && <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'var(--bg-hover)', color: 'var(--text-secondary)', marginLeft: 2 }}>{e.argumentation_scheme}</span>}
                       {e.weight != null && <QbafEdgeIndicator edge={e} />}
                       {srcNode && <span className="diag-muted" style={{ marginLeft: 4 }}>{srcNode.text.slice(0, 60)}{srcNode.text.length > 60 ? '…' : ''}</span>}
                     </div>
@@ -202,13 +202,14 @@ export function EntryView({ entryId }: { entryId: string }) {
       {entry.type === 'intervention' && entry.intervention_metadata && (() => {
         const im = entry.intervention_metadata;
         const familyColors: Record<string, string> = {
-          procedural: '#3b82f6', elicitation: '#f59e0b', repair: '#ef4444',
-          reconciliation: '#22c55e', reflection: '#8b5cf6', synthesis: '#06b6d4',
+          procedural: 'var(--text-secondary)', elicitation: 'var(--warning)', repair: 'var(--danger)',
+          reconciliation: 'var(--success)', reflection: 'var(--text-secondary)', synthesis: 'var(--text-secondary)',
         };
+        const familyFallback = 'var(--text-muted)';
         return (
           <CollapsibleSection title={`Intervention — ${im.move} [${im.family}]`} defaultOpen>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
-              <span className="diag-badge" style={{ background: `${familyColors[im.family] ?? '#6b7280'}30`, color: familyColors[im.family] ?? '#6b7280' }}>{im.family}</span>
+              <span className="diag-badge" style={{ background: `color-mix(in srgb, ${familyColors[im.family] ?? familyFallback} 19%, transparent)`, color: familyColors[im.family] ?? familyFallback }}>{im.family}</span>
               <span className="diag-badge diag-badge-move">{im.move}</span>
               <span className="diag-badge diag-badge-type">{im.force}</span>
             </div>
@@ -223,7 +224,7 @@ export function EntryView({ entryId }: { entryId: string }) {
             </div>
             {im.prerequisite_applied && (
               <div className="diag-kv">
-                <span className="diag-k">Prerequisite:</span> <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(234,179,8,0.15)', color: '#ca8a04' }}>{im.prerequisite_applied}</span>
+                <span className="diag-k">Prerequisite:</span> <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)' }}>{im.prerequisite_applied}</span>
               </div>
             )}
             {im.source_evidence?.claim && (
@@ -298,13 +299,13 @@ export function EntryView({ entryId }: { entryId: string }) {
             {trace.recent_scheme && (
               <div className="diag-kv">
                 <span className="diag-k">Recent Scheme:</span>
-                <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(99,102,241,0.15)', color: '#6366f1' }}>{trace.recent_scheme}</span>
+                <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>{trace.recent_scheme}</span>
               </div>
             )}
             {trace.metaphor_reframe_offered && (
               <div className="diag-kv" style={{ marginTop: 4 }}>
                 <span className="diag-k">Metaphor Reframe:</span>
-                <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(234,179,8,0.15)', color: '#ca8a04' }}>
+                <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)' }}>
                   {trace.metaphor_reframe_offered} {trace.metaphor_reframe_used ? '(USED)' : '(offered, not used)'}
                 </span>
               </div>
@@ -318,7 +319,7 @@ export function EntryView({ entryId }: { entryId: string }) {
             {/* Implementation Challenge move (policymaker debates, t/251) */}
             {trace.selection_reason === 'implementation_challenge' && (
               <div className="diag-kv" style={{ marginTop: 4 }}>
-                <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, background: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '2px 6px', borderRadius: 3 }}>
+                <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, background: 'color-mix(in srgb, var(--danger) 15%, transparent)', color: 'var(--danger)', padding: '2px 6px', borderRadius: 3 }}>
                   IMPLEMENTATION CHALLENGE
                 </span>
                 {(trace as Record<string, unknown>).implementation_challenge_trigger && (() => {
@@ -367,13 +368,13 @@ export function EntryView({ entryId }: { entryId: string }) {
       {/* Pipeline Stage Work Products */}
       {diag?.stage_diagnostics && diag.stage_diagnostics.length > 0 && (() => {
         const stages = diag.stage_diagnostics;
-        const stageColors: Record<string, string> = { brief: '#3b82f6', plan: '#a855f7', draft: '#22c55e', cite: '#fb923c' };
+        const stageColors: Record<string, string> = { brief: 'var(--text-secondary)', plan: 'var(--text-secondary)', draft: 'var(--success)', cite: 'var(--warning)' };
         return (
           <>
             {stages.map(s => (
               <CollapsibleSection key={s.stage} title={`${s.stage.toUpperCase()} — ${s.model} (temp=${s.temperature}, ${((s.response_time_ms ?? 0) / 1000).toFixed(1)}s${s.input_tokens != null || s.output_tokens != null ? `, ${(s.input_tokens ?? 0).toLocaleString()}/${(s.output_tokens ?? 0).toLocaleString()} tok` : ''})`}>
                 {s.stage === 'brief' && !!(s.work_product as Record<string, unknown>).situation_assessment && (
-                  <div style={{ padding: 6, marginBottom: 6, borderLeft: `3px solid ${stageColors[s.stage]}40`, fontSize: '0.75rem' }}>
+                  <div style={{ padding: 6, marginBottom: 6, borderLeft: `3px solid color-mix(in srgb, ${stageColors[s.stage]} 25%, transparent)`, fontSize: '0.75rem' }}>
                     {String((s.work_product as Record<string, unknown>).situation_assessment)}
                   </div>
                 )}
@@ -383,7 +384,7 @@ export function EntryView({ entryId }: { entryId: string }) {
                       const sitGrounding = (a.grounding ?? []).filter(g => g.node_id.startsWith('sit-'));
                       const sitNodes = useTaxonomyStore.getState().situations?.nodes;
                       return (
-                        <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${stageColors[s.stage]}40` }}>
+                        <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid color-mix(in srgb, ${stageColors[s.stage]} 25%, transparent)` }}>
                           <div style={{ fontSize: '0.7rem', fontWeight: 600 }}>{a.angle}</div>
                           <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{a.why}</div>
                           {sitGrounding.length > 0 && sitNodes && (
@@ -396,10 +397,10 @@ export function EntryView({ entryId }: { entryId: string }) {
                                     {g.node_id}
                                   </span>
                                 );
-                                const color = div > 0.40 ? '#22c55e' : div >= 0.20 ? '#f59e0b' : '#ef4444';
+                                const color = div > 0.40 ? 'var(--success)' : div >= 0.20 ? 'var(--warning)' : 'var(--danger)';
                                 const isLow = div < 0.20;
                                 return (
-                                  <span key={g.node_id} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 'var(--text-2xs)', marginRight: 6, padding: '1px 5px', borderRadius: 3, background: isLow ? '#ef444418' : 'var(--bg-secondary)', fontFamily: 'monospace' }}>
+                                  <span key={g.node_id} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 'var(--text-2xs)', marginRight: 6, padding: '1px 5px', borderRadius: 3, background: isLow ? 'color-mix(in srgb, var(--danger) 9%, transparent)' : 'var(--bg-secondary)', fontFamily: 'monospace' }}>
                                     <span style={{ color: 'var(--text-muted)' }}>{g.node_id}</span>
                                     <span style={{ color, fontWeight: 600 }}>div:{div.toFixed(2)}</span>
                                     {isLow && <span title="Low divergence — may not generate disagreement">⚠</span>}
@@ -414,19 +415,19 @@ export function EntryView({ entryId }: { entryId: string }) {
                   </div>
                 )}
                 {s.stage === 'plan' && !!(s.work_product as Record<string, unknown>).strategic_goal && (
-                  <div style={{ padding: 6, marginBottom: 6, borderLeft: `3px solid ${stageColors[s.stage]}40`, fontSize: '0.75rem', fontWeight: 600 }}>
+                  <div style={{ padding: 6, marginBottom: 6, borderLeft: `3px solid color-mix(in srgb, ${stageColors[s.stage]} 25%, transparent)`, fontSize: '0.75rem', fontWeight: 600 }}>
                     {String((s.work_product as Record<string, unknown>).strategic_goal)}
                   </div>
                 )}
                 {s.stage === 'plan' && !!(s.work_product as Record<string, unknown>).core_thesis && (
-                  <div style={{ padding: 6, marginBottom: 6, borderLeft: `3px solid ${stageColors[s.stage]}40`, fontSize: '0.7rem', fontStyle: 'italic' }}>
+                  <div style={{ padding: 6, marginBottom: 6, borderLeft: `3px solid color-mix(in srgb, ${stageColors[s.stage]} 25%, transparent)`, fontSize: '0.7rem', fontStyle: 'italic' }}>
                     {String((s.work_product as Record<string, unknown>).core_thesis)}
                   </div>
                 )}
                 {s.stage === 'plan' && Array.isArray((s.work_product as Record<string, unknown>).planned_moves) && (
                   <div style={{ marginBottom: 6 }}>
                     {((s.work_product as Record<string, unknown>).planned_moves as { move: string; target?: string; detail: string }[]).map((m, i) => (
-                      <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${stageColors[s.stage]}40` }}>
+                      <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid color-mix(in srgb, ${stageColors[s.stage]} 25%, transparent)` }}>
                         <span className="diag-badge diag-badge-move">{m.move}</span>
                         {m.target && <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{'→'} {m.target}</span>}
                         {m.detail && <div style={{ fontSize: '0.7rem', marginTop: 1 }}>{m.detail}</div>}
@@ -437,7 +438,7 @@ export function EntryView({ entryId }: { entryId: string }) {
                 {s.stage === 'plan' && Array.isArray((s.work_product as Record<string, unknown>).argument_structure) && (
                   <div style={{ marginBottom: 6 }}>
                     {((s.work_product as Record<string, unknown>).argument_structure as { point: string; evidence: string; taxonomy_anchor: string }[]).map((a, i) => (
-                      <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${stageColors[s.stage]}40` }}>
+                      <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid color-mix(in srgb, ${stageColors[s.stage]} 25%, transparent)` }}>
                         <div style={{ fontSize: '0.7rem', fontWeight: 600 }}>{a.point}</div>
                         {a.evidence && <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Evidence: {a.evidence}</div>}
                         {a.taxonomy_anchor && <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Anchor: {a.taxonomy_anchor}</div>}
@@ -452,12 +453,12 @@ export function EntryView({ entryId }: { entryId: string }) {
                   </div>
                 )}
                 {s.stage === 'draft' && diag?.topic_alignment && (
-                  <div style={{ marginBottom: 6, padding: '4px 8px', borderLeft: `3px solid ${diag.topic_alignment.topic_aligned ? '#22c55e' : '#ef4444'}40`, fontSize: 'var(--text-2xs)' }}>
+                  <div style={{ marginBottom: 6, padding: '4px 8px', borderLeft: `3px solid color-mix(in srgb, ${diag.topic_alignment.topic_aligned ? 'var(--success)' : 'var(--danger)'} 25%, transparent)`, fontSize: 'var(--text-2xs)' }}>
                     <div className="diag-kv" style={{ marginBottom: 2 }}>
                       <span className="diag-k">Topic aligned</span>
-                      <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(99,102,241,0.12)', color: '#6366f1' }}>Attempt {(diag.topic_alignment as Record<string, unknown>).draft_attempt ?? 1}</span>
+                      <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>Attempt {(diag.topic_alignment as Record<string, unknown>).draft_attempt ?? 1}</span>
                       {diag.topic_alignment.repaired && (
-                        <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(245,158,11,0.15)', color: '#d97706' }}>triggered regen</span>
+                        <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)' }}>triggered regen</span>
                       )}
                     </div>
                     <div className="diag-kv">
@@ -472,7 +473,7 @@ export function EntryView({ entryId }: { entryId: string }) {
                         <span className="diag-k">Off-scope topics (static):</span>
                         <ul style={{ margin: '2px 0 0 16px', padding: 0, listStyle: 'disc' }}>
                           {diag.topic_alignment.scope_used!.off_scope_topics!.map((item: string, i: number) => (
-                            <li key={i} style={{ color: '#ef4444' }}>{item}</li>
+                            <li key={i} style={{ color: 'var(--danger)' }}>{item}</li>
                           ))}
                         </ul>
                       </div>
@@ -482,7 +483,7 @@ export function EntryView({ entryId }: { entryId: string }) {
                         <span className="diag-k">Drift signatures (static):</span>
                         <ul style={{ margin: '2px 0 0 16px', padding: 0, listStyle: 'disc' }}>
                           {diag.topic_alignment.scope_used!.drift_signatures!.map((sig: string, i: number) => (
-                            <li key={i} style={{ color: '#f59e0b' }}>{sig}</li>
+                            <li key={i} style={{ color: 'var(--warning)' }}>{sig}</li>
                           ))}
                         </ul>
                       </div>
@@ -512,7 +513,7 @@ export function EntryView({ entryId }: { entryId: string }) {
             const name = getMoveName(m);
             const ann = typeof m === 'object' ? m as MoveAnnotation : null;
             return (
-              <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(59,130,246,0.3)' }}>
+              <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid var(--border-color)' }}>
                 <span className="diag-badge diag-badge-move">{name}</span>
                 {ann?.target && <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>→ {ann.target}</span>}
                 {ann?.detail && <div style={{ fontSize: '0.7rem', marginTop: 2 }}>{ann.detail}</div>}
@@ -566,26 +567,26 @@ export function EntryView({ entryId }: { entryId: string }) {
                   <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', opacity: 0.5 }}>ns</span>
                 )}
                 {anNode?.bdi_category && (
-                  <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: anNode.bdi_category === 'belief' ? 'rgba(59,130,246,0.15)' : anNode.bdi_category === 'desire' ? 'rgba(168,85,247,0.15)' : 'rgba(249,115,22,0.15)', color: anNode.bdi_category === 'belief' ? '#3b82f6' : anNode.bdi_category === 'desire' ? '#a855f7' : '#f97316' }}>
+                  <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: anNode.bdi_category === 'belief' ? 'color-mix(in srgb, var(--color-saf) 15%, transparent)' : anNode.bdi_category === 'desire' ? 'color-mix(in srgb, var(--color-skp) 15%, transparent)' : 'color-mix(in srgb, var(--color-acc) 15%, transparent)', color: anNode.bdi_category === 'belief' ? 'var(--color-saf)' : anNode.bdi_category === 'desire' ? 'var(--color-skp)' : 'var(--color-acc)' }}>
                     {anNode.bdi_category[0].toUpperCase()}
                   </span>
                 )}
                 {anNode?.specificity && (
-                  <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: 'rgba(107,114,128,0.12)', color: '#6b7280' }}>
+                  <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: 'color-mix(in srgb, var(--text-muted) 12%, transparent)', color: 'var(--text-muted)' }}>
                     {anNode.specificity}
                   </span>
                 )}
                 {anNode?.steelman_of && (
-                  <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: 'rgba(20,184,166,0.15)', color: '#14b8a6' }}>
+                  <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: 'color-mix(in srgb, var(--text-secondary) 15%, transparent)', color: 'var(--text-secondary)' }}>
                     ⬆
                   </span>
                 )}
                 <span className="diag-claim-text">{c.text}</span>
                 {repair && repair.verdict !== 'entailed' && repair.repaired_text && (
                   <div style={{ fontSize: 'var(--text-2xs)', marginTop: 2, paddingLeft: 12 }}>
-                    <span style={{ textDecoration: 'line-through', color: '#ef4444', opacity: 0.6 }}>{repair.original_text.slice(0, 80)}{repair.original_text.length > 80 ? '…' : ''}</span>
+                    <span style={{ textDecoration: 'line-through', color: 'var(--danger)', opacity: 0.6 }}>{repair.original_text.slice(0, 80)}{repair.original_text.length > 80 ? '…' : ''}</span>
                     {' → '}
-                    <span style={{ color: '#22c55e' }}>{repair.repaired_text.slice(0, 80)}{repair.repaired_text.length > 80 ? '…' : ''}</span>
+                    <span style={{ color: 'var(--success)' }}>{repair.repaired_text.slice(0, 80)}{repair.repaired_text.length > 80 ? '…' : ''}</span>
                   </div>
                 )}
               </div>
@@ -612,7 +613,7 @@ export function EntryView({ entryId }: { entryId: string }) {
                 <span className="diag-k">Argumentation Schemes Classified:</span>
                 <div className="diag-badges" style={{ marginTop: 2 }}>
                   {ce.schemes_classified.map((s, i) => (
-                    <span key={i} className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(99,102,241,0.15)', color: '#6366f1' }}>{s}</span>
+                    <span key={i} className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>{s}</span>
                   ))}
                 </div>
               </div>
@@ -663,16 +664,16 @@ export function EntryView({ entryId }: { entryId: string }) {
                     Checked {exclusionGuard.checked} claims against {exclusionGuard.refs_with_exclusion_vector} exclusion vectors (threshold: {exclusionGuard.threshold.toFixed(2)})
                   </div>
                   {violations.length > 0 ? violations.map((v, i) => (
-                    <div key={i} style={{ fontSize: 'var(--text-2xs)', marginLeft: 8, marginBottom: 2, padding: '2px 4px', borderLeft: '2px solid #ef4444', background: 'rgba(239,68,68,0.06)' }}>
-                      <span style={{ fontWeight: 600, color: '#ef4444' }}>{v.claim_id}</span> → {v.node_id}
+                    <div key={i} style={{ fontSize: 'var(--text-2xs)', marginLeft: 8, marginBottom: 2, padding: '2px 4px', borderLeft: '2px solid var(--danger)', background: 'color-mix(in srgb, var(--danger) 6%, transparent)' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--danger)' }}>{v.claim_id}</span> → {v.node_id}
                       <span className="diag-muted"> (main: {v.similarity_main.toFixed(2)}, excl: {v.similarity_exclusion.toFixed(2)})</span>
                     </div>
                   )) : (
-                    <div style={{ fontSize: 'var(--text-2xs)', color: '#22c55e', fontWeight: 600 }}>All {exclusionGuard.checked} claims within scope — 0 exclusion violations</div>
+                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--success)', fontWeight: 600 }}>All {exclusionGuard.checked} claims within scope — 0 exclusion violations</div>
                   )}
                 </>
               ) : hasExtTrace ? (
-                <div style={{ fontSize: 'var(--text-2xs)', color: '#22c55e', fontWeight: 600 }}>All claims within scope — 0 exclusion violations</div>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--success)', fontWeight: 600 }}>All claims within scope — 0 exclusion violations</div>
               ) : (
                 <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>No exclusion guard data — extraction trace not available</div>
               )}
@@ -687,16 +688,16 @@ export function EntryView({ entryId }: { entryId: string }) {
                     Checked {scopeDriftCheck.refs_checked} refs, {scopeDriftCheck.refs_with_exclusion_vector} with exclusion vectors (threshold: {scopeDriftCheck.threshold.toFixed(2)})
                   </div>
                   {warnings.length > 0 ? warnings.map((w, i) => (
-                    <div key={i} style={{ fontSize: 'var(--text-2xs)', marginLeft: 8, marginBottom: 2, padding: '2px 4px', borderLeft: '2px solid #f59e0b', background: 'rgba(245,158,11,0.06)' }}>
-                      <span style={{ fontWeight: 600, color: '#f59e0b' }}>{w.debater}</span> → {w.node_id}
+                    <div key={i} style={{ fontSize: 'var(--text-2xs)', marginLeft: 8, marginBottom: 2, padding: '2px 4px', borderLeft: '2px solid var(--warning)', background: 'color-mix(in srgb, var(--warning) 6%, transparent)' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--warning)' }}>{w.debater}</span> → {w.node_id}
                       <span className="diag-muted"> (sim: {w.similarity.toFixed(2)})</span>
                     </div>
                   )) : (
-                    <div style={{ fontSize: 'var(--text-2xs)', color: '#22c55e', fontWeight: 600 }}>All {scopeDriftCheck.refs_checked} refs within scope — 0 drift warnings</div>
+                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--success)', fontWeight: 600 }}>All {scopeDriftCheck.refs_checked} refs within scope — 0 drift warnings</div>
                   )}
                 </>
               ) : diag ? (
-                <div style={{ fontSize: 'var(--text-2xs)', color: '#22c55e', fontWeight: 600 }}>No scope drift detected — 0 warnings</div>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--success)', fontWeight: 600 }}>No scope drift detected — 0 warnings</div>
               ) : (
                 <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>No scope drift data — diagnostics not available</div>
               )}
@@ -823,12 +824,12 @@ export function EntryView({ entryId }: { entryId: string }) {
                         const restored = restoredSet.has(d.nodeId);
                         return (
                           <div key={d.nodeId} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, fontSize: 'var(--text-2xs)' }}>
-                            <span style={{ fontFamily: 'monospace', minWidth: 52, color: restored ? '#f59e0b' : '#ef4444' }}>{d.nodeId}</span>
+                            <span style={{ fontFamily: 'monospace', minWidth: 52, color: restored ? 'var(--warning)' : 'var(--danger)' }}>{d.nodeId}</span>
                             <span style={{ flex: 1, color: 'var(--text-muted)' }}>{d.reason}</span>
                             <span style={{ minWidth: 60, textAlign: 'right', color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
                               {d.originalScore.toFixed(2)} → {d.newScore.toFixed(2)}
                             </span>
-                            {restored && <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>restored</span>}
+                            {restored && <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)' }}>restored</span>}
                           </div>
                         );
                       })}
@@ -848,7 +849,7 @@ export function EntryView({ entryId }: { entryId: string }) {
                       <div className="diag-k" style={{ marginBottom: 4 }}>Situation Divergence</div>
                       {sitWithDiv.map(sit => {
                         const div = sit.interpretation_divergence!;
-                        const color = div > 0.40 ? '#22c55e' : div >= 0.20 ? '#f59e0b' : '#ef4444';
+                        const color = div > 0.40 ? 'var(--success)' : div >= 0.20 ? 'var(--warning)' : 'var(--danger)';
                         const label = div > 0.40 ? 'high' : div >= 0.20 ? 'moderate' : 'low';
                         const cited = referencedIds.has(sit.id);
                         const barWidth = Math.round(div * 100);
@@ -894,8 +895,8 @@ export function EntryView({ entryId }: { entryId: string }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
                       <span className="diag-badge" style={{
                         fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '1px 5px', borderRadius: 3,
-                        background: isPolicyCriterion ? 'rgba(239,68,68,0.15)' : 'rgba(99,102,241,0.15)',
-                        color: isPolicyCriterion ? '#ef4444' : '#6366f1',
+                        background: isPolicyCriterion ? 'color-mix(in srgb, var(--danger) 15%, transparent)' : 'color-mix(in srgb, var(--text-secondary) 15%, transparent)',
+                        color: isPolicyCriterion ? 'var(--danger)' : 'var(--text-secondary)',
                       }}>
                         {p.criterion.replace(/_/g, ' ')}
                       </span>
@@ -956,7 +957,7 @@ export function EntryView({ entryId }: { entryId: string }) {
         <CollapsibleSection title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`} defaultOpen>
           {(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => (
             <div key={i} style={{ margin: '2px 0', fontSize: '0.7rem' }}>
-              <span style={{ color: '#3b82f6' }}>{i + 1}.</span> {c.claim}
+              <span style={{ color: 'var(--color-saf)' }}>{i + 1}.</span> {c.claim}
               {c.targets?.length > 0 && <span className="diag-muted" style={{ marginLeft: 6 }}>→ {c.targets.join(', ')}</span>}
             </div>
           ))}
@@ -972,7 +973,7 @@ export function EntryView({ entryId }: { entryId: string }) {
           <CollapsibleSection title={`Policy Refs (${polIds.length})`}>
             <div className="diag-badges">
               {polIds.map((id, i) => (
-                <span key={i} className="diag-badge" style={{ background: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }}>{id}</span>
+                <span key={i} className="diag-badge" style={{ background: 'color-mix(in srgb, var(--text-secondary) 15%, transparent)', color: 'var(--text-secondary)' }}>{id}</span>
               ))}
             </div>
           </CollapsibleSection>
@@ -986,7 +987,7 @@ export function EntryView({ entryId }: { entryId: string }) {
             const match = diag.prompt.match(/Scope reminder:[^\n]*/);
             if (!match) return null;
             return (
-              <div style={{ marginBottom: 6, padding: '4px 8px', background: 'rgba(6,182,212,0.1)', border: '1px solid rgba(6,182,212,0.3)', borderRadius: 4, fontSize: 'var(--text-2xs)', color: '#06b6d4' }}>
+              <div style={{ marginBottom: 6, padding: '4px 8px', background: 'color-mix(in srgb, var(--text-secondary) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--text-secondary) 30%, transparent)', borderRadius: 4, fontSize: 'var(--text-2xs)', color: 'var(--text-secondary)' }}>
                 <span className="diag-k" style={{ fontSize: 'var(--text-2xs)' }}>Scope block:</span> {match[0]}
               </div>
             );

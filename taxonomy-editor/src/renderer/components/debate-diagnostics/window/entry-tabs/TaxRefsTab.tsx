@@ -63,7 +63,7 @@ export function TaxRefsTab({ entry, meta, debate, taxRefCount, nodeWeights, taxN
           <div style={{ fontWeight: 600, marginBottom: 4, color: 'var(--text-primary)' }}>AN Claim Coverage</div>
           {anCoverage.strong.length > 0 && (
             <div style={{ marginBottom: 2 }}>
-              <span style={{ color: '#16a34a' }}>{'●'}</span>{' '}
+              <span style={{ color: 'var(--success)' }}>{'●'}</span>{' '}
               <span style={{ fontWeight: 600 }}>Strong ({'≥'}0.5):</span>{' '}
               {anCoverage.strong.map((c, i) => (
                 <span key={c.id}>
@@ -76,7 +76,7 @@ export function TaxRefsTab({ entry, meta, debate, taxRefCount, nodeWeights, taxN
           )}
           {anCoverage.moderate.length > 0 && (
             <div style={{ marginBottom: 2 }}>
-              <span style={{ color: '#d97706' }}>{'◐'}</span>{' '}
+              <span style={{ color: 'var(--warning)' }}>{'◐'}</span>{' '}
               <span style={{ fontWeight: 600 }}>Moderate:</span>{' '}
               {anCoverage.moderate.map((c, i) => (
                 <span key={c.id}>
@@ -89,7 +89,7 @@ export function TaxRefsTab({ entry, meta, debate, taxRefCount, nodeWeights, taxN
           )}
           {anCoverage.weak.length > 0 && (
             <div style={{ marginBottom: 2 }}>
-              <span style={{ color: '#dc2626' }}>{'○'}</span>{' '}
+              <span style={{ color: 'var(--danger)' }}>{'○'}</span>{' '}
               <span style={{ fontWeight: 600 }}>Weak ({'<'}0.3):</span>{' '}
               {anCoverage.weak.map((c, i) => (
                 <span key={c.id}>
@@ -126,9 +126,9 @@ export function TaxRefsTab({ entry, meta, debate, taxRefCount, nodeWeights, taxN
             const isSelected = selectedTaxRefId === r.node_id;
             const score = r.relevance_score;
             const scoreColor = score == null ? 'var(--text-muted)'
-              : score >= 0.45 ? '#16a34a'
-              : score >= 0.30 ? '#d97706'
-              : '#dc2626';
+              : score >= 0.45 ? 'var(--success)'
+              : score >= 0.30 ? 'var(--warning)'
+              : 'var(--danger)';
             const src = sourceMap.get(r.node_id);
             const isAN = src?.source === 'an';
             const tw = nodeWeights.get(r.node_id);
@@ -143,7 +143,7 @@ export function TaxRefsTab({ entry, meta, debate, taxRefCount, nodeWeights, taxN
                 <tr
                   style={{
                     borderBottom: src ? 'none' : '1px solid var(--border)',
-                    background: isSelected ? 'rgba(245, 158, 11, 0.08)' : 'transparent',
+                    background: isSelected ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'transparent',
                   }}
                 >
                   {hasSourceData && (
@@ -155,8 +155,8 @@ export function TaxRefsTab({ entry, meta, debate, taxRefCount, nodeWeights, taxN
                           borderRadius: 3,
                           fontSize: 'var(--text-2xs)',
                           fontWeight: 700,
-                          background: isAN ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
-                          color: isAN ? '#22c55e' : '#f59e0b',
+                          background: isAN ? 'color-mix(in srgb, var(--success) 20%, transparent)' : 'color-mix(in srgb, var(--warning) 20%, transparent)',
+                          color: isAN ? 'var(--success)' : 'var(--warning)',
                         }}>{isAN ? (src.best_claim_id ?? 'AN') : 'TOPIC'}</span>
                       )}
                     </td>
@@ -188,7 +188,7 @@ export function TaxRefsTab({ entry, meta, debate, taxRefCount, nodeWeights, taxN
                 </tr>
                 {/* Expandable scoring detail */}
                 {src && (
-                  <tr style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'rgba(245, 158, 11, 0.08)' : 'transparent' }}>
+                  <tr style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'transparent' }}>
                     <td colSpan={hasSourceData ? 4 : 3} style={{ padding: '0 6px 4px 20px' }}>
                       <details style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                         <summary style={{ cursor: 'pointer', userSelect: 'none' }}>Scoring detail</summary>

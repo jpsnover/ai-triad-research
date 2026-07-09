@@ -21,11 +21,11 @@ export interface AffectTabProps {
 }
 
 const CATEGORY_COLORS: Record<AffectCategory, string> = {
-  urgency: '#f59e0b',
-  fear: '#ef4444',
-  hope: '#22c55e',
-  outrage: '#dc2626',
-  empathy: '#3b82f6',
+  urgency: 'var(--warning)',
+  fear: 'var(--danger)',
+  hope: 'var(--success)',
+  outrage: 'var(--danger)',
+  empathy: 'var(--color-saf)',
 };
 
 const CATEGORY_LABELS: Record<AffectCategory, string> = {
@@ -60,14 +60,14 @@ export function AffectTab({ entry, debate, entryIdx }: AffectTabProps) {
   }
 
   const approColor = appropriateness == null ? 'var(--text-muted)'
-    : appropriateness >= 0.7 ? '#22c55e'
-    : appropriateness >= 0.4 ? '#f59e0b'
-    : '#dc2626';
+    : appropriateness >= 0.7 ? 'var(--success)'
+    : appropriateness >= 0.4 ? 'var(--warning)'
+    : 'var(--danger)';
 
   return (
     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-        <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,0.2)', color: '#a855f7', fontWeight: 600 }}>AFFECT</span>
+        <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--color-skp) 20%, transparent)', color: 'var(--color-skp)', fontWeight: 600 }}>AFFECT</span>
         <span>phase: {phase}</span>
       </div>
 
@@ -129,7 +129,7 @@ export function AffectTab({ entry, debate, entryIdx }: AffectTabProps) {
       </div>
 
       {/* Intensity Gauge */}
-      <div style={{ marginBottom: 16, padding: '10px 12px', borderRadius: 6, background: 'var(--bg-primary)', borderLeft: '3px solid #a855f7' }}>
+      <div style={{ marginBottom: 16, padding: '10px 12px', borderRadius: 6, background: 'var(--bg-primary)', borderLeft: '3px solid var(--color-skp)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           <span style={{ fontWeight: 600, fontSize: '0.72rem' }}>Intensity</span>
           <span style={{ fontSize: '0.85rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
@@ -141,7 +141,7 @@ export function AffectTab({ entry, debate, entryIdx }: AffectTabProps) {
             <div style={{
               width: `${intensity * 100}%`,
               height: '100%',
-              background: intensity > 0.6 ? '#ef4444' : intensity > 0.3 ? '#f59e0b' : '#22c55e',
+              background: intensity > 0.6 ? 'var(--danger)' : intensity > 0.3 ? 'var(--warning)' : 'var(--success)',
               borderRadius: 4,
               transition: 'width 0.3s ease',
             }} />
@@ -162,7 +162,7 @@ export function AffectTab({ entry, debate, entryIdx }: AffectTabProps) {
           {appropriateness != null && appropriateness < 0.4 && profile.outrage > 0.5 && phase === 'concluding' && (
             <span style={{
               padding: '1px 6px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600,
-              background: 'rgba(220,38,38,0.15)', color: '#dc2626',
+              background: 'rgba(220,38,38,0.15)', color: 'var(--danger)',
             }}>concluding outrage warning</span>
           )}
         </div>

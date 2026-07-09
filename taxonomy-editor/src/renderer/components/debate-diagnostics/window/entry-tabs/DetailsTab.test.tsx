@@ -15,9 +15,9 @@ vi.mock('@lib/debate/types', async (importOriginal) => {
   return {
     ...original,
     POVER_INFO: {
-      accelerationist: { label: 'Accelerationist', pov: 'accelerationist', color: '#f97316' },
-      safetyist:       { label: 'Safetyist',       pov: 'safetyist',       color: '#3b82f6' },
-      skeptic:         { label: 'Skeptic',          pov: 'skeptic',         color: '#a855f7' },
+      accelerationist: { label: 'Accelerationist', pov: 'accelerationist', color: 'var(--color-acc)' },
+      safetyist:       { label: 'Safetyist',       pov: 'safetyist',       color: 'var(--color-saf)' },
+      skeptic:         { label: 'Skeptic',          pov: 'skeptic',         color: 'var(--color-skp)' },
     },
   };
 });
@@ -39,9 +39,9 @@ vi.mock('../../../../utils/humanizeSpeakers', () => ({
 vi.mock('../shared', () => ({
   classifyHintTarget: vi.fn().mockReturnValue('judge'),
   HINT_TARGET_STYLE: {
-    draft:  { label: 'DRAFT',   color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
-    cite:   { label: 'CITE',    color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
-    judge:  { label: 'QUALITY', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+    draft:  { label: 'DRAFT',   color: 'var(--success)', bg: 'color-mix(in srgb, var(--success) 10%, transparent)' },
+    cite:   { label: 'CITE',    color: 'var(--color-saf)', bg: 'color-mix(in srgb, var(--color-saf) 10%, transparent)' },
+    judge:  { label: 'QUALITY', color: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 10%, transparent)' },
   },
   EdgesUsedGrouped: () => <div data-testid="edges-used-grouped" />,
 }));

@@ -72,7 +72,7 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
               {evidenceWP?.totalCandidates != null && <span>({evidenceWP.totalCandidates} candidates screened)</span>}
             </div>
             {evidenceStage.parse_error && (
-              <div style={{ padding: '4px 6px', marginBottom: 6, background: 'rgba(220,38,38,0.1)', borderLeft: '3px solid #dc2626', borderRadius: 3, fontSize: 'var(--text-2xs)', color: '#dc2626' }}>
+              <div style={{ padding: '4px 6px', marginBottom: 6, background: 'color-mix(in srgb, var(--danger) 10%, transparent)', borderLeft: '3px solid var(--danger)', borderRadius: 3, fontSize: 'var(--text-2xs)', color: 'var(--danger)' }}>
                 <strong>Parse error:</strong> {evidenceStage.parse_error}
               </div>
             )}
@@ -105,11 +105,11 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
               Source Facts ({evidenceWP.facts.length})
             </summary>
             {evidenceWP.facts.map((fact, fi) => {
-              const specColor = fact.specificity === 'precise' ? '#16a34a' : fact.specificity === 'qualified' ? '#d97706' : '#6b7280';
+              const specColor = fact.specificity === 'precise' ? 'var(--success)' : fact.specificity === 'qualified' ? 'var(--warning)' : 'var(--text-muted)';
               return (
                 <div key={fi} style={{
                   marginBottom: 6, padding: '6px 8px', borderRadius: 4,
-                  borderLeft: '3px solid #3b82f6', background: 'var(--bg-subtle)',
+                  borderLeft: '3px solid var(--text-secondary)', background: 'var(--bg-subtle)',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                     <span style={{
@@ -120,7 +120,7 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
                       href={`https://scholar.google.com/scholar?q=${encodeURIComponent(fact.doc_id.replace(/-/g, ' ').replace(/\d{4}$/, ''))}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ fontSize: 'var(--text-2xs)', color: '#3b82f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'none' }}
+                      style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'none' }}
                       title={`Search for: ${fact.doc_id}`}
                     >
                       {fact.doc_id}
@@ -131,7 +131,7 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
                   </div>
                   <div style={{ fontSize: 'var(--text-2xs)', lineHeight: 1.35 }}>{fact.claim}</div>
                   {fact.linked_taxonomy_nodes?.length > 0 && (
-                    <div style={{ fontSize: 'var(--text-2xs)', color: '#3b82f6', marginTop: 2 }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-secondary)', marginTop: 2 }}>
                       {fact.linked_taxonomy_nodes.join(', ')}
                     </div>
                   )}
@@ -147,8 +147,8 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
               Key Points ({evidenceWP.keyPoints.length})
             </summary>
             {evidenceWP.keyPoints.map((kp, ki) => {
-              const stanceColor = kp.stance === 'support' || kp.stance === 'agree' ? '#22c55e'
-                : kp.stance === 'oppose' || kp.stance === 'disagree' ? '#ef4444' : '#d97706';
+              const stanceColor = kp.stance === 'support' || kp.stance === 'agree' ? 'var(--success)'
+                : kp.stance === 'oppose' || kp.stance === 'disagree' ? 'var(--danger)' : 'var(--warning)';
               return (
                 <div key={ki} style={{
                   marginBottom: 6, padding: '6px 8px', borderRadius: 4,
@@ -164,7 +164,7 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
                       href={`https://scholar.google.com/scholar?q=${encodeURIComponent(kp.doc_id.replace(/-/g, ' ').replace(/\d{4}$/, ''))}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ fontSize: 'var(--text-2xs)', color: '#3b82f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'none' }}
+                      style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'none' }}
                       title={`Search for: ${kp.doc_id}`}
                     >
                       {kp.doc_id}
@@ -196,21 +196,21 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
             total_docs?: number; cited_docs?: Array<{ doc_id: string; title?: string; match_type: string }>; utilization_rate?: number;
           } | undefined;
           if (!eu?.cited_docs || eu.total_docs === 0) return null;
-          const matchColors: Record<string, string> = { exact_id: '#16a34a', slug: '#3b82f6', title_exact: '#8b5cf6', title_partial: '#d97706', markdown_link: '#059669' };
+          const matchColors: Record<string, string> = { exact_id: 'var(--success)', slug: 'var(--text-secondary)', title_exact: 'var(--text-secondary)', title_partial: 'var(--warning)', markdown_link: 'var(--success)' };
           return (
             <details open style={{ marginTop: 8 }}>
               <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.72rem', marginBottom: 6 }}>
                 Cited Evidence ({eu.cited_docs.length}/{eu.total_docs} sources, {eu.utilization_rate}%)
               </summary>
               {eu.cited_docs.length === 0 ? (
-                <div style={{ fontSize: 'var(--text-2xs)', color: '#dc2626', padding: '4px 6px', background: 'rgba(220,38,38,0.08)', borderRadius: 3 }}>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--danger)', padding: '4px 6px', background: 'color-mix(in srgb, var(--danger) 8%, transparent)', borderRadius: 3 }}>
                   Debater did not cite any source documents from the evidence brief.
                 </div>
               ) : (
                 eu.cited_docs.map((cd, i) => (
-                  <div key={i} style={{ marginBottom: 4, padding: '4px 8px', borderRadius: 4, borderLeft: `3px solid ${matchColors[cd.match_type] ?? '#6b7280'}`, background: 'var(--bg-subtle)', fontSize: 'var(--text-2xs)' }}>
+                  <div key={i} style={{ marginBottom: 4, padding: '4px 8px', borderRadius: 4, borderLeft: `3px solid ${matchColors[cd.match_type] ?? 'var(--text-muted)'}`, background: 'var(--bg-subtle)', fontSize: 'var(--text-2xs)' }}>
                     <span style={{ fontWeight: 600 }}>{cd.title ?? cd.doc_id}</span>
-                    <span style={{ fontSize: 'var(--text-2xs)', marginLeft: 6, padding: '0 4px', borderRadius: 3, color: matchColors[cd.match_type] ?? '#6b7280', background: `${matchColors[cd.match_type] ?? '#6b7280'}18` }}>
+                    <span style={{ fontSize: 'var(--text-2xs)', marginLeft: 6, padding: '0 4px', borderRadius: 3, color: matchColors[cd.match_type] ?? 'var(--text-muted)', background: `color-mix(in srgb, ${matchColors[cd.match_type] ?? 'var(--text-muted)'} 10%, transparent)` }}>
                       {cd.match_type.replace('_', ' ')}
                     </span>
                   </div>
@@ -228,8 +228,8 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
           }> | undefined;
           if (!pipeline || pipeline.length === 0) return null;
           const urlTypeColors: Record<string, string> = {
-            doi: '#16a34a', arxiv: '#16a34a', ssrn: '#16a34a', direct: '#3b82f6',
-            scholar_fallback: '#d97706', google_fallback: '#d97706', none: '#dc2626',
+            doi: 'var(--success)', arxiv: 'var(--success)', ssrn: 'var(--success)', direct: 'var(--text-secondary)',
+            scholar_fallback: 'var(--warning)', google_fallback: 'var(--warning)', none: 'var(--danger)',
           };
           return (
             <details style={{ marginTop: 8 }}>
@@ -251,12 +251,12 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
                   {pipeline.map((p, pi) => (
                     <tr key={pi} style={{
                       borderBottom: '1px solid var(--border)',
-                      background: p.cited ? 'rgba(34,197,94,0.05)' : 'transparent',
+                      background: p.cited ? 'color-mix(in srgb, var(--success) 5%, transparent)' : 'transparent',
                     }}>
                       <td style={{ padding: '3px 4px', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {p.resolved_url ? (
                           <a href={p.resolved_url} target="_blank" rel="noopener noreferrer"
-                            style={{ color: '#3b82f6', textDecoration: 'none' }} title={p.doc_id}>
+                            style={{ color: 'var(--text-secondary)', textDecoration: 'none' }} title={p.doc_id}>
                             {p.doc_id.length > 25 ? p.doc_id.slice(0, 22) + '…' : p.doc_id}
                           </a>
                         ) : (
@@ -270,8 +270,8 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
                       <td style={{ textAlign: 'center', padding: '3px 4px' }}>
                         <span style={{
                           fontSize: 'var(--text-2xs)', padding: '0 4px', borderRadius: 3, fontWeight: 600,
-                          color: urlTypeColors[p.url_type] ?? '#6b7280',
-                          background: `${urlTypeColors[p.url_type] ?? '#6b7280'}18`,
+                          color: urlTypeColors[p.url_type] ?? 'var(--text-muted)',
+                          background: `color-mix(in srgb, ${urlTypeColors[p.url_type] ?? 'var(--text-muted)'} 10%, transparent)`,
                         }}>{p.url_type}</span>
                       </td>
                       <td style={{ textAlign: 'center', padding: '3px 4px' }}>
@@ -306,7 +306,7 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
           if (!uc || uc.length === 0) return null;
           return (
             <details style={{ marginTop: 8 }}>
-              <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.72rem', marginBottom: 6, color: '#6366f1' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.72rem', marginBottom: 6, color: 'var(--text-secondary)' }}>
                 Ungrounded Claims ({uc.length})
               </summary>
               <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 6 }}>
@@ -315,11 +315,11 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
               {uc.map((c, ci) => (
                 <div key={ci} style={{
                   marginBottom: 4, padding: '4px 8px', borderRadius: 4,
-                  borderLeft: '3px solid #6366f1', background: 'rgba(99,102,241,0.06)',
+                  borderLeft: '3px solid var(--text-secondary)', background: 'color-mix(in srgb, var(--text-secondary) 6%, transparent)',
                   fontSize: 'var(--text-2xs)',
                 }}>
                   <div>{c.claim}</div>
-                  <div style={{ fontSize: 'var(--text-2xs)', color: '#6366f1', marginTop: 2 }}>{c.reason}</div>
+                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-secondary)', marginTop: 2 }}>{c.reason}</div>
                 </div>
               ))}
             </details>
@@ -332,9 +332,9 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
             {(() => {
               const max = extTrace.candidates_proposed;
               const bars: [string, number, string][] = [
-                ['Candidates', extTrace.candidates_proposed, '#3b82f6'],
-                ['Accepted', extTrace.candidates_accepted, '#22c55e'],
-                ['Rejected', extTrace.candidates_rejected, '#ef4444'],
+                ['Candidates', extTrace.candidates_proposed, 'var(--text-secondary)'],
+                ['Accepted', extTrace.candidates_accepted, 'var(--success)'],
+                ['Rejected', extTrace.candidates_rejected, 'var(--danger)'],
               ];
               return (
                 <div style={{ marginBottom: 6 }}>
@@ -359,7 +359,7 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
                       {Object.entries(extTrace.rejection_reasons).map(([reason, count]) => (
                         <span key={reason} style={{
                           fontSize: 'var(--text-2xs)', padding: '1px 6px', borderRadius: 10,
-                          background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontWeight: 600,
+                          background: 'color-mix(in srgb, var(--danger) 10%, transparent)', color: 'var(--danger)', fontWeight: 600,
                         }}>{reason} ({count})</span>
                       ))}
                     </div>
@@ -379,14 +379,14 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
               ) ?? [];
               const attackEdges = addedEdges.filter(e => e.type === 'attacks').length;
               const supportEdges = addedEdges.length - attackEdges;
-              const sColors: Record<string, string> = { decisive: '#22c55e', substantial: '#3b82f6', tangential: '#6b7280' };
+              const sColors: Record<string, string> = { decisive: 'var(--success)', substantial: 'var(--text-secondary)', tangential: 'var(--text-muted)' };
               return (<>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 'var(--text-2xs)', marginBottom: 8 }}>
                   <div style={{ flex: '1 1 120px', padding: '5px 8px', borderRadius: 4, background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
                     <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Nodes Added</div>
                     <div style={{ fontFamily: 'monospace', fontWeight: 700 }}>{extTrace.an_nodes_added_ids.length}</div>
                     {extTrace.an_nodes_added_ids.length > 0 && (
-                      <div style={{ fontSize: 'var(--text-2xs)', color: '#3b82f6', marginTop: 2, wordBreak: 'break-all' }}>
+                      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-secondary)', marginTop: 2, wordBreak: 'break-all' }}>
                         {extTrace.an_nodes_added_ids.join(', ')}
                       </div>
                     )}
@@ -395,8 +395,8 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
                     <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Edges Added</div>
                     <div style={{ fontFamily: 'monospace', fontWeight: 700 }}>{addedEdges.length}</div>
                     <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
-                      <span style={{ color: '#22c55e' }}>{supportEdges} support</span>{' / '}
-                      <span style={{ color: '#ef4444' }}>{attackEdges} attack</span>
+                      <span style={{ color: 'var(--success)' }}>{supportEdges} support</span>{' / '}
+                      <span style={{ color: 'var(--danger)' }}>{attackEdges} attack</span>
                     </div>
                   </div>
                   <div style={{ flex: '1 1 120px', padding: '5px 8px', borderRadius: 4, background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
@@ -411,23 +411,23 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
                     {addedEdges.map((edge, ei) => {
                       const sourceNode = an?.nodes.find(n => n.id === edge.source);
                       const targetNode = an?.nodes.find(n => n.id === edge.target);
-                      const edgeColor = edge.type === 'attacks' ? '#ef4444' : '#22c55e';
+                      const edgeColor = edge.type === 'attacks' ? 'var(--danger)' : 'var(--success)';
                       const edgeLabel = edge.type === 'attacks'
                         ? (edge.attack_type ? `attacks (${edge.attack_type})` : 'attacks')
                         : 'supports';
                       return (
                         <div key={ei} style={{ margin: '3px 0', paddingLeft: 10, borderLeft: `2px solid ${edgeColor}` }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-                            <span style={{ fontWeight: 700, color: '#3b82f6' }}>{edge.source}</span>
+                            <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>{edge.source}</span>
                             <span style={{ color: edgeColor, fontWeight: 600 }}>{edgeLabel}</span>
-                            <span style={{ fontWeight: 700, color: '#3b82f6' }}>{edge.target}</span>
+                            <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>{edge.target}</span>
                             {edge.strength && (
-                              <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: `${sColors[edge.strength] ?? '#6b7280'}18`, color: sColors[edge.strength] ?? '#6b7280' }}>
+                              <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: `color-mix(in srgb, ${sColors[edge.strength] ?? 'var(--text-muted)'} 10%, transparent)`, color: sColors[edge.strength] ?? 'var(--text-muted)' }}>
                                 {edge.strength}
                               </span>
                             )}
                             {edge.argumentation_scheme && (
-                              <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', background: 'rgba(99,102,241,0.12)', color: '#6366f1' }}>
+                              <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', background: 'color-mix(in srgb, var(--text-secondary) 12%, transparent)', color: 'var(--text-secondary)' }}>
                                 {edge.argumentation_scheme}
                               </span>
                             )}

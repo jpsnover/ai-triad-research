@@ -46,10 +46,10 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
         return (
           <div style={{
             padding: '6px 8px', marginBottom: 8, borderRadius: 4,
-            borderLeft: '3px solid #d97706', background: 'rgba(245,158,11,0.08)',
+            borderLeft: '3px solid var(--warning)', background: 'color-mix(in srgb, var(--warning) 8%, transparent)',
             fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: 6,
           }}>
-            <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>ANTI-FILIBUSTER</span>
+            <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--warning) 20%, transparent)', color: 'var(--warning)', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>ANTI-FILIBUSTER</span>
             <span>{lvr} low-value claim{lvr !== 1 ? 's' : ''} filtered (weak, non-crux, no novel scheme)</span>
           </div>
         );
@@ -58,7 +58,7 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
         <Section title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`} defaultOpen copyText={(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => `${i + 1}. ${c.claim}${c.targets?.length > 0 ? ` → ${c.targets.join(', ')}` : ''}`).join('\n')}>
           {(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => (
             <div key={i} style={{ margin: '3px 0', fontSize: '0.7rem' }}>
-              <span style={{ color: '#3b82f6' }}>{i + 1}.</span> <Highlight text={c.claim} />
+              <span style={{ color: 'var(--color-saf)' }}>{i + 1}.</span> <Highlight text={c.claim} />
               {c.targets?.length > 0 && <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>→ {c.targets.join(', ')}</span>}
             </div>
           ))}
@@ -75,16 +75,16 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', fontSize: '0.7rem' }}>
             {status === 'pending' && (
-              <span style={{ padding: '2px 8px', borderRadius: 3, background: 'rgba(59,130,246,0.15)', color: '#3b82f6', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>EXTRACTING...</span>
+              <span style={{ padding: '2px 8px', borderRadius: 3, background: 'color-mix(in srgb, var(--color-saf) 15%, transparent)', color: 'var(--color-saf)', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>EXTRACTING...</span>
             )}
             {status === 'failed' && (
-              <span style={{ padding: '2px 8px', borderRadius: 3, background: 'rgba(220,38,38,0.15)', color: '#dc2626', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>EXTRACTION FAILED</span>
+              <span style={{ padding: '2px 8px', borderRadius: 3, background: 'color-mix(in srgb, var(--danger) 15%, transparent)', color: 'var(--danger)', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>EXTRACTION FAILED</span>
             )}
             {showReExtract && (
               <button
                 style={{
-                  padding: '3px 10px', borderRadius: 4, border: '1px solid #3b82f6',
-                  background: 'rgba(59,130,246,0.1)', color: '#3b82f6', cursor: 'pointer',
+                  padding: '3px 10px', borderRadius: 4, border: '1px solid var(--color-saf)',
+                  background: 'color-mix(in srgb, var(--color-saf) 10%, transparent)', color: 'var(--color-saf)', cursor: 'pointer',
                   fontWeight: 600, fontSize: 'var(--text-2xs)',
                 }}
                 onClick={() => api.requestReExtractClaims(entry.id)}
@@ -113,11 +113,11 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
             const repair = diag.entailment_repairs?.find(r => r.node_id === c.id);
             const hasEntailmentData = (diag.entailment_repairs?.length ?? 0) > 0;
             const entailmentVerdict: Verdict | null = repair ? (repair.verdict === 'entailed' ? 'pass' : repair.verdict === 'partial' ? 'flag' : 'fail') : null;
-            const verdictColor = repair ? (repair.verdict === 'entailed' ? '#22c55e' : repair.verdict === 'partial' ? '#f59e0b' : '#ef4444') : null;
+            const verdictColor = repair ? (repair.verdict === 'entailed' ? 'var(--success)' : repair.verdict === 'partial' ? 'var(--warning)' : 'var(--danger)') : null;
             return (
               <details key={i} open style={{ margin: '4px 0' }}>
                 <summary style={{ cursor: 'pointer' }}>
-                  <span style={{ color: '#22c55e' }}>✓ {c.id}</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nThreshold: < 10-15% = rejected as not grounded.\n${c.overlap_pct}% = ${c.overlap_pct < 50 ? 'moderate' : 'strong'} lexical grounding.`} style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)', cursor: 'default' }}>{c.overlap_pct}%</span>{' '}
+                  <span style={{ color: 'var(--success)' }}>✓ {c.id}</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nThreshold: < 10-15% = rejected as not grounded.\n${c.overlap_pct}% = ${c.overlap_pct < 50 ? 'moderate' : 'strong'} lexical grounding.`} style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)', cursor: 'default' }}>{c.overlap_pct}%</span>{' '}
                   {ec != null && (
                     <ScoreBadge
                       value={ec}
@@ -136,17 +136,17 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
                     <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', opacity: 0.6, marginRight: 4 }}>not sampled</span>
                   )}
                   {anNode?.bdi_category && (
-                    <span style={{ padding: '0 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, marginRight: 3, background: anNode.bdi_category === 'belief' ? 'rgba(59,130,246,0.15)' : anNode.bdi_category === 'desire' ? 'rgba(168,85,247,0.15)' : 'rgba(249,115,22,0.15)', color: anNode.bdi_category === 'belief' ? '#3b82f6' : anNode.bdi_category === 'desire' ? '#a855f7' : '#f97316' }}>
+                    <span style={{ padding: '0 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, marginRight: 3, background: anNode.bdi_category === 'belief' ? 'color-mix(in srgb, var(--color-saf) 15%, transparent)' : anNode.bdi_category === 'desire' ? 'color-mix(in srgb, var(--color-skp) 15%, transparent)' : 'color-mix(in srgb, var(--color-acc) 15%, transparent)', color: anNode.bdi_category === 'belief' ? 'var(--color-saf)' : anNode.bdi_category === 'desire' ? 'var(--color-skp)' : 'var(--color-acc)' }}>
                       {anNode.bdi_category}
                     </span>
                   )}
                   {anNode?.specificity && (
-                    <span style={{ padding: '0 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, marginRight: 3, background: 'rgba(107,114,128,0.12)', color: '#6b7280' }}>
+                    <span style={{ padding: '0 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, marginRight: 3, background: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
                       {anNode.specificity}
                     </span>
                   )}
                   {anNode?.steelman_of && (
-                    <span style={{ padding: '0 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, marginRight: 3, background: 'rgba(20,184,166,0.15)', color: '#14b8a6' }}>
+                    <span style={{ padding: '0 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, marginRight: 3, background: 'color-mix(in srgb, var(--text-secondary) 15%, transparent)', color: 'var(--text-secondary)' }}>
                       steelman of {POVER_INFO[anNode.steelman_of as keyof typeof POVER_INFO]?.label ?? anNode.steelman_of}
                     </span>
                   )}
@@ -162,11 +162,11 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
                   const hasSupports = outEdges.some(e => e.type === 'supports');
                   const hasAttacks = outEdges.some(e => e.type === 'attacks');
                   const concedeAndPivot = hasSupports && hasAttacks;
-                  const strengthColors = { decisive: '#22c55e', substantial: '#3b82f6', tangential: '#6b7280' } as Record<string, string>;
+                  const strengthColors = { decisive: 'var(--success)', substantial: 'var(--color-saf)', tangential: 'var(--text-muted)' } as Record<string, string>;
                   return (
                   <div style={{ paddingLeft: 20, marginTop: 4, marginBottom: 4 }}>
                     {concedeAndPivot && (
-                      <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, padding: '2px 6px', marginBottom: 4, borderRadius: 3, background: 'rgba(168,85,247,0.1)', color: '#a855f7' }}>
+                      <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, padding: '2px 6px', marginBottom: 4, borderRadius: 3, background: 'color-mix(in srgb, var(--color-skp) 10%, transparent)', color: 'var(--color-skp)' }}>
                         Concede-and-pivot: supports + attacks edges from the same claim
                       </div>
                     )}
@@ -176,15 +176,15 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
                         ? (edge.attack_type ? `attacks (${edge.attack_type})` : 'attacks')
                         : 'supports';
                       return (
-                        <div key={ei} style={{ fontSize: 'var(--text-2xs)', margin: '3px 0', paddingLeft: 10, borderLeft: `2px solid ${edge.type === 'attacks' ? '#ef4444' : '#22c55e'}` }}>
+                        <div key={ei} style={{ fontSize: 'var(--text-2xs)', margin: '3px 0', paddingLeft: 10, borderLeft: edge.type === 'attacks' ? '2px solid var(--danger)' : '2px solid var(--success)' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-                            <span style={{ color: edge.type === 'attacks' ? '#ef4444' : '#22c55e', fontWeight: 600 }}>{edgeLabel}</span>
+                            <span style={{ color: edge.type === 'attacks' ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>{edgeLabel}</span>
                             {edge.strength && (
-                              <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: `${strengthColors[edge.strength] ?? '#6b7280'}18`, color: strengthColors[edge.strength] ?? '#6b7280' }}>
+                              <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: 'var(--bg-hover)', color: strengthColors[edge.strength] ?? 'var(--text-muted)' }}>
                                 {edge.strength}
                               </span>
                             )}
-                            {edge.argumentation_scheme && <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', background: 'rgba(99,102,241,0.12)', color: '#6366f1' }}>{edge.argumentation_scheme}</span>}
+                            {edge.argumentation_scheme && <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>{edge.argumentation_scheme}</span>}
                           </div>
                           {targetNode && (
                             <div style={{ color: 'var(--text-muted)', marginTop: 1 }}>
@@ -203,14 +203,14 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
                   );
                 })()}
                 {repair && repair.verdict !== 'entailed' && repair.repaired_text && (
-                  <div style={{ paddingLeft: 20, marginTop: 6, marginBottom: 4, padding: '6px 8px', borderRadius: 4, background: `${verdictColor}08`, border: `1px solid ${verdictColor}20` }}>
+                  <div style={{ paddingLeft: 20, marginTop: 6, marginBottom: 4, padding: '6px 8px', borderRadius: 4, background: repair.verdict === 'entailed' ? 'color-mix(in srgb, var(--success) 8%, transparent)' : repair.verdict === 'partial' ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'color-mix(in srgb, var(--danger) 8%, transparent)', border: repair.verdict === 'entailed' ? '1px solid color-mix(in srgb, var(--success) 20%, transparent)' : repair.verdict === 'partial' ? '1px solid color-mix(in srgb, var(--warning) 20%, transparent)' : '1px solid color-mix(in srgb, var(--danger) 20%, transparent)' }}>
                     <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: verdictColor!, marginBottom: 4 }}>
                       Entailment Repair ({repair.verdict})
                     </div>
                     <div style={{ fontSize: 'var(--text-2xs)', marginBottom: 3 }}>
-                      <span style={{ textDecoration: 'line-through', color: '#ef4444', opacity: 0.7 }}>{repair.original_text}</span>
+                      <span style={{ textDecoration: 'line-through', color: 'var(--danger)', opacity: 0.7 }}>{repair.original_text}</span>
                     </div>
-                    <div style={{ fontSize: 'var(--text-2xs)', marginBottom: 3, color: '#22c55e' }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', marginBottom: 3, color: 'var(--success)' }}>
                       {repair.repaired_text}
                     </div>
                     <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>
@@ -236,9 +236,9 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
                           {Object.entries(anNode.bdi_sub_scores).filter(([, v]) => v != null).map(([k, v]) => {
                             const label = k.replace(/_/g, ' ');
                             const strVal = typeof v === 'number' ? (v >= 0.7 ? 'yes' : v >= 0.4 ? 'partial' : 'no') : String(v);
-                            const color = strVal === 'yes' ? '#22c55e' : strVal === 'partial' ? '#f59e0b' : '#ef4444';
+                            const color = strVal === 'yes' ? 'var(--success)' : strVal === 'partial' ? 'var(--warning)' : 'var(--danger)';
                             return (
-                              <span key={k} style={{ padding: '1px 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', background: `${color}15`, color }}>
+                              <span key={k} style={{ padding: '1px 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', background: strVal === 'yes' ? 'color-mix(in srgb, var(--success) 15%, transparent)' : strVal === 'partial' ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : 'color-mix(in srgb, var(--danger) 15%, transparent)', color }}>
                                 {label}: {strVal}
                               </span>
                             );
@@ -253,7 +253,7 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
                   const eg = anNode?.evidence_graph as { evidence_items: { id: string; source_doc_id: string; text: string; relation: 'support' | 'contradict'; similarity: number }[]; computed_strength: number; qbaf_iterations: number } | undefined;
                   if (!eg || eg.evidence_items.length === 0) return null;
                   const barPct = Math.round(eg.computed_strength * 100);
-                  const barColor = eg.computed_strength >= 0.7 ? '#22c55e' : eg.computed_strength >= 0.4 ? '#f59e0b' : '#ef4444';
+                  const barColor = eg.computed_strength >= 0.7 ? 'var(--success)' : eg.computed_strength >= 0.4 ? 'var(--warning)' : 'var(--danger)';
                   const supports = eg.evidence_items.filter(e => e.relation === 'support');
                   const contradicts = eg.evidence_items.filter(e => e.relation === 'contradict');
                   return (
@@ -277,14 +277,14 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
                         .map(item => (
                         <div key={item.id} style={{
                           marginBottom: 3, padding: '3px 6px', borderRadius: 4, fontSize: 'var(--text-2xs)',
-                          borderLeft: `2px solid ${item.relation === 'support' ? '#22c55e' : '#ef4444'}`,
-                          background: item.relation === 'support' ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
+                          borderLeft: item.relation === 'support' ? '2px solid var(--success)' : '2px solid var(--danger)',
+                          background: item.relation === 'support' ? 'color-mix(in srgb, var(--success) 6%, transparent)' : 'color-mix(in srgb, var(--danger) 6%, transparent)',
                         }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                             <span style={{
                               fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 4px', borderRadius: 3,
-                              background: item.relation === 'support' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
-                              color: item.relation === 'support' ? '#22c55e' : '#ef4444',
+                              background: item.relation === 'support' ? 'color-mix(in srgb, var(--success) 15%, transparent)' : 'color-mix(in srgb, var(--danger) 15%, transparent)',
+                              color: item.relation === 'support' ? 'var(--success)' : 'var(--danger)',
                             }}>
                               {item.relation === 'support' ? 'SUP' : 'CON'}
                             </span>
@@ -306,8 +306,8 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
           })}
           {diag.extracted_claims.rejected.map((c, i) => (
             <div key={i} style={{ margin: '3px 0' }}>
-              <span style={{ color: '#ef4444' }}>✗</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nRejected: ${c.reason === 'low_overlap' ? 'overlap too low (not grounded)' : c.reason === 'duplicate_claim' ? 'duplicate (too similar to existing AN node)' : c.reason}.`} style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)', cursor: 'default' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
-              <div style={{ color: '#f59e0b', fontSize: 'var(--text-2xs)', paddingLeft: 16 }}>{c.reason}</div>
+              <span style={{ color: 'var(--danger)' }}>✗</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nRejected: ${c.reason === 'low_overlap' ? 'overlap too low (not grounded)' : c.reason === 'duplicate_claim' ? 'duplicate (too similar to existing AN node)' : c.reason}.`} style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)', cursor: 'default' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
+              <div style={{ color: 'var(--warning)', fontSize: 'var(--text-2xs)', paddingLeft: 16 }}>{c.reason}</div>
             </div>
           ))}
         </Section>
@@ -323,11 +323,11 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
             </div>
             <div>
               <div style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>Accepted</div>
-              <div style={{ color: '#22c55e' }}>{extTrace.candidates_accepted}</div>
+              <div style={{ color: 'var(--success)' }}>{extTrace.candidates_accepted}</div>
             </div>
             <div>
               <div style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>Rejected</div>
-              <div style={{ color: '#ef4444' }}>{extTrace.candidates_rejected}</div>
+              <div style={{ color: 'var(--danger)' }}>{extTrace.candidates_rejected}</div>
             </div>
           </div>
           {extTrace.an_node_count_before != null && (
@@ -346,7 +346,7 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
               <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Rejection reasons:</span>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
                 {Object.entries(extTrace.rejection_reasons).map(([reason, count]) => (
-                  <span key={reason} style={{ padding: '1px 6px', borderRadius: 3, fontSize: 'var(--text-2xs)', background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+                  <span key={reason} style={{ padding: '1px 6px', borderRadius: 3, fontSize: 'var(--text-2xs)', background: 'color-mix(in srgb, var(--danger) 10%, transparent)', color: 'var(--danger)' }}>
                     {reason.replace(/_/g, ' ')} ({count})
                   </span>
                 ))}

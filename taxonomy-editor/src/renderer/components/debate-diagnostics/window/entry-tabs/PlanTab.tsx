@@ -22,20 +22,20 @@ export function PlanTab(props: PlanTabProps) {
     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
       {/* -- Top section: header + content from final plan -- */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-        <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,0.2)', color: '#a855f7', fontWeight: 600 }}>PLAN</span>
+        <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--color-skp) 20%, transparent)', color: 'var(--color-skp)', fontWeight: 600 }}>PLAN</span>
         <span>{planStage.model}</span>
         <span>temp={planStage.temperature}</span>
         <span>{(planStage.response_time_ms / 1000).toFixed(1)}s</span>
       </div>
       {/* Parse error banner */}
       {planStage.parse_error && (
-        <div style={{ padding: '6px 8px', margin: '6px 0', background: 'rgba(220,38,38,0.1)', borderLeft: '3px solid #dc2626', borderRadius: 4, fontSize: '0.72rem', color: '#dc2626' }}>
+        <div style={{ padding: '6px 8px', margin: '6px 0', background: 'rgba(220,38,38,0.1)', borderLeft: '3px solid var(--danger)', borderRadius: 4, fontSize: '0.72rem', color: 'var(--danger)' }}>
           <strong>Parse error:</strong> {planStage.parse_error}
         </div>
       )}
       {/* Empty work_product fallback */}
       {!planStage.parse_error && planStage.work_product && Object.keys(planStage.work_product).length === 0 && (
-        <div style={{ padding: '6px 8px', margin: '6px 0', background: 'rgba(245,158,11,0.1)', borderLeft: '3px solid #f59e0b', borderRadius: 4, fontSize: '0.72rem', color: '#d97706' }}>
+        <div style={{ padding: '6px 8px', margin: '6px 0', background: 'color-mix(in srgb, var(--warning) 10%, transparent)', borderLeft: '3px solid var(--warning)', borderRadius: 4, fontSize: '0.72rem', color: 'var(--warning)' }}>
           No structured plan data — expand Raw Response below to inspect the model output.
         </div>
       )}
@@ -51,7 +51,7 @@ export function PlanTab(props: PlanTabProps) {
         return (
           <details open>
             <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(239,68,68,0.15)', color: '#ef4444', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>OPPONENT INTELLIGENCE</span>
+              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--danger) 15%, transparent)', color: 'var(--danger)', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>OPPONENT INTELLIGENCE</span>
               <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontWeight: 400 }}>{hints.length} hint{hints.length !== 1 ? 's' : ''}</span>
             </summary>
             <div style={{ padding: '4px 8px', fontSize: '0.72rem' }}>
@@ -60,7 +60,7 @@ export function PlanTab(props: PlanTabProps) {
                 const isGap = h.includes('sparse coverage') || h.includes('knowledge gap');
                 const isShift = h.includes('shifted') && (h.includes('cooperative') || h.includes('adversarial'));
                 const typeLabel = isTrap ? 'TRAP' : isGap ? 'GAP' : isShift ? 'SHIFT' : 'HINT';
-                const typeColor = isTrap ? '#dc2626' : isGap ? '#d97706' : isShift ? '#2563eb' : '#6b7280';
+                const typeColor = isTrap ? 'var(--danger)' : isGap ? 'var(--warning)' : isShift ? 'var(--text-secondary)' : 'var(--text-muted)';
                 return (
                   <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: `2px solid ${typeColor}40` }}>
                     <span style={{ display: 'inline-block', padding: '0 4px', borderRadius: 3, background: `${typeColor}15`, color: typeColor, fontSize: 'var(--text-2xs)', fontWeight: 600, marginRight: 6 }}>{typeLabel}</span>
@@ -79,9 +79,9 @@ export function PlanTab(props: PlanTabProps) {
         const dr = wp.directive_response as { directive: string; how_addressed: string } | undefined;
         if (!drp && !dr) return null;
         return (
-          <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(245,158,11,0.6)', background: 'rgba(245,158,11,0.08)', borderRadius: 4, fontSize: '0.75rem' }}>
+          <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid color-mix(in srgb, var(--warning) 60%, transparent)', background: 'color-mix(in srgb, var(--warning) 8%, transparent)', borderRadius: 4, fontSize: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>MODERATOR DIRECTIVE</span>
+              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--warning) 20%, transparent)', color: 'var(--warning)', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>MODERATOR DIRECTIVE</span>
             </div>
             {dr && (
               <>
@@ -95,20 +95,20 @@ export function PlanTab(props: PlanTabProps) {
       })()}
       {/* Strategic Goal */}
       {!!(planStage.work_product as Record<string, unknown>).strategic_goal && (
-        <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(168,85,247,0.4)', background: 'rgba(168,85,247,0.05)', fontSize: '0.78rem', fontWeight: 600 }}>
+        <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid color-mix(in srgb, var(--color-skp) 40%, transparent)', background: 'color-mix(in srgb, var(--color-skp) 5%, transparent)', fontSize: '0.78rem', fontWeight: 600 }}>
           <Highlight text={String((planStage.work_product as Record<string, unknown>).strategic_goal)} />
         </div>
       )}
       {/* Core Thesis */}
       {!!(planStage.work_product as Record<string, unknown>).core_thesis && (
-        <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(168,85,247,0.4)', background: 'rgba(168,85,247,0.05)', fontSize: '0.78rem' }}>
+        <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid color-mix(in srgb, var(--color-skp) 40%, transparent)', background: 'color-mix(in srgb, var(--color-skp) 5%, transparent)', fontSize: '0.78rem' }}>
           <span style={{ fontWeight: 600, fontSize: '0.7rem' }}>Core Thesis: </span>
           <Highlight text={String((planStage.work_product as Record<string, unknown>).core_thesis)} />
         </div>
       )}
       {/* Framing Choices */}
       {!!(planStage.work_product as Record<string, unknown>).framing_choices && (
-        <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(168,85,247,0.3)', fontSize: '0.72rem' }}>
+        <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid color-mix(in srgb, var(--color-skp) 30%, transparent)', fontSize: '0.72rem' }}>
           <span style={{ fontWeight: 600, fontSize: '0.7rem' }}>Framing: </span>
           {Array.isArray((planStage.work_product as Record<string, unknown>).framing_choices)
             ? ((planStage.work_product as Record<string, unknown>).framing_choices as { frame: string; why: string }[]).map((fc, i) => (
@@ -125,8 +125,8 @@ export function PlanTab(props: PlanTabProps) {
       {Array.isArray((planStage.work_product as Record<string, unknown>).planned_moves) && (
         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Planned Moves</summary>
           {((planStage.work_product as Record<string, unknown>).planned_moves as { move: string; target?: string; detail: string }[]).map((m, i) => (
-            <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(168,85,247,0.3)' }}>
-              <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,0.2)', color: '#a855f7', fontSize: '0.7rem', fontWeight: 600 }}>{m.move}</span>
+            <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid color-mix(in srgb, var(--color-skp) 30%, transparent)' }}>
+              <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--color-skp) 20%, transparent)', color: 'var(--color-skp)', fontSize: '0.7rem', fontWeight: 600 }}>{m.move}</span>
               {m.target && <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{'→'} {m.target}</span>}
               {m.detail && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}><Highlight text={m.detail} /></div>}
             </div>
@@ -137,7 +137,7 @@ export function PlanTab(props: PlanTabProps) {
       {Array.isArray((planStage.work_product as Record<string, unknown>).argument_structure) && ((planStage.work_product as Record<string, unknown>).argument_structure as { point: string; evidence: string; taxonomy_anchor: string }[]).length > 0 && (
         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Argumentation Structure</summary>
           {((planStage.work_product as Record<string, unknown>).argument_structure as { point: string; evidence: string; taxonomy_anchor: string }[]).map((s, i) => (
-            <div key={i} style={{ margin: '4px 0', padding: '6px 8px', borderLeft: '2px solid rgba(168,85,247,0.3)', background: 'rgba(168,85,247,0.03)', borderRadius: '0 4px 4px 0' }}>
+            <div key={i} style={{ margin: '4px 0', padding: '6px 8px', borderLeft: '2px solid color-mix(in srgb, var(--color-skp) 30%, transparent)', background: 'color-mix(in srgb, var(--color-skp) 3%, transparent)', borderRadius: '0 4px 4px 0' }}>
               <div style={{ fontSize: '0.72rem', fontWeight: 600 }}><Highlight text={s.point} /></div>
               {s.evidence && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}><Highlight text={s.evidence} /></div>}
               {s.taxonomy_anchor && (
@@ -157,7 +157,7 @@ export function PlanTab(props: PlanTabProps) {
       {/* Argument Sketch */}
       {!!(planStage.work_product as Record<string, unknown>).argument_sketch && (
         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Argument Sketch</summary>
-          <div style={{ fontSize: '0.72rem', padding: 6, background: 'rgba(128,128,128,0.05)', borderRadius: 4 }}>
+          <div style={{ fontSize: '0.72rem', padding: 6, background: 'color-mix(in srgb, var(--text-muted) 5%, transparent)', borderRadius: 4 }}>
             <Highlight text={String((planStage.work_product as Record<string, unknown>).argument_sketch)} />
           </div>
         </details>
@@ -222,7 +222,7 @@ export function PlanTab(props: PlanTabProps) {
                 <span style={{
                   display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '1px 6px',
                   borderRadius: 3, marginRight: 6,
-                  color: valData.pass ? '#16a34a' : '#dc2626',
+                  color: valData.pass ? 'var(--success)' : 'var(--danger)',
                   background: valData.pass ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)',
                 }}>{valData.pass ? '✓ Pass' : '✗ Fail'}</span>
                 {/* Per-rule details (Plan stage) */}
@@ -231,7 +231,7 @@ export function PlanTab(props: PlanTabProps) {
                     <tbody>
                       {(valData as { details: { rule: string; pass: boolean; value?: string }[] }).details.map((d, di) => (
                         <tr key={di}>
-                          <td style={{ padding: '1px 4px 1px 0', color: d.pass ? '#16a34a' : '#dc2626', width: 14 }}>{d.pass ? '✓' : '✗'}</td>
+                          <td style={{ padding: '1px 4px 1px 0', color: d.pass ? 'var(--success)' : 'var(--danger)', width: 14 }}>{d.pass ? '✓' : '✗'}</td>
                           <td style={{ padding: '1px 6px 1px 0', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{d.rule}</td>
                           <td style={{ padding: '1px 0', color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)', fontSize: 'var(--text-2xs)', whiteSpace: 'nowrap' }}>{d.value ?? ''}</td>
                         </tr>

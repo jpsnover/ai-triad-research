@@ -851,14 +851,14 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
   const chatContent = (
     <div className="diag-chat-sidebar" style={{
       width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
-      background: 'var(--bg-primary, #1a1a2e)',
+      background: 'var(--bg-primary, var(--bg-secondary))',
     }}>
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
         borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)',
       }}>
-        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f59e0b' }}>
+        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--warning)' }}>
           Debate Chat
         </span>
         <span style={{
@@ -921,9 +921,9 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
               borderRadius: 8,
               fontSize: '0.75rem',
               lineHeight: 1.4,
-              background: msg.role === 'user' ? 'rgba(245,158,11,0.15)' : 'var(--bg-tertiary, rgba(255,255,255,0.05))',
-              color: 'var(--text-primary, #e2e8f0)',
-              border: msg.role === 'user' ? '1px solid rgba(245,158,11,0.3)' : '1px solid var(--border)',
+              background: msg.role === 'user' ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : 'var(--bg-tertiary, rgba(255,255,255,0.05))',
+              color: 'var(--text-primary, var(--border-color))',
+              border: msg.role === 'user' ? '1px solid color-mix(in srgb, var(--warning) 30%, transparent)' : '1px solid var(--border)',
               userSelect: 'text',
               cursor: 'text',
             }}
@@ -938,7 +938,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
             {msg.navigation && (
               <div style={{
                 marginTop: 4, paddingTop: 4, borderTop: '1px solid var(--border)',
-                fontSize: 'var(--text-2xs)', color: '#f59e0b', cursor: 'pointer',
+                fontSize: 'var(--text-2xs)', color: 'var(--warning)', cursor: 'pointer',
               }}
                 onClick={() => msg.navigation && onNavigate(msg.navigation)}
               >
@@ -953,7 +953,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
             padding: '6px 10px', borderRadius: 8,
             fontSize: '0.75rem', lineHeight: 1.4,
             background: 'var(--bg-tertiary, rgba(255,255,255,0.05))',
-            color: 'var(--text-primary, #e2e8f0)',
+            color: 'var(--text-primary, var(--border-color))',
             border: '1px solid var(--border)',
             userSelect: 'text', cursor: 'text',
           }}>
@@ -984,13 +984,13 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
                   style={{
                     padding: '3px 8px', borderRadius: 12,
                     fontSize: 'var(--text-2xs)', cursor: 'pointer',
-                    background: 'rgba(245,158,11,0.08)',
-                    color: '#f59e0b',
-                    border: '1px solid rgba(245,158,11,0.2)',
+                    background: 'color-mix(in srgb, var(--warning) 8%, transparent)',
+                    color: 'var(--warning)',
+                    border: '1px solid color-mix(in srgb, var(--warning) 20%, transparent)',
                     transition: 'background 0.15s',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(245,158,11,0.18)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(245,158,11,0.08)')}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--warning) 18%, transparent)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--warning) 8%, transparent)')}
                 >
                   {s}
                 </button>
@@ -1031,7 +1031,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
             disabled={isWeb || !input.trim() || !debate || generating}
             style={{
               padding: '0 12px', borderRadius: 6,
-              background: !isWeb && input.trim() && debate && !generating ? '#f59e0b' : 'var(--bg-tertiary)',
+              background: !isWeb && input.trim() && debate && !generating ? 'var(--warning)' : 'var(--bg-tertiary)',
               color: !isWeb && input.trim() && debate && !generating ? '#000' : 'var(--text-muted)',
               border: 'none', cursor: !isWeb && input.trim() && debate && !generating ? 'pointer' : 'not-allowed',
               fontWeight: 600, fontSize: '0.75rem',
@@ -1058,7 +1058,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
         style={{
           position: 'fixed', right: 12, bottom: 12, zIndex: 1000,
           width: 44, height: 44, borderRadius: '50%',
-          background: '#f59e0b', border: 'none', cursor: 'pointer',
+          background: 'var(--warning)', border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
           fontSize: '1.2rem', color: '#000',
@@ -1080,7 +1080,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
           background: 'var(--border)',
           transition: 'background 0.15s',
         }}
-        onMouseEnter={e => (e.currentTarget.style.background = '#f59e0b')}
+        onMouseEnter={e => (e.currentTarget.style.background = 'var(--warning)')}
         onMouseLeave={e => { if (!dragging.current) e.currentTarget.style.background = 'var(--border)'; }}
       />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>

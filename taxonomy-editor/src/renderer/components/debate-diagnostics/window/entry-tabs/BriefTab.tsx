@@ -26,13 +26,13 @@ export function BriefTab(props: BriefTabProps) {
     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
       {/* -- Top section: header + content from final brief -- */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-        <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(59,130,246,0.2)', color: '#3b82f6', fontWeight: 600 }}>BRIEF</span>
+        <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--color-saf) 20%, transparent)', color: 'var(--color-saf)', fontWeight: 600 }}>BRIEF</span>
         <span>{briefStage.model}</span>
         <span>temp={briefStage.temperature}</span>
         <span>{(briefStage.response_time_ms / 1000).toFixed(1)}s</span>
       </div>
       {briefStage.parse_error && (
-        <div style={{ padding: '6px 8px', margin: '6px 0', background: 'rgba(220,38,38,0.1)', borderLeft: '3px solid #dc2626', borderRadius: 4, fontSize: '0.72rem', color: '#dc2626' }}>
+        <div style={{ padding: '6px 8px', margin: '6px 0', background: 'rgba(220,38,38,0.1)', borderLeft: '3px solid var(--danger)', borderRadius: 4, fontSize: '0.72rem', color: 'var(--danger)' }}>
           <strong>Parse error:</strong> {briefStage.parse_error}
         </div>
       )}
@@ -43,9 +43,9 @@ export function BriefTab(props: BriefTabProps) {
         const dr = wp.directive_response as { directive: string; how_addressed: string } | undefined;
         if (!drp && !dr) return null;
         return (
-          <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(245,158,11,0.6)', background: 'rgba(245,158,11,0.08)', borderRadius: 4, fontSize: '0.75rem' }}>
+          <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid color-mix(in srgb, var(--warning) 60%, transparent)', background: 'color-mix(in srgb, var(--warning) 8%, transparent)', borderRadius: 4, fontSize: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>MODERATOR DIRECTIVE</span>
+              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--warning) 20%, transparent)', color: 'var(--warning)', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>MODERATOR DIRECTIVE</span>
             </div>
             {dr && (
               <>
@@ -59,7 +59,7 @@ export function BriefTab(props: BriefTabProps) {
       })()}
       {/* Core BRIEF statement (situation assessment) */}
       {!!(briefStage.work_product as Record<string, unknown>).situation_assessment && (
-        <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(59,130,246,0.4)', background: 'rgba(59,130,246,0.05)', fontSize: '0.78rem' }}>
+        <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid color-mix(in srgb, var(--color-saf) 40%, transparent)', background: 'color-mix(in srgb, var(--color-saf) 5%, transparent)', fontSize: '0.78rem' }}>
           <Highlight text={String((briefStage.work_product as Record<string, unknown>).situation_assessment)} />
         </div>
       )}
@@ -75,7 +75,7 @@ export function BriefTab(props: BriefTabProps) {
                     {c.grounding.map((g, gi) => {
                       const ref = entry.taxonomy_refs?.find(r => r.node_id === g.node_id);
                       const sc = ref?.relevance_score;
-                      const scColor = sc == null ? 'var(--text-muted)' : sc >= 0.45 ? '#16a34a' : sc >= 0.30 ? '#d97706' : '#dc2626';
+                      const scColor = sc == null ? 'var(--text-muted)' : sc >= 0.45 ? 'var(--success)' : sc >= 0.30 ? 'var(--warning)' : 'var(--danger)';
                       const tw = nodeWeights.get(g.node_id);
                       const conf = (g as Record<string, unknown>).confidence as number | undefined ?? tw?.confidence;
                       const prio = (g as Record<string, unknown>).priority as number | undefined ?? tw?.priority;
@@ -84,9 +84,9 @@ export function BriefTab(props: BriefTabProps) {
                         <li key={gi} style={{ fontSize: 'var(--text-2xs)', color: 'var(--accent)' }}>
                           <button onClick={() => setSelectedTaxRefId(selectedTaxRefId === g.node_id ? null : g.node_id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}>{g.node_id}</button>
                           {sc != null && <span style={{ fontWeight: 600, color: scColor, marginLeft: 4 }}>{sc.toFixed(2)}</span>}
-                          {conf != null && <span style={{ marginLeft: 4, fontWeight: 600, color: conf >= 0.70 ? '#16a34a' : conf >= 0.50 ? '#2563eb' : '#d97706', background: conf < 0.50 ? '#fef3c7' : undefined, padding: conf < 0.50 ? '0 3px' : undefined, borderRadius: 2 }}>conf:{conf.toFixed(2)}</span>}
-                          {prio != null && <span style={{ marginLeft: 4, fontWeight: 600, color: prio >= 4 ? '#7c3aed' : '#6b7280' }}>P{prio}/5</span>}
-                          {oper != null && <span style={{ marginLeft: 4, fontWeight: 600, color: oper >= 4 ? '#0d9488' : '#6b7280' }}>op:{oper}/5</span>}
+                          {conf != null && <span style={{ marginLeft: 4, fontWeight: 600, color: conf >= 0.70 ? 'var(--success)' : conf >= 0.50 ? 'var(--text-secondary)' : 'var(--warning)', background: conf < 0.50 ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : undefined, padding: conf < 0.50 ? '0 3px' : undefined, borderRadius: 2 }}>conf:{conf.toFixed(2)}</span>}
+                          {prio != null && <span style={{ marginLeft: 4, fontWeight: 600, color: prio >= 4 ? 'var(--text-secondary)' : 'var(--text-muted)' }}>P{prio}/5</span>}
+                          {oper != null && <span style={{ marginLeft: 4, fontWeight: 600, color: oper >= 4 ? 'var(--text-secondary)' : 'var(--text-muted)' }}>op:{oper}/5</span>}
                           {g.why && <span style={{ marginLeft: 4 }}>{g.why}</span>}
                         </li>
                       );
@@ -110,7 +110,7 @@ export function BriefTab(props: BriefTabProps) {
                     {a.grounding.map((g, gi) => {
                       const ref = entry.taxonomy_refs?.find(r => r.node_id === g.node_id);
                       const sc = ref?.relevance_score;
-                      const scColor = sc == null ? 'var(--text-muted)' : sc >= 0.45 ? '#16a34a' : sc >= 0.30 ? '#d97706' : '#dc2626';
+                      const scColor = sc == null ? 'var(--text-muted)' : sc >= 0.45 ? 'var(--success)' : sc >= 0.30 ? 'var(--warning)' : 'var(--danger)';
                       const tw = nodeWeights.get(g.node_id);
                       const conf = (g as Record<string, unknown>).confidence as number | undefined ?? tw?.confidence;
                       const prio = (g as Record<string, unknown>).priority as number | undefined ?? tw?.priority;
@@ -119,9 +119,9 @@ export function BriefTab(props: BriefTabProps) {
                         <li key={gi} style={{ fontSize: 'var(--text-2xs)', color: 'var(--accent)' }}>
                           <button onClick={() => setSelectedTaxRefId(selectedTaxRefId === g.node_id ? null : g.node_id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}>{g.node_id}</button>
                           {sc != null && <span style={{ fontWeight: 600, color: scColor, marginLeft: 4 }}>{sc.toFixed(2)}</span>}
-                          {conf != null && <span style={{ marginLeft: 4, fontWeight: 600, color: conf >= 0.70 ? '#16a34a' : conf >= 0.50 ? '#2563eb' : '#d97706', background: conf < 0.50 ? '#fef3c7' : undefined, padding: conf < 0.50 ? '0 3px' : undefined, borderRadius: 2 }}>conf:{conf.toFixed(2)}</span>}
-                          {prio != null && <span style={{ marginLeft: 4, fontWeight: 600, color: prio >= 4 ? '#7c3aed' : '#6b7280' }}>P{prio}/5</span>}
-                          {oper != null && <span style={{ marginLeft: 4, fontWeight: 600, color: oper >= 4 ? '#0d9488' : '#6b7280' }}>op:{oper}/5</span>}
+                          {conf != null && <span style={{ marginLeft: 4, fontWeight: 600, color: conf >= 0.70 ? 'var(--success)' : conf >= 0.50 ? 'var(--text-secondary)' : 'var(--warning)', background: conf < 0.50 ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : undefined, padding: conf < 0.50 ? '0 3px' : undefined, borderRadius: 2 }}>conf:{conf.toFixed(2)}</span>}
+                          {prio != null && <span style={{ marginLeft: 4, fontWeight: 600, color: prio >= 4 ? 'var(--text-secondary)' : 'var(--text-muted)' }}>P{prio}/5</span>}
+                          {oper != null && <span style={{ marginLeft: 4, fontWeight: 600, color: oper >= 4 ? 'var(--text-secondary)' : 'var(--text-muted)' }}>op:{oper}/5</span>}
                           {g.why && <span style={{ marginLeft: 4 }}>{g.why}</span>}
                         </li>
                       );
@@ -166,7 +166,7 @@ export function BriefTab(props: BriefTabProps) {
             </thead>
             <tbody>
               {((briefStage.work_product as Record<string, unknown>).document_claims_to_engage as { d_id: string; claim: string; stance: string; why: string; grounding?: { node_id: string; why: string }[] }[]).map((dc, i) => {
-                const stanceColor = dc.stance === 'accept' ? '#16a34a' : dc.stance === 'challenge' ? '#dc2626' : '#d97706';
+                const stanceColor = dc.stance === 'accept' ? 'var(--success)' : dc.stance === 'challenge' ? 'var(--danger)' : 'var(--warning)';
                 return (
                   <Fragment key={i}>
                     <tr style={{ borderBottom: Array.isArray(dc.grounding) && dc.grounding.length > 0 ? 'none' : '1px solid var(--border)' }}>
@@ -184,7 +184,7 @@ export function BriefTab(props: BriefTabProps) {
                             {dc.grounding.map((g, gi) => {
                               const ref = entry.taxonomy_refs?.find(r => r.node_id === g.node_id);
                               const sc = ref?.relevance_score;
-                              const scColor = sc == null ? 'var(--text-muted)' : sc >= 0.45 ? '#16a34a' : sc >= 0.30 ? '#d97706' : '#dc2626';
+                              const scColor = sc == null ? 'var(--text-muted)' : sc >= 0.45 ? 'var(--success)' : sc >= 0.30 ? 'var(--warning)' : 'var(--danger)';
                               const tw = nodeWeights.get(g.node_id);
                               const conf = (g as Record<string, unknown>).confidence as number | undefined ?? tw?.confidence;
                               const prio = (g as Record<string, unknown>).priority as number | undefined ?? tw?.priority;
@@ -193,9 +193,9 @@ export function BriefTab(props: BriefTabProps) {
                                 <li key={gi} style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                                   <button onClick={() => setSelectedTaxRefId(selectedTaxRefId === g.node_id ? null : g.node_id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}>{g.node_id}</button>
                                   {sc != null && <span style={{ fontWeight: 600, color: scColor, marginLeft: 4 }}>{sc.toFixed(2)}</span>}
-                                  {conf != null && <span style={{ marginLeft: 4, fontWeight: 600, color: conf >= 0.70 ? '#16a34a' : conf >= 0.50 ? '#2563eb' : '#d97706', background: conf < 0.50 ? '#fef3c7' : undefined, padding: conf < 0.50 ? '0 3px' : undefined, borderRadius: 2 }}>conf:{conf.toFixed(2)}</span>}
-                                  {prio != null && <span style={{ marginLeft: 4, fontWeight: 600, color: prio >= 4 ? '#7c3aed' : '#6b7280' }}>P{prio}/5</span>}
-                                  {oper != null && <span style={{ marginLeft: 4, fontWeight: 600, color: oper >= 4 ? '#0d9488' : '#6b7280' }}>op:{oper}/5</span>}
+                                  {conf != null && <span style={{ marginLeft: 4, fontWeight: 600, color: conf >= 0.70 ? 'var(--success)' : conf >= 0.50 ? 'var(--text-secondary)' : 'var(--warning)', background: conf < 0.50 ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : undefined, padding: conf < 0.50 ? '0 3px' : undefined, borderRadius: 2 }}>conf:{conf.toFixed(2)}</span>}
+                                  {prio != null && <span style={{ marginLeft: 4, fontWeight: 600, color: prio >= 4 ? 'var(--text-secondary)' : 'var(--text-muted)' }}>P{prio}/5</span>}
+                                  {oper != null && <span style={{ marginLeft: 4, fontWeight: 600, color: oper >= 4 ? 'var(--text-secondary)' : 'var(--text-muted)' }}>op:{oper}/5</span>}
                                   {g.why && <span style={{ marginLeft: 4 }}>{g.why}</span>}
                                 </li>
                               );
@@ -225,11 +225,11 @@ export function BriefTab(props: BriefTabProps) {
                 const matchedRef = entry.taxonomy_refs?.find(r => r.node_id === n.node_id);
                 const briefScore = matchedRef?.relevance_score;
                 const briefScoreColor = briefScore == null ? 'var(--text-muted)'
-                  : briefScore >= 0.45 ? '#16a34a'
-                  : briefScore >= 0.30 ? '#d97706'
-                  : '#dc2626';
+                  : briefScore >= 0.45 ? 'var(--success)'
+                  : briefScore >= 0.30 ? 'var(--warning)'
+                  : 'var(--danger)';
                 return (
-                  <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'rgba(245, 158, 11, 0.08)' : 'transparent' }}>
+                  <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'transparent' }}>
                     <td style={{ padding: '3px 6px', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
                       <button
                         onClick={() => setSelectedTaxRefId(isSelected ? null : n.node_id)}
@@ -287,7 +287,7 @@ export function BriefTab(props: BriefTabProps) {
                   ? Math.max(0, Math.min(1, (turnScore - 0.4 * stageA) / 0.6))
                   : 0.7;
                 const mono = { fontFamily: 'monospace', fontSize: 'var(--text-2xs)' } as const;
-                const dimColor = (pass: boolean) => pass ? '#16a34a' : '#dc2626';
+                const dimColor = (pass: boolean) => pass ? 'var(--success)' : 'var(--danger)';
                 return (
                   <div style={{
                     marginTop: 6, background: 'var(--bg-subtle)', borderRadius: 4,
@@ -295,7 +295,7 @@ export function BriefTab(props: BriefTabProps) {
                   }}>
                     <div style={{ fontWeight: 600, marginBottom: 4 }}>
                       Validation Score:{' '}
-                      <span style={{ ...mono, color: turnScore >= 0.7 ? '#16a34a' : turnScore >= 0.5 ? '#d97706' : '#dc2626' }}>
+                      <span style={{ ...mono, color: turnScore >= 0.7 ? 'var(--success)' : turnScore >= 0.5 ? 'var(--warning)' : 'var(--danger)' }}>
                         {turnScore.toFixed(2)}
                       </span>
                     </div>
@@ -308,7 +308,7 @@ export function BriefTab(props: BriefTabProps) {
                     <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3, fontSize: 'var(--text-2xs)', display: 'flex', gap: 12 }}>
                       <span>Stage A: <strong style={mono}>{stageA.toFixed(2)}</strong> <span style={{ color: 'var(--text-muted)' }}>{'×'}0.4 = {(0.4 * stageA).toFixed(2)}</span></span>
                       <span>Judge: <strong style={mono}>{judgeQ.toFixed(2)}</strong>{!judgeUsed && <span style={{ color: 'var(--text-muted)' }}> (default)</span>} <span style={{ color: 'var(--text-muted)' }}>{'×'}0.6 = {(0.6 * judgeQ).toFixed(2)}</span></span>
-                      <span>Total: <strong style={{ ...mono, color: turnScore >= 0.7 ? '#16a34a' : turnScore >= 0.5 ? '#d97706' : '#dc2626' }}>{turnScore.toFixed(2)}</strong></span>
+                      <span>Total: <strong style={{ ...mono, color: turnScore >= 0.7 ? 'var(--success)' : turnScore >= 0.5 ? 'var(--warning)' : 'var(--danger)' }}>{turnScore.toFixed(2)}</strong></span>
                     </div>
                   </div>
                 );
@@ -317,7 +317,7 @@ export function BriefTab(props: BriefTabProps) {
                 <div style={{ marginTop: 6, fontSize: '0.72rem', fontWeight: 600 }}>
                   Validation Score:{' '}
                   {valData ? (
-                    <span style={{ color: valData.pass ? '#16a34a' : '#dc2626' }}>
+                    <span style={{ color: valData.pass ? 'var(--success)' : 'var(--danger)' }}>
                       {valData.pass ? 'Pass' : 'Fail'}
                     </span>
                   ) : (

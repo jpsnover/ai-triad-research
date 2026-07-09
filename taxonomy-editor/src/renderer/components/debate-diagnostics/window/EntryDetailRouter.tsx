@@ -124,8 +124,8 @@ export function EntryDetailRouter({
   const navBtnStyle = (disabled: boolean): React.CSSProperties => ({
     padding: '2px 8px', fontSize: 'var(--text-2xs)', fontWeight: 600,
     borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)',
-    background: disabled ? 'transparent' : 'color-mix(in srgb, var(--accent, #f97316) 10%, transparent)',
-    color: disabled ? 'var(--text-muted)' : 'var(--accent, #f97316)',
+    background: disabled ? 'transparent' : 'color-mix(in srgb, var(--accent, var(--color-acc)) 10%, transparent)',
+    color: disabled ? 'var(--text-muted)' : 'var(--accent, var(--color-acc))',
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.5 : 1,
   });
@@ -348,7 +348,7 @@ export function EntryDetailRouter({
       border: '1px solid var(--border)',
       borderBottom: t.id === activeTab ? '1px solid var(--bg-primary)' : '1px solid var(--border)',
       background: t.id === activeTab ? 'var(--bg-primary)' : 'transparent',
-      color: !enabled ? 'var(--text-muted)' : t.ranEmpty ? 'var(--warning, #d97706)' : (t.id === activeTab ? 'var(--accent, #f97316)' : 'var(--text-primary)'),
+      color: !enabled ? 'var(--text-muted)' : t.ranEmpty ? 'var(--warning, var(--warning))' : (t.id === activeTab ? 'var(--accent, var(--color-acc))' : 'var(--text-primary)'),
       cursor: enabled ? 'pointer' : 'not-allowed',
       opacity: enabled ? 1 : 0.5,
       borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
@@ -398,8 +398,8 @@ export function EntryDetailRouter({
           } else {
             state = 'green'; label = 'on-scope'; tip = 'All topic alignment checks passed';
           }
-          const colors = { green: 'var(--success)', amber: 'var(--warning, #d97706)', red: 'var(--danger)' };
-          const bgs = { green: 'color-mix(in srgb, var(--success) 15%, transparent)', amber: 'color-mix(in srgb, var(--warning, #f59e0b) 15%, transparent)', red: 'color-mix(in srgb, var(--danger) 15%, transparent)' };
+          const colors = { green: 'var(--success)', amber: 'var(--warning, var(--warning))', red: 'var(--danger)' };
+          const bgs = { green: 'color-mix(in srgb, var(--success) 15%, transparent)', amber: 'color-mix(in srgb, var(--warning, var(--warning)) 15%, transparent)', red: 'color-mix(in srgb, var(--danger) 15%, transparent)' };
           return (
             <span title={tip} className="edr-scope-badge" style={{
               background: bgs[state], color: colors[state],
@@ -410,7 +410,7 @@ export function EntryDetailRouter({
           const repaired = diag.entailment_repairs!.filter(r => r.verdict !== 'entailed');
           return (
             <span title={`${repaired.length} claim${repaired.length !== 1 ? 's' : ''} repaired by entailment verification`} className="edr-scope-badge" style={{
-              background: 'color-mix(in srgb, var(--warning, #f59e0b) 15%, transparent)', color: 'var(--warning, #d97706)',
+              background: 'color-mix(in srgb, var(--warning, var(--warning)) 15%, transparent)', color: 'var(--warning, var(--warning))',
             }}>{repaired.length} repaired</span>
           );
         })()}

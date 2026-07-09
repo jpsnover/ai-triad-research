@@ -20,16 +20,16 @@ export function UtilityTab({ debate, perTurnUtilities, setSelectedEntry, setLoca
   const latest = perTurnUtilities[perTurnUtilities.length - 1];
   const speakers = Object.keys(latest.byAgent);
   const maxComposite = Math.max(...perTurnUtilities.flatMap(s => Object.values(s.byAgent).map(a => a.composite)), 0.01);
-  const speakerColors: Record<string, string> = { accelerationist: '#f97316', safetyist: '#3b82f6', skeptic: '#a855f7' };
+  const speakerColors: Record<string, string> = { accelerationist: 'var(--color-acc)', safetyist: 'var(--color-saf)', skeptic: 'var(--color-skp)' };
 
   const getTrend = (speaker: string): { icon: string; color: string; label: string } => {
     if (perTurnUtilities.length < 2) return { icon: '—', color: 'var(--text-muted)', label: 'insufficient data' };
     const vals = perTurnUtilities.map(s => s.byAgent[speaker]?.composite ?? 0);
     const recent = vals.slice(-3);
     const delta = recent[recent.length - 1] - recent[0];
-    if (delta > 0.03) return { icon: '↑', color: '#22c55e', label: `rising (+${delta.toFixed(3)})` };
-    if (delta < -0.03) return { icon: '↓', color: '#ef4444', label: `falling (${delta.toFixed(3)})` };
-    return { icon: '→', color: '#f59e0b', label: `flat (${delta.toFixed(3)})` };
+    if (delta > 0.03) return { icon: '↑', color: 'var(--success)', label: `rising (+${delta.toFixed(3)})` };
+    if (delta < -0.03) return { icon: '↓', color: 'var(--danger)', label: `falling (${delta.toFixed(3)})` };
+    return { icon: '→', color: 'var(--warning)', label: `flat (${delta.toFixed(3)})` };
   };
 
   return (
@@ -42,7 +42,7 @@ export function UtilityTab({ debate, perTurnUtilities, setSelectedEntry, setLoca
       {speakers.map(speaker => {
         const u = latest.byAgent[speaker];
         const trend = getTrend(speaker);
-        const color = speakerColors[speaker] ?? '#6b7280';
+        const color = speakerColors[speaker] ?? 'var(--text-muted)';
         const w = UTILITY_WEIGHTS[speaker];
         return (
           <div key={speaker} style={{ marginBottom: 16, padding: '10px 12px', borderRadius: 6, background: 'var(--bg-primary)', borderLeft: `3px solid ${color}` }}>

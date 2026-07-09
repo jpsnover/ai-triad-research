@@ -71,23 +71,23 @@ export function CitationsTab({ diag, searchQuery }: CitationsTabProps) {
           {
             label: 'Path',
             value: citationResDiag.path === 'tool-calling' ? 'Tool-Call' : 'Bank+Scrub',
-            color: citationResDiag.path === 'tool-calling' ? '#3b82f6' : '#d97706',
+            color: citationResDiag.path === 'tool-calling' ? 'var(--color-saf)' : 'var(--warning)',
           },
           { label: 'Bank', value: `${citationResDiag.bank_size} srcs`, color: undefined },
           {
             label: 'Matched',
             value: `${citationResDiag.citations_matched}/${citationResDiag.citations_extracted}`,
             color: citationResDiag.citations_matched === citationResDiag.citations_extracted
-              ? '#22c55e'
+              ? 'var(--success)'
               : citationResDiag.citations_fabricated > citationResDiag.citations_extracted / 2
-                ? '#ef4444' : '#d97706',
+                ? 'var(--danger)' : 'var(--warning)',
           },
           {
             label: 'Fabricated',
             value: citationResDiag.citations_fabricated === 0
               ? '0 — clean'
               : `${citationResDiag.citations_fabricated} ${citationResDiag.fabrications.filter(f => f.action === 'removed').length > 0 ? 'removed' : 'hedged'}`,
-            color: citationResDiag.citations_fabricated === 0 ? '#22c55e' : '#ef4444',
+            color: citationResDiag.citations_fabricated === 0 ? 'var(--success)' : 'var(--danger)',
           },
         ].map(card => (
           <div key={card.label} style={{
@@ -112,14 +112,14 @@ export function CitationsTab({ diag, searchQuery }: CitationsTabProps) {
           {citationResDiag.matches
             .slice().sort((a, b) => b.similarity - a.similarity)
             .map((m, mi) => {
-              const matchTypeColors: Record<string, string> = { exact: '#16a34a', fuzzy_title: '#d97706', url: '#3b82f6', arxiv_id: '#8b5cf6' };
-              const mtColor = matchTypeColors[m.match_type] ?? '#6b7280';
+              const matchTypeColors: Record<string, string> = { exact: 'var(--success)', fuzzy_title: 'var(--warning)', url: 'var(--color-saf)', arxiv_id: 'var(--text-secondary)' };
+              const mtColor = matchTypeColors[m.match_type] ?? 'var(--text-muted)';
               return (
                 <div key={mi} style={{
                   marginBottom: 6, padding: '6px 8px', borderRadius: 4,
-                  borderLeft: '3px solid #22c55e', background: 'var(--bg-subtle)',
+                  borderLeft: '3px solid var(--success)', background: 'var(--bg-subtle)',
                 }}>
-                  <div style={{ fontSize: 'var(--text-2xs)', fontFamily: 'monospace', marginBottom: 3, color: '#22c55e' }}>
+                  <div style={{ fontSize: 'var(--text-2xs)', fontFamily: 'monospace', marginBottom: 3, color: 'var(--success)' }}>
                     &ldquo;{m.citation_text}&rdquo;
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-2xs)' }}>
@@ -148,14 +148,14 @@ export function CitationsTab({ diag, searchQuery }: CitationsTabProps) {
             Fabricated Citations ({citationResDiag.fabrications.length})
           </summary>
           {citationResDiag.fabrications.map((f, fi) => {
-            const patternColors: Record<string, string> = { arxiv: '#8b5cf6', url: '#3b82f6', title: '#d97706', legislation: '#059669' };
-            const patColor = patternColors[f.pattern] ?? '#6b7280';
+            const patternColors: Record<string, string> = { arxiv: 'var(--text-secondary)', url: 'var(--color-saf)', title: 'var(--warning)', legislation: 'var(--text-secondary)' };
+            const patColor = patternColors[f.pattern] ?? 'var(--text-muted)';
             return (
               <div key={fi} style={{
                 marginBottom: 6, padding: '6px 8px', borderRadius: 4,
-                borderLeft: '3px solid #ef4444', background: 'var(--bg-subtle)',
+                borderLeft: '3px solid var(--danger)', background: 'var(--bg-subtle)',
               }}>
-                <div style={{ fontSize: 'var(--text-2xs)', fontFamily: 'monospace', marginBottom: 3, color: '#ef4444' }}>
+                <div style={{ fontSize: 'var(--text-2xs)', fontFamily: 'monospace', marginBottom: 3, color: 'var(--danger)' }}>
                   &ldquo;{f.citation_text}&rdquo;
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-2xs)' }}>
@@ -166,8 +166,8 @@ export function CitationsTab({ diag, searchQuery }: CitationsTabProps) {
                   <span>Not in citation bank</span>
                   <span style={{
                     fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 5px', borderRadius: 3,
-                    color: f.action === 'removed' ? '#ef4444' : '#d97706',
-                    background: f.action === 'removed' ? 'rgba(239,68,68,0.1)' : 'rgba(217,119,6,0.1)',
+                    color: f.action === 'removed' ? 'var(--danger)' : 'var(--warning)',
+                    background: f.action === 'removed' ? 'color-mix(in srgb, var(--danger) 10%, transparent)' : 'rgba(217,119,6,0.1)',
                   }}>{f.action}</span>
                 </div>
                 {f.replacement && (
@@ -188,7 +188,7 @@ export function CitationsTab({ diag, searchQuery }: CitationsTabProps) {
             Citation Bank ({citationResDiag.bank_sources.length} available sources)
           </summary>
           {citationResDiag.bank_sources.slice(0, 5).map((src, si) => (
-            <div key={si} style={{ fontSize: 'var(--text-2xs)', padding: '2px 0', color: '#3b82f6' }}>
+            <div key={si} style={{ fontSize: 'var(--text-2xs)', padding: '2px 0', color: 'var(--color-saf)' }}>
               • {src}
             </div>
           ))}
@@ -198,7 +198,7 @@ export function CitationsTab({ diag, searchQuery }: CitationsTabProps) {
                 {citationResDiag.bank_sources.length - 5} more…
               </summary>
               {citationResDiag.bank_sources.slice(5).map((src, si) => (
-                <div key={si} style={{ fontSize: 'var(--text-2xs)', padding: '2px 0', color: '#3b82f6' }}>
+                <div key={si} style={{ fontSize: 'var(--text-2xs)', padding: '2px 0', color: 'var(--color-saf)' }}>
                   • {src}
                 </div>
               ))}
@@ -216,7 +216,7 @@ export function CitationsTab({ diag, searchQuery }: CitationsTabProps) {
           {citationResDiag.tool_calls.map((tc, ti) => (
             <div key={ti} style={{
               marginBottom: 6, padding: '6px 8px', borderRadius: 4,
-              borderLeft: `3px solid ${tc.empty ? '#f59e0b' : '#0ea5e9'}`,
+              borderLeft: `3px solid ${tc.empty ? 'var(--warning)' : 'var(--text-secondary)'}`,
               background: 'var(--bg-subtle)',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, fontSize: 'var(--text-2xs)' }}>
@@ -225,7 +225,7 @@ export function CitationsTab({ diag, searchQuery }: CitationsTabProps) {
                 {tc.empty && (
                   <span style={{
                     fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 5px', borderRadius: 3,
-                    background: 'rgba(245,158,11,0.15)', color: '#f59e0b',
+                    background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)',
                   }}>⚠ EMPTY</span>
                 )}
               </div>
@@ -239,12 +239,12 @@ export function CitationsTab({ diag, searchQuery }: CitationsTabProps) {
               )}
               <div style={{ fontSize: 'var(--text-2xs)', marginTop: 2 }}>
                 {tc.empty ? (
-                  <span style={{ color: '#f59e0b' }}>Results: 0 — no verified sources found</span>
+                  <span style={{ color: 'var(--warning)' }}>Results: 0 — no verified sources found</span>
                 ) : (
                   <span>
                     Results: {tc.results_count}
                     {tc.top_result && (
-                      <> — top: <span style={{ color: '#3b82f6' }}>{tc.top_result.doc_id}</span> ({tc.top_result.relevance.toFixed(2)})</>
+                      <> — top: <span style={{ color: 'var(--color-saf)' }}>{tc.top_result.doc_id}</span> ({tc.top_result.relevance.toFixed(2)})</>
                     )}
                   </span>
                 )}

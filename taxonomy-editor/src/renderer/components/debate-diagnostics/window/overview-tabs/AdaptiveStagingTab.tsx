@@ -52,7 +52,7 @@ export function AdaptiveStagingTab({ debate }: AdaptiveStagingTabProps) {
             {(['brief', 'plan', 'cite'] as const).map(stage => (
               <div key={stage}>
                 <span style={{ fontWeight: 500, textTransform: 'capitalize' }}>{stage}: </span>
-                <span style={{ color: sm[stage] ? 'var(--accent, #3b82f6)' : 'var(--text-muted)' }}>
+                <span style={{ color: sm[stage] ? 'var(--accent, var(--color-saf))' : 'var(--text-muted)' }}>
                   {sm[stage] || 'debate model'}
                 </span>
               </div>
@@ -109,7 +109,7 @@ export function AdaptiveStagingTab({ debate }: AdaptiveStagingTabProps) {
             <tbody>
               {diag.phases.map((p, i) => (
                 <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                  <td style={{ padding: 4, fontWeight: 600, color: p.phase === 'confrontation' ? '#60a5fa' : p.phase === 'argumentation' ? '#f59e0b' : '#34d399' }}>{p.phase}</td>
+                  <td style={{ padding: 4, fontWeight: 600, color: p.phase === 'confrontation' ? 'var(--text-secondary)' : p.phase === 'argumentation' ? 'var(--warning)' : 'var(--text-secondary)' }}>{p.phase}</td>
                   <td style={{ padding: 4 }}>{p.rounds.length > 0 ? `${p.rounds[0]}–${p.rounds[p.rounds.length - 1]}` : '—'}</td>
                   <td style={{ padding: 4, color: 'var(--text-secondary)' }}>{p.exit_reason}</td>
                 </tr>
@@ -142,14 +142,14 @@ export function AdaptiveStagingTab({ debate }: AdaptiveStagingTabProps) {
                 {diag.signal_telemetry.map((t, i) => (
                   <tr key={i} style={{
                     borderBottom: '1px solid var(--border)',
-                    background: t.predicate_result.action !== 'stay' ? 'rgba(245, 158, 11, 0.1)' : undefined,
+                    background: t.predicate_result.action !== 'stay' ? 'color-mix(in srgb, var(--warning) 10%, transparent)' : undefined,
                   }}>
                     <td style={{ padding: '2px 4px' }}>{t.round}</td>
-                    <td style={{ padding: '2px 4px', color: t.phase === 'confrontation' ? '#60a5fa' : t.phase === 'argumentation' ? '#f59e0b' : '#34d399' }}>{t.phase.slice(0, 5)}</td>
+                    <td style={{ padding: '2px 4px', color: t.phase === 'confrontation' ? 'var(--text-secondary)' : t.phase === 'argumentation' ? 'var(--warning)' : 'var(--text-secondary)' }}>{t.phase.slice(0, 5)}</td>
                     <td style={{ padding: '2px 4px' }}>{t.composite.saturation_score?.toFixed(2) ?? '—'}</td>
                     <td style={{ padding: '2px 4px' }}>{t.composite.convergence_score?.toFixed(2) ?? '—'}</td>
-                    <td style={{ padding: '2px 4px', color: (t.confidence?.global ?? 0) < 0.4 ? '#ef4444' : undefined }}>{(t.confidence?.global ?? 0).toFixed(2)}</td>
-                    {(() => { const raw = t.signals?.topic_coherence; if (raw == null) return <td style={{ padding: '2px 4px', color: 'var(--text-muted)' }}>{'—'}</td>; const coh = 1 - raw; return <td style={{ padding: '2px 4px', color: coh > 0.7 ? '#16a34a' : coh > 0.4 ? '#d97706' : '#dc2626' }} title={`Coherence: ${coh.toFixed(3)} (raw signal: ${raw.toFixed(3)})`}>{coh.toFixed(2)}</td>; })()}
+                    <td style={{ padding: '2px 4px', color: (t.confidence?.global ?? 0) < 0.4 ? 'var(--danger)' : undefined }}>{(t.confidence?.global ?? 0).toFixed(2)}</td>
+                    {(() => { const raw = t.signals?.topic_coherence; if (raw == null) return <td style={{ padding: '2px 4px', color: 'var(--text-muted)' }}>{'—'}</td>; const coh = 1 - raw; return <td style={{ padding: '2px 4px', color: coh > 0.7 ? 'var(--success)' : coh > 0.4 ? 'var(--warning)' : 'var(--danger)' }} title={`Coherence: ${coh.toFixed(3)} (raw signal: ${raw.toFixed(3)})`}>{coh.toFixed(2)}</td>; })()}
                     <td style={{ padding: '2px 4px' }}>{t.network_size}</td>
                     <td style={{ padding: '2px 4px', fontWeight: t.predicate_result.action !== 'stay' ? 700 : 400 }}>{t.predicate_result.action}</td>
                     <td style={{ padding: '2px 4px', color: 'var(--text-secondary)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.predicate_result.reason}>{t.predicate_result.reason}</td>
@@ -166,7 +166,7 @@ export function AdaptiveStagingTab({ debate }: AdaptiveStagingTabProps) {
         <div style={{ marginTop: 12 }}>
           <div style={{ fontWeight: 600, marginBottom: 4 }}>Regressions</div>
           {diag.regressions.map((r, i) => (
-            <div key={i} style={{ padding: '4px 8px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: 4, marginBottom: 4, fontSize: '0.7rem' }}>
+            <div key={i} style={{ padding: '4px 8px', background: 'color-mix(in srgb, var(--danger) 10%, transparent)', borderRadius: 4, marginBottom: 4, fontSize: '0.7rem' }}>
               Round {r.from_round}: crux {r.crux_id}, threshold ratcheted to {(r.threshold_after * 100).toFixed(0)}%
             </div>
           ))}

@@ -36,8 +36,8 @@ export function ReflectionsTab({ debate }: ReflectionsTabProps) {
     const meta = e.metadata as Record<string, unknown> | undefined;
     return (meta?.reflection_results as ReflectionResult[]) || [];
   });
-  const confColors: Record<string, string> = { high: '#22c55e', medium: '#f59e0b', low: '#ef4444' };
-  const editTypeColors: Record<string, string> = { revise: '#3b82f6', add: '#22c55e', qualify: '#f59e0b', deprecate: '#ef4444' };
+  const confColors: Record<string, string> = { high: 'var(--success)', medium: 'var(--warning)', low: 'var(--danger)' };
+  const editTypeColors: Record<string, string> = { revise: 'var(--color-saf)', add: 'var(--success)', qualify: 'var(--warning)', deprecate: 'var(--danger)' };
   const totalEdits = allResults.reduce((s, r) => s + r.edits.length, 0);
   const approved = allResults.reduce((s, r) => s + r.edits.filter(e => e.status === 'approved').length, 0);
 
@@ -72,7 +72,7 @@ export function ReflectionsTab({ debate }: ReflectionsTabProps) {
             {r.edits.map((edit, ei) => (
               <div key={ei} style={{
                 padding: '8px 10px', marginBottom: 6, borderRadius: 6,
-                border: `1px solid ${edit.status === 'approved' ? '#22c55e44' : 'var(--border)'}`,
+                border: `1px solid ${edit.status === 'approved' ? 'var(--success)44' : 'var(--border)'}`,
                 opacity: edit.status === 'dismissed' ? 0.5 : 1,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
@@ -97,7 +97,7 @@ export function ReflectionsTab({ debate }: ReflectionsTabProps) {
                   {edit.status !== 'pending' && (
                     <span style={{
                       marginLeft: 'auto', fontSize: 'var(--text-2xs)', fontWeight: 600,
-                      color: edit.status === 'approved' ? '#22c55e' : 'var(--text-muted)',
+                      color: edit.status === 'approved' ? 'var(--success)' : 'var(--text-muted)',
                     }}>
                       {edit.status === 'approved' ? 'Applied' : 'Dismissed'}
                     </span>

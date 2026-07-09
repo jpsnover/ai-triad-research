@@ -74,10 +74,10 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
       {entry.type === 'statement' && diag && (diag.stage_diagnostics?.length ?? 0) > 0 && !diag.extracted_claims && !(diag as Record<string, unknown>).extraction_trace && (
         <div style={{
           marginBottom: 10, padding: '10px 12px', borderRadius: 6,
-          background: 'rgba(220,38,38,0.08)', borderLeft: '3px solid #dc2626',
+          background: 'color-mix(in srgb, var(--danger) 8%, transparent)', borderLeft: '3px solid var(--danger)',
           fontSize: '0.75rem',
         }}>
-          <div style={{ fontWeight: 700, color: '#dc2626', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Pipeline Error</div>
+          <div style={{ fontWeight: 700, color: 'var(--danger)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Pipeline Error</div>
           <div style={{ color: 'var(--text-primary)', lineHeight: 1.5 }}>
             Pipeline stages completed ({diag.stage_diagnostics!.map(s => s.stage).join(' → ')}),
             but post-pipeline processing failed. Claim extraction, evidence gathering, and argument
@@ -93,13 +93,13 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
             return (
               <div key={i} style={{
                 marginBottom: 8, padding: '8px 10px', borderRadius: 5,
-                background: 'rgba(220,38,38,0.06)', borderLeft: '3px solid #dc2626',
+                background: 'color-mix(in srgb, var(--danger) 6%, transparent)', borderLeft: '3px solid var(--danger)',
                 fontSize: '0.72rem',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                   <span style={{
                     padding: '1px 6px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600,
-                    background: 'rgba(220,38,38,0.15)', color: '#dc2626',
+                    background: 'color-mix(in srgb, var(--danger) 15%, transparent)', color: 'var(--danger)',
                   }}>{evt.error.name}</span>
                   {data?.speaker && (
                     <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
@@ -136,14 +136,14 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
         const prev = prevSnap?.byAgent[entry.speaker];
         if (!curr) return null;
         const delta = prev ? curr.composite - prev.composite : null;
-        const deltaColor = delta === null ? 'var(--text-muted)' : delta > 0.01 ? '#22c55e' : delta < -0.01 ? '#ef4444' : '#f59e0b';
-        const speakerColor: Record<string, string> = { accelerationist: '#f97316', safetyist: '#3b82f6', skeptic: '#a855f7' };
-        const color = speakerColor[entry.speaker] ?? '#6b7280';
+        const deltaColor = delta === null ? 'var(--text-muted)' : delta > 0.01 ? 'var(--success)' : delta < -0.01 ? 'var(--danger)' : 'var(--warning)';
+        const speakerColor: Record<string, string> = { accelerationist: 'var(--color-acc)', safetyist: 'var(--color-saf)', skeptic: 'var(--color-skp)' };
+        const color = speakerColor[entry.speaker] ?? 'var(--text-muted)';
         const fmtDelta = (v: number | null, label: string, prevV?: number) => {
           if (v === null || v === undefined) return null;
           const d = prevV !== undefined ? v - prevV : null;
           const dStr = d !== null ? (d >= 0 ? `+${d.toFixed(3)}` : d.toFixed(3)) : '';
-          const dColor = d !== null ? (d > 0.01 ? '#22c55e' : d < -0.01 ? '#ef4444' : 'var(--text-muted)') : 'var(--text-muted)';
+          const dColor = d !== null ? (d > 0.01 ? 'var(--success)' : d < -0.01 ? 'var(--danger)' : 'var(--text-muted)') : 'var(--text-muted)';
           return (
             <span key={label} style={{ display: 'inline-flex', gap: 3, alignItems: 'baseline' }}>
               <span style={{ color: 'var(--text-muted)' }}>{label}:</span>
@@ -200,10 +200,10 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
         const responseStr = typeof interventionResponseField === 'string' ? interventionResponseField : null;
         const isFromPlan = !!responseObj?.from_plan;
 
-        const complianceColor = hasResponse && !isFromPlan ? '#22c55e'
-          : hasResponse && isFromPlan ? '#f59e0b'
-          : !speakerIsTarget ? '#6366f1'
-          : '#ef4444';
+        const complianceColor = hasResponse && !isFromPlan ? 'var(--success)'
+          : hasResponse && isFromPlan ? 'var(--warning)'
+          : !speakerIsTarget ? 'var(--text-secondary)'
+          : 'var(--danger)';
         const complianceIcon = hasResponse && !isFromPlan ? '✓'
           : hasResponse && isFromPlan ? '◐'
           : !speakerIsTarget ? '→'
@@ -232,17 +232,17 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
         return (
           <div style={{
             marginBottom: 12, padding: '10px 12px', borderRadius: 6,
-            background: 'rgba(168,85,247,0.08)', borderLeft: '3px solid #a855f7',
+            background: 'color-mix(in srgb, var(--color-skp) 8%, transparent)', borderLeft: '3px solid var(--color-skp)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ fontWeight: 700, color: '#a855f7', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <span style={{ fontWeight: 700, color: 'var(--color-skp)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Moderator Directive
               </span>
-              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,0.15)', color: '#a855f7', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>
+              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--color-skp) 15%, transparent)', color: 'var(--color-skp)', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>
                 {moveLabel}{familyLabel ? ` · ${familyLabel}` : ''}
               </span>
               {targetLabel && (
-                <span style={{ fontSize: 'var(--text-2xs)', color: !speakerIsTarget ? '#6366f1' : 'var(--text-muted)', fontWeight: !speakerIsTarget ? 600 : 400 }}>
+                <span style={{ fontSize: 'var(--text-2xs)', color: !speakerIsTarget ? 'var(--text-secondary)' : 'var(--text-muted)', fontWeight: !speakerIsTarget ? 600 : 400 }}>
                   directed at {targetLabel}{!speakerIsTarget ? ` (not ${speakerLabel(entry.speaker)})` : ''}
                 </span>
               )}
@@ -307,17 +307,17 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
       {suppressedIntervention && (
         <div style={{
           marginBottom: 10, padding: '8px 10px', borderRadius: 6,
-          background: 'rgba(245, 158, 11, 0.08)',
-          border: '1px solid rgba(245, 158, 11, 0.25)',
+          background: 'color-mix(in srgb, var(--warning) 8%, transparent)',
+          border: '1px solid color-mix(in srgb, var(--warning) 25%, transparent)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#f59e0b' }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--warning)' }}>
               {'⚠'} Suppressed Intervention
             </span>
             {suppressedIntervention.intervention_move && (
               <span style={{
                 padding: '1px 6px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600,
-                background: 'rgba(245, 158, 11, 0.18)', color: '#d97706',
+                background: 'color-mix(in srgb, var(--warning) 18%, transparent)', color: 'var(--warning)',
               }}>
                 {suppressedIntervention.intervention_move}
               </span>
@@ -331,15 +331,15 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
             , but it was blocked by the engine.
           </div>
           <div style={{
-            fontSize: '0.7rem', color: '#92400e', padding: '5px 10px', borderRadius: 4,
-            background: 'rgba(245, 158, 11, 0.12)', marginBottom: 4,
-            borderLeft: '3px solid #d97706',
+            fontSize: '0.7rem', color: 'var(--warning)', padding: '5px 10px', borderRadius: 4,
+            background: 'color-mix(in srgb, var(--warning) 12%, transparent)', marginBottom: 4,
+            borderLeft: '3px solid var(--warning)',
           }}>
-            <strong style={{ color: '#d97706' }}>Reason: </strong>
+            <strong style={{ color: 'var(--warning)' }}>Reason: </strong>
             {suppressedIntervention.intervention_suppressed_reason && (
               <span
                 title={SUPPRESSION_REASON_TOOLTIPS[suppressedIntervention.intervention_suppressed_reason] ?? ''}
-                style={{ cursor: 'default', borderBottom: '1px dotted #92400e' }}
+                style={{ cursor: 'default', borderBottom: '1px dotted var(--warning)' }}
               >
                 {String(suppressedIntervention.intervention_suppressed_reason ?? '').replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
               </span>
@@ -369,7 +369,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
               const ann = typeof m === 'object' ? m as MoveAnnotation : null;
               const edgeInfo = MOVE_EDGE_MAP[name.toUpperCase()] || MOVE_EDGE_MAP[name];
               const cat = edgeInfo?.edgeType || 'neutral';
-              const catColor = cat === 'attack' ? '#ef4444' : cat === 'support' ? '#22c55e' : '#888';
+              const catColor = cat === 'attack' ? 'var(--danger)' : cat === 'support' ? 'var(--success)' : '#888';
               const matchEdgeType = cat === 'attack' ? 'attacks' : cat === 'support' ? 'supports' : null;
               const inferredTargets: { id: string; type: 'supports' | 'attacks'; text?: string }[] = [];
               if (!ann?.target && an?.edges) {
@@ -396,7 +396,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
               }
               return (
                 <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: `2px solid ${catColor}44` }}>
-                  <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'rgba(59,130,246,0.2)', color: '#3b82f6', fontSize: '0.7rem', fontWeight: 600 }}>{name}</span>
+                  <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--color-saf) 20%, transparent)', color: 'var(--color-saf)', fontSize: '0.7rem', fontWeight: 600 }}>{name}</span>
                   <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 3, background: `${catColor}18`, color: catColor, fontSize: 'var(--text-2xs)', fontWeight: 600, textTransform: 'capitalize' }}>{cat}</span>
                   {ann?.target && (() => {
                     const targetNode = an?.nodes?.find(n => n.id === ann.target);
@@ -411,8 +411,8 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
                       {inferredTargets.map(t => (
                         <span key={t.id} data-tooltip={t.text} style={{
                           padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, cursor: 'default',
-                          background: `${t.type === 'attacks' ? '#ef4444' : '#22c55e'}15`,
-                          color: t.type === 'attacks' ? '#ef4444' : '#22c55e',
+                          background: `${t.type === 'attacks' ? 'var(--danger)' : 'var(--success)'}15`,
+                          color: t.type === 'attacks' ? 'var(--danger)' : 'var(--success)',
                         }}>{t.id}</span>
                       ))}
                     </div>
@@ -440,8 +440,8 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <span style={{
                 padding: '2px 8px', borderRadius: 4, fontWeight: 700, fontSize: '0.7rem',
-                background: turnValTrail.final.outcome === 'pass' ? 'rgba(22,163,74,0.15)' : turnValTrail.final.outcome === 'accept_with_flag' ? 'rgba(245,158,11,0.15)' : 'rgba(220,38,38,0.15)',
-                color: turnValTrail.final.outcome === 'pass' ? '#16a34a' : turnValTrail.final.outcome === 'accept_with_flag' ? '#d97706' : '#dc2626',
+                background: turnValTrail.final.outcome === 'pass' ? 'rgba(22,163,74,0.15)' : turnValTrail.final.outcome === 'accept_with_flag' ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : 'rgba(220,38,38,0.15)',
+                color: turnValTrail.final.outcome === 'pass' ? 'var(--success)' : turnValTrail.final.outcome === 'accept_with_flag' ? 'var(--warning)' : 'var(--danger)',
               }}>{turnValTrail.final.outcome}</span>
               <span>score <strong>{(turnValTrail.final.process_reward ?? 0).toFixed(2)}</strong></span>
               <span style={{ color: 'var(--text-muted)' }}>{turnValTrail.attempts.length} attempt{turnValTrail.attempts.length === 1 ? '' : 's'}</span>
@@ -509,7 +509,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
               const pol = policyMap.get(p);
               return (
                 <li key={i} style={{ margin: '3px 0', display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                  <span style={{ flexShrink: 0, padding: '1px 6px', borderRadius: 3, background: 'rgba(139,92,246,0.15)', color: '#8b5cf6', fontSize: 'var(--text-2xs)', fontWeight: 600, fontFamily: 'monospace' }}>{p}</span>
+                  <span style={{ flexShrink: 0, padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--text-secondary) 15%, transparent)', color: 'var(--text-secondary)', fontSize: 'var(--text-2xs)', fontWeight: 600, fontFamily: 'monospace' }}>{p}</span>
                   {pol ? (
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-primary)' }}>
                       {pol.action}
@@ -566,7 +566,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div style={{ flex: 1, fontSize: '0.72rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>{f.label ?? f.cluster_id}</div>
                   <div style={{ width: 60, height: 6, borderRadius: 3, background: 'var(--border)', overflow: 'hidden', flexShrink: 0 }}>
-                    <div style={{ width: `${maxPct > 0 ? (f.percentage / maxPct) * 100 : 0}%`, height: '100%', borderRadius: 3, background: '#f59e0b' }} />
+                    <div style={{ width: `${maxPct > 0 ? (f.percentage / maxPct) * 100 : 0}%`, height: '100%', borderRadius: 3, background: 'var(--warning)' }} />
                   </div>
                   <div style={{ width: 36, textAlign: 'right', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', flexShrink: 0 }}>{f.percentage.toFixed(1)}%</div>
                 </div>
@@ -578,7 +578,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
               </div>
             ))}
             <div style={{ marginTop: 4, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
-              Boost: {lb ? <span style={{ color: '#22c55e' }}>active</span> : <span>inactive</span>}
+              Boost: {lb ? <span style={{ color: 'var(--success)' }}>active</span> : <span>inactive</span>}
               {lb && lb.promotedNodeIds && lb.promotedNodeIds.length > 0 && (
                 <> {'·'} {lb.promotedNodeIds.length} promoted</>
               )}

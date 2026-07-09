@@ -81,7 +81,7 @@ export function OverviewTabRouter({
       {effectiveOverviewTab === 'topic-scope' && debate.topic?.scope && (() => {
         const scope = debate.topic.scope as TopicScope;
         const RISK_COLORS: Record<TopicScopeRiskLevel, string> = {
-          low: '#22c55e', medium: '#f59e0b', high: '#ef4444', catastrophic: '#dc2626', unspecified: '#6b7280',
+          low: 'var(--success)', medium: 'var(--warning)', high: 'var(--danger)', catastrophic: 'var(--danger)', unspecified: 'var(--text-muted)',
         };
         return (
           <div style={{ padding: 16, overflowY: 'auto', flex: 1, fontSize: '0.75rem' }}>
@@ -93,10 +93,10 @@ export function OverviewTabRouter({
               {scope.domain && <span style={{ padding: '2px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontSize: '0.7rem' }}>{scope.domain}</span>}
               {scope.product_type && <span style={{ padding: '2px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontSize: '0.7rem' }}>{scope.product_type}</span>}
               {scope.time_horizon && <span style={{ padding: '2px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontSize: '0.7rem' }}>{scope.time_horizon}</span>}
-              <span style={{ padding: '2px 8px', borderRadius: 4, background: `${RISK_COLORS[scope.risk_level]}20`, color: RISK_COLORS[scope.risk_level], fontWeight: 600, fontSize: '0.7rem' }}>
+              <span style={{ padding: '2px 8px', borderRadius: 4, background: `color-mix(in srgb, ${RISK_COLORS[scope.risk_level]} 20%, transparent)`, color: RISK_COLORS[scope.risk_level], fontWeight: 600, fontSize: '0.7rem' }}>
                 risk: {scope.risk_level}
               </span>
-              <span style={{ padding: '2px 8px', borderRadius: 4, background: scope.constraint_confidence === 'explicit' ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)', color: scope.constraint_confidence === 'explicit' ? '#22c55e' : '#f59e0b', fontSize: '0.7rem' }}>
+              <span style={{ padding: '2px 8px', borderRadius: 4, background: scope.constraint_confidence === 'explicit' ? 'color-mix(in srgb, var(--success) 15%, transparent)' : 'color-mix(in srgb, var(--warning) 15%, transparent)', color: scope.constraint_confidence === 'explicit' ? 'var(--success)' : 'var(--warning)', fontSize: '0.7rem' }}>
                 {scope.constraint_confidence}
               </span>
             </div>
@@ -106,7 +106,7 @@ export function OverviewTabRouter({
                 <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4 }}>Relevant Disciplines</div>
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {scope.relevant_disciplines.map(d => (
-                    <span key={d} style={{ padding: '2px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.15)', color: '#f59e0b', fontSize: 'var(--text-2xs)' }}>{d}</span>
+                    <span key={d} style={{ padding: '2px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)', fontSize: 'var(--text-2xs)' }}>{d}</span>
                   ))}
                 </div>
               </div>
@@ -123,10 +123,10 @@ export function OverviewTabRouter({
 
             {scope.off_scope_topics.length > 0 && (
               <div style={{ marginBottom: 10 }}>
-                <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4, color: '#ef4444' }}>Off-Scope Topics</div>
+                <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4, color: 'var(--danger)' }}>Off-Scope Topics</div>
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {scope.off_scope_topics.map(t => (
-                    <span key={t} style={{ padding: '2px 6px', borderRadius: 3, background: 'rgba(239,68,68,0.15)', color: '#ef4444', fontSize: 'var(--text-2xs)' }}>{t}</span>
+                    <span key={t} style={{ padding: '2px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--danger) 15%, transparent)', color: 'var(--danger)', fontSize: 'var(--text-2xs)' }}>{t}</span>
                   ))}
                 </div>
               </div>
@@ -134,9 +134,9 @@ export function OverviewTabRouter({
 
             {scope.drift_signatures.length > 0 && (
               <div style={{ marginBottom: 10 }}>
-                <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4, color: '#f59e0b' }}>Drift Signatures</div>
+                <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4, color: 'var(--warning)' }}>Drift Signatures</div>
                 <ul style={{ margin: 0, paddingLeft: 20, fontSize: '0.7rem', listStyle: 'disc' }}>
-                  {scope.drift_signatures.map((d, i) => <li key={i} style={{ color: '#f59e0b', marginBottom: 2 }}>{d}</li>)}
+                  {scope.drift_signatures.map((d, i) => <li key={i} style={{ color: 'var(--warning)', marginBottom: 2 }}>{d}</li>)}
                 </ul>
               </div>
             )}
@@ -153,7 +153,7 @@ export function OverviewTabRouter({
                 <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4 }}>Qualifiers</div>
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {scope.explicit_qualifiers.map(q => (
-                    <span key={q} style={{ padding: '2px 6px', borderRadius: 3, background: 'rgba(99,102,241,0.15)', color: '#6366f1', fontSize: 'var(--text-2xs)' }}>{q}</span>
+                    <span key={q} style={{ padding: '2px 6px', borderRadius: 3, background: 'var(--bg-hover)', color: 'var(--text-secondary)', fontSize: 'var(--text-2xs)' }}>{q}</span>
                   ))}
                 </div>
               </div>
@@ -239,12 +239,12 @@ export function OverviewTabRouter({
                       <div style={{
                         width: `${maxPct > 0 ? (f.percentage / maxPct) * 100 : 0}%`,
                         height: '100%',
-                        background: 'linear-gradient(90deg, #f59e0b, #f97316)',
+                        background: 'linear-gradient(90deg, var(--warning), var(--color-acc))',
                         borderRadius: 3,
                         transition: 'width 0.3s ease',
                       }} />
                     </div>
-                    <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, minWidth: 40, textAlign: 'right', color: '#f59e0b' }}>
+                    <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, minWidth: 40, textAlign: 'right', color: 'var(--warning)' }}>
                       {(f.percentage * 100).toFixed(0)}%
                     </span>
                   </div>
@@ -259,18 +259,18 @@ export function OverviewTabRouter({
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: '0.7rem' }}>
               <div style={{
                 padding: '6px 12px', borderRadius: 6,
-                background: boostActive ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.08)',
-                color: boostActive ? '#16a34a' : '#888',
+                background: boostActive ? 'color-mix(in srgb, var(--success) 12%, transparent)' : 'color-mix(in srgb, var(--danger) 8%, transparent)',
+                color: boostActive ? 'var(--success)' : 'var(--text-muted)',
                 fontWeight: 600,
               }}>
                 Lineage Boost: {boostActive ? 'Active' : 'Inactive'}
               </div>
               {boostActive && turnsWithBoost > 0 && (
                 <>
-                  <div style={{ padding: '6px 12px', borderRadius: 6, background: 'rgba(59,130,246,0.1)', color: '#3b82f6', fontWeight: 600 }}>
+                  <div style={{ padding: '6px 12px', borderRadius: 6, background: 'var(--bg-hover)', color: 'var(--text-secondary)', fontWeight: 600 }}>
                     Turns with boost: {turnsWithBoost}
                   </div>
-                  <div style={{ padding: '6px 12px', borderRadius: 6, background: 'rgba(139,92,246,0.1)', color: '#8b5cf6', fontWeight: 600 }}>
+                  <div style={{ padding: '6px 12px', borderRadius: 6, background: 'var(--bg-hover)', color: 'var(--text-secondary)', fontWeight: 600 }}>
                     Nodes boosted: {totalBoosted} · Promoted: {totalPromoted}
                   </div>
                 </>
@@ -303,18 +303,18 @@ export function OverviewTabRouter({
               const ratio = baselineRate > 0 ? promotedRate / baselineRate : 0;
               const verdict = promotedRate > 0.15 ? 'high_impact' : promotedRate > 0.05 ? 'moderate_impact' : 'low_impact';
               const verdictLabel = verdict === 'high_impact' ? 'High impact' : verdict === 'moderate_impact' ? 'Moderate impact' : 'Low impact';
-              const verdictColor = verdict === 'high_impact' ? '#22c55e' : verdict === 'moderate_impact' ? '#f59e0b' : '#ef4444';
+              const verdictColor = verdict === 'high_impact' ? 'var(--success)' : verdict === 'moderate_impact' ? 'var(--warning)' : 'var(--danger)';
               const promotedCitedSet = new Set(promotedCitedIds);
               return (
                 <div style={{
                   marginTop: 12, padding: '8px 12px', borderRadius: 6,
-                  background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.15)',
+                  background: 'color-mix(in srgb, var(--color-acc) 6%, transparent)', border: '1px solid color-mix(in srgb, var(--color-acc) 15%, transparent)',
                   fontSize: '0.7rem', lineHeight: 1.6,
                 }}>
-                  <div style={{ fontWeight: 700, color: '#f59e0b', marginBottom: 4 }}>Lineage Effectiveness</div>
+                  <div style={{ fontWeight: 700, color: 'var(--warning)', marginBottom: 4 }}>Lineage Effectiveness</div>
                   <div>
                     Lineage boost promoted <strong>{allPromoted.size}</strong> node{allPromoted.size !== 1 ? 's' : ''};{' '}
-                    <strong style={{ color: '#22c55e' }}>{promotedCited}</strong> cited ({(promotedRate * 100).toFixed(0)}%)
+                    <strong style={{ color: 'var(--success)' }}>{promotedCited}</strong> cited ({(promotedRate * 100).toFixed(0)}%)
                     {' vs. '}<strong>{(baselineRate * 100).toFixed(0)}%</strong> baseline
                   </div>
                   <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
@@ -332,9 +332,9 @@ export function OverviewTabRouter({
                       {[...allPromoted].map(id => (
                         <span key={id} style={{
                           padding: '1px 6px', borderRadius: 4, fontSize: 'var(--text-2xs)', fontFamily: 'monospace',
-                          background: promotedCitedSet.has(id) ? 'rgba(34,197,94,0.15)' : 'rgba(156,163,175,0.15)',
-                          color: promotedCitedSet.has(id) ? '#22c55e' : 'var(--text-muted)',
-                          border: `1px solid ${promotedCitedSet.has(id) ? 'rgba(34,197,94,0.3)' : 'rgba(156,163,175,0.2)'}`,
+                          background: promotedCitedSet.has(id) ? 'color-mix(in srgb, var(--success) 15%, transparent)' : 'color-mix(in srgb, var(--text-muted) 15%, transparent)',
+                          color: promotedCitedSet.has(id) ? 'var(--success)' : 'var(--text-muted)',
+                          border: `1px solid ${promotedCitedSet.has(id) ? 'color-mix(in srgb, var(--success) 30%, transparent)' : 'color-mix(in srgb, var(--text-muted) 20%, transparent)'}`,
                         }} title={promotedCitedSet.has(id) ? 'Cited by debaters' : 'Not cited'}>
                           {id}
                         </span>
@@ -375,7 +375,7 @@ export function OverviewTabRouter({
                   <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0 0 8px' }}>
                     Colloquial terms resolved to canonical forms based on speaker POV.
                     {allResolved.length > 0 && <> <strong>{allResolved.length}</strong> resolved across {grouped.size} unique mappings.</>}
-                    {allAmbiguous.length > 0 && <> <span style={{ color: '#d97706' }}><strong>{allAmbiguous.length}</strong> ambiguous.</span></>}
+                    {allAmbiguous.length > 0 && <> <span style={{ color: 'var(--warning)' }}><strong>{allAmbiguous.length}</strong> ambiguous.</span></>}
                   </p>
                   {grouped.size > 0 && (
                     <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse', marginBottom: 8 }}>
@@ -392,14 +392,14 @@ export function OverviewTabRouter({
                         {[...grouped.entries()].sort((a, b) => b[1].count - a[1].count).map(([key, v]) => {
                           const colloquial = key.split('→')[0];
                           return (
-                            <tr key={key} style={{ borderBottom: '1px solid rgba(128,128,128,0.1)' }}>
+                            <tr key={key} style={{ borderBottom: '1px solid color-mix(in srgb, var(--text-muted) 10%, transparent)' }}>
                               <td style={{ padding: '3px 8px' }}>
                                 <span className="vocab-term" style={{ textDecoration: 'none', cursor: 'default' }}>{colloquial}</span>
                               </td>
                               <td style={{ padding: '3px 8px', color: 'var(--text-secondary)' }}>{v.canonical}</td>
                               <td style={{
                                 padding: '3px 8px', textAlign: 'center', fontWeight: 600,
-                                color: v.confidence === 'high' ? '#22c55e' : v.confidence === 'low' ? '#ef4444' : '#d97706',
+                                color: v.confidence === 'high' ? 'var(--success)' : v.confidence === 'low' ? 'var(--danger)' : 'var(--warning)',
                               }}>{v.confidence}</td>
                               <td style={{ padding: '3px 8px', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{[...v.speakers].join(', ')}</td>
                               <td style={{ padding: '3px 8px', textAlign: 'center' }}>{v.count}</td>
@@ -410,8 +410,8 @@ export function OverviewTabRouter({
                     </table>
                   )}
                   {allAmbiguous.length > 0 && (
-                    <div style={{ padding: '6px 10px', background: 'rgba(217,119,6,0.06)', borderLeft: '3px solid #d97706', borderRadius: 4, fontSize: 'var(--text-2xs)' }}>
-                      <div style={{ fontWeight: 600, color: '#d97706', marginBottom: 4 }}>Ambiguous terms (needs review):</div>
+                    <div style={{ padding: '6px 10px', background: 'color-mix(in srgb, var(--warning) 6%, transparent)', borderLeft: '3px solid var(--warning)', borderRadius: 4, fontSize: 'var(--text-2xs)' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--warning)', marginBottom: 4 }}>Ambiguous terms (needs review):</div>
                       {[...new Set(allAmbiguous.map(a => a.colloquial))].map((term, i) => {
                         const speakers = [...new Set(allAmbiguous.filter(a => a.colloquial === term).map(a => a.speaker))];
                         return (
@@ -555,12 +555,12 @@ export function OverviewTabRouter({
               <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>Flight Recorder Context Snapshot</span>
               <button
                 onClick={() => { void triggerManualDump(); }}
-                style={{ fontSize: 'var(--text-2xs)', padding: '2px 8px', background: '#f59e0b', color: '#000', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}
+                style={{ fontSize: 'var(--text-2xs)', padding: '2px 8px', background: 'var(--warning)', color: 'var(--text-primary)', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}
               >Dump Now</button>
             </div>
             {sections.map(s => (
               <div key={s.title} style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: '#f59e0b', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.title}</div>
+                <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: 'var(--warning)', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.title}</div>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.7rem' }}>
                   <tbody>
                     {s.rows.map(([label, value]) => (
@@ -591,8 +591,8 @@ export function OverviewTabRouter({
               style={{
                 padding: '2px 8px', fontSize: 'var(--text-2xs)', fontWeight: 600, borderRadius: 4, cursor: 'pointer',
                 border: '1px solid var(--border)',
-                background: !transcriptSpeakerFilter ? '#f59e0b' : 'transparent',
-                color: !transcriptSpeakerFilter ? '#000' : 'var(--text-secondary)',
+                background: !transcriptSpeakerFilter ? 'var(--warning)' : 'transparent',
+                color: !transcriptSpeakerFilter ? 'var(--text-primary)' : 'var(--text-secondary)',
               }}
             >All ({debate.transcript.filter(e => e.type === 'statement' || e.type === 'opening').length} stmts / {debate.transcript.length})</button>
             {speakers.map(s => {
@@ -605,8 +605,8 @@ export function OverviewTabRouter({
                   style={{
                     padding: '2px 8px', fontSize: 'var(--text-2xs)', fontWeight: 600, borderRadius: 4, cursor: 'pointer',
                     border: '1px solid var(--border)',
-                    background: active ? '#f59e0b' : 'transparent',
-                    color: active ? '#000' : 'var(--text-secondary)',
+                    background: active ? 'var(--warning)' : 'transparent',
+                    color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
                   }}
                 >{speakerLabel(s)} ({count})</button>
               );
@@ -629,15 +629,15 @@ export function OverviewTabRouter({
             <div
               key={e.id}
               onClick={() => { setSelectedEntry(e.id); setLocalOverride(true); }}
-              style={{ padding: '4px 6px', cursor: 'pointer', borderRadius: 4, margin: '2px 0', background: selectedEntry === e.id ? 'rgba(249,115,22,0.08)' : 'var(--bg-primary)', borderLeft: selectedEntry === e.id ? '3px solid #f97316' : '3px solid transparent', fontSize: '0.7rem' }}
+              style={{ padding: '4px 6px', cursor: 'pointer', borderRadius: 4, margin: '2px 0', background: selectedEntry === e.id ? 'color-mix(in srgb, var(--color-acc) 8%, transparent)' : 'var(--bg-primary)', borderLeft: selectedEntry === e.id ? '3px solid var(--color-acc)' : '3px solid transparent', fontSize: '0.7rem' }}
             >
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                 <span
                   title={pipelineError ? `Statement ${stmtId} — pipeline error` : `Statement ${stmtId}`}
                   style={{
                     padding: '1px 6px', borderRadius: 8,
-                    background: pipelineError ? 'rgba(220,38,38,0.15)' : 'rgba(249,115,22,0.12)',
-                    color: pipelineError ? '#dc2626' : '#f97316',
+                    background: pipelineError ? 'color-mix(in srgb, var(--danger) 15%, transparent)' : 'color-mix(in srgb, var(--color-acc) 12%, transparent)',
+                    color: pipelineError ? 'var(--danger)' : 'var(--color-acc)',
                     fontSize: 'var(--text-2xs)', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
                     flexShrink: 0,
                   }}
@@ -645,17 +645,17 @@ export function OverviewTabRouter({
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <strong>{speakerLabel(e.speaker)}</strong> [{e.type}] <Highlight text={e.content.slice(0, 80)} />...
                 </span>
-                {hasStages && <span title="4-stage pipeline" style={{ fontSize: 'var(--text-2xs)', color: '#3b82f6', opacity: 0.7 }}>B/P/D/C</span>}
+                {hasStages && <span title="4-stage pipeline" style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-secondary)', opacity: 0.7 }}>B/P/D/C</span>}
               </div>
               {modT && (
                 <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 2, paddingLeft: 36, flexWrap: 'wrap' }}>
-                  <span style={{ padding: '0 4px', borderRadius: 3, background: 'rgba(139,92,246,0.12)', color: '#8b5cf6', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>MOD</span>
+                  <span style={{ padding: '0 4px', borderRadius: 3, background: 'var(--bg-hover)', color: 'var(--text-secondary)', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>MOD</span>
                   {modT.focus_point && <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={modT.focus_point}>{modT.focus_point}</span>}
                   {modT.selection_reason && modT.selection_reason !== 'moderator_ai_selection' && (
-                    <span style={{ padding: '0 3px', borderRadius: 2, background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: 'var(--text-2xs)' }}>{modT.selection_reason === 'turn_alternation_override' ? 'override' : modT.selection_reason}</span>
+                    <span style={{ padding: '0 3px', borderRadius: 2, background: 'color-mix(in srgb, var(--danger) 10%, transparent)', color: 'var(--danger)', fontSize: 'var(--text-2xs)' }}>{modT.selection_reason === 'turn_alternation_override' ? 'override' : modT.selection_reason}</span>
                   )}
                   {modT.intervention_move && (
-                    <span style={{ padding: '0 4px', borderRadius: 3, background: modT.intervention_validated ? 'rgba(139,92,246,0.2)' : 'rgba(239,68,68,0.15)', color: modT.intervention_validated ? '#8b5cf6' : '#ef4444', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>{modT.intervention_move}{modT.intervention_validated ? '' : ' (suppressed)'}</span>
+                    <span style={{ padding: '0 4px', borderRadius: 3, background: modT.intervention_validated ? 'var(--bg-hover)' : 'color-mix(in srgb, var(--danger) 15%, transparent)', color: modT.intervention_validated ? 'var(--text-secondary)' : 'var(--danger)', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>{modT.intervention_move}{modT.intervention_validated ? '' : ' (suppressed)'}</span>
                   )}
                   {modT.convergence_score != null && <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>conv:{(modT.convergence_score * 100).toFixed(0)}%</span>}
                   {modT.health_score != null && <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>H:{modT.health_score.toFixed(2)}</span>}
@@ -759,15 +759,15 @@ export function OverviewTabRouter({
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
                   <span style={{
                     padding: '4px 8px', borderRadius: 4, fontWeight: 600, fontSize: '0.72rem',
-                    background: claimViolations.length > 0 ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.08)',
-                    color: claimViolations.length > 0 ? '#ef4444' : '#22c55e',
+                    background: claimViolations.length > 0 ? 'color-mix(in srgb, var(--danger) 10%, transparent)' : 'color-mix(in srgb, var(--success) 8%, transparent)',
+                    color: claimViolations.length > 0 ? 'var(--danger)' : 'var(--success)',
                   }}>
                     {claimsChecked} claims checked — {claimViolations.length} violation{claimViolations.length !== 1 ? 's' : ''}
                   </span>
                   <span style={{
                     padding: '4px 8px', borderRadius: 4, fontWeight: 600, fontSize: '0.72rem',
-                    background: driftWarnings.length > 0 ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.08)',
-                    color: driftWarnings.length > 0 ? '#f59e0b' : '#22c55e',
+                    background: driftWarnings.length > 0 ? 'color-mix(in srgb, var(--warning) 10%, transparent)' : 'color-mix(in srgb, var(--success) 8%, transparent)',
+                    color: driftWarnings.length > 0 ? 'var(--warning)' : 'var(--success)',
                   }}>
                     {draftsChecked} refs checked — {driftWarnings.length} drift warning{driftWarnings.length !== 1 ? 's' : ''}
                   </span>
@@ -776,8 +776,8 @@ export function OverviewTabRouter({
                 {allClear ? (
                   <div style={{
                     padding: '8px 10px', borderRadius: 4, fontSize: '0.75rem',
-                    background: 'rgba(34,197,94,0.08)', borderLeft: '3px solid #22c55e',
-                    color: '#22c55e', fontWeight: 600,
+                    background: 'color-mix(in srgb, var(--success) 8%, transparent)', borderLeft: '3px solid var(--success)',
+                    color: 'var(--success)', fontWeight: 600,
                   }}>
                     All statements within scope — no exclusion violations or drift warnings
                   </div>
@@ -785,16 +785,16 @@ export function OverviewTabRouter({
                   <>
                     {claimViolations.length > 0 && (
                       <div style={{ marginBottom: 12 }}>
-                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#ef4444', marginBottom: 6 }}>
+                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--danger)', marginBottom: 6 }}>
                           Exclusion Violations ({claimViolations.length})
                         </div>
                         {claimViolations.map((v, i) => (
                           <div key={i} style={{
                             padding: '6px 8px', marginBottom: 4, borderRadius: 4, fontSize: '0.7rem',
-                            background: 'rgba(239,68,68,0.06)', borderLeft: '3px solid #ef4444',
+                            background: 'color-mix(in srgb, var(--danger) 6%, transparent)', borderLeft: '3px solid var(--danger)',
                           }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                              <span style={{ fontWeight: 700, color: '#ef4444' }}>{v.claim_id}</span>
+                              <span style={{ fontWeight: 700, color: 'var(--danger)' }}>{v.claim_id}</span>
                               <span style={{ color: 'var(--text-muted)' }}>→</span>
                               <span style={{ fontWeight: 600 }}>{v.node_id}</span>
                             </div>
@@ -809,16 +809,16 @@ export function OverviewTabRouter({
                     )}
                     {driftWarnings.length > 0 && (
                       <div>
-                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#f59e0b', marginBottom: 6 }}>
+                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--warning)', marginBottom: 6 }}>
                           Scope Drift Warnings ({driftWarnings.length})
                         </div>
                         {driftWarnings.map((w, i) => (
                           <div key={i} style={{
                             padding: '6px 8px', marginBottom: 4, borderRadius: 4, fontSize: '0.7rem',
-                            background: 'rgba(245,158,11,0.06)', borderLeft: '3px solid #f59e0b',
+                            background: 'color-mix(in srgb, var(--warning) 6%, transparent)', borderLeft: '3px solid var(--warning)',
                           }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                              <span style={{ fontWeight: 700, color: '#f59e0b' }}>{w.debater}</span>
+                              <span style={{ fontWeight: 700, color: 'var(--warning)' }}>{w.debater}</span>
                               <span style={{ color: 'var(--text-muted)' }}>→</span>
                               <span style={{ fontWeight: 600 }}>{w.node_id}</span>
                               <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontWeight: 600 }}>

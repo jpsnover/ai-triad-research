@@ -22,17 +22,17 @@ interface EmotionalRegisterTabProps {
 }
 
 const SPEAKER_COLORS: Record<string, string> = {
-  accelerationist: '#f97316',
-  safetyist: '#3b82f6',
-  skeptic: '#a855f7',
+  accelerationist: 'var(--color-acc)',
+  safetyist: 'var(--color-saf)',
+  skeptic: 'var(--color-skp)',
 };
 
 const CATEGORY_COLORS: Record<AffectCategory, string> = {
-  urgency: '#f59e0b',
-  fear: '#ef4444',
-  hope: '#22c55e',
-  outrage: '#dc2626',
-  empathy: '#3b82f6',
+  urgency: 'var(--warning)',
+  fear: 'var(--danger)',
+  hope: 'var(--success)',
+  outrage: 'var(--danger)',
+  empathy: 'var(--color-saf)',
 };
 
 interface TurnAffect {
@@ -125,9 +125,9 @@ export function EmotionalRegisterTab({ debate, setSelectedEntry, setLocalOverrid
       {warnings.length > 0 && (
         <div style={{
           marginBottom: 14, padding: '8px 12px', borderRadius: 6,
-          background: 'rgba(220,38,38,0.08)', borderLeft: '3px solid #dc2626',
+          background: 'rgba(220,38,38,0.08)', borderLeft: '3px solid var(--danger)',
         }}>
-          <div style={{ fontWeight: 700, color: '#dc2626', fontSize: '0.72rem', marginBottom: 4 }}>
+          <div style={{ fontWeight: 700, color: 'var(--danger)', fontSize: '0.72rem', marginBottom: 4 }}>
             Concluding-Phase Outrage Warning
           </div>
           {warnings.map(w => (
@@ -136,7 +136,7 @@ export function EmotionalRegisterTab({ debate, setSelectedEntry, setLocalOverrid
               style={{ fontSize: '0.7rem', marginBottom: 2, cursor: 'pointer' }}
               onClick={() => { setSelectedEntry(w.entryId); setLocalOverride(true); }}
             >
-              <strong style={{ color: SPEAKER_COLORS[w.speaker] ?? '#6b7280' }}>{speakerLabel(w.speaker)}</strong>
+              <strong style={{ color: SPEAKER_COLORS[w.speaker] ?? 'var(--text-muted)' }}>{speakerLabel(w.speaker)}</strong>
               {' '}turn {w.turn}: appropriateness {w.appropriateness!.toFixed(2)}, outrage {w.profile.outrage.toFixed(2)}
             </div>
           ))}
@@ -148,13 +148,13 @@ export function EmotionalRegisterTab({ debate, setSelectedEntry, setLocalOverrid
         <div style={{
           marginBottom: 14, padding: '10px 12px', borderRadius: 6,
           background: 'var(--bg-primary)',
-          borderLeft: `3px solid ${meanApprop >= 0.7 ? '#22c55e' : meanApprop >= 0.4 ? '#f59e0b' : '#dc2626'}`,
+          borderLeft: `3px solid ${meanApprop >= 0.7 ? 'var(--success)' : meanApprop >= 0.4 ? 'var(--warning)' : 'var(--danger)'}`,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: '0.72rem' }}>
             <span style={{ fontWeight: 600 }}>Mean Appropriateness</span>
             <span style={{
               fontWeight: 700, fontSize: '0.85rem', fontVariantNumeric: 'tabular-nums',
-              color: meanApprop >= 0.7 ? '#22c55e' : meanApprop >= 0.4 ? '#f59e0b' : '#dc2626',
+              color: meanApprop >= 0.7 ? 'var(--success)' : meanApprop >= 0.4 ? 'var(--warning)' : 'var(--danger)',
             }}>{meanApprop.toFixed(3)}</span>
             {varianceApprop != null && (
               <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
@@ -169,7 +169,7 @@ export function EmotionalRegisterTab({ debate, setSelectedEntry, setLocalOverrid
       {speakers.map(speaker => {
         const turns = perSpeaker.get(speaker) ?? [];
         if (turns.length === 0) return null;
-        const color = SPEAKER_COLORS[speaker] ?? '#6b7280';
+        const color = SPEAKER_COLORS[speaker] ?? 'var(--text-muted)';
         const meanProfile = {} as AffectProfile;
         for (const cat of AFFECT_CATEGORIES) {
           meanProfile[cat] = turns.reduce((sum, t) => sum + t.profile[cat], 0) / turns.length;

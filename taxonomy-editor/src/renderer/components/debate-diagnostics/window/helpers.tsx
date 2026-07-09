@@ -19,10 +19,10 @@ export function speakerLabel(speaker: string): string {
 
 export function AifBadge({ type, label }: { type: 'I-node' | 'CA-node' | 'RA-node' | 'PA-node'; label?: string }) {
   const colors: Record<string, { bg: string; fg: string }> = {
-    'I-node': { bg: 'rgba(59,130,246,0.15)', fg: '#3b82f6' },
-    'CA-node': { bg: 'rgba(239,68,68,0.15)', fg: '#ef4444' },
-    'RA-node': { bg: 'rgba(34,197,94,0.15)', fg: '#22c55e' },
-    'PA-node': { bg: 'rgba(168,85,247,0.15)', fg: '#a855f7' },
+    'I-node': { bg: 'var(--bg-hover)', fg: 'var(--text-secondary)' },
+    'CA-node': { bg: 'var(--bg-hover)', fg: 'var(--text-secondary)' },
+    'RA-node': { bg: 'var(--bg-hover)', fg: 'var(--text-secondary)' },
+    'PA-node': { bg: 'var(--bg-hover)', fg: 'var(--text-secondary)' },
   };
   const c = colors[type] || colors['I-node'];
   return (
@@ -51,12 +51,12 @@ export function TrafficLight({ pass, label, tooltip }: { pass: boolean; label: s
       title={tooltip}
       style={{
         display: 'inline-flex', alignItems: 'center', gap: 4,
-        fontSize: '0.7rem', color: pass ? '#22c55e' : '#ef4444',
+        fontSize: '0.7rem', color: pass ? 'var(--success)' : 'var(--danger)',
       }}
     >
       <span style={{
         display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
-        background: pass ? '#22c55e' : '#ef4444',
+        background: pass ? 'var(--success)' : 'var(--danger)',
       }} />
       {label}
     </span>
@@ -75,7 +75,7 @@ export function CopyButton({ text }: { text: string }) {
       }}
       style={{
         background: 'none', border: '1px solid var(--border)', borderRadius: 3,
-        color: copied ? '#22c55e' : 'var(--text-muted)', cursor: 'pointer',
+        color: copied ? 'var(--success)' : 'var(--text-muted)', cursor: 'pointer',
         fontSize: 'var(--text-2xs)', padding: '1px 6px', marginLeft: 6, flexShrink: 0,
       }}
       title="Copy section content to clipboard"
@@ -112,7 +112,7 @@ export function Section({ title, children, defaultOpen = false, copyText }: { ti
         >
           {effectiveOpen ? '▼' : '▶'} {title}
           {sectionMatches > 0 && (
-            <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', padding: '1px 5px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#f59e0b', fontWeight: 700 }}>
+            <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', padding: '1px 5px', borderRadius: 3, background: 'color-mix(in srgb, var(--warning) 20%, transparent)', color: 'var(--warning)', fontWeight: 700 }}>
               {sectionMatches} match{sectionMatches !== 1 ? 'es' : ''}
             </span>
           )}
@@ -140,7 +140,7 @@ export function Highlight({ text, query: queryProp }: { text: string; query?: st
     idx = lower.indexOf(q, lastIdx);
   }
   if (lastIdx < text.length) parts.push({ text: text.slice(lastIdx), match: false });
-  return <>{parts.map((p, i) => p.match ? <mark key={i} data-search-match="" style={{ background: '#f59e0b', color: '#000', borderRadius: 2, padding: '0 1px' }}>{p.text}</mark> : p.text)}</>;
+  return <>{parts.map((p, i) => p.match ? <mark key={i} data-search-match="" style={{ background: 'var(--warning)', color: 'var(--text-primary)', borderRadius: 2, padding: '0 1px' }}>{p.text}</mark> : p.text)}</>;
 }
 
 export function SearchBar({ query, setQuery, matchCount, inputRef }: { query: string; setQuery: (q: string) => void; matchCount: number; inputRef?: RefObject<HTMLInputElement | null> }) {
@@ -155,12 +155,12 @@ export function SearchBar({ query, setQuery, matchCount, inputRef }: { query: st
       const marks = document.querySelectorAll('mark[data-search-match]');
       setDomCount(marks.length);
       marks.forEach(m => {
-        (m as HTMLElement).style.background = '#f59e0b';
+        (m as HTMLElement).style.background = 'var(--warning)';
         (m as HTMLElement).classList.remove('search-active-match');
       });
       if (currentIdx >= 0 && currentIdx < marks.length) {
         const el = marks[currentIdx] as HTMLElement;
-        el.style.background = '#f97316';
+        el.style.background = 'color-mix(in srgb, var(--warning) 70%, var(--text-primary))';
         el.classList.add('search-active-match');
         el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }

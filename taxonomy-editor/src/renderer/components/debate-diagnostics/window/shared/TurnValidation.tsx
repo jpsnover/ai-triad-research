@@ -21,9 +21,9 @@ export function classifyHintTarget(hint: string): 'draft' | 'cite' | 'judge' {
 }
 
 export const HINT_TARGET_STYLE: Record<string, { label: string; color: string; bg: string }> = {
-  draft: { label: 'DRAFT', color: '#d97706', bg: 'rgba(217, 119, 6, 0.08)' },
-  cite: { label: 'CITE', color: '#2563eb', bg: 'rgba(37, 99, 235, 0.08)' },
-  judge: { label: 'QUALITY', color: '#7c3aed', bg: 'rgba(124, 58, 237, 0.08)' },
+  draft: { label: 'DRAFT', color: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 8%, transparent)' },
+  cite: { label: 'CITE', color: 'var(--text-secondary)', bg: 'var(--bg-hover)' },
+  judge: { label: 'QUALITY', color: 'var(--text-secondary)', bg: 'var(--bg-hover)' },
 };
 
 export function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
@@ -106,18 +106,18 @@ export function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
                   const ignored = he.filter(h => h.resolution === 'ignored').length;
                   const worse = he.filter(h => h.resolution === 'made_worse').length;
                   const resColors: Record<string, string> = {
-                    fixed: '#16a34a', partially_fixed: '#d97706', ignored: '#6b7280', made_worse: '#dc2626', pending: '#3b82f6',
+                    fixed: 'var(--success)', partially_fixed: 'var(--warning)', ignored: 'var(--text-muted)', made_worse: 'var(--danger)', pending: 'var(--text-secondary)',
                   };
                   const specColors: Record<string, string> = {
-                    concrete: '#16a34a', structural: '#3b82f6', evaluative: '#d97706',
+                    concrete: 'var(--success)', structural: 'var(--text-secondary)', evaluative: 'var(--warning)',
                   };
                   return (
                     <>
                       <div style={{ display: 'flex', gap: 10, marginBottom: 6, fontSize: 'var(--text-2xs)' }}>
-                        <span style={{ color: '#16a34a', fontWeight: 700 }}>Fixed: {fixed}</span>
-                        <span style={{ color: '#d97706', fontWeight: 700 }}>Partial: {partial}</span>
-                        <span style={{ color: '#6b7280', fontWeight: 700 }}>Ignored: {ignored}</span>
-                        <span style={{ color: '#dc2626', fontWeight: 700 }}>Worse: {worse}</span>
+                        <span style={{ color: 'var(--success)', fontWeight: 700 }}>Fixed: {fixed}</span>
+                        <span style={{ color: 'var(--warning)', fontWeight: 700 }}>Partial: {partial}</span>
+                        <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>Ignored: {ignored}</span>
+                        <span style={{ color: 'var(--danger)', fontWeight: 700 }}>Worse: {worse}</span>
                         <span style={{ color: 'var(--text-muted)' }}>
                           Score: {he[0]?.pre_score?.toFixed(2)} → {he[0]?.post_score?.toFixed(2)} ({(he[0]?.score_delta ?? 0) >= 0 ? '+' : ''}{he[0]?.score_delta?.toFixed(2)})
                         </span>
@@ -125,19 +125,19 @@ export function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
                       {he.map((h, hi) => (
                         <div key={hi} style={{
                           marginBottom: 4, padding: '4px 8px', borderRadius: 4, fontSize: 'var(--text-2xs)',
-                          borderLeft: `3px solid ${resColors[h.resolution] ?? '#6b7280'}`,
+                          borderLeft: `3px solid ${resColors[h.resolution] ?? 'var(--text-muted)'}`,
                           background: 'var(--bg-subtle)',
                         }}>
                           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 2 }}>
                             <span style={{
                               fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 4px', borderRadius: 3,
-                              color: resColors[h.resolution] ?? '#6b7280',
-                              background: `${resColors[h.resolution] ?? '#6b7280'}18`,
+                              color: resColors[h.resolution] ?? 'var(--text-muted)',
+                              background: `${resColors[h.resolution] ?? 'var(--text-muted)'}18`,
                             }}>{h.resolution.toUpperCase().replace('_', ' ')}</span>
                             <span style={{
                               fontSize: 'var(--text-2xs)', padding: '0 4px', borderRadius: 3,
-                              color: specColors[h.specificity] ?? '#6b7280',
-                              background: `${specColors[h.specificity] ?? '#6b7280'}18`,
+                              color: specColors[h.specificity] ?? 'var(--text-muted)',
+                              background: `${specColors[h.specificity] ?? 'var(--text-muted)'}18`,
                             }}>{h.specificity}</span>
                             <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{h.source.replace('_', ' ')}</span>
                           </div>
@@ -209,7 +209,7 @@ export function TurnValidationSection({ trail: rawTrail }: { trail: TurnValidati
           const lastIdx = scores.length - 1;
           if (bestIdx !== lastIdx) {
             return (
-              <span style={{ fontSize: 'var(--text-2xs)', padding: '1px 6px', borderRadius: 3, background: 'rgba(34,197,94,0.15)', color: '#16a34a', fontWeight: 600 }}>
+              <span style={{ fontSize: 'var(--text-2xs)', padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--success) 15%, transparent)', color: 'var(--success)', fontWeight: 600 }}>
                 Used attempt {bestIdx} (score {scores[bestIdx].toFixed(2)}) — last attempt regressed to {scores[lastIdx].toFixed(2)}
               </span>
             );

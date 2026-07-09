@@ -162,7 +162,7 @@ export function ArgumentNetworkTab({
             {filteredNodeCount}/{an.nodes.length} shown
             <button
               onClick={() => { setAnFilterMode('all'); setAnFilterNodeId(''); }}
-              style={{ marginLeft: 4, cursor: 'pointer', background: 'none', border: 'none', color: '#3b82f6', fontSize: 'var(--text-2xs)', padding: 0 }}
+              style={{ marginLeft: 4, cursor: 'pointer', background: 'none', border: 'none', color: 'var(--color-saf)', fontSize: 'var(--text-2xs)', padding: 0 }}
             >clear</button>
           </span>
         )}
@@ -177,14 +177,14 @@ export function ArgumentNetworkTab({
             <div
               style={{
                 margin: '10px 0 2px', padding: '4px 8px', borderRadius: 4,
-                background: 'rgba(59,130,246,0.06)', borderLeft: '3px solid rgba(59,130,246,0.4)',
+                background: 'color-mix(in srgb, var(--color-saf) 6%, transparent)', borderLeft: '3px solid color-mix(in srgb, var(--color-saf) 40%, transparent)',
                 fontSize: 'var(--text-2xs)', color: 'var(--text-secondary)',
                 cursor: 'pointer',
               }}
               onClick={() => { setOverviewTab('transcript'); setSelectedEntry(entryId); setLocalOverride(true); }}
               title={`Go to ${stmtId ?? entryId} in transcript`}
             >
-              <span style={{ fontWeight: 700, color: '#3b82f6', marginRight: 6 }}>{stmtId ?? entryId}</span>
+              <span style={{ fontWeight: 700, color: 'var(--color-saf)', marginRight: 6 }}>{stmtId ?? entryId}</span>
               <span style={{ fontWeight: 600, marginRight: 6 }}>{speakerLabel(srcEntry.speaker)}</span>
               <span style={{ color: 'var(--text-muted)' }}>
                 {srcEntry.content.length > 200 ? srcEntry.content.slice(0, 200) + '…' : srcEntry.content}
@@ -195,26 +195,26 @@ export function ArgumentNetworkTab({
           {trace && (
             <div style={{
               margin: '8px 0 4px', padding: '6px 10px', borderRadius: 6,
-              background: 'rgba(249,115,22,0.08)', borderLeft: '3px solid #f97316',
+              background: 'color-mix(in srgb, var(--color-acc) 8%, transparent)', borderLeft: '3px solid var(--color-acc)',
               fontSize: 'var(--text-2xs)',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <span style={{ fontWeight: 700, color: '#f97316', fontSize: 'var(--text-2xs)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Moderator</span>
+                <span style={{ fontWeight: 700, color: 'var(--color-acc)', fontSize: 'var(--text-2xs)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Moderator</span>
                 <span style={{ fontWeight: 600 }}>→ {speakerLabel(trace.selected)}</span>
                 {trace.selection_reason && (
-                  <span style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(249,115,22,0.15)', color: '#f97316', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>
+                  <span style={{ padding: '1px 5px', borderRadius: 3, background: 'color-mix(in srgb, var(--color-acc) 15%, transparent)', color: 'var(--color-acc)', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>
                     {trace.selection_reason.replace(/_/g, ' ')}
                   </span>
                 )}
                 {trace.recent_scheme && (
-                  <span style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(99,102,241,0.15)', color: '#6366f1', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>
+                  <span style={{ padding: '1px 5px', borderRadius: 3, background: 'color-mix(in srgb, var(--text-secondary) 15%, transparent)', color: 'var(--text-secondary)', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>
                     {trace.recent_scheme}
                   </span>
                 )}
                 {trace.convergence_score != null && (
                   <span style={{ color: 'var(--text-muted)' }}>
                     conv: {(trace.convergence_score * 100).toFixed(0)}%
-                    {trace.convergence_triggered && <span style={{ color: '#22c55e', marginLeft: 3, fontWeight: 700 }}>triggered</span>}
+                    {trace.convergence_triggered && <span style={{ color: 'var(--success)', marginLeft: 3, fontWeight: 700 }}>triggered</span>}
                   </span>
                 )}
               </div>
@@ -324,7 +324,7 @@ function ArgNetMinimap({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: 
           if (!s || !t) return null;
           return (
             <line key={i} x1={s.x} y1={s.y} x2={t.x} y2={t.y}
-              stroke={e.type === 'attacks' ? 'var(--danger, #ef4444)' : 'var(--success, #22c55e)'}
+              stroke={e.type === 'attacks' ? 'var(--danger, var(--danger))' : 'var(--success, var(--success))'}
               strokeWidth={0.6} opacity={0.35} />
           );
         })}
@@ -346,10 +346,10 @@ function ArgNetMinimap({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: 
           </span>
         ))}
         <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--danger, #ef4444)' }} /> attack
+          <span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--danger, var(--danger))' }} /> attack
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--success, #22c55e)' }} /> support
+          <span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--success, var(--success))' }} /> support
         </span>
       </div>
     </div>
@@ -389,12 +389,12 @@ function ConfidenceImpactTrace({ debateId }: { debateId: string }) {
   }
   if (impacts.length === 0) return null;
   return (
-    <div style={{ marginTop: 12, padding: '8px 10px', borderRadius: 6, background: 'rgba(34,197,94,0.06)', borderLeft: '3px solid #22c55e' }}>
-      <div style={{ fontWeight: 700, fontSize: 'var(--text-2xs)', color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+    <div style={{ marginTop: 12, padding: '8px 10px', borderRadius: 6, background: 'color-mix(in srgb, var(--success) 6%, transparent)', borderLeft: '3px solid var(--success)' }}>
+      <div style={{ fontWeight: 700, fontSize: 'var(--text-2xs)', color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
         Confidence Impact ({impacts.length})
       </div>
       {impacts.map((imp, i) => {
-        const deltaColor = imp.entry.delta > 0 ? '#22c55e' : imp.entry.delta < 0 ? '#ef4444' : 'var(--text-muted)';
+        const deltaColor = imp.entry.delta > 0 ? 'var(--success)' : imp.entry.delta < 0 ? 'var(--danger)' : 'var(--text-muted)';
         return (
           <div key={i} style={{ fontSize: 'var(--text-2xs)', marginBottom: 3, display: 'flex', gap: 6, alignItems: 'baseline', flexWrap: 'wrap' }}>
             <code style={{ fontSize: 'var(--text-2xs)', background: 'var(--bg-secondary)', padding: '0 3px', borderRadius: 2 }}>{imp.nodeId}</code>
@@ -409,7 +409,7 @@ function ConfidenceImpactTrace({ debateId }: { debateId: string }) {
               </span>
             )}
             {imp.entry.robustness != null && imp.entry.robustness >= 2 && (
-              <span style={{ fontSize: 'var(--text-2xs)', padding: '0 4px', borderRadius: 3, background: 'rgba(34,197,94,0.15)', color: '#22c55e', fontWeight: 600 }}>
+              <span style={{ fontSize: 'var(--text-2xs)', padding: '0 4px', borderRadius: 3, background: 'color-mix(in srgb, var(--success) 15%, transparent)', color: 'var(--success)', fontWeight: 600 }}>
                 {imp.entry.robustness}× confirmed
               </span>
             )}

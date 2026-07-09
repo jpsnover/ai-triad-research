@@ -64,9 +64,9 @@ export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
   }, [ctxMenu]);
 
   const categories = [
-    { key: 'asserted', label: 'Asserted', color: '#3b82f6' },
-    { key: 'conceded', label: 'Conceded', color: '#f59e0b' },
-    { key: 'challenged', label: 'Challenged', color: '#ef4444' },
+    { key: 'asserted', label: 'Asserted', color: 'var(--color-saf)' },
+    { key: 'conceded', label: 'Conceded', color: 'var(--warning)' },
+    { key: 'challenged', label: 'Challenged', color: 'var(--danger)' },
   ] as const;
 
   // Compute concession asymmetry per speaker (mirrors calibrationLogger logic)
@@ -119,7 +119,7 @@ export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
             <strong style={{ fontSize: '0.8rem' }}>{speakerLabel(pov)}</strong>
             {asymmetryByPov[pov] != null && (() => {
               const a = asymmetryByPov[pov]!;
-              const color = Math.abs(a) > 0.3 ? '#dc2626' : Math.abs(a) > 0.15 ? '#d97706' : '#16a34a';
+              const color = Math.abs(a) > 0.3 ? 'var(--danger)' : Math.abs(a) > 0.15 ? 'var(--warning)' : 'var(--success)';
               const label = Math.abs(a) > 0.3 ? 'high' : Math.abs(a) > 0.15 ? 'moderate' : 'balanced';
               return (
                 <span
@@ -173,7 +173,7 @@ export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
                       {nodeId && (
                         <span style={{
                           padding: '0 4px', borderRadius: 3, marginRight: 4,
-                          background: 'rgba(59,130,246,0.12)', color: '#3b82f6',
+                          background: 'color-mix(in srgb, var(--color-saf) 12%, transparent)', color: 'var(--color-saf)',
                           fontSize: 'var(--text-2xs)', fontWeight: 700, fontFamily: 'var(--font-mono)',
                         }}>{nodeId}</span>
                       )}
@@ -200,7 +200,7 @@ export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
               padding: '5px 12px', border: 'none', background: 'transparent',
               color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.72rem',
             }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.1)')}
+            onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--color-saf) 10%, transparent)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >Copy</button>
           {ctxMenu.nodeId && (
@@ -211,7 +211,7 @@ export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
                 padding: '5px 12px', border: 'none', background: 'transparent',
                 color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.72rem',
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.1)')}
+              onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--color-saf) 10%, transparent)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >Go to {ctxMenu.nodeId}</button>
           )}

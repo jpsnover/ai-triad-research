@@ -18,9 +18,9 @@ vi.mock('@lib/debate/types', async (importOriginal) => {
   return {
     ...original,
     POVER_INFO: {
-      accelerationist: { label: 'Accelerationist', pov: 'accelerationist', color: '#f97316' },
-      safetyist:       { label: 'Safetyist', pov: 'safetyist', color: '#3b82f6' },
-      skeptic:         { label: 'Skeptic', pov: 'skeptic', color: '#a855f7' },
+      accelerationist: { label: 'Accelerationist', pov: 'accelerationist', color: 'var(--color-acc)' },
+      safetyist:       { label: 'Safetyist', pov: 'safetyist', color: 'var(--color-saf)' },
+      skeptic:         { label: 'Skeptic', pov: 'skeptic', color: 'var(--color-skp)' },
     },
   };
 });

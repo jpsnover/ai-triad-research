@@ -17,11 +17,11 @@ export function LookaheadTab(props: LookaheadTabProps) {
         <span style={{
           padding: '1px 6px', borderRadius: 3, fontWeight: 600,
           background: lookaheadDiag.final_pass ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)',
-          color: lookaheadDiag.final_pass ? '#16a34a' : '#dc2626',
+          color: lookaheadDiag.final_pass ? 'var(--success)' : 'var(--danger)',
         }}>{lookaheadDiag.final_pass ? '✓ PASS' : '✗ FAIL'}</span>
         <span>LOOKAHEAD</span>
         <span>{(lookaheadDiag.elapsed_ms / 1000).toFixed(1)}s</span>
-        {lookaheadDiag.regen_triggered && <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>REGEN TRIGGERED</span>}
+        {lookaheadDiag.regen_triggered && <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--warning) 20%, transparent)', color: 'var(--warning)', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>REGEN TRIGGERED</span>}
       </div>
 
       {/* Utility Delta Gauge */}
@@ -31,7 +31,7 @@ export function LookaheadTab(props: LookaheadTabProps) {
         const after = r.utility_after.composite;
         const delta = r.utility_delta;
         const pct = Math.min(Math.max((after / Math.max(before, 0.01)) * 50, 5), 95);
-        const deltaColor = delta > 0.05 ? '#16a34a' : delta >= 0 ? '#d97706' : '#dc2626';
+        const deltaColor = delta > 0.05 ? 'var(--success)' : delta >= 0 ? 'var(--warning)' : 'var(--danger)';
         return (
           <div style={{ padding: 8, margin: '6px 0', borderLeft: `3px solid ${deltaColor}`, background: `${deltaColor}08`, borderRadius: 4 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', marginBottom: 6 }}>
@@ -40,7 +40,7 @@ export function LookaheadTab(props: LookaheadTabProps) {
               <span>After: <strong>{after.toFixed(3)}</strong></span>
             </div>
             <div style={{ height: 10, borderRadius: 5, background: 'var(--bg-secondary)', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '50%', background: 'rgba(128,128,128,0.15)', borderRight: '2px solid var(--text-muted)' }} />
+              <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '50%', background: 'color-mix(in srgb, var(--text-muted) 15%, transparent)', borderRight: '2px solid var(--text-muted)' }} />
               <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${pct}%`, background: deltaColor, borderRadius: 5, transition: 'width 0.3s' }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
@@ -96,7 +96,7 @@ export function LookaheadTab(props: LookaheadTabProps) {
           <div style={{ margin: '6px 0', padding: '6px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontSize: '0.7rem', lineHeight: 1.5 }}>
             <div style={{ fontWeight: 600, fontSize: 'var(--text-2xs)', marginBottom: 4, color: 'var(--text-muted)' }}>STRATEGIC ASSESSMENT</div>
             {assessments.map((a, i) => (
-              <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${a.includes('Pattern:') ? (r.pass ? '#16a34a40' : '#dc262640') : '#6b728040'}` }}>
+              <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${a.includes('Pattern:') ? (r.pass ? 'var(--success)40' : 'var(--danger)40') : 'var(--text-muted)40'}` }}>
                 {a}
               </div>
             ))}
@@ -128,15 +128,15 @@ export function LookaheadTab(props: LookaheadTabProps) {
                 : k === 'crux_engagement'
                 ? (d < 0.001 ? (b >= 0.9 ? 'fully engaged' : 'avoiding cruxes') : 'engaging')
                 : '';
-              const hintColor = hint === 'diluting' || hint === 'no attacks' || hint === 'avoiding cruxes' ? '#dc2626'
+              const hintColor = hint === 'diluting' || hint === 'no attacks' || hint === 'avoiding cruxes' ? 'var(--danger)'
                 : hint === 'stable' || hint === 'plateau' || hint === 'fully engaged' ? 'var(--text-muted)'
-                : '#16a34a';
+                : 'var(--success)';
               return (
                 <tr key={k} style={{ borderBottom: '1px solid var(--border)', fontWeight: k === 'composite' ? 700 : 400 }}>
                   <td style={{ padding: '2px 6px' }}>{k.replace(/_/g, ' ')}</td>
                   <td style={{ textAlign: 'right', padding: '2px 6px' }}>{b.toFixed(3)}</td>
                   <td style={{ textAlign: 'right', padding: '2px 6px' }}>{a.toFixed(3)}</td>
-                  <td style={{ textAlign: 'right', padding: '2px 6px', color: d > 0 ? '#16a34a' : d < 0 ? '#dc2626' : 'var(--text-muted)' }}>{d >= 0 ? '+' : ''}{d.toFixed(3)}</td>
+                  <td style={{ textAlign: 'right', padding: '2px 6px', color: d > 0 ? 'var(--success)' : d < 0 ? 'var(--danger)' : 'var(--text-muted)' }}>{d >= 0 ? '+' : ''}{d.toFixed(3)}</td>
                   <td style={{ padding: '2px 6px', fontSize: 'var(--text-2xs)', color: hintColor, fontStyle: 'italic' }}>{hint}</td>
                 </tr>
               );
@@ -155,9 +155,9 @@ export function LookaheadTab(props: LookaheadTabProps) {
           <details open style={{ marginTop: 6 }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem' }}>
             Tentative Claims ({claims.length})
             <span style={{ fontWeight: 400, fontSize: 'var(--text-2xs)', marginLeft: 8, color: 'var(--text-muted)' }}>
-              {strongCount > 0 && <span style={{ color: '#16a34a' }}>{strongCount} strong</span>}
+              {strongCount > 0 && <span style={{ color: 'var(--success)' }}>{strongCount} strong</span>}
               {strongCount > 0 && weakCount > 0 && ', '}
-              {weakCount > 0 && <span style={{ color: '#dc2626' }}>{weakCount} weak</span>}
+              {weakCount > 0 && <span style={{ color: 'var(--danger)' }}>{weakCount} weak</span>}
             </span>
           </summary>
             {claims.map((c: any, i: number) => {
@@ -166,7 +166,7 @@ export function LookaheadTab(props: LookaheadTabProps) {
               const marginalDelta = pca?.marginal_delta;
               const reason = firstPca?.analysis[classification === 'STRONG' ? 'strongFoundations' : 'avoidClaims']
                 ?.find((a: any) => a.text === c.text)?.reason;
-              const claimColor = classification === 'STRONG' ? '#16a34a' : classification === 'WEAK' ? '#dc2626' : (c.strength >= 0.7 ? '#16a34a' : c.strength >= 0.4 ? '#d97706' : '#dc2626');
+              const claimColor = classification === 'STRONG' ? 'var(--success)' : classification === 'WEAK' ? 'var(--danger)' : (c.strength >= 0.7 ? 'var(--success)' : c.strength >= 0.4 ? 'var(--warning)' : 'var(--danger)');
               const label = classification ?? (c.strength >= 0.7 ? 'STRONG' : c.strength >= 0.4 ? 'MODERATE' : 'WEAK');
               return (
                 <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: `2px solid ${claimColor}40`, fontSize: '0.7rem' }}>
@@ -174,7 +174,7 @@ export function LookaheadTab(props: LookaheadTabProps) {
                     <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: claimColor, fontWeight: 600 }}>{c.strength.toFixed(2)}</span>
                     <span style={{ fontSize: 'var(--text-2xs)', padding: '0 4px', borderRadius: 3, background: `${claimColor}15`, color: claimColor, fontWeight: 600 }}>{label}</span>
                     {marginalDelta != null && (
-                      <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: marginalDelta >= 0 ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: marginalDelta >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
                         {'Δ'}u {marginalDelta >= 0 ? '+' : ''}{marginalDelta.toFixed(4)}
                       </span>
                     )}
@@ -205,7 +205,7 @@ export function LookaheadTab(props: LookaheadTabProps) {
             return (
               <div key={idx} style={{ display: 'inline-block', marginRight: 12 }}>
                 <span style={{ fontWeight: 600 }}>Attempt {idx + 1}:</span>{' '}
-                <span style={{ color: delta != null && delta >= 0 ? '#16a34a' : '#dc2626' }}>{'Δ'}u = {delta != null ? (delta >= 0 ? '+' : '') + delta.toFixed(3) : '?'}</span>{' '}
+                <span style={{ color: delta != null && delta >= 0 ? 'var(--success)' : 'var(--danger)' }}>{'Δ'}u = {delta != null ? (delta >= 0 ? '+' : '') + delta.toFixed(3) : '?'}</span>{' '}
                 ({sCount} strong, {wCount} weak){pass ? ' ✓' : ''}
               </div>
             );
@@ -222,13 +222,13 @@ export function LookaheadTab(props: LookaheadTabProps) {
           const guidancePca = pcaLog?.[ai];
           const regenPca = pcaLog?.[ai + 1];
           return (
-            <div key={ai} style={{ marginTop: 8, padding: 8, borderLeft: '3px solid #d97706', background: 'rgba(245,158,11,0.06)', borderRadius: 4 }}>
+            <div key={ai} style={{ marginTop: 8, padding: 8, borderLeft: '3px solid var(--warning)', background: 'color-mix(in srgb, var(--warning) 6%, transparent)', borderRadius: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>REGEN {ai + 1}/{attempts.length}</span>
+                <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--warning) 20%, transparent)', color: 'var(--warning)', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>REGEN {ai + 1}/{attempts.length}</span>
                 <span style={{
                   padding: '1px 6px', borderRadius: 3, fontWeight: 600, fontSize: 'var(--text-2xs)',
                   background: ra.pass ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)',
-                  color: ra.pass ? '#16a34a' : '#dc2626',
+                  color: ra.pass ? 'var(--success)' : 'var(--danger)',
                 }}>{ra.pass ? '✓ PASS' : '✗ FAIL'}</span>
               </div>
               <div style={{ fontSize: '0.72rem' }}>
@@ -241,10 +241,10 @@ export function LookaheadTab(props: LookaheadTabProps) {
                 <details style={{ marginTop: 4 }}><summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Guidance Injected</summary>
                   {guidancePca.analysis.strongFoundations.length > 0 && (
                     <div style={{ marginTop: 2 }}>
-                      <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, color: '#16a34a', marginBottom: 2 }}>STRONG FOUNDATIONS</div>
+                      <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, color: 'var(--success)', marginBottom: 2 }}>STRONG FOUNDATIONS</div>
                       {guidancePca.analysis.strongFoundations.map((sf: any, si: number) => (
                         <div key={si} style={{ margin: '2px 0', paddingLeft: 8, borderLeft: '2px solid rgba(22,163,74,0.3)', fontSize: 'var(--text-2xs)' }}>
-                          <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: '#16a34a', marginRight: 4 }}>{'Δ'}u +{sf.marginal_delta.toFixed(4)}</span>
+                          <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--success)', marginRight: 4 }}>{'Δ'}u +{sf.marginal_delta.toFixed(4)}</span>
                           <span>{sf.text.slice(0, 80)}{sf.text.length > 80 ? '…' : ''}</span>
                           <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>{sf.reason}</div>
                         </div>
@@ -253,10 +253,10 @@ export function LookaheadTab(props: LookaheadTabProps) {
                   )}
                   {guidancePca.analysis.avoidClaims.length > 0 && (
                     <div style={{ marginTop: 4 }}>
-                      <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, color: '#dc2626', marginBottom: 2 }}>DO NOT USE</div>
+                      <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, color: 'var(--danger)', marginBottom: 2 }}>DO NOT USE</div>
                       {guidancePca.analysis.avoidClaims.map((ac: any, aci: number) => (
                         <div key={aci} style={{ margin: '2px 0', paddingLeft: 8, borderLeft: '2px solid rgba(220,38,38,0.3)', fontSize: 'var(--text-2xs)' }}>
-                          <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: '#dc2626', marginRight: 4 }}>{'Δ'}u {ac.marginal_delta.toFixed(4)}</span>
+                          <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--danger)', marginRight: 4 }}>{'Δ'}u {ac.marginal_delta.toFixed(4)}</span>
                           <span>{ac.text.slice(0, 80)}{ac.text.length > 80 ? '…' : ''}</span>
                           <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>{ac.reason}</div>
                         </div>
@@ -271,7 +271,7 @@ export function LookaheadTab(props: LookaheadTabProps) {
                 <details style={{ marginTop: 4 }}><summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Regen Claims ({ra.tentative_claims.length})</summary>
                   {ra.tentative_claims.map((c: any, ci: number) => {
                     const pc = regenPca?.perClaim[ci];
-                    const pcColor = pc ? (pc.classification === 'STRONG' ? '#16a34a' : '#dc2626') : 'var(--text-muted)';
+                    const pcColor = pc ? (pc.classification === 'STRONG' ? 'var(--success)' : 'var(--danger)') : 'var(--text-muted)';
                     return (
                       <div key={ci} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${pcColor}40`, fontSize: 'var(--text-2xs)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 1 }}>
@@ -294,8 +294,8 @@ export function LookaheadTab(props: LookaheadTabProps) {
       {!lookaheadDiag.final_pass && (
         <div style={{
           marginTop: 8, padding: '8px 10px', borderRadius: 4,
-          borderLeft: '3px solid #dc2626', background: 'rgba(220,38,38,0.08)',
-          fontSize: '0.72rem', color: '#dc2626', fontWeight: 600,
+          borderLeft: '3px solid var(--danger)', background: 'rgba(220,38,38,0.08)',
+          fontSize: '0.72rem', color: 'var(--danger)', fontWeight: 600,
         }}>
           Low utility turn — all attempts failed threshold. Committed anyway; <code>low_utility_turn</code> logged.
         </div>

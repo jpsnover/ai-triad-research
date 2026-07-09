@@ -9,7 +9,7 @@ import { DebateExchangeRich } from './DebateExchangeRich';
 
 export function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
   const sectionStyle: React.CSSProperties = { marginBottom: 12, padding: '8px 10px', borderRadius: 6, background: 'var(--bg-secondary)', border: '1px solid var(--border)' };
-  const headingStyle: React.CSSProperties = { fontWeight: 700, fontSize: 'var(--text-2xs)', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#f97316', marginBottom: 6 };
+  const headingStyle: React.CSSProperties = { fontWeight: 700, fontSize: 'var(--text-2xs)', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-acc)', marginBottom: 6 };
 
   const promptSections = useMemo(() => {
     if (!trace.selection_prompt) return [];
@@ -38,10 +38,10 @@ export function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
         <div style={headingStyle}>Decision</div>
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: '0.75rem', alignItems: 'center' }}>
           {trace.selected && (
-            <div><strong>Selected:</strong> <span style={{ color: '#f97316', fontWeight: 700 }}>{trace.selected}</span></div>
+            <div><strong>Selected:</strong> <span style={{ color: 'var(--color-acc)', fontWeight: 700 }}>{trace.selected}</span></div>
           )}
           {trace.selection_reason && (
-            <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(249,115,22,0.15)', color: '#f97316', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>
+            <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--color-acc) 15%, transparent)', color: 'var(--color-acc)', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>
               {trace.selection_reason.replace(/_/g, ' ')}
             </span>
           )}
@@ -64,8 +64,8 @@ export function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
             {trace.candidates.map((c, i) => (
               <div key={i} style={{
                 padding: '6px 10px', borderRadius: 6, fontSize: '0.72rem',
-                background: c.debater === trace.selected ? 'rgba(249,115,22,0.12)' : 'transparent',
-                border: `1px solid ${c.debater === trace.selected ? '#f97316' : 'var(--border)'}`,
+                background: c.debater === trace.selected ? 'color-mix(in srgb, var(--color-acc) 12%, transparent)' : 'transparent',
+                border: `1px solid ${c.debater === trace.selected ? 'var(--color-acc)' : 'var(--border)'}`,
                 fontWeight: c.debater === trace.selected ? 700 : 400,
               }}>
                 <div>#{c.rank} {c.debater}</div>
@@ -104,7 +104,7 @@ export function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
                 title={'Convergence measures how much the debaters are moving toward agreement on the current issue.\n\nThree weighted signals:\n• Cross-speaker support ratio (40%): Of all cross-speaker edges in the argument network, what fraction are supports vs. attacks? More support edges = higher convergence.\n• Concession rate (35%): How many claims on this issue have been conceded? More concessions = debaters yielding ground.\n• Stance alignment (25%): How many speaker pairs have at least one mutual support edge? Measures breadth of agreement across all participants.\n\nScore range: 0% (pure opposition) → 50% (baseline/unknown) → 100% (full agreement).\nWhen convergence exceeds the threshold, the moderator may suggest exploring a new topic.'}
                 style={{ cursor: 'default', borderBottom: '1px dotted var(--text-muted)' }}
               >Convergence:</strong> {(trace.convergence_score * 100).toFixed(0)}%
-              {trace.convergence_triggered && <span style={{ color: '#22c55e', marginLeft: 6, fontWeight: 700 }}>TRIGGERED</span>}
+              {trace.convergence_triggered && <span style={{ color: 'var(--success)', marginLeft: 6, fontWeight: 700 }}>TRIGGERED</span>}
             </div>
           )}
           {trace.commitment_snapshot && (
@@ -135,7 +135,7 @@ export function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
                   title={'Composite debate health score (0.0–1.0). Weighted average of 5 components:\n• Engagement \xD70.25 — are debaters substantively engaging with each other\'s claims?\n• Novelty \xD70.25 — are debaters introducing new ideas rather than recycling?\n• Responsiveness \xD70.20 — are debaters taking concession opportunities when warranted?\n• Coverage \xD70.15 — what fraction of relevant taxonomy nodes have been cited?\n• Balance \xD70.15 — are all debaters getting roughly equal speaking time?\n\nComputed over a sliding window of the last 3 convergence signals.\nGreen (≥0.70): healthy debate. Amber (0.40–0.69): degrading. Red (<0.40): intervention likely needed.\nWhen a component drops below its SLI floor for 2+ consecutive turns, the moderator auto-triggers an intervention.'}
                   style={{ cursor: 'default', borderBottom: '1px dotted var(--text-muted)' }}
                 >Health:</strong>{' '}
-                <span style={{ color: trace.health_score >= 0.7 ? '#22c55e' : trace.health_score >= 0.4 ? '#f59e0b' : '#ef4444', fontWeight: 700 }}>
+                <span style={{ color: trace.health_score >= 0.7 ? 'var(--success)' : trace.health_score >= 0.4 ? 'var(--warning)' : 'var(--danger)', fontWeight: 700 }}>
                   {trace.health_score.toFixed(2)}
                 </span>
               </div>
@@ -185,18 +185,18 @@ export function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
             </div>
           )}
           {trace.intervention_recommended && (
-            <div style={{ marginTop: 4, padding: '6px 8px', borderRadius: 4, background: trace.intervention_validated ? 'rgba(139,92,246,0.1)' : 'rgba(239,68,68,0.08)', border: `1px solid ${trace.intervention_validated ? '#8b5cf6' : '#ef4444'}` }}>
-              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: trace.intervention_validated ? '#8b5cf6' : '#ef4444' }}>
+            <div style={{ marginTop: 4, padding: '6px 8px', borderRadius: 4, background: trace.intervention_validated ? 'color-mix(in srgb, var(--text-secondary) 10%, transparent)' : 'color-mix(in srgb, var(--danger) 8%, transparent)', border: `1px solid ${trace.intervention_validated ? 'var(--text-secondary)' : 'var(--danger)'}` }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: trace.intervention_validated ? 'var(--text-secondary)' : 'var(--danger)' }}>
                 {trace.intervention_validated ? 'Intervention Fired' : 'Intervention Suppressed'}
                 {trace.intervention_move && `: ${trace.intervention_move}`}
                 {trace.intervention_target && ` → ${trace.intervention_target}`}
               </div>
               {trace.intervention_suppressed_reason && !trace.intervention_validated && (
-                <div style={{ fontSize: '0.7rem', color: '#d97706', marginTop: 3 }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--warning)', marginTop: 3 }}>
                   <strong>Reason:</strong>{' '}
                   <span
                     title={SUPPRESSION_REASON_TOOLTIPS[trace.intervention_suppressed_reason] ?? ''}
-                    style={{ cursor: 'default', borderBottom: '1px dotted #d97706' }}
+                    style={{ cursor: 'default', borderBottom: '1px dotted var(--warning)' }}
                   >
                     {trace.intervention_suppressed_reason.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                   </span>

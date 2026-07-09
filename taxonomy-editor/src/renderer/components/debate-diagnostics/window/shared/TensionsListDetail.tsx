@@ -53,12 +53,12 @@ export function TensionsListDetail({ content }: { content: string }) {
   }
 
   const sel = selected != null ? tensions[selected] : null;
-  const relationColor = (r: string) => r === 'CONTRADICTS' ? '#ef4444' : r === 'TENSION_WITH' ? '#f59e0b' : '#22c55e';
+  const relationColor = (r: string) => r === 'CONTRADICTS' ? 'var(--danger)' : r === 'TENSION_WITH' ? 'var(--warning)' : 'var(--success)';
   const relationIcon = (r: string) => r === 'TENSION_WITH' ? '⟷' : r === 'CONTRADICTS' ? '✕' : '✓';
   const sourcePov = (id: string) => id.startsWith('acc-') ? 'acc' : id.startsWith('saf-') ? 'saf' : id.startsWith('skp-') ? 'skp' : id.startsWith('sit-') ? 'sit' : '';
   const povColor = (id: string) => {
     const p = sourcePov(id);
-    return p === 'acc' ? '#f97316' : p === 'saf' ? '#3b82f6' : p === 'skp' ? '#a855f7' : p === 'sit' ? '#22c55e' : '#888';
+    return p === 'acc' ? 'var(--color-acc)' : p === 'saf' ? 'var(--color-saf)' : p === 'skp' ? 'var(--color-skp)' : p === 'sit' ? 'var(--success)' : '#888';
   };
 
   const selRationale = sel ? edgeRationale.get(`${sel.source}|${sel.target}|${sel.relation}`) : undefined;
@@ -70,8 +70,8 @@ export function TensionsListDetail({ content }: { content: string }) {
         {tensions.map((t, i) => (
           <div key={i} onClick={() => { setSelected(i); setRationaleExpanded(false); }} style={{
             padding: '4px 8px', cursor: 'pointer', fontSize: 'var(--text-2xs)',
-            background: selected === i ? 'rgba(249,115,22,0.12)' : 'transparent',
-            borderLeft: selected === i ? '3px solid #f97316' : '3px solid transparent',
+            background: selected === i ? 'color-mix(in srgb, var(--color-acc) 12%, transparent)' : 'transparent',
+            borderLeft: selected === i ? '3px solid var(--color-acc)' : '3px solid transparent',
             borderBottom: '1px solid var(--border)',
           }}>
             <span style={{ color: povColor(t.source), fontWeight: 600 }}>{t.source}</span>
@@ -97,7 +97,7 @@ export function TensionsListDetail({ content }: { content: string }) {
 
             <div style={{ display: 'flex', alignItems: 'center', padding: '12px 12px 8px', gap: 8 }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 'var(--text-2xs)', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 2 }}>Source</div>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 2 }}>Source</div>
                 <div style={{ fontWeight: 600, color: povColor(sel.source), fontSize: '0.78rem', lineHeight: 1.3 }}>
                   {nodeLabel.get(sel.source) || sel.source}
                 </div>
@@ -107,7 +107,7 @@ export function TensionsListDetail({ content }: { content: string }) {
                 {relationIcon(sel.relation)}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 'var(--text-2xs)', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 2 }}>Target</div>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 2 }}>Target</div>
                 <div style={{ fontWeight: 600, color: povColor(sel.target), fontSize: '0.78rem', lineHeight: 1.3 }}>
                   {nodeLabel.get(sel.target) || sel.target}
                 </div>
@@ -117,8 +117,8 @@ export function TensionsListDetail({ content }: { content: string }) {
 
             {selRationale && (
               <div style={{ padding: '8px 12px 12px' }}>
-                <div style={{ fontSize: 'var(--text-2xs)', color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, marginBottom: 6 }}>Rationale</div>
-                <div style={{ borderLeft: '3px solid #3b82f6', paddingLeft: 10, fontSize: '0.72rem', color: 'var(--text-primary)', lineHeight: 1.5, background: 'var(--bg-secondary)', borderRadius: '0 4px 4px 0', padding: '8px 10px 8px 12px' }}>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--danger)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, marginBottom: 6 }}>Rationale</div>
+                <div style={{ borderLeft: '3px solid var(--color-saf)', paddingLeft: 10, fontSize: '0.72rem', color: 'var(--text-primary)', lineHeight: 1.5, background: 'var(--bg-secondary)', borderRadius: '0 4px 4px 0', padding: '8px 10px 8px 12px' }}>
                   {!rationaleExpanded && selRationale.length > RATIONALE_TRUNCATE
                     ? selRationale.slice(0, RATIONALE_TRUNCATE) + '...'
                     : selRationale}
@@ -126,7 +126,7 @@ export function TensionsListDetail({ content }: { content: string }) {
                 {selRationale.length > RATIONALE_TRUNCATE && (
                   <div
                     onClick={() => setRationaleExpanded(!rationaleExpanded)}
-                    style={{ fontSize: 'var(--text-2xs)', color: '#3b82f6', cursor: 'pointer', marginTop: 4 }}
+                    style={{ fontSize: 'var(--text-2xs)', color: 'var(--color-saf)', cursor: 'pointer', marginTop: 4 }}
                   >
                     {rationaleExpanded ? 'Show less' : 'Show more'}
                   </div>

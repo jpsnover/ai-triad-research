@@ -40,9 +40,9 @@ export interface ExclusionGuardTabProps {
 }
 
 function similarityColor(value: number): string {
-  if (value > 0.8) return '#ef4444';
-  if (value > 0.6) return '#f59e0b';
-  return '#22c55e';
+  if (value > 0.8) return 'var(--danger)';
+  if (value > 0.6) return 'var(--warning)';
+  return 'var(--success)';
 }
 
 export function ExclusionGuardTab({ diag }: ExclusionGuardTabProps) {
@@ -125,7 +125,7 @@ export function ExclusionGuardTab({ diag }: ExclusionGuardTabProps) {
               tit.demoted_nodes.map((n, i) => (
                 <div key={i} style={{
                   padding: '4px 8px', marginBottom: 3, borderRadius: 4, fontSize: '0.7rem',
-                  borderLeft: '3px solid #f59e0b', background: 'rgba(245,158,11,0.06)',
+                  borderLeft: '3px solid var(--warning)', background: 'color-mix(in srgb, var(--warning) 6%, transparent)',
                 }}>
                   <span style={{ fontWeight: 600 }}>{n.node_id}</span>
                   <span style={{ marginLeft: 8, fontFamily: 'monospace', color: similarityColor(n.exclusion_similarity) }}>
@@ -152,7 +152,7 @@ export function ExclusionGuardTab({ diag }: ExclusionGuardTabProps) {
               sit.excluded_situations.map((s, i) => (
                 <div key={i} style={{
                   padding: '4px 8px', marginBottom: 3, borderRadius: 4, fontSize: '0.7rem',
-                  borderLeft: '3px solid #f59e0b', background: 'rgba(245,158,11,0.06)',
+                  borderLeft: '3px solid var(--warning)', background: 'color-mix(in srgb, var(--warning) 6%, transparent)',
                 }}>
                   <span style={{ fontWeight: 600 }}>{s.situation_id}</span>
                   <span style={{ marginLeft: 8, fontFamily: 'monospace', color: similarityColor(s.exclusion_similarity) }}>
@@ -175,10 +175,10 @@ function AllClearBanner({ message }: { message: string }) {
     <div style={{
       padding: '6px 8px',
       borderRadius: 4,
-      background: 'rgba(34,197,94,0.08)',
-      borderLeft: '3px solid #22c55e',
+      background: 'color-mix(in srgb, var(--success) 8%, transparent)',
+      borderLeft: '3px solid var(--success)',
       fontSize: '0.72rem',
-      color: '#22c55e',
+      color: 'var(--success)',
       fontWeight: 600,
     }}>
       {message}
@@ -205,12 +205,12 @@ function ViolationItem({ violation }: { violation: ExclusionViolation }) {
       padding: '6px 8px',
       marginBottom: 4,
       borderRadius: 4,
-      background: 'rgba(239,68,68,0.08)',
-      borderLeft: '3px solid #ef4444',
+      background: 'color-mix(in srgb, var(--danger) 8%, transparent)',
+      borderLeft: '3px solid var(--danger)',
       fontSize: '0.7rem',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-        <span style={{ fontWeight: 700, color: '#ef4444' }}>{violation.claim_id}</span>
+        <span style={{ fontWeight: 700, color: 'var(--danger)' }}>{violation.claim_id}</span>
         <span style={{ color: 'var(--text-muted)' }}>→</span>
         <span style={{ fontWeight: 600 }}>{violation.node_id}</span>
       </div>
@@ -239,12 +239,12 @@ function WarningItem({ warning }: { warning: ScopeDriftWarning }) {
       padding: '6px 8px',
       marginBottom: 4,
       borderRadius: 4,
-      background: 'rgba(239,68,68,0.08)',
-      borderLeft: '3px solid #ef4444',
+      background: 'color-mix(in srgb, var(--danger) 8%, transparent)',
+      borderLeft: '3px solid var(--danger)',
       fontSize: '0.7rem',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-        <span style={{ fontWeight: 700, color: '#ef4444' }}>{warning.debater}</span>
+        <span style={{ fontWeight: 700, color: 'var(--danger)' }}>{warning.debater}</span>
         <span style={{ color: 'var(--text-muted)' }}>→</span>
         <span style={{ fontWeight: 600 }}>{warning.node_id}</span>
         <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontWeight: 600, color: similarityColor(warning.similarity) }}>

@@ -300,7 +300,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
         <button
           onClick={() => setShowHelp(!showHelp)}
           className="diag-help-btn"
-          style={{ background: showHelp ? 'var(--warning, #f59e0b)' : 'none', color: showHelp ? '#000' : 'var(--warning, #f59e0b)' }}
+          style={{ background: showHelp ? 'var(--warning, var(--warning))' : 'none', color: showHelp ? '#000' : 'var(--warning, var(--warning))' }}
         >
           {showHelp ? 'Close Help' : 'Help'}
         </button>
@@ -309,7 +309,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
       {showHelp && <HelpContent />}
       {!debate && !showHelp && (
         deepLinkError
-          ? <p style={{ color: 'var(--error, #ef4444)', padding: '1rem' }}>{deepLinkError}</p>
+          ? <p style={{ color: 'var(--error, var(--danger))', padding: '1rem' }}>{deepLinkError}</p>
           : <p style={{ color: 'var(--text-muted)' }}>Waiting for debate data from main window...</p>
       )}
 
@@ -365,7 +365,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         padding: '4px 8px', fontSize: 'var(--text-2xs)', fontWeight: 600,
                         borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                         border: 'none',
-                        background: t.id === effectiveOverviewTab ? 'var(--warning, #f59e0b)' : 'transparent',
+                        background: t.id === effectiveOverviewTab ? 'var(--warning, var(--warning))' : 'transparent',
                         color: t.id === effectiveOverviewTab ? '#000' : 'var(--text-primary)',
                       }}
                     >
@@ -382,7 +382,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               onClick={() => { setSelectedEntry(e.id); setLocalOverride(true); }}
                               className="diag-sidebar-entry"
                               style={{
-                                background: selectedEntry === e.id ? 'color-mix(in srgb, var(--accent, #f97316) 12%, transparent)' : 'transparent',
+                                background: selectedEntry === e.id ? 'color-mix(in srgb, var(--accent, var(--color-acc)) 12%, transparent)' : 'transparent',
                               }}
                               title={`${speakerLabel(e.speaker)} [${e.type}]: ${e.content.slice(0, 80)}`}
                             >

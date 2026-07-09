@@ -143,7 +143,7 @@ export function EdgesUsedDetail({ edge, taxNodeMap, nodeLabels }: {
         </span>
       )}
       {edge.status === 'approved' && (
-        <span style={{ color: '#22c55e', fontWeight: 600, fontSize: '0.75rem' }}>{'✓'} Approved</span>
+        <span style={{ color: 'var(--success)', fontWeight: 600, fontSize: '0.75rem' }}>{'✓'} Approved</span>
       )}
 
       {/* Notes */}
