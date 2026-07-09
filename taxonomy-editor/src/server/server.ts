@@ -2322,19 +2322,16 @@ const SW_HEAL_SCRIPT =
 const SW_HEAL_SCRIPT_CSP_HASH = `'sha256-${crypto.createHash('sha256').update(SW_HEAL_SCRIPT).digest('base64')}'`;
 
 function buildLoginPage(showAnonymous: boolean): string {
-  const subtitle = showAnonymous
-    ? 'Sign in for full access, or browse read-only without signing in'
-    : 'Sign in to continue';
-
+  // t/1416 (login-redesign.md): "Specimen" front door — dark jacket with static
+  // debate specimen, warm-white paper sign-in card. DOM order puts paper first so
+  // keyboard/SR users reach the door before the ornament; flex-direction reverses
+  // the visual order. The paper panel is deliberately light even for dark-theme
+  // users — one bright page against a dark jacket is the book metaphor.
   const anonymousSection = showAnonymous ? `
-  <a class="anon-link" href="/.auth/anonymous">Continue without signing in</a>
-  <p class="anon-note">Read-only access — sign in to use AI features and edit content.</p>` : '';
+      <div class="divider"><span>or</span></div>
+      <a class="anon-link" href="/.auth/anonymous">Browse without an account</a>
+      <p class="anon-note">Read-only: explore the full taxonomy and debate archive. Sign in to run debates and edit.</p>` : '';
 
-  // t/1368 (Design Elevation §6.4): split-layout login on the light base palette.
-  // Self-contained server-rendered HTML — it does NOT load the SPA's styles.css or
-  // bundled fonts, so the token subset + camp hex are inlined here and the serif
-  // headline uses a web-safe stack (Source Serif 4 isn't available standalone).
-  // CampGlyph flame/shield/eye paths are copied verbatim from CampGlyph.tsx.
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2343,78 +2340,139 @@ function buildLoginPage(showAnonymous: boolean): string {
 <title>Sign In — AITriad Taxonomy Editor</title>
 <style>
   :root {
-    --bg-primary:#ffffff; --bg-secondary:#f8fafc;
-    --text-primary:#1e293b; --text-secondary:#475569; --text-muted:#94a3b8;
-    --border-color:#e2e8f0; --radius-md:8px; --text-2xl:1.75rem; --text-xs:.75rem;
-    --color-acc:#b84e13; --color-saf:#2b5fad; --color-skp:#7b4fa6;
+    --jacket:#111a28;
+    --paper:#FBF9F4;
+    --paper-text:#1e293b;
+    --paper-muted:#94a3b8;
+    --paper-border:rgba(17,26,40,0.15);
+    --radius-md:8px;
+    --color-acc:#e89450;
+    --color-saf:#7da3d6;
+    --color-skp:#a888c8;
     --font-ui:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-    --font-serif:'Iowan Old Style','Palatino Linotype',Georgia,'Times New Roman',serif;
+    --font-serif:Georgia,'Times New Roman',serif;
   }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { min-height:100vh; font-family:var(--font-ui); color:var(--text-primary); background:var(--bg-primary); }
-  .split { display:flex; min-height:100vh; }
-  .panel { flex:1; display:flex; flex-direction:column; justify-content:center; padding:48px; }
-  .panel-left { background:var(--bg-secondary); border-right:1px solid var(--border-color); }
-  .brand { max-width:420px; }
-  .brand h1 { font-family:var(--font-serif); font-size:var(--text-2xl); font-weight:600; line-height:1.2; }
-  .brand p { margin-top:12px; color:var(--text-secondary); font-size:1rem; line-height:1.5; max-width:34ch; }
-  .glyphs { display:flex; gap:22px; margin-top:28px; }
-  .glyphs svg { width:28px; height:28px; }
-  .glyph-acc { color:var(--color-acc); } .glyph-saf { color:var(--color-saf); } .glyph-skp { color:var(--color-skp); }
-  .panel-right { align-items:center; }
-  .card { width:100%; max-width:360px; }
-  .card h2 { font-size:1.125rem; font-weight:600; margin-bottom:4px; }
-  .subtitle { color:var(--text-muted); font-size:.875rem; margin-bottom:24px; }
-  .btn { display:flex; align-items:center; justify-content:center; gap:12px; width:100%; height:40px; padding:0 16px;
-         margin-bottom:12px; border:1px solid var(--border-color); border-radius:var(--radius-md); background:var(--bg-primary);
-         color:var(--text-primary); font-size:.925rem; font-family:var(--font-ui); text-decoration:none; cursor:pointer;
-         transition:border-color .15s, background .15s; }
-  .btn:hover { background:var(--bg-secondary); border-color:var(--text-muted); }
-  .btn svg { width:18px; height:18px; flex-shrink:0; }
-  .anon-link { display:inline-block; margin-top:8px; color:var(--text-secondary); font-size:.875rem; text-decoration:underline; }
-  .anon-link:hover { color:var(--text-primary); }
-  .anon-note { color:var(--text-muted); font-size:var(--text-xs); margin-top:6px; line-height:1.4; }
-  .clear-link { display:inline-block; margin-top:24px; color:var(--text-muted); font-size:var(--text-xs); text-decoration:underline; }
-  .clear-link:hover { color:var(--text-secondary); }
-  @media (max-width:720px) {
-    .split { flex-direction:column; }
-    .panel { padding:32px; min-height:auto; }
-    .panel-left { border-right:none; border-bottom:1px solid var(--border-color); }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{min-height:100vh;font-family:var(--font-ui);background:var(--jacket);}
+
+  .split{display:flex;flex-direction:row-reverse;min-height:100vh;}
+
+  /* — Paper (sign-in card) — */
+  .paper{flex:0 0 45%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:48px 40px;background:var(--paper);color:var(--paper-text);
+    animation:fadeIn 150ms ease-out both;}
+  .card{width:100%;max-width:360px;}
+  .card h2{font-size:20px;font-weight:600;margin-bottom:24px;}
+  .btn{display:flex;align-items:center;gap:12px;width:100%;height:44px;padding:0 16px;
+    margin-bottom:12px;border:1px solid var(--paper-border);border-radius:var(--radius-md);
+    background:#fff;color:var(--paper-text);font-size:14px;font-weight:500;
+    font-family:var(--font-ui);text-decoration:none;cursor:pointer;
+    transition:border-color .15s,box-shadow .15s;}
+  .btn:hover{border-color:#94a3b8;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+  .btn:focus-visible{outline:2px solid #2b5fad;outline-offset:2px;}
+  .btn svg{width:18px;height:18px;flex-shrink:0;}
+  .divider{display:flex;align-items:center;gap:12px;margin:16px 0;color:var(--paper-muted);font-size:12px;}
+  .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--paper-border);}
+  .anon-link{display:block;text-align:center;padding:10px 0;color:#475569;font-size:14px;
+    text-decoration:none;border-radius:var(--radius-md);transition:background .15s;}
+  .anon-link:hover{background:rgba(0,0,0,0.04);text-decoration:underline;}
+  .anon-link:focus-visible{outline:2px solid #2b5fad;outline-offset:2px;}
+  .anon-note{color:var(--paper-muted);font-size:12px;margin-top:6px;line-height:1.5;text-align:center;}
+  .clear-link{display:block;margin-top:28px;color:var(--paper-muted);font-size:12px;
+    text-align:center;text-decoration:none;}
+  .clear-link:hover{color:#475569;text-decoration:underline;}
+
+  /* — Jacket (specimen) — */
+  .jacket{flex:0 0 55%;display:flex;flex-direction:column;justify-content:center;
+    padding:48px 56px;background:var(--jacket);color:#fff;}
+  .jacket-content{max-width:480px;}
+  .eyebrow{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;
+    color:rgba(255,255,255,0.55);margin-bottom:20px;
+    animation:fadeIn 150ms ease-out both;}
+  .headline{font-family:var(--font-serif);font-size:32px;font-weight:600;line-height:1.25;
+    color:#fff;margin-bottom:32px;
+    animation:fadeIn 150ms ease-out both;}
+  .specimen-sep{width:48px;height:1px;background:rgba(255,255,255,0.2);margin-bottom:28px;
+    animation:fadeIn 150ms ease-out 100ms both;}
+  .question{font-family:var(--font-serif);font-style:italic;font-size:17px;
+    color:rgba(255,255,255,0.92);margin-bottom:24px;line-height:1.45;
+    animation:fadeIn 150ms ease-out 250ms both;}
+  .voice{display:flex;gap:10px;align-items:flex-start;margin-bottom:14px;}
+  .voice-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:6px;}
+  .voice-name{font-size:12px;font-weight:600;min-width:100px;flex-shrink:0;}
+  .voice-line{font-family:var(--font-serif);font-size:15px;color:rgba(255,255,255,0.78);line-height:1.45;}
+  .voice-acc{animation:fadeIn 150ms ease-out 370ms both;}
+  .voice-saf{animation:fadeIn 150ms ease-out 490ms both;}
+  .voice-skp{animation:fadeIn 150ms ease-out 610ms both;}
+  .jacket-footer{margin-top:40px;font-size:12px;color:rgba(255,255,255,0.35);
+    animation:fadeIn 150ms ease-out 610ms both;}
+
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important;}
+  }
+
+  /* Tablet: 50/50 */
+  @media(max-width:1023px){
+    .jacket,.paper{flex:1;}
+  }
+  /* Phone: jacket collapses to header band, no specimen */
+  @media(max-width:767px){
+    .split{flex-direction:column-reverse;}
+    .jacket{flex:none;padding:28px 24px;align-items:center;text-align:center;}
+    .jacket-content{max-width:none;}
+    .specimen,.specimen-sep,.jacket-footer{display:none;}
+    .headline{font-size:24px;margin-bottom:0;}
+    .eyebrow{margin-bottom:12px;}
+    .paper{flex:1;padding:32px 24px;}
   }
 </style>
 <script>${SW_HEAL_SCRIPT}</script>
 </head>
 <body>
 <div class="split">
-  <section class="panel panel-left">
-    <div class="brand">
-      <h1>AITriad Taxonomy Editor</h1>
-      <p>Explore how three schools of AI thought — accelerationist, safetyist, and skeptic — see the world.</p>
-      <div class="glyphs" aria-hidden="true">
-        <svg class="glyph-acc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 14c0-3 2-5.5 4-8 2 2.5 4 5 4 8a4 4 0 0 1-8 0z"/><path d="M10 13.5c0-1.2 1-2.5 2-3.5 1 1 2 2.3 2 3.5a2 2 0 0 1-4 0z"/></svg>
-        <svg class="glyph-saf" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 4v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V7l7-4z"/></svg>
-        <svg class="glyph-skp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="1.5"/></svg>
-      </div>
-    </div>
-  </section>
-  <section class="panel panel-right">
+  <section class="paper">
     <div class="card">
       <h2>Sign in</h2>
-      <p class="subtitle">${subtitle}</p>
-      <a class="btn btn-github" href="/api/auth/fresh-login/github">
+      <a class="btn" href="/api/auth/fresh-login/github">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-        Sign in with GitHub
+        Continue with GitHub
       </a>
-      <a class="btn btn-google" href="/api/auth/fresh-login/google">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-        Sign in with Google
+      <a class="btn" href="/api/auth/fresh-login/google">
+        <svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+        Continue with Google
       </a>
-      <a class="btn btn-microsoft" href="/api/auth/fresh-login/aad">
-        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="1" width="10" height="10" fill="#F25022"/><rect x="13" y="1" width="10" height="10" fill="#7FBA00"/><rect x="1" y="13" width="10" height="10" fill="#00A4EF"/><rect x="13" y="13" width="10" height="10" fill="#FFB900"/></svg>
-        Sign in with Microsoft
-      </a>
-      ${anonymousSection}
-      <a class="clear-link" href="/api/auth/logout">Trouble signing in? Clear session &amp; retry</a>
+      <a class="btn" href="/api/auth/fresh-login/aad">
+        <svg viewBox="0 0 24 24"><rect x="1" y="1" width="10" height="10" fill="#F25022"/><rect x="13" y="1" width="10" height="10" fill="#7FBA00"/><rect x="1" y="13" width="10" height="10" fill="#00A4EF"/><rect x="13" y="13" width="10" height="10" fill="#FFB900"/></svg>
+        Continue with Microsoft
+      </a>${anonymousSection}
+      <a class="clear-link" href="/api/auth/logout">Trouble signing in? Clear session and retry</a>
+    </div>
+  </section>
+  <section class="jacket">
+    <div class="jacket-content">
+      <div class="eyebrow">AI Triad Research &middot; Berkman Klein Center</div>
+      <div class="headline">Three schools of thought.<br>One map of the argument.</div>
+      <div class="specimen">
+        <div class="specimen-sep"></div>
+        <div class="question">&ldquo;Should frontier AI development slow down?&rdquo;</div>
+        <div class="voice voice-acc">
+          <span class="voice-dot" style="background:var(--color-acc);"></span>
+          <span class="voice-name" style="color:var(--color-acc);">Accelerationist</span>
+          <span class="voice-line">Slowing down surrenders the benefits to whoever doesn&rsquo;t.</span>
+        </div>
+        <div class="voice voice-saf">
+          <span class="voice-dot" style="background:var(--color-saf);"></span>
+          <span class="voice-name" style="color:var(--color-saf);">Safetyist</span>
+          <span class="voice-line">Speed without verification is how we lose control.</span>
+        </div>
+        <div class="voice voice-skp">
+          <span class="voice-dot" style="background:var(--color-skp);"></span>
+          <span class="voice-name" style="color:var(--color-skp);">Skeptic</span>
+          <span class="voice-line">First show me evidence the premise holds.</span>
+        </div>
+      </div>
+      <div class="jacket-footer">A research instrument of the Berkman Klein Center, 2026</div>
     </div>
   </section>
 </div>
