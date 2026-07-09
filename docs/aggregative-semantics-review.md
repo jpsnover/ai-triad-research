@@ -22,6 +22,8 @@ Their Proposition 1 formally proves that **DF-QuAD is an instance of their aggre
 This means our DF-QuAD implementation is not an ad-hoc formula — it's a principled member of a well-defined family of semantics with known formal properties. This is useful for our academic paper: we can cite this subsumption result to justify our choice within the broader landscape.
 
 > **ERRATUM (2026-07-08, CL, t/1402):** The paragraph above is wrong about our implementation. The subsumption result covers DF-QuAD's *product* aggregation (∏(1−m), correctly stated in the bullet), but `qbaf.ts`'s default has been **sum-and-clamp** aggregation with a multiplicative combine since the engine's founding commit (`d6db1fa9`) — the very code quoted in B1 below. The subsumption claim therefore does NOT apply to our default semantics, and this section must not be cited in the paper until t/1402 resolves (either by implementing true DF-QuAD or by renaming our semantics honestly). Ironically, this document contained both halves of the discrepancy — the product form in A1 and our Σ-and-clamp code in B1 — without connecting them.
+>
+> **RESOLVED (2026-07-08, t/1402 commit `e50b10cf`):** True DF-QuAD (probabilistic-sum aggregation + conditional combine) is now the engine default, validated against worked examples from Rago et al. (2016); the prior semantics is preserved as `algorithm: 'saturating-sum'`. A1's subsumption claim is accurate for the default as of that commit. Note for citation: evaluations predating 2026-07-08 ran the saturating-sum variant (47-session A/B: mean per-node drift 3.9%, no convergence differences).
 
 ### A2. Semantic Choice Is Context-Dependent, Not Universal
 
