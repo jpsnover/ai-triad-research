@@ -75,7 +75,7 @@ export function StakeholderSection({ nodeId, queryType }: StakeholderSectionProp
             <span style={{ flex: 1 }}>{org.name}</span>
             {org.type && (
               <span style={{
-                padding: '1px 6px', borderRadius: 8, fontSize: '0.65rem', fontWeight: 600,
+                padding: '1px 6px', borderRadius: 8, fontSize: 'var(--text-2xs)', fontWeight: 600,
                 background: 'var(--bg-tertiary, #334155)', color: 'var(--text-primary)',
               }}>
                 {org.type.replace('_', ' ')}

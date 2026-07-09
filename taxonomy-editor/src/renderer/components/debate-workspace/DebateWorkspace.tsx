@@ -795,7 +795,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
             {activeDebate.debate_model && (
               <span className="debate-model-badge">{activeDebate.debate_model}</span>
             )}
-            <code style={{ fontSize: '0.6rem', color: 'var(--text-muted)', userSelect: 'all', cursor: 'text' }} title="Debate ID — click to select">{activeDebate.id}</code>
+            <code style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', userSelect: 'all', cursor: 'text' }} title="Debate ID — click to select">{activeDebate.id}</code>
             {coverageMap && <CoverageBadge coverageMap={coverageMap} strengthWeighted={strengthWeighted} />}
           </div>
           <span className="debate-topic-text">{activeDebate.topic.final}</span>

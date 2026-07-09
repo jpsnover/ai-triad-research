@@ -262,11 +262,11 @@ export function AdminErrorsTab() {
                           >
                             <span className="admin-errors-instance-id">{inst.id.slice(0, 8)}</span>
                             <span style={{ flex: 1 }}>{inst.message}</span>
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>
+                            <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
                               {timeAgo(inst.timestamp)}
                             </span>
                             {inst.userId && (
-                              <span style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>
+                              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
                                 {inst.userId}
                               </span>
                             )}

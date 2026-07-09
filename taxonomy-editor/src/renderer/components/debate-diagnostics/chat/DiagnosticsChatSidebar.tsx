@@ -862,7 +862,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
           Debate Chat
         </span>
         <span style={{
-          fontSize: '0.6rem', color: 'var(--text-muted)',
+          fontSize: 'var(--text-2xs)', color: 'var(--text-muted)',
           padding: '1px 6px', borderRadius: 4,
           background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)',
           flex: 1,
@@ -893,7 +893,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
             <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '24px 12px', textAlign: 'center' }}>
               Debate Chat is available in the desktop app.
               <br /><br />
-              <span style={{ fontSize: '0.68rem' }}>
+              <span style={{ fontSize: 'var(--text-2xs)' }}>
                 AI-powered chat requires direct API access which is not supported in the web viewer.
               </span>
             </div>
@@ -901,7 +901,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
             <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px 0', textAlign: 'center' }}>
               Ask questions about the debate.
               <br /><br />
-              <span style={{ fontSize: '0.68rem' }}>
+              <span style={{ fontSize: 'var(--text-2xs)' }}>
                 Try: "Show me the brief for S21"
                 <br />"Which debater conceded the most?"
                 <br />"What's the strongest attack chain?"
@@ -938,7 +938,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
             {msg.navigation && (
               <div style={{
                 marginTop: 4, paddingTop: 4, borderTop: '1px solid var(--border)',
-                fontSize: '0.65rem', color: '#f59e0b', cursor: 'pointer',
+                fontSize: 'var(--text-2xs)', color: '#f59e0b', cursor: 'pointer',
               }}
                 onClick={() => msg.navigation && onNavigate(msg.navigation)}
               >
@@ -983,7 +983,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
                   onClick={() => handleSuggestionClick(s)}
                   style={{
                     padding: '3px 8px', borderRadius: 12,
-                    fontSize: '0.65rem', cursor: 'pointer',
+                    fontSize: 'var(--text-2xs)', cursor: 'pointer',
                     background: 'rgba(245,158,11,0.08)',
                     color: '#f59e0b',
                     border: '1px solid rgba(245,158,11,0.2)',
@@ -1040,7 +1040,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
         </div>
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 4,
+          fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4,
         }}>
           <span>~{contextTokens.toLocaleString()} tokens in context</span>
           <span>Enter send | Ctrl+L clear</span>

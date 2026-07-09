@@ -129,7 +129,7 @@ export function LineageDetailView({ value, onSelectValue, onOpenLink }: LineageD
               onClick={() => setRefPovFilter(refPovFilter === pov ? null : pov)}
               style={{ fontSize: '0.7rem', padding: '1px 6px' }}
             >
-              <span className={`pov-badge pov-badge-${pov.slice(0, 3)}`} style={{ fontSize: '0.65rem', marginRight: 3 }}>{pov.slice(0, 3).toUpperCase()}</span>
+              <span className={`pov-badge pov-badge-${pov.slice(0, 3)}`} style={{ fontSize: 'var(--text-2xs)', marginRight: 3 }}>{pov.slice(0, 3).toUpperCase()}</span>
               {POV_LABELS[pov] ?? pov} ({count})
             </button>
           ))}

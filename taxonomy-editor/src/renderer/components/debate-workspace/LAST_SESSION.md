@@ -1,5 +1,5 @@
-**Date:** 2026-07-08
-**Working on:** t/1371 — Design Elevation Phase 4b: StatementCard prose + transcript rhythm
-**Status:** Complete — committed as 9311fb7b, verify gate passed, ticket closed
-**Key context:** Two new co-located CSS files (StatementCard.css, DebateWorkspace.css) created; styles.css remains frozen. Phase transitions now use labeled hairlines instead of boxes. CampGlyph imported from shared/CampGlyph.tsx.
+**Date:** 2026-07-09
+**Working on:** t/1401 — Distinct visual mode for meta views (Plan/Terms/Claims/CC) on StatementCard
+**Status:** Complete — committed as 903b3e7a, verify gate passed, ticket closed
+**Key context:** META_TIERS set gates bg-secondary surface + uppercase mode label for non-text views; isMetaView derived from displayedTier so surface change rides the t/1396 flip animation. Lineage included as meta view alongside the four ticket-named views.
 **Next:** No unblocked tickets assigned — check queue on next session start

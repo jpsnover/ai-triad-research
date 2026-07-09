@@ -77,17 +77,17 @@ export function ReflectionsTab({ debate }: ReflectionsTabProps) {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                   <span style={{
-                    padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700,
+                    padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 700,
                     background: `${editTypeColors[edit.edit_type] || '#888'}22`,
                     color: editTypeColors[edit.edit_type] || '#888',
                   }}>
                     {edit.edit_type.toUpperCase()}
                   </span>
-                  {edit.node_id && <code style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{edit.node_id}</code>}
-                  <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{edit.category}</span>
+                  {edit.node_id && <code style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{edit.node_id}</code>}
+                  <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{edit.category}</span>
                   {edit.confidence && (
                     <span style={{
-                      padding: '1px 4px', borderRadius: 3, fontSize: '0.58rem', fontWeight: 700,
+                      padding: '1px 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 700,
                       border: `1px solid ${confColors[edit.confidence] || '#888'}44`,
                       color: confColors[edit.confidence] || '#888',
                     }}>
@@ -96,7 +96,7 @@ export function ReflectionsTab({ debate }: ReflectionsTabProps) {
                   )}
                   {edit.status !== 'pending' && (
                     <span style={{
-                      marginLeft: 'auto', fontSize: '0.6rem', fontWeight: 600,
+                      marginLeft: 'auto', fontSize: 'var(--text-2xs)', fontWeight: 600,
                       color: edit.status === 'approved' ? '#22c55e' : 'var(--text-muted)',
                     }}>
                       {edit.status === 'approved' ? 'Applied' : 'Dismissed'}
@@ -114,13 +114,13 @@ export function ReflectionsTab({ debate }: ReflectionsTabProps) {
                     <span style={{ fontWeight: 600 }}>{edit.proposed_label}</span>
                   )}
                 </div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 2 }}>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 2 }}>
                   {edit.rationale}
                 </div>
                 {edit.evidence_entries && edit.evidence_entries.length > 0 && (
-                  <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                     Evidence: {edit.evidence_entries.map((ev: string, evi: number) => (
-                      <code key={evi} style={{ padding: '0 3px', marginRight: 2, borderRadius: 2, background: 'var(--bg-secondary)', fontSize: '0.62rem' }}>{ev}</code>
+                      <code key={evi} style={{ padding: '0 3px', marginRight: 2, borderRadius: 2, background: 'var(--bg-secondary)', fontSize: 'var(--text-2xs)' }}>{ev}</code>
                     ))}
                   </div>
                 )}

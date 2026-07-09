@@ -722,7 +722,7 @@ function DebateDetailSummary({
       <div className="debate-detail-header">
         <div>
           <h2 className="debate-detail-title">{debate.title}</h2>
-          <span style={{ fontFamily: 'monospace', fontSize: '0.68rem', color: 'var(--text-muted)', userSelect: 'all' }}>{debate.id}</span>
+          <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', userSelect: 'all' }}>{debate.id}</span>
         </div>
         <span className={`debate-phase-badge phase-${debate.phase}`}>
           {PHASE_LABELS[debate.phase] || debate.phase}
@@ -953,7 +953,7 @@ function CommunityDebateDetail({ debate }: { debate: CommunityDebate }) {
       <div className="debate-detail-header">
         <div>
           <h2 className="debate-detail-title">{debate.title}</h2>
-          <span style={{ fontFamily: 'monospace', fontSize: '0.68rem', color: 'var(--text-muted)', userSelect: 'all' }}>{debate.id}</span>
+          <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', userSelect: 'all' }}>{debate.id}</span>
         </div>
         {debate.phase && (
           <span className={`debate-phase-badge phase-${debate.phase}`}>

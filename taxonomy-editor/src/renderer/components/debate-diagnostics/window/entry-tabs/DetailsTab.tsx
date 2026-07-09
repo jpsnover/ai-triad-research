@@ -98,24 +98,24 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                   <span style={{
-                    padding: '1px 6px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 600,
+                    padding: '1px 6px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600,
                     background: 'rgba(220,38,38,0.15)', color: '#dc2626',
                   }}>{evt.error.name}</span>
                   {data?.speaker && (
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                    <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                       {String(data.speaker)}{data.round ? ` R${data.round}` : ''}
                     </span>
                   )}
-                  <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginLeft: 'auto', fontFamily: 'monospace' }}>
+                  <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginLeft: 'auto', fontFamily: 'monospace' }}>
                     {new Date(evt._wall).toLocaleTimeString()}
                   </span>
                 </div>
                 <div style={{ color: 'var(--text-primary)', lineHeight: 1.4 }}>{evt.error.message}</div>
                 {evt.error.stack && (
                   <details style={{ marginTop: 4 }}>
-                    <summary style={{ fontSize: '0.62rem', color: 'var(--text-muted)', cursor: 'pointer' }}>Stack trace</summary>
+                    <summary style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', cursor: 'pointer' }}>Stack trace</summary>
                     <pre style={{
-                      fontSize: '0.6rem', color: 'var(--text-muted)', margin: '4px 0 0',
+                      fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', margin: '4px 0 0',
                       padding: '6px 8px', borderRadius: 3, background: 'var(--bg-secondary)',
                       whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 150, overflow: 'auto',
                     }}>{evt.error.stack}</pre>
@@ -148,7 +148,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
             <span key={label} style={{ display: 'inline-flex', gap: 3, alignItems: 'baseline' }}>
               <span style={{ color: 'var(--text-muted)' }}>{label}:</span>
               <strong>{v.toFixed(3)}</strong>
-              {dStr && <span style={{ fontSize: '0.6rem', color: dColor }}>{dStr}</span>}
+              {dStr && <span style={{ fontSize: 'var(--text-2xs)', color: dColor }}>{dStr}</span>}
             </span>
           );
         };
@@ -159,7 +159,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
             fontSize: '0.72rem',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <span style={{ fontWeight: 700, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em', color }}>Utility</span>
+              <span style={{ fontWeight: 700, fontSize: 'var(--text-2xs)', textTransform: 'uppercase', letterSpacing: '0.05em', color }}>Utility</span>
               <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{curr.composite.toFixed(3)}</span>
               {delta !== null && (
                 <span style={{ fontSize: '0.7rem', fontWeight: 600, color: deltaColor }}>
@@ -238,11 +238,11 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
               <span style={{ fontWeight: 700, color: '#a855f7', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Moderator Directive
               </span>
-              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,0.15)', color: '#a855f7', fontSize: '0.6rem', fontWeight: 600 }}>
+              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,0.15)', color: '#a855f7', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>
                 {moveLabel}{familyLabel ? ` · ${familyLabel}` : ''}
               </span>
               {targetLabel && (
-                <span style={{ fontSize: '0.65rem', color: !speakerIsTarget ? '#6366f1' : 'var(--text-muted)', fontWeight: !speakerIsTarget ? 600 : 400 }}>
+                <span style={{ fontSize: 'var(--text-2xs)', color: !speakerIsTarget ? '#6366f1' : 'var(--text-muted)', fontWeight: !speakerIsTarget ? 600 : 400 }}>
                   directed at {targetLabel}{!speakerIsTarget ? ` (not ${speakerLabel(entry.speaker)})` : ''}
                 </span>
               )}
@@ -268,7 +268,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
                       {complianceIcon} {isFromPlan ? 'Addressed in plan' : 'Responded'}
                     </span>
                     {isFromPlan && (
-                      <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 1 }}>
+                      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 1 }}>
                         Structured response field missing &mdash; showing plan intent
                       </div>
                     )}
@@ -282,7 +282,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
                     <span style={{ fontWeight: 700, fontSize: '0.72rem', color: complianceColor }}>
                       {complianceIcon} Not targeted
                     </span>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
                       This directive was aimed at {targetLabel}, but {speakerLabel(entry.speaker)} was selected to speak. {speakerLabel(entry.speaker)} was not required to respond.
                     </div>
                   </>
@@ -292,7 +292,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
                     <span style={{ fontWeight: 700, fontSize: '0.72rem', color: complianceColor }}>
                       {complianceIcon} No response
                     </span>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
                       The debater did not provide an explicit response to this directive.
                     </div>
                   </>
@@ -316,7 +316,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
             </span>
             {suppressedIntervention.intervention_move && (
               <span style={{
-                padding: '1px 6px', borderRadius: 3, fontSize: '0.65rem', fontWeight: 600,
+                padding: '1px 6px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600,
                 background: 'rgba(245, 158, 11, 0.18)', color: '#d97706',
               }}>
                 {suppressedIntervention.intervention_move}
@@ -350,7 +350,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
             }
           </div>
           {suppressedIntervention.trigger_reasoning && (
-            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>
+            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>
               {suppressedIntervention.trigger_reasoning}
             </div>
           )}
@@ -397,20 +397,20 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
               return (
                 <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: `2px solid ${catColor}44` }}>
                   <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'rgba(59,130,246,0.2)', color: '#3b82f6', fontSize: '0.7rem', fontWeight: 600 }}>{name}</span>
-                  <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 3, background: `${catColor}18`, color: catColor, fontSize: '0.6rem', fontWeight: 600, textTransform: 'capitalize' }}>{cat}</span>
+                  <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 3, background: `${catColor}18`, color: catColor, fontSize: 'var(--text-2xs)', fontWeight: 600, textTransform: 'capitalize' }}>{cat}</span>
                   {ann?.target && (() => {
                     const targetNode = an?.nodes?.find(n => n.id === ann.target);
                     return (<>
-                      <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>{'→'} {ann.target}</span>
-                      {targetNode && <span style={{ marginLeft: 4, fontSize: '0.65rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>"{targetNode.text.length > 100 ? targetNode.text.slice(0, 100) + '…' : targetNode.text}"</span>}
+                      <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{'→'} {ann.target}</span>
+                      {targetNode && <span style={{ marginLeft: 4, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>"{targetNode.text.length > 100 ? targetNode.text.slice(0, 100) + '…' : targetNode.text}"</span>}
                     </>);
                   })()}
                   {!ann?.target && inferredTargets.length > 0 && (
                     <div style={{ marginTop: 3, display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                      <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{'→'}</span>
+                      <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{'→'}</span>
                       {inferredTargets.map(t => (
                         <span key={t.id} data-tooltip={t.text} style={{
-                          padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 600, cursor: 'default',
+                          padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, cursor: 'default',
                           background: `${t.type === 'attacks' ? '#ef4444' : '#22c55e'}15`,
                           color: t.type === 'attacks' ? '#ef4444' : '#22c55e',
                         }}>{t.id}</span>
@@ -418,7 +418,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
                     </div>
                   )}
                   {!ann?.target && inferredTargets.length === 0 && (
-                    <span style={{ marginLeft: 6, fontSize: '0.6rem', color: 'var(--text-muted)', opacity: 0.6 }}>no AN target</span>
+                    <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', opacity: 0.6 }}>no AN target</span>
                   )}
                   {ann?.detail && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}>{ann.detail}</div>}
                 </div>
@@ -456,7 +456,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
                     return (
                       <li key={i} style={{ marginBottom: 3 }}>
                         <span style={{
-                          display: 'inline-block', fontSize: '0.6rem', fontWeight: 700,
+                          display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
                           color: ts.color, background: ts.bg, padding: '1px 5px',
                           borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
                         }}>{ts.label}</span>
@@ -509,11 +509,11 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
               const pol = policyMap.get(p);
               return (
                 <li key={i} style={{ margin: '3px 0', display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                  <span style={{ flexShrink: 0, padding: '1px 6px', borderRadius: 3, background: 'rgba(139,92,246,0.15)', color: '#8b5cf6', fontSize: '0.65rem', fontWeight: 600, fontFamily: 'monospace' }}>{p}</span>
+                  <span style={{ flexShrink: 0, padding: '1px 6px', borderRadius: 3, background: 'rgba(139,92,246,0.15)', color: '#8b5cf6', fontSize: 'var(--text-2xs)', fontWeight: 600, fontFamily: 'monospace' }}>{p}</span>
                   {pol ? (
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-primary)' }}>
                       {pol.action}
-                      <span style={{ marginLeft: 6, color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+                      <span style={{ marginLeft: 6, color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
                         ({pol.source_povs.join(', ')}{pol.member_count > 0 ? ` · ${pol.member_count} members` : ''})
                       </span>
                     </span>
@@ -568,16 +568,16 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
                   <div style={{ width: 60, height: 6, borderRadius: 3, background: 'var(--border)', overflow: 'hidden', flexShrink: 0 }}>
                     <div style={{ width: `${maxPct > 0 ? (f.percentage / maxPct) * 100 : 0}%`, height: '100%', borderRadius: 3, background: '#f59e0b' }} />
                   </div>
-                  <div style={{ width: 36, textAlign: 'right', fontSize: '0.68rem', color: 'var(--text-muted)', flexShrink: 0 }}>{f.percentage.toFixed(1)}%</div>
+                  <div style={{ width: 36, textAlign: 'right', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', flexShrink: 0 }}>{f.percentage.toFixed(1)}%</div>
                 </div>
                 {f.traditions && f.traditions.length > 0 && (
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2, paddingLeft: 4 }}>
+                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2, paddingLeft: 4 }}>
                     {f.traditions.join(', ')}
                   </div>
                 )}
               </div>
             ))}
-            <div style={{ marginTop: 4, fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+            <div style={{ marginTop: 4, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
               Boost: {lb ? <span style={{ color: '#22c55e' }}>active</span> : <span>inactive</span>}
               {lb && lb.promotedNodeIds && lb.promotedNodeIds.length > 0 && (
                 <> {'·'} {lb.promotedNodeIds.length} promoted</>

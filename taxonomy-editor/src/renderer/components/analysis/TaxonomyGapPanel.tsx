@@ -42,7 +42,7 @@ function GapBadge({ type }: { type: string }) {
   return (
     <span style={{
       padding: '1px 6px', borderRadius: 4,
-      fontSize: '0.63rem', fontWeight: 700,
+      fontSize: 'var(--text-2xs)', fontWeight: 700,
       background: info.bg, color: info.fg,
     }}>
       {info.label}
@@ -57,7 +57,7 @@ function PovBadge({ pov }: { pov: string }) {
   return (
     <span style={{
       padding: '1px 6px', borderRadius: 4,
-      fontSize: '0.63rem', fontWeight: 700,
+      fontSize: 'var(--text-2xs)', fontWeight: 700,
       background: `${color}22`, color,
       border: `1px solid ${color}44`,
     }}>
@@ -72,7 +72,7 @@ function BdiBadge({ bdi }: { bdi: string }) {
   return (
     <span style={{
       padding: '1px 6px', borderRadius: 4,
-      fontSize: '0.63rem', fontWeight: 700,
+      fontSize: 'var(--text-2xs)', fontWeight: 700,
       background: `${c}22`, color: c,
     }}>
       {bdi.charAt(0).toUpperCase() + bdi.slice(1)}
@@ -205,7 +205,7 @@ function PovCoverageCard({ pov, coverage, bdi }: { pov: string; coverage: PovCov
       {/* Utilization bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
         <ProgressBar value={coverage.referenced_nodes} max={coverage.injected_nodes || 1} color={color} />
-        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', minWidth: 32, textAlign: 'right' }}>
+        <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', minWidth: 32, textAlign: 'right' }}>
           {Math.round(coverage.utilization_rate * 100)}%
         </span>
       </div>
@@ -213,7 +213,7 @@ function PovCoverageCard({ pov, coverage, bdi }: { pov: string; coverage: PovCov
       {/* BDI breakdown */}
       {bdi && (
         <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: '0.68rem', fontWeight: 600, marginBottom: 4 }}>BDI Breakdown</div>
+          <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, marginBottom: 4 }}>BDI Breakdown</div>
           {(['beliefs', 'desires', 'intentions'] as const).map(cat => {
             const d = bdi[cat];
             const isWeakest = bdi.weakest_category.toLowerCase() === cat;
@@ -221,21 +221,21 @@ function PovCoverageCard({ pov, coverage, bdi }: { pov: string; coverage: PovCov
             return (
               <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                 <span style={{
-                  fontSize: '0.63rem', width: 55, textAlign: 'right',
+                  fontSize: 'var(--text-2xs)', width: 55, textAlign: 'right',
                   fontWeight: isWeakest ? 700 : 400,
                   color: isWeakest ? '#ef4444' : 'var(--text-muted)',
                 }}>
                   {cat.charAt(0).toUpperCase() + cat.slice(1)}
                 </span>
                 <ProgressBar value={d.cited_count} max={d.node_count || 1} color={catColor} />
-                <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', minWidth: 28, textAlign: 'right' }}>
+                <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', minWidth: 28, textAlign: 'right' }}>
                   {d.cited_count}/{d.node_count}
                 </span>
               </div>
             );
           })}
           {bdi.recommendation && (
-            <div style={{ fontSize: '0.63rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 4 }}>
+            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 4 }}>
               {bdi.recommendation}
             </div>
           )}
@@ -245,12 +245,12 @@ function PovCoverageCard({ pov, coverage, bdi }: { pov: string; coverage: PovCov
       {/* Primary but unused nodes */}
       {unusedNodes.length > 0 && (
         <div>
-          <div style={{ fontSize: '0.68rem', fontWeight: 600, marginBottom: 4, color: 'var(--text-muted)' }}>
+          <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, marginBottom: 4, color: 'var(--text-muted)' }}>
             Primary but unused ({unusedNodes.length})
           </div>
           {unusedNodes.slice(0, expanded ? undefined : showLimit).map((nodeId, i) => (
             <code key={i} style={{
-              display: 'block', fontSize: '0.6rem', color: 'var(--text-muted)',
+              display: 'block', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)',
               padding: '1px 4px', marginBottom: 1,
               background: 'var(--bg-secondary)', borderRadius: 3,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -263,7 +263,7 @@ function PovCoverageCard({ pov, coverage, bdi }: { pov: string; coverage: PovCov
               onClick={() => setExpanded(!expanded)}
               style={{
                 background: 'none', border: 'none', color: '#3b82f6',
-                fontSize: '0.63rem', cursor: 'pointer', padding: '2px 0', marginTop: 2,
+                fontSize: 'var(--text-2xs)', cursor: 'pointer', padding: '2px 0', marginTop: 2,
               }}
             >
               {expanded ? 'Show less' : `and ${unusedNodes.length - showLimit} more...`}
@@ -311,17 +311,17 @@ function UnmappedArgumentsSection({ args }: { args: UnmappedArgument[] }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.7rem' }}>
           <thead>
             <tr style={{ background: 'var(--bg-secondary)', textAlign: 'left' }}>
-              <th style={{ padding: '6px 8px', fontWeight: 600, fontSize: '0.65rem' }}>AN Node</th>
-              <th style={{ padding: '6px 8px', fontWeight: 600, fontSize: '0.65rem' }}>Speaker</th>
-              <th style={{ padding: '6px 8px', fontWeight: 600, fontSize: '0.65rem' }}>Text</th>
-              <th style={{ padding: '6px 8px', fontWeight: 600, fontSize: '0.65rem' }}>Gap Type</th>
+              <th style={{ padding: '6px 8px', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>AN Node</th>
+              <th style={{ padding: '6px 8px', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>Speaker</th>
+              <th style={{ padding: '6px 8px', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>Text</th>
+              <th style={{ padding: '6px 8px', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>Gap Type</th>
             </tr>
           </thead>
           <tbody>
             {args.map((arg, i) => (
               <tr key={i} style={{ borderTop: '1px solid var(--border-color)' }}>
                 <td style={{ padding: '5px 8px', whiteSpace: 'nowrap' }}>
-                  <code style={{ fontSize: '0.63rem' }}>{arg.an_node_id}</code>
+                  <code style={{ fontSize: 'var(--text-2xs)' }}>{arg.an_node_id}</code>
                 </td>
                 <td style={{ padding: '5px 8px', whiteSpace: 'nowrap' }}>
                   {speakerLabel(arg.speaker)}
@@ -366,12 +366,12 @@ function CrossPovGapsSection({ gaps }: { gaps: CrossPovGap[] }) {
               <PovBadge pov={gap.suggested_pov} />
               <BdiBadge bdi={gap.suggested_bdi} />
               {gap.evidence_entries.length > 0 && (
-                <span style={{ fontSize: '0.63rem', color: 'var(--text-muted)', marginLeft: 4 }}>
+                <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginLeft: 4 }}>
                   Evidence:{' '}
                   {gap.evidence_entries.map((entryId, j) => (
                     <code key={j} style={{
                       padding: '1px 4px', marginRight: 3, borderRadius: 3,
-                      background: 'var(--bg-secondary)', fontSize: '0.6rem',
+                      background: 'var(--bg-secondary)', fontSize: 'var(--text-2xs)',
                       cursor: 'pointer',
                     }}>
                       {entryId}
@@ -397,9 +397,9 @@ function GapInjectionsSection({ injections }: { injections: GapInjection[] }) {
       <div style={SECTION_HEADER}>Gap Injection Results</div>
       {injections.map((inj, i) => (
         <div key={i} style={{ ...CARD, marginBottom: 8 }}>
-          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+          <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 6 }}>
             Round {inj.round} &middot; Entry{' '}
-            <code style={{ fontSize: '0.63rem', background: 'var(--bg-secondary)', padding: '0 3px', borderRadius: 2 }}>
+            <code style={{ fontSize: 'var(--text-2xs)', background: 'var(--bg-secondary)', padding: '0 3px', borderRadius: 2 }}>
               {inj.transcript_entry_id}
             </code>
           </div>
@@ -423,7 +423,7 @@ function GapInjectionsSection({ injections }: { injections: GapInjection[] }) {
           {/* Responses */}
           {inj.responses && inj.responses.length > 0 && (
             <div style={{ marginTop: 6 }}>
-              <div style={{ fontSize: '0.68rem', fontWeight: 600, marginBottom: 4 }}>Agent Responses</div>
+              <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, marginBottom: 4 }}>Agent Responses</div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {inj.responses.map((resp, k) => {
                   const stanceColors: Record<string, string> = {
@@ -435,7 +435,7 @@ function GapInjectionsSection({ injections }: { injections: GapInjection[] }) {
                       padding: '3px 8px', borderRadius: 4,
                       background: 'var(--bg-primary)',
                       border: '1px solid var(--border-color)',
-                      fontSize: '0.65rem',
+                      fontSize: 'var(--text-2xs)',
                     }}>
                       <PovBadge pov={resp.pover} />
                       <span style={{
@@ -479,7 +479,7 @@ function CrossCuttingProposalsSection({ proposals }: { proposals: CrossCuttingPr
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
             <span style={{
               padding: '2px 8px', borderRadius: 4,
-              fontSize: '0.68rem', fontWeight: 700,
+              fontSize: 'var(--text-2xs)', fontWeight: 700,
               background: 'rgba(59,130,246,0.12)', color: '#3b82f6',
               border: '1px solid rgba(59,130,246,0.3)',
             }}>
@@ -488,7 +488,7 @@ function CrossCuttingProposalsSection({ proposals }: { proposals: CrossCuttingPr
             {proposal.maps_to_existing && (
               <span style={{
                 padding: '1px 6px', borderRadius: 4,
-                fontSize: '0.63rem', fontWeight: 600,
+                fontSize: 'var(--text-2xs)', fontWeight: 600,
                 background: 'rgba(34,197,94,0.12)', color: '#22c55e',
               }}>
                 Maps to: {proposal.maps_to_existing}
@@ -501,7 +501,7 @@ function CrossCuttingProposalsSection({ proposals }: { proposals: CrossCuttingPr
             onClick={() => setExpandedIndex(expandedIndex === i ? null : i)}
             style={{
               background: 'none', border: 'none', color: '#3b82f6',
-              fontSize: '0.65rem', cursor: 'pointer', padding: '2px 0',
+              fontSize: 'var(--text-2xs)', cursor: 'pointer', padding: '2px 0',
             }}
           >
             {expandedIndex === i ? 'Hide' : 'Show'} per-Perspective interpretations
@@ -521,13 +521,13 @@ function CrossCuttingProposalsSection({ proposals }: { proposals: CrossCuttingPr
                     borderLeft: `3px solid ${color}`,
                     background: `${color}08`,
                   }}>
-                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color, marginBottom: 3 }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color, marginBottom: 3 }}>
                       {label}
                     </div>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                       {interp.summary}
                     </div>
-                    <div style={{ display: 'flex', gap: 10, marginTop: 3, fontSize: '0.6rem' }}>
+                    <div style={{ display: 'flex', gap: 10, marginTop: 3, fontSize: 'var(--text-2xs)' }}>
                       <span><strong>B:</strong> {interp.belief}</span>
                       <span><strong>D:</strong> {interp.desire}</span>
                       <span><strong>I:</strong> {interp.intention}</span>

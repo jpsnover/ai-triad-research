@@ -153,7 +153,7 @@ export function TaxRefsTab({ entry, meta, debate, taxRefCount, nodeWeights, taxN
                           display: 'inline-block',
                           padding: '1px 5px',
                           borderRadius: 3,
-                          fontSize: '0.65rem',
+                          fontSize: 'var(--text-2xs)',
                           fontWeight: 700,
                           background: isAN ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
                           color: isAN ? '#22c55e' : '#f59e0b',
@@ -172,7 +172,7 @@ export function TaxRefsTab({ entry, meta, debate, taxRefCount, nodeWeights, taxN
                       title="Show Perspective details"
                     >{r.primary ? '★ ' : ''}{r.node_id}{(r as {label?: string}).label ? `: ${(r as {label?: string}).label}` : ''}</button>
                     {(score != null || weightValue != null) && (
-                      <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
                         ({score != null && <>Relevance {score.toFixed(2)}</>}
                         {score != null && weightLabel && weightValue != null && ' ; '}
                         {weightLabel && weightValue != null && <>{weightLabel} {weightLabel === 'Confidence' ? weightValue.toFixed(2) : `${weightValue}/5`}</>})

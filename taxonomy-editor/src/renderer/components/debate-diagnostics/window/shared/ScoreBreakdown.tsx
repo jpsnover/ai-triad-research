@@ -24,16 +24,16 @@ function DimensionScoreRow({ name, pass, weight, details }: {
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'currentColor', flexShrink: 0 }} />
         {name}
       </span>
-      <span style={{ minWidth: 36, color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem' }}>
+      <span style={{ minWidth: 36, color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)', fontSize: 'var(--text-2xs)' }}>
         ×{weight.toFixed(1)}
       </span>
       <span style={{
-        minWidth: 36, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem',
+        minWidth: 36, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', fontSize: 'var(--text-2xs)',
         color: pass ? 'var(--success)' : 'var(--danger)',
       }}>
         {weighted.toFixed(2)}
       </span>
-      <span style={{ color: 'var(--text-muted)', fontSize: '0.66rem', flex: 1 }} title={desc}>
+      <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)', flex: 1 }} title={desc}>
         {details.length > 0
           ? humanizeSpeakerIds(details.join('; '))
           : (pass ? desc : 'FAIL')}
@@ -57,7 +57,7 @@ export function ScoreBreakdown({ dims, processReward, judgeUsed }: {
     ? Math.max(0, Math.min(1, (processReward - 0.4 * stageAScore) / 0.6))
     : 0.7;
 
-  const mono = { fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem' } as const;
+  const mono = { fontFamily: 'var(--font-mono, monospace)', fontSize: 'var(--text-2xs)' } as const;
 
   return (
     <div style={{

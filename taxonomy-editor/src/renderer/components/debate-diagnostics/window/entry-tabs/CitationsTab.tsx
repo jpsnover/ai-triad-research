@@ -94,7 +94,7 @@ export function CitationsTab({ diag, searchQuery }: CitationsTabProps) {
             flex: '1 1 100px', padding: '6px 10px', borderRadius: 4,
             background: 'var(--bg-subtle)', border: '1px solid var(--border)', textAlign: 'center',
           }}>
-            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: 2 }}>{card.label}</div>
+            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 2 }}>{card.label}</div>
             <div style={{
               fontSize: '0.82rem', fontWeight: 700, fontFamily: 'monospace',
               color: card.color ?? 'inherit',
@@ -119,19 +119,19 @@ export function CitationsTab({ diag, searchQuery }: CitationsTabProps) {
                   marginBottom: 6, padding: '6px 8px', borderRadius: 4,
                   borderLeft: '3px solid #22c55e', background: 'var(--bg-subtle)',
                 }}>
-                  <div style={{ fontSize: '0.68rem', fontFamily: 'monospace', marginBottom: 3, color: '#22c55e' }}>
+                  <div style={{ fontSize: 'var(--text-2xs)', fontFamily: 'monospace', marginBottom: 3, color: '#22c55e' }}>
                     &ldquo;{m.citation_text}&rdquo;
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.62rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-2xs)' }}>
                     <span style={{ fontWeight: 600 }}>{m.doc_id}</span>
                     <span style={{ color: 'var(--text-muted)' }}>— {m.similarity.toFixed(2)} similarity</span>
                     <span style={{
-                      fontSize: '0.55rem', fontWeight: 700, padding: '0 5px', borderRadius: 3,
+                      fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 5px', borderRadius: 3,
                       color: mtColor, background: `${mtColor}18`,
                     }}>{m.match_type.replace('_', ' ').toUpperCase()}</span>
                   </div>
                   {m.title && (
-                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
                       {m.title}
                     </div>
                   )}
@@ -155,23 +155,23 @@ export function CitationsTab({ diag, searchQuery }: CitationsTabProps) {
                 marginBottom: 6, padding: '6px 8px', borderRadius: 4,
                 borderLeft: '3px solid #ef4444', background: 'var(--bg-subtle)',
               }}>
-                <div style={{ fontSize: '0.68rem', fontFamily: 'monospace', marginBottom: 3, color: '#ef4444' }}>
+                <div style={{ fontSize: 'var(--text-2xs)', fontFamily: 'monospace', marginBottom: 3, color: '#ef4444' }}>
                   &ldquo;{f.citation_text}&rdquo;
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.62rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-2xs)' }}>
                   <span style={{
-                    fontSize: '0.55rem', fontWeight: 700, padding: '0 5px', borderRadius: 3,
+                    fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 5px', borderRadius: 3,
                     color: patColor, background: `${patColor}18`,
                   }}>{f.pattern.toUpperCase()}</span>
                   <span>Not in citation bank</span>
                   <span style={{
-                    fontSize: '0.55rem', fontWeight: 700, padding: '0 5px', borderRadius: 3,
+                    fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 5px', borderRadius: 3,
                     color: f.action === 'removed' ? '#ef4444' : '#d97706',
                     background: f.action === 'removed' ? 'rgba(239,68,68,0.1)' : 'rgba(217,119,6,0.1)',
                   }}>{f.action}</span>
                 </div>
                 {f.replacement && (
-                  <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 3 }}>
+                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 3 }}>
                     → {f.replacement}
                   </div>
                 )}
@@ -188,17 +188,17 @@ export function CitationsTab({ diag, searchQuery }: CitationsTabProps) {
             Citation Bank ({citationResDiag.bank_sources.length} available sources)
           </summary>
           {citationResDiag.bank_sources.slice(0, 5).map((src, si) => (
-            <div key={si} style={{ fontSize: '0.66rem', padding: '2px 0', color: '#3b82f6' }}>
+            <div key={si} style={{ fontSize: 'var(--text-2xs)', padding: '2px 0', color: '#3b82f6' }}>
               • {src}
             </div>
           ))}
           {citationResDiag.bank_sources.length > 5 && (
             <details style={{ marginTop: 2 }}>
-              <summary style={{ cursor: 'pointer', fontSize: '0.62rem', color: 'var(--text-muted)' }}>
+              <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                 {citationResDiag.bank_sources.length - 5} more…
               </summary>
               {citationResDiag.bank_sources.slice(5).map((src, si) => (
-                <div key={si} style={{ fontSize: '0.66rem', padding: '2px 0', color: '#3b82f6' }}>
+                <div key={si} style={{ fontSize: 'var(--text-2xs)', padding: '2px 0', color: '#3b82f6' }}>
                   • {src}
                 </div>
               ))}
@@ -219,25 +219,25 @@ export function CitationsTab({ diag, searchQuery }: CitationsTabProps) {
               borderLeft: `3px solid ${tc.empty ? '#f59e0b' : '#0ea5e9'}`,
               background: 'var(--bg-subtle)',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, fontSize: '0.62rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, fontSize: 'var(--text-2xs)' }}>
                 <span style={{ fontWeight: 700 }}>LOOKUP #{ti + 1}</span>
                 <span style={{ color: 'var(--text-muted)' }}>{tc.time_ms}ms</span>
                 {tc.empty && (
                   <span style={{
-                    fontSize: '0.55rem', fontWeight: 700, padding: '0 5px', borderRadius: 3,
+                    fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 5px', borderRadius: 3,
                     background: 'rgba(245,158,11,0.15)', color: '#f59e0b',
                   }}>⚠ EMPTY</span>
                 )}
               </div>
-              <div style={{ fontSize: '0.66rem', marginBottom: 2 }}>
+              <div style={{ fontSize: 'var(--text-2xs)', marginBottom: 2 }}>
                 <strong>Query:</strong> {tc.query}
               </div>
               {tc.source_type && (
-                <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                   Type: {tc.source_type}
                 </div>
               )}
-              <div style={{ fontSize: '0.62rem', marginTop: 2 }}>
+              <div style={{ fontSize: 'var(--text-2xs)', marginTop: 2 }}>
                 {tc.empty ? (
                   <span style={{ color: '#f59e0b' }}>Results: 0 — no verified sources found</span>
                 ) : (
@@ -260,10 +260,10 @@ export function CitationsTab({ diag, searchQuery }: CitationsTabProps) {
           <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.72rem', marginBottom: 6 }}>
             Scrub Diff
           </summary>
-          <div style={{ fontSize: '0.66rem', marginBottom: 4 }}>
+          <div style={{ fontSize: 'var(--text-2xs)', marginBottom: 4 }}>
             {citationResDiag.scrub_diff.lines_removed} lines removed, {citationResDiag.scrub_diff.lines_modified} lines modified
           </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: '0.62rem', color: 'var(--text-muted)' }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
             <span>Original: {citationResDiag.scrub_diff.original_length} chars</span>
             <span>Cleaned: {citationResDiag.scrub_diff.cleaned_length} chars</span>
             <span>
@@ -280,7 +280,7 @@ export function CitationsTab({ diag, searchQuery }: CitationsTabProps) {
           <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.72rem', marginBottom: 6 }}>
             Warnings ({citationResDiag.warnings.length})
           </summary>
-          <ul style={{ margin: 0, padding: '0 0 0 16px', fontSize: '0.66rem' }}>
+          <ul style={{ margin: 0, padding: '0 0 0 16px', fontSize: 'var(--text-2xs)' }}>
             {citationResDiag.warnings.map((w, wi) => (
               <li key={wi} style={{ marginBottom: 3, lineHeight: 1.35 }}>{w}</li>
             ))}
@@ -292,7 +292,7 @@ export function CitationsTab({ diag, searchQuery }: CitationsTabProps) {
       <div style={{
         marginTop: 10, padding: '4px 8px', borderRadius: 3,
         background: 'var(--bg-subtle)', border: '1px solid var(--border)',
-        fontSize: '0.6rem', color: 'var(--text-muted)',
+        fontSize: 'var(--text-2xs)', color: 'var(--text-muted)',
         display: 'flex', gap: 12,
       }}>
         <span>Resolution time: {citationResDiag.resolution_time_ms}ms</span>

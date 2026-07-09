@@ -175,7 +175,7 @@ function ConfidenceCell({ value, readOnly, doctrinallyAnchored, evidentialConfid
         </span>
         {doctrinallyAnchored && (
           <span
-            style={{ fontSize: '0.65rem', fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: 'rgba(99,102,241,0.12)', color: '#6366f1', whiteSpace: 'nowrap' }}
+            style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: 'rgba(99,102,241,0.12)', color: '#6366f1', whiteSpace: 'nowrap' }}
             title="This Belief is cosine-similar to the POV's doctrinal boundaries — a confidence floor is applied to prevent it from dropping below the doctrinal minimum"
           >⚓ Doctrinally Anchored</span>
         )}
@@ -183,11 +183,11 @@ function ConfidenceCell({ value, readOnly, doctrinallyAnchored, evidentialConfid
       {doctrinallyAnchored && evidentialConfidence != null && (
         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>
           Evidential confidence: <strong>{evidentialConfidence.toFixed(2)}</strong>
-          <span style={{ marginLeft: 4, fontSize: '0.65rem' }}>(floor applied: {value.toFixed(2)} ≥ doctrinal minimum)</span>
+          <span style={{ marginLeft: 4, fontSize: 'var(--text-2xs)' }}>(floor applied: {value.toFixed(2)} ≥ doctrinal minimum)</span>
         </div>
       )}
       {history && history.length > 0 && (
-        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4 }}>
+        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4 }}>
           {history.length} update(s) — latest: {history[history.length - 1].reason}
         </div>
       )}
@@ -217,12 +217,12 @@ function RankedSelectCell({ label, value, options, badge, history, readOnly, onU
       </select>
       {badge?.show && (
         <span
-          style={{ fontSize: '0.65rem', fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: badge.bg, color: badge.color, marginTop: 4, display: 'inline-block' }}
+          style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: badge.bg, color: badge.color, marginTop: 4, display: 'inline-block' }}
           title={badge.title}
         >{badge.text}</span>
       )}
       {history && history.length > 0 && (
-        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4 }}>
+        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4 }}>
           {history.length} update(s) — latest: {history[history.length - 1].reason}
         </div>
       )}
@@ -356,7 +356,7 @@ function AssumptionsCell({ assumes, readOnly, editing, onToggleEdit, onUpdate, o
         {!readOnly && onUpdate && (
           <button
             className="btn btn-ghost btn-sm"
-            style={{ marginLeft: 6, fontSize: '0.6rem', padding: '1px 5px' }}
+            style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', padding: '1px 5px' }}
             onClick={onToggleEdit}
           >{editing ? 'Done' : 'Edit'}</button>
         )}

@@ -54,7 +54,7 @@ function EdgesUsedGroup({ edgeType, edges, selectedIdx, onSelect, nodeLabels }: 
               <span className="related-edge-label-primary" style={{ color: edgeNodeColor(e.source) }}>
                 {srcLabel ? truncateLabel(srcLabel, 20) : e.source}
               </span>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.62rem', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.03em' }}>{edgeType.replace(/_/g, ' ')}</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.03em' }}>{edgeType.replace(/_/g, ' ')}</span>
               <span className="related-edge-label-primary" style={{ color: edgeNodeColor(e.target) }}>
                 {tgtLabel ? truncateLabel(tgtLabel, 20) : e.target}
               </span>
@@ -109,13 +109,13 @@ export function EdgesUsedDetail({ edge, taxNodeMap, nodeLabels }: {
         <div style={{ display: 'flex', gap: 8, margin: '10px 0' }}>
           {srcNode?.description && (
             <div style={{ flex: 1, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)' }}>
-              <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.04em' }}>Source Description</div>
+              <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.04em' }}>Source Description</div>
               <div style={{ fontSize: '0.75rem', lineHeight: 1.5 }}>{srcNode.description as string}</div>
             </div>
           )}
           {tgtNode?.description && (
             <div style={{ flex: 1, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)' }}>
-              <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.04em' }}>Target Description</div>
+              <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.04em' }}>Target Description</div>
               <div style={{ fontSize: '0.75rem', lineHeight: 1.5 }}>{tgtNode.description as string}</div>
             </div>
           )}

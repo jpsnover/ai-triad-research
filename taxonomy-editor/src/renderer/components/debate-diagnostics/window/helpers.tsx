@@ -34,7 +34,7 @@ export function AifBadge({ type, label }: { type: 'I-node' | 'CA-node' | 'RA-nod
         borderRadius: 3,
         background: c.bg,
         color: c.fg,
-        fontSize: '0.6rem',
+        fontSize: 'var(--text-2xs)',
         fontWeight: 700,
         cursor: 'help',
         letterSpacing: '0.03em',
@@ -76,7 +76,7 @@ export function CopyButton({ text }: { text: string }) {
       style={{
         background: 'none', border: '1px solid var(--border)', borderRadius: 3,
         color: copied ? '#22c55e' : 'var(--text-muted)', cursor: 'pointer',
-        fontSize: '0.6rem', padding: '1px 6px', marginLeft: 6, flexShrink: 0,
+        fontSize: 'var(--text-2xs)', padding: '1px 6px', marginLeft: 6, flexShrink: 0,
       }}
       title="Copy section content to clipboard"
     >
@@ -112,7 +112,7 @@ export function Section({ title, children, defaultOpen = false, copyText }: { ti
         >
           {effectiveOpen ? '▼' : '▶'} {title}
           {sectionMatches > 0 && (
-            <span style={{ marginLeft: 6, fontSize: '0.6rem', padding: '1px 5px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#f59e0b', fontWeight: 700 }}>
+            <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', padding: '1px 5px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#f59e0b', fontWeight: 700 }}>
               {sectionMatches} match{sectionMatches !== 1 ? 'es' : ''}
             </span>
           )}
@@ -202,7 +202,7 @@ export function SearchBar({ query, setQuery, matchCount, inputRef }: { query: st
       />
       {query && (
         <>
-          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
             {domCount > 0 ? `${currentIdx + 1}/${domCount}` : '0 matches'}
           </span>
           <button onClick={goPrev} title="Previous match (Shift+Enter)"
@@ -215,7 +215,7 @@ export function SearchBar({ query, setQuery, matchCount, inputRef }: { query: st
           </button>
           <button
             onClick={() => setQuery('')}
-            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 6px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.65rem' }}
+            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 6px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}
           >
             Clear
           </button>

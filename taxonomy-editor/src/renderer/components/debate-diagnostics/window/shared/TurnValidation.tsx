@@ -43,7 +43,7 @@ export function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
         <OutcomeBadge outcome={v.outcome} />
         <span style={{ color: 'var(--text-muted)' }}>score {(v.process_reward ?? 0).toFixed(2)}</span>
         <span style={{ color: 'var(--text-muted)' }}>{((a.response_time_ms ?? 0) / 1000).toFixed(1)}s</span>
-        {v.judge_used && <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>judge: {v.judge_model}</span>}
+        {v.judge_used && <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>judge: {v.judge_model}</span>}
       </div>
       {open && (
         <div style={{ padding: '4px 10px 10px', fontSize: '0.72rem' }}>
@@ -65,7 +65,7 @@ export function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
                   return (
                     <li key={i} style={{ marginBottom: 3 }}>
                       <span style={{
-                        display: 'inline-block', fontSize: '0.6rem', fontWeight: 700,
+                        display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
                         color: ts.color, background: ts.bg, padding: '1px 5px',
                         borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
                       }}>{ts.label}</span>
@@ -113,7 +113,7 @@ export function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
                   };
                   return (
                     <>
-                      <div style={{ display: 'flex', gap: 10, marginBottom: 6, fontSize: '0.65rem' }}>
+                      <div style={{ display: 'flex', gap: 10, marginBottom: 6, fontSize: 'var(--text-2xs)' }}>
                         <span style={{ color: '#16a34a', fontWeight: 700 }}>Fixed: {fixed}</span>
                         <span style={{ color: '#d97706', fontWeight: 700 }}>Partial: {partial}</span>
                         <span style={{ color: '#6b7280', fontWeight: 700 }}>Ignored: {ignored}</span>
@@ -124,26 +124,26 @@ export function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
                       </div>
                       {he.map((h, hi) => (
                         <div key={hi} style={{
-                          marginBottom: 4, padding: '4px 8px', borderRadius: 4, fontSize: '0.66rem',
+                          marginBottom: 4, padding: '4px 8px', borderRadius: 4, fontSize: 'var(--text-2xs)',
                           borderLeft: `3px solid ${resColors[h.resolution] ?? '#6b7280'}`,
                           background: 'var(--bg-subtle)',
                         }}>
                           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 2 }}>
                             <span style={{
-                              fontSize: '0.55rem', fontWeight: 700, padding: '0 4px', borderRadius: 3,
+                              fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 4px', borderRadius: 3,
                               color: resColors[h.resolution] ?? '#6b7280',
                               background: `${resColors[h.resolution] ?? '#6b7280'}18`,
                             }}>{h.resolution.toUpperCase().replace('_', ' ')}</span>
                             <span style={{
-                              fontSize: '0.55rem', padding: '0 4px', borderRadius: 3,
+                              fontSize: 'var(--text-2xs)', padding: '0 4px', borderRadius: 3,
                               color: specColors[h.specificity] ?? '#6b7280',
                               background: `${specColors[h.specificity] ?? '#6b7280'}18`,
                             }}>{h.specificity}</span>
-                            <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)' }}>{h.source.replace('_', ' ')}</span>
+                            <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{h.source.replace('_', ' ')}</span>
                           </div>
                           <div>{humanizeSpeakerIds(h.hint_text)}</div>
                           {h.cited_fragment && (
-                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
                               Fragment: &ldquo;{humanizeSpeakerIds(h.cited_fragment)}&rdquo; {h.fragment_persists ? '— still present' : '— removed'}
                             </div>
                           )}
@@ -209,7 +209,7 @@ export function TurnValidationSection({ trail: rawTrail }: { trail: TurnValidati
           const lastIdx = scores.length - 1;
           if (bestIdx !== lastIdx) {
             return (
-              <span style={{ fontSize: '0.65rem', padding: '1px 6px', borderRadius: 3, background: 'rgba(34,197,94,0.15)', color: '#16a34a', fontWeight: 600 }}>
+              <span style={{ fontSize: 'var(--text-2xs)', padding: '1px 6px', borderRadius: 3, background: 'rgba(34,197,94,0.15)', color: '#16a34a', fontWeight: 600 }}>
                 Used attempt {bestIdx} (score {scores[bestIdx].toFixed(2)}) — last attempt regressed to {scores[lastIdx].toFixed(2)}
               </span>
             );
@@ -228,7 +228,7 @@ export function TurnValidationSection({ trail: rawTrail }: { trail: TurnValidati
               return (
                 <li key={i} style={{ marginBottom: 3 }}>
                   <span style={{
-                    display: 'inline-block', fontSize: '0.6rem', fontWeight: 700,
+                    display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
                     color: ts.color, background: ts.bg, padding: '1px 5px',
                     borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
                   }}>{ts.label}</span>

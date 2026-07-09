@@ -125,14 +125,14 @@ function DiagnosticsSection({ eval: ev }: { eval: NeutralEvaluation }) {
         <button
           className={`btn btn-sm ${showPrompt ? 'btn-active' : ''}`}
           onClick={() => { setShowPrompt(!showPrompt); setShowRaw(false); }}
-          style={{ fontSize: '0.65rem' }}
+          style={{ fontSize: 'var(--text-2xs)' }}
         >
           {showPrompt ? 'Hide Prompt' : 'Show Prompt'}
         </button>
         <button
           className={`btn btn-sm ${showRaw ? 'btn-active' : ''}`}
           onClick={() => { setShowRaw(!showRaw); setShowPrompt(false); }}
-          style={{ fontSize: '0.65rem' }}
+          style={{ fontSize: 'var(--text-2xs)' }}
         >
           {showRaw ? 'Hide Raw Response' : 'Show Raw Response'}
         </button>

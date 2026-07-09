@@ -367,8 +367,8 @@ function TopicHealthScore({ entries }: { entries: CalibrationEntry[] }) {
     <div style={{ marginTop: 12, padding: '8px 10px', borderRadius: 6, background: `${color}08`, border: `1px solid ${color}30` }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
         <span style={{ fontWeight: 700, fontSize: '0.75rem', color }}>Topic Health Score</span>
-        <span style={{ fontSize: '0.7rem' }}>{latest.toFixed(3)} <span style={{ color: 'var(--text-muted)', fontSize: '0.6rem' }}>(avg {mean.toFixed(3)})</span></span>
-        <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)' }}>40% alignment + 20% (1-repair) + 20% (1-drift) + 20% scope</span>
+        <span style={{ fontSize: '0.7rem' }}>{latest.toFixed(3)} <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>(avg {mean.toFixed(3)})</span></span>
+        <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>40% alignment + 20% (1-repair) + 20% (1-drift) + 20% scope</span>
       </div>
       <svg width={w} height={h} style={{ display: 'block', width: '100%', height: h }}>
         <path d={pathD} fill="none" stroke={color} strokeWidth="2" />

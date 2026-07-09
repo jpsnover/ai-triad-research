@@ -133,17 +133,17 @@ export function ArgumentNetworkTab({
         </span>
         <button
           onClick={() => setAllExpanded(!allExpanded)}
-          style={{ marginLeft: 'auto', fontSize: '0.6rem', padding: '2px 6px', borderRadius: 3, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', cursor: 'pointer' }}
+          style={{ marginLeft: 'auto', fontSize: 'var(--text-2xs)', padding: '2px 6px', borderRadius: 3, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', cursor: 'pointer' }}
         >
           {allExpanded ? 'Collapse All' : 'Expand All'}
         </button>
       </div>
       {/* AN claim filter bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap', fontSize: '0.65rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap', fontSize: 'var(--text-2xs)' }}>
         <select
           value={anFilterMode}
           onChange={e => setAnFilterMode(e.target.value as typeof anFilterMode)}
-          style={{ fontSize: '0.65rem', padding: '2px 4px', borderRadius: 4, background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color, rgba(255,255,255,0.1))' }}
+          style={{ fontSize: 'var(--text-2xs)', padding: '2px 4px', borderRadius: 4, background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color, rgba(255,255,255,0.1))' }}
         >
           <option value="all">All claims</option>
           <option value="unattributed">Unattributed only</option>
@@ -155,14 +155,14 @@ export function ArgumentNetworkTab({
           placeholder="Filter by node ID…"
           value={anFilterNodeId}
           onChange={e => setAnFilterNodeId(e.target.value)}
-          style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: 4, background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color, rgba(255,255,255,0.1))', width: 140 }}
+          style={{ fontSize: 'var(--text-2xs)', padding: '2px 6px', borderRadius: 4, background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color, rgba(255,255,255,0.1))', width: 140 }}
         />
         {isFiltered && (
           <span style={{ color: 'var(--text-muted)' }}>
             {filteredNodeCount}/{an.nodes.length} shown
             <button
               onClick={() => { setAnFilterMode('all'); setAnFilterNodeId(''); }}
-              style={{ marginLeft: 4, cursor: 'pointer', background: 'none', border: 'none', color: '#3b82f6', fontSize: '0.65rem', padding: 0 }}
+              style={{ marginLeft: 4, cursor: 'pointer', background: 'none', border: 'none', color: '#3b82f6', fontSize: 'var(--text-2xs)', padding: 0 }}
             >clear</button>
           </span>
         )}
@@ -178,7 +178,7 @@ export function ArgumentNetworkTab({
               style={{
                 margin: '10px 0 2px', padding: '4px 8px', borderRadius: 4,
                 background: 'rgba(59,130,246,0.06)', borderLeft: '3px solid rgba(59,130,246,0.4)',
-                fontSize: '0.65rem', color: 'var(--text-secondary)',
+                fontSize: 'var(--text-2xs)', color: 'var(--text-secondary)',
                 cursor: 'pointer',
               }}
               onClick={() => { setOverviewTab('transcript'); setSelectedEntry(entryId); setLocalOverride(true); }}
@@ -196,18 +196,18 @@ export function ArgumentNetworkTab({
             <div style={{
               margin: '8px 0 4px', padding: '6px 10px', borderRadius: 6,
               background: 'rgba(249,115,22,0.08)', borderLeft: '3px solid #f97316',
-              fontSize: '0.65rem',
+              fontSize: 'var(--text-2xs)',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <span style={{ fontWeight: 700, color: '#f97316', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Moderator</span>
+                <span style={{ fontWeight: 700, color: '#f97316', fontSize: 'var(--text-2xs)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Moderator</span>
                 <span style={{ fontWeight: 600 }}>→ {speakerLabel(trace.selected)}</span>
                 {trace.selection_reason && (
-                  <span style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(249,115,22,0.15)', color: '#f97316', fontSize: '0.55rem', fontWeight: 600 }}>
+                  <span style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(249,115,22,0.15)', color: '#f97316', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>
                     {trace.selection_reason.replace(/_/g, ' ')}
                   </span>
                 )}
                 {trace.recent_scheme && (
-                  <span style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(99,102,241,0.15)', color: '#6366f1', fontSize: '0.55rem', fontWeight: 600 }}>
+                  <span style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(99,102,241,0.15)', color: '#6366f1', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>
                     {trace.recent_scheme}
                   </span>
                 )}
@@ -225,7 +225,7 @@ export function ArgumentNetworkTab({
                 <div style={{ marginTop: 3, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {trace.candidates.map((c, i) => (
                     <span key={i} style={{
-                      fontSize: '0.55rem',
+                      fontSize: 'var(--text-2xs)',
                       opacity: c.debater === trace.selected ? 1 : 0.6,
                       fontWeight: c.debater === trace.selected ? 700 : 400,
                     }}>
@@ -305,7 +305,7 @@ function ArgNetMinimap({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: 
 
   if (nodes.length > MINIMAP_DEGRADE_CEILING) {
     return (
-      <div style={{ padding: '6px 10px', marginBottom: 8, fontSize: '0.6rem', color: 'var(--text-muted)', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
+      <div style={{ padding: '6px 10px', marginBottom: 8, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
         Network too large for minimap ({nodes.length} nodes, {edges.length} edges)
       </div>
     );
@@ -338,7 +338,7 @@ function ArgNetMinimap({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: 
           );
         })}
       </svg>
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 12, fontSize: '0.55rem', color: 'var(--text-muted)', marginTop: 2 }}>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 12, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
         {layout.speakers.map(s => (
           <span key={s} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
             <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: MINIMAP_SPEAKER_COLORS[s] ?? 'var(--text-muted)' }} />
@@ -390,26 +390,26 @@ function ConfidenceImpactTrace({ debateId }: { debateId: string }) {
   if (impacts.length === 0) return null;
   return (
     <div style={{ marginTop: 12, padding: '8px 10px', borderRadius: 6, background: 'rgba(34,197,94,0.06)', borderLeft: '3px solid #22c55e' }}>
-      <div style={{ fontWeight: 700, fontSize: '0.65rem', color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+      <div style={{ fontWeight: 700, fontSize: 'var(--text-2xs)', color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
         Confidence Impact ({impacts.length})
       </div>
       {impacts.map((imp, i) => {
         const deltaColor = imp.entry.delta > 0 ? '#22c55e' : imp.entry.delta < 0 ? '#ef4444' : 'var(--text-muted)';
         return (
-          <div key={i} style={{ fontSize: '0.65rem', marginBottom: 3, display: 'flex', gap: 6, alignItems: 'baseline', flexWrap: 'wrap' }}>
-            <code style={{ fontSize: '0.6rem', background: 'var(--bg-secondary)', padding: '0 3px', borderRadius: 2 }}>{imp.nodeId}</code>
+          <div key={i} style={{ fontSize: 'var(--text-2xs)', marginBottom: 3, display: 'flex', gap: 6, alignItems: 'baseline', flexWrap: 'wrap' }}>
+            <code style={{ fontSize: 'var(--text-2xs)', background: 'var(--bg-secondary)', padding: '0 3px', borderRadius: 2 }}>{imp.nodeId}</code>
             <span style={{ color: 'var(--text-muted)' }}>{imp.label.length > 40 ? imp.label.slice(0, 40) + '…' : imp.label}</span>
             <span style={{ fontWeight: 700 }}>{imp.entry.value.toFixed(2)}</span>
             <span style={{ color: deltaColor, fontWeight: 600 }}>
               {imp.entry.delta > 0 ? '+' : ''}{imp.entry.delta.toFixed(2)}
             </span>
             {imp.entry.attack_claim && (
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.6rem' }} title={imp.entry.attack_claim}>
+              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }} title={imp.entry.attack_claim}>
                 ← {imp.entry.attack_claim.length > 50 ? imp.entry.attack_claim.slice(0, 50) + '…' : imp.entry.attack_claim}
               </span>
             )}
             {imp.entry.robustness != null && imp.entry.robustness >= 2 && (
-              <span style={{ fontSize: '0.55rem', padding: '0 4px', borderRadius: 3, background: 'rgba(34,197,94,0.15)', color: '#22c55e', fontWeight: 600 }}>
+              <span style={{ fontSize: 'var(--text-2xs)', padding: '0 4px', borderRadius: 3, background: 'rgba(34,197,94,0.15)', color: '#22c55e', fontWeight: 600 }}>
                 {imp.entry.robustness}× confirmed
               </span>
             )}

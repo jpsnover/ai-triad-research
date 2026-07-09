@@ -45,7 +45,7 @@ export function BriefTab(props: BriefTabProps) {
         return (
           <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(245,158,11,0.6)', background: 'rgba(245,158,11,0.08)', borderRadius: 4, fontSize: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: '0.68rem' }}>MODERATOR DIRECTIVE</span>
+              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>MODERATOR DIRECTIVE</span>
             </div>
             {dr && (
               <>
@@ -81,7 +81,7 @@ export function BriefTab(props: BriefTabProps) {
                       const prio = (g as Record<string, unknown>).priority as number | undefined ?? tw?.priority;
                       const oper = (g as Record<string, unknown>).operationality as number | undefined ?? tw?.operationality;
                       return (
-                        <li key={gi} style={{ fontSize: '0.65rem', color: 'var(--accent)' }}>
+                        <li key={gi} style={{ fontSize: 'var(--text-2xs)', color: 'var(--accent)' }}>
                           <button onClick={() => setSelectedTaxRefId(selectedTaxRefId === g.node_id ? null : g.node_id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}>{g.node_id}</button>
                           {sc != null && <span style={{ fontWeight: 600, color: scColor, marginLeft: 4 }}>{sc.toFixed(2)}</span>}
                           {conf != null && <span style={{ marginLeft: 4, fontWeight: 600, color: conf >= 0.70 ? '#16a34a' : conf >= 0.50 ? '#2563eb' : '#d97706', background: conf < 0.50 ? '#fef3c7' : undefined, padding: conf < 0.50 ? '0 3px' : undefined, borderRadius: 2 }}>conf:{conf.toFixed(2)}</span>}
@@ -116,7 +116,7 @@ export function BriefTab(props: BriefTabProps) {
                       const prio = (g as Record<string, unknown>).priority as number | undefined ?? tw?.priority;
                       const oper = (g as Record<string, unknown>).operationality as number | undefined ?? tw?.operationality;
                       return (
-                        <li key={gi} style={{ fontSize: '0.65rem', color: 'var(--accent)' }}>
+                        <li key={gi} style={{ fontSize: 'var(--text-2xs)', color: 'var(--accent)' }}>
                           <button onClick={() => setSelectedTaxRefId(selectedTaxRefId === g.node_id ? null : g.node_id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}>{g.node_id}</button>
                           {sc != null && <span style={{ fontWeight: 600, color: scColor, marginLeft: 4 }}>{sc.toFixed(2)}</span>}
                           {conf != null && <span style={{ marginLeft: 4, fontWeight: 600, color: conf >= 0.70 ? '#16a34a' : conf >= 0.50 ? '#2563eb' : '#d97706', background: conf < 0.50 ? '#fef3c7' : undefined, padding: conf < 0.50 ? '0 3px' : undefined, borderRadius: 2 }}>conf:{conf.toFixed(2)}</span>}
@@ -171,10 +171,10 @@ export function BriefTab(props: BriefTabProps) {
                   <Fragment key={i}>
                     <tr style={{ borderBottom: Array.isArray(dc.grounding) && dc.grounding.length > 0 ? 'none' : '1px solid var(--border)' }}>
                       <td style={{ padding: '3px 6px', verticalAlign: 'top', fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent)' }}>{dc.d_id}</td>
-                      <td style={{ padding: '3px 6px', verticalAlign: 'top', fontWeight: 600, color: stanceColor, textTransform: 'uppercase', fontSize: '0.65rem' }}>{dc.stance}</td>
+                      <td style={{ padding: '3px 6px', verticalAlign: 'top', fontWeight: 600, color: stanceColor, textTransform: 'uppercase', fontSize: 'var(--text-2xs)' }}>{dc.stance}</td>
                       <td style={{ padding: '3px 6px', verticalAlign: 'top' }}>
                         <Highlight text={dc.claim} />
-                        <div style={{ marginTop: 2, color: 'var(--text-muted)', fontSize: '0.65rem' }}><Highlight text={dc.why} /></div>
+                        <div style={{ marginTop: 2, color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}><Highlight text={dc.why} /></div>
                       </td>
                     </tr>
                     {Array.isArray(dc.grounding) && dc.grounding.length > 0 && (
@@ -190,7 +190,7 @@ export function BriefTab(props: BriefTabProps) {
                               const prio = (g as Record<string, unknown>).priority as number | undefined ?? tw?.priority;
                               const oper = (g as Record<string, unknown>).operationality as number | undefined ?? tw?.operationality;
                               return (
-                                <li key={gi} style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                                <li key={gi} style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                                   <button onClick={() => setSelectedTaxRefId(selectedTaxRefId === g.node_id ? null : g.node_id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}>{g.node_id}</button>
                                   {sc != null && <span style={{ fontWeight: 600, color: scColor, marginLeft: 4 }}>{sc.toFixed(2)}</span>}
                                   {conf != null && <span style={{ marginLeft: 4, fontWeight: 600, color: conf >= 0.70 ? '#16a34a' : conf >= 0.50 ? '#2563eb' : '#d97706', background: conf < 0.50 ? '#fef3c7' : undefined, padding: conf < 0.50 ? '0 3px' : undefined, borderRadius: 2 }}>conf:{conf.toFixed(2)}</span>}
@@ -267,7 +267,7 @@ export function BriefTab(props: BriefTabProps) {
             {/* Turn header */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0 6px',
-              fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600,
+              fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontWeight: 600,
             }}>
               <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
               <span>Turn {ai + 1}</span>
@@ -286,7 +286,7 @@ export function BriefTab(props: BriefTabProps) {
                 const judgeQ = stageA > 0
                   ? Math.max(0, Math.min(1, (turnScore - 0.4 * stageA) / 0.6))
                   : 0.7;
-                const mono = { fontFamily: 'monospace', fontSize: '0.68rem' } as const;
+                const mono = { fontFamily: 'monospace', fontSize: 'var(--text-2xs)' } as const;
                 const dimColor = (pass: boolean) => pass ? '#16a34a' : '#dc2626';
                 return (
                   <div style={{
@@ -299,13 +299,13 @@ export function BriefTab(props: BriefTabProps) {
                         {turnScore.toFixed(2)}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px', fontSize: '0.66rem' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px', fontSize: 'var(--text-2xs)' }}>
                       <span><span style={{ color: dimColor(dims.schema.pass) }}>{'●'}</span> schema {'×'}0.4 = <strong style={mono}>{(0.4 * (dims.schema.pass ? 1 : 0)).toFixed(2)}</strong></span>
                       <span><span style={{ color: dimColor(dims.grounding.pass) }}>{'●'}</span> grounding {'×'}0.3 = <strong style={mono}>{(0.3 * (dims.grounding.pass ? 1 : 0)).toFixed(2)}</strong></span>
                       <span><span style={{ color: dimColor(dims.advancement.pass) }}>{'●'}</span> advancement {'×'}0.2 = <strong style={mono}>{(0.2 * (dims.advancement.pass ? 1 : 0)).toFixed(2)}</strong></span>
                       <span><span style={{ color: dimColor(dims.clarifies.pass) }}>{'●'}</span> clarifies {'×'}0.1 = <strong style={mono}>{(0.1 * (dims.clarifies.pass ? 1 : 0)).toFixed(2)}</strong></span>
                     </div>
-                    <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3, fontSize: '0.66rem', display: 'flex', gap: 12 }}>
+                    <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3, fontSize: 'var(--text-2xs)', display: 'flex', gap: 12 }}>
                       <span>Stage A: <strong style={mono}>{stageA.toFixed(2)}</strong> <span style={{ color: 'var(--text-muted)' }}>{'×'}0.4 = {(0.4 * stageA).toFixed(2)}</span></span>
                       <span>Judge: <strong style={mono}>{judgeQ.toFixed(2)}</strong>{!judgeUsed && <span style={{ color: 'var(--text-muted)' }}> (default)</span>} <span style={{ color: 'var(--text-muted)' }}>{'×'}0.6 = {(0.6 * judgeQ).toFixed(2)}</span></span>
                       <span>Total: <strong style={{ ...mono, color: turnScore >= 0.7 ? '#16a34a' : turnScore >= 0.5 ? '#d97706' : '#dc2626' }}>{turnScore.toFixed(2)}</strong></span>
@@ -337,7 +337,7 @@ export function BriefTab(props: BriefTabProps) {
                     return (
                       <li key={hi} style={{ marginBottom: 3 }}>
                         <span style={{
-                          display: 'inline-block', fontSize: '0.6rem', fontWeight: 700,
+                          display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
                           color: ts.color, background: ts.bg, padding: '1px 5px',
                           borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
                         }}>{ts.label}</span>

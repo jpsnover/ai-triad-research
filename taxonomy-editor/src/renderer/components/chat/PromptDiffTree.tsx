@@ -362,14 +362,14 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                 borderLeft: isFocused ? '2px solid #a855f7' : '2px solid transparent',
               }}
             >
-              <span style={{ width: 12, textAlign: 'center', fontSize: '0.6rem' }}>
+              <span style={{ width: 12, textAlign: 'center', fontSize: 'var(--text-2xs)' }}>
                 {hasPrompts ? (isExpanded ? '▼' : '▶') : '·'}
               </span>
               <span style={{ fontWeight: 600 }}>S{idx + 1}</span>
               <span>{speakerLabel(entry.speaker)}</span>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.62rem' }}>({entry.type})</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>({entry.type})</span>
               {totalRuns > 1 && (
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.58rem' }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
                   {totalRuns} runs
                 </span>
               )}
@@ -390,12 +390,12 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                     }}
                   >
                     {runs.length > 1 && (
-                      <span style={{ width: 10, textAlign: 'center', fontSize: '0.55rem' }}>
+                      <span style={{ width: 10, textAlign: 'center', fontSize: 'var(--text-2xs)' }}>
                         {isStageExpanded ? '▼' : '▶'}
                       </span>
                     )}
                     <span style={{
-                      padding: '0 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 600,
+                      padding: '0 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600,
                       background: `${STAGE_COLORS[stage] ?? '#888'}20`,
                       color: STAGE_COLORS[stage] ?? '#888',
                       textTransform: 'uppercase',
@@ -403,7 +403,7 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                       {stage}
                     </span>
                     {runs.length > 1 && (
-                      <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+                      <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                         ({runs.length} runs)
                       </span>
                     )}
@@ -451,7 +451,7 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                           {r.retryTrigger === 'stage-retry' && (
                             <span
                               style={{
-                                fontSize: '0.5rem', fontWeight: 700, padding: '0 4px', borderRadius: 3,
+                                fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 4px', borderRadius: 3,
                                 background: 'rgba(245,158,11,0.15)', color: '#f59e0b', textTransform: 'uppercase',
                               }}
                               title={r.repairHintsIn?.join('\n') ?? 'Stage validator retry'}
@@ -462,7 +462,7 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                           {r.retryTrigger === 'orchestration-rerun' && (
                             <span
                               style={{
-                                fontSize: '0.5rem', fontWeight: 700, padding: '0 4px', borderRadius: 3,
+                                fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 4px', borderRadius: 3,
                                 background: 'rgba(239,68,68,0.15)', color: '#ef4444', textTransform: 'uppercase',
                               }}
                               title={r.repairHintsIn?.join('\n') ?? 'Judge-triggered rerun'}
@@ -470,13 +470,13 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                               Rerun
                             </span>
                           )}
-                          <span style={{ color: 'var(--text-muted)', fontSize: '0.58rem' }}>
+                          <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
                             {abbreviateModel(node.model)}, {node.temperature}, {(node.responseTimeMs / 1000).toFixed(1)}s
                           </span>
                           {node.validationPass !== undefined && (
                             <span style={{
                               color: node.validationPass ? '#22c55e' : '#ef4444',
-                              fontWeight: 700, fontSize: '0.65rem',
+                              fontWeight: 700, fontSize: 'var(--text-2xs)',
                             }}>
                               {node.validationPass ? '✓' : '✗'}
                             </span>
@@ -505,28 +505,28 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                                 display: 'flex', alignItems: 'center', gap: 4,
                                 background: tcSelected ? 'rgba(59,130,246,0.12)' : 'transparent',
                                 borderLeft: tcSelected ? '2px solid #3b82f6' : '2px solid transparent',
-                                fontSize: '0.62rem',
+                                fontSize: 'var(--text-2xs)',
                               }}
                               title="Tool call — click to view query & results"
                             >
                               <span style={{
-                                padding: '0 4px', borderRadius: 2, fontWeight: 600, fontSize: '0.55rem',
+                                padding: '0 4px', borderRadius: 2, fontWeight: 600, fontSize: 'var(--text-2xs)',
                                 background: 'rgba(14,165,233,0.12)', color: '#0ea5e9',
                               }}>
                                 🔍
                               </span>
                               <span style={{ fontWeight: 500 }}>{tc.toolName ?? 'lookup_citation'}</span>
-                              <span style={{ color: 'var(--text-muted)', fontSize: '0.55rem' }}>
+                              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
                                 #{(tc.toolCallIndex ?? ti) + 1}
                               </span>
                               {tc.timeMs != null && (
-                                <span style={{ color: 'var(--text-muted)', fontSize: '0.55rem' }}>
+                                <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
                                   {(tc.timeMs / 1000).toFixed(1)}s
                                 </span>
                               )}
                               {tc.empty && (
                                 <span style={{
-                                  padding: '0 3px', borderRadius: 2, fontWeight: 700, fontSize: '0.5rem',
+                                  padding: '0 3px', borderRadius: 2, fontWeight: 700, fontSize: 'var(--text-2xs)',
                                   background: 'rgba(245,158,11,0.15)', color: '#f59e0b',
                                 }}>
                                   EMPTY
@@ -554,18 +554,18 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                                 display: 'flex', alignItems: 'center', gap: 4,
                                 background: scrubSelected ? 'rgba(59,130,246,0.12)' : 'transparent',
                                 borderLeft: scrubSelected ? '2px solid #3b82f6' : '2px solid transparent',
-                                fontSize: '0.62rem',
+                                fontSize: 'var(--text-2xs)',
                               }}
                               title="Scrub diff — pre-scrub vs post-scrub draft"
                             >
                               <span style={{
-                                padding: '0 4px', borderRadius: 2, fontWeight: 600, fontSize: '0.55rem',
+                                padding: '0 4px', borderRadius: 2, fontWeight: 600, fontSize: 'var(--text-2xs)',
                                 background: 'rgba(168,85,247,0.12)', color: '#a855f7',
                               }}>
                                 ✂
                               </span>
                               <span style={{ fontWeight: 500 }}>Scrub</span>
-                              <span style={{ color: 'var(--text-muted)', fontSize: '0.55rem' }}>
+                              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
                                 pre → post
                               </span>
                             </div>
@@ -608,23 +608,23 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                       display: 'flex', alignItems: 'center', gap: 6,
                       background: vSelected ? 'rgba(59,130,246,0.12)' : 'transparent',
                       borderLeft: vSelected ? '2px solid #3b82f6' : '2px solid transparent',
-                      fontSize: '0.62rem',
+                      fontSize: 'var(--text-2xs)',
                     }}
                     title={`Orchestration judge verdict for attempt ${v.attemptIndex + 1}`}
                   >
-                    <span style={{ fontSize: '0.65rem' }}>⚖</span>
+                    <span style={{ fontSize: 'var(--text-2xs)' }}>⚖</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>
                       Attempt {v.attemptIndex + 1}
                     </span>
                     <span style={{
-                      padding: '0 5px', borderRadius: 3, fontWeight: 700, fontSize: '0.55rem',
+                      padding: '0 5px', borderRadius: 3, fontWeight: 700, fontSize: 'var(--text-2xs)',
                       background: isAccept ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
                       color: isAccept ? '#22c55e' : '#ef4444',
                       textTransform: 'uppercase',
                     }}>
                       {v.validation.outcome.replace(/_/g, ' ')}
                     </span>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.55rem' }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
                       ({v.validation.process_reward.toFixed(2)})
                     </span>
                   </div>

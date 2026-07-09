@@ -124,7 +124,7 @@ export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
               return (
                 <span
                   title={`Concession asymmetry: ${a.toFixed(3)}\nAttack target strength minus conceded claim strength.\nHigh asymmetry = conceding weak claims while pressing strong ones.`}
-                  style={{ fontSize: '0.58rem', padding: '1px 6px', borderRadius: 10, background: `${color}15`, color, fontWeight: 600 }}
+                  style={{ fontSize: 'var(--text-2xs)', padding: '1px 6px', borderRadius: 10, background: `${color}15`, color, fontWeight: 600 }}
                 >
                   asym: {a.toFixed(2)} ({label})
                 </span>
@@ -141,7 +141,7 @@ export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
                   onClick={() => items.length > 0 && toggle(pov, cat.key)}
                   style={{
                     padding: '2px 8px', borderRadius: 10, border: 'none',
-                    fontSize: '0.65rem', fontWeight: 600, cursor: items.length > 0 ? 'pointer' : 'default',
+                    fontSize: 'var(--text-2xs)', fontWeight: 600, cursor: items.length > 0 ? 'pointer' : 'default',
                     background: isOpen ? cat.color : `${cat.color}18`,
                     color: isOpen ? '#fff' : cat.color,
                     opacity: items.length === 0 ? 0.4 : 1,
@@ -174,7 +174,7 @@ export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
                         <span style={{
                           padding: '0 4px', borderRadius: 3, marginRight: 4,
                           background: 'rgba(59,130,246,0.12)', color: '#3b82f6',
-                          fontSize: '0.6rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                          fontSize: 'var(--text-2xs)', fontWeight: 700, fontFamily: 'var(--font-mono)',
                         }}>{nodeId}</span>
                       )}
                       {item}

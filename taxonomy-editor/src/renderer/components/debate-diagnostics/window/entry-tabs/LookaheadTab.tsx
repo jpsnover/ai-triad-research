@@ -21,7 +21,7 @@ export function LookaheadTab(props: LookaheadTabProps) {
         }}>{lookaheadDiag.final_pass ? '✓ PASS' : '✗ FAIL'}</span>
         <span>LOOKAHEAD</span>
         <span>{(lookaheadDiag.elapsed_ms / 1000).toFixed(1)}s</span>
-        {lookaheadDiag.regen_triggered && <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: '0.62rem' }}>REGEN TRIGGERED</span>}
+        {lookaheadDiag.regen_triggered && <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>REGEN TRIGGERED</span>}
       </div>
 
       {/* Utility Delta Gauge */}
@@ -43,7 +43,7 @@ export function LookaheadTab(props: LookaheadTabProps) {
               <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '50%', background: 'rgba(128,128,128,0.15)', borderRight: '2px solid var(--text-muted)' }} />
               <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${pct}%`, background: deltaColor, borderRadius: 5, transition: 'width 0.3s' }} />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
               <span>threshold: {r.threshold.toFixed(3)}</span>
               <span>{r.pass ? '✓ passed' : '✗ below threshold'}</span>
             </div>
@@ -94,7 +94,7 @@ export function LookaheadTab(props: LookaheadTabProps) {
         if (assessments.length === 0) return null;
         return (
           <div style={{ margin: '6px 0', padding: '6px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontSize: '0.7rem', lineHeight: 1.5 }}>
-            <div style={{ fontWeight: 600, fontSize: '0.68rem', marginBottom: 4, color: 'var(--text-muted)' }}>STRATEGIC ASSESSMENT</div>
+            <div style={{ fontWeight: 600, fontSize: 'var(--text-2xs)', marginBottom: 4, color: 'var(--text-muted)' }}>STRATEGIC ASSESSMENT</div>
             {assessments.map((a, i) => (
               <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${a.includes('Pattern:') ? (r.pass ? '#16a34a40' : '#dc262640') : '#6b728040'}` }}>
                 {a}
@@ -106,7 +106,7 @@ export function LookaheadTab(props: LookaheadTabProps) {
 
       {/* Utility Breakdown */}
       <details open style={{ marginTop: 6 }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem' }}>Utility Breakdown</summary>
-        <table style={{ width: '100%', fontSize: '0.68rem', borderCollapse: 'collapse', marginTop: 4 }}>
+        <table style={{ width: '100%', fontSize: 'var(--text-2xs)', borderCollapse: 'collapse', marginTop: 4 }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
               <th style={{ textAlign: 'left', padding: '2px 6px' }}>Component</th>
@@ -137,7 +137,7 @@ export function LookaheadTab(props: LookaheadTabProps) {
                   <td style={{ textAlign: 'right', padding: '2px 6px' }}>{b.toFixed(3)}</td>
                   <td style={{ textAlign: 'right', padding: '2px 6px' }}>{a.toFixed(3)}</td>
                   <td style={{ textAlign: 'right', padding: '2px 6px', color: d > 0 ? '#16a34a' : d < 0 ? '#dc2626' : 'var(--text-muted)' }}>{d >= 0 ? '+' : ''}{d.toFixed(3)}</td>
-                  <td style={{ padding: '2px 6px', fontSize: '0.62rem', color: hintColor, fontStyle: 'italic' }}>{hint}</td>
+                  <td style={{ padding: '2px 6px', fontSize: 'var(--text-2xs)', color: hintColor, fontStyle: 'italic' }}>{hint}</td>
                 </tr>
               );
             })}
@@ -154,7 +154,7 @@ export function LookaheadTab(props: LookaheadTabProps) {
         return (
           <details open style={{ marginTop: 6 }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem' }}>
             Tentative Claims ({claims.length})
-            <span style={{ fontWeight: 400, fontSize: '0.62rem', marginLeft: 8, color: 'var(--text-muted)' }}>
+            <span style={{ fontWeight: 400, fontSize: 'var(--text-2xs)', marginLeft: 8, color: 'var(--text-muted)' }}>
               {strongCount > 0 && <span style={{ color: '#16a34a' }}>{strongCount} strong</span>}
               {strongCount > 0 && weakCount > 0 && ', '}
               {weakCount > 0 && <span style={{ color: '#dc2626' }}>{weakCount} weak</span>}
@@ -171,22 +171,22 @@ export function LookaheadTab(props: LookaheadTabProps) {
               return (
                 <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: `2px solid ${claimColor}40`, fontSize: '0.7rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, flexWrap: 'wrap' }}>
-                    <span style={{ fontFamily: 'monospace', fontSize: '0.6rem', color: claimColor, fontWeight: 600 }}>{c.strength.toFixed(2)}</span>
-                    <span style={{ fontSize: '0.58rem', padding: '0 4px', borderRadius: 3, background: `${claimColor}15`, color: claimColor, fontWeight: 600 }}>{label}</span>
+                    <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: claimColor, fontWeight: 600 }}>{c.strength.toFixed(2)}</span>
+                    <span style={{ fontSize: 'var(--text-2xs)', padding: '0 4px', borderRadius: 3, background: `${claimColor}15`, color: claimColor, fontWeight: 600 }}>{label}</span>
                     {marginalDelta != null && (
-                      <span style={{ fontFamily: 'monospace', fontSize: '0.58rem', color: marginalDelta >= 0 ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: marginalDelta >= 0 ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
                         {'Δ'}u {marginalDelta >= 0 ? '+' : ''}{marginalDelta.toFixed(4)}
                       </span>
                     )}
                   </div>
                   <Highlight text={c.text} />
                   {reason && (
-                    <div style={{ fontSize: '0.58rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2, paddingLeft: 4 }}>{reason}</div>
+                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2, paddingLeft: 4 }}>{reason}</div>
                   )}
                 </div>
               );
             })}
-            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 4 }}>
+            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4 }}>
               Tentative network: {lookaheadDiag.first_attempt.tentative_network_size.nodes} nodes, {lookaheadDiag.first_attempt.tentative_network_size.edges} edges
             </div>
           </details>
@@ -195,7 +195,7 @@ export function LookaheadTab(props: LookaheadTabProps) {
 
       {/* Attempt Progression Summary */}
       {lookaheadDiag.per_claim_analysis && lookaheadDiag.per_claim_analysis.length > 0 && (
-        <div style={{ margin: '6px 0', padding: '6px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+        <div style={{ margin: '6px 0', padding: '6px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
           {lookaheadDiag.per_claim_analysis.map((pca: any, idx: number) => {
             const sCount = pca.perClaim.filter((pc: any) => pc.classification === 'STRONG').length;
             const wCount = pca.perClaim.filter((pc: any) => pc.classification === 'WEAK').length;
@@ -224,9 +224,9 @@ export function LookaheadTab(props: LookaheadTabProps) {
           return (
             <div key={ai} style={{ marginTop: 8, padding: 8, borderLeft: '3px solid #d97706', background: 'rgba(245,158,11,0.06)', borderRadius: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: '0.68rem' }}>REGEN {ai + 1}/{attempts.length}</span>
+                <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>REGEN {ai + 1}/{attempts.length}</span>
                 <span style={{
-                  padding: '1px 6px', borderRadius: 3, fontWeight: 600, fontSize: '0.62rem',
+                  padding: '1px 6px', borderRadius: 3, fontWeight: 600, fontSize: 'var(--text-2xs)',
                   background: ra.pass ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)',
                   color: ra.pass ? '#16a34a' : '#dc2626',
                 }}>{ra.pass ? '✓ PASS' : '✗ FAIL'}</span>
@@ -238,27 +238,27 @@ export function LookaheadTab(props: LookaheadTabProps) {
 
               {/* Guidance injected into this retry */}
               {guidancePca && (guidancePca.analysis.strongFoundations.length > 0 || guidancePca.analysis.avoidClaims.length > 0) && (
-                <details style={{ marginTop: 4 }}><summary style={{ cursor: 'pointer', fontSize: '0.68rem', color: 'var(--text-muted)' }}>Guidance Injected</summary>
+                <details style={{ marginTop: 4 }}><summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Guidance Injected</summary>
                   {guidancePca.analysis.strongFoundations.length > 0 && (
                     <div style={{ marginTop: 2 }}>
-                      <div style={{ fontSize: '0.6rem', fontWeight: 600, color: '#16a34a', marginBottom: 2 }}>STRONG FOUNDATIONS</div>
+                      <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, color: '#16a34a', marginBottom: 2 }}>STRONG FOUNDATIONS</div>
                       {guidancePca.analysis.strongFoundations.map((sf: any, si: number) => (
-                        <div key={si} style={{ margin: '2px 0', paddingLeft: 8, borderLeft: '2px solid rgba(22,163,74,0.3)', fontSize: '0.62rem' }}>
-                          <span style={{ fontFamily: 'monospace', fontSize: '0.54rem', color: '#16a34a', marginRight: 4 }}>{'Δ'}u +{sf.marginal_delta.toFixed(4)}</span>
+                        <div key={si} style={{ margin: '2px 0', paddingLeft: 8, borderLeft: '2px solid rgba(22,163,74,0.3)', fontSize: 'var(--text-2xs)' }}>
+                          <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: '#16a34a', marginRight: 4 }}>{'Δ'}u +{sf.marginal_delta.toFixed(4)}</span>
                           <span>{sf.text.slice(0, 80)}{sf.text.length > 80 ? '…' : ''}</span>
-                          <div style={{ fontSize: '0.54rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{sf.reason}</div>
+                          <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>{sf.reason}</div>
                         </div>
                       ))}
                     </div>
                   )}
                   {guidancePca.analysis.avoidClaims.length > 0 && (
                     <div style={{ marginTop: 4 }}>
-                      <div style={{ fontSize: '0.6rem', fontWeight: 600, color: '#dc2626', marginBottom: 2 }}>DO NOT USE</div>
+                      <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, color: '#dc2626', marginBottom: 2 }}>DO NOT USE</div>
                       {guidancePca.analysis.avoidClaims.map((ac: any, aci: number) => (
-                        <div key={aci} style={{ margin: '2px 0', paddingLeft: 8, borderLeft: '2px solid rgba(220,38,38,0.3)', fontSize: '0.62rem' }}>
-                          <span style={{ fontFamily: 'monospace', fontSize: '0.54rem', color: '#dc2626', marginRight: 4 }}>{'Δ'}u {ac.marginal_delta.toFixed(4)}</span>
+                        <div key={aci} style={{ margin: '2px 0', paddingLeft: 8, borderLeft: '2px solid rgba(220,38,38,0.3)', fontSize: 'var(--text-2xs)' }}>
+                          <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: '#dc2626', marginRight: 4 }}>{'Δ'}u {ac.marginal_delta.toFixed(4)}</span>
                           <span>{ac.text.slice(0, 80)}{ac.text.length > 80 ? '…' : ''}</span>
-                          <div style={{ fontSize: '0.54rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{ac.reason}</div>
+                          <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>{ac.reason}</div>
                         </div>
                       ))}
                     </div>
@@ -268,16 +268,16 @@ export function LookaheadTab(props: LookaheadTabProps) {
 
               {/* Regen claims with per-claim analysis if available */}
               {ra.tentative_claims.length > 0 && (
-                <details style={{ marginTop: 4 }}><summary style={{ cursor: 'pointer', fontSize: '0.68rem', color: 'var(--text-muted)' }}>Regen Claims ({ra.tentative_claims.length})</summary>
+                <details style={{ marginTop: 4 }}><summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Regen Claims ({ra.tentative_claims.length})</summary>
                   {ra.tentative_claims.map((c: any, ci: number) => {
                     const pc = regenPca?.perClaim[ci];
                     const pcColor = pc ? (pc.classification === 'STRONG' ? '#16a34a' : '#dc2626') : 'var(--text-muted)';
                     return (
-                      <div key={ci} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${pcColor}40`, fontSize: '0.68rem' }}>
+                      <div key={ci} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${pcColor}40`, fontSize: 'var(--text-2xs)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 1 }}>
-                          <span style={{ fontFamily: 'monospace', fontSize: '0.58rem', color: pcColor, fontWeight: 600 }}>{c.strength.toFixed(2)}</span>
-                          {pc && <span style={{ fontSize: '0.54rem', padding: '0 3px', borderRadius: 2, background: `${pcColor}15`, color: pcColor, fontWeight: 600 }}>{pc.classification}</span>}
-                          {pc && <span style={{ fontFamily: 'monospace', fontSize: '0.54rem', color: pcColor }}>{'Δ'}u {pc.marginal_delta >= 0 ? '+' : ''}{pc.marginal_delta.toFixed(4)}</span>}
+                          <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: pcColor, fontWeight: 600 }}>{c.strength.toFixed(2)}</span>
+                          {pc && <span style={{ fontSize: 'var(--text-2xs)', padding: '0 3px', borderRadius: 2, background: `${pcColor}15`, color: pcColor, fontWeight: 600 }}>{pc.classification}</span>}
+                          {pc && <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: pcColor }}>{'Δ'}u {pc.marginal_delta >= 0 ? '+' : ''}{pc.marginal_delta.toFixed(4)}</span>}
                         </div>
                         <Highlight text={c.text} />
                       </div>
@@ -303,10 +303,10 @@ export function LookaheadTab(props: LookaheadTabProps) {
 
       {/* Raw Data */}
       <details style={{ marginTop: 8 }}>
-        <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           Raw Data <CopyButton text={JSON.stringify(lookaheadDiag, null, 2)} />
         </summary>
-        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{JSON.stringify(lookaheadDiag, null, 2)}</pre>
+        <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{JSON.stringify(lookaheadDiag, null, 2)}</pre>
       </details>
     </div>
   );

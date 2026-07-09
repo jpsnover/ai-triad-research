@@ -26,7 +26,7 @@ export function DebateExchangeRich({ content }: { content: string }) {
   }, [content]);
 
   if (segments.length <= 1 && !segments[0]?.speaker) {
-    return <pre style={{ fontSize: '0.68rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 300, overflow: 'auto', margin: '4px 0 8px', padding: '6px 8px', background: 'var(--bg-primary)', borderRadius: 4, border: '1px solid var(--border)' }}>{content}</pre>;
+    return <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 300, overflow: 'auto', margin: '4px 0 8px', padding: '6px 8px', background: 'var(--bg-primary)', borderRadius: 4, border: '1px solid var(--border)' }}>{content}</pre>;
   }
 
   return (
@@ -42,11 +42,11 @@ export function DebateExchangeRich({ content }: { content: string }) {
                 {seg.speaker}
               </span>
               {seg.tag && (
-                <span style={{ marginLeft: 6, fontSize: '0.6rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{seg.tag}</span>
+                <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>{seg.tag}</span>
               )}
             </div>
           )}
-          <div style={{ fontSize: '0.68rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'var(--text-primary)', lineHeight: 1.45 }}>
+          <div style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'var(--text-primary)', lineHeight: 1.45 }}>
             {seg.text}
           </div>
         </div>

@@ -181,7 +181,7 @@ function EditCard({ edit, pover, editIndex }: {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
         <span style={{
           padding: '1px 6px', borderRadius: 4,
-          fontSize: '0.65rem', fontWeight: 700,
+          fontSize: 'var(--text-2xs)', fontWeight: 700,
           background: `${typeInfo.color}22`, color: typeInfo.color,
         }}>
           {typeInfo.label}
@@ -190,12 +190,12 @@ function EditCard({ edit, pover, editIndex }: {
           {edit.category}
         </span>
         {edit.node_id && (
-          <code style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{edit.node_id}</code>
+          <code style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{edit.node_id}</code>
         )}
         {edit.confidence && CONFIDENCE_STYLES[edit.confidence] && (
           <span style={{
             padding: '1px 5px', borderRadius: 4,
-            fontSize: '0.6rem', fontWeight: 700,
+            fontSize: 'var(--text-2xs)', fontWeight: 700,
             background: CONFIDENCE_STYLES[edit.confidence].bg,
             color: CONFIDENCE_STYLES[edit.confidence].color,
             border: `1px solid ${CONFIDENCE_STYLES[edit.confidence].color}44`,
@@ -204,11 +204,11 @@ function EditCard({ edit, pover, editIndex }: {
           </span>
         )}
         {edit.status === 'approved' && (
-          <span style={{ fontSize: '0.65rem', color: '#22c55e', fontWeight: 600, marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ fontSize: 'var(--text-2xs)', color: '#22c55e', fontWeight: 600, marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
             Applied
             {edit.edit_type === 'add' && trackedEnrichNodeId && (
               <code
-                style={{ fontSize: '0.6rem', padding: '1px 5px', borderRadius: 3, background: '#22c55e22', cursor: 'pointer' }}
+                style={{ fontSize: 'var(--text-2xs)', padding: '1px 5px', borderRadius: 3, background: '#22c55e22', cursor: 'pointer' }}
                 title={`Navigate to ${trackedEnrichNodeId}`}
                 onClick={() => {
                   const prefix = trackedEnrichNodeId.split('-')[0];
@@ -220,7 +220,7 @@ function EditCard({ edit, pover, editIndex }: {
           </span>
         )}
         {edit.status === 'dismissed' && (
-          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>Dismissed</span>
+          <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginLeft: 'auto' }}>Dismissed</span>
         )}
       </div>
 
@@ -276,7 +276,7 @@ function EditCard({ edit, pover, editIndex }: {
             whiteSpace: 'pre-wrap', borderLeft: '3px solid rgba(239,68,68,0.3)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-              <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#ef4444' }}>CURRENT</span>
+              <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: '#ef4444' }}>CURRENT</span>
               <DescriptionToggle
                 mode={descMode}
                 onToggle={setDescMode}
@@ -284,7 +284,7 @@ function EditCard({ edit, pover, editIndex }: {
               />
             </div>
             {resolved_desc.isGenerating && (
-              <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 2 }}>
+              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 2 }}>
                 Plain description generating…
               </div>
             )}
@@ -302,11 +302,11 @@ function EditCard({ edit, pover, editIndex }: {
           borderLeft: '3px solid rgba(59,130,246,0.3)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-            <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#3b82f6' }}>EDITED</span>
+            <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: '#3b82f6' }}>EDITED</span>
             {isModified && (
               <span style={{
                 padding: '0 4px', borderRadius: 4,
-                fontSize: '0.6rem', fontWeight: 600,
+                fontSize: 'var(--text-2xs)', fontWeight: 600,
                 background: '#3b82f6', color: '#fff',
               }}>Modified</span>
             )}
@@ -335,11 +335,11 @@ function EditCard({ edit, pover, editIndex }: {
           {edit.current_description && edit.edit_type !== 'add' && edit.current_description !== edit.proposed_description ? (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#22c55e' }}>PROPOSED</span>
+                <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: '#22c55e' }}>PROPOSED</span>
                 {!resolved && (
                   <button
                     className="btn btn-sm btn-ghost"
-                    style={{ fontSize: '0.6rem', padding: '0 4px', marginLeft: 'auto' }}
+                    style={{ fontSize: 'var(--text-2xs)', padding: '0 4px', marginLeft: 'auto' }}
                     onClick={() => setEditing(true)}
                   >&#9998; Edit</button>
                 )}
@@ -377,7 +377,7 @@ function EditCard({ edit, pover, editIndex }: {
                   <span style={{ flex: 1 }} />
                   <button
                     className="btn btn-sm btn-ghost"
-                    style={{ fontSize: '0.6rem', padding: '0 4px' }}
+                    style={{ fontSize: 'var(--text-2xs)', padding: '0 4px' }}
                     onClick={() => setEditing(true)}
                   >&#9998; Edit</button>
                 </div>
@@ -395,12 +395,12 @@ function EditCard({ edit, pover, editIndex }: {
       {/* DOLCE compliance */}
       {complianceViolations.length > 0 && (
         <div style={{
-          fontSize: '0.65rem', padding: '4px 8px', marginBottom: 6,
+          fontSize: 'var(--text-2xs)', padding: '4px 8px', marginBottom: 6,
           background: complianceErrors.length > 0 ? 'rgba(239,68,68,0.06)' : 'rgba(245,158,11,0.06)',
           borderRadius: 4,
           borderLeft: `3px solid ${complianceErrors.length > 0 ? 'rgba(239,68,68,0.4)' : 'rgba(245,158,11,0.4)'}`,
         }}>
-          <div style={{ fontWeight: 700, fontSize: '0.6rem', color: complianceErrors.length > 0 ? '#ef4444' : '#f59e0b', marginBottom: 3 }}>
+          <div style={{ fontWeight: 700, fontSize: 'var(--text-2xs)', color: complianceErrors.length > 0 ? '#ef4444' : '#f59e0b', marginBottom: 3 }}>
             DOLCE Compliance ({complianceErrors.length} error{complianceErrors.length !== 1 ? 's' : ''}, {complianceWarnings.length} warning{complianceWarnings.length !== 1 ? 's' : ''})
           </div>
           {complianceViolations.map((v, i) => (
@@ -417,7 +417,7 @@ function EditCard({ edit, pover, editIndex }: {
       )}
       {complianceViolations.length === 0 && (
         <div style={{
-          fontSize: '0.6rem', padding: '3px 8px', marginBottom: 6,
+          fontSize: 'var(--text-2xs)', padding: '3px 8px', marginBottom: 6,
           color: '#22c55e', fontWeight: 600,
         }}>
           {'\u2713'} DOLCE compliant
@@ -425,13 +425,13 @@ function EditCard({ edit, pover, editIndex }: {
       )}
 
       {/* Rationale */}
-      <div style={{ fontSize: '0.68rem', color: 'var(--text-primary)', fontStyle: 'italic', marginBottom: 4 }}>
+      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-primary)', fontStyle: 'italic', marginBottom: 4 }}>
         {edit.rationale}
       </div>
 
       {/* Evidence entries */}
       {edit.evidence_entries && edit.evidence_entries.length > 0 && (
-        <div style={{ fontSize: '0.63rem', color: 'var(--text-muted)', marginBottom: 8 }}>
+        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 8 }}>
           <div>Evidence: {edit.evidence_entries.map((e, i) => (
             <button
               key={i}
@@ -440,7 +440,7 @@ function EditCard({ edit, pover, editIndex }: {
                 padding: '0 4px', marginRight: 3, borderRadius: 3,
                 background: expandedEvidence.has(e) ? 'var(--color-acc, #3b82f6)' : 'var(--bg-secondary)',
                 color: expandedEvidence.has(e) ? '#fff' : 'var(--color-acc, #3b82f6)',
-                fontSize: '0.63rem',
+                fontSize: 'var(--text-2xs)',
                 fontFamily: 'monospace', cursor: 'pointer',
                 textDecoration: expandedEvidence.has(e) ? 'none' : 'underline',
               }}
@@ -462,7 +462,7 @@ function EditCard({ edit, pover, editIndex }: {
               <div key={e} style={{
                 marginTop: 4, padding: '4px 8px', borderRadius: 4,
                 background: 'var(--bg-secondary)', borderLeft: '3px solid var(--color-acc, #3b82f6)',
-                fontSize: '0.62rem', lineHeight: 1.4, color: 'var(--text-primary)',
+                fontSize: 'var(--text-2xs)', lineHeight: 1.4, color: 'var(--text-primary)',
               }}>
                 <span style={{ fontWeight: 700, fontFamily: 'monospace', marginRight: 4 }}>{e}</span>
                 <span style={{ color: 'var(--text-muted)', marginRight: 4 }}>({node.speaker})</span>
@@ -476,7 +476,7 @@ function EditCard({ edit, pover, editIndex }: {
 
       {/* Regenerate phrases toggle — revise/qualify only */}
       {showRegenerateToggle && (
-        <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 4, cursor: 'pointer' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 4, cursor: 'pointer' }}>
           <input
             type="checkbox"
             checked={regeneratePhrases}
@@ -546,18 +546,18 @@ function EditCard({ edit, pover, editIndex }: {
       )}
       {/* Enrichment status indicator */}
       {enrichStatus?.status === 'pending' && (
-        <div style={{ fontSize: '0.68rem', color: '#3b82f6', marginTop: 4, padding: '4px 8px', background: 'rgba(59,130,246,0.06)', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ fontSize: 'var(--text-2xs)', color: '#3b82f6', marginTop: 4, padding: '4px 8px', background: 'rgba(59,130,246,0.06)', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ animation: 'pulse 1.5s infinite', display: 'inline-block' }}>{'⧗'}</span>
           Enriching node — generating attributes & phrases…
         </div>
       )}
       {enrichStatus?.status === 'success' && (
-        <div style={{ fontSize: '0.68rem', color: '#22c55e', marginTop: 4, padding: '4px 8px', background: 'rgba(34,197,94,0.06)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: 'var(--text-2xs)', color: '#22c55e', marginTop: 4, padding: '4px 8px', background: 'rgba(34,197,94,0.06)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {'✓'} Phrases regenerated successfully
             {edit.edit_type === 'add' && trackedEnrichNodeId && (
               <code
-                style={{ fontSize: '0.6rem', padding: '1px 6px', borderRadius: 4, background: '#22c55e22', color: '#22c55e', cursor: 'pointer', fontWeight: 600 }}
+                style={{ fontSize: 'var(--text-2xs)', padding: '1px 6px', borderRadius: 4, background: '#22c55e22', color: '#22c55e', cursor: 'pointer', fontWeight: 600 }}
                 title={`Navigate to ${trackedEnrichNodeId}`}
                 onClick={() => {
                   const prefix = trackedEnrichNodeId.split('-')[0];
@@ -569,18 +569,18 @@ function EditCard({ edit, pover, editIndex }: {
           </span>
           <button
             className="btn btn-sm btn-ghost"
-            style={{ fontSize: '0.6rem', padding: '0 4px', color: 'var(--text-muted)' }}
+            style={{ fontSize: 'var(--text-2xs)', padding: '0 4px', color: 'var(--text-muted)' }}
             onClick={() => enrichNodeId && clearEnrichmentStatus(enrichNodeId)}
           >{'✕'}</button>
         </div>
       )}
       {enrichStatus?.status === 'error' && (
-        <div style={{ fontSize: '0.68rem', color: '#ef4444', marginTop: 4, padding: '4px 8px', background: 'rgba(239,68,68,0.06)', borderRadius: 4 }}>
+        <div style={{ fontSize: 'var(--text-2xs)', color: '#ef4444', marginTop: 4, padding: '4px 8px', background: 'rgba(239,68,68,0.06)', borderRadius: 4 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span>{'✗'} Enrichment failed: {enrichStatus.error}</span>
             <button
               className="btn btn-sm"
-              style={{ fontSize: '0.6rem', padding: '1px 8px', marginLeft: 8 }}
+              style={{ fontSize: 'var(--text-2xs)', padding: '1px 8px', marginLeft: 8 }}
               onClick={() => {
                 if (!enrichNodeId) return;
                 const povKey = pover as 'accelerationist' | 'safetyist' | 'skeptic';
@@ -597,7 +597,7 @@ function EditCard({ edit, pover, editIndex }: {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
               <button
                 className="btn btn-sm"
-                style={{ fontSize: '0.65rem', padding: '2px 10px' }}
+                style={{ fontSize: 'var(--text-2xs)', padding: '2px 10px' }}
                 disabled={fixing}
                 title="Remove the dangling references blocking this save, then retry"
                 onClick={async () => {
@@ -616,7 +616,7 @@ function EditCard({ edit, pover, editIndex }: {
               >
                 {fixing ? 'Fixing…' : 'Fix it'}
               </button>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.62rem' }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
                 Removes edges that point to nonexistent nodes, then saves.
               </span>
             </div>
@@ -716,10 +716,10 @@ function ConsensusCard({ cluster }: { cluster: ConsensusCluster }) {
         <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6366f1' }}>
           Consensus Detected
         </span>
-        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4 }}>
+        <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4 }}>
           {cluster.proposals.length} POVs converge
         </span>
-        <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+        <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginLeft: 'auto' }}>
           similarity: {scores}
         </span>
       </div>
@@ -740,7 +740,7 @@ function ConsensusCard({ cluster }: { cluster: ConsensusCluster }) {
               <div style={{ fontSize: '0.7rem', fontWeight: 600, marginBottom: 3 }}>
                 {p.proposed_label}
               </div>
-              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                 {p.proposed_description.slice(0, 200)}{p.proposed_description.length > 200 ? '…' : ''}
               </div>
             </div>
@@ -765,7 +765,7 @@ function ConsensusCard({ cluster }: { cluster: ConsensusCluster }) {
         >
           Keep Separate
         </button>
-        {error && <span style={{ fontSize: '0.65rem', color: '#ef4444' }}>{error}</span>}
+        {error && <span style={{ fontSize: 'var(--text-2xs)', color: '#ef4444' }}>{error}</span>}
       </div>
     </div>
   );
@@ -905,7 +905,7 @@ export function ReflectionsPanel({ onClose }: { onClose: () => void }) {
           )}
 
           {reflections.length > 1 && (
-            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 8, padding: '4px 8px', background: 'var(--bg-subtle)', borderRadius: 4 }}>
+            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 8, padding: '4px 8px', background: 'var(--bg-subtle)', borderRadius: 4 }}>
               Reflection order: {reflections.map((r, i) => r.label).join(' → ')}. Each camp sees prior camps&apos; proposals to avoid duplicating the same concept.
             </div>
           )}

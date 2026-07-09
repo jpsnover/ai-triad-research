@@ -51,8 +51,8 @@ export function PlanTab(props: PlanTabProps) {
         return (
           <details open>
             <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(239,68,68,0.15)', color: '#ef4444', fontWeight: 600, fontSize: '0.68rem' }}>OPPONENT INTELLIGENCE</span>
-              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 400 }}>{hints.length} hint{hints.length !== 1 ? 's' : ''}</span>
+              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(239,68,68,0.15)', color: '#ef4444', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>OPPONENT INTELLIGENCE</span>
+              <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontWeight: 400 }}>{hints.length} hint{hints.length !== 1 ? 's' : ''}</span>
             </summary>
             <div style={{ padding: '4px 8px', fontSize: '0.72rem' }}>
               {hints.map((h: string, i: number) => {
@@ -63,7 +63,7 @@ export function PlanTab(props: PlanTabProps) {
                 const typeColor = isTrap ? '#dc2626' : isGap ? '#d97706' : isShift ? '#2563eb' : '#6b7280';
                 return (
                   <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: `2px solid ${typeColor}40` }}>
-                    <span style={{ display: 'inline-block', padding: '0 4px', borderRadius: 3, background: `${typeColor}15`, color: typeColor, fontSize: '0.62rem', fontWeight: 600, marginRight: 6 }}>{typeLabel}</span>
+                    <span style={{ display: 'inline-block', padding: '0 4px', borderRadius: 3, background: `${typeColor}15`, color: typeColor, fontSize: 'var(--text-2xs)', fontWeight: 600, marginRight: 6 }}>{typeLabel}</span>
                     <Highlight text={h} />
                   </div>
                 );
@@ -81,7 +81,7 @@ export function PlanTab(props: PlanTabProps) {
         return (
           <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(245,158,11,0.6)', background: 'rgba(245,158,11,0.08)', borderRadius: 4, fontSize: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: '0.68rem' }}>MODERATOR DIRECTIVE</span>
+              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>MODERATOR DIRECTIVE</span>
             </div>
             {dr && (
               <>
@@ -127,7 +127,7 @@ export function PlanTab(props: PlanTabProps) {
           {((planStage.work_product as Record<string, unknown>).planned_moves as { move: string; target?: string; detail: string }[]).map((m, i) => (
             <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(168,85,247,0.3)' }}>
               <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,0.2)', color: '#a855f7', fontSize: '0.7rem', fontWeight: 600 }}>{m.move}</span>
-              {m.target && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>{'→'} {m.target}</span>}
+              {m.target && <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{'→'} {m.target}</span>}
               {m.detail && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}><Highlight text={m.detail} /></div>}
             </div>
           ))}
@@ -142,12 +142,12 @@ export function PlanTab(props: PlanTabProps) {
               {s.evidence && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}><Highlight text={s.evidence} /></div>}
               {s.taxonomy_anchor && (
                 <div style={{ marginTop: 3 }}>
-                  <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>Anchor: </span>
+                  <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Anchor: </span>
                   <button
                     onClick={() => setSelectedTaxRefId(selectedTaxRefId === s.taxonomy_anchor ? null : s.taxonomy_anchor)}
-                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: '0.65rem' }}
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'var(--text-2xs)' }}
                   >{s.taxonomy_anchor}</button>
-                  {(() => { const lbl = (taxNodeMap.get(s.taxonomy_anchor!) as TaxRefNode | undefined)?.label; return lbl ? <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}> — {lbl}</span> : null; })()}
+                  {(() => { const lbl = (taxNodeMap.get(s.taxonomy_anchor!) as TaxRefNode | undefined)?.label; return lbl ? <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}> — {lbl}</span> : null; })()}
                 </div>
               )}
             </div>
@@ -194,7 +194,7 @@ export function PlanTab(props: PlanTabProps) {
             {!isSingle && (
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0 6px',
-                fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600,
+                fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontWeight: 600,
               }}>
                 <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
                 <span>Attempt {ai + 1}{isFinal ? ' (accepted)' : ' (rejected)'}</span>
@@ -204,36 +204,36 @@ export function PlanTab(props: PlanTabProps) {
             )}
             {/* Raw Prompt */}
             <details style={{ marginTop: isSingle ? 8 : 4 }}>
-              <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 Raw Prompt <CopyButton text={attempt.prompt} />
               </summary>
-              <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.prompt}</pre>
+              <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.prompt}</pre>
             </details>
             {/* Raw Response */}
             <details>
-              <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 Raw Response <CopyButton text={attempt.raw_response} />
               </summary>
-              <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.raw_response}</pre>
+              <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.raw_response}</pre>
             </details>
             {/* Validation pass/fail + per-rule details */}
             {valData && (
               <div style={{ marginTop: 4, fontSize: '0.7rem' }}>
                 <span style={{
-                  display: 'inline-block', fontSize: '0.6rem', fontWeight: 700, padding: '1px 6px',
+                  display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '1px 6px',
                   borderRadius: 3, marginRight: 6,
                   color: valData.pass ? '#16a34a' : '#dc2626',
                   background: valData.pass ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)',
                 }}>{valData.pass ? '✓ Pass' : '✗ Fail'}</span>
                 {/* Per-rule details (Plan stage) */}
                 {(valData as { details?: { rule: string; pass: boolean; value?: string }[] }).details && (
-                  <table style={{ marginTop: 4, fontSize: '0.68rem', borderCollapse: 'collapse' }}>
+                  <table style={{ marginTop: 4, fontSize: 'var(--text-2xs)', borderCollapse: 'collapse' }}>
                     <tbody>
                       {(valData as { details: { rule: string; pass: boolean; value?: string }[] }).details.map((d, di) => (
                         <tr key={di}>
                           <td style={{ padding: '1px 4px 1px 0', color: d.pass ? '#16a34a' : '#dc2626', width: 14 }}>{d.pass ? '✓' : '✗'}</td>
                           <td style={{ padding: '1px 6px 1px 0', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{d.rule}</td>
-                          <td style={{ padding: '1px 0', color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.63rem', whiteSpace: 'nowrap' }}>{d.value ?? ''}</td>
+                          <td style={{ padding: '1px 0', color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)', fontSize: 'var(--text-2xs)', whiteSpace: 'nowrap' }}>{d.value ?? ''}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -251,7 +251,7 @@ export function PlanTab(props: PlanTabProps) {
                     return (
                       <li key={hi} style={{ marginBottom: 3 }}>
                         <span style={{
-                          display: 'inline-block', fontSize: '0.6rem', fontWeight: 700,
+                          display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
                           color: ts.color, background: ts.bg, padding: '1px 5px',
                           borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
                         }}>{ts.label}</span>

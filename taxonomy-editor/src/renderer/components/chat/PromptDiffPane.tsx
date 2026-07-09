@@ -132,14 +132,14 @@ function CitationResolutionSummary({ cr }: { cr: CitationResolutionDiagnostics }
     : [removed > 0 ? `${removed} removed` : '', hedged > 0 ? `${hedged} hedged` : ''].filter(Boolean).join(', ');
   return (
     <div style={{ marginTop: 6 }}>
-      <div style={{ fontWeight: 600, fontSize: '0.6rem', marginBottom: 3, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+      <div style={{ fontWeight: 600, fontSize: 'var(--text-2xs)', marginBottom: 3, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
         Citation Resolution
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', fontSize: '0.62rem' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', fontSize: 'var(--text-2xs)' }}>
         <span>
           Path:{' '}
           <span style={{
-            fontWeight: 700, fontSize: '0.58rem', padding: '0 4px', borderRadius: 2,
+            fontWeight: 700, fontSize: 'var(--text-2xs)', padding: '0 4px', borderRadius: 2,
             background: cr.path === 'tool-calling' ? 'rgba(59,130,246,0.12)' : 'rgba(245,158,11,0.12)',
             color: cr.path === 'tool-calling' ? '#3b82f6' : '#f59e0b',
           }}>
@@ -161,7 +161,7 @@ function CitationResolutionSummary({ cr }: { cr: CitationResolutionDiagnostics }
           <span style={{ fontWeight: 600, color: fabColor }}>{fabDetail}</span>
         </span>
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', fontSize: '0.58rem', color: 'var(--text-muted)', marginTop: 2 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
         {cr.tool_calls && cr.tool_calls.length > 0 && (
           <span>
             Tool calls: {cr.tool_calls.length}
@@ -185,26 +185,26 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
 }) {
   if (!validation && !qualityCheck && !orchestrationValidation && !retryTrigger && !citationResolution) {
     return (
-      <div style={{ padding: '6px 8px', color: 'var(--text-muted)', fontSize: '0.62rem', fontStyle: 'italic' }}>
+      <div style={{ padding: '6px 8px', color: 'var(--text-muted)', fontSize: 'var(--text-2xs)', fontStyle: 'italic' }}>
         No validation data
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '4px 8px', fontSize: '0.65rem', overflowY: 'auto' }}>
+    <div style={{ padding: '4px 8px', fontSize: 'var(--text-2xs)', overflowY: 'auto' }}>
       {/* Retry trigger badge + input repair hints */}
       {retryTrigger && retryTrigger !== 'initial' && (() => {
         const tl = TRIGGER_LABEL[retryTrigger];
         return (
           <div style={{ marginBottom: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-              <span style={{ fontWeight: 600, fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              <span style={{ fontWeight: 600, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                 Triggered By
               </span>
               <span style={{
                 display: 'inline-block', padding: '1px 6px', borderRadius: 3,
-                fontWeight: 700, fontSize: '0.58rem', background: tl.bg, color: tl.color,
+                fontWeight: 700, fontSize: 'var(--text-2xs)', background: tl.bg, color: tl.color,
               }}>
                 {tl.text}
               </span>
@@ -212,7 +212,7 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
             {repairHintsIn && repairHintsIn.length > 0 && (
               <ul style={{ margin: '2px 0 0 14px', padding: 0 }}>
                 {repairHintsIn.map((h, i) => (
-                  <li key={i} style={{ marginBottom: 1, color: 'var(--text-secondary)', fontSize: '0.6rem' }}>{humanizeSpeakerIds(h)}</li>
+                  <li key={i} style={{ marginBottom: 1, color: 'var(--text-secondary)', fontSize: 'var(--text-2xs)' }}>{humanizeSpeakerIds(h)}</li>
                 ))}
               </ul>
             )}
@@ -225,7 +225,7 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
           {/* Pass/Fail badge */}
           <span style={{
             display: 'inline-block', padding: '1px 6px', borderRadius: 3,
-            fontWeight: 700, fontSize: '0.6rem',
+            fontWeight: 700, fontSize: 'var(--text-2xs)',
             background: validation.pass ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
             color: validation.pass ? '#22c55e' : '#ef4444',
           }}>
@@ -241,7 +241,7 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
                 return (
                   <li key={i} style={{ marginBottom: 2 }}>
                     <span style={{
-                      display: 'inline-block', fontSize: '0.55rem', fontWeight: 700,
+                      display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
                       color: s.color, background: s.bg, padding: '0 4px',
                       borderRadius: 2, marginRight: 4,
                     }}>{s.label}</span>
@@ -256,7 +256,7 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
           {validation.directive_compliance && (
             <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
               <span style={{
-                fontWeight: 700, fontSize: '0.6rem',
+                fontWeight: 700, fontSize: 'var(--text-2xs)',
                 color: validation.directive_compliance.compliant ? '#22c55e' : '#ef4444',
               }}>
                 {validation.directive_compliance.compliant ? '✓' : '✗'}
@@ -268,13 +268,13 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
           {/* Per-rule details */}
           {validation.details && validation.details.length > 0 && (
             <details style={{ marginTop: 4 }}>
-              <summary style={{ cursor: 'pointer', fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+              <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                 {validation.details.filter(d => d.pass).length}/{validation.details.length} rules passed
               </summary>
               <div style={{ marginTop: 2 }}>
                 {validation.details.map((d, i) => (
                   <div key={i} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                    <span style={{ color: d.pass ? '#22c55e' : '#ef4444', fontWeight: 700, fontSize: '0.6rem' }}>
+                    <span style={{ color: d.pass ? '#22c55e' : '#ef4444', fontWeight: 700, fontSize: 'var(--text-2xs)' }}>
                       {d.pass ? '✓' : '✗'}
                     </span>
                     <span>{d.rule}</span>
@@ -290,13 +290,13 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
       {/* Quality Pre-Check */}
       {qualityCheck && (
         <div style={{ marginTop: validation ? 6 : 0 }}>
-          <div style={{ fontWeight: 600, fontSize: '0.6rem', marginBottom: 2, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+          <div style={{ fontWeight: 600, fontSize: 'var(--text-2xs)', marginBottom: 2, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
             Quality Pre-Check
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {(['grounded', 'falsifiable', 'engages'] as const).map(dim => (
               <span key={dim} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <span style={{ color: qualityCheck[dim] ? '#22c55e' : '#ef4444', fontWeight: 700, fontSize: '0.6rem' }}>
+                <span style={{ color: qualityCheck[dim] ? '#22c55e' : '#ef4444', fontWeight: 700, fontSize: 'var(--text-2xs)' }}>
                   {qualityCheck[dim] ? '✓' : '✗'}
                 </span>
                 <span style={{ textTransform: 'capitalize' }}>{dim}</span>
@@ -316,13 +316,13 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
       {/* Orchestration Validation (judge feedback across the whole turn attempt) */}
       {orchestrationValidation && (
         <div style={{ marginTop: (validation || qualityCheck) ? 6 : 0 }}>
-          <div style={{ fontWeight: 600, fontSize: '0.6rem', marginBottom: 2, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+          <div style={{ fontWeight: 600, fontSize: 'var(--text-2xs)', marginBottom: 2, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
             Orchestration Validation
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
             <span style={{
               display: 'inline-block', padding: '1px 6px', borderRadius: 3,
-              fontWeight: 700, fontSize: '0.6rem',
+              fontWeight: 700, fontSize: 'var(--text-2xs)',
               background: orchestrationValidation.outcome === 'accept'
                 ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
               color: orchestrationValidation.outcome === 'accept'
@@ -330,7 +330,7 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
             }}>
               {orchestrationValidation.outcome.toUpperCase()}
             </span>
-            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
               score: {orchestrationValidation.process_reward.toFixed(2)}
             </span>
           </div>
@@ -344,7 +344,7 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
                 return (
                   <li key={i} style={{ marginBottom: 2 }}>
                     <span style={{
-                      display: 'inline-block', fontSize: '0.55rem', fontWeight: 700,
+                      display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
                       color: s.color, background: s.bg, padding: '0 4px',
                       borderRadius: 2, marginRight: 4,
                     }}>{s.label}</span>
@@ -357,7 +357,7 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
 
           {/* Dimensions breakdown */}
           <details style={{ marginTop: 2 }}>
-            <summary style={{ cursor: 'pointer', fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+            <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
               Dimensions
               {' '}
               {(['schema', 'grounding', 'advancement', 'clarifies'] as const)
@@ -375,7 +375,7 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
                 const items = 'issues' in d ? d.issues : d.signals;
                 return (
                   <div key={dim} style={{ marginBottom: 2 }}>
-                    <span style={{ color: d.pass ? '#22c55e' : '#ef4444', fontWeight: 700, fontSize: '0.6rem' }}>
+                    <span style={{ color: d.pass ? '#22c55e' : '#ef4444', fontWeight: 700, fontSize: 'var(--text-2xs)' }}>
                       {d.pass ? '✓' : '✗'}
                     </span>
                     {' '}
@@ -509,7 +509,7 @@ function ValidationPanelContainer({ node, height, onResize, onFind }: {
       height: collapsed ? 'auto' : height,
       borderTop: '1px solid var(--border-color)',
       background: 'var(--bg-secondary)',
-      fontSize: '0.65rem',
+      fontSize: 'var(--text-2xs)',
       display: 'flex', flexDirection: 'column',
       overflow: 'hidden',
     }}>
@@ -531,16 +531,16 @@ function ValidationPanelContainer({ node, height, onResize, onFind }: {
         onClick={() => setCollapsed(c => !c)}
         style={{
           cursor: 'pointer', padding: '3px 8px', flexShrink: 0,
-          fontWeight: 600, fontSize: '0.62rem',
+          fontWeight: 600, fontSize: 'var(--text-2xs)',
           color: 'var(--text-muted)', userSelect: 'none',
           display: 'flex', alignItems: 'center', gap: 4,
         }}
       >
-        <span style={{ fontSize: '0.55rem' }}>{collapsed ? '▶' : '▼'}</span>
+        <span style={{ fontSize: 'var(--text-2xs)' }}>{collapsed ? '▶' : '▼'}</span>
         Validation
         {node.validation && (
           <span style={{
-            fontWeight: 700, fontSize: '0.58rem',
+            fontWeight: 700, fontSize: 'var(--text-2xs)',
             color: node.validation.pass ? '#22c55e' : '#ef4444',
           }}>
             {node.validation.pass ? '✓' : '✗'}
@@ -548,7 +548,7 @@ function ValidationPanelContainer({ node, height, onResize, onFind }: {
         )}
         {node.orchestrationValidation && (
           <span style={{
-            fontWeight: 700, fontSize: '0.55rem',
+            fontWeight: 700, fontSize: 'var(--text-2xs)',
             padding: '0 4px', borderRadius: 2,
             background: node.orchestrationValidation.outcome === 'accept'
               ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
@@ -692,13 +692,13 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
         padding: '4px 8px',
         borderBottom: '1px solid var(--border-color)',
         background: 'var(--bg-secondary)',
-        fontSize: '0.68rem',
+        fontSize: 'var(--text-2xs)',
         flexShrink: 0,
       }}>
         {node.kind === 'tool-call' ? (
           <>
             <span style={{
-              padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700,
+              padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 700,
               background: 'rgba(14,165,233,0.12)', color: '#0ea5e9',
             }}>
               🔍 {node.toolName ?? 'lookup_citation'}
@@ -706,7 +706,7 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
             <span style={{ fontWeight: 600 }}>#{(node.toolCallIndex ?? 0) + 1}</span>
             {node.toolCallEmpty && (
               <span style={{
-                padding: '1px 4px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 700,
+                padding: '1px 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 700,
                 background: 'rgba(245,158,11,0.15)', color: '#f59e0b',
               }}>
                 EMPTY
@@ -714,7 +714,7 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
             )}
             {viewMode === 'responses' && (
               <span style={{
-                padding: '1px 4px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 700,
+                padding: '1px 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 700,
                 background: 'rgba(239,68,68,0.15)', color: '#ef4444',
                 textTransform: 'uppercase',
               }}>
@@ -725,14 +725,14 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
         ) : node.kind === 'scrub' ? (
           <>
             <span style={{
-              padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700,
+              padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 700,
               background: 'rgba(168,85,247,0.12)', color: '#a855f7',
             }}>
               ✂ Scrub
             </span>
             {viewMode === 'responses' && (
               <span style={{
-                padding: '1px 4px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 700,
+                padding: '1px 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 700,
                 background: 'rgba(239,68,68,0.15)', color: '#ef4444',
                 textTransform: 'uppercase',
               }}>
@@ -740,20 +740,20 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
               </span>
             )}
             {!viewMode || viewMode === 'prompts' ? (
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.58rem' }}>pre-scrub draft</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>pre-scrub draft</span>
             ) : (
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.58rem' }}>post-scrub draft</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>post-scrub draft</span>
             )}
           </>
         ) : node.kind === 'attempt-verdict' ? (
           <>
-            <span style={{ fontSize: '0.65rem' }}>⚖</span>
+            <span style={{ fontSize: 'var(--text-2xs)' }}>⚖</span>
             <span style={{ fontWeight: 700 }}>Attempt {node.runIndex + 1} Verdict</span>
             {node.orchestrationValidation && (() => {
               const isAccept = node.orchestrationValidation.outcome === 'accept' || node.orchestrationValidation.outcome === 'accept_with_flag';
               return (
                 <span style={{
-                  padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700,
+                  padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 700,
                   background: isAccept ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
                   color: isAccept ? '#22c55e' : '#ef4444',
                   textTransform: 'uppercase',
@@ -766,7 +766,7 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
         ) : (
           <>
             <span style={{
-              padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700,
+              padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 700,
               background: `${stageColor}20`, color: stageColor,
               textTransform: 'uppercase',
             }}>
@@ -774,7 +774,7 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
             </span>
             {viewMode === 'responses' && (
               <span style={{
-                padding: '1px 4px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 700,
+                padding: '1px 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 700,
                 background: 'rgba(239,68,68,0.15)', color: '#ef4444',
                 textTransform: 'uppercase',
               }}>
@@ -787,7 +787,7 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
         <span style={{ color: 'var(--text-muted)' }}>
           S{node.entryIndex + 1} {speakerLabel(node.speaker)}
         </span>
-        <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)' }}>
+        <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
           ({pane.lines.filter(l => l.type !== 'ghost').length} lines)
         </span>
         {/* Pre-scrub toggle: Path A drafts in Responses mode with fabrications */}
@@ -798,7 +798,7 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
           <button
             onClick={(e) => { e.stopPropagation(); onTogglePreScrub(); }}
             style={{
-              padding: '1px 6px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 700,
+              padding: '1px 6px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 700,
               border: '1px solid var(--border-color)', cursor: 'pointer',
               background: preScrub ? 'rgba(168,85,247,0.2)' : 'transparent',
               color: preScrub ? '#a855f7' : 'var(--text-muted)',
@@ -809,7 +809,7 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
           </button>
         )}
         {stats && !isReference && (
-          <span style={{ marginLeft: 'auto', fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+          <span style={{ marginLeft: 'auto', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
             <span style={{ color: '#eab308' }}>+{stats.added}</span>
             {' / '}
             <span style={{ color: '#ef4444' }}>-{stats.removed}</span>
@@ -818,7 +818,7 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
           </span>
         )}
         {isReference && (
-          <span style={{ marginLeft: 'auto', fontSize: '0.58rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+          <span style={{ marginLeft: 'auto', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>
             reference
           </span>
         )}
@@ -837,7 +837,7 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
       {/* Content — hidden for attempt-verdict nodes (validation panel is the sole content) */}
       {node.kind === 'attempt-verdict' ? (
         <div style={{
-          padding: '12px 16px', fontSize: '0.68rem', color: 'var(--text-muted)',
+          padding: '12px 16px', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)',
           fontStyle: 'italic',
         }}>
           Orchestration judge verdict for attempt {node.runIndex + 1}. This assessment was produced after
@@ -851,7 +851,7 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
         style={{
           flex: 1, overflowY: 'auto', overflowX: wordWrap ? 'hidden' : 'auto',
           fontFamily: 'Consolas, "Fira Code", monospace',
-          fontSize: '0.68rem',
+          fontSize: 'var(--text-2xs)',
           lineHeight: '1.4em',
           whiteSpace: wordWrap ? 'pre-wrap' : 'pre',
           wordBreak: wordWrap ? 'break-word' : undefined,
@@ -872,7 +872,7 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
               >
                 <span style={{
                   width: 40, flexShrink: 0, textAlign: 'right', paddingRight: 6,
-                  color: 'var(--text-muted)', fontSize: '0.6rem',
+                  color: 'var(--text-muted)', fontSize: 'var(--text-2xs)',
                   userSelect: 'none', borderRight: '1px solid var(--border-color)',
                   opacity: line.type === 'ghost' ? 0 : 0.6,
                 }}>

@@ -89,7 +89,7 @@ export function AdaptiveStagingTab({ debate }: AdaptiveStagingTabProps) {
         ].map(s => (
           <div key={s.label} style={{ background: 'var(--bg-secondary)', padding: '4px 8px', borderRadius: 4, textAlign: 'center' }}>
             <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>{s.value}</div>
-            <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>{s.label}</div>
+            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-secondary)' }}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -124,7 +124,7 @@ export function AdaptiveStagingTab({ debate }: AdaptiveStagingTabProps) {
         <div>
           <div style={{ fontWeight: 600, marginBottom: 4 }}>Signal Telemetry (per round)</div>
           <div style={{ overflowX: 'auto', maxHeight: 300, overflowY: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.65rem', whiteSpace: 'nowrap' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-2xs)', whiteSpace: 'nowrap' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--bg-primary)' }}>
                   <th style={{ padding: '2px 4px' }}>Rd</th>

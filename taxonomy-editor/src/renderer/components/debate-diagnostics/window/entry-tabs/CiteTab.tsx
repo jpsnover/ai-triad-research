@@ -35,7 +35,7 @@ export function CiteTab(props: CiteTabProps) {
         <span>temp={citeStage.temperature}</span>
         <span>{(citeStage.response_time_ms / 1000).toFixed(1)}s</span>
         {typeof (citeStage.work_product as Record<string, unknown>).grounding_confidence === 'number' && (
-          <span style={{ padding: '1px 6px', borderRadius: 3, background: (citeStage.work_product as Record<string, unknown>).grounding_confidence as number >= 0.7 ? 'rgba(34,197,94,0.2)' : 'rgba(251,146,60,0.2)', fontSize: '0.65rem' }}>
+          <span style={{ padding: '1px 6px', borderRadius: 3, background: (citeStage.work_product as Record<string, unknown>).grounding_confidence as number >= 0.7 ? 'rgba(34,197,94,0.2)' : 'rgba(251,146,60,0.2)', fontSize: 'var(--text-2xs)' }}>
             confidence: {((citeStage.work_product as Record<string, unknown>).grounding_confidence as number).toFixed(2)}
           </span>
         )}
@@ -54,7 +54,7 @@ export function CiteTab(props: CiteTabProps) {
         return (
           <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(245,158,11,0.6)', background: 'rgba(245,158,11,0.08)', borderRadius: 4, fontSize: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: '0.68rem' }}>MODERATOR DIRECTIVE</span>
+              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>MODERATOR DIRECTIVE</span>
             </div>
             {dr && (
               <>
@@ -99,7 +99,7 @@ export function CiteTab(props: CiteTabProps) {
         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>
           Taxonomy References
           {boostedSet.size > 0 && (
-            <span style={{ marginLeft: 6, fontWeight: 400, fontSize: '0.65rem', color: '#f59e0b' }}>
+            <span style={{ marginLeft: 6, fontWeight: 400, fontSize: 'var(--text-2xs)', color: '#f59e0b' }}>
               {boostedSet.size} lineage-boosted{promotedSet.size > 0 ? `, ${promotedSet.size} promoted` : ''}
               {frameLabels.length > 0 && <> · {frameLabels.join(', ')}</>}
             </span>
@@ -140,7 +140,7 @@ export function CiteTab(props: CiteTabProps) {
                         ) : null}
                       </div>
                       {nodeLabel && (
-                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }} title={nodeLabel}>
+                        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }} title={nodeLabel}>
                           {nodeLabel}
                         </div>
                       )}
@@ -177,7 +177,7 @@ export function CiteTab(props: CiteTabProps) {
           {((citeStage.work_product as Record<string, unknown>).move_annotations as { move: string; target?: string; detail: string }[]).map((m, i) => (
             <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(251,146,60,0.3)' }}>
               <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'rgba(251,146,60,0.2)', color: '#fb923c', fontSize: '0.7rem', fontWeight: 600 }}>{m.move}</span>
-              {m.target && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>{'→'} {m.target}</span>}
+              {m.target && <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{'→'} {m.target}</span>}
               {m.detail && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}><Highlight text={m.detail} /></div>}
             </div>
           ))}
@@ -226,7 +226,7 @@ export function CiteTab(props: CiteTabProps) {
                 </div>
                 {pol ? (<>
                   <div style={{ fontSize: '0.75rem', lineHeight: 1.5, marginBottom: 4 }}>{pol.action}</div>
-                  <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                     POVs: {pol.source_povs.join(', ')} · {pol.member_count} member{pol.member_count !== 1 ? 's' : ''}
                   </div>
                 </>) : (
@@ -249,23 +249,23 @@ export function CiteTab(props: CiteTabProps) {
         return (
           <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>
             Intellectual Lineage ({frame.length})
-            {lb && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: '#22c55e', fontWeight: 400 }}>boost active</span>}
+            {lb && <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: '#22c55e', fontWeight: 400 }}>boost active</span>}
           </summary>
             {frame.map((f: { cluster_id: string; label?: string; percentage: number; traditions?: string[] }, i: number) => (
               <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(245,158,11,0.3)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>{f.label ?? f.cluster_id}</span>
-                  <span style={{ fontSize: '0.65rem', color: '#f59e0b' }}>{(f.percentage * 100).toFixed(0)}%</span>
+                  <span style={{ fontSize: 'var(--text-2xs)', color: '#f59e0b' }}>{(f.percentage * 100).toFixed(0)}%</span>
                 </div>
                 {f.traditions && f.traditions.length > 0 && (
-                  <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 1 }}>
+                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 1 }}>
                     {f.traditions.join(', ')}
                   </div>
                 )}
               </div>
             ))}
             {lb && (
-              <div style={{ marginTop: 4, fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+              <div style={{ marginTop: 4, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                 Boosted: {lb.boosted ?? 0} nodes · Promoted: {lb.promoted ?? 0} nodes
               </div>
             )}
@@ -285,7 +285,7 @@ export function CiteTab(props: CiteTabProps) {
             {/* Turn header */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0 6px',
-              fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600,
+              fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontWeight: 600,
             }}>
               <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
               <span>Turn {ai + 1}</span>
@@ -293,17 +293,17 @@ export function CiteTab(props: CiteTabProps) {
             </div>
             {/* Raw Prompt */}
             <details>
-              <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 Raw Prompt <CopyButton text={attempt.prompt} />
               </summary>
-              <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.prompt}</pre>
+              <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.prompt}</pre>
             </details>
             {/* Raw Response */}
             <details>
-              <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 Raw Response <CopyButton text={attempt.raw_response} />
               </summary>
-              <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.raw_response}</pre>
+              <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.raw_response}</pre>
             </details>
             {/* Validation Score */}
             {(() => {
@@ -316,7 +316,7 @@ export function CiteTab(props: CiteTabProps) {
                 const judgeQ = stageA > 0
                   ? Math.max(0, Math.min(1, (turnScore - 0.4 * stageA) / 0.6))
                   : 0.7;
-                const mono = { fontFamily: 'monospace', fontSize: '0.68rem' } as const;
+                const mono = { fontFamily: 'monospace', fontSize: 'var(--text-2xs)' } as const;
                 const dimColor = (pass: boolean) => pass ? '#16a34a' : '#dc2626';
                 return (
                   <div style={{
@@ -329,13 +329,13 @@ export function CiteTab(props: CiteTabProps) {
                         {turnScore.toFixed(2)}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px', fontSize: '0.66rem' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px', fontSize: 'var(--text-2xs)' }}>
                       <span><span style={{ color: dimColor(dims.schema.pass) }}>{'●'}</span> schema {'×'}0.4 = <strong style={mono}>{(0.4 * (dims.schema.pass ? 1 : 0)).toFixed(2)}</strong></span>
                       <span><span style={{ color: dimColor(dims.grounding.pass) }}>{'●'}</span> grounding {'×'}0.3 = <strong style={mono}>{(0.3 * (dims.grounding.pass ? 1 : 0)).toFixed(2)}</strong></span>
                       <span><span style={{ color: dimColor(dims.advancement.pass) }}>{'●'}</span> advancement {'×'}0.2 = <strong style={mono}>{(0.2 * (dims.advancement.pass ? 1 : 0)).toFixed(2)}</strong></span>
                       <span><span style={{ color: dimColor(dims.clarifies.pass) }}>{'●'}</span> clarifies {'×'}0.1 = <strong style={mono}>{(0.1 * (dims.clarifies.pass ? 1 : 0)).toFixed(2)}</strong></span>
                     </div>
-                    <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3, fontSize: '0.66rem', display: 'flex', gap: 12 }}>
+                    <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3, fontSize: 'var(--text-2xs)', display: 'flex', gap: 12 }}>
                       <span>Stage A: <strong style={mono}>{stageA.toFixed(2)}</strong> <span style={{ color: 'var(--text-muted)' }}>{'×'}0.4 = {(0.4 * stageA).toFixed(2)}</span></span>
                       <span>Judge: <strong style={mono}>{judgeQ.toFixed(2)}</strong>{!judgeUsed && <span style={{ color: 'var(--text-muted)' }}> (default)</span>} <span style={{ color: 'var(--text-muted)' }}>{'×'}0.6 = {(0.6 * judgeQ).toFixed(2)}</span></span>
                       <span>Total: <strong style={{ ...mono, color: turnScore >= 0.7 ? '#16a34a' : turnScore >= 0.5 ? '#d97706' : '#dc2626' }}>{turnScore.toFixed(2)}</strong></span>
@@ -367,7 +367,7 @@ export function CiteTab(props: CiteTabProps) {
                     return (
                       <li key={hi} style={{ marginBottom: 3 }}>
                         <span style={{
-                          display: 'inline-block', fontSize: '0.6rem', fontWeight: 700,
+                          display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
                           color: ts.color, background: ts.bg, padding: '1px 5px',
                           borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
                         }}>{ts.label}</span>

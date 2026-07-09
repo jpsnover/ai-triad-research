@@ -161,17 +161,17 @@ export function VerificationSection({ transcript, anNodes }: VerificationSection
               <div className="factcheck-detail-header">
                 <VerdictChip verdict={mapFactCheckVerdict(fc.verdict)} label={fc.verdict} />
                 <span className="factcheck-detail-claim">{fc.checkedText}</span>
-                <span className="diag-muted" style={{ fontSize: '0.55rem' }}>{fc.isAuto ? 'auto' : 'user'}{fc.webSearchUsed ? ' · web' : ''}</span>
+                <span className="diag-muted" style={{ fontSize: 'var(--text-2xs)' }}>{fc.isAuto ? 'auto' : 'user'}{fc.webSearchUsed ? ' · web' : ''}</span>
               </div>
               {expandedIdx === i && (
                 <div className="factcheck-detail-expanded">
                   <div className="factcheck-detail-explanation">{fc.explanation}</div>
-                  {fc.targetAnId && <div className="diag-muted" style={{ fontSize: '0.55rem' }}>AN node: {fc.targetAnId}</div>}
+                  {fc.targetAnId && <div className="diag-muted" style={{ fontSize: 'var(--text-2xs)' }}>AN node: {fc.targetAnId}</div>}
                   {fc.webSearchQueries.length > 0 && (
-                    <div className="diag-muted" style={{ fontSize: '0.55rem' }}>Queries: {fc.webSearchQueries.slice(0, 3).join(', ')}</div>
+                    <div className="diag-muted" style={{ fontSize: 'var(--text-2xs)' }}>Queries: {fc.webSearchQueries.slice(0, 3).join(', ')}</div>
                   )}
                   {fc.webSearchCitations.length > 0 && (
-                    <div style={{ fontSize: '0.55rem', marginTop: 2 }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', marginTop: 2 }}>
                       {fc.webSearchCitations.slice(0, 5).map((c, ci) => (
                         <div key={ci} className="diag-muted">{c.title || c.url || 'citation'}</div>
                       ))}

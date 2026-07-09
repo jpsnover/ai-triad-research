@@ -9,7 +9,7 @@ import { DebateExchangeRich } from './DebateExchangeRich';
 
 export function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
   const sectionStyle: React.CSSProperties = { marginBottom: 12, padding: '8px 10px', borderRadius: 6, background: 'var(--bg-secondary)', border: '1px solid var(--border)' };
-  const headingStyle: React.CSSProperties = { fontWeight: 700, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#f97316', marginBottom: 6 };
+  const headingStyle: React.CSSProperties = { fontWeight: 700, fontSize: 'var(--text-2xs)', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#f97316', marginBottom: 6 };
 
   const promptSections = useMemo(() => {
     if (!trace.selection_prompt) return [];
@@ -41,7 +41,7 @@ export function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
             <div><strong>Selected:</strong> <span style={{ color: '#f97316', fontWeight: 700 }}>{trace.selected}</span></div>
           )}
           {trace.selection_reason && (
-            <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(249,115,22,0.15)', color: '#f97316', fontSize: '0.62rem', fontWeight: 600 }}>
+            <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(249,115,22,0.15)', color: '#f97316', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>
               {trace.selection_reason.replace(/_/g, ' ')}
             </span>
           )}
@@ -69,7 +69,7 @@ export function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
                 fontWeight: c.debater === trace.selected ? 700 : 400,
               }}>
                 <div>#{c.rank} {c.debater}</div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
                   {c.claim_count != null && <span>{c.claim_count} claim{c.claim_count !== 1 ? 's' : ''} in AN</span>}
                   {c.computed_strength != null && (
                     <span
@@ -112,7 +112,7 @@ export function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
               {Object.entries(trace.commitment_snapshot).map(([name, c]) => (
                 <div key={name} style={{ padding: '4px 8px', borderRadius: 4, background: 'var(--bg-primary)', border: '1px solid var(--border)' }}>
                   <div style={{ fontWeight: 600, marginBottom: 2 }}>{name}</div>
-                  <div style={{ display: 'flex', gap: 8, fontSize: '0.62rem', color: 'var(--text-muted)' }}>
+                  <div style={{ display: 'flex', gap: 8, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                     <span>{c.asserted} asserted</span>
                     <span>{c.conceded} conceded</span>
                     <span>{c.challenged} challenged</span>
@@ -158,7 +158,7 @@ export function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
             )}
           </div>
           {trace.health_components && (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: '0.62rem', marginBottom: 6 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 'var(--text-2xs)', marginBottom: 6 }}>
               {Object.entries(trace.health_components).map(([k, v]) => {
                 const tooltips: Record<string, string> = {
                   engagement: 'Engagement (weight: 0.25, SLI floor: 0.25)\n\nMeasures how substantively debaters engage with each other\'s claims.\nComputed as the average dialectical_engagement.ratio from the last 3 convergence signals.\ndialectical_engagement.ratio = fraction of prior claims that were directly addressed.\n\nLow engagement means debaters are talking past each other — triggers elicitation interventions (PIN, PROBE, CHALLENGE).',
@@ -176,7 +176,7 @@ export function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
             </div>
           )}
           {trace.burden_per_debater && Object.keys(trace.burden_per_debater).length > 0 && (
-            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 6 }}>
               <strong
                 title={'Burden — cumulative intervention load per debater.\n\nEach intervention adds a burden weight based on its family:\n• Elicitation (PIN, PROBE, CHALLENGE): 1.0 — most disruptive\n• Synthesis (COMPRESS, COMMIT): 0.8\n• Repair (CLARIFY, CHECK, SUMMARIZE): 0.75\n• Reflection (META-REFLECT): 0.6\n• Procedural (REDIRECT, BALANCE, SEQUENCE): 0.5\n• Reconciliation (ACKNOWLEDGE, REVOICE): 0.25 — least disruptive\n\nBurden cap: if a debater\'s burden exceeds 1.5\xD7 the average burden, high-burden moves (weight > 0.5) against that debater are suppressed.\nThis prevents the moderator from repeatedly targeting the same debater.'}
                 style={{ cursor: 'default', borderBottom: '1px dotted var(--text-muted)' }}
@@ -206,12 +206,12 @@ export function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
                 </div>
               )}
               {trace.trigger_reasoning && (
-                <div style={{ fontSize: '0.65rem', marginTop: 4 }}>
+                <div style={{ fontSize: 'var(--text-2xs)', marginTop: 4 }}>
                   <strong>Trigger:</strong> {trace.trigger_reasoning}
                 </div>
               )}
               {trace.trigger_evidence && (
-                <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
                   <span
                     title="Signal name — the moderator AI's label for the debate behavior that triggered this intervention recommendation. Common signals include: evasion (debater dodging a question), term_ambiguity (key term used with conflicting meanings), stagnation_crux (debate stuck on a crux point), unsupported_claim (assertion without evidence), scope_creep (discussion drifting from source material), contradiction (debater contradicting a prior position)."
                     style={{ cursor: 'default', borderBottom: '1px dotted var(--text-muted)' }}
@@ -237,13 +237,13 @@ export function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
               <details key={i} style={{ marginBottom: 4 }} open={i < 2}>
                 <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', color: 'var(--text-primary)', padding: '3px 0' }}>
                   {s.title}
-                  <span style={{ marginLeft: 6, fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 400 }}>
+                  <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontWeight: 400 }}>
                     {s.content.length > 500 ? `${(s.content.length / 1024).toFixed(1)}KB` : `${s.content.length} chars`}
                   </span>
                 </summary>
                 {isTensions ? <TensionsListDetail content={s.content} />
                   : isExchange ? <DebateExchangeRich content={s.content} />
-                  : <pre style={{ fontSize: '0.68rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 300, overflow: 'auto', margin: '4px 0 8px', padding: '6px 8px', background: 'var(--bg-primary)', borderRadius: 4, border: '1px solid var(--border)' }}>{s.content}</pre>
+                  : <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 300, overflow: 'auto', margin: '4px 0 8px', padding: '6px 8px', background: 'var(--bg-primary)', borderRadius: 4, border: '1px solid var(--border)' }}>{s.content}</pre>
                 }
               </details>
             );

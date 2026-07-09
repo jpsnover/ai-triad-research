@@ -461,7 +461,7 @@ export function HelpDialog({ onClose, initialTab }: HelpDialogProps) {
                 {t.label}
                 {t.id === 'my-cases' && unreadCount > 0 && (
                   <span style={{
-                    marginLeft: 6, padding: '0 5px', borderRadius: 8, fontSize: '0.68rem',
+                    marginLeft: 6, padding: '0 5px', borderRadius: 8, fontSize: 'var(--text-2xs)',
                     fontWeight: 700, background: 'var(--color-error, #ef4444)', color: '#fff',
                     lineHeight: '16px', display: 'inline-block', minWidth: 16, textAlign: 'center',
                   }}>

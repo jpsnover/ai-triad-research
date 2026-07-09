@@ -49,7 +49,7 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
             borderLeft: '3px solid #d97706', background: 'rgba(245,158,11,0.08)',
             fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: 6,
           }}>
-            <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: '0.62rem' }}>ANTI-FILIBUSTER</span>
+            <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>ANTI-FILIBUSTER</span>
             <span>{lvr} low-value claim{lvr !== 1 ? 's' : ''} filtered (weak, non-crux, no novel scheme)</span>
           </div>
         );
@@ -75,17 +75,17 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', fontSize: '0.7rem' }}>
             {status === 'pending' && (
-              <span style={{ padding: '2px 8px', borderRadius: 3, background: 'rgba(59,130,246,0.15)', color: '#3b82f6', fontWeight: 600, fontSize: '0.62rem' }}>EXTRACTING...</span>
+              <span style={{ padding: '2px 8px', borderRadius: 3, background: 'rgba(59,130,246,0.15)', color: '#3b82f6', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>EXTRACTING...</span>
             )}
             {status === 'failed' && (
-              <span style={{ padding: '2px 8px', borderRadius: 3, background: 'rgba(220,38,38,0.15)', color: '#dc2626', fontWeight: 600, fontSize: '0.62rem' }}>EXTRACTION FAILED</span>
+              <span style={{ padding: '2px 8px', borderRadius: 3, background: 'rgba(220,38,38,0.15)', color: '#dc2626', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>EXTRACTION FAILED</span>
             )}
             {showReExtract && (
               <button
                 style={{
                   padding: '3px 10px', borderRadius: 4, border: '1px solid #3b82f6',
                   background: 'rgba(59,130,246,0.1)', color: '#3b82f6', cursor: 'pointer',
-                  fontWeight: 600, fontSize: '0.65rem',
+                  fontWeight: 600, fontSize: 'var(--text-2xs)',
                 }}
                 onClick={() => api.requestReExtractClaims(entry.id)}
                 title="Re-run claim extraction for this entry"
@@ -116,7 +116,7 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
             return (
               <details key={i} open style={{ margin: '4px 0' }}>
                 <summary style={{ cursor: 'pointer' }}>
-                  <span style={{ color: '#22c55e' }}>✓ {c.id}</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nThreshold: < 10-15% = rejected as not grounded.\n${c.overlap_pct}% = ${c.overlap_pct < 50 ? 'moderate' : 'strong'} lexical grounding.`} style={{ color: 'var(--text-muted)', fontSize: '0.65rem', cursor: 'default' }}>{c.overlap_pct}%</span>{' '}
+                  <span style={{ color: '#22c55e' }}>✓ {c.id}</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nThreshold: < 10-15% = rejected as not grounded.\n${c.overlap_pct}% = ${c.overlap_pct < 50 ? 'moderate' : 'strong'} lexical grounding.`} style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)', cursor: 'default' }}>{c.overlap_pct}%</span>{' '}
                   {ec != null && (
                     <ScoreBadge
                       value={ec}
@@ -132,27 +132,27 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
                     />
                   )}
                   {!repair && hasEntailmentData && (
-                    <span style={{ fontSize: '0.5rem', color: 'var(--text-muted)', opacity: 0.6, marginRight: 4 }}>not sampled</span>
+                    <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', opacity: 0.6, marginRight: 4 }}>not sampled</span>
                   )}
                   {anNode?.bdi_category && (
-                    <span style={{ padding: '0 4px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 600, marginRight: 3, background: anNode.bdi_category === 'belief' ? 'rgba(59,130,246,0.15)' : anNode.bdi_category === 'desire' ? 'rgba(168,85,247,0.15)' : 'rgba(249,115,22,0.15)', color: anNode.bdi_category === 'belief' ? '#3b82f6' : anNode.bdi_category === 'desire' ? '#a855f7' : '#f97316' }}>
+                    <span style={{ padding: '0 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, marginRight: 3, background: anNode.bdi_category === 'belief' ? 'rgba(59,130,246,0.15)' : anNode.bdi_category === 'desire' ? 'rgba(168,85,247,0.15)' : 'rgba(249,115,22,0.15)', color: anNode.bdi_category === 'belief' ? '#3b82f6' : anNode.bdi_category === 'desire' ? '#a855f7' : '#f97316' }}>
                       {anNode.bdi_category}
                     </span>
                   )}
                   {anNode?.specificity && (
-                    <span style={{ padding: '0 4px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 600, marginRight: 3, background: 'rgba(107,114,128,0.12)', color: '#6b7280' }}>
+                    <span style={{ padding: '0 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, marginRight: 3, background: 'rgba(107,114,128,0.12)', color: '#6b7280' }}>
                       {anNode.specificity}
                     </span>
                   )}
                   {anNode?.steelman_of && (
-                    <span style={{ padding: '0 4px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 600, marginRight: 3, background: 'rgba(20,184,166,0.15)', color: '#14b8a6' }}>
+                    <span style={{ padding: '0 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, marginRight: 3, background: 'rgba(20,184,166,0.15)', color: '#14b8a6' }}>
                       steelman of {POVER_INFO[anNode.steelman_of as keyof typeof POVER_INFO]?.label ?? anNode.steelman_of}
                     </span>
                   )}
                   <Highlight text={c.text} />
                   {anNode?.attribution_text_genus && <div className="claim-attribution-text"><span className="claim-attribution-label">Attribution:</span>{anNode.attribution_text_genus}</div>}
                   {outEdges.length > 0 && (
-                    <span style={{ fontSize: '0.6rem', marginLeft: 6, color: 'var(--text-muted)' }}>
+                    <span style={{ fontSize: 'var(--text-2xs)', marginLeft: 6, color: 'var(--text-muted)' }}>
                       [{edgeSummary}]
                     </span>
                   )}
@@ -165,7 +165,7 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
                   return (
                   <div style={{ paddingLeft: 20, marginTop: 4, marginBottom: 4 }}>
                     {concedeAndPivot && (
-                      <div style={{ fontSize: '0.58rem', fontWeight: 600, padding: '2px 6px', marginBottom: 4, borderRadius: 3, background: 'rgba(168,85,247,0.1)', color: '#a855f7' }}>
+                      <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, padding: '2px 6px', marginBottom: 4, borderRadius: 3, background: 'rgba(168,85,247,0.1)', color: '#a855f7' }}>
                         Concede-and-pivot: supports + attacks edges from the same claim
                       </div>
                     )}
@@ -175,15 +175,15 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
                         ? (edge.attack_type ? `attacks (${edge.attack_type})` : 'attacks')
                         : 'supports';
                       return (
-                        <div key={ei} style={{ fontSize: '0.65rem', margin: '3px 0', paddingLeft: 10, borderLeft: `2px solid ${edge.type === 'attacks' ? '#ef4444' : '#22c55e'}` }}>
+                        <div key={ei} style={{ fontSize: 'var(--text-2xs)', margin: '3px 0', paddingLeft: 10, borderLeft: `2px solid ${edge.type === 'attacks' ? '#ef4444' : '#22c55e'}` }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
                             <span style={{ color: edge.type === 'attacks' ? '#ef4444' : '#22c55e', fontWeight: 600 }}>{edgeLabel}</span>
                             {edge.strength && (
-                              <span style={{ padding: '0 3px', borderRadius: 3, fontSize: '0.52rem', fontWeight: 600, background: `${strengthColors[edge.strength] ?? '#6b7280'}18`, color: strengthColors[edge.strength] ?? '#6b7280' }}>
+                              <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: `${strengthColors[edge.strength] ?? '#6b7280'}18`, color: strengthColors[edge.strength] ?? '#6b7280' }}>
                                 {edge.strength}
                               </span>
                             )}
-                            {edge.argumentation_scheme && <span style={{ padding: '0 3px', borderRadius: 3, fontSize: '0.52rem', background: 'rgba(99,102,241,0.12)', color: '#6366f1' }}>{edge.argumentation_scheme}</span>}
+                            {edge.argumentation_scheme && <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', background: 'rgba(99,102,241,0.12)', color: '#6366f1' }}>{edge.argumentation_scheme}</span>}
                           </div>
                           {targetNode && (
                             <div style={{ color: 'var(--text-muted)', marginTop: 1 }}>
@@ -191,7 +191,7 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
                             </div>
                           )}
                           {edge.warrant && (
-                            <div style={{ color: 'var(--text-muted)', marginTop: 2, fontStyle: 'italic', fontSize: '0.6rem', paddingLeft: 4, borderLeft: '1px solid var(--border)' }}>
+                            <div style={{ color: 'var(--text-muted)', marginTop: 2, fontStyle: 'italic', fontSize: 'var(--text-2xs)', paddingLeft: 4, borderLeft: '1px solid var(--border)' }}>
                               {edge.warrant}
                             </div>
                           )}
@@ -203,26 +203,26 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
                 })()}
                 {repair && repair.verdict !== 'entailed' && repair.repaired_text && (
                   <div style={{ paddingLeft: 20, marginTop: 6, marginBottom: 4, padding: '6px 8px', borderRadius: 4, background: `${verdictColor}08`, border: `1px solid ${verdictColor}20` }}>
-                    <div style={{ fontSize: '0.62rem', fontWeight: 700, color: verdictColor!, marginBottom: 4 }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: verdictColor!, marginBottom: 4 }}>
                       Entailment Repair ({repair.verdict})
                     </div>
-                    <div style={{ fontSize: '0.65rem', marginBottom: 3 }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', marginBottom: 3 }}>
                       <span style={{ textDecoration: 'line-through', color: '#ef4444', opacity: 0.7 }}>{repair.original_text}</span>
                     </div>
-                    <div style={{ fontSize: '0.65rem', marginBottom: 3, color: '#22c55e' }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', marginBottom: 3, color: '#22c55e' }}>
                       {repair.repaired_text}
                     </div>
-                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>
                       {repair.explanation}
                     </div>
                   </div>
                 )}
                 {anNode && (anNode.base_strength != null || anNode.bdi_sub_scores) && (
                   <details style={{ paddingLeft: 20, marginTop: 6, marginBottom: 4 }}>
-                    <summary style={{ cursor: 'pointer', fontSize: '0.62rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                    <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', fontWeight: 700, color: 'var(--text-muted)' }}>
                       Scores{anNode.base_strength != null ? ` — base: ${anNode.base_strength.toFixed(2)}` : ''}{anNode.computed_strength != null ? ` → computed: ${anNode.computed_strength.toFixed(2)}` : ''}{anNode.scoring_method ? ` (${anNode.scoring_method.replace(/_/g, ' ')})` : ''}
                     </summary>
-                    <div style={{ fontSize: '0.62rem', marginTop: 4 }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', marginTop: 4 }}>
                       {anNode.base_strength != null && (
                         <div style={{ display: 'flex', gap: 8, marginBottom: 3 }}>
                           <span><strong>Base:</strong> {anNode.base_strength.toFixed(2)}</span>
@@ -237,7 +237,7 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
                             const strVal = typeof v === 'number' ? (v >= 0.7 ? 'yes' : v >= 0.4 ? 'partial' : 'no') : String(v);
                             const color = strVal === 'yes' ? '#22c55e' : strVal === 'partial' ? '#f59e0b' : '#ef4444';
                             return (
-                              <span key={k} style={{ padding: '1px 4px', borderRadius: 3, fontSize: '0.55rem', background: `${color}15`, color }}>
+                              <span key={k} style={{ padding: '1px 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', background: `${color}15`, color }}>
                                 {label}: {strVal}
                               </span>
                             );
@@ -257,17 +257,17 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
                   const contradicts = eg.evidence_items.filter(e => e.relation === 'contradict');
                   return (
                     <div style={{ paddingLeft: 20, marginTop: 6, marginBottom: 4 }}>
-                      <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>
+                      <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>
                         Evidence ({supports.length} support, {contradicts.length} contradict)
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                         <div style={{ flex: 1, height: 5, borderRadius: 3, background: 'var(--bg-primary)' }}>
                           <div style={{ width: `${barPct}%`, height: '100%', borderRadius: 3, background: barColor }} />
                         </div>
-                        <span style={{ fontSize: '0.65rem', fontWeight: 700, color: barColor, minWidth: 36 }}>
+                        <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: barColor, minWidth: 36 }}>
                           {eg.computed_strength.toFixed(2)}
                         </span>
-                        <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+                        <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                           {eg.qbaf_iterations} iter
                         </span>
                       </div>
@@ -275,13 +275,13 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
                         .sort((a, b) => a.relation !== b.relation ? (a.relation === 'contradict' ? -1 : 1) : b.similarity - a.similarity)
                         .map(item => (
                         <div key={item.id} style={{
-                          marginBottom: 3, padding: '3px 6px', borderRadius: 4, fontSize: '0.65rem',
+                          marginBottom: 3, padding: '3px 6px', borderRadius: 4, fontSize: 'var(--text-2xs)',
                           borderLeft: `2px solid ${item.relation === 'support' ? '#22c55e' : '#ef4444'}`,
                           background: item.relation === 'support' ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
                         }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                             <span style={{
-                              fontSize: '0.55rem', fontWeight: 700, padding: '0 4px', borderRadius: 3,
+                              fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 4px', borderRadius: 3,
                               background: item.relation === 'support' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
                               color: item.relation === 'support' ? '#22c55e' : '#ef4444',
                             }}>
@@ -305,8 +305,8 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
           })}
           {diag.extracted_claims.rejected.map((c, i) => (
             <div key={i} style={{ margin: '3px 0' }}>
-              <span style={{ color: '#ef4444' }}>✗</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nRejected: ${c.reason === 'low_overlap' ? 'overlap too low (not grounded)' : c.reason === 'duplicate_claim' ? 'duplicate (too similar to existing AN node)' : c.reason}.`} style={{ color: 'var(--text-muted)', fontSize: '0.65rem', cursor: 'default' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
-              <div style={{ color: '#f59e0b', fontSize: '0.65rem', paddingLeft: 16 }}>{c.reason}</div>
+              <span style={{ color: '#ef4444' }}>✗</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nRejected: ${c.reason === 'low_overlap' ? 'overlap too low (not grounded)' : c.reason === 'duplicate_claim' ? 'duplicate (too similar to existing AN node)' : c.reason}.`} style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)', cursor: 'default' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
+              <div style={{ color: '#f59e0b', fontSize: 'var(--text-2xs)', paddingLeft: 16 }}>{c.reason}</div>
             </div>
           ))}
         </Section>
@@ -317,20 +317,20 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
         <Section title={`Extraction Trace — ${extTrace.candidates_proposed} proposed, ${extTrace.candidates_accepted} accepted, ${extTrace.candidates_rejected} rejected`} defaultOpen copyText={JSON.stringify(extTrace, null, 2)}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, fontSize: '0.7rem', marginBottom: 6 }}>
             <div>
-              <div style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.6rem' }}>Proposed</div>
+              <div style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>Proposed</div>
               <div>{extTrace.candidates_proposed}</div>
             </div>
             <div>
-              <div style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.6rem' }}>Accepted</div>
+              <div style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>Accepted</div>
               <div style={{ color: '#22c55e' }}>{extTrace.candidates_accepted}</div>
             </div>
             <div>
-              <div style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.6rem' }}>Rejected</div>
+              <div style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>Rejected</div>
               <div style={{ color: '#ef4444' }}>{extTrace.candidates_rejected}</div>
             </div>
           </div>
           {extTrace.an_node_count_before != null && (
-            <div style={{ fontSize: '0.65rem', marginBottom: 4 }}>
+            <div style={{ fontSize: 'var(--text-2xs)', marginBottom: 4 }}>
               <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>AN nodes:</span>{' '}
               {extTrace.an_node_count_before} → {extTrace.an_node_count_after}
               {extTrace.an_nodes_added_ids.length > 0 && (
@@ -341,11 +341,11 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
             </div>
           )}
           {Object.keys(extTrace.rejection_reasons).length > 0 && (
-            <div style={{ fontSize: '0.65rem' }}>
+            <div style={{ fontSize: 'var(--text-2xs)' }}>
               <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Rejection reasons:</span>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
                 {Object.entries(extTrace.rejection_reasons).map(([reason, count]) => (
-                  <span key={reason} style={{ padding: '1px 6px', borderRadius: 3, fontSize: '0.6rem', background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+                  <span key={reason} style={{ padding: '1px 6px', borderRadius: 3, fontSize: 'var(--text-2xs)', background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
                     {reason.replace(/_/g, ' ')} ({count})
                   </span>
                 ))}
@@ -359,14 +359,14 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
       {diag?.claim_extraction ? (
         <>
           <Section title="Raw Extraction Prompt" copyText={diag.claim_extraction.prompt}>
-            <pre style={{ fontSize: '0.62rem', whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', padding: '6px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontFamily: 'monospace' }}>{diag.claim_extraction.prompt}</pre>
+            <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', padding: '6px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontFamily: 'monospace' }}>{diag.claim_extraction.prompt}</pre>
           </Section>
           <Section title={`Raw Extraction Response — ${diag.claim_extraction.claims_parsed} claims, ${(diag.claim_extraction.response_time_ms / 1000).toFixed(1)}s`} copyText={diag.claim_extraction.raw_response}>
-            <pre style={{ fontSize: '0.62rem', whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', padding: '6px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontFamily: 'monospace' }}>{diag.claim_extraction.raw_response}</pre>
+            <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', padding: '6px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontFamily: 'monospace' }}>{diag.claim_extraction.raw_response}</pre>
           </Section>
         </>
       ) : diag?.extracted_claims && (
-        <div style={{ padding: '6px 10px', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+        <div style={{ padding: '6px 10px', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
           No claim extraction diagnostics — claims were extracted inline during the draft stage. Check the Draft tab for raw prompt/response.
         </div>
       )}

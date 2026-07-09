@@ -272,7 +272,7 @@ export function SummariesTab() {
             onChange={e => setFilter(e.target.value)}
             style={{ width: '100%', boxSizing: 'border-box' }}
           />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.6rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-2xs)' }}>
             <span style={{ color: 'var(--text-muted)' }}>Sort:</span>
             {([['dateIngested', 'Imported'], ['datePublished', 'Published'], ['title', 'Title']] as const).map(([field, label]) => (
               <button
@@ -282,7 +282,7 @@ export function SummariesTab() {
                   else { setSortField(field); setSortDesc(field !== 'title'); }
                 }}
                 style={{
-                  padding: '1px 5px', fontSize: '0.6rem', border: 'none', borderRadius: 3, cursor: 'pointer',
+                  padding: '1px 5px', fontSize: 'var(--text-2xs)', border: 'none', borderRadius: 3, cursor: 'pointer',
                   background: sortField === field ? 'var(--accent-color, #3b82f6)' : 'var(--bg-secondary)',
                   color: sortField === field ? '#fff' : 'var(--text-muted)',
                 }}
@@ -305,14 +305,14 @@ export function SummariesTab() {
                   style={{ cursor: 'pointer', padding: '6px 8px', borderBottom: '1px solid var(--border-color)' }}
                 >
                   <div style={{ fontSize: '0.8rem', fontWeight: 500 }}>{s.title}</div>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
                     {s.tags.map(t => (
                       <span key={t} style={{
                         display: 'inline-block',
                         padding: '0 4px',
                         marginRight: 3,
                         borderRadius: 3,
-                        fontSize: '0.6rem',
+                        fontSize: 'var(--text-2xs)',
                         backgroundColor: t === 'accelerationist' ? 'rgba(34,197,94,0.15)' :
                           t === 'safetyist' ? 'rgba(239,68,68,0.15)' :
                           t === 'skeptic' ? 'rgba(245,158,11,0.15)' :
@@ -357,7 +357,7 @@ export function SummariesTab() {
             {/* Header */}
             <div className="panel-header" style={{ flexShrink: 0 }}>
               <h3 style={{ fontSize: '0.85rem', margin: 0 }}>{selectedSource?.title}</h3>
-              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
+              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
                 {summary.model_info?.model && <span>Model: {summary.model_info.model}</span>}
                 {summary.generated_at && <span style={{ marginLeft: 8 }}>Generated: {summary.generated_at.slice(0, 10)}</span>}
                 {summary.model_info?.chunk_count && <span style={{ marginLeft: 8 }}>Chunks: {summary.model_info.chunk_count}</span>}
@@ -394,7 +394,7 @@ export function SummariesTab() {
                   <button
                     onClick={() => setPovFilter(null)}
                     style={{
-                      padding: '2px 6px', fontSize: '0.6rem', border: 'none', borderRadius: 3, cursor: 'pointer',
+                      padding: '2px 6px', fontSize: 'var(--text-2xs)', border: 'none', borderRadius: 3, cursor: 'pointer',
                       background: !povFilter ? 'var(--accent-color, #3b82f6)' : 'var(--bg-secondary)',
                       color: !povFilter ? '#fff' : 'var(--text-muted)',
                     }}
@@ -404,7 +404,7 @@ export function SummariesTab() {
                       key={pov}
                       onClick={() => setPovFilter(pov)}
                       style={{
-                        padding: '2px 6px', fontSize: '0.6rem', border: 'none', borderRadius: 3, cursor: 'pointer',
+                        padding: '2px 6px', fontSize: 'var(--text-2xs)', border: 'none', borderRadius: 3, cursor: 'pointer',
                         background: povFilter === pov ? (POV_COLORS[pov] || '#666') : 'var(--bg-secondary)',
                         color: povFilter === pov ? '#fff' : 'var(--text-muted)',
                       }}
@@ -433,20 +433,20 @@ export function SummariesTab() {
                           display: 'inline-block',
                           padding: '1px 5px',
                           borderRadius: 3,
-                          fontSize: '0.6rem',
+                          fontSize: 'var(--text-2xs)',
                           fontWeight: 600,
                           backgroundColor: POV_COLORS[kp.pov] ? `${POV_COLORS[kp.pov]}22` : 'var(--bg-tertiary)',
                           color: POV_COLORS[kp.pov] || 'var(--text-muted)',
                         }}>{kp.pov.slice(0, 3)}</span>
-                        <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{kp.category}</span>
-                        <span style={{ fontSize: '0.6rem', fontWeight: 600 }} className={stanceClass(kp.stance)}>
+                        <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{kp.category}</span>
+                        <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 600 }} className={stanceClass(kp.stance)}>
                           {STANCE_EMOJI[kp.stance] || '~'} {kp.stance.replace(/_/g, ' ')}
                         </span>
                         {kp.taxonomy_node_id && (
                           <button
                             onClick={() => handleNodeClick(kp.taxonomy_node_id!)}
                             style={{
-                              marginLeft: 'auto', padding: '1px 6px', fontSize: '0.6rem',
+                              marginLeft: 'auto', padding: '1px 6px', fontSize: 'var(--text-2xs)',
                               border: '1px solid var(--border-color)', borderRadius: 3,
                               background: 'var(--bg-primary)', color: 'var(--accent-color, #3b82f6)',
                               cursor: 'pointer',
@@ -468,7 +468,7 @@ export function SummariesTab() {
                         </div>
                       )}
                       {kp.excerpt_context && (
-                        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
                           {kp.excerpt_context}
                         </div>
                       )}
@@ -487,13 +487,13 @@ export function SummariesTab() {
                       border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)',
                     }}>
                       <div style={{ fontSize: '0.75rem' }}>{claim.claim}</div>
-                      <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2, display: 'flex', gap: 8 }}>
+                      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2, display: 'flex', gap: 8 }}>
                         {claim.doc_position && <span>{claim.doc_position}</span>}
                         {claim.potential_conflict_id && (
                           <button
                             onClick={() => handleNodeClick(claim.potential_conflict_id!)}
                             style={{
-                              padding: '0 4px', fontSize: '0.6rem', border: 'none', background: 'none',
+                              padding: '0 4px', fontSize: 'var(--text-2xs)', border: 'none', background: 'none',
                               color: 'var(--accent-color, #3b82f6)', cursor: 'pointer', textDecoration: 'underline',
                             }}
                           >
@@ -519,7 +519,7 @@ export function SummariesTab() {
                         <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{uc.suggested_label || uc.concept}</span>
                         {uc.resolved_node_id && (
                           <span style={{
-                            padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem',
+                            padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)',
                             backgroundColor: 'rgba(34,197,94,0.15)', color: '#22c55e',
                           }}>mapped</span>
                         )}
@@ -527,12 +527,12 @@ export function SummariesTab() {
                       {uc.suggested_description && (
                         <div style={{ fontSize: '0.7rem', marginTop: 4, color: 'var(--text-secondary)' }}>{uc.suggested_description}</div>
                       )}
-                      <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 4, display: 'flex', gap: 8 }}>
+                      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4, display: 'flex', gap: 8 }}>
                         {uc.suggested_pov && <span>Perspective: {uc.suggested_pov}</span>}
                         {uc.suggested_category && <span>Category: {uc.suggested_category}</span>}
                       </div>
                       {uc.reason && (
-                        <div style={{ fontSize: '0.65rem', marginTop: 4, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                        <div style={{ fontSize: 'var(--text-2xs)', marginTop: 4, color: 'var(--text-muted)', fontStyle: 'italic' }}>
                           {uc.reason}
                         </div>
                       )}
@@ -541,7 +541,7 @@ export function SummariesTab() {
                           <button
                             onClick={() => handleNodeClick(uc.resolved_node_id!)}
                             style={{
-                              padding: '2px 8px', fontSize: '0.6rem',
+                              padding: '2px 8px', fontSize: 'var(--text-2xs)',
                               border: '1px solid var(--border-color)', borderRadius: 3,
                               background: 'var(--bg-primary)', color: 'var(--accent-color, #3b82f6)',
                               cursor: 'pointer',
@@ -554,7 +554,7 @@ export function SummariesTab() {
                           <button
                             onClick={() => addUnmappedToTaxonomy(uc)}
                             style={{
-                              padding: '2px 8px', fontSize: '0.6rem',
+                              padding: '2px 8px', fontSize: 'var(--text-2xs)',
                               border: '1px solid var(--border-color)', borderRadius: 3,
                               background: 'var(--bg-primary)', color: '#22c55e',
                               cursor: 'pointer', fontWeight: 500,

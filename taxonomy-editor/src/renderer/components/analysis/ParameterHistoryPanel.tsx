@@ -219,9 +219,9 @@ export function ParameterHistoryPanel({ onClose }: ParameterHistoryPanelProps) {
                   {sparklines[key] && sparklines[key].length >= 2 ? (
                     <Sparkline values={sparklines[key]} />
                   ) : sparklines[key] && sparklines[key].length === 1 ? (
-                    <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>1 sample</span>
+                    <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>1 sample</span>
                   ) : (
-                    <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>—</span>
+                    <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>—</span>
                   )}
                 </td>
               </tr>

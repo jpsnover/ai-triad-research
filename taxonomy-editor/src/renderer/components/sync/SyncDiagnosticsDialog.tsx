@@ -199,7 +199,7 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
                     {diag.mode !== 'github-api' && (
                       <button
                         className="btn btn-ghost btn-xs"
-                        style={{ marginLeft: 8, fontSize: '0.65rem' }}
+                        style={{ marginLeft: 8, fontSize: 'var(--text-2xs)' }}
                         onClick={async () => {
                           await clearGithubCredentials();
                           void refresh();
@@ -215,7 +215,7 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
                     Not configured
                     <button
                       className="btn btn-ghost btn-xs"
-                      style={{ marginLeft: 8, fontSize: '0.65rem' }}
+                      style={{ marginLeft: 8, fontSize: 'var(--text-2xs)' }}
                       onClick={() => setCredFormOpen(!credFormOpen)}
                     >
                       {credFormOpen ? 'Cancel' : 'Configure'}
@@ -631,7 +631,7 @@ function GitHubCredentialsForm({
           disabled={running}
           autoComplete="off"
         />
-        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
+        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
           Needs <code>repo</code> scope. Create at github.com/settings/tokens.
         </div>
       </div>

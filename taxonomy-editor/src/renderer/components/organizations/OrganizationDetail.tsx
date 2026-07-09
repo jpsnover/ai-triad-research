@@ -140,7 +140,7 @@ export function OrganizationDetail({ org }: { org: Organization }) {
               <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: '0.78rem' }}>
                 <span style={{ fontFamily: 'monospace', color: 'var(--color-info, #3b82f6)' }}>{pe.policy_ref}</span>
                 <span style={{
-                  padding: '1px 6px', borderRadius: 8, fontSize: '0.65rem', fontWeight: 600,
+                  padding: '1px 6px', borderRadius: 8, fontSize: 'var(--text-2xs)', fontWeight: 600,
                   background: pe.stance === 'supports' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
                   color: pe.stance === 'supports' ? '#22c55e' : '#ef4444',
                 }}>
@@ -212,7 +212,7 @@ export function OrganizationDetail({ org }: { org: Organization }) {
       {org.tags && org.tags.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
           {org.tags.map((tag, i) => (
-            <span key={i} style={{ padding: '1px 8px', borderRadius: 10, fontSize: '0.68rem', background: 'var(--bg-tertiary, #1e293b)', color: 'var(--text-muted)' }}>
+            <span key={i} style={{ padding: '1px 8px', borderRadius: 10, fontSize: 'var(--text-2xs)', background: 'var(--bg-tertiary, #1e293b)', color: 'var(--text-muted)' }}>
               {tag}
             </span>
           ))}

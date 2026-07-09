@@ -157,7 +157,7 @@ export function EmotionalRegisterTab({ debate, setSelectedEntry, setLocalOverrid
               color: meanApprop >= 0.7 ? '#22c55e' : meanApprop >= 0.4 ? '#f59e0b' : '#dc2626',
             }}>{meanApprop.toFixed(3)}</span>
             {varianceApprop != null && (
-              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                 variance: {varianceApprop.toFixed(4)}
               </span>
             )}
@@ -180,7 +180,7 @@ export function EmotionalRegisterTab({ debate, setSelectedEntry, setLocalOverrid
           <div key={speaker} style={{ marginBottom: 16, padding: '10px 12px', borderRadius: 6, background: 'var(--bg-primary)', borderLeft: `3px solid ${color}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
               <strong style={{ fontSize: '0.8rem', color }}>{speakerLabel(speaker)}</strong>
-              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{turns.length} statements</span>
+              <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{turns.length} statements</span>
               <span style={{ fontSize: '0.72rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
                 intensity: {meanIntensity.toFixed(3)}
               </span>
@@ -190,7 +190,7 @@ export function EmotionalRegisterTab({ debate, setSelectedEntry, setLocalOverrid
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
               {AFFECT_CATEGORIES.map(cat => (
                 <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: '0.6rem', fontWeight: 600, minWidth: 50, textAlign: 'right', color: CATEGORY_COLORS[cat] }}>
+                  <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, minWidth: 50, textAlign: 'right', color: CATEGORY_COLORS[cat] }}>
                     {cat}
                   </span>
                   <div style={{ flex: 1, height: 10, background: 'var(--bg-secondary, #222)', borderRadius: 2, overflow: 'hidden' }}>
@@ -202,7 +202,7 @@ export function EmotionalRegisterTab({ debate, setSelectedEntry, setLocalOverrid
                       borderRadius: 2,
                     }} />
                   </div>
-                  <span style={{ fontSize: '0.6rem', fontWeight: 700, minWidth: 28, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                  <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, minWidth: 28, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     {meanProfile[cat].toFixed(2)}
                   </span>
                 </div>
@@ -210,7 +210,7 @@ export function EmotionalRegisterTab({ debate, setSelectedEntry, setLocalOverrid
             </div>
 
             {/* Intensity sparkline */}
-            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: 4 }}>Intensity trend</div>
+            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 4 }}>Intensity trend</div>
             <div style={{ position: 'relative' }}>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 1, height: 28 }}>
                 {turns.map((t, i) => {
@@ -232,7 +232,7 @@ export function EmotionalRegisterTab({ debate, setSelectedEntry, setLocalOverrid
                   );
                 })}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.55rem', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
                 <span>{Math.min(...turns.map(t => t.intensity)).toFixed(3)}</span>
                 <span style={{ fontWeight: 600, color }}>{turns[turns.length - 1].intensity.toFixed(3)}</span>
               </div>

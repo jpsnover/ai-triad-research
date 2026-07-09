@@ -352,7 +352,7 @@ export function PromptDiffContent({ debate, focusedEntryId: externalFocusedEntry
               style={{
                 padding: '2px 10px',
                 border: 'none', cursor: 'pointer',
-                fontSize: '0.65rem', fontWeight: 600,
+                fontSize: 'var(--text-2xs)', fontWeight: 600,
                 textTransform: 'capitalize',
                 background: viewMode === mode ? '#3b82f6' : 'var(--bg-primary)',
                 color: viewMode === mode ? '#fff' : 'var(--text-muted)',
@@ -368,7 +368,7 @@ export function PromptDiffContent({ debate, focusedEntryId: externalFocusedEntry
             padding: '2px 8px', borderRadius: 4,
             border: '1px solid var(--border-color)',
             cursor: 'pointer',
-            fontSize: '0.65rem', fontWeight: 600,
+            fontSize: 'var(--text-2xs)', fontWeight: 600,
             background: wordWrap ? '#3b82f6' : 'var(--bg-primary)',
             color: wordWrap ? '#fff' : 'var(--text-muted)',
           }}
@@ -415,7 +415,7 @@ export function PromptDiffContent({ debate, focusedEntryId: externalFocusedEntry
             }}
           />
           {searchTerm && (
-            <span style={{ color: totalMatches > 0 ? 'var(--text-primary)' : '#ef4444', fontSize: '0.65rem' }}>
+            <span style={{ color: totalMatches > 0 ? 'var(--text-primary)' : '#ef4444', fontSize: 'var(--text-2xs)' }}>
               {totalMatches > 0 ? `${activeMatchIndex + 1} of ${totalMatches}` : 'No matches'}
             </span>
           )}
@@ -543,7 +543,7 @@ export function PromptDiffContent({ debate, focusedEntryId: externalFocusedEntry
       <div style={{
         borderTop: '1px solid var(--border-color)',
         padding: '3px 12px',
-        fontSize: '0.62rem',
+        fontSize: 'var(--text-2xs)',
         color: 'var(--text-muted)',
         display: 'flex', gap: 16,
         background: 'var(--bg-secondary)',

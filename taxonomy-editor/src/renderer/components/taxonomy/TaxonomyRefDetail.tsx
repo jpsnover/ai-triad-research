@@ -110,7 +110,7 @@ export function TaxonomyRefDetail({ nodeId, node, pov, onClose, edges }: Props) 
           </span>
           {pov && (
             <span style={{
-              fontSize: '0.62rem', padding: '2px 10px', borderRadius: 20,
+              fontSize: 'var(--text-2xs)', padding: '2px 10px', borderRadius: 20,
               background: 'rgba(148,163,184,0.15)', color: 'var(--text-muted)',
               fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
               border: '1px solid var(--border)',
@@ -126,7 +126,7 @@ export function TaxonomyRefDetail({ nodeId, node, pov, onClose, edges }: Props) 
         <button
           onClick={onClose}
           style={{
-            fontSize: '0.65rem', padding: '2px 10px',
+            fontSize: 'var(--text-2xs)', padding: '2px 10px',
             border: '1px solid var(--border)', borderRadius: 4,
             background: 'transparent', color: 'var(--text-muted)',
             cursor: 'pointer', marginLeft: 8,
@@ -240,7 +240,7 @@ function ContentTab({ node, isSituation }: { node: TaxRefNode; isSituation?: boo
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
               <span style={{ fontWeight: 600, fontSize: '1.1rem', color: divColor }}>{div.toFixed(2)}</span>
               <span style={{
-                fontSize: '0.68rem', fontWeight: 600, color: divColor,
+                fontSize: 'var(--text-2xs)', fontWeight: 600, color: divColor,
                 padding: '2px 8px', borderRadius: 10,
                 background: `${divColor}18`,
                 textTransform: 'uppercase', letterSpacing: '0.04em',
@@ -421,14 +421,14 @@ function TaxRefEdgeGroup({
               <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>{direction}</span>
               <span style={{ fontWeight: 600, fontSize: '0.75rem' }}>{otherLabel || other}</span>
               {e.strength && (
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>({e.strength})</span>
+                <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>({e.strength})</span>
               )}
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+              <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginLeft: 'auto' }}>
                 c{(e.confidence * 100).toFixed(0)}%
               </span>
             </div>
             {otherLabel && (
-              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: 1 }}>{other}</div>
+              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: 1 }}>{other}</div>
             )}
           </div>
         );
@@ -460,31 +460,31 @@ function EdgeDetailPanel({ edge, typeColor, srcLabel, tgtLabel, pct, onClose }: 
       {/* Source → Target */}
       <div style={{ display: 'flex', alignItems: 'center', padding: '12px 12px 8px', gap: 8 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '0.6rem', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 2 }}>Source</div>
+          <div style={{ fontSize: 'var(--text-2xs)', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 2 }}>Source</div>
           <div style={{ fontWeight: 600, color: srcPovColor, fontSize: '0.78rem', lineHeight: 1.3 }}>{srcLabel}</div>
-          <div style={{ fontFamily: 'monospace', fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>{edge.source}</div>
+          <div style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>{edge.source}</div>
         </div>
         <div style={{ color: typeColor, fontSize: '1rem', fontWeight: 700, flexShrink: 0, padding: '0 4px' }}>
           {edge.bidirectional ? '↔' : '→'}
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '0.6rem', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 2 }}>Target</div>
+          <div style={{ fontSize: 'var(--text-2xs)', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 2 }}>Target</div>
           <div style={{ fontWeight: 600, color: tgtPovColor, fontSize: '0.78rem', lineHeight: 1.3 }}>{tgtLabel}</div>
-          <div style={{ fontFamily: 'monospace', fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>{edge.target}</div>
+          <div style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>{edge.target}</div>
         </div>
       </div>
 
       {/* Rationale */}
       {edge.rationale && (
         <div style={{ padding: '8px 12px 12px' }}>
-          <div style={{ fontSize: '0.6rem', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, marginBottom: 6 }}>Rationale</div>
+          <div style={{ fontSize: 'var(--text-2xs)', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, marginBottom: 6 }}>Rationale</div>
           <div style={{ borderLeft: '3px solid #3b82f6', paddingLeft: 10, fontSize: '0.75rem', color: 'var(--text-primary)', lineHeight: 1.55, background: 'var(--bg-secondary)', borderRadius: '0 4px 4px 0', padding: '8px 10px 8px 12px' }}>
             {!rationaleExpanded && edge.rationale.length > RATIONALE_LIMIT
               ? edge.rationale.slice(0, RATIONALE_LIMIT) + '…'
               : edge.rationale}
           </div>
           {edge.rationale.length > RATIONALE_LIMIT && (
-            <div onClick={() => setRationaleExpanded(!rationaleExpanded)} style={{ fontSize: '0.65rem', color: '#3b82f6', cursor: 'pointer', marginTop: 4 }}>
+            <div onClick={() => setRationaleExpanded(!rationaleExpanded)} style={{ fontSize: 'var(--text-2xs)', color: '#3b82f6', cursor: 'pointer', marginTop: 4 }}>
               {rationaleExpanded ? 'Show less' : 'Show more'}
             </div>
           )}

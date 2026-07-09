@@ -215,7 +215,7 @@ function ViolationItem({ violation }: { violation: ExclusionViolation }) {
         <span style={{ fontWeight: 600 }}>{violation.node_id}</span>
       </div>
       <div style={{ color: 'var(--text-primary)', marginBottom: 4 }}>{violation.claim_text}</div>
-      <div style={{ display: 'flex', gap: 12, fontSize: '0.65rem' }}>
+      <div style={{ display: 'flex', gap: 12, fontSize: 'var(--text-2xs)' }}>
         <span>
           main:{' '}
           <span style={{ fontFamily: 'monospace', fontWeight: 600, color: similarityColor(violation.similarity_main) }}>
@@ -254,7 +254,7 @@ function WarningItem({ warning }: { warning: ScopeDriftWarning }) {
       <div style={{
         color: 'var(--text-muted)',
         fontStyle: 'italic',
-        fontSize: '0.65rem',
+        fontSize: 'var(--text-2xs)',
         padding: '3px 6px',
         borderLeft: '1px solid var(--border)',
         marginTop: 2,

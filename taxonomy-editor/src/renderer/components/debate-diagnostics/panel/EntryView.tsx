@@ -73,7 +73,7 @@ function QbafClaimStrengthSection({ entryId, activeDebate }: { entryId: string; 
                     <div key={i} className={`diag-qbaf-edge ${e.type === 'attacks' ? 'diag-qbaf-attack' : 'diag-qbaf-support'}`}>
                       <span>{e.type === 'attacks' ? '⚔' : '✓'} {e.source}</span>
                       {e.attack_type && <span className="diag-badge diag-badge-move">{e.attack_type}</span>}
-                      {e.argumentation_scheme && <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1', marginLeft: 2 }}>{e.argumentation_scheme}</span>}
+                      {e.argumentation_scheme && <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(99,102,241,0.15)', color: '#6366f1', marginLeft: 2 }}>{e.argumentation_scheme}</span>}
                       {e.weight != null && <QbafEdgeIndicator edge={e} />}
                       {srcNode && <span className="diag-muted" style={{ marginLeft: 4 }}>{srcNode.text.slice(0, 60)}{srcNode.text.length > 60 ? '…' : ''}</span>}
                     </div>
@@ -133,7 +133,7 @@ export function EntryView({ entryId }: { entryId: string }) {
         <span className="diag-entry-type">{entry.type}</span>
         <button
           onClick={() => { void api.clipboardWriteText(entryId); }}
-          style={{ fontSize: '0.5rem', color: 'var(--text-muted)', fontFamily: 'monospace', background: 'none', border: '1px solid var(--border)', borderRadius: 3, padding: '1px 4px', cursor: 'pointer', opacity: 0.7 }}
+          style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontFamily: 'monospace', background: 'none', border: '1px solid var(--border)', borderRadius: 3, padding: '1px 4px', cursor: 'pointer', opacity: 0.7 }}
           title={`Copy turn_id for flight recorder correlation: ${entryId}`}
         >{entryId.slice(0, 8)}</button>
         {diag?.topic_alignment && (() => {
@@ -223,7 +223,7 @@ export function EntryView({ entryId }: { entryId: string }) {
             </div>
             {im.prerequisite_applied && (
               <div className="diag-kv">
-                <span className="diag-k">Prerequisite:</span> <span className="diag-badge" style={{ fontSize: '0.55rem', background: 'rgba(234,179,8,0.15)', color: '#ca8a04' }}>{im.prerequisite_applied}</span>
+                <span className="diag-k">Prerequisite:</span> <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(234,179,8,0.15)', color: '#ca8a04' }}>{im.prerequisite_applied}</span>
               </div>
             )}
             {im.source_evidence?.claim && (
@@ -298,13 +298,13 @@ export function EntryView({ entryId }: { entryId: string }) {
             {trace.recent_scheme && (
               <div className="diag-kv">
                 <span className="diag-k">Recent Scheme:</span>
-                <span className="diag-badge" style={{ fontSize: '0.55rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1' }}>{trace.recent_scheme}</span>
+                <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(99,102,241,0.15)', color: '#6366f1' }}>{trace.recent_scheme}</span>
               </div>
             )}
             {trace.metaphor_reframe_offered && (
               <div className="diag-kv" style={{ marginTop: 4 }}>
                 <span className="diag-k">Metaphor Reframe:</span>
-                <span className="diag-badge" style={{ fontSize: '0.55rem', background: 'rgba(234,179,8,0.15)', color: '#ca8a04' }}>
+                <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(234,179,8,0.15)', color: '#ca8a04' }}>
                   {trace.metaphor_reframe_offered} {trace.metaphor_reframe_used ? '(USED)' : '(offered, not used)'}
                 </span>
               </div>
@@ -318,7 +318,7 @@ export function EntryView({ entryId }: { entryId: string }) {
             {/* Implementation Challenge move (policymaker debates, t/251) */}
             {trace.selection_reason === 'implementation_challenge' && (
               <div className="diag-kv" style={{ marginTop: 4 }}>
-                <span className="diag-badge" style={{ fontSize: '0.6rem', fontWeight: 700, background: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '2px 6px', borderRadius: 3 }}>
+                <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, background: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '2px 6px', borderRadius: 3 }}>
                   IMPLEMENTATION CHALLENGE
                 </span>
                 {(trace as Record<string, unknown>).implementation_challenge_trigger && (() => {
@@ -385,21 +385,21 @@ export function EntryView({ entryId }: { entryId: string }) {
                       return (
                         <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${stageColors[s.stage]}40` }}>
                           <div style={{ fontSize: '0.7rem', fontWeight: 600 }}>{a.angle}</div>
-                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{a.why}</div>
+                          <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{a.why}</div>
                           {sitGrounding.length > 0 && sitNodes && (
                             <div style={{ marginTop: 2 }}>
                               {sitGrounding.map(g => {
                                 const sit = sitNodes.find(n => n.id === g.node_id);
                                 const div = sit?.interpretation_divergence;
                                 if (div == null) return (
-                                  <span key={g.node_id} style={{ display: 'inline-block', fontSize: '0.6rem', marginRight: 6, padding: '1px 5px', borderRadius: 3, background: 'var(--bg-secondary)', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                                  <span key={g.node_id} style={{ display: 'inline-block', fontSize: 'var(--text-2xs)', marginRight: 6, padding: '1px 5px', borderRadius: 3, background: 'var(--bg-secondary)', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                                     {g.node_id}
                                   </span>
                                 );
                                 const color = div > 0.40 ? '#22c55e' : div >= 0.20 ? '#f59e0b' : '#ef4444';
                                 const isLow = div < 0.20;
                                 return (
-                                  <span key={g.node_id} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.6rem', marginRight: 6, padding: '1px 5px', borderRadius: 3, background: isLow ? '#ef444418' : 'var(--bg-secondary)', fontFamily: 'monospace' }}>
+                                  <span key={g.node_id} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 'var(--text-2xs)', marginRight: 6, padding: '1px 5px', borderRadius: 3, background: isLow ? '#ef444418' : 'var(--bg-secondary)', fontFamily: 'monospace' }}>
                                     <span style={{ color: 'var(--text-muted)' }}>{g.node_id}</span>
                                     <span style={{ color, fontWeight: 600 }}>div:{div.toFixed(2)}</span>
                                     {isLow && <span title="Low divergence — may not generate disagreement">⚠</span>}
@@ -428,7 +428,7 @@ export function EntryView({ entryId }: { entryId: string }) {
                     {((s.work_product as Record<string, unknown>).planned_moves as { move: string; target?: string; detail: string }[]).map((m, i) => (
                       <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${stageColors[s.stage]}40` }}>
                         <span className="diag-badge diag-badge-move">{m.move}</span>
-                        {m.target && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>{'→'} {m.target}</span>}
+                        {m.target && <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{'→'} {m.target}</span>}
                         {m.detail && <div style={{ fontSize: '0.7rem', marginTop: 1 }}>{m.detail}</div>}
                       </div>
                     ))}
@@ -439,8 +439,8 @@ export function EntryView({ entryId }: { entryId: string }) {
                     {((s.work_product as Record<string, unknown>).argument_structure as { point: string; evidence: string; taxonomy_anchor: string }[]).map((a, i) => (
                       <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${stageColors[s.stage]}40` }}>
                         <div style={{ fontSize: '0.7rem', fontWeight: 600 }}>{a.point}</div>
-                        {a.evidence && <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Evidence: {a.evidence}</div>}
-                        {a.taxonomy_anchor && <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>Anchor: {a.taxonomy_anchor}</div>}
+                        {a.evidence && <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Evidence: {a.evidence}</div>}
+                        {a.taxonomy_anchor && <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Anchor: {a.taxonomy_anchor}</div>}
                       </div>
                     ))}
                   </div>
@@ -452,12 +452,12 @@ export function EntryView({ entryId }: { entryId: string }) {
                   </div>
                 )}
                 {s.stage === 'draft' && diag?.topic_alignment && (
-                  <div style={{ marginBottom: 6, padding: '4px 8px', borderLeft: `3px solid ${diag.topic_alignment.topic_aligned ? '#22c55e' : '#ef4444'}40`, fontSize: '0.65rem' }}>
+                  <div style={{ marginBottom: 6, padding: '4px 8px', borderLeft: `3px solid ${diag.topic_alignment.topic_aligned ? '#22c55e' : '#ef4444'}40`, fontSize: 'var(--text-2xs)' }}>
                     <div className="diag-kv" style={{ marginBottom: 2 }}>
                       <span className="diag-k">Topic aligned</span>
-                      <span className="diag-badge" style={{ fontSize: '0.45rem', background: 'rgba(99,102,241,0.12)', color: '#6366f1' }}>Attempt {(diag.topic_alignment as Record<string, unknown>).draft_attempt ?? 1}</span>
+                      <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(99,102,241,0.12)', color: '#6366f1' }}>Attempt {(diag.topic_alignment as Record<string, unknown>).draft_attempt ?? 1}</span>
                       {diag.topic_alignment.repaired && (
-                        <span className="diag-badge" style={{ fontSize: '0.45rem', background: 'rgba(245,158,11,0.15)', color: '#d97706' }}>triggered regen</span>
+                        <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(245,158,11,0.15)', color: '#d97706' }}>triggered regen</span>
                       )}
                     </div>
                     <div className="diag-kv">
@@ -495,9 +495,9 @@ export function EntryView({ entryId }: { entryId: string }) {
                     <span className="diag-v">{((s.work_product as Record<string, unknown>).grounding_confidence as number).toFixed(2)}</span>
                   </div>
                 )}
-                <details style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                <details style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                   <summary style={{ cursor: 'pointer' }}>Full work product</summary>
-                  <pre style={{ whiteSpace: 'pre-wrap', maxHeight: 150, overflow: 'auto', fontSize: '0.6rem' }}>{JSON.stringify(s.work_product, null, 2)}</pre>
+                  <pre style={{ whiteSpace: 'pre-wrap', maxHeight: 150, overflow: 'auto', fontSize: 'var(--text-2xs)' }}>{JSON.stringify(s.work_product, null, 2)}</pre>
                 </details>
               </CollapsibleSection>
             ))}
@@ -514,7 +514,7 @@ export function EntryView({ entryId }: { entryId: string }) {
             return (
               <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(59,130,246,0.3)' }}>
                 <span className="diag-badge diag-badge-move">{name}</span>
-                {ann?.target && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>→ {ann.target}</span>}
+                {ann?.target && <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>→ {ann.target}</span>}
                 {ann?.detail && <div style={{ fontSize: '0.7rem', marginTop: 2 }}>{ann.detail}</div>}
               </div>
             );
@@ -563,26 +563,26 @@ export function EntryView({ entryId }: { entryId: string }) {
                   />
                 )}
                 {!repair && hasEntailmentData && (
-                  <span style={{ fontSize: '0.45rem', color: 'var(--text-muted)', opacity: 0.5 }}>ns</span>
+                  <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', opacity: 0.5 }}>ns</span>
                 )}
                 {anNode?.bdi_category && (
-                  <span style={{ padding: '0 3px', borderRadius: 3, fontSize: '0.5rem', fontWeight: 600, background: anNode.bdi_category === 'belief' ? 'rgba(59,130,246,0.15)' : anNode.bdi_category === 'desire' ? 'rgba(168,85,247,0.15)' : 'rgba(249,115,22,0.15)', color: anNode.bdi_category === 'belief' ? '#3b82f6' : anNode.bdi_category === 'desire' ? '#a855f7' : '#f97316' }}>
+                  <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: anNode.bdi_category === 'belief' ? 'rgba(59,130,246,0.15)' : anNode.bdi_category === 'desire' ? 'rgba(168,85,247,0.15)' : 'rgba(249,115,22,0.15)', color: anNode.bdi_category === 'belief' ? '#3b82f6' : anNode.bdi_category === 'desire' ? '#a855f7' : '#f97316' }}>
                     {anNode.bdi_category[0].toUpperCase()}
                   </span>
                 )}
                 {anNode?.specificity && (
-                  <span style={{ padding: '0 3px', borderRadius: 3, fontSize: '0.45rem', fontWeight: 600, background: 'rgba(107,114,128,0.12)', color: '#6b7280' }}>
+                  <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: 'rgba(107,114,128,0.12)', color: '#6b7280' }}>
                     {anNode.specificity}
                   </span>
                 )}
                 {anNode?.steelman_of && (
-                  <span style={{ padding: '0 3px', borderRadius: 3, fontSize: '0.45rem', fontWeight: 600, background: 'rgba(20,184,166,0.15)', color: '#14b8a6' }}>
+                  <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: 'rgba(20,184,166,0.15)', color: '#14b8a6' }}>
                     ⬆
                   </span>
                 )}
                 <span className="diag-claim-text">{c.text}</span>
                 {repair && repair.verdict !== 'entailed' && repair.repaired_text && (
-                  <div style={{ fontSize: '0.6rem', marginTop: 2, paddingLeft: 12 }}>
+                  <div style={{ fontSize: 'var(--text-2xs)', marginTop: 2, paddingLeft: 12 }}>
                     <span style={{ textDecoration: 'line-through', color: '#ef4444', opacity: 0.6 }}>{repair.original_text.slice(0, 80)}{repair.original_text.length > 80 ? '…' : ''}</span>
                     {' → '}
                     <span style={{ color: '#22c55e' }}>{repair.repaired_text.slice(0, 80)}{repair.repaired_text.length > 80 ? '…' : ''}</span>
@@ -612,7 +612,7 @@ export function EntryView({ entryId }: { entryId: string }) {
                 <span className="diag-k">Argumentation Schemes Classified:</span>
                 <div className="diag-badges" style={{ marginTop: 2 }}>
                   {ce.schemes_classified.map((s, i) => (
-                    <span key={i} className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1' }}>{s}</span>
+                    <span key={i} className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(99,102,241,0.15)', color: '#6366f1' }}>{s}</span>
                   ))}
                 </div>
               </div>
@@ -659,22 +659,22 @@ export function EntryView({ entryId }: { entryId: string }) {
               <div className="diag-k" style={{ marginBottom: 3 }}>Claim Extraction Guard</div>
               {exclusionGuard ? (
                 <>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 3 }}>
+                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 3 }}>
                     Checked {exclusionGuard.checked} claims against {exclusionGuard.refs_with_exclusion_vector} exclusion vectors (threshold: {exclusionGuard.threshold.toFixed(2)})
                   </div>
                   {violations.length > 0 ? violations.map((v, i) => (
-                    <div key={i} style={{ fontSize: '0.6rem', marginLeft: 8, marginBottom: 2, padding: '2px 4px', borderLeft: '2px solid #ef4444', background: 'rgba(239,68,68,0.06)' }}>
+                    <div key={i} style={{ fontSize: 'var(--text-2xs)', marginLeft: 8, marginBottom: 2, padding: '2px 4px', borderLeft: '2px solid #ef4444', background: 'rgba(239,68,68,0.06)' }}>
                       <span style={{ fontWeight: 600, color: '#ef4444' }}>{v.claim_id}</span> → {v.node_id}
                       <span className="diag-muted"> (main: {v.similarity_main.toFixed(2)}, excl: {v.similarity_exclusion.toFixed(2)})</span>
                     </div>
                   )) : (
-                    <div style={{ fontSize: '0.65rem', color: '#22c55e', fontWeight: 600 }}>All {exclusionGuard.checked} claims within scope — 0 exclusion violations</div>
+                    <div style={{ fontSize: 'var(--text-2xs)', color: '#22c55e', fontWeight: 600 }}>All {exclusionGuard.checked} claims within scope — 0 exclusion violations</div>
                   )}
                 </>
               ) : hasExtTrace ? (
-                <div style={{ fontSize: '0.65rem', color: '#22c55e', fontWeight: 600 }}>All claims within scope — 0 exclusion violations</div>
+                <div style={{ fontSize: 'var(--text-2xs)', color: '#22c55e', fontWeight: 600 }}>All claims within scope — 0 exclusion violations</div>
               ) : (
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>No exclusion guard data — extraction trace not available</div>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>No exclusion guard data — extraction trace not available</div>
               )}
             </div>
 
@@ -683,22 +683,22 @@ export function EntryView({ entryId }: { entryId: string }) {
               <div className="diag-k" style={{ marginBottom: 3 }}>Draft Scope Check</div>
               {scopeDriftCheck ? (
                 <>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 3 }}>
+                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 3 }}>
                     Checked {scopeDriftCheck.refs_checked} refs, {scopeDriftCheck.refs_with_exclusion_vector} with exclusion vectors (threshold: {scopeDriftCheck.threshold.toFixed(2)})
                   </div>
                   {warnings.length > 0 ? warnings.map((w, i) => (
-                    <div key={i} style={{ fontSize: '0.6rem', marginLeft: 8, marginBottom: 2, padding: '2px 4px', borderLeft: '2px solid #f59e0b', background: 'rgba(245,158,11,0.06)' }}>
+                    <div key={i} style={{ fontSize: 'var(--text-2xs)', marginLeft: 8, marginBottom: 2, padding: '2px 4px', borderLeft: '2px solid #f59e0b', background: 'rgba(245,158,11,0.06)' }}>
                       <span style={{ fontWeight: 600, color: '#f59e0b' }}>{w.debater}</span> → {w.node_id}
                       <span className="diag-muted"> (sim: {w.similarity.toFixed(2)})</span>
                     </div>
                   )) : (
-                    <div style={{ fontSize: '0.65rem', color: '#22c55e', fontWeight: 600 }}>All {scopeDriftCheck.refs_checked} refs within scope — 0 drift warnings</div>
+                    <div style={{ fontSize: 'var(--text-2xs)', color: '#22c55e', fontWeight: 600 }}>All {scopeDriftCheck.refs_checked} refs within scope — 0 drift warnings</div>
                   )}
                 </>
               ) : diag ? (
-                <div style={{ fontSize: '0.65rem', color: '#22c55e', fontWeight: 600 }}>No scope drift detected — 0 warnings</div>
+                <div style={{ fontSize: 'var(--text-2xs)', color: '#22c55e', fontWeight: 600 }}>No scope drift detected — 0 warnings</div>
               ) : (
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>No scope drift data — diagnostics not available</div>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>No scope drift data — diagnostics not available</div>
               )}
             </div>
 
@@ -708,11 +708,11 @@ export function EntryView({ entryId }: { entryId: string }) {
               return (
                 <div style={{ marginBottom: 8 }}>
                   <div className="diag-k" style={{ marginBottom: 3 }}>Taxonomy Context Injection</div>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 3 }}>
+                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 3 }}>
                     {tit.considered} nodes considered, {tit.demoted} demoted by exclusion filter
                   </div>
                   {tit.demoted_nodes?.map((n, i) => (
-                    <div key={i} style={{ fontSize: '0.6rem', marginLeft: 8, marginBottom: 2 }}>
+                    <div key={i} style={{ fontSize: 'var(--text-2xs)', marginLeft: 8, marginBottom: 2 }}>
                       <span style={{ fontWeight: 600 }}>{n.node_id}</span>
                       <span className="diag-muted"> (excl: {n.exclusion_similarity.toFixed(2)})</span>
                     </div>
@@ -727,11 +727,11 @@ export function EntryView({ entryId }: { entryId: string }) {
               return (
                 <div>
                   <div className="diag-k" style={{ marginBottom: 3 }}>Situation Injection</div>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 3 }}>
+                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 3 }}>
                     {sit.considered} situations considered, {sit.excluded} excluded
                   </div>
                   {sit.excluded_situations?.map((s, i) => (
-                    <div key={i} style={{ fontSize: '0.6rem', marginLeft: 8, marginBottom: 2 }}>
+                    <div key={i} style={{ fontSize: 'var(--text-2xs)', marginLeft: 8, marginBottom: 2 }}>
                       <span style={{ fontWeight: 600 }}>{s.situation_id}</span>
                       <span className="diag-muted"> (excl: {s.exclusion_similarity.toFixed(2)})</span>
                     </div>
@@ -822,13 +822,13 @@ export function EntryView({ entryId }: { entryId: string }) {
                       {sft.demoted.map(d => {
                         const restored = restoredSet.has(d.nodeId);
                         return (
-                          <div key={d.nodeId} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, fontSize: '0.65rem' }}>
+                          <div key={d.nodeId} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, fontSize: 'var(--text-2xs)' }}>
                             <span style={{ fontFamily: 'monospace', minWidth: 52, color: restored ? '#f59e0b' : '#ef4444' }}>{d.nodeId}</span>
                             <span style={{ flex: 1, color: 'var(--text-muted)' }}>{d.reason}</span>
-                            <span style={{ minWidth: 60, textAlign: 'right', color: 'var(--text-muted)', fontSize: '0.55rem' }}>
+                            <span style={{ minWidth: 60, textAlign: 'right', color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
                               {d.originalScore.toFixed(2)} → {d.newScore.toFixed(2)}
                             </span>
-                            {restored && <span className="diag-badge" style={{ fontSize: '0.45rem', background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>restored</span>}
+                            {restored && <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>restored</span>}
                           </div>
                         );
                       })}
@@ -860,7 +860,7 @@ export function EntryView({ entryId }: { entryId: string }) {
                             <div style={{ width: 50, height: 8, background: 'var(--bg-secondary)', borderRadius: 2, overflow: 'hidden' }}>
                               <div style={{ width: `${barWidth}%`, height: '100%', background: color, borderRadius: 2 }} />
                             </div>
-                            <span style={{ fontSize: '0.6rem', color, fontWeight: 600, minWidth: 28 }}>{label}</span>
+                            <span style={{ fontSize: 'var(--text-2xs)', color, fontWeight: 600, minWidth: 28 }}>{label}</span>
                           </div>
                         );
                       })}
@@ -893,7 +893,7 @@ export function EntryView({ entryId }: { entryId: string }) {
                   <div key={i} style={{ marginBottom: 6, padding: '4px 6px', background: 'var(--bg-secondary)', borderRadius: 4 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
                       <span className="diag-badge" style={{
-                        fontSize: '0.6rem', fontWeight: 700, padding: '1px 5px', borderRadius: 3,
+                        fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '1px 5px', borderRadius: 3,
                         background: isPolicyCriterion ? 'rgba(239,68,68,0.15)' : 'rgba(99,102,241,0.15)',
                         color: isPolicyCriterion ? '#ef4444' : '#6366f1',
                       }}>
@@ -986,8 +986,8 @@ export function EntryView({ entryId }: { entryId: string }) {
             const match = diag.prompt.match(/Scope reminder:[^\n]*/);
             if (!match) return null;
             return (
-              <div style={{ marginBottom: 6, padding: '4px 8px', background: 'rgba(6,182,212,0.1)', border: '1px solid rgba(6,182,212,0.3)', borderRadius: 4, fontSize: '0.65rem', color: '#06b6d4' }}>
-                <span className="diag-k" style={{ fontSize: '0.55rem' }}>Scope block:</span> {match[0]}
+              <div style={{ marginBottom: 6, padding: '4px 8px', background: 'rgba(6,182,212,0.1)', border: '1px solid rgba(6,182,212,0.3)', borderRadius: 4, fontSize: 'var(--text-2xs)', color: '#06b6d4' }}>
+                <span className="diag-k" style={{ fontSize: 'var(--text-2xs)' }}>Scope block:</span> {match[0]}
               </div>
             );
           })()}

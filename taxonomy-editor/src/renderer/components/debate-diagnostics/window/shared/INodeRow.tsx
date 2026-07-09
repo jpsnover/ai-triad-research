@@ -300,7 +300,7 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
                   <span>← {a.source}</span>
                   <strong>{a.attack_type}</strong>
                   {(() => { const s = deriveStrength(a); const st = STRENGTH_STYLES[s] ?? STRENGTH_STYLES.substantial; return (
-                    <span style={{ padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 600, background: st.bg, color: st.color }}>{st.label}</span>
+                    <span style={{ padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: st.bg, color: st.color }}>{st.label}</span>
                   ); })()}
                   <span style={{ color: 'var(--text-muted)' }}>{a.scheme ? `via ${a.scheme}` : ''}</span>
                   {contribution != null ? (
@@ -346,7 +346,7 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
                   <span>← {s.source}</span>
                   <strong>supports</strong>
                   {(() => { const str = deriveStrength(s); const st = STRENGTH_STYLES[str] ?? STRENGTH_STYLES.substantial; return (
-                    <span style={{ padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 600, background: st.bg, color: st.color }}>{st.label}</span>
+                    <span style={{ padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: st.bg, color: st.color }}>{st.label}</span>
                   ); })()}
                   <span style={{ color: 'var(--text-muted)' }}>{s.scheme ? `via ${s.scheme}` : ''}</span>
                   {contributionS != null ? (
@@ -397,7 +397,7 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
                 </div>
               ))}
               {attribution.attributions.length > 6 && (
-                <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>...and {attribution.attributions.length - 6} more</div>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>...and {attribution.attributions.length - 6} more</div>
               )}
             </div>
           )}

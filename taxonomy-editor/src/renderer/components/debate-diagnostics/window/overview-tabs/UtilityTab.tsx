@@ -50,7 +50,7 @@ export function UtilityTab({ debate, perTurnUtilities, setSelectedEntry, setLoca
               <strong style={{ fontSize: '0.8rem', color }}>{speakerLabel(speaker)}</strong>
               <ScoreBadge value={u.composite} label="composite" tooltip={`Composite utility: ${u.composite.toFixed(3)} — weighted sum of position strength, attack effectiveness, and crux engagement`} />
               <span title={trend.label} style={{ fontSize: '0.85rem', fontWeight: 700, color: trend.color }}>{trend.icon}</span>
-              {w && <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)' }}>weights: pos={w.position} atk={w.attack} crux={w.crux}</span>}
+              {w && <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>weights: pos={w.position} atk={w.attack} crux={w.crux}</span>}
             </div>
             <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
               <ScoreBadge value={u.position_strength} label="position_strength" compact tooltip="Mean computed_strength of undefeated nodes (>= 0.3)" />
@@ -80,7 +80,7 @@ export function UtilityTab({ debate, perTurnUtilities, setSelectedEntry, setLoca
                   );
                 })}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.55rem', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
                 <span>{Math.min(...perTurnUtilities.map(s => s.byAgent[speaker]?.composite ?? 0)).toFixed(3)}</span>
                 <span style={{ fontWeight: 600, color }}>{u.composite.toFixed(3)}</span>
               </div>

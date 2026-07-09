@@ -271,7 +271,7 @@ function NodeChip({ id, label, primary, diff, cited, pinned, onClick }: NodeChip
         display: 'inline-flex', alignItems: 'center',
         background: palette.bg, color: palette.fg,
         padding: '2px 6px', borderRadius: 4,
-        fontSize: '0.68rem',
+        fontSize: 'var(--text-2xs)',
         fontWeight: cited ? 700 : 500,
         margin: 2, cursor: onClick ? 'pointer' : 'default',
         border, textDecoration, opacity,
@@ -279,7 +279,7 @@ function NodeChip({ id, label, primary, diff, cited, pinned, onClick }: NodeChip
       }}
     >
       <span style={{
-        fontSize: '0.55rem', marginRight: 4,
+        fontSize: 'var(--text-2xs)', marginRight: 4,
         background: 'rgba(0,0,0,0.12)', padding: '0 3px', borderRadius: 2,
       }}>{palette.tag}</span>
       {prefix}{star}{id}
@@ -393,7 +393,7 @@ function PovLane({ pov, curr, prev, mode, pinnedNodes, togglePin, nodeLabels }: 
               />
             ))}
             {!showAll && (
-              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginLeft: 6 }}>
+              <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginLeft: 6 }}>
                 +{supportingCount} unchanged supporting nodes hidden
               </span>
             )}
@@ -471,7 +471,7 @@ function AnSubstrateLane({ snapshot }: { snapshot: TurnSnapshot }) {
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 4,
                 margin: 3, padding: '3px 7px', borderRadius: 12,
-                fontSize: '0.66rem',
+                fontSize: 'var(--text-2xs)',
                 background: 'rgba(255,255,255,0.04)',
                 border: `2px solid ${outline}`,
               }}
@@ -484,7 +484,7 @@ function AnSubstrateLane({ snapshot }: { snapshot: TurnSnapshot }) {
               <span style={{ opacity: 0.85 }}>{truncate(n.text, 60)}</span>
               {n.bdi_category && (
                 <span style={{
-                  fontSize: '0.55rem', padding: '0 3px', borderRadius: 2,
+                  fontSize: 'var(--text-2xs)', padding: '0 3px', borderRadius: 2,
                   background: 'rgba(0,0,0,0.15)',
                 }}>{n.bdi_category[0].toUpperCase()}</span>
               )}
@@ -499,7 +499,7 @@ function AnSubstrateLane({ snapshot }: { snapshot: TurnSnapshot }) {
       {targeted.length === 0 && (
         <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>none</span>
       )}
-      <table style={{ fontSize: '0.68rem', borderCollapse: 'collapse' }}>
+      <table style={{ fontSize: 'var(--text-2xs)', borderCollapse: 'collapse' }}>
         <tbody>
           {targeted.map((t, i) => {
             const fromInfo = (t.fromSpeaker === 'accelerationist' || t.fromSpeaker === 'safetyist' || t.fromSpeaker === 'skeptic')
@@ -576,13 +576,13 @@ function MiniMap({ turns, selectedTurn, setSelectedTurn, pinnedNodes }: MiniMapP
       <table style={{ borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed' }}>
         <thead>
           <tr>
-            <th style={{ width: 80, fontSize: '0.65rem', textAlign: 'right', paddingRight: 6 }}></th>
+            <th style={{ width: 80, fontSize: 'var(--text-2xs)', textAlign: 'right', paddingRight: 6 }}></th>
             {turns.map(t => (
               <th
                 key={t.turnIndex}
                 onClick={() => setSelectedTurn(t.turnIndex)}
                 style={{
-                  fontSize: '0.62rem', textAlign: 'center', padding: '2px 1px',
+                  fontSize: 'var(--text-2xs)', textAlign: 'center', padding: '2px 1px',
                   cursor: 'pointer',
                   background: t.turnIndex === selectedTurn ? 'rgba(139,92,246,0.2)' : 'transparent',
                   borderRadius: 3,
@@ -596,7 +596,7 @@ function MiniMap({ turns, selectedTurn, setSelectedTurn, pinnedNodes }: MiniMapP
             const info = POVER_INFO[pov];
             return (
               <tr key={pov}>
-                <td style={{ fontSize: '0.65rem', textAlign: 'right', paddingRight: 6, color: info.color, fontWeight: 600 }}>
+                <td style={{ fontSize: 'var(--text-2xs)', textAlign: 'right', paddingRight: 6, color: info.color, fontWeight: 600 }}>
                   {info.label}
                 </td>
                 {cells.map((c, i) => {
@@ -636,12 +636,12 @@ function MiniMap({ turns, selectedTurn, setSelectedTurn, pinnedNodes }: MiniMapP
 
       {pinnedTrack.length > 0 && (
         <>
-          <div style={{ fontSize: '0.65rem', fontWeight: 600, marginTop: 8, color: 'var(--text-muted)' }}>
+          <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, marginTop: 8, color: 'var(--text-muted)' }}>
             Pinned nodes — presence across turns (line = in context, dot = cited)
           </div>
           {pinnedTrack.map(({ nodeId, presence }) => (
             <div key={nodeId} style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-              <span style={{ width: 80, fontSize: '0.62rem', textAlign: 'right', color: 'var(--text-muted)' }}>
+              <span style={{ width: 80, fontSize: 'var(--text-2xs)', textAlign: 'right', color: 'var(--text-muted)' }}>
                 {nodeId}
               </span>
               <div style={{ display: 'flex', flex: 1, alignItems: 'center', gap: 0 }}>
@@ -759,7 +759,7 @@ export function PovProgressionView({ session, nodeLabels }: PovProgressionViewPr
               onClick={() => setMode(m)}
               className="btn btn-sm"
               style={{
-                fontSize: '0.65rem',
+                fontSize: 'var(--text-2xs)',
                 background: mode === m ? 'var(--accent-color, #3b82f6)' : 'var(--bg-subtle)',
                 color: mode === m ? '#fff' : 'var(--text)',
               }}
@@ -779,7 +779,7 @@ export function PovProgressionView({ session, nodeLabels }: PovProgressionViewPr
             onClick={() => setSelectedTurn(t.turnIndex)}
             className="btn btn-sm"
             style={{
-              fontSize: '0.65rem',
+              fontSize: 'var(--text-2xs)',
               background: t.turnIndex === safeSelected ? 'var(--accent-color, #3b82f6)' : 'var(--bg-subtle)',
               color: t.turnIndex === safeSelected ? '#fff' : 'var(--text)',
             }}

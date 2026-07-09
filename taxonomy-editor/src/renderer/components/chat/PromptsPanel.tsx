@@ -162,7 +162,7 @@ export function PromptsPanel({ onSelectPrompt, onInspectorToggle }: PromptsPanel
                   <span className="prompts-panel-item-title">{entry.title}</span>
                   <span className="prompts-panel-item-source">{entry.source}</span>
                   {matchFields.has(entry.id) && (
-                    <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginLeft: 4 }}>
+                    <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginLeft: 4 }}>
                       {matchFields.get(entry.id)!.join(', ')}
                     </span>
                   )}

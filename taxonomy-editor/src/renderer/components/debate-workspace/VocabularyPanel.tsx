@@ -109,7 +109,7 @@ export function VocabTermCard({ bare, dict, resolved, defLookup, navigateToLinea
           }}>
             <div style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
               {isHighlighted && (
-                <span style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--accent-color, #3b82f6)', flexShrink: 0 }}>
+                <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--accent-color, #3b82f6)', flexShrink: 0 }}>
                   active
                 </span>
               )}
@@ -152,7 +152,7 @@ export function VocabTermCard({ bare, dict, resolved, defLookup, navigateToLinea
             background: 'var(--active-definition-bg, rgba(59,130,246,0.08))',
           }}>
             <div style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--accent-color, #3b82f6)', flexShrink: 0 }}>
+              <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--accent-color, #3b82f6)', flexShrink: 0 }}>
                 active
               </span>
               <a

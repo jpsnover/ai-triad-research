@@ -185,7 +185,7 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
                         if (!drp && !dr) return null;
                         return (
                           <div style={{ padding: 6, margin: '4px 0', borderLeft: '3px solid rgba(245,158,11,0.6)', background: 'rgba(245,158,11,0.08)', borderRadius: 4, fontSize: '0.72rem' }}>
-                            <span style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: '0.65rem' }}>MODERATOR DIRECTIVE</span>
+                            <span style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>MODERATOR DIRECTIVE</span>
                             {dr && (
                               <>
                                 <div style={{ marginTop: 4 }}><strong>Directive:</strong> {dr.directive}</div>
@@ -203,13 +203,13 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
                       )}
                       {!!wp.core_thesis && (
                         <div style={{ padding: 6, margin: '4px 0', borderLeft: '3px solid rgba(168,85,247,0.4)', background: 'rgba(168,85,247,0.05)', fontSize: '0.72rem' }}>
-                          <span style={{ fontWeight: 600, fontSize: '0.68rem' }}>Core Thesis: </span>
+                          <span style={{ fontWeight: 600, fontSize: 'var(--text-2xs)' }}>Core Thesis: </span>
                           {String(wp.core_thesis)}
                         </div>
                       )}
                       {!!wp.framing_choices && (
                         <div style={{ padding: 6, margin: '4px 0', borderLeft: '3px solid rgba(168,85,247,0.3)', fontSize: '0.7rem' }}>
-                          <span style={{ fontWeight: 600, fontSize: '0.68rem' }}>Framing: </span>
+                          <span style={{ fontWeight: 600, fontSize: 'var(--text-2xs)' }}>Framing: </span>
                           {Array.isArray(wp.framing_choices)
                             ? (wp.framing_choices as { frame: string; why: string }[]).map((fc, i) => (
                               <div key={i} style={{ marginTop: i > 0 ? 4 : 2 }}>
@@ -225,9 +225,9 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
                         <details open style={{ margin: '4px 0' }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }}>Planned Moves</summary>
                           {(wp.planned_moves as { move: string; target?: string; detail: string }[]).map((m, i) => (
                             <div key={i} style={{ margin: '3px 0', paddingLeft: 6, borderLeft: '2px solid rgba(168,85,247,0.3)' }}>
-                              <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: 3, background: 'rgba(168,85,247,0.2)', color: '#a855f7', fontSize: '0.65rem', fontWeight: 600 }}>{m.move}</span>
-                              {m.target && <span style={{ marginLeft: 4, fontSize: '0.62rem', color: 'var(--text-muted)' }}>{'→'} {m.target}</span>}
-                              {m.detail && <div style={{ fontSize: '0.68rem', marginTop: 1 }}>{m.detail}</div>}
+                              <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: 3, background: 'rgba(168,85,247,0.2)', color: '#a855f7', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>{m.move}</span>
+                              {m.target && <span style={{ marginLeft: 4, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{'→'} {m.target}</span>}
+                              {m.detail && <div style={{ fontSize: 'var(--text-2xs)', marginTop: 1 }}>{m.detail}</div>}
                             </div>
                           ))}
                         </details>
@@ -237,13 +237,13 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
                           {(wp.argument_structure as { point: string; evidence: string; taxonomy_anchor: string }[]).map((s, i) => (
                             <div key={i} style={{ margin: '3px 0', padding: '4px 6px', borderLeft: '2px solid rgba(168,85,247,0.3)', background: 'rgba(168,85,247,0.03)', borderRadius: '0 4px 4px 0' }}>
                               <div style={{ fontSize: '0.7rem', fontWeight: 600 }}>{s.point}</div>
-                              {s.evidence && <div style={{ fontSize: '0.68rem', marginTop: 1 }}>{s.evidence}</div>}
+                              {s.evidence && <div style={{ fontSize: 'var(--text-2xs)', marginTop: 1 }}>{s.evidence}</div>}
                               {s.taxonomy_anchor && (
                                 <div style={{ marginTop: 2 }}>
-                                  <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>Anchor: </span>
+                                  <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Anchor: </span>
                                   <button
                                     onClick={() => focusMainWindowNode(s.taxonomy_anchor)}
-                                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: '0.62rem' }}
+                                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'var(--text-2xs)' }}
                                   >{s.taxonomy_anchor}</button>
                                 </div>
                               )}
@@ -325,7 +325,7 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
                         {taxRef.node_id}
                       </button>
                       <span className="debate-reasoning-label">{label}</span>
-                      <span className="debate-reasoning-weight" style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                      <span className="debate-reasoning-weight" style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                         ({taxRef.relevance_score != null && <>Relevance {taxRef.relevance_score.toFixed(2)}</>}
                         {taxRef.relevance_score != null && weightLabel && weightValue != null && ' ; '}
                         {weightLabel && weightValue != null && <>{weightLabel} {weightLabel === 'Confidence' ? weightValue.toFixed(2) : `${weightValue}/5`}</>})

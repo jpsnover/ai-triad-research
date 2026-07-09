@@ -109,11 +109,11 @@ export function AffectTab({ entry, debate, entryIdx }: AffectTabProps) {
                       />
                     )}
                   </div>
-                  <span style={{ fontSize: '0.65rem', fontWeight: 700, minWidth: 36, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                  <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, minWidth: 36, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     {val.toFixed(2)}
                   </span>
                 </div>
-                <div style={{ marginLeft: 68, fontSize: '0.6rem', color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.3 }}>
+                <div style={{ marginLeft: 68, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.3 }}>
                   {terms.length > 0
                     ? <span>{'← '}{terms.map((t, i) => <React.Fragment key={t}>{i > 0 && ', '}<span style={{ color: CATEGORY_COLORS[cat], fontStyle: 'normal' }}>{t}</span></React.Fragment>)}</span>
                     : <span>no terms matched</span>
@@ -123,7 +123,7 @@ export function AffectTab({ entry, debate, entryIdx }: AffectTabProps) {
             );
           })}
         </div>
-        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 4 }}>
+        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4 }}>
           Vertical markers show the {phase}-phase baseline for comparison.
         </div>
       </div>
@@ -147,7 +147,7 @@ export function AffectTab({ entry, debate, entryIdx }: AffectTabProps) {
             }} />
           </div>
         )}
-        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 4 }}>
+        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4 }}>
           Weighted: fear/outrage 0.30, urgency 0.20, hope/empathy 0.10
         </div>
       </div>
@@ -161,7 +161,7 @@ export function AffectTab({ entry, debate, entryIdx }: AffectTabProps) {
           </span>
           {appropriateness != null && appropriateness < 0.4 && profile.outrage > 0.5 && phase === 'concluding' && (
             <span style={{
-              padding: '1px 6px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 600,
+              padding: '1px 6px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600,
               background: 'rgba(220,38,38,0.15)', color: '#dc2626',
             }}>concluding outrage warning</span>
           )}
@@ -177,7 +177,7 @@ export function AffectTab({ entry, debate, entryIdx }: AffectTabProps) {
             }} />
           </div>
         )}
-        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 4 }}>
+        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4 }}>
           1.0 = on-baseline, 0.0 = {'≥'}35% mean deviation from {phase}-phase expected profile.
         </div>
       </div>

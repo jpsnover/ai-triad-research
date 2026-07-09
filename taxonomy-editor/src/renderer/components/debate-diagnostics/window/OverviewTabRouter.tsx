@@ -106,7 +106,7 @@ export function OverviewTabRouter({
                 <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4 }}>Relevant Disciplines</div>
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {scope.relevant_disciplines.map(d => (
-                    <span key={d} style={{ padding: '2px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.15)', color: '#f59e0b', fontSize: '0.65rem' }}>{d}</span>
+                    <span key={d} style={{ padding: '2px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.15)', color: '#f59e0b', fontSize: 'var(--text-2xs)' }}>{d}</span>
                   ))}
                 </div>
               </div>
@@ -126,7 +126,7 @@ export function OverviewTabRouter({
                 <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4, color: '#ef4444' }}>Off-Scope Topics</div>
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {scope.off_scope_topics.map(t => (
-                    <span key={t} style={{ padding: '2px 6px', borderRadius: 3, background: 'rgba(239,68,68,0.15)', color: '#ef4444', fontSize: '0.65rem' }}>{t}</span>
+                    <span key={t} style={{ padding: '2px 6px', borderRadius: 3, background: 'rgba(239,68,68,0.15)', color: '#ef4444', fontSize: 'var(--text-2xs)' }}>{t}</span>
                   ))}
                 </div>
               </div>
@@ -153,7 +153,7 @@ export function OverviewTabRouter({
                 <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4 }}>Qualifiers</div>
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {scope.explicit_qualifiers.map(q => (
-                    <span key={q} style={{ padding: '2px 6px', borderRadius: 3, background: 'rgba(99,102,241,0.15)', color: '#6366f1', fontSize: '0.65rem' }}>{q}</span>
+                    <span key={q} style={{ padding: '2px 6px', borderRadius: 3, background: 'rgba(99,102,241,0.15)', color: '#6366f1', fontSize: 'var(--text-2xs)' }}>{q}</span>
                   ))}
                 </div>
               </div>
@@ -244,12 +244,12 @@ export function OverviewTabRouter({
                         transition: 'width 0.3s ease',
                       }} />
                     </div>
-                    <span style={{ fontSize: '0.65rem', fontWeight: 700, minWidth: 40, textAlign: 'right', color: '#f59e0b' }}>
+                    <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, minWidth: 40, textAlign: 'right', color: '#f59e0b' }}>
                       {(f.percentage * 100).toFixed(0)}%
                     </span>
                   </div>
                   {f.traditions && f.traditions.length > 0 && (
-                    <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 2, paddingLeft: 168 }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2, paddingLeft: 168 }}>
                       {f.traditions.join(', ')}
                     </div>
                   )}
@@ -331,7 +331,7 @@ export function OverviewTabRouter({
                     <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                       {[...allPromoted].map(id => (
                         <span key={id} style={{
-                          padding: '1px 6px', borderRadius: 4, fontSize: '0.6rem', fontFamily: 'monospace',
+                          padding: '1px 6px', borderRadius: 4, fontSize: 'var(--text-2xs)', fontFamily: 'monospace',
                           background: promotedCitedSet.has(id) ? 'rgba(34,197,94,0.15)' : 'rgba(156,163,175,0.15)',
                           color: promotedCitedSet.has(id) ? '#22c55e' : 'var(--text-muted)',
                           border: `1px solid ${promotedCitedSet.has(id) ? 'rgba(34,197,94,0.3)' : 'rgba(156,163,175,0.2)'}`,
@@ -401,7 +401,7 @@ export function OverviewTabRouter({
                                 padding: '3px 8px', textAlign: 'center', fontWeight: 600,
                                 color: v.confidence === 'high' ? '#22c55e' : v.confidence === 'low' ? '#ef4444' : '#d97706',
                               }}>{v.confidence}</td>
-                              <td style={{ padding: '3px 8px', fontSize: '0.65rem', color: 'var(--text-muted)' }}>{[...v.speakers].join(', ')}</td>
+                              <td style={{ padding: '3px 8px', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{[...v.speakers].join(', ')}</td>
                               <td style={{ padding: '3px 8px', textAlign: 'center' }}>{v.count}</td>
                             </tr>
                           );
@@ -410,7 +410,7 @@ export function OverviewTabRouter({
                     </table>
                   )}
                   {allAmbiguous.length > 0 && (
-                    <div style={{ padding: '6px 10px', background: 'rgba(217,119,6,0.06)', borderLeft: '3px solid #d97706', borderRadius: 4, fontSize: '0.68rem' }}>
+                    <div style={{ padding: '6px 10px', background: 'rgba(217,119,6,0.06)', borderLeft: '3px solid #d97706', borderRadius: 4, fontSize: 'var(--text-2xs)' }}>
                       <div style={{ fontWeight: 600, color: '#d97706', marginBottom: 4 }}>Ambiguous terms (needs review):</div>
                       {[...new Set(allAmbiguous.map(a => a.colloquial))].map((term, i) => {
                         const speakers = [...new Set(allAmbiguous.filter(a => a.colloquial === term).map(a => a.speaker))];
@@ -555,18 +555,18 @@ export function OverviewTabRouter({
               <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>Flight Recorder Context Snapshot</span>
               <button
                 onClick={() => { void triggerManualDump(); }}
-                style={{ fontSize: '0.65rem', padding: '2px 8px', background: '#f59e0b', color: '#000', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}
+                style={{ fontSize: 'var(--text-2xs)', padding: '2px 8px', background: '#f59e0b', color: '#000', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}
               >Dump Now</button>
             </div>
             {sections.map(s => (
               <div key={s.title} style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#f59e0b', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.title}</div>
+                <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: '#f59e0b', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.title}</div>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.7rem' }}>
                   <tbody>
                     {s.rows.map(([label, value]) => (
                       <tr key={label} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td style={{ padding: '2px 6px', color: 'var(--text-muted)', width: '40%' }}>{label}</td>
-                        <td style={{ padding: '2px 6px', fontFamily: 'monospace', fontSize: '0.65rem' }}>{String(value ?? '')}</td>
+                        <td style={{ padding: '2px 6px', fontFamily: 'monospace', fontSize: 'var(--text-2xs)' }}>{String(value ?? '')}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -589,7 +589,7 @@ export function OverviewTabRouter({
             <button
               onClick={() => setTranscriptSpeakerFilter(null)}
               style={{
-                padding: '2px 8px', fontSize: '0.6rem', fontWeight: 600, borderRadius: 4, cursor: 'pointer',
+                padding: '2px 8px', fontSize: 'var(--text-2xs)', fontWeight: 600, borderRadius: 4, cursor: 'pointer',
                 border: '1px solid var(--border)',
                 background: !transcriptSpeakerFilter ? '#f59e0b' : 'transparent',
                 color: !transcriptSpeakerFilter ? '#000' : 'var(--text-secondary)',
@@ -603,7 +603,7 @@ export function OverviewTabRouter({
                   key={s}
                   onClick={() => setTranscriptSpeakerFilter(active ? null : s)}
                   style={{
-                    padding: '2px 8px', fontSize: '0.6rem', fontWeight: 600, borderRadius: 4, cursor: 'pointer',
+                    padding: '2px 8px', fontSize: 'var(--text-2xs)', fontWeight: 600, borderRadius: 4, cursor: 'pointer',
                     border: '1px solid var(--border)',
                     background: active ? '#f59e0b' : 'transparent',
                     color: active ? '#000' : 'var(--text-secondary)',
@@ -638,27 +638,27 @@ export function OverviewTabRouter({
                     padding: '1px 6px', borderRadius: 8,
                     background: pipelineError ? 'rgba(220,38,38,0.15)' : 'rgba(249,115,22,0.12)',
                     color: pipelineError ? '#dc2626' : '#f97316',
-                    fontSize: '0.6rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+                    fontSize: 'var(--text-2xs)', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
                     flexShrink: 0,
                   }}
                 >{pipelineError && <span style={{ marginRight: 3 }}>●</span>}{stmtId}</span>
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <strong>{speakerLabel(e.speaker)}</strong> [{e.type}] <Highlight text={e.content.slice(0, 80)} />...
                 </span>
-                {hasStages && <span title="4-stage pipeline" style={{ fontSize: '0.5rem', color: '#3b82f6', opacity: 0.7 }}>B/P/D/C</span>}
+                {hasStages && <span title="4-stage pipeline" style={{ fontSize: 'var(--text-2xs)', color: '#3b82f6', opacity: 0.7 }}>B/P/D/C</span>}
               </div>
               {modT && (
                 <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 2, paddingLeft: 36, flexWrap: 'wrap' }}>
-                  <span style={{ padding: '0 4px', borderRadius: 3, background: 'rgba(139,92,246,0.12)', color: '#8b5cf6', fontSize: '0.55rem', fontWeight: 600 }}>MOD</span>
-                  {modT.focus_point && <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={modT.focus_point}>{modT.focus_point}</span>}
+                  <span style={{ padding: '0 4px', borderRadius: 3, background: 'rgba(139,92,246,0.12)', color: '#8b5cf6', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>MOD</span>
+                  {modT.focus_point && <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={modT.focus_point}>{modT.focus_point}</span>}
                   {modT.selection_reason && modT.selection_reason !== 'moderator_ai_selection' && (
-                    <span style={{ padding: '0 3px', borderRadius: 2, background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '0.5rem' }}>{modT.selection_reason === 'turn_alternation_override' ? 'override' : modT.selection_reason}</span>
+                    <span style={{ padding: '0 3px', borderRadius: 2, background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: 'var(--text-2xs)' }}>{modT.selection_reason === 'turn_alternation_override' ? 'override' : modT.selection_reason}</span>
                   )}
                   {modT.intervention_move && (
-                    <span style={{ padding: '0 4px', borderRadius: 3, background: modT.intervention_validated ? 'rgba(139,92,246,0.2)' : 'rgba(239,68,68,0.15)', color: modT.intervention_validated ? '#8b5cf6' : '#ef4444', fontSize: '0.5rem', fontWeight: 600 }}>{modT.intervention_move}{modT.intervention_validated ? '' : ' (suppressed)'}</span>
+                    <span style={{ padding: '0 4px', borderRadius: 3, background: modT.intervention_validated ? 'rgba(139,92,246,0.2)' : 'rgba(239,68,68,0.15)', color: modT.intervention_validated ? '#8b5cf6' : '#ef4444', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>{modT.intervention_move}{modT.intervention_validated ? '' : ' (suppressed)'}</span>
                   )}
-                  {modT.convergence_score != null && <span style={{ fontSize: '0.5rem', color: 'var(--text-muted)' }}>conv:{(modT.convergence_score * 100).toFixed(0)}%</span>}
-                  {modT.health_score != null && <span style={{ fontSize: '0.5rem', color: 'var(--text-muted)' }}>H:{modT.health_score.toFixed(2)}</span>}
+                  {modT.convergence_score != null && <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>conv:{(modT.convergence_score * 100).toFixed(0)}%</span>}
+                  {modT.health_score != null && <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>H:{modT.health_score.toFixed(2)}</span>}
                 </div>
               )}
             </div>
@@ -798,8 +798,8 @@ export function OverviewTabRouter({
                               <span style={{ color: 'var(--text-muted)' }}>→</span>
                               <span style={{ fontWeight: 600 }}>{v.node_id}</span>
                             </div>
-                            <div style={{ color: 'var(--text-primary)', fontSize: '0.65rem' }}>{v.claim_text}</div>
-                            <div style={{ display: 'flex', gap: 12, fontSize: '0.6rem', marginTop: 2, color: 'var(--text-muted)' }}>
+                            <div style={{ color: 'var(--text-primary)', fontSize: 'var(--text-2xs)' }}>{v.claim_text}</div>
+                            <div style={{ display: 'flex', gap: 12, fontSize: 'var(--text-2xs)', marginTop: 2, color: 'var(--text-muted)' }}>
                               <span>main: <strong>{v.similarity_main.toFixed(3)}</strong></span>
                               <span>exclusion: <strong>{v.similarity_exclusion.toFixed(3)}</strong></span>
                             </div>
@@ -826,7 +826,7 @@ export function OverviewTabRouter({
                               </span>
                             </div>
                             <div style={{
-                              color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.65rem',
+                              color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 'var(--text-2xs)',
                               padding: '3px 6px', borderLeft: '1px solid var(--border)', marginTop: 2,
                             }}>
                               {w.draft_excerpt.length > 200 ? w.draft_excerpt.slice(0, 200) + '…' : w.draft_excerpt}

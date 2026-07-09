@@ -408,7 +408,7 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
               onClick={() => void toggleStepMode()}
               disabled={disableAnalysis}
               title={isStepMode ? 'Switch to auto mode (run all stages)' : 'Switch to step mode (1 round at a time, manual phase control)'}
-              style={{ fontSize: '0.65rem', padding: '2px 6px' }}
+              style={{ fontSize: 'var(--text-2xs)', padding: '2px 6px' }}
             >
               {isStepMode ? 'Step' : 'Auto'}
             </button>
@@ -511,7 +511,7 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
             className="btn"
             onClick={() => setShowParamHistory(!showParamHistory)}
             title="View calibration parameter history and current values"
-            style={{ fontSize: '0.65rem' }}
+            style={{ fontSize: 'var(--text-2xs)' }}
           >
             Calibration
           </button>

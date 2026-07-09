@@ -42,7 +42,7 @@ function StatusBadge({ status }: { status: ClaimExtractionTrace['status'] }) {
   return (
     <span style={{
       background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3,
-      fontSize: '0.6rem', fontWeight: 700, whiteSpace: 'nowrap',
+      fontSize: 'var(--text-2xs)', fontWeight: 700, whiteSpace: 'nowrap',
     }}>{c.label}</span>
   );
 }
@@ -175,7 +175,7 @@ function TraceRow({ trace, idx, onSelect, selected }: {
 
 const navBtn = (disabled: boolean): React.CSSProperties => ({
   padding: '2px 8px',
-  fontSize: '0.65rem',
+  fontSize: 'var(--text-2xs)',
   fontWeight: 600,
   borderRadius: 4,
   border: '1px solid var(--border)',
@@ -184,7 +184,7 @@ const navBtn = (disabled: boolean): React.CSSProperties => ({
   cursor: disabled ? 'not-allowed' : 'pointer',
   opacity: disabled ? 0.5 : 1,
 });
-const th: React.CSSProperties = { padding: '4px 6px', fontSize: '0.65rem', fontWeight: 700, textAlign: 'left', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', cursor: 'default' };
+const th: React.CSSProperties = { padding: '4px 6px', fontSize: 'var(--text-2xs)', fontWeight: 700, textAlign: 'left', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', cursor: 'default' };
 const thNum: React.CSSProperties = { ...th, textAlign: 'right' as const };
 
 function AttributionSummary({ traces, debate }: { traces: ClaimExtractionTrace[]; debate: DebateSession }) {
@@ -223,7 +223,7 @@ function AttributionSummary({ traces, debate }: { traces: ClaimExtractionTrace[]
 
   return (
     <details style={{ marginBottom: 4 }}>
-      <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>
+      <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>
         Taxonomy Attribution ({stats.attributed}/{stats.total} attributed{ratio != null ? ` · ${(ratio * 100).toFixed(0)}% unattributed` : ''})
       </summary>
       <div style={{ fontSize: '0.7rem', padding: '4px 0' }}>
@@ -253,25 +253,25 @@ function AttributionSummary({ traces, debate }: { traces: ClaimExtractionTrace[]
         {/* Confidence distribution */}
         {stats.attributed > 0 && (
           <div style={{ marginBottom: 8 }}>
-            <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 3 }}>Confidence Distribution</div>
+            <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 3 }}>Confidence Distribution</div>
             <div style={{ display: 'flex', gap: 2, height: 16, borderRadius: 3, overflow: 'hidden' }}>
               {stats.confBuckets.high > 0 && (
-                <div style={{ flex: stats.confBuckets.high, background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem', color: '#fff', fontWeight: 700 }}
+                <div style={{ flex: stats.confBuckets.high, background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-2xs)', color: '#fff', fontWeight: 700 }}
                   title={`High confidence (≥0.70): ${stats.confBuckets.high} claims`}
                 >{stats.confBuckets.high}</div>
               )}
               {stats.confBuckets.medium > 0 && (
-                <div style={{ flex: stats.confBuckets.medium, background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem', color: '#fff', fontWeight: 700 }}
+                <div style={{ flex: stats.confBuckets.medium, background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-2xs)', color: '#fff', fontWeight: 700 }}
                   title={`Medium confidence (0.50–0.69): ${stats.confBuckets.medium} claims`}
                 >{stats.confBuckets.medium}</div>
               )}
               {stats.confBuckets.low > 0 && (
-                <div style={{ flex: stats.confBuckets.low, background: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem', color: '#fff', fontWeight: 700 }}
+                <div style={{ flex: stats.confBuckets.low, background: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-2xs)', color: '#fff', fontWeight: 700 }}
                   title={`Low confidence (0.35–0.49): ${stats.confBuckets.low} claims`}
                 >{stats.confBuckets.low}</div>
               )}
             </div>
-            <div style={{ display: 'flex', gap: 12, marginTop: 2, fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+            <div style={{ display: 'flex', gap: 12, marginTop: 2, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
               <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#22c55e', borderRadius: 1, marginRight: 3 }} />High ≥0.70</span>
               <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#3b82f6', borderRadius: 1, marginRight: 3 }} />Med 0.50–0.69</span>
               <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#f59e0b', borderRadius: 1, marginRight: 3 }} />Low 0.35–0.49</span>
@@ -282,13 +282,13 @@ function AttributionSummary({ traces, debate }: { traces: ClaimExtractionTrace[]
         {/* Most-attributed nodes */}
         {stats.topRefs.length > 0 && (
           <div>
-            <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 3 }}>Most-Attributed Taxonomy Nodes</div>
+            <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 3 }}>Most-Attributed Taxonomy Nodes</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {stats.topRefs.map(([nodeId, count]) => {
                 const maxCount = stats.topRefs[0][1];
                 return (
                   <div key={nodeId} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ minWidth: 100, fontWeight: 600, fontSize: '0.65rem' }}>{nodeId}</span>
+                    <span style={{ minWidth: 100, fontWeight: 600, fontSize: 'var(--text-2xs)' }}>{nodeId}</span>
                     <div style={{ flex: 1, height: 10, background: 'var(--bg-secondary, #222)', borderRadius: 2, overflow: 'hidden' }}>
                       <div style={{
                         width: `${(count / maxCount) * 100}%`,
@@ -297,7 +297,7 @@ function AttributionSummary({ traces, debate }: { traces: ClaimExtractionTrace[]
                         borderRadius: 2,
                       }} />
                     </div>
-                    <span style={{ fontSize: '0.6rem', fontWeight: 700, minWidth: 20, textAlign: 'right', color: '#6366f1' }}>{count}</span>
+                    <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, minWidth: 20, textAlign: 'right', color: '#6366f1' }}>{count}</span>
                   </div>
                 );
               })}
@@ -388,7 +388,7 @@ export function ExtractionTimelinePanel({ debate }: Props) {
       )}
 
       <details open style={{ marginBottom: 4 }}>
-        <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>Charts</summary>
+        <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>Charts</summary>
         {summary && <GrowthChart summary={summary} traces={traces} />}
         <RejectionSparkline traces={traces} />
       </details>
@@ -449,7 +449,7 @@ export function ExtractionTimelinePanel({ debate }: Props) {
               title="Next statement"
               style={navBtn(selectedIdx >= traces.length - 1)}
             >Next ▶</button>
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+            <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
               {selectedIdx + 1} / {traces.length}
             </span>
             <span style={{ fontWeight: 700, marginLeft: 4 }}>
@@ -486,7 +486,7 @@ export function ExtractionTimelinePanel({ debate }: Props) {
                 <span key={r} style={{
                   display: 'inline-block', marginRight: 6, padding: '1px 6px',
                   background: 'rgba(239,68,68,0.12)', color: '#ef4444', borderRadius: 3,
-                  fontSize: '0.65rem',
+                  fontSize: 'var(--text-2xs)',
                 }}>{r}×{c}</span>
               ))}
             </div>
@@ -516,7 +516,7 @@ export function ExtractionTimelinePanel({ debate }: Props) {
                 const conf = d.attribution_confidence;
                 const confColor = conf >= 0.7 ? '#22c55e' : conf >= 0.5 ? '#3b82f6' : conf >= 0.35 ? '#f59e0b' : '#ef4444';
                 return (
-                  <div key={d.claim_id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.65rem', marginBottom: 2 }}>
+                  <div key={d.claim_id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-2xs)', marginBottom: 2 }}>
                     <span style={{ fontWeight: 700, color: 'var(--accent)', minWidth: 44 }}>{d.claim_id}</span>
                     {isUnattributed ? (
                       <span style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(239,68,68,0.12)', color: '#ef4444', fontWeight: 600 }}>

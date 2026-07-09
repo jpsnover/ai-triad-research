@@ -181,7 +181,7 @@ function ActivityChart({ daily }: { daily: DailySummary[] }) {
           points={daily.map((d, i) => `${i * 10 + 5},${100 - (d.users / maxUsers) * 90}`).join(' ')}
         />
       </svg>
-      <div style={{ display: 'flex', gap: 16, fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4 }}>
+      <div style={{ display: 'flex', gap: 16, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4 }}>
         <span><span style={{ display: 'inline-block', width: 10, height: 10, background: '#3b82f6', opacity: 0.7, borderRadius: 2, marginRight: 4 }} />Events</span>
         <span><span style={{ display: 'inline-block', width: 10, height: 2, background: '#f59e0b', marginRight: 4, verticalAlign: 'middle' }} />Users</span>
       </div>
@@ -270,7 +270,7 @@ function ActiveUsers({ users, sortCol, sortDir, onSort, onSelectUser }: {
               <td style={{ padding: '4px 8px', textAlign: 'right' }}>{u.sessions}</td>
               <td style={{ padding: '4px 8px', textAlign: 'right' }}>{u.events}</td>
               <td style={{ padding: '4px 8px' }}>
-                <span style={{ padding: '1px 6px', borderRadius: 3, fontSize: '0.65rem', background: `${CATEGORY_COLORS[u.topCategory] || '#6b7280'}22`, color: CATEGORY_COLORS[u.topCategory] || '#6b7280' }}>
+                <span style={{ padding: '1px 6px', borderRadius: 3, fontSize: 'var(--text-2xs)', background: `${CATEGORY_COLORS[u.topCategory] || '#6b7280'}22`, color: CATEGORY_COLORS[u.topCategory] || '#6b7280' }}>
                   {u.topCategory}
                 </span>
               </td>
@@ -343,7 +343,7 @@ function SessionExplorer({ from, to, selectedUser, categoryFilter }: {
           </select>
         )}
         {categoryFilter && (
-          <span style={{ fontSize: '0.65rem', padding: '1px 6px', borderRadius: 3, background: `${CATEGORY_COLORS[categoryFilter] || '#6b7280'}22`, color: CATEGORY_COLORS[categoryFilter] || '#6b7280' }}>
+          <span style={{ fontSize: 'var(--text-2xs)', padding: '1px 6px', borderRadius: 3, background: `${CATEGORY_COLORS[categoryFilter] || '#6b7280'}22`, color: CATEGORY_COLORS[categoryFilter] || '#6b7280' }}>
             {categoryFilter}
           </span>
         )}
@@ -377,7 +377,7 @@ function SessionExplorer({ from, to, selectedUser, categoryFilter }: {
               }}>
                 <span style={{ color: 'var(--text-muted)', fontFamily: 'monospace', flexShrink: 0, width: 60 }}>{time}</span>
                 <span style={{
-                  padding: '1px 6px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 600,
+                  padding: '1px 6px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600,
                   background: `${CATEGORY_COLORS[evt.category] || '#6b7280'}22`,
                   color: CATEGORY_COLORS[evt.category] || '#6b7280',
                   flexShrink: 0, minWidth: 80, textAlign: 'center',
@@ -388,7 +388,7 @@ function SessionExplorer({ from, to, selectedUser, categoryFilter }: {
                   {detailStr}
                 </span>
                 {evt.duration_ms != null && (
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem', flexShrink: 0 }}>({evt.duration_ms}ms)</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)', flexShrink: 0 }}>({evt.duration_ms}ms)</span>
                 )}
               </div>
             );

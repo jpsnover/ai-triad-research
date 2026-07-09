@@ -72,7 +72,7 @@ export function DocumentCoverageSection({ coverageMap, strengthWeighted, onSteer
               <div className="coverage-matched-nodes">
                 <span className="diag-muted">Matched AN:</span>
                 {entry.matchedAnNodes.map(nodeId => (
-                  <span key={nodeId} className="diag-badge" style={{ fontSize: '0.55rem' }}>{nodeId}</span>
+                  <span key={nodeId} className="diag-badge" style={{ fontSize: 'var(--text-2xs)' }}>{nodeId}</span>
                 ))}
               </div>
             )}

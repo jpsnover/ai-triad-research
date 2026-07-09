@@ -136,7 +136,7 @@ function EnrichmentRepairSection() {
                   {st?.status === 'error' && <span style={{ color: '#ef4444' }} title={st.error}>{'✗'}</span>}
                   <button
                     className="btn btn-sm"
-                    style={{ fontSize: '0.6rem', padding: '1px 6px' }}
+                    style={{ fontSize: 'var(--text-2xs)', padding: '1px 6px' }}
                     disabled={repairing || st?.status === 'pending'}
                     onClick={() => void retryEnrichment(n.id, n.pov)}
                   >Retry</button>

@@ -379,7 +379,7 @@ function CommunityChatDetail({ chat }: { chat: CommunityChat }) {
       <div className="debate-detail-header">
         <div>
           <h2 className="debate-detail-title">{chat.title}</h2>
-          <span style={{ fontFamily: 'monospace', fontSize: '0.68rem', color: 'var(--text-muted)', userSelect: 'all' }}>{chat.id}</span>
+          <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', userSelect: 'all' }}>{chat.id}</span>
         </div>
         {chat.mode && (
           <span className={`chat-mode-badge mode-${chat.mode}`}>

@@ -138,7 +138,7 @@ function StrengthTimeline({ timeline, nodes, onSelectClaim }: {
                 {' '}({delta > 0 ? '+' : ''}{delta.toFixed(2)})
               </span>
             )}
-            <div className="diag-muted" style={{ fontSize: '0.6rem' }} title={node.attribution_text_genus || undefined}>{node.text.slice(0, 100)}{node.text.length > 100 ? '…' : ''}</div>
+            <div className="diag-muted" style={{ fontSize: 'var(--text-2xs)' }} title={node.attribution_text_genus || undefined}>{node.text.slice(0, 100)}{node.text.length > 100 ? '…' : ''}</div>
           </div>
         );
       })()}
@@ -172,26 +172,26 @@ function TopicScopePanel({ scope }: { scope: TopicScope }) {
         <div className="diag-kv">
           <span className="diag-k">Domain:</span>
           <span className="diag-v">{scope.domain}</span>
-          {scope.product_type && <span className="diag-badge diag-badge-move" style={{ fontSize: '0.5rem', marginLeft: 4 }}>{scope.product_type}</span>}
-          {scope.time_horizon && <span className="diag-muted" style={{ fontSize: '0.55rem', marginLeft: 4 }}>({scope.time_horizon})</span>}
+          {scope.product_type && <span className="diag-badge diag-badge-move" style={{ fontSize: 'var(--text-2xs)', marginLeft: 4 }}>{scope.product_type}</span>}
+          {scope.time_horizon && <span className="diag-muted" style={{ fontSize: 'var(--text-2xs)', marginLeft: 4 }}>({scope.time_horizon})</span>}
         </div>
       )}
 
       <div className="diag-kv" style={{ gap: 6 }}>
-        <span className="diag-badge" style={{ fontSize: '0.5rem', background: `${RISK_COLORS[scope.risk_level]}20`, color: RISK_COLORS[scope.risk_level] }}>
+        <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: `${RISK_COLORS[scope.risk_level]}20`, color: RISK_COLORS[scope.risk_level] }}>
           risk: {scope.risk_level}
         </span>
-        <span className="diag-badge" style={{ fontSize: '0.5rem', background: scope.constraint_confidence === 'explicit' ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)', color: scope.constraint_confidence === 'explicit' ? '#22c55e' : '#f59e0b' }}>
+        <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: scope.constraint_confidence === 'explicit' ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)', color: scope.constraint_confidence === 'explicit' ? '#22c55e' : '#f59e0b' }}>
           {scope.constraint_confidence}
         </span>
       </div>
 
       {scope.relevant_disciplines.length > 0 && (
         <div style={{ marginTop: 4 }}>
-          <span className="diag-k" style={{ fontSize: '0.6rem' }}>Disciplines:</span>
+          <span className="diag-k" style={{ fontSize: 'var(--text-2xs)' }}>Disciplines:</span>
           <div className="diag-badges">
             {scope.relevant_disciplines.map(d => (
-              <span key={d} className="diag-badge diag-badge-move" style={{ fontSize: '0.5rem' }}>{d}</span>
+              <span key={d} className="diag-badge diag-badge-move" style={{ fontSize: 'var(--text-2xs)' }}>{d}</span>
             ))}
           </div>
         </div>
@@ -199,8 +199,8 @@ function TopicScopePanel({ scope }: { scope: TopicScope }) {
 
       {scope.key_tensions.length > 0 && (
         <div style={{ marginTop: 4 }}>
-          <span className="diag-k" style={{ fontSize: '0.6rem' }}>Key tensions:</span>
-          <ol style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.65rem' }}>
+          <span className="diag-k" style={{ fontSize: 'var(--text-2xs)' }}>Key tensions:</span>
+          <ol style={{ margin: '2px 0 0 16px', padding: 0, fontSize: 'var(--text-2xs)' }}>
             {scope.key_tensions.map((t, i) => <li key={i}>{t}</li>)}
           </ol>
         </div>
@@ -208,10 +208,10 @@ function TopicScopePanel({ scope }: { scope: TopicScope }) {
 
       {scope.off_scope_topics.length > 0 && (
         <div style={{ marginTop: 4 }}>
-          <span className="diag-k" style={{ fontSize: '0.6rem' }}>Off-scope:</span>
+          <span className="diag-k" style={{ fontSize: 'var(--text-2xs)' }}>Off-scope:</span>
           <div className="diag-badges">
             {scope.off_scope_topics.map(t => (
-              <span key={t} className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>{t}</span>
+              <span key={t} className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>{t}</span>
             ))}
           </div>
         </div>
@@ -219,8 +219,8 @@ function TopicScopePanel({ scope }: { scope: TopicScope }) {
 
       {scope.drift_signatures.length > 0 && (
         <div style={{ marginTop: 4 }}>
-          <span className="diag-k" style={{ fontSize: '0.6rem' }}>Drift signatures:</span>
-          <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.6rem', listStyle: 'disc' }}>
+          <span className="diag-k" style={{ fontSize: 'var(--text-2xs)' }}>Drift signatures:</span>
+          <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: 'var(--text-2xs)', listStyle: 'disc' }}>
             {scope.drift_signatures.map((d, i) => <li key={i} style={{ color: '#f59e0b' }}>{d}</li>)}
           </ul>
         </div>
@@ -229,16 +229,16 @@ function TopicScopePanel({ scope }: { scope: TopicScope }) {
       {scope.example_ceiling && (
         <div className="diag-kv" style={{ marginTop: 4 }}>
           <span className="diag-k">Example ceiling:</span>
-          <span className="diag-v" style={{ fontSize: '0.65rem' }}>{scope.example_ceiling}</span>
+          <span className="diag-v" style={{ fontSize: 'var(--text-2xs)' }}>{scope.example_ceiling}</span>
         </div>
       )}
 
       {scope.explicit_qualifiers.length > 0 && (
         <div style={{ marginTop: 4 }}>
-          <span className="diag-k" style={{ fontSize: '0.6rem' }}>Qualifiers:</span>
+          <span className="diag-k" style={{ fontSize: 'var(--text-2xs)' }}>Qualifiers:</span>
           <div className="diag-badges">
             {scope.explicit_qualifiers.map(q => (
-              <span key={q} className="diag-badge diag-badge-move" style={{ fontSize: '0.5rem' }}>{q}</span>
+              <span key={q} className="diag-badge diag-badge-move" style={{ fontSize: 'var(--text-2xs)' }}>{q}</span>
             ))}
           </div>
         </div>
@@ -246,8 +246,8 @@ function TopicScopePanel({ scope }: { scope: TopicScope }) {
 
       {scope.excluded_scenarios.length > 0 && (
         <div style={{ marginTop: 4 }}>
-          <span className="diag-k" style={{ fontSize: '0.6rem' }}>Excluded scenarios:</span>
-          <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.6rem', listStyle: 'disc' }}>
+          <span className="diag-k" style={{ fontSize: 'var(--text-2xs)' }}>Excluded scenarios:</span>
+          <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: 'var(--text-2xs)', listStyle: 'disc' }}>
             {scope.excluded_scenarios.map((s, i) => <li key={i}>{s}</li>)}
           </ul>
         </div>
@@ -255,8 +255,8 @@ function TopicScopePanel({ scope }: { scope: TopicScope }) {
 
       {scope.on_scope_evidence.length > 0 && (
         <div style={{ marginTop: 4 }}>
-          <span className="diag-k" style={{ fontSize: '0.6rem' }}>On-scope evidence:</span>
-          <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.6rem', listStyle: 'disc' }}>
+          <span className="diag-k" style={{ fontSize: 'var(--text-2xs)' }}>On-scope evidence:</span>
+          <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: 'var(--text-2xs)', listStyle: 'disc' }}>
             {scope.on_scope_evidence.map((e, i) => <li key={i}>{e}</li>)}
           </ul>
         </div>
@@ -291,7 +291,7 @@ function PanelArgumentNetwork({ an }: { an: { nodes: ArgumentNetworkNode[]; edge
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
         <button
           onClick={toggleAll}
-          style={{ fontSize: '0.6rem', padding: '2px 6px', borderRadius: 3, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', cursor: 'pointer' }}
+          style={{ fontSize: 'var(--text-2xs)', padding: '2px 6px', borderRadius: 3, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', cursor: 'pointer' }}
         >
           {allExpanded ? 'Collapse All' : 'Expand All'}
         </button>
@@ -305,18 +305,18 @@ function PanelArgumentNetwork({ an }: { an: { nodes: ArgumentNetworkNode[]; edge
         return (
           <div key={n.id} className="diag-an-node">
             <div className="diag-an-claim" style={{ cursor: 'pointer' }} onClick={() => toggleNode(n.id)}>
-              <span style={{ fontSize: '0.6rem', marginRight: 2, userSelect: 'none' }}>{expanded ? '▼' : '▶'}</span>
-              <span className="diag-badge diag-badge-move" style={{ fontSize: '0.55rem', cursor: 'default' }} title={AIF_TOOLTIPS['I-node']}>I-node</span>
+              <span style={{ fontSize: 'var(--text-2xs)', marginRight: 2, userSelect: 'none' }}>{expanded ? '▼' : '▶'}</span>
+              <span className="diag-badge diag-badge-move" style={{ fontSize: 'var(--text-2xs)', cursor: 'default' }} title={AIF_TOOLTIPS['I-node']}>I-node</span>
               <span className="diag-an-id">{n.id}</span>
               <span className="diag-an-speaker">({speakerLabel(n.speaker)})</span>
-              {!responded && !isSource && <span style={{ color: '#f59e0b', fontSize: '0.6rem' }}>[unaddressed]</span>}
+              {!responded && !isSource && <span style={{ color: '#f59e0b', fontSize: 'var(--text-2xs)' }}>[unaddressed]</span>}
               <QbafClaimBadge node={{ ...n, base_strength: n.base_strength ?? 0.5 }} />
               {(() => {
                 const base = n.base_strength ?? 0.5;
                 const computed = n.computed_strength ?? base;
                 const delta = computed - base;
                 return Math.abs(delta) > 0.01 ? (
-                  <span className={`qbaf-delta ${delta > 0 ? 'qbaf-delta-up' : 'qbaf-delta-down'}`} style={{ fontSize: '0.55rem' }}>
+                  <span className={`qbaf-delta ${delta > 0 ? 'qbaf-delta-up' : 'qbaf-delta-down'}`} style={{ fontSize: 'var(--text-2xs)' }}>
                     ({delta > 0 ? '+' : ''}{delta.toFixed(2)})
                   </span>
                 ) : null;
@@ -332,24 +332,24 @@ function PanelArgumentNetwork({ an }: { an: { nodes: ArgumentNetworkNode[]; edge
                 <div style={{ paddingLeft: 8, fontSize: '0.7rem' }}>
                   {n.text}
                   {n.verification_evidence && n.verification_status === 'disputed' && (
-                    <div style={{ color: '#ef4444', fontSize: '0.6rem', marginTop: 2 }}>Evidence: {n.verification_evidence}</div>
+                    <div style={{ color: '#ef4444', fontSize: 'var(--text-2xs)', marginTop: 2 }}>Evidence: {n.verification_evidence}</div>
                   )}
                 </div>
                 {attacks.map(a => (
                   <div key={a.id} className="diag-an-edge diag-an-attack">
-                    <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(239,68,68,0.15)', color: '#ef4444', cursor: 'default' }} title={AIF_TOOLTIPS['CA']}>CA</span>
+                    <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(239,68,68,0.15)', color: '#ef4444', cursor: 'default' }} title={AIF_TOOLTIPS['CA']}>CA</span>
                     ← {a.source} <strong>{a.attack_type}</strong>{a.scheme ? ` via ${a.scheme}` : ''}
-                    {a.argumentation_scheme && <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1', marginLeft: 4 }}>{a.argumentation_scheme}</span>}
+                    {a.argumentation_scheme && <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(99,102,241,0.15)', color: '#6366f1', marginLeft: 4 }}>{a.argumentation_scheme}</span>}
                     {a.weight != null && <QbafEdgeIndicator edge={a} />}
-                    {a.warrant && <div style={{ paddingLeft: 16, color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.65rem' }}>Warrant: {a.warrant}</div>}
+                    {a.warrant && <div style={{ paddingLeft: 16, color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 'var(--text-2xs)' }}>Warrant: {a.warrant}</div>}
                   </div>
                 ))}
                 {supports.map(s => (
                   <div key={s.id} className="diag-an-edge diag-an-support">
-                    <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(34,197,94,0.15)', color: '#22c55e', cursor: 'default' }} title={AIF_TOOLTIPS['RA']}>RA</span>
+                    <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(34,197,94,0.15)', color: '#22c55e', cursor: 'default' }} title={AIF_TOOLTIPS['RA']}>RA</span>
                     ← {s.source} supports
                     {s.weight != null && <QbafEdgeIndicator edge={s} />}
-                    {s.warrant && <div style={{ paddingLeft: 16, color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.65rem' }}>Warrant: {s.warrant}</div>}
+                    {s.warrant && <div style={{ paddingLeft: 16, color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 'var(--text-2xs)' }}>Warrant: {s.warrant}</div>}
                   </div>
                 ))}
               </>
@@ -520,13 +520,13 @@ export function OverviewView() {
                   <span className="diag-v" style={{ color: latestHealth.value >= 0.7 ? '#22c55e' : latestHealth.value >= 0.4 ? '#f59e0b' : '#ef4444' }}>
                     {(latestHealth.value ?? 0).toFixed(2)}
                   </span>
-                  {ms.consecutive_decline > 0 && <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(239,68,68,0.15)', color: '#ef4444', marginLeft: 4 }}>{ms.consecutive_decline} decline{ms.consecutive_decline > 1 ? 's' : ''}</span>}
-                  {ms.consecutive_rise >= 2 && <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(34,197,94,0.15)', color: '#22c55e', marginLeft: 4 }}>{ms.consecutive_rise} rises</span>}
+                  {ms.consecutive_decline > 0 && <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(239,68,68,0.15)', color: '#ef4444', marginLeft: 4 }}>{ms.consecutive_decline} decline{ms.consecutive_decline > 1 ? 's' : ''}</span>}
+                  {ms.consecutive_rise >= 2 && <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(34,197,94,0.15)', color: '#22c55e', marginLeft: 4 }}>{ms.consecutive_rise} rises</span>}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4, margin: '4px 0 8px', fontSize: '0.6rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4, margin: '4px 0 8px', fontSize: 'var(--text-2xs)' }}>
                   {(['engagement', 'novelty', 'responsiveness', 'coverage', 'balance'] as const).map(comp => (
                     <div key={comp} style={{ textAlign: 'center' }}>
-                      <div className="diag-k" style={{ fontSize: '0.5rem' }}>{comp.slice(0, 3).toUpperCase()}</div>
+                      <div className="diag-k" style={{ fontSize: 'var(--text-2xs)' }}>{comp.slice(0, 3).toUpperCase()}</div>
                       <div style={{ color: latestHealth.components[comp] >= 0.5 ? '#22c55e' : latestHealth.components[comp] >= 0.25 ? '#f59e0b' : '#ef4444', fontWeight: 600 }}>
                         {(latestHealth.components[comp] ?? 0).toFixed(2)}
                       </div>
@@ -539,21 +539,21 @@ export function OverviewView() {
             {/* Burden distribution */}
             {Object.keys(ms.burden_per_debater).length > 0 && (
               <div style={{ marginBottom: 6 }}>
-                <span className="diag-k" style={{ fontSize: '0.6rem' }}>Burden (avg {(ms.avg_burden ?? 0).toFixed(2)}):</span>
+                <span className="diag-k" style={{ fontSize: 'var(--text-2xs)' }}>Burden (avg {(ms.avg_burden ?? 0).toFixed(2)}):</span>
                 {Object.entries(ms.burden_per_debater).map(([debater, burden]) => (
                   <div key={debater} style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '2px 0' }}>
-                    <span style={{ fontSize: '0.6rem', width: 60, textAlign: 'right' }}>{speakerLabel(debater as SpeakerId)}</span>
+                    <span style={{ fontSize: 'var(--text-2xs)', width: 60, textAlign: 'right' }}>{speakerLabel(debater as SpeakerId)}</span>
                     <div style={{ flex: 1, height: 4, background: 'var(--bg-secondary)', borderRadius: 2, overflow: 'hidden' }}>
                       <div style={{ width: `${(burden / maxBurden * 100)}%`, height: '100%', background: burden > ms.avg_burden * 1.5 ? '#ef4444' : '#3b82f6', transition: 'width 0.2s' }} />
                     </div>
-                    <span style={{ fontSize: '0.55rem', width: 30 }}>{(burden ?? 0).toFixed(2)}</span>
+                    <span style={{ fontSize: 'var(--text-2xs)', width: 30 }}>{(burden ?? 0).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
             )}
 
             {/* Cooldown & state */}
-            <div style={{ display: 'flex', gap: 12, fontSize: '0.6rem', marginBottom: 6 }}>
+            <div style={{ display: 'flex', gap: 12, fontSize: 'var(--text-2xs)', marginBottom: 6 }}>
               <span><span className="diag-k">Cooldown:</span> {ms.rounds_since_last_intervention >= ms.required_gap ? <span style={{ color: '#22c55e' }}>ready</span> : <span style={{ color: '#f59e0b' }}>{ms.required_gap - ms.rounds_since_last_intervention}r left</span>}</span>
               <span><span className="diag-k">Gap:</span> {ms.required_gap}</span>
               {ms.cooldown_blocked_count > 0 && <span><span className="diag-k">Blocked:</span> {ms.cooldown_blocked_count}x</span>}
@@ -562,13 +562,13 @@ export function OverviewView() {
             {/* Intervention history */}
             {ms.intervention_history.length > 0 && (
               <div style={{ marginTop: 4 }}>
-                <span className="diag-k" style={{ fontSize: '0.6rem' }}>Interventions:</span>
+                <span className="diag-k" style={{ fontSize: 'var(--text-2xs)' }}>Interventions:</span>
                 {ms.intervention_history.map((h, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', margin: '2px 0', fontSize: '0.6rem' }}>
+                  <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', margin: '2px 0', fontSize: 'var(--text-2xs)' }}>
                     <span className="diag-muted" style={{ width: 24 }}>R{h.round}</span>
-                    <span className="diag-badge" style={{ fontSize: '0.5rem', background: `${familyColors[h.family] ?? '#6b7280'}30`, color: familyColors[h.family] ?? '#6b7280' }}>{h.move}</span>
-                    <span style={{ fontSize: '0.55rem' }}>{'→'} {speakerLabel(h.target as SpeakerId)}</span>
-                    <span className="diag-muted" style={{ fontSize: '0.5rem' }}>({(h.burden ?? 0).toFixed(1)})</span>
+                    <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: `${familyColors[h.family] ?? '#6b7280'}30`, color: familyColors[h.family] ?? '#6b7280' }}>{h.move}</span>
+                    <span style={{ fontSize: 'var(--text-2xs)' }}>{'→'} {speakerLabel(h.target as SpeakerId)}</span>
+                    <span className="diag-muted" style={{ fontSize: 'var(--text-2xs)' }}>({(h.burden ?? 0).toFixed(1)})</span>
                   </div>
                 ))}
               </div>
@@ -619,7 +619,7 @@ export function OverviewView() {
               <div className="diag-kv">
                 <span className="diag-k">Avg convergence:</span>
                 <span className="diag-v">{(avgConvergence * 100).toFixed(0)}%</span>
-                {latestTrace.convergence_triggered && <span className="diag-badge" style={{ fontSize: '0.55rem', background: 'rgba(34,197,94,0.15)', color: '#22c55e', marginLeft: 4 }}>triggered</span>}
+                {latestTrace.convergence_triggered && <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(34,197,94,0.15)', color: '#22c55e', marginLeft: 4 }}>triggered</span>}
               </div>
             )}
             {latestTrace.focus_point && (
@@ -636,14 +636,14 @@ export function OverviewView() {
                 </span>
               </div>
             )}
-            <div style={{ marginTop: 6, fontSize: '0.65rem' }}>
+            <div style={{ marginTop: 6, fontSize: 'var(--text-2xs)' }}>
               {modEntries.slice(-5).reverse().map(({ id, trace }) => (
                 <div key={id} className="diag-mod-round" style={{ display: 'flex', gap: 6, alignItems: 'baseline', marginBottom: 2 }}>
-                  <span className="diag-badge diag-badge-move" style={{ fontSize: '0.5rem', minWidth: 50 }}>{speakerLabel(trace.selected as SpeakerId)}</span>
+                  <span className="diag-badge diag-badge-move" style={{ fontSize: 'var(--text-2xs)', minWidth: 50 }}>{speakerLabel(trace.selected as SpeakerId)}</span>
                   <span className="diag-muted" style={{ flex: 1 }}>{trace.focus_point}</span>
-                  {trace.intervention_move && <span className="diag-badge" style={{ fontSize: '0.5rem', background: trace.intervention_validated ? 'rgba(139,92,246,0.2)' : 'rgba(239,68,68,0.15)', color: trace.intervention_validated ? '#8b5cf6' : '#ef4444' }}>{trace.intervention_move}{trace.intervention_validated ? '' : ' (suppressed)'}</span>}
-                  {trace.health_score != null && <span className="diag-muted" style={{ fontSize: '0.5rem' }}>H:{trace.health_score.toFixed(2)}</span>}
-                  {trace.recent_scheme && <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1' }}>{trace.recent_scheme}</span>}
+                  {trace.intervention_move && <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: trace.intervention_validated ? 'rgba(139,92,246,0.2)' : 'rgba(239,68,68,0.15)', color: trace.intervention_validated ? '#8b5cf6' : '#ef4444' }}>{trace.intervention_move}{trace.intervention_validated ? '' : ' (suppressed)'}</span>}
+                  {trace.health_score != null && <span className="diag-muted" style={{ fontSize: 'var(--text-2xs)' }}>H:{trace.health_score.toFixed(2)}</span>}
+                  {trace.recent_scheme && <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(99,102,241,0.15)', color: '#6366f1' }}>{trace.recent_scheme}</span>}
                   {trace.convergence_score != null && <span className="diag-muted">{(trace.convergence_score * 100).toFixed(0)}%</span>}
                 </div>
               ))}
@@ -676,12 +676,12 @@ export function OverviewView() {
         return (
           <CollapsibleSection title={`Drift Detection — ${driftEntries.length} detected, ${redirected.length} intervened`}>
             {driftEntries.map(d => (
-              <div key={d.id} style={{ marginBottom: 6, fontSize: '0.6rem' }}>
+              <div key={d.id} style={{ marginBottom: 6, fontSize: 'var(--text-2xs)' }}>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
                   {d.round != null && <span className="diag-muted">R{d.round}</span>}
                   {d.selected && <span>{speakerLabel(d.selected as SpeakerId)}</span>}
                   <span className="diag-badge" style={{
-                    fontSize: '0.5rem',
+                    fontSize: 'var(--text-2xs)',
                     background: d.intervention_validated ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)',
                     color: d.intervention_validated ? '#ef4444' : '#f59e0b',
                   }}>
@@ -705,11 +705,11 @@ export function OverviewView() {
               <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
                 <span className="diag-an-id">{claim.claim_id}</span>
                 <span className="diag-an-speaker">({speakerLabel(claim.speaker as SpeakerId)})</span>
-                <span className="diag-badge" style={{ fontSize: '0.5rem', background: claim.addressed_round ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: claim.addressed_round ? '#22c55e' : '#ef4444' }}>
+                <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: claim.addressed_round ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: claim.addressed_round ? '#22c55e' : '#ef4444' }}>
                   {claim.addressed_round ? `addressed R${claim.addressed_round}` : `since R${claim.first_unanswered_round}`}
                 </span>
               </div>
-              <div style={{ paddingLeft: 8, fontSize: '0.65rem' }}>{claim.claim_text}</div>
+              <div style={{ paddingLeft: 8, fontSize: 'var(--text-2xs)' }}>{claim.claim_text}</div>
             </div>
           ))}
         </CollapsibleSection>
@@ -721,11 +721,11 @@ export function OverviewView() {
           {activeDebate.missing_arguments.map((arg, i) => (
             <div key={i} className="diag-missing-arg">
               <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
-                <span className="diag-badge diag-badge-move" style={{ fontSize: '0.5rem' }}>{arg.side}</span>
-                <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1' }}>{arg.bdi_layer}</span>
+                <span className="diag-badge diag-badge-move" style={{ fontSize: 'var(--text-2xs)' }}>{arg.side}</span>
+                <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'rgba(99,102,241,0.15)', color: '#6366f1' }}>{arg.bdi_layer}</span>
               </div>
               <div style={{ fontSize: '0.7rem', marginTop: 2 }}>{arg.argument}</div>
-              <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{arg.why_strong}</div>
+              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>{arg.why_strong}</div>
             </div>
           ))}
         </CollapsibleSection>
@@ -747,11 +747,11 @@ export function OverviewView() {
                   <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
                     <strong>{speakerLabel(speaker as SpeakerId)}</strong>
                     <span className="diag-muted">self-sim: {(latest.self_similarity ?? 0).toFixed(3)}</span>
-                    <span className={`diag-badge ${selfDelta < -0.05 ? 'diag-drift-warning' : ''}`} style={{ fontSize: '0.5rem' }}>
+                    <span className={`diag-badge ${selfDelta < -0.05 ? 'diag-drift-warning' : ''}`} style={{ fontSize: 'var(--text-2xs)' }}>
                       {selfDelta > 0 ? '+' : ''}{selfDelta.toFixed(3)}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, fontSize: '0.6rem', paddingLeft: 8 }}>
+                  <div style={{ display: 'flex', gap: 8, fontSize: 'var(--text-2xs)', paddingLeft: 8 }}>
                     {Object.entries(latest.opponent_similarities).map(([opp, sim]) => (
                       <span key={opp}>→ {speakerLabel(opp as SpeakerId)}: {(sim ?? 0).toFixed(3)}</span>
                     ))}
@@ -833,7 +833,7 @@ export function OverviewView() {
                     background: claimViolations.length > 0 ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.08)',
                     color: claimViolations.length > 0 ? '#ef4444' : '#22c55e',
                     fontWeight: 600,
-                    fontSize: '0.65rem',
+                    fontSize: 'var(--text-2xs)',
                   }}>
                     {claimsChecked} claims checked, {claimViolations.length} violation{claimViolations.length !== 1 ? 's' : ''}
                   </span>
@@ -843,50 +843,50 @@ export function OverviewView() {
                     background: driftWarnings.length > 0 ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.08)',
                     color: driftWarnings.length > 0 ? '#f59e0b' : '#22c55e',
                     fontWeight: 600,
-                    fontSize: '0.65rem',
+                    fontSize: 'var(--text-2xs)',
                   }}>
                     {draftsChecked} drafts checked, {driftWarnings.length} drift warning{driftWarnings.length !== 1 ? 's' : ''}
                   </span>
                 </div>
                 {claimViolations.length > 0 && (
                   <div style={{ marginBottom: 6 }}>
-                    <div className="diag-k" style={{ fontSize: '0.6rem', color: '#ef4444', marginBottom: 3 }}>Exclusion Violations ({claimViolations.length})</div>
+                    <div className="diag-k" style={{ fontSize: 'var(--text-2xs)', color: '#ef4444', marginBottom: 3 }}>Exclusion Violations ({claimViolations.length})</div>
                     {claimViolations.slice(0, 10).map((v, i) => (
-                      <div key={i} style={{ display: 'flex', gap: 6, fontSize: '0.6rem', marginLeft: 8, marginBottom: 2 }}>
+                      <div key={i} style={{ display: 'flex', gap: 6, fontSize: 'var(--text-2xs)', marginLeft: 8, marginBottom: 2 }}>
                         <span style={{ fontWeight: 600, color: '#ef4444' }}>{v.claim_id}</span>
                         <span style={{ color: 'var(--text-muted)' }}>→</span>
                         <span>{v.node_id}</span>
-                        <span className="diag-muted" style={{ fontSize: '0.55rem' }}>
+                        <span className="diag-muted" style={{ fontSize: 'var(--text-2xs)' }}>
                           (main: {v.similarity_main.toFixed(2)}, excl: {v.similarity_exclusion.toFixed(2)})
                         </span>
                       </div>
                     ))}
                     {claimViolations.length > 10 && (
-                      <div className="diag-muted" style={{ fontSize: '0.55rem', marginLeft: 8 }}>…and {claimViolations.length - 10} more</div>
+                      <div className="diag-muted" style={{ fontSize: 'var(--text-2xs)', marginLeft: 8 }}>…and {claimViolations.length - 10} more</div>
                     )}
                   </div>
                 )}
                 {driftWarnings.length > 0 && (
                   <div>
-                    <div className="diag-k" style={{ fontSize: '0.6rem', color: '#f59e0b', marginBottom: 3 }}>Scope Drift Warnings ({driftWarnings.length})</div>
+                    <div className="diag-k" style={{ fontSize: 'var(--text-2xs)', color: '#f59e0b', marginBottom: 3 }}>Scope Drift Warnings ({driftWarnings.length})</div>
                     {driftWarnings.slice(0, 10).map((w, i) => (
-                      <div key={i} style={{ display: 'flex', gap: 6, fontSize: '0.6rem', marginLeft: 8, marginBottom: 2 }}>
+                      <div key={i} style={{ display: 'flex', gap: 6, fontSize: 'var(--text-2xs)', marginLeft: 8, marginBottom: 2 }}>
                         <span style={{ fontWeight: 600, color: '#f59e0b' }}>{w.debater}</span>
                         <span style={{ color: 'var(--text-muted)' }}>→</span>
                         <span>{w.node_id}</span>
-                        <span className="diag-muted" style={{ fontSize: '0.55rem' }}>
+                        <span className="diag-muted" style={{ fontSize: 'var(--text-2xs)' }}>
                           (sim: {w.similarity.toFixed(2)})
                         </span>
                       </div>
                     ))}
                     {driftWarnings.length > 10 && (
-                      <div className="diag-muted" style={{ fontSize: '0.55rem', marginLeft: 8 }}>…and {driftWarnings.length - 10} more</div>
+                      <div className="diag-muted" style={{ fontSize: 'var(--text-2xs)', marginLeft: 8 }}>…and {driftWarnings.length - 10} more</div>
                     )}
                   </div>
                 )}
               </div>
             )}
-            <div className="diag-muted" style={{ fontSize: '0.55rem', marginTop: 6 }}>
+            <div className="diag-muted" style={{ fontSize: 'var(--text-2xs)', marginTop: 6 }}>
               {claimsChecked} claims checked, {claimViolations.length} violation{claimViolations.length !== 1 ? 's' : ''} | {draftsChecked} drafts checked, {driftWarnings.length} drift warning{driftWarnings.length !== 1 ? 's' : ''}
             </div>
           </CollapsibleSection>
@@ -926,8 +926,8 @@ export function OverviewView() {
               <div style={{ display: 'flex', gap: 6, alignItems: 'baseline', flexWrap: 'wrap' }}>
                 <span className="diag-an-id">{sug.node_id}</span>
                 <strong style={{ fontSize: '0.7rem' }}>{sug.node_label}</strong>
-                <span className="diag-badge diag-badge-move" style={{ fontSize: '0.5rem' }}>{sug.node_pov}</span>
-                <span className={`diag-badge diag-suggestion-${sug.suggestion_type}`} style={{ fontSize: '0.5rem' }}>{sug.suggestion_type}</span>
+                <span className="diag-badge diag-badge-move" style={{ fontSize: 'var(--text-2xs)' }}>{sug.node_pov}</span>
+                <span className={`diag-badge diag-suggestion-${sug.suggestion_type}`} style={{ fontSize: 'var(--text-2xs)' }}>{sug.suggestion_type}</span>
               </div>
               {beforeText && (
                 <div className="diag-taxo-before">
@@ -939,11 +939,11 @@ export function OverviewView() {
                 <span className="diag-k">After:</span>
                 <div className={`diag-taxo-desc diag-taxo-desc-proposed${afterGenerating ? ' plain-description-generating' : ''}`}>{afterText}</div>
               </div>
-              <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 4 }}>
+              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 4 }}>
                 {sug.rationale}
               </div>
               {sug.evidence_claim_ids && sug.evidence_claim_ids.length > 0 && (
-                <div style={{ fontSize: '0.55rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
                   Evidence: {sug.evidence_claim_ids.join(', ')}
                 </div>
               )}

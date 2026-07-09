@@ -116,7 +116,7 @@ export function FactsPanel({ nodeId, onSelectFact }: {
             }}
           >
             <div style={{ padding: '6px 10px', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-              <span style={{ flexShrink: 0, color: 'var(--text-muted)', fontSize: '0.65rem', marginTop: 2 }}>
+              <span style={{ flexShrink: 0, color: 'var(--text-muted)', fontSize: 'var(--text-2xs)', marginTop: 2 }}>
                 {isExpanded ? '\u25BC' : '\u25B6'}
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -132,7 +132,7 @@ export function FactsPanel({ nodeId, onSelectFact }: {
               </div>
               <span style={{
                 flexShrink: 0, padding: '1px 6px', borderRadius: 10,
-                fontSize: '0.6rem', fontWeight: 600,
+                fontSize: 'var(--text-2xs)', fontWeight: 600,
                 background: spec.bg, color: spec.fg,
               }}>
                 {f.specificity}
@@ -141,7 +141,7 @@ export function FactsPanel({ nodeId, onSelectFact }: {
             {isExpanded && (
               <div style={{ padding: '0 10px 8px 28px', lineHeight: 1.5 }}>
                 <div style={{ marginBottom: 6, color: 'var(--text-primary)' }}>{f.claim}</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                   <span title="Source document"><strong>Doc:</strong> {f.doc_id}</span>
                   {f.temporal_bound && (
                     <span title="Temporal bound"><strong>Period:</strong> {f.temporal_bound}</span>

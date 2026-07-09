@@ -114,7 +114,7 @@ export function OrganizationsTab() {
               key={pov}
               className={`btn-xs${filters.pov === pov ? '' : ' btn-ghost'}`}
               style={{
-                fontSize: '0.68rem',
+                fontSize: 'var(--text-2xs)',
                 background: filters.pov === pov ? POV_COLORS[pov] : undefined,
                 color: filters.pov === pov ? '#000' : POV_COLORS[pov],
                 border: `1px solid ${POV_COLORS[pov]}`,
@@ -128,7 +128,7 @@ export function OrganizationsTab() {
           {(filters.type || filters.pov || searchQuery) && (
             <button
               className="btn-xs btn-ghost"
-              style={{ fontSize: '0.68rem' }}
+              style={{ fontSize: 'var(--text-2xs)' }}
               onClick={() => { setFilters({}); setSearchQuery(''); }}
             >
               Clear
@@ -172,7 +172,7 @@ export function OrganizationsTab() {
               <div className="chat-session-item-meta">
                 {org.type && (
                   <span style={{
-                    padding: '1px 6px', borderRadius: 8, fontSize: '0.65rem', fontWeight: 600,
+                    padding: '1px 6px', borderRadius: 8, fontSize: 'var(--text-2xs)', fontWeight: 600,
                     background: 'var(--bg-tertiary, #334155)', color: 'var(--text-primary)',
                   }}>
                     {org.type.replace('_', ' ')}

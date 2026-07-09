@@ -82,7 +82,7 @@ export function DraftTab({
 
   if (!draftStage && !entry.content) return null;
 
-  const microFixPreStyle = { margin: '4px 0', padding: 6, background: 'rgba(0,0,0,0.15)', borderRadius: 4, whiteSpace: 'pre-wrap' as const, wordBreak: 'break-word' as const, fontSize: '0.6rem', maxHeight: 200, overflow: 'auto' as const };
+  const microFixPreStyle = { margin: '4px 0', padding: 6, background: 'rgba(0,0,0,0.15)', borderRadius: 4, whiteSpace: 'pre-wrap' as const, wordBreak: 'break-word' as const, fontSize: 'var(--text-2xs)', maxHeight: 200, overflow: 'auto' as const };
 
   return (
     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
@@ -117,7 +117,7 @@ export function DraftTab({
               {dc.compliant ? '✓ Directive addressed' : '✗ Directive not addressed'}
             </div>
             {!dc.compliant && <div style={{ color: 'var(--text-secondary)' }}>{dc.repair_hint}</div>}
-            <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 2 }}>
+            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
               {dc.matched_terms}/{dc.directive_terms.length} directive terms matched
               {dc.directive_terms.length > 0 && (
                 <span style={{ marginLeft: 4 }}>({dc.directive_terms.join(', ')})</span>
@@ -203,19 +203,19 @@ export function DraftTab({
                 margin: '6px 0', padding: '6px 8px',
                 background: success ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
                 borderLeft: `3px solid ${statusColor}`,
-                borderRadius: 4, fontSize: '0.68rem',
+                borderRadius: 4, fontSize: 'var(--text-2xs)',
               }}>
                 <div style={{ fontWeight: 600, color: statusColor, marginBottom: 4 }}>
                   Micro-Fix: {move ?? 'Intervention'} Compliance ({elapsed}ms) — {success ? 'Applied' : rejected ? `Rejected (${rejected})` : recheck && !recheck.compliant ? 'Re-validation failed' : 'Failed'}
                 </div>
                 {field && (
-                  <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginBottom: 4 }}>
+                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 4 }}>
                     Field: <code style={{ background: 'rgba(128,128,128,0.15)', padding: '1px 4px', borderRadius: 3 }}>{field}</code>
                     {!success && <span style={{ marginLeft: 6 }}>Before: <em>missing</em></span>}
                   </div>
                 )}
                 {generated != null && (
-                  <details open={success} style={{ fontSize: '0.62rem' }}>
+                  <details open={success} style={{ fontSize: 'var(--text-2xs)' }}>
                     <summary style={{ cursor: 'pointer', color: statusColor }}>
                       {success ? 'After — Generated value' : 'Attempted value (rejected)'}
                     </summary>
@@ -225,7 +225,7 @@ export function DraftTab({
                   </details>
                 )}
                 {recheck?.repair_hint && !recheck.compliant && (
-                  <div style={{ fontSize: '0.6rem', color: '#ef4444', marginTop: 4 }}>
+                  <div style={{ fontSize: 'var(--text-2xs)', color: '#ef4444', marginTop: 4 }}>
                     {recheck.repair_hint}
                   </div>
                 )}
@@ -244,13 +244,13 @@ export function DraftTab({
                 margin: '6px 0', padding: '6px 8px',
                 background: success ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
                 borderLeft: `3px solid ${statusColor}`,
-                borderRadius: 4, fontSize: '0.68rem',
+                borderRadius: 4, fontSize: 'var(--text-2xs)',
               }}>
                 <div style={{ fontWeight: 600, color: statusColor, marginBottom: 4 }}>
                   Micro-Fix: Directive Compliance — {move ?? '?'} ({elapsed}ms) — {success ? 'Applied' : rejected ? `Rejected (${rejected})` : recheckCompliant === false ? 'Re-validation failed' : 'Failed'}
                 </div>
                 {revisedPara && (
-                  <details open={success} style={{ fontSize: '0.62rem' }}>
+                  <details open={success} style={{ fontSize: 'var(--text-2xs)' }}>
                     <summary style={{ cursor: 'pointer', color: statusColor }}>
                       {success ? 'After — Revised first paragraph' : 'Attempted revision (rejected)'}
                     </summary>
@@ -258,7 +258,7 @@ export function DraftTab({
                   </details>
                 )}
                 {mf.prompt && (
-                  <details style={{ fontSize: '0.62rem', marginTop: 4 }}>
+                  <details style={{ fontSize: 'var(--text-2xs)', marginTop: 4 }}>
                     <summary style={{ cursor: 'pointer', color: 'var(--text-muted)' }}>Micro-fix prompt</summary>
                     <pre style={microFixPreStyle}>{mf.prompt}</pre>
                   </details>
@@ -277,32 +277,32 @@ export function DraftTab({
               margin: '6px 0', padding: '6px 8px',
               background: success ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
               borderLeft: `3px solid ${statusColor}`,
-              borderRadius: 4, fontSize: '0.68rem',
+              borderRadius: 4, fontSize: 'var(--text-2xs)',
             }}>
               <div style={{ fontWeight: 600, color: statusColor, marginBottom: 4 }}>
                 Micro-Fix: Abstract Claims ({elapsed}ms) — {success ? 'Applied' : diffPassed === false ? (rejected === 'hallucinated_changes' ? 'Rejected (hallucinated edits)' : 'Rejected (too many changes)') : 'Re-validation failed'}
-                {changes && <span style={{ fontWeight: 400, fontSize: '0.6rem', color: 'var(--text-muted)', marginLeft: 6 }}>{changes.length} change{changes.length !== 1 ? 's' : ''}</span>}
+                {changes && <span style={{ fontWeight: 400, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginLeft: 6 }}>{changes.length} change{changes.length !== 1 ? 's' : ''}</span>}
               </div>
               {changes && changes.length > 0 && (
-                <div style={{ fontSize: '0.65rem' }}>
+                <div style={{ fontSize: 'var(--text-2xs)' }}>
                   {changes.map((c, ci) => (
                     <div key={ci} style={{ marginBottom: 6, padding: '3px 0', borderBottom: '1px solid rgba(128,128,128,0.1)' }}>
                       <div style={{ display: 'flex', gap: 4, alignItems: 'baseline' }}>
-                        <span style={{ fontSize: '0.55rem', color: '#ef4444', fontWeight: 600, flexShrink: 0 }}>BEFORE</span>
+                        <span style={{ fontSize: 'var(--text-2xs)', color: '#ef4444', fontWeight: 600, flexShrink: 0 }}>BEFORE</span>
                         <div style={{ color: 'var(--text-muted)', textDecoration: 'line-through', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                           {c.original ?? ''}
                         </div>
                       </div>
                       {c.revised && c.original !== c.revised && (
                         <div style={{ display: 'flex', gap: 4, alignItems: 'baseline', marginTop: 2 }}>
-                          <span style={{ fontSize: '0.55rem', color: '#22c55e', fontWeight: 600, flexShrink: 0 }}>AFTER</span>
+                          <span style={{ fontSize: 'var(--text-2xs)', color: '#22c55e', fontWeight: 600, flexShrink: 0 }}>AFTER</span>
                           <div style={{ color: 'var(--text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                             {c.revised}
                           </div>
                         </div>
                       )}
                       {c.fact_source && (
-                        <div style={{ fontSize: '0.55rem', color: 'var(--text-muted)', marginTop: 2, marginLeft: 48 }}>
+                        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2, marginLeft: 48 }}>
                           source: {c.fact_source}
                         </div>
                       )}
@@ -311,7 +311,7 @@ export function DraftTab({
                 </div>
               )}
               {revisedStatement && (
-                <details style={{ fontSize: '0.62rem', marginTop: 4 }}>
+                <details style={{ fontSize: 'var(--text-2xs)', marginTop: 4 }}>
                   <summary style={{ cursor: 'pointer', color: statusColor }}>
                     {success ? 'After — Full revised statement' : 'Attempted revision (rejected)'}
                   </summary>
@@ -319,7 +319,7 @@ export function DraftTab({
                 </details>
               )}
               {mf.prompt && (
-                <details style={{ fontSize: '0.62rem', marginTop: 4 }}>
+                <details style={{ fontSize: 'var(--text-2xs)', marginTop: 4 }}>
                   <summary style={{ cursor: 'pointer', color: 'var(--text-muted)' }}>Micro-fix prompt</summary>
                   <pre style={microFixPreStyle}>{mf.prompt}</pre>
                 </details>
@@ -341,7 +341,7 @@ export function DraftTab({
         const hasAny = autoSplit || (scrubbed && scrubbed > 0) || (linked && linked > 0) || (citWarn && citWarn > 0);
         if (!hasAny) return null;
         return (
-          <div style={{ margin: '6px 0', padding: '6px 8px', background: 'rgba(139,92,246,0.06)', borderLeft: '3px solid #8b5cf6', borderRadius: 4, fontSize: '0.68rem' }}>
+          <div style={{ margin: '6px 0', padding: '6px 8px', background: 'rgba(139,92,246,0.06)', borderLeft: '3px solid #8b5cf6', borderRadius: 4, fontSize: 'var(--text-2xs)' }}>
             <div style={{ fontWeight: 600, color: '#8b5cf6', marginBottom: 4 }}>Post-Draft Fixups ({postDraftStage.response_time_ms}ms)</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {autoSplit && <div style={{ color: '#f59e0b' }}>&#9998; Auto-split → {splitParas} paragraphs</div>}
@@ -352,7 +352,7 @@ export function DraftTab({
                     const scrubbedList = wp.scrubbed_citations as string[] | undefined;
                     if (!scrubbedList || scrubbedList.length === 0) return null;
                     return (
-                      <div style={{ marginLeft: 12, marginTop: 2, fontSize: '0.62rem', color: 'var(--text-muted)' }}>
+                      <div style={{ marginLeft: 12, marginTop: 2, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                         {scrubbedList.map((cit, ci) => (
                           <div key={ci} style={{ textDecoration: 'line-through', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{cit}</div>
                         ))}
@@ -369,7 +369,7 @@ export function DraftTab({
                     const warnDetails = wp.citation_warning_details as string[] | undefined;
                     if (!warnDetails || warnDetails.length === 0) return null;
                     return (
-                      <div style={{ marginLeft: 12, marginTop: 2, fontSize: '0.62rem', color: '#d97706' }}>
+                      <div style={{ marginLeft: 12, marginTop: 2, fontSize: 'var(--text-2xs)', color: '#d97706' }}>
                         {warnDetails.map((w, wi) => (
                           <div key={wi} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{w}</div>
                         ))}
@@ -385,7 +385,7 @@ export function DraftTab({
                     const titles = wp.ignored_evidence_titles as string[] | undefined;
                     if (!titles || titles.length === 0) return null;
                     return (
-                      <div style={{ marginLeft: 12, marginTop: 2, fontSize: '0.62rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                      <div style={{ marginLeft: 12, marginTop: 2, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>
                         {titles.map((t, ti) => (
                           <div key={ti}>{t}</div>
                         ))}
@@ -429,7 +429,7 @@ export function DraftTab({
                 a.colloquial.localeCompare(b.colloquial) || a.canonical.localeCompare(b.canonical)
               );
               return (
-              <table style={{ fontSize: '0.68rem', borderCollapse: 'collapse', marginBottom: 6 }}>
+              <table style={{ fontSize: 'var(--text-2xs)', borderCollapse: 'collapse', marginBottom: 6 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
                     <th style={{ textAlign: 'left', padding: '1px 4px', color: 'var(--text-muted)' }}>Term</th>
@@ -455,7 +455,7 @@ export function DraftTab({
             {vocabAmb && vocabAmb.length > 0 && (() => {
               const unique = [...new Set(vocabAmb.map(a => a.colloquial))].sort((a, b) => a.localeCompare(b));
               return (
-              <div style={{ padding: '4px 8px', background: 'rgba(217,119,6,0.06)', borderLeft: '3px solid #d97706', borderRadius: 4, fontSize: '0.68rem', marginBottom: 4 }}>
+              <div style={{ padding: '4px 8px', background: 'rgba(217,119,6,0.06)', borderLeft: '3px solid #d97706', borderRadius: 4, fontSize: 'var(--text-2xs)', marginBottom: 4 }}>
                 <div style={{ fontWeight: 600, color: '#d97706', marginBottom: 2 }}>Ambiguous terms:</div>
                 {unique.map((term, i) => (
                   <div key={i} style={{ marginLeft: 8 }}>&ldquo;{term}&rdquo;</div>
@@ -506,11 +506,11 @@ export function DraftTab({
                 {isDomains ? `Web Sources (${webQueries.length})` : `Search Queries (${webQueries.length})`}
               </summary>
                 {isDomains && searchText && (
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 4, fontStyle: 'italic' }}>
+                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 4, fontStyle: 'italic' }}>
                     Query: &quot;{searchText.length > 100 ? searchText.slice(0, 97) + '...' : searchText}&quot;
                   </div>
                 )}
-                <ul style={{ fontSize: '0.68rem', margin: '4px 0', paddingLeft: 16, listStyle: 'none' }}>
+                <ul style={{ fontSize: 'var(--text-2xs)', margin: '4px 0', paddingLeft: 16, listStyle: 'none' }}>
                   {webQueries.map((q, qi) => {
                     const trimmed = q.trim();
                     const looksLikeDomain = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(trimmed);
@@ -529,7 +529,7 @@ export function DraftTab({
                           {trimmed}
                         </a>
                         {!allSameQuery && !looksLikeDomain && (
-                          <span style={{ color: 'var(--text-muted)', marginLeft: 6, fontSize: '0.6rem' }}>(query)</span>
+                          <span style={{ color: 'var(--text-muted)', marginLeft: 6, fontSize: 'var(--text-2xs)' }}>(query)</span>
                         )}
                       </li>
                     );
@@ -540,12 +540,12 @@ export function DraftTab({
           })()}
           {webEvidence && (
             <details><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Web Evidence</summary>
-              <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', background: 'var(--bg-secondary)', padding: 8, borderRadius: 4 }}>{webEvidence}</pre>
+              <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', background: 'var(--bg-secondary)', padding: 8, borderRadius: 4 }}>{webEvidence}</pre>
             </details>
           )}
           {webCitations.length > 0 && (
             <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Citations ({webCitations.length})</summary>
-              <div style={{ fontSize: '0.65rem' }}>
+              <div style={{ fontSize: 'var(--text-2xs)' }}>
                 {webCitations.map((c, ci) => (
                   <div key={ci} style={{ margin: '2px 0', paddingLeft: 8, borderLeft: '2px solid rgba(34,197,94,0.3)' }}>
                     {c.title && <div style={{ fontWeight: 600 }}>{c.title}</div>}
@@ -589,7 +589,7 @@ export function DraftTab({
               {showOrchHeader && (
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 8, margin: '14px 0 4px',
-                  fontSize: '0.62rem', fontWeight: 700, color: orchAccepted ? '#16a34a' : '#dc2626',
+                  fontSize: 'var(--text-2xs)', fontWeight: 700, color: orchAccepted ? '#16a34a' : '#dc2626',
                 }}>
                   <div style={{ flex: 1, height: 2, background: orchAccepted ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)' }} />
                   <span>Orchestration Run {orchRun! + 1}{orchAccepted ? ' (accepted)' : ' (rejected by judge)'}</span>
@@ -609,7 +609,7 @@ export function DraftTab({
                 const judgeQ = stageA > 0
                   ? Math.max(0, Math.min(1, (score - 0.4 * stageA) / 0.6))
                   : 0.7;
-                const mono = { fontFamily: 'monospace', fontSize: '0.68rem' } as const;
+                const mono = { fontFamily: 'monospace', fontSize: 'var(--text-2xs)' } as const;
                 const dimColor = (pass: boolean) => pass ? '#16a34a' : '#dc2626';
                 const orchHints = ov.repairHints ?? [];
                 return (
@@ -625,35 +625,35 @@ export function DraftTab({
                         </span>
                       </span>
                       <span style={{
-                        fontSize: '0.6rem', fontWeight: 700, padding: '1px 6px', borderRadius: 3,
+                        fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '1px 6px', borderRadius: 3,
                         color: orchAccepted ? '#16a34a' : '#dc2626',
                         background: orchAccepted ? 'rgba(22,163,74,0.15)' : 'rgba(220,38,38,0.15)',
                       }}>
                         {orchAccepted ? 'ACCEPTED' : 'REJECTED BY JUDGE'}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px', fontSize: '0.66rem' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px', fontSize: 'var(--text-2xs)' }}>
                       <span><span style={{ color: dimColor(dims.schema.pass) }}>●</span> schema ×0.4 = <strong style={mono}>{(0.4 * (dims.schema.pass ? 1 : 0)).toFixed(2)}</strong></span>
                       <span><span style={{ color: dimColor(dims.grounding.pass) }}>●</span> grounding ×0.3 = <strong style={mono}>{(0.3 * (dims.grounding.pass ? 1 : 0)).toFixed(2)}</strong></span>
                       <span><span style={{ color: dimColor(dims.advancement.pass) }}>●</span> advancement ×0.2 = <strong style={mono}>{(0.2 * (dims.advancement.pass ? 1 : 0)).toFixed(2)}</strong></span>
                       <span><span style={{ color: dimColor(dims.clarifies.pass) }}>●</span> clarifies ×0.1 = <strong style={mono}>{(0.1 * (dims.clarifies.pass ? 1 : 0)).toFixed(2)}</strong></span>
                     </div>
-                    <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3, fontSize: '0.66rem', display: 'flex', gap: 12 }}>
+                    <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3, fontSize: 'var(--text-2xs)', display: 'flex', gap: 12 }}>
                       <span>Stage A: <strong style={mono}>{stageA.toFixed(2)}</strong> <span style={{ color: 'var(--text-muted)' }}>×0.4 = {(0.4 * stageA).toFixed(2)}</span></span>
                       <span>Judge: <strong style={mono}>{judgeQ.toFixed(2)}</strong>{!ov.judge_used && <span style={{ color: 'var(--text-muted)' }}> (default)</span>} <span style={{ color: 'var(--text-muted)' }}>×0.6 = {(0.6 * judgeQ).toFixed(2)}</span></span>
                       <span>Total: <strong style={{ ...mono, color: score >= 0.7 ? '#16a34a' : score >= 0.5 ? '#d97706' : '#dc2626' }}>{score.toFixed(2)}</strong></span>
                     </div>
                     {orchHints.length > 0 && (
                       <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3 }}>
-                        <div style={{ fontSize: '0.64rem', fontWeight: 600, marginBottom: 2 }}>Caveats</div>
-                        <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.64rem' }}>
+                        <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, marginBottom: 2 }}>Caveats</div>
+                        <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: 'var(--text-2xs)' }}>
                           {orchHints.map((h, hi) => {
                             const target = classifyHintTarget(h);
                             const ts = HINT_TARGET_STYLE[target];
                             return (
                               <li key={hi} style={{ marginBottom: 2 }}>
                                 <span style={{
-                                  display: 'inline-block', fontSize: '0.58rem', fontWeight: 700,
+                                  display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
                                   color: ts.color, background: ts.bg, padding: '1px 4px',
                                   borderRadius: 2, marginRight: 4, verticalAlign: 'middle',
                                 }}>{ts.label}</span>
@@ -671,14 +671,14 @@ export function DraftTab({
               {(hasStageRetries || hasMultipleOrchRuns || effectiveDraftAttempts.length > 1) && (
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0 6px',
-                  fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600,
+                  fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontWeight: 600,
                 }}>
                   <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
                   <span>
                     Draft Attempt {retryIdx + 1}
                     {hasStageRetries && (
                       <span style={{
-                        marginLeft: 4, fontSize: '0.58rem', fontWeight: 700, padding: '1px 5px',
+                        marginLeft: 4, fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '1px 5px',
                         borderRadius: 3, verticalAlign: 'middle',
                         color: isLastInRun ? '#16a34a' : '#d97706',
                         background: isLastInRun ? 'rgba(22,163,74,0.12)' : 'rgba(217,119,6,0.12)',
@@ -705,7 +705,7 @@ export function DraftTab({
                   const judgeQ = stageA > 0
                     ? Math.max(0, Math.min(1, (turnScore - 0.4 * stageA) / 0.6))
                     : 0.7;
-                  const mono = { fontFamily: 'monospace', fontSize: '0.68rem' } as const;
+                  const mono = { fontFamily: 'monospace', fontSize: 'var(--text-2xs)' } as const;
                   const dimColor = (pass: boolean) => pass ? '#16a34a' : '#dc2626';
                   return (
                     <div style={{
@@ -718,13 +718,13 @@ export function DraftTab({
                           {turnScore.toFixed(2)}
                         </span>
                       </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px', fontSize: '0.66rem' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px', fontSize: 'var(--text-2xs)' }}>
                         <span><span style={{ color: dimColor(dims.schema.pass) }}>●</span> schema ×0.4 = <strong style={mono}>{(0.4 * (dims.schema.pass ? 1 : 0)).toFixed(2)}</strong></span>
                         <span><span style={{ color: dimColor(dims.grounding.pass) }}>●</span> grounding ×0.3 = <strong style={mono}>{(0.3 * (dims.grounding.pass ? 1 : 0)).toFixed(2)}</strong></span>
                         <span><span style={{ color: dimColor(dims.advancement.pass) }}>●</span> advancement ×0.2 = <strong style={mono}>{(0.2 * (dims.advancement.pass ? 1 : 0)).toFixed(2)}</strong></span>
                         <span><span style={{ color: dimColor(dims.clarifies.pass) }}>●</span> clarifies ×0.1 = <strong style={mono}>{(0.1 * (dims.clarifies.pass ? 1 : 0)).toFixed(2)}</strong></span>
                       </div>
-                      <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3, fontSize: '0.66rem', display: 'flex', gap: 12 }}>
+                      <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3, fontSize: 'var(--text-2xs)', display: 'flex', gap: 12 }}>
                         <span>Stage A: <strong style={mono}>{stageA.toFixed(2)}</strong> <span style={{ color: 'var(--text-muted)' }}>×0.4 = {(0.4 * stageA).toFixed(2)}</span></span>
                         <span>Judge: <strong style={mono}>{judgeQ.toFixed(2)}</strong>{!judgeUsed && <span style={{ color: 'var(--text-muted)' }}> (default)</span>} <span style={{ color: 'var(--text-muted)' }}>×0.6 = {(0.6 * judgeQ).toFixed(2)}</span></span>
                         <span>Total: <strong style={{ ...mono, color: turnScore >= 0.7 ? '#16a34a' : turnScore >= 0.5 ? '#d97706' : '#dc2626' }}>{turnScore.toFixed(2)}</strong></span>
@@ -746,16 +746,16 @@ export function DraftTab({
                       )}
                     </div>
                     {valData?.details && valData.details.length > 0 && (
-                      <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2, fontSize: '0.66rem' }}>
+                      <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2, fontSize: 'var(--text-2xs)' }}>
                         {valData.details.map((d, di) => (
                           <div key={di}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               <span style={{ color: d.pass ? '#16a34a' : '#dc2626', fontSize: '0.7rem' }}>{d.pass ? '✓' : '✗'}</span>
                               <span style={{ color: 'var(--text-primary)' }}>{d.rule}</span>
-                              {d.value && <span style={{ color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: '0.62rem' }}>{d.value}</span>}
+                              {d.value && <span style={{ color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: 'var(--text-2xs)' }}>{d.value}</span>}
                             </div>
                             {d.flagged_claims && d.flagged_claims.length > 0 && (
-                              <div style={{ marginLeft: 20, marginTop: 2, fontSize: '0.6rem', color: '#dc2626' }}>
+                              <div style={{ marginLeft: 20, marginTop: 2, fontSize: 'var(--text-2xs)', color: '#dc2626' }}>
                                 {d.flagged_claims.map((claim: string, ci: number) => (
                                   <div key={ci} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 1 }}>• {claim}</div>
                                 ))}
@@ -779,7 +779,7 @@ export function DraftTab({
                       return (
                         <li key={hi} style={{ marginBottom: 3 }}>
                           <span style={{
-                            display: 'inline-block', fontSize: '0.6rem', fontWeight: 700,
+                            display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
                             color: ts.color, background: ts.bg, padding: '1px 5px',
                             borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
                           }}>{ts.label}</span>
@@ -796,7 +796,7 @@ export function DraftTab({
                   (s: { stage: string }) => s.stage === 'micro-fix',
                 ) ?? [];
                 if (attemptMicroFixes.length === 0) return null;
-                const mfPreStyle = { margin: '4px 0', padding: 6, background: 'rgba(0,0,0,0.15)', borderRadius: 4, whiteSpace: 'pre-wrap' as const, wordBreak: 'break-word' as const, fontSize: '0.6rem', maxHeight: 200, overflow: 'auto' as const };
+                const mfPreStyle = { margin: '4px 0', padding: 6, background: 'rgba(0,0,0,0.15)', borderRadius: 4, whiteSpace: 'pre-wrap' as const, wordBreak: 'break-word' as const, fontSize: 'var(--text-2xs)', maxHeight: 200, overflow: 'auto' as const };
                 return attemptMicroFixes.map((mf: { stage: string; prompt?: string; raw_response?: string; response_time_ms?: number; work_product?: Record<string, unknown> }, mi: number) => {
                   const wp = mf.work_product;
                   const success = wp?.success as boolean | undefined;
@@ -815,19 +815,19 @@ export function DraftTab({
                         margin: '6px 0', padding: '6px 8px',
                         background: success ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
                         borderLeft: `3px solid ${statusColor}`,
-                        borderRadius: 4, fontSize: '0.68rem',
+                        borderRadius: 4, fontSize: 'var(--text-2xs)',
                       }}>
                         <div style={{ fontWeight: 600, color: statusColor, marginBottom: 4 }}>
                           Micro-Fix: {move ?? 'Intervention'} Compliance ({elapsed}ms) — {success ? 'Applied' : rejected ? `Rejected (${rejected})` : recheck && !recheck.compliant ? 'Re-validation failed' : 'Failed'}
                         </div>
                         {field && (
-                          <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginBottom: 4 }}>
+                          <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 4 }}>
                             Field: <code style={{ background: 'rgba(128,128,128,0.15)', padding: '1px 4px', borderRadius: 3 }}>{field}</code>
                             {!success && <span style={{ marginLeft: 6 }}>Before: <em>missing</em></span>}
                           </div>
                         )}
                         {generated != null && (
-                          <details open={success} style={{ fontSize: '0.62rem' }}>
+                          <details open={success} style={{ fontSize: 'var(--text-2xs)' }}>
                             <summary style={{ cursor: 'pointer', color: statusColor }}>
                               {success ? 'After — Generated value' : 'Attempted value (rejected)'}
                             </summary>
@@ -837,7 +837,7 @@ export function DraftTab({
                           </details>
                         )}
                         {recheck?.repair_hint && !recheck.compliant && (
-                          <div style={{ fontSize: '0.6rem', color: '#ef4444', marginTop: 4 }}>
+                          <div style={{ fontSize: 'var(--text-2xs)', color: '#ef4444', marginTop: 4 }}>
                             {recheck.repair_hint}
                           </div>
                         )}
@@ -855,13 +855,13 @@ export function DraftTab({
                         margin: '6px 0', padding: '6px 8px',
                         background: success ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
                         borderLeft: `3px solid ${statusColor}`,
-                        borderRadius: 4, fontSize: '0.68rem',
+                        borderRadius: 4, fontSize: 'var(--text-2xs)',
                       }}>
                         <div style={{ fontWeight: 600, color: statusColor, marginBottom: 4 }}>
                           Micro-Fix: Directive Compliance — {move ?? '?'} ({elapsed}ms) — {success ? 'Applied' : rejected ? `Rejected (${rejected})` : recheckCompliant === false ? 'Re-validation failed' : 'Failed'}
                         </div>
                         {revisedPara && (
-                          <details open={success} style={{ fontSize: '0.62rem' }}>
+                          <details open={success} style={{ fontSize: 'var(--text-2xs)' }}>
                             <summary style={{ cursor: 'pointer', color: statusColor }}>
                               {success ? 'After — Revised first paragraph' : 'Attempted revision (rejected)'}
                             </summary>
@@ -881,35 +881,35 @@ export function DraftTab({
                       margin: '6px 0', padding: '6px 8px',
                       background: success ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
                       borderLeft: `3px solid ${statusColor}`,
-                      borderRadius: 4, fontSize: '0.68rem',
+                      borderRadius: 4, fontSize: 'var(--text-2xs)',
                     }}>
                       <div style={{ fontWeight: 600, color: statusColor, marginBottom: 4 }}>
                         Micro-Fix: Abstract Claims ({elapsed}ms) — {success ? 'Applied' : diffPassed === false ? (rejected === 'hallucinated_changes' ? 'Rejected (hallucinated edits)' : 'Rejected (too many changes)') : 'Re-validation failed'}
-                        {changes && <span style={{ fontWeight: 400, fontSize: '0.6rem', color: 'var(--text-muted)', marginLeft: 6 }}>{changes.length} change{changes.length !== 1 ? 's' : ''}</span>}
+                        {changes && <span style={{ fontWeight: 400, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginLeft: 6 }}>{changes.length} change{changes.length !== 1 ? 's' : ''}</span>}
                       </div>
                       {changes && changes.length > 0 && (
-                        <div style={{ fontSize: '0.65rem' }}>
+                        <div style={{ fontSize: 'var(--text-2xs)' }}>
                           {changes.map((c, ci) => (
                             <div key={ci} style={{ marginBottom: 6, padding: '3px 0', borderBottom: '1px solid rgba(128,128,128,0.1)' }}>
                               <div style={{ display: 'flex', gap: 4, alignItems: 'baseline' }}>
-                                <span style={{ fontSize: '0.55rem', color: '#ef4444', fontWeight: 600, flexShrink: 0 }}>BEFORE</span>
+                                <span style={{ fontSize: 'var(--text-2xs)', color: '#ef4444', fontWeight: 600, flexShrink: 0 }}>BEFORE</span>
                                 <div style={{ color: 'var(--text-muted)', textDecoration: 'line-through', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{c.original ?? ''}</div>
                               </div>
                               {c.revised && c.original !== c.revised && (
                                 <div style={{ display: 'flex', gap: 4, alignItems: 'baseline', marginTop: 2 }}>
-                                  <span style={{ fontSize: '0.55rem', color: '#22c55e', fontWeight: 600, flexShrink: 0 }}>AFTER</span>
+                                  <span style={{ fontSize: 'var(--text-2xs)', color: '#22c55e', fontWeight: 600, flexShrink: 0 }}>AFTER</span>
                                   <div style={{ color: 'var(--text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{c.revised}</div>
                                 </div>
                               )}
                               {c.fact_source && (
-                                <div style={{ fontSize: '0.55rem', color: 'var(--text-muted)', marginTop: 2, marginLeft: 48 }}>source: {c.fact_source}</div>
+                                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2, marginLeft: 48 }}>source: {c.fact_source}</div>
                               )}
                             </div>
                           ))}
                         </div>
                       )}
                       {revisedStatement && (
-                        <details style={{ fontSize: '0.62rem', marginTop: 4 }}>
+                        <details style={{ fontSize: 'var(--text-2xs)', marginTop: 4 }}>
                           <summary style={{ cursor: 'pointer', color: statusColor }}>
                             {success ? 'After — Full revised statement' : 'Attempted revision (rejected)'}
                           </summary>
@@ -943,15 +943,15 @@ export function DraftTab({
           border: `1px solid ${allPass ? 'rgba(22,163,74,0.2)' : 'rgba(245,158,11,0.2)'}`,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 700, fontSize: '0.66rem' }}>Quality Pre-Check</span>
-            <span style={{ fontSize: '0.58rem', padding: '1px 5px', borderRadius: 3, background: 'rgba(99,102,241,0.12)', color: '#6366f1', fontWeight: 600 }}>Draft Attempt 1</span>
+            <span style={{ fontWeight: 700, fontSize: 'var(--text-2xs)' }}>Quality Pre-Check</span>
+            <span style={{ fontSize: 'var(--text-2xs)', padding: '1px 5px', borderRadius: 3, background: 'rgba(99,102,241,0.12)', color: '#6366f1', fontWeight: 600 }}>Draft Attempt 1</span>
             {diag?.topic_alignment?.repaired && (
-              <span style={{ fontSize: '0.58rem', padding: '1px 5px', borderRadius: 3, background: 'rgba(245,158,11,0.15)', color: '#d97706', fontWeight: 600 }}>triggered regen</span>
+              <span style={{ fontSize: 'var(--text-2xs)', padding: '1px 5px', borderRadius: 3, background: 'rgba(245,158,11,0.15)', color: '#d97706', fontWeight: 600 }}>triggered regen</span>
             )}
-            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{draftQualityStage.model}</span>
-            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{(draftQualityStage.response_time_ms / 1000).toFixed(1)}s</span>
+            <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{draftQualityStage.model}</span>
+            <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{(draftQualityStage.response_time_ms / 1000).toFixed(1)}s</span>
           </div>
-          <div style={{ display: 'flex', gap: 12, fontSize: '0.68rem' }}>
+          <div style={{ display: 'flex', gap: 12, fontSize: 'var(--text-2xs)' }}>
             {indicators.map(([label, pass]) => (
               <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                 <span style={{ color: pass ? '#16a34a' : '#dc2626', fontWeight: 700 }}>{pass ? '✓' : '✗'}</span>
@@ -961,8 +961,8 @@ export function DraftTab({
           </div>
           {wp.weaknesses && wp.weaknesses.length > 0 && (
             <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3 }}>
-              <div style={{ fontSize: '0.64rem', fontWeight: 600, marginBottom: 2, color: '#d97706' }}>Weaknesses</div>
-              <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.64rem' }}>
+              <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, marginBottom: 2, color: '#d97706' }}>Weaknesses</div>
+              <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: 'var(--text-2xs)' }}>
                 {wp.weaknesses.map((w, wi) => (
                   <li key={wi} style={{ marginBottom: 2 }}>{humanizeSpeakerIds(w)}</li>
                 ))}
@@ -970,7 +970,7 @@ export function DraftTab({
             </div>
           )}
           {draftQualityStage.parse_error && (
-            <div style={{ padding: '4px 6px', marginTop: 4, background: 'rgba(220,38,38,0.1)', borderLeft: '3px solid #dc2626', borderRadius: 3, fontSize: '0.66rem', color: '#dc2626' }}>
+            <div style={{ padding: '4px 6px', marginTop: 4, background: 'rgba(220,38,38,0.1)', borderLeft: '3px solid #dc2626', borderRadius: 3, fontSize: 'var(--text-2xs)', color: '#dc2626' }}>
               <strong>Parse error:</strong> {draftQualityStage.parse_error}
             </div>
           )}
@@ -1002,7 +1002,7 @@ export function DraftTab({
           background: finalAligned ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)',
           border: `1px solid ${finalAligned ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`,
         }}>
-          <div style={{ fontWeight: 700, fontSize: '0.66rem', marginBottom: 6 }}>Topic Alignment</div>
+          <div style={{ fontWeight: 700, fontSize: 'var(--text-2xs)', marginBottom: 6 }}>Topic Alignment</div>
           {attempts.map((att, ai) => {
             const topicWeaknesses = att.weaknesses.filter(w =>
               /\b(off.?scope|off.?topic|drift|outside.*scope|beyond.*scope|scope|domain|severity|magnitude|escalat|disproportionate|catastroph|existential|extinction|civiliz)\b/i.test(w)
@@ -1014,20 +1014,20 @@ export function DraftTab({
             return (
               <div key={ai} style={{ marginBottom: ai < attempts.length - 1 ? 8 : 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.64rem', fontWeight: 600 }}>{att.label}</span>
+                  <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 600 }}>{att.label}</span>
                   <span style={{
-                    padding: '1px 6px', borderRadius: 3, fontWeight: 600, fontSize: '0.6rem',
+                    padding: '1px 6px', borderRadius: 3, fontWeight: 600, fontSize: 'var(--text-2xs)',
                     background: att.aligned ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)',
                     color: att.aligned ? '#16a34a' : '#dc2626',
                   }}>{att.aligned ? 'ON-SCOPE' : 'OFF-SCOPE'}</span>
                   {driftType && (
-                    <span style={{ padding: '1px 5px', borderRadius: 3, fontSize: '0.56rem', fontWeight: 600, background: 'rgba(220,38,38,0.1)', color: '#dc2626' }}>
+                    <span style={{ padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: 'rgba(220,38,38,0.1)', color: '#dc2626' }}>
                       {driftType} drift
                     </span>
                   )}
                   {ai === attempts.length - 1 && qg?.repair_outcome && (
                     <span style={{
-                      padding: '1px 5px', borderRadius: 3, fontSize: '0.56rem', fontWeight: 600,
+                      padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600,
                       background: qg.repair_outcome === 'fixed' ? 'rgba(22,163,74,0.15)' : qg.repair_outcome === 'partial' ? 'rgba(245,158,11,0.15)' : 'rgba(220,38,38,0.1)',
                       color: qg.repair_outcome === 'fixed' ? '#16a34a' : qg.repair_outcome === 'partial' ? '#d97706' : '#dc2626',
                     }}>repair: {qg.repair_outcome}</span>
@@ -1035,12 +1035,12 @@ export function DraftTab({
                 </div>
                 {!att.aligned && topicWeaknesses.length > 0 && (
                   <div style={{ marginTop: 3, paddingLeft: 8, borderLeft: '2px solid #dc262644' }}>
-                    <div style={{ fontSize: '0.62rem', fontWeight: 600, color: '#dc2626', marginBottom: 2 }}>Why off-scope:</div>
-                    <ul style={{ margin: '2px 0 0 12px', padding: 0, fontSize: '0.62rem' }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, color: '#dc2626', marginBottom: 2 }}>Why off-scope:</div>
+                    <ul style={{ margin: '2px 0 0 12px', padding: 0, fontSize: 'var(--text-2xs)' }}>
                       {topicWeaknesses.map((w, wi) => <li key={wi} style={{ marginBottom: 1 }}>{humanizeSpeakerIds(w)}</li>)}
                     </ul>
                     {repairHint && (
-                      <div style={{ marginTop: 3, fontSize: '0.6rem', color: '#d97706', fontStyle: 'italic', paddingLeft: 4 }}>
+                      <div style={{ marginTop: 3, fontSize: 'var(--text-2xs)', color: '#d97706', fontStyle: 'italic', paddingLeft: 4 }}>
                         <strong>Repair instruction:</strong> {repairHint}
                       </div>
                     )}
@@ -1048,8 +1048,8 @@ export function DraftTab({
                 )}
                 {!att.aligned && topicWeaknesses.length === 0 && att.weaknesses.length > 0 && (
                   <div style={{ marginTop: 3, paddingLeft: 8, borderLeft: '2px solid #dc262644' }}>
-                    <div style={{ fontSize: '0.62rem', fontWeight: 600, color: '#dc2626', marginBottom: 2 }}>Why off-scope:</div>
-                    <ul style={{ margin: '2px 0 0 12px', padding: 0, fontSize: '0.62rem' }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, color: '#dc2626', marginBottom: 2 }}>Why off-scope:</div>
+                    <ul style={{ margin: '2px 0 0 12px', padding: 0, fontSize: 'var(--text-2xs)' }}>
                       {att.weaknesses.map((w, wi) => <li key={wi} style={{ marginBottom: 1 }}>{humanizeSpeakerIds(w)}</li>)}
                     </ul>
                   </div>
@@ -1058,7 +1058,7 @@ export function DraftTab({
             );
           })}
           {scope && (
-            <details style={{ marginTop: 6, fontSize: '0.62rem' }}>
+            <details style={{ marginTop: 6, fontSize: 'var(--text-2xs)' }}>
               <summary style={{ cursor: 'pointer', color: 'var(--text-muted)', fontWeight: 600 }}>Scope Definition</summary>
               <div style={{ marginTop: 3, paddingLeft: 8 }}>
                 {scope.core_proposition && (

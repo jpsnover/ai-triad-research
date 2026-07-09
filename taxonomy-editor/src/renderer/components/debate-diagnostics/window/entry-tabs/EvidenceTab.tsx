@@ -65,14 +65,14 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
         {evidenceStage && (
           <details open>
             <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.72rem', marginBottom: 6 }}>Source Evidence Retrieved</summary>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, fontSize: '0.62rem', color: 'var(--text-muted)' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
               <span>{evidenceStage.model}</span>
               <span>{(evidenceStage.response_time_ms / 1000).toFixed(1)}s</span>
               {evidenceWP?.nodesCovered && <span>Nodes covered: {evidenceWP.nodesCovered.join(', ')}</span>}
               {evidenceWP?.totalCandidates != null && <span>({evidenceWP.totalCandidates} candidates screened)</span>}
             </div>
             {evidenceStage.parse_error && (
-              <div style={{ padding: '4px 6px', marginBottom: 6, background: 'rgba(220,38,38,0.1)', borderLeft: '3px solid #dc2626', borderRadius: 3, fontSize: '0.66rem', color: '#dc2626' }}>
+              <div style={{ padding: '4px 6px', marginBottom: 6, background: 'rgba(220,38,38,0.1)', borderLeft: '3px solid #dc2626', borderRadius: 3, fontSize: 'var(--text-2xs)', color: '#dc2626' }}>
                 <strong>Parse error:</strong> {evidenceStage.parse_error}
               </div>
             )}
@@ -91,7 +91,7 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
                   flex: '1 1 90px', padding: '6px 10px', borderRadius: 4,
                   background: 'var(--bg-subtle)', border: '1px solid var(--border)', textAlign: 'center',
                 }}>
-                  <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: 2 }}>{card.label}</div>
+                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 2 }}>{card.label}</div>
                   <div style={{ fontSize: '0.82rem', fontWeight: 700, fontFamily: 'monospace' }}>{card.value}</div>
                 </div>
               ))}
@@ -113,25 +113,25 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                     <span style={{
-                      fontSize: '0.55rem', fontWeight: 700, padding: '0 5px', borderRadius: 3,
+                      fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 5px', borderRadius: 3,
                       color: specColor, background: `${specColor}18`,
                     }}>{fact.specificity?.toUpperCase() ?? 'FACT'}</span>
                     <a
                       href={`https://scholar.google.com/scholar?q=${encodeURIComponent(fact.doc_id.replace(/-/g, ' ').replace(/\d{4}$/, ''))}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ fontSize: '0.6rem', color: '#3b82f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'none' }}
+                      style={{ fontSize: 'var(--text-2xs)', color: '#3b82f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'none' }}
                       title={`Search for: ${fact.doc_id}`}
                     >
                       {fact.doc_id}
                     </a>
                     {fact.temporal_bound && (
-                      <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>{fact.temporal_bound}</span>
+                      <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginLeft: 'auto' }}>{fact.temporal_bound}</span>
                     )}
                   </div>
-                  <div style={{ fontSize: '0.68rem', lineHeight: 1.35 }}>{fact.claim}</div>
+                  <div style={{ fontSize: 'var(--text-2xs)', lineHeight: 1.35 }}>{fact.claim}</div>
                   {fact.linked_taxonomy_nodes?.length > 0 && (
-                    <div style={{ fontSize: '0.58rem', color: '#3b82f6', marginTop: 2 }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', color: '#3b82f6', marginTop: 2 }}>
                       {fact.linked_taxonomy_nodes.join(', ')}
                     </div>
                   )}
@@ -156,23 +156,23 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                     <span style={{
-                      fontSize: '0.55rem', fontWeight: 700, padding: '0 5px', borderRadius: 3,
+                      fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 5px', borderRadius: 3,
                       color: stanceColor, background: `${stanceColor}18`,
                     }}>{kp.stance?.toUpperCase() ?? 'POINT'}</span>
-                    <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)' }}>{kp.pov}</span>
+                    <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{kp.pov}</span>
                     <a
                       href={`https://scholar.google.com/scholar?q=${encodeURIComponent(kp.doc_id.replace(/-/g, ' ').replace(/\d{4}$/, ''))}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ fontSize: '0.6rem', color: '#3b82f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'none' }}
+                      style={{ fontSize: 'var(--text-2xs)', color: '#3b82f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'none' }}
                       title={`Search for: ${kp.doc_id}`}
                     >
                       {kp.doc_id}
                     </a>
                   </div>
-                  <div style={{ fontSize: '0.68rem', lineHeight: 1.35 }}>{kp.point}</div>
+                  <div style={{ fontSize: 'var(--text-2xs)', lineHeight: 1.35 }}>{kp.point}</div>
                   {kp.verbatim && (
-                    <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2, borderLeft: '2px solid var(--border)', paddingLeft: 6 }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2, borderLeft: '2px solid var(--border)', paddingLeft: 6 }}>
                       &ldquo;{kp.verbatim}&rdquo;
                     </div>
                   )}
@@ -184,10 +184,10 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
         {/* -- 4. Raw Evidence Block -- */}
         {evidenceStage && (
           <details style={{ marginTop: 8 }}>
-            <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+            <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
               Raw Evidence Block <CopyButton text={evidenceStage.raw_response} />
             </summary>
-            <pre style={{ fontSize: '0.62rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{evidenceStage.raw_response}</pre>
+            <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{evidenceStage.raw_response}</pre>
           </details>
         )}
         {/* -- 5. Cited Evidence (what the debater actually referenced) -- */}
@@ -203,14 +203,14 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
                 Cited Evidence ({eu.cited_docs.length}/{eu.total_docs} sources, {eu.utilization_rate}%)
               </summary>
               {eu.cited_docs.length === 0 ? (
-                <div style={{ fontSize: '0.66rem', color: '#dc2626', padding: '4px 6px', background: 'rgba(220,38,38,0.08)', borderRadius: 3 }}>
+                <div style={{ fontSize: 'var(--text-2xs)', color: '#dc2626', padding: '4px 6px', background: 'rgba(220,38,38,0.08)', borderRadius: 3 }}>
                   Debater did not cite any source documents from the evidence brief.
                 </div>
               ) : (
                 eu.cited_docs.map((cd, i) => (
-                  <div key={i} style={{ marginBottom: 4, padding: '4px 8px', borderRadius: 4, borderLeft: `3px solid ${matchColors[cd.match_type] ?? '#6b7280'}`, background: 'var(--bg-subtle)', fontSize: '0.66rem' }}>
+                  <div key={i} style={{ marginBottom: 4, padding: '4px 8px', borderRadius: 4, borderLeft: `3px solid ${matchColors[cd.match_type] ?? '#6b7280'}`, background: 'var(--bg-subtle)', fontSize: 'var(--text-2xs)' }}>
                     <span style={{ fontWeight: 600 }}>{cd.title ?? cd.doc_id}</span>
-                    <span style={{ fontSize: '0.55rem', marginLeft: 6, padding: '0 4px', borderRadius: 3, color: matchColors[cd.match_type] ?? '#6b7280', background: `${matchColors[cd.match_type] ?? '#6b7280'}18` }}>
+                    <span style={{ fontSize: 'var(--text-2xs)', marginLeft: 6, padding: '0 4px', borderRadius: 3, color: matchColors[cd.match_type] ?? '#6b7280', background: `${matchColors[cd.match_type] ?? '#6b7280'}18` }}>
                       {cd.match_type.replace('_', ' ')}
                     </span>
                   </div>
@@ -236,7 +236,7 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
               <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.72rem', marginBottom: 6 }}>
                 Citation Pipeline ({pipeline.filter(p => p.cited).length}/{pipeline.length} cited, {pipeline.filter(p => p.linkified).length} linkified)
               </summary>
-              <table style={{ width: '100%', fontSize: '0.62rem', borderCollapse: 'collapse' }}>
+              <table style={{ width: '100%', fontSize: 'var(--text-2xs)', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
                     <th style={{ textAlign: 'left', padding: '2px 4px' }}>Source</th>
@@ -269,7 +269,7 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
                       </td>
                       <td style={{ textAlign: 'center', padding: '3px 4px' }}>
                         <span style={{
-                          fontSize: '0.55rem', padding: '0 4px', borderRadius: 3, fontWeight: 600,
+                          fontSize: 'var(--text-2xs)', padding: '0 4px', borderRadius: 3, fontWeight: 600,
                           color: urlTypeColors[p.url_type] ?? '#6b7280',
                           background: `${urlTypeColors[p.url_type] ?? '#6b7280'}18`,
                         }}>{p.url_type}</span>
@@ -279,7 +279,7 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
                       </td>
                       <td style={{ textAlign: 'center', padding: '3px 4px' }}>
                         {p.match_type ? (
-                          <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)' }}>
+                          <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                             {p.match_type.replace('_', ' ')}
                           </span>
                         ) : '—'}
@@ -292,7 +292,7 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
                 </tbody>
               </table>
               {pipeline.some(p => p.provenance_label) && (
-                <div style={{ fontSize: '0.58rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4 }}>
                   Provenance: {pipeline.filter(p => p.provenance_label).map(p => `${p.doc_id} → ${p.provenance_label}`).join(', ')}
                 </div>
               )}
@@ -309,17 +309,17 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
               <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.72rem', marginBottom: 6, color: '#6366f1' }}>
                 Ungrounded Claims ({uc.length})
               </summary>
-              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 6 }}>
                 These factual assertions appear in the statement but don&apos;t match any source in the evidence block or corpus. They likely come from the model&apos;s training data.
               </div>
               {uc.map((c, ci) => (
                 <div key={ci} style={{
                   marginBottom: 4, padding: '4px 8px', borderRadius: 4,
                   borderLeft: '3px solid #6366f1', background: 'rgba(99,102,241,0.06)',
-                  fontSize: '0.66rem',
+                  fontSize: 'var(--text-2xs)',
                 }}>
                   <div>{c.claim}</div>
-                  <div style={{ fontSize: '0.58rem', color: '#6366f1', marginTop: 2 }}>{c.reason}</div>
+                  <div style={{ fontSize: 'var(--text-2xs)', color: '#6366f1', marginTop: 2 }}>{c.reason}</div>
                 </div>
               ))}
             </details>
@@ -339,7 +339,7 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
               return (
                 <div style={{ marginBottom: 6 }}>
                   {bars.map(([label, count, color]) => (
-                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, fontSize: '0.68rem' }}>
+                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, fontSize: 'var(--text-2xs)' }}>
                       <span style={{ width: 70, textAlign: 'right', color: 'var(--text-muted)' }}>{label}</span>
                       <div style={{ flex: 1, height: 12, borderRadius: 3, background: 'var(--bg-primary)' }}>
                         <div style={{
@@ -349,7 +349,7 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
                         }} />
                       </div>
                       <span style={{ fontFamily: 'monospace', fontWeight: 600, minWidth: 30 }}>{count}</span>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.6rem' }}>
+                      <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
                         {max > 0 ? `${Math.round(count / max * 100)}%` : ''}
                       </span>
                     </div>
@@ -358,7 +358,7 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4, paddingLeft: 78 }}>
                       {Object.entries(extTrace.rejection_reasons).map(([reason, count]) => (
                         <span key={reason} style={{
-                          fontSize: '0.58rem', padding: '1px 6px', borderRadius: 10,
+                          fontSize: 'var(--text-2xs)', padding: '1px 6px', borderRadius: 10,
                           background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontWeight: 600,
                         }}>{reason} ({count})</span>
                       ))}
@@ -381,33 +381,33 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
               const supportEdges = addedEdges.length - attackEdges;
               const sColors: Record<string, string> = { decisive: '#22c55e', substantial: '#3b82f6', tangential: '#6b7280' };
               return (<>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: '0.68rem', marginBottom: 8 }}>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 'var(--text-2xs)', marginBottom: 8 }}>
                   <div style={{ flex: '1 1 120px', padding: '5px 8px', borderRadius: 4, background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>Nodes Added</div>
+                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Nodes Added</div>
                     <div style={{ fontFamily: 'monospace', fontWeight: 700 }}>{extTrace.an_nodes_added_ids.length}</div>
                     {extTrace.an_nodes_added_ids.length > 0 && (
-                      <div style={{ fontSize: '0.58rem', color: '#3b82f6', marginTop: 2, wordBreak: 'break-all' }}>
+                      <div style={{ fontSize: 'var(--text-2xs)', color: '#3b82f6', marginTop: 2, wordBreak: 'break-all' }}>
                         {extTrace.an_nodes_added_ids.join(', ')}
                       </div>
                     )}
                   </div>
                   <div style={{ flex: '1 1 120px', padding: '5px 8px', borderRadius: 4, background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>Edges Added</div>
+                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Edges Added</div>
                     <div style={{ fontFamily: 'monospace', fontWeight: 700 }}>{addedEdges.length}</div>
-                    <div style={{ fontSize: '0.58rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
                       <span style={{ color: '#22c55e' }}>{supportEdges} support</span>{' / '}
                       <span style={{ color: '#ef4444' }}>{attackEdges} attack</span>
                     </div>
                   </div>
                   <div style={{ flex: '1 1 120px', padding: '5px 8px', borderRadius: 4, background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>Network Size</div>
+                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Network Size</div>
                     <div style={{ fontFamily: 'monospace', fontWeight: 700 }}>
                       {extTrace.an_node_count_before} → {extTrace.an_node_count_after}
                     </div>
                   </div>
                 </div>
                 {addedEdges.length > 0 && (
-                  <div style={{ fontSize: '0.65rem' }}>
+                  <div style={{ fontSize: 'var(--text-2xs)' }}>
                     {addedEdges.map((edge, ei) => {
                       const sourceNode = an?.nodes.find(n => n.id === edge.source);
                       const targetNode = an?.nodes.find(n => n.id === edge.target);
@@ -422,18 +422,18 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
                             <span style={{ color: edgeColor, fontWeight: 600 }}>{edgeLabel}</span>
                             <span style={{ fontWeight: 700, color: '#3b82f6' }}>{edge.target}</span>
                             {edge.strength && (
-                              <span style={{ padding: '0 3px', borderRadius: 3, fontSize: '0.52rem', fontWeight: 600, background: `${sColors[edge.strength] ?? '#6b7280'}18`, color: sColors[edge.strength] ?? '#6b7280' }}>
+                              <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: `${sColors[edge.strength] ?? '#6b7280'}18`, color: sColors[edge.strength] ?? '#6b7280' }}>
                                 {edge.strength}
                               </span>
                             )}
                             {edge.argumentation_scheme && (
-                              <span style={{ padding: '0 3px', borderRadius: 3, fontSize: '0.52rem', background: 'rgba(99,102,241,0.12)', color: '#6366f1' }}>
+                              <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', background: 'rgba(99,102,241,0.12)', color: '#6366f1' }}>
                                 {edge.argumentation_scheme}
                               </span>
                             )}
                           </div>
                           {(sourceNode || targetNode) && (
-                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 1 }}>
+                            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 1 }}>
                               {sourceNode && <span title={sourceNode.attribution_text_genus || undefined}>{sourceNode.text.length > 60 ? sourceNode.text.slice(0, 60) + '…' : sourceNode.text}</span>}
                               {sourceNode && targetNode && <span> → </span>}
                               {targetNode && <span title={targetNode.attribution_text_genus || undefined}>{targetNode.text.length > 60 ? targetNode.text.slice(0, 60) + '…' : targetNode.text}</span>}
@@ -441,8 +441,8 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
                           )}
                           {edge.warrant && (
                             <details style={{ marginTop: 2 }}>
-                              <summary style={{ cursor: 'pointer', fontSize: '0.58rem', color: 'var(--text-muted)' }}>Warrant</summary>
-                              <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 1, paddingLeft: 4, borderLeft: '1px solid var(--border)' }}>
+                              <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Warrant</summary>
+                              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 1, paddingLeft: 4, borderLeft: '1px solid var(--border)' }}>
                                 {edge.warrant}
                               </div>
                             </details>
