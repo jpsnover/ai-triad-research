@@ -53,7 +53,7 @@ function Test-AIApiKey {
     [OutputType([PSCustomObject])]
     param(
         [Parameter(Mandatory, ParameterSetName = 'One', Position = 0)]
-        [ValidateSet('gemini', 'claude', 'groq', 'openai', 'azure', 'ollama')]
+        [ValidateSet('gemini', 'claude', 'groq', 'openai', 'azure', 'ollama', 'zai')]
         [string]$Backend,
 
         [Parameter(ParameterSetName = 'One')]
@@ -150,22 +150,48 @@ function Test-AIApiKey {
                 $Uri = "$OllamaHost/api/tags"
                 # No headers — Ollama is keyless.
             }
+            # t/1437 — z.ai's OpenAI-compatible surface may not expose a /v1/models
+            # list endpoint, so we probe a minimal chat completion (5 tokens, cheap).
+            # $ZaiProbe = 'POST' is a sentinel handled below in the probe branch.
+            'zai' {
+                $Uri = 'https://api.z.ai/api/paas/v4/chat/completions'
+                $Headers['Authorization'] = "Bearer $Key"
+                $script:ZaiPostProbe = $true
+            }
         }
 
-        # Probe the endpoint
+        # Probe the endpoint. Most backends are GET on /models; z.ai uses a POST
+        # minimal chat-completion probe (t/1437) since its /models surface isn't
+        # publicly documented as OpenAI-parity.
         $Sw = [System.Diagnostics.Stopwatch]::StartNew()
         try {
-            $Resp = Invoke-RestMethod -Uri $Uri -Headers $Headers -Method GET -TimeoutSec $Timeout -ErrorAction Stop
-            $Sw.Stop()
-            $Result['StatusCode'] = 200
-            $Result['Functional'] = $true
-            $Result['LatencyMs']  = [int]$Sw.ElapsedMilliseconds
-            # Best-effort model count — every supported provider returns a list.
-            $ModelList = if ($Resp.PSObject.Properties['data']) { $Resp.data }
-                         elseif ($Resp.PSObject.Properties['models']) { $Resp.models }
-                         elseif ($Resp.PSObject.Properties['value']) { $Resp.value }
-                         else { @() }
-            $Result['ModelsFound'] = @($ModelList).Count
+            if ($B -eq 'zai') {
+                $ProbeBody = @{
+                    model       = 'glm-5.2'
+                    messages    = @(@{ role = 'user'; content = 'ping' })
+                    max_tokens  = 5
+                    temperature = 0.0
+                } | ConvertTo-Json -Depth 5
+                $Resp = Invoke-RestMethod -Uri $Uri -Headers $Headers -Method POST -Body $ProbeBody `
+                    -ContentType 'application/json' -TimeoutSec $Timeout -ErrorAction Stop
+                $Sw.Stop()
+                $Result['StatusCode'] = 200
+                $Result['Functional'] = $true
+                $Result['LatencyMs']  = [int]$Sw.ElapsedMilliseconds
+                $Result['ModelsFound'] = 1  # z.ai probe uses a specific model, so 1 = "the probe model responded"
+            } else {
+                $Resp = Invoke-RestMethod -Uri $Uri -Headers $Headers -Method GET -TimeoutSec $Timeout -ErrorAction Stop
+                $Sw.Stop()
+                $Result['StatusCode'] = 200
+                $Result['Functional'] = $true
+                $Result['LatencyMs']  = [int]$Sw.ElapsedMilliseconds
+                # Best-effort model count — every supported provider returns a list.
+                $ModelList = if ($Resp.PSObject.Properties['data']) { $Resp.data }
+                             elseif ($Resp.PSObject.Properties['models']) { $Resp.models }
+                             elseif ($Resp.PSObject.Properties['value']) { $Resp.value }
+                             else { @() }
+                $Result['ModelsFound'] = @($ModelList).Count
+            }
         } catch [Microsoft.PowerShell.Commands.HttpResponseException] {
             # PS7's Invoke-RestMethod raises this for any non-2xx response.
             # It carries the actual HTTP status; distinguish auth (401/403) from other 4xx/5xx.
@@ -207,6 +233,8 @@ function Test-AIApiKey {
         # t/1409 — Ollama is always included in -All (keyless, no reason to gate).
         # If it's not reachable the probe result will just show the network error.
         $Backends += 'ollama'
+        # t/1437 — z.ai only if $env:ZAI_API_KEY is present (needs a real key).
+        if ($env:ZAI_API_KEY) { $Backends += 'zai' }
         foreach ($B in $Backends) {
             _Probe-Backend -B $B -ExplicitKey '' -AzureEndpoint $env:AZURE_OPENAI_ENDPOINT -Timeout $TimeoutSec
         }

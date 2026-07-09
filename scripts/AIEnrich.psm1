@@ -18,7 +18,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 $script:ModelRegistry = @{}
 $script:FallbackChains = @{}
-$script:ContextWindows = @{ gemini = 1048576; claude = 200000; groq = 131072; openai = 131072 }
+$script:ContextWindows = @{ gemini = 1048576; claude = 200000; groq = 131072; openai = 131072; zai = 1000000 }
 $script:LastApiKeySource = ''
 $script:AIApiLoggedThisSession = $false
 $script:AIApiLastModel = ''
@@ -124,6 +124,7 @@ function Resolve-AIApiKey {
         'groq'   = @('GROQ_API_KEY')
         'openai' = @('OPENAI_API_KEY')
         'azure'  = @('AZURE_OPENAI_API_KEY')
+        'zai'    = @('ZAI_API_KEY')
     }
 
     $BackendEnvVars = $EnvVarMap[$Backend]
@@ -352,7 +353,8 @@ function Invoke-AIApi {
                 'openai' { 'OPENAI_API_KEY' }
                 'azure'  { 'AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT' }
                 'ollama' { '(no env var — local, keyless)' }
-                default  { "(unknown backend '$Backend' — expected gemini/claude/groq/openai/azure/ollama)" }
+                'zai'    { 'ZAI_API_KEY' }
+                default  { "(unknown backend '$Backend' — expected gemini/claude/groq/openai/azure/ollama/zai)" }
             }
             Write-Warning "No API key found for $Backend backend. Set $EnvHint or AI_API_KEY."
             return $null
@@ -484,6 +486,47 @@ function Invoke-AIApi {
             }
 
             $Body = $GroqBody | ConvertTo-Json -Depth 10
+        }
+
+        # t/1437 — z.ai / GLM-5.2 exposes an OpenAI-compatible /chat/completions endpoint
+        # at https://api.z.ai/api/paas/v4/. Request shape matches Groq exactly; the only
+        # differences are the URL and that we point at $ApiModelId directly. 1M-token
+        # context ($script:ContextWindows.zai) so the pre-flight token check tolerates
+        # very large prompts sanely.
+        'zai' {
+            $Uri = 'https://api.z.ai/api/paas/v4/chat/completions'
+            $Headers = @{
+                'Authorization' = "Bearer $ResolvedKey"
+            }
+
+            $ZaiMessages = [System.Collections.Generic.List[object]]::new()
+            if ($SystemInstruction) {
+                $ZaiMessages.Add(@{ role = 'system'; content = $SystemInstruction })
+            }
+            $ZaiMessages.Add(@{ role = 'user'; content = $Prompt })
+
+            $ZaiBody = @{
+                model       = $ApiModelId
+                messages    = @($ZaiMessages)
+                temperature = $Temperature
+                max_tokens  = $MaxTokens
+            }
+            if ($JsonMode) {
+                if ($ResponseSchema) {
+                    $ZaiBody['response_format'] = @{
+                        type        = 'json_schema'
+                        json_schema = @{
+                            name   = 'response'
+                            schema = $ResponseSchema
+                            strict = $true
+                        }
+                    }
+                } else {
+                    $ZaiBody['response_format'] = @{ type = 'json_object' }
+                }
+            }
+
+            $Body = $ZaiBody | ConvertTo-Json -Depth 10
         }
 
         # t/1409 — Ollama exposes an OpenAI-compatible /v1/chat/completions endpoint
@@ -770,6 +813,26 @@ function Invoke-AIApi {
             } catch {
                 $TopKeys = ($Response.PSObject.Properties.Name | Select-Object -First 5) -join ', '
                 Write-Warning "Groq: unexpected response shape (top-level keys: $TopKeys). Expected choices[].message.content"
+                return $null
+            }
+        }
+        # t/1437 — z.ai / GLM-5.2 response shape mirrors Groq/OpenAI.
+        'zai' {
+            try {
+                $Choice = $Response.choices[0]
+                $Text = $Choice.message.content
+                $Truncated = ($Choice.finish_reason -eq 'length')
+                $u = $Response.usage
+                if ($u) {
+                    $Usage = [PSCustomObject]@{
+                        InputTokens  = [int]($u.prompt_tokens)
+                        OutputTokens = [int]($u.completion_tokens)
+                        TotalTokens  = [int]($u.total_tokens)
+                    }
+                }
+            } catch {
+                $TopKeys = ($Response.PSObject.Properties.Name | Select-Object -First 5) -join ', '
+                Write-Warning "z.ai: unexpected response shape (top-level keys: $TopKeys). Expected choices[].message.content"
                 return $null
             }
         }

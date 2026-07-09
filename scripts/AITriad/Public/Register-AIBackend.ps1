@@ -47,6 +47,7 @@ function Register-AIBackend {
         GROQ_API_KEY      = ''
         OPENAI_API_KEY    = ''
         OLLAMA_BASE_URL   = ''
+        ZAI_API_KEY       = ''
         AI_MODEL          = ''
     }
 
@@ -67,7 +68,7 @@ function Register-AIBackend {
     }
 
     # Env vars override file
-    foreach ($Key in @('GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY', 'OLLAMA_BASE_URL', 'AI_MODEL')) {
+    foreach ($Key in @('GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY', 'OLLAMA_BASE_URL', 'ZAI_API_KEY', 'AI_MODEL')) {
         $EnvVal = [Environment]::GetEnvironmentVariable($Key)
         if (-not [string]::IsNullOrWhiteSpace($EnvVal)) { $Persisted[$Key] = $EnvVal }
     }
@@ -86,6 +87,8 @@ function Register-AIBackend {
         @{ id = 'openai-gpt-5.5';                 label = 'OpenAI GPT-5.5';                  backend = 'openai' }
         @{ id = 'openai-gpt-5.5-pro';             label = 'OpenAI GPT-5.5 Pro';              backend = 'openai' }
         @{ id = 'ollama-gemma4-e4b-it-q4-k-m';    label = 'Ollama Gemma 4 E4B';              backend = 'ollama' }
+        # t/1437 — z.ai / GLM-5.2 (OpenAI-compatible, 1M-token context)
+        @{ id = 'zai-glm-5.2';                    label = 'z.ai GLM-5.2';                    backend = 'zai' }
     )
 
     $ModelsJson = $Models | ConvertTo-Json -Compress
@@ -103,11 +106,13 @@ function Register-AIBackend {
         groq_key      = $Persisted['GROQ_API_KEY']
         openai_key    = $Persisted['OPENAI_API_KEY']
         ollama_url    = $Persisted['OLLAMA_BASE_URL']
+        zai_key       = $Persisted['ZAI_API_KEY']
         ai_model      = $Persisted['AI_MODEL']
         gemini_masked    = Get-MaskedKey $Persisted['GEMINI_API_KEY']
         anthropic_masked = Get-MaskedKey $Persisted['ANTHROPIC_API_KEY']
         groq_masked      = Get-MaskedKey $Persisted['GROQ_API_KEY']
         openai_masked    = Get-MaskedKey $Persisted['OPENAI_API_KEY']
+        zai_masked       = Get-MaskedKey $Persisted['ZAI_API_KEY']
     } | ConvertTo-Json
 
     # ── HTML ──────────────────────────────────────────────────────────────────
@@ -294,6 +299,31 @@ function Register-AIBackend {
 </div>
 
 <div class="card">
+  <h2>z.ai (GLM-5.2) <span class="badge optional">Optional</span>
+    <button class="btn-getkey" onclick="toggleHelp('zai-help')">Setup</button></h2>
+  <div class="field">
+    <label>API Key</label>
+    <div class="key-row">
+      <input id="zai-key" type="password" placeholder="Enter your z.ai API key" autocomplete="off">
+      <button class="btn-test" onclick="testKey('zai')">Test</button>
+    </div>
+    <div class="env-hint">ZAI_API_KEY</div>
+    <div id="zai-status" class="status"></div>
+  </div>
+  <div id="zai-help" class="help-panel">
+    <h3>How to get a z.ai API key</h3>
+    <ol>
+      <li>Go to <a href="https://z.ai/manage-apikey/apikey-list" target="_blank">z.ai API key management</a></li>
+      <li>Sign in or create an account</li>
+      <li>Create a new key and paste it above</li>
+    </ol>
+    <p>GLM-5.2 exposes an OpenAI-compatible chat/completions endpoint with a
+       <strong>1M-token context window</strong> — the largest of any registered backend.</p>
+    <p><strong>Models available:</strong> GLM-5.2 (id: <code>zai-glm-5.2</code>).</p>
+  </div>
+</div>
+
+<div class="card">
   <h2>Ollama (Local) <span class="badge optional">Optional</span>
     <button class="btn-getkey" onclick="toggleHelp('ollama-help')">Setup</button></h2>
   <div class="field">
@@ -343,6 +373,7 @@ function init() {
   document.getElementById('groq-key').value = state.groq_masked || '';
   document.getElementById('openai-key').value = state.openai_masked || '';
   document.getElementById('ollama-url').value = state.ollama_url || '';
+  document.getElementById('zai-key').value = state.zai_masked || '';
 
   // Track whether field has been edited (vs showing mask)
   document.getElementById('gemini-key').dataset.dirty = 'false';
@@ -350,8 +381,9 @@ function init() {
   document.getElementById('groq-key').dataset.dirty = 'false';
   document.getElementById('openai-key').dataset.dirty = 'false';
   document.getElementById('ollama-url').dataset.dirty = 'false';
+  document.getElementById('zai-key').dataset.dirty = 'false';
 
-  ['gemini-key','anthropic-key','groq-key','openai-key','ollama-url'].forEach(id => {
+  ['gemini-key','anthropic-key','groq-key','openai-key','ollama-url','zai-key'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => {
       document.getElementById(id).dataset.dirty = 'true';
     });
@@ -404,7 +436,7 @@ function setStatus(id, cls, msg) {
 }
 
 function testKey(backend) {
-  const inputMap = { gemini: 'gemini-key', anthropic: 'anthropic-key', groq: 'groq-key', openai: 'openai-key', ollama: 'ollama-url' };
+  const inputMap = { gemini: 'gemini-key', anthropic: 'anthropic-key', groq: 'groq-key', openai: 'openai-key', ollama: 'ollama-url', zai: 'zai-key' };
   const inp = document.getElementById(inputMap[backend]);
   const key = inp.dataset.dirty === 'true' ? inp.value : '';
 
@@ -434,6 +466,8 @@ function save() {
       ? document.getElementById('openai-key').value : null,
     ollama_url: document.getElementById('ollama-url').dataset.dirty === 'true'
       ? document.getElementById('ollama-url').value : null,
+    zai_key: document.getElementById('zai-key').dataset.dirty === 'true'
+      ? document.getElementById('zai-key').value : null,
     ai_model: document.getElementById('ai-model').value
   };
 
@@ -527,7 +561,7 @@ init();
                     'GET /api/reveal' {
                         $Query   = $Request.Url.Query
                         if ($Query -match 'backend=(\w+)') { $Backend = $Matches[1] } else { $Backend = '' }
-                        $KeyMap  = @{ gemini = 'GEMINI_API_KEY'; anthropic = 'ANTHROPIC_API_KEY'; groq = 'GROQ_API_KEY'; openai = 'OPENAI_API_KEY'; ollama = 'OLLAMA_BASE_URL' }
+                        $KeyMap  = @{ gemini = 'GEMINI_API_KEY'; anthropic = 'ANTHROPIC_API_KEY'; groq = 'GROQ_API_KEY'; openai = 'OPENAI_API_KEY'; ollama = 'OLLAMA_BASE_URL'; zai = 'ZAI_API_KEY' }
                         $RealKey = ''
                         if ($KeyMap.ContainsKey($Backend)) {
                             $RealKey = $Persisted[$KeyMap[$Backend]]
@@ -548,7 +582,7 @@ init();
                         $TestKey     = $Body.key
                         # If no key provided (not dirty), use persisted
                         if ([string]::IsNullOrWhiteSpace($TestKey)) {
-                            $KeyMap  = @{ gemini = 'GEMINI_API_KEY'; anthropic = 'ANTHROPIC_API_KEY'; groq = 'GROQ_API_KEY'; openai = 'OPENAI_API_KEY'; ollama = 'OLLAMA_BASE_URL' }
+                            $KeyMap  = @{ gemini = 'GEMINI_API_KEY'; anthropic = 'ANTHROPIC_API_KEY'; groq = 'GROQ_API_KEY'; openai = 'OPENAI_API_KEY'; ollama = 'OLLAMA_BASE_URL'; zai = 'ZAI_API_KEY' }
                             if ($KeyMap.ContainsKey($TestBackend)) {
                                 $TestKey = $Persisted[$KeyMap[$TestBackend]]
                             }
@@ -609,6 +643,23 @@ init();
                                             -Method Get -Headers $Hdrs -TimeoutSec 10 -ErrorAction Stop
                                         $TestResult = @{ ok = $true; message = "Valid — $(@($R.data).Count) models available" }
                                     }
+                                    'zai' {
+                                        $Hdrs = @{
+                                            'Authorization' = "Bearer $TestKey"
+                                            'Content-Type'  = 'application/json'
+                                        }
+                                        # t/1437 — z.ai's OpenAI-compatible surface may not expose /v1/models,
+                                        # so probe a minimal chat completion (cheap: 5 max tokens).
+                                        $Payload = @{
+                                            model       = 'glm-5.2'
+                                            messages    = @(@{ role = 'user'; content = 'ping' })
+                                            max_tokens  = 5
+                                            temperature = 0.0
+                                        } | ConvertTo-Json -Depth 5
+                                        $null = Invoke-RestMethod -Uri 'https://api.z.ai/api/paas/v4/chat/completions' `
+                                            -Method Post -Headers $Hdrs -Body $Payload -TimeoutSec 15 -ErrorAction Stop
+                                        $TestResult = @{ ok = $true; message = 'Valid — API responded successfully' }
+                                    }
                                     default {
                                         $TestResult = @{ ok = $false; message = "Unknown backend: $TestBackend" }
                                     }
@@ -648,6 +699,7 @@ init();
                                 groq_key      = 'GROQ_API_KEY'
                                 openai_key    = 'OPENAI_API_KEY'
                                 ollama_url    = 'OLLAMA_BASE_URL'
+                                zai_key       = 'ZAI_API_KEY'
                             }
 
                             foreach ($Field in $KeyMap.Keys) {
@@ -689,7 +741,7 @@ init();
 
                             # bash/zsh section
                             $EnvLines.Add('# bash/zsh — source this file from ~/.bashrc or ~/.zshrc')
-                            foreach ($Key in @('GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY', 'OLLAMA_BASE_URL', 'AI_MODEL')) {
+                            foreach ($Key in @('GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY', 'OLLAMA_BASE_URL', 'ZAI_API_KEY', 'AI_MODEL')) {
                                 $Val = $Persisted[$Key]
                                 if (-not [string]::IsNullOrWhiteSpace($Val)) {
                                     $EnvLines.Add("export $Key=`"$Val`"")
@@ -699,7 +751,7 @@ init();
                             $EnvLines.Add('')
                             $EnvLines.Add('# PowerShell — dot-source this file from `$PROFILE')
                             $EnvLines.Add('# powershell_section_start')
-                            foreach ($Key in @('GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY', 'OLLAMA_BASE_URL', 'AI_MODEL')) {
+                            foreach ($Key in @('GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY', 'OLLAMA_BASE_URL', 'ZAI_API_KEY', 'AI_MODEL')) {
                                 $Val = $Persisted[$Key]
                                 if (-not [string]::IsNullOrWhiteSpace($Val)) {
                                     $EscapedVal = $Val -replace "'", "''"
