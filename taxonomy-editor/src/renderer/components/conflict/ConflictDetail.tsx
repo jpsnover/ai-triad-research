@@ -52,6 +52,7 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
   const [clipboardState, setClipboardState] = useState<'idle' | 'copied'>('idle');
   const [debateCreating, setDebateCreating] = useState(false);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [editing, setEditing] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
 
   const handleResearchPrompt = useCallback(async () => {
@@ -184,7 +185,22 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
           </button>
         )}
         {!readOnly && (
-          <button className="node-detail-pill" onClick={() => setShowDelete(true)} title="Delete conflict" style={{ color: '#dc2626', borderColor: '#dc2626' }}>
+          <button
+            className="node-detail-pill"
+            onClick={() => setEditing(!editing)}
+            title={editing ? 'Done editing' : 'Edit conflict'}
+          >
+            {editing ? '✓ Done' : '✎ Edit'}
+          </button>
+        )}
+        <div style={{ flex: 1 }} />
+        {!readOnly && (
+          <button
+            className="node-detail-pill"
+            onClick={() => setShowDelete(true)}
+            title="Delete conflict"
+            style={{ color: 'var(--danger)' }}
+          >
             Delete
           </button>
         )}
@@ -206,7 +222,8 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
 
       {/* Body */}
       <div className="conflict-detail-body">
-        {!readOnly && (
+        {/* Claim label — read mode: serif headline; edit mode: input field */}
+        {!readOnly && editing ? (
           <div className={`form-group ${err('claim_label') ? 'has-error' : ''}`}>
             <label>Claim Label</label>
             <HighlightedInput
@@ -215,34 +232,99 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
             />
             {err('claim_label') && <div className="error-text">{err('claim_label')}</div>}
           </div>
+        ) : (
+          <h2
+            style={{
+              fontFamily: 'var(--font-serif, "Source Serif 4", Georgia, serif)',
+              fontSize: 'var(--text-lg)',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              margin: '0 0 4px 0',
+            }}
+          >
+            {conflict.claim_label || 'Untitled Conflict'}
+          </h2>
         )}
 
-        <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
-          <label>Description</label>
-          <HighlightedTextarea
-            value={conflict.description}
-            onChange={(v) => update({ description: v })}
-            rows={3}
-            readOnly={readOnly}
-          />
-          {err('description') && <div className="error-text">{err('description')}</div>}
-        </div>
-
-        <div className="conflict-detail-row">
-          <div className="form-group conflict-detail-status">
-            <label>Status</label>
-            <select
-              className="conflict-status-select"
-              value={conflict.status}
-              onChange={(e) => update({ status: e.target.value as ConflictFile['status'] })}
-              disabled={readOnly}
-              style={{ borderLeftColor: STATUS_COLORS[conflict.status] || '#888', borderLeftWidth: 3 }}
-            >
-              <option value="open">Open</option>
-              <option value="resolved">Resolved</option>
-              <option value="wont-fix">Won't Fix</option>
-            </select>
+        {/* Status + date — read mode: quiet meta line; edit mode: select */}
+        {editing ? (
+          <div className="conflict-detail-row">
+            <div className="form-group conflict-detail-status">
+              <label>Status</label>
+              <select
+                className="conflict-status-select"
+                value={conflict.status}
+                onChange={(e) => update({ status: e.target.value as ConflictFile['status'] })}
+                disabled={readOnly}
+                style={{ borderLeftColor: STATUS_COLORS[conflict.status] || '#888', borderLeftWidth: 3 }}
+              >
+                <option value="open">Open</option>
+                <option value="resolved">Resolved</option>
+                <option value="wont-fix">Won't Fix</option>
+              </select>
+            </div>
           </div>
+        ) : (
+          <div
+            style={{
+              fontSize: 'var(--text-xs)',
+              color: 'var(--text-muted)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginTop: 4,
+              marginBottom: 12,
+            }}
+          >
+            <span
+              style={{
+                padding: '1px 6px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--bg-hover)',
+                fontSize: 'var(--text-2xs)',
+                fontWeight: 600,
+              }}
+            >
+              {conflict.status || 'Open'}
+            </span>
+          </div>
+        )}
+
+        {/* Description — read mode: prose block; edit mode: textarea */}
+        <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
+          {editing && <label>Description</label>}
+          {editing ? (
+            <HighlightedTextarea
+              value={conflict.description}
+              onChange={(v) => update({ description: v })}
+              rows={3}
+              readOnly={readOnly}
+            />
+          ) : (
+            <div
+              style={{
+                fontSize: 'var(--text-md)',
+                lineHeight: 1.5,
+                color: 'var(--text-primary)',
+                cursor: readOnly ? 'default' : 'pointer',
+                padding: '4px 0',
+                outline: 'none',
+              }}
+              onClick={() => { if (!readOnly) setEditing(true); }}
+              onKeyDown={(e) => {
+                if (!readOnly && e.key === 'Enter') setEditing(true);
+                if (e.key === 'Escape') setEditing(false);
+              }}
+              tabIndex={readOnly ? undefined : 0}
+              role={readOnly ? undefined : 'button'}
+              aria-label="Edit description"
+            >
+              {conflict.description || (
+                <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No description</span>
+              )}
+            </div>
+          )}
+          {err('description') && <div className="error-text">{err('description')}</div>}
         </div>
 
         <div className="form-group">

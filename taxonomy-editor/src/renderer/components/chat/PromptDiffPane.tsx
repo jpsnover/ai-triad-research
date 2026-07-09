@@ -15,9 +15,16 @@ const STAGE_COLORS: Record<string, string> = {
 
 const LINE_BG: Record<DiffLine['type'], string> = {
   same: 'transparent',
-  added: 'rgba(234,179,8,0.15)',
-  removed: 'rgba(239,68,68,0.15)',
-  ghost: 'rgba(128,128,128,0.04)',
+  added: 'color-mix(in srgb, var(--success) 8%, transparent)',
+  removed: 'color-mix(in srgb, var(--danger) 8%, transparent)',
+  ghost: 'transparent',
+};
+
+const LINE_BORDER: Record<DiffLine['type'], string> = {
+  same: 'none',
+  added: '2px solid var(--success)',
+  removed: '2px solid var(--danger)',
+  ghost: 'none',
 };
 
 function speakerLabel(speaker: string): string {
@@ -448,14 +455,16 @@ function renderWordDiff(
     : diffWords(pairText, text); // pair is "old", this line is "new"
 
   const changeType = lineType; // 'added' or 'removed'
-  const strongBg = lineType === 'removed' ? 'rgba(239,68,68,0.35)' : 'rgba(234,179,8,0.35)';
+  const wordBg = lineType === 'removed'
+    ? 'color-mix(in srgb, var(--danger) 20%, transparent)'
+    : 'color-mix(in srgb, var(--success) 20%, transparent)';
 
   return segments
     .filter(s => s.type === 'same' || s.type === changeType)
     .map((seg, i) => (
       seg.type === 'same'
         ? <span key={i}>{seg.text}</span>
-        : <span key={i} style={{ background: strongBg, borderRadius: 2 }}>{seg.text}</span>
+        : <span key={i} style={{ background: wordBg, borderRadius: 2 }}>{seg.text}</span>
     ));
 }
 
@@ -604,10 +613,54 @@ function ValidationPanelContainer({ node, height, onResize, onFind }: {
   );
 }
 
+/** Post-process diff lines into renderable items: groups of 3+ consecutive same/ghost lines become collapsible regions. */
+type DiffItem =
+  | { kind: 'line'; line: PaneDiffLine; originalIndex: number }
+  | { kind: 'region'; lines: PaneDiffLine[]; startIdx: number; regionIdx: number };
+
+function groupDiffLines(lines: PaneDiffLine[]): DiffItem[] {
+  const COLLAPSE_THRESHOLD = 3;
+  const items: DiffItem[] = [];
+  let regionIdx = 0;
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line.type === 'same' || line.type === 'ghost') {
+      // Collect run of same/ghost lines
+      let j = i;
+      while (j < lines.length && (lines[j].type === 'same' || lines[j].type === 'ghost')) j++;
+      const run = lines.slice(i, j);
+      if (run.length >= COLLAPSE_THRESHOLD) {
+        items.push({ kind: 'region', lines: run, startIdx: i, regionIdx: regionIdx++ });
+      } else {
+        for (let k = 0; k < run.length; k++) {
+          items.push({ kind: 'line', line: run[k], originalIndex: i + k });
+        }
+      }
+      i = j;
+    } else {
+      items.push({ kind: 'line', line, originalIndex: i });
+      i++;
+    }
+  }
+  return items;
+}
+
 export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClose, onFocus, onScroll, scrollTop, searchTerm, activeMatchIndex, matchOffset, viewMode, wordWrap, validationHeight, onValidationResize, onFindInPanes, preScrub, onTogglePreScrub }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
   const suppressScrollEvent = useRef(false);
   const activeMatchRef = useRef<HTMLSpanElement>(null);
+
+  // §B: track which unchanged regions are expanded (empty = all collapsed by default)
+  const [expandedRegions, setExpandedRegions] = useState<Set<number>>(new Set());
+  const toggleCollapsedRegion = useCallback((regionIdx: number) => {
+    setExpandedRegions(prev => {
+      const next = new Set(prev);
+      if (next.has(regionIdx)) next.delete(regionIdx);
+      else next.add(regionIdx);
+      return next;
+    });
+  }, []);
 
   // Context menu for copying selected text
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; text: string } | null>(null);
@@ -857,16 +910,124 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
           wordBreak: wordWrap ? 'break-word' : undefined,
         }}
       >
+        {/* §C: per-run header card */}
+        <div style={{
+          padding: '6px 10px',
+          background: 'var(--bg-secondary)',
+          borderRadius: 'var(--radius-sm)',
+          border: '1px solid var(--border-color)',
+          margin: '6px 8px 8px',
+          fontSize: 'var(--text-2xs)',
+          color: 'var(--text-secondary)',
+          whiteSpace: 'normal',
+        }}>
+          <div style={{ fontWeight: 600, color: 'var(--text-primary)', textTransform: 'capitalize' }}>
+            {node.stage} — Run {node.runIndex + 1}
+          </div>
+          <div>{node.model} · {node.responseTimeMs}ms</div>
+        </div>
         {(() => {
           let globalIdx = matchOffset ?? 0;
-          return lines.map((line, i) => {
+          const diffItems = groupDiffLines(lines);
+          // Pre-count search matches per original line index for correct globalIdx accounting
+          return diffItems.map((item, itemIdx) => {
+            if (item.kind === 'region') {
+              const { regionIdx, lines: regionLines } = item;
+              const collapsed = !expandedRegions.has(regionIdx);
+              const count = regionLines.length;
+              // When collapsed, skip globalIdx for these lines (they aren't rendered, so no match highlights)
+              // When expanded, account for matches in region lines
+              if (collapsed) {
+                return (
+                  <div
+                    key={`region-${itemIdx}`}
+                    onClick={() => toggleCollapsedRegion(regionIdx)}
+                    style={{
+                      textAlign: 'center',
+                      padding: '4px 0',
+                      fontSize: 'var(--text-2xs)',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      background: 'var(--bg-secondary)',
+                      borderRadius: 'var(--radius-sm)',
+                      margin: '2px 0',
+                      whiteSpace: 'normal',
+                    }}
+                  >
+                    {`⋯ ${count} unchanged lines`}
+                  </div>
+                );
+              }
+              // Expanded: render all lines in region
+              const renderedLines = regionLines.map((line, k) => {
+                const lineMatchStart = globalIdx;
+                const el = (
+                  <div
+                    key={`region-${itemIdx}-line-${k}`}
+                    style={{
+                      display: 'flex',
+                      background: LINE_BG[line.type],
+                      borderLeft: LINE_BORDER[line.type],
+                      minHeight: '1.4em',
+                    }}
+                  >
+                    <span style={{
+                      width: 40, flexShrink: 0, textAlign: 'right', paddingRight: 6,
+                      color: 'var(--text-muted)', fontSize: 'var(--text-2xs)',
+                      userSelect: 'none', borderRight: '1px solid var(--border-color)',
+                      opacity: line.type === 'ghost' ? 0 : 0.6,
+                    }}>
+                      {line.lineNumber ?? ''}
+                    </span>
+                    <span style={{ paddingLeft: 6, color: 'var(--text-primary)' }}>
+                      {searchLower && line.type !== 'ghost'
+                        ? highlightMatches(line.text, searchLower, activeMatchIndex ?? -1, lineMatchStart, activeMatchRef)
+                        : line.text}
+                    </span>
+                  </div>
+                );
+                if (searchLower && line.type !== 'ghost') {
+                  let si = 0;
+                  const lower = line.text.toLowerCase();
+                  while ((si = lower.indexOf(searchLower, si)) !== -1) {
+                    globalIdx++;
+                    si += searchLower.length;
+                  }
+                }
+                return el;
+              });
+              return (
+                <div key={`region-${itemIdx}`}>
+                  <div
+                    onClick={() => toggleCollapsedRegion(regionIdx)}
+                    style={{
+                      textAlign: 'center',
+                      padding: '4px 0',
+                      fontSize: 'var(--text-2xs)',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      background: 'var(--bg-secondary)',
+                      borderRadius: 'var(--radius-sm)',
+                      margin: '2px 0',
+                      whiteSpace: 'normal',
+                    }}
+                  >
+                    {`▼ collapse ${count} lines`}
+                  </div>
+                  {renderedLines}
+                </div>
+              );
+            }
+            // kind === 'line'
+            const { line } = item;
             const lineMatchStart = globalIdx;
             const el = (
               <div
-                key={i}
+                key={`line-${itemIdx}`}
                 style={{
                   display: 'flex',
                   background: LINE_BG[line.type],
+                  borderLeft: LINE_BORDER[line.type],
                   minHeight: '1.4em',
                 }}
               >
@@ -878,7 +1039,7 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
                 }}>
                   {line.lineNumber ?? ''}
                 </span>
-                <span style={{ paddingLeft: 6 }}>
+                <span style={{ paddingLeft: 6, color: 'var(--text-primary)' }}>
                   {searchLower && line.type !== 'ghost'
                     ? highlightMatches(line.text, searchLower, activeMatchIndex ?? -1, lineMatchStart, activeMatchRef)
                     : line.pairText != null && (line.type === 'added' || line.type === 'removed')

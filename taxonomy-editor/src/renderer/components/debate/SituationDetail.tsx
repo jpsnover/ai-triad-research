@@ -10,6 +10,7 @@ import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { DeleteConfirmDialog } from '../shared/DeleteConfirmDialog';
 import { HighlightedTextarea } from '../shared/HighlightedField';
 import { TypeaheadSelect } from '../shared/TypeaheadSelect';
+import { EmptyState } from '../shared/EmptyState';
 import { FieldHelp } from '../shared/FieldHelp';
 import { LinkedChip } from '../shared/LinkedChip';
 import { GraphAttributesPanel } from '../taxonomy/GraphAttributesPanel';
@@ -56,11 +57,17 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
   const [descMode, setDescMode] = useDescriptionMode();
   const [showDelete, setShowDelete] = useState(false);
   const [activeTab, setActiveTab] = useState<SitTab>('overview');
+  const [editing, setEditing] = useState(false);
   const [expandedLineage, setExpandedLineage] = useState<string | null>(null);
   const [researchText, setResearchText] = useState('');
   const [researchCopied, setResearchCopied] = useState(false);
   const researchTextareaRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
+
+  // Reset edit mode when switching tabs or nodes
+  useEffect(() => {
+    setEditing(false);
+  }, [activeTab, node.id]);
 
   // Generate research prompt when tab is selected or node changes
   useEffect(() => {
@@ -442,25 +449,70 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
                       },
                     });
                   };
+                  const bdiFields: { key: 'summary' | 'belief' | 'desire' | 'intention'; label: string }[] = [
+                    { key: 'summary', label: 'Summary' },
+                    { key: 'belief', label: 'Belief' },
+                    { key: 'desire', label: 'Desire' },
+                    { key: 'intention', label: 'Intention' },
+                  ];
                   return (
-                    <div className="sit-bdi-breakdown sit-bdi-edit">
-                      <div className="form-group">
-                        <label className="sit-bdi-field-label">Summary</label>
-                        <HighlightedTextarea value={bdi.summary} onChange={(v) => updateBdiField('summary', v)} rows={2} />
-                      </div>
-                      <div className="form-group">
-                        <label className="sit-bdi-field-label sit-bdi-label-belief">Belief</label>
-                        <HighlightedTextarea value={bdi.belief} onChange={(v) => updateBdiField('belief', v)} rows={2} />
-                      </div>
-                      <div className="form-group">
-                        <label className="sit-bdi-field-label sit-bdi-label-desire">Desire</label>
-                        <HighlightedTextarea value={bdi.desire} onChange={(v) => updateBdiField('desire', v)} rows={2} />
-                      </div>
-                      <div className="form-group">
-                        <label className="sit-bdi-field-label sit-bdi-label-intention">Intention</label>
-                        <HighlightedTextarea value={bdi.intention} onChange={(v) => updateBdiField('intention', v)} rows={2} />
-                      </div>
-                    </div>
+                    <>
+                      {!editing && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          {bdiFields.map(({ key, label }) => (
+                            <div key={key}>
+                              <div style={{ fontSize: 'var(--text-xs)', letterSpacing: '0.06em', textTransform: 'uppercase' as const, color: 'var(--text-muted)', marginBottom: 4 }}>
+                                {label}
+                              </div>
+                              <div
+                                style={{ fontSize: 'var(--text-md)', lineHeight: 1.5, color: 'var(--text-primary)', cursor: 'pointer' }}
+                                onClick={() => setEditing(true)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') setEditing(true); }}
+                                tabIndex={0}
+                                role="button"
+                                aria-label={`Edit ${label}`}
+                              >
+                                {bdi[key] || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No {label.toLowerCase()} recorded</span>}
+                              </div>
+                            </div>
+                          ))}
+                          <div>
+                            <button
+                              className="btn btn-sm btn-ghost"
+                              onClick={() => setEditing(true)}
+                            >
+                              Edit
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      {editing && (
+                        <>
+                          <div className="sit-bdi-breakdown sit-bdi-edit">
+                            <div className="form-group">
+                              <label className="sit-bdi-field-label">Summary</label>
+                              <HighlightedTextarea value={bdi.summary} onChange={(v) => updateBdiField('summary', v)} rows={2} />
+                            </div>
+                            <div className="form-group">
+                              <label className="sit-bdi-field-label sit-bdi-label-belief">Belief</label>
+                              <HighlightedTextarea value={bdi.belief} onChange={(v) => updateBdiField('belief', v)} rows={2} />
+                            </div>
+                            <div className="form-group">
+                              <label className="sit-bdi-field-label sit-bdi-label-desire">Desire</label>
+                              <HighlightedTextarea value={bdi.desire} onChange={(v) => updateBdiField('desire', v)} rows={2} />
+                            </div>
+                            <div className="form-group">
+                              <label className="sit-bdi-field-label sit-bdi-label-intention">Intention</label>
+                              <HighlightedTextarea value={bdi.intention} onChange={(v) => updateBdiField('intention', v)} rows={2} />
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                            <button className="btn btn-sm btn-primary" onClick={() => setEditing(false)}>Done</button>
+                            <button className="btn btn-sm" onClick={() => setEditing(false)}>Cancel</button>
+                          </div>
+                        </>
+                      )}
+                    </>
                   );
                 }
                 // Legacy plain-string interpretation
@@ -492,7 +544,10 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
                     <LinkedChip key={id} id={id} depth={chipDepth} readOnly={readOnly} onRemove={removeLinked} />
                   ))
                 ) : (
-                  <div className="sit-pov-evidence-empty">No linked nodes for this perspective</div>
+                  <EmptyState
+                    headline="No supporting evidence yet"
+                    direction={`Link a ${activeTab} node to ground this perspective.`}
+                  />
                 )}
               </div>
               {!readOnly && (

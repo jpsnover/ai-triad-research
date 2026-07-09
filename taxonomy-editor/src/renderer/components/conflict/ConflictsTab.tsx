@@ -407,7 +407,15 @@ function ConflictListItem({ claimId, label, status, isSelected, onSelect }: {
       className={`node-item ${isSelected ? 'selected' : ''}`}
       onClick={() => onSelect(claimId)}
     >
-      <div>{label || '(untitled)'}</div>
+      <div
+        style={{
+          color: 'var(--text-primary)',
+          borderLeft: `3px solid ${status === 'open' ? 'var(--color-skp)' : status === 'resolved' ? 'var(--color-acc)' : 'var(--text-muted)'}`,
+          paddingLeft: 8,
+        }}
+      >
+        {label || '(untitled)'}
+      </div>
       <div className="node-item-id">
         {claimId}
         <span style={{ marginLeft: 8, color: status === 'open' ? 'var(--color-skp)' : 'var(--text-muted)' }}>
