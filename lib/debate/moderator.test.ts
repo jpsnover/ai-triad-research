@@ -36,6 +36,7 @@ import type {
   ConvergenceSignals,
   InterventionMove,
   DebatePhase,
+  SpeakerId,
 } from './types.js';
 import { MOVE_TO_FAMILY, MOVE_TO_FORCE, FAMILY_BURDEN_WEIGHT } from './types.js';
 

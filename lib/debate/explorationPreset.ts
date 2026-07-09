@@ -9,6 +9,7 @@ import type { DebateSession } from './types.js';
 import { extractExplorationSummary } from './explorationSummary.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { EXPLORATION_PRESET } from './explorationPresetConfig.js';
+import type { ExploreFirstResult } from './explorationPresetConfig.js';
 
 export { EXPLORATION_PRESET } from './explorationPresetConfig.js';
 export type { ExploreFirstResult } from './explorationPresetConfig.js';

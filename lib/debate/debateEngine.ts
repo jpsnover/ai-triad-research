@@ -109,6 +109,7 @@ import {
   computePolicymakerRelevanceBoost,
   type RelevanceOptions,
   type ANClaimEmbedding,
+  type ScoredPovNode,
   reScoreSituationsForCruxes,
   filterByTopicConstraints,
 } from './taxonomyRelevance.js';
