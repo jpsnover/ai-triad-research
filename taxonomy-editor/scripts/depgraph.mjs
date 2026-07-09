@@ -6,6 +6,9 @@
 //   node scripts/depgraph.mjs --reverse bridge   # what imports "bridge"?
 //   node scripts/depgraph.mjs --stats            # file counts + top importers
 //   node scripts/depgraph.mjs --orphans          # files imported by nothing
+//   node scripts/depgraph.mjs --blast-radius App.tsx [--depth N]   # transitive importers (default: full closure)
+//   node scripts/depgraph.mjs --path A.ts B.ts   # shortest import dependency path between two files
+//   node scripts/depgraph.mjs --cycles           # detect circular imports
 
 import fs from 'fs';
 import path from 'path';
@@ -116,6 +119,35 @@ function extractExports(filePath) {
   return [...new Set(exports)];
 }
 
+function resolveOne(pattern, keys) {
+  if (keys.includes(pattern)) return pattern;
+  const matches = keys.filter(k => k.includes(pattern));
+  if (matches.length === 1) return matches[0];
+  if (matches.length === 0) {
+    console.error(`No file matches "${pattern}"`);
+    process.exit(1);
+  }
+  console.error(`Ambiguous pattern "${pattern}" matches ${matches.length} files:\n${matches.slice(0, 20).join('\n')}`);
+  process.exit(1);
+}
+
+function bfsImportPath(startGraph, start, target) {
+  const queue = [[start]];
+  const visited = new Set([start]);
+  while (queue.length) {
+    const path = queue.shift();
+    const node = path[path.length - 1];
+    if (node === target) return path;
+    for (const next of (startGraph[node]?.imports || [])) {
+      if (!visited.has(next)) {
+        visited.add(next);
+        queue.push([...path, next]);
+      }
+    }
+  }
+  return null;
+}
+
 // CLI
 const args = process.argv.slice(2);
 
@@ -195,6 +227,91 @@ if (args.includes('--repomap')) {
     .filter(([f]) => f.includes(pattern))
     .reduce((acc, [f, data]) => ({ ...acc, [f]: data.imports }), {});
   console.log(JSON.stringify(matches, null, 2));
+
+} else if (args.includes('--blast-radius')) {
+  const pattern = args[args.indexOf('--blast-radius') + 1];
+  if (!pattern) { console.error('Usage: --blast-radius <pattern> [--depth N]'); process.exit(1); }
+  const depthIdx = args.indexOf('--depth');
+  const maxDepth = depthIdx !== -1 ? parseInt(args[depthIdx + 1], 10) : Infinity;
+  const start = resolveOne(pattern, Object.keys(graph));
+  const rev = buildReverseIndex();
+  const distance = new Map([[start, 0]]);
+  let frontier = [start];
+  let depth = 0;
+  while (frontier.length && depth < maxDepth) {
+    depth++;
+    const next = [];
+    for (const f of frontier) {
+      for (const importer of (rev[f] || [])) {
+        if (!distance.has(importer)) {
+          distance.set(importer, depth);
+          next.push(importer);
+        }
+      }
+    }
+    frontier = next;
+  }
+  distance.delete(start);
+  const affected = [...distance.entries()]
+    .sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]))
+    .map(([file, dist]) => ({ file, distance: dist }));
+  console.log(JSON.stringify({ start, maxDepth: maxDepth === Infinity ? null : maxDepth, affectedCount: affected.length, affected }, null, 2));
+
+} else if (args.includes('--path')) {
+  const idx = args.indexOf('--path');
+  const fromPattern = args[idx + 1];
+  const toPattern = args[idx + 2];
+  if (!fromPattern || !toPattern) { console.error('Usage: --path <fromPattern> <toPattern>'); process.exit(1); }
+  const keys = Object.keys(graph);
+  const from = resolveOne(fromPattern, keys);
+  const to = resolveOne(toPattern, keys);
+
+  const forwardPath = bfsImportPath(graph, from, to);
+  if (forwardPath) {
+    console.log(JSON.stringify({ direction: `${from} -> ${to}`, path: forwardPath }, null, 2));
+  } else {
+    const reversePath = bfsImportPath(graph, to, from);
+    if (reversePath) {
+      console.log(JSON.stringify({ direction: `${to} -> ${from} (reversed for display)`, path: [...reversePath].reverse() }, null, 2));
+    } else {
+      console.log(JSON.stringify({ direction: null, path: null, note: 'no import path found in either direction' }, null, 2));
+    }
+  }
+
+} else if (args.includes('--cycles')) {
+  const GRAY = 1, BLACK = 2;
+  const color = {};
+  const stack = [];
+  const cycles = [];
+  function dfs(node) {
+    color[node] = GRAY;
+    stack.push(node);
+    for (const dep of (graph[node]?.imports || [])) {
+      if (!(dep in graph)) continue;
+      if (color[dep] === GRAY) {
+        const idx = stack.indexOf(dep);
+        cycles.push([...stack.slice(idx), dep]);
+      } else if (color[dep] !== BLACK) {
+        dfs(dep);
+      }
+    }
+    stack.pop();
+    color[node] = BLACK;
+  }
+  for (const node of Object.keys(graph)) {
+    if (!color[node]) dfs(node);
+  }
+  const seen = new Set();
+  const deduped = [];
+  for (const cyc of cycles) {
+    const core = cyc.slice(0, -1);
+    const sorted = [...core].sort();
+    const minIdx = core.indexOf(sorted[0]);
+    const rotated = [...core.slice(minIdx), ...core.slice(0, minIdx)];
+    const key = rotated.join('>');
+    if (!seen.has(key)) { seen.add(key); deduped.push(rotated); }
+  }
+  console.log(JSON.stringify({ cycleCount: deduped.length, cycles: deduped }, null, 2));
 
 } else {
   console.log(JSON.stringify(graph, null, 2));
