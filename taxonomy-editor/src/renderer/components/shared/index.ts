@@ -7,7 +7,6 @@ export * from './EmptyState';
 export * from './DeploymentErrorScreen';
 export * from './DiagnosticsDrawer';
 export * from './DiffWindow';
-export * from './FeedbackWidget';
 export * from './FieldHelp';
 export * from './FireProgressIndicator';
 export * from './HamburgerMenu';

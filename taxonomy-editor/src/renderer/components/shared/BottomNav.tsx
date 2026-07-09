@@ -19,9 +19,10 @@ export function BottomNav({ onOpenMore }: BottomNavProps) {
 
   if (breakpoint === 'desktop' || breakpoint === 'tablet-lg') return null;
 
-  const isDebateContext = activeTab === 'debate' || activeTab === 'chat';
+  const tab = activeTab as string;
+  const isDebateContext = tab === 'debate' || tab === 'chat';
   const isPhone = breakpoint === 'phone' || breakpoint === 'phone-lg';
-  const isPovTab = ['accelerationist', 'safetyist', 'skeptic'].includes(activeTab);
+  const isPovTab = ['accelerationist', 'safetyist', 'skeptic'].includes(tab);
 
   const handleSearch = () => {
     if (toolbarPanel === 'search') {

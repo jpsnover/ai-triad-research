@@ -14,7 +14,7 @@ const AUTO_DISMISS_MS = 8_000;
 
 export function CommunityShareBanner({ itemType, compact, onDismiss }: CommunityShareBannerProps) {
   const isAdmin = useFlag('permission-admin-features');
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     timerRef.current = setTimeout(onDismiss, AUTO_DISMISS_MS);

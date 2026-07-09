@@ -69,7 +69,7 @@ function resolveNode(nodeId: string, store: ReturnType<typeof useTaxonomyStore>)
   const prefix = nodeId.split('-')[0];
   const pov = PREFIX_TO_POV[prefix];
   if (!pov) return null;
-  const file = store[pov];
+  const file = (store as unknown as Record<string, { nodes?: PovNode[] }>)[pov];
   return file?.nodes?.find((n: PovNode) => n.id === nodeId) ?? null;
 }
 
@@ -317,7 +317,7 @@ function AttributionPanel({
 
   const searchPool = useMemo(() => {
     const collectNodes = (pov: PovKey): PovNode[] => {
-      const file = store[pov];
+      const file = (store as unknown as Record<string, { nodes?: PovNode[] }>)[pov];
       if (!file?.nodes) return [];
       return beliefsOnly ? file.nodes.filter((n: PovNode) => n.category === 'Beliefs') : file.nodes;
     };

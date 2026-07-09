@@ -68,7 +68,7 @@ export function explainNodeStrength(
       sourceId,
       targetId: targetNodeId,
       sourceText: sourceNode?.text?.slice(0, 120) ?? sourceId,
-      edgeType: edge?.type ?? (influence >= 0 ? 'supports' : 'attacks'),
+      edgeType: (edge?.type === 'supports' || edge?.type === 'attacks') ? edge.type : (influence >= 0 ? 'supports' : 'attacks'),
       attackType: edge?.attack_type,
       scheme: edge?.scheme,
       influence,

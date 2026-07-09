@@ -131,6 +131,13 @@ export type EventType =
   | 'auth.login_attempt'
   | 'auth.callback_landing'
   | 'auth.loop_detected'
+  | 'auth.logout_initiated'
+  // Network
+  | 'network.connection_pool'
+  // Service worker
+  | 'sw.controller_change'
+  | 'sw.active'
+  | 'sw.update_found'
   // System
   | 'system.error'
   | 'system.info'

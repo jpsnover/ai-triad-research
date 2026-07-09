@@ -325,6 +325,21 @@ function createWebPopupShim(origin: string): FlightRecorder {
 
 let initialized = false;
 
+// Defer store import to avoid circular dependency — resolved on first context/dump call.
+// Module-scoped so both initFlightRecorder and dumpOnReactError can access it.
+let _stores: { useDebateStore: unknown; useTaxonomyStore: unknown } | null = null;
+function getStores() {
+  if (!_stores) {
+    try {
+      const debateMod = (window as unknown as Record<string, unknown>).__ZUSTAND_STORES__ as Record<string, unknown> | undefined;
+      const d = debateMod?.debate;
+      const t = debateMod?.taxonomy;
+      if (d && t) _stores = { useDebateStore: d, useTaxonomyStore: t };
+    } catch { /* flight recorder init — silent by design (stores not ready yet) */ }
+  }
+  return _stores;
+}
+
 export function initFlightRecorder(): FlightRecorder {
   if (initialized) return getGlobalRecorder()!;
   initialized = true;
@@ -547,21 +562,6 @@ export function initFlightRecorder(): FlightRecorder {
   // ── Context provider (full app state snapshot for dump) ──
   // See operations/diagnostics/flight-recorder-context-spec.md for field descriptions.
   // MUST be synchronous, handle uninitialized stores, no secrets, target <2KB.
-
-  // Defer store import to avoid circular dependency — resolved on first context call.
-  let _stores: { useDebateStore: any; useTaxonomyStore: any } | null = null;
-  function getStores() {
-    if (!_stores) {
-      try {
-        // Dynamic import workaround: Vite rewrites import() but we need synchronous access.
-        // The stores are already loaded by the time the first dump is triggered.
-        const debateMod = (window as any).__ZUSTAND_STORES__?.debate;
-        const taxMod = (window as any).__ZUSTAND_STORES__?.taxonomy;
-        if (debateMod && taxMod) _stores = { useDebateStore: debateMod, useTaxonomyStore: taxMod };
-      } catch { /* flight recorder init — silent by design (stores not ready yet) */ }
-    }
-    return _stores;
-  }
 
   recorder.setContextProvider(() => {
     try {

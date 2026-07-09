@@ -23,7 +23,7 @@ async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKe
     ['deriveKey'],
   );
   return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: 100_000, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: salt as BufferSource, iterations: 100_000, hash: 'SHA-256' },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
     false,
@@ -84,9 +84,9 @@ export async function decryptKeysFromSharing(
   combined.set(tag, data.length);
 
   const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv, tagLength: 128 },
+    { name: 'AES-GCM', iv: iv as BufferSource, tagLength: 128 },
     derivedKey,
-    combined,
+    combined as BufferSource,
   );
 
   const { keys } = JSON.parse(new TextDecoder().decode(decrypted)) as { keys: Record<string, string> };

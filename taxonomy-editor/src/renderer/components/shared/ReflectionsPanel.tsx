@@ -109,8 +109,8 @@ function EditCard({ edit, pover, editIndex }: {
       dismissReflectionEdit: s.dismissReflectionEdit,
       retryEnrichment: s.retryEnrichment,
       clearEnrichmentStatus: s.clearEnrichmentStatus,
-      anNodes: (s.activeDebate as Record<string, unknown> | null)?.argument_network
-        ? ((s.activeDebate as Record<string, unknown>).argument_network as { nodes: { id: string; text: string; speaker: string; attribution_text_genus?: string }[] }).nodes
+      anNodes: (s.activeDebate as unknown as Record<string, unknown> | null)?.argument_network
+        ? ((s.activeDebate as unknown as Record<string, unknown>).argument_network as { nodes: { id: string; text: string; speaker: string; attribution_text_genus?: string }[] }).nodes
         : [],
       enrichmentStatus: s.enrichmentStatus,
     }))

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import type { EventType, EventLevel } from '@lib/flight-recorder/types';
 
 let initialized = false;
 
@@ -14,9 +15,9 @@ export function initSwEventListener(): void {
     if (!data || typeof data.type !== 'string') return;
 
     getGlobalRecorder()?.record({
-      type: data.type as string,
+      type: data.type as EventType,
       component: 'service-worker',
-      level: (data.level as string) || 'info',
+      level: (data.level as EventLevel) || 'info',
       message: (data.message as string) || `SW event: ${data.type}`,
       data: data.data as Record<string, unknown> | undefined,
     });

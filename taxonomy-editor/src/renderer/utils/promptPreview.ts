@@ -115,7 +115,7 @@ export function generatePromptPreview(promptId: string): PromptPreviewResult | n
           taxonomyBlock,
           session.source_content ?? '',
           true,
-          undefined, undefined, undefined, undefined,
+          undefined, undefined, undefined, undefined, undefined,
           lineageCtx,
         );
         sections.push(section('Instructions', text.slice(0, text.indexOf(taxonomyBlock))));
@@ -132,7 +132,7 @@ export function generatePromptPreview(promptId: string): PromptPreviewResult | n
           transcript,
           '(question would appear here)',
           'all',
-          undefined, undefined, undefined,
+          undefined, undefined, undefined, undefined,
           lineageCtx,
         );
         sections.push(section('Instructions', text.length.toString()));

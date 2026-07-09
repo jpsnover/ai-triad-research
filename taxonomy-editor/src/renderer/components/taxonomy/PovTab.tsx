@@ -46,10 +46,11 @@ function SoulDocDialog({ pov, onClose }: { pov: string; onClose: () => void }) {
   const info = speakerKey ? POVER_INFO[speakerKey] : undefined;
   if (!info) return null;
 
-  const voice = (info as Record<string, unknown>).voice as Record<string, string> | undefined;
-  const antiPatterns = (info as Record<string, unknown>).anti_patterns as string[] | undefined;
-  const valueHierarchy = (info as Record<string, unknown>).value_hierarchy as string[] | undefined;
-  const epistemicStance = (info as Record<string, unknown>).epistemic_stance as string[] | undefined;
+  const infoRec = info as unknown as Record<string, unknown>;
+  const voice = infoRec.voice as Record<string, string> | undefined;
+  const antiPatterns = infoRec.anti_patterns as string[] | undefined;
+  const valueHierarchy = infoRec.value_hierarchy as string[] | undefined;
+  const epistemicStance = infoRec.epistemic_stance as string[] | undefined;
   const boundaries = info.boundaries ?? { hardcoded: [], softcoded: [] };
 
   return (

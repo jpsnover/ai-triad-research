@@ -64,4 +64,4 @@ if (import.meta.env.VITE_TARGET !== 'web') {
 
 // Dynamic import so that if App's transitive imports crash,
 // the error handlers above are already registered.
-import('./index.tsx').catch(showCrashScreen);
+import('./index').catch(showCrashScreen);

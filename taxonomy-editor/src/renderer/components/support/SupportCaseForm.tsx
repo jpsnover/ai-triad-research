@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@bridge';
-import type { SupportCaseCreatePayload } from '@bridge/types';
+import type { SupportCaseCreatePayload } from '../../bridge/types';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 declare const __APP_VERSION__: string;

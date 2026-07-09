@@ -375,5 +375,5 @@ function emitConnectionPoolEvent(): void {
 // ── Flight recorder helper ──
 
 function recordEvent(type: string, level: 'info' | 'warn' | 'error', message: string, data?: Record<string, unknown>): void {
-  getGlobalRecorder()?.record({ type, component: 'web-bridge', level, message, ...(data ? { data } : {}) });
+  getGlobalRecorder()?.record({ type: type as import('@lib/flight-recorder/types').EventType, component: 'web-bridge', level, message, ...(data ? { data } : {}) });
 }

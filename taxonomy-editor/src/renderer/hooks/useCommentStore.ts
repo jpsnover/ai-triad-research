@@ -141,7 +141,7 @@ export const useCommentStore = create<CommentStore>((set, get) => {
     if (searchText.trim()) {
       const q = searchText.trim().toLowerCase();
       result = result.filter(c =>
-        c.body.toLowerCase().includes(q)
+        c.body?.toLowerCase().includes(q)
         || c.textRange.selectedText.toLowerCase().includes(q)
         || c.author.toLowerCase().includes(q),
       );

@@ -756,7 +756,7 @@ const rawApi: AppAPI = {
   loadSourceEvidenceIndex: () => get<Record<string, unknown> | null>('/api/source-evidence-index').catch(bridgeWarn('loadSourceEvidenceIndex failed', null)),
   loadDocTitles: () => get<Record<string, string> | null>('/api/doc-titles').catch(bridgeWarn('loadDocTitles failed', null)),
   getSourceEvidence: (nodeIds, pov) => post('/api/source-evidence', { nodeIds, pov }),
-  runEvidenceQbaf: (claimText, claimId, model) => post('/api/evidence-qbaf', { claimText, claimId, model }).catch(bridgeWarn('runEvidenceQbaf failed', null)),
+  runEvidenceQbaf: (claimText, claimId, model) => post<{ computed_strength: number; qbaf_iterations: number; evidence_items: Array<{ id: string; source_doc_id: string; text: string; relation: 'support' | 'contradict'; similarity: number }>; claim_id: string } | null>('/api/evidence-qbaf', { claimText, claimId, model }).catch(bridgeWarn('runEvidenceQbaf failed', null)),
 
   // Debate sessions
   getDebateQuotaStatus: () => get('/api/debates/quota-status'),
@@ -855,7 +855,7 @@ const rawApi: AppAPI = {
 
   // Feedback & error reporting
   submitFeedback: (rating, text, category, context) => post('/api/admin/feedback', { rating, text, category: category ?? 'general', context: { ...context, url: location.href, userAgent: navigator.userAgent } }),
-  reportError: (err, context) => post('/api/admin/errors', { error: err, context: { ...context, url: location.href, userAgent: navigator.userAgent } }).catch(bridgeWarn('Error report submission failed', { ok: false })),
+  reportError: (err, context) => post<{ ok: boolean }>('/api/admin/errors', { error: err, context: { ...context, url: location.href, userAgent: navigator.userAgent } }).catch(bridgeWarn('Error report submission failed', { ok: false })),
 
   // Telemetry
   trackEvent: (type, view, metadata) => { void post('/api/admin/telemetry', { type, view, metadata }).catch(bridgeWarn('Telemetry event failed', undefined)); },
@@ -866,12 +866,12 @@ const rawApi: AppAPI = {
 
   // Synthetic corpus
   loadSyntheticCorpus: (pov) => get(`/api/taxonomy/synthetic/${encodeURIComponent(pov)}`).catch(bridgeWarn('loadSyntheticCorpus failed', null)),
-  loadSyntheticEmbeddings: () => get('/api/taxonomy/synthetic-embeddings').catch(bridgeWarn('loadSyntheticEmbeddings failed', null)),
+  loadSyntheticEmbeddings: () => get<Record<string, { pov: string; vectors: number[][] }> | null>('/api/taxonomy/synthetic-embeddings').catch(bridgeWarn('loadSyntheticEmbeddings failed', null)),
   updateSyntheticEmbeddings: (nodeId, pov, vectors) => post('/api/taxonomy/synthetic-embeddings', { nodeId, pov, vectors }).then(() => {}),
 
   // Community Library
-  listCommunityChats: () => get('/api/community/chats').catch(bridgeWarn('listCommunityChats failed', [])),
-  listCommunityDebates: () => get('/api/community/debates').catch(bridgeWarn('listCommunityDebates failed', [])),
+  listCommunityChats: () => get<unknown[]>('/api/community/chats').catch(bridgeWarn('listCommunityChats failed', [])),
+  listCommunityDebates: () => get<unknown[]>('/api/community/debates').catch(bridgeWarn('listCommunityDebates failed', [])),
   submitToCommunity: (type, itemData, note) => post('/api/community/submit', { type, data: itemData, note }),
   copyFromCommunity: (type, communityId) => post('/api/community/copy', { type, communityId }),
   loadCommunityDebateSession: (id) => get(`/api/community/debates/${encodeURIComponent(id)}`),
@@ -922,8 +922,8 @@ const rawApi: AppAPI = {
   getOrganizationsByPolicy: (policyId) => get(`/api/organizations/by-policy/${encodeURIComponent(policyId)}`),
 
   // Calibration
-  getCalibrationHistory: () => get('/api/calibration/history').catch(bridgeWarn('getCalibrationHistory failed', { current: null, history: [] })),
-  getCalibrationLog: () => get('/api/calibration/log').catch(bridgeWarn('getCalibrationLog failed', { entries: [], validationReport: null })),
+  getCalibrationHistory: () => get<{ current: unknown; history: unknown[] }>('/api/calibration/history').catch(bridgeWarn('getCalibrationHistory failed', { current: null, history: [] })),
+  getCalibrationLog: () => get<{ entries: unknown[]; validationReport: unknown }>('/api/calibration/log').catch(bridgeWarn('getCalibrationLog failed', { entries: [], validationReport: null })),
 
   // Sync
   syncCommit: (message) => post('/api/sync/commit', message ? { message } : undefined),
@@ -1066,7 +1066,7 @@ const rawApi: AppAPI = {
   getFlags: () => get<Record<string, boolean>>('/api/flags').catch(bridgeWarn('getFlags failed', {})),
 
   // UsageID registry
-  getUsageRegistry: () => get('/api/admin/usages').then((r: { usages: Record<string, unknown> }) => r.usages) as ReturnType<AppAPI['getUsageRegistry']>,
+  getUsageRegistry: () => get<{ usages: Record<string, unknown> }>('/api/admin/usages').then(r => r.usages) as ReturnType<AppAPI['getUsageRegistry']>,
 
   // Admin Error Dashboard
   getErrorSummary: () => get('/api/admin/errors/summary'),

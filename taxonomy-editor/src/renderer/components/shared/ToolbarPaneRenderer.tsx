@@ -58,7 +58,7 @@ export function ToolbarPaneRenderer({
     case 'attrFilter': return <AttributeFilterPanel />;
     case 'attrInfo': return <AttributeInfoPanel />;
     case 'lineage': return <LineagePanel onSelectValue={onSelectLineageValue} />;
-    case 'prompts': return <PromptsPanel onSelectPrompt={onSelectPrompt} onInspectorToggle={onInspectorToggle} />;
+    case 'prompts': return <PromptsPanel onSelectPrompt={onSelectPrompt ?? (() => {})} onInspectorToggle={onInspectorToggle} />;
     case 'fallacy': return <FallacyPanel onSelectFallacy={onSelectFallacy} />;
     case 'edges': return <EdgeBrowser />;
     case 'console': return adminFeatures

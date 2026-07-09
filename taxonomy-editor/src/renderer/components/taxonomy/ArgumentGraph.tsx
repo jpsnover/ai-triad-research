@@ -268,8 +268,8 @@ export function GraphNodeDetailPanel({ node, edges, allNodes, onClose }: NodeDet
         {node.computed_strength != null && <span>Strength: {node.computed_strength.toFixed(2)}</span>}
         {node.base_strength != null && <span>Intrinsic: {node.base_strength.toFixed(2)}</span>}
         {node.bdi_confidence != null && <span>Reliability: {node.bdi_confidence.toFixed(2)}</span>}
-        {(node as Record<string, unknown>).extraction_confidence != null && (
-          <span>FIRE conf: {((node as Record<string, unknown>).extraction_confidence as number).toFixed(2)}</span>
+        {(node as unknown as Record<string, unknown>).extraction_confidence != null && (
+          <span>FIRE conf: {((node as unknown as Record<string, unknown>).extraction_confidence as number).toFixed(2)}</span>
         )}
       </div>
       {node.bdi_sub_scores && (

@@ -30,12 +30,18 @@ export type GeminiModel =
   | 'gemini-2.5-pro';
 
 export type ClaudeModel =
+  | 'claude-opus-4-7'
+  | 'claude-sonnet-4-6'
   | 'claude-sonnet-4-5'
+  | 'claude-haiku-4-5'
   | 'claude-haiku-3.5';
 
 export type GroqModel =
   | 'groq-llama-4-scout'
-  | 'groq-llama-3.3-70b';
+  | 'groq-llama-4-scout-17b-16e'
+  | 'groq-llama-3.3-70b'
+  | 'groq-llama-3.3-70b-versatile'
+  | 'groq-openai-gpt-oss-120b';
 
 export type OpenAIModel =
   | 'openai-gpt-5.5'
