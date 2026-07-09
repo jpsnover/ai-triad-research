@@ -19,7 +19,7 @@ import type { PovNode, CrossCuttingNode as SituationNode, GraphAttributes, Categ
 import type { ModeratorState, SelectionResult, ModeratorIntervention, InterventionMetadata, DebatePhase } from '@lib/debate/types';
 import type { PoverResponseMeta, MoveAnnotation } from '@lib/debate/helpers';
 import type { PhaseState, PhaseTransitionConfig, SignalContext, Signal } from '@lib/debate/types';
-import type { ProcessRewardEntry } from '@lib/debate/types';
+import type { ProcessRewardEntry, GapArgument } from '@lib/debate/types';
 import type { ModeratorSelectionCallbacks, ModeratorSelectionInput, TurnRetryCallbacks, TurnRetryInput } from '@lib/debate/orchestration';
 import type { TurnPipelineInput } from '@lib/debate/turnPipeline';
 import type { TurnAttempt, TurnValidation, TurnValidationTrail, TaxonomySuggestion } from '../../../types/debate';

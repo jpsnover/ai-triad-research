@@ -26,7 +26,7 @@ import { factCheckToBaseStrength } from '@lib/debate/argumentNetwork';
 import { updateConvergenceTracker } from '../../../utils/convergenceScoring';
 import { computeConvergenceSignals } from '@lib/debate/convergenceSignals';
 import { computeProcessReward } from '@lib/debate/processReward';
-import type { ProcessRewardEntry } from '@lib/debate/types';
+import type { ProcessRewardEntry, TaxonomyRef, CrossCuttingProposal } from '@lib/debate/types';
 import { computeTaxonomyGapAnalysis } from '@lib/debate/taxonomyGapAnalysis';
 import { computeBeliefConfidence } from '@lib/debate/beliefConfidence';
 import { computeTreePriority } from '@lib/debate/desirePriority';

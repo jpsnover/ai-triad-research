@@ -38,6 +38,8 @@ interface HarvestDialogProps {
   fileData?: Record<string, unknown>;
 }
 
+const CONCESSION_THRESHOLD = 3.0;
+
 export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
   const activeDebate = useDebateStore(s => s.activeDebate);
   const taxState = useTaxonomyStore.getState();
@@ -125,7 +127,6 @@ export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
     setConcepts(extractConceptCandidates(activeDebate, allNodeIds));
 
     // Extract concession updates — nodes whose concession_history crosses threshold
-    const CONCESSION_THRESHOLD = 3.0;
     const CONCESSION_MIN_DEBATES = 2;
     const CONCESSION_WEIGHTS: Record<string, number> = { full: 1.0, conditional: 0.5, tactical: 0.0 };
     const concessionCandidates: ConcessionUpdate[] = [];
