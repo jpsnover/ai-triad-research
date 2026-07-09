@@ -82,6 +82,7 @@ import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext
 import { embedDoctrinalBoundaries, computeDoctrinalAnchoring, checkThresholdAnomalies } from './doctrinalAnchoring.js';
 import type { BoundaryEmbeddings, DoctrinalAnchoringConfig } from './doctrinalAnchoring.js';
 import { extractCalibrationData, appendCalibrationLog, readCalibrationLog } from './calibrationLogger.js';
+import { DEFAULT_ATTACK_WEIGHTS } from './qbaf.js';
 import { computeStrategicHints } from './strategicHints.js';
 import { evaluateLookahead } from './lookaheadGate.js';
 import type { LookaheadDiagnostics } from './lookaheadGate.js';
@@ -846,7 +847,7 @@ export class DebateEngine {
         argumentationExitThreshold: weights.thresholds.argumentation_exit,
         relevanceThreshold: 0.45, // TODO: read from config when externalized
         draftTemperature: 0.7,
-        attackWeights: [1.0, 1.1, 1.2],
+        attackWeights: [DEFAULT_ATTACK_WEIGHTS.rebut, DEFAULT_ATTACK_WEIGHTS.undercut, DEFAULT_ATTACK_WEIGHTS.undermine],
         argumentativeSaturationWeights: weights.argumentative_saturation,
         explorationSummary: this.config.explorationSummary,
         docMeta: this.docTitles,

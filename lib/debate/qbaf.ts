@@ -61,7 +61,7 @@ export interface QbafResult {
 
 // ── Default attack type weights ───────────────────────────
 
-const DEFAULT_ATTACK_WEIGHTS: Record<string, number> = {
+export const DEFAULT_ATTACK_WEIGHTS: Record<'rebut' | 'undercut' | 'undermine', number> = {
   rebut: 1.0,
   undercut: 1.05,
   undermine: 1.1,

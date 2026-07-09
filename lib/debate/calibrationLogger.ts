@@ -24,6 +24,7 @@ import type { DocMetaMap } from './evidenceFromSummaries.js';
 import { elementDecompositionPrompt, coverageCheckPrompt } from './prompts.js';
 import { parseJsonRobust } from './helpers.js';
 import { DEFAULT_TEMPERATURE } from '../ai-client/defaults.js';
+import { DEFAULT_ATTACK_WEIGHTS } from './qbaf.js';
 
 // Re-export from browser-safe module for backward compatibility
 export { computeAgentUtility, PERSONA_UTILITY_WEIGHTS } from './agentUtility.js';
@@ -1095,7 +1096,7 @@ export function extractCalibrationData(
     relevance_threshold: config.relevanceThreshold ?? 0.45,
 
     qbaf_preference_concordance: concordance,
-    attack_weights: config.attackWeights ?? [1.0, 1.1, 1.2],
+    attack_weights: config.attackWeights ?? [DEFAULT_ATTACK_WEIGHTS.rebut, DEFAULT_ATTACK_WEIGHTS.undercut, DEFAULT_ATTACK_WEIGHTS.undermine],
 
     structural_error_rate: totalTurns > 0 ? structuralErrors / totalTurns : 0,
     repetition_rate: totalTurns > 0 ? repetitionWarnings / totalTurns : 0,
@@ -1700,7 +1701,7 @@ export function captureSnapshot(weightsPath?: string): ParameterSnapshot {
   return {
     argumentation_exit: weights?.thresholds?.argumentation_exit ?? 0.65,
     relevance_threshold: 0.45,
-    attack_weights: [1.0, 1.1, 1.2],
+    attack_weights: [DEFAULT_ATTACK_WEIGHTS.rebut, DEFAULT_ATTACK_WEIGHTS.undercut, DEFAULT_ATTACK_WEIGHTS.undermine],
     draft_temperature: DEFAULT_TEMPERATURE,
     argumentative_saturation_weights: weights?.argumentative_saturation ?? {
       recycling_pressure: 0.30, crux_maturity: 0.25, concession_plateau: 0.15,
