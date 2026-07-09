@@ -8,6 +8,6 @@
   },
   "max_file_bytes": 5242880,
   "tsc_error_ceilings": {
-    "taxonomy-editor/tsconfig.json": 463
+    "taxonomy-editor/tsconfig.json": 287
   }
 }
