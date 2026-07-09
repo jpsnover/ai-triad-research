@@ -86,6 +86,14 @@ export async function generateViaZai(
     });
   }
   const text = json.choices[0].message.content;
+  if (!text) {
+    throw new ActionableError({
+      goal: 'Generate text via Z.AI',
+      problem: `Z.AI returned empty content (0 chars) after ${response.status} — model may not support this prompt format or response_format. Raw: ${bodyText.slice(0, 300)}`,
+      location: 'ai-client.generateViaZai',
+      nextSteps: ['Try a different model', 'Check if this model supports json_schema response_format', 'Contact Z.AI support'],
+    });
+  }
   const u = json.usage;
   const usage = u ? {
     promptTokens: u.prompt_tokens,
