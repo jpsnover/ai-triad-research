@@ -52,7 +52,7 @@ The honest summary: nearly every judgment-bearing number in the system is curren
 | `kp_divisor`, `budget_hard_multiplier` | stipulated | | — |
 | Embedding field weights (0.611/0.389/0/0/0) | **derived** | Ablation study: `assumes` gives +14% MRR; `lineage` hurts separation 9.4%; naive concatenation −26%. | 2026-05 |
 | Affect distortion weights (fear/outrage > hope/empathy) | stipulated | Flagged in the framing paper; t/1342 will derive or drop. | — |
-| Local-sufficiency strength multipliers (1.0/0.7/0.3) + warrant bonus (1.25) | stipulated | CL-authored in the t/1341 spec. Own numbers, same rule. | — |
+| Local-sufficiency strength multipliers (1.0/0.7/0.3) + warrant bonus (1.25) | stipulated | CL-authored in the t/1341 spec. Own numbers, same rule. Until 2026-07-09 the multiplier was non-discriminating on real data (edge `strength` never persisted → constant 0.7 fallback); category-driven since t/1434 (`9df71712`), which shifts newly computed values (warranted decisive premise: 0.875 → 1.0 post-cap). Historical jsonl entries unchanged. | — |
 | `OverallRating` weights (20/15/15/10/15/10/10/5) | stipulated | `Measure-DebateQuality`. Never validated against human judgment of debate quality; also our evaluation currency, so must never become an auto-tune objective. | — |
 | Persona utility weights (`PERSONA_UTILITY_WEIGHTS`) | stipulated | `agentUtility.ts`. | — |
 | Crux concession weight (1.5×) | stipulated | `agentUtility.ts` concession_asymmetry. | — |
