@@ -25,6 +25,10 @@
       "label": "Azure OpenAI"
     },
     {
+      "id": "zai",
+      "label": "Z.AI (GLM)"
+    },
+    {
       "id": "ollama",
       "label": "Ollama (Local)",
       "local": true
@@ -866,6 +870,12 @@
       "backend": "deepseek"
     },
     {
+      "id": "zai-glm-5-2",
+      "apiModelId": "glm-5.2",
+      "label": "GLM 5.2",
+      "backend": "zai"
+    },
+    {
       "id": "ollama-gemma4-e4b-it-q4-k-m",
       "apiModelId": "gemma4:e4b-it-q4_K_M",
       "label": "gemma4:e4b-it-q4_K_M (8.0B) Q4_K_M",
@@ -878,7 +888,8 @@
     "groq": "groq-openai-gpt-oss-120b",
     "deepseek": "deepseek-deepseek-v4-flash",
     "azure": "azure-gpt-4o",
-    "ollama": "ollama-gemma4-e4b-it-q4-k-m"
+    "ollama": "ollama-gemma4-e4b-it-q4-k-m",
+    "zai": "zai-glm-5-2"
   },
   "fallbackChains": {
     "gemini-3.5-flash": [
@@ -968,7 +979,8 @@
     "openai": 131072,
     "azure": 128000,
     "deepseek": 65536,
-    "ollama": 131072
+    "ollama": 131072,
+    "zai": 1000000
   },
   "capabilityDefaults": {
     "gemini": {
@@ -1012,6 +1024,12 @@
       "supportsVision": false,
       "supportsStreaming": true,
       "maxContextTokens": 131072
+    },
+    "zai": {
+      "supportsTools": true,
+      "supportsVision": false,
+      "supportsStreaming": true,
+      "maxContextTokens": 1000000
     }
   },
   "modelCapabilities": {
@@ -1120,7 +1138,8 @@
       "openai": "openai-gpt-4.1-mini",
       "azure": "azure-gpt-4o-mini",
       "deepseek": "deepseek-deepseek-v4-flash",
-      "ollama": "ollama-gemma4-e4b-it-q4-k-m"
+      "ollama": "ollama-gemma4-e4b-it-q4-k-m",
+      "zai": "zai-glm-5-2"
     },
     "advanced": {
       "gemini": "gemini-2.5-pro",
@@ -1129,7 +1148,8 @@
       "openai": "openai-gpt-4.1",
       "azure": "azure-gpt-4.1",
       "deepseek": "deepseek-deepseek-v4-pro",
-      "ollama": "ollama-gemma4-e4b-it-q4-k-m"
+      "ollama": "ollama-gemma4-e4b-it-q4-k-m",
+      "zai": "zai-glm-5-2"
     }
   },
   "pricing": {
@@ -1213,6 +1233,11 @@
       "inputPer1M": 0.55,
       "outputPer1M": 2.19,
       "cachedInputPer1M": 0.14
+    },
+    "zai-glm-5-2": {
+      "inputPer1M": 1.40,
+      "outputPer1M": 4.40,
+      "cachedInputPer1M": 0.26
     }
   },
   "lastRefreshed": "2026-07-01T19:18:05.888Z"

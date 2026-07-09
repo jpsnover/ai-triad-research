@@ -138,6 +138,7 @@ const ENV_KEY_NAMES: Record<AIBackend, string> = {
   ollama: '', // local — no key needed
   deepseek: 'DEEPSEEK_API_KEY',
   azure: 'AZURE_OPENAI_API_KEY', // t/945 build-fix; actual Azure-backend wiring owned elsewhere
+  zai: 'ZAI_API_KEY',
 };
 
 // Imported after AIBackend is defined (keyStore depends on the type).
