@@ -186,7 +186,7 @@ export const createConfigSlice: StateCreator<DebateStore, [], [], ConfigSlice> =
     try {
       const debate = get().activeDebate;
       api.sendDiagnosticsState({ debate, selectedEntry: entryId, forceSelect: !!force });
-    } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate?.id, component: 'debate-store', level: 'warn', message: 'Diagnostics state broadcast to popout failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
+    } catch (e) { const _debate = get().activeDebate; getGlobalRecorder()?.record({ type: 'system.error', debate_id: _debate?.id, component: 'debate-store', level: 'warn', message: 'Diagnostics state broadcast to popout failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
   },
   setDiagPopoutOpen: (open) => set({ diagPopoutOpen: open }),
   inspectNode: (nodeId) => set({ inspectedNodeId: nodeId }),

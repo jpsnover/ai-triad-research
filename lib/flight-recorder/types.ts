@@ -56,6 +56,7 @@ export type EventType =
   | 'debate.crux_refresh'
   | 'debate.lifecycle'
   | 'debate.lookahead.filter'
+  | 'debate.opening_added'
   // State management
   | 'state.save'
   | 'state.load'

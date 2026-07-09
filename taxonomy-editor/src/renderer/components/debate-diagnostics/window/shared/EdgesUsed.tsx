@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo } from 'react';
-import { nodeIdColor } from './constants';
+import { nodeIdColor, truncateLabel } from './constants';
 import type { TaxRefEdge, TaxRefNode } from '../../../taxonomy/TaxonomyRefDetail';
 
 // NOTE: AifBadge stays in DiagnosticsWindow.tsx (parent) — not used by these components directly.
@@ -14,10 +14,7 @@ export function edgeNodeColor(id: string): string {
   return nodeIdColor(id);
 }
 
-/** Truncates a string to `max` characters, appending ellipsis if needed. */
-export function truncateLabel(s: string, max: number): string {
-  return s.length > max ? s.slice(0, max) + '…' : s;
-}
+// truncateLabel imported from ./constants
 
 /** A single edge used by a debater during the debate. */
 export type EdgeUsed = { source: string; target: string; type: string; confidence: number };

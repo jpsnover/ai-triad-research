@@ -813,7 +813,6 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           citeModel: activeDebate.stage_models?.cite || undefined,
           userSeedClaims: userSeeds.length > 0 ? userSeeds : undefined,
           availablePovNodeIds: [...getAllKnownNodeIds()],
-          doctrinalBoundaries: info.doctrinal_boundaries,
           background: activeDebate.topic?.background || undefined,
         };
 
@@ -1031,7 +1030,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
     } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: get().activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Opening embeddings caching failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
 
     // Neutral evaluation: baseline checkpoint (after openings, before cross-respond)
-    void runNeutralCheckpoint('baseline', get, set as any, addTranscriptEntry);
+    void runNeutralCheckpoint('baseline', get, set as any, addTranscriptEntry as Parameters<typeof runNeutralCheckpoint>[3]);
 
     await saveDebate('runOpeningStatements:end');
 

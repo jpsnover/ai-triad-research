@@ -209,8 +209,8 @@ export async function getRelevantTaxonomyContext(
           const boundaries: Record<string, string[]> = {};
           for (const p of AI_POVERS) {
             const info = POVER_INFO[p];
-            if (info?.doctrinal_boundaries?.length > 0) {
-              boundaries[info.pov] = info.doctrinal_boundaries;
+            if ((info?.doctrinal_boundaries?.length ?? 0) > 0) {
+              boundaries[info.pov] = info.doctrinal_boundaries ?? [];
             }
           }
           if (Object.keys(boundaries).length > 0) {

@@ -140,17 +140,17 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
 
     // Bypass moderator when debate is already terminated/closed — pick missing debater directly
     const isAlreadyTerminated = activeDebate.phase === 'closed'
-      || (activeDebate as Record<string, unknown>).adaptive_staging
-        && ((activeDebate as Record<string, unknown>).adaptive_staging as Record<string, unknown>)?.phase_state
-        && ((activeDebate as Record<string, unknown>).adaptive_staging as Record<string, unknown> & { phase_state: { current_phase: string } }).phase_state.current_phase === 'terminated';
+      || (activeDebate as unknown as Record<string, unknown>).adaptive_staging
+        && ((activeDebate as unknown as Record<string, unknown>).adaptive_staging as Record<string, unknown>)?.phase_state
+        && ((activeDebate as unknown as Record<string, unknown>).adaptive_staging as Record<string, unknown> & { phase_state: { current_phase: string } }).phase_state.current_phase === 'terminated';
     if (isAlreadyTerminated) {
       // Find debaters who haven't spoken in the last round
       const lastRoundSpeakers = new Set<string>();
       for (let j = activeDebate.transcript.length - 1; j >= 0; j--) {
         const e = activeDebate.transcript[j];
-        if (e.type === 'statement') lastRoundSpeakers.add(e.speaker);
+        if ((e.type as string) === 'statement') lastRoundSpeakers.add(e.speaker);
         else if (e.type === 'system' && /\[Phase|Moderator|Round/.test(e.content)) break;
-        else if (e.type !== 'statement' && e.type !== 'system') break;
+        else if ((e.type as string) !== 'statement' && e.type !== 'system') break;
       }
       const missingPovers = aiPovers.filter(p => !lastRoundSpeakers.has(p));
       if (missingPovers.length > 0) {
@@ -205,6 +205,18 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
         const debaterGapHint = formatGapHint(activeDebate.gap_injections);
         const [evidenceIndex, docTitles] = await Promise.all([getSourceEvidenceIndex(), getDocTitles()]);
 
+        // Count turns since this debater last used a CONCEDE move
+        const ptDebaterTurns = activeDebate.transcript
+          .filter(e => e.speaker === responderPover && ((e.type as string) === 'statement' || e.type === 'opening'));
+        let ptTurnsSinceLastConcession = ptDebaterTurns.length;
+        for (let i = ptDebaterTurns.length - 1; i >= 0; i--) {
+          const moves = ((ptDebaterTurns[i].metadata as Record<string, unknown>)?.move_types as (string | MoveAnnotation)[]) ?? [];
+          if (moves.some(m => getMoveName(m).includes('CONCEDE'))) {
+            ptTurnsSinceLastConcession = ptDebaterTurns.length - 1 - i;
+            break;
+          }
+        }
+
         const pipelineInput: TurnPipelineInput = {
           label: info.label,
           pov: info.pov,
@@ -222,6 +234,7 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
           priorMoves,
           priorRefs,
           availablePovNodeIds,
+          turnsSinceLastConcession: ptTurnsSinceLastConcession,
           pendingIntervention: undefined,
           sourceContent: crDocAnalysis ? undefined : (activeDebate.source_content || undefined),
           documentAnalysis: crDocAnalysis,
@@ -240,7 +253,7 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
         const pipelineResult = await runTurnPipeline(pipelineInput, stageGenerate);
         if (!isStillValid()) { releaseDebateDriver(); set({ debateGenerating: null }); getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'debate_switched' } }); return; }
 
-        const { statement, taxonomyRefs, meta } = parsePoverResponse(pipelineResult.final_text);
+        const { statement, taxonomyRefs, meta } = parsePoverResponse(pipelineResult.final_text ?? '');
         if (ctx.nodeScores) {
           for (const ref of taxonomyRefs) {
             const score = ctx.nodeScores.get(ref.node_id);
@@ -296,7 +309,7 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
     const crossRespondRound = activeDebate.transcript.filter(e => e.type === 'statement').length + 1;
     const adaptiveStaging = activeDebate.adaptive_staging;
     let totalRoundsForPhase: number;
-    let phase: string;
+    let phase: DebatePhase;
     if (adaptiveStaging?.enabled) {
       const weights = loadProvisionalWeights();
       const pacingPreset = weights.pacing_presets[adaptiveStaging.pacing] ?? weights.pacing_presets.moderate;
@@ -569,6 +582,18 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
       ? (typeof lastOpponentEntry.content === 'string' ? lastOpponentEntry.content : JSON.stringify(lastOpponentEntry.content))
       : undefined;
 
+    // Count turns since this debater last used a CONCEDE move
+    const crDebaterTurns = activeDebate.transcript
+      .filter(e => e.speaker === responderPover && ((e.type as string) === 'statement' || e.type === 'opening'));
+    let crTurnsSinceLastConcession = crDebaterTurns.length;
+    for (let i = crDebaterTurns.length - 1; i >= 0; i--) {
+      const moves = ((crDebaterTurns[i].metadata as Record<string, unknown>)?.move_types as (string | MoveAnnotation)[]) ?? [];
+      if (moves.some(m => getMoveName(m).includes('CONCEDE'))) {
+        crTurnsSinceLastConcession = crDebaterTurns.length - 1 - i;
+        break;
+      }
+    }
+
     const pipelineInput: TurnPipelineInput = {
       label: info.label,
       pov: info.pov,
@@ -586,6 +611,7 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
       priorMoves,
       priorRefs,
       availablePovNodeIds,
+      turnsSinceLastConcession: crTurnsSinceLastConcession,
       pendingIntervention: pendingInterventionData,
       sourceContent: crDocAnalysis ? undefined : (activeDebate.source_content || undefined),
       documentAnalysis: crDocAnalysis,
@@ -824,7 +850,7 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
           const midRound = Math.ceil(midTotal / 2) + 1;
           const curRound = midDebate.transcript.filter(e => e.type === 'statement').length;
           if (curRound === midRound) {
-            void runNeutralCheckpoint('midpoint', get, set as any, addTranscriptEntry);
+            void runNeutralCheckpoint('midpoint', get, set as any, addTranscriptEntry as Parameters<typeof runNeutralCheckpoint>[3]);
           }
         }
       } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Neutral midpoint checkpoint failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
@@ -846,8 +872,8 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
             // Responsive check: find unengaged high-relevance nodes (deterministic, no LLM)
             const anNodes = gapDebate.argument_network?.nodes ?? [];
             const engagedIds = collectEngagedNodeIds(
-              anNodes.map(n => ({ taxonomy_refs: n.taxonomy_refs ?? [] })),
-              gapDebate.transcript.map(e => ({ taxonomy_refs: e.taxonomy_refs ?? [] })),
+              anNodes.map(n => ({ taxonomy_refs: (n.taxonomy_refs ?? []).map(id => ({ node_id: typeof id === 'string' ? id : (id as unknown as { node_id: string }).node_id })) })),
+              gapDebate.transcript.map(e => ({ taxonomy_refs: (e.taxonomy_refs ?? []).map(r => ({ node_id: r.node_id })) })),
             );
             const allTaxNodes: { id: string; label: string; description: string }[] = [];
             for (const pov of POV_KEYS) {
@@ -1027,8 +1053,8 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
               })),
               turn_number: n.turn_number,
             })),
-            edges: an.edges.map(e => ({
-              id: e.id, source: e.source, target: e.target, type: e.type,
+            edges: an.edges.filter(e => e.type === 'supports' || e.type === 'attacks').map(e => ({
+              id: e.id, source: e.source, target: e.target, type: e.type as 'supports' | 'attacks',
               attack_type: e.attack_type, weight: e.weight ?? 0.5,
               scheme: e.scheme, argumentation_scheme: e.argumentation_scheme,
             })),
@@ -1065,7 +1091,7 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
             allPovsResponded: true,
             cruxNodes: detectCruxNodes(
               an.nodes.map(n => ({ id: n.id, speaker: n.speaker, computed_strength: n.computed_strength ?? 0.5, taxonomy_refs: [], turn_number: n.turn_number })),
-              an.edges.map(e => ({ id: e.id, source: e.source, target: e.target, type: e.type, weight: e.weight ?? 0.5 })),
+              an.edges.filter(e => e.type === 'supports' || e.type === 'attacks').map(e => ({ id: e.id, source: e.source, target: e.target, type: e.type as 'supports' | 'attacks', weight: e.weight ?? 0.5 })),
             ),
             cruxResolution: (postDebate.crux_tracker ?? []).map(c => ({ id: c.id, state: c.state, support_polarity: c.support_polarity })),
             priorCruxClusters: advanced.prior_crux_clusters,

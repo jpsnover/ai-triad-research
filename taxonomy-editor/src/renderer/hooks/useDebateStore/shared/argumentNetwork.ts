@@ -843,8 +843,8 @@ export async function extractClaimsAndUpdateAN(
       const patches: Partial<typeof baseDebate> = {};
 
       // 1. QBAF strength propagation — computed ONCE, reused by convergence signals and GC
-      const qNodes: QbafNode[] = an.nodes.map(n => ({ id: n.id, base_strength: n.base_strength ?? 0.5 }));
-      const qEdges: QbafEdge[] = an.edges.map(e => ({
+      const qNodes: QbafNode[] = an.nodes.map((n: ArgumentNetworkNode) => ({ id: n.id, base_strength: n.base_strength ?? 0.5 }));
+      const qEdges: QbafEdge[] = an.edges.map((e: ArgumentNetworkEdge) => ({
         source: e.source, target: e.target,
         type: e.type as 'attacks' | 'supports',
         weight: e.weight ?? 0.5,
@@ -852,7 +852,7 @@ export async function extractClaimsAndUpdateAN(
       }));
       const qbafResult = computeQbafStrengths(qNodes, qEdges);
       getGlobalRecorder()?.record({ type: 'an.qbaf', component: 'qbaf', level: 'info', debate_id: baseDebate.id, turn_id: entryId, message: `QBAF propagation: ${qbafResult.iterations} iterations`, data: { iterations: qbafResult.iterations, converged: qbafResult.converged, node_count: qNodes.length } });
-      let currentNodes = an.nodes.map(n => ({
+      let currentNodes = an.nodes.map((n: ArgumentNetworkNode) => ({
         ...n,
         computed_strength: qbafResult.strengths.get(n.id) ?? n.computed_strength,
       }));
@@ -1120,7 +1120,7 @@ export async function extractClaimsAndUpdateAN(
         const explanation = vParsed.explanation || vParsed.evidence || '';
 
         if (verdict) {
-          pNode.verification_status = verdict;
+          pNode.verification_status = verdict as ArgumentNetworkNode['verification_status'];
           pNode.verification_evidence = explanation;
 
           // Update base_strength from fact-check verdict (theory-of-success §4.4)

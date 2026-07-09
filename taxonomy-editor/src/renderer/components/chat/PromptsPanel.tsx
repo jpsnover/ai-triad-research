@@ -48,7 +48,6 @@ export function PromptsPanel({ onSelectPrompt, onInspectorToggle }: PromptsPanel
       }
       return null;
     },
-    (a, b) => a?.id === b?.id,
   );
 
   const [selectedIndex, setSelectedIndex] = useState(0);

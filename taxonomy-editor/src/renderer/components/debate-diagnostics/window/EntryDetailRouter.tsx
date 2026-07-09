@@ -53,7 +53,7 @@ export interface EntryDetailRouterProps {
   meta: Record<string, unknown> | undefined;
   turnValTrail: TurnValidationTrail | undefined;
   an: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] } | undefined;
-  commitments: CommitmentStore | undefined;
+  commitments: Record<string, CommitmentStore> | undefined;
   entryTab: EntryTab;
   setEntryTab: (tab: EntryTab) => void;
   effectiveOverviewTab: OverviewTab;

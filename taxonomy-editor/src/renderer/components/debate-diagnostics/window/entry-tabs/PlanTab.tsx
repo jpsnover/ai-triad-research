@@ -226,10 +226,10 @@ export function PlanTab(props: PlanTabProps) {
                   background: valData.pass ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)',
                 }}>{valData.pass ? '✓ Pass' : '✗ Fail'}</span>
                 {/* Per-rule details (Plan stage) */}
-                {(valData as { details?: { rule: string; pass: boolean; value?: string }[] }).details && (
+                {(valData as unknown as { details?: { rule: string; pass: boolean; value?: string }[] }).details && (
                   <table style={{ marginTop: 4, fontSize: 'var(--text-2xs)', borderCollapse: 'collapse' }}>
                     <tbody>
-                      {(valData as { details: { rule: string; pass: boolean; value?: string }[] }).details.map((d, di) => (
+                      {(valData as unknown as { details: { rule: string; pass: boolean; value?: string }[] }).details.map((d, di) => (
                         <tr key={di}>
                           <td style={{ padding: '1px 4px 1px 0', color: d.pass ? 'var(--success)' : 'var(--danger)', width: 14 }}>{d.pass ? '✓' : '✗'}</td>
                           <td style={{ padding: '1px 6px 1px 0', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{d.rule}</td>

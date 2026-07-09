@@ -137,16 +137,19 @@ export function DraftTab({
         </details>
       )}
       {/* Key Assumptions */}
-      {draftStage && Array.isArray((draftStage.work_product as Record<string, unknown>).key_assumptions) && (
-        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Key Assumptions</summary>
-          {((draftStage.work_product as Record<string, unknown>).key_assumptions as { assumption: string; if_wrong: string }[]).map((a, i) => (
-            <div key={i} style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid color-mix(in srgb, var(--success) 30%, transparent)' }}>
-              <div><strong>Assumption:</strong> {a.assumption}</div>
-              <div style={{ color: 'var(--text-muted)' }}><strong>If wrong:</strong> {a.if_wrong}</div>
-            </div>
-          ))}
-        </details>
-      )}
+      {((): React.ReactNode => {
+        if (!draftStage || !Array.isArray((draftStage.work_product as Record<string, unknown>).key_assumptions)) return null;
+        return (
+          <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Key Assumptions</summary>
+            {((draftStage.work_product as Record<string, unknown>).key_assumptions as { assumption: string; if_wrong: string }[]).map((a, i) => (
+              <div key={i} style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid color-mix(in srgb, var(--success) 30%, transparent)' }}>
+                <div><strong>Assumption:</strong> {a.assumption}</div>
+                <div style={{ color: 'var(--text-muted)' }}><strong>If wrong:</strong> {a.if_wrong}</div>
+              </div>
+            ))}
+          </details>
+        );
+      })()}
       {/* Disagreement type */}
       {draftStage && !!(draftStage.work_product as Record<string, unknown>).disagreement_type && (
         <div style={{ fontSize: '0.72rem', marginTop: 6 }}>
@@ -169,7 +172,7 @@ export function DraftTab({
           {diag.response_time_ms && <span>{(diag.response_time_ms / 1000).toFixed(1)}s</span>}
         </div>
       )}
-      {!draftStage && entry.content && (
+      {!draftStage && !!entry.content && (
         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Statement</summary>
           <div style={{ fontSize: '0.75rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
             {typeof entry.content === 'string'

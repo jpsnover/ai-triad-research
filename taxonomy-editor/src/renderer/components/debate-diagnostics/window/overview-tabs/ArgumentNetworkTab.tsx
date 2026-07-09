@@ -73,7 +73,7 @@ export function ArgumentNetworkTab({
   debate.transcript.forEach(e => {
     const meta = e.metadata as Record<string, unknown> | undefined;
     if (meta?.moderator_trace) {
-      modTraceByEntryId.set(e.id, meta.moderator_trace as ReturnType<typeof modTraceByEntryId.get>);
+      modTraceByEntryId.set(e.id, meta.moderator_trace as NonNullable<ReturnType<typeof modTraceByEntryId.get>>);
     }
   });
 

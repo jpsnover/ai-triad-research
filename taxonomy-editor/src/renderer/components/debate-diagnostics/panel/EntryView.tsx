@@ -199,7 +199,7 @@ export function EntryView({ entryId }: { entryId: string }) {
       )}
 
       {/* Moderator Intervention Metadata */}
-      {entry.type === 'intervention' && entry.intervention_metadata && (() => {
+      {entry.type === 'intervention' && entry.intervention_metadata ? (() => {
         const im = entry.intervention_metadata;
         const familyColors: Record<string, string> = {
           procedural: 'var(--text-secondary)', elicitation: 'var(--warning)', repair: 'var(--danger)',
@@ -239,10 +239,10 @@ export function EntryView({ entryId }: { entryId: string }) {
             )}
           </CollapsibleSection>
         );
-      })()}
+      })() : null}
 
       {/* Moderator Deliberation (t/160) */}
-      {meta?.moderator_trace && (() => {
+      {meta?.moderator_trace ? (() => {
         const trace = meta.moderator_trace as {
           selected: string; excluded_last_speaker: string | null;
           candidates: { debater: string; computed_strength: number | null; rank: number }[];
@@ -322,14 +322,14 @@ export function EntryView({ entryId }: { entryId: string }) {
                 <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, background: 'color-mix(in srgb, var(--danger) 15%, transparent)', color: 'var(--danger)', padding: '2px 6px', borderRadius: 3 }}>
                   IMPLEMENTATION CHALLENGE
                 </span>
-                {(trace as Record<string, unknown>).implementation_challenge_trigger && (() => {
+                {(trace as Record<string, unknown>).implementation_challenge_trigger ? (() => {
                   const trigger = (trace as Record<string, unknown>).implementation_challenge_trigger as { round?: number; operationality_score?: number; convergence_score?: number };
                   return (
                     <span className="diag-muted" style={{ marginLeft: 6 }}>
                       round {trigger.round ?? '?'} · operationality {trigger.operationality_score?.toFixed(2) ?? '?'} · convergence {trigger.convergence_score?.toFixed(2) ?? '?'}
                     </span>
                   );
-                })()}
+                })() : null}
               </div>
             )}
             {trace.argument_network_snapshot && (
@@ -363,7 +363,7 @@ export function EntryView({ entryId }: { entryId: string }) {
             )}
           </CollapsibleSection>
         );
-      })()}
+      })() : null}
 
       {/* Pipeline Stage Work Products */}
       {diag?.stage_diagnostics && diag.stage_diagnostics.length > 0 && (() => {
@@ -456,7 +456,7 @@ export function EntryView({ entryId }: { entryId: string }) {
                   <div style={{ marginBottom: 6, padding: '4px 8px', borderLeft: `3px solid color-mix(in srgb, ${diag.topic_alignment.topic_aligned ? 'var(--success)' : 'var(--danger)'} 25%, transparent)`, fontSize: 'var(--text-2xs)' }}>
                     <div className="diag-kv" style={{ marginBottom: 2 }}>
                       <span className="diag-k">Topic aligned</span>
-                      <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>Attempt {(diag.topic_alignment as Record<string, unknown>).draft_attempt ?? 1}</span>
+                      <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>Attempt {String((diag.topic_alignment as Record<string, unknown>).draft_attempt ?? 1)}</span>
                       {diag.topic_alignment.repaired && (
                         <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)' }}>triggered regen</span>
                       )}
@@ -507,7 +507,7 @@ export function EntryView({ entryId }: { entryId: string }) {
       })()}
 
       {/* Dialectical Moves */}
-      {meta?.move_types && (
+      {meta?.move_types ? (
         <CollapsibleSection title={`Dialectical Moves — ${(meta.move_types as (string | MoveAnnotation)[]).map(m => getMoveName(m)).join(', ')}`} defaultOpen>
           {(meta.move_types as (string | MoveAnnotation)[]).map((m, i) => {
             const name = getMoveName(m);
@@ -527,10 +527,10 @@ export function EntryView({ entryId }: { entryId: string }) {
             </div>
           )}
         </CollapsibleSection>
-      )}
+      ) : null}
 
       {/* Key Assumptions */}
-      {meta?.key_assumptions && (meta.key_assumptions as { assumption: string; if_wrong: string }[]).length > 0 && (
+      {meta?.key_assumptions && (meta.key_assumptions as { assumption: string; if_wrong: string }[]).length > 0 ? (
         <CollapsibleSection title={`Key Assumptions (${(meta.key_assumptions as unknown[]).length})`}>
           {(meta.key_assumptions as { assumption: string; if_wrong: string }[]).map((a, i) => (
             <div key={i} className="diag-assumption">
@@ -539,7 +539,7 @@ export function EntryView({ entryId }: { entryId: string }) {
             </div>
           ))}
         </CollapsibleSection>
-      )}
+      ) : null}
 
       {/* Extracted Claims */}
       {diag?.extracted_claims && (
@@ -704,7 +704,7 @@ export function EntryView({ entryId }: { entryId: string }) {
             </div>
 
             {/* Taxonomy Context Injection — placeholder for t/489 */}
-            {(diag as Record<string, unknown> | undefined)?.taxonomy_injection_trace && (() => {
+            {(diag as Record<string, unknown> | undefined)?.taxonomy_injection_trace ? (() => {
               const tit = (diag as Record<string, unknown>).taxonomy_injection_trace as { considered: number; demoted: number; demoted_nodes?: { node_id: string; exclusion_similarity: number }[] };
               return (
                 <div style={{ marginBottom: 8 }}>
@@ -720,10 +720,10 @@ export function EntryView({ entryId }: { entryId: string }) {
                   ))}
                 </div>
               );
-            })()}
+            })() : null}
 
             {/* Situation Injection — placeholder for t/490 */}
-            {(diag as Record<string, unknown> | undefined)?.situation_injection_trace && (() => {
+            {(diag as Record<string, unknown> | undefined)?.situation_injection_trace ? (() => {
               const sit = (diag as Record<string, unknown>).situation_injection_trace as { considered: number; excluded: number; excluded_situations?: { situation_id: string; exclusion_similarity: number }[] };
               return (
                 <div>
@@ -739,7 +739,7 @@ export function EntryView({ entryId }: { entryId: string }) {
                   ))}
                 </div>
               );
-            })()}
+            })() : null}
           </CollapsibleSection>
         );
       })()}
@@ -748,7 +748,7 @@ export function EntryView({ entryId }: { entryId: string }) {
       <QbafClaimStrengthSection entryId={entryId} activeDebate={activeDebate} />
 
       {/* Context Usage Analysis — injected vs referenced */}
-      {entry?.metadata?.injection_manifest && (
+      {entry?.metadata?.injection_manifest ? (
         <CollapsibleSection title="Context Usage Analysis">
           {(() => {
             const manifest = entry.metadata.injection_manifest as { povNodeIds: string[]; povPrimaryIds: string[]; situationNodeIds: string[]; vulnerabilityCount: number; policyCount: number; totalTokenEstimate: number };
@@ -791,7 +791,7 @@ export function EntryView({ entryId }: { entryId: string }) {
                   </div>
                 </div>
                 {/* Policymaker situation boost (t/251) */}
-                {(manifest as Record<string, unknown>).policymaker_situation_boost && (() => {
+                {(manifest as Record<string, unknown>).policymaker_situation_boost ? (() => {
                   const psb = (manifest as Record<string, unknown>).policymaker_situation_boost as { boosted: number; keywords_matched?: string[] };
                   return (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
@@ -807,9 +807,9 @@ export function EntryView({ entryId }: { entryId: string }) {
                       )}
                     </div>
                   );
-                })()}
+                })() : null}
                 {/* Scope Filter Trace (10.5) */}
-                {(manifest as Record<string, unknown>).scope_filter_trace && (() => {
+                {(manifest as Record<string, unknown>).scope_filter_trace ? (() => {
                   const sft = (manifest as Record<string, unknown>).scope_filter_trace as {
                     demoted: { nodeId: string; reason: string; originalScore: number; newScore: number }[];
                     restorations: string[];
@@ -835,7 +835,7 @@ export function EntryView({ entryId }: { entryId: string }) {
                       })}
                     </div>
                   );
-                })()}
+                })() : null}
                 {/* Per-situation divergence scores (t/254) */}
                 {injectedSit.length > 0 && (() => {
                   const sitNodes = useTaxonomyStore.getState().situations?.nodes;
@@ -877,10 +877,10 @@ export function EntryView({ entryId }: { entryId: string }) {
             );
           })()}
         </CollapsibleSection>
-      )}
+      ) : null}
 
       {/* Synthesis Preferences — show political_feasibility + implementation_specificity scores (t/251) */}
-      {entry.type === 'concluding' && (meta?.synthesis as Record<string, unknown> | undefined)?.preferences && (() => {
+      {entry.type === 'concluding' && (meta?.synthesis as Record<string, unknown> | undefined)?.preferences ? (() => {
         const prefs = (meta!.synthesis as Record<string, unknown>).preferences as { conflict: string; prevails: string; criterion: string; rationale: string }[];
         const policymakerCriteria = ['political_feasibility', 'implementation_specificity'];
         const hasPolicymaker = prefs.some(p => policymakerCriteria.includes(p.criterion));
@@ -910,7 +910,7 @@ export function EntryView({ entryId }: { entryId: string }) {
             </div>
           </CollapsibleSection>
         );
-      })()}
+      })() : null}
 
       {/* Taxonomy Context */}
       {diag?.taxonomy_context && (
@@ -953,7 +953,7 @@ export function EntryView({ entryId }: { entryId: string }) {
       )}
 
       {/* Claim Sketches */}
-      {meta?.my_claims && (meta.my_claims as { claim: string; targets: string[] }[]).length > 0 && (
+      {meta?.my_claims && (meta.my_claims as { claim: string; targets: string[] }[]).length > 0 ? (
         <CollapsibleSection title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`} defaultOpen>
           {(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => (
             <div key={i} style={{ margin: '2px 0', fontSize: '0.7rem' }}>
@@ -962,7 +962,7 @@ export function EntryView({ entryId }: { entryId: string }) {
             </div>
           ))}
         </CollapsibleSection>
-      )}
+      ) : null}
 
       {/* Policy Refs */}
       {(() => {

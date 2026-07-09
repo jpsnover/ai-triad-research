@@ -30,7 +30,7 @@ declare const __COMPONENT_VERSIONS__: Record<string, string>;
 interface OverviewTabRouterProps {
   debate: DebateSession;
   an: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] } | undefined;
-  commitments: CommitmentStore | undefined;
+  commitments: Record<string, CommitmentStore> | undefined;
   effectiveOverviewTab: OverviewTab;
   selectedEntry: string | null;
   setSelectedEntry: (id: string | null) => void;

@@ -247,7 +247,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
   generateNewsReport: async () => {
     const { activeDebate } = get();
     if (!activeDebate) return;
-    const hasSynthesis = activeDebate.transcript.some(e => e.type === 'synthesis' || e.type === 'concluding');
+    const hasSynthesis = activeDebate.transcript.some(e => (e.type as string) === 'synthesis' || e.type === 'concluding');
     if (!hasSynthesis) {
       set({ newsReportError: 'A synthesis must exist before generating a news report.' });
       return;

@@ -26,7 +26,7 @@ import { factCheckToBaseStrength } from '@lib/debate/argumentNetwork';
 import { updateConvergenceTracker } from '../../../utils/convergenceScoring';
 import { computeConvergenceSignals } from '@lib/debate/convergenceSignals';
 import { computeProcessReward } from '@lib/debate/processReward';
-import type { ProcessRewardEntry, TaxonomyRef, CrossCuttingProposal } from '@lib/debate/types';
+import type { ProcessRewardEntry, TaxonomyRef, CrossCuttingProposal, MissingArgument, TaxonomySuggestion } from '@lib/debate/types';
 import { computeTaxonomyGapAnalysis } from '@lib/debate/taxonomyGapAnalysis';
 import { computeBeliefConfidence } from '@lib/debate/beliefConfidence';
 import { computeTreePriority } from '@lib/debate/desirePriority';
@@ -46,7 +46,6 @@ export interface SynthesisSlice {
   requestProbingQuestions: () => Promise<void>;
   factCheckSelection: (selectedText: string, entryId: string) => Promise<void>;
   compressOldTranscript: () => Promise<void>;
-  generateNewsReport: () => Promise<void>;
 }
 
 export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSlice> = (set, get) => ({
@@ -277,7 +276,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
         if (maParsed?.missing_arguments && Array.isArray(maParsed.missing_arguments)) {
           const currentDebate = get().activeDebate;
           if (currentDebate) {
-            set({ activeDebate: { ...currentDebate, missing_arguments: maParsed.missing_arguments.slice(0, 5) } });
+            set({ activeDebate: { ...currentDebate, missing_arguments: maParsed.missing_arguments.slice(0, 5) as MissingArgument[] } });
           }
         }
       } catch (maErr) {
@@ -353,7 +352,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
               if (trParsed?.taxonomy_suggestions && Array.isArray(trParsed.taxonomy_suggestions)) {
                 const latestD = get().activeDebate;
                 if (latestD) {
-                  set({ activeDebate: { ...latestD, taxonomy_suggestions: trParsed.taxonomy_suggestions.slice(0, 10) } });
+                  set({ activeDebate: { ...latestD, taxonomy_suggestions: trParsed.taxonomy_suggestions.slice(0, 10) as TaxonomySuggestion[] } });
                 }
               }
             }
@@ -531,7 +530,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
       // Neutral evaluation: final checkpoint (after synthesis) — awaited to prevent
       // phase regression race (t/301): void-ing this allowed updatePhase('closed')
       // to run before the checkpoint's set() call, which then clobbered 'closed' back to 'debate'.
-      await runNeutralCheckpoint('final', get, set as any, addTranscriptEntry);
+      await runNeutralCheckpoint('final', get, set as any, addTranscriptEntry as any);
 
       // Transition phase to closed now that synthesis and all post-synthesis passes are done
       get().updatePhase('closed');
@@ -776,7 +775,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
     set({ debateActivity: `Searching the web for evidence (${model})` });
     let webContext = '';
     let searchQueries: string[] = [];
-    let webCitations: import('../../bridge/types').GroundingCitation[] = [];
+    let webCitations: import('../../../bridge/types').GroundingCitation[] = [];
     try {
       const searchResult = await api.generateTextWithSearch(
         `Fact-check this claim from an AI policy debate. Find recent, authoritative sources that support or contradict it. Be specific about what evidence you found.\n\nClaim: "${selectedText}"\n\nContext: ${statementContext.slice(0, 500)}`,
@@ -826,10 +825,10 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
         false: 'False',
       };
 
-      const sources = Array.isArray(result.sources) ? result.sources : [];
+      const sources = (Array.isArray(result.sources) ? result.sources : []) as Record<string, unknown>[];
       const sourceRefs = sources
-        .filter((s: Record<string, unknown>) => s.node_id || s.conflict_id)
-        .map((s: Record<string, unknown>) => ({
+        .filter((s) => s.node_id || s.conflict_id)
+        .map((s) => ({
           node_id: (s.node_id as string) || (s.conflict_id as string) || '',
           relevance: s.conflict_id ? `Conflict: ${s.conflict_id}` : '',
         }));
@@ -843,7 +842,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
       addTranscriptEntry({
         type: 'fact-check',
         speaker: 'system',
-        content: `**Fact Check: ${verdictLabels[result.verdict] || result.verdict}**\n\n"${selectedText}"\n\n${result.explanation}${webNote}`,
+        content: `**Fact Check: ${verdictLabels[result.verdict ?? ''] || result.verdict || 'Unknown'}**\n\n"${selectedText}"\n\n${result.explanation}${webNote}`,
         taxonomy_refs: sourceRefs,
         metadata: {
           fact_check: {

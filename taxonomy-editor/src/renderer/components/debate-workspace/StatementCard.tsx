@@ -403,7 +403,7 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
   const [flipKey, setFlipKey] = useState(0);
   const [flipping, setFlipping] = useState(false);
   const prevTierRef = useRef(activeTier);
-  const midpointTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const midpointTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const bodyRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
 

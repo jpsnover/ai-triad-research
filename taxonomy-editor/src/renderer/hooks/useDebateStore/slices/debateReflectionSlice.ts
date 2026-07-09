@@ -174,7 +174,6 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
         commitBlock || undefined,
         convBlock,
         activeDebate.audience,
-        info.doctrinal_boundaries,
         priorReflections.length > 0 ? priorReflections : undefined,
       );
 
@@ -459,6 +458,7 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
               debate_ref_count: createdNode.debate_refs?.length ?? 0,
               supports_received: 0,
               attacks_received: 0,
+              assumes_received: 0,
             });
             taxStore.updatePovNode(povKey, newId, {
               confidence,
@@ -605,7 +605,7 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
     }
 
     getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'applyReflectionEdit.result', data: { ok: true, pover, editIndex, edit_type: edit.edit_type, node_id: edit.node_id, enrichNodeId, duration_ms: duration } });
-    trackDebateExtraction(get().activeDebateId ?? undefined, edit.edit_type, edit.node_id);
+    trackDebateExtraction(get().activeDebateId ?? undefined, edit.edit_type, edit.node_id ?? '');
     const freshReflections = get().reflections;
     const updated = freshReflections.map(r => {
       if (r.pover !== pover) return r;

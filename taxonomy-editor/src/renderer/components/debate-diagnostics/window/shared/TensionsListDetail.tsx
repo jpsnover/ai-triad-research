@@ -32,8 +32,8 @@ export function TensionsListDetail({ content }: { content: string }) {
     const map = new Map<string, string>();
     if (!edgesFile?.edges) return map;
     for (const e of edgesFile.edges) {
-      map.set(`${e.source}|${e.target}|${e.type}`, e.rationale);
-      if (e.bidirectional) map.set(`${e.target}|${e.source}|${e.type}`, e.rationale);
+      map.set(`${e.source ?? ''}|${e.target ?? ''}|${e.type}`, e.rationale ?? '');
+      if (e.bidirectional) map.set(`${e.target ?? ''}|${e.source ?? ''}|${e.type}`, e.rationale ?? '');
     }
     return map;
   }, [edgesFile]);

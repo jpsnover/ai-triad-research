@@ -704,7 +704,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
         {onExport && (
           <ExportButtonInline onExport={onExport} />
         )}
-        <ShareToCommunityButton debate={activeDebate} />
+        <ShareToCommunityButton debate={activeDebate as unknown as { id: string; topic: string; transcript: unknown[] }} />
         <button
           className={`btn btn-sm debate-diag-btn${diagnosticsEnabled ? ' active' : ''}`}
           onClick={toggleDiagnostics}
@@ -862,14 +862,17 @@ export function DebateWorkspace({ onExport, exportStatus }: {
           if (entry.type === 'clarification') return null;
 
           // Phase transition hairlines — detect phase boundaries in the transcript
-          const prevVisibleIdx = activeDebate.transcript.slice(0, idx).findLastIndex(e => e.type !== 'clarification');
-          const prevType = prevVisibleIdx >= 0 ? activeDebate.transcript[prevVisibleIdx].type : null;
+          let prevVisibleIdx = -1;
+          for (let i = idx - 1; i >= 0; i--) {
+            if (activeDebate.transcript[i].type !== 'clarification') { prevVisibleIdx = i; break; }
+          }
+          const prevType: string | null = prevVisibleIdx >= 0 ? activeDebate.transcript[prevVisibleIdx].type : null;
           let hairline: React.ReactNode = null;
           if (entry.type === 'opening' && prevType !== 'opening') {
             hairline = <PhaseHairline key={`hairline-opening-${idx}`} label="Opening Statements" />;
-          } else if ((entry.type === 'statement' || entry.type === 'cross_respond') && prevType !== 'statement' && prevType !== 'cross_respond' && prevType !== 'probing' && prevType !== 'fact-check' && prevType !== 'system' && prevType !== 'question') {
+          } else if (((entry.type as string) === 'statement' || (entry.type as string) === 'cross_respond') && prevType !== 'statement' && prevType !== 'cross_respond' && prevType !== 'probing' && prevType !== 'fact-check' && prevType !== 'system' && prevType !== 'question') {
             hairline = <PhaseHairline key={`hairline-debate-${idx}`} label="Cross-Examination" />;
-          } else if ((entry.type === 'synthesis' || entry.type === 'concluding') && prevType !== 'synthesis' && prevType !== 'concluding') {
+          } else if (((entry.type as string) === 'synthesis' || entry.type === 'concluding') && prevType !== 'synthesis' && prevType !== 'concluding') {
             hairline = <PhaseHairline key={`hairline-synthesis-${idx}`} label="Synthesis" />;
           }
 

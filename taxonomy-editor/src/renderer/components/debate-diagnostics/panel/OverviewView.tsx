@@ -436,7 +436,7 @@ export function OverviewView() {
       if (inflightRef.current.has(key) || plainPreviews[key] !== undefined) continue;
       inflightRef.current.add(key);
       setPreviewLoading(prev => ({ ...prev, [key]: true }));
-      void generatePlainPreview(sug.proposed_description).then(text => {
+      void generatePlainPreview(sug.proposed_description ?? '').then(text => {
         setPlainPreviews(prev => ({ ...prev, [key]: text }));
         setPreviewLoading(prev => ({ ...prev, [key]: false }));
       });

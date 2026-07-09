@@ -101,7 +101,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
                     padding: '1px 6px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600,
                     background: 'color-mix(in srgb, var(--danger) 15%, transparent)', color: 'var(--danger)',
                   }}>{evt.error.name}</span>
-                  {data?.speaker && (
+                  {!!data?.speaker && (
                     <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                       {String(data.speaker)}{data.round ? ` R${data.round}` : ''}
                     </span>
@@ -127,7 +127,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
         </Section>
       )}
       {/* Per-turn utility delta for this speaker */}
-      {(() => {
+      {((): React.ReactNode => {
         const turnSnap = perTurnUtilities?.find(s => s.entryId === entry.id);
         if (!turnSnap) return null;
         const snapIdx = perTurnUtilities.indexOf(turnSnap);
@@ -304,7 +304,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
       })()}
 
       {/* Suppressed Intervention */}
-      {suppressedIntervention && (
+      {suppressedIntervention ? (
         <div style={{
           marginBottom: 10, padding: '8px 10px', borderRadius: 6,
           background: 'color-mix(in srgb, var(--warning) 8%, transparent)',
@@ -355,10 +355,10 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
             </div>
           )}
         </div>
-      )}
+      ) : null}
 
       {/* Dialectical Moves */}
-      {meta?.move_types && (
+      {!!meta?.move_types && (
         <Section title={`Dialectical Moves — ${(meta.move_types as (string | MoveAnnotation)[]).map(m => getMoveName(m)).join(', ')}`} defaultOpen copyText={`Moves: ${(meta.move_types as (string | MoveAnnotation)[]).map(m => getMoveName(m)).join(', ')}${meta.disagreement_type ? `\nType: ${meta.disagreement_type}` : ''}`}>
           {(() => {
             const acceptedIds = new Set(diag?.extracted_claims?.accepted.map(c => c.id) ?? []);
@@ -381,7 +381,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
                   if (!seen.has(e.target)) {
                     seen.add(e.target);
                     const tNode = an?.nodes?.find(n => n.id === e.target);
-                    inferredTargets.push({ id: e.target, type: e.type, text: tNode?.text });
+                    inferredTargets.push({ id: e.target, type: (e.type === 'revoice_of' ? 'supports' : e.type) as 'supports' | 'attacks', text: tNode?.text });
                   }
                 }
                 if (inferredTargets.length === 0) {
@@ -425,7 +425,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
               );
             });
           })()}
-          {meta.disagreement_type && <div style={{ marginTop: 4 }}>Type: <strong>{meta.disagreement_type as string}</strong></div>}
+          {meta.disagreement_type ? <div style={{ marginTop: 4 }}>Type: <strong>{String(meta.disagreement_type)}</strong></div> : null}
         </Section>
       )}
 
@@ -479,14 +479,14 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
       )}
 
       {/* Edges Used */}
-      {(diag as Record<string, unknown>)?.edges_used && ((diag as Record<string, unknown>).edges_used as { source: string; target: string; type: string; confidence: number }[]).length > 0 && (
+      {!!(diag as Record<string, unknown>)?.edges_used && ((diag as Record<string, unknown>).edges_used as { source: string; target: string; type: string; confidence: number }[]).length > 0 && (
         <Section title={`Edges Used (${((diag as Record<string, unknown>).edges_used as unknown[]).length})`} defaultOpen copyText={((diag as Record<string, unknown>).edges_used as { source: string; target: string; type: string; confidence: number }[]).map(e => `${e.source} ${e.type} ${e.target} (${(e.confidence ?? 0).toFixed(2)})`).join('\n')}>
           <EdgesUsedGrouped edges={(diag as Record<string, unknown>).edges_used as { source: string; target: string; type: string; confidence: number }[]} allEdges={allEdges} taxNodeMap={taxNodeMap} nodeLabels={nodeLabels} />
         </Section>
       )}
 
       {/* Key Assumptions */}
-      {meta?.key_assumptions && (meta.key_assumptions as { assumption: string; if_wrong: string }[]).length > 0 && (
+      {!!meta?.key_assumptions && (meta.key_assumptions as { assumption: string; if_wrong: string }[]).length > 0 && (
         <Section title={`Key Assumptions (${(meta.key_assumptions as unknown[]).length})`} defaultOpen copyText={(meta.key_assumptions as { assumption: string; if_wrong: string }[]).map(a => `Assumes: ${a.assumption}\nIf wrong: ${a.if_wrong}`).join('\n\n')}>
           {(meta.key_assumptions as { assumption: string; if_wrong: string }[]).map((a, i) => (
             <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid var(--border)' }}>

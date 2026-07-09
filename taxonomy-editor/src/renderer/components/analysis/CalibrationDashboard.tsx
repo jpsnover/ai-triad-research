@@ -63,7 +63,7 @@ function MetricChart({ entries, metricKey, label, color }: {
 }) {
   const { tip, showTip, hideTip } = useChartTooltip();
   const data = entries
-    .map((e, i) => ({ idx: i, value: (e as Record<string, unknown>)[metricKey] as number | null }))
+    .map((e, i) => ({ idx: i, value: (e as unknown as Record<string, unknown>)[metricKey] as number | null }))
     .filter((d): d is { idx: number; value: number } => d.value !== null && typeof d.value === 'number');
 
   if (data.length < 2) return null;

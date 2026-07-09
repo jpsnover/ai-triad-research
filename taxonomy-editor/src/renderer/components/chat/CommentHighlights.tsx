@@ -46,7 +46,7 @@ export function CommentHighlightedText({ text, entryId, activeTier }: CommentHig
     if (searchText.trim()) {
       const q = searchText.trim().toLowerCase();
       comments = comments.filter(c =>
-        c.body.toLowerCase().includes(q)
+        c.body?.toLowerCase().includes(q)
         || c.textRange.selectedText.toLowerCase().includes(q)
         || c.author.toLowerCase().includes(q),
       );
@@ -214,7 +214,7 @@ export function useHasCommentHighlights(entryId: string, activeTier: DetailTier)
     if (searchText.trim()) {
       const q = searchText.trim().toLowerCase();
       comments = comments.filter(c =>
-        c.body.toLowerCase().includes(q)
+        c.body?.toLowerCase().includes(q)
         || c.textRange.selectedText.toLowerCase().includes(q)
         || c.author.toLowerCase().includes(q),
       );

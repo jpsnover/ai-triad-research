@@ -40,7 +40,7 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
   return (
     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
       {/* Low-value claims filter banner (anti-filibustering, t/22) */}
-      {(() => {
+      {((): React.ReactNode => {
         const lvr = (extTrace?.rejection_reasons as Record<string, number> | undefined)?.low_marginal_value;
         if (!lvr || lvr <= 0) return null;
         return (
@@ -54,7 +54,7 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
           </div>
         );
       })()}
-      {meta?.my_claims && (meta.my_claims as { claim: string; targets: string[] }[]).length > 0 && (
+      {!!meta?.my_claims && (meta.my_claims as { claim: string; targets: string[] }[]).length > 0 && (
         <Section title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`} defaultOpen copyText={(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => `${i + 1}. ${c.claim}${c.targets?.length > 0 ? ` → ${c.targets.join(', ')}` : ''}`).join('\n')}>
           {(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => (
             <div key={i} style={{ margin: '3px 0', fontSize: '0.7rem' }}>
@@ -252,7 +252,7 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
                   );
                 })()}
                 {repair && repair.verdict !== 'entailed' && repair.repaired_text && (
-                  <div style={{ paddingLeft: 20, marginTop: 6, marginBottom: 4, padding: '6px 8px', borderRadius: 4, background: repair.verdict === 'entailed' ? 'color-mix(in srgb, var(--success) 8%, transparent)' : repair.verdict === 'partial' ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'color-mix(in srgb, var(--danger) 8%, transparent)', border: repair.verdict === 'entailed' ? '1px solid color-mix(in srgb, var(--success) 20%, transparent)' : repair.verdict === 'partial' ? '1px solid color-mix(in srgb, var(--warning) 20%, transparent)' : '1px solid color-mix(in srgb, var(--danger) 20%, transparent)' }}>
+                  <div style={{ paddingLeft: 20, marginTop: 6, marginBottom: 4, padding: '6px 8px', borderRadius: 4, background: (repair.verdict as string) === 'entailed' ? 'color-mix(in srgb, var(--success) 8%, transparent)' : repair.verdict === 'partial' ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'color-mix(in srgb, var(--danger) 8%, transparent)', border: (repair.verdict as string) === 'entailed' ? '1px solid color-mix(in srgb, var(--success) 20%, transparent)' : repair.verdict === 'partial' ? '1px solid color-mix(in srgb, var(--warning) 20%, transparent)' : '1px solid color-mix(in srgb, var(--danger) 20%, transparent)' }}>
                     <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: verdictColor!, marginBottom: 4 }}>
                       Entailment Repair ({repair.verdict})
                     </div>

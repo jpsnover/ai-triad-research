@@ -21,6 +21,7 @@ import { usePromptConfigStore } from '../../usePromptConfigStore';
 import { mapErrorToUserMessage } from '../../../utils/errorMessages';
 import { formatSituationDebateContext } from '../../../prompts/debate';
 import { normalizeBdiLayer } from '@lib/debate';
+import { interpretationText } from '@lib/debate/taxonomyTypes';
 import { generateId, nowISO } from '@lib/debate/helpers';
 import type { MoveAnnotation } from '@lib/debate/helpers';
 import { getMoveName } from '@lib/debate/helpers';
@@ -186,7 +187,11 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       id: ccNode.id,
       label: ccNode.label,
       description: ccNode.description,
-      interpretations: ccNode.interpretations,
+      interpretations: {
+        accelerationist: interpretationText(ccNode.interpretations.accelerationist),
+        safetyist: interpretationText(ccNode.interpretations.safetyist),
+        skeptic: interpretationText(ccNode.interpretations.skeptic),
+      },
       assumes: attrs?.assumes as string[] | undefined,
       steelmanVulnerability: attrs?.steelman_vulnerability as string | undefined,
       possibleFallacies: attrs?.possible_fallacies as { fallacy: string; confidence: string; explanation: string }[] | undefined,
@@ -276,7 +281,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       }
       if (session.argument_network?.nodes) {
         for (const node of session.argument_network.nodes) {
-          node.speaker = migrateSpeakerId(node.speaker);
+          node.speaker = migrateSpeakerId(node.speaker) as typeof node.speaker;
         }
       }
 
@@ -307,12 +312,12 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
         });
       }
       usePromptConfigStore.getState().loadSessionConfig(
-        (session as Record<string, unknown>).prompt_config as Record<string, number | boolean | string> | undefined
+        (session as unknown as Record<string, unknown>).prompt_config as Record<string, number | boolean | string> | undefined
       );
       api.setDebateTemperature(session.debate_temperature ?? null).catch((err: unknown) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'setDebateTemperature failed (non-critical)', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); });
       try { api.sendDiagnosticsState({ debate: session, selectedEntry: null }); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: id, component: 'debate-store', level: 'warn', message: 'Diagnostics broadcast to popout failed (loadDebate)', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
       getGlobalRecorder()?.setEventContext({ debate_id: id, run_id: runId });
-      getGlobalRecorder()?.record({ type: 'state.load', component: 'debate-store', level: 'info', debate_id: id, run_id: runId, message: 'Debate loaded', data: { phase: session.phase, transcript_length: session.transcript.length, an_nodes: (session as Record<string, unknown>).argument_network ? ((session as Record<string, unknown>).argument_network as { nodes?: unknown[] }).nodes?.length ?? 0 : 0 } });
+      getGlobalRecorder()?.record({ type: 'state.load', component: 'debate-store', level: 'info', debate_id: id, run_id: runId, message: 'Debate loaded', data: { phase: session.phase, transcript_length: session.transcript.length, an_nodes: (session as unknown as Record<string, unknown>).argument_network ? ((session as unknown as Record<string, unknown>).argument_network as { nodes?: unknown[] }).nodes?.length ?? 0 : 0 } });
       getGlobalRecorder()?.record({ type: 'debate.phase', component: 'debate-store', level: 'info', debate_id: id, run_id: runId, message: 'debate.start', data: { phase: session.phase, topic: session.topic.final, povers: session.active_povers, protocol: session.protocol_id, model: session.debate_model, transcript_length: session.transcript.length, resumed: true } });
 
       if (session.interrupted_turn) {
@@ -362,7 +367,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     }
     if (session.argument_network?.nodes) {
       for (const node of session.argument_network.nodes) {
-        node.speaker = migrateSpeakerId(node.speaker);
+        node.speaker = migrateSpeakerId(node.speaker) as typeof node.speaker;
       }
     }
     for (const entry of session.transcript) {
@@ -647,7 +652,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     try {
       const promptConfig = usePromptConfigStore.getState().exportSessionConfig();
       if (Object.keys(promptConfig).length > 0) {
-        (activeDebate as Record<string, unknown>).prompt_config = promptConfig;
+        (activeDebate as unknown as Record<string, unknown>).prompt_config = promptConfig;
       }
 
       const overview = activeDebate.diagnostics?.overview;

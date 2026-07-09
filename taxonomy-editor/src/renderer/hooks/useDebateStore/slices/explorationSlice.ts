@@ -41,8 +41,11 @@ function seedExplorationIntoDebate(
         disagreement_type: c.disagreement_type,
         state: c.state,
         speakers_involved: c.speakers_involved,
-        introduced_round: 0,
-        resolution_round: null,
+        identified_turn: 0,
+        history: [],
+        attacking_claim_ids: [],
+        last_computed_strength: 0.5,
+        support_polarity: 0,
       })),
     },
   });

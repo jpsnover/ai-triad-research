@@ -19,7 +19,7 @@ const DEFAULT_COMMUNITY_SERVER_URL = 'https://taxonomy-editor.yellowbush-aeda037
 
 export type ColorScheme = 'light' | 'dark' | 'bkc' | 'harvard' | 'system';
 
-export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai' | 'deepseek' | 'ollama';
+export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai' | 'deepseek' | 'azure' | 'ollama' | 'zai';
 
 export type GeminiModel =
   | 'gemini-flash-lite-latest'
@@ -51,10 +51,19 @@ export type DeepSeekModel =
   | 'deepseek-chat'
   | 'deepseek-reasoner';
 
+export type AzureModel =
+  | 'azure-gpt-4o'
+  | 'azure-gpt-4o-mini'
+  | 'azure-gpt-4.1'
+  | 'azure-gpt-4.1-mini';
+
 export type OllamaModel =
   | 'ollama-gemma4-e4b-it-q4-k-m';
 
-export type AIModel = GeminiModel | ClaudeModel | GroqModel | OpenAIModel | DeepSeekModel | OllamaModel;
+export type ZAIModel =
+  | 'zai-glm-5-2';
+
+export type AIModel = GeminiModel | ClaudeModel | GroqModel | OpenAIModel | DeepSeekModel | AzureModel | OllamaModel | ZAIModel;
 
 export interface AIModelEntry { value: AIModel; label: string }
 
@@ -66,7 +75,9 @@ export const AI_BACKENDS: { value: AIBackend; label: string }[] = [
   { value: 'groq', label: 'Groq' },
   { value: 'openai', label: 'OpenAI' },
   { value: 'deepseek', label: 'DeepSeek' },
+  { value: 'azure', label: 'Azure OpenAI' },
   { value: 'ollama', label: 'Ollama (Local)' },
+  { value: 'zai', label: 'Z.AI (GLM)' },
 ];
 
 export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
@@ -96,8 +107,17 @@ export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
     { value: 'deepseek-chat', label: 'DeepSeek V3 (default)' },
     { value: 'deepseek-reasoner', label: 'DeepSeek R1 (reasoning)' },
   ],
+  azure: [
+    { value: 'azure-gpt-4o', label: 'GPT-4o' },
+    { value: 'azure-gpt-4o-mini', label: 'GPT-4o Mini' },
+    { value: 'azure-gpt-4.1', label: 'GPT-4.1' },
+    { value: 'azure-gpt-4.1-mini', label: 'GPT-4.1 Mini' },
+  ],
   ollama: [
     { value: 'ollama-gemma4-e4b-it-q4-k-m', label: 'Gemma 4 E4B (default)' },
+  ],
+  zai: [
+    { value: 'zai-glm-5-2', label: 'GLM 5.2' },
   ],
 };
 
@@ -114,7 +134,9 @@ const DEFAULT_MODELS: Record<AIBackend, AIModel> = {
   groq: 'groq-llama-4-scout-17b-16e',
   openai: 'openai-gpt-5.5',
   deepseek: 'deepseek-chat',
+  azure: 'azure-gpt-4o',
   ollama: 'ollama-gemma4-e4b-it-q4-k-m',
+  zai: 'zai-glm-5-2',
 };
 
 export let DEBATE_TIERS: Record<string, Record<string, string>> = {};
@@ -125,7 +147,7 @@ export let FALLBACK_CHAINS: Record<string, string[]> = {};
 function getStoredBackend(): AIBackend {
   try {
     const stored = localStorage.getItem('taxonomy-editor-ai-backend');
-    if (stored === 'gemini' || stored === 'claude' || stored === 'groq' || stored === 'openai' || stored === 'deepseek' || stored === 'ollama') return stored;
+    if (stored === 'gemini' || stored === 'claude' || stored === 'groq' || stored === 'openai' || stored === 'deepseek' || stored === 'azure' || stored === 'ollama' || stored === 'zai') return stored;
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read stored AI backend from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
   }
@@ -196,7 +218,11 @@ export function backendForModel(model: string): AIBackend {
   if (model.startsWith('gemini')) return 'gemini';
   if (model.startsWith('claude')) return 'claude';
   if (model.startsWith('groq')) return 'groq';
+  if (model.startsWith('openai')) return 'openai';
+  if (model.startsWith('deepseek')) return 'deepseek';
+  if (model.startsWith('azure')) return 'azure';
   if (model.startsWith('ollama')) return 'ollama';
+  if (model.startsWith('zai')) return 'zai';
   return 'gemini';
 }
 

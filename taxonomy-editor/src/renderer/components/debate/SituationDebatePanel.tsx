@@ -78,11 +78,11 @@ export function SituationDebatePanel({ node, onLaunched }: SituationDebatePanelP
       const session = store.activeDebate;
       if (session) {
         if (effectiveModel) session.debate_model = effectiveModel;
-        if (pacing !== 'moderate') (session as Record<string, unknown>).pacing = pacing;
-        if (useAdaptiveStaging) (session as Record<string, unknown>).adaptive_staging = true;
-        if (temperature !== 0.7) (session as Record<string, unknown>).temperature = temperature;
-        if (audience !== 'policymakers') (session as Record<string, unknown>).audience = audience;
-        if (protocolId !== 'structured') (session as Record<string, unknown>).protocol_id = protocolId;
+        if (pacing !== 'moderate') (session as unknown as Record<string, unknown>).pacing = pacing;
+        if (useAdaptiveStaging) (session as unknown as Record<string, unknown>).adaptive_staging = true;
+        if (temperature !== 0.7) (session as unknown as Record<string, unknown>).temperature = temperature;
+        if (audience !== 'policymakers') (session as unknown as Record<string, unknown>).audience = audience;
+        if (protocolId !== 'structured') (session as unknown as Record<string, unknown>).protocol_id = protocolId;
         await store.saveDebate();
       }
 
@@ -178,7 +178,7 @@ export function SituationDebatePanel({ node, onLaunched }: SituationDebatePanelP
             Custom model
           </label>
           {useCustomModel ? (
-            <select className="sit-debate-model-select" value={customModel} onChange={(e) => setCustomModel(e.target.value)}>
+            <select className="sit-debate-model-select" value={customModel} onChange={(e) => setCustomModel(e.target.value as typeof customModel)}>
               {availableModels.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
             </select>
           ) : (
