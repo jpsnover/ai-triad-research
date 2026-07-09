@@ -33,7 +33,7 @@ export const api: AppAPI = {
   saveTaxonomyFile: (pov, data) => window.electronAPI.saveTaxonomyFile(pov, data),
   loadPolicyRegistry: () => window.electronAPI.loadPolicyRegistry(),
   loadLineageCategories: () => window.electronAPI.loadLineageCategories(),
-  loadLineageInfo: () => (window.electronAPI as Record<string, unknown> & typeof window.electronAPI).loadLineageInfo() as Promise<Record<string, unknown>>,
+  loadLineageInfo: () => window.electronAPI.loadLineageInfo(),
   loadEdges: () => window.electronAPI.loadEdges(),
   getEdgeDetail: (index) => window.electronAPI.getEdgeDetail(index),
   updateEdgeStatus: (i, s) => window.electronAPI.updateEdgeStatus(i, s),
@@ -180,15 +180,15 @@ export const api: AppAPI = {
   harvestSaveManifest: (m) => window.electronAPI.harvestSaveManifest(m),
 
   // Dictionary
-  loadDictionary: () => (window.electronAPI as Record<string, unknown> & typeof window.electronAPI).loadDictionary() as Promise<{ standardized: unknown[]; colloquial: unknown[]; lintViolations: unknown[] }>,
+  loadDictionary: () => window.electronAPI.loadDictionary(),
 
   // Proposals
-  listProposals: () => (window.electronAPI as Record<string, unknown> & typeof window.electronAPI).listProposals() as Promise<unknown[]>,
-  saveProposal: (f, d) => (window.electronAPI as Record<string, unknown> & typeof window.electronAPI).saveProposal(f, d) as Promise<{ saved?: boolean; error?: string }>,
+  listProposals: () => window.electronAPI.listProposals(),
+  saveProposal: (f, d) => window.electronAPI.saveProposal(f, d),
 
   // PowerShell prompts
-  readPsPrompt: (name) => (window.electronAPI as Record<string, unknown> & typeof window.electronAPI).readPsPrompt(name) as Promise<{ text: string | null; error?: string }>,
-  listPsPrompts: () => (window.electronAPI as Record<string, unknown> & typeof window.electronAPI).listPsPrompts() as Promise<string[]>,
+  readPsPrompt: (name) => window.electronAPI.readPsPrompt(name),
+  listPsPrompts: () => window.electronAPI.listPsPrompts(),
 
   // Research file access
   readResearchFile: (relativePath) => window.electronAPI.readResearchFile(relativePath),
@@ -290,7 +290,7 @@ export const api: AppAPI = {
   // File operations
   fetchUrlContent: (url) => window.electronAPI.fetchUrlContent(url),
   pickDocumentFile: () => window.electronAPI.pickDocumentFile(),
-  clipboardWriteText: (text) => (window.electronAPI as Record<string, unknown> & typeof window.electronAPI).clipboardWriteText(text) as Promise<void>,
+  clipboardWriteText: (text) => window.electronAPI.clipboardWriteText(text),
 
   // Window control
   growWindow: (d) => window.electronAPI.growWindow(d),
