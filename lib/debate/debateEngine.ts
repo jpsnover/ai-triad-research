@@ -123,6 +123,7 @@ import {
   wordOverlap,
 } from './helpers.js';
 import { computeCoverageMap, computeStrengthWeightedCoverage } from './coverageTracker.js';
+import { loadCoverageMap } from './corpusCoverage.js';
 import { computeTaxonomyGapAnalysis } from './taxonomyGapAnalysis.js';
 import { checkClaimExclusionBoundary, checkDraftScopeBoundary, filterByExclusionAbsolute, EXCLUSION_RATIO_THRESHOLD, SCOPE_BOUNDARY_THRESHOLD } from './exclusionGuard.js';
 import { ActionableError } from './errors.js';
@@ -256,6 +257,8 @@ export interface DebateConfig {
   enableInsularityIntervention?: boolean;
   /** Enable stagnation-gated diversity-injection round (t/1280). Off by default — experiment flag. */
   enableDiversityRound?: boolean;
+  /** Enable corpus-coverage anti-recurrence: downweight retread nodes, boost underexplored tail (t/1438). */
+  enableCorpusCoverage?: boolean;
   /** Exploration summary from a prior cheap-engine run — seeds cruxes, situations, AN priming, and config overrides. */
   explorationSummary?: import('./explorationSummary.js').ExplorationSummary;
   /** Use restructured BRIEF prompt (YOUR TASK → REFERENCE → CURRENT STATE) instead of inline context. Experiment flag (t/1029). */
@@ -2167,7 +2170,33 @@ export class DebateEngine {
       };
     }
 
+    // Load corpus coverage map when enabled (t/1438)
+    if (this.config.enableCorpusCoverage) {
+      try {
+        const __dir = path.dirname(fileURLToPath(import.meta.url));
+        const repoRoot = resolveRepoRoot(__dir);
+        const dataRoot = resolveDataRoot(repoRoot);
+        const coverageMap = loadCoverageMap(dataRoot);
+        if (coverageMap) {
+          relevanceOpts.corpusCoverage = { nodeStats: coverageMap.node_stats };
+        }
+      } catch (err) {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Corpus coverage map load failed — proceeding without', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      }
+    }
+
     const scoredPovRaw = selectRelevantNodes(ctx.povNodes, scores, relevanceOpts);
+
+    // Log corpus coverage adjustments (t/1438)
+    const ccResult = (scoredPovRaw as ScoredPovNode[] & { _corpusCoverage?: { downweightedCount: number; boostedCount: number; downweightedNodeIds: string[]; boostedNodeIds: string[] } })._corpusCoverage;
+    if (ccResult && (ccResult.downweightedCount > 0 || ccResult.boostedCount > 0)) {
+      getGlobalRecorder()?.record({
+        type: 'turn.taxonomy_inject', component: 'debate-engine', level: 'info',
+        message: `Corpus coverage: ${ccResult.downweightedCount} retreads downweighted, ${ccResult.boostedCount} nodes boosted`,
+        data: ccResult,
+      });
+    }
+
     const constraintFilter = filterByTopicConstraints(scoredPovRaw, this.session.topic.scope);
     const scoredPov = constraintFilter.nodes;
 
