@@ -7,6 +7,13 @@
   gap: var(--sp-3);
 }
 
+.nd-header-title > span.nd-header-label {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
 .nd-header-meta {
   display: flex;
   align-items: center;

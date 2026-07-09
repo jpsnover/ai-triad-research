@@ -137,7 +137,7 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
       <div className="nd-header">
         <div className="nd-header-title">
           {readOnly ? (
-            <span className="nd-header-label">{node.label}</span>
+            <span className="nd-header-label" title={node.label}>{node.label}</span>
           ) : (
             <input
               className={`nd-header-label nd-header-label-editable ${err('label') ? 'has-error' : ''}`}
@@ -145,6 +145,7 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
               onChange={(e) => update({ label: e.target.value })}
               placeholder="Label"
               aria-label="Label"
+              title={node.label}
             />
           )}
           <span className="nd-header-id">{node.id}</span>
