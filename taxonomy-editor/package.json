@@ -40,7 +40,7 @@
     "depgraph:reverse": "node scripts/depgraph.mjs --reverse",
     "depgraph:orphans": "node scripts/depgraph.mjs --orphans",
     "depcruise": "depcruise --config .dependency-cruiser.cjs src/ ../lib/",
-    "verify": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.server.json --noEmit && eslint src/ --max-warnings=4256 && npm run depcruise && vitest run && vite build"
+    "verify": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.server.json --noEmit && bash scripts/check-renderer-tsc.sh && eslint src/ --max-warnings=4256 && npm run depcruise && vitest run && vite build"
   },
   "dependencies": {
     "@azure/identity": "^4.13.1",

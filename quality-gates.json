@@ -6,5 +6,8 @@
     "taxonomy-editor/src/renderer/styles.css": 17800,
     "lib/debate/prompts.ts": 4650
   },
-  "max_file_bytes": 5242880
+  "max_file_bytes": 5242880,
+  "tsc_error_ceilings": {
+    "taxonomy-editor/tsconfig.json": 463
+  }
 }
