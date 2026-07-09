@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 
 const { getEdgeDetail, record } = vi.hoisted(() => ({ getEdgeDetail: vi.fn(), record: vi.fn() }));
 
@@ -65,6 +65,20 @@ describe('EdgeDetailPanel (t/1009)', () => {
     expect(screen.getByText('inline rationale text')).toBeDefined();
     expect(screen.getByText('80%')).toBeDefined();
     expect(getEdgeDetail).not.toHaveBeenCalled();
+  });
+
+  it('navigates when a node link is clicked without crashing (t/1412 regression)', () => {
+    // Regression: handleNavigate called the removed nodePovFromId, crashing on click.
+    const edge = makeEdge({ rationale: 'x' }); // source acc-belief-001
+    storeValue.selectedEdge = edge;
+    storeValue.edgesFile = { edges: [edge], edge_types: EDGE_TYPES };
+
+    render(<EdgeDetailPanel />);
+    fireEvent.click(screen.getByText('L:acc-belief-001')); // source endpoint label
+
+    expect(storeValue.setActiveTab).toHaveBeenCalledWith('accelerationist');
+    expect(storeValue.setSelectedNodeId).toHaveBeenCalledWith('acc-belief-001');
+    expect(storeValue.showRelatedEdges).toHaveBeenCalledWith('acc-belief-001');
   });
 
   it('fetches rationale on demand when it is missing from the selected edge', async () => {

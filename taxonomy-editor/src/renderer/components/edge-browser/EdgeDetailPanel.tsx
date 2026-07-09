@@ -176,7 +176,7 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
   const typeDef = edgesFile?.edge_types.find((t) => t.type === edge.type);
 
   const handleNavigate = (nodeId: string) => {
-    const pov = nodePovFromId(nodeId);
+    const pov = povKeyFromNodeId(nodeId);
     const tab = (pov as 'accelerationist' | 'safetyist' | 'skeptic' | 'situations') || 'situations';
     setActiveTab(tab);
     setSelectedNodeId(nodeId);
