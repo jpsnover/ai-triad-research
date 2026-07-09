@@ -133,9 +133,9 @@ export function EntryView({ entryId }: { entryId: string }) {
         <span className="diag-entry-type">{entry.type}</span>
         <button
           onClick={() => { void api.clipboardWriteText(entryId); }}
-          style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontFamily: 'monospace', background: 'none', border: '1px solid var(--border)', borderRadius: 3, padding: '1px 4px', cursor: 'pointer', opacity: 0.7 }}
+          style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontFamily: 'monospace', background: 'none', border: 'none', padding: '0 2px', cursor: 'pointer', opacity: 0.6 }}
           title={`Copy turn_id for flight recorder correlation: ${entryId}`}
-        >{entryId.slice(0, 8)}</button>
+        >…{entryId.slice(-6)} ⧉</button>
         {diag?.topic_alignment && (() => {
           const ta = diag.topic_alignment;
           const sft = (meta?.injection_manifest as Record<string, unknown> | undefined)?.scope_filter_trace as

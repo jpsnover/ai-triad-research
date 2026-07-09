@@ -936,11 +936,27 @@ export function DraftTab({
         ['Topic Aligned', wp.topic_aligned],
       ];
       const allPass = indicators.every(([, v]) => v === true);
+      // §3: if all indicators pass, collapse to a single summary line
+      if (allPass && !draftQualityStage.parse_error) {
+        return (
+          <div style={{
+            margin: '10px 0 4px', borderRadius: 4, padding: '5px 8px', fontSize: '0.7rem',
+            background: 'color-mix(in srgb, var(--success) 6%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--success) 20%, transparent)',
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <span style={{ color: 'var(--success)', fontWeight: 700, fontSize: 'var(--text-2xs)' }}>✓</span>
+            <span style={{ fontWeight: 600, fontSize: 'var(--text-2xs)' }}>Quality Pre-Check — all pass</span>
+            <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{draftQualityStage.model}</span>
+            <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{(draftQualityStage.response_time_ms / 1000).toFixed(1)}s</span>
+          </div>
+        );
+      }
       return (
         <div style={{
           margin: '10px 0 4px', borderRadius: 4, padding: '6px 8px', fontSize: '0.7rem',
-          background: allPass ? 'rgba(22,163,74,0.06)' : 'color-mix(in srgb, var(--warning) 6%, transparent)',
-          border: `1px solid ${allPass ? 'rgba(22,163,74,0.2)' : 'color-mix(in srgb, var(--warning) 20%, transparent)'}`,
+          background: 'color-mix(in srgb, var(--warning) 6%, transparent)',
+          border: '1px solid color-mix(in srgb, var(--warning) 20%, transparent)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 700, fontSize: 'var(--text-2xs)' }}>Quality Pre-Check</span>
@@ -970,7 +986,7 @@ export function DraftTab({
             </div>
           )}
           {draftQualityStage.parse_error && (
-            <div style={{ padding: '4px 6px', marginTop: 4, background: 'rgba(220,38,38,0.1)', borderLeft: '3px solid var(--danger)', borderRadius: 3, fontSize: 'var(--text-2xs)', color: 'var(--danger)' }}>
+            <div style={{ padding: '4px 6px', marginTop: 4, background: 'color-mix(in srgb, var(--danger) 10%, transparent)', borderLeft: '3px solid var(--danger)', borderRadius: 3, fontSize: 'var(--text-2xs)', color: 'var(--danger)' }}>
               <strong>Parse error:</strong> {draftQualityStage.parse_error}
             </div>
           )}

@@ -57,55 +57,88 @@ export function TaxRefsTab({ entry, meta, debate, taxRefCount, nodeWeights, taxN
 
   return taxRefCount > 0 ? (
     <div style={{ flex: 1, minHeight: 200, overflowY: 'auto', padding: '8px 10px' }}>
-      {/* AN Claim Coverage Summary */}
-      {anCoverage && anCoverage.total > 0 && (
-        <div style={{ marginBottom: 10, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.75rem' }}>
-          <div style={{ fontWeight: 600, marginBottom: 4, color: 'var(--text-primary)' }}>AN Claim Coverage</div>
-          {anCoverage.strong.length > 0 && (
-            <div style={{ marginBottom: 2 }}>
-              <span style={{ color: 'var(--success)' }}>{'●'}</span>{' '}
-              <span style={{ fontWeight: 600 }}>Strong ({'≥'}0.5):</span>{' '}
-              {anCoverage.strong.map((c, i) => (
-                <span key={c.id}>
-                  {i > 0 && ', '}
-                  <button onClick={() => setOverviewTab('argument-network')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'inherit', fontSize: 'inherit' }} title={c.text}>{c.id}</button>
+      {/* AN Claim Coverage Strip (§6) */}
+      {anCoverage && anCoverage.total > 0 && (() => {
+        // Build ordered list of all AN nodes with their strength bucket for the strip
+        const allAnNodes = debate?.argument_network?.nodes ?? [];
+        const claimMaxScores = new Map<string, { maxSim: number; bestNode: string }>();
+        for (const src of relevanceSources ?? []) {
+          if (src.best_claim_id && src.best_claim_sim != null) {
+            const existing = claimMaxScores.get(src.best_claim_id);
+            if (!existing || src.best_claim_sim > existing.maxSim) {
+              claimMaxScores.set(src.best_claim_id, { maxSim: src.best_claim_sim, bestNode: src.node_id });
+            }
+          }
+        }
+        type StrengthBucket = 'strong' | 'moderate' | 'weak' | 'uncovered';
+        const stripItems: { id: string; sim: number; text: string; bucket: StrengthBucket }[] = allAnNodes.map(an => {
+          const match = claimMaxScores.get(an.id);
+          const sim = match?.maxSim ?? 0;
+          const bucket: StrengthBucket = sim >= 0.5 ? 'strong' : sim >= 0.3 ? 'moderate' : sim > 0 ? 'weak' : 'uncovered';
+          return { id: an.id, sim, text: an.text ?? '', bucket };
+        });
+
+        const squareStyle = (bucket: StrengthBucket): React.CSSProperties => {
+          switch (bucket) {
+            case 'strong':    return { background: 'var(--success)', outline: 'none' };
+            case 'moderate':  return { background: 'color-mix(in srgb, var(--success) 40%, transparent)', outline: 'none' };
+            case 'weak':      return { background: 'color-mix(in srgb, var(--success) 40%, transparent)', opacity: 0.5, outline: 'none' };
+            case 'uncovered': return { background: 'var(--bg-hover)', outline: '1px solid var(--border-color)' };
+          }
+        };
+
+        return (
+          <div style={{ marginBottom: 10, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.75rem' }}>
+            {/* Header row: title + summary counts */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6, flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>AN Claim Coverage</span>
+              {anCoverage.strong.length > 0 && (
+                <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--success)' }}>
+                  Strong ({anCoverage.strong.length})
                 </span>
-              ))}
-              <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>{anCoverage.strong.length}/{anCoverage.total} claims grounded</span>
-            </div>
-          )}
-          {anCoverage.moderate.length > 0 && (
-            <div style={{ marginBottom: 2 }}>
-              <span style={{ color: 'var(--warning)' }}>{'◐'}</span>{' '}
-              <span style={{ fontWeight: 600 }}>Moderate:</span>{' '}
-              {anCoverage.moderate.map((c, i) => (
-                <span key={c.id}>
-                  {i > 0 && ', '}
-                  <button onClick={() => setOverviewTab('argument-network')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'inherit', fontSize: 'inherit' }} title={c.text}>{c.id}</button>
+              )}
+              {anCoverage.moderate.length > 0 && (
+                <span style={{ fontSize: 'var(--text-2xs)', color: 'color-mix(in srgb, var(--success) 60%, var(--text-muted))' }}>
+                  Moderate ({anCoverage.moderate.length})
                 </span>
-              ))}
-              <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>{anCoverage.moderate.length}/{anCoverage.total} claims</span>
-            </div>
-          )}
-          {anCoverage.weak.length > 0 && (
-            <div style={{ marginBottom: 2 }}>
-              <span style={{ color: 'var(--danger)' }}>{'○'}</span>{' '}
-              <span style={{ fontWeight: 600 }}>Weak ({'<'}0.3):</span>{' '}
-              {anCoverage.weak.map((c, i) => (
-                <span key={c.id}>
-                  {i > 0 && ', '}
-                  <button onClick={() => setOverviewTab('argument-network')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'inherit', fontSize: 'inherit' }} title={c.text}>{c.id}</button>
+              )}
+              {anCoverage.weak.length > 0 && (
+                <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
+                  Weak ({anCoverage.weak.length})
                 </span>
-              ))}
-              <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>{anCoverage.weak.length}/{anCoverage.total} claims orphaned</span>
+              )}
+              <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
+                Uncovered ({stripItems.filter(s => s.bucket === 'uncovered').length})
+              </span>
             </div>
-          )}
-          <div style={{ marginTop: 4, color: 'var(--text-muted)', fontSize: '0.7rem' }}>
-            {anCoverage.grounded}/{anCoverage.total} AN claims have taxonomy grounding
-            {anCoverage.weak.length > 0 && ` — ${anCoverage.weak.length} orphaned claim${anCoverage.weak.length > 1 ? 's' : ''} (taxonomy may be missing relevant nodes)`}
+            {/* Coverage strip: one square per AN claim */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+              {stripItems.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => setOverviewTab('argument-network')}
+                  title={`${item.id} · ${item.bucket}${item.sim > 0 ? ` · sim ${item.sim.toFixed(2)}` : ''} · ${item.text.slice(0, 60)}${item.text.length > 60 ? '…' : ''}`}
+                  style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: 'var(--radius-sm)',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    ...squareStyle(item.bucket),
+                  }}
+                  aria-label={`${item.id} (${item.bucket})`}
+                />
+              ))}
+            </div>
+            <div style={{ marginTop: 4, color: 'var(--text-muted)', fontSize: '0.7rem' }}>
+              {anCoverage.grounded}/{anCoverage.total} AN claims have taxonomy grounding
+              {anCoverage.weak.length > 0 && ` — ${anCoverage.weak.length} orphaned claim${anCoverage.weak.length > 1 ? 's' : ''} (taxonomy may be missing relevant nodes)`}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', tableLayout: 'fixed' }}>
         <colgroup>
           {hasSourceData && <col style={{ width: '10%' }} />}

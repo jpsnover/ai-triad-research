@@ -246,7 +246,7 @@ function WarningItem({ warning }: { warning: ScopeDriftWarning }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
         <span style={{ fontWeight: 700, color: 'var(--danger)' }}>{warning.debater}</span>
         <span style={{ color: 'var(--text-muted)' }}>→</span>
-        <span style={{ fontWeight: 600 }}>{warning.node_id}</span>
+        <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{warning.node_id}</span>
         <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontWeight: 600, color: similarityColor(warning.similarity) }}>
           {warning.similarity.toFixed(3)}
         </span>

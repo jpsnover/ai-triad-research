@@ -549,30 +549,36 @@ export function OverviewTabRouter({
             ],
           },
         ];
+        const isEmptyValue = (v: string | number | null | undefined): boolean => {
+          if (v === null || v === undefined) return true;
+          const s = String(v);
+          return s === '' || s === '0' || s === '(none)' || s === 'N/A';
+        };
         return (
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '8px 12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>Flight Recorder Context Snapshot</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontSize: 'var(--text-md)', fontWeight: 600 }}>Flight Recorder Context Snapshot</span>
               <button
                 onClick={() => { void triggerManualDump(); }}
-                style={{ fontSize: 'var(--text-2xs)', padding: '2px 8px', background: 'var(--warning)', color: 'var(--text-primary)', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}
+                style={{ fontSize: 'var(--text-2xs)', padding: '2px 8px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}
               >Dump Now</button>
             </div>
-            {sections.map(s => (
-              <div key={s.title} style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: 'var(--warning)', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.title}</div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.7rem' }}>
-                  <tbody>
-                    {s.rows.map(([label, value]) => (
-                      <tr key={label} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ padding: '2px 6px', color: 'var(--text-muted)', width: '40%' }}>{label}</td>
-                        <td style={{ padding: '2px 6px', fontFamily: 'monospace', fontSize: 'var(--text-2xs)' }}>{String(value ?? '')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ))}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+              {sections.map(s => (
+                <div key={s.title} style={{ borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', padding: 'var(--sp-4)' }}>
+                  <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.title}</div>
+                  {s.rows.map(([label, value]) => {
+                    const empty = isEmptyValue(value);
+                    return (
+                      <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '2px 0' }}>
+                        <span style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-2xs)' }}>{label}</span>
+                        <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: empty ? 'var(--text-muted)' : 'var(--text-primary)', marginLeft: 8, textAlign: 'right' }}>{String(value ?? '')}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
           </div>
         );
       })()}

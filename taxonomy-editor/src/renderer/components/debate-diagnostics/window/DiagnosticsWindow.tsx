@@ -275,16 +275,16 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
         <h2 className="diag-window-title">Debate Diagnostics</h2>
         {debate && (
           <>
-            <button
-              onClick={() => { void api.clipboardWriteText(debate.id); }}
-              className="diag-window-id-btn"
-              title={`Copy debate ID: ${debate.id}`}
-            >{debate.id}</button>
-            <span className="diag-window-ts" title={`Session start — matches flight recorder filename`}>
-              {new Date(debate.created_at).toISOString().replace(/\.\d{3}Z$/, 'Z')}
-            </span>
             <span className="diag-window-debate-title" title={debate.title}>
               {debate.title}
+            </span>
+            <button
+              onClick={() => { void api.clipboardWriteText(debate.id); }}
+              className="diag-window-id-suffix"
+              title={`Copy full debate ID: ${debate.id}`}
+            >…{debate.id.slice(-6)} ⧉</button>
+            <span className="diag-window-ts" title={`Session start — matches flight recorder filename`}>
+              {new Date(debate.created_at).toISOString().replace(/\.\d{3}Z$/, 'Z')}
             </span>
           </>
         )}

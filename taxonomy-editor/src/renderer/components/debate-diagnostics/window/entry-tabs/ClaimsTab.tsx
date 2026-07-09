@@ -97,8 +97,51 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
         );
       })()}
 
-      {diag?.extracted_claims && (
-        <Section title={`Extracted Claims (${diag.extracted_claims.accepted.length} accepted, ${diag.extracted_claims.rejected.length} rejected)`} defaultOpen copyText={[...diag.extracted_claims.accepted.map(c => { const anN = an?.nodes.find(n => n.id === c.id); return `✓ ${c.id} (${c.overlap_pct}%): ${c.text}${anN?.attribution_text_genus ? `\n  [Attribution: ${anN.attribution_text_genus}]` : ''}`; }), ...diag.extracted_claims.rejected.map(c => `✗ (${c.overlap_pct}%): ${c.text} — ${c.reason}`)].join('\n')}>
+      {diag?.extracted_claims && (() => {
+        // Compute shared per-section metadata badges (§3 de-engineering: move repeated labels to section header)
+        const acceptedAnNodes = diag.extracted_claims.accepted.map(c => an?.nodes.find(n => n.id === c.id));
+        const uniqueBdiCategories = new Set(acceptedAnNodes.map(n => n?.bdi_category).filter(Boolean));
+        const uniqueSpecificities = new Set(acceptedAnNodes.map(n => n?.specificity).filter(Boolean));
+        const uniqueSteelmanOfs = new Set(acceptedAnNodes.map(n => n?.steelman_of).filter(Boolean));
+        // Only hoist to header when all rows share the exact same non-null value
+        const sharedBdiCategory = uniqueBdiCategories.size === 1 && diag.extracted_claims.accepted.length > 1
+          ? [...uniqueBdiCategories][0] as string : null;
+        const sharedSpecificity = uniqueSpecificities.size === 1 && diag.extracted_claims.accepted.length > 1
+          ? [...uniqueSpecificities][0] as string : null;
+        const sharedSteelmanOf = uniqueSteelmanOfs.size === 1 && diag.extracted_claims.accepted.length > 1
+          ? [...uniqueSteelmanOfs][0] as string : null;
+
+        const bdiHeaderBadge = sharedBdiCategory ? (
+          <span style={{ padding: '0 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, marginLeft: 6,
+            background: sharedBdiCategory === 'belief' ? 'color-mix(in srgb, var(--color-saf) 15%, transparent)' : sharedBdiCategory === 'desire' ? 'color-mix(in srgb, var(--color-skp) 15%, transparent)' : 'color-mix(in srgb, var(--color-acc) 15%, transparent)',
+            color: sharedBdiCategory === 'belief' ? 'var(--color-saf)' : sharedBdiCategory === 'desire' ? 'var(--color-skp)' : 'var(--color-acc)' }}>
+            {sharedBdiCategory}
+          </span>
+        ) : null;
+        const specificityHeaderBadge = sharedSpecificity ? (
+          <span style={{ padding: '0 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, marginLeft: 6, background: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
+            {sharedSpecificity}
+          </span>
+        ) : null;
+        const steelmanHeaderBadge = sharedSteelmanOf ? (
+          <span style={{ padding: '0 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, marginLeft: 6, background: 'color-mix(in srgb, var(--text-secondary) 15%, transparent)', color: 'var(--text-secondary)' }}>
+            steelman of {POVER_INFO[sharedSteelmanOf as keyof typeof POVER_INFO]?.label ?? sharedSteelmanOf}
+          </span>
+        ) : null;
+
+        const sectionSuffix = (bdiHeaderBadge || specificityHeaderBadge || steelmanHeaderBadge) ? (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+            {bdiHeaderBadge}{specificityHeaderBadge}{steelmanHeaderBadge}
+          </span>
+        ) : null;
+
+        return (
+        <Section
+          title={`Extracted Claims (${diag.extracted_claims.accepted.length} accepted, ${diag.extracted_claims.rejected.length} rejected)`}
+          defaultOpen
+          titleSuffix={sectionSuffix}
+          copyText={[...diag.extracted_claims.accepted.map(c => { const anN = an?.nodes.find(n => n.id === c.id); return `✓ ${c.id} (${c.overlap_pct}%): ${c.text}${anN?.attribution_text_genus ? `\n  [Attribution: ${anN.attribution_text_genus}]` : ''}`; }), ...diag.extracted_claims.rejected.map(c => `✗ (${c.overlap_pct}%): ${c.text} — ${c.reason}`)].join('\n')}
+        >
           {diag.extracted_claims.accepted.map((c, i) => {
             const outEdges = an?.edges.filter(e => e.source === c.id) ?? [];
             const edgeSummary = outEdges.map(edge => {
@@ -112,7 +155,11 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
             const ecBand = ec != null ? (ec >= 1.0 ? 'near-verbatim' : ec >= 0.8 ? 'faithful compression' : ec >= 0.6 ? 'implicit premise' : 'minimum') : null;
             const repair = diag.entailment_repairs?.find(r => r.node_id === c.id);
             const hasEntailmentData = (diag.entailment_repairs?.length ?? 0) > 0;
-            const entailmentVerdict: Verdict | null = repair ? (repair.verdict === 'entailed' ? 'pass' : repair.verdict === 'partial' ? 'flag' : 'fail') : null;
+            // §3: only show chip for non-pass verdicts (flag/fail); pass/entailed shows nothing
+            const entailmentVerdict: Verdict | null = repair
+              ? (repair.verdict === 'entailed' ? 'pass' : repair.verdict === 'partial' ? 'flag' : 'fail')
+              : null;
+            const showEntailmentChip = entailmentVerdict != null && entailmentVerdict !== 'pass';
             const verdictColor = repair ? (repair.verdict === 'entailed' ? 'var(--success)' : repair.verdict === 'partial' ? 'var(--warning)' : 'var(--danger)') : null;
             return (
               <details key={i} open style={{ margin: '4px 0' }}>
@@ -125,27 +172,29 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
                       tooltip={`Extraction Confidence: ${ec.toFixed(2)}\nBand: ${ecBand}\n\nFIRE metric — how faithfully this claim was extracted from the speaker's statement.\n1.0 = near-verbatim (overlap ≥70%)\n0.8 = faithful compression (≥50%)\n0.6 = implicit premise (≥30%)\n0.5 = minimum (below 30%)`}
                     />
                   )}
-                  {repair && entailmentVerdict && (
+                  {/* §3: chip only for non-pass entailment outcomes */}
+                  {showEntailmentChip && repair && (
                     <VerdictChip
-                      verdict={entailmentVerdict}
-                      label={`${repair.verdict === 'entailed' ? '✓' : repair.verdict === 'partial' ? '~' : '✗'} ${repair.verdict}`}
+                      verdict={entailmentVerdict!}
+                      label={`${repair.verdict === 'partial' ? '~' : '✗'} ${repair.verdict}`}
                       tooltip={`Entailment: ${repair.verdict}\n${repair.explanation}`}
                     />
                   )}
                   {!repair && hasEntailmentData && (
                     <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', opacity: 0.6, marginRight: 4 }}>not sampled</span>
                   )}
-                  {anNode?.bdi_category && (
+                  {/* §3: per-row badge only when not hoisted to section header */}
+                  {anNode?.bdi_category && !sharedBdiCategory && (
                     <span style={{ padding: '0 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, marginRight: 3, background: anNode.bdi_category === 'belief' ? 'color-mix(in srgb, var(--color-saf) 15%, transparent)' : anNode.bdi_category === 'desire' ? 'color-mix(in srgb, var(--color-skp) 15%, transparent)' : 'color-mix(in srgb, var(--color-acc) 15%, transparent)', color: anNode.bdi_category === 'belief' ? 'var(--color-saf)' : anNode.bdi_category === 'desire' ? 'var(--color-skp)' : 'var(--color-acc)' }}>
                       {anNode.bdi_category}
                     </span>
                   )}
-                  {anNode?.specificity && (
+                  {anNode?.specificity && !sharedSpecificity && (
                     <span style={{ padding: '0 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, marginRight: 3, background: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
                       {anNode.specificity}
                     </span>
                   )}
-                  {anNode?.steelman_of && (
+                  {anNode?.steelman_of && !sharedSteelmanOf && (
                     <span style={{ padding: '0 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, marginRight: 3, background: 'color-mix(in srgb, var(--text-secondary) 15%, transparent)', color: 'var(--text-secondary)' }}>
                       steelman of {POVER_INFO[anNode.steelman_of as keyof typeof POVER_INFO]?.label ?? anNode.steelman_of}
                     </span>
@@ -311,7 +360,8 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
             </div>
           ))}
         </Section>
-      )}
+        );
+      })()}
 
       {/* Extraction Trace */}
       {extTrace && (

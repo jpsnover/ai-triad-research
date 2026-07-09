@@ -98,7 +98,7 @@ export function countMatches(text: string, query: string): number {
   return count;
 }
 
-export function Section({ title, children, defaultOpen = false, copyText }: { title: string; children: React.ReactNode; defaultOpen?: boolean; copyText?: string }) {
+export function Section({ title, children, defaultOpen = false, copyText, titleSuffix }: { title: string; children: React.ReactNode; defaultOpen?: boolean; copyText?: string; titleSuffix?: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen);
   const sq = useContext(DiagSearchContext);
   const sectionMatches = sq && copyText ? countMatches(copyText, sq) : 0;
@@ -108,7 +108,7 @@ export function Section({ title, children, defaultOpen = false, copyText }: { ti
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <button
           onClick={() => setOpen(!open)}
-          style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', padding: '4px 0', flex: 1, textAlign: 'left' }}
+          style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontWeight: 600, fontSize: 'var(--text-sm)', cursor: 'pointer', padding: '4px 0', flex: 1, textAlign: 'left' }}
         >
           {effectiveOpen ? '▼' : '▶'} {title}
           {sectionMatches > 0 && (
@@ -117,6 +117,7 @@ export function Section({ title, children, defaultOpen = false, copyText }: { ti
             </span>
           )}
         </button>
+        {titleSuffix && <span style={{ display: 'inline-flex', alignItems: 'center', marginLeft: 4 }}>{titleSuffix}</span>}
         {copyText && effectiveOpen && <CopyButton text={copyText} />}
       </div>
       {effectiveOpen && <div style={{ paddingLeft: 16, fontSize: '0.75rem' }}>{children}</div>}

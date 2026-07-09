@@ -170,7 +170,7 @@ export function BriefTab(props: BriefTabProps) {
                 return (
                   <Fragment key={i}>
                     <tr style={{ borderBottom: Array.isArray(dc.grounding) && dc.grounding.length > 0 ? 'none' : '1px solid var(--border)' }}>
-                      <td style={{ padding: '3px 6px', verticalAlign: 'top', fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent)' }}>{dc.d_id}</td>
+                      <td style={{ padding: '3px 6px', verticalAlign: 'top', fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', opacity: 0.8 }}>{dc.d_id}</td>
                       <td style={{ padding: '3px 6px', verticalAlign: 'top', fontWeight: 600, color: stanceColor, textTransform: 'uppercase', fontSize: 'var(--text-2xs)' }}>{dc.stance}</td>
                       <td style={{ padding: '3px 6px', verticalAlign: 'top' }}>
                         <Highlight text={dc.claim} />
