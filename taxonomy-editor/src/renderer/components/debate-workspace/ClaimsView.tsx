@@ -7,12 +7,13 @@ import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import { speakerLabel, STRENGTH_BAND, getNodeLabel } from './utils';
 
-export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap }: {
+export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap, showFormal }: {
   node: ArgumentNetworkNode;
   attacks: ArgumentNetworkEdge[];
   supports: ArgumentNetworkEdge[];
   allNodes: ArgumentNetworkNode[];
   strengthMap: Map<string, number>;
+  showFormal?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const hasEdges = attacks.length > 0 || supports.length > 0;
@@ -70,8 +71,7 @@ export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap }:
           )}
         </div>
       </div>
-      <div style={{ paddingLeft: 18, marginTop: 2 }}>{node.text}</div>
-      {node.attribution_text_genus && <div className="claim-attribution-text" style={{ paddingLeft: 18 }}><span className="claim-attribution-label">Attribution:</span>{node.attribution_text_genus}</div>}
+      <div style={{ paddingLeft: 18, marginTop: 2 }}>{showFormal && node.attribution_text_genus ? node.attribution_text_genus : node.text}</div>
       {expanded && (
         <div style={{ paddingLeft: 18, marginTop: 4 }}>
           {attacks.map(e => {
@@ -96,12 +96,24 @@ export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap }:
   );
 }
 
+const CLAIMS_STYLE_KEY = 'debate-claims-style';
+
 export function ClaimsView({ entryId, debate }: { entryId?: string; debate: { argument_network?: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] }; transcript: TranscriptEntry[] } }) {
+  const [showFormal, setShowFormal] = useState(() => {
+    try { return sessionStorage.getItem(CLAIMS_STYLE_KEY) === 'formal'; } catch { /* telemetry — silent by design */ return false; }
+  });
+  const toggleStyle = () => {
+    const next = !showFormal;
+    setShowFormal(next);
+    try { sessionStorage.setItem(CLAIMS_STYLE_KEY, next ? 'formal' : 'plain'); } catch { /* telemetry — silent by design */ }
+  };
+
   const an = debate.argument_network;
   if (!an || an.nodes.length === 0) return <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '4px 0' }}>No argument network yet</div>;
 
   const entryNodes = entryId ? an.nodes.filter(n => n.source_entry_id === entryId) : an.nodes;
   if (entryNodes.length === 0) return <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '4px 0' }}>No claims extracted for this statement</div>;
+  const hasFormalText = entryNodes.some(n => !!n.attribution_text_genus);
 
   const qbafNodes: QbafNode[] = an.nodes.map(n => ({ id: n.id, base_strength: n.base_strength ?? 0.5 }));
   const qbafEdges: QbafEdge[] = an.edges.map(e => ({
@@ -125,8 +137,15 @@ export function ClaimsView({ entryId, debate }: { entryId?: string; debate: { ar
 
   return (
     <div className="claims-view" style={{ fontSize: '0.8rem' }}>
-      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4 }}>
-        {entryNodes.length} claim{entryNodes.length !== 1 ? 's' : ''} · {caCount} attack{caCount !== 1 ? 's' : ''} · {raCount} support{raCount !== 1 ? 's' : ''}
+      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span>{entryNodes.length} claim{entryNodes.length !== 1 ? 's' : ''} · {caCount} attack{caCount !== 1 ? 's' : ''} · {raCount} support{raCount !== 1 ? 's' : ''}</span>
+        {hasFormalText && (
+          <button
+            onClick={toggleStyle}
+            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '1px 6px', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', cursor: 'pointer' }}
+            title={showFormal ? 'Show plain text' : 'Show formal/DOLCE text'}
+          >{showFormal ? 'Formal' : 'Plain'}</button>
+        )}
       </div>
       {salienceCounts && (
         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 6, display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -139,7 +158,7 @@ export function ClaimsView({ entryId, debate }: { entryId?: string; debate: { ar
       {entryNodes.map(node => {
         const attacks = an.edges.filter(e => e.target === node.id && e.type === 'attacks');
         const supports = an.edges.filter(e => e.target === node.id && e.type === 'supports');
-        return <ClaimNodeRow key={node.id} node={node} attacks={attacks} supports={supports} allNodes={an.nodes} strengthMap={strengthMap} />;
+        return <ClaimNodeRow key={node.id} node={node} attacks={attacks} supports={supports} allNodes={an.nodes} strengthMap={strengthMap} showFormal={showFormal} />;
       })}
     </div>
   );
