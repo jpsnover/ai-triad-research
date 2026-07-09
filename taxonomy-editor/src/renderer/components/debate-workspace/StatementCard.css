@@ -158,6 +158,24 @@
   font-weight: 700;
 }
 
+/* ── Meta-view surface (Plan/Terms/Claims/CC) (t/1401) ── */
+
+.debate-statement-body.meta-view {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  margin-top: var(--sp-2);
+  padding: var(--sp-3);
+}
+
+.debate-meta-mode-label {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: var(--sp-2);
+}
+
 /* ── Flip animation on tier/view change (t/1396) ─────── */
 
 .debate-statement-body {

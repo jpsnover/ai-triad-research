@@ -345,6 +345,8 @@ function resolveDisplayContent(entry: TranscriptEntry, activeTier: string, isSub
   return { displayContent: stripLeadingHeadings(entry.content), isTruncated: false };
 }
 
+const META_TIERS = new Set(['reasoning', 'terms', 'lineage', 'claims', 'convergence']);
+
 const TIER_LABELS: Record<string, string> = {
   brief: 'Brief', medium: 'Med', detailed: 'Detail', reasoning: 'Plan',
   claims: 'Claims', terms: 'Terms', lineage: 'Lineage', convergence: 'Conv',
@@ -441,6 +443,7 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
     if (bodyRef.current) bodyRef.current.style.height = '';
   }, []);
 
+  const isMetaView = META_TIERS.has(displayedTier);
   const hasHighlights = useHasCommentHighlights(entry.id, displayedTier as DetailTier);
   const { displayContent, isTruncated } = resolveDisplayContent(entry, displayedTier, isSubstantive);
 
@@ -600,8 +603,9 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
           )}
         </>
       )}
-      <div className="debate-statement-body" ref={bodyRef}>
+      <div className={`debate-statement-body${isMetaView ? ' meta-view' : ''}`} ref={bodyRef}>
         <div key={flipKey} ref={innerRef} className={`debate-flip-inner${flipping ? ' flipping' : ''}`} onAnimationEnd={handleFlipEnd}>
+      {isMetaView && <div className="debate-meta-mode-label">{TIER_LABELS[displayedTier]?.toUpperCase()}</div>}
       {displayedTier === 'terms' && vocabResolutions && vocabResolutions.length > 0 ? (
         <div className="debate-statement-content">
           <VocabTermsView resolutions={vocabResolutions} ambiguities={meta?.vocabulary_ambiguities as { colloquial: string; offset?: number }[] | undefined} />
