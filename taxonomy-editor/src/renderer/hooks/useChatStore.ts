@@ -348,6 +348,19 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     };
     set({ activeChat: withUserMsg });
 
+    getGlobalRecorder()?.record({
+      type: 'chat.user-message',
+      component: 'chat-store',
+      level: 'info',
+      message: 'User sent chat message',
+      data: {
+        message_text: message.trim().slice(0, 500),
+        chat_session_id: activeChat.id,
+        pover: activeChat.pover,
+        transcript_length: withUserMsg.transcript.length,
+      },
+    });
+
     try {
       const info = POVER_INFO[activeChat.pover];
       const ctx = getTaxonomyContext(info.pov);
