@@ -167,11 +167,6 @@ function ShowKeysSection({ onKeysChanged }: { onKeysChanged?: () => void }) {
                 <div className={`settings-key-summary-row${keys.length === 0 ? ' no-key' : ''}`}>
                   <span className="settings-key-summary-backend">
                     {b.label}
-                    {keys.length > 1 && (
-                      <span style={{ fontSize: '0.7rem', opacity: 0.6, marginLeft: 4 }}>
-                        ({keys.length} keys)
-                      </span>
-                    )}
                   </span>
                   {keys.length === 0 && (
                     <span className="settings-key-summary-masked">—</span>
@@ -286,6 +281,74 @@ function ShowKeysSection({ onKeysChanged }: { onKeysChanged?: () => void }) {
               )}
             </div>
           )}
+        </div>
+      )}
+    </>
+  );
+}
+
+function TestKeysButton({ hasKey }: { hasKey: Record<string, boolean> }) {
+  const [testing, setTesting] = useState(false);
+  const [results, setResults] = useState<Record<string, { valid: boolean; error?: string } | null>>({});
+  const [tested, setTested] = useState(false);
+
+  const backendLabel = Object.fromEntries(AI_BACKENDS.map(b => [b.value, b.label]));
+
+  const handleTestAll = useCallback(async () => {
+    const backendsWithKeys = AI_BACKENDS.filter(b => b.value !== 'ollama' && hasKey[b.value]);
+    if (backendsWithKeys.length === 0) return;
+    setTesting(true);
+    setResults({});
+    setTested(false);
+    for (const b of backendsWithKeys) {
+      try {
+        const { results: r } = await api.verifyStoredKeys(b.value);
+        const allValid = r.every((k: { valid: boolean }) => k.valid);
+        const firstError = r.find((k: { valid: boolean }) => !k.valid);
+        setResults(prev => ({ ...prev, [b.value]: { valid: allValid, error: firstError?.error } }));
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'settings-dialog', level: 'error',
+          message: `Failed to verify keys for ${b.value}`,
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        setResults(prev => ({ ...prev, [b.value]: { valid: false, error: 'Verification failed' } }));
+      }
+    }
+    setTesting(false);
+    setTested(true);
+  }, [hasKey]);
+
+  const backendsWithKeys = AI_BACKENDS.filter(b => b.value !== 'ollama' && hasKey[b.value]);
+  const hasAnyKeys = backendsWithKeys.length > 0;
+
+  return (
+    <>
+      <button
+        className="btn btn-sm"
+        onClick={() => void handleTestAll()}
+        disabled={testing || !hasAnyKeys}
+        title={hasAnyKeys ? 'Verify all configured API keys' : 'No API keys configured'}
+      >
+        {testing ? 'Testing...' : 'Test Keys'}
+      </button>
+      {tested && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 12px', fontSize: '0.78rem', marginTop: 4 }}>
+          {backendsWithKeys.map(b => {
+            const r = results[b.value];
+            if (!r) return null;
+            return (
+              <span key={b.value} style={{ whiteSpace: 'nowrap' }} title={r.valid ? 'Key is valid' : r.error ?? 'Invalid key'}>
+                <span style={{ color: r.valid ? 'var(--success-text, #16a34a)' : 'var(--error-text, #dc2626)' }}>
+                  {r.valid ? '✓' : '✗'}
+                </span>
+                {' '}{backendLabel[b.value] ?? b.value}
+                {!r.valid && r.error && (
+                  <span style={{ fontSize: '0.68rem', color: 'var(--error-text, #dc2626)', marginLeft: 4, opacity: 0.8 }}>{r.error}</span>
+                )}
+              </span>
+            );
+          })}
         </div>
       )}
     </>
@@ -517,7 +580,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                 onClick={handleSaveKey}
                 disabled={!keyInput.trim() || (aiBackend === 'azure' && !endpointInput.trim()) || savingKey}
               >
-                {savingKey ? '...' : hasKey[aiBackend] ? 'Add Key' : 'Save'}
+                {savingKey ? '...' : 'Save'}
               </button>
             </div>
             {keyError && <div className="settings-key-error">{keyError}</div>}
@@ -537,6 +600,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         )}
 
         <div className="settings-key-actions-row">
+          <TestKeysButton hasKey={hasKey} />
           <button className="btn btn-sm" onClick={() => setShowKeySharing(true)}>
             Share / Import Keys via QR
           </button>
