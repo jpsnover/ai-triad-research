@@ -32,7 +32,9 @@
       "@lib/ai-client/*": ["../lib/ai-client/*"],
       "@lib/electron-shared/*": ["../lib/electron-shared/*"],
       "@lib/embeddings/*": ["../lib/embeddings/*"],
-      "zod": ["node_modules/zod"]
+      "zod": ["node_modules/zod"],
+      "react": ["node_modules/react"],
+      "react/jsx-runtime": ["node_modules/react/jsx-runtime"]
     }
   },
   "include": ["src/**/*", "../lib/**/*"],
