@@ -219,4 +219,52 @@ describe('local sufficiency calibration metrics', () => {
     // mean = (1.0 + 0 + 0) / 3
     expect(dp.local_sufficiency_mean!).toBeLessThanOrEqual(1);
   });
+
+  it('derives strength from weight when strength field is absent (old session fallback)', () => {
+    const nodes = [
+      makeNode('c1', 'accelerationist', 'entry-r1-acc'),
+      makeNode('c2', 'accelerationist', 'entry-r1-acc'),
+      makeNode('premise', 'safetyist', 'entry-r1-saf'),
+    ];
+
+    // Edge with strength: 'decisive' explicitly set
+    const edgesWithStrength = [
+      makeEdge('e1', 'premise', 'c1', { weight: 1.0, strength: 'decisive' }),
+    ];
+    // Edge without strength — weight=1.0 should derive 'decisive' via fallback
+    const edgesWithoutStrength = [
+      makeEdge('e1', 'premise', 'c1', { weight: 1.0 }),
+    ];
+
+    const dpWith = extractCalibrationData(makeSession(nodes, edgesWithStrength, 2), 'test');
+    const dpWithout = extractCalibrationData(makeSession(nodes, edgesWithoutStrength, 2), 'test');
+
+    expect(dpWith.local_sufficiency_mean).toBe(dpWithout.local_sufficiency_mean);
+  });
+
+  it('falls back to 0.7 default for non-canonical weight values', () => {
+    const nodes = [
+      makeNode('c1', 'accelerationist', 'entry-r1-acc'),
+      makeNode('premise', 'safetyist', 'entry-r1-saf'),
+    ];
+
+    // weight=0.65 doesn't match any EDGE_STRENGTH_MAP value → default 0.7 multiplier
+    const edgesNonCanonical = [
+      makeEdge('e1', 'premise', 'c1', { weight: 0.65 }),
+    ];
+    // weight=0.7 matches 'substantial' → 0.7 multiplier (same result, different path)
+    const edgesCanonical = [
+      makeEdge('e1', 'premise', 'c1', { weight: 0.7 }),
+    ];
+
+    const dpNonCanonical = extractCalibrationData(makeSession(nodes, edgesNonCanonical, 2), 'test');
+    const dpCanonical = extractCalibrationData(makeSession(nodes, edgesCanonical, 2), 'test');
+
+    // Non-canonical: 0.65 × 0.7 (default) = 0.455
+    // Canonical: 0.7 × 0.7 (substantial) = 0.49
+    expect(dpNonCanonical.local_sufficiency_mean).not.toBe(dpCanonical.local_sufficiency_mean);
+    // But both should be > 0 (they have support)
+    expect(dpNonCanonical.local_sufficiency_mean).toBeGreaterThan(0);
+    expect(dpCanonical.local_sufficiency_mean).toBeGreaterThan(0);
+  });
 });

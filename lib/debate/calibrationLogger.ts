@@ -1020,11 +1020,16 @@ export function extractCalibrationData(
       if (round > maxRound) maxRound = round;
     }
 
-    const strengthMult = (s?: 'decisive' | 'substantial' | 'tangential'): number => {
-      if (s === 'decisive') return 1.0;
-      if (s === 'substantial') return 0.7;
-      if (s === 'tangential') return 0.3;
-      return 0.7; // absent default
+    // Weight-derived fallback since 2026-07-09 (t/1434); pre-change values used constant 0.7.
+    const WEIGHT_TO_STRENGTH: Record<number, 'decisive' | 'substantial' | 'tangential'> = {
+      1.0: 'decisive', 0.7: 'substantial', 0.3: 'tangential',
+    };
+    const strengthMult = (s?: 'decisive' | 'substantial' | 'tangential', w?: number): number => {
+      const category = s ?? (w !== undefined ? WEIGHT_TO_STRENGTH[w] : undefined);
+      if (category === 'decisive') return 1.0;
+      if (category === 'substantial') return 0.7;
+      if (category === 'tangential') return 0.3;
+      return 0.7;
     };
 
     const eligibleClaims = an.nodes.filter(n => {
@@ -1059,7 +1064,7 @@ export function extractCalibrationData(
         }
         const weightedSupport = supports.reduce((sum, e) => {
           const w = e.weight ?? 0.5;
-          const sm = strengthMult(e.strength);
+          const sm = strengthMult(e.strength, e.weight);
           const warrantBonus = e.warrant?.trim() ? 1.25 : 1.0;
           return sum + w * sm * warrantBonus;
         }, 0);

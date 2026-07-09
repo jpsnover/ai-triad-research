@@ -829,7 +829,8 @@ export function normalizeExtractedClaim(claim: RawExtractedClaim): RawExtractedC
     normalized.responds_to = claim.responds_to.map(rel => {
       const raw = rel.strength ?? rel.weight;
       if (isDiscreteEdgeStrength(raw)) {
-        return { ...rel, weight: discreteEdgeStrength(raw as string) };
+        const canonical = (raw as string).toLowerCase() as EdgeStrengthCategory;
+        return { ...rel, weight: discreteEdgeStrength(raw as string), strength: canonical };
       }
       return rel;
     });
@@ -1230,6 +1231,7 @@ export function processExtractedClaims(
           ? (VALID_ATTACK_TYPES.has(raw) ? raw as 'rebut' | 'undercut' | 'undermine' : 'rebut')
           : undefined,
         weight: edgeWeight,
+        strength: rel.strength as ArgumentNetworkEdge['strength'],
         scheme: rel.scheme as ArgumentNetworkEdge['scheme'],
         warrant: rel.warrant,
         argumentation_scheme: rel.argumentation_scheme as ArgumentNetworkEdge['argumentation_scheme'],

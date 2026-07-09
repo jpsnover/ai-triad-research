@@ -794,3 +794,96 @@ describe('sampleNodesForEntailment', () => {
     expect(sampled).toHaveLength(5);
   });
 });
+
+describe('normalizeExtractedClaim — edge strength persistence', () => {
+  it('preserves canonical categorical strength alongside numeric weight', () => {
+    const claim = normalizeExtractedClaim({
+      text: 'test claim',
+      responds_to: [{ prior_claim_id: 'AN-1', relationship: 'supports', strength: 'decisive' }],
+    });
+    expect(claim.responds_to![0].weight).toBe(1.0);
+    expect(claim.responds_to![0].strength).toBe('decisive');
+  });
+
+  it('preserves strength for all three categories', () => {
+    for (const [category, expectedWeight] of [['decisive', 1.0], ['substantial', 0.7], ['tangential', 0.3]] as const) {
+      const claim = normalizeExtractedClaim({
+        text: 'test',
+        responds_to: [{ prior_claim_id: 'AN-1', relationship: 'attacks', strength: category }],
+      });
+      expect(claim.responds_to![0].weight).toBe(expectedWeight);
+      expect(claim.responds_to![0].strength).toBe(category);
+    }
+  });
+
+  it('normalizes case before persisting strength', () => {
+    const claim = normalizeExtractedClaim({
+      text: 'test',
+      responds_to: [{ prior_claim_id: 'AN-1', relationship: 'supports', strength: 'Decisive' }],
+    });
+    expect(claim.responds_to![0].strength).toBe('decisive');
+  });
+
+  it('does not persist strength for non-canonical values', () => {
+    const claim = normalizeExtractedClaim({
+      text: 'test',
+      responds_to: [{ prior_claim_id: 'AN-1', relationship: 'supports', strength: 'strong', weight: 0.65 }],
+    });
+    expect(claim.responds_to![0].weight).toBe(0.65);
+    expect(claim.responds_to![0].strength).toBe('strong');
+  });
+
+  it('passes through numeric weight without adding strength', () => {
+    const claim = normalizeExtractedClaim({
+      text: 'test',
+      responds_to: [{ prior_claim_id: 'AN-1', relationship: 'supports', weight: 0.8 }],
+    });
+    expect(claim.responds_to![0].weight).toBe(0.8);
+    expect(claim.responds_to![0].strength).toBeUndefined();
+  });
+});
+
+describe('processExtractedClaims — edge strength carry-through', () => {
+  const baseInput = {
+    statement: 'Multilateral governance structures can enforce compliance standards across jurisdictions for frontier model deployment',
+    speaker: 'safetyist' as const,
+    entryId: 'entry-2',
+    turnNumber: 2,
+    existingNodes: [{
+      id: 'AN-0', text: 'Rapid deployment creates accountability gaps in frontier model development', speaker: 'accelerationist',
+      source_entry_id: 'entry-0', taxonomy_refs: [], turn_number: 1, base_strength: 0.5,
+    }] as ArgumentNetworkNode[],
+    existingEdgeCount: 0,
+    startNodeId: 1,
+    taxonomyRefIds: [],
+  };
+  const baseOptions = { groundingOverlapThreshold: 0.1, isClassifyPath: false };
+
+  it('carries validated strength through to persisted edge', () => {
+    const result = processExtractedClaims({
+      ...baseInput,
+      claims: [{
+        text: 'Multilateral governance structures enforce compliance standards across jurisdictions through coordinated regulatory oversight mechanisms and treaties',
+        responds_to: [{ prior_claim_id: 'AN-0', relationship: 'attacks', attack_type: 'rebut', strength: 'decisive' }],
+      }],
+    }, baseOptions);
+
+    expect(result.newEdges).toHaveLength(1);
+    expect(result.newEdges[0].weight).toBe(1.0);
+    expect(result.newEdges[0].strength).toBe('decisive');
+  });
+
+  it('leaves strength undefined when only numeric weight is provided', () => {
+    const result = processExtractedClaims({
+      ...baseInput,
+      claims: [{
+        text: 'Multilateral governance structures enforce compliance standards across jurisdictions through coordinated regulatory enforcement mechanisms',
+        responds_to: [{ prior_claim_id: 'AN-0', relationship: 'supports', weight: 0.65 }],
+      }],
+    }, baseOptions);
+
+    expect(result.newEdges).toHaveLength(1);
+    expect(result.newEdges[0].weight).toBe(0.65);
+    expect(result.newEdges[0].strength).toBeUndefined();
+  });
+});
