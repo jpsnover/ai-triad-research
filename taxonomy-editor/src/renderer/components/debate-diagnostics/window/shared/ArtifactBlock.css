@@ -24,7 +24,7 @@
 
 .artifact-block-chevron {
   flex-shrink: 0;
-  font-size: 0.55rem;
+  font-size: var(--text-2xs);
   transition: transform 0.15s ease;
 }
 
