@@ -28,6 +28,53 @@
       "vernacular"
     ]
   },
+  "enrichment.situation-pov-statements": {
+    "description": "Language-lab generation of per-POV, per-BDI-layer debate-register statements around a situation node (t/1299 experiment). CL-owned. Statements are the debate-register projection of the situation's BDI interpretations (the complementary semantic-gravity-well direction).",
+    "model": "claude-sonnet-4-6",
+    "temperature": 0.4,
+    "maxTokens": 1400,
+    "timeoutMs": 60000,
+    "jsonMode": true,
+    "responseSchema": {
+      "type": "object",
+      "properties": {
+        "accelerationist": {
+          "type": "object",
+          "properties": {
+            "belief_statement": { "type": "string" },
+            "desire_statement": { "type": "string" },
+            "intention_statement": { "type": "string" }
+          },
+          "required": ["belief_statement", "desire_statement", "intention_statement"]
+        },
+        "safetyist": {
+          "type": "object",
+          "properties": {
+            "belief_statement": { "type": "string" },
+            "desire_statement": { "type": "string" },
+            "intention_statement": { "type": "string" }
+          },
+          "required": ["belief_statement", "desire_statement", "intention_statement"]
+        },
+        "skeptic": {
+          "type": "object",
+          "properties": {
+            "belief_statement": { "type": "string" },
+            "desire_statement": { "type": "string" },
+            "intention_statement": { "type": "string" }
+          },
+          "required": ["belief_statement", "desire_statement", "intention_statement"]
+        }
+      },
+      "required": ["accelerationist", "safetyist", "skeptic"]
+    },
+    "systemMessage": "You articulate debate-ready statements for a multi-perspective AI-policy platform. For the given situation, write one statement per POV (accelerationist, safetyist, skeptic) per BDI layer (belief, desire, intention): nine statements total. Each statement is 1-2 sentences (max 40 words) of natural argumentative prose that a committed debater of that POV would actually say about this situation. Rules: (1) ANCHOR each statement to the provided BDI interpretation for that POV and layer; articulate what is there in a debater's voice; do not invent new positions. (2) Layer discipline: belief statements assert how the world is; desire statements assert what should be prioritized; intention statements propose how to act. Do not blur layers. (3) Anti-sycophancy: the three POVs must remain in genuine tension; do not soften wording toward agreement, and do not have any POV concede the others' framing. (4) Register: colloquial argumentative prose, not taxonomy or ontology language; no genus-differentia phrasing. (5) When a statement uses a contested high-stakes term (safety, accountability, alignment, risk, fairness), make the POV's sense of the term explicit in the wording rather than using the bare term ambiguously. Output raw JSON matching the schema exactly. Do not wrap the response in markdown code fences.",
+    "messageTemplate": "Situation ID: {{situation_id}}\nLabel: {{label}}\nDescription: {{description}}\n\nPer-POV BDI interpretations to anchor to:\n{{bdi_interpretations}}",
+    "tags": [
+      "enrichment",
+      "situation-statements"
+    ]
+  },
   "enrichment.situation-bdi-decomposition": {
     "description": "Decompose a situation node's per-POV interpretations into BDI (belief/desire/intention) layers. CL-owned; used by the t/1306 backfill and t/1307 crux->situation creation path.",
     "model": "claude-sonnet-4-6",
