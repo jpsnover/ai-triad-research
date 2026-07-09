@@ -711,6 +711,10 @@ Return ONLY JSON (no markdown, no code fences):
               verdict: parsed.verdict,
               evidence: parsed.evidence,
               confidence: parsed.confidence,
+              web_search_used: !!(result.citations?.length || result.searchQueries?.length),
+              web_search_queries: result.searchQueries,
+              web_search_evidence: parsed.evidence,
+              web_search_citations: result.citations,
             },
           });
         }

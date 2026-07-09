@@ -42,6 +42,7 @@ import type {
   ProviderResult,
   GenerateOptions as SharedGenerateOptions,
   ModelRegistry,
+  GroundingCitation,
 } from '../ai-client/index.js';
 
 // ── Interface ────────────────────────────────────────────
@@ -68,7 +69,7 @@ export interface AIAdapter {
  */
 export interface ExtendedAIAdapter extends AIAdapter {
   generate?(request: GenerateRequest): Promise<GenerateResponse>;
-  generateTextWithSearch?(prompt: string, model?: string): Promise<{ text: string; searchQueries?: string[] }>;
+  generateTextWithSearch?(prompt: string, model?: string): Promise<{ text: string; searchQueries?: string[]; citations?: GroundingCitation[] }>;
   nliClassify?(pairs: { text_a: string; text_b: string }[]): Promise<{ results: { nli_label: string; nli_entailment: number }[] }>;
   computeQueryEmbedding?(text: string): Promise<{ vector: number[] }>;
 }
@@ -437,14 +438,14 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
     generateText: doGenerateText,
     generate: process.env.DEBATE_ENVELOPE !== '0' ? doGenerate : undefined,
 
-    async generateTextWithSearch(prompt: string, model?: string): Promise<{ text: string; searchQueries?: string[] }> {
+    async generateTextWithSearch(prompt: string, model?: string): Promise<{ text: string; searchQueries?: string[]; citations?: GroundingCitation[] }> {
       const resolved = model || DEFAULT_MODEL;
       const { backend, apiModelId } = resolveModel(registry, resolved);
 
       if (backend === 'gemini') {
         const apiKey = resolveApiKey(backend, explicitApiKey);
         const result = await geminiGroundedSearch(fetch, prompt, apiModelId, apiKey);
-        return { text: result.text, searchQueries: result.searchQueries };
+        return { text: result.text, searchQueries: result.searchQueries, citations: result.citations };
       }
 
       const tavilyKey = process.env.TAVILY_API_KEY;
@@ -457,7 +458,12 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
         });
         const { augmentedPrompt, searchQueries } = buildSearchAugmentedPrompt(prompt, searchResult);
         const text = await doGenerateText(augmentedPrompt, resolved);
-        return { text, searchQueries: searchQueries.length ? searchQueries : undefined };
+        const citations: GroundingCitation[] = searchResult.results.map(r => ({
+          uri: r.url,
+          title: r.title,
+          segments: [],
+        }));
+        return { text, searchQueries: searchQueries.length ? searchQueries : undefined, citations: citations.length ? citations : undefined };
       }
 
       const text = await doGenerateText(prompt, resolved);
