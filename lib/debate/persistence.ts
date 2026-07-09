@@ -42,7 +42,7 @@ export function safeSerialize(value: unknown, indent: number = 2): { json: strin
  * EPERM / EACCES on rename are almost always caused by antivirus, search
  * indexer, or another process briefly holding the target file open.
  */
-export function renameSyncWithRetry(oldPath: string, newPath: string, maxRetries = 5): void {
+export function renameSyncWithRetry(oldPath: string, newPath: string, maxRetries = 7): void {
   for (let i = 0; i <= maxRetries; i++) {
     try {
       fs.renameSync(oldPath, newPath);
@@ -67,7 +67,7 @@ export function renameSyncWithRetry(oldPath: string, newPath: string, maxRetries
 /**
  * Async rename with exponential-backoff retry for transient Windows file locks.
  */
-export async function renameWithRetry(oldPath: string, newPath: string, maxRetries = 5): Promise<void> {
+export async function renameWithRetry(oldPath: string, newPath: string, maxRetries = 7): Promise<void> {
   for (let i = 0; i <= maxRetries; i++) {
     try {
       await fs.promises.rename(oldPath, newPath);

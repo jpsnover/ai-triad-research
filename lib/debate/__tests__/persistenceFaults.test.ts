@@ -355,14 +355,14 @@ describe('atomicWriteSync EPERM retry (t/1271)', () => {
     expect(JSON.parse(fs.readFileSync(testFile, 'utf-8'))).toEqual({ recovered: true });
   });
 
-  it('throws after exhausting all retries on persistent EPERM', () => {
+  it('throws after exhausting all retries on persistent EPERM', { timeout: 10_000 }, () => {
     const spy = vi.spyOn(fs, 'renameSync').mockImplementation(() => {
       throw makeStorageError('EPERM', 'operation not permitted');
     });
 
     expect(() => atomicWriteSync(testFile, '{"data":true}')).toThrow('EPERM');
-    // 1 initial + 5 retries = 6 calls
-    expect(spy).toHaveBeenCalledTimes(6);
+    // 1 initial + 7 retries = 8 calls
+    expect(spy).toHaveBeenCalledTimes(8);
     expect(fs.existsSync(`${testFile}.tmp`)).toBe(false);
     spy.mockRestore();
   });
