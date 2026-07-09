@@ -214,7 +214,7 @@ async function main(): Promise<void> {
 
 main().catch(err => {
   console.error(err);
-  getGlobalRecorder().record({
+  getGlobalRecorder()?.record({
     type: 'system.error',
     level: 'error',
     component: 'relink-vocabulary',

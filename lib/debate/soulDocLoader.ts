@@ -5,7 +5,7 @@ import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { SoulDocumentSchema, type SoulDocument } from './soulDocSchema.js';
-import { ActionableError } from '../errors.js';
+import { ActionableError } from './errors.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

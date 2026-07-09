@@ -125,6 +125,7 @@ function normalizeDisagreementType(raw: string | undefined): string | undefined 
 // ── Public types ────────────────────────────────────────
 
 export interface TurnPipelineInput {
+  [key: string]: unknown;
   label: string;
   pov: string;
   personality: string;
@@ -149,7 +150,7 @@ export interface TurnPipelineInput {
   priorFlaggedHints?: string[];
   sourceContent?: string;
   documentAnalysis?: DocumentAnalysis;
-  audience?: import('./types').DebateAudience;
+  audience?: import('./types.js').DebateAudience;
   pendingIntervention?: {
     move: string;
     family: string;
@@ -370,8 +371,8 @@ export async function runTurnPipeline(
   };
 
   // ── Stage 1: BRIEF ──
-  let brief: BriefWorkProduct;
-  let briefJson: string;
+  let brief!: BriefWorkProduct;
+  let briefJson!: string;
   let t0: number;
   let elapsed: number;
 
@@ -996,7 +997,7 @@ export async function runTurnPipeline(
     // This is a quality signal — the LLM sometimes ignores the plan.
     if (draft?.move_types && plan?.planned_moves?.length) {
       const plannedMoves = plan.planned_moves.map(pm => resolveMoveName(pm.move));
-      const draftMoves = (draft.move_types as Array<string | { move: string }>).map(mt => resolveMoveName(getMoveName(mt)));
+      const draftMoves = (draft.move_types as Array<string | MoveAnnotation>).map(mt => resolveMoveName(getMoveName(mt)));
       const plannedSet = new Set(plannedMoves);
       const draftSet = new Set(draftMoves);
       const missingFromDraft = plannedMoves.filter(m => !draftSet.has(m));
@@ -1097,7 +1098,7 @@ export async function runTurnPipeline(
       const keyPoints = (wp?.keyPoints as Array<{ doc_id?: string }>) ?? [];
       const allDocIds = [...new Set([...facts.map(f => f.doc_id), ...keyPoints.map(kp => kp.doc_id)].filter(Boolean))] as string[];
       const statementLower = draft.statement.toLowerCase();
-      const docMeta = input.docTitles;
+      const docMeta = input.docTitles as import('./evidenceFromSummaries.js').DocTitleMap | import('./evidenceFromSummaries.js').DocMetaMap | undefined;
       const citedDocs: Array<{ doc_id: string; title?: string; match_type: string }> = [];
       for (const docId of allDocIds) {
         const slug = docId.replace(/-\d{4}(-\d+)?$/, '').replace(/-/g, ' ');
@@ -1115,7 +1116,7 @@ export async function runTurnPipeline(
         } else if (titleLower && statementLower.includes(titleLower)) {
           citedDocs.push({ doc_id: docId, title, match_type: 'title_exact' });
         } else if (titleLower) {
-          const titleWords = titleLower.split(/\s+/).filter(w => w.length > 3);
+          const titleWords = titleLower.split(/\s+/).filter((w: string) => w.length > 3);
           if (titleWords.length >= 3) {
             const trigram = titleWords.slice(0, 4).join(' ');
             if (statementLower.includes(trigram)) {
@@ -1323,7 +1324,7 @@ export async function runTurnPipeline(
       citation_warning_details: citationWarnings,
       ignored_evidence_docs: ignoredEvidenceDocIds.length,
       ignored_evidence_titles: ignoredEvidenceDocIds.map(id => {
-        const entry = input.docTitles?.[id];
+        const entry = (input.docTitles as import('./evidenceFromSummaries.js').DocTitleMap | import('./evidenceFromSummaries.js').DocMetaMap | undefined)?.[id];
         return typeof entry === 'string' ? entry : entry?.title ?? id;
       }),
     },
@@ -1697,7 +1698,7 @@ export async function runTurnPipeline(
   return {
     brief,
     plan,
-    draft,
+    draft: draft!,
     cite,
     evidenceBlock,
     ignoredEvidenceDocIds: ignoredEvidenceDocIds.length > 0 ? ignoredEvidenceDocIds : undefined,
@@ -2572,7 +2573,7 @@ export interface OpeningPipelineInput {
   isFirst: boolean;
   sourceContent?: string;
   documentAnalysis?: DocumentAnalysis;
-  audience?: import('./types').DebateAudience;
+  audience?: import('./types.js').DebateAudience;
   model: string;
   briefModel?: string;
   planModel?: string;
@@ -2732,6 +2733,7 @@ export async function runOpeningPipeline(
     const openingDraftMeta: import('./helpers.js').PoverResponseMeta = {
       my_claims: draft.claim_sketches?.map(c => ({
         claim: typeof c === 'string' ? c : (c as Record<string, unknown>).claim as string ?? '',
+        targets: [] as string[],
       })) ?? [],
       key_assumptions: draft.key_assumptions as { assumption: string; if_wrong: string }[] | undefined,
     };
@@ -2784,7 +2786,7 @@ export async function runOpeningPipeline(
   }
 
   return {
-    brief,
+    brief: brief!,
     plan,
     draft,
     cite,

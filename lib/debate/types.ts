@@ -44,7 +44,7 @@ export function getDebatePhase(round: number, totalRounds: number): DebatePhase 
 
 // ── Adaptive Staging Types ──────────────────────────────────────────
 
-export type DebatePacing = 'tight' | 'moderate' | 'thorough';
+export type DebatePacing = 'tight' | 'moderate' | 'thorough' | 'quick';
 export type DialecticalStyle = 'adversarial' | 'deliberative' | 'integrative';
 
 export interface PhaseBoundsOverride {
@@ -95,6 +95,7 @@ export interface SignalContext {
       argumentation_scheme?: string;
       taxonomy_refs: ReadonlyArray<{ node_id: string; relevance: string }>;
       turn_number: number;
+      embedding?: number[];
     }>;
     edges: ReadonlyArray<{
       id: string; source: string; target: string;
@@ -1022,6 +1023,7 @@ export interface ANMutation {
 }
 
 export interface RevoiceGateResult {
+  [key: string]: unknown;
   passed: boolean;
   anchor_source: 'taxonomy' | 'dynamic_an' | null;
   taxonomy_overlap: { original_top3: string[]; revoiced_top3: string[]; overlap_count: number };
@@ -1226,6 +1228,7 @@ export interface TurnStageConfig {
 }
 
 export interface StageDiagnostics {
+  [key: string]: unknown;
   stage: TurnStageId;
   prompt: string;
   raw_response: string;
@@ -1310,6 +1313,7 @@ export interface TurnSymbol {
 }
 
 export interface DraftWorkProduct {
+  [key: string]: unknown;
   statement: string;
   turn_symbols: TurnSymbol[];
   claim_sketches: { claim: string; targets: string[] }[];
@@ -1536,7 +1540,7 @@ export interface ContextRotStage {
   out_units: string;
   out_count: number;
   ratio: number;
-  flags: Record<string, number>;
+  flags: Record<string, number | string>;
 }
 
 /** Aggregate context-rot metrics for a full pipeline run (summary or debate). */

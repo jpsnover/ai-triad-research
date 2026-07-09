@@ -11,14 +11,14 @@
  * Usage (programmatic): import { recalibrateParameters } from './calibrationOptimizer';
  */
 
-import type { CalibrationDataPoint, ParameterHistoryEntry } from './calibrationLogger';
+import type { CalibrationDataPoint, ParameterHistoryEntry } from './calibrationLogger.js';
 import {
   readCalibrationLog,
   captureSnapshot,
   diffSnapshots,
   appendParameterHistory,
   seedInitialSnapshot,
-} from './calibrationLogger';
+} from './calibrationLogger.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -242,8 +242,8 @@ function optimizeAttackWeights(data: CalibrationDataPoint[]): OptimizationResult
 
   return {
     parameter: 'qbaf.attack_weights',
-    current_value: current,
-    recommended_value: recommended,
+    current_value: current as unknown as Record<string, number>,
+    recommended_value: recommended as unknown as Record<string, number>,
     confidence: avgConcordance < 0.5 ? 'medium' : 'low',
     data_points_used: valid.length,
     rationale,

@@ -33,7 +33,20 @@ export * from './networkGc.js';
 export * from './coverageTracker.js';
 export * from './debateExport.js';
 export * from './turnPipeline.js';
-export * from './convergenceSignals.js';
+export {
+  SEMANTIC_RECYCLING_THRESHOLD,
+  ARCO_DRIFT_THRESHOLD,
+  CLAUSE_ENGAGEMENT_FLOOR,
+  computeConvergenceSignals,
+  CONCESSION_CONVERGENCE_BOOST,
+  CRUX_CONCESSION_BOOST_MULTIPLIER,
+  boostConvergenceOnConcession,
+  CONVERGES_WITH_BOOST,
+  boostConvergenceFromTaxonomyEdges,
+  CONCESSION_ASYMMETRY_THRESHOLD,
+  type UncertaintyMetric,
+  computeUncertaintyMetric,
+} from './convergenceSignals.js';
 export * from './processReward.js';
 export * from './cruxResolution.js';
 export * from './tieredCompression.js';

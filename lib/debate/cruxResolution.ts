@@ -177,7 +177,7 @@ function evaluateCruxState(
       // edges causes cruxes to stall in 'identified' indefinitely (t/284)
       const edgesOnCrux = edges.filter(e =>
         (e.source === crux.id || e.target === crux.id) &&
-        nodes.find(n => n.id === (e.source === crux.id ? e.target : e.source))?.turn_number >= crux.identified_turn
+        (nodes.find(n => n.id === (e.source === crux.id ? e.target : e.source))?.turn_number ?? 0) >= crux.identified_turn
       );
       if (edgesOnCrux.length > 0) {
         updated = transitionCrux(updated, 'engaged', currentTurn, `${edgesOnCrux.length} edge(s) engaging with crux`);
@@ -239,7 +239,10 @@ export function updateCruxTracker(
   const trackedIds = new Set(tracker.map(c => c.id));
 
   // Detect new structural cruxes
-  const detected = detectCruxNodes(nodes, edges);
+  const detected = detectCruxNodes(
+    nodes as unknown as Parameters<typeof detectCruxNodes>[0],
+    edges as unknown as Parameters<typeof detectCruxNodes>[1],
+  );
   for (const crux of detected) {
     if (trackedIds.has(crux.id)) continue;
     const cruxNode = nodes.find(n => n.id === crux.id);

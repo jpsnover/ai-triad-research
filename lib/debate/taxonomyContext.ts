@@ -452,6 +452,7 @@ function _renderSituationNode(
 
 /** Instrumentation data for tracking what was injected vs what was used. */
 export interface ContextInjectionManifest {
+  [key: string]: unknown;
   povNodeIds: string[];
   povPrimaryIds: string[];
   situationNodeIds: string[];

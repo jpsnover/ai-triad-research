@@ -27,7 +27,6 @@ import type {
   GapInjection,
   UnansweredClaimEntry,
   TurnPipelineResult,
-  TurnPipelineInput,
   TurnValidation,
   TurnAttempt,
   TaxonomyRef,
@@ -68,7 +67,8 @@ import {
 
 import { parseAIJson } from './helpers.js';
 import { parseJsonRobust, formatRecentTranscript, getMoveName } from './helpers.js';
-import type { PoverResponseMeta } from './helpers.js';
+import type { PoverResponseMeta, MoveAnnotation } from './helpers.js';
+import type { TurnPipelineInput } from './turnPipeline.js';
 import type { GenerateOptions } from './aiAdapter.js';
 import { validateTurn, resolveTurnValidationConfig } from './turnValidator.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
@@ -136,7 +136,7 @@ export interface ModeratorSelectionInput {
     consecutiveOffClause: number;
   };
   transcript: ReadonlyArray<TranscriptEntry>;
-  contextSummaries?: ReadonlyArray<unknown>;
+  contextSummaries?: { up_to_entry_id: string; summary: string; tier?: string }[];
   argumentNetwork?: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] };
   convergenceSignals?: ConvergenceSignals[];
   unansweredLedger?: UnansweredClaimEntry[];
@@ -228,7 +228,7 @@ function checkMetaphorReframe(
   const last3Moves = transcript
     .filter(e => e.speaker !== 'system' && e.speaker !== 'user' && e.speaker !== 'moderator')
     .slice(-3)
-    .flatMap(e => ((e.metadata as Record<string, unknown>)?.move_types as (string | { move_type?: string })[] ?? []))
+    .flatMap(e => ((e.metadata as Record<string, unknown>)?.move_types as (string | MoveAnnotation)[] ?? []))
     .map(m => getMoveName(m));
   const concedeDist = last3Moves.filter(m => m === 'CONCEDE').length;
   const distinguishDist = last3Moves.filter(m => m === 'DISTINGUISH').length;

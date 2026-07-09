@@ -235,7 +235,7 @@ export function resolveTurnValidationConfig(
   const clamped = Math.max(0, Math.min(4, rawRetries));
   return {
     enabled: src.enabled ?? true,
-    maxRetries: clamped,
+    maxRetries: clamped as 0 | 1 | 2 | 3 | 4,
     deterministicOnly: src.deterministicOnly ?? false,
     judgeModel: src.judgeModel ?? 'claude-haiku-4-5-20251001',
     sampleRate: {
@@ -270,7 +270,7 @@ export interface ValidateTurnParams {
   /** Optional fallback judge caller using the debate's own model when the primary judge fails. */
   callJudgeFallback?: (prompt: string, label: string) => Promise<string>;
   /** Active moderator intervention that preceded this turn — triggers compliance checks. */
-  pendingIntervention?: import('./types').ModeratorIntervention;
+  pendingIntervention?: import('./types.js').ModeratorIntervention;
   /** When true, all citations in the draft have been verified against the citation bank.
    *  Tells the judge not to re-flag citation quality — the scrub already handled it. */
   citationBankValidated?: boolean;
@@ -396,7 +396,7 @@ function runStageA(p: ValidateTurnParams): StageAResult {
 
   // Rule 8: move repetition vs most recent same-agent turn (warning)
   const lastMoves = priorTurns.length > 0
-    ? (((priorTurns[priorTurns.length - 1].metadata as Record<string, unknown> | undefined)?.move_types) as (string | import('./helpers').MoveAnnotation)[] | undefined)
+    ? (((priorTurns[priorTurns.length - 1].metadata as Record<string, unknown> | undefined)?.move_types) as (string | import('./helpers.js').MoveAnnotation)[] | undefined)
         ?.map(m => resolveMoveName(getMoveName(m)))
     : undefined;
   if (
@@ -679,7 +679,7 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
   const hasStageAError = stageA.errorIssues.length > 0;
 
   // Sample rate check — treat out-of-sample as deterministic-only.
-  const phaseRate = p.config.sampleRate[p.phase] ?? 1;
+  const phaseRate = (p.config.sampleRate as Record<string, number | undefined>)[p.phase] ?? 1;
   const sampled = phaseRate >= 1 ? true : Math.random() < phaseRate;
 
   const shouldRunJudge =
@@ -917,6 +917,7 @@ function getHedgeThreshold(phase: DebatePhase, audience?: DebateAudience): numbe
     'confrontation': 0.40,
     argumentation: 0.30,
     concluding: 0.20,
+    terminated: 0.20,
   };
   if (audience === 'general_public') {
     return (byPhase[phase] ?? 0.30) - 0.05;
@@ -1252,7 +1253,7 @@ export function validateDraftStage(p: {
   round: number;
   priorTurns: readonly TranscriptEntry[];
   audience?: DebateAudience;
-  pendingIntervention?: import('./types').ModeratorIntervention;
+  pendingIntervention?: import('./types.js').ModeratorIntervention;
   /** Hint keys suppressed due to repeated failures — skip from errors/warnings. */
   suppressedHints?: ReadonlySet<string>;
   speaker?: SpeakerId;
@@ -1300,7 +1301,7 @@ export function validateDraftStage(p: {
   if (meta.move_types && meta.move_types.length > 0 && priorTurns.length > 0) {
     const lastEntry = priorTurns[priorTurns.length - 1];
     const lastMeta = lastEntry?.metadata as Record<string, unknown> | undefined;
-    const lastMoveTypes = lastMeta?.move_types as (string | { move: string })[] | undefined;
+    const lastMoveTypes = lastMeta?.move_types as (string | MoveAnnotation)[] | undefined;
     if (lastMoveTypes && lastMoveTypes.length > 0) {
       const lastMoves = lastMoveTypes.map(m => resolveMoveName(getMoveName(m))).filter(Boolean);
       const currentMoves = meta.move_types.map(m => resolveMoveName(getMoveName(m))).filter(Boolean);
@@ -1529,7 +1530,7 @@ export function validateCiteStage(p: {
  * substantive detail, count), argument_sketch, anticipated_responses, and target_claims.
  */
 export function validatePlanStage(p: {
-  plan: import('./types').PlanWorkProduct;
+  plan: import('./types.js').PlanWorkProduct;
   isFirstRound: boolean;
 }): StageValidationResult {
   const errors: string[] = [];

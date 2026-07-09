@@ -247,7 +247,7 @@ export function buildTieredContext(input: TieredCompressionInput): {
   if (distantEntries.length > 0 || total > MEDIUM_WINDOW) {
     distantSummary = buildDistantTierSummary(
       input.nodes, input.edges, input.commitments, input.cruxTracker,
-      input.unansweredClaims, distantEntries,
+      input.unansweredClaims as UnansweredClaimEntry[] | undefined, distantEntries,
     );
   }
 

@@ -138,7 +138,7 @@ function resolvePerturbationConfig(
   config: CLIConfig,
   cliPrompt?: string,
   cliTurn?: number,
-): import('./types').PerturbationConfig | undefined {
+): import('./types.js').PerturbationConfig | undefined {
   // CLI flags override config file
   if (cliPrompt) {
     return {
@@ -280,7 +280,7 @@ async function main(): Promise<void> {
       id: sitNode.id,
       label: sitNode.label,
       description: sitNode.description,
-      interpretations: sitNode.interpretations,
+      interpretations: sitNode.interpretations as { accelerationist: string; safetyist: string; skeptic: string },
       assumes: sitNode.graph_attributes?.assumes,
       steelmanVulnerability: typeof sitNode.graph_attributes?.steelman_vulnerability === 'string'
         ? sitNode.graph_attributes.steelman_vulnerability : undefined,
@@ -381,7 +381,7 @@ async function main(): Promise<void> {
     appVersion: (() => { try { return JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../taxonomy-editor/package.json'), 'utf-8')).version; } catch { return undefined; } })(),
     audience,
     vocabulary: vocab.standardized.length > 0
-      ? { standardizedTerms: vocab.standardized as import('../dictionary/types').StandardizedTerm[], colloquialTerms: vocab.colloquial as import('../dictionary/types').ColloquialTerm[] }
+      ? { standardizedTerms: vocab.standardized as import('../dictionary/types.js').StandardizedTerm[], colloquialTerms: vocab.colloquial as import('../dictionary/types.js').ColloquialTerm[] }
       : undefined,
     useAdaptiveStaging: config.useAdaptiveStaging,
     pacing: config.pacing,
@@ -685,7 +685,7 @@ async function runCiGolden(): Promise<void> {
         responseLength: (config.responseLength ?? 'brief') as 'brief' | 'medium' | 'detailed',
         turnValidation: { enabled: true },
         vocabulary: vocab.standardized.length > 0
-          ? { standardizedTerms: vocab.standardized as import('../dictionary/types').StandardizedTerm[], colloquialTerms: vocab.colloquial as import('../dictionary/types').ColloquialTerm[] }
+          ? { standardizedTerms: vocab.standardized as import('../dictionary/types.js').StandardizedTerm[], colloquialTerms: vocab.colloquial as import('../dictionary/types.js').ColloquialTerm[] }
           : undefined,
       };
 

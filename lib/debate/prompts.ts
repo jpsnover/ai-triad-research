@@ -1880,6 +1880,7 @@ export function _buildMoveHistoryBlock(priorMoves?: string[], turnsSinceLastConc
 }
 
 export interface StagePromptInput {
+  [key: string]: unknown;
   label: string;
   pov: string;
   personality: string;

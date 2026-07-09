@@ -897,7 +897,7 @@ export interface ProcessClaimsOptions {
   sourcesDir?: string;
   /** Colloquial terms for post-extraction vocabulary disambiguation. When provided,
    *  bare terms in claim text are resolved to canonical forms based on speaker POV. */
-  colloquialTerms?: import('../dictionary/types').ColloquialTerm[];
+  colloquialTerms?: import('../dictionary/types.js').ColloquialTerm[];
 }
 
 export interface ProcessClaimsInput {
@@ -1018,7 +1018,7 @@ export function processExtractedClaims(
       text: claim.text,
       attribution_text_genus: claim.attribution_text || undefined,
       canonical_proposition: claim.canonical_proposition || undefined,
-      speaker,
+      speaker: speaker as ArgumentNetworkNode['speaker'],
       source_entry_id: entryId,
       taxonomy_refs: taxonomyRefIds,
       turn_number: turnNumber,
@@ -1272,6 +1272,7 @@ export function processExtractedClaims(
   return {
     newNodes, newEdges, accepted, rejected, commitments,
     rejectionReasons, rejectedOverlapPcts, maxOverlapVsExisting: maxOverlap,
+    lowValueClaimsRejected: 0,
   };
 }
 

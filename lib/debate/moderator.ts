@@ -68,12 +68,14 @@ const PHASE_ALLOWED_FAMILIES: Record<DebatePhase, Set<InterventionFamily>> = {
   'confrontation': new Set(['procedural', 'repair', 'reconciliation']),
   'argumentation': new Set(['procedural', 'elicitation', 'repair', 'reconciliation', 'reflection']),
   'concluding': new Set(['synthesis', 'reconciliation']),
+  'terminated': new Set(),
 };
 
 const PHASE_SECONDARY_FAMILIES: Record<DebatePhase, Set<InterventionFamily>> = {
   'confrontation': new Set(),
   'argumentation': new Set(['synthesis']),
   'concluding': new Set(['repair']),
+  'terminated': new Set(),
 };
 
 const DEFAULT_PRIORITY: InterventionMove[] = [
@@ -1044,12 +1046,18 @@ export function shouldFirePolicyChallenge(
   }
 
   const recorder = getGlobalRecorder();
-  recorder?.record('moderator', 'policy_challenge_trigger', {
-    collab_ratio: avgCollabRatio,
-    avg_intention_specificity: avgSpec,
-    intention_count: intentionNodes.length,
-    argumentation_rounds: input.argumentationRoundCount,
-    target,
+  recorder?.record({
+    type: 'debate.moderate',
+    component: 'moderator',
+    level: 'info',
+    message: 'policy_challenge_trigger',
+    data: {
+      collab_ratio: avgCollabRatio,
+      avg_intention_specificity: avgSpec,
+      intention_count: intentionNodes.length,
+      argumentation_rounds: input.argumentationRoundCount,
+      target,
+    },
   });
 
   return target;

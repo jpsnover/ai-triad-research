@@ -60,6 +60,8 @@ export interface AIAdapter {
   generateText(prompt: string, model: string, options?: GenerateOptions): Promise<string>;
   /** Optional callback for retry progress events. Set by the engine to surface retries in the UI. */
   onRetryProgress?: (info: { attempt: number; maxRetries: number; backoffSeconds: number; message: string }) => void;
+  generate?(request: GenerateRequest): Promise<GenerateResponse>;
+  computeQueryEmbedding?(text: string): Promise<{ vector: number[] }>;
 }
 
 /**

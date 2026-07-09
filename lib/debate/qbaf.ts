@@ -26,7 +26,7 @@ export interface QbafNode {
 export interface QbafEdge {
   source: string;
   target: string;
-  type: 'supports' | 'attacks';
+  type: 'supports' | 'attacks' | 'revoice_of';
   weight: number;
   attack_type?: 'rebut' | 'undercut' | 'undermine';
 }

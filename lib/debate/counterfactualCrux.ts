@@ -251,7 +251,7 @@ export function computeCounterfactualCruxes(
           claim_text: node.text,
           flipping_argument_id: flippingId,
           flipping_argument_text: flippingNode?.text ?? flippingId,
-          edge_type: edge.type,
+          edge_type: edge.type as 'supports' | 'attacks',
           original_outcome: baselineOutcome,
           counterfactual_outcome: cfOutcome,
           original_strength: baselineStrength,

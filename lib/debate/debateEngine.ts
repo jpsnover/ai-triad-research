@@ -194,7 +194,7 @@ export interface DebateConfig {
   model: string;
   /** @deprecated Use `stageModels.evaluator` instead. Mapped automatically with deprecation warning. */
   evaluatorModel?: string;
-  modelTier?: import('./types').ModelTier;
+  modelTier?: import('./types.js').ModelTier;
   speakerModels?: Record<string, string>;
   /** Fallback model chain for per-speaker failover. On hard failure (403, 500, empty), the engine tries each model in order, then falls back to the base `model`. Provided by the caller (server or Electron main). */
   fallbackChain?: string[];
@@ -205,11 +205,11 @@ export interface DebateConfig {
   probingInterval?: number;
   temperature?: number;
   /** Per-turn validation settings. Default: enabled, maxRetries=2. */
-  turnValidation?: import('./types').TurnValidationConfig;
+  turnValidation?: import('./types.js').TurnValidationConfig;
   /** App version string to stamp on the session. */
   appVersion?: string;
   /** Target audience for tone, language, and concern prioritization. */
-  audience?: import('./types').DebateAudience;
+  audience?: import('./types.js').DebateAudience;
   /** Round at which to inject gap arguments (0 = disabled, default = ceil(totalRounds/2)+1). */
   gapInjectionRound?: number;
   /** How often (in rounds) to run the responsive gap check after the initial injection. Default: 3. */
@@ -218,8 +218,8 @@ export interface DebateConfig {
   maxGapInjections?: number;
   /** Vocabulary terms for standardized term enforcement in persona prompts. */
   vocabulary?: {
-    standardizedTerms: import('../dictionary/types').StandardizedTerm[];
-    colloquialTerms: import('../dictionary/types').ColloquialTerm[];
+    standardizedTerms: import('../dictionary/types.js').StandardizedTerm[];
+    colloquialTerms: import('../dictionary/types.js').ColloquialTerm[];
   };
   /** Enable adaptive phase transitions instead of fixed round counts. */
   useAdaptiveStaging?: boolean;
@@ -242,7 +242,7 @@ export interface DebateConfig {
   /** Minimum delay (ms) between consecutive API calls. 0 = no throttle (default). Recommended: 500-1000 for free-tier APIs. */
   throttleMs?: number;
   /** Perturbation testing config — inject adversarial prompt at a specific turn for resilience evaluation. Evaluation/benchmark only. */
-  perturbation?: import('./types').PerturbationConfig;
+  perturbation?: import('./types.js').PerturbationConfig;
   /** Run topic wisdom scoring at setup. Default: true. */
   enableWisdomEvaluation?: boolean;
   /** Composite score (0-20) below which topic reframing triggers. Default: 10. */
@@ -350,7 +350,7 @@ export class DebateEngine {
    *  Tracked globally (not per-speaker) because hint suppressibility is a model
    *  capability — if the model can't produce specific claims for one speaker,
    *  it can't for any of them. */
-  private _hintStreaks = new Map<string, import('./types').HintStreak>();
+  private _hintStreaks = new Map<string, import('./types.js').HintStreak>();
   /** Cached prior crux context string — seeded from registry at debate start, injected into Brief stage. */
   private _priorCruxContext: string = '';
   /** Situation score adjustments from exploration summary (effective → boost, ineffective → penalty). */
@@ -359,8 +359,6 @@ export class DebateEngine {
   private _explorationPriming: string = '';
   /** Insularity interventions fired during this debate (for calibration logging). */
   private _insularityInterventions: { speaker: string; round: number; injected_node_id: string; target_camp: string }[] = [];
-  /** Last relevance scores from getRelevantTaxonomyContext — used by insularity injection. */
-  private _lastRelevanceScores: Map<string, number> | null = null;
   /** Adaptive backoff (ms) imposed after a 429 rate-limit error is detected. */
   private _rateLimitBackoffMs = 0;
   /** Timestamp of the last 429 detection — used with _rateLimitBackoffMs in throttle(). */
@@ -384,7 +382,7 @@ export class DebateEngine {
   private _rescoreSituations(): void {
     if (!this.session.crux_tracker?.length) return;
 
-    const sitNodes = (this.taxonomy as Record<string, { nodes?: SituationNode[] }>).situations?.nodes ?? [];
+    const sitNodes = (this.taxonomy as unknown as Record<string, { nodes?: SituationNode[] }>).situations?.nodes ?? [];
     const anForRescore = this.session.argument_network;
     if (!sitNodes.length || !anForRescore) return;
 
@@ -949,7 +947,7 @@ export class DebateEngine {
       generateWithModel: (prompt, label, model) => engine.generateWithModel(prompt, label, model),
       generateWithEvaluator: (prompt, label, timeoutMs?) => engine.generateWithEvaluator(prompt, label, timeoutMs),
       resolveStageModel: (key) => engine.resolveStageModel(key as keyof NonNullable<DebateConfig['stageModels']>),
-      addEntry: (entry) => engine.addEntry(entry),
+      addEntry: (entry) => engine.addEntry(entry as Omit<TranscriptEntry, 'id' | 'timestamp'>),
       recordDiagnostic: (entryId, data) => engine.recordDiagnostic(entryId, data),
       progress: (phase, speaker, message) => engine.progress(phase, speaker, message),
       warn: (operation, error, recovery) => engine.warn(operation, error, recovery),
@@ -1160,7 +1158,7 @@ export class DebateEngine {
       generateWithModel: (prompt, label, model) => this.generateWithModel(prompt, label, model),
       generateWithEvaluator: (prompt, label, timeoutMs?) => this.generateWithEvaluator(prompt, label, timeoutMs),
       resolveStageModel: (key) => this.resolveStageModel(key as keyof NonNullable<DebateConfig['stageModels']>),
-      addEntry: (entry) => this.addEntry(entry),
+      addEntry: (entry) => this.addEntry(entry as Omit<TranscriptEntry, 'id' | 'timestamp'>),
       recordDiagnostic: (entryId, data) => this.recordDiagnostic(entryId, data),
       progress: (phase, speaker, message) => this.progress(phase, speaker, message),
       warn: (operation, error, recovery) => this.warn(operation, error, recovery),
@@ -1658,7 +1656,7 @@ export class DebateEngine {
     if (entry.summaries) return;
 
     try {
-      const speaker = POVER_INFO[entry.speaker as SpeakerId]?.label ?? entry.speaker;
+      const speaker = (POVER_INFO as Record<string, { label: string }>)[entry.speaker]?.label ?? entry.speaker;
       const prompt = entrySummarizationPrompt(entry.content, speaker);
       const raw = await this.adapter.generateText(prompt, this.resolveStageModel('summary'), {
         temperature: 0.3, // Low temp for faithful summarization
@@ -1830,11 +1828,11 @@ export class DebateEngine {
           })),
           turn_number: n.turn_number,
         })),
-        edges: an.edges.map(e => ({
+        edges: an.edges.filter(e => e.type !== 'revoice_of').map(e => ({
           id: e.id,
           source: e.source,
           target: e.target,
-          type: e.type,
+          type: e.type as 'supports' | 'attacks',
           attack_type: e.attack_type,
           weight: e.weight ?? 0.5,
           scheme: e.scheme,
@@ -1891,9 +1889,9 @@ export class DebateEngine {
             id: n.id, speaker: n.speaker, computed_strength: n.computed_strength ?? 0.5,
             base_strength: n.base_strength, taxonomy_refs: [], turn_number: n.turn_number,
           })),
-          an.edges.map(e => ({
+          an.edges.filter(e => e.type !== 'revoice_of').map(e => ({
             id: e.id, source: e.source, target: e.target,
-            type: e.type, weight: e.weight ?? 0.5,
+            type: e.type as 'supports' | 'attacks', weight: e.weight ?? 0.5,
           })),
         ),
         cruxResolution: (this.session.crux_tracker ?? []).map(c => ({
@@ -2423,7 +2421,7 @@ export class DebateEngine {
       speaker: POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label ?? n.speaker,
     }));
 
-    return formatEstablishedPoints(allNodes, POVER_INFO[poverId].label, 14, an.edges);
+    return formatEstablishedPoints(allNodes, POVER_INFO[poverId].label, 14, an.edges.filter(e => e.type !== 'revoice_of') as { source: string; target: string; type: 'supports' | 'attacks' }[]);
   }
 
   // ── Phase: Document pre-analysis ───────────────────────────
@@ -3036,7 +3034,7 @@ export class DebateEngine {
       commitments: this.session.commitments,
       existingModState: this._moderatorState,
       poverInfo: POVER_INFO as Record<string, { label: string; pov: string; personality?: string }>,
-      cruxTracker: this.session.crux_tracker,
+      cruxTracker: this.session.crux_tracker as unknown as ModeratorSelectionInput['cruxTracker'],
       claimTexts: this.session.argument_network
         ? Object.fromEntries(this.session.argument_network.nodes.map(n => [n.id, n.text]))
         : undefined,
@@ -3150,14 +3148,14 @@ export class DebateEngine {
       .filter(e => e.speaker === responder && (e.type === 'opening' || e.type === 'statement'));
     const priorMoves = debaterTurns
       .filter(e => e.metadata)
-      .flatMap(e => ((e.metadata as Record<string, unknown>)?.move_types as (string | import('./helpers').MoveAnnotation)[]) ?? [])
+      .flatMap(e => ((e.metadata as Record<string, unknown>)?.move_types as (string | import('./helpers.js').MoveAnnotation)[]) ?? [])
       .map(m => getMoveName(m))
       .slice(-6); // Last 3 turns × ~2 moves each
 
     // Count turns since this debater last used a CONCEDE move
     let turnsSinceLastConcession = debaterTurns.length; // default: never conceded
     for (let i = debaterTurns.length - 1; i >= 0; i--) {
-      const moves = ((debaterTurns[i].metadata as Record<string, unknown>)?.move_types as (string | import('./helpers').MoveAnnotation)[]) ?? [];
+      const moves = ((debaterTurns[i].metadata as Record<string, unknown>)?.move_types as (string | import('./helpers.js').MoveAnnotation)[]) ?? [];
       if (moves.some(m => getMoveName(m).includes('CONCEDE'))) {
         turnsSinceLastConcession = debaterTurns.length - 1 - i;
         break;
@@ -3343,7 +3341,7 @@ export class DebateEngine {
       lastOpponentStatement,
       strategicHints: strategicHints?.length ? strategicHints : undefined,
       sourceEvidenceIndex: this.sourceEvidenceIndex,
-      docTitles: this.docTitles,
+      docTitles: this.docTitles as unknown as import('./evidenceFromSummaries.js').DocTitleMap | undefined,
       ignoredEvidenceDocIds: priorIgnoredDocIds,
       suppressedHints: this.getSuppressedHints(),
       ...(this.config.temperature != null ? {
@@ -3373,7 +3371,7 @@ export class DebateEngine {
     };
 
     const envelopeGenerate = this.adapter.generate
-      ? async (request: import('./cacheTypes').GenerateRequest, label: string) => {
+      ? async (request: import('./cacheTypes.js').GenerateRequest, label: string) => {
           await this.throttle();
           this.progress('generating', undefined, label);
           const start = Date.now();
@@ -3568,7 +3566,7 @@ export class DebateEngine {
         ? {
             topic_aligned: pipelineResult.topicAlignmentResult.topic_aligned,
             repaired: pipelineResult.topicAlignmentResult.repaired || undefined,
-            draft_attempt: pipelineResult.topicAlignmentResult.draft_attempt,
+            draft_attempt: (pipelineResult.topicAlignmentResult as Record<string, unknown>).draft_attempt as number | undefined,
             scope_used: this.session.topic.scope ?? null,
           }
         : undefined,
@@ -3617,11 +3615,11 @@ export class DebateEngine {
         if (originalNodeId) {
           an.nodes.push(revoiceNode);
           an.edges.push({
+            id: `${revoiceNodeId}-revoice-${originalNodeId}`,
             source: revoiceNodeId,
             target: originalNodeId,
             type: 'revoice_of',
             weight: 1.0,
-            confidence: 1.0,
           });
           getGlobalRecorder()?.record({
             type: 'debate.moderate', component: 'revoice-linkage', level: 'info',
@@ -3682,11 +3680,11 @@ export class DebateEngine {
 
     // ── Update active moderator state for next round ──
     if (this.session.crux_tracker && this.session.crux_tracker.length > 0) {
-      updateCruxEngagement(this._moderatorState!, this.session.crux_tracker, this.config.activePovers, an.nodes);
+      updateCruxEngagement(this._moderatorState!, this.session.crux_tracker as unknown as ReadonlyArray<{ id: string; speakers_involved: SpeakerId[]; attacking_claim_ids: string[] }>, this.config.activePovers, an!.nodes);
     }
     const validationResult = activeIntervention
-      ? { proceed: true, validated_move: activeIntervention.move, validated_family: activeIntervention.family, validated_target: activeIntervention.target_debater } as import('./types').EngineValidationResult
-      : { proceed: false, validated_move: 'PIN' as InterventionMove, validated_family: 'elicitation' as import('./types').InterventionFamily, validated_target: responder } as import('./types').EngineValidationResult;
+      ? { proceed: true, validated_move: activeIntervention.move, validated_family: activeIntervention.family, validated_target: activeIntervention.target_debater } as import('./types.js').EngineValidationResult
+      : { proceed: false, validated_move: 'PIN' as InterventionMove, validated_family: 'elicitation' as import('./types.js').InterventionFamily, validated_target: responder } as import('./types.js').EngineValidationResult;
     updateModeratorState(this._moderatorState!, activeIntervention, validationResult, round, phase);
     this.session.moderator_state = this._moderatorState!;
 
@@ -3746,7 +3744,7 @@ export class DebateEngine {
     this.progress('debate', undefined, `Diversity-injection round ${round} (independent generation)`);
 
     for (const pov of this.config.activePovers) {
-      if (pov === 'user') continue;
+      if ((pov as string) === 'user') continue;
       this.checkAborted();
 
       const info = POVER_INFO[pov];
@@ -3771,12 +3769,12 @@ export class DebateEngine {
         .filter(e => e.speaker === pov && (e.type === 'opening' || e.type === 'statement'));
       const priorMoves = debaterTurns
         .filter(e => e.metadata)
-        .flatMap(e => ((e.metadata as Record<string, unknown>)?.move_types as (string | import('./helpers').MoveAnnotation)[]) ?? [])
+        .flatMap(e => ((e.metadata as Record<string, unknown>)?.move_types as (string | import('./helpers.js').MoveAnnotation)[]) ?? [])
         .map(m => getMoveName(m))
         .slice(-6);
       let turnsSinceLastConcession = debaterTurns.length;
       for (let i = debaterTurns.length - 1; i >= 0; i--) {
-        const moves = ((debaterTurns[i].metadata as Record<string, unknown>)?.move_types as (string | import('./helpers').MoveAnnotation)[]) ?? [];
+        const moves = ((debaterTurns[i].metadata as Record<string, unknown>)?.move_types as (string | import('./helpers.js').MoveAnnotation)[]) ?? [];
         if (moves.some(m => getMoveName(m).includes('CONCEDE'))) {
           turnsSinceLastConcession = debaterTurns.length - 1 - i;
           break;
@@ -3834,7 +3832,7 @@ export class DebateEngine {
 
       const boundStageGenerate = this.stageGenerate.bind(this);
       const envelopeGenerate = this.adapter.generate
-        ? async (request: import('./cacheTypes').GenerateRequest, label: string) => {
+        ? async (request: import('./cacheTypes.js').GenerateRequest, label: string) => {
             await this.throttle();
             this.progress('generating', undefined, label);
             const start = Date.now();
@@ -3931,7 +3929,7 @@ export class DebateEngine {
           debate_phase: phase,
           move_types: meta.move_types ?? [],
           diversity_round: true,
-          extracted_claims_accepted: meta.extracted_claims_accepted ?? 0,
+          extracted_claims_accepted: (meta as Record<string, unknown>).extracted_claims_accepted ?? 0,
         },
       });
 

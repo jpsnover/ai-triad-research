@@ -366,7 +366,7 @@ export class TopicPipeline {
     try {
       const parsed = parseJsonRobust(text) as { questions?: unknown[] };
       const raw = parsed.questions ?? [];
-      structuredQuestions = raw.map((q: string | { question: string; options?: string[] }) =>
+      structuredQuestions = (raw as (string | { question: string; options?: string[] })[]).map(q =>
         typeof q === 'string' ? { question: q, options: [] } : { question: q.question, options: q.options ?? [] }
       );
     } catch (err) {

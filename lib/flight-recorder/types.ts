@@ -120,6 +120,11 @@ export type EventType =
   | 'topic.critique'
   | 'topic_scope_extracted'
   | 'topic_scope_extraction_failed'
+  | 'topic_structure_extracted'
+  // Debate engine signals
+  | 'exploration_seeding'
+  | 'turn.insularity_intervention'
+  | 'qbaf.non_convergence'
   // Auth flow
   | 'auth.login_attempt'
   | 'auth.callback_landing'

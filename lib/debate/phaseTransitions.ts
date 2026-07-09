@@ -37,6 +37,7 @@ import { computeUncertaintyMetric } from './convergenceSignals.js';
 // (Vite browser bundle) we fall through to the hardcoded defaults below.
 
 interface ProvisionalWeights {
+  [key: string]: unknown;
   schema_version: number;
   argumentative_saturation: Record<string, number>;
   convergence: Record<string, number>;
@@ -638,6 +639,8 @@ export function evaluatePhaseTransition(
       return evaluateExplorationExit(state, ctx, signals, config, w, pb, s, coldStart, satScore);
     case 'concluding':
       return evaluateConcludingExit(state, ctx, config, w, pb, s, coldStart, convScore);
+    default:
+      return { action: 'stay', reason: `Phase ${state.current_phase} does not support transitions`, veto_active: false, force_active: false, confidence_deferred: false, components: {} };
   }
 }
 
@@ -908,8 +911,8 @@ export function buildPhaseContext(state: PhaseState, config: PhaseTransitionConf
   if (ov?.maxArgumentationRounds != null) pb.max_argumentation_rounds = ov.maxArgumentationRounds;
   if (ov?.maxConcludingRounds != null) pb.max_concluding_rounds = ov.maxConcludingRounds;
 
-  let timeProgress: number;
-  let scoreProgress: number;
+  let timeProgress = 0;
+  let scoreProgress = 0;
 
   switch (state.current_phase) {
     case 'confrontation':
@@ -955,6 +958,8 @@ function buildPhaseRationale(state: PhaseState, satScore: number, convScore: num
       const threshPct = (state.concluding_exit_threshold * 100).toFixed(0);
       return `Synthesis phase, turn ${state.rounds_in_phase}. Convergence at ${pct}% of ${threshPct}% threshold.`;
     }
+    default:
+      return `Phase ${state.current_phase}, turn ${state.rounds_in_phase}.`;
   }
 }
 

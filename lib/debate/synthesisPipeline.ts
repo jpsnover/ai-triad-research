@@ -14,7 +14,7 @@
 
 import type { AIAdapter } from './aiAdapter.js';
 import type { DebateConfig } from './debateEngine.js';
-import type { DebateSession, TranscriptEntry, SpeakerId } from './types.js';
+import type { DebateSession, TranscriptEntry, SpeakerId, MissingArgument } from './types.js';
 import type { LoadedTaxonomy } from './taxonomyLoader.js';
 import type { EntryDiagnostics } from './types.js';
 import type { SpeakerMapping, NeutralEvaluation } from './neutralEvaluator.js';
@@ -214,7 +214,7 @@ export class SynthesisPipeline {
       );
 
       const text = await this.ctx.generate(prompt, 'Missing arguments pass', 180_000);
-      const parsed = parseJsonRobust(text) as { missing_arguments?: unknown[] };
+      const parsed = parseJsonRobust(text) as { missing_arguments?: MissingArgument[] };
       if (parsed.missing_arguments && Array.isArray(parsed.missing_arguments)) {
         this.ctx.session.missing_arguments = parsed.missing_arguments.slice(0, 5);
       }

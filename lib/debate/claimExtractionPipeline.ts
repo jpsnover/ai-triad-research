@@ -235,7 +235,7 @@ export class ClaimExtractionPipeline {
     }
 
     const anNodes = this.ctx.session.argument_network?.nodes ?? [];
-    const engagedIds = collectEngagedNodeIds(anNodes, this.ctx.session.transcript);
+    const engagedIds = collectEngagedNodeIds(anNodes as unknown as ReadonlyArray<{ taxonomy_refs: ReadonlyArray<{ node_id: string }> }>, this.ctx.session.transcript);
 
     const allTaxNodes: Array<{ id: string; label: string; description: string }> = [];
     for (const povKey of POV_KEYS) {
@@ -694,7 +694,7 @@ Return ONLY JSON (no markdown, no code fences):
         if (parsed.verdict) {
           node.verification_status = parsed.verdict;
           node.verification_evidence = parsed.evidence;
-          node.base_strength = factCheckToBaseStrength(parsed.verdict, parsed.confidence);
+          node.base_strength = factCheckToBaseStrength(parsed.verdict, parsed.confidence as unknown as string | undefined);
           node.scoring_method = 'fact_check';
 
           this.ctx.session.transcript.push({
@@ -1032,7 +1032,7 @@ Return ONLY JSON (no markdown, no code fences):
       // Snapshot timeline: capture all computed_strengths at this turn
       if (!this.ctx.session.qbaf_timeline) this.ctx.session.qbaf_timeline = [];
       const strengths: Record<string, number> = {};
-      const bdiBd: Record<string, import('./types').BdiSubScores> = {};
+      const bdiBd: Record<string, import('./types.js').BdiSubScores> = {};
       for (const node of an.nodes) {
         if (node.computed_strength != null) strengths[node.id] = node.computed_strength;
         if (node.bdi_sub_scores) bdiBd[node.id] = node.bdi_sub_scores;
@@ -1166,7 +1166,7 @@ Return ONLY JSON (no markdown, no code fences):
               activeCruxes.map(c => ({ id: c.id, description: c.description, polarity: c.support_polarity, disagreement_type: c.disagreement_type })),
               recentConcessions,
               recentTranscript,
-              this.ctx.session.topic?.text ?? '',
+              (this.ctx.session.topic as { text?: string })?.text ?? '',
             );
             try {
               const cruxModel = this.ctx.resolveStageModel('crux');
@@ -1221,14 +1221,14 @@ Return ONLY JSON (no markdown, no code fences):
       if (turnValidation) {
         const currentEntry = this.ctx.session.transcript.find(e => e.id === entryId);
         const entryMeta = currentEntry?.metadata as Record<string, unknown> | undefined;
-        const moveTypes = (entryMeta?.move_types as (string | import('./helpers').MoveAnnotation)[]) ?? [];
+        const moveTypes = (entryMeta?.move_types as (string | import('./helpers.js').MoveAnnotation)[]) ?? [];
         const phase = ((entryMeta?.debate_phase as string) ?? 'argumentation') as DebatePhase;
 
         const priorSpeakerEntry = this.ctx.session.transcript
           .filter(e => e.speaker === speaker && e.type === 'statement')
           .slice(-2)[0];
         const priorMeta = priorSpeakerEntry?.metadata as Record<string, unknown> | undefined;
-        const priorMoves = (priorMeta?.move_types as (string | import('./helpers').MoveAnnotation)[]) ?? [];
+        const priorMoves = (priorMeta?.move_types as (string | import('./helpers.js').MoveAnnotation)[]) ?? [];
 
         const pr = computeProcessReward({
           convergenceSignals: sig,
