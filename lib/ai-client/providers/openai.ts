@@ -86,5 +86,5 @@ export async function generateViaOpenAI(
     cachedTokens: u.input_tokens_details?.cached_tokens,
     totalTokens: u.total_tokens,
   } : undefined;
-  return { text, usage };
+  return { text, usage, rawResponsePreview: text ? undefined : bodyText.slice(0, 200) };
 }

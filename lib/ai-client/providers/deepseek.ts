@@ -88,7 +88,7 @@ export async function generateViaDeepSeek(
     cachedTokens: u.prompt_cache_hit_tokens,
     totalTokens: u.total_tokens,
   } : undefined;
-  return { text, usage };
+  return { text, usage, rawResponsePreview: text ? undefined : bodyText.slice(0, 200) };
 }
 
 export async function generateViaDeepSeekStream(

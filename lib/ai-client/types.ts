@@ -37,6 +37,8 @@ export interface ProviderResult {
   usage?: TokenUsage;
   toolCalls?: ToolCall[];
   estimatedCostUsd?: number;
+  /** First 200 chars of raw API response body when content is empty — aids FR diagnosis. */
+  rawResponsePreview?: string;
 }
 
 export interface TokenUsage {

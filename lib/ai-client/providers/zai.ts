@@ -100,5 +100,5 @@ export async function generateViaZai(
     completionTokens: u.completion_tokens,
     totalTokens: u.total_tokens,
   } : undefined;
-  return { text, usage };
+  return { text, usage, rawResponsePreview: text ? undefined : bodyText.slice(0, 200) };
 }
