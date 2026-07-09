@@ -33,12 +33,10 @@ export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap }:
             style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, lineHeight: 1, marginTop: 2, flexShrink: 0 }}
           >{expanded ? '▼' : '▶'}</button>
         ) : <span style={{ width: 10, flexShrink: 0 }} />}
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: node.political_salience ? '84px 110px 72px 180px 200px 60px 80px' : '84px 110px 72px 180px 200px 60px 1fr', gap: '4px', alignItems: 'center' }}>
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: node.political_salience ? '84px 72px 180px 200px 60px 80px' : '84px 72px 180px 200px 60px 1fr', gap: '4px', alignItems: 'center' }}>
           {/* Col 1: AN ID */}
           <strong style={{ color: 'var(--accent)' }}>{node.id}</strong>
-          {/* Col 2: Speaker */}
-          <span>{speakerLabel(node.speaker)}</span>
-          {/* Col 3: BDI category */}
+          {/* Col 2: BDI category */}
           <span>{node.bdi_category === 'belief' ? 'Belief' : node.bdi_category === 'desire' ? 'Desire' : node.bdi_category === 'intention' ? 'Intention' : ''}</span>
           {/* Col 4: Attribution */}
           <span>
