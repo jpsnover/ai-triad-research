@@ -888,7 +888,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. Reverse diffs must be **labeled with direction** before interpreting +/- lines ("this is remote minus local" or "local minus remote").
 4. Before planning recovery, verify the *mechanism* of the hypothesized failure — "CI committed during our window" is testable ("does CI exist in this repo?").
 
-**Status:** Active
+**Status:** Resolved — root AGENTS.md "Git forensics" Common Traps rule (bf738f2, p/8#58).
 
 **Applies To:** All agents performing git divergence diagnosis, especially during migrations or freeze windows.
 
@@ -1097,7 +1097,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
    - `git stash && npm run verify && git stash pop` — build committed state only
 4. Pairs with the "Verify Before Pushing" rule in root AGENTS.md as its diagnostic complement.
 
-**Status:** Active — diagnostic standard ratified in t/1303#7.
+**Status:** Resolved — root AGENTS.md "Git forensics" Common Traps rule (bf738f2, p/8#58).
 
 **Applies To:** All agents on shared working trees, especially when diagnosing "is main broken?"
 
@@ -1120,6 +1120,68 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. Never conclude "X overwrote F" from commit dates or symptom counts alone.
 4. Same diagnostic-discipline family as #44 (one-directional ancestry → false divergence) and #54 (dirty tree as false witness): settle git disputes at the object level, not by inference.
 
-**Status:** Active
+**Status:** Resolved — root AGENTS.md "Git forensics" Common Traps rule (bf738f2, p/8#58).
 
 **Applies To:** All agents performing git forensics — overwrite claims, data-loss triage, clobber investigations.
+
+---
+
+## [Build] Migration Missed Call Site — Verify Gate Renderer Blind Spot
+
+**Pattern:** A batch symbol rename/migration replaces an import but misses one of multiple call sites in a renderer file. The bug ships because the verify gate doesn't type-check renderer code — `tsc` covers `tsconfig.main.json` and `tsconfig.server.json` only; Vite/esbuild transpiles renderer without type-checking.
+
+**Instances:**
+- 2026-07-06 — Diagnostics (t/1412): commit 6c55463d (t/1304, POV_META migration) replaced a `nodePovFromId` import but missed one of three call sites in `EdgeDetailPanel.tsx`. Shipped to main because renderer code is never type-checked by the verify gate. Bug ticket t/1412, gate gap ticket t/1413 (p/9#17).
+
+**Root Cause:** (1) Batch symbol renames across files are high-risk — easy to update the import but miss scattered call sites. (2) The verify gate has a renderer blind spot: `tsc` runs against `tsconfig.main.json` (main process) and `tsconfig.server.json` (server), but `src/renderer/**/*` is only transpiled by Vite/esbuild without type-checking. Real type errors in renderer code are invisible to the gate. Related to #47 (ad-hoc tsc phantom errors) but inverted: #47 is false positives from running the wrong command; this is false negatives from the real gate missing a compilation target.
+
+**Prevention:**
+1. After batch symbol renames, **grep for the old symbol** across the entire codebase before committing — don't trust the import replacement to catch all call sites.
+2. The verify gate needs a renderer type-check step (tracked in t/1413) — until then, `npx tsc --noEmit -p tsconfig.renderer.json` (or equivalent) must be run manually for renderer changes.
+3. For migrations: count call sites before and after — if the counts don't match, you missed one.
+
+**Status:** Active — gate gap tracked in t/1413.
+
+**Applies To:** All agents performing symbol renames or migrations in renderer code.
+
+---
+
+## [Process] Narrated Handoff Never Executed — "Filing" vs "Filed"
+
+**Pattern:** A ticket comment ends with "filing a [downstream] ticket" but the ticket is never created. The completed design sits unrouted until a staleness check catches it days later.
+
+**Instances:**
+- 2026-07-09 — Computational Linguist: ticket comment said "filing a DebateTool implementation ticket" but the ticket was never created. The completed design sat unrouted 8 days until PM's staleness check found it (p/7#28).
+
+**Root Cause:** The filing was narrated as the comment's last line instead of being done before posting. The comment described intent ("filing") rather than accomplished fact ("filed: t/NNNN"). Same family as the t/1221 "looks shipped but isn't" anti-pattern — at the handoff layer instead of the commit layer.
+
+**Prevention:**
+1. Create the downstream ticket FIRST, then write the comment referencing its key — a comment can only say "filed: t/NNNN" truthfully, never "filing."
+2. If the comment is already posted without the ticket, create the ticket immediately and edit the comment to add the reference.
+3. Rule of thumb: any comment that says "will do X" is a promise that might not be kept. Comments that say "did X: [ref]" are verifiable.
+
+**Status:** Active
+
+**Applies To:** All agents creating handoff comments in tickets.
+
+---
+
+## [Build] Shell Quoting Violations Create Junk Files Across Shared Working Tree
+
+**Pattern:** Bash commands containing unquoted code with special characters (braces, parentheses, dots, slashes) create literal junk files from expression fragments — e.g., `f.startsWith('debate-')`, `{,+`, `(path.join(taxonomyDir`, `2.0.0`, `e.type` as actual filenames. Compounding: `git checkout -- <bad-pathspec>` in the shared tree reverts other agents' uncommitted edits.
+
+**Instances:**
+- 2026-07-09 — Orca Support: found untracked junk files across 3 scopes (`lib/debate/`, `engineering/tech-lead/`, `src/main/`) — TypeScript/JS expression fragments and brace-expansion tokens created as literal filenames by bash commands with unquoted special chars. A `git checkout -- <bad-pathspec>` in the shared tree reverted ElectronMain's uncommitted edits mid-change on t/1425, briefly breaking the build for TaxEditor and ServerAuth (p/13#16).
+
+**Root Cause:** ADR-004 (shell quoting rule) violations — agents ran bash commands containing code with special characters (heredocs, sed, unquoted git pathspecs). Bash interpreted brace expansion, glob patterns, and parentheses as shell metacharacters, creating literal files instead of passing the strings to the intended command. The shared working tree amplifies the blast radius: junk files pollute other agents' environment, and recovery commands (`git checkout`) risk reverting other agents' work.
+
+**Prevention:**
+1. **ADR-004 is the standing rule:** use Edit/Write tools for code with special characters, never Bash heredocs/sed.
+2. Always quote pathspecs in git commands: `git checkout -- "path"` not `git checkout -- path`.
+3. After any bash command that may have failed with special chars, check `git status` for unexpected untracked files and remove them.
+4. Never run `git checkout -- <pathspec>` on the shared tree to clean up junk files — it reverts ALL changes at those paths, including other agents' uncommitted work. Use `rm` for junk files instead.
+5. Recommend: new hook on Bash commands containing `git checkout` to warn about shared-tree reverts.
+
+**Status:** Active
+
+**Applies To:** All agents using Bash with code containing special characters, especially on shared working trees.

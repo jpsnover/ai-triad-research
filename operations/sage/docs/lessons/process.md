@@ -102,7 +102,7 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 3. Label reverse diffs with direction before interpreting +/- lines.
 4. Before planning recovery, verify the *mechanism* — "CI committed during our window" is testable ("does CI exist in this repo?").
 
-**Status:** Active
+**Status:** Resolved — root AGENTS.md "Git forensics" Common Traps rule (bf738f2, p/8#58).
 
 **Applies To:** All agents performing git divergence diagnosis, especially during migrations or freeze windows.
 
@@ -166,6 +166,26 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 3. Never conclude "X overwrote F" from commit dates or symptom counts alone.
 4. Same diagnostic-discipline family as #44 (one-directional ancestry → false divergence) and #54 (dirty tree as false witness): settle git disputes at the object level, not by inference.
 
-**Status:** Active
+**Status:** Resolved — root AGENTS.md "Git forensics" Common Traps rule (bf738f2, p/8#58).
 
 **Applies To:** All agents performing git forensics — overwrite claims, data-loss triage, clobber investigations.
+
+---
+
+## [Process] Narrated Handoff Never Executed — "Filing" vs "Filed"
+
+**Pattern:** A ticket comment ends with "filing a [downstream] ticket" but the ticket is never created. The completed design sits unrouted until a staleness check catches it days later.
+
+**Instances:**
+- 2026-07-09 — Computational Linguist: ticket comment said "filing a DebateTool implementation ticket" but the ticket was never created. The completed design sat unrouted 8 days until PM's staleness check found it (p/7#28).
+
+**Root Cause:** The filing was narrated as the comment's last line instead of being done before posting. The comment described intent ("filing") rather than accomplished fact ("filed: t/NNNN"). Same family as the t/1221 "looks shipped but isn't" anti-pattern — at the handoff layer instead of the commit layer.
+
+**Prevention:**
+1. Create the downstream ticket FIRST, then write the comment referencing its key — a comment can only say "filed: t/NNNN" truthfully, never "filing."
+2. If the comment is already posted without the ticket, create the ticket immediately and edit the comment to add the reference.
+3. Rule of thumb: any comment that says "will do X" is a promise that might not be kept. Comments that say "did X: [ref]" are verifiable.
+
+**Status:** Active
+
+**Applies To:** All agents creating handoff comments in tickets.
