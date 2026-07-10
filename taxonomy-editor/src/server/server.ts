@@ -35,7 +35,7 @@ import {
 import { GitHubAPIBackend } from './storage/githubAPIBackend.js';
 import { SessionBranchManager } from './storage/sessionBranchManager.js';
 import { runWithUser, getCurrentUser, getCurrentUserId, getStorageUserId, setSessionBranchName, deriveStorageUserId, isAnonymousUser } from './security/userContext.js';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies, hasEasyAuthSessionCookie, resolveTestPersonaOverride } from './security/accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies, anonymousSessionCookies, hasEasyAuthSessionCookie, resolveTestPersonaOverride } from './security/accessControl.js';
 import { sanitizeUserText } from './security/contentSanitizer.js';
 import { getRollbackStatus } from './rollbackStatus.js';
 import { LLMS_TXT } from './llmsTxt.js';
@@ -2680,18 +2680,30 @@ async function handleRequestInner(
   const authDisabled = process.env.AUTH_DISABLED === '1';
   const authOptional = process.env.AUTH_OPTIONAL === '1';
 
-  // /.auth/anonymous — sets a session cookie and redirects to the app
+  // /.auth/anonymous — sets a session cookie and redirects to the app (browser
+  // link on the login page). POST /api/auth/anonymous below is the JSON sibling.
   if (urlPath === '/.auth/anonymous' && authOptional) {
-    const secureSuffix = process.env.NODE_ENV === 'production' || process.env.ALLOWED_ORIGINS ? '; Secure' : '';
-    const anonSessionId = crypto.randomUUID();
     res.writeHead(302, {
       'Location': '/',
-      'Set-Cookie': [
-        `auth_anonymous=1; Path=/; HttpOnly; SameSite=Lax${secureSuffix}`,
-        `anon_session_id=${anonSessionId}; Path=/; HttpOnly; SameSite=Lax${secureSuffix}`,
-      ],
+      'Set-Cookie': anonymousSessionCookies(() => crypto.randomUUID()),
     });
     res.end();
+    return;
+  }
+
+  // POST /api/auth/anonymous — JSON sibling of GET /.auth/anonymous (t/1483,
+  // follow-up from t/1476). Establishes an anonymous session for programmatic
+  // callers (the web-bridge session-recovery path) with the same two cookies but
+  // a JSON 200 instead of a 302 + ~2KB HTML round-trip. Must run before the auth
+  // gate below — the caller has no session yet. POST-only so a stray GET still
+  // falls through to the 302 link / login page. The session id stays in the
+  // HttpOnly cookie and is never echoed in the body.
+  if (urlPath === '/api/auth/anonymous' && req.method === 'POST' && authOptional) {
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'Set-Cookie': anonymousSessionCookies(() => crypto.randomUUID()),
+    });
+    res.end(JSON.stringify({ ok: true, anonymous: true }));
     return;
   }
 

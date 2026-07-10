@@ -8,7 +8,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import path from 'path';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies, hasEasyAuthSessionCookie, resolveTestPersonaOverride } from '../security/accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies, anonymousSessionCookies, hasEasyAuthSessionCookie, resolveTestPersonaOverride } from '../security/accessControl.js';
 import { deriveStorageUserId } from '../security/userContext.js';
 import { resolveTier } from '../ai/proxyTiers.js';
 
@@ -31,6 +31,48 @@ describe('expiredAuthCookies (t/897)', () => {
       expect(c).toContain('Max-Age=0');
       expect(c).toContain('Path=/');
     }
+  });
+});
+
+describe('anonymousSessionCookies (t/1483)', () => {
+  const saved = { env: process.env.NODE_ENV, origins: process.env.ALLOWED_ORIGINS };
+  afterEach(() => {
+    process.env.NODE_ENV = saved.env;
+    if (saved.origins === undefined) delete process.env.ALLOWED_ORIGINS;
+    else process.env.ALLOWED_ORIGINS = saved.origins;
+  });
+
+  it('mints exactly the auth_anonymous flag + a fresh anon_session_id from the injected id', () => {
+    const out = anonymousSessionCookies(() => 'fixed-id-123');
+    expect(out).toHaveLength(2);
+    expect(out[0]).toMatch(/^auth_anonymous=1;/);
+    expect(out[1]).toMatch(/^anon_session_id=fixed-id-123;/);
+  });
+
+  it('marks both cookies HttpOnly + SameSite=Lax so JS never reads them and CSRF is limited', () => {
+    for (const c of anonymousSessionCookies(() => 'x')) {
+      expect(c).toContain('HttpOnly');
+      expect(c).toContain('SameSite=Lax');
+      expect(c).toContain('Path=/');
+    }
+  });
+
+  it('adds Secure in production', () => {
+    process.env.NODE_ENV = 'production';
+    delete process.env.ALLOWED_ORIGINS;
+    for (const c of anonymousSessionCookies(() => 'x')) expect(c).toContain('; Secure');
+  });
+
+  it('adds Secure when a cross-origin allowlist is configured (HTTPS deploy)', () => {
+    process.env.NODE_ENV = 'development';
+    process.env.ALLOWED_ORIGINS = 'https://app.example.com';
+    for (const c of anonymousSessionCookies(() => 'x')) expect(c).toContain('; Secure');
+  });
+
+  it('omits Secure in plain local dev so the cookie is still settable over HTTP', () => {
+    process.env.NODE_ENV = 'development';
+    delete process.env.ALLOWED_ORIGINS;
+    for (const c of anonymousSessionCookies(() => 'x')) expect(c).not.toContain('Secure');
   });
 });
 

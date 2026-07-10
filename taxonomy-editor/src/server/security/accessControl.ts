@@ -66,6 +66,23 @@ export function expiredAuthCookies(presentCookieNames: string[]): string[] {
 }
 
 /**
+ * Mint the two anonymous-session cookies: the `auth_anonymous=1` flag the auth
+ * gate reads and a fresh `anon_session_id`. Shared by GET /.auth/anonymous (302)
+ * and POST /api/auth/anonymous (JSON, t/1483) so the Secure-flag gating can't
+ * drift between the two mint sites. HttpOnly (never read by JS; the session id
+ * is never echoed in a response body) and SameSite=Lax. Secure is added in
+ * production or whenever cross-origin is configured, matching the deployed HTTPS
+ * posture while staying settable over plain HTTP in local dev.
+ */
+export function anonymousSessionCookies(randomId: () => string): string[] {
+  const secureSuffix = process.env.NODE_ENV === 'production' || process.env.ALLOWED_ORIGINS ? '; Secure' : '';
+  return [
+    `auth_anonymous=1; Path=/; HttpOnly; SameSite=Lax${secureSuffix}`,
+    `anon_session_id=${randomId()}; Path=/; HttpOnly; SameSite=Lax${secureSuffix}`,
+  ];
+}
+
+/**
  * t/940: true when the request carries an Easy Auth session cookie
  * (AppServiceAuthSession, possibly chunked). When this is present but the request
  * is unauthenticated (no principal), the session is stale and loops the OAuth
