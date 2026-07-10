@@ -71,6 +71,10 @@ Describe 'Invoke-GraphQuery per-hop edge validation (t/1449)' -Tag 'taxonomy' {
             Mock Write-Step -MockWith { }
             Mock Write-OK   -MockWith { }
             Mock Write-Info -MockWith { }
+            # CI has no API keys — bypass the pre-flight resolver and prompt-loader
+            # (mirrors the sibling Invoke-GraphQuery.Tests.ps1 fixture setup).
+            Mock Resolve-AIApiKey -MockWith { 'fake-key' }
+            Mock Get-Prompt       -MockWith { 'Test prompt.' }
         }
     }
 
