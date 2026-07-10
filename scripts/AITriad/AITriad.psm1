@@ -266,6 +266,20 @@ class AnonymousFlowStepResult {
     [string] $Error
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# StaleImageCleanupResult — typed result from Remove-StaleContainerImages (t/1492)
+# ─────────────────────────────────────────────────────────────────────────────
+class StaleImageCleanupResult {
+    [string]  $Package
+    [string]  $Owner
+    [int]     $TotalUntagged
+    [int]     $KeptCount
+    [int]     $DeletedCount
+    [long[]]  $DeletedIds
+    [string[]] $Failures
+    [string]  $CutoffUtc
+}
+
 class FreeTierStatus {
     [string]   $Tier
     [int]      $DailyTokenBudget
@@ -704,6 +718,8 @@ Export-ModuleMember -Function @(
     # t/1308 — cc→sit migration
     'Invoke-CcToSitMigration'
     'Test-AIApiKey'
+    # t/1492 — GHCR cleanup
+    'Remove-StaleContainerImages'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

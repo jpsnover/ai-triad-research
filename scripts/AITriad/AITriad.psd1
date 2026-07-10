@@ -163,6 +163,8 @@
         # t/1308 — cc→sit migration
         'Invoke-CcToSitMigration'
         'Test-AIApiKey'
+        # t/1492 — GHCR cleanup
+        'Remove-StaleContainerImages'
     )
 
     # Aliases exported from this module
