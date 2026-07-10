@@ -41,3 +41,6 @@ Send a ping body of ~1,700 chars with content structured across 4+ numbered item
 
 **Second instance (2026-07-06, confirms reproducibility + narrows threshold):**
 p/8#43 (~1,100 chars): recipient (Sage) processed only the TAIL of the message (the final paragraph) and explicitly reported never receiving the head (the main content item). Same signature — head lost, tail delivered. Threshold is therefore between ~800 chars (delivered intact) and ~1,100 chars (truncated). Fleet workaround tightened: split pings at ~700 chars.
+
+**Third instance (2026-07-10, different sender/recipient pair — confirms not user-specific):**
+p/47#79 (Diagnostics→TL, long structured diagnosis with FR line citations): TL received only `"ration 403 FR events - t/1464..."` — a tail fragment. TL had to pull full context from the ticket directly. Sender and recipient differ from instances 1 and 2, ruling out a per-user delivery issue. Tracked in t/1465. Fleet guard added: `warn-ping-length` feedback rule (PreToolUse/send_ping, context-type) warns all agents to stay under ~700 chars.
