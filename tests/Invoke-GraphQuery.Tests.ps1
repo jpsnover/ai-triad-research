@@ -81,7 +81,10 @@ Describe 'Graph query node ID validation (gap 8.1)' -Tag 'taxonomy' {
             $result = Invoke-GraphQuery -Question 'Test' -Raw -RepoRoot $TempDir 3>$null 6>$null
 
             $result.paths_traced[0].unverified_nodes | Should -Contain 'saf-goals-777'
-            Should -Invoke Write-Warning -Times 1
+            # t/1449: the same fixture now also fires the new unverified-hop warning
+            # (the fabricated node makes both the node-warning AND hop-warning fire),
+            # so we scope this assertion to the pre-existing node-warning message.
+            Should -Invoke Write-Warning -Times 1 -ParameterFilter { $Message -like '*cited node ID*' }
 
             Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
         }
@@ -134,7 +137,13 @@ Describe 'Graph query node ID validation (gap 8.1)' -Tag 'taxonomy' {
             Set-Content -Path (Join-Path $TempDir 'safetyist.json') -Value '{"nodes":[]}'
             Set-Content -Path (Join-Path $TempDir 'skeptic.json') -Value '{"nodes":[]}'
             Set-Content -Path (Join-Path $TempDir 'situations.json') -Value '{"nodes":[]}'
-            Set-Content -Path (Join-Path $TempDir 'edges.json') -Value '{"edges":[]}'
+            # t/1449: the traced path below asserts acc-beliefs-001 -> acc-beliefs-002,
+            # so the fixture needs a REAL edge for that hop. Pre-t/1449 this test only
+            # covered node-ID validity; post-t/1449 it also covers hop-edge validity.
+            $EdgesJson = @{ edges = @(
+                @{ source = 'acc-beliefs-001'; target = 'acc-beliefs-002'; type = 'SUPPORTS'; status = 'approved'; confidence = 0.9 }
+            )} | ConvertTo-Json -Depth 5
+            Set-Content -Path (Join-Path $TempDir 'edges.json') -Value $EdgesJson
 
             Mock Get-TaxonomyDir { $TempDir }
             Mock Resolve-AIApiKey { 'fake-key' }
