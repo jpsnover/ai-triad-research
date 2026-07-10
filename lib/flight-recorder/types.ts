@@ -134,6 +134,7 @@ export type EventType =
   | 'auth.callback_landing'
   | 'auth.loop_detected'
   | 'auth.logout_initiated'
+  | 'auth.session-recovery'
   // Network
   | 'network.connection_pool'
   // Service worker
