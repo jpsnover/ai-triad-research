@@ -74,11 +74,12 @@ async function recoverAnonymousSession(): Promise<boolean> {
         type: 'auth.session-recovery',
         component: 'web-bridge',
         level: 'info',
-        message: 'Attempting anonymous session recovery via /.auth/anonymous',
+        message: 'Attempting anonymous session recovery via POST /api/auth/anonymous',
       });
-      const res = await fetch('/.auth/anonymous', {
+      // bare fetch: this IS the recovery path that post() calls on 401 — using post() here would loop
+      const res = await fetch('/api/auth/anonymous', {
+        method: 'POST',
         credentials: 'include',
-        redirect: 'follow',
         cache: 'no-store',
       });
       return res.ok;
