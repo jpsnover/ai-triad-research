@@ -1,12 +1,10 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import {
   Search, LayoutGrid, MessageSquare, MessageCircle, ArrowLeft,
-  Ellipsis, Crosshair, TriangleAlert, CirclePlus, BookText,
-  CircleCheck, GitFork, Link, Layers, BarChart3, ShieldAlert,
-  BookOpen, LineChart, Terminal, FileText, CircleHelp, Star,
+  Ellipsis, CircleHelp, Star,
   RefreshCw, Settings, User, Users, Shield, LogOut,
 } from 'lucide-react';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
@@ -18,6 +16,7 @@ import { useAuthStatus, useUserProfile } from '../../hooks/useAuthStatus';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import { useTierInfo } from '../../hooks/useTierInfo';
 import { FeedbackPopover } from './FeedbackPopover';
+import { NAV_ITEMS, getVisibleNavItems, getSecondaryByGroup, type NavItem, type NavAction } from '../../data/navConfig';
 import './Toolbar.css';
 
 type ToolbarPanel = 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard' | 'vocabulary' | 'calibration';
@@ -216,9 +215,15 @@ export function Toolbar() {
 
   const adminFeatures = useFlag('permission-admin-features');
   const summariesFlag = useFlag('env-electron-summaries');
-  const morePanels: ToolbarPanel[] = ['lineage', 'edges', 'policyAlignment', 'policyDashboard', 'fallacy', 'vocabulary', 'calibration', ...(adminFeatures ? ['console' as const] : []), 'prompts'];
-  const moreTabsActive = ['situations', 'conflicts', 'cruxes', 'summaries', 'validation'].includes(activeTab) && toolbarPanel === null;
-  const moreHasActive = morePanels.includes(toolbarPanel as ToolbarPanel) || moreTabsActive;
+  const navCtx = { flags: { 'env-electron-summaries': summariesFlag }, isAdmin: adminFeatures };
+  const visibleItems = getVisibleNavItems(NAV_ITEMS, navCtx);
+  const secondaryGroups = getSecondaryByGroup(visibleItems);
+  const isNavItemActive = (item: NavItem): boolean => {
+    if (item.action.type === 'switchTab') return activeTab === item.action.target && toolbarPanel === null;
+    if (item.action.type === 'togglePanel') return toolbarPanel === item.action.target;
+    return false;
+  };
+  const moreHasActive = secondaryGroups.flatMap(g => g.items).some(i => isNavItemActive(i));
 
   // Escape key navigates back
   useEffect(() => {
@@ -263,6 +268,11 @@ export function Toolbar() {
         setToolbarPanel(panel);
       }
     }
+  };
+
+  const dispatchNav = (action: NavAction) => {
+    if (action.type === 'switchTab') switchTab(action.target as Parameters<typeof switchTab>[0]);
+    else if (action.type === 'togglePanel') toggle(action.target as ToolbarPanel);
   };
 
   const isTaxonomyActive = toolbarPanel === null && !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'summaries', 'validation'].includes(activeTab);
@@ -336,110 +346,21 @@ export function Toolbar() {
           </button>
           {showMore && (
             <div className="toolbar-more-popover" role="menu">
-              <button
-                className={`toolbar-more-item${activeTab === 'situations' && toolbarPanel === null ? ' active' : ''}`}
-                onClick={() => { switchTab('situations'); setShowMore(false); }}
-              >
-                <Crosshair size={18} />
-                <span>Situations</span>
-              </button>
-              <button
-                className={`toolbar-more-item${activeTab === 'conflicts' && toolbarPanel === null ? ' active' : ''}`}
-                onClick={() => { switchTab('conflicts'); setShowMore(false); }}
-              >
-                <TriangleAlert size={18} />
-                <span>Conflicts</span>
-              </button>
-              <button
-                className={`toolbar-more-item${activeTab === 'cruxes' && toolbarPanel === null ? ' active' : ''}`}
-                onClick={() => { switchTab('cruxes'); setShowMore(false); }}
-              >
-                <CirclePlus size={18} />
-                <span>Cruxes</span>
-              </button>
-              {summariesFlag && (
-              <button
-                className={`toolbar-more-item${activeTab === 'summaries' && toolbarPanel === null ? ' active' : ''}`}
-                onClick={() => { switchTab('summaries'); setShowMore(false); }}
-              >
-                <BookText size={18} />
-                <span>Summaries</span>
-              </button>
-              )}
-              <button
-                className={`toolbar-more-item${activeTab === 'validation' && toolbarPanel === null ? ' active' : ''}`}
-                onClick={() => { switchTab('validation'); setShowMore(false); }}
-              >
-                <CircleCheck size={18} />
-                <span>Validation</span>
-              </button>
-              <div className="toolbar-more-divider" />
-              <button
-                className={`toolbar-more-item${toolbarPanel === 'lineage' ? ' active' : ''}`}
-                onClick={() => { toggle('lineage'); setShowMore(false); }}
-              >
-                <GitFork size={18} />
-                <span>Intellectual Lineage</span>
-              </button>
-              <button
-                className={`toolbar-more-item${toolbarPanel === 'edges' ? ' active' : ''}`}
-                onClick={() => { toggle('edges'); setShowMore(false); }}
-              >
-                <Link size={18} />
-                <span>Edge Browser</span>
-              </button>
-              <button
-                className={`toolbar-more-item${toolbarPanel === 'policyAlignment' ? ' active' : ''}`}
-                onClick={() => { toggle('policyAlignment'); setShowMore(false); }}
-              >
-                <Layers size={18} />
-                <span>Policy Alignment</span>
-              </button>
-              <button
-                className={`toolbar-more-item${toolbarPanel === 'policyDashboard' ? ' active' : ''}`}
-                onClick={() => { toggle('policyDashboard'); setShowMore(false); }}
-              >
-                <BarChart3 size={18} />
-                <span>Policy Dashboard</span>
-              </button>
-              <button
-                className={`toolbar-more-item${toolbarPanel === 'fallacy' ? ' active' : ''}`}
-                onClick={() => { toggle('fallacy'); setShowMore(false); }}
-              >
-                <ShieldAlert size={18} />
-                <span>Possible Fallacies</span>
-              </button>
-              <button
-                className={`toolbar-more-item${toolbarPanel === 'vocabulary' ? ' active' : ''}`}
-                onClick={() => { toggle('vocabulary'); setShowMore(false); }}
-              >
-                <BookOpen size={18} />
-                <span>Vocabulary</span>
-              </button>
-              <button
-                className={`toolbar-more-item${toolbarPanel === 'calibration' ? ' active' : ''}`}
-                onClick={() => { toggle('calibration'); setShowMore(false); }}
-              >
-                <LineChart size={18} />
-                <span>Calibration</span>
-              </button>
-              <div className="toolbar-more-divider" />
-              {adminFeatures && (
-              <button
-                className={`toolbar-more-item${toolbarPanel === 'console' ? ' active' : ''}`}
-                onClick={() => { toggle('console'); setShowMore(false); }}
-              >
-                <Terminal size={18} />
-                <span>Console</span>
-              </button>
-              )}
-              <button
-                className={`toolbar-more-item${toolbarPanel === 'prompts' ? ' active' : ''}`}
-                onClick={() => { toggle('prompts'); setShowMore(false); }}
-              >
-                <FileText size={18} />
-                <span>Prompts</span>
-              </button>
+              {secondaryGroups.map((group, gi) => (
+                <Fragment key={group.group}>
+                  {gi > 0 && <div className="toolbar-more-divider" />}
+                  {group.items.map(item => (
+                    <button
+                      key={item.id}
+                      className={`toolbar-more-item${isNavItemActive(item) ? ' active' : ''}`}
+                      onClick={() => { dispatchNav(item.action); setShowMore(false); }}
+                    >
+                      <item.icon size={18} />
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+                </Fragment>
+              ))}
             </div>
           )}
         </div>
