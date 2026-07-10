@@ -9,14 +9,25 @@ function Test-TaxEditorHealth {
         Hits /healthz (liveness) and /health (readiness) endpoints on the
         remote Taxonomy Editor instance. Returns a structured result with
         status, response times, and diagnostic details.
+
+        Consolidates the health-poll patterns duplicated across
+        health-monitor.yml, deploy-azure.yml, and deploy-staging.yml (t/1491).
     .PARAMETER BaseUrl
         The base URL of the deployed Taxonomy Editor site.
     .PARAMETER TimeoutSec
         HTTP request timeout in seconds. Default: 10.
+    .PARAMETER MaxAttempts
+        Poll up to this many attempts, returning on first fully-healthy result.
+        Default 1 (no retry — preserves prior behavior).
+    .PARAMETER RetryIntervalSec
+        Sleep between attempts when MaxAttempts > 1. Default: 10.
     .EXAMPLE
         Test-TaxEditorHealth
     .EXAMPLE
         Test-TaxEditorHealth -BaseUrl 'https://my-instance.azurecontainerapps.io'
+    .EXAMPLE
+        # Poll a fresh deploy for up to 5 minutes waiting for readiness.
+        Test-TaxEditorHealth -MaxAttempts 30 -RetryIntervalSec 10
     #>
     [CmdletBinding()]
     param(
@@ -25,12 +36,45 @@ function Test-TaxEditorHealth {
 
         [Parameter()]
         [ValidateRange(1, 120)]
-        [int]$TimeoutSec = 10
+        [int]$TimeoutSec = 10,
+
+        [Parameter()]
+        [ValidateRange(1, 60)]
+        [int]$MaxAttempts = 1,
+
+        [Parameter()]
+        [ValidateRange(1, 300)]
+        [int]$RetryIntervalSec = 10
     )
 
     Set-StrictMode -Version Latest
 
     $BaseUrl = $BaseUrl.TrimEnd('/')
+
+    $Result = $null
+    for ($Attempt = 1; $Attempt -le $MaxAttempts; $Attempt++) {
+        $Result = Invoke-HealthProbe -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec
+        if ($Result.Healthy) { return $Result }
+        if ($Attempt -lt $MaxAttempts) {
+            Write-Verbose "Attempt $Attempt/$MaxAttempts unhealthy — sleeping ${RetryIntervalSec}s"
+            Start-Sleep -Seconds $RetryIntervalSec
+        }
+    }
+    return $Result
+}
+
+function Invoke-HealthProbe {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$BaseUrl,
+
+        [Parameter(Mandatory)]
+        [int]$TimeoutSec
+    )
+
+    Set-StrictMode -Version Latest
+
     $Checks = [System.Collections.Generic.List[HealthCheck]]::new()
 
     # ── /healthz (liveness) ──────────────────────────────────────────────
