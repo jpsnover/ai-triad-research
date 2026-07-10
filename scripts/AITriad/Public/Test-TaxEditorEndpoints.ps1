@@ -73,6 +73,9 @@ function Test-TaxEditorEndpoints {
             AcceptableStatusCodes = @(200, 304)
         }
         if ($Ep.Field) { $Params.ExpectedField = $Ep.Field }
+        # t/1474 — flag HTML-200 as failure for JSON endpoints. Static endpoints
+        # (e.g. /third-party-notices) legitimately return HTML, so they're excluded.
+        if ($Ep.Cat -ne 'Static') { $Params.ExpectJson = $true }
 
         $Check = Invoke-RemoteCheck @Params
 

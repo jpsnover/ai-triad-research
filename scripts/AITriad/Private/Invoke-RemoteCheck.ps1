@@ -43,7 +43,12 @@ function Invoke-RemoteCheck {
 
         # Optional extra headers merged on top of the default Accept: application/json.
         [Parameter()]
-        [hashtable]$ExtraHeaders
+        [hashtable]$ExtraHeaders,
+
+        # t/1474: when set, Success is $false if the response Content-Type is text/html.
+        # Opt-in so callers that expect non-JSON responses (third-party-notices) are unaffected.
+        [Parameter()]
+        [switch]$ExpectJson
     )
 
     $Url = "$BaseUrl$Path"
@@ -99,8 +104,17 @@ function Invoke-RemoteCheck {
         }
 
         $Success = $StatusCode -in $AcceptableStatusCodes
-        if ($Success -and $ExpectedField -and $Body) {
-            if (-not $Body.PSObject.Properties[$ExpectedField]) {
+        # t/1474 — catch the auth-shell trap: server returns 200 text/html
+        # (login page) for API paths when the session cookie is missing.
+        if ($Success -and $ExpectJson -and $ContentType -match 'text/html') {
+            $Success = $false
+        }
+        # t/1474 — the previous guard `-and $Body` short-circuited when
+        # ConvertFrom-Json failed on HTML, leaving Success=$true. Drop $Body
+        # from the outer guard; move it inside as a negative check so a missing
+        # or unparseable body flips Success.
+        if ($Success -and $ExpectedField) {
+            if (-not $Body -or -not $Body.PSObject.Properties[$ExpectedField]) {
                 $Success = $false
             }
         }
