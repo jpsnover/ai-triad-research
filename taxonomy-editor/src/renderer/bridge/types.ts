@@ -221,6 +221,11 @@ export interface AppAPI {
   loadChatSession: (id: string) => Promise<unknown>;
   saveChatSession: (session: unknown) => Promise<void>;
   deleteChatSession: (id: string) => Promise<void>;
+  exportChatToFile: (
+    entries: { id: string; timestamp: string; speaker: string; content: string; taxonomy_refs: { node_id: string; label?: string; relevance: string }[] }[],
+    format: 'markdown' | 'text' | 'pdf',
+    options: { title: string; mode: 'brainstorm' | 'inform' | 'decide'; pov: 'accelerationist' | 'safetyist' | 'skeptic' },
+  ) => Promise<{ cancelled: boolean; filePath?: string }>;
 
   // --- Harvest ---
   harvestCreateConflict: (conflict: Record<string, unknown>) => Promise<{ created: boolean }>;

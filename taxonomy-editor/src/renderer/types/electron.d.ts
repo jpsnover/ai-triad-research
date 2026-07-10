@@ -113,6 +113,11 @@ export interface ElectronAPI {
   loadChatSession: (id: string) => Promise<unknown>;
   saveChatSession: (session: unknown) => Promise<void>;
   deleteChatSession: (id: string) => Promise<void>;
+  exportChatToFile: (
+    entries: unknown[],
+    format: string,
+    options: { title: string; mode: string; pov: string },
+  ) => Promise<{ cancelled: boolean; filePath?: string }>;
 
   // Harvest
   harvestCreateConflict: (conflict: Record<string, unknown>) => Promise<{ created: boolean }>;

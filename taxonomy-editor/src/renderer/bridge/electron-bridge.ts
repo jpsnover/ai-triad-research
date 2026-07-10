@@ -170,6 +170,7 @@ export const api: AppAPI = {
   loadChatSession: (id) => window.electronAPI.loadChatSession(id),
   saveChatSession: (s) => window.electronAPI.saveChatSession(s),
   deleteChatSession: (id) => window.electronAPI.deleteChatSession(id),
+  exportChatToFile: (entries, format, options) => window.electronAPI.exportChatToFile(entries, format, options),
 
   // Harvest
   harvestCreateConflict: (c) => window.electronAPI.harvestCreateConflict(c),
