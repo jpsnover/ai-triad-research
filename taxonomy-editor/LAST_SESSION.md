@@ -1,5 +1,5 @@
-**Date:** 2026-07-08
-**Working on:** t/1370 (Phase 4a taxonomy scenario surface — done, 03416bc2)
-**Status:** Complete. All my Phase 4 work done. t/1374 (Phase 5) blocked on t/1371 + t/1372 (other roles).
-**Key context:** NodeTree now accepts optional `pov` prop for POV-tinted selected rows. Header restructured: nd-header-top + nd-header-meta. Pin moved into OverflowMenu. ~150 lines of inline styles hoisted to co-located NodeTree.css and NodeDetail.css.
-**Next:** Start t/1374 (Phase 5 quality floor) once t/1371 and t/1372 are done.
+**Date:** 2026-07-10
+**Working on:** t/1460 (chat model picker tier filtering), t/1468 (debate auto-save coalescing + scoped timeout)
+**Status:** Both complete — t/1460 committed as 22d5af60, t/1468 as f2c7121f + 37ed8841. Also created t/1471 (mobile debate selection bug, needs investigation).
+**Key context:** t/1468 coordinates with ServerAPI t/1461 — they're holding their 409 push until t/1468 lands on origin/main. TL notified to push.
+**Next:** Investigate t/1471 (mobile debate selection bug) when details available; check ticket queue.

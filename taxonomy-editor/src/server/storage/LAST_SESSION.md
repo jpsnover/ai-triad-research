@@ -1,5 +1,5 @@
-**Date:** 2026-07-06
-**Working on:** t/1339 (optionality-aware 404 log level downgrade in GitHub API backend)
-**Status:** Complete — committed 5ef24896, ticket Done
-**Key context:** `optional?: boolean` added to StorageBackend.readFile opts; threaded through GitHubAPIBackend readFile→fetchFileFromGitHub→apiRequest; new EventType 'github.api.miss' in lib/flight-recorder/types.ts (cross-scope edit to Shared Lib)
-**Next:** Check ticket queue for new assignments
+**Date:** 2026-07-10
+**Working on:** t/1469 — bound Azure Blob upload with server-side timeout + 503 fail-fast
+**Status:** Complete — committed f204e3ae, verify gate green, ticket closed
+**Key context:** Mock upload must listen for AbortSignal 'abort' event to simulate SDK behavior; plain never-resolving promise ignores the signal
+**Next:** No unblocked tickets — check queue on next session start
