@@ -23,6 +23,16 @@ function throwHttpError(status: number, err: ActionableError): never {
   throw err;
 }
 
+function nextStepsForStatus(status: number, responseText: string): string[] {
+  if (status === 403) {
+    let reason: string | undefined;
+    try { reason = (JSON.parse(responseText) as Record<string, unknown>).error as string; } catch { /* telemetry — silent by design */ }
+    if (reason) return [reason, 'Check your API key tier supports this backend'];
+    return ['Verify your authentication', 'Check your API key tier supports this backend'];
+  }
+  return ['Check the server is running', 'Verify your authentication'];
+}
+
 // ── Resilient fetch options for callers ──
 
 interface FetchOptions {
@@ -104,7 +114,7 @@ async function get<T = unknown>(path: string, opts?: FetchOptions): Promise<T> {
       goal: 'Fetch data from server',
       problem: `GET ${path} failed with HTTP ${res.status}: ${text}`,
       location: 'web-bridge.get',
-      nextSteps: ['Check the server is running', 'Verify your authentication'],
+      nextSteps: nextStepsForStatus(res.status, text),
     }));
   }
   const ct = res.headers.get('content-type') || '';
@@ -209,7 +219,7 @@ async function post<T = unknown>(path: string, body?: unknown, opts?: FetchOptio
       goal: 'Send data to server',
       problem: `POST ${path} failed with HTTP ${res.status}: ${text}`,
       location: 'web-bridge.post',
-      nextSteps: ['Check the server is running', 'Verify your authentication'],
+      nextSteps: nextStepsForStatus(res.status, text),
     }));
   }
   const postCt = res.headers.get('content-type') || '';
@@ -258,7 +268,7 @@ async function put<T = unknown>(path: string, body?: unknown, opts?: FetchOption
       goal: 'Update data on server',
       problem: `PUT ${path} failed with HTTP ${res.status}: ${text}`,
       location: 'web-bridge.put',
-      nextSteps: ['Check the server is running', 'Verify your authentication'],
+      nextSteps: nextStepsForStatus(res.status, text),
     }));
   }
   const putCt = res.headers.get('content-type') || '';
@@ -303,7 +313,7 @@ async function del<T = unknown>(path: string, opts?: FetchOptions): Promise<T> {
       goal: 'Delete data on server',
       problem: `DELETE ${path} failed with HTTP ${res.status}: ${text}`,
       location: 'web-bridge.del',
-      nextSteps: ['Check the server is running', 'Verify your authentication'],
+      nextSteps: nextStepsForStatus(res.status, text),
     }));
   }
   const delCt = res.headers.get('content-type') || '';
