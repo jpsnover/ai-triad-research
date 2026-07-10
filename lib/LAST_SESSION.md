@@ -1,5 +1,5 @@
-**Date:** 2026-07-06
-**Working on:** t/1298 (ADR-001/003 compliance for PO/SV), t/1331 (embedding resolver extraction)
-**Status:** Both done. t/1298 committed as 369a8e6b, t/1331 committed as f1c9a1da. No unblocked tickets remaining.
-**Key context:** lib/embeddings/embeddingResolver.ts provides resolveEmbeddings() — cache lookup + fallback chain. All three embedding call sites (TE main, TE server, SV main) rewired. TE server's local EmbeddingsFile type removed in favor of shared import.
+**Date:** 2026-07-09
+**Working on:** t/1436 (z.ai / GLM-5.2 backend addition)
+**Status:** Done. Committed as aa5baa4a. AC#3 smoke test blocked on missing ZAI_API_KEY — deferred to owner.
+**Key context:** New provider at lib/ai-client/providers/zai.ts mirrors groq.ts. BackendId union now includes 'zai'. Cross-scope fix: taxonomy-editor/src/server/config.ts ENV_KEY_NAMES.
 **Next:** Check ticket queue for new assignments.

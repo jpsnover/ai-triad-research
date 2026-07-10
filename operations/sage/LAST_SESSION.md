@@ -1,5 +1,5 @@
-**Date:** 2026-07-06
-**Working on:** Recording 9 new failure patterns (#43-51) from 6 agents; added instances to push contention (#26, 4th) and JSON schema assumptions (#8, 5th+6th); recovered lost #43 from prior session
-**Status:** Complete — inventory at 51 patterns (13 resolved, 38 active, 6 escalated). Dashboard d/sage-patterns updated.
-**Key context:** Gate signal integrity meta-cluster now at 3 patterns (#20 false-red, #46 false-green, #48 gate-flip hygiene) — watch for 4th instance to trigger formal escalation. Push contention at 4 instances but NOT escalating (self-correcting). Ping truncation bug at ~800-1100 chars confirmed by TL, already reported upstream.
-**Next:** Monitor for incoming failure reports; check if gate signal integrity meta-cluster warrants a unified AGENTS.md rule after next instance
+**Date:** 2026-07-09
+**Working on:** Recorded patterns #52-58; escalated git-forensics cluster (#44/#54/#55) to AGENTS.md Common Traps rule (bf738f2, 7th escalation); marked all three Resolved after TL committed
+**Status:** Complete — inventory at 58 patterns (16 resolved, 42 active, 7 escalated). Dashboard d/sage-patterns synced.
+**Key context:** Gate signal integrity meta-cluster at 3 patterns (#20/#46/#48) — watch for 4th instance. Verify gate renderer blind spot tracked in t/1413. Orca sync-revert bug can silently lose lesson files — check file lengths after any sync event.
+**Next:** Monitor for incoming failure reports; check ticket queue for unblocked work

@@ -1,5 +1,5 @@
-**Date:** 2026-07-01
-**Working on:** t/1262 — migrate server AI endpoints to UsageID registry; t/1061 — free tier token budget fix
-**Status:** both complete (t/1061 commit handled by TL; t/1262 commit a2ee118a)
-**Key context:** callByUsage() from lib/ai-client not used directly — server needs callWithKeyRotation() multi-key infra, so we use getUsage()+renderTemplate() for config and delegate to existing generateText()
+**Date:** 2026-07-09
+**Working on:** t/1432 — remove multi-key rotation (callWithKeyRotation + keyRotator stub deletion)
+**Status:** complete (commit 87e65207); t/1262 also done this session (commit a2ee118a)
+**Key context:** generateText() now always uses single-key withRetry path; keyRotator.ts fully deleted (was stub since t/1426)
 **Next:** no unblocked tickets; check queue on next session start

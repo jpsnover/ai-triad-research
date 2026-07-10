@@ -1,5 +1,5 @@
 **Date:** 2026-07-09
-**Working on:** t/1401 — Distinct visual mode for meta views (Plan/Terms/Claims/CC) on StatementCard
-**Status:** Complete — committed as 903b3e7a, verify gate passed, ticket closed
-**Key context:** META_TIERS set gates bg-secondary surface + uppercase mode label for non-text views; isMetaView derived from displayedTier so surface change rides the t/1396 flip animation. Lineage included as meta view alongside the four ticket-named views.
+**Working on:** t/1424 — Statement text fill available width, t/1430 — Plain/formal toggle
+**Status:** Both complete — t/1424 committed as 6cf21065, t/1430 as a394e939
+**Key context:** t/1424 root cause was global `.prose { max-width: 68ch }` in styles.css; overridden with `max-width: none` in StatementCard.css scoped to `.debate-statement-content.prose`. Pre-existing tsc failures in apiKeyStore (ElectronMain scope) block full verify but all renderer checks pass.
 **Next:** No unblocked tickets assigned — check queue on next session start
