@@ -10,6 +10,19 @@ import { api } from '@bridge';
 import type { VocabResolution } from '../../utils/vocabularyAnnotations';
 import { POV_COLOR_VAR } from './utils';
 
+function extractSentence(text: string, term: string, offset?: number): string | undefined {
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  if (offset != null) {
+    let pos = 0;
+    for (const s of sentences) {
+      if (offset >= pos && offset < pos + s.length) return s;
+      pos += s.length + 1;
+    }
+  }
+  const lower = term.toLowerCase();
+  return sentences.find(s => s.toLowerCase().includes(lower));
+}
+
 function depluralize(s: string): string {
   if (s.endsWith('ies')) return s.slice(0, -3) + 'y';
   if (s.endsWith('xes') || s.endsWith('ses') || s.endsWith('shes') || s.endsWith('ches') || s.endsWith('zes'))
@@ -87,16 +100,22 @@ export function LineageTermsView({ content }: { content: string }) {
   );
 }
 
-export function VocabTermCard({ bare, dict, resolved, defLookup, navigateToLineage }: {
+export function VocabTermCard({ bare, dict, resolved, defLookup, navigateToLineage, sourceSentence }: {
   bare: string;
   dict?: { resolves_to: { standardized_term: string; when: string; default_for_camp?: string }[]; ambiguous_when?: string[] };
   resolved?: string;
   defLookup?: Map<string, { display: string; definition: string }>;
   navigateToLineage: (value: string) => void;
+  sourceSentence?: string;
 }) {
   return (
     <div style={{ marginBottom: 10, padding: '4px 8px' }}>
       <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{bare}</div>
+      {sourceSentence && (
+        <div style={{ marginLeft: 12, marginTop: 2, fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.4 }}>
+          &ldquo;{sourceSentence}&rdquo;
+        </div>
+      )}
       {dict?.resolves_to.map((rt, j) => {
         const isHighlighted = resolved != null && rt.standardized_term === resolved;
         const def = defLookup?.get(rt.standardized_term);
@@ -181,9 +200,10 @@ export function VocabTermCard({ bare, dict, resolved, defLookup, navigateToLinea
   );
 }
 
-export function VocabTermsView({ resolutions, ambiguities }: {
+export function VocabTermsView({ resolutions, ambiguities, statementText }: {
   resolutions: VocabResolution[];
   ambiguities?: { colloquial: string; offset?: number }[];
+  statementText?: string;
 }) {
   const vocabTerms = useDebateStore(s => s.vocabularyTerms?.colloquial);
   const stdTerms = useDebateStore(s => s.vocabularyTerms?.standardized);
@@ -225,12 +245,16 @@ export function VocabTermsView({ resolutions, ambiguities }: {
     }
     bareTerms.sort((a, b) => a.localeCompare(b));
 
-    return bareTerms.map(term => ({
-      bare: term,
-      dict: dictLookup.get(term.toLowerCase()),
-      resolved: resolutions.find(r => r.colloquial.toLowerCase() === term.toLowerCase())?.canonical,
-    }));
-  }, [resolutions, dictLookup]);
+    return bareTerms.map(term => {
+      const res = resolutions.find(r => r.colloquial.toLowerCase() === term.toLowerCase());
+      return {
+        bare: term,
+        dict: dictLookup.get(term.toLowerCase()),
+        resolved: res?.canonical,
+        sourceSentence: statementText ? extractSentence(statementText, term, res?.offset) : undefined,
+      };
+    });
+  }, [resolutions, dictLookup, statementText]);
 
   return (
     <div style={{ fontSize: '0.8rem', padding: '4px 0' }}>
@@ -241,7 +265,7 @@ export function VocabTermsView({ resolutions, ambiguities }: {
         )}
       </div>
       {entries.map((e, i) => (
-        <VocabTermCard key={i} bare={e.bare} dict={e.dict} resolved={e.resolved} defLookup={defLookup} navigateToLineage={navigateToLineage} />
+        <VocabTermCard key={i} bare={e.bare} dict={e.dict} resolved={e.resolved} defLookup={defLookup} navigateToLineage={navigateToLineage} sourceSentence={e.sourceSentence} />
       ))}
       {ambiguities && ambiguities.length > 0 && (() => {
         const uniqueTerms = [...new Set(ambiguities.map(a => a.colloquial))].sort((a, b) => a.localeCompare(b));

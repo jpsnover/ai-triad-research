@@ -610,7 +610,7 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
       {isMetaView && <div className="debate-meta-mode-label">{TIER_LABELS[displayedTier]?.toUpperCase()}</div>}
       {displayedTier === 'terms' && vocabResolutions && vocabResolutions.length > 0 ? (
         <div className="debate-statement-content">
-          <VocabTermsView resolutions={vocabResolutions} ambiguities={meta?.vocabulary_ambiguities as { colloquial: string; offset?: number }[] | undefined} />
+          <VocabTermsView resolutions={vocabResolutions} ambiguities={meta?.vocabulary_ambiguities as { colloquial: string; offset?: number }[] | undefined} statementText={entry.content} />
         </div>
       ) : displayedTier === 'lineage' ? (
         <div className="debate-statement-content">
