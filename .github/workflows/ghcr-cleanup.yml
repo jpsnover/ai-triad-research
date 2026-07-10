@@ -27,52 +27,17 @@ jobs:
           - taxonomy-editor
           - ai-triad-base
     steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+
       - name: Delete untagged images older than 30 days
+        shell: pwsh
         env:
-          GH_TOKEN: ${{ github.token }}
-          PACKAGE: ${{ matrix.package }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          CUTOFF=$(date -u -d '30 days ago' +%Y-%m-%dT%H:%M:%SZ)
-          echo "Cutoff: $CUTOFF"
-          echo "Package: $PACKAGE"
-
-          # Fetch all versions (paginate up to 200)
-          VERSIONS=$(gh api --paginate \
-            "/users/${OWNER}/packages/container/${PACKAGE}/versions" \
-            --jq '.[]' 2>/dev/null) || {
-            echo "No versions found or package does not exist — skipping"
-            exit 0
+          Import-Module ./scripts/AITriad/AITriad.psm1 -Force
+          $Result = Remove-StaleContainerImages -Owner "${{ env.OWNER }}" -Package "${{ matrix.package }}" -OlderThanDays 30 -KeepLatest 5 -Confirm:$false
+          $Result
+          if ($Result.Failures.Count -gt 0) {
+            Write-Host "::warning::$($Result.Failures.Count) version(s) failed to delete (may require admin scope)"
           }
-
-          # Filter to untagged versions older than cutoff
-          UNTAGGED=$(echo "$VERSIONS" | jq -s '
-            [ .[]
-              | select(.metadata.container.tags | length == 0)
-            ] | sort_by(.updated_at) | reverse
-          ')
-
-          TOTAL=$(echo "$UNTAGGED" | jq 'length')
-          echo "Total untagged versions: $TOTAL"
-
-          if [ "$TOTAL" -le 5 ]; then
-            echo "5 or fewer untagged versions — nothing to delete"
-            exit 0
-          fi
-
-          # Keep 5 most recent, delete the rest if older than cutoff
-          TO_DELETE=$(echo "$UNTAGGED" | jq --arg cutoff "$CUTOFF" '
-            .[5:]
-            | [ .[] | select(.updated_at < $cutoff) ]
-          ')
-
-          COUNT=$(echo "$TO_DELETE" | jq 'length')
-          echo "Versions to delete: $COUNT"
-
-          echo "$TO_DELETE" | jq -r '.[] | "\(.id) \(.updated_at) \(.name)"' | while read -r VID UPDATED NAME; do
-            echo "Deleting version $VID (updated $UPDATED, digest $NAME)"
-            gh api --method DELETE \
-              "/users/${OWNER}/packages/container/${PACKAGE}/versions/${VID}" \
-              --silent || echo "  Failed to delete $VID (may require admin scope)"
-          done
-
-          echo "Done — deleted $COUNT untagged versions"
+          Write-Host "Done — deleted $($Result.DeletedCount) untagged versions"
