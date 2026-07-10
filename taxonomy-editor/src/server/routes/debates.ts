@@ -17,6 +17,15 @@ import * as ai from '../ai/aiBackends.js';
 import { getStorageUserId } from '../security/userContext.js';
 import { getDataRoot } from '../config.js';
 
+// t/1461: per-{userId,debateId} in-flight guard against the concurrent debate-save
+// cascade — an actively-used debate fires saveDebate from many store transitions,
+// so without this N overlapping full-payload blob uploads run at once, each hanging
+// to the client's 180s abort on a cold replica. Process-local (per-replica); the
+// cross-replica coalesce is the client's job (t/1468). SLOW_DEBATE_SAVE_MS gates the
+// slow-save diagnostic FR log that feeds the Server Storage blob-timeout ticket (t/1469).
+const inFlightDebateSaves = new Set<string>();
+const SLOW_DEBATE_SAVE_MS = 5_000;
+
 export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
   const { get, post, put, del } = r;
 
@@ -46,6 +55,21 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
   });
 
   put('/api/debates', async (_req, res, body) => {
+    // t/1461: reject a concurrent save of the same debate rather than running
+    // overlapping full-payload blob uploads. The in-flight (possibly OLDER) save
+    // persists; the rejected (newer) request is NOT saved now — the client re-fires
+    // the latest dirty state after the in-flight completes, keyed on this exact
+    // `error: 'save_in_progress'` value (t/1468). Backstop only — per-process, so
+    // same-replica; the client coalesce is the cross-replica fix.
+    const debateId = (body as { id?: string })?.id;
+    const saveKey = debateId ? `${getStorageUserId()}:${debateId}` : null;
+    if (saveKey && inFlightDebateSaves.has(saveKey)) {
+      res.writeHead(409, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'save_in_progress', message: 'A save for this debate is already in progress; your newest changes will be saved on the next attempt.' }));
+      return;
+    }
+    if (saveKey) inFlightDebateSaves.add(saveKey);
+    const startedAt = Date.now();
     try {
       // t/700: user content (debates/chats/community) lives in Azure Blob, keyed by
       // storageUserId — no GitHub session branch needed. Closing the github-api
@@ -73,6 +97,19 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
         });
       }
 
+      // t/1461: slow-save diagnostic — payload size + duration, computed on the
+      // slow path only (the serialize cost is paid only when already >5s). This is
+      // the payload-size data the Server Storage blob-timeout ticket (t/1469) is
+      // blocked on to size its hard timeout (cold-replica stall vs huge payload).
+      const durationMs = Date.now() - startedAt;
+      if (durationMs > SLOW_DEBATE_SAVE_MS) {
+        getGlobalRecorder()?.record({
+          type: 'lifecycle', component: 'debates', level: 'warn',
+          message: `Slow debate save: ${durationMs}ms`,
+          data: { debateId, userId: getStorageUserId(), payload_bytes: Buffer.byteLength(JSON.stringify(body)), duration_ms: durationMs },
+        });
+      }
+
       json(res, { ok: true });
     }
     catch (err) {
@@ -87,6 +124,11 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
       const qi = (err as { quotaInfo?: { resource: string; current: number; limit: number } }).quotaInfo;
       if (qi) { json(res, { error: 'quota_exceeded', resource: qi.resource, current: qi.current, limit: qi.limit, message: String(err) }, status); }
       else { error(res, String(err), status); }
+    }
+    finally {
+      // Clear the guard even on a thrown/aborted save (the 180s scenario) so a hung
+      // save never leaves a permanently-409ing debate (Quality condition 3).
+      if (saveKey) inFlightDebateSaves.delete(saveKey);
     }
   });
 
