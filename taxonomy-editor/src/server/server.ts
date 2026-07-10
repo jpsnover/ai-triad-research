@@ -2285,7 +2285,7 @@ function isUserAuthorized(principalName: string, idp: string): boolean {
 // When AUTH_OPTIONAL is enabled, anonymous users get read-only, non-AI access.
 // Auth-gate 403 rejection reason codes, surfaced in the response and the flight
 // recorder so a 403 can be triaged without reading the auth code (t/763).
-type AuthDenyReason = 'anon_route_blocked' | 'no_auth_header' | 'user_not_in_allowlist';
+type AuthDenyReason = 'anon_route_blocked' | 'no_auth_header' | 'user_not_in_allowlist' | 'no_session';
 
 function recordAuthDenied(reason: AuthDenyReason, method: string, urlPath: string): void {
   getGlobalRecorder()?.record({
@@ -2709,6 +2709,18 @@ async function handleRequestInner(
       if (!principalName) {
         const isAnonymousSession = parseCookies(req)['auth_anonymous'] === '1';
         if (!isAnonymousSession) {
+          // t/1473: API clients can't act on an HTML login page — anonymous /api/*
+          // calls (no auth_anonymous cookie) were getting 200 text/html, which the
+          // client mis-parsed as "corrupted data" and got permanently stuck. Return
+          // a structured 401 so the client can re-establish an anonymous session and
+          // retry (client recovery is the child ticket). Mirrors the required-mode
+          // /api/ check (t/763) but 401 (a session CAN be established here) not 403.
+          if (urlPath.startsWith('/api/')) {
+            recordAuthDenied('no_session', req.method || 'GET', urlPath);
+            res.writeHead(401, { 'Content-Type': 'application/json', 'X-Auth-Reason': 'no_session' });
+            res.end(JSON.stringify({ error: 'Anonymous session required', reason: 'no_session' }));
+            return;
+          }
           res.writeHead(200, loginPageHeaders(req));
           res.end(buildLoginPage(true));
           return;
