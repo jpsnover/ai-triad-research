@@ -44,6 +44,7 @@ interface FetchOptions {
 
 const DEFAULT_READ_TIMEOUT_MS = 30_000;
 const DEFAULT_MUTATION_TIMEOUT_MS = 180_000;
+const DEBATE_SAVE_TIMEOUT_MS = 300_000;
 
 function defaultMaxRetries(cat: EndpointCategory, method: string, idempotent?: boolean): number {
   if (cat === 'telemetry') return 0;
@@ -261,6 +262,19 @@ async function put<T = unknown>(path: string, body?: unknown, opts?: FetchOption
       throwTimeoutError('PUT', path, timeoutMs);
     }
     throw err;
+  }
+  if (res.status === 409 && path === '/api/debates') {
+    const data = await res.json().catch(bridgeWarn('Failed to parse 409 response body', {})) as Record<string, unknown>;
+    if (data.error === 'save_in_progress') {
+      const err = new ActionableError({
+        goal: 'Save debate session',
+        problem: 'Another save is already in progress for this debate.',
+        location: 'web-bridge.put',
+        nextSteps: ['The save will be retried automatically'],
+      });
+      (err as ActionableError & { errorCode: string }).errorCode = 'save_in_progress';
+      throwHttpError(409, err);
+    }
   }
   if (!res.ok) {
     const text = await res.text();
@@ -773,7 +787,7 @@ const rawApi: AppAPI = {
   listDebateSessions: () => get('/api/debates'),
   listDebateSessionsMeta: () => get('/api/debates/list'),
   loadDebateSession: (id) => get(`/api/debates/${encodeURIComponent(id)}`),
-  saveDebateSession: (session) => put('/api/debates', session).then(() => {}),
+  saveDebateSession: (session) => put('/api/debates', session, { timeoutMs: DEBATE_SAVE_TIMEOUT_MS }).then(() => {}),
   deleteDebateSession: (id) => del(`/api/debates/${encodeURIComponent(id)}`).then(() => {}),
   loadDebateComments: (id) => get(`/api/debates/${encodeURIComponent(id)}/comments`),
   saveDebateComments: (id, data) => put(`/api/debates/${encodeURIComponent(id)}/comments`, data).then(() => {}),

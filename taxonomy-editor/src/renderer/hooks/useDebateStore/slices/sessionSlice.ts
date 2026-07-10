@@ -55,6 +55,8 @@ export interface SessionSlice {
   updatePhase: (phase: DebateSession['phase']) => void;
   updateTopic: (topic: Partial<DebateSession['topic']>) => void;
   saveDebate: (caller?: string) => Promise<void>;
+  _saveInFlight: boolean;
+  _saveDirty: boolean;
   toggleStepMode: () => Promise<void>;
   setDebatePhase: (phase: 'confrontation' | 'argumentation' | 'concluding') => Promise<void>;
 }
@@ -65,6 +67,8 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
   activeDebateId: null,
   activeDebate: null,
   debateLoading: false,
+  _saveInFlight: false,
+  _saveDirty: false,
 
   loadSessions: async () => {
     set({ sessionsLoading: true });
@@ -647,8 +651,16 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
   },
 
   saveDebate: async (caller?: string) => {
-    const { activeDebate } = get();
+    const { activeDebate, _saveInFlight } = get();
     if (!activeDebate) return;
+
+    if (_saveInFlight) {
+      set({ _saveDirty: true });
+      getGlobalRecorder()?.record({ type: 'state.save-coalesced', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: `Save coalesced (in-flight), caller: ${caller ?? 'unknown'}` });
+      return;
+    }
+
+    set({ _saveInFlight: true });
     try {
       const promptConfig = usePromptConfigStore.getState().exportSessionConfig();
       if (Object.keys(promptConfig).length > 0) {
@@ -721,8 +733,20 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       }));
       getGlobalRecorder()?.record({ type: 'state.save', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Debate saved', data: saveDiag });
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: 'Failed to save debate', error: { name: 'SaveError', message: String(err), stack: (err as Error).stack }, data: { caller: caller ?? 'unknown', payload_bytes: JSON.stringify(activeDebate).length, turn_count: activeDebate.transcript.length } });
-      set({ debateError: mapErrorToUserMessage(err) });
+      const errorCode = (err as Error & { errorCode?: string }).errorCode;
+      if (errorCode === 'save_in_progress') {
+        set({ _saveDirty: true });
+        getGlobalRecorder()?.record({ type: 'state.save-coalesced', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Server 409 save_in_progress — will retry via coalesced follow-up' });
+      } else {
+        getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: 'Failed to save debate', error: { name: 'SaveError', message: String(err), stack: (err as Error).stack }, data: { caller: caller ?? 'unknown', payload_bytes: JSON.stringify(activeDebate).length, turn_count: activeDebate.transcript.length } });
+        set({ debateError: mapErrorToUserMessage(err) });
+      }
+    } finally {
+      const wasDirty = get()._saveDirty;
+      set({ _saveInFlight: false, _saveDirty: false });
+      if (wasDirty) {
+        void get().saveDebate('coalesced-followup');
+      }
     }
   },
 });
