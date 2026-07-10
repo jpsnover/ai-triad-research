@@ -372,6 +372,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [endpointInput, setEndpointInput] = useState('');
 
   const models = MODELS_BY_BACKEND[aiBackend] || [];
+  const [tierAvailable, setTierAvailable] = useState<Set<string> | null>(null);
 
   useEffect(() => {
     void Promise.all(
@@ -381,6 +382,9 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
       }),
     ).then((results) => setHasKey(Object.fromEntries(results)))
       .catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'settings-dialog', level: 'warn', message: 'hasApiKey check failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); });
+    void api.getAvailableBackends()
+      .then(backends => setTierAvailable(new Set(backends.filter(b => b.available).map(b => b.id))))
+      .catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'settings-dialog', level: 'warn', message: 'Failed to load available backends', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); });
   }, [keySuccess, keyRefreshTrigger]);
 
   const handleSaveKey = async () => {
@@ -489,11 +493,14 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             value={aiBackend}
             onChange={(e) => setAIBackend(e.target.value as AIBackend)}
           >
-            {AI_BACKENDS.map((b) => (
-              <option key={b.value} value={b.value}>
-                {b.label}{hasKey[b.value] ? '' : ' (no key)'}
-              </option>
-            ))}
+            {AI_BACKENDS.map((b) => {
+              const blocked = tierAvailable && !tierAvailable.has(b.value);
+              return (
+                <option key={b.value} value={b.value} disabled={!!blocked}>
+                  {b.label}{blocked ? ' (not on your tier)' : hasKey[b.value] ? '' : ' (no key)'}
+                </option>
+              );
+            })}
           </select>
         </div>
 

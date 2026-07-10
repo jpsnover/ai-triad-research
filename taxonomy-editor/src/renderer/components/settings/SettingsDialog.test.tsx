@@ -11,6 +11,11 @@ const { mockApi } = vi.hoisted(() => ({
     deleteAllApiKeys: vi.fn().mockResolvedValue(undefined),
     refreshAIModels: vi.fn().mockResolvedValue({ gemini: { ok: true, count: 3 }, claude: { ok: true, count: 2 }, groq: { ok: true, count: 1 }, openai: { ok: true, count: 1 }, deepseek: { ok: true, count: 1 }, ollama: { ok: true, count: 0 }, totalModels: 8 }),
     openExternal: vi.fn(),
+    getAvailableBackends: vi.fn().mockResolvedValue([
+      { id: 'gemini', available: true },
+      { id: 'claude', available: true },
+      { id: 'groq', available: true },
+    ]),
   },
 }));
 

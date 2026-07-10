@@ -38,6 +38,7 @@ export function NewChatDialog({ onClose }: NewChatDialogProps) {
   const availableModels = MODELS_BY_BACKEND[selectedBackend] || [];
   const [customModel, setCustomModel] = useState<string>(globalModel);
   const [keyStatus, setKeyStatus] = useState<Record<string, boolean>>({});
+  const [tierAvailable, setTierAvailable] = useState<Set<string> | null>(null);
   const { tier: tierInfo } = useTierInfo();
   const freeTier = isFreeTier(tierInfo);
 
@@ -51,6 +52,9 @@ export function NewChatDialog({ onClose }: NewChatDialogProps) {
       setKeyStatus(status);
     };
     void check();
+    void api.getAvailableBackends()
+      .then(backends => setTierAvailable(new Set(backends.filter(b => b.available).map(b => b.id))))
+      .catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'new-chat-dialog', level: 'warn', message: 'Failed to load available backends', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); });
   }, []);
 
   const canStart = topic.trim().length > 0;
@@ -144,7 +148,7 @@ export function NewChatDialog({ onClose }: NewChatDialogProps) {
                   if (models.length > 0) setCustomModel(models[0].value);
                 }}
               >
-                {AI_BACKENDS.map((b) => (
+                {AI_BACKENDS.filter(b => !tierAvailable || tierAvailable.has(b.value)).map((b) => (
                   <option key={b.value} value={b.value}>
                     {b.label}{keyStatus[b.value] === false && !(freeTier && tierInfo?.allowedBackends.includes(b.value)) ? ' (no key)' : ''}
                   </option>
