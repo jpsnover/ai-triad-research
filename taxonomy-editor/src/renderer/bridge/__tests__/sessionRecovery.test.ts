@@ -81,8 +81,8 @@ describe('session recovery (t/1476)', () => {
     expect(result).toEqual({ status: 'ok' });
     expect(mockResilientFetch).toHaveBeenCalledTimes(2);
     expect(mockGlobalFetch).toHaveBeenCalledWith(
-      '/.auth/anonymous',
-      expect.objectContaining({ credentials: 'include', redirect: 'follow', cache: 'no-store' }),
+      '/api/auth/anonymous',
+      expect.objectContaining({ method: 'POST', credentials: 'include', cache: 'no-store' }),
     );
   });
 
