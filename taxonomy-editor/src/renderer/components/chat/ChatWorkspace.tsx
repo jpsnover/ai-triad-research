@@ -20,6 +20,7 @@ import { useResizableRightPanel } from '../../hooks/useResizablePanel';
 import { useUserProfile } from '../../hooks/useAuthStatus';
 import { CommunityShareBanner } from '../shared/CommunityShareBanner';
 import { useGeminiOnboarding } from '../../hooks/useGeminiOnboarding';
+import { useTierInfo, isFreeTier } from '../../hooks/useTierInfo';
 import { GeminiOnboardingModal } from '../settings/GeminiOnboardingModal';
 import { CampGlyph, povToCamp } from '../shared/CampGlyph';
 import { EmptyState } from '../shared/EmptyState';
@@ -230,6 +231,8 @@ export function ChatWorkspace() {
     maxWidth: 600,
   });
   const { modalProps: geminiModalProps, checkAndShow: checkGeminiOnboarding } = useGeminiOnboarding();
+  const { tier: tierInfo } = useTierInfo();
+  const freeTier = isFreeTier(tierInfo);
 
   const handleShare = useCallback(async () => {
     if (!activeChat) return;
@@ -289,12 +292,12 @@ export function ChatWorkspace() {
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || chatGenerating) return;
-    await checkGeminiOnboarding();
+    await checkGeminiOnboarding({ freeTier });
     const msg = input;
     setInput('');
     getGlobalRecorder()?.record({ type: 'user.action', component: 'chat', level: 'info', message: 'chat.send', data: { chat_id: activeChat?.id, mode: activeChat?.mode, pover: activeChat?.pover, message_length: msg.length } });
     await sendMessage(msg);
-  }, [input, chatGenerating, sendMessage, checkGeminiOnboarding]);
+  }, [input, chatGenerating, sendMessage, checkGeminiOnboarding, freeTier]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
