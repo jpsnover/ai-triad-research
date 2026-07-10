@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.main.json",
+  "include": [
+    "src/main/**/*",
+    "../lib/ai-client/**/*",
+    "../lib/debate/**/*",
+    "../lib/embeddings/**/*",
+    "../lib/search/**/*",
+    "../lib/flight-recorder/**/*"
+  ],
+  "exclude": [
+    "../lib/debate/**/*.test.ts",
+    "../lib/debate/__tests__/**/*",
+    "../lib/debate/_*.ts"
+  ]
+}
