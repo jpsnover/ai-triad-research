@@ -16,6 +16,7 @@ import {
   NAV_ITEMS, getVisibleNavItems, getSecondaryByGroup,
   type NavItem, type NavAction, type NavGroup,
 } from '../../data/navConfig';
+import type { TabId } from '../../types/taxonomy';
 
 function AuthSection() {
   const auth = useAuthStatus();
@@ -100,7 +101,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
     else if (toolbarPanel === 'attrInfo') clearAttributeInfo();
   }, [toolbarPanel, clearSimilarSearch, showRelatedEdges, clearAttributeFilter, clearAttributeInfo]);
 
-  const switchTab = useCallback((tab: string) => {
+  const switchTab = useCallback((tab: TabId) => {
     clearCurrentPanel();
     useTaxonomyStore.setState({ relatedNodeId: null, selectedEdge: null });
     setToolbarPanel(null);
@@ -179,7 +180,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
 
   const dispatchNav = (action: NavAction) => {
     if (action.type === 'switchTab') {
-      switchTab(action.target);
+      switchTab(action.target as TabId);
     } else if (action.type === 'togglePanel') {
       toggle(action.target as ToolbarPanel);
     } else if (action.type === 'custom') {
