@@ -705,6 +705,12 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
         }
       }
 
+      const payloadBytes = JSON.stringify(activeDebate).length;
+      const turnCount = activeDebate.transcript.length;
+      const nodeCount = (activeDebate as unknown as Record<string, unknown>).argument_network
+        ? ((activeDebate as unknown as Record<string, { nodes?: unknown[] }>).argument_network?.nodes?.length ?? 0)
+        : 0;
+      const saveDiag = { phase: activeDebate.phase, transcript_length: turnCount, caller: caller ?? 'unknown', payload_bytes: payloadBytes, turn_count: turnCount, node_count: nodeCount };
       await api.saveDebateSession(activeDebate);
       set((state) => ({
         sessions: state.sessions.map((s) =>
@@ -713,9 +719,9 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
             : s,
         ),
       }));
-      getGlobalRecorder()?.record({ type: 'state.save', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Debate saved', data: { phase: activeDebate.phase, transcript_length: activeDebate.transcript.length, caller: caller ?? 'unknown' } });
+      getGlobalRecorder()?.record({ type: 'state.save', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Debate saved', data: saveDiag });
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: 'Failed to save debate', error: { name: 'SaveError', message: String(err), stack: (err as Error).stack }, data: { caller: caller ?? 'unknown' } });
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: 'Failed to save debate', error: { name: 'SaveError', message: String(err), stack: (err as Error).stack }, data: { caller: caller ?? 'unknown', payload_bytes: JSON.stringify(activeDebate).length, turn_count: activeDebate.transcript.length } });
       set({ debateError: mapErrorToUserMessage(err) });
     }
   },
