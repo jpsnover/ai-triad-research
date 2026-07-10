@@ -59,6 +59,7 @@ export type EventType =
   | 'debate.opening_added'
   // State management
   | 'state.save'
+  | 'state.save-coalesced'
   | 'state.load'
   | 'state.error'
   | 'state.init'
