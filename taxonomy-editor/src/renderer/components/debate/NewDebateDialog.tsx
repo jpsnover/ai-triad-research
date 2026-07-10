@@ -394,7 +394,8 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
 
   const handleStart = async () => {
     if (!canStart || creating) return;
-    await checkGeminiOnboarding();
+    // Free-tier/anonymous sessions use the server key — never prompt for a BYOK Gemini key (t/1479).
+    await checkGeminiOnboarding({ freeTier });
     setCreating(true);
 
     let finalTopic = topic.trim();
