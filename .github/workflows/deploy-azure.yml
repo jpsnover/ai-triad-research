@@ -113,20 +113,22 @@ jobs:
           echo "Container-relevant CI passed for this commit"
 
       - name: Verify container image exists
+        shell: pwsh
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          TAG="${{ steps.resolve_tag.outputs.tag }}"
-          echo "Checking for image ghcr.io/${{ github.repository_owner }}/taxonomy-editor:$TAG..."
-          TAGS=$(gh api user/packages/container/taxonomy-editor/versions \
-            --jq '.[].metadata.container.tags[]' 2>/dev/null || echo "")
-          if echo "$TAGS" | grep -qx "$TAG"; then
-            echo "Container image tag '$TAG' exists in GHCR"
-          else
-            echo "::error::Container image tag '$TAG' not found in GHCR. Run the Container Image workflow first."
-            echo "Available tags: $(echo $TAGS | head -5 | tr '\n' ', ')"
+          Import-Module ./scripts/AITriad/AITriad.psm1 -Force
+          $Tag = "${{ steps.resolve_tag.outputs.tag }}"
+          Write-Host "Checking for image ghcr.io/${{ github.repository_owner }}/taxonomy-editor:$Tag..."
+          $Images = Get-TaxEditorImage -Last 100
+          $AllTags = @($Images | ForEach-Object { $_.Tags })
+          if ($AllTags -contains $Tag) {
+            Write-Host "Container image tag '$Tag' exists in GHCR"
+          } else {
+            Write-Host "::error::Container image tag '$Tag' not found in GHCR. Run the Container Image workflow first."
+            Write-Host "Available tags: $(($AllTags | Select-Object -First 5) -join ', ')"
             exit 1
-          fi
+          }
 
   deploy:
     needs: [preflight]
