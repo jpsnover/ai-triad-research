@@ -306,6 +306,25 @@ class ContainerAppRevisionInfo {
     [string] $CreatedTime
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# GitHubWorkflowJobInfo / GitHubWorkflowRunInfo — typed results
+# from Get-GitHubWorkflowRun (t/1499)
+# ─────────────────────────────────────────────────────────────────────────────
+class GitHubWorkflowJobInfo {
+    [string] $Name
+    [string] $Status
+    [string] $Conclusion
+}
+
+class GitHubWorkflowRunInfo {
+    [long]                    $RunId
+    [string]                  $Status
+    [string]                  $Conclusion
+    [string]                  $HeadSha
+    [string]                  $Url
+    [GitHubWorkflowJobInfo[]] $Jobs
+}
+
 class FreeTierStatus {
     [string]   $Tier
     [int]      $DailyTokenBudget
@@ -750,6 +769,8 @@ Export-ModuleMember -Function @(
     'Get-TaxonomySnapshot'
     # t/1498 — ACA revision queries
     'Get-ContainerAppRevision'
+    # t/1499 — GH workflow run queries
+    'Get-GitHubWorkflowRun'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

@@ -169,6 +169,8 @@
         'Get-TaxonomySnapshot'
         # t/1498 — ACA revision queries
         'Get-ContainerAppRevision'
+        # t/1499 — GH workflow run queries
+        'Get-GitHubWorkflowRun'
     )
 
     # Aliases exported from this module
