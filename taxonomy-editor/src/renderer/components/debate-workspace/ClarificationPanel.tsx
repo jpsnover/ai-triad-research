@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, type RefObject } from 'react';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { POVER_INFO } from '../../types/debate';
@@ -357,13 +357,69 @@ export function ClarificationActions() {
 
   const isGenerating = !!debateGenerating;
 
+  // Overflow menu for narrow widths — collapses lower-priority buttons into ⋯
+  const footerRef = useRef<HTMLDivElement>(null);
+  const [collapsedCount, setCollapsedCount] = useState(0);
+  const naturalWidthsRef = useRef<number[] | null>(null);
+  const [overflowOpen, setOverflowOpen] = useState(false);
+  const overflowTriggerRef = useRef<HTMLButtonElement>(null);
+  const overflowMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (naturalWidthsRef.current) return;
+    const footer = footerRef.current;
+    if (!footer) return;
+    const buttons = footer.querySelectorAll<HTMLElement>('.debate-setup-action-btn');
+    if (buttons.length === 0) return;
+    naturalWidthsRef.current = Array.from(buttons).map(b => b.offsetWidth);
+  }, []);
+
+  useEffect(() => {
+    const footer = footerRef.current;
+    if (!footer) return;
+    let debounceTimer: ReturnType<typeof setTimeout>;
+    const GAP = 8;
+    const OVERFLOW_BTN_W = 36;
+    const OPTIONS_MIN_W = 180;
+
+    const observer = new ResizeObserver(() => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        const widths = naturalWidthsRef.current;
+        if (!widths || widths.length < 3) return;
+        const available = footer.clientWidth - OPTIONS_MIN_W - GAP;
+        const total = widths.reduce((s, w) => s + w, 0) + (widths.length - 1) * GAP;
+        if (available >= total) { setCollapsedCount(0); return; }
+        const without1 = total - widths[0] - GAP + OVERFLOW_BTN_W + GAP;
+        if (available >= without1) { setCollapsedCount(1); return; }
+        setCollapsedCount(2);
+      }, 50);
+    });
+    observer.observe(footer);
+    return () => { observer.disconnect(); clearTimeout(debounceTimer); };
+  }, []);
+
+  useEffect(() => {
+    if (!overflowOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (overflowMenuRef.current && !overflowMenuRef.current.contains(e.target as Node) &&
+          overflowTriggerRef.current && !overflowTriggerRef.current.contains(e.target as Node)) {
+        setOverflowOpen(false);
+        overflowTriggerRef.current?.focus();
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setOverflowOpen(false); overflowTriggerRef.current?.focus(); }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => { document.removeEventListener('mousedown', handleClickOutside); document.removeEventListener('keydown', handleEscape); };
+  }, [overflowOpen]);
+
   return (
     <div className="debate-action-bar">
       {debateError && <div className="debate-error">{debateError}</div>}
 
-      {topicCritiqueLoading && (
-        <div className="debate-action-hint" style={{ fontStyle: 'italic' }}>Evaluating topic quality...</div>
-      )}
       {activeDebate.topic.critique && (
         <TopicCritiqueCard
           critique={activeDebate.topic.critique as TopicCritique}
@@ -389,7 +445,7 @@ export function ClarificationActions() {
               Topic scored <strong>{(activeDebate.topic.critique as TopicCritique).composite_score}/20</strong> — refining can sharpen the debate.
             </div>
           )}
-          <div className="debate-setup-footer">
+          <div className="debate-setup-footer" ref={footerRef}>
             <div className="debate-options-anchor" ref={optionsRef}>
               <button
                 className="debate-options-trigger"
@@ -477,27 +533,81 @@ export function ClarificationActions() {
                 </div>
               )}
             </div>
+            <div className="debate-setup-status-zone">
+              {topicCritiqueLoading && (
+                <span className="debate-setup-status">
+                  <span className="debate-setup-spinner" aria-hidden="true" />
+                  Evaluating topic quality…
+                </span>
+              )}
+            </div>
             <div className="debate-setup-actions">
+              {collapsedCount > 0 && (
+                <div className="debate-overflow-anchor">
+                  <button
+                    ref={overflowTriggerRef}
+                    className="btn btn-ghost debate-overflow-trigger"
+                    onClick={() => {
+                      const opening = !overflowOpen;
+                      setOverflowOpen(opening);
+                      if (opening) setTimeout(() => overflowMenuRef.current?.querySelector<HTMLButtonElement>('button')?.focus(), 0);
+                    }}
+                    aria-haspopup="true"
+                    aria-expanded={overflowOpen}
+                    aria-label="More actions"
+                    title="More actions"
+                  >
+                    ⋯
+                  </button>
+                  {overflowOpen && (
+                    <div className="debate-overflow-menu" ref={overflowMenuRef} role="menu">
+                      {collapsedCount >= 1 && (
+                        <button
+                          className="debate-overflow-item"
+                          role="menuitem"
+                          onClick={() => { setOverflowOpen(false); void handleExploreFirst(); }}
+                          disabled={isGenerating || submitting}
+                        >
+                          Explore First
+                        </button>
+                      )}
+                      {collapsedCount >= 2 && (
+                        <button
+                          className="debate-overflow-item"
+                          role="menuitem"
+                          onClick={() => { setOverflowOpen(false); void runClarification(); }}
+                        >
+                          Refine Topic
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              {collapsedCount < 1 && (
+                <button
+                  className="btn btn-ghost debate-setup-action-btn"
+                  onClick={() => void handleExploreFirst()}
+                  disabled={isGenerating || submitting}
+                  title="Run a quick exploration debate with a cheap model, then review findings before starting a full debate"
+                >
+                  Explore First
+                </button>
+              )}
+              {collapsedCount < 2 && (
+                <button
+                  className="btn debate-setup-action-btn"
+                  onClick={() => void runClarification()}
+                >
+                  Refine Topic
+                </button>
+              )}
               <button
-                className="btn btn-ghost"
-                onClick={() => void handleExploreFirst()}
-                disabled={isGenerating || submitting}
-                title="Run a quick exploration debate with a cheap model, then review findings before starting a full debate"
-              >
-                Explore First
-              </button>
-              <button
-                className={`btn${hasRefinedTopic ? ' btn-primary' : ' btn-ghost'}`}
+                className="btn btn-primary debate-setup-action-btn"
                 onClick={handleBeginDebate}
                 disabled={isGenerating || submitting}
               >
                 Begin Debate
-              </button>
-              <button
-                className={`btn${hasRefinedTopic ? ' btn-ghost' : ' btn-refine'}`}
-                onClick={() => void runClarification()}
-              >
-                Refine Topic
               </button>
             </div>
           </div>

@@ -2,7 +2,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { useState, useRef, useEffect } from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ClarificationCard, TopicScoreComparison } from './ClarificationPanel';
 import type { TranscriptEntry } from '../../types/debate';
 
@@ -110,5 +112,123 @@ describe('TopicScoreComparison', () => {
     };
     const { container } = render(<TopicScoreComparison />);
     expect(container.innerHTML).toBe('');
+  });
+});
+
+// ── Overflow menu keyboard accessibility (t/1457) ─────────
+
+function OverflowMenuHarness({ collapsedCount }: { collapsedCount: number }) {
+  const [overflowOpen, setOverflowOpen] = useState(false);
+  const overflowTriggerRef = useRef<HTMLButtonElement>(null);
+  const overflowMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!overflowOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (overflowMenuRef.current && !overflowMenuRef.current.contains(e.target as Node) &&
+          overflowTriggerRef.current && !overflowTriggerRef.current.contains(e.target as Node)) {
+        setOverflowOpen(false);
+        overflowTriggerRef.current?.focus();
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setOverflowOpen(false); overflowTriggerRef.current?.focus(); }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => { document.removeEventListener('mousedown', handleClickOutside); document.removeEventListener('keydown', handleEscape); };
+  }, [overflowOpen]);
+
+  if (collapsedCount <= 0) return null;
+
+  return (
+    <div>
+      <button
+        ref={overflowTriggerRef}
+        data-testid="overflow-trigger"
+        onClick={() => {
+          const opening = !overflowOpen;
+          setOverflowOpen(opening);
+          if (opening) setTimeout(() => overflowMenuRef.current?.querySelector<HTMLButtonElement>('button')?.focus(), 0);
+        }}
+        aria-haspopup="true"
+        aria-expanded={overflowOpen}
+        aria-label="More actions"
+      >
+        ⋯
+      </button>
+      {overflowOpen && (
+        <div data-testid="overflow-menu" ref={overflowMenuRef} role="menu">
+          {collapsedCount >= 1 && (
+            <button role="menuitem" onClick={() => setOverflowOpen(false)}>Explore First</button>
+          )}
+          {collapsedCount >= 2 && (
+            <button role="menuitem" onClick={() => setOverflowOpen(false)}>Refine Topic</button>
+          )}
+        </div>
+      )}
+      <button data-testid="outside-button">Outside</button>
+    </div>
+  );
+}
+
+describe('Overflow menu keyboard accessibility', () => {
+  it('closes on Escape and returns focus to trigger', async () => {
+    const user = userEvent.setup();
+    render(<OverflowMenuHarness collapsedCount={2} />);
+
+    const trigger = screen.getByTestId('overflow-trigger');
+    await user.click(trigger);
+    expect(screen.getByTestId('overflow-menu')).toBeInTheDocument();
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByTestId('overflow-menu')).not.toBeInTheDocument();
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(trigger).toHaveFocus();
+  });
+
+  it('closes on click outside and returns focus to trigger', async () => {
+    const user = userEvent.setup();
+    render(<OverflowMenuHarness collapsedCount={1} />);
+
+    const trigger = screen.getByTestId('overflow-trigger');
+    await user.click(trigger);
+    expect(screen.getByTestId('overflow-menu')).toBeInTheDocument();
+
+    fireEvent.mouseDown(screen.getByTestId('outside-button'));
+
+    expect(screen.queryByTestId('overflow-menu')).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it('has correct ARIA attributes on trigger and menu', async () => {
+    const user = userEvent.setup();
+    render(<OverflowMenuHarness collapsedCount={2} />);
+
+    const trigger = screen.getByTestId('overflow-trigger');
+    expect(trigger).toHaveAttribute('aria-haspopup', 'true');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(trigger).toHaveAttribute('aria-label', 'More actions');
+
+    await user.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+
+    const menu = screen.getByTestId('overflow-menu');
+    expect(menu).toHaveAttribute('role', 'menu');
+    const items = menu.querySelectorAll('[role="menuitem"]');
+    expect(items.length).toBe(2);
+  });
+
+  it('focuses first menu item on open', async () => {
+    const user = userEvent.setup();
+    render(<OverflowMenuHarness collapsedCount={2} />);
+
+    await user.click(screen.getByTestId('overflow-trigger'));
+
+    await vi.waitFor(() => {
+      expect(screen.getByText('Explore First')).toHaveFocus();
+    });
   });
 });

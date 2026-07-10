@@ -29,3 +29,12 @@
   letter-spacing: 0.5px;
   white-space: nowrap;
 }
+
+/* FAB offset when setup bar is visible */
+.debate-workspace-row[data-phase="setup"] {
+  --setup-bar-height: 52px;
+}
+
+.debate-workspace-row[data-phase="setup"] .debate-chat-fab {
+  bottom: calc(var(--setup-bar-height) + var(--sp-5, 20px));
+}

@@ -670,7 +670,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
   const showRemoteOverlay = driverIsRemote && !!activeDebate;
 
   return (
-    <div className="debate-workspace-row">
+    <div className="debate-workspace-row" data-phase={isClarificationPhase ? 'setup' : undefined}>
     <div className="debate-workspace">
       {/* Fixed toolbar — always visible */}
       <div className="debate-toolbar">
