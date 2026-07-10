@@ -76,6 +76,58 @@ const teeStream = new Writable({
   },
 });
 
+// ── Log-line size caps (t/1475) ──
+// Azure Container Apps captures stdout via Fluent Bit, which slices lines past a
+// ~16 KB per-line buffer; a sliced JSON line is invalid and unparseable in Log
+// Analytics. Pino can emit arbitrarily large lines (full request/response bodies,
+// deep objects, base64). We truncate oversized string fields and cap the whole
+// object so every line stays parseable. Logs are telemetry — the flight recorder
+// (getGlobalRecorder events) keeps full fidelity and is untouched by this.
+export const LOG_MAX_FIELD_CHARS = 4096;   // per-string-field cap (AC#3)
+export const LOG_MAX_LINE_BYTES = 15_000;  // object cap, under the 16 KB line limit (level/time/msg add ~200B)
+const LOG_MAX_DEPTH = 8;
+const LOG_MAX_ARRAY = 100;
+// Small, always-keep triage fields (present in the merged log object; level/time/
+// msg are pino-managed and re-added after formatters). Never dropped by the cap.
+const LOG_TRIAGE_KEYS = ['component', 'requestId', 'userId', 'debateId', 'method', 'path', 'status', 'statusCode', 'duration_ms', 'type', 'reason'] as const;
+
+function truncateLogString(s: string): string {
+  return s.length <= LOG_MAX_FIELD_CHARS ? s : `${s.slice(0, LOG_MAX_FIELD_CHARS)}…[truncated ${s.length - LOG_MAX_FIELD_CHARS} chars]`;
+}
+
+/** Deep-truncate oversized strings / long arrays / deep nesting. Structure and
+ *  small fields are preserved; only long strings (bodies, stacks, base64) are cut. */
+export function truncateLogValue(value: unknown, depth = 0): unknown {
+  if (typeof value === 'string') return truncateLogString(value);
+  if (value === null || typeof value !== 'object') return value;
+  if (depth >= LOG_MAX_DEPTH) return '…[truncated: max depth]';
+  if (Array.isArray(value)) {
+    const out = value.slice(0, LOG_MAX_ARRAY).map(v => truncateLogValue(v, depth + 1));
+    if (value.length > LOG_MAX_ARRAY) out.push(`…[truncated ${value.length - LOG_MAX_ARRAY} items]`);
+    return out;
+  }
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = truncateLogValue(v, depth + 1);
+  return out;
+}
+
+/** Pino `formatters.log` hook: field-truncate the merged log object, then enforce
+ *  a hard total-size cap as a backstop (many small fields can still add up). On
+ *  overflow, keep the triage fields + err/error name+message and mark the rest. */
+export function capLogObject(obj: Record<string, unknown>): Record<string, unknown> {
+  const truncated = truncateLogValue(obj) as Record<string, unknown>;
+  if (JSON.stringify(truncated).length <= LOG_MAX_LINE_BYTES) return truncated;
+
+  const reduced: Record<string, unknown> = {};
+  for (const k of LOG_TRIAGE_KEYS) if (k in obj) reduced[k] = truncateLogValue(obj[k]);
+  const err = obj.err as { type?: string; message?: string } | undefined;
+  if (err && typeof err === 'object') reduced.err = { type: err.type, message: truncateLogString(String(err.message ?? '')) };
+  const error = obj.error as { name?: string; message?: string } | undefined;
+  if (error && typeof error === 'object') reduced.error = { name: error.name, message: truncateLogString(String(error.message ?? '')) };
+  reduced._log_truncated = `line exceeded ${LOG_MAX_LINE_BYTES}B — verbose fields dropped for ACA/Fluent Bit; full detail in the flight recorder`;
+  return reduced;
+}
+
 const pinoOptions = {
   level: process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug'),
   redact: {
@@ -115,6 +167,13 @@ const pinoOptions = {
   // Customize the serialized error shape
   serializers: {
     err: pino.stdSerializers.err,
+  },
+  // t/1475: cap oversized log lines so ACA/Fluent Bit doesn't slice them into
+  // unparseable JSON. Field-truncates bodies/stacks/base64 and hard-caps the
+  // whole object; applies to Pino output only (stdout + the log-line tee) — the
+  // flight recorder's structured events keep full fidelity.
+  formatters: {
+    log: capLogObject,
   },
 };
 
