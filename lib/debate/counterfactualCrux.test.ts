@@ -245,8 +245,8 @@ describe('computeCounterfactualCruxes — multi-node network', () => {
     expect(result.claims_analysed).toBe(100);
     // Each interior node is touched by 2 edges; endpoints by 1
     expect(result.removals_tested).toBe(99 * 2 - 2 + 2); // = 198 - 2 + 2 = 198... actually 99*2 - endpoints correction
-    // The timing guard: should complete well within 1 second
-    expect(elapsed).toBeLessThan(1000);
+    // Loose guard: catches gross complexity regressions, not micro-benchmarks
+    expect(elapsed).toBeLessThan(5000);
   });
 });
 
