@@ -12,6 +12,7 @@ import { useResizablePanel } from '../../hooks/useResizablePanel';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useMobileNav } from '../../hooks/useMobileNav';
 import { NewDebateDialog } from './NewDebateDialog';
+import { DebateWorkspace } from '../debate-workspace';
 import { filterCommunityDebates } from './communityFilter';
 import { ExportDropdown } from './ExportDropdown';
 import { useFlag } from '../../hooks/useFeatureFlags';
@@ -589,20 +590,24 @@ export function DebateTab() {
             {listView === 'community' && selectedCommunityDebate ? (
               <CommunityDebateDetail debate={selectedCommunityDebate} />
             ) : activeDebate ? (
-              <DebateDetailSummary
-                debate={activeDebate}
-                onOpenWindow={() => api.openDebateWindow(activeDebate.id).catch((err) => {
-                  getGlobalRecorder()?.record({
-                    type: 'system.error',
-                    component: 'debate-tab',
-                    level: 'warn',
-                    message: 'Failed to open debate popout window — debate stays inline',
-                    error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-                  });
-                })}
-                onExport={handleExport}
-                exportStatus={exportStatus}
-              />
+              isPhone ? (
+                <DebateWorkspace onExport={handleExport} exportStatus={exportStatus} />
+              ) : (
+                <DebateDetailSummary
+                  debate={activeDebate}
+                  onOpenWindow={() => api.openDebateWindow(activeDebate.id).catch((err) => {
+                    getGlobalRecorder()?.record({
+                      type: 'system.error',
+                      component: 'debate-tab',
+                      level: 'warn',
+                      message: 'Failed to open debate popout window — debate stays inline',
+                      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+                    });
+                  })}
+                  onExport={handleExport}
+                  exportStatus={exportStatus}
+                />
+              )
             ) : (
               <div className="debate-empty-state">
                 <h2>Perspective Debater</h2>
