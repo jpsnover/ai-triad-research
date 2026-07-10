@@ -62,9 +62,70 @@ function throwTimeoutError(method: string, path: string, timeoutMs: number): nev
   });
 }
 
+// ── Anonymous session recovery ──
+
+let _sessionRecoveryInFlight: Promise<boolean> | null = null;
+
+async function recoverAnonymousSession(): Promise<boolean> {
+  if (_sessionRecoveryInFlight) return _sessionRecoveryInFlight;
+  _sessionRecoveryInFlight = (async () => {
+    try {
+      getGlobalRecorder()?.record({
+        type: 'auth.session-recovery',
+        component: 'web-bridge',
+        level: 'info',
+        message: 'Attempting anonymous session recovery via /.auth/anonymous',
+      });
+      const res = await fetch('/.auth/anonymous', {
+        credentials: 'include',
+        redirect: 'follow',
+        cache: 'no-store',
+      });
+      return res.ok;
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'auth.session-recovery',
+        component: 'web-bridge',
+        level: 'error',
+        message: 'Anonymous session recovery failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      return false;
+    } finally {
+      _sessionRecoveryInFlight = null;
+    }
+  })();
+  return _sessionRecoveryInFlight;
+}
+
+async function isNoSessionResponse(res: Response): Promise<boolean> {
+  if (res.status !== 401) return false;
+  try {
+    const data = await res.clone().json() as Record<string, unknown>;
+    return data.reason === 'no_session';
+  } catch { /* telemetry — silent by design: non-JSON 401 is simply not a no_session response */ }
+  return false;
+}
+
 // ── Auth state cache ──
 
 let _authAnonymous: boolean | null = null;
+
+async function fetchWithSessionRecovery(
+  path: string,
+  init: RequestInit,
+  opts: import('./resilience').ResilientFetchOptions,
+): Promise<Response> {
+  let res = await resilientFetch(path, init, opts);
+  if (await isNoSessionResponse(res)) {
+    const recovered = await recoverAnonymousSession();
+    if (recovered) {
+      _authAnonymous = true;
+      res = await resilientFetch(path, init, opts);
+    }
+  }
+  return res;
+}
 
 async function isAnonymous(): Promise<boolean> {
   if (_authAnonymous !== null) return _authAnonymous;
@@ -90,7 +151,7 @@ async function get<T = unknown>(path: string, opts?: FetchOptions): Promise<T> {
   const timeoutMs = opts?.timeoutMs ?? DEFAULT_READ_TIMEOUT_MS;
   let res: Response;
   try {
-    res = await resilientFetch(path, {}, {
+    res = await fetchWithSessionRecovery(path, {}, {
       timeoutMs,
       maxRetries: opts?.maxRetries ?? defaultMaxRetries(cat, 'GET'),
       critical: opts?.critical ?? true,
@@ -135,7 +196,7 @@ async function post<T = unknown>(path: string, body?: unknown, opts?: FetchOptio
   const timeoutMs = opts?.timeoutMs ?? DEFAULT_MUTATION_TIMEOUT_MS;
   let res: Response;
   try {
-    res = await resilientFetch(path, {
+    res = await fetchWithSessionRecovery(path, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...extraHeaders },
       body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -240,7 +301,7 @@ async function put<T = unknown>(path: string, body?: unknown, opts?: FetchOption
   const timeoutMs = opts?.timeoutMs ?? DEFAULT_MUTATION_TIMEOUT_MS;
   let res: Response;
   try {
-    res = await resilientFetch(path, {
+    res = await fetchWithSessionRecovery(path, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -302,7 +363,7 @@ async function del<T = unknown>(path: string, opts?: FetchOptions): Promise<T> {
   const timeoutMs = opts?.timeoutMs ?? DEFAULT_MUTATION_TIMEOUT_MS;
   let res: Response;
   try {
-    res = await resilientFetch(path, { method: 'DELETE' }, {
+    res = await fetchWithSessionRecovery(path, { method: 'DELETE' }, {
       timeoutMs,
       maxRetries: opts?.maxRetries ?? defaultMaxRetries(cat, 'DELETE', opts?.idempotent),
       critical: opts?.critical ?? true,
