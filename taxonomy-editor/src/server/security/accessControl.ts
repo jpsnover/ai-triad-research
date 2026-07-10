@@ -281,8 +281,7 @@ export function isAnonAllowedRoute(method: string, urlPath: string): boolean {
   // Matches both '/api/debates' (create/save) and '/api/debates/{id}' (update/delete).
   const isUserContent = urlPath === '/api/chats' || urlPath.startsWith('/api/chats/')
     || urlPath === '/api/debates' || urlPath.startsWith('/api/debates/');
-  if (method === 'PUT' && isUserContent) return true;
-  if (method === 'DELETE' && isUserContent) return true;
+  if ((method === 'POST' || method === 'PUT' || method === 'DELETE') && isUserContent) return true;
 
   if (method === 'PUT' || method === 'DELETE') return false;
 

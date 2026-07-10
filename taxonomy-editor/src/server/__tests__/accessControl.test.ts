@@ -275,7 +275,9 @@ describe('isAnonAllowedRoute (t/763 anon_route_blocked classification)', () => {
   it('allows anon POST to /api/admin/errors (t/811)', () => {
     expect(isAnonAllowedRoute('POST', '/api/admin/errors')).toBe(true);
   });
-  it('allows anonymous save/delete of own ephemeral chats and debates', () => {
+  it('allows anonymous create/save/delete of own ephemeral chats and debates (t/1501)', () => {
+    expect(isAnonAllowedRoute('POST', '/api/debates')).toBe(true);
+    expect(isAnonAllowedRoute('POST', '/api/chats')).toBe(true);
     expect(isAnonAllowedRoute('PUT', '/api/debates')).toBe(true);
     expect(isAnonAllowedRoute('DELETE', '/api/debates/abc')).toBe(true);
     expect(isAnonAllowedRoute('PUT', '/api/chats')).toBe(true);

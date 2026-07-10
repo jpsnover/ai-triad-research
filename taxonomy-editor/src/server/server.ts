@@ -2727,11 +2727,19 @@ async function handleRequestInner(
           // a structured 401 so the client can re-establish an anonymous session and
           // retry (client recovery is the child ticket). Mirrors the required-mode
           // /api/ check (t/763) but 401 (a session CAN be established here) not 403.
+          // t/1501: skip 401 for routes that don't need a session — isAnonAllowedRoute
+          // and freeTierRoute are designed for truly cookie-less anonymous access.
           if (urlPath.startsWith('/api/')) {
-            recordAuthDenied('no_session', req.method || 'GET', urlPath);
-            res.writeHead(401, { 'Content-Type': 'application/json', 'X-Auth-Reason': 'no_session' });
-            res.end(JSON.stringify({ error: 'Anonymous session required', reason: 'no_session' }));
-            return;
+            const m = req.method || 'GET';
+            const freeTier = m === 'POST'
+              && (urlPath === '/api/ai/generate' || urlPath === '/api/embeddings/compute' || urlPath === '/api/embeddings/query')
+              && proxyTiers.freeTierEnabled();
+            if (!freeTier && !isAnonAllowedRoute(m, urlPath)) {
+              recordAuthDenied('no_session', m, urlPath);
+              res.writeHead(401, { 'Content-Type': 'application/json', 'X-Auth-Reason': 'no_session' });
+              res.end(JSON.stringify({ error: 'Anonymous session required', reason: 'no_session' }));
+              return;
+            }
           }
           res.writeHead(200, loginPageHeaders(req));
           res.end(buildLoginPage(true));

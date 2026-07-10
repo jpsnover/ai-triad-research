@@ -39,7 +39,9 @@ const ANON_ALLOWED_ROUTES: Array<{ method: string; path: string; desc: string }>
   { method: 'GET', path: '/api/dictionary', desc: 'vernacular dictionary' },
   { method: 'GET', path: '/api/config', desc: 'runtime config' },
 
-  // --- PUT/DELETE on user content ---
+  // --- POST/PUT/DELETE on user content ---
+  { method: 'POST', path: '/api/debates', desc: 'create debate (user content, t/1501)' },
+  { method: 'POST', path: '/api/chats', desc: 'create chat (user content, t/1501)' },
   { method: 'PUT', path: '/api/debates', desc: 'save debate (user content)' },
   { method: 'PUT', path: '/api/debates/abc-123', desc: 'update debate (user content)' },
   { method: 'DELETE', path: '/api/debates/abc-123', desc: 'delete own debate' },
