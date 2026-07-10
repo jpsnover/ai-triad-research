@@ -40,6 +40,8 @@ export interface AzureBlobBackendOptions {
    * DefaultAzureCredential.
    */
   serviceClient?: BlobServiceClient;
+  /** Server-side timeout for blob uploads (ms). Default 60s. Test seam. */
+  uploadTimeoutMs?: number;
 }
 
 async function streamToBuffer(readable: NodeJS.ReadableStream | undefined): Promise<Buffer> {
@@ -85,15 +87,19 @@ function wrapBlobError(err: unknown, op: string, blob: string): ActionableError 
   });
 }
 
+const DEFAULT_BLOB_UPLOAD_TIMEOUT_MS = 60_000;
+
 export class AzureBlobBackend implements StorageBackend {
   private readonly userContentClient: ContainerClient;
   private readonly communityClient: ContainerClient;
+  private readonly uploadTimeoutMs: number;
 
   constructor(opts: AzureBlobBackendOptions) {
     const service = opts.serviceClient
       ?? new BlobServiceClient(opts.accountUrl, new DefaultAzureCredential());
     this.userContentClient = service.getContainerClient(opts.userContentContainer);
     this.communityClient = service.getContainerClient(opts.communityContainer);
+    this.uploadTimeoutMs = opts.uploadTimeoutMs ?? DEFAULT_BLOB_UPLOAD_TIMEOUT_MS;
   }
 
   /** Convert an absolute or relative path to a forward-slash, data-root-relative blob name. */
@@ -151,34 +157,75 @@ export class AzureBlobBackend implements StorageBackend {
   async writeFile(filePath: string, content: string, _opts?: { ref?: string }): Promise<void> {
     const blob = this.toBlobPath(filePath);
     const data = Buffer.from(content, 'utf-8');
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), this.uploadTimeoutMs);
     try {
-      // upload() overwrites an existing blob. No mkdir needed (virtual dirs).
       await this.containerFor(blob).getBlockBlobClient(blob).upload(data, data.byteLength, {
         blobHTTPHeaders: { blobContentType: 'application/json; charset=utf-8' },
+        abortSignal: ac.signal,
       });
     } catch (err) {
+      if ((err as Error).name === 'AbortError') {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'azure-blob-backend', level: 'error',
+          message: `writeFile timed out after ${this.uploadTimeoutMs}ms: ${blob}`,
+          data: { blob, timeoutMs: this.uploadTimeoutMs, payloadBytes: data.byteLength },
+        });
+        throw Object.assign(new ActionableError({
+          goal: 'Azure Blob writeFile',
+          problem: `Blob upload timed out after ${this.uploadTimeoutMs}ms for "${blob}" (${data.byteLength} bytes)`,
+          location: 'AzureBlobBackend.writeFile',
+          nextSteps: [
+            'Retry the save — the timeout may indicate a transient stall (cold replica)',
+            'If the problem persists, check Azure Blob service health',
+          ],
+        }), { statusCode: 503 });
+      }
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'azure-blob-backend', level: 'error',
         message: `writeFile failed: ${blob}`,
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       throw wrapBlobError(err, 'writeFile', blob);
+    } finally {
+      clearTimeout(timer);
     }
   }
 
   async writeBinaryFile(filePath: string, content: Buffer, _opts?: { ref?: string }): Promise<void> {
     const blob = this.toBlobPath(filePath);
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), this.uploadTimeoutMs);
     try {
       await this.containerFor(blob).getBlockBlobClient(blob).upload(content, content.byteLength, {
         blobHTTPHeaders: { blobContentType: 'application/octet-stream' },
+        abortSignal: ac.signal,
       });
     } catch (err) {
+      if ((err as Error).name === 'AbortError') {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'azure-blob-backend', level: 'error',
+          message: `writeBinaryFile timed out after ${this.uploadTimeoutMs}ms: ${blob}`,
+          data: { blob, timeoutMs: this.uploadTimeoutMs, payloadBytes: content.byteLength },
+        });
+        throw Object.assign(new ActionableError({
+          goal: 'Azure Blob writeBinaryFile',
+          problem: `Blob upload timed out after ${this.uploadTimeoutMs}ms for "${blob}" (${content.byteLength} bytes)`,
+          location: 'AzureBlobBackend.writeBinaryFile',
+          nextSteps: [
+            'Retry the save — the timeout may indicate a transient stall (cold replica)',
+            'If the problem persists, check Azure Blob service health',
+          ],
+        }), { statusCode: 503 });
+      }
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'azure-blob-backend', level: 'error',
         message: `writeBinaryFile failed: ${blob}`,
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       throw wrapBlobError(err, 'writeBinaryFile', blob);
+    } finally {
+      clearTimeout(timer);
     }
   }
 

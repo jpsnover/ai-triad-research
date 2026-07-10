@@ -139,3 +139,61 @@ describe('AzureBlobBackend (Azurite)', () => {
     await expect(backend.readFile('.git/config')).rejects.toThrow(/unsafe path/i);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UPLOAD TIMEOUT (t/1469) — mocked client, no Azurite required
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('AzureBlobBackend — upload timeout (t/1469)', () => {
+  function stalledBackend(uploadTimeoutMs: number): AzureBlobBackend {
+    const neverResolve = () => new Promise<void>(() => {});
+    const mockBlockBlob = {
+      upload: (_data: unknown, _len: unknown, opts?: { abortSignal?: AbortSignal }) =>
+        new Promise<void>((_, reject) => {
+          opts?.abortSignal?.addEventListener('abort', () => {
+            const err = new Error('The operation was aborted.');
+            err.name = 'AbortError';
+            reject(err);
+          });
+        }),
+    };
+    const mockContainer = {
+      getBlockBlobClient: () => mockBlockBlob,
+      getBlobClient: () => ({ download: neverResolve, exists: neverResolve, delete: neverResolve }),
+      listBlobsByHierarchy: () => (async function* () {})(),
+    };
+    const mockService = {
+      getContainerClient: () => mockContainer,
+    } as unknown as BlobServiceClient;
+
+    return new AzureBlobBackend({
+      accountUrl: 'http://localhost:10000/devstoreaccount1',
+      userContentContainer: 'user-content',
+      communityContainer: 'community',
+      serviceClient: mockService,
+      uploadTimeoutMs,
+    });
+  }
+
+  it('writeFile rejects with 503 ActionableError on upload timeout', async () => {
+    const be = stalledBackend(50);
+    const err: Error & { statusCode?: number } = await be.writeFile('debates/test.json', '{}')
+      .then(() => { throw new Error('should have rejected'); })
+      .catch((e: Error) => e);
+
+    expect(err.name).toBe('ActionableError');
+    expect((err as { statusCode?: number }).statusCode).toBe(503);
+    expect(err.message).toMatch(/timed out/i);
+  }, 5000);
+
+  it('writeBinaryFile rejects with 503 ActionableError on upload timeout', async () => {
+    const be = stalledBackend(50);
+    const err: Error & { statusCode?: number } = await be.writeBinaryFile('debates/test.bin', Buffer.from('data'))
+      .then(() => { throw new Error('should have rejected'); })
+      .catch((e: Error) => e);
+
+    expect(err.name).toBe('ActionableError');
+    expect((err as { statusCode?: number }).statusCode).toBe(503);
+    expect(err.message).toMatch(/timed out/i);
+  }, 5000);
+});
