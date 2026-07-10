@@ -39,18 +39,28 @@ function maskedKeyList(keys: string[]): { index: number; masked: string }[] {
  *  probe identically. Never logs or returns the raw key — only a valid/error
  *  verdict; a provider-unreachable error is a result, not a swallowed failure,
  *  but is still recorded (warn) for network diagnostics. */
+// Per-backend key-validation probes: each hits the provider's lightweight,
+// auth-gated model-list endpoint. Data-driven (not an if/else chain) so it's the
+// single source of truth the completeness test checks — every registered backend
+// except the local-only ones (ollama/azure, no hosted key to validate) must have
+// a probe here, or Test Keys silently regresses to "Unsupported backend". That
+// gap recurred 3× as backends were added (t/1458); the keysValidation test now
+// forces this map to stay in sync with ai-models.json.
+type KeyProbe = (key: string) => Promise<Response>;
+export const KEY_VALIDATION_PROBES: Record<string, KeyProbe> = {
+  gemini: key => fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`),
+  claude: key => fetch('https://api.anthropic.com/v1/models', { headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' } }),
+  groq: key => fetch('https://api.groq.com/openai/v1/models', { headers: { Authorization: `Bearer ${key}` } }),
+  openai: key => fetch('https://api.openai.com/v1/models', { headers: { Authorization: `Bearer ${key}` } }),
+  deepseek: key => fetch('https://api.deepseek.com/v1/models', { headers: { Authorization: `Bearer ${key}` } }),
+  zai: key => fetch('https://api.z.ai/api/paas/v4/models', { headers: { Authorization: `Bearer ${key}` } }),
+};
+
 async function validateProviderKey(backend: string, key: string): Promise<{ valid: boolean; error?: string }> {
+  const probe = KEY_VALIDATION_PROBES[backend];
+  if (!probe) return { valid: false, error: `Unsupported backend: ${backend}` };
   try {
-    let resp: Response;
-    if (backend === 'gemini') {
-      resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
-    } else if (backend === 'claude') {
-      resp = await fetch('https://api.anthropic.com/v1/models', { headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' } });
-    } else if (backend === 'groq') {
-      resp = await fetch('https://api.groq.com/openai/v1/models', { headers: { 'Authorization': `Bearer ${key}` } });
-    } else {
-      return { valid: false, error: `Unsupported backend: ${backend}` };
-    }
+    const resp = await probe(key);
     return resp.ok ? { valid: true } : { valid: false, error: 'Invalid API key' };
   } catch (err) {
     getGlobalRecorder()?.record({
