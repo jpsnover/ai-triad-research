@@ -165,6 +165,8 @@
         'Test-AIApiKey'
         # t/1492 — GHCR cleanup
         'Remove-StaleContainerImages'
+        # t/1493 — Taxonomy snapshot fetch
+        'Get-TaxonomySnapshot'
     )
 
     # Aliases exported from this module

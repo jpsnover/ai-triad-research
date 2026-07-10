@@ -280,6 +280,21 @@ class StaleImageCleanupResult {
     [string]  $CutoffUtc
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# TaxonomySnapshotResult — typed result from Get-TaxonomySnapshot (t/1493)
+# ─────────────────────────────────────────────────────────────────────────────
+class TaxonomySnapshotResult {
+    [string]   $OutputPath
+    [string]   $Repo
+    [string]   $Branch
+    [string]   $Commit
+    [string]   $Generated
+    [object[]] $Files
+    [bool]     $Valid
+    [string[]] $MissingRequired
+    [string]   $SnapshotMetaPath
+}
+
 class FreeTierStatus {
     [string]   $Tier
     [int]      $DailyTokenBudget
@@ -720,6 +735,8 @@ Export-ModuleMember -Function @(
     'Test-AIApiKey'
     # t/1492 — GHCR cleanup
     'Remove-StaleContainerImages'
+    # t/1493 — Taxonomy snapshot fetch
+    'Get-TaxonomySnapshot'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'
