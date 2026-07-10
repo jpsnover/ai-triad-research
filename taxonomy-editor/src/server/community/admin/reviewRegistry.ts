@@ -41,9 +41,10 @@ export function listReviewHandlers(): ReviewDomainHandler[] {
   return [...handlers.values()];
 }
 
-/** Remove all handlers — test isolation only. */
+/** Remove all handlers and cached results — test isolation only. */
 export function clearReviewHandlers(): void {
   handlers.clear();
+  clearReviewCache();
 }
 
 // ── Admin middleware ──
@@ -70,21 +71,46 @@ export function requireAdmin(res: http.ServerResponse): boolean {
   return false;
 }
 
+// ── Cache ──
+
+interface CacheEntry<T> { value: T; expiresAt: number }
+const CACHE_TTL_MS = 60_000;
+const statsCache = new Map<string, CacheEntry<ReviewStats>>();
+const queueCache = new Map<string, CacheEntry<ReviewItem[]>>();
+
+function cacheKey(userId?: string): string { return userId ?? '__none__'; }
+
+/** Clear cached review data — test isolation or after handler registration changes. */
+export function clearReviewCache(): void {
+  statsCache.clear();
+  queueCache.clear();
+}
+
 // ── Aggregation ──
 
 /**
  * Aggregate pending review groups across all registered handlers, newest first.
- * A single handler throwing is recorded and skipped — one failing domain must not
- * blank the entire queue.
+ * Handlers run in parallel via Promise.allSettled — a rejected handler is
+ * recorded and skipped (one failing domain must not blank the entire queue).
+ * Results are cached for 60s per userId.
  */
 export async function getReviewQueue(userId?: string): Promise<ReviewItem[]> {
+  const key = cacheKey(userId);
+  const cached = queueCache.get(key);
+  if (cached && Date.now() < cached.expiresAt) return cached.value;
+
+  const handlerList = [...handlers.values()];
+  const results = await Promise.allSettled(
+    handlerList.map(h => h.getPendingItems(userId)),
+  );
   const all: ReviewItem[] = [];
   const failedDomains: string[] = [];
-  for (const handler of handlers.values()) {
-    try {
-      all.push(...await handler.getPendingItems(userId));
-    } catch { // eslint-disable-line local/require-flight-recorder-in-catch -- aggregate warn after loop
-      failedDomains.push(handler.domain);
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    if (r.status === 'fulfilled') {
+      all.push(...r.value);
+    } else {
+      failedDomains.push(handlerList[i].domain);
     }
   }
   if (failedDomains.length) {
@@ -96,25 +122,36 @@ export async function getReviewQueue(userId?: string): Promise<ReviewItem[]> {
     });
   }
   all.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+  queueCache.set(key, { value: all, expiresAt: Date.now() + CACHE_TTL_MS });
   return all;
 }
 
 /**
  * Per-domain badge counts (number of review groups per domain) plus the total.
- * Failing handlers report 0 for their domain rather than failing the whole call.
+ * Handlers run in parallel; failing handlers report 0 for their domain.
+ * Results are cached for 60s per userId.
  */
 export async function getReviewStats(userId?: string): Promise<ReviewStats> {
+  const key = cacheKey(userId);
+  const cached = statsCache.get(key);
+  if (cached && Date.now() < cached.expiresAt) return cached.value;
+
+  const handlerList = [...handlers.values()];
+  const results = await Promise.allSettled(
+    handlerList.map(h => h.getPendingItems(userId)),
+  );
   const byDomain: Record<string, number> = {};
   let total = 0;
   const failedDomains: string[] = [];
-  for (const handler of handlers.values()) {
-    try {
-      const items = await handler.getPendingItems(userId);
-      byDomain[handler.domain] = items.length;
-      total += items.length;
-    } catch { // eslint-disable-line local/require-flight-recorder-in-catch -- aggregate warn after loop
-      failedDomains.push(handler.domain);
-      byDomain[handler.domain] = 0;
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    const domain = handlerList[i].domain;
+    if (r.status === 'fulfilled') {
+      byDomain[domain] = r.value.length;
+      total += r.value.length;
+    } else {
+      failedDomains.push(domain);
+      byDomain[domain] = 0;
     }
   }
   if (failedDomains.length) {
@@ -125,7 +162,9 @@ export async function getReviewStats(userId?: string): Promise<ReviewStats> {
       message: `getReviewStats: ${failedDomains.length} handler(s) failed [${failedDomains.join(', ')}]`,
     });
   }
-  return { total, byDomain };
+  const stats: ReviewStats = { total, byDomain };
+  statsCache.set(key, { value: stats, expiresAt: Date.now() + CACHE_TTL_MS });
+  return stats;
 }
 
 /**
