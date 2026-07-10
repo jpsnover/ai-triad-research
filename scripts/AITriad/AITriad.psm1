@@ -295,6 +295,17 @@ class TaxonomySnapshotResult {
     [string]   $SnapshotMetaPath
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# ContainerAppRevisionInfo — typed result from Get-ContainerAppRevision (t/1498)
+# ─────────────────────────────────────────────────────────────────────────────
+class ContainerAppRevisionInfo {
+    [string] $Name
+    [int]    $TrafficWeight
+    [bool]   $Active
+    [string] $Fqdn
+    [string] $CreatedTime
+}
+
 class FreeTierStatus {
     [string]   $Tier
     [int]      $DailyTokenBudget
@@ -737,6 +748,8 @@ Export-ModuleMember -Function @(
     'Remove-StaleContainerImages'
     # t/1493 — Taxonomy snapshot fetch
     'Get-TaxonomySnapshot'
+    # t/1498 — ACA revision queries
+    'Get-ContainerAppRevision'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

@@ -167,6 +167,8 @@
         'Remove-StaleContainerImages'
         # t/1493 — Taxonomy snapshot fetch
         'Get-TaxonomySnapshot'
+        # t/1498 — ACA revision queries
+        'Get-ContainerAppRevision'
     )
 
     # Aliases exported from this module
