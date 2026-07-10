@@ -68,23 +68,25 @@ jobs:
             --set-env-vars "DEPLOY_SHA=${{ github.event.workflow_run.head_sha }}" "DEPLOY_TAG=${{ steps.resolve_tag.outputs.tag }}"
 
       - name: Verify staging health
+        shell: pwsh
         run: |
-          APP_FQDN=$(az containerapp show \
-            --name ${{ env.CONTAINER_APP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --query "properties.configuration.ingress.fqdn" -o tsv)
-          APP_URL="https://${APP_FQDN}"
-          echo "Staging URL: $APP_URL"
+          $AppFqdn = az containerapp show `
+            --name ${{ env.CONTAINER_APP_NAME }} `
+            --resource-group ${{ env.RESOURCE_GROUP }} `
+            --query "properties.configuration.ingress.fqdn" -o tsv
+          $AppUrl = "https://$AppFqdn"
+          Write-Host "Staging URL: $AppUrl"
 
-          for i in $(seq 1 18); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${APP_URL}/health" || echo "000")
-            if [ "$STATUS" = "200" ]; then
-              echo "Staging health check passed!"
-              exit 0
-            fi
-            echo "Waiting... (attempt $i/18, status: $STATUS)"
-            sleep 10
-          done
-
-          echo "::error::Staging health check failed after 3 minutes"
-          exit 1
+          Import-Module ./scripts/AITriad/AITriad.psm1 -Force
+          # 18 attempts x 10s = 3 min, matching the prior curl loop's budget.
+          # Widening note (t/1495): this now also requires /healthz (taxonomy
+          # data available), which the old /health-only check did not — a
+          # deliberate tightening, not a silent behavior change.
+          $Result = Test-TaxEditorHealth -BaseUrl $AppUrl -MaxAttempts 18 -RetryIntervalSec 10
+          if ($Result.Healthy) {
+            Write-Host "Staging health check passed!"
+          } else {
+            Write-Host "::error::Staging health check failed after 3 minutes"
+            $Result.Checks | Format-Table -AutoSize
+            exit 1
+          }

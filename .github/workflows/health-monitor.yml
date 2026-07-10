@@ -24,33 +24,35 @@ jobs:
   health-check:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+
       - name: Check health and data endpoints
         id: health
+        shell: pwsh
         run: |
-          FAILURES=0
-          for i in 1 2 3; do
-            # Check /health (readiness — app logic up)
-            H_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${APP_URL}/health") || H_STATUS="000"
-            # Check /healthz (liveness — process alive)
-            L_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${APP_URL}/healthz") || L_STATUS="000"
-            # Check /api/data/available
-            D_STATUS=$(curl -s --max-time 10 "${APP_URL}/api/data/available") || D_STATUS="error"
-            if [ "$H_STATUS" != "200" ] || [ "$L_STATUS" != "200" ] || [ "$D_STATUS" != "true" ]; then
-              FAILURES=$((FAILURES + 1))
-              echo "Attempt $i failed (health: $H_STATUS, healthz: $L_STATUS, data: $D_STATUS)"
-            else
-              echo "Attempt $i passed (health: $H_STATUS, healthz: $L_STATUS, data: available)"
-            fi
-            [ $i -lt 3 ] && sleep 30
-          done
+          Import-Module ./scripts/AITriad/AITriad.psm1 -Force
+          $Failures = 0
+          for ($i = 1; $i -le 3; $i++) {
+            # Test-TaxEditorHealth covers /health + /healthz in one probe (t/1495);
+            # /api/data/available is a third endpoint the cmdlet doesn't cover, kept as its own curl check.
+            $Result = Test-TaxEditorHealth -BaseUrl "${{ env.APP_URL }}" -TimeoutSec 10
+            $DataStatus = try { (Invoke-RestMethod -Uri "${{ env.APP_URL }}/api/data/available" -TimeoutSec 10) } catch { 'error' }
+            if (-not $Result.Healthy -or $DataStatus -ne $true) {
+              $Failures++
+              Write-Host "Attempt $i failed (healthy: $($Result.Healthy), data: $DataStatus)"
+            } else {
+              Write-Host "Attempt $i passed (healthy: true, data: available)"
+            }
+            if ($i -lt 3) { Start-Sleep -Seconds 30 }
+          }
 
-          echo "failures=$FAILURES" >> $GITHUB_OUTPUT
-          if [ "$FAILURES" -eq 3 ]; then
-            echo "healthy=false" >> $GITHUB_OUTPUT
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "failures=$Failures"
+          if ($Failures -eq 3) {
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "healthy=false"
             exit 1
-          else
-            echo "healthy=true" >> $GITHUB_OUTPUT
-          fi
+          } else {
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "healthy=true"
+          }
 
       - name: Create issue on sustained failure
         if: failure() && steps.health.outputs.healthy == 'false'
