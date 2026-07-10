@@ -16,7 +16,8 @@ export function useGeminiOnboarding() {
     clearSessionDismiss();
   }, []);
 
-  const checkAndShow = useCallback(async (): Promise<boolean> => {
+  const checkAndShow = useCallback(async (opts?: { freeTier?: boolean }): Promise<boolean> => {
+    if (opts?.freeTier) return true;
     if (!shouldShowGeminiOnboarding()) return true;
     try {
       const hasKey = await api.hasApiKey('gemini');
