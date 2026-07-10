@@ -7,6 +7,8 @@ import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import { speakerLabel, STRENGTH_BAND, getNodeLabel } from './utils';
 
+const ATTACK_TYPE_WEIGHTS: Record<string, number> = { rebut: 1.0, undercut: 1.05, undermine: 1.1 };
+
 export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap, showFormal }: {
   node: ArgumentNetworkNode;
   attacks: ArgumentNetworkEdge[];
@@ -24,6 +26,8 @@ export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap, s
 
   const bandColor = computed >= 0.8 ? '#22c55e' : computed >= 0.5 ? '#3b82f6' : computed >= 0.3 ? '#f59e0b' : '#ef4444';
   const attr = node.claim_taxonomy_attribution;
+  const bdiLabel = node.bdi_category === 'belief' ? 'Belief' : node.bdi_category === 'desire' ? 'Desire' : node.bdi_category === 'intention' ? 'Intention' : '';
+  const truncText = node.text.length > 80 ? node.text.slice(0, 80) + '…' : node.text;
 
   return (
     <div style={{ margin: '4px 0', paddingBottom: 4, borderBottom: '1px solid var(--border)', fontSize: '0.85rem' }}>
@@ -36,31 +40,39 @@ export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap, s
         ) : <span style={{ width: 10, flexShrink: 0 }} />}
         <div style={{ flex: 1, display: 'grid', gridTemplateColumns: node.political_salience ? '84px 72px 180px 200px 60px 80px' : '84px 72px 180px 200px 60px 1fr', gap: '4px', alignItems: 'center' }}>
           {/* Col 1: AN ID */}
-          <strong style={{ color: 'var(--accent)' }}>{node.id}</strong>
+          <strong
+            style={{ color: 'var(--accent)' }}
+            title={`Argument Network node ${node.id}\nSpeaker: ${speakerLabel(node.speaker)}\n${bdiLabel ? `Category: ${bdiLabel}` : ''}${node.bdi_confidence != null ? ` (confidence: ${node.bdi_confidence.toFixed(2)})` : ''}\nStrength: ${computed.toFixed(2)} (base: ${base.toFixed(2)}, delta: ${delta >= 0 ? '+' : ''}${delta.toFixed(2)})\n${attacks.length} attack${attacks.length !== 1 ? 's' : ''}, ${supports.length} support${supports.length !== 1 ? 's' : ''}\n\n${truncText}`}
+          >{node.id}</strong>
           {/* Col 2: BDI category */}
-          <span>{node.bdi_category === 'belief' ? 'Belief' : node.bdi_category === 'desire' ? 'Desire' : node.bdi_category === 'intention' ? 'Intention' : ''}</span>
-          {/* Col 4: Attribution */}
+          <span title={bdiLabel && node.bdi_confidence != null ? `${bdiLabel} (confidence: ${node.bdi_confidence.toFixed(2)})` : bdiLabel || undefined}>{bdiLabel}</span>
+          {/* Col 3: Attribution */}
           <span>
             {attr && (() => {
               if (attr.unattributed_reason) {
                 const reasonLabel = attr.unattributed_reason === 'novel_argument' ? 'novel' : 'no embedding';
-                return <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)' }}><span style={{ color: '#ef4444', fontSize: '0.9rem', marginRight: 3 }}>●</span>{reasonLabel}</span>;
+                const reasonTip = attr.unattributed_reason === 'novel_argument'
+                  ? 'Unattributed: claim is a novel argument not closely matching any taxonomy node (best similarity < 0.35)'
+                  : 'Unattributed: missing embedding — cannot compute similarity';
+                return <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)' }} title={reasonTip}><span style={{ color: '#ef4444', fontSize: '0.9rem', marginRight: 3 }}>●</span>{reasonLabel}</span>;
               }
               const conf = attr.attribution_confidence;
               const confColor = conf >= 0.7 ? '#22c55e' : conf >= 0.5 ? '#3b82f6' : '#f59e0b';
-              return <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)' }} title={getNodeLabel(attr.primary_ref)}><span style={{ color: confColor, fontSize: '0.9rem', marginRight: 3 }}>●</span>{attr.primary_ref} {conf.toFixed(2)}</span>;
+              const secCount = attr.secondary_refs?.length ?? 0;
+              const attrTip = `Attributed to ${attr.primary_ref} (confidence: ${conf.toFixed(2)})\n${getNodeLabel(attr.primary_ref)}${secCount > 0 ? `\n\n${secCount} secondary ref${secCount !== 1 ? 's' : ''}: ${attr.secondary_refs!.map((s: { node_id: string; similarity: number }) => `${s.node_id} (${s.similarity.toFixed(2)})`).join(', ')}` : ''}`;
+              return <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)' }} title={attrTip}><span style={{ color: confColor, fontSize: '0.9rem', marginRight: 3 }}>●</span>{attr.primary_ref} {conf.toFixed(2)}</span>;
             })()}
           </span>
-          {/* Col 5: Strength */}
-          <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }} title={`Strength: ${computed.toFixed(2)} (base: ${base.toFixed(2)})`}>
+          {/* Col 4: Strength */}
+          <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }} title={`Strength: ${computed.toFixed(2)} (base: ${base.toFixed(2)}, delta: ${delta >= 0 ? '+' : ''}${delta.toFixed(2)})`}>
             <span style={{ color: bandColor, fontSize: '0.9rem', marginRight: 3 }}>●</span>{band.label} {computed.toFixed(2)}
             {Math.abs(delta) > 0.01 && <span style={{ color: 'var(--text-muted)', marginLeft: 3 }}>{delta > 0 ? '+' : ''}{delta.toFixed(2)}</span>}
           </span>
-          {/* Col 6: Edge count */}
-          <span style={{ color: 'var(--text-muted)' }}>
+          {/* Col 5: Edge count */}
+          <span style={{ color: 'var(--text-muted)' }} title={hasEdges ? `${attacks.length} attack${attacks.length !== 1 ? 's' : ''} and ${supports.length} support${supports.length !== 1 ? 's' : ''} connected to this claim` : undefined}>
             {hasEdges ? `${attacks.length + supports.length} edge${attacks.length + supports.length !== 1 ? 's' : ''}` : ''}
           </span>
-          {/* Col 7: Political salience (policymaker debates only) */}
+          {/* Col 6: Political salience (policymaker debates only) */}
           {node.political_salience && (
             <span style={{ fontWeight: 700, fontSize: '0.75rem', padding: '1px 6px', borderRadius: 3 }}>
               <span style={{ marginRight: 3 }}>
@@ -76,17 +88,34 @@ export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap, s
         <div style={{ paddingLeft: 18, marginTop: 4 }}>
           {attacks.map(e => {
             const src = allNodes.find(n => n.id === e.source);
+            const srcStr = strengthMap.get(e.source);
+            const atkMult = ATTACK_TYPE_WEIGHTS[e.attack_type ?? 'rebut'] ?? 1.0;
+            const edgeWeight = e.weight ?? 0.5;
+            const hasWeight = e.weight != null;
+            const contribution = srcStr != null ? srcStr * edgeWeight * atkMult : undefined;
             return (
               <div key={`a-${e.source}`} style={{ color: '#ef4444', marginBottom: 2 }}>
-                ← <strong>{e.source}</strong> {e.attack_type ?? 'rebut'} ({speakerLabel(src?.speaker ?? 'system')}): {src?.text?.slice(0, 100)}{(src?.text?.length ?? 0) > 100 ? '…' : ''}
+                ← <strong title={src ? `${src.id} by ${speakerLabel(src.speaker)}\n${src.text}` : e.source}>{e.source}</strong>{' '}
+                <span title={`Attack type: ${e.attack_type ?? 'rebut'} (multiplier: ${atkMult.toFixed(1)})\nEdge weight: ${edgeWeight.toFixed(2)}${hasWeight ? '' : ' (default — no AI weight)'}${contribution != null ? `\nContribution: −${contribution.toFixed(2)} (${(srcStr ?? 0).toFixed(2)} × ${edgeWeight.toFixed(1)} × ${atkMult.toFixed(1)})` : ''}`}>
+                  {e.attack_type ?? 'rebut'}
+                </span>{' '}
+                ({speakerLabel(src?.speaker ?? 'system')}): {src?.text?.slice(0, 100)}{(src?.text?.length ?? 0) > 100 ? '…' : ''}
               </div>
             );
           })}
           {supports.map(e => {
             const src = allNodes.find(n => n.id === e.source);
+            const srcStr = strengthMap.get(e.source);
+            const edgeWeight = e.weight ?? 0.5;
+            const hasWeight = e.weight != null;
+            const contribution = srcStr != null ? srcStr * edgeWeight : undefined;
             return (
               <div key={`s-${e.source}`} style={{ color: '#22c55e', marginBottom: 2 }}>
-                ← <strong>{e.source}</strong> support ({speakerLabel(src?.speaker ?? 'system')}): {src?.text?.slice(0, 100)}{(src?.text?.length ?? 0) > 100 ? '…' : ''}
+                ← <strong title={src ? `${src.id} by ${speakerLabel(src.speaker)}\n${src.text}` : e.source}>{e.source}</strong>{' '}
+                <span title={`Support\nEdge weight: ${edgeWeight.toFixed(2)}${hasWeight ? '' : ' (default — no AI weight)'}${contribution != null ? `\nContribution: +${contribution.toFixed(2)} (${(srcStr ?? 0).toFixed(2)} × ${edgeWeight.toFixed(1)})` : ''}`}>
+                  support
+                </span>{' '}
+                ({speakerLabel(src?.speaker ?? 'system')}): {src?.text?.slice(0, 100)}{(src?.text?.length ?? 0) > 100 ? '…' : ''}
               </div>
             );
           })}
