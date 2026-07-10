@@ -414,11 +414,11 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
     setKeySuccess(null);
     try {
       const value = aiBackend === 'azure' ? `${endpointInput.trim()}|${keyInput.trim()}` : keyInput.trim();
-      const { count } = await api.addApiKey(value, aiBackend);
+      await api.addApiKey(value, aiBackend);
       setKeyInput('');
       if (aiBackend === 'azure') setEndpointInput('');
       const label = AI_BACKENDS.find(b => b.value === aiBackend)?.label;
-      setKeySuccess(count > 1 ? `${label} key added (${count} total)` : `${label} key saved`);
+      setKeySuccess(`${label} key saved`);
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error',
