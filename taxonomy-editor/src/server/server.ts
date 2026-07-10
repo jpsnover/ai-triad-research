@@ -909,7 +909,16 @@ post('/api/ai/generate', async (req, res, body) => {
     // Check backend is allowed
     const backend = ai.resolveBackend(effectiveModel || DEFAULT_MODEL);
     if (!proxyTiers.isBackendAllowed(tier, backend)) {
-      res.writeHead(403); res.end(JSON.stringify({ error: `Backend '${backend}' not available on your tier` })); return;
+      // t/1463: record the tier context so a tier-restriction 403 is a one-line
+      // FR read instead of a server.ts → proxyTiers → runtimeConfig code trace.
+      getGlobalRecorder()?.record({
+        type: 'ai.error', component: 'ai-generate', level: 'warn',
+        message: `Backend '${backend}' not available on '${tier.level}' tier`,
+        data: { tier_level: tier.level, requested_backend: backend, allowed_backends: tier.allowedBackends },
+      });
+      res.writeHead(403);
+      res.end(JSON.stringify({ error: `Backend '${backend}' not available on your tier`, tier_level: tier.level, requested_backend: backend }));
+      return;
     }
 
     // Rate limiting (per-IP sliding window for the free tier)
