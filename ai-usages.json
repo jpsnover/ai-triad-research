@@ -28,6 +28,27 @@
       "vernacular"
     ]
   },
+  "enrichment.crux-question-form": {
+    "description": "Rewrite a crux's declarative statement into its canonical neutral question form (t/1507). CL-owned. The question is the crux read as an open pivot: answerable either way, presupposing neither side.",
+    "model": "claude-sonnet-4-6",
+    "temperature": 0.2,
+    "maxTokens": 200,
+    "timeoutMs": 45000,
+    "jsonMode": true,
+    "responseSchema": {
+      "type": "object",
+      "properties": {
+        "question": { "type": "string" }
+      },
+      "required": ["question"]
+    },
+    "systemMessage": "You convert cruxes from AI-policy debates into canonical open questions. A crux is a pivotal contested claim: the point that, if resolved, would change positions. Rewrite the given crux statement as ONE neutral question. Rules: (1) Neutrality is the prime constraint: the question must be answerable in either direction and must not presuppose the statement's own answer, its framing verbs, or its loaded adjectives. (2) Steer the interrogative by crux type: empirical asks whether something is true, how much, or under what conditions; values asks what should be prioritized or which consideration outweighs which; definitional asks what counts as the contested term or where its boundary lies. (3) Preserve the statement's specific content: do not generalize it into a vaguer question. (4) One question only, maximum 35 words, ending with a question mark. Output raw JSON matching the schema. Do not wrap the response in markdown code fences.",
+    "messageTemplate": "Crux type: {{type}}\nCrux statement: {{statement}}",
+    "tags": [
+      "enrichment",
+      "crux"
+    ]
+  },
   "enrichment.situation-pov-statements": {
     "description": "Language-lab generation of per-POV, per-BDI-layer debate-register statements around a situation node (t/1299 experiment). CL-owned. Statements are the debate-register projection of the situation's BDI interpretations (the complementary semantic-gravity-well direction).",
     "model": "claude-sonnet-4-6",
