@@ -34,10 +34,10 @@ describe('AnonymousSessionStore (file-backed, t/683)', () => {
     fs.rmSync(baseDir, { recursive: true, force: true });
   });
 
-  /** Backdate a session's access time so TTL/LRU logic can be tested deterministically. */
+  /** Backdate a session's .last-access marker so TTL/LRU logic can be tested deterministically. */
   function setAccessTime(sessionId: string, msAgo: number) {
-    const t = new Date(Date.now() - msAgo);
-    fs.utimesSync(path.join(baseDir, sessionId), t, t);
+    const marker = path.join(baseDir, sessionId, '.last-access');
+    fs.writeFileSync(marker, String(Date.now() - msAgo));
   }
 
   // ── Chat CRUD ──
@@ -212,6 +212,35 @@ describe('AnonymousSessionStore (file-backed, t/683)', () => {
     it('stop clears the cleanup timer', () => {
       store.stop();
       // No assertion needed — just verifying it doesn't throw
+    });
+  });
+
+  // ── Touch resilience (t/1517) ──
+
+  describe('touch resilience', () => {
+    it('saveChat succeeds even when .last-access marker cannot be written', async () => {
+      // Create a session, then make the marker path a directory (writeFile will fail)
+      await store.saveChat('s-eperm', { id: 'c1', title: 'First' });
+      const marker = path.join(baseDir, 's-eperm', '.last-access');
+      fs.unlinkSync(marker);
+      fs.mkdirSync(marker); // writeFile to a directory path → EISDIR
+      // Subsequent save should still succeed (touch failure is graceful)
+      await store.saveChat('s-eperm', { id: 'c2', title: 'Resilient' });
+      expect(await store.loadChat('s-eperm', 'c2')).toEqual({ id: 'c2', title: 'Resilient' });
+      // Cleanup so afterEach rmSync works
+      fs.rmdirSync(marker);
+    });
+
+    it('cleanup falls back to dir mtime when .last-access marker is absent (legacy session)', async () => {
+      await store.saveChat('legacy', { id: 'c1' });
+      // Remove the marker to simulate a legacy session
+      const marker = path.join(baseDir, 'legacy', '.last-access');
+      try { fs.unlinkSync(marker); } catch { /* may not exist */ }
+      // Backdate the dir mtime so it exceeds TTL
+      const t = new Date(Date.now() - 5000);
+      fs.utimesSync(path.join(baseDir, 'legacy'), t, t);
+      await store.cleanup();
+      expect(await store.activeSessionCount()).toBe(0);
     });
   });
 

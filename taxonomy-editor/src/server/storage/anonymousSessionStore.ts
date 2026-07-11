@@ -21,8 +21,9 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
  *
  * Layout:  <baseDir>/<sessionId>/{chats,debates,comments}/<id>.json
  *
- * - lastAccessed is the session directory's mtime, touched on every read/write,
- *   so TTL/LRU work across replicas without shared in-memory bookkeeping.
+ * - lastAccessed is stored as a timestamp in `<session>/.last-access` (content,
+ *   not mtime — Azure Files mounts reject utimes/EPERM). Touched on every
+ *   read/write so TTL/LRU work across replicas without shared in-memory bookkeeping.
  * - All methods are async (network filesystem — never block the event loop).
  * - Concurrent writes across replicas are last-write-wins, acceptable for
  *   low-stakes ephemeral anonymous data.
@@ -104,19 +105,19 @@ export class AnonymousSessionStore {
     return path.join(this.kindDir(sessionId, kind), `${safeSegment(id, 'item id')}.json`);
   }
 
-  /** Update the session directory's mtime to now (best-effort access marker). */
+  /** Write current timestamp into a sidecar marker file (best-effort access marker).
+   *  Content-based (not mtime) — the Azure Files mount rejects utimes (EPERM). */
   private async touch(sessionId: string): Promise<void> {
-    const dir = this.sessionDir(sessionId);
-    const now = new Date();
-    try { await fsp.utimes(dir, now, now); } catch (err) {
+    const marker = path.join(this.sessionDir(sessionId), '.last-access');
+    try { await fsp.writeFile(marker, String(Date.now())); } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'anonymous-session-store',
         level: 'warn',
-        message: 'Failed to touch session dir mtime',
+        message: 'Failed to write .last-access marker',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      /* dir may not exist yet */
+      /* dir may not exist yet or mount may reject — continue gracefully */
     }
   }
 
@@ -214,19 +215,19 @@ export class AnonymousSessionStore {
     }
     if (entries.length < this.maxSessions) return;
 
-    // Evict the least-recently-accessed session (oldest dir mtime).
+    // Evict the least-recently-accessed session (oldest last-access timestamp).
     let oldest: string | null = null;
     let oldestTime = Infinity;
     for (const name of entries) {
       try {
-        const m = (await fsp.stat(path.join(this.baseDir, name))).mtimeMs;
+        const m = await this.getLastAccess(path.join(this.baseDir, name));
         if (m < oldestTime) { oldestTime = m; oldest = name; }
       } catch (err) {
         getGlobalRecorder()?.record({
           type: 'system.error',
           component: 'anonymous-session-store',
           level: 'warn',
-          message: 'Failed to stat session dir during LRU eviction',
+          message: 'Failed to read last-access during LRU eviction',
           error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         /* skip */
@@ -350,7 +351,21 @@ export class AnonymousSessionStore {
 
   // ── Lifecycle ──
 
-  /** Delete sessions whose last access (dir mtime) is older than the TTL. */
+  /** Read the last-access timestamp from the sidecar marker (content-based),
+   *  falling back to dir mtime for legacy sessions without the marker. */
+  private async getLastAccess(sessionDir: string): Promise<number> {
+    const marker = path.join(sessionDir, '.last-access');
+    try {
+      const content = await fsp.readFile(marker, 'utf-8');
+      const ts = parseInt(content, 10);
+      if (!Number.isNaN(ts)) return ts;
+    } catch {
+      /* telemetry — silent by design: marker may not exist (legacy session) */
+    }
+    return (await fsp.stat(sessionDir)).mtimeMs;
+  }
+
+  /** Delete sessions whose last access is older than the TTL. */
   async cleanup(): Promise<void> {
     let entries: string[];
     try { entries = await fsp.readdir(this.baseDir); } catch (err) {
@@ -368,7 +383,7 @@ export class AnonymousSessionStore {
     for (const name of entries) {
       const dir = path.join(this.baseDir, name);
       try {
-        if (now - (await fsp.stat(dir)).mtimeMs > this.sessionTtlMs) {
+        if (now - (await this.getLastAccess(dir)) > this.sessionTtlMs) {
           await fsp.rm(dir, { recursive: true, force: true });
           evicted++;
         }
