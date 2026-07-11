@@ -4,6 +4,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { ExternalEmbed } from '../shared/ExternalEmbed';
 import { splitSentences, wildcardToRegex } from './sourceSearch';
 
 type SearchMode = 'raw' | 'wildcard' | 'similar';
@@ -248,9 +249,7 @@ export function DebateSourceViewer({ content, sourceType, sourceRef }: DebateSou
 
       {/* Content area */}
       {viewMode === 'web' ? (
-        import.meta.env.VITE_TARGET === 'web'
-          ? <iframe src={sourceRef} className="webview-frame" sandbox="allow-scripts allow-same-origin" />
-          : <webview src={sourceRef} className="webview-frame" />
+        <ExternalEmbed src={sourceRef} title="Source page" />
       ) : (
         <pre className="debate-source-content" ref={contentRef}>
           {typeof highlightedContent === 'string' ? (

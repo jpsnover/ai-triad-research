@@ -11,6 +11,7 @@ import { useResizablePanel, useResizableRightPanel } from '../../hooks/useResiza
 import { SituationDetail } from './SituationDetail';
 import { FallacyDetailPanel } from '../analysis/FallacyPanel';
 import { PinnedPanel } from '../shared/PinnedPanel';
+import { ExternalEmbed } from '../shared/ExternalEmbed';
 import { SearchPreview } from '../edge-browser/SearchPreview';
 import { EdgeDetailPanel } from '../edge-browser/EdgeDetailPanel';
 import { ToolbarPaneRenderer, isFullWidthPanel, PhoneToolClose } from '../shared/ToolbarPaneRenderer';
@@ -499,9 +500,7 @@ export function SituationsTab() {
                   <span className="webview-pane-url">{lineageLinkUrl}</span>
                   <button className="btn btn-ghost btn-sm" onClick={() => setLineageLinkUrl(null)} aria-label="Close">&times;</button>
                 </div>
-                {import.meta.env.VITE_TARGET === 'web'
-                  ? <iframe src={lineageLinkUrl} className="webview-frame" sandbox="allow-scripts allow-same-origin" />
-                  : <webview src={lineageLinkUrl} className="webview-frame" />}
+                <ExternalEmbed src={lineageLinkUrl} title="Lineage source" />
               </div>
             </>
           )}
