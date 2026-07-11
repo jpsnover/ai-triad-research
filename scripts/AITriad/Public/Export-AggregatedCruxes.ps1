@@ -340,6 +340,16 @@ function Export-AggregatedCruxes {
         Write-Host "  No node embeddings available — skipping node linking" -ForegroundColor Yellow
     }
 
+    # ── Phase 5: Preserve/generate question_form (t/1507, t/1509) ─────────────
+    if ($WhatIfPreference) {
+        Write-Host 'Phase 5: skipped under -WhatIf (would preserve existing question_form and call AI for new cruxes)' -ForegroundColor Yellow
+    } else {
+        Write-Host 'Phase 5: Preserving/generating question_form...' -ForegroundColor Cyan
+        $QfStats = Merge-CruxQuestionForm -Cruxes $AggregatedCruxes -PreviousPath $OutputPath
+        Write-Host ("  Preserved: {0} | Generated: {1} | Failed (field omitted): {2}" -f `
+            $QfStats.Preserved, $QfStats.Generated, $QfStats.Failed) -ForegroundColor Gray
+    }
+
     # Stats
     $ByType = @{}
     foreach ($C in $AggregatedCruxes) { $ByType[$C.type] = ($ByType[$C.type] ?? 0) + 1 }
