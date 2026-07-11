@@ -24,6 +24,7 @@ import { FallacyDetailPanel } from '../analysis/FallacyPanel';
 import { CruxDetail } from '../debate/CruxesTab';
 import { ToolbarPaneRenderer, isFullWidthPanel, PhoneToolClose } from '../shared/ToolbarPaneRenderer';
 import { LineageDetailView } from '../shared/LineageDetailView';
+import { ExternalEmbed } from '../shared/ExternalEmbed';
 import { POVER_INFO } from '@lib/debate/types';
 import type { SpeakerId } from '@lib/debate/types';
 
@@ -840,9 +841,7 @@ export function PovTab({ pov }: PovTabProps) {
                   <span className="webview-pane-url">{lineageLinkUrl}</span>
                   <button className="btn btn-ghost btn-sm" onClick={() => setLineageLinkUrl(null)}>&times;</button>
                 </div>
-                {import.meta.env.VITE_TARGET === 'web'
-                  ? <iframe src={lineageLinkUrl} className="webview-frame" sandbox="allow-scripts allow-same-origin" />
-                  : <webview src={lineageLinkUrl} className="webview-frame" />}
+                <ExternalEmbed src={lineageLinkUrl} onClose={() => setLineageLinkUrl(null)} />
               </div>
             </>
           )}

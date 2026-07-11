@@ -141,6 +141,8 @@ export type EventType =
   | 'sw.controller_change'
   | 'sw.active'
   | 'sw.update_found'
+  // Embed / external content
+  | 'embed.load-failure'
   // System
   | 'system.error'
   | 'system.info'

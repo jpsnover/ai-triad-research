@@ -877,6 +877,15 @@ function SourceDocumentViewer({ doc, claimText }: { doc: SourceDocumentResolutio
         className="facts-doc-iframe"
         src={doc.path}
         title="Source document (PDF)"
+        onError={() => {
+          getGlobalRecorder()?.record({
+            type: 'embed.load-failure',
+            component: 'source-doc-viewer',
+            level: 'warn',
+            message: 'PDF iframe failed to load',
+            data: { src: doc.path },
+          });
+        }}
       />
     );
   }

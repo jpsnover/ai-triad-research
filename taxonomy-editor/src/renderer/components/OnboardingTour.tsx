@@ -163,7 +163,16 @@ export function OnboardingTour({ onDismiss }: OnboardingTourProps) {
               src={current.image}
               alt={current.alt}
               className="onboarding-image"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              onError={(e) => {
+                getGlobalRecorder()?.record({
+                  type: 'embed.load-failure',
+                  component: 'onboarding-tour',
+                  level: 'warn',
+                  message: 'Onboarding image failed to load',
+                  data: { src: current.image },
+                });
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
             />
           </div>
           <h2 className="onboarding-heading">{current.heading}</h2>

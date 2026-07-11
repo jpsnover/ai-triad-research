@@ -1,0 +1,53 @@
+.external-embed {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.external-embed .webview-frame {
+  flex: 1;
+  min-height: 0;
+}
+
+.external-embed-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  font-size: var(--text-xs);
+}
+
+.external-embed-warn {
+  color: var(--color-skp, #f59e0b);
+  font-size: var(--text-2xs);
+  margin-left: auto;
+}
+
+.external-embed-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 120px;
+}
+
+.external-embed-fallback-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: var(--sp-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  text-align: center;
+  max-width: 320px;
+}
+
+.external-embed-fallback-message {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
