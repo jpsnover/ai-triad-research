@@ -949,7 +949,17 @@ function CommunityDebateDetail({ debate }: { debate: CommunityDebate }) {
   }, [debate.id]);
 
   const handleOpenWindow = useCallback(() => {
-    window.open(`${location.origin}/#debate-window?id=${encodeURIComponent(debate.id)}&source=community`, '_blank');
+    // iPad/iOS Safari drops auth cookies when window.open'ing a new tab (t/1520),
+    // so on mobile navigate in-place via the hash router instead of a new window.
+    // Detection mirrors web-bridge.ts isMobilePlatform() — see dedup TODO in t/1520.
+    const hash = `debate-window?id=${encodeURIComponent(debate.id)}&source=community`;
+    const isMobile = /iPad|iPhone|iPod|Android/i.test(navigator.userAgent)
+      || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
+    if (isMobile) {
+      window.location.hash = hash;
+    } else {
+      window.open(`${location.origin}/#${hash}`, '_blank');
+    }
   }, [debate.id]);
 
   const topic = full?.topic ? (full.topic.final || full.topic.refined || full.topic.original) : null;
