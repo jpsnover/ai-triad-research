@@ -96,6 +96,7 @@ export default defineConfig({
       '@lib/ai-client': path.resolve(__dirname, '../lib/ai-client'),
       '@lib/electron-shared': path.resolve(__dirname, '../lib/electron-shared'),
       '@lib/embeddings': path.resolve(__dirname, '../lib/embeddings'),
+      '@lib/chat': path.resolve(__dirname, '../lib/chat'),
       // Allow lib/ files to resolve packages from taxonomy-editor's node_modules
       'zod': path.resolve(__dirname, 'node_modules/zod'),
       'jszip': path.resolve(__dirname, 'node_modules/jszip'),
@@ -127,6 +128,7 @@ export default defineConfig({
       '../main/**/*.test.ts',
       '../server/__tests__/**/*.test.ts',
       '../../../lib/ai-client/**/*.test.ts',
+      '../../../lib/chat/**/*.test.ts',
       '../../../lib/debate/**/*.test.ts',
       // dictionary lint tests excluded — data consistency checks owned by data team
       '../../../lib/diff/**/*.test.ts',

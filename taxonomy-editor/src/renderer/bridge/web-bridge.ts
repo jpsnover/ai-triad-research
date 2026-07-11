@@ -920,13 +920,12 @@ const rawApi: AppAPI = {
   saveChatSession: (session) => put('/api/chats', session).then(() => {}),
   deleteChatSession: (id) => del(`/api/chats/${encodeURIComponent(id)}`).then(() => {}),
   exportChatToFile: async (entries, format, options) => {
-    const { chatToMarkdown, chatToText, chatToPrintHtml, chatExportFilename } = await import('../utils/chatExportFormatters');
-    const typedEntries = entries as import('../types/chat').ChatEntry[];
+    const { chatToMarkdown, chatToText, chatToPrintHtml, chatExportFilename } = await import('@lib/chat/chatExportFormatters');
     const exportOpts = { title: options.title, mode: options.mode, pov: options.pov };
 
     switch (format) {
       case 'pdf': {
-        const html = chatToPrintHtml(typedEntries, exportOpts);
+        const html = chatToPrintHtml(entries, exportOpts);
         const printWindow = window.open('', '_blank');
         if (printWindow) {
           printWindow.document.write(html);
@@ -936,7 +935,7 @@ const rawApi: AppAPI = {
         return { cancelled: false, filePath: chatExportFilename(options.title, 'pdf') };
       }
       case 'markdown': {
-        const content = chatToMarkdown(typedEntries, exportOpts);
+        const content = chatToMarkdown(entries, exportOpts);
         const filename = chatExportFilename(options.title, 'md');
         const blob = new Blob([content], { type: 'text/markdown' });
         const a = document.createElement('a');
@@ -947,7 +946,7 @@ const rawApi: AppAPI = {
         return { cancelled: false, filePath: filename };
       }
       case 'text': {
-        const content = chatToText(typedEntries, exportOpts);
+        const content = chatToText(entries, exportOpts);
         const filename = chatExportFilename(options.title, 'txt');
         const blob = new Blob([content], { type: 'text/plain' });
         const a = document.createElement('a');

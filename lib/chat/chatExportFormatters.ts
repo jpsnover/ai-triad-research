@@ -1,23 +1,44 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { ChatEntry, ChatMode } from '../types/chat';
+/**
+ * Pure-function chat export converters (no platform dependencies).
+ * Used by both Electron (main process) and web (browser) builds.
+ */
 
-type Pov = 'accelerationist' | 'safetyist' | 'skeptic';
+// ── Minimal types (avoids importing renderer types) ──
+
+interface TaxonomyRef {
+  node_id: string;
+  label?: string;
+  relevance: string;
+}
+
+export interface ChatExportEntry {
+  id: string;
+  timestamp: string;
+  speaker: string;
+  content: string;
+  taxonomy_refs: TaxonomyRef[];
+  metadata?: Record<string, unknown>;
+}
+
+export type ChatExportMode = 'brainstorm' | 'inform' | 'decide';
+export type ChatExportPov = 'accelerationist' | 'safetyist' | 'skeptic';
 
 export interface ChatExportOptions {
   title: string;
-  mode: ChatMode;
-  pov: Pov;
+  mode: ChatExportMode;
+  pov: ChatExportPov;
 }
 
-const POV_LABELS: Record<Pov, string> = {
+const POV_LABELS: Record<ChatExportPov, string> = {
   accelerationist: 'Accelerationist',
   safetyist: 'Safetyist',
   skeptic: 'Skeptic',
 };
 
-const MODE_LABELS: Record<ChatMode, string> = {
+const MODE_LABELS: Record<ChatExportMode, string> = {
   brainstorm: 'Brainstorm',
   inform: 'Inform',
   decide: 'Decide',
@@ -48,7 +69,7 @@ function formatDate(iso: string): string {
 }
 
 function speakerLabel(speaker: string): string {
-  return POV_LABELS[speaker as Pov] ?? speaker.charAt(0).toUpperCase() + speaker.slice(1);
+  return POV_LABELS[speaker as ChatExportPov] ?? speaker.charAt(0).toUpperCase() + speaker.slice(1);
 }
 
 function headerBlock(options: ChatExportOptions, entryCount: number, sep: string): string[] {
@@ -61,7 +82,7 @@ function headerBlock(options: ChatExportOptions, entryCount: number, sep: string
   return lines;
 }
 
-export function chatToMarkdown(entries: ChatEntry[], options: ChatExportOptions): string {
+export function chatToMarkdown(entries: ChatExportEntry[], options: ChatExportOptions): string {
   const lines: string[] = [];
 
   lines.push(`# ${options.title || 'Untitled Chat'}`);
@@ -97,7 +118,7 @@ export function chatToMarkdown(entries: ChatEntry[], options: ChatExportOptions)
   return lines.join('\n');
 }
 
-export function chatToText(entries: ChatEntry[], options: ChatExportOptions): string {
+export function chatToText(entries: ChatExportEntry[], options: ChatExportOptions): string {
   const sep = '='.repeat(72);
   const lines = headerBlock(options, entries.length, sep);
   lines.push('');
@@ -151,7 +172,7 @@ function escapeHtml(str: string): string {
     .replace(/"/g, '&quot;');
 }
 
-export function chatToPrintHtml(entries: ChatEntry[], options: ChatExportOptions): string {
+export function chatToPrintHtml(entries: ChatExportEntry[], options: ChatExportOptions): string {
   const entriesHtml = entries.map(entry => {
     const label = speakerLabel(entry.speaker);
     const time = formatDate(entry.timestamp);

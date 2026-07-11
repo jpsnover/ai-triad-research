@@ -8,11 +8,11 @@ import {
   chatToPrintHtml,
   chatExportFilename,
 } from './chatExportFormatters';
-import type { ChatEntry } from '../types/chat';
+import type { ChatExportEntry, ChatExportOptions } from './chatExportFormatters';
 
 const FIXED_DATE = new Date('2026-07-10T14:30:00Z');
 
-const SAMPLE_ENTRIES: ChatEntry[] = [
+const SAMPLE_ENTRIES: ChatExportEntry[] = [
   {
     id: '1',
     timestamp: '2026-07-10T14:00:00Z',
@@ -40,10 +40,10 @@ const SAMPLE_ENTRIES: ChatEntry[] = [
   },
 ];
 
-const OPTIONS = {
+const OPTIONS: ChatExportOptions = {
   title: 'Alignment Discussion',
-  mode: 'brainstorm' as const,
-  pov: 'safetyist' as const,
+  mode: 'brainstorm',
+  pov: 'safetyist',
 };
 
 describe('chatExportFormatters', () => {
@@ -162,7 +162,7 @@ describe('chatExportFormatters', () => {
     });
 
     it('escapes HTML in content', () => {
-      const entries: ChatEntry[] = [{
+      const entries: ChatExportEntry[] = [{
         id: '1',
         timestamp: '2026-07-10T14:00:00Z',
         speaker: 'safetyist',
