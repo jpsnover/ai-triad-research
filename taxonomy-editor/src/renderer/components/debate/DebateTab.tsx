@@ -499,7 +499,7 @@ export function DebateTab() {
                 <div
                   key={cd.id}
                   className={`debate-session-item${selectedCommunityDebate?.id === cd.id ? ' selected' : ''}`}
-                  onClick={() => { setSelectedCommunityDebate(cd); if (nav.isActive) nav.push({ view: 'community-debate', id: cd.id }); }}
+                  onClick={() => { setSelectedCommunityDebate(cd); if (nav.isActive) nav.push({ view: 'detail', id: cd.id }); }}
                 >
                   <div className="debate-session-item-title">{cd.title}</div>
                   <div className="debate-session-item-meta">
