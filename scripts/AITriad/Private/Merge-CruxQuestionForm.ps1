@@ -29,6 +29,10 @@ function Merge-CruxQuestionForm {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
+    # Build map: id -> @{ Statement (Trim'd); QuestionForm }. Preservation requires
+    # BOTH id AND statement to match (t/1509 CL review) — otherwise the dedup
+    # clustering may have re-assigned the id to a materially different crux, and
+    # riding the old question_form along would be a silent semantic clobber.
     $ExistingQF = @{}
     if (Test-Path $PreviousPath) {
         try {
@@ -37,9 +41,12 @@ function Merge-CruxQuestionForm {
                 foreach ($EC in @($Existing.cruxes)) {
                     if (-not $EC.PSObject.Properties['id']) { continue }
                     if (-not $EC.PSObject.Properties['question_form']) { continue }
+                    if (-not $EC.PSObject.Properties['statement']) { continue }
                     $Qf = [string]$EC.question_form
-                    if (-not [string]::IsNullOrWhiteSpace($Qf)) {
-                        $ExistingQF[[string]$EC.id] = $Qf.Trim()
+                    if ([string]::IsNullOrWhiteSpace($Qf)) { continue }
+                    $ExistingQF[[string]$EC.id] = [PSCustomObject]@{
+                        Statement    = ([string]$EC.statement).Trim()
+                        QuestionForm = $Qf.Trim()
                     }
                 }
             }
@@ -52,9 +59,14 @@ function Merge-CruxQuestionForm {
     foreach ($Crux in $Cruxes) {
         $CId = [string]$Crux.id
         if ($ExistingQF.ContainsKey($CId)) {
-            $Crux['question_form'] = $ExistingQF[$CId]
-            $Preserved++
-            continue
+            $Prev = $ExistingQF[$CId]
+            $CurStmt = ([string]$Crux.statement).Trim()
+            if ($Prev.Statement -ceq $CurStmt) {
+                $Crux['question_form'] = $Prev.QuestionForm
+                $Preserved++
+                continue
+            }
+            Write-Verbose "Merge-CruxQuestionForm: id ${CId} statement changed — falling through to regeneration"
         }
         $Stmt = [string]$Crux.statement
         if ([string]::IsNullOrWhiteSpace($Stmt)) { $Failed++; continue }

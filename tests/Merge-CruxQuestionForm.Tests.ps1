@@ -189,6 +189,83 @@ Describe 'Merge-CruxQuestionForm preserve+generate (t/1509)' -Tag 'enrichment' {
         }
     }
 
+    It 'Falls through to regeneration when the id matches but the statement changed (t/1509 CL guard)' {
+        # Previous export has id=crux-050 with statement A; fresh aggregate has
+        # id=crux-050 but a materially different statement — dedup clustering
+        # re-assigned the slot. Preservation must NOT ride the old question_form
+        # along; it must call the AI to generate a fresh one.
+        $prev = [ordered]@{
+            cruxes = @(
+                [ordered]@{
+                    id            = 'crux-050'
+                    statement     = 'AI capability progress will slow after 2027.'
+                    type          = 'empirical'
+                    question_form = 'Will AI capability progress slow after 2027?'
+                }
+            )
+        }
+        $prev | ConvertTo-Json -Depth 6 | Set-Content -Path $script:PrevPath -Encoding utf8NoBOM
+
+        $fresh = @(
+            [ordered]@{
+                id        = 'crux-050'
+                statement = 'Open-weight releases increase misuse risk more than they aid defense.'
+                type      = 'empirical'
+            }
+        )
+
+        InModuleScope AITriad -Parameters @{ Fresh = $fresh; PrevPath = $script:PrevPath } {
+            param($Fresh, $PrevPath)
+            Mock Invoke-AIByUsage {
+                [PSCustomObject]@{ Text = '{"question":"Do open-weight releases increase misuse risk more than they aid defense?"}' }
+            } -ModuleName AITriad
+
+            $stats = Merge-CruxQuestionForm -Cruxes $Fresh -PreviousPath $PrevPath
+
+            $stats.Preserved | Should -Be 0
+            $stats.Generated | Should -Be 1
+            $stats.Failed    | Should -Be 0
+            $Fresh[0]['question_form'] | Should -Be 'Do open-weight releases increase misuse risk more than they aid defense?'
+            $Fresh[0]['question_form'] | Should -Not -Be 'Will AI capability progress slow after 2027?'
+            Should -Invoke Invoke-AIByUsage -ModuleName AITriad -Times 1
+        }
+    }
+
+    It 'Preserves when statement matches after trim-only whitespace differences' {
+        # Guard is Trim-normalized: leading/trailing whitespace shouldn't force regeneration.
+        $prev = [ordered]@{
+            cruxes = @(
+                [ordered]@{
+                    id            = 'crux-060'
+                    statement     = 'Compute governance is feasible.'
+                    type          = 'values'
+                    question_form = 'Is compute governance feasible?'
+                }
+            )
+        }
+        $prev | ConvertTo-Json -Depth 6 | Set-Content -Path $script:PrevPath -Encoding utf8NoBOM
+
+        $fresh = @(
+            [ordered]@{
+                id        = 'crux-060'
+                statement = "  Compute governance is feasible.`n"
+                type      = 'values'
+            }
+        )
+
+        InModuleScope AITriad -Parameters @{ Fresh = $fresh; PrevPath = $script:PrevPath } {
+            param($Fresh, $PrevPath)
+            Mock Invoke-AIByUsage { throw 'whitespace-only diff must not trigger regeneration' } -ModuleName AITriad
+
+            $stats = Merge-CruxQuestionForm -Cruxes $Fresh -PreviousPath $PrevPath
+
+            $stats.Preserved | Should -Be 1
+            $stats.Generated | Should -Be 0
+            $Fresh[0]['question_form'] | Should -Be 'Is compute governance feasible?'
+            Should -Invoke Invoke-AIByUsage -ModuleName AITriad -Times 0
+        }
+    }
+
     It 'Handles a missing previous file (fresh install) — generates for every crux' {
         # PrevPath does not exist.
         $fresh = @(
