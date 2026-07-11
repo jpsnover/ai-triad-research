@@ -23,6 +23,7 @@ import { PhrasesPanel } from '../policy/PhrasesPanel';
 import { FactsPanel, getFactCount, preloadFactsIndex } from '../analysis/FactsPanel';
 import type { SourceFact } from '../analysis/FactsPanel';
 import type { SourceDocumentResolution } from '../../bridge/types';
+import { ConflictsPanel, conflictsForNode } from '../conflict';
 import { NodeEditHistory } from './NodeEditHistory';
 import { nodeTypeFromId, nodePovFromId } from '@lib/debate/nodeIdUtils';
 import { POV_KEYS } from '@lib/debate/types';
@@ -137,10 +138,10 @@ const POV_LABELS: Record<Pov, string> = {
   skeptic: POV_META.skeptic.label,
 };
 
-type NodeDetailTabId = 'content' | 'related' | 'attributes' | 'phrases' | 'sources' | 'facts' | 'cruxes' | 'research' | 'history';
+type NodeDetailTabId = 'content' | 'related' | 'attributes' | 'conflicts' | 'phrases' | 'sources' | 'facts' | 'cruxes' | 'research' | 'history';
 
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, chipDepth = 0, conflict, resolveUrl }: NodeDetailProps) {
-  const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile, setSelectedNodeId, getLabelForId, aggregatedCruxes, showCruxDetail } = useTaxonomyStore();
+  const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile, setSelectedNodeId, getLabelForId, aggregatedCruxes, showCruxDetail, conflicts } = useTaxonomyStore();
   const [descMode, setDescMode] = useDescriptionMode();
   const [showDelete, setShowDelete] = useState(false);
   const [activeTab, setActiveTab] = useState<NodeDetailTabId>('content');
@@ -160,6 +161,11 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
   const cruxCount = useMemo(
     () => aggregatedCruxes?.filter(c => c.linked_node_ids.includes(node.id)).length ?? 0,
     [aggregatedCruxes, node.id],
+  );
+
+  const conflictCount = useMemo(
+    () => conflictsForNode(conflicts, node.id).length,
+    [conflicts, node.id],
   );
 
   // Source document viewer state (Facts tab)
@@ -402,6 +408,18 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           Related
         </button>
         <button
+          className={`node-detail-tab ${activeTab === 'conflicts' ? 'node-detail-tab-active' : ''}`}
+          onClick={() => setActiveTab('conflicts')}
+        >
+          Conflicts{conflictCount > 0 ? ` (${conflictCount})` : ''}
+        </button>
+        <button
+          className={`node-detail-tab ${activeTab === 'cruxes' ? 'node-detail-tab-active' : ''}`}
+          onClick={() => setActiveTab('cruxes')}
+        >
+          Cruxes{cruxCount > 0 ? ` (${cruxCount})` : ''}
+        </button>
+        <button
           className={`node-detail-tab ${activeTab === 'phrases' ? 'node-detail-tab-active' : ''}`}
           onClick={() => setActiveTab('phrases')}
         >
@@ -418,12 +436,6 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           onClick={() => setActiveTab('facts')}
         >
           Facts{factCount > 0 ? ` (${factCount})` : ''}
-        </button>
-        <button
-          className={`node-detail-tab ${activeTab === 'cruxes' ? 'node-detail-tab-active' : ''}`}
-          onClick={() => setActiveTab('cruxes')}
-        >
-          Cruxes{cruxCount > 0 ? ` (${cruxCount})` : ''}
         </button>
         <button
           className={`node-detail-tab ${activeTab === 'research' ? 'node-detail-tab-active' : ''}`}
@@ -619,6 +631,14 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           </div>
         )}
 
+        {activeTab === 'conflicts' && (
+          <ConflictsPanel nodeId={node.id} />
+        )}
+
+        {activeTab === 'cruxes' && (
+          <RelatedCruxes nodeId={node.id} mode="full" />
+        )}
+
         {activeTab === 'attributes' && hasGraphAttrs && (
           <GraphAttributesPanel
             attrs={node.graph_attributes!}
@@ -677,10 +697,6 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
               <div className="facts-doc-unavailable">Source document not available for this fact.</div>
             )}
           </div>
-        )}
-
-        {activeTab === 'cruxes' && (
-          <RelatedCruxes nodeId={node.id} mode="full" />
         )}
 
         {activeTab === 'research' && (
