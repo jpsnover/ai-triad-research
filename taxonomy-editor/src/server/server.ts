@@ -44,7 +44,7 @@ import * as supportStore from './support/supportStore.js';
 import { isCaseStatus } from './support/types.js';
 import * as organizations from './organizations.js';
 import { isPov } from './organizations.js';
-import { json, error, param, query, getClientIp, createRouter, type Handler } from './httpKit.js';
+import { json, error, param, query, getClientIp, createRouter, withEndpointTimeout, type Handler } from './httpKit.js';
 import { registerDebatesRoutes } from './routes/debates.js';
 import { registerSyncRoutes } from './routes/sync.js';
 import { registerAdminRoutes } from './routes/admin.js';
@@ -1235,7 +1235,7 @@ function freeTierEmbeddingGate(req: http.IncomingMessage, res: http.ServerRespon
   return { blocked: false, key };
 }
 
-post('/api/embeddings/compute', async (req, res, body) => {
+post('/api/embeddings/compute', (req, res, body) => withEndpointTimeout(res, 50_000, 'embeddings-compute', async () => {
   const { texts, ids } = body as { texts: string[]; ids?: string[] };
   try {
     const gate = freeTierEmbeddingGate(req, res);
@@ -1243,11 +1243,11 @@ post('/api/embeddings/compute', async (req, res, body) => {
     const vectors = await ai.computeEmbeddings(texts, ids, gate.key);
     json(res, { vectors });
   } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to compute embeddings', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
-});
+}));
 
 // t/1171: same free-tier exemption + rate limiting + key as /compute, so anonymous
 // semantic search finishes the cheap query-embedding step (not just the corpus one).
-post('/api/embeddings/query', async (req, res, body) => {
+post('/api/embeddings/query', (req, res, body) => withEndpointTimeout(res, 35_000, 'embeddings-query', async () => {
   const { text } = body as { text: string };
   try {
     const gate = freeTierEmbeddingGate(req, res);
@@ -1255,7 +1255,7 @@ post('/api/embeddings/query', async (req, res, body) => {
     const vector = await ai.computeQueryEmbedding(text, gate.key);
     json(res, { vector });
   } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to compute query embedding', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
-});
+}));
 
 post('/api/embeddings/update-nodes', async (_req, res, body) => {
   const { nodes } = body as { nodes: { id: string; text: string; pov: string; exclusionText?: string }[] };
@@ -1265,13 +1265,13 @@ post('/api/embeddings/update-nodes', async (_req, res, body) => {
   } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to update node embeddings', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
-post('/api/nli/classify', async (_req, res, body) => {
+post('/api/nli/classify', (_req, res, body) => withEndpointTimeout(res, 35_000, 'nli-classify', async () => {
   const { pairs } = body as { pairs: { text_a: string; text_b: string }[] };
   try {
     const results = await ai.classifyNli(pairs);
     json(res, { results });
   } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to classify NLI pairs', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
-});
+}));
 
 // ── Debate sessions ──
 

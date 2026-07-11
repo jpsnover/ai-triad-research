@@ -15,6 +15,13 @@ import { clientSafeMessage } from './security/accessControl.js';
 export type Handler = (req: IncomingMessage, res: ServerResponse, body: unknown) => Promise<void> | void;
 
 export function json(res: ServerResponse, data: unknown, status = 200): void {
+  // t/1515: idempotent write. A second response (a handler replying after a client
+  // abort, or after the endpoint timeout guard already answered) would throw
+  // ERR_STREAM_WRITE_AFTER_END and crash the request. No-op with a trace instead.
+  if (res.writableEnded || res.headersSent) {
+    log.server.warn({ component: 'httpKit', status }, 'json(): response already sent — skipping duplicate write');
+    return;
+  }
   res.writeHead(status, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify(data));
 }
@@ -23,6 +30,12 @@ export function error(res: ServerResponse, message: string, status = 500, cause?
   // M4: don't leak internal detail (file paths, stack) to clients on server
   // errors in production — record the real message server-side, return generic.
   const route: string = (res as unknown as { __routePath?: string }).__routePath ?? 'server';
+  // t/1515: if the response already went out (client abort, or the endpoint timeout
+  // guard answered first), skip — avoids a duplicate log/FR record and a crash.
+  if (res.writableEnded || res.headersSent) {
+    log.server.warn({ component: route, status }, `${route}: response already sent — skipping duplicate error(${status})`);
+    return;
+  }
   // t/1362: every 500 logs at error level to Pino — the always-on safety net so
   // server errors are visible in container logs (az containerapp logs show)
   // without a browser-triggered FR dump. The FR record below is prod+dump-gated;
@@ -57,6 +70,28 @@ export function error(res: ServerResponse, message: string, status = 500, cause?
   // t/853: strip ActionableError internals (location, resolve steps) from <500
   // responses in production; keep the user-actionable summary.
   json(res, { error: clientSafeMessage(message, cause), requestId: getRequestId() }, status);
+}
+
+/** t/1515/t/1516 — defense-in-depth wall-clock cap for handlers that call out to
+ * slow subsystems (AI compute, subprocesses). The inner calls should self-bound;
+ * set `ms` deliberately ABOVE the inner timeout so in normal operation the inner
+ * answers first and this never fires. It only trips if the inner timeout fails to
+ * bound the request, guaranteeing the HTTP layer still returns a structured 504 and
+ * frees the socket instead of hanging until the client aborts. Relies on the
+ * idempotent json()/error() above so a late inner response after the guard is a
+ * no-op, not a write-after-end crash. */
+export function withEndpointTimeout(
+  res: ServerResponse, ms: number, label: string, fn: () => Promise<void>,
+): Promise<void> {
+  const timer = setTimeout(() => {
+    if (res.writableEnded || res.headersSent) return;
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'server', level: 'error',
+      message: `${label}: endpoint timeout guard fired after ${ms / 1000}s — inner timeout did not bound the request`,
+    });
+    error(res, `${label} timed out after ${ms / 1000}s`, 504);
+  }, ms);
+  return fn().finally(() => clearTimeout(timer));
 }
 
 export function param(req: IncomingMessage, name: string, routePath: string): string {

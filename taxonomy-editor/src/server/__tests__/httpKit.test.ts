@@ -8,7 +8,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import type { ServerResponse } from 'http';
-import { error } from '../httpKit.js';
+import { error, json, withEndpointTimeout } from '../httpKit.js';
 import { log } from '../logger.js';
 import { setGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import type { FlightRecorder, RecordInput } from '../../../../lib/flight-recorder/flightRecorder.js';
@@ -19,6 +19,18 @@ function fakeRes(method = 'GET', routePath = '/api/test'): ServerResponse {
     req: { method }, __routePath: routePath,
   } as unknown as ServerResponse;
 }
+
+/** fakeRes with controllable already-sent flags (t/1515 idempotency + timeout guard). */
+function stateRes(opts: { writableEnded?: boolean; headersSent?: boolean } = {}): ServerResponse {
+  return {
+    writeHead: vi.fn(), end: vi.fn(), setHeader: vi.fn(),
+    req: { method: 'POST' }, __routePath: '/api/test',
+    writableEnded: opts.writableEnded ?? false,
+    headersSent: opts.headersSent ?? false,
+  } as unknown as ServerResponse;
+}
+const wroteStatus = (res: ServerResponse, status: number) =>
+  (res.writeHead as unknown as ReturnType<typeof vi.fn>).mock.calls.some(c => c[0] === status);
 
 describe('httpKit error() Pino safety net (t/1362)', () => {
   afterEach(() => vi.restoreAllMocks());
@@ -61,5 +73,62 @@ describe('httpKit error() 4xx flight-recorder correlation (t/1379)', () => {
     setGlobalRecorder({ record: (e: RecordInput) => records.push(e) } as unknown as FlightRecorder);
     error(fakeRes('GET', '/api/x'), 'boom', 500, new Error('boom'));
     expect(records.find(r => r.type === 'lifecycle')).toBeUndefined();
+  });
+});
+
+describe('httpKit idempotent writes (t/1515)', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('json() no-ops when the response already ended — no write-after-end', () => {
+    const res = stateRes({ writableEnded: true });
+    const warn = vi.spyOn(log.server, 'warn').mockImplementation(() => {});
+    json(res, { ok: true });
+    expect(res.writeHead).not.toHaveBeenCalled();
+    expect(res.end).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('error() no-ops (and does not re-log the 5xx) when headers already sent', () => {
+    const res = stateRes({ headersSent: true });
+    const errSpy = vi.spyOn(log.server, 'error').mockImplementation(() => {});
+    const warnSpy = vi.spyOn(log.server, 'warn').mockImplementation(() => {});
+    error(res, 'boom', 500, new Error('boom'));
+    expect(errSpy).not.toHaveBeenCalled();      // bailed before the t/1362 5xx log
+    expect(warnSpy).toHaveBeenCalled();          // logged the skip instead
+    expect(res.writeHead).not.toHaveBeenCalled();
+  });
+});
+
+describe('withEndpointTimeout (t/1515/t/1516)', () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
+
+  it('clears the guard when fn resolves first — no 504, only the handler response', async () => {
+    vi.useFakeTimers();
+    const res = stateRes();
+    await withEndpointTimeout(res, 1000, 'test', async () => { json(res, { ok: true }); });
+    vi.advanceTimersByTime(5000);
+    expect(wroteStatus(res, 200)).toBe(true);
+    expect(wroteStatus(res, 504)).toBe(false);
+  });
+
+  it('fires a structured 504 when fn hangs past the timeout', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(log.server, 'error').mockImplementation(() => {});
+    const res = stateRes();
+    let release: () => void = () => {};
+    const p = withEndpointTimeout(res, 1000, 'nli-classify', () => new Promise<void>((r) => { release = r; }));
+    vi.advanceTimersByTime(1000);
+    expect(wroteStatus(res, 504)).toBe(true);
+    release(); await p;
+  });
+
+  it('does not respond if the socket already closed at timeout (client abort)', async () => {
+    vi.useFakeTimers();
+    const res = stateRes({ writableEnded: true });
+    let release: () => void = () => {};
+    const p = withEndpointTimeout(res, 1000, 'test', () => new Promise<void>((r) => { release = r; }));
+    vi.advanceTimersByTime(1000);
+    expect(res.writeHead).not.toHaveBeenCalled();
+    release(); await p;
   });
 });
