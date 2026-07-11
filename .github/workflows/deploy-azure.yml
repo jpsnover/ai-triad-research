@@ -283,62 +283,42 @@ jobs:
 
       - name: Health check new revision
         id: health_check
+        shell: pwsh
         run: |
           # Get the revision-specific FQDN to test the new revision directly
-          REV_FQDN=$(az containerapp revision show \
-            --name ${{ env.CONTAINER_APP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --revision "${{ steps.new_revision.outputs.revision }}" \
-            --query "properties.fqdn" -o tsv 2>/dev/null || echo "")
+          $RevFqdn = az containerapp revision show `
+            --name ${{ env.CONTAINER_APP_NAME }} `
+            --resource-group ${{ env.RESOURCE_GROUP }} `
+            --revision "${{ steps.new_revision.outputs.revision }}" `
+            --query "properties.fqdn" -o tsv 2>$null
 
-          if [ -z "$REV_FQDN" ]; then
-            BASE_URL="${{ steps.deploy.outputs.appUrl }}"
-          else
-            BASE_URL="https://${REV_FQDN}"
-          fi
-          echo "base_url=$BASE_URL" >> $GITHUB_OUTPUT
+          $BaseUrl = if ([string]::IsNullOrWhiteSpace($RevFqdn)) { "${{ steps.deploy.outputs.appUrl }}" } else { "https://$RevFqdn" }
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "base_url=$BaseUrl"
 
-          # ── Phase 1: Server started ──
-          # /health returns 200 once Node.js is listening.
-          # 30 attempts × 10s = 5 min. --max-time 15 prevents Envoy 504 gateway
-          # timeouts (~4min each) from turning a 5-minute check into a 2-hour wait.
-          echo "Phase 1: checking $BASE_URL/health ..."
-          HEALTHY="false"
-          for i in $(seq 1 30); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 --connect-timeout 5 "$BASE_URL/health" || echo "000")
-            if [ "$STATUS" = "200" ]; then
-              echo "Phase 1 passed — server is up"
-              HEALTHY="true"
-              break
-            fi
-            echo "  Waiting for container to start... (attempt $i/30, status: $STATUS)"
-            sleep 10
-          done
+          Import-Module ./scripts/AITriad/AITriad.psm1 -Force
+          # Unified check (t/1495): server-up (/health) and data-loaded (/healthz)
+          # in one probe per attempt, instead of two sequential phases with
+          # separate budgets. 42 attempts x 10s = 7 min, matching the prior
+          # combined worst-case budget (5 min server-start + 2 min data-load).
+          # -TimeoutSec 15 preserves the original curl --max-time 15 protection
+          # against Envoy 504 gateway hangs turning this into a multi-hour wait.
+          $Result = Test-TaxEditorHealth -BaseUrl $BaseUrl -TimeoutSec 15 -MaxAttempts 42 -RetryIntervalSec 10
 
-          if [ "$HEALTHY" != "true" ]; then
-            echo "healthy=false" >> $GITHUB_OUTPUT
-            echo "::error::Phase 1 failed — server did not start within 5 minutes"
-            exit 0
-          fi
-
-          # ── Phase 2: Data loaded ──
-          # /healthz returns 503 when taxonomy data isn't available. A deploy where
-          # the container starts but can't read data is broken — catch it here before
-          # traffic shifts. 12 attempts × 10s = 2 min for GitHub API initial fetch.
-          echo "Phase 2: checking $BASE_URL/healthz (data availability)..."
-          for i in $(seq 1 12); do
-            HZ_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$BASE_URL/healthz" || echo "000")
-            if [ "$HZ_STATUS" = "200" ]; then
-              echo "Phase 2 passed — taxonomy data loaded"
-              echo "healthy=true" >> $GITHUB_OUTPUT
-              exit 0
-            fi
-            echo "  Data not ready (attempt $i/12, /healthz: $HZ_STATUS)"
-            sleep 10
-          done
-
-          echo "healthy=false" >> $GITHUB_OUTPUT
-          echo "::error::Phase 2 failed — server started but taxonomy data not loaded after 2 minutes"
+          if ($Result.Healthy) {
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "healthy=true"
+            Write-Host "Health check passed — server up and taxonomy data loaded"
+          } else {
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "healthy=false"
+            $ServerCheck = $Result.Checks | Where-Object { $_.Endpoint -eq '/health' }
+            $DataCheck = $Result.Checks | Where-Object { $_.Endpoint -eq '/healthz' }
+            if (-not $ServerCheck.Healthy) {
+              Write-Host "::error::Server-up check failed — /health did not return ok within 7 minutes ($($ServerCheck.Detail))"
+            } elseif (-not $DataCheck.Healthy) {
+              Write-Host "::error::Data-loaded check failed — /healthz did not return healthy within 7 minutes ($($DataCheck.Detail))"
+            } else {
+              Write-Host "::error::Health check failed for an unexpected reason"
+            }
+          }
 
       - name: Acceptance tests (pre-traffic shift)
         id: acceptance
