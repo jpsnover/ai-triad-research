@@ -25,10 +25,12 @@ Desktop (≥1024px), split 55 / 45:
 │                                              │                            │
 │  AI TRIAD RESEARCH · BERKMAN KLEIN CENTER    │                            │
 │                                              │   Sign in                  │
-│  Three schools of thought.                   │                            │
-│  One map of the argument.        (serif)     │  [◫ Continue with GitHub ] │
-│                                              │  [G Continue with Google ] │
-│  ────────────────────────────               │  [▦ Continue with Microsoft]│
+│  AI Rosetta Stone          (serif display)   │                            │
+│                                              │  [◫ Continue with GitHub ] │
+│  Three schools of thought.                   │  [G Continue with Google ] │
+│  One map of the argument.   (serif tagline)  │  [▦ Continue with Microsoft]│
+│                                              │                            │
+│  ────────────────────────────               │                            │
 │                                              │                            │
 │  "Should frontier AI development             │  ───────── or ─────────    │
 │   slow down?"                (serif italic)  │                            │
@@ -50,7 +52,7 @@ Desktop (≥1024px), split 55 / 45:
 
 Tablet (768–1023px): same split at 50/50, specimen tightens (question + voices only, no footer line).
 
-Phone (<768px): the jacket collapses to a compact header band (eyebrow + headline, no specimen), and the paper panel fills the rest of the viewport. The specimen is a desktop/tablet moment; on phone the door just opens.
+Phone (<768px): the jacket collapses to a compact header band (eyebrow + project title, tagline and specimen hidden), and the paper panel fills the rest of the viewport. The specimen is a desktop/tablet moment; on phone the door just opens.
 
 ## 3. The two surfaces
 
@@ -77,7 +79,8 @@ Placeholder copy (illustrative, replaceable):
 | Element | Face | Size / weight |
 |---|---|---|
 | Eyebrow | UI sans, uppercase, `letter-spacing: 0.08em` | 11px / 600, `rgba(255,255,255,0.55)` |
-| Headline | Serif (`--font-prose` when it exists; `Georgia, serif` until then) | 30–34px / 600, two lines, `#FFFFFF` |
+| Project title — "AI Rosetta Stone" | Serif (`--font-prose` when it exists; `Georgia, serif` until then) | 36–40px / 700, one line, `#FFFFFF` |
+| Tagline — "Three schools of thought. One map of the argument." | Serif | 18–20px / 400, `rgba(255,255,255,0.72)`, one or two lines |
 | Question | Serif italic | 17–18px / 400 |
 | Voice lines | Serif | 15–16px / 400 |
 | "Sign in" heading | UI sans | 20px / 600 |
@@ -101,7 +104,7 @@ Copy rules (all strings above are final unless the owner edits):
 ## 7. Motion (one orchestrated moment)
 
 Page load only, 600ms total, then everything is still:
-1. Headline and eyebrow fade in (150ms).
+1. Eyebrow, project title, and tagline fade in together (150ms).
 2. Question fades in (150ms, +100ms delay).
 3. The three voices fade in **staggered 120ms apart**, in speaking order (Accelerationist, Safetyist, Skeptic). The stagger is the point: the specimen *takes turns*, the way the product does.
 4. Paper panel fades in alongside step 1 (the door is never gated by the ornament).
