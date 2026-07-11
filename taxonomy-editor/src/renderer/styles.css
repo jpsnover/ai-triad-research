@@ -15909,23 +15909,7 @@ th[data-tooltip]::after {
 
 /* ─── Responsive: phone/tablet layout ─────────────────── */
 
-@media (max-width: 1023px) {
-  .mobile-header {
-    display: flex;
-  }
-
-  .bottom-nav {
-    display: flex;
-  }
-
-  .toolbar {
-    display: none;
-  }
-
-  .app {
-    padding-bottom: calc(48px + env(safe-area-inset-bottom));
-  }
-}
+/* Sidebar stays visible at all widths — mobile header / bottom nav are never shown (t/1502) */
 
 /* ─── Phone: collapsible list pane (t/364) ────────────── */
 
