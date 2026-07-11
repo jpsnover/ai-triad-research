@@ -542,7 +542,10 @@ function callGeminiBatchApi(texts: string[], taskType: string, apiKey: string): 
   );
 }
 
+const EMBEDDINGS_REQUEST_TIMEOUT_MS = 45_000;
+
 export async function computeEmbeddings(texts: string[], ids?: string[], explicitApiKey?: string): Promise<number[][]> {
+  const startMs = Date.now();
   const local = loadEmbeddingsFile();
   const chain: EmbeddingFallback[] = [];
 
@@ -573,17 +576,30 @@ export async function computeEmbeddings(texts: string[], ids?: string[], explici
   }
 
   try {
-    return await resolveEmbeddings(texts, ids, local, chain);
+    const result = await withTimeout(
+      resolveEmbeddings(texts, ids, local, chain),
+      EMBEDDINGS_REQUEST_TIMEOUT_MS,
+      'embeddings-compute',
+    );
+    const elapsedMs = Date.now() - startMs;
+    getGlobalRecorder()?.record({
+      type: 'ai.response', component: 'ai-backends', level: 'info',
+      message: `computeEmbeddings completed: ${texts.length} inputs in ${elapsedMs}ms`,
+      data: { inputCount: texts.length, dimensions: result[0]?.length ?? 0, elapsedMs, chainMembers: chain.map(c => c.name) },
+    });
+    return result;
   } catch (err) {
+    const elapsedMs = Date.now() - startMs;
     getGlobalRecorder()?.record({
       type: 'system.error', component: 'ai-backends', level: 'error',
-      message: 'Embedding computation failed (Gemini + local fallback exhausted)',
+      message: `Embedding computation failed after ${elapsedMs}ms (${texts.length} inputs)`,
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      data: { inputCount: texts.length, elapsedMs, chainMembers: chain.map(c => c.name) },
     });
     throw new ActionableError({
       goal: 'Compute embeddings',
       problem: apiKey
-        ? 'Gemini embedding API failed and local Python fallback unavailable'
+        ? `Gemini embedding API failed and local Python fallback unavailable (${elapsedMs}ms)`
         : 'No Gemini API key configured and local Python fallback unavailable',
       location: 'aiBackends.computeEmbeddings',
       nextSteps: [
@@ -778,18 +794,46 @@ export async function updateNodeEmbeddings(nodes: { id: string; text: string; po
 
 // ── NLI classification ──
 
+const NLI_TIMEOUT_MS = 30_000;
+
 export async function classifyNli(pairs: { text_a: string; text_b: string }[]): Promise<unknown[]> {
   if (pairs.length === 0) return [];
   return new Promise((resolve, reject) => {
-    const child = execFile(PYTHON, [EMBED_SCRIPT, 'nli-classify'], { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
-      if (err) { reject(new Error(`NLI failed: ${err.message}\n${stderr}`)); return; }
+    const child = execFile(PYTHON, [EMBED_SCRIPT, 'nli-classify'], { timeout: NLI_TIMEOUT_MS, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
+      if (err) {
+        const isTimeout = !!(err as { killed?: boolean }).killed || /ETIMEDOUT|timed?\s*out/i.test(err.message);
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'ai-backends', level: 'error',
+          message: `NLI classify failed: ${isTimeout ? 'timeout' : 'subprocess error'}`,
+          error: { name: err.name ?? 'Error', message: err.message, stack: err.stack },
+          data: { pairCount: pairs.length, isTimeout, stderr: stderr?.slice(0, 500), backend: 'local-python' },
+        });
+        reject(new ActionableError({
+          goal: 'Classify NLI pairs via local Python encoder',
+          problem: isTimeout
+            ? `Python NLI subprocess timed out after ${NLI_TIMEOUT_MS / 1000}s (${pairs.length} pairs)`
+            : `Python NLI subprocess failed: ${err.message}`,
+          location: 'aiBackends.classifyNli',
+          nextSteps: [
+            'Reduce the number of pairs per request',
+            'Verify Python sentence-transformers is installed and working',
+          ],
+        }));
+        return;
+      }
       try { resolve(JSON.parse(stdout)); } catch (e) {
         getGlobalRecorder()?.record({
           type: 'system.error', component: 'ai-backends', level: 'warn',
-          message: 'Failed to parse Python embedding output',
+          message: 'Failed to parse NLI classify output',
           error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack },
+          data: { pairCount: pairs.length, stdoutLength: stdout?.length },
         });
-        reject(new Error(`Parse failed: ${e}`));
+        reject(new ActionableError({
+          goal: 'Parse NLI classification results',
+          problem: `Python NLI subprocess returned unparseable output (${stdout?.length ?? 0} bytes)`,
+          location: 'aiBackends.classifyNli',
+          nextSteps: ['Check Python encoder script for errors', 'Retry the request'],
+        }));
       }
     });
     child.stdin!.write(JSON.stringify(pairs));
