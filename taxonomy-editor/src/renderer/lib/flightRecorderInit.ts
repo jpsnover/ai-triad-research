@@ -589,6 +589,14 @@ export function initFlightRecorder(): FlightRecorder {
           os: eApi?.osPlatform ?? navigator.platform,
           os_version: eApi?.osRelease ?? undefined,
         },
+        device: {
+          platform: /iPad|Macintosh.*Mobile/i.test(navigator.userAgent) ? 'ipad'
+            : /iPhone/i.test(navigator.userAgent) ? 'iphone'
+            : /Android/i.test(navigator.userAgent) ? 'android'
+            : 'desktop',
+          touchPoints: navigator.maxTouchPoints,
+          standalone: window.matchMedia('(display-mode: standalone)').matches,
+        },
         windows: {
           main: {
             active_tab: taxState.activeTab,
