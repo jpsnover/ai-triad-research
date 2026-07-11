@@ -2398,8 +2398,11 @@ function buildLoginPage(showAnonymous: boolean): string {
   .eyebrow{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;
     color:rgba(255,255,255,0.55);margin-bottom:20px;
     animation:fadeIn 150ms ease-out both;}
-  .headline{font-family:var(--font-serif);font-size:32px;font-weight:600;line-height:1.25;
-    color:#fff;margin-bottom:32px;
+  .project-title{font-family:var(--font-serif);font-size:38px;font-weight:700;line-height:1.2;
+    color:#fff;margin-bottom:12px;
+    animation:fadeIn 150ms ease-out both;}
+  .tagline{font-family:var(--font-serif);font-size:19px;font-weight:400;line-height:1.4;
+    color:rgba(255,255,255,0.72);margin-bottom:32px;
     animation:fadeIn 150ms ease-out both;}
   .specimen-sep{width:48px;height:1px;background:rgba(255,255,255,0.2);margin-bottom:28px;
     animation:fadeIn 150ms ease-out 100ms both;}
@@ -2431,7 +2434,8 @@ function buildLoginPage(showAnonymous: boolean): string {
     .jacket{flex:none;padding:28px 24px;align-items:center;text-align:center;}
     .jacket-content{max-width:none;}
     .specimen,.specimen-sep,.jacket-footer{display:none;}
-    .headline{font-size:24px;margin-bottom:0;}
+    .project-title{font-size:24px;}
+    .tagline{display:none;}
     .eyebrow{margin-bottom:12px;}
     .paper{flex:1;padding:32px 24px;}
   }
@@ -2461,7 +2465,8 @@ function buildLoginPage(showAnonymous: boolean): string {
   <section class="jacket">
     <div class="jacket-content">
       <div class="eyebrow">AI Triad Research &middot; Berkman Klein Center</div>
-      <div class="headline">Three schools of thought.<br>One map of the argument.</div>
+      <div class="project-title">AI Rosetta Stone</div>
+      <div class="tagline">Three schools of thought.<br>One map of the argument.</div>
       <div class="specimen">
         <div class="specimen-sep"></div>
         <div class="question">&ldquo;Should frontier AI development slow down?&rdquo;</div>
