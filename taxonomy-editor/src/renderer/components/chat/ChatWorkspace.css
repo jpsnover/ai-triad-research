@@ -88,6 +88,76 @@
   padding: var(--sp-1) var(--sp-3);
 }
 
+/* ── Export button + menu ────────────────────────────── */
+
+.chat-export-container {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.chat-export-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  padding: var(--sp-1);
+}
+
+@media (max-width: 480px) {
+  .chat-export-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+.chat-export-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: chat-export-spin 0.6s linear infinite;
+}
+
+@keyframes chat-export-spin {
+  to { transform: rotate(360deg); }
+}
+
+.chat-export-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 20;
+  margin-top: var(--sp-1);
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+  min-width: 140px;
+  padding: var(--sp-1) 0;
+}
+
+.chat-export-menu-item {
+  display: block;
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  outline: none;
+}
+
+.chat-export-menu-item:hover,
+.chat-export-menu-item:focus {
+  background: var(--bg-hover);
+}
+
 /* ── Camp speaker colors ─────────────────────────────── */
 
 .camp-speaker-acc { color: var(--color-acc); }

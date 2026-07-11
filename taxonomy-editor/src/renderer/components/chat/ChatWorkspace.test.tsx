@@ -51,9 +51,12 @@ vi.mock('../../hooks/useAuthStatus', () => ({
   useUserProfile: () => null,
 }));
 
+const mockExportChatToFile = vi.fn().mockResolvedValue({ cancelled: false, filePath: '/tmp/chat.md' });
+
 vi.mock('@bridge', () => ({
   api: {
     submitToCommunity: vi.fn().mockResolvedValue(undefined),
+    exportChatToFile: (...args: unknown[]) => mockExportChatToFile(...args),
   },
 }));
 
@@ -130,6 +133,7 @@ describe('ChatWorkspace', () => {
     mockSendMessage.mockClear();
     mockGenerateOpening.mockClear();
     mockChangeMode.mockClear();
+    mockExportChatToFile.mockClear();
   });
 
   it('shows loading state when chatLoading is true', () => {
@@ -221,5 +225,74 @@ describe('ChatWorkspace', () => {
     };
     render(<ChatWorkspace />);
     expect(screen.getByText('Thinking...')).toBeInTheDocument();
+  });
+
+  describe('Export button', () => {
+    it('renders disabled when transcript is empty', () => {
+      mockChatStoreState = { activeChat: makeChat({ transcript: [] }) };
+      render(<ChatWorkspace />);
+      const btn = screen.getByRole('button', { name: 'Export chat' });
+      expect(btn).toBeDisabled();
+      expect(btn).toHaveAttribute('title', 'Nothing to export yet');
+    });
+
+    it('renders enabled when transcript has entries', () => {
+      mockChatStoreState = {
+        activeChat: makeChat({
+          transcript: [
+            { id: 'm1', speaker: 'accelerationist', content: 'Hello', taxonomy_refs: [], timestamp: '2026-01-01T00:00:00Z' },
+          ],
+        }),
+      };
+      render(<ChatWorkspace />);
+      const btn = screen.getByRole('button', { name: 'Export chat' });
+      expect(btn).toBeEnabled();
+    });
+
+    it('opens format menu on click with three options', async () => {
+      mockChatStoreState = {
+        activeChat: makeChat({
+          transcript: [
+            { id: 'm1', speaker: 'accelerationist', content: 'Hello', taxonomy_refs: [], timestamp: '2026-01-01T00:00:00Z' },
+          ],
+        }),
+      };
+      render(<ChatWorkspace />);
+      await userEvent.click(screen.getByRole('button', { name: 'Export chat' }));
+      const items = screen.getAllByRole('menuitem');
+      expect(items).toHaveLength(3);
+      expect(items.map(i => i.textContent)).toEqual(['PDF', 'Markdown', 'Text']);
+    });
+
+    it('calls exportChatToFile with correct args when a format is selected', async () => {
+      const transcript = [
+        { id: 'm1', speaker: 'accelerationist', content: 'Hello', taxonomy_refs: [], timestamp: '2026-01-01T00:00:00Z' },
+      ];
+      mockChatStoreState = { activeChat: makeChat({ transcript }) };
+      render(<ChatWorkspace />);
+      await userEvent.click(screen.getByRole('button', { name: 'Export chat' }));
+      await userEvent.click(screen.getByRole('menuitem', { name: 'Markdown' }));
+      expect(mockExportChatToFile).toHaveBeenCalledWith(
+        transcript,
+        'markdown',
+        { title: 'AI Safety', mode: 'brainstorm', pov: 'accelerationist' },
+      );
+    });
+
+    it('closes menu on Escape and returns focus to button', async () => {
+      mockChatStoreState = {
+        activeChat: makeChat({
+          transcript: [
+            { id: 'm1', speaker: 'accelerationist', content: 'Hello', taxonomy_refs: [], timestamp: '2026-01-01T00:00:00Z' },
+          ],
+        }),
+      };
+      render(<ChatWorkspace />);
+      const btn = screen.getByRole('button', { name: 'Export chat' });
+      await userEvent.click(btn);
+      expect(screen.getAllByRole('menuitem')).toHaveLength(3);
+      await userEvent.keyboard('{Escape}');
+      expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+    });
   });
 });

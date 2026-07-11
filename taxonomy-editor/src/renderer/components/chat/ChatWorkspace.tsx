@@ -188,6 +188,117 @@ function ModeSelector({ mode, onChange }: { mode: ChatMode; onChange: (m: ChatMo
   );
 }
 
+// ── Export button ────────────────────────────────────────
+
+type ChatExportFormat = 'markdown' | 'text' | 'pdf';
+const EXPORT_FORMATS: { id: ChatExportFormat; label: string }[] = [
+  { id: 'pdf', label: 'PDF' },
+  { id: 'markdown', label: 'Markdown' },
+  { id: 'text', label: 'Text' },
+];
+
+function ExportButton({ chat }: { chat: { topic: string; mode: ChatMode; pover: string; transcript: ChatEntry[] } }) {
+  const [showMenu, setShowMenu] = useState(false);
+  const [exportState, setExportState] = useState<'idle' | 'exporting'>('idle');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const isEmpty = chat.transcript.length === 0;
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const handleClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setShowMenu(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showMenu]);
+
+  useEffect(() => {
+    if (showMenu && menuRef.current) {
+      const first = menuRef.current.querySelector<HTMLButtonElement>('[role="menuitem"]');
+      first?.focus();
+    }
+  }, [showMenu]);
+
+  const handleExport = useCallback(async (format: ChatExportFormat) => {
+    setShowMenu(false);
+    setExportState('exporting');
+    try {
+      await api.exportChatToFile(
+        chat.transcript,
+        format,
+        { title: chat.topic, mode: chat.mode as 'brainstorm' | 'inform' | 'decide', pov: chat.pover as 'accelerationist' | 'safetyist' | 'skeptic' },
+      );
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'chat-export',
+        level: 'error',
+        message: `Failed to export chat as ${format}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+    } finally {
+      setExportState('idle');
+      buttonRef.current?.focus();
+    }
+  }, [chat]);
+
+  const handleMenuKeyDown = useCallback((e: React.KeyboardEvent) => {
+    const items = menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]');
+    if (!items?.length) return;
+    const currentIdx = Array.from(items).indexOf(document.activeElement as HTMLButtonElement);
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      items[(currentIdx + 1) % items.length].focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      items[(currentIdx - 1 + items.length) % items.length].focus();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setShowMenu(false);
+      buttonRef.current?.focus();
+    }
+  }, []);
+
+  return (
+    <div ref={containerRef} className="chat-export-container">
+      <button
+        ref={buttonRef}
+        className="btn btn-sm chat-export-btn"
+        onClick={() => setShowMenu(!showMenu)}
+        disabled={isEmpty || exportState === 'exporting'}
+        title={isEmpty ? 'Nothing to export yet' : 'Export chat'}
+        aria-label="Export chat"
+        aria-haspopup="menu"
+        aria-expanded={showMenu}
+      >
+        {exportState === 'exporting' ? (
+          <span className="chat-export-spinner" />
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        )}
+      </button>
+      {showMenu && (
+        <div ref={menuRef} className="chat-export-menu" role="menu" onKeyDown={handleMenuKeyDown}>
+          {EXPORT_FORMATS.map(f => (
+            <button
+              key={f.id}
+              className="chat-export-menu-item"
+              role="menuitem"
+              tabIndex={-1}
+              onClick={() => void handleExport(f.id)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main workspace ───────────────────────────────────────
 
 function useSelectedNode(nodeId: string | null) {
@@ -338,6 +449,7 @@ export function ChatWorkspace() {
           <div className="chat-header-topic" title={activeChat.topic}>
             {activeChat.topic}
           </div>
+          <ExportButton chat={activeChat} />
           <button
             className="btn btn-sm chat-share-btn"
             onClick={handleShare}
