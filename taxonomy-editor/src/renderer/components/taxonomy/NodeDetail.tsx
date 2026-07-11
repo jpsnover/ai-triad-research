@@ -137,10 +137,10 @@ const POV_LABELS: Record<Pov, string> = {
   skeptic: POV_META.skeptic.label,
 };
 
-type NodeDetailTabId = 'content' | 'related' | 'attributes' | 'phrases' | 'sources' | 'facts' | 'research' | 'history';
+type NodeDetailTabId = 'content' | 'related' | 'attributes' | 'phrases' | 'sources' | 'facts' | 'cruxes' | 'research' | 'history';
 
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, chipDepth = 0, conflict, resolveUrl }: NodeDetailProps) {
-  const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile, setSelectedNodeId, getLabelForId } = useTaxonomyStore();
+  const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile, setSelectedNodeId, getLabelForId, aggregatedCruxes, showCruxDetail } = useTaxonomyStore();
   const [descMode, setDescMode] = useDescriptionMode();
   const [showDelete, setShowDelete] = useState(false);
   const [activeTab, setActiveTab] = useState<NodeDetailTabId>('content');
@@ -156,6 +156,11 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
     const t = setTimeout(() => setFactCount(getFactCount(node.id)), 500);
     return () => clearTimeout(t);
   }, [node.id]);
+
+  const cruxCount = useMemo(
+    () => aggregatedCruxes?.filter(c => c.linked_node_ids.includes(node.id)).length ?? 0,
+    [aggregatedCruxes, node.id],
+  );
 
   // Source document viewer state (Facts tab)
   const [selectedFact, setSelectedFact] = useState<SourceFact | null>(null);
@@ -415,6 +420,12 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           Facts{factCount > 0 ? ` (${factCount})` : ''}
         </button>
         <button
+          className={`node-detail-tab ${activeTab === 'cruxes' ? 'node-detail-tab-active' : ''}`}
+          onClick={() => setActiveTab('cruxes')}
+        >
+          Cruxes{cruxCount > 0 ? ` (${cruxCount})` : ''}
+        </button>
+        <button
           className={`node-detail-tab ${activeTab === 'research' ? 'node-detail-tab-active' : ''}`}
           onClick={() => setActiveTab('research')}
         >
@@ -668,10 +679,14 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           </div>
         )}
 
+        {activeTab === 'cruxes' && (
+          <RelatedCruxes nodeId={node.id} mode="full" />
+        )}
+
         {activeTab === 'research' && (
           <div className="node-detail-research">
             <EvidenceGraphSection nodeId={node.id} />
-            <RelatedCruxes nodeId={node.id} />
+            <RelatedCruxes nodeId={node.id} mode="compact" />
             <div className="node-detail-research-header">
               <span className="node-detail-research-desc">Research prompt for this position. Edit as needed, then copy to clipboard.</span>
               <button
@@ -723,12 +738,15 @@ const CRUX_TYPE_COLORS: Record<string, string> = {
   definitional: 'var(--color-skp, #f59e0b)',
 };
 
-function RelatedCruxes({ nodeId }: { nodeId: string }) {
+function RelatedCruxes({ nodeId, mode = 'compact' }: { nodeId: string; mode?: 'compact' | 'full' }) {
   const { aggregatedCruxes, showCruxDetail, activeTab } = useTaxonomyStore();
-  const related = aggregatedCruxes?.filter(c => c.linked_node_ids.includes(nodeId)) ?? [];
-  const [expanded, setExpanded] = useState(related.length <= 5);
+  const related = useMemo(() => {
+    const filtered = aggregatedCruxes?.filter(c => c.linked_node_ids.includes(nodeId)) ?? [];
+    return mode === 'full' ? [...filtered].sort((a, b) => b.frequency - a.frequency) : filtered;
+  }, [aggregatedCruxes, nodeId, mode]);
+  const [expanded, setExpanded] = useState(mode === 'full' || related.length <= 5);
 
-  if (!aggregatedCruxes || related.length === 0) return null;
+  if (mode === 'compact' && (!aggregatedCruxes || related.length === 0)) return null;
 
   const handleCruxClick = (cruxId: string) => {
     const isPovTab = (POV_KEYS as readonly string[]).includes(activeTab);
@@ -746,6 +764,19 @@ function RelatedCruxes({ nodeId }: { nodeId: string }) {
       }
     }
   };
+
+  if (mode === 'full') {
+    if (related.length === 0) {
+      return <div className="related-cruxes-empty">No cruxes pivot on this node yet.</div>;
+    }
+    return (
+      <div className="related-cruxes related-cruxes-full">
+        {related.map(crux => (
+          <CruxChip key={crux.id} crux={crux} onClick={() => handleCruxClick(crux.id)} showDetail />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="related-cruxes">
@@ -768,13 +799,13 @@ function RelatedCruxes({ nodeId }: { nodeId: string }) {
   );
 }
 
-function CruxChip({ crux, onClick }: { crux: AggregatedCrux; onClick: () => void }) {
+function CruxChip({ crux, onClick, showDetail }: { crux: AggregatedCrux; onClick: () => void; showDetail?: boolean }) {
   const rs = crux.resolution_summary;
   const dominant = rs.resolved > 0 && rs.active === 0 ? 'resolved' : rs.irreducible > 0 && rs.active === 0 ? 'irreducible' : 'active';
 
   return (
     <button
-      className="btn btn-sm btn-ghost crux-chip"
+      className={`btn btn-sm btn-ghost crux-chip${showDetail ? ' crux-chip-detail' : ''}`}
       onClick={onClick}
       title={`${crux.statement}\n\nType: ${crux.type} | Status: ${dominant}`}
     >
@@ -783,11 +814,16 @@ function CruxChip({ crux, onClick }: { crux: AggregatedCrux; onClick: () => void
         style={{ backgroundColor: CRUX_TYPE_COLORS[crux.type] ?? 'var(--text-muted)' }}
       />
       <span className="crux-chip-label">
-        {crux.statement}
+        {showDetail ? (crux.question_form ?? crux.statement) : crux.statement}
       </span>
       <span className={`crux-chip-status crux-chip-status-${dominant}`}>
         {dominant}
       </span>
+      {showDetail && (
+        <span className="crux-chip-meta">
+          {crux.type} · {crux.frequency}×
+        </span>
+      )}
     </button>
   );
 }

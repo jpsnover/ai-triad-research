@@ -71,6 +71,7 @@ export interface CruxSource {
 export interface AggregatedCrux {
   id: string;
   statement: string;
+  question_form?: string;
   type: 'empirical' | 'values' | 'definitional';
   sources: CruxSource[];
   linked_node_ids: string[];
@@ -113,6 +114,8 @@ export interface TaxonomyDataSlice {
   setActiveTab: (tab: TabId) => void;
   setSelectedNodeId: (id: string | null) => void;
   navigateToNode: (tab: TabId, id: string) => void;
+  /** Reverse of navigateToNode: switch to the Conflicts view and select a conflict by its claim_id. */
+  navigateToConflict: (claimId: string) => void;
 
   loadAll: (force?: boolean) => Promise<void>;
   save: () => Promise<void>;
@@ -209,6 +212,13 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
     const prev = get().activeTab;
     set({ activeTab: tab, selectedNodeId: id, validationErrors: {} });
     getGlobalRecorder()?.record({ type: 'ui.navigate', component: 'tab-bar', level: 'info', message: 'node.navigate', data: { from: prev, to: tab, nodeId: id } });
+  },
+  navigateToConflict: (claimId) => {
+    const prev = get().activeTab;
+    // The Conflicts view selects by claim_id via the shared selectedNodeId field;
+    // ConflictsTab/ConflictListItem handle showing + scrolling the selected conflict.
+    set({ activeTab: 'conflicts', selectedNodeId: claimId, validationErrors: {} });
+    getGlobalRecorder()?.record({ type: 'ui.navigate', component: 'tab-bar', level: 'info', message: 'conflict.navigate', data: { from: prev, to: 'conflicts', claimId } });
   },
 
   loadAll: async (force = false) => {

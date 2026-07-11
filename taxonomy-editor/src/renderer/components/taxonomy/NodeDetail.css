@@ -85,6 +85,37 @@
 .crux-chip-status-irreducible { color: var(--color-skp); }
 .crux-chip-status-active { color: var(--text-muted); }
 
+.crux-chip-detail {
+  flex-wrap: wrap;
+  white-space: normal;
+  text-align: left;
+  padding: 8px 10px;
+}
+.crux-chip-detail .crux-chip-label {
+  white-space: normal;
+  overflow: visible;
+}
+.crux-chip-meta {
+  width: 100%;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.related-cruxes-full {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: var(--sp-2);
+}
+
+.related-cruxes-empty {
+  padding: var(--sp-4) var(--sp-2);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
 /* ── EvidenceGraphSection (hoisted from inline styles) ── */
 
 .evidence-graph {
