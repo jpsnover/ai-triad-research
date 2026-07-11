@@ -63,6 +63,50 @@ interface GeminiModelInfo {
   supportedGenerationMethods: string[];
 }
 
+type GeminiTier = 'pro' | 'flash' | 'flash-lite';
+
+function classifyGeminiTier(id: string): GeminiTier | null {
+  if (id.includes('-flash-lite')) return 'flash-lite';
+  if (id.includes('-flash')) return 'flash';
+  if (id.includes('-pro')) return 'pro';
+  return null;
+}
+
+function extractGeminiVersion(id: string): number {
+  const match = id.match(/^gemini-(\d+(?:\.\d+)?)/);
+  return match ? parseFloat(match[1]) : 0;
+}
+
+const GEMINI_EXCLUDE_RE = /tts|robotics|agent|image|audio|embed|aqa|lyria/i;
+
+export function curateGeminiModels(rawModels: GeminiModelInfo[]): ModelEntry[] {
+  const candidates = rawModels
+    .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+    .map(m => ({ ...m, id: m.name.replace('models/', '') }))
+    .filter(m => /^gemini-\d/.test(m.id))
+    .filter(m => !GEMINI_EXCLUDE_RE.test(m.id));
+
+  const byTier = new Map<GeminiTier, { info: (typeof candidates)[0]; version: number }>();
+
+  for (const m of candidates) {
+    const tier = classifyGeminiTier(m.id);
+    if (!tier) continue;
+    const version = extractGeminiVersion(m.id);
+    const existing = byTier.get(tier);
+    if (!existing || version > existing.version ||
+        (version === existing.version && m.id.length < existing.info.id.length)) {
+      byTier.set(tier, { info: m, version });
+    }
+  }
+
+  return [...byTier.values()].map(({ info }) => ({
+    id: info.id,
+    apiModelId: info.id,
+    label: info.displayName || info.id,
+    backend: 'gemini',
+  }));
+}
+
 export async function discoverGeminiModels(apiKey: string): Promise<ModelEntry[]> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=100`;
   const resp = await fetch(url);
@@ -76,22 +120,7 @@ export async function discoverGeminiModels(apiKey: string): Promise<ModelEntry[]
     });
   }
   const json = await resp.json() as { models: GeminiModelInfo[] };
-
-  return json.models
-    .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
-    .filter(m => {
-      const id = m.name.replace('models/', '');
-      return !id.includes('embedding') && !id.includes('aqa') && !id.startsWith('chat-');
-    })
-    .map(m => {
-      const apiModelId = m.name.replace('models/', '');
-      return {
-        id: apiModelId,
-        apiModelId,
-        label: m.displayName || apiModelId,
-        backend: 'gemini',
-      };
-    });
+  return curateGeminiModels(json.models);
 }
 
 // ── Groq: GET /openai/v1/models ────────────────────────────────────────────────

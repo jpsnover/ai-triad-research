@@ -129,6 +129,7 @@ export default defineConfig({
       '../server/__tests__/**/*.test.ts',
       '../../../lib/ai-client/**/*.test.ts',
       '../../../lib/chat/**/*.test.ts',
+      '../../../lib/electron-shared/**/*.test.ts',
       '../../../lib/debate/**/*.test.ts',
       // dictionary lint tests excluded — data consistency checks owned by data team
       '../../../lib/diff/**/*.test.ts',

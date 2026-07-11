@@ -1,0 +1,147 @@
+import { describe, it, expect } from 'vitest';
+import { curateGeminiModels } from './modelDiscovery.js';
+
+function model(name: string, displayName: string, methods = ['generateContent']) {
+  return { name: `models/${name}`, displayName, supportedGenerationMethods: methods };
+}
+
+const REPRESENTATIVE_API_RESPONSE = [
+  model('gemini-3.1-pro-preview', 'Gemini 3.1 Pro Preview'),
+  model('gemini-3.1-flash-lite-preview', 'Gemini 3.1 Flash Lite Preview'),
+  model('gemini-3-flash-preview', 'Gemini 3 Flash Preview'),
+  model('gemini-2.5-pro', 'Gemini 2.5 Pro'),
+  model('gemini-2.5-pro-preview-06-05', 'Gemini 2.5 Pro Preview'),
+  model('gemini-2.5-flash', 'Gemini 2.5 Flash'),
+  model('gemini-2.5-flash-lite', 'Gemini 2.5 Flash Lite'),
+  model('gemini-2.5-flash-preview-04-17', 'Gemini 2.5 Flash Preview'),
+  model('gemini-2.0-flash', 'Gemini 2.0 Flash'),
+  model('gemini-1.5-pro', 'Gemini 1.5 Pro'),
+  model('gemini-1.5-flash', 'Gemini 1.5 Flash'),
+  // Non-Gemini families
+  model('gemma-4-26b-it', 'Gemma 4 26B IT'),
+  model('gemma-4-31b-it', 'Gemma 4 31B IT'),
+  // Image/audio/robotics/agent/TTS
+  model('nano-banana-pro', 'Nano Banana Pro'),
+  model('nano-banana-pro-001', 'Nano Banana Pro'),
+  model('nano-banana-pro-002', 'Nano Banana Pro'),
+  model('nano-banana-2', 'Nano Banana 2'),
+  model('nano-banana-2-001', 'Nano Banana 2'),
+  model('lyria-3-clip-preview', 'Lyria 3 Clip Preview'),
+  model('lyria-3-pro-preview', 'Lyria 3 Pro Preview'),
+  model('gemini-2.5-flash-preview-tts', 'Gemini 2.5 Flash Preview TTS'),
+  model('gemini-2.5-pro-preview-tts', 'Gemini 2.5 Pro Preview TTS'),
+  model('gemini-3.1-flash-tts-preview', 'Gemini 3.1 Flash TTS Preview'),
+  model('gemini-robotics-er-1.5-preview', 'Gemini Robotics ER 1.5 Preview'),
+  model('gemini-robotics-er-1.6-preview', 'Gemini Robotics ER 1.6 Preview'),
+  model('antigravity-agent-preview', 'Antigravity Agent Preview'),
+  model('deep-research-max', 'Deep Research Max'),
+  // Embedding-only (no generateContent)
+  model('text-embedding-004', 'Text Embedding 004', ['embedContent']),
+];
+
+describe('curateGeminiModels', () => {
+  it('returns exactly 3 entries: latest pro, flash, and flash-lite', () => {
+    const result = curateGeminiModels(REPRESENTATIVE_API_RESPONSE);
+    expect(result).toHaveLength(3);
+
+    const ids = result.map(m => m.id).sort();
+    expect(ids).toEqual([
+      'gemini-3-flash-preview',
+      'gemini-3.1-flash-lite-preview',
+      'gemini-3.1-pro-preview',
+    ]);
+  });
+
+  it('selects the highest version for each tier', () => {
+    const result = curateGeminiModels(REPRESENTATIVE_API_RESPONSE);
+    const pro = result.find(m => m.id.includes('-pro'));
+    const flash = result.find(m => m.id.includes('-flash') && !m.id.includes('-flash-lite'));
+    const lite = result.find(m => m.id.includes('-flash-lite'));
+
+    expect(pro?.id).toBe('gemini-3.1-pro-preview');
+    expect(flash?.id).toBe('gemini-3-flash-preview');
+    expect(lite?.id).toBe('gemini-3.1-flash-lite-preview');
+  });
+
+  it('prefers shorter ID (stable alias) over dated preview at same version', () => {
+    const models = [
+      model('gemini-2.5-pro', 'Gemini 2.5 Pro'),
+      model('gemini-2.5-pro-preview-06-05', 'Gemini 2.5 Pro Preview'),
+      model('gemini-2.5-flash', 'Gemini 2.5 Flash'),
+      model('gemini-2.5-flash-preview-04-17', 'Gemini 2.5 Flash Preview'),
+      model('gemini-2.5-flash-lite', 'Gemini 2.5 Flash Lite'),
+    ];
+    const result = curateGeminiModels(models);
+    const pro = result.find(m => m.id.includes('-pro'));
+    const flash = result.find(m => m.id.includes('-flash') && !m.id.includes('-flash-lite'));
+
+    expect(pro?.id).toBe('gemini-2.5-pro');
+    expect(flash?.id).toBe('gemini-2.5-flash');
+  });
+
+  it('excludes non-Gemini families (gemma, nano-banana, lyria)', () => {
+    const result = curateGeminiModels(REPRESENTATIVE_API_RESPONSE);
+    for (const m of result) {
+      expect(m.id).toMatch(/^gemini-\d/);
+    }
+  });
+
+  it('excludes TTS, robotics, agent, and audio variants', () => {
+    const result = curateGeminiModels(REPRESENTATIVE_API_RESPONSE);
+    for (const m of result) {
+      expect(m.id).not.toMatch(/tts|robotics|agent|audio/i);
+    }
+  });
+
+  it('excludes models without generateContent support', () => {
+    const models = [
+      model('gemini-2.5-pro', 'Gemini 2.5 Pro', ['embedContent']),
+      model('gemini-2.5-flash', 'Gemini 2.5 Flash'),
+    ];
+    const result = curateGeminiModels(models);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('gemini-2.5-flash');
+  });
+
+  it('returns fewer than 3 if a tier is absent', () => {
+    const models = [
+      model('gemini-2.5-flash', 'Gemini 2.5 Flash'),
+      model('gemini-2.5-flash-lite', 'Gemini 2.5 Flash Lite'),
+    ];
+    const result = curateGeminiModels(models);
+    expect(result).toHaveLength(2);
+  });
+
+  it('returns empty array when no models match', () => {
+    const models = [
+      model('gemma-4-26b-it', 'Gemma 4 26B IT'),
+      model('nano-banana-pro', 'Nano Banana Pro'),
+    ];
+    expect(curateGeminiModels(models)).toEqual([]);
+  });
+
+  it('sets backend to gemini on all entries', () => {
+    const result = curateGeminiModels(REPRESENTATIVE_API_RESPONSE);
+    for (const m of result) {
+      expect(m.backend).toBe('gemini');
+    }
+  });
+
+  it('uses displayName as label', () => {
+    const models = [model('gemini-2.5-pro', 'Gemini 2.5 Pro')];
+    const result = curateGeminiModels(models);
+    expect(result[0].label).toBe('Gemini 2.5 Pro');
+  });
+
+  it('eliminates duplicates like Nano Banana Pro x3 (not gemini-* IDs)', () => {
+    const models = [
+      model('nano-banana-pro', 'Nano Banana Pro'),
+      model('nano-banana-pro-001', 'Nano Banana Pro'),
+      model('nano-banana-pro-002', 'Nano Banana Pro'),
+      model('gemini-2.5-flash', 'Gemini 2.5 Flash'),
+    ];
+    const result = curateGeminiModels(models);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('gemini-2.5-flash');
+  });
+});
