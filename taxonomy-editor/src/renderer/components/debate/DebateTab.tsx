@@ -16,6 +16,7 @@ import { DebateWorkspace } from '../debate-workspace';
 import { filterCommunityDebates } from './communityFilter';
 import { ExportDropdown } from './ExportDropdown';
 import { useFlag } from '../../hooks/useFeatureFlags';
+import { useAuthStatus } from '../../hooks/useAuthStatus';
 import { SearchPreview } from '../edge-browser/SearchPreview';
 import { PromptDetailPanel } from '../chat/PromptsPanel';
 import type { PromptCatalogEntry } from '../../data/promptCatalog';
@@ -100,6 +101,7 @@ export function DebateTab() {
   const { debates: communityDebates, loading: communityLoading, fetchDebates: fetchCommunityDebates, copyItem } = useCommunityStore();
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [selectedCommunityDebate, setSelectedCommunityDebate] = useState<CommunityDebate | null>(null);
+  const auth = useAuthStatus();
 
   const handleNewDebate = useCallback(async () => {
     setQuotaError(null);
@@ -497,7 +499,7 @@ export function DebateTab() {
                 <div
                   key={cd.id}
                   className={`debate-session-item${selectedCommunityDebate?.id === cd.id ? ' selected' : ''}`}
-                  onClick={() => setSelectedCommunityDebate(cd)}
+                  onClick={() => { setSelectedCommunityDebate(cd); if (nav.isActive) nav.push({ view: 'community-debate', id: cd.id }); }}
                 >
                   <div className="debate-session-item-title">{cd.title}</div>
                   <div className="debate-session-item-meta">
@@ -512,6 +514,7 @@ export function DebateTab() {
                   </div>
                   <div className="debate-session-item-meta">
                     <span className="debate-session-item-date">{formatDate(cd.updated_at)}</span>
+                    {!auth?.anonymous && (
                     <button
                       className="btn btn-sm"
                       style={{ marginLeft: 'auto', fontSize: '0.7rem', padding: '1px 6px' }}
@@ -537,6 +540,7 @@ export function DebateTab() {
                     >
                       {copyingId === cd.id ? 'Copying...' : 'Copy to My'}
                     </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -580,7 +584,7 @@ export function DebateTab() {
         <>
           <div className="resize-handle" onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
           <div className="detail-panel">
-            {isPhone && activeDebate && (
+            {isPhone && (activeDebate || selectedCommunityDebate) && (
               <div className="phone-detail-header">
                 <button className="phone-detail-back" onClick={() => nav.pop()}>
                   &larr; Debates
