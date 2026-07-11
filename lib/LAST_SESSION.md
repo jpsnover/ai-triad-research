@@ -1,5 +1,5 @@
-**Date:** 2026-07-09
-**Working on:** t/1436 (z.ai / GLM-5.2 backend addition)
-**Status:** Done. Committed as aa5baa4a. AC#3 smoke test blocked on missing ZAI_API_KEY — deferred to owner.
-**Key context:** New provider at lib/ai-client/providers/zai.ts mirrors groq.ts. BackendId union now includes 'zai'. Cross-scope fix: taxonomy-editor/src/server/config.ts ENV_KEY_NAMES.
-**Next:** Check ticket queue for new assignments.
+**Date:** 2026-07-11
+**Working on:** t/1514 — Curate Gemini model discovery to latest Pro/Flash/Flash-Lite only
+**Status:** Complete. Commit `a4838567`. Verify gate green.
+**Key context:** `curateGeminiModels()` is exported and testable separately from the fetch call. 11 regression tests in `lib/electron-shared/modelDiscovery.test.ts`. Also added `lib/electron-shared/` to vitest include in `taxonomy-editor/vite.config.ts`.
+**Next:** Check ticket queue for new work.

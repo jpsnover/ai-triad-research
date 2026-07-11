@@ -1,5 +1,5 @@
-**Date:** 2026-07-10
-**Working on:** t/1469 — bound Azure Blob upload with server-side timeout + 503 fail-fast
-**Status:** Complete — committed f204e3ae, verify gate green, ticket closed
-**Key context:** Mock upload must listen for AbortSignal 'abort' event to simulate SDK behavior; plain never-resolving promise ignores the signal
+**Date:** 2026-07-11
+**Working on:** t/1517 — anonymous session store EPERM fix (sidecar .last-access with content-based timestamp)
+**Status:** Complete — committed cd4a6578, verify gate green, ticket closed
+**Key context:** Azure Files mount rejects utimes(); content-based marker (writeFile + readFile/parseInt) avoids all metadata-write dependencies; getLastAccess() falls back to dir mtime for legacy sessions
 **Next:** No unblocked tickets — check queue on next session start
