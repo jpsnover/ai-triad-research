@@ -116,51 +116,25 @@ jobs:
       - name: Fetch taxonomy snapshot for fallback
         id: snapshot
         continue-on-error: true
+        shell: pwsh
         run: |
-          echo "Fetching taxonomy snapshot from ai-triad-data for baked fallback..."
-          SNAP="taxonomy-snapshot/taxonomy/Origin"
-          mkdir -p "$SNAP"
+          Import-Module ./scripts/AITriad/AITriad.psm1 -Force
+          Write-Host "Fetching taxonomy snapshot from ai-triad-data for baked fallback..."
+          $Result = Get-TaxonomySnapshot -OutputPath taxonomy-snapshot
 
-          REPO="jpsnover/ai-triad-data"
-          RAW="https://raw.githubusercontent.com/${REPO}/main"
-          FAILED=0
-
-          # Fetch taxonomy and conflict files in parallel
-          mkdir -p taxonomy-snapshot/conflicts
-          for f in accelerationist.json safetyist.json skeptic.json situations.json edges.json policy_actions.json embeddings.json lineage_categories.json aggregated-cruxes.json; do
-            curl -sfL "${RAW}/taxonomy/Origin/${f}" -o "${SNAP}/${f}" \
-              || { echo "::warning::Failed to fetch ${f}"; FAILED=$((FAILED+1)); } &
-          done
-          curl -sfL "${RAW}/conflicts/_conflict-index.json" -o taxonomy-snapshot/conflicts/_conflict-index.json \
-            || echo "::warning::Conflict index not available yet" &
-          curl -sfL "${RAW}/conflicts/_conflict-clusters.json" -o taxonomy-snapshot/conflicts/_conflict-clusters.json \
-            || echo "::warning::Conflict clusters not available yet" &
-          wait
-
-          # Stamp snapshot age for read-only mode banner
-          echo "{\"generated\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"commit\":\"$(gh api repos/${REPO}/commits/main --jq '.sha' 2>/dev/null || echo 'unknown')\"}" \
-            > taxonomy-snapshot/snapshot-meta.json
-
-          # Validate minimum viable snapshot (5 taxonomy POV files + edges + policy registry)
-          REQUIRED="accelerationist.json safetyist.json skeptic.json situations.json edges.json policy_actions.json"
-          MISSING=0
-          for f in $REQUIRED; do
-            if [ ! -s "${SNAP}/${f}" ]; then
-              echo "::warning::Required file ${f} is missing or empty"
-              MISSING=$((MISSING+1))
-            fi
-          done
-
-          if [ "$MISSING" -gt 0 ]; then
-            echo "::warning::${MISSING} required taxonomy files missing — fallback will be incomplete"
-            echo "valid=false" >> $GITHUB_OUTPUT
-          else
-            TOTAL_SIZE=$(du -sh taxonomy-snapshot/ | cut -f1)
-            echo "Snapshot fetched successfully (${TOTAL_SIZE})"
-            echo "valid=true" >> $GITHUB_OUTPUT
-          fi
+          if ($Result.Valid) {
+            $TotalSize = (Get-ChildItem -Path taxonomy-snapshot -Recurse -File | Measure-Object -Property Length -Sum).Sum
+            Write-Host "Snapshot fetched successfully ($([math]::Round($TotalSize / 1MB, 1)) MB)"
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "valid=true"
+          } else {
+            foreach ($f in $Result.MissingRequired) {
+              Write-Host "::warning::Required file $f is missing or empty"
+            }
+            Write-Host "::warning::$($Result.MissingRequired.Count) required taxonomy files missing — fallback will be incomplete"
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "valid=false"
+          }
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Ensure snapshot directory exists
         if: always()
