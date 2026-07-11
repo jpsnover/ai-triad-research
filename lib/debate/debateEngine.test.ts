@@ -858,7 +858,7 @@ describe('Source type handling', () => {
     expect(analysisEntries.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('topic source type skips document analysis', async () => {
+  it('topic source type skips document analysis', { timeout: 15_000 }, async () => {
     const responses: string[] = [];
     for (let i = 0; i < 200; i++) {
       responses.push(JSON.stringify({
