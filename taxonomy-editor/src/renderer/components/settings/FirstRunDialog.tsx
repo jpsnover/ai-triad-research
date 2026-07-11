@@ -98,7 +98,7 @@ export function FirstRunDialog({ dataRoot, onComplete, onSkip }: FirstRunDialogP
         {status === 'prompt' && (
           <>
             <p className="first-run-desc">
-              The Taxonomy Editor needs research data to operate. This includes taxonomy definitions,
+              AI Rosetta Stone needs research data to operate. This includes taxonomy definitions,
               source documents, summaries, and conflict analyses (~410 MB).
             </p>
 

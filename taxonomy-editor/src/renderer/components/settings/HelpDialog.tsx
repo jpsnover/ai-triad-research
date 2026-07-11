@@ -442,7 +442,7 @@ export function HelpDialog({ onClose, initialTab }: HelpDialogProps) {
           position: 'fixed', left: pos.x, top: pos.y, margin: 0,
         }}
       >
-        <h3 style={{ margin: '0 0 12px', cursor: 'move', userSelect: 'none' }} onMouseDown={onDragStart}>Taxonomy Editor Help</h3>
+        <h3 style={{ margin: '0 0 12px', cursor: 'move', userSelect: 'none' }} onMouseDown={onDragStart}>AI Rosetta Stone Help</h3>
 
         <div style={{ display: 'flex', gap: 0, flex: 1, minHeight: 0, overflow: 'hidden' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, borderRight: '1px solid var(--border)', paddingRight: 12, marginRight: 12 }}>
@@ -476,7 +476,7 @@ export function HelpDialog({ onClose, initialTab }: HelpDialogProps) {
         {activeTab === 'tour' && (
           <div className="help-section" style={{ fontSize: '0.85em', lineHeight: 1.6 }}>
             <p>
-              New to the Taxonomy Editor? The Welcome Tour walks you through the main features — browsing the taxonomy, running AI debates, chatting with perspectives, and setting up your API key.
+              New to AI Rosetta Stone? The Welcome Tour walks you through the main features — browsing the taxonomy, running AI debates, chatting with perspectives, and setting up your API key.
             </p>
             <button
               className="btn btn-primary"
@@ -515,7 +515,7 @@ export function HelpDialog({ onClose, initialTab }: HelpDialogProps) {
         {activeTab === 'overview' && (
           <div className="help-section" style={{ fontSize: '0.85em', lineHeight: 1.6 }}>
             <p>
-              This editor manages the AI Triad taxonomy across three perspectives
+              AI Rosetta Stone manages the AI Triad taxonomy across three perspectives
               (Accelerationist, Safetyist, Skeptic), situations shared
               across perspectives, and documented conflicts between positions.
             </p>
