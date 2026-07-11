@@ -117,7 +117,10 @@ export interface RuntimeConfig {
   };
 }
 
-export const KNOWN_BACKENDS = ['gemini', 'claude', 'groq'] as const;
+// Mirror of the backend ids in ai-models.json (t/1513). Used to validate admin
+// overrides of tier allowedBackends — must include every backend the system can
+// route to, or valid overrides get silently dropped by vBackends().
+export const KNOWN_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'azure', 'zai', 'ollama'] as const;
 
 // Range bounds (spec §3.2).
 const DURATION_MAX = 86_400_000; // 24h
@@ -146,9 +149,9 @@ const DEFAULTS: RuntimeConfig = {
     cleanupCutoffMs: 120_000,
   },
   tiers: {
-    platform: { requestsPerMinute: 60, tokensPerDay: 2_000_000, allowedBackends: ['gemini', 'claude', 'groq'] },
-    byok: { requestsPerMinute: 30, tokensPerDay: 2_000_000, allowedBackends: ['gemini', 'claude', 'groq'] }, // t/965: 500K → 2M (a single 10-round debate uses 300–500K; BYOK users pay their own API)
-    anonymous: { requestsPerMinute: 10, tokensPerDay: 100_000, allowedBackends: ['gemini', 'claude', 'groq'] },
+    platform: { requestsPerMinute: 60, tokensPerDay: 2_000_000, allowedBackends: [...KNOWN_BACKENDS] }, // t/1513: all system backends — key-presence gates actual availability
+    byok: { requestsPerMinute: 30, tokensPerDay: 2_000_000, allowedBackends: [...KNOWN_BACKENDS] }, // t/965: 500K → 2M (a single 10-round debate uses 300–500K; BYOK users pay their own API). t/1513: BYOK users bring their own keys — no reason to cap the backend set
+    anonymous: { requestsPerMinute: 10, tokensPerDay: 100_000, allowedBackends: ['gemini', 'claude', 'groq'] }, // t/1513: intentionally limited — anonymous users bring no keys, so they use platform-provided keys (same rationale as free tier); do NOT widen without a cost/abuse review
     free: { requestsPerMinute: 6, tokensPerDay: 500_000, allowedBackends: ['gemini'], pinnedModel: 'gemini-flash-lite-latest' }, // t/1061: 50K → 500K (single debate round ≈ 54K; 50K budget made debates non-functional)
   },
   quotas: {

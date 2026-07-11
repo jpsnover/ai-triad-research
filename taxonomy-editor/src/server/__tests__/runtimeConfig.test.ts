@@ -24,7 +24,10 @@ describe('getDefaults (t/926)', () => {
     expect(d.resilience.circuitThreshold).toBe(5);
     expect(d.resilience.throttleEnterFactor).toBe(2.0);
     expect(d.tiers.free.pinnedModel).toBe('gemini-flash-lite-latest');
-    expect(d.tiers.platform.allowedBackends).toEqual(['gemini', 'claude', 'groq']);
+    // t/1513: platform/byok expose every system backend; key-presence gates real availability.
+    expect(d.tiers.platform.allowedBackends).toEqual(['gemini', 'claude', 'groq', 'openai', 'deepseek', 'azure', 'zai', 'ollama']);
+    expect(d.tiers.byok.allowedBackends).toEqual(['gemini', 'claude', 'groq', 'openai', 'deepseek', 'azure', 'zai', 'ollama']);
+    expect(d.tiers.anonymous.allowedBackends).toEqual(['gemini', 'claude', 'groq']); // intentionally limited (no user keys)
     expect(d.flightRecorder.maxTotalDumpSizeBytes).toBe(52_428_800);
     expect(d.server.gitFetchTimeoutMs).toBe(600_000);
   });
@@ -151,8 +154,15 @@ describe('validateAndMerge — allowedBackends', () => {
 
   it('falls back to default on an empty array', () => {
     const { config, errors } = validateAndMerge({ tiers: { byok: { allowedBackends: [] } } }, defaults());
-    expect(config.tiers.byok.allowedBackends).toEqual(['gemini', 'claude', 'groq']);
+    expect(config.tiers.byok.allowedBackends).toEqual(['gemini', 'claude', 'groq', 'openai', 'deepseek', 'azure', 'zai', 'ollama']);
     expect(errors.some(e => e.includes('non-empty array'))).toBe(true);
+  });
+
+  it('t/1513: keeps the newer backends (openai/deepseek/zai) on an admin override — no longer dropped as unknown', () => {
+    const override = { tiers: { byok: { allowedBackends: ['gemini', 'openai', 'deepseek', 'zai'] } } };
+    const { config, errors } = validateAndMerge(override, defaults());
+    expect(config.tiers.byok.allowedBackends).toEqual(['gemini', 'openai', 'deepseek', 'zai']);
+    expect(errors.some(e => e.includes('dropped') && e.includes('byok'))).toBe(false);
   });
 });
 
