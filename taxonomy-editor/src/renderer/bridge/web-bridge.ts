@@ -18,6 +18,19 @@ export type { ResilienceStatus, CircuitState, ThrottleState, EndpointCategory } 
 let _activeDebateId: string | null = null;
 export function setActiveDebateId(id: string | null): void { _activeDebateId = id; }
 
+function isMobilePlatform(): boolean {
+  return /iPad|iPhone|iPod|Android/i.test(navigator.userAgent)
+    || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
+}
+
+function openAppWindow(hash: string): void {
+  if (isMobilePlatform()) {
+    window.location.hash = hash;
+  } else {
+    window.open(`${location.origin}/#${hash}`, '_blank');
+  }
+}
+
 function throwHttpError(status: number, err: ActionableError): never {
   (err as ActionableError & { httpStatus: number }).httpStatus = status;
   throw err;
@@ -1057,9 +1070,12 @@ const rawApi: AppAPI = {
   dumpFlightRecorder: (ndjson, dumpId) => post('/api/flight-recorder/dump', { ndjson, dumpId }),
   openFile: async () => {}, // No local file access in web mode
   openFlightRecorderViewer: async (dumpPath) => {
-    // Extract filename from path and open the server-side viewer endpoint
     const filename = dumpPath.split('/').pop() ?? dumpPath;
-    window.open(`/api/flight-recorder/view/${encodeURIComponent(filename)}`, '_blank');
+    if (isMobilePlatform()) {
+      window.location.href = `/api/flight-recorder/view/${encodeURIComponent(filename)}`;
+    } else {
+      window.open(`/api/flight-recorder/view/${encodeURIComponent(filename)}`, '_blank');
+    }
   },
 
   // Diagnostics — in web mode, communicate cross-tab via BroadcastChannel
@@ -1073,10 +1089,10 @@ const rawApi: AppAPI = {
       return;
     }
     console.log('[diagnostics] Using new-tab path (popout or wide window)');
-    window.open(`${location.origin}/#diagnostics-window`, '_blank');
+    openAppWindow('diagnostics-window');
   },
   openPovProgressionWindow: async () => {
-    window.open(`${location.origin}/#pov-progression-window`, '_blank');
+    openAppWindow('pov-progression-window');
   },
   closeDiagnosticsWindow: async () => {
     diagChannel?.postMessage({ type: 'diagnostics-closed' });
@@ -1088,15 +1104,15 @@ const rawApi: AppAPI = {
   },
   // Data file diff popout
   openDiffWindow: async (filePath) => {
-    window.open(`${location.origin}/#diff-window?file=${encodeURIComponent(filePath)}`, '_blank');
+    openAppWindow(`diff-window?file=${encodeURIComponent(filePath)}`);
   },
   // Prompt Diff popout
   openPromptDiffWindow: async (debateId, entryId) => {
-    window.open(`${location.origin}/#prompt-diff-window?debateId=${encodeURIComponent(debateId)}&entryId=${encodeURIComponent(entryId)}`, '_blank');
+    openAppWindow(`prompt-diff-window?debateId=${encodeURIComponent(debateId)}&entryId=${encodeURIComponent(entryId)}`);
   },
-  // Debate popout — in web mode, open in a new browser tab
+  // Debate popout — in web mode, open in a new browser tab (mobile: in-page navigation)
   openDebateWindow: async (debateId) => {
-    window.open(`${location.origin}/#debate-window?id=${encodeURIComponent(debateId)}`, '_blank');
+    openAppWindow(`debate-window?id=${encodeURIComponent(debateId)}`);
   },
   closeDebateWindow: async () => { /* no-op in web mode */ },
 
@@ -1160,7 +1176,7 @@ const rawApi: AppAPI = {
     return () => { diagClosedCallbacks.delete(cb); };
   },
   openChatWindow: async () => {
-    window.open(`${window.location.origin}#chat-window`, 'pover-chat', 'width=900,height=800');
+    openAppWindow('chat-window');
   },
   onChatPopoutClosed: () => () => {},
   requestReExtractClaims: (entryId) => {
