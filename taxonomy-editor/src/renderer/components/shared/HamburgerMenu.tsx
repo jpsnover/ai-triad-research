@@ -24,7 +24,6 @@ function AuthSection() {
   return (
     <>
       <div className="hamburger-divider" />
-      <div className="hamburger-section">Account</div>
       {auth.anonymous ? (
         <>
           <a className="hamburger-item" href="/api/auth/fresh-login/github" style={{ textDecoration: 'none', color: 'inherit' }}>
@@ -73,6 +72,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
     clearAttributeFilter,
     attributeInfo, showAttributeInfo,
     clearAttributeInfo,
+    loadAll, loading,
   } = useTaxonomyStore();
   const breakpoint = useBreakpoint();
   const adminFeatures = useFlag('permission-admin-features');
@@ -194,6 +194,8 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
         setShowFeedback(true);
       } else if (action.id === 'help') {
         setShowHelp(true);
+      } else if (action.id === 'reload') {
+        if (!loading) void loadAll();
       } else if (action.id === 'settings') {
         setShowSettings(true);
       }
@@ -265,8 +267,6 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
             </button>
           )}
 
-          <AuthSection />
-
           <div className="hamburger-divider" />
           {systemNavItems.map(item => (
             <button
@@ -278,6 +278,8 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
               <span>{item.label}</span>
             </button>
           ))}
+
+          <AuthSection />
         </div>
       </div>
 

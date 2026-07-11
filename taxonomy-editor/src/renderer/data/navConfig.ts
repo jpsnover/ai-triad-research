@@ -7,7 +7,7 @@ import {
   Crosshair, TriangleAlert, CirclePlus, BookText,
   CircleCheck, GitFork, Link, Layers, BarChart3, ShieldAlert,
   BookOpen, LineChart, Terminal, FileText, CircleHelp, Star,
-  Settings,
+  RefreshCw, Settings,
 } from 'lucide-react';
 
 export type NavAction =
@@ -58,6 +58,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   // ── System tier ──
   { id: 'feedback', label: 'Feedback', icon: Star, tier: 'system', action: { type: 'custom', id: 'feedback' } },
   { id: 'help', label: 'Help', icon: CircleHelp, tier: 'system', action: { type: 'custom', id: 'help' } },
+  { id: 'reload', label: 'Reload', icon: RefreshCw, tier: 'system', action: { type: 'custom', id: 'reload' } },
   { id: 'settings', label: 'Settings', icon: Settings, tier: 'system', action: { type: 'custom', id: 'settings' } },
 ];
 
