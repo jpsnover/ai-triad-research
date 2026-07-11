@@ -397,6 +397,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportDebateToFile: (session: unknown, format?: string, exportOptions?: { includeTaxonomyRefs?: boolean; includeReasoning?: boolean }): Promise<{ cancelled: boolean; filePath?: string }> =>
     ipcRenderer.invoke('export-debate-to-file', session, format, exportOptions),
 
+  exportChatToFile: (
+    entries: { id: string; timestamp: string; speaker: string; content: string; taxonomy_refs: { node_id: string; label?: string; relevance: string }[] }[],
+    format: 'markdown' | 'text' | 'pdf',
+    options: { title: string; mode: 'brainstorm' | 'inform' | 'decide'; pov: 'accelerationist' | 'safetyist' | 'skeptic' },
+  ): Promise<{ cancelled: boolean; filePath?: string }> =>
+    ipcRenderer.invoke('export-chat-to-file', entries, format, options),
+
   loadDebateComments: (debateId: string): Promise<unknown> =>
     ipcRenderer.invoke('load-debate-comments', debateId),
 

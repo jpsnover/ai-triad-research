@@ -47,6 +47,7 @@ import {
   deleteChatSession,
 } from './chatIO.js';
 import { debateToText, debateToMarkdown, debateToPdf, debateToPackage } from './debateExport.js';
+import { chatToMarkdown, chatToText, chatToPrintHtml, chatExportFilename, type ChatExportEntry, type ChatExportOptions } from '../../../lib/chat/chatExportFormatters.js';
 import { storeApiKey, hasApiKey, getApiKeySummary, exportKeysForSharing, importKeysFromSharing, deleteApiKey, deleteAllApiKeys, removeApiKey, getMaskedKeys } from './apiKeyStore.js';
 import type { KeySharePayload } from './apiKeyStore.js';
 import { isDataAvailable, getDataRootPath, setDataRootPath, loadDataConfig, PROJECT_ROOT, getSourcesDir, writeJsonFileAtomic } from './fileIO.js';
@@ -1148,6 +1149,67 @@ export function registerIpcHandlers(): void {
       }
       default: {
         fs.writeFileSync(filePath, JSON.stringify(session, null, 2) + '\n', 'utf-8');
+        break;
+      }
+    }
+
+    return { cancelled: false, filePath };
+  });
+
+  // Chat export (t/1485) — mirrors export-debate-to-file. Formatters live in lib/chat
+  // (main-safe, like lib/debate); PDF is print-to-PDF via an offscreen window like debateToPdf.
+  ipcMain.handle('export-chat-to-file', async (event, entries: ChatExportEntry[], format: 'markdown' | 'text' | 'pdf', options: ChatExportOptions) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return { cancelled: true };
+
+    // Map requested format to a default extension and put it first in the filter list.
+    const formatExtMap: Record<string, string> = { markdown: 'md', text: 'txt', pdf: 'pdf' };
+    const defaultExt = formatExtMap[format] || 'md';
+    const allFilters = [
+      { name: 'Markdown', extensions: ['md'] },
+      { name: 'Plain Text', extensions: ['txt'] },
+      { name: 'PDF', extensions: ['pdf'] },
+    ];
+    const selectedIdx = allFilters.findIndex(f => f.extensions[0] === defaultExt);
+    const filters = selectedIdx > 0
+      ? [allFilters[selectedIdx], ...allFilters.filter((_, i) => i !== selectedIdx)]
+      : allFilters;
+
+    const result = await dialog.showSaveDialog(win, {
+      title: 'Export Chat',
+      defaultPath: chatExportFilename(options.title, defaultExt),
+      filters,
+    });
+
+    if (result.canceled || !result.filePath) {
+      return { cancelled: true };
+    }
+
+    const fs = await import('fs');
+    const filePath = result.filePath;
+    const ext = filePath.split('.').pop()?.toLowerCase() || defaultExt;
+
+    switch (ext) {
+      case 'txt': {
+        fs.writeFileSync(filePath, chatToText(entries, options), 'utf-8');
+        break;
+      }
+      case 'pdf': {
+        // Print-to-PDF via an offscreen window, mirroring debateToPdf.
+        const pdfWindow = new BrowserWindow({ show: false, width: 800, height: 600, webPreferences: { offscreen: true } });
+        try {
+          const html = chatToPrintHtml(entries, options);
+          await pdfWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+          const pdfBuffer = await pdfWindow.webContents.printToPDF({ printBackground: true, preferCSSPageSize: true });
+          fs.writeFileSync(filePath, pdfBuffer);
+        } finally {
+          pdfWindow.destroy();
+        }
+        break;
+      }
+      case 'md':
+      default: {
+        fs.writeFileSync(filePath, chatToMarkdown(entries, options), 'utf-8');
         break;
       }
     }
