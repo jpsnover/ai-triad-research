@@ -666,6 +666,7 @@ kbd {
       <input type="file" id="file-input" accept=".json">
     </label>
     <p style="margin-top: 24px; font-size: 12px;">Or drop the file anywhere on this page.</p>
+    <div id="resume-slot" style="margin-top: 16px;"></div>
   </div>
 
   <!-- Main annotation interface (hidden until loaded) -->
@@ -673,6 +674,7 @@ kbd {
     <div class="header">
       <h1>Claim Attribution Annotation</h1>
       <div class="header-actions">
+        <button class="btn" onclick="location.reload()" title="Return to the load screen to open another file">Load Different File</button>
         <button class="btn" onclick="loadSaved()">Resume Saved</button>
         <button class="btn btn-primary" onclick="saveProgress()">Save Progress</button>
         <button class="btn btn-success" onclick="exportAnnotations()">Export JSON</button>
@@ -744,9 +746,17 @@ function init() {
   document.addEventListener('drop', handleDrop);
   document.addEventListener('keydown', handleKeys);
 
+  // Never auto-resume: a leftover claim session must not hide the load
+  // screen from someone here to load a different file (t/1554 UX report).
   const saved = localStorage.getItem('annotation_progress');
   if (saved) {
-    loadSaved();
+    try {
+      const parsed = JSON.parse(saved);
+      const n = (parsed.claims || []).filter(c => c.annotation && (c.annotation.selected_node || c.annotation.none_of_above)).length;
+      const when = parsed.savedAt ? new Date(parsed.savedAt).toLocaleString() : 'unknown time';
+      document.getElementById('resume-slot').innerHTML =
+        '<button class="btn btn-primary" onclick="loadSaved()">Resume saved claim session (' + n + ' annotations, ' + escHtml(when) + ')</button>';
+    } catch (err) {}
   }
 }
 
