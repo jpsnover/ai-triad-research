@@ -224,7 +224,9 @@ function Invoke-OrgStanceExtraction {
     # "least promising") double-mark direction and invert stance downstream.
     # Lint surfaces recurrences; does NOT drop (CL's rule).
     $flagged   = [System.Collections.Concurrent.ConcurrentBag[PSObject]]::new()
-    $doubleMarkPattern = '(?i)\b(oppose|reject|resist|against|least promising)\b'
+    # Pattern covers direct opposition lexicon AND negated deontics
+    # (t/1553#16 audit — "ought NOT to X" + polarity=opposes still inverts).
+    $doubleMarkPattern = '(?i)(\b(oppose|reject|resist|against|least promising)\b|\b(ought|should|must|need|shall|may)\s+not\b)'
 
     # Validator scriptblock — passed through $using: to the parallel workers
     # (Test-OrgStanceClaim is a Private helper and isn't callable inside
