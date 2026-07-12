@@ -5,8 +5,8 @@
 **Owner request:** review the organizations work; suggest better ways to map orgs to
 specific POVs, including how to acquire org→node edges.
 **Companion docs:** `docs/organizations-status.md` (TL status audit) and
-`docs/hld-organization-relationship-graph.md` (TL HLD, approved; edge storage/UI in
-progress). Those documents cover the infrastructure. This note covers the measurement
+`docs/hld-organization-relationship-graph.md` (TL HLD, approved; edge storage shipped
+2026-07-12 per TL, remaining UI in progress). Those documents cover the infrastructure. This note covers the measurement
 methodology they don't: where alignment scores come from, and how org→node edges
 get made.
 
@@ -33,7 +33,7 @@ get made.
 |---|---|---|---|
 | R1 | Org→node edges via the claim-matching pipeline (design below) | M | t/1553 (PS pipeline), t/1554 (review UI) |
 | R2 | Derive camp scores as rollups of approved org→node edges | S (after R1) | folded into t/1553 AC |
-| R3 | Replace decimal camp scores with 5-point anchored tiers; split rhetorical vs behavioral stance | S (schema decision) | recommendation to TL — fold into HLD type reconciliation |
+| R3 | Replace decimal camp scores with 5-point anchored tiers; split rhetorical vs behavioral stance | S (schema decision) | t/1556 (CL, blocked by t/1553 — tier boundaries derive from R2's real score distribution, per TL p/38#4) |
 | R4 | `assessed_at` field + populate `source_refs` from `external_links` | XS | t/1555 |
 | R5 | Consistency audit: camp scores vs topic/policy stances | XS (manual at 25 orgs) | CL runs after R4; instrument only if roster grows |
 
