@@ -241,6 +241,110 @@
   margin-top: 4px;
 }
 
+/* ── Aphorism display + edit ── */
+
+.nd-aphorism {
+  font-style: italic;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: 2px 0 var(--sp-2);
+  line-height: 1.4;
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.nd-aphorism-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.nd-aphorism-edit-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--text-2xs);
+  padding: 0 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.nd-aphorism:hover .nd-aphorism-edit-btn,
+.nd-aphorism-edit-btn-visible { opacity: 1; }
+
+.nd-aphorism-empty {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: 2px 0 var(--sp-2);
+}
+
+.nd-aphorism-input {
+  font-style: italic;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  width: 100%;
+  margin: 2px 0 4px;
+  line-height: 1.4;
+}
+
+.nd-aphorism-actions {
+  display: flex;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+
+.nd-aphorism-actions button {
+  font-size: var(--text-xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.nd-aphorism-actions button:hover {
+  background: var(--bg-hover);
+}
+
+.nd-aphorism-regen {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-bottom: var(--sp-2);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 4px 8px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+.nd-aphorism-regen-text {
+  flex: 1;
+  font-style: italic;
+}
+
+.nd-aphorism-regen button {
+  font-size: var(--text-2xs);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.nd-aphorism-regen button:hover {
+  background: var(--bg-hover);
+}
+
 /* ── Vulnerability subsection (partial hoist — dynamic color stays inline) ── */
 
 .vulnerability-subsection {

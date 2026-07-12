@@ -37,6 +37,7 @@ export interface GraphAttributes {
   /** AIF node scope — added in dolce-phase-4. Absent in older nodes. */
   node_scope?: 'claim' | 'scheme' | 'bridging';
   attribution_text?: string;
+  aphorism?: string;
   _phrase_regen_pending?: boolean;
   debate_tested?: DebateTestedRecord;
 }

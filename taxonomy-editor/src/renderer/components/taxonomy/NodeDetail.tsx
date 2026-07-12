@@ -30,6 +30,7 @@ import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
 import { EditConflictBadge, type NodeConflict } from '../conflict/edit-conflicts';
 import { triggerPovNodeRegeneration } from '../../utils/regeneratePlainDescription';
+import { generateAphorism } from '../../utils/regenerateAphorism';
 import { useDescriptionMode, resolveDescription, DescriptionToggle } from '../shared/DescriptionToggle';
 import { EmptyState } from '../shared/EmptyState';
 import './NodeDetail.css';
@@ -241,6 +242,42 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
   const [researchCopied, setResearchCopied] = useState(false);
   const researchTextareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Aphorism editing / regeneration state
+  const [aphorismEditing, setAphorismEditing] = useState(false);
+  const [aphorismDraft, setAphorismDraft] = useState('');
+  const [aphorismProposal, setAphorismProposal] = useState<string | null>(null);
+  const [aphorismGenerating, setAphorismGenerating] = useState(false);
+
+  const aphorismBaseLabel = useRef(node.label);
+  const aphorismBaseDesc = useRef(node.description);
+
+  useEffect(() => {
+    setAphorismEditing(false);
+    setAphorismProposal(null);
+    setAphorismGenerating(false);
+    aphorismBaseLabel.current = node.label;
+    aphorismBaseDesc.current = node.description;
+  }, [node.id]);
+
+  const handleAphorismRegenerate = useCallback(() => {
+    if (aphorismGenerating) return;
+    setAphorismGenerating(true);
+    const povKey = nodePovFromId(node.id) ?? pov;
+    void generateAphorism(povKey, node.category, node.label, node.description)
+      .then(result => {
+        if (result) setAphorismProposal(result);
+      })
+      .finally(() => setAphorismGenerating(false));
+  }, [node.id, pov, node.category, node.label, node.description, aphorismGenerating]);
+
+  const maybeRegenAphorism = useCallback(() => {
+    if (readOnly || !node.graph_attributes?.aphorism) return;
+    if (node.label === aphorismBaseLabel.current && node.description === aphorismBaseDesc.current) return;
+    aphorismBaseLabel.current = node.label;
+    aphorismBaseDesc.current = node.description;
+    handleAphorismRegenerate();
+  }, [readOnly, node.graph_attributes?.aphorism, node.label, node.description, handleAphorismRegenerate]);
+
   // Generate research prompt when tab is selected or node changes
   useEffect(() => {
     if (activeTab === 'research') {
@@ -343,6 +380,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
                 className={`nd-header-label nd-header-label-editable ${err('label') ? 'has-error' : ''}`}
                 value={node.label}
                 onChange={(e) => update({ label: e.target.value })}
+                onBlur={maybeRegenAphorism}
                 placeholder="Label"
                 aria-label="Label"
                 title={node.label}
@@ -378,6 +416,70 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           <span className="nd-header-id">{node.id}</span>
           <EditConflictBadge conflict={conflict} resolveUrl={resolveUrl} />
         </div>
+
+        {/* Aphorism display */}
+        {aphorismEditing && !readOnly ? (
+          <>
+            <input
+              className="nd-aphorism-input"
+              value={aphorismDraft}
+              onChange={(e) => setAphorismDraft(e.target.value)}
+              placeholder="Enter aphorism…"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  update({ graph_attributes: { ...node.graph_attributes!, aphorism: aphorismDraft || undefined } });
+                  setAphorismEditing(false);
+                } else if (e.key === 'Escape') {
+                  setAphorismEditing(false);
+                }
+              }}
+            />
+            <div className="nd-aphorism-actions">
+              <button onClick={() => {
+                update({ graph_attributes: { ...node.graph_attributes!, aphorism: aphorismDraft || undefined } });
+                setAphorismEditing(false);
+              }}>Save</button>
+              <button onClick={() => setAphorismEditing(false)}>Cancel</button>
+            </div>
+          </>
+        ) : node.graph_attributes?.aphorism ? (
+          <div className="nd-aphorism">
+            <span className="nd-aphorism-text">&ldquo;{node.graph_attributes.aphorism}&rdquo;</span>
+            {!readOnly && (
+              <button
+                className="nd-aphorism-edit-btn"
+                onClick={() => { setAphorismDraft(node.graph_attributes?.aphorism ?? ''); setAphorismEditing(true); }}
+                title="Edit aphorism"
+              >&#9998;</button>
+            )}
+          </div>
+        ) : !readOnly ? (
+          <div className="nd-aphorism-empty">
+            <button
+              className="nd-aphorism-edit-btn nd-aphorism-edit-btn-visible"
+              onClick={handleAphorismRegenerate}
+              disabled={aphorismGenerating}
+            >{aphorismGenerating ? 'Generating…' : '+ Generate aphorism'}</button>
+          </div>
+        ) : null}
+
+        {/* Aphorism regeneration proposal */}
+        {aphorismProposal && !readOnly && (
+          <div className="nd-aphorism-regen">
+            <span className="nd-aphorism-regen-text">&ldquo;{aphorismProposal}&rdquo;</span>
+            <button onClick={() => {
+              update({ graph_attributes: { ...node.graph_attributes!, aphorism: aphorismProposal } });
+              setAphorismProposal(null);
+            }}>Accept</button>
+            <button onClick={() => {
+              setAphorismDraft(aphorismProposal);
+              setAphorismProposal(null);
+              setAphorismEditing(true);
+            }}>Edit</button>
+            <button onClick={() => setAphorismProposal(null)}>Reject</button>
+          </div>
+        )}
       </div>
 
       {hasErrors && (
@@ -468,7 +570,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
                 <DescriptionToggle mode={descMode} onToggle={setDescMode} hasPlainDescription={!!node.plain_description} />
               </div>
               {descMode === 'formal' ? (
-                <div className="prose">
+                <div className="prose" onBlur={maybeRegenAphorism}>
                   <HighlightedTextarea
                     value={node.description}
                     onChange={(v) => update({ description: v })}

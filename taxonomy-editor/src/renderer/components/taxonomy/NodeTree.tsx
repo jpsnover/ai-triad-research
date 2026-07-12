@@ -462,6 +462,9 @@ function NodeItem({ node, isSelected, onSelect, score, indent, relationship, isM
         {isMisfit && <span className="misfit-badge" title="This node contradicts most of its cluster — it may belong in a different Perspective">misfit?</span>}
         <EditConflictBadge conflict={conflict} resolveUrl={resolveUrl} />
       </div>
+      {node.graph_attributes?.aphorism && (
+        <div className="node-item-aphorism">{node.graph_attributes.aphorism}</div>
+      )}
       <div className="node-item-id">
         {node.id}
         {relationship && <span className="node-item-rel">{REL_LABELS[relationship] || relationship}</span>}
