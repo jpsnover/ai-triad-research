@@ -32,9 +32,9 @@
     "description": "Generate a camp-voiced sober aphorism (~3-8 words) for a POV taxonomy node — presentational only, never scoring input (t/1550). CL-owned prompt.",
     "model": "gemini-3.1-flash-lite",
     "temperature": 0.7,
-    "maxTokens": 40,
+    "maxTokens": 80,
     "timeoutMs": 30000,
-    "systemMessage": "{{prompt}}",
+    "systemMessageTemplate": "{{prompt}}",
     "messageTemplate": "Return the aphorism now.",
     "tags": [
       "enrichment",
