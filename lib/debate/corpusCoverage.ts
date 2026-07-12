@@ -4,6 +4,7 @@
 import fs from 'fs';
 import path from 'path';
 import { ActionableError } from './errors.js';
+import { loadCruxLinksFromAggregated } from './cruxLinkage.js';
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -175,30 +176,3 @@ function collectNodeRefs(
   }
 }
 
-const AGGREGATED_CRUXES_PATH = path.join('taxonomy', 'Origin', 'aggregated-cruxes.json');
-
-interface AggregatedCruxEntry {
-  linked_node_ids?: string[];
-}
-
-function loadCruxLinksFromAggregated(dataRoot: string): Map<string, number> {
-  const filePath = path.join(dataRoot, AGGREGATED_CRUXES_PATH);
-  if (!fs.existsSync(filePath)) {
-    return new Map();
-  }
-  try {
-    const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-    const cruxes: AggregatedCruxEntry[] = raw?.cruxes;
-    if (!Array.isArray(cruxes)) return new Map();
-
-    const counts = new Map<string, number>();
-    for (const entry of cruxes) {
-      for (const nodeId of entry.linked_node_ids ?? []) {
-        counts.set(nodeId, (counts.get(nodeId) ?? 0) + 1);
-      }
-    }
-    return counts;
-  } catch {
-    return new Map();
-  }
-}
