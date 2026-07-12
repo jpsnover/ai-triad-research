@@ -173,9 +173,9 @@ export function OrganizationsTab() {
                 {org.type && (
                   <span style={{
                     padding: '1px 6px', borderRadius: 8, fontSize: 'var(--text-2xs)', fontWeight: 600,
-                    background: 'var(--bg-tertiary, #334155)', color: 'var(--text-primary)',
+                    background: 'var(--bg-hover)', color: 'var(--text-secondary)',
                   }}>
-                    {org.type.replace('_', ' ')}
+                    {org.type.replace(/_/g, ' ')}
                   </span>
                 )}
                 {org.short_name && org.short_name !== org.name && (

@@ -1,10 +1,12 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { Organization, OrganizationEdge, OrganizationEdgeType } from '../../bridge/types';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { useOrganizationStore } from '../../hooks/useOrganizationStore';
+import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 
 const POV_COLORS: Record<string, string> = {
   accelerationist: '#f97316',
@@ -22,10 +24,10 @@ function TypeBadge({ type }: { type?: string }) {
   if (!type) return null;
   return (
     <span style={{
-      padding: '2px 8px', borderRadius: 10, fontSize: '0.7rem', fontWeight: 600,
-      background: 'var(--bg-tertiary, #334155)', color: 'var(--text-primary)',
+      padding: '2px 8px', borderRadius: 10, fontSize: 'var(--text-2xs)', fontWeight: 600,
+      background: 'var(--bg-hover)', color: 'var(--text-secondary)',
     }}>
-      {type}
+      {type.replace(/_/g, ' ')}
     </span>
   );
 }
@@ -34,7 +36,7 @@ function PovAlignmentBar({ alignment }: { alignment?: Organization['pov_alignmen
   if (!alignment) return <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>No alignment data</span>;
   const povs = ['accelerationist', 'safetyist', 'skeptic'] as const;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {povs.map((pov) => {
         const stance = alignment[pov];
         if (!stance) return null;
@@ -42,21 +44,26 @@ function PovAlignmentBar({ alignment }: { alignment?: Organization['pov_alignmen
         const absScore = Math.abs(score);
         const color = POV_COLORS[pov] ?? 'var(--text-muted)';
         return (
-          <div key={pov} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.75rem' }}>
+          <div key={pov} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem' }}>
             <span style={{ width: 28, fontWeight: 600, color, flexShrink: 0 }}>{POV_LABELS[pov]}</span>
-            <div style={{ flex: 1, height: 8, background: 'var(--bg-tertiary, #1e293b)', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
+            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', flexShrink: 0 }}>−1</span>
+            <div style={{ flex: 1, height: 10, background: 'var(--bg-tertiary, #1e293b)', borderRadius: 5, position: 'relative' }}>
               <div style={{
                 position: 'absolute',
                 left: score < 0 ? `${50 - absScore * 50}%` : '50%',
                 width: `${absScore * 50}%`,
                 height: '100%',
                 background: color,
-                borderRadius: 4,
-                opacity: 0.8,
+                borderRadius: 5,
+                opacity: 0.85,
               }} />
-              <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, background: 'var(--border)' }} />
+              <div style={{
+                position: 'absolute', left: '50%', top: -1, bottom: -1, width: 2,
+                background: 'var(--text-muted)', transform: 'translateX(-1px)', zIndex: 1,
+              }} />
             </div>
-            <span style={{ width: 36, textAlign: 'right', color: 'var(--text-muted)', flexShrink: 0 }}>
+            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', flexShrink: 0 }}>+1</span>
+            <span style={{ width: 40, textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)', flexShrink: 0, fontSize: '0.72rem' }}>
               {score > 0 ? '+' : ''}{score.toFixed(1)}
             </span>
           </div>
@@ -81,6 +88,13 @@ const EDGE_GROUP_LABELS: Partial<Record<OrganizationEdgeType, string>> = {
 function RelationshipSection({ orgId, onSelectOrg }: { orgId: string; onSelectOrg?: (id: string) => void }) {
   const [edges, setEdges] = useState<OrganizationEdge[]>([]);
   const [loading, setLoading] = useState(true);
+  const allOrgs = useOrganizationStore((s) => s.organizations);
+
+  const orgNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const o of allOrgs) map.set(o.id, o.name);
+    return map;
+  }, [allOrgs]);
 
   useEffect(() => {
     setLoading(true);
@@ -115,18 +129,23 @@ function RelationshipSection({ orgId, onSelectOrg }: { orgId: string; onSelectOr
           <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2 }}>
             {EDGE_GROUP_LABELS[type] ?? type}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {peers.map((peer) => (
-              <div key={peer.id} style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: '0.78rem' }}>
-                <button
-                  className="btn-xs btn-ghost"
-                  style={{ fontFamily: 'monospace', color: 'var(--color-info, #3b82f6)', padding: 0, textDecoration: 'underline', cursor: onSelectOrg ? 'pointer' : 'default' }}
-                  onClick={() => onSelectOrg?.(peer.id)}
-                  disabled={!onSelectOrg}
-                >
-                  {peer.id}
-                </button>
-                {peer.rationale && <span style={{ color: 'var(--text-muted)' }}>{peer.rationale}</span>}
+              <div key={peer.id} style={{ fontSize: '0.78rem' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                  <button
+                    className="btn-xs btn-ghost"
+                    style={{ color: 'var(--color-info, #3b82f6)', padding: 0, textDecoration: 'underline', cursor: onSelectOrg ? 'pointer' : 'default', fontWeight: 500 }}
+                    onClick={() => onSelectOrg?.(peer.id)}
+                    disabled={!onSelectOrg}
+                  >
+                    {orgNameMap.get(peer.id) ?? peer.id}
+                  </button>
+                  <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{peer.id}</span>
+                </div>
+                {peer.rationale && (
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: 1, paddingLeft: 2 }}>{peer.rationale}</div>
+                )}
               </div>
             ))}
           </div>
@@ -137,6 +156,25 @@ function RelationshipSection({ orgId, onSelectOrg }: { orgId: string; onSelectOr
 }
 
 export function OrganizationDetail({ org, onSelectOrg }: { org: Organization; onSelectOrg?: (id: string) => void }) {
+  const policyRegistry = useTaxonomyStore((s) => s.policyRegistry);
+  const situations = useTaxonomyStore((s) => s.situations);
+
+  const policyNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (policyRegistry) {
+      for (const p of policyRegistry) map.set(p.id, p.action);
+    }
+    return map;
+  }, [policyRegistry]);
+
+  const situationNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (situations?.nodes) {
+      for (const n of situations.nodes) map.set(n.id, n.label);
+    }
+    return map;
+  }, [situations]);
+
   return (
     <div style={{ padding: 16, overflowY: 'auto', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Header */}
@@ -190,14 +228,29 @@ export function OrganizationDetail({ org, onSelectOrg }: { org: Organization; on
       {org.topic_engagement && org.topic_engagement.length > 0 && (
         <div>
           <h3 style={{ margin: '0 0 4px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Topic Engagement</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {org.topic_engagement.map((te, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: '0.78rem' }}>
-                <span style={{ fontFamily: 'monospace', color: 'var(--color-info, #3b82f6)', flexShrink: 0 }}>{te.topic_ref}</span>
-                {te.stance && <span style={{ color: 'var(--text-muted)' }}>({te.stance})</span>}
-                {te.description && <span>{te.description}</span>}
-              </div>
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {org.topic_engagement.map((te, i) => {
+              const label = situationNameMap.get(te.topic_ref);
+              return (
+                <div key={i} style={{ fontSize: '0.78rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                    <span style={{ fontWeight: 500 }}>{label ?? te.topic_ref}</span>
+                    {te.stance && (
+                      <span style={{
+                        padding: '1px 6px', borderRadius: 8, fontSize: 'var(--text-2xs)', fontWeight: 600,
+                        background: 'var(--bg-hover)', color: 'var(--text-secondary)',
+                      }}>
+                        {te.stance}
+                      </span>
+                    )}
+                    <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{te.topic_ref}</span>
+                  </div>
+                  {te.description && (
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: 1, paddingLeft: 2 }}>{te.description}</div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -206,19 +259,25 @@ export function OrganizationDetail({ org, onSelectOrg }: { org: Organization; on
       {org.policy_engagement && org.policy_engagement.length > 0 && (
         <div>
           <h3 style={{ margin: '0 0 4px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Policy Engagement</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {org.policy_engagement.map((pe, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: '0.78rem' }}>
-                <span style={{ fontFamily: 'monospace', color: 'var(--color-info, #3b82f6)' }}>{pe.policy_ref}</span>
-                <span style={{
-                  padding: '1px 6px', borderRadius: 8, fontSize: 'var(--text-2xs)', fontWeight: 600,
-                  background: pe.stance === 'supports' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
-                  color: pe.stance === 'supports' ? '#22c55e' : '#ef4444',
-                }}>
-                  {pe.stance}
-                </span>
-              </div>
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {org.policy_engagement.map((pe, i) => {
+              const label = policyNameMap.get(pe.policy_ref);
+              return (
+                <div key={i} style={{ fontSize: '0.78rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                    <span style={{ fontWeight: 500 }}>{label ?? pe.policy_ref}</span>
+                    <span style={{
+                      padding: '1px 6px', borderRadius: 8, fontSize: 'var(--text-2xs)', fontWeight: 600,
+                      background: pe.stance === 'supports' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                      color: pe.stance === 'supports' ? '#22c55e' : '#ef4444',
+                    }}>
+                      {pe.stance}
+                    </span>
+                    <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{pe.policy_ref}</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
