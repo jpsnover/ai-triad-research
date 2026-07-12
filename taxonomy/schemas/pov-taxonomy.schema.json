@@ -150,7 +150,8 @@
             "steelman_vulnerability": {
               "type": "string",
               "description": "The strongest counterargument against the strongest version of this claim."
-            }
+            },
+            "debate_tested": { "$ref": "#/$defs/DebateTestedRecord" }
           }
         },
         "confidence": {
@@ -278,6 +279,102 @@
           "items": { "type": "string" },
           "description": "Models that independently confirmed this attack."
         }
+      }
+    },
+    "DebateTestedRecord": {
+      "type": "object",
+      "description": "Epistemic testing record tracking how much adversarial debate pressure a taxonomy node has survived (t/1523).",
+      "required": ["tier", "sort_key", "engagements", "challenges", "held", "weakened", "revisions", "last_tested", "description_hash", "record"],
+      "additionalProperties": false,
+      "properties": {
+        "tier": {
+          "type": "string",
+          "enum": ["untested", "cited", "contested", "well_tested"],
+          "description": "Epistemic testing tier. untested: no debate exposure. cited: mentioned but never attacked. contested: attacked at least once. well_tested: survived ≥2 severe challenges across ≥2 debates."
+        },
+        "sort_key": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Composite sort key: tier_rank + clamp(evidence / EVIDENCE_SATURATION, 0, 0.99)."
+        },
+        "engagements": { "type": "integer", "minimum": 0, "description": "Total debate engagements for this node." },
+        "challenges": { "type": "integer", "minimum": 0, "description": "Count of engagements with a severe attack (strength ≥ threshold)." },
+        "held": { "type": "integer", "minimum": 0, "description": "Count of held verdicts." },
+        "weakened": { "type": "integer", "minimum": 0, "description": "Count of weakened verdicts." },
+        "revisions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/DebateTestedRevision" },
+          "description": "Log of description revisions triggered by refined verdicts."
+        },
+        "last_tested": { "type": "string", "description": "ISO 8601 date of the most recent debate engagement." },
+        "description_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$", "description": "SHA-256 hash of the node description at last engagement." },
+        "record": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/DebateTestedEntry" },
+          "description": "Ordered list of per-debate engagement entries."
+        }
+      }
+    },
+    "DebateTestedEntry": {
+      "type": "object",
+      "required": ["debate_id", "date", "pipeline_version", "verdict", "strongest_attack_encountered", "claim_outcomes", "concession"],
+      "additionalProperties": false,
+      "properties": {
+        "debate_id": { "type": "string" },
+        "date": { "type": "string" },
+        "pipeline_version": { "type": "string" },
+        "verdict": { "type": "string", "enum": ["held", "weakened", "refined", "open", "cited"] },
+        "strongest_attack_encountered": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["claim_id", "strength", "scheme", "challenger_camp"],
+              "additionalProperties": false,
+              "properties": {
+                "claim_id": { "type": "string" },
+                "strength": { "type": "number", "minimum": 0, "maximum": 1 },
+                "scheme": { "type": "string" },
+                "challenger_camp": { "type": "string" }
+              }
+            }
+          ]
+        },
+        "claim_outcomes": {
+          "type": "object",
+          "required": ["thrived", "survived", "died"],
+          "additionalProperties": false,
+          "properties": {
+            "thrived": { "type": "integer", "minimum": 0 },
+            "survived": { "type": "integer", "minimum": 0 },
+            "died": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "concession": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["type", "turn"],
+              "additionalProperties": false,
+              "properties": {
+                "type": { "type": "string", "enum": ["full", "conditional", "tactical"] },
+                "turn": { "type": "string" }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "DebateTestedRevision": {
+      "type": "object",
+      "required": ["date", "debate_id", "held_since"],
+      "additionalProperties": false,
+      "properties": {
+        "date": { "type": "string" },
+        "debate_id": { "type": "string" },
+        "held_since": { "type": ["boolean", "null"], "description": "null = pending, true = held after revision (content-increase gate passed), false = weakened after revision." },
+        "prior_falsifiability": { "type": "string", "description": "Falsifiability level before the revision, for content-increase gate." }
       }
     }
   }

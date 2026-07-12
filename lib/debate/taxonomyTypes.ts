@@ -38,6 +38,60 @@ export interface GraphAttributes {
   node_scope?: 'claim' | 'scheme' | 'bridging';
   attribution_text?: string;
   _phrase_regen_pending?: boolean;
+  debate_tested?: DebateTestedRecord;
+}
+
+// ── Debate-Tested (t/1523, Phase 0) ──────────────────────────────────────
+
+export type DebateTestedTier = 'untested' | 'cited' | 'contested' | 'well_tested';
+export type DebateTestedVerdict = 'held' | 'weakened' | 'refined' | 'open' | 'cited';
+
+export interface StrongestAttackEncountered {
+  claim_id: string;
+  strength: number;
+  scheme: string;
+  challenger_camp: string;
+}
+
+export interface DebateTestedClaimOutcomes {
+  thrived: number;
+  survived: number;
+  died: number;
+}
+
+export interface DebateTestedConcession {
+  type: 'full' | 'conditional' | 'tactical';
+  turn: string;
+}
+
+export interface DebateTestedEntry {
+  debate_id: string;
+  date: string;
+  pipeline_version: string;
+  verdict: DebateTestedVerdict;
+  strongest_attack_encountered: StrongestAttackEncountered | null;
+  claim_outcomes: DebateTestedClaimOutcomes;
+  concession: DebateTestedConcession | null;
+}
+
+export interface DebateTestedRevision {
+  date: string;
+  debate_id: string;
+  held_since: boolean | null;
+  prior_falsifiability?: string;
+}
+
+export interface DebateTestedRecord {
+  tier: DebateTestedTier;
+  sort_key: number;
+  engagements: number;
+  challenges: number;
+  held: number;
+  weakened: number;
+  revisions: DebateTestedRevision[];
+  last_tested: string;
+  description_hash: string;
+  record: DebateTestedEntry[];
 }
 
 export type ParentRelationship = 'is_a' | 'part_of' | 'specializes';
