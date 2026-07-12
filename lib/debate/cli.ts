@@ -64,6 +64,7 @@ interface CLIConfig {
   utilityModels?: { summary?: string; scope?: string; moderator?: string; crux?: string };
   exploreFirst?: boolean;
   exploreModel?: string;
+  enableCorpusCoverage?: boolean;
 }
 
 interface GoldenFixtureConfig extends CLIConfig {
@@ -392,6 +393,7 @@ async function main(): Promise<void> {
     salienceBeacon: config.salienceBeacon,
     stageModels: config.stageModels,
     utilityModels: config.utilityModels,
+    enableCorpusCoverage: config.enableCorpusCoverage,
   };
 
   // Prepare output paths early so the snapshot callback can write partial files
