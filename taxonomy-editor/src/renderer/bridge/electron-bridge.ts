@@ -238,6 +238,7 @@ export const api: AppAPI = {
   getOrganizationsByPov: () => Promise.resolve([]),
   getOrganizationsByTopic: () => Promise.resolve([]),
   getOrganizationsByPolicy: () => Promise.resolve([]),
+  getOrganizationEdges: () => Promise.resolve([]),
 
   // Calibration
   getCalibrationHistory: () => window.electronAPI.getCalibrationHistory(),

@@ -1,7 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { Organization } from '../../bridge/types';
+import { useState, useEffect } from 'react';
+import type { Organization, OrganizationEdge, OrganizationEdgeType } from '../../bridge/types';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
@@ -65,7 +66,77 @@ function PovAlignmentBar({ alignment }: { alignment?: Organization['pov_alignmen
   );
 }
 
-export function OrganizationDetail({ org }: { org: Organization }) {
+const EDGE_GROUP_LABELS: Partial<Record<OrganizationEdgeType, string>> = {
+  ALLIED_WITH: 'Allies',
+  COMPETES_WITH: 'Competitors',
+  FUNDS: 'Funders / Funded',
+  ADVOCATES_FOR: 'Advocates For',
+  OPPOSES: 'Opposes',
+  SUPPORTS_POLICY: 'Supports Policy',
+  OPPOSES_POLICY: 'Opposes Policy',
+  ENGAGED_WITH: 'Engaged With',
+  PUBLISHED: 'Published',
+};
+
+function RelationshipSection({ orgId, onSelectOrg }: { orgId: string; onSelectOrg?: (id: string) => void }) {
+  const [edges, setEdges] = useState<OrganizationEdge[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    api.getOrganizationEdges(orgId)
+      .then(setEdges)
+      .catch((err: unknown) => {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'org-relationships', level: 'error',
+          message: 'Failed to load organization edges',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        setEdges([]);
+      })
+      .finally(() => setLoading(false));
+  }, [orgId]);
+
+  if (loading) return <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Loading relationships...</span>;
+  if (edges.length === 0) return null;
+
+  const grouped = new Map<OrganizationEdgeType, { id: string; rationale?: string }[]>();
+  for (const edge of edges) {
+    const peer = edge.source === orgId ? edge.target : edge.source;
+    const list = grouped.get(edge.type) ?? [];
+    list.push({ id: peer, rationale: edge.rationale });
+    grouped.set(edge.type, list);
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {[...grouped.entries()].map(([type, peers]) => (
+        <div key={type}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2 }}>
+            {EDGE_GROUP_LABELS[type] ?? type}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {peers.map((peer) => (
+              <div key={peer.id} style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: '0.78rem' }}>
+                <button
+                  className="btn-xs btn-ghost"
+                  style={{ fontFamily: 'monospace', color: 'var(--color-info, #3b82f6)', padding: 0, textDecoration: 'underline', cursor: onSelectOrg ? 'pointer' : 'default' }}
+                  onClick={() => onSelectOrg?.(peer.id)}
+                  disabled={!onSelectOrg}
+                >
+                  {peer.id}
+                </button>
+                {peer.rationale && <span style={{ color: 'var(--text-muted)' }}>{peer.rationale}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function OrganizationDetail({ org, onSelectOrg }: { org: Organization; onSelectOrg?: (id: string) => void }) {
   return (
     <div style={{ padding: 16, overflowY: 'auto', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Header */}
@@ -151,6 +222,12 @@ export function OrganizationDetail({ org }: { org: Organization }) {
           </div>
         </div>
       )}
+
+      {/* Relationships */}
+      <div>
+        <h3 style={{ margin: '0 0 6px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Relationships</h3>
+        <RelationshipSection orgId={org.id} onSelectOrg={onSelectOrg} />
+      </div>
 
       {/* Key Figures */}
       {org.key_figures && org.key_figures.length > 0 && (

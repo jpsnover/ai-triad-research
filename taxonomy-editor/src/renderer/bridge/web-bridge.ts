@@ -1058,6 +1058,7 @@ const rawApi: AppAPI = {
   getOrganizationsByPov: (pov) => get(`/api/organizations/by-pov/${encodeURIComponent(pov)}`),
   getOrganizationsByTopic: (topicRef) => get(`/api/organizations/by-topic/${encodeURIComponent(topicRef)}`),
   getOrganizationsByPolicy: (policyId) => get(`/api/organizations/by-policy/${encodeURIComponent(policyId)}`),
+  getOrganizationEdges: (orgId) => get(`/api/organizations/${encodeURIComponent(orgId)}/edges`),
 
   // Calibration
   getCalibrationHistory: () => get<{ current: unknown; history: unknown[] }>('/api/calibration/history').catch(bridgeWarn('getCalibrationHistory failed', { current: null, history: [] })),

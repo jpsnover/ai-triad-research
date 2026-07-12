@@ -196,7 +196,7 @@ export function OrganizationsTab() {
       {/* Right pane: detail */}
       <div className="detail-panel">
         {selectedOrg ? (
-          <OrganizationDetail org={selectedOrg} />
+          <OrganizationDetail org={selectedOrg} onSelectOrg={selectOrganization} />
         ) : (
           <div className="detail-panel-empty">
             {organizations.length > 0

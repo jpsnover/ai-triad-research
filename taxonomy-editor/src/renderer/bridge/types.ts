@@ -276,6 +276,7 @@ export interface AppAPI {
   getOrganizationsByPov: (pov: string) => Promise<Organization[]>;
   getOrganizationsByTopic: (topicRef: string) => Promise<Organization[]>;
   getOrganizationsByPolicy: (policyId: string) => Promise<Organization[]>;
+  getOrganizationEdges: (orgId: string) => Promise<OrganizationEdge[]>;
 
   // --- Calibration ---
   getCalibrationHistory: () => Promise<{ current: unknown; history: unknown[] }>;
