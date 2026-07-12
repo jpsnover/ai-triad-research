@@ -13,7 +13,7 @@ const POV_COLORS: Record<string, string> = {
   skeptic: '#a855f7',
 };
 
-const TYPE_OPTIONS = ['advocacy', 'corporate', 'think_tank', 'government', 'academic', 'intergovernmental'] as const;
+const TYPE_OPTIONS = ['think_tank', 'advocacy', 'regulatory', 'academic', 'corporate', 'intergovernmental', 'civil_society', 'standards_body', 'research_lab'] as const;
 const POV_OPTIONS = ['accelerationist', 'safetyist', 'skeptic'] as const;
 
 function PovDots({ alignment }: { alignment?: Organization['pov_alignment'] }) {
