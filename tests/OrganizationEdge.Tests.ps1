@@ -334,4 +334,33 @@ Describe 'Import-OrganizationEdge upsert + validation (t/1526)' -Tag 'taxonomy' 
             $edges[0].Rationale | Should -Be 'lead investor'
         }
     }
+
+    # t/1553#7 — single-element source_refs must serialize as JSON array, not scalar.
+    # Regression fix: previously the record's source_refs field passed through
+    # ConvertTo-Json without a typed cast, so single-element arrays unwrapped to
+    # bare strings. Import-OrganizationEdge now uses [string[]] on the field so
+    # array shape survives the serialization round-trip regardless of length.
+    It 'A single-element source_refs survives as a JSON array (t/1553#7)' {
+        InModuleScope AITriad -Parameters @{ P = $script:tmpPath } {
+            param($P)
+            $script:__testEdgePath = $P
+            Mock Get-OrganizationEdgesFilePath { $script:__testEdgePath } -ModuleName AITriad
+            Import-OrganizationEdge -InputObject ([PSCustomObject]@{
+                source      = 'org-005'
+                target      = 'org-007'
+                type        = 'PUBLISHED'
+                rationale   = 'array-shape guard'
+                source_refs = @('single-src-id')
+                status      = 'proposed'
+            }) -Confirm:$false 6>$null 3>$null | Out-Null
+
+            # Read the raw JSON to prove the serialized shape, not just the runtime object.
+            $raw  = Get-Content $script:__testEdgePath -Raw | ConvertFrom-Json
+            $edge = @($raw.edges | Where-Object { $_.target -eq 'org-007' })[0]
+            $edge.source_refs                | Should -Not -BeNullOrEmpty
+            $edge.source_refs.GetType().Name | Should -Be 'Object[]' -Because 'single-element source_refs must stay an array on disk'
+            @($edge.source_refs).Count       | Should -Be 1
+            $edge.source_refs[0]             | Should -Be 'single-src-id'
+        }
+    }
 }

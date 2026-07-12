@@ -115,8 +115,12 @@ Describe 'organizations.json integrity (t/1224 AC#4)' -Tag 'taxonomy' -Skip:(-no
     It 'All pov_alignment scores are in [-1.0, 1.0]' {
         InModuleScope AITriad {
             $s = Get-OrganizationsStore
+            # t/1555 added assessed_at as a sibling of the three camp entries —
+            # skip it here; the camp entries are the only score-bearing children.
+            $camps = @('accelerationist', 'safetyist', 'skeptic')
             foreach ($o in @($s.organizations)) {
                 foreach ($povProp in $o.pov_alignment.PSObject.Properties) {
+                    if ($povProp.Name -notin $camps) { continue }
                     $povProp.Value.score | Should -BeGreaterOrEqual -1.0
                     $povProp.Value.score | Should -BeLessOrEqual 1.0
                 }
@@ -137,10 +141,13 @@ Describe 'organizations.json integrity (t/1224 AC#4)' -Tag 'taxonomy' -Skip:(-no
     It 'At least 2 orgs are camp-spanning (positive score on ≥2 POVs)' {
         InModuleScope AITriad {
             $s = Get-OrganizationsStore
+            # Skip assessed_at (t/1555) — camp entries are the only score-bearing children.
+            $camps = @('accelerationist', 'safetyist', 'skeptic')
             $spanners = @(
                 foreach ($o in @($s.organizations)) {
                     $positives = 0
                     foreach ($povProp in $o.pov_alignment.PSObject.Properties) {
+                        if ($povProp.Name -notin $camps) { continue }
                         if ([double]$povProp.Value.score -gt 0.3) { $positives++ }
                     }
                     if ($positives -ge 2) { $o.id }

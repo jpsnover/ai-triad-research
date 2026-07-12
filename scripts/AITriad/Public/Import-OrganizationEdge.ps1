@@ -131,12 +131,16 @@ function Import-OrganizationEdge {
             -NextSteps @('Choose a distinct target — actor edges are directed and reflexive edges have no meaning here'))
     }
 
+    # source_refs must be a typed array so ConvertTo-Json preserves the
+    # array shape on single-element inputs (t/1553#7 — CL flagged that
+    # Stage 0's one-element proposals were being unwrapped to bare strings
+    # in the serialized store).
     $incoming = [PSCustomObject]@{
         source        = $srcIn
         target        = $tgtIn
         type          = $typeIn
         rationale     = $ratIn
-        source_refs   = $refsIn
+        source_refs   = [string[]]$refsIn
         status        = $statIn
         discovered_at = $daIn
     }
