@@ -7,11 +7,12 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-const { readOrganizationsMock, recordMock } = vi.hoisted(() => ({
+const { readOrganizationsMock, readOrganizationEdgesMock, recordMock } = vi.hoisted(() => ({
   readOrganizationsMock: vi.fn(),
+  readOrganizationEdgesMock: vi.fn(),
   recordMock: vi.fn(),
 }));
-vi.mock('../storage/fileIO.js', () => ({ readOrganizations: readOrganizationsMock }));
+vi.mock('../storage/fileIO.js', () => ({ readOrganizations: readOrganizationsMock, readOrganizationEdges: readOrganizationEdgesMock }));
 vi.mock('../../../../lib/flight-recorder/index.js', () => ({ getGlobalRecorder: () => ({ record: recordMock }) }));
 
 import * as orgs from '../organizations.js';
@@ -41,11 +42,23 @@ const FIXTURE = [
   },
 ];
 
+// t/1530 edges over the FIXTURE orgs. Mix of org-to-org (indexed under source AND
+// target) and org-to-nonorg (indexed under source only).
+const EDGE_FIXTURE = [
+  { source: 'org-003', target: 'org-001', type: 'COMPETES_WITH' }, // a16z ⟷ EFF
+  { source: 'org-002', target: 'org-001', type: 'ALLIED_WITH' },   // FLI → EFF
+  { source: 'org-003', target: 'org-002', type: 'FUNDS' },         // a16z funds FLI
+  { source: 'org-001', target: 'sit-003', type: 'ADVOCATES_FOR' }, // EFF → situation (non-org target)
+  { source: 'org-002', target: 'src-042', type: 'PUBLISHED' },     // FLI → source (non-org target)
+];
+
 describe('organizations query layer (t/1225)', () => {
   beforeEach(() => {
     readOrganizationsMock.mockReset();
+    readOrganizationEdgesMock.mockReset();
     recordMock.mockReset();
     readOrganizationsMock.mockResolvedValue({ organizations: FIXTURE });
+    readOrganizationEdgesMock.mockResolvedValue(EDGE_FIXTURE);
     orgs.resetOrganizationsCache();
   });
 
@@ -85,6 +98,38 @@ describe('organizations query layer (t/1225)', () => {
     expect((await orgs.organizationsByPolicy('pol-010')).map(o => o.id)).toEqual(['org-001', 'org-002']);
     expect((await orgs.organizationsByPolicy('pol-020')).map(o => o.id)).toEqual(['org-002', 'org-003']);
     expect(await orgs.organizationsByPolicy('pol-999')).toEqual([]);
+  });
+
+  it('organizationEdges returns edges incident as source or as org-to-org target (t/1530)', async () => {
+    // org-001 (EFF): target of COMPETES_WITH (org-003) + ALLIED_WITH (org-002), source of ADVOCATES_FOR
+    expect((await orgs.organizationEdges('org-001')).map(e => e.type))
+      .toEqual(['COMPETES_WITH', 'ALLIED_WITH', 'ADVOCATES_FOR']);
+    // org-002 (FLI): source of ALLIED_WITH + PUBLISHED, target of FUNDS
+    expect((await orgs.organizationEdges('org-002')).map(e => e.type))
+      .toEqual(['ALLIED_WITH', 'FUNDS', 'PUBLISHED']);
+  });
+
+  it('does not index a non-org edge target (sit-*/src-*) as an org (t/1530)', async () => {
+    expect(await orgs.organizationEdges('sit-003')).toEqual([]);
+    expect(await orgs.organizationEdges('src-042')).toEqual([]);
+  });
+
+  it('allies/competitors/funders derive by filtering edges on type (t/1530)', async () => {
+    const edges = await orgs.organizationEdges('org-002');
+    expect(edges.filter(e => e.type === 'ALLIED_WITH').map(e => e.target)).toEqual(['org-001']);
+    expect(edges.filter(e => e.type === 'FUNDS').map(e => e.source)).toEqual(['org-003']); // org-002 funded BY org-003
+  });
+
+  it('organizationEdges is empty for an org with no edges and for an unknown org (t/1530)', async () => {
+    expect(await orgs.organizationEdges('org-004')).toEqual([]);
+    expect(await orgs.organizationEdges('org-999')).toEqual([]);
+  });
+
+  it('degrades to empty edges when the edges file is absent, orgs still load (t/1530)', async () => {
+    readOrganizationEdgesMock.mockResolvedValue(null);
+    orgs.resetOrganizationsCache();
+    expect(await orgs.organizationEdges('org-001')).toEqual([]);
+    expect((await orgs.listOrganizations()).map(o => o.id)).toEqual(['org-001', 'org-002', 'org-003', 'org-004']);
   });
 
   it('degrades to empty set when the data file is absent', async () => {

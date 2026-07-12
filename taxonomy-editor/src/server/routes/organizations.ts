@@ -50,6 +50,16 @@ export function registerOrganizationsRoutes(r: Router, _ctx: ServerCtx): void {
     } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to query organizations by policy', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
   });
 
+  // GET /api/organizations/:id/edges  — actor-relationship edges incident to an org
+  // (allies/competitors/funders derivable client-side by filtering on `type`). 4-segment
+  // param-then-literal; registered after the by-* literals so /…/by-*/edges resolves to
+  // the by-* handler, before the 3-segment :id below. (t/1530)
+  get('/api/organizations/:id/edges', async (req, res) => {
+    try {
+      json(res, await organizations.organizationEdges(param(req, 'id', '/api/organizations/:id/edges')));
+    } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to query organization edges', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
+  });
+
   // GET /api/organizations/:id  — single org (registered last; :id must not shadow the by-* literals)
   get('/api/organizations/:id', async (req, res) => {
     try {

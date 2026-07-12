@@ -6,11 +6,11 @@
 // (Server Storage, t/1229); this module owns typed parsing, the in-memory cache,
 // the topic/policy reverse indexes, and the query helpers the REST routes call.
 
-import { readOrganizations } from './storage/fileIO.js';
+import { readOrganizations, readOrganizationEdges } from './storage/fileIO.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 export type { Pov, PovStance, TopicEngagement, PolicyEngagement, Organization, OrganizationEdgeType, OrganizationEdge } from '../../../lib/organizations/types.js';
-import type { Pov, Organization } from '../../../lib/organizations/types.js';
+import type { Pov, Organization, OrganizationEdge } from '../../../lib/organizations/types.js';
 
 export const POV_CAMPS: readonly Pov[] = ['accelerationist', 'safetyist', 'skeptic'];
 export function isPov(v: string): v is Pov {
@@ -22,15 +22,16 @@ interface OrgIndexes {
   byId: Map<string, Organization>;
   byTopic: Map<string, Organization[]>;   // topic_ref → orgs
   byPolicy: Map<string, Organization[]>;  // policy_ref → orgs
+  edgesByOrg: Map<string, OrganizationEdge[]>;  // org id → incident edges (as source, or org-* target) (t/1530)
 }
 
 let cache: OrgIndexes | null = null;
 
 function emptyIndexes(): OrgIndexes {
-  return { all: [], byId: new Map(), byTopic: new Map(), byPolicy: new Map() };
+  return { all: [], byId: new Map(), byTopic: new Map(), byPolicy: new Map(), edgesByOrg: new Map() };
 }
 
-function buildIndexes(orgs: Organization[]): OrgIndexes {
+function buildIndexes(orgs: Organization[], edges: OrganizationEdge[]): OrgIndexes {
   const idx = emptyIndexes();
   idx.all = orgs;
   for (const org of orgs) {
@@ -42,6 +43,15 @@ function buildIndexes(orgs: Organization[]): OrgIndexes {
     for (const p of org.policy_engagement ?? []) {
       if (!p?.policy_ref) continue;
       (idx.byPolicy.get(p.policy_ref) ?? idx.byPolicy.set(p.policy_ref, []).get(p.policy_ref)!).push(org);
+    }
+  }
+  for (const e of edges) {
+    if (!e || typeof e.source !== 'string') continue;
+    (idx.edgesByOrg.get(e.source) ?? idx.edgesByOrg.set(e.source, []).get(e.source)!).push(e);
+    // Org-to-org edges (ALLIED_WITH/COMPETES_WITH/FUNDS) are indexed under the target too,
+    // so an org sees incoming relationships, not just the ones it's the source of.
+    if (typeof e.target === 'string' && e.target.startsWith('org-') && e.target !== e.source) {
+      (idx.edgesByOrg.get(e.target) ?? idx.edgesByOrg.set(e.target, []).get(e.target)!).push(e);
     }
   }
   return idx;
@@ -58,7 +68,9 @@ async function load(): Promise<OrgIndexes> {
     const raw = await readOrganizations();
     const list = (raw as { organizations?: unknown })?.organizations;
     const orgs = Array.isArray(list) ? (list as Organization[]).filter(o => o && typeof o.id === 'string') : [];
-    cache = buildIndexes(orgs);
+    const edgesRaw = await readOrganizationEdges();
+    const edges = Array.isArray(edgesRaw) ? edgesRaw.filter(e => e && typeof e.source === 'string') : [];
+    cache = buildIndexes(orgs, edges);
   } catch (err) {
     getGlobalRecorder()?.record({
       type: 'system.error', component: 'organizations', level: 'error',
@@ -121,4 +133,15 @@ export async function organizationsByTopic(topicRef: string): Promise<Organizati
 export async function organizationsByPolicy(policyId: string): Promise<Organization[]> {
   const { byPolicy } = await load();
   return byPolicy.get(policyId) ?? [];
+}
+
+/**
+ * All actor-relationship edges incident to `orgId` — where it's the `source`, or the
+ * `target` of an org-to-org edge (`ALLIED_WITH`/`COMPETES_WITH`/`FUNDS`). Consumers
+ * filter by `type` for allies/competitors/funders and read direction from
+ * source/target. `[]` for an unknown org (consistent with the by-topic/by-policy
+ * reverse-index helpers, which don't 404). (t/1530) */
+export async function organizationEdges(orgId: string): Promise<OrganizationEdge[]> {
+  const { edgesByOrg } = await load();
+  return edgesByOrg.get(orgId) ?? [];
 }

@@ -25,6 +25,7 @@ exports[`server.ts route table (t/1295 — zero-behaviour-change guard) > ordere
   "GET /api/organizations/by-pov/:pov",
   "GET /api/organizations/by-topic/:topicRef",
   "GET /api/organizations/by-policy/:policyId",
+  "GET /api/organizations/:id/edges",
   "GET /api/organizations/:id",
   "GET /api/lineage-categories",
   "GET /api/lineage-info",
@@ -253,6 +254,7 @@ exports[`server.ts route table (t/1295 — zero-behaviour-change guard) > route 
   "GET /api/node-source-index",
   "GET /api/organizations",
   "GET /api/organizations/:id",
+  "GET /api/organizations/:id/edges",
   "GET /api/organizations/by-policy/:policyId",
   "GET /api/organizations/by-pov/:pov",
   "GET /api/organizations/by-topic/:topicRef",
@@ -376,6 +378,9 @@ exports[`server.ts route table (t/1295 — zero-behaviour-change guard) > unifia
   "GET /api/debates/list  ⟷  /api/debates/:id  (first-registered wins)",
   "GET /api/debates/quota-status  ⟷  /api/debates/:id  (first-registered wins)",
   "GET /api/keys/has  ⟷  /api/keys/:backend  (first-registered wins)",
+  "GET /api/organizations/by-policy/:policyId  ⟷  /api/organizations/:id/edges  (first-registered wins)",
+  "GET /api/organizations/by-pov/:pov  ⟷  /api/organizations/:id/edges  (first-registered wins)",
+  "GET /api/organizations/by-topic/:topicRef  ⟷  /api/organizations/:id/edges  (first-registered wins)",
   "GET /api/taxonomy/synthetic-embeddings  ⟷  /api/taxonomy/:pov  (first-registered wins)",
 ]
 `;
