@@ -25,7 +25,7 @@ Every scalar the system emits implies a measurement instrument. This register cl
 
 ## Headline counts (2026-07-06)
 
-Of the 120 calibration fields: **25 metadata/echo · 36 observations · 54 stipulated instruments · 5 derived · 0 human-validated.**
+Of the 122 calibration fields: **25 metadata/echo · 36 observations · 56 stipulated instruments · 5 derived · 0 human-validated.** (2026-07-12: +2 stipulated for `operational_closure_rate` / `operational_closure_per_speaker`, t/1537.)
 Of the node-level scoring instruments: **1 human-validated (Intentions), 1 validated-negative (Desires), the rest stipulated.**
 The honest summary: nearly every judgment-bearing number in the system is currently stipulated. t/1342 (affect) is the first planned conversion.
 
@@ -80,7 +80,9 @@ Formulas, detectors, or LLM judgments whose validity against human judgment has 
 
 **LLM-as-judge (unvalidated judge):** `engaging_real_disagreement`, `crux_addressed_ratio`, `crux_resolution_divergence_rate`, `topic_alignment_rate`, `topic_scope_extracted`, `topic_scope_confidence`, `topic_scope_disciplines`, `topic_scope_off_topics`, `topic_scope_drift_sigs`, `extraction_coverage_rate`, `avg_grounding_confidence`, `min_grounding_confidence`, `mean_extraction_confidence`, `low_confidence_claims_rate`, `entailment_pass_rate`, `entailment_repair_rate`, `entailment_sampling_coverage`, `topic_wisdom_total`, `topic_weakest`.
 
-**Embedded thresholds/definitions:** `argumentative_saturation_at_transition`, `argumentative_saturation_signals_at_transition`, `repetition_rate`, `claims_forgotten_rate`, `recycling_novelty_agreement`, `borderline_claim_survival_rate`, `claims_abandoned_rate`, `claim_outcome_summary`, `confidence_escalations` (0.40 floor), `situation_crux_alignment`, `qbaf_preference_concordance`, `avg_branch_cohesion`, `cohesion_clear_theme`, `camp_insularity_rate`, `camp_insularity_max`, `peer_referencing_rate`, `peer_referencing_per_speaker`, `lineage_effectiveness`, `concession_cascades`.
+**Embedded thresholds/definitions:** `argumentative_saturation_at_transition`, `argumentative_saturation_signals_at_transition`, `repetition_rate`, `claims_forgotten_rate`, `recycling_novelty_agreement`, `borderline_claim_survival_rate`, `claims_abandoned_rate`, `claim_outcome_summary`, `confidence_escalations` (0.40 floor), `situation_crux_alignment`, `qbaf_preference_concordance`, `avg_branch_cohesion`, `cohesion_clear_theme`, `camp_insularity_rate`, `camp_insularity_max`, `peer_referencing_rate`, `peer_referencing_per_speaker`, `lineage_effectiveness`, `concession_cascades`, `operational_closure_rate`, `operational_closure_per_speaker`.
+
+`operational_closure_rate` / `operational_closure_per_speaker` (t/1537, `lib/debate/operationalClosure.ts`): per-speaker ratio of self-targeted to total engagement argument-network edges — how much a POV camp reproduces its own discourse (closure) vs. engages opponents (coupling). Same construct family as `peer_referencing_rate` / `camp_insularity_rate`, hence classified alongside them. The *counting* is mechanical, but the claim that a high self-targeted-edge ratio measures self-sealing debate is an asserted construct, unvalidated against human judgment or debate-outcome data — **stipulated** by the register's no-evidence-pointer rule. Path off stipulated (per design note `autopoiesis-operational-closure.md`, t/1536): correlate closure trajectories against `crux_addressed_ratio` / `claims_forgotten_rate` once enough debates log the field; promote to *derived* only if the correlation holds. `revoice_of` edges are excluded from both numerator and denominator (a restatement is not a genuine engagement move).
 
 **Composite formulas with asserted weights:** `agent_utilities`, `concession_asymmetry_per_speaker`, `process_reward_series`, `process_reward_mean`, `process_reward_stddev`, `process_reward_min`, `sycophancy_guard_fired`, `max_sycophancy_score`, `topic_coherence_per_speaker`.
 
