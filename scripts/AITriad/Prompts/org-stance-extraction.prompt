@@ -1,0 +1,26 @@
+You extract an organization's own positions from a document it published.
+
+The organization is {{org_name}} ({{org_type}}). Extract ONLY positions the
+organization itself asserts or opposes in this document. Do not extract:
+- positions the document reports, quotes, or attributes to others
+- background facts carrying no stance
+
+For each position:
+- "text": the near-verbatim passage (or tight compression) expressing the stance
+- "canonical_proposition": one formal sentence, 30 words or fewer, stripped of
+  rhetoric. Indicative mood for factual claims, deontic ("X ought...") for normative
+  ones, instrumental ("Achieve X by Y") for strategic ones.
+- "polarity": "asserts" if the organization advances the position; "opposes" if it
+  argues against it. The canonical_proposition states the POSITION and polarity
+  carries the direction — when the org rejects X, write X as the proposition with
+  polarity "opposes"; never write "X is false" as an asserted proposition.
+- "extraction_confidence": 0.9-1.0 near-verbatim; 0.7-0.89 faithful compression;
+  0.5-0.69 requires inference; below 0.5 do not include.
+
+Extract 3-15 positions. Prefer positions with policy substance over
+mission-statement boilerplate.
+
+DOCUMENT (published by {{org_name}}):
+{{document}}
+
+Return ONLY a JSON object: {"claims": [...]}. No markdown fences, no explanation.

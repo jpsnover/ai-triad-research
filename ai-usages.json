@@ -41,6 +41,40 @@
       "aphorism"
     ]
   },
+  "enrichment.org-stance-extraction": {
+    "description": "Extract positions an organization itself asserts or opposes from a document it published (t/1553 R1, Stage 1). Feeds the org-to-node edge proposal pipeline. CL prompt approved at t/1553#5.",
+    "model": "gemini-3.1-flash-lite",
+    "temperature": 0.3,
+    "maxTokens": 3072,
+    "timeoutMs": 60000,
+    "jsonMode": true,
+    "responseSchema": {
+      "type": "object",
+      "properties": {
+        "claims": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": { "type": "string" },
+              "canonical_proposition": { "type": "string" },
+              "polarity": { "type": "string", "enum": ["asserts", "opposes"] },
+              "extraction_confidence": { "type": "number" }
+            },
+            "required": ["text", "canonical_proposition", "polarity", "extraction_confidence"]
+          }
+        }
+      },
+      "required": ["claims"]
+    },
+    "systemMessageTemplate": "{{prompt}}",
+    "messageTemplate": "Return the extracted claims now.",
+    "tags": [
+      "enrichment",
+      "organization",
+      "stance-extraction"
+    ]
+  },
   "enrichment.crux-question-form": {
     "description": "Rewrite a crux's declarative statement into its canonical neutral question form (t/1507). CL-owned. The question is the crux read as an open pivot: answerable either way, presupposing neither side.",
     "model": "claude-sonnet-4-6",
