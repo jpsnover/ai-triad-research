@@ -14,6 +14,11 @@ For each position:
   argues against it. The canonical_proposition states the POSITION and polarity
   carries the direction — when the org rejects X, write X as the proposition with
   polarity "opposes"; never write "X is false" as an asserted proposition.
+  If the document RECOMMENDS opposing or rejecting X, do not write "X ought to
+  be opposed/rejected" with polarity "opposes" — that double-marks the direction
+  and inverts the meaning. Write the POSITION X as the proposition with polarity
+  "opposes". Evaluative rankings the organization asserts ("X is the least
+  promising option") are polarity "asserts".
 - "extraction_confidence": 0.9-1.0 near-verbatim; 0.7-0.89 faithful compression;
   0.5-0.69 requires inference; below 0.5 do not include.
 

@@ -152,6 +152,27 @@ Describe 'Invoke-OrgStanceExtraction (t/1553 Stage 1)' -Tag 'taxonomy' {
         }
     }
 
+    It 'Flags double-marked opposes claims but does not drop them (t/1553#14 lint)' {
+        InModuleScope AITriad -Parameters @{ ClaimsPath = $script:tmpClaims } {
+            param($ClaimsPath)
+            # Mix: 1 clean opposes + 1 double-marked opposes (contains "oppose" in prop).
+            Mock Invoke-AIByUsage -MockWith {
+                [PSCustomObject]@{
+                    Text = '{"claims":[' +
+                           '{"text":"clean","canonical_proposition":"Mandatory pre-deployment evals","polarity":"opposes","extraction_confidence":0.9},' +
+                           '{"text":"double","canonical_proposition":"The org ought to oppose foreign regulations","polarity":"opposes","extraction_confidence":0.9}' +
+                           ']}'
+                    Model = 'stub'
+                }
+            }
+            $r = Invoke-OrgStanceExtraction -Concurrency 1 -OutputPath $ClaimsPath -Confirm:$false 3>$null 6>$null
+
+            $r.ClaimsWritten     | Should -Be 4  -Because '2 sources × 2 claims each; nothing dropped by the lint'
+            $r.FlaggedDoubleMark | Should -Be 2  -Because 'one double-marked claim per source triggers the lint'
+            ($r.FlaggedItems.canonical_proposition -join '|') | Should -Match 'oppose foreign regulations'
+        }
+    }
+
     It 'Strips markdown fences from AI response before parsing' {
         InModuleScope AITriad -Parameters @{ ClaimsPath = $script:tmpClaims } {
             param($ClaimsPath)

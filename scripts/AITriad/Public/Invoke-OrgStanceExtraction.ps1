@@ -219,6 +219,12 @@ function Invoke-OrgStanceExtraction {
     $newClaims = [System.Collections.Concurrent.ConcurrentBag[PSObject]]::new()
     $failed    = [System.Collections.Concurrent.ConcurrentBag[string]]::new()
     $invalid   = [System.Collections.Concurrent.ConcurrentBag[string]]::new()
+    # t/1553#14 — CL flagged that opposes-tagged claims which also contain
+    # oppositional lexicon in the proposition (oppose/reject/resist/against/
+    # "least promising") double-mark direction and invert stance downstream.
+    # Lint surfaces recurrences; does NOT drop (CL's rule).
+    $flagged   = [System.Collections.Concurrent.ConcurrentBag[PSObject]]::new()
+    $doubleMarkPattern = '(?i)\b(oppose|reject|resist|against|least promising)\b'
 
     # Validator scriptblock — passed through $using: to the parallel workers
     # (Test-OrgStanceClaim is a Private helper and isn't callable inside
@@ -273,6 +279,16 @@ function Invoke-OrgStanceExtraction {
                             Write-Warning "Dropped claim for $($item.OrgId)::$($item.SourceId): $($valid.Reason)"
                             continue
                         }
+                        # t/1553#14 double-mark lint (flag, not drop).
+                        if ([string]$c.polarity -eq 'opposes' -and
+                            ([string]$c.canonical_proposition) -match $doubleMarkPattern) {
+                            $flagged.Add([PSCustomObject]@{
+                                org_id                = $item.OrgId
+                                source_id             = $item.SourceId
+                                canonical_proposition = [string]$c.canonical_proposition
+                                Reason                = 'double-mark: opposes-tagged proposition contains oppositional lexicon'
+                            })
+                        }
                         $newClaims.Add([PSCustomObject]@{
                             org_id                = $item.OrgId
                             source_id             = $item.SourceId
@@ -303,6 +319,8 @@ function Invoke-OrgStanceExtraction {
             $NewBag    = $using:newClaims
             $FailBag   = $using:failed
             $InvBag    = $using:invalid
+            $FlagBag   = $using:flagged
+            $DoubleMarkPattern = $using:doubleMarkPattern
             $CompRef   = $using:Completed
             $TotalCnt  = $using:Total
             $ProgId    = $using:ProgressId
@@ -346,6 +364,16 @@ function Invoke-OrgStanceExtraction {
                             $InvBag.Add("$($item.OrgId)::$($item.SourceId): $($valid.Reason)")
                             Write-Warning "Dropped claim for $($item.OrgId)::$($item.SourceId): $($valid.Reason)"
                             continue
+                        }
+                        # t/1553#14 double-mark lint (flag, not drop).
+                        if ([string]$c.polarity -eq 'opposes' -and
+                            ([string]$c.canonical_proposition) -match $DoubleMarkPattern) {
+                            $FlagBag.Add([PSCustomObject]@{
+                                org_id                = $item.OrgId
+                                source_id             = $item.SourceId
+                                canonical_proposition = [string]$c.canonical_proposition
+                                Reason                = 'double-mark: opposes-tagged proposition contains oppositional lexicon'
+                            })
                         }
                         $NewBag.Add([PSCustomObject]@{
                             org_id                = $item.OrgId
@@ -407,16 +435,19 @@ function Invoke-OrgStanceExtraction {
         [System.IO.File]::Move($temp, $OutputPath, $true)
     }
 
-    $failCount   = @($failed).Count
+    $failCount    = @($failed).Count
     $invalidCount = @($invalid).Count
+    $flaggedCount = @($flagged).Count
     Write-Host ""
-    Write-Host "Done. Documents processed: $Total | Claims extracted: $writtenNew | Invalid dropped: $invalidCount | Failed: $failCount | Skipped no-doc: $skippedNoDoc | Skipped already-done: $skippedAlreadyDone"
+    Write-Host "Done. Documents processed: $Total | Claims extracted: $writtenNew | Invalid dropped: $invalidCount | Double-mark flagged: $flaggedCount | Failed: $failCount | Skipped no-doc: $skippedNoDoc | Skipped already-done: $skippedAlreadyDone"
 
     [PSCustomObject]@{
         Extracted          = $Total - $failCount
         ClaimsWritten      = $writtenNew
         InvalidDropped     = $invalidCount
         InvalidItems       = @($invalid)
+        FlaggedDoubleMark  = $flaggedCount
+        FlaggedItems       = @($flagged)
         Failed             = $failCount
         FailedItems        = @($failed)
         SkippedNoDoc       = $skippedNoDoc
