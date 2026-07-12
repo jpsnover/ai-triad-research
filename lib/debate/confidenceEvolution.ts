@@ -506,3 +506,45 @@ export function buildEvolutionHistoryEntry(
 
   return entry;
 }
+
+// ── Reflection proposal adapters ───────────────────────
+
+import type { ReflectionProposal } from './types.js';
+
+export function confidenceUpdatesToProposals(
+  updates: ConfidenceUpdate[],
+): ReflectionProposal[] {
+  return updates.map(u => ({
+    source: 'confidence_evolution' as const,
+    node_id: u.belief_id,
+    field: 'confidence' as const,
+    delta: u.delta,
+    new_value: u.new_value,
+    reason: `${u.reason}${u.attack_claim ? ` — "${u.attack_claim}"` : ''}`,
+    debate_id: u.debate_id,
+    requires_human_review: u.requires_human_review,
+    floor_violation: null,
+    gate: u.gate ? { ...u.gate } : undefined,
+  }));
+}
+
+export function priorityUpdatesToProposals(
+  updates: PriorityUpdate[],
+  doctrinalFloors?: Map<string, number>,
+): ReflectionProposal[] {
+  return updates.map(u => {
+    const floor = doctrinalFloors?.get(u.desire_id);
+    const violatesFloor = floor != null && u.new_value < floor;
+    return {
+      source: 'priority_evolution' as const,
+      node_id: u.desire_id,
+      field: 'priority' as const,
+      delta: u.delta,
+      new_value: u.new_value,
+      reason: u.reason,
+      debate_id: u.debate_id,
+      requires_human_review: violatesFloor,
+      floor_violation: violatesFloor ? { floor: floor!, raw_value: u.new_value } : null,
+    };
+  });
+}

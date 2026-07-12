@@ -228,3 +228,35 @@ export function formatWeightAdjustmentReport(adjustments: WeightAdjustment[]): s
   }
   return lines.join('\n');
 }
+
+// ── Reflection proposal adapter ────────────────────────
+
+import type { ReflectionProposal } from './types.js';
+
+export function weightAdjustmentsToProposals(
+  adjustments: WeightAdjustment[],
+  debateId: string,
+  currentValues: Map<string, number>,
+  doctrinalFloors?: Map<string, number>,
+): ReflectionProposal[] {
+  return adjustments.map(a => {
+    const field = a.type === 'confidence' ? 'confidence' as const : 'priority' as const;
+    const current = currentValues.get(a.node_id) ?? (field === 'confidence' ? 0.5 : 3);
+    const newValue = field === 'confidence'
+      ? Math.max(0, Math.min(1, current + a.delta))
+      : Math.min(PRIORITY_CAP, current + a.delta);
+    const floor = doctrinalFloors?.get(a.node_id);
+    const violatesFloor = field === 'priority' && floor != null && newValue < floor;
+    return {
+      source: 'crux_weight_adjustment' as const,
+      node_id: a.node_id,
+      field,
+      delta: a.delta,
+      new_value: newValue,
+      reason: a.reason,
+      debate_id: debateId,
+      requires_human_review: violatesFloor,
+      floor_violation: violatesFloor ? { floor: floor!, raw_value: newValue } : null,
+    };
+  });
+}

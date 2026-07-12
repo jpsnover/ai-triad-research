@@ -627,6 +627,29 @@ export interface DebateSession {
     draft: import('./cruxTaxonomyFeedback.js').DraftSituationNode;
     irreducible_count: number;
   }>;
+  /** Human-gated taxonomy evolution proposals from post-debate reflection (machine proposes, human disposes). */
+  reflection_proposals?: ReflectionProposal[];
+}
+
+// ── Reflection proposals (human-gated taxonomy evolution) ──
+
+export type ReflectionProposalSource =
+  | 'confidence_evolution'
+  | 'priority_evolution'
+  | 'operationality_evolution'
+  | 'crux_weight_adjustment';
+
+export interface ReflectionProposal {
+  source: ReflectionProposalSource;
+  node_id: string;
+  field: 'confidence' | 'priority' | 'operationality';
+  delta: number;
+  new_value: number;
+  reason: string;
+  debate_id: string;
+  requires_human_review: boolean;
+  floor_violation: { floor: number; raw_value: number } | null;
+  gate?: Record<string, unknown>;
 }
 
 // ── Perturbation testing (HDE Section B2) ───────────────

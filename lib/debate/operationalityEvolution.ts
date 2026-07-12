@@ -450,3 +450,24 @@ export function buildOperationalityHistoryEntry(
 
   return entry;
 }
+
+// ── Reflection proposal adapter ────────────────────────
+
+import type { ReflectionProposal } from './types.js';
+
+export function operationalityUpdatesToProposals(
+  updates: OperationalityUpdate[],
+): ReflectionProposal[] {
+  return updates.map(u => ({
+    source: 'operationality_evolution' as const,
+    node_id: u.intention_id,
+    field: 'operationality' as const,
+    delta: u.delta,
+    new_value: u.new_value,
+    reason: `${u.reason}${u.attack_claim ? ` — "${u.attack_claim}"` : ''}`,
+    debate_id: u.debate_id,
+    requires_human_review: false,
+    floor_violation: null,
+    gate: u.gate ? { ...u.gate } : undefined,
+  }));
+}

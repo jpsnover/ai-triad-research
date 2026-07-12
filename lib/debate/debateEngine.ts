@@ -90,14 +90,16 @@ import { classifyTopicComplexity, extractTopicStructure } from './topicStructure
 import { resolveRepoRoot, resolveDataRoot, resolveSourcesDir } from './taxonomyLoader.js';
 import { updateCruxTracker, formatCruxResolutionContext, detectConcessionCascade, transitionCrux } from './cruxResolution.js';
 import { persistDebateCruxes, loadRegistry, findRelevantPriorCruxes, formatPriorCruxContext } from './cruxRegistry.js';
-import { findAndEnrichPromotionCandidates } from './cruxTaxonomyFeedback.js';
+import { findAndEnrichPromotionCandidates, computeWeightAdjustments, weightAdjustmentsToProposals } from './cruxTaxonomyFeedback.js';
+import { computeConfidenceUpdates, computePriorityUpdates, confidenceUpdatesToProposals, priorityUpdatesToProposals } from './confidenceEvolution.js';
+import { computeOperationalityUpdates, operationalityUpdatesToProposals } from './operationalityEvolution.js';
 import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext.js';
 import { formatVocabularyContext } from './vocabularyContext.js';
 import { disambiguateTerms } from './vocabularyDisambiguation.js';
 import type { CampOrigin } from '../dictionary/types.js';
 import type { ContextInjectionManifest } from './taxonomyContext.js';
 import { documentAnalysisPrompt, buildTaxonomySample } from './documentAnalysis.js';
-import type { DocumentAnalysis } from './types.js';
+import type { DocumentAnalysis, ReflectionProposal } from './types.js';
 import {
   cosineSimilarity,
   scoreNodeRelevance,
@@ -892,6 +894,91 @@ export class DebateEngine {
         } catch (err) {
           getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Crux registry persistence failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
         }
+      }
+
+      // Post-debate reflection proposals (human-gated taxonomy evolution)
+      try {
+        const an = this.session.argument_network;
+        if (an && an.nodes.length > 0) {
+          const proposals: ReflectionProposal[] = [];
+          const allPovNodes = [
+            ...this.taxonomy.accelerationist.nodes,
+            ...this.taxonomy.safetyist.nodes,
+            ...this.taxonomy.skeptic.nodes,
+          ];
+          const beliefs = new Map<string, PovNode>();
+          const desires = new Map<string, PovNode>();
+          const intentions = new Map<string, PovNode>();
+          for (const n of allPovNodes) {
+            if (n.category === 'Beliefs') beliefs.set(n.id, n);
+            else if (n.category === 'Desires') desires.set(n.id, n);
+            else if (n.category === 'Intentions') intentions.set(n.id, n);
+          }
+
+          const initialConfidences = new Map<string, number>();
+          for (const [id, b] of beliefs) initialConfidences.set(id, b.confidence ?? 0.5);
+          const initialOperationalities = new Map<string, number>();
+          for (const [id, i] of intentions) initialOperationalities.set(id, i.operationality ?? 3);
+
+          const debateId = this.session.id;
+
+          // 1. Confidence evolution
+          const confResult = computeConfidenceUpdates({
+            debate_id: debateId, nodes: an.nodes, edges: an.edges,
+            beliefs, initial_confidences: initialConfidences,
+          });
+          proposals.push(...confidenceUpdatesToProposals(confResult.updates));
+
+          // 2. Priority evolution (from concessions + crux desires)
+          const concessions: { desire_id: string }[] = [];
+          const cruxDesireIds = new Set<string>();
+          for (const [, store] of Object.entries(this.session.commitments ?? {})) {
+            for (const text of store.conceded ?? []) {
+              for (const [id, d] of desires) {
+                if (d.label && text.toLowerCase().includes(d.label.toLowerCase())) {
+                  concessions.push({ desire_id: id });
+                }
+              }
+            }
+          }
+          const priorityUpdates = computePriorityUpdates(concessions, cruxDesireIds, desires, debateId);
+          proposals.push(...priorityUpdatesToProposals(priorityUpdates));
+
+          // 3. Operationality evolution
+          const opUpdates = computeOperationalityUpdates({
+            debate_id: debateId, nodes: an.nodes, edges: an.edges,
+            intentions, initial_operationalities: initialOperationalities,
+          });
+          proposals.push(...operationalityUpdatesToProposals(opUpdates));
+
+          // 4. Crux weight adjustments (if registry available)
+          if (this.config.embedFn && this.session.crux_tracker?.length) {
+            try {
+              const __engineDir = path.dirname(fileURLToPath(import.meta.url));
+              const cruxDataRoot = resolveDataRoot(resolveRepoRoot(__engineDir));
+              const registry = loadRegistry(cruxDataRoot);
+              const adjustments = computeWeightAdjustments(registry);
+              if (adjustments.length > 0) {
+                const currentValues = new Map<string, number>();
+                for (const a of adjustments) {
+                  const belief = beliefs.get(a.node_id);
+                  const desire = desires.get(a.node_id);
+                  if (belief && belief.confidence != null) currentValues.set(a.node_id, belief.confidence);
+                  if (desire && desire.priority != null) currentValues.set(a.node_id, desire.priority);
+                }
+                proposals.push(...weightAdjustmentsToProposals(adjustments, debateId, currentValues));
+              }
+            } catch (cruxErr) {
+              getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Crux weight adjustment proposals failed', error: { name: (cruxErr as Error).name ?? 'Error', message: String(cruxErr), stack: (cruxErr as Error).stack } });
+            }
+          }
+
+          if (proposals.length > 0) {
+            this.session.reflection_proposals = proposals;
+          }
+        }
+      } catch (reflErr) {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Reflection proposal generation failed', error: { name: (reflErr as Error).name ?? 'Error', message: String(reflErr), stack: (reflErr as Error).stack } });
       }
     } catch (calErr) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Calibration logging failed', error: { name: (calErr as Error).name ?? 'Error', message: String(calErr), stack: (calErr as Error).stack } });
