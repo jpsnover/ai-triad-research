@@ -189,7 +189,9 @@ function Invoke-OrgPublishedSeeding {
         $target = "$($p.Source)->$($p.Target) [$($p.MatchBasis)]"
         if ($PSCmdlet.ShouldProcess($target, 'Propose PUBLISHED edge')) {
             try {
-                $null = Import-OrganizationEdge -InputObject @{
+                # Import-OrganizationEdge validates -InputObject via PSObject.Properties[key];
+                # a hashtable's PSObject reports no keys, so must be a PSCustomObject.
+                $null = Import-OrganizationEdge -InputObject ([PSCustomObject]@{
                     source        = $p.Source
                     target        = $p.Target
                     type          = 'PUBLISHED'
@@ -197,7 +199,7 @@ function Invoke-OrgPublishedSeeding {
                     source_refs   = @($p.Target)
                     status        = 'proposed'
                     discovered_at = (Get-Date).ToString('yyyy-MM-dd')
-                } -Confirm:$false
+                }) -Confirm:$false
                 $written++
             } catch {
                 $failed.Add("$($p.Source)->$($p.Target): $($_.Exception.Message)")
