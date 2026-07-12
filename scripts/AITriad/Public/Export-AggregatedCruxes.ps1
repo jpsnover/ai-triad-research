@@ -340,14 +340,19 @@ function Export-AggregatedCruxes {
         Write-Host "  No node embeddings available — skipping node linking" -ForegroundColor Yellow
     }
 
-    # ── Phase 5: Preserve/generate question_form (t/1507, t/1509) ─────────────
+    # ── Phase 5: Preserve/generate reviewer-facing fields (t/1507, t/1509, t/1540) ─
     if ($WhatIfPreference) {
-        Write-Host 'Phase 5: skipped under -WhatIf (would preserve existing question_form and call AI for new cruxes)' -ForegroundColor Yellow
+        Write-Host 'Phase 5: skipped under -WhatIf (would preserve existing question_form / external_evidence and call AI for new cruxes)' -ForegroundColor Yellow
     } else {
-        Write-Host 'Phase 5: Preserving/generating question_form...' -ForegroundColor Cyan
+        Write-Host 'Phase 5a: Preserving/generating question_form...' -ForegroundColor Cyan
         $QfStats = Merge-CruxQuestionForm -Cruxes $AggregatedCruxes -PreviousPath $OutputPath
         Write-Host ("  Preserved: {0} | Generated: {1} | Failed (field omitted): {2}" -f `
             $QfStats.Preserved, $QfStats.Generated, $QfStats.Failed) -ForegroundColor Gray
+
+        Write-Host 'Phase 5b: Preserving reviewer-entered external_evidence...' -ForegroundColor Cyan
+        $EvStats = Merge-CruxExternalEvidence -Cruxes $AggregatedCruxes -PreviousPath $OutputPath
+        Write-Host ("  Preserved: {0} | Dropped (statement changed): {1}" -f `
+            $EvStats.Preserved, $EvStats.Dropped) -ForegroundColor Gray
     }
 
     # Stats
