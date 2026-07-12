@@ -4,10 +4,14 @@
 **Date:** 2026-07-12
 **Ticket:** t/1523
 **Status:** Design proposal (pending owner + TL approval). Externally reviewed
-2026-07-13 (two independent reviews via `corroboration-proposal-external-review.md`);
-amendments from that review are integrated inline and marked "external review,
-2026-07-13." Terminology rename ("Corroboration"/"Corroborated") and a
-crux-discovery-density complementary signal remain open, tracked separately.
+2026-07-13 (three independent reviews via `corroboration-proposal-external-review.md`);
+amendments are integrated inline and marked "external review, 2026-07-13." The third
+review identified a direct logical contradiction between the "Corroboration" naming
+and Popper's own account (§Excluding Corroborated Nodes) — the rename tracked in
+t/1533 is now required, not optional, before this design ships. v1 scope is
+restricted to Beliefs (§Data Model); Desires, Intentions, and situation nodes are
+deferred to their own design passes. A crux-discovery-density complementary signal
+remains open, tracked separately (t/1534).
 
 ---
 
@@ -90,8 +94,22 @@ edge types, alter the AIF vocabulary, or change BDI category semantics.
 ## Data Model
 
 New enrichment object under `node.graph_attributes` (following the convention that
-enriched fields live there, not at node root), for POV BDI nodes. Situation nodes are
-a future extension (§Open Questions).
+enriched fields live there, not at node root). **Scope restricted to Beliefs in v1**
+(external review, 2026-07-13, superseding the original "camp-specific claims"
+scope): §1.2 of this project's own framing already states that Beliefs, Desires, and
+Intentions are contestable in different ways — evidence refutes a Belief, feasibility
+challenges an Intention, neither touches a Desire — yet the severity threshold,
+outcome vocabulary, and content-increase gate above were drafted with only Beliefs in
+mind (QBAF attack strength as evidential pressure; falsifiability as the
+content-increase criterion). Applying them uniformly to Desires and Intentions would
+mean "severely challenged and held" measures a categorically different thing per kind
+while rendering as the same tier, which is not a labeling problem but a validity
+problem: whatever a Desire "surviving a severe challenge" measures, it is not
+demonstrated to be the same construct as a Belief surviving evidential attack.
+Desires and Intentions are deferred to their own design pass, alongside situation
+nodes (§Open Questions), rather than forcing three parallel severity/outcome
+semantics into this pass under review pressure. Both extensions may reuse this
+document's data model and tier mechanics once each has its own construct definition.
 
 ```json
 "corroboration": {
@@ -114,6 +132,7 @@ a future extension (§Open Questions).
     {
       "debate_id": "debate-...",
       "date": "2026-07-02",
+      "pipeline_version": "2026-07-e50b10cf",  // debate-engine commit/model generation active at harvest time
       "verdict": "held",             // held | weakened | refined | open | cited
       "strongest_attack_encountered": { "claim_id": "...", "strength": 0.82, "scheme": "rebut", "challenger_camp": "accelerationist" },
       "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 },
@@ -139,8 +158,19 @@ The record certifies a specific formulation of the node, captured as
 `description_hash`. At read time, consumers compare the hash against the node's
 current description. On mismatch (a material edit with no debate linkage), the node
 displays as **stale** and is demoted from Corroborated to Contested for sorting until
-retested. Cosmetic edits can be exempted later via normalization; v1 treats any
-description change as material.
+retested. **Cosmetic-edit exemption, adopted for v1 rather than deferred (external
+review, 2026-07-13):** the variable that matters is semantic materiality, not literal
+text equality, and the project already has the tool this needs — the same
+all-MiniLM-L6-v2 embeddings used elsewhere for relevance scoring. Before flagging a
+mismatch, compare the embedding cosine similarity of the old and new description
+text against `COSMETIC_EDIT_SIMILARITY_THRESHOLD` (proposed 0.98, stipulated); above
+it, update `description_hash` silently with no staleness flag and no record entry.
+Deferring this was going to produce a predictable, backwards incentive: a trivial
+typo fix on a Corroborated node gets the maximal penalty (full demotion to
+Contested), while a genuinely substantive rewrite gets full credit as long as it is
+routed through the debate-linked `refined` path — exactly backwards from what the
+mechanism should reward, and cheap enough to fix now rather than carry as a known
+defect.
 
 **Write-time requirement, not just a read-time definition:** when the single writer
 appends a `refined` entry (a debate-linked edit, §Verdict attribution rules), it
@@ -197,8 +227,15 @@ Definitions build only on artifacts the pipeline already persists:
   - `held`: Challenged, all attributed claims finished `thrived`/`survived`
     (`claimOutcomes.ts` classification), and no full concession by the owning POV's
     speaker on a linked crux (`cruxResolution.ts` concession tracking).
-  - `weakened`: Challenged, and at least one attributed claim `died`, or a full
-    concession was recorded with `bdi_impact` matching the node's category.
+  - `weakened`: Challenged, and (a full concession was recorded with `bdi_impact`
+    matching the node's category) OR (at least half of attributed claims `died`, with
+    a floor of one claim when only one is attributed). **Aggregation rule stated
+    explicitly (external review, 2026-07-13):** the prior draft triggered `weakened`
+    on any single died claim regardless of how many others held, so a node
+    represented by five claims where four thrived and one died would render
+    identically to a node whose sole claim died outright. Proportional aggregation
+    fixes this; a node attributed to many claims is not punished for one weak
+    corollary.
   - `refined`: the node received a revision citing D, either a `WeightHistoryEntry`
     from the crux-feedback path (`cruxTaxonomyFeedback.ts`) or an accepted
     harvest-queue edit. `held_since` starts `null` and flips `true` when a later
@@ -207,6 +244,20 @@ Definitions build only on artifacts the pipeline already persists:
     own verdict comes out `weakened` — the failure is recorded on the *new* debate's
     entry as `weakened` per the rule above; `held_since: false` only marks the
     superseded refinement attempt so it stops banking pending credit (§Sort Key).
+    **Content-increase gate, required before `held_since` can flip `true` (external
+    review, 2026-07-13):** Lakatos's non-punitive treatment of revision applies
+    specifically to *content-increasing* (progressive) revisions, not
+    content-decreasing (degenerating) ones — a claim revised into vaguer, more
+    hedged, less falsifiable wording clears a lower QBAF attack-strength bar for the
+    wrong reason, and auto-crediting that as the system's strongest certificate is
+    the exact failure the distinction exists to prevent. The revised wording's
+    falsifiability score (`beliefConfidence.ts`, already an input to `confidence`,
+    no new instrument needed) must be at least as high as the prior wording's before
+    `held_since` is eligible to flip `true`. A revision that scores strictly lower
+    on falsifiability is flagged for explicit human attention in the review queue
+    rather than auto-credited on a later hold, regardless of whether it survives a
+    retest — surviving by getting vaguer is not the strength this tier claims to
+    certify.
   - `open`: Challenged, but the debate ended without a decisive claim outcome or
     concession (mixed evidence). Counts toward Contested, never toward Corroborated.
   - `cited`: Engaged, never Challenged.
@@ -328,8 +379,14 @@ at Cited with `record[].verdict: "cited"`.
 
 ## UX
 
-1. **Tier chips on node cards.** Untested renders *neutral* (grey outline). It is
-   the default state of most of the graph and must not read as an error. Chip
+1. **Tier chips on node cards.** Untested renders *neutral* (grey outline) **at the
+   individual-node level** — a single Untested claim has not failed anything, and
+   the badge must not read as an error on that claim. This does not contradict
+   §Program's "testing deficit" framing, which operates at the aggregate level: most
+   of the taxonomy sitting at Untested is a real coverage gap worth the scheduler's
+   attention, even though no single Untested node is thereby deficient. Both readings
+   hold at once (external review, 2026-07-13, resolving an apparent tension between
+   this line and §Program rather than retracting either). Chip
    colors run grey outline (Untested), grey filled (Cited), amber (Contested),
    green (Corroborated). **The chip carries its challenge count inline** (e.g.
    "Corroborated · 2" vs. "Corroborated · 47"), added per external review: the tier
@@ -393,6 +450,21 @@ progress is inspectable ("this month: 14 nodes Untested→Contested, 5
 Contested→Corroborated").
 
 ### Excluding Corroborated Nodes to Protect Testing Attention
+
+**Named contradiction (external review, 2026-07-13), sharper than a naming-risk
+concern: this section, as originally drafted, cited Popper for its name while doing
+the one thing Popper's account of corroboration explicitly forbids.** Popper was
+emphatic that corroboration is not inductive support: a well-corroborated claim is
+not thereby more likely to survive its next test, and corroboration confers no
+license to test it less. Using the Corroborated tier to reduce future testing is
+precisely that inference. The mechanism below is defensible on ordinary
+resource-allocation grounds — debate budget is finite, and spending it where it
+teaches the most is a reasonable policy — but it is not defensible *under the name
+this document currently uses for it*, and the two cannot be argued simultaneously.
+This is the decisive reason (not merely a readability concern) that t/1533 tracks a
+rename away from "Corroboration" as required, not optional, before this design ships.
+Everything below describes the mechanism on its resource-allocation merits; read
+"Corroborated" here as a placeholder for whatever this tier is renamed to.
 
 Owner direction (2026-07-13), superseding Open Question 2 below: the useful coupling
 between corroboration and the rest of the system is not feeding it into confidence
@@ -463,7 +535,26 @@ indefinitely:
   on the argument-network node and joinable at harvest time — no new data collection).
   A node challenged twice by the *same* camp is weaker evidence than one challenged by
   two different camps, and `Get-NodeCorroboration` surfaces this so a reviewer can spot
-  a node that has only ever been tested from one direction.
+  a node that has only ever been tested from one direction. This does not manufacture
+  independence that is not there: two debates challenged by the same authored personas
+  and the same underlying model family share whatever blind spots that combination
+  has, and camp-diversity tracking makes the shape of that limit visible rather than
+  pretending "two distinct debates" means two independent trials.
+- **Every record entry carries `pipeline_version`** (§Data Model), the debate-engine
+  commit and model generation active at harvest time. Severity is gated on QBAF
+  attack strength, which is itself a function of debater competence and model
+  version, neither stationary across this project's own development timeline — a
+  model upgrade silently redefines what "severe" means, and without an era marker,
+  records from different pipeline generations would be silently pooled as if
+  commensurable. This does not solve cross-era comparability; it makes the
+  discontinuity discoverable rather than invisible, the same posture taken for the
+  t/1402 QBAF semantics correction.
+- **The re-eligibility timer above is this design's answer to non-stationarity as
+  well as to thin-evidence insulation.** A claim corroborated against one era's
+  arguments and then permanently excluded would never meet the next era's arguments;
+  forced periodic re-eligibility means every Corroborated node eventually re-enters
+  the pool under whatever the pipeline currently is, not just the pipeline that
+  produced its original record.
 
 These three parameters are stipulated at design time and added to
 §Provenance Declarations.
@@ -487,6 +578,9 @@ Per the register's no-grade-inflation rule, every judgment-bearing parameter her
 | Scheduler-batch exclusion (hard) | boolean gate, not a magnitude | stipulated instrument |
 | `REEXAMINATION_INTERVAL` | 90 days or 20 topic-domain debates, whichever first | stipulated |
 | `MAX_CONSECUTIVE_EXCLUDED_CYCLES` | 3 | stipulated |
+| `COSMETIC_EDIT_SIMILARITY_THRESHOLD` | 0.98 (embedding cosine similarity) | stipulated |
+| Content-increase gate (falsifiability non-decrease) | boolean gate, not a magnitude | stipulated instrument |
+| Weakened-verdict aggregation (≥half attributed claims died) | 0.5 proportion, floor of 1 | stipulated |
 
 ### Validation plan (path off "stipulated")
 
@@ -499,16 +593,44 @@ evidence can, and this design does not claim otherwise. The register entry and a
 future citation of "human-validated" for this instrument must carry that scope
 explicitly, not imply the stronger claim.
 
+**Precursor check, before the full study (external review, 2026-07-13): linkage
+accuracy is measured separately, first.** Every outcome label depends on the
+`taxonomy_refs` join between ephemeral debate claims and taxonomy nodes; a bad κ
+result in the full study cannot by itself distinguish a bad severity threshold from
+bad linkage from a bad aggregation rule, and the study as originally scoped could not
+localize its own failures. Before the tier study runs, a small spot-check (10-15
+nodes, CL-reviewed) verifies that `taxonomy_refs` correctly identifies the claims
+that actually instantiate each sampled node. This is cheap, and it is the
+precondition for the tier study's result being interpretable at all.
+
 After ≥50 harvested debates carry corroboration records, run a stratified sample of
-30 nodes across tiers with blind human judgment on two questions per node ("was this
-node severely tested?", "did it hold in its current form?"), and compare against the
-assigned tiers. Target Cohen's κ ≥ 0.7 to reclassify the tier instrument as
-human-validated (reliability sense, per above); below that, revise thresholds and
-re-run. **Rater pool:** at least one-third of raters must be unfamiliar with this
+30 nodes, stratified *by system-assigned tier* so each tier is separately
+represented, with blind human judgment on two questions per node ("was this node
+severely tested?", "did it hold in its current form?"), and compare against the
+assigned tiers. **Statistics, corrected (external review, 2026-07-13):** plain
+Cohen's κ is the wrong statistic for an ordinal four-tier scale — it penalizes an
+Untested-vs-Corroborated disagreement identically to a Contested-vs-Corroborated
+one. Use quadratic-weighted κ, or Krippendorff's α with an ordinal metric if more
+than two raters are used (this project already has that computation built,
+`research/comp-linguist/analyses/reliability_metrics.py`, t/1264). Report per-tier
+agreement from the stratified sample, not one pooled statistic across a
+naturally skewed distribution (most nodes will be Untested, and pooled agreement
+under skew is unstable, the prevalence paradox). Target weighted κ / α ≥ 0.7 to
+reclassify the tier instrument as human-validated (reliability sense, per above).
+**The "revise thresholds and re-run" loop is retired in its original form**: iterating
+against the same rater pool is threshold-tuning against the validation set, the same
+overfitting the framing paper's autotuning boundary already forbids for other
+metrics. A frozen, held-out node sample is pre-registered and scored exactly once, at
+the end, after any threshold revision from an earlier exploratory pass; it is never
+re-scored. **Rater pool:** at least one-third of raters must be unfamiliar with this
 project's own vocabulary and internal framing, not just blind to the specific tier
 assignments — an all-in-house rater pool risks measuring agreement with the project's
-worldview rather than with the debate record itself. The CL owns this study and the
-register update.
+worldview rather than with the debate record itself, and the rating rubric itself
+must be written in plain language, blind to this document's own internal category
+definitions, or the study measures vocabulary transfer rather than measurement
+accuracy. Rater count, node count per stratum, and the exact rubric wording are
+finalized before the study runs, not adjusted afterward. The CL owns this study and
+the register update.
 
 ## Ownership & Phasing
 
@@ -557,6 +679,5 @@ absent `injection_manifest`, malformed sessions) per `/add-fault-test`.
 3. **Concession wiring.** `concession_history` exists in the type schema but
    population is unverified. Phase 0 must confirm during implementation and fall
    back to crux-tracker concessions if the node-level field is unpopulated.
-4. **Cosmetic-edit exemption** for `description_hash` (normalize whitespace and
-   typos before hashing). V1 treats all edits as material; revisit if staleness
-   churn is noisy.
+4. **Cosmetic-edit exemption — resolved 2026-07-13, no longer open.** Adopted for v1
+   via embedding-similarity threshold, not deferred; see §Data Model.
