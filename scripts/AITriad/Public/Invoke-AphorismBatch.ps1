@@ -139,6 +139,17 @@ function Invoke-AphorismBatch {
             $Label    = if ($Node.PSObject.Properties['label']) { [string]$Node.label } else { '' }
             $Category = if ($Node.PSObject.Properties['category']) { [string]$Node.category } else { '' }
 
+            # Pre-render prompt in this (outer) runspace — Get-Prompt is a Private
+            # module helper and isn't visible inside ForEach-Object -Parallel's
+            # per-worker runspaces. Passing the rendered text via the work item
+            # sidesteps that entirely.
+            $RenderedPrompt = Get-Prompt -Name 'pov-aphorism' -Replacements @{
+                pov         = $PovName
+                category    = $Category
+                label       = $Label
+                description = $Desc
+            }
+
             $NodesToProcess.Add([PSCustomObject]@{
                 File       = $FileName
                 FilePath   = $FilePath
@@ -148,6 +159,7 @@ function Invoke-AphorismBatch {
                 Label      = $Label
                 Category   = $Category
                 Desc       = $Desc
+                Prompt     = $RenderedPrompt
             })
             $NodeIndex++
         }
@@ -190,14 +202,8 @@ function Invoke-AphorismBatch {
         # deterministic ordering matters more than throughput.
         foreach ($Item in $NodesToProcess) {
             try {
-                $Rendered = Get-Prompt -Name 'pov-aphorism' -Replacements @{
-                    pov         = $Item.Pov
-                    category    = $Item.Category
-                    label       = $Item.Label
-                    description = $Item.Desc
-                }
                 $AIResult = Invoke-AIByUsage -UsageId 'enrichment.pov-aphorism' -Values @{
-                    prompt = $Rendered
+                    prompt = $Item.Prompt
                 }
                 if ($null -ne $AIResult -and -not [string]::IsNullOrWhiteSpace($AIResult.Text)) {
                     $Aphorism = $AIResult.Text.Trim().Trim('"').Trim()
@@ -232,14 +238,10 @@ function Invoke-AphorismBatch {
         $ProgId      = $using:ProgressId
 
         try {
-            $Rendered = Get-Prompt -Name 'pov-aphorism' -Replacements @{
-                pov         = $Item.Pov
-                category    = $Item.Category
-                label       = $Item.Label
-                description = $Item.Desc
-            }
+            # Prompt was rendered in the outer runspace and travels with the work
+            # item — Get-Prompt is a Private helper and isn't visible here.
             $AIResult = Invoke-AIByUsage -UsageId 'enrichment.pov-aphorism' -Values @{
-                prompt = $Rendered
+                prompt = $Item.Prompt
             }
 
             if ($null -ne $AIResult -and -not [string]::IsNullOrWhiteSpace($AIResult.Text)) {
