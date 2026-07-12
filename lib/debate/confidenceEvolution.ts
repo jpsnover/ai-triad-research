@@ -509,11 +509,11 @@ export function buildEvolutionHistoryEntry(
 
 // ── Reflection proposal adapters ───────────────────────
 
-import type { ReflectionProposal } from './types.js';
+import type { WeightChangeProposal } from './types.js';
 
 export function confidenceUpdatesToProposals(
   updates: ConfidenceUpdate[],
-): ReflectionProposal[] {
+): WeightChangeProposal[] {
   return updates.map(u => ({
     source: 'confidence_evolution' as const,
     node_id: u.belief_id,
@@ -531,7 +531,7 @@ export function confidenceUpdatesToProposals(
 export function priorityUpdatesToProposals(
   updates: PriorityUpdate[],
   doctrinalFloors?: Map<string, number>,
-): ReflectionProposal[] {
+): WeightChangeProposal[] {
   return updates.map(u => {
     const floor = doctrinalFloors?.get(u.desire_id);
     const violatesFloor = floor != null && u.new_value < floor;

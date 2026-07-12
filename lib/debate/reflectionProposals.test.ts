@@ -8,7 +8,9 @@ import { operationalityUpdatesToProposals } from './operationalityEvolution.js';
 import type { OperationalityUpdate } from './operationalityEvolution.js';
 import { weightAdjustmentsToProposals } from './cruxTaxonomyFeedback.js';
 import type { WeightAdjustment } from './cruxTaxonomyFeedback.js';
-import type { ReflectionProposal } from './types.js';
+import { computeInterpretationRevisionProposals } from './situationInterpretationEvolution.js';
+import type { ReflectionProposal, WeightChangeProposal, InterpretationRevisionProposal, ArgumentNetworkNode, ArgumentNetworkEdge } from './types.js';
+import type { SituationNode } from './taxonomyTypes.js';
 
 describe('confidenceUpdatesToProposals', () => {
   it('maps ConfidenceUpdate fields to ReflectionProposal shape', () => {
@@ -219,7 +221,7 @@ describe('weightAdjustmentsToProposals', () => {
 });
 
 describe('ReflectionProposal type shape', () => {
-  it('all sources produce valid ReflectionProposal objects', () => {
+  it('weight change sources produce valid WeightChangeProposal objects', () => {
     const confUpdate: ConfidenceUpdate = {
       belief_id: 'b1', reason: 'survived', delta: 0.05, new_value: 0.55,
       debate_id: 'd1', requires_human_review: false,
@@ -235,7 +237,7 @@ describe('ReflectionProposal type shape', () => {
       reason: 'test', crux_description: 'test', irreducible_count: 2,
     };
 
-    const all: ReflectionProposal[] = [
+    const all: WeightChangeProposal[] = [
       ...confidenceUpdatesToProposals([confUpdate]),
       ...priorityUpdatesToProposals([priUpdate]),
       ...operationalityUpdatesToProposals([opUpdate]),
@@ -262,5 +264,378 @@ describe('ReflectionProposal type shape', () => {
     expect(sources).toContain('priority_evolution');
     expect(sources).toContain('operationality_evolution');
     expect(sources).toContain('crux_weight_adjustment');
+  });
+
+  it('weight and interpretation proposals coexist in ReflectionProposal[]', () => {
+    const weightProposal: WeightChangeProposal = {
+      source: 'confidence_evolution',
+      node_id: 'acc-beliefs-001',
+      field: 'confidence',
+      delta: -0.05,
+      new_value: 0.45,
+      reason: 'test',
+      debate_id: 'd1',
+      requires_human_review: false,
+      floor_violation: null,
+    };
+    const interpProposal: InterpretationRevisionProposal = {
+      source: 'situation_interpretation',
+      node_id: 'sit-001',
+      camp: 'accelerationist',
+      current_interpretation: 'AI progress is inevitable',
+      attacking_claims: [{ claim_id: 'c1', speaker: 'safetyist', strength: 0.7 }],
+      reason: 'test',
+      debate_id: 'd1',
+      requires_human_review: true,
+      post_approval_action: 'regenerate_debate_register',
+    };
+
+    const mixed: ReflectionProposal[] = [weightProposal, interpProposal];
+    expect(mixed).toHaveLength(2);
+    expect(mixed[0].source).toBe('confidence_evolution');
+    expect(mixed[1].source).toBe('situation_interpretation');
+  });
+});
+
+// ── Situation interpretation materiality gate ──────────────
+
+function makeNode(overrides: Partial<ArgumentNetworkNode> & { id: string; speaker: string }): ArgumentNetworkNode {
+  return {
+    text: 'test claim',
+    source_entry_id: 'e1',
+    taxonomy_refs: [],
+    turn_number: 1,
+    ...overrides,
+  };
+}
+
+function makeEdge(overrides: Partial<ArgumentNetworkEdge> & { id: string; source: string; target: string }): ArgumentNetworkEdge {
+  return {
+    type: 'attacks',
+    ...overrides,
+  };
+}
+
+function makeSituation(overrides: Partial<SituationNode> & { id: string }): SituationNode {
+  return {
+    label: 'Test situation',
+    description: 'A test situation',
+    interpretations: {
+      accelerationist: 'Acc interpretation',
+      safetyist: 'Saf interpretation',
+      skeptic: 'Skp interpretation',
+    },
+    linked_nodes: [],
+    conflict_ids: [],
+    ...overrides,
+  };
+}
+
+describe('computeInterpretationRevisionProposals', () => {
+  it('emits proposal when material engagement is present', () => {
+    const targetNode = makeNode({
+      id: 'n1', speaker: 'accelerationist',
+      claim_taxonomy_attribution: {
+        primary_ref: 'sit-001',
+        attribution_confidence: 0.80,
+      },
+    });
+    const attackerNode = makeNode({
+      id: 'n2', speaker: 'safetyist', computed_strength: 0.7,
+    });
+    const edge = makeEdge({ id: 'e1', source: 'n2', target: 'n1', type: 'attacks', attack_type: 'rebut' });
+    const sit = makeSituation({ id: 'sit-001', label: 'AI development pace' });
+
+    const proposals = computeInterpretationRevisionProposals({
+      nodes: [targetNode, attackerNode],
+      edges: [edge],
+      situations: [sit],
+      debateId: 'test-debate',
+    });
+
+    expect(proposals).toHaveLength(1);
+    const p = proposals[0];
+    expect(p.source).toBe('situation_interpretation');
+    expect(p.node_id).toBe('sit-001');
+    expect(p.camp).toBe('accelerationist');
+    expect(p.current_interpretation).toBe('Acc interpretation');
+    expect(p.attacking_claims).toHaveLength(1);
+    expect(p.attacking_claims[0]).toEqual({ claim_id: 'n2', speaker: 'safetyist', strength: 0.7 });
+    expect(p.requires_human_review).toBe(true);
+    expect(p.post_approval_action).toBe('regenerate_debate_register');
+    expect(p.debate_id).toBe('test-debate');
+  });
+
+  it('does not emit proposal for mere reference (no attacks)', () => {
+    const refNode = makeNode({
+      id: 'n1', speaker: 'accelerationist',
+      claim_taxonomy_attribution: {
+        primary_ref: 'sit-001',
+        attribution_confidence: 0.85,
+      },
+    });
+    const sit = makeSituation({ id: 'sit-001' });
+
+    const proposals = computeInterpretationRevisionProposals({
+      nodes: [refNode],
+      edges: [],
+      situations: [sit],
+      debateId: 'd1',
+    });
+
+    expect(proposals).toHaveLength(0);
+  });
+
+  it('does not emit proposal for weak attack (below strength threshold)', () => {
+    const targetNode = makeNode({
+      id: 'n1', speaker: 'safetyist',
+      claim_taxonomy_attribution: {
+        primary_ref: 'sit-002',
+        attribution_confidence: 0.75,
+      },
+    });
+    const weakAttacker = makeNode({
+      id: 'n2', speaker: 'skeptic', computed_strength: 0.3,
+    });
+    const edge = makeEdge({ id: 'e1', source: 'n2', target: 'n1' });
+    const sit = makeSituation({ id: 'sit-002' });
+
+    const proposals = computeInterpretationRevisionProposals({
+      nodes: [targetNode, weakAttacker],
+      edges: [edge],
+      situations: [sit],
+      debateId: 'd2',
+    });
+
+    expect(proposals).toHaveLength(0);
+  });
+
+  it('does not emit proposal for low attribution confidence', () => {
+    const targetNode = makeNode({
+      id: 'n1', speaker: 'accelerationist',
+      claim_taxonomy_attribution: {
+        primary_ref: 'sit-003',
+        attribution_confidence: 0.40,
+      },
+    });
+    const attacker = makeNode({
+      id: 'n2', speaker: 'safetyist', computed_strength: 0.8,
+    });
+    const edge = makeEdge({ id: 'e1', source: 'n2', target: 'n1' });
+    const sit = makeSituation({ id: 'sit-003' });
+
+    const proposals = computeInterpretationRevisionProposals({
+      nodes: [targetNode, attacker],
+      edges: [edge],
+      situations: [sit],
+      debateId: 'd3',
+    });
+
+    expect(proposals).toHaveLength(0);
+  });
+
+  it('emits two proposals when two camps are materially attacked for the same situation', () => {
+    const accNode = makeNode({
+      id: 'n1', speaker: 'accelerationist',
+      claim_taxonomy_attribution: { primary_ref: 'sit-001', attribution_confidence: 0.70 },
+    });
+    const safNode = makeNode({
+      id: 'n2', speaker: 'safetyist',
+      claim_taxonomy_attribution: { primary_ref: 'sit-001', attribution_confidence: 0.75 },
+    });
+    const attacker1 = makeNode({ id: 'a1', speaker: 'skeptic', computed_strength: 0.6 });
+    const attacker2 = makeNode({ id: 'a2', speaker: 'skeptic', computed_strength: 0.7 });
+    const edge1 = makeEdge({ id: 'e1', source: 'a1', target: 'n1' });
+    const edge2 = makeEdge({ id: 'e2', source: 'a2', target: 'n2' });
+    const sit = makeSituation({ id: 'sit-001' });
+
+    const proposals = computeInterpretationRevisionProposals({
+      nodes: [accNode, safNode, attacker1, attacker2],
+      edges: [edge1, edge2],
+      situations: [sit],
+      debateId: 'd4',
+    });
+
+    expect(proposals).toHaveLength(2);
+    const camps = proposals.map(p => p.camp).sort();
+    expect(camps).toEqual(['accelerationist', 'safetyist']);
+  });
+
+  it('deduplicates: multiple attacks on same (sit, camp) produce one proposal with multiple attacking_claims', () => {
+    const targetNode1 = makeNode({
+      id: 'n1', speaker: 'accelerationist',
+      claim_taxonomy_attribution: { primary_ref: 'sit-001', attribution_confidence: 0.80 },
+    });
+    const targetNode2 = makeNode({
+      id: 'n3', speaker: 'accelerationist',
+      claim_taxonomy_attribution: { primary_ref: 'sit-001', attribution_confidence: 0.65 },
+    });
+    const attacker1 = makeNode({ id: 'a1', speaker: 'safetyist', computed_strength: 0.6 });
+    const attacker2 = makeNode({ id: 'a2', speaker: 'skeptic', computed_strength: 0.8 });
+    const edge1 = makeEdge({ id: 'e1', source: 'a1', target: 'n1' });
+    const edge2 = makeEdge({ id: 'e2', source: 'a2', target: 'n3' });
+    const sit = makeSituation({ id: 'sit-001' });
+
+    const proposals = computeInterpretationRevisionProposals({
+      nodes: [targetNode1, targetNode2, attacker1, attacker2],
+      edges: [edge1, edge2],
+      situations: [sit],
+      debateId: 'd5',
+    });
+
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0].camp).toBe('accelerationist');
+    expect(proposals[0].attacking_claims).toHaveLength(2);
+    const claimIds = proposals[0].attacking_claims.map(c => c.claim_id).sort();
+    expect(claimIds).toEqual(['a1', 'a2']);
+  });
+
+  it('handles legacy cc-* situation IDs', () => {
+    const targetNode = makeNode({
+      id: 'n1', speaker: 'skeptic',
+      claim_taxonomy_attribution: { primary_ref: 'cc-042', attribution_confidence: 0.70 },
+    });
+    const attacker = makeNode({ id: 'a1', speaker: 'accelerationist', computed_strength: 0.55 });
+    const edge = makeEdge({ id: 'e1', source: 'a1', target: 'n1' });
+    const sit = makeSituation({ id: 'cc-042', label: 'Legacy situation' });
+
+    const proposals = computeInterpretationRevisionProposals({
+      nodes: [targetNode, attacker],
+      edges: [edge],
+      situations: [sit],
+      debateId: 'd6',
+    });
+
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0].node_id).toBe('cc-042');
+  });
+
+  it('skips non-POV speakers (system, document, user)', () => {
+    const systemNode = makeNode({
+      id: 'n1', speaker: 'system',
+      claim_taxonomy_attribution: { primary_ref: 'sit-001', attribution_confidence: 0.90 },
+    });
+    const attacker = makeNode({ id: 'a1', speaker: 'safetyist', computed_strength: 0.8 });
+    const edge = makeEdge({ id: 'e1', source: 'a1', target: 'n1' });
+    const sit = makeSituation({ id: 'sit-001' });
+
+    const proposals = computeInterpretationRevisionProposals({
+      nodes: [systemNode, attacker],
+      edges: [edge],
+      situations: [sit],
+      debateId: 'd7',
+    });
+
+    expect(proposals).toHaveLength(0);
+  });
+
+  it('skips situations with no interpretations', () => {
+    const targetNode = makeNode({
+      id: 'n1', speaker: 'accelerationist',
+      claim_taxonomy_attribution: { primary_ref: 'sit-empty', attribution_confidence: 0.80 },
+    });
+    const attacker = makeNode({ id: 'a1', speaker: 'safetyist', computed_strength: 0.7 });
+    const edge = makeEdge({ id: 'e1', source: 'a1', target: 'n1' });
+    const sit = makeSituation({
+      id: 'sit-empty',
+      interpretations: { accelerationist: '', safetyist: '', skeptic: '' },
+    });
+
+    const proposals = computeInterpretationRevisionProposals({
+      nodes: [targetNode, attacker],
+      edges: [edge],
+      situations: [sit],
+      debateId: 'd8',
+    });
+
+    // Empty interpretations have nothing to revise — skipped
+    expect(proposals).toHaveLength(0);
+  });
+
+  it('handles secondary_refs pointing to situations', () => {
+    const targetNode = makeNode({
+      id: 'n1', speaker: 'safetyist',
+      claim_taxonomy_attribution: {
+        primary_ref: 'saf-beliefs-005',
+        attribution_confidence: 0.85,
+        secondary_refs: [
+          { node_id: 'sit-010', similarity: 0.70 },
+          { node_id: 'acc-beliefs-001', similarity: 0.65 },
+        ],
+      },
+    });
+    const attacker = makeNode({ id: 'a1', speaker: 'accelerationist', computed_strength: 0.6 });
+    const edge = makeEdge({ id: 'e1', source: 'a1', target: 'n1' });
+    const sit = makeSituation({ id: 'sit-010', label: 'Regulation timing' });
+
+    const proposals = computeInterpretationRevisionProposals({
+      nodes: [targetNode, attacker],
+      edges: [edge],
+      situations: [sit],
+      debateId: 'd9',
+    });
+
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0].node_id).toBe('sit-010');
+    expect(proposals[0].camp).toBe('safetyist');
+  });
+
+  it('handles BDI-decomposed interpretations via interpretationText()', () => {
+    const targetNode = makeNode({
+      id: 'n1', speaker: 'accelerationist',
+      claim_taxonomy_attribution: { primary_ref: 'sit-bdi', attribution_confidence: 0.80 },
+    });
+    const attacker = makeNode({ id: 'a1', speaker: 'safetyist', computed_strength: 0.7 });
+    const edge = makeEdge({ id: 'e1', source: 'a1', target: 'n1' });
+    const sit = makeSituation({
+      id: 'sit-bdi',
+      interpretations: {
+        accelerationist: {
+          belief: 'AI will surpass human intelligence',
+          desire: 'Maximize AI capability development',
+          intention: 'Remove regulatory barriers',
+          summary: 'AI progress should be maximized',
+        },
+        safetyist: 'Safety first',
+        skeptic: 'Need more evidence',
+      },
+    });
+
+    const proposals = computeInterpretationRevisionProposals({
+      nodes: [targetNode, attacker],
+      edges: [edge],
+      situations: [sit],
+      debateId: 'd10',
+    });
+
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0].current_interpretation).toBe('AI progress should be maximized');
+  });
+
+  it('returns empty array when no AN nodes exist', () => {
+    const sit = makeSituation({ id: 'sit-001' });
+    const proposals = computeInterpretationRevisionProposals({
+      nodes: [], edges: [], situations: [sit], debateId: 'd11',
+    });
+    expect(proposals).toEqual([]);
+  });
+
+  it('ignores support edges (only attacks trigger proposals)', () => {
+    const targetNode = makeNode({
+      id: 'n1', speaker: 'accelerationist',
+      claim_taxonomy_attribution: { primary_ref: 'sit-001', attribution_confidence: 0.80 },
+    });
+    const supporter = makeNode({ id: 'n2', speaker: 'accelerationist', computed_strength: 0.9 });
+    const supportEdge = makeEdge({ id: 'e1', source: 'n2', target: 'n1', type: 'supports' });
+    const sit = makeSituation({ id: 'sit-001' });
+
+    const proposals = computeInterpretationRevisionProposals({
+      nodes: [targetNode, supporter],
+      edges: [supportEdge],
+      situations: [sit],
+      debateId: 'd12',
+    });
+
+    expect(proposals).toHaveLength(0);
   });
 });

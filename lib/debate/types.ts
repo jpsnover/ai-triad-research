@@ -633,24 +633,44 @@ export interface DebateSession {
 
 // ── Reflection proposals (human-gated taxonomy evolution) ──
 
-export type ReflectionProposalSource =
+export type WeightChangeSource =
   | 'confidence_evolution'
   | 'priority_evolution'
   | 'operationality_evolution'
   | 'crux_weight_adjustment';
 
-export interface ReflectionProposal {
+export type ReflectionProposalSource = WeightChangeSource | 'situation_interpretation';
+
+interface ReflectionProposalBase {
   source: ReflectionProposalSource;
   node_id: string;
-  field: 'confidence' | 'priority' | 'operationality';
-  delta: number;
-  new_value: number;
   reason: string;
   debate_id: string;
   requires_human_review: boolean;
-  floor_violation: { floor: number; raw_value: number } | null;
   gate?: Record<string, unknown>;
 }
+
+export interface WeightChangeProposal extends ReflectionProposalBase {
+  source: WeightChangeSource;
+  field: 'confidence' | 'priority' | 'operationality';
+  delta: number;
+  new_value: number;
+  floor_violation: { floor: number; raw_value: number } | null;
+}
+
+export interface InterpretationRevisionProposal extends ReflectionProposalBase {
+  source: 'situation_interpretation';
+  camp: 'accelerationist' | 'safetyist' | 'skeptic';
+  current_interpretation: string;
+  attacking_claims: Array<{
+    claim_id: string;
+    speaker: string;
+    strength: number;
+  }>;
+  post_approval_action: 'regenerate_debate_register';
+}
+
+export type ReflectionProposal = WeightChangeProposal | InterpretationRevisionProposal;
 
 // ── Perturbation testing (HDE Section B2) ───────────────
 

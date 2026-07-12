@@ -231,14 +231,14 @@ export function formatWeightAdjustmentReport(adjustments: WeightAdjustment[]): s
 
 // ── Reflection proposal adapter ────────────────────────
 
-import type { ReflectionProposal } from './types.js';
+import type { WeightChangeProposal } from './types.js';
 
 export function weightAdjustmentsToProposals(
   adjustments: WeightAdjustment[],
   debateId: string,
   currentValues: Map<string, number>,
   doctrinalFloors?: Map<string, number>,
-): ReflectionProposal[] {
+): WeightChangeProposal[] {
   return adjustments.map(a => {
     const field = a.type === 'confidence' ? 'confidence' as const : 'priority' as const;
     const current = currentValues.get(a.node_id) ?? (field === 'confidence' ? 0.5 : 3);

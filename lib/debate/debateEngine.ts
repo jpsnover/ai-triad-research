@@ -93,6 +93,7 @@ import { persistDebateCruxes, loadRegistry, findRelevantPriorCruxes, formatPrior
 import { findAndEnrichPromotionCandidates, computeWeightAdjustments, weightAdjustmentsToProposals } from './cruxTaxonomyFeedback.js';
 import { computeConfidenceUpdates, computePriorityUpdates, confidenceUpdatesToProposals, priorityUpdatesToProposals } from './confidenceEvolution.js';
 import { computeOperationalityUpdates, operationalityUpdatesToProposals } from './operationalityEvolution.js';
+import { computeInterpretationRevisionProposals } from './situationInterpretationEvolution.js';
 import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext.js';
 import { formatVocabularyContext } from './vocabularyContext.js';
 import { disambiguateTerms } from './vocabularyDisambiguation.js';
@@ -970,6 +971,19 @@ export class DebateEngine {
               }
             } catch (cruxErr) {
               getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Crux weight adjustment proposals failed', error: { name: (cruxErr as Error).name ?? 'Error', message: String(cruxErr), stack: (cruxErr as Error).stack } });
+            }
+          }
+
+          // 5. Situation interpretation revision proposals
+          const sitNodes = (this.taxonomy as unknown as Record<string, { nodes?: SituationNode[] }>).situations?.nodes ?? [];
+          if (sitNodes.length > 0) {
+            try {
+              const interpProposals = computeInterpretationRevisionProposals({
+                nodes: an.nodes, edges: an.edges, situations: sitNodes, debateId,
+              });
+              proposals.push(...interpProposals);
+            } catch (sitErr) {
+              getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Situation interpretation proposals failed', error: { name: (sitErr as Error).name ?? 'Error', message: String(sitErr), stack: (sitErr as Error).stack } });
             }
           }
 

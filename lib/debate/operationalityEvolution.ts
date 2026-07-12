@@ -453,11 +453,11 @@ export function buildOperationalityHistoryEntry(
 
 // ── Reflection proposal adapter ────────────────────────
 
-import type { ReflectionProposal } from './types.js';
+import type { WeightChangeProposal } from './types.js';
 
 export function operationalityUpdatesToProposals(
   updates: OperationalityUpdate[],
-): ReflectionProposal[] {
+): WeightChangeProposal[] {
   return updates.map(u => ({
     source: 'operationality_evolution' as const,
     node_id: u.intention_id,
