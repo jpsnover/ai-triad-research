@@ -65,7 +65,8 @@ sequence of such rewrites, each surviving its own narrow retest, would satisfy t
 tier's mechanics without the node having become more sound. There is no gradient-based
 training loop here, no weights updating across debates, so this is not overfitting in
 the machine-learning sense; the risk is real regardless of that distinction. The
-mitigation is the human review gate (§Wisdom Harvesting boundary, framing paper), and
+mitigation is the human review gate (§Wisdom Harvesting, human-gated review queue,
+framing paper), and
 it is only as strong as reviewer vigilance, which this design does not currently
 instruct. The review-queue step for any `refined` proposal must explicitly ask the
 Lakatosian question **as a check, not as unexamined justification**: does this
@@ -445,7 +446,11 @@ Cycle:
 
 Two guardrails apply. The retread downweight in `corpusCoverage.ts` (0.6 multiplier)
 already discourages over-testing, and tests per node per cycle are capped at
-`MAX_TESTS_PER_NODE_PER_CYCLE`. Each cycle emits a before/after tier distribution so
+`MAX_TESTS_PER_NODE_PER_CYCLE` (proposed: 1 — a node is targeted at most once per
+scheduler cycle, consistent with the re-eligibility posture above rather than
+concentrating repeated tests on the same deficit leader; value was previously
+referenced without being assigned, corrected on final review). Each cycle emits a
+before/after tier distribution so
 progress is inspectable ("this month: 14 nodes Untested→Contested, 5
 Contested→Corroborated").
 
@@ -556,8 +561,11 @@ indefinitely:
   the pool under whatever the pipeline currently is, not just the pipeline that
   produced its original record.
 
-These three parameters are stipulated at design time and added to
-§Provenance Declarations.
+These two parameters (`REEXAMINATION_INTERVAL`, `MAX_CONSECUTIVE_EXCLUDED_CYCLES`)
+are stipulated at design time and added to §Provenance Declarations.
+`challenger_camp` and `pipeline_version` are observed data fields, not stipulated
+judgment thresholds, and are not register entries for the same reason
+`debate_id`/`date` are not.
 
 ## Provenance Declarations
 
@@ -581,6 +589,7 @@ Per the register's no-grade-inflation rule, every judgment-bearing parameter her
 | `COSMETIC_EDIT_SIMILARITY_THRESHOLD` | 0.98 (embedding cosine similarity) | stipulated |
 | Content-increase gate (falsifiability non-decrease) | boolean gate, not a magnitude | stipulated instrument |
 | Weakened-verdict aggregation (≥half attributed claims died) | 0.5 proportion, floor of 1 | stipulated |
+| `MAX_TESTS_PER_NODE_PER_CYCLE` | 1 (§Program) | stipulated |
 
 ### Validation plan (path off "stipulated")
 
@@ -588,7 +597,8 @@ Per the register's no-grade-inflation rule, every judgment-bearing parameter her
 **reliability** — does the tier accurately summarize what happened in the debates it
 is built from — not **validity** in the stronger sense of whether surviving this
 closed loop corresponds to real-world epistemic merit. No internal-agreement study
-can establish that; per §Boundary (framing paper), only the crux handoff to exogenous
+can establish that; per §Survival Is Not Truth But It Ain't Nothing (framing paper),
+only the crux handoff to exogenous
 evidence can, and this design does not claim otherwise. The register entry and any
 future citation of "human-validated" for this instrument must carry that scope
 explicitly, not imply the stronger claim.
