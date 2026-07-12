@@ -68,6 +68,13 @@ export interface CruxSource {
   final_state: string;
 }
 
+export interface CruxExternalEvidence {
+  url: string;
+  note?: string;
+  added_by: string;
+  added_at: string;
+}
+
 export interface AggregatedCrux {
   id: string;
   statement: string;
@@ -76,6 +83,7 @@ export interface AggregatedCrux {
   sources: CruxSource[];
   linked_node_ids: string[];
   linked_conflict_ids?: string[];
+  external_evidence?: CruxExternalEvidence[];
   frequency: number;
   resolution_summary: {
     resolved: number;

@@ -99,6 +99,8 @@ export interface AppAPI {
   loadConflictFiles: () => Promise<unknown[]>;
   loadConflictClusters: () => Promise<unknown | null>;
   loadAggregatedCruxes: () => Promise<unknown | null>;
+  addCruxEvidence: (cruxId: string, entry: { url: string; note?: string; added_by: string }) => Promise<void>;
+  removeCruxEvidence: (cruxId: string, entryIndex: number) => Promise<void>;
   saveConflictFile: (claimId: string, data: unknown) => Promise<void>;
   createConflictFile: (claimId: string, data: unknown) => Promise<void>;
   deleteConflictFile: (claimId: string) => Promise<void>;

@@ -656,6 +656,8 @@ const rawApi: AppAPI = {
   loadConflictFiles: () => get('/api/conflicts'),
   loadConflictClusters: () => get('/api/conflicts/clusters'),
   loadAggregatedCruxes: () => get('/api/cruxes'),
+  addCruxEvidence: (cruxId, entry) => post(`/api/cruxes/${encodeURIComponent(cruxId)}/evidence`, entry).then(() => {}),
+  removeCruxEvidence: (cruxId, entryIndex) => del(`/api/cruxes/${encodeURIComponent(cruxId)}/evidence/${entryIndex}`).then(() => {}),
   saveConflictFile: (id, data) => put(`/api/conflicts/${encodeURIComponent(id)}`, data).then(() => {}),
   createConflictFile: (id, data) => post(`/api/conflicts/${encodeURIComponent(id)}`, data).then(() => {}),
   deleteConflictFile: (id) => del(`/api/conflicts/${encodeURIComponent(id)}`).then(() => {}),

@@ -36,5 +36,6 @@ export type {
   PinnedData,
   PolicyRegistryEntry,
   CruxSource,
+  CruxExternalEvidence,
   AggregatedCrux,
 } from './slices/taxonomyDataSlice';
