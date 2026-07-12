@@ -7,7 +7,7 @@ import {
   Crosshair, TriangleAlert, CirclePlus, BookText,
   CircleCheck, GitFork, Link, Layers, BarChart3, ShieldAlert,
   BookOpen, LineChart, Terminal, FileText, CircleHelp, Star,
-  RefreshCw, Settings,
+  RefreshCw, Settings, Building2,
 } from 'lucide-react';
 
 export type NavAction =
@@ -52,6 +52,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { id: 'calibration', label: 'Calibration', icon: LineChart, tier: 'secondary', group: 'analysis', action: { type: 'togglePanel', target: 'calibration' } },
 
   // ── Secondary tier — tools group ──
+  { id: 'organizations', label: 'Organizations', icon: Building2, tier: 'secondary', group: 'tools', action: { type: 'switchTab', target: 'organizations' } },
   { id: 'console', label: 'Console', icon: Terminal, tier: 'secondary', group: 'tools', action: { type: 'togglePanel', target: 'console' }, gate: { adminOnly: true } },
   { id: 'prompts', label: 'Prompts', icon: FileText, tier: 'secondary', group: 'tools', action: { type: 'togglePanel', target: 'prompts' } },
 
