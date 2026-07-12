@@ -3,7 +3,11 @@
 **Author:** Computational Linguist
 **Date:** 2026-07-12
 **Ticket:** t/1523
-**Status:** Design proposal (pending owner + TL approval)
+**Status:** Design proposal (pending owner + TL approval). Externally reviewed
+2026-07-13 (two independent reviews via `corroboration-proposal-external-review.md`);
+amendments from that review are integrated inline and marked "external review,
+2026-07-13." Terminology rename ("Corroboration"/"Corroborated") and a
+crux-discovery-density complementary signal remain open, tracked separately.
 
 ---
 
@@ -49,6 +53,27 @@ node revised in response to a debate, whose revised form subsequently held, is i
 strongest epistemic state the system can certify. A naive design in which any edit
 zeroes the record would punish exactly the behavior the project exists to produce.
 
+**Named risk (external review, 2026-07-13): self-corroboration.** The same family of
+AI models generates the challenge, the defense, the reflection, and the proposed
+revision. Nothing prevents a revision from being a narrow rewrite that dodges the
+specific wording of one attack rather than a substantive strengthening, and a
+sequence of such rewrites, each surviving its own narrow retest, would satisfy this
+tier's mechanics without the node having become more sound. There is no gradient-based
+training loop here, no weights updating across debates, so this is not overfitting in
+the machine-learning sense; the risk is real regardless of that distinction. The
+mitigation is the human review gate (§Wisdom Harvesting boundary, framing paper), and
+it is only as strong as reviewer vigilance, which this design does not currently
+instruct. The review-queue step for any `refined` proposal must explicitly ask the
+Lakatosian question **as a check, not as unexamined justification**: does this
+revision address the substance of the challenge, or does it narrowly evade the
+specific attack that was made? A revision that survives by generalizing away from the
+one attack that succeeded, without engaging what the attack actually established, is
+a degenerating patch and should be rejected regardless of whether a subsequent debate
+would let it hold. This criterion belongs in the harvest-review UI copy (Phase 1) as
+an explicit prompt to the reviewer, not left implicit. Reviewer fatigue and deference
+to the system's own outputs over time is a further risk this design does not solve;
+it is named here as a known residual limitation rather than assumed away.
+
 ### Relation to existing instruments
 
 | Instrument | What it measures | Relation |
@@ -90,7 +115,7 @@ a future extension (§Open Questions).
       "debate_id": "debate-...",
       "date": "2026-07-02",
       "verdict": "held",             // held | weakened | refined | open | cited
-      "strongest_attack_encountered": { "claim_id": "...", "strength": 0.82, "scheme": "rebut" },
+      "strongest_attack_encountered": { "claim_id": "...", "strength": 0.82, "scheme": "rebut", "challenger_camp": "accelerationist" },
       "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 },
       "concession": null             // or { type: "full"|"conditional"|"tactical", turn: "..." }
     }
@@ -306,18 +331,35 @@ at Cited with `record[].verdict: "cited"`.
 1. **Tier chips on node cards.** Untested renders *neutral* (grey outline). It is
    the default state of most of the graph and must not read as an error. Chip
    colors run grey outline (Untested), grey filled (Cited), amber (Contested),
-   green (Corroborated). The Refined annotation adds a small "forged" glyph; a
-   stale record adds a dashed border and a tooltip ("revised since last tested").
+   green (Corroborated). **The chip carries its challenge count inline** (e.g.
+   "Corroborated · 2" vs. "Corroborated · 47"), added per external review: the tier
+   alone collapses a node that barely cleared the bar and one that has been tested
+   dozens of times into the same badge, discarding real information the record
+   already holds. The Refined annotation adds a small "forged" glyph; a stale
+   record adds a dashed border and a tooltip ("revised since last tested").
 2. **Sort and filter** in the node list, as specified above.
 3. **Drill-down provenance panel.** Clicking the chip shows the record ("Survived 3
-   debates. Refined 2026-05-12 in response to [debate]. View the exchange.").
-   Entries link to the debate session (`debates/debate-<id>.json`) and the specific
-   turns, mirroring the intellectual-lineage panel pattern.
-4. **Graph heatmap overlay (phase 1b, optional).** A corroboration color mode in the
+   debates, challenged by 2 distinct camps. Refined 2026-05-12 in response to
+   [debate]. View the exchange."). Entries link to the debate session
+   (`debates/debate-<id>.json`) and the specific turns, mirroring the
+   intellectual-lineage panel pattern. **The panel restates the epistemic boundary
+   inline** ("this reflects testing history inside the platform's own debates, not
+   an external truth judgment") rather than relying on a reader to have internalized
+   that from a separate document — added per external review, since the boundary is
+   only as effective as its most-encountered restatement, not its most careful one.
+4. **Side-by-side maturity view.** Corroboration tier and the separate `confidence`
+   plausibility score (§Relation to existing instruments) are shown together,
+   explicitly labeled with their different meanings, wherever a node's full detail
+   is displayed. The two instruments answer different questions and were kept
+   deliberately uncoupled (§Open Questions); showing them side by side lets a reader
+   see that difference rather than mentally merging two badges into one impression
+   of "how good is this claim." Added per external review.
+5. **Graph heatmap overlay (phase 1b, optional).** A corroboration color mode in the
    graph view making the lumpiness directly visible as corroborated ridges and
    untested plains.
 
-Only tiers, counts, and dates are ever rendered; `sort_key` is not displayed.
+Only tiers, counts, dates, and challenger-camp diversity are ever rendered;
+`sort_key` is not displayed.
 
 ## Program: Severe-Test Scheduling
 
@@ -397,6 +439,35 @@ Implementation is Phase 3 scope (§Ownership & Phasing) — no separate ticket e
 yet because it is blocked on Phase 0 (`corroboration.tier` must exist on nodes before
 anything can select against it).
 
+**Named risk (external review, 2026-07-13): permanent insulation.** Two survived
+challenges is a thin evidence base for reducing a node's testing priority, even
+softly, and the coverage/quality guardrail above only checks aggregate debate
+outcomes; it does not catch a specific node quietly escaping further scrutiny for
+good. The exclusion mechanism is revised to guarantee no node is excluded
+indefinitely:
+
+- **Forced re-eligibility.** A Corroborated node returns to the normal (non-excluded,
+  non-downweighted) candidate pool after `REEXAMINATION_INTERVAL` (proposed: 90 days
+  or 20 new debates touching its topic domain, whichever comes first — both
+  stipulated). This is not optional revalidation the scheduler might get around to; it
+  is an automatic reset of exclusion status. A node can re-earn exclusion by surviving
+  fresh challenges after the reset, but it cannot coast on a two-challenge record
+  indefinitely.
+- **The hard exclusion in scheduler batches (§ordinary vs. batch modes above) is
+  capped at `MAX_CONSECUTIVE_EXCLUDED_CYCLES`** (proposed: 3), after which a
+  Corroborated node becomes eligible again for that specific scheduler cycle even if
+  it is not the deficit leader, so a batch occasionally re-probes claims it has been
+  routing around.
+- **Challenger diversity is tracked**, not just challenge count. Each `record[]` entry
+  gains a `challenger_camp` field (the attacking claim's speaker camp, already present
+  on the argument-network node and joinable at harvest time — no new data collection).
+  A node challenged twice by the *same* camp is weaker evidence than one challenged by
+  two different camps, and `Get-NodeCorroboration` surfaces this so a reviewer can spot
+  a node that has only ever been tested from one direction.
+
+These three parameters are stipulated at design time and added to
+§Provenance Declarations.
+
 ## Provenance Declarations
 
 Per the register's no-grade-inflation rule, every judgment-bearing parameter here is
@@ -414,30 +485,55 @@ Per the register's no-grade-inflation rule, every judgment-bearing parameter her
 | Tier rules (the ladder itself) | — | stipulated instrument |
 | `CORROBORATED_INJECTION_MULTIPLIER` | 0.5 (ordinary debates, soft) | stipulated |
 | Scheduler-batch exclusion (hard) | boolean gate, not a magnitude | stipulated instrument |
+| `REEXAMINATION_INTERVAL` | 90 days or 20 topic-domain debates, whichever first | stipulated |
+| `MAX_CONSECUTIVE_EXCLUDED_CYCLES` | 3 | stipulated |
 
 ### Validation plan (path off "stipulated")
+
+**Scope, stated precisely (external review, 2026-07-13):** this study validates
+**reliability** — does the tier accurately summarize what happened in the debates it
+is built from — not **validity** in the stronger sense of whether surviving this
+closed loop corresponds to real-world epistemic merit. No internal-agreement study
+can establish that; per §Boundary (framing paper), only the crux handoff to exogenous
+evidence can, and this design does not claim otherwise. The register entry and any
+future citation of "human-validated" for this instrument must carry that scope
+explicitly, not imply the stronger claim.
 
 After ≥50 harvested debates carry corroboration records, run a stratified sample of
 30 nodes across tiers with blind human judgment on two questions per node ("was this
 node severely tested?", "did it hold in its current form?"), and compare against the
 assigned tiers. Target Cohen's κ ≥ 0.7 to reclassify the tier instrument as
-human-validated; below that, revise thresholds and re-run. The CL owns this study
-and the register update.
+human-validated (reliability sense, per above); below that, revise thresholds and
+re-run. **Rater pool:** at least one-third of raters must be unfamiliar with this
+project's own vocabulary and internal framing, not just blind to the specific tier
+assignments — an all-in-house rater pool risks measuring agreement with the project's
+worldview rather than with the debate record itself. The CL owns this study and the
+register update.
 
 ## Ownership & Phasing
 
 The work is cross-scope (data-model change, new harvest module, renderer UX, new
 cmdlet), so **Main (Technical Lead)** design review precedes implementation tickets.
 
+**Rollout order revised (external review, 2026-07-13): high-visibility and
+high-stakes surfaces wait for the validation study, not the other way around.**
+Both external reviews independently raised the same objection: shipping a
+prominently displayed tier badge, and especially the exclusion lever that changes
+which nodes get debated, before any check that the tier means what it claims to
+mean, risks the metric becoming culturally entrenched before it has earned that
+trust. The data model and a research-only surface ship first so records can
+accumulate; the general-audience UI and any behavior-changing mechanism wait.
+
 | Phase | Work | Owner | Blocked by |
 |---|---|---|---|
 | 0 | `lib/debate/corroboration.ts`: reverse attribution, verdict rules, record + `sort_key` writer at harvest; pure `computeTierAndSortKey(record, constants)` function (§Reevaluation) usable standalone from the harvest writer; `taxonomyTypes.ts` + JSON schema updates | Shared Lib | TL approval |
 | 0b | Backfill job over historical sessions + calibration JSONLs | Shared Lib | 0 |
-| 1 | Taxonomy editor: sort option, tier chips, filters, drill-down panel | Taxonomy Editor | 0 |
+| 2 | `Get-NodeCorroboration` cmdlet; `Update-NodeCorroboration -RecomputeOnly` cmdlet (`/add-ps-cmdlet`). Research-only surface — ships before the general UI so records accumulate under expert eyes first. | PowerShell | 0 |
+| **Pilot gate** | **≥50 debates accumulate corroboration records (Phase 0/0b live); Phase 4's validation study runs against that pilot corpus.** | CL | 0, 0b, 2 |
+| 1 | Taxonomy editor: sort option, tier chips, filters, drill-down panel, side-by-side confidence/corroboration view (§UX). **Held until the pilot gate clears**, or ships with an explicit "preview, unvalidated" label if the owner wants earlier visibility. | Taxonomy Editor | Pilot gate |
 | 1b | Graph heatmap overlay (optional) | Taxonomy Editor | 1 |
-| 2 | `Get-NodeCorroboration` cmdlet; `Update-NodeCorroboration -RecomputeOnly` cmdlet wrapping the Phase 0 pure function for threshold reevaluation (§Reevaluation) (`/add-ps-cmdlet`) | PowerShell | 0 |
-| 3 | Severe-test scheduler: deficit ranking, targeted topic generation, batch config | Shared Lib + CL | 0, 2 |
-| 4 | Golden-set validation study; provenance upgrades | CL | ≥50 debates after 0 |
+| 3 | Severe-test scheduler and the exclusion lever (§Excluding Corroborated Nodes): deficit ranking, targeted topic generation, batch config, forced re-eligibility. **Held until the pilot gate clears** — this phase changes what gets debated, the single highest-stakes surface in the design, and ships last, not concurrently with initial rollout. | Shared Lib + CL | Pilot gate, 2 |
+| 4 | Golden-set validation study (reliability scope, §Validation plan); provenance upgrades | CL | Pilot gate |
 
 Verify gates per phase run `npm run verify` (0/0b/1/3) and `Invoke-Pester ./tests/`
 (2). Phase 0 needs fault tests for the harvest writer (missing `taxonomy_refs`,
