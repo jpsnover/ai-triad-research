@@ -158,6 +158,9 @@
         'Get-OrganizationStakeholders'
         'Import-Organization'
         'Compare-OrganizationPositions'
+        # t/1526 — Organization actor-relationship edges
+        'Get-OrganizationEdge'
+        'Import-OrganizationEdge'
         # t/1261 — UsageID registry
         'Invoke-AIByUsage'
         # t/1308 — cc→sit migration

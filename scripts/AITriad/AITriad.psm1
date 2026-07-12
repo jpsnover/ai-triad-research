@@ -455,6 +455,35 @@ class OrganizationIntegrityReport {
     [OrganizationIntegrityIssue[]] $Issues
 }
 
+# t/1526 — Organization actor-relationship edges (parallel to argumentation edges.json)
+class OrganizationEdge {
+    [string]   $Source          # org-*
+    [string]   $Target          # org-* | sit-* | pol-* | src-* | BDI node id, per type family
+    [string]   $Type            # one of Resolve-OrganizationEdgeType 9-value registry
+    [string]   $Rationale
+    [string[]] $SourceRefs
+    [string]   $Status          # approved | proposed | disputed (default: approved)
+    [string]   $DiscoveredAt    # YYYY-MM-DD
+}
+
+class OrganizationEdgeIntegrityIssue {
+    [int]    $EdgeIndex
+    [string] $Source
+    [string] $Target
+    [string] $Type
+    [string] $Severity   # error | warning
+    [string] $Field
+    [string] $Message
+}
+
+class OrganizationEdgeIntegrityReport {
+    [int]                                 $Total
+    [int]                                 $Errors
+    [int]                                 $Warnings
+    [bool]                                $Pass
+    [OrganizationEdgeIntegrityIssue[]]    $Issues
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Module-scoped taxonomy store
 # ─────────────────────────────────────────────────────────────────────────────
@@ -758,6 +787,9 @@ Export-ModuleMember -Function @(
     'Get-OrganizationStakeholders'
     'Import-Organization'
     'Compare-OrganizationPositions'
+    # t/1526 — Organization actor-relationship edges
+    'Get-OrganizationEdge'
+    'Import-OrganizationEdge'
     # t/1261 — UsageID registry
     'Invoke-AIByUsage'
     # t/1308 — cc→sit migration
