@@ -1,17 +1,22 @@
-# Corroboration: Per-Node Epistemic Testing Record
+# Debate-Tested: Per-Node Epistemic Testing Record
 
 **Author:** Computational Linguist
 **Date:** 2026-07-12
 **Ticket:** t/1523
-**Status:** Design proposal (pending owner + TL approval). Externally reviewed
-2026-07-13 (three independent reviews via `corroboration-proposal-external-review.md`);
-amendments are integrated inline and marked "external review, 2026-07-13." The third
-review identified a direct logical contradiction between the "Corroboration" naming
-and Popper's own account (§Excluding Corroborated Nodes) — the rename tracked in
-t/1533 is now required, not optional, before this design ships. v1 scope is
-restricted to Beliefs (§Data Model); Desires, Intentions, and situation nodes are
-deferred to their own design passes. A crux-discovery-density complementary signal
-remains open, tracked separately (t/1534).
+**Status:** Approved by Technical Lead 2026-07-13 (t/1523#7), Beliefs-only v1 scope
+confirmed. TL condition: t/1533 (this rename) must land before any Phase 0
+implementation ticket is cut, since Phase 0 writes the literal field, module, and
+cmdlet names this rename changes — sequencing avoids a live-data migration. Externally
+reviewed 2026-07-13 (three independent reviews via
+`corroboration-proposal-external-review.md`); amendments are integrated inline and
+marked "external review, 2026-07-13." The third review identified a direct logical
+contradiction between the original "Corroboration" naming and Popper's own account of
+corroboration (§Excluding Well-Tested Nodes): this document is renamed throughout as
+of t/1533 to remove that contradiction. v1 scope is restricted to Beliefs (§Data
+Model); Desires, Intentions, and situation nodes are deferred to their own design
+passes. A crux-discovery-density complementary signal remains open, tracked
+separately (t/1534). An external-evidence pointer feature was also spun out
+separately (t/1535).
 
 ---
 
@@ -37,9 +42,9 @@ Four requirements, from the owner's 2026-07-12 request:
 3. Convey it in the user experience, including **sorting POV BDIs by it**.
 4. Build a program that raises it for the most important BDIs.
 
-## Concept: Corroboration
+## Concept: Debate-Tested
 
-The concept is Popper's **corroboration**. A claim earns epistemic standing not by
+The concept draws on Popper's **corroboration**. A claim earns epistemic standing not by
 being plausible but by surviving severe tests. We adopt the term because it avoids
 two traps:
 
@@ -48,7 +53,7 @@ two traps:
 - **"Confidence"** is already taken in this codebase and measures something else
   (see above). Overloading it would corrupt both instruments.
 
-Corroboration has two dimensions, **exposure** (how much severe testing) and
+Debate-Tested has two dimensions, **exposure** (how much severe testing) and
 **outcome** (held, refined, weakened), collapsed for display into a discrete tier
 plus a revision annotation.
 
@@ -57,7 +62,7 @@ node revised in response to a debate, whose revised form subsequently held, is i
 strongest epistemic state the system can certify. A naive design in which any edit
 zeroes the record would punish exactly the behavior the project exists to produce.
 
-**Named risk (external review, 2026-07-13): self-corroboration.** The same family of
+**Named risk (external review, 2026-07-13): self-confirmation.** The same family of
 AI models generates the challenge, the defense, the reflection, and the proposed
 revision. Nothing prevents a revision from being a narrow rewrite that dodges the
 specific wording of one attack rather than a substantive strengthening, and a
@@ -83,12 +88,12 @@ it is named here as a known residual limitation rather than assumed away.
 
 | Instrument | What it measures | Relation |
 |---|---|---|
-| `confidence` (Beliefs) | Plausibility formula | Orthogonal. Corroboration MAY feed a bounded confidence boost later; not in scope here. |
-| QBAF `computed_strength` (AN claims) | *Structural* dialectical strength within one debate's argument network | Input. Corroboration is the *historical* rollup of these per-debate outcomes onto taxonomy nodes. |
-| `debate_refs[]` | Which debates touched a node | Input. Today a bare ID list; corroboration attaches outcomes to it. |
+| `confidence` (Beliefs) | Plausibility formula | Orthogonal. Debate-Tested MAY feed a bounded confidence boost later; not in scope here. |
+| QBAF `computed_strength` (AN claims) | *Structural* dialectical strength within one debate's argument network | Input. Debate-Tested is the *historical* rollup of these per-debate outcomes onto taxonomy nodes. |
+| `debate_refs[]` | Which debates touched a node | Input. Today a bare ID list; this instrument attaches outcomes to it. |
 | `situation_crux_alignment` (calibration) | Whether injected situations shape substance vs. decorate | The Cited/Contested boundary below reuses this reference-vs-engagement distinction at node granularity. |
 
-Ontologically, corroboration is a provenance attribute of the node
+Ontologically, this instrument is a provenance attribute of the node
 (vocabulary-level, per the project's vocabulary-over-formalism rule). It does not add
 edge types, alter the AIF vocabulary, or change BDI category semantics.
 
@@ -113,8 +118,8 @@ semantics into this pass under review pressure. Both extensions may reuse this
 document's data model and tier mechanics once each has its own construct definition.
 
 ```json
-"corroboration": {
-  "tier": "contested",              // untested | cited | contested | corroborated
+"debate_tested": {
+  "tier": "contested",              // untested | cited | contested | well_tested
   "sort_key": 2.31,                  // persisted total ordering — see Sort Key
   "engagements": 4,                  // debates with substantive engagement
   "challenges": 2,                   // severe attacks faced (cumulative)
@@ -151,14 +156,14 @@ to make explicit that it captures every attack encountered, not only ones that c
 `SEVERE_ATTACK_THRESHOLD`.
 
 **Single-writer rule** (Shared Utility Rule): the record and `sort_key` are computed
-in one place, a new `lib/debate/corroboration.ts` module invoked at harvest time and
+in one place, a new `lib/debate/debateTested.ts` module invoked at harvest time and
 by the one-off backfill. PowerShell and the renderer are read-only consumers. No
 consumer recomputes tiers or sort keys locally.
 
 The record certifies a specific formulation of the node, captured as
 `description_hash`. At read time, consumers compare the hash against the node's
 current description. On mismatch (a material edit with no debate linkage), the node
-displays as **stale** and is demoted from Corroborated to Contested for sorting until
+displays as **stale** and is demoted from Well-Tested to Contested for sorting until
 retested. **Cosmetic-edit exemption, adopted for v1 rather than deferred (external
 review, 2026-07-13):** the variable that matters is semantic materiality, not literal
 text equality, and the project already has the tool this needs — the same
@@ -167,7 +172,7 @@ mismatch, compare the embedding cosine similarity of the old and new description
 text against `COSMETIC_EDIT_SIMILARITY_THRESHOLD` (proposed 0.98, stipulated); above
 it, update `description_hash` silently with no staleness flag and no record entry.
 Deferring this was going to produce a predictable, backwards incentive: a trivial
-typo fix on a Corroborated node gets the maximal penalty (full demotion to
+typo fix on a Well-Tested node gets the maximal penalty (full demotion to
 Contested), while a genuinely substantive rewrite gets full credit as long as it is
 routed through the debate-linked `refined` path — exactly backwards from what the
 mechanism should reward, and cheap enough to fix now rather than carry as a known
@@ -186,7 +191,7 @@ simultaneously, contradicting the non-punitive design intent above.
 
 ### Schema updates
 
-- Add the `corroboration` object to `taxonomy/schemas/pov-taxonomy.schema.json`
+- Add the `debate_tested` object to `taxonomy/schemas/pov-taxonomy.schema.json`
   (documentation-only today per repo-review F-025, but still the schema of record).
 - Add the TS interface to `lib/debate/taxonomyTypes.ts`.
 - The renderer zod subset (`utils/validation.ts`) treats the field as optional
@@ -198,15 +203,15 @@ simultaneously, contradicting the non-punitive design intent above.
 |---|:---:|---|
 | **Untested** | 0 | No substantive engagement in any harvested debate. |
 | **Cited** | 1 | Engaged (≥1 debate) but never severely challenged — referenced, not tested. |
-| **Contested** | 2 | Severely challenged ≥1 time; outcomes mixed, open, or insufficient for Corroborated. |
-| **Corroborated** | 3 | ≥2 severe challenges across ≥2 distinct debates; most recent verdicts are `held` (or `refined` with `held_since: true`); no `weakened` verdict more recent than the latest `held`; record not stale. |
+| **Contested** | 2 | Severely challenged ≥1 time; outcomes mixed, open, or insufficient for Well-Tested. |
+| **Well-Tested** | 3 | ≥2 severe challenges across ≥2 distinct debates; most recent verdicts are `held` (or `refined` with `held_since: true`); no `weakened` verdict more recent than the latest `held`; record not stale. |
 
-**Refined** is an annotation, not a tier (`revisions[]` is non-empty). A Corroborated
+**Refined** is an annotation, not a tier (`revisions[]` is non-empty). A Well-Tested
 node with a held revision renders with a distinct mark (§UX), because
 revision-then-survival is the system's strongest certificate.
 
 The headline measure is deliberately a **discrete tier, not a 0–1 score**. A
-continuous corroboration number would imply instrument precision we do not have
+continuous testing-history number would imply instrument precision we do not have
 (compare the register's false-precision rationale) and invite cross-node comparisons
 the evidence cannot support. The continuous `sort_key` exists solely to order lists
 and is never displayed as a value.
@@ -260,16 +265,16 @@ Definitions build only on artifacts the pipeline already persists:
     retest — surviving by getting vaguer is not the strength this tier claims to
     certify.
   - `open`: Challenged, but the debate ended without a decisive claim outcome or
-    concession (mixed evidence). Counts toward Contested, never toward Corroborated.
+    concession (mixed evidence). Counts toward Contested, never toward Well-Tested.
   - `cited`: Engaged, never Challenged.
 
-## Sort Key (requirement: sort POV BDIs by corroboration)
+## Sort Key (requirement: sort POV BDIs by how well-tested they are)
 
 A persisted float giving a deterministic total ordering, computed by the single
 writer:
 
 ```
-tier_rank      = untested 0 | cited 1 | contested 2 | corroborated 3
+tier_rank      = untested 0 | cited 1 | contested 2 | well_tested 3
 verdict_weight = held 1.0 | refined(held_since:true) 1.0 | refined(pending) 0.6
                | refined(held_since:false) 0.0 | open 0.25 | weakened −0.5 | cited 0.0
 evidence       = Σ over record: strongest_attack_encountered.strength × verdict_weight
@@ -287,17 +292,17 @@ condition.
 **PowerShell.** A new cmdlet, following `/add-ps-cmdlet`:
 
 ```powershell
-Get-NodeCorroboration [-Pov acc|saf|skp] [-Category belief|desire|intention]
-                      [-Tier <tier>] [-SortBy Corroboration|Deficit] [-Top N] [-Stale]
+Get-NodeTestingRecord [-Pov acc|saf|skp] [-Category belief|desire|intention]
+                      [-Tier <tier>] [-SortBy Debate-Tested|Deficit] [-Top N] [-Stale]
 ```
 
 Emits objects (`NodeId`, `Label`, `Tier`, `SortKey`, `Engagements`, `Challenges`,
 `LastTested`, `Refined`, `Stale`) so the pipeline composes:
-`Get-NodeCorroboration -Pov saf -Category belief -SortBy Deficit -Top 20`.
+`Get-NodeTestingRecord -Pov saf -Category belief -SortBy Deficit -Top 20`.
 `-SortBy Deficit` orders by `testing_priority` (§Program), which is the scheduler's
 work queue and the answer to "which important BDIs are least tested."
 
-**Taxonomy editor.** The node list gains a **"Corroboration"** sort option
+**Taxonomy editor.** The node list gains a **"Debate-Tested"** sort option
 (ascending/descending on `sort_key`) alongside the existing sorts, plus tier filter
 chips. The field rides `graph_attributes` on nodes already delivered through the
 existing taxonomy load path, so **no new bridge method is required**; this is a
@@ -305,7 +310,7 @@ renderer-only change.
 
 ## Reevaluation Without Re-Harvesting
 
-Owner requirement (2026-07-13): `CORROBORATED_MIN_CHALLENGES` starts at 2, and will
+Owner requirement (2026-07-13): `WELL_TESTED_MIN_CHALLENGES` starts at 2, and will
 likely be raised once there is a larger corpus of tested nodes. Every stipulated
 threshold in this design should be reevaluable the same way — as a cheap recompute
 over already-persisted evidence, not a re-run of debates or a re-parse of raw session
@@ -316,7 +321,7 @@ closing.
 Nothing about them requires touching a debate session once `record[]` exists.
 Concretely:
 
-- Raising `CORROBORATED_MIN_CHALLENGES` (2 → N) is a recount over the already-stored
+- Raising `WELL_TESTED_MIN_CHALLENGES` (2 → N) is a recount over the already-stored
   `verdict` labels in `record[]` per node — no dependency on raw debate data at all.
 - Changing verdict *weights* (§Sort Key) only touches `sort_key`, likewise computed
   from `record[]`.
@@ -329,7 +334,7 @@ Concretely:
 - Changing `EVIDENCE_SATURATION` or the deficit ladder (§Program) is likewise a pure
   recompute over stored fields.
 
-**Required deliverable (added to Phase 0, §Ownership & Phasing):** `corroboration.ts`
+**Required deliverable (added to Phase 0, §Ownership & Phasing):** `debateTested.ts`
 exposes the tier/sort-key computation as a separate pure function
 (`computeTierAndSortKey(record, constants)`), distinct from the harvest-time writer
 that appends new `record[]` entries. A **recompute-only** batch operation calls this
@@ -337,7 +342,7 @@ pure function against every node's *existing* `record[]` under the current const
 values and rewrites only `tier` and `sort_key` — `record[]`, `engagements`,
 `challenges`, `held`, `weakened`, and `revisions` are historical fact and are never
 rewritten by a recompute pass. Exposed to PowerShell as
-`Update-NodeCorroboration -RecomputeOnly` (Phase 2, alongside `Get-NodeCorroboration`)
+`Update-NodeTestingRecord -RecomputeOnly` (Phase 2, alongside `Get-NodeTestingRecord`)
 so a threshold change is one command: edit the constant, run the recompute, done.
 No re-harvest, no re-running debates, no data loss risk from repeated runs (the
 operation is idempotent).
@@ -346,7 +351,7 @@ operation is idempotent).
 (§Verdict attribution rules — e.g. redefining what counts as a decisive claim outcome,
 or changing which edge types count as attacks), that changes what should have been
 written to `record[].verdict`, and reevaluating it correctly needs the AN/claim data,
-not just the corroboration record. `strongest_attack_encountered` future-proofs
+not just the testing record. `strongest_attack_encountered` future-proofs
 threshold changes on top of the existing rules; it does not future-proof changes to
 the rules themselves. If that need arises, the harvest pipeline provides the same
 inputs (`injection_manifest`, `taxonomy_refs`, `claimOutcomes.ts`, QBAF strengths) for
@@ -368,8 +373,8 @@ A 2026-07-12 code survey confirmed most inputs already exist; the gap is
 
 **Phase 0 (the prerequisite everything blocks on):** at harvest, compute the reverse
 map from AN-claim outcomes to taxonomy nodes over the `taxonomy_refs` join, apply the
-verdict rules, and write `corroboration` + `sort_key` to the node. The logic lives in
-a new module, `lib/debate/corroboration.ts`; per the maintenance rule it enters the
+verdict rules, and write `debate_tested` + `sort_key` to the node. The logic lives in
+a new module, `lib/debate/debateTested.ts`; per the maintenance rule it enters the
 CL owned-files table in the same PR.
 
 **Backfill:** a one-off job over historical `<data>/debates/debate-*.json` sessions
@@ -389,8 +394,8 @@ at Cited with `record[].verdict: "cited"`.
    hold at once (external review, 2026-07-13, resolving an apparent tension between
    this line and §Program rather than retracting either). Chip
    colors run grey outline (Untested), grey filled (Cited), amber (Contested),
-   green (Corroborated). **The chip carries its challenge count inline** (e.g.
-   "Corroborated · 2" vs. "Corroborated · 47"), added per external review: the tier
+   green (Well-Tested). **The chip carries its challenge count inline** (e.g.
+   "Well-Tested · 2" vs. "Well-Tested · 47"), added per external review: the tier
    alone collapses a node that barely cleared the bar and one that has been tested
    dozens of times into the same badge, discarding real information the record
    already holds. The Refined annotation adds a small "forged" glyph; a stale
@@ -405,15 +410,15 @@ at Cited with `record[].verdict: "cited"`.
    an external truth judgment") rather than relying on a reader to have internalized
    that from a separate document — added per external review, since the boundary is
    only as effective as its most-encountered restatement, not its most careful one.
-4. **Side-by-side maturity view.** Corroboration tier and the separate `confidence`
+4. **Side-by-side maturity view.** Debate-Tested tier and the separate `confidence`
    plausibility score (§Relation to existing instruments) are shown together,
    explicitly labeled with their different meanings, wherever a node's full detail
    is displayed. The two instruments answer different questions and were kept
    deliberately uncoupled (§Open Questions); showing them side by side lets a reader
    see that difference rather than mentally merging two badges into one impression
    of "how good is this claim." Added per external review.
-5. **Graph heatmap overlay (phase 1b, optional).** A corroboration color mode in the
-   graph view making the lumpiness directly visible as corroborated ridges and
+5. **Graph heatmap overlay (phase 1b, optional).** A testing-tier color mode in the
+   graph view making the lumpiness directly visible as well-tested ridges and
    untested plains.
 
 Only tiers, counts, dates, and challenger-camp diversity are ever rendered;
@@ -426,13 +431,13 @@ Spend debate budget where it buys the most epistemic value.
 ```
 importance       = 0.35·degree_centrality + 0.25·policy_linkage
                  + 0.20·doctrinal_anchor + 0.20·usage_frequency      (each normalized 0–1)
-deficit          = untested 1.0 | cited 0.7 | stale 0.6 | contested 0.4 | corroborated 0.1
+deficit          = untested 1.0 | cited 0.7 | stale 0.6 | contested 0.4 | well_tested 0.1
 testing_priority = importance × deficit
 ```
 
 Cycle:
 
-1. **Rank.** `Get-NodeCorroboration -SortBy Deficit -Top K`.
+1. **Rank.** `Get-NodeTestingRecord -SortBy Deficit -Top K`.
 2. **Target topics.** For each top node, generate a debate topic engineered to put
    its claim under attack. The node's `steelman_vulnerability` field (already
    populated) seeds the challenge framing; the topic-critique rubric gates quality
@@ -452,55 +457,56 @@ concentrating repeated tests on the same deficit leader; value was previously
 referenced without being assigned, corrected on final review). Each cycle emits a
 before/after tier distribution so
 progress is inspectable ("this month: 14 nodes Untested→Contested, 5
-Contested→Corroborated").
+Contested→Well-Tested").
 
-### Excluding Corroborated Nodes to Protect Testing Attention
+### Excluding Well-Tested Nodes to Protect Testing Attention
 
 **Named contradiction (external review, 2026-07-13), sharper than a naming-risk
 concern: this section, as originally drafted, cited Popper for its name while doing
 the one thing Popper's account of corroboration explicitly forbids.** Popper was
 emphatic that corroboration is not inductive support: a well-corroborated claim is
 not thereby more likely to survive its next test, and corroboration confers no
-license to test it less. Using the Corroborated tier to reduce future testing is
+license to test it less. Using the top tier to reduce future testing is
 precisely that inference. The mechanism below is defensible on ordinary
 resource-allocation grounds — debate budget is finite, and spending it where it
 teaches the most is a reasonable policy — but it is not defensible *under the name
-this document currently uses for it*, and the two cannot be argued simultaneously.
-This is the decisive reason (not merely a readability concern) that t/1533 tracks a
-rename away from "Corroboration" as required, not optional, before this design ships.
-Everything below describes the mechanism on its resource-allocation merits; read
-"Corroborated" here as a placeholder for whatever this tier is renamed to.
+this document originally used for it*, and the two could not be argued
+simultaneously. This was the decisive reason (not merely a readability concern) that
+t/1533 tracked a rename away from "Corroboration" as required, not optional, before
+this design shipped. That rename is now complete throughout this document —
+"Debate-Tested" and "Well-Tested" below name the mechanism honestly, on its
+resource-allocation merits, with no residual claim to Popper's authority.
 
 Owner direction (2026-07-13), superseding Open Question 2 below: the useful coupling
-between corroboration and the rest of the system is not feeding it into confidence
+between this instrument and the rest of the system is not feeding it into confidence
 (that stays deferred). It is the opposite move — using a node's already-earned
-corroboration as a reason to **get out of the way**, so debate attention concentrates
+testing status as a reason to **get out of the way**, so debate attention concentrates
 on the material that still needs testing. A node that has already survived two severe
 challenges across two debates has, at the margin, less to prove than a node nobody
 has touched.
 
 This is the same lever family as `corpusCoverage.ts`'s retread downweight (t/1438),
-generalized to a different signal (corroboration tier rather than citation frequency
+generalized to a different signal (testing tier rather than citation frequency
 plus crux-linkage), applied at the same integration point
 (`taxonomyRelevance.ts` node selection). Two modes, matched to the two ways debates
 happen in this system:
 
 - **Ordinary debates (soft downweight).** At setup-time relevance scoring, a node at
-  `corroboration.tier === 'corroborated'` gets its relevance score multiplied by
-  `CORROBORATED_INJECTION_MULTIPLIER` (proposed 0.5 — stipulated, distinct parameter
+  `debate_tested.tier === 'well_tested'` gets its relevance score multiplied by
+  `WELL_TESTED_INJECTION_MULTIPLIER` (proposed 0.5 — stipulated, distinct parameter
   from the retread multiplier even though numerically close by coincidence). Soft,
   not a ban, composing multiplicatively with the existing retread multiplier and any
-  coverage boost — same posture as t/1438, for the same reason: a Corroborated node
+  coverage boost — same posture as t/1438, for the same reason: a Well-Tested node
   can still be the single most on-topic claim for a given debate, and a hard ban
   would force worse substitute claims into otherwise normal debates.
 - **Severe-test scheduler batches (hard exclusion).** Inside a `Invoke-DebateBatch`
-  run driven by §Program's cycle, every OTHER Corroborated node (not the deficit
+  run driven by §Program's cycle, every OTHER Well-Tested node (not the deficit
   leader being force-injected as primary) is excluded outright from injection, not
   merely downweighted. The batch's entire purpose is putting the targeted node under
   pressure; a well-tested node competing for the same context slots works directly
   against that purpose. This sharpens Phase 3's existing "force-injected as primary"
   step (§Program cycle, step 3) into an explicit two-sided rule: force IN the target,
-  force OUT the already-Corroborated.
+  force OUT the already-Well-Tested.
 
 **Guardrail (same shape as t/1438's, reused rather than reinvented):** an A/B on
 ordinary debates — soft-downweight on vs. off — must show testing-diversity gains
@@ -513,7 +519,7 @@ Both new parameters are stipulated at design time (§Provenance Declarations bel
 neither is tuned against a debate-quality score that would also serve as the
 guardrail's own pass/fail metric, per the framing paper's autotuning boundary.
 Implementation is Phase 3 scope (§Ownership & Phasing) — no separate ticket exists
-yet because it is blocked on Phase 0 (`corroboration.tier` must exist on nodes before
+yet because it is blocked on Phase 0 (`debate_tested.tier` must exist on nodes before
 anything can select against it).
 
 **Named risk (external review, 2026-07-13): permanent insulation.** Two survived
@@ -523,7 +529,7 @@ outcomes; it does not catch a specific node quietly escaping further scrutiny fo
 good. The exclusion mechanism is revised to guarantee no node is excluded
 indefinitely:
 
-- **Forced re-eligibility.** A Corroborated node returns to the normal (non-excluded,
+- **Forced re-eligibility.** A Well-Tested node returns to the normal (non-excluded,
   non-downweighted) candidate pool after `REEXAMINATION_INTERVAL` (proposed: 90 days
   or 20 new debates touching its topic domain, whichever comes first — both
   stipulated). This is not optional revalidation the scheduler might get around to; it
@@ -532,14 +538,14 @@ indefinitely:
   indefinitely.
 - **The hard exclusion in scheduler batches (§ordinary vs. batch modes above) is
   capped at `MAX_CONSECUTIVE_EXCLUDED_CYCLES`** (proposed: 3), after which a
-  Corroborated node becomes eligible again for that specific scheduler cycle even if
+  Well-Tested node becomes eligible again for that specific scheduler cycle even if
   it is not the deficit leader, so a batch occasionally re-probes claims it has been
   routing around.
 - **Challenger diversity is tracked**, not just challenge count. Each `record[]` entry
   gains a `challenger_camp` field (the attacking claim's speaker camp, already present
   on the argument-network node and joinable at harvest time — no new data collection).
   A node challenged twice by the *same* camp is weaker evidence than one challenged by
-  two different camps, and `Get-NodeCorroboration` surfaces this so a reviewer can spot
+  two different camps, and `Get-NodeTestingRecord` surfaces this so a reviewer can spot
   a node that has only ever been tested from one direction. This does not manufacture
   independence that is not there: two debates challenged by the same authored personas
   and the same underlying model family share whatever blind spots that combination
@@ -555,9 +561,9 @@ indefinitely:
   discontinuity discoverable rather than invisible, the same posture taken for the
   t/1402 QBAF semantics correction.
 - **The re-eligibility timer above is this design's answer to non-stationarity as
-  well as to thin-evidence insulation.** A claim corroborated against one era's
+  well as to thin-evidence insulation.** A claim tested against one era's
   arguments and then permanently excluded would never meet the next era's arguments;
-  forced periodic re-eligibility means every Corroborated node eventually re-enters
+  forced periodic re-eligibility means every Well-Tested node eventually re-enters
   the pool under whatever the pipeline currently is, not just the pipeline that
   produced its original record.
 
@@ -576,13 +582,13 @@ Per the register's no-grade-inflation rule, every judgment-bearing parameter her
 | Parameter | Value | Class |
 |---|---|---|
 | `SEVERE_ATTACK_THRESHOLD` | 0.5 | stipulated |
-| `CORROBORATED_MIN_CHALLENGES` | 2 across ≥2 debates | stipulated |
+| `WELL_TESTED_MIN_CHALLENGES` | 2 across ≥2 debates | stipulated |
 | Verdict weights | held 1.0 / refined-held 1.0 / refined-pending 0.6 / refined-rejected 0.0 / open 0.25 / weakened −0.5 | stipulated |
 | `EVIDENCE_SATURATION` | 5 | stipulated |
 | Deficit ladder | 1.0 / 0.7 / 0.6 / 0.4 / 0.1 | stipulated |
 | Importance weights | 0.35 / 0.25 / 0.20 / 0.20 | stipulated |
 | Tier rules (the ladder itself) | — | stipulated instrument |
-| `CORROBORATED_INJECTION_MULTIPLIER` | 0.5 (ordinary debates, soft) | stipulated |
+| `WELL_TESTED_INJECTION_MULTIPLIER` | 0.5 (ordinary debates, soft) | stipulated |
 | Scheduler-batch exclusion (hard) | boolean gate, not a magnitude | stipulated instrument |
 | `REEXAMINATION_INTERVAL` | 90 days or 20 topic-domain debates, whichever first | stipulated |
 | `MAX_CONSECUTIVE_EXCLUDED_CYCLES` | 3 | stipulated |
@@ -613,13 +619,13 @@ nodes, CL-reviewed) verifies that `taxonomy_refs` correctly identifies the claim
 that actually instantiate each sampled node. This is cheap, and it is the
 precondition for the tier study's result being interpretable at all.
 
-After ≥50 harvested debates carry corroboration records, run a stratified sample of
+After ≥50 harvested debates carry testing records, run a stratified sample of
 30 nodes, stratified *by system-assigned tier* so each tier is separately
 represented, with blind human judgment on two questions per node ("was this node
 severely tested?", "did it hold in its current form?"), and compare against the
 assigned tiers. **Statistics, corrected (external review, 2026-07-13):** plain
 Cohen's κ is the wrong statistic for an ordinal four-tier scale — it penalizes an
-Untested-vs-Corroborated disagreement identically to a Contested-vs-Corroborated
+Untested-vs-Well-Tested disagreement identically to a Contested-vs-Well-Tested
 one. Use quadratic-weighted κ, or Krippendorff's α with an ordinal metric if more
 than two raters are used (this project already has that computation built,
 `research/comp-linguist/analyses/reliability_metrics.py`, t/1264). Report per-tier
@@ -658,13 +664,13 @@ accumulate; the general-audience UI and any behavior-changing mechanism wait.
 
 | Phase | Work | Owner | Blocked by |
 |---|---|---|---|
-| 0 | `lib/debate/corroboration.ts`: reverse attribution, verdict rules, record + `sort_key` writer at harvest; pure `computeTierAndSortKey(record, constants)` function (§Reevaluation) usable standalone from the harvest writer; `taxonomyTypes.ts` + JSON schema updates | Shared Lib | TL approval |
+| 0 | `lib/debate/debateTested.ts`: reverse attribution, verdict rules, record + `sort_key` writer at harvest; pure `computeTierAndSortKey(record, constants)` function (§Reevaluation) usable standalone from the harvest writer; `taxonomyTypes.ts` + JSON schema updates | Shared Lib | TL approval |
 | 0b | Backfill job over historical sessions + calibration JSONLs | Shared Lib | 0 |
-| 2 | `Get-NodeCorroboration` cmdlet; `Update-NodeCorroboration -RecomputeOnly` cmdlet (`/add-ps-cmdlet`). Research-only surface — ships before the general UI so records accumulate under expert eyes first. | PowerShell | 0 |
-| **Pilot gate** | **≥50 debates accumulate corroboration records (Phase 0/0b live); Phase 4's validation study runs against that pilot corpus.** | CL | 0, 0b, 2 |
-| 1 | Taxonomy editor: sort option, tier chips, filters, drill-down panel, side-by-side confidence/corroboration view (§UX). **Held until the pilot gate clears**, or ships with an explicit "preview, unvalidated" label if the owner wants earlier visibility. | Taxonomy Editor | Pilot gate |
+| 2 | `Get-NodeTestingRecord` cmdlet; `Update-NodeTestingRecord -RecomputeOnly` cmdlet (`/add-ps-cmdlet`). Research-only surface — ships before the general UI so records accumulate under expert eyes first. | PowerShell | 0 |
+| **Pilot gate** | **≥50 debates accumulate testing records (Phase 0/0b live); Phase 4's validation study runs against that pilot corpus.** | CL | 0, 0b, 2 |
+| 1 | Taxonomy editor: sort option, tier chips, filters, drill-down panel, side-by-side confidence/testing-tier view (§UX). **Held until the pilot gate clears**, or ships with an explicit "preview, unvalidated" label if the owner wants earlier visibility. | Taxonomy Editor | Pilot gate |
 | 1b | Graph heatmap overlay (optional) | Taxonomy Editor | 1 |
-| 3 | Severe-test scheduler and the exclusion lever (§Excluding Corroborated Nodes): deficit ranking, targeted topic generation, batch config, forced re-eligibility. **Held until the pilot gate clears** — this phase changes what gets debated, the single highest-stakes surface in the design, and ships last, not concurrently with initial rollout. | Shared Lib + CL | Pilot gate, 2 |
+| 3 | Severe-test scheduler and the exclusion lever (§Excluding Well-Tested Nodes): deficit ranking, targeted topic generation, batch config, forced re-eligibility. **Held until the pilot gate clears** — this phase changes what gets debated, the single highest-stakes surface in the design, and ships last, not concurrently with initial rollout. | Shared Lib + CL | Pilot gate, 2 |
 | 4 | Golden-set validation study (reliability scope, §Validation plan); provenance upgrades | CL | Pilot gate |
 
 Verify gates per phase run `npm run verify` (0/0b/1/3) and `Invoke-Pester ./tests/`
@@ -678,11 +684,11 @@ absent `injection_manifest`, malformed sessions) per `/add-fault-test`.
    held" that differs from POV claims, since situations are shared rather than
    defended by one camp. Deferred; design when POV-node records prove useful.
 2. **Confidence coupling — superseded 2026-07-13.** This item originally asked
-   whether high corroboration should feed a bounded *boost* into
+   whether a high testing tier should feed a bounded *boost* into
    `beliefConfidence.ts`. Owner direction reversed the framing: the useful coupling
-   runs the other way — high corroboration is a reason to *deprioritize* a node for
+   runs the other way — being well-tested is a reason to *deprioritize* a node for
    further testing, not a reason to inflate an unrelated score. See §Excluding
-   Corroborated Nodes to Protect Testing Attention. Whether corroboration should
+   Well-Tested Nodes to Protect Testing Attention. Whether testing status should
    *also* someday feed a confidence boost remains open and still deferred to the
    validation study; the two questions are independent and this entry no longer
    blocks on the coupling question, only the deficit-lever design above.
