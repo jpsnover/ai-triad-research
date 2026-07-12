@@ -218,6 +218,30 @@ function Invoke-OrgStanceExtraction {
     # ── Extract (parallel) ───────────────────────────────────────────────
     $newClaims = [System.Collections.Concurrent.ConcurrentBag[PSObject]]::new()
     $failed    = [System.Collections.Concurrent.ConcurrentBag[string]]::new()
+    $invalid   = [System.Collections.Concurrent.ConcurrentBag[string]]::new()
+
+    # Validator scriptblock — passed through $using: to the parallel workers
+    # (Test-OrgStanceClaim is a Private helper and isn't callable inside
+    # -Parallel worker runspaces; same class of bug as Get-Prompt).
+    $validator = {
+        param($claim)
+        if ($null -eq $claim) { return [PSCustomObject]@{ Ok = $false; Reason = 'null claim' } }
+        if (-not $claim.PSObject.Properties['polarity']) { return [PSCustomObject]@{ Ok = $false; Reason = 'missing polarity' } }
+        $pol = [string]$claim.polarity
+        if ($pol -notin @('asserts', 'opposes')) { return [PSCustomObject]@{ Ok = $false; Reason = "polarity '$pol' not in {asserts, opposes}" } }
+        if (-not $claim.PSObject.Properties['extraction_confidence']) { return [PSCustomObject]@{ Ok = $false; Reason = 'missing extraction_confidence' } }
+        $conf = 0.0
+        try { $conf = [double]$claim.extraction_confidence } catch { return [PSCustomObject]@{ Ok = $false; Reason = "extraction_confidence not numeric" } }
+        if ($conf -lt 0.0 -or $conf -gt 1.0) { return [PSCustomObject]@{ Ok = $false; Reason = "extraction_confidence $conf out of [0,1]" } }
+        if (-not $claim.PSObject.Properties['canonical_proposition']) { return [PSCustomObject]@{ Ok = $false; Reason = 'missing canonical_proposition' } }
+        $prop = [string]$claim.canonical_proposition
+        if ([string]::IsNullOrWhiteSpace($prop)) { return [PSCustomObject]@{ Ok = $false; Reason = 'canonical_proposition empty' } }
+        $wc = @($prop -split '\s+' | Where-Object { $_ }).Count
+        if ($wc -gt 60) { return [PSCustomObject]@{ Ok = $false; Reason = "canonical_proposition too long: $wc words (> 60)" } }
+        if (-not $claim.PSObject.Properties['text']) { return [PSCustomObject]@{ Ok = $false; Reason = 'missing text' } }
+        if ([string]::IsNullOrWhiteSpace([string]$claim.text)) { return [PSCustomObject]@{ Ok = $false; Reason = 'text empty' } }
+        [PSCustomObject]@{ Ok = $true; Reason = $null }
+    }
     $ModulePath = Join-Path $moduleRoot 'AITriad.psm1'
     $EnrichPath = Join-Path $moduleRoot '..' 'AIEnrich.psm1'
     if (-not (Test-Path $EnrichPath)) { $EnrichPath = Join-Path $moduleRoot 'AIEnrich.psm1' }
@@ -241,12 +265,20 @@ function Invoke-OrgStanceExtraction {
                     $body = $body -replace '\s*```\s*$', ''
                     $parsed = $body.Trim() | ConvertFrom-Json -ErrorAction Stop
                     foreach ($c in @($parsed.claims)) {
+                        # Post-parse validation (t/1553#12 CL condition — schema no
+                        # longer guards the boundary, so the cmdlet does).
+                        $valid = & $validator $c
+                        if (-not $valid.Ok) {
+                            $invalid.Add("$($item.OrgId)::$($item.SourceId): $($valid.Reason)")
+                            Write-Warning "Dropped claim for $($item.OrgId)::$($item.SourceId): $($valid.Reason)"
+                            continue
+                        }
                         $newClaims.Add([PSCustomObject]@{
                             org_id                = $item.OrgId
                             source_id             = $item.SourceId
-                            text                  = $c.text
-                            canonical_proposition = $c.canonical_proposition
-                            polarity              = $c.polarity
+                            text                  = [string]$c.text
+                            canonical_proposition = [string]$c.canonical_proposition
+                            polarity              = [string]$c.polarity
                             extraction_confidence = [double]$c.extraction_confidence
                             extracted_at          = (Get-Date).ToString('o')
                             extraction_model      = if ($ai.PSObject.Properties['Model']) { $ai.Model } else { 'gemini-3.1-flash-lite' }
@@ -270,9 +302,32 @@ function Invoke-OrgStanceExtraction {
             $item      = $_
             $NewBag    = $using:newClaims
             $FailBag   = $using:failed
+            $InvBag    = $using:invalid
             $CompRef   = $using:Completed
             $TotalCnt  = $using:Total
             $ProgId    = $using:ProgressId
+
+            # Inline validator — ForEach-Object -Parallel forbids passing
+            # scriptblocks via $using:, so we duplicate the logic here.
+            $validator = {
+                param($claim)
+                if ($null -eq $claim) { return [PSCustomObject]@{ Ok = $false; Reason = 'null claim' } }
+                if (-not $claim.PSObject.Properties['polarity']) { return [PSCustomObject]@{ Ok = $false; Reason = 'missing polarity' } }
+                $pol = [string]$claim.polarity
+                if ($pol -notin @('asserts', 'opposes')) { return [PSCustomObject]@{ Ok = $false; Reason = "polarity '$pol' not in {asserts, opposes}" } }
+                if (-not $claim.PSObject.Properties['extraction_confidence']) { return [PSCustomObject]@{ Ok = $false; Reason = 'missing extraction_confidence' } }
+                $conf = 0.0
+                try { $conf = [double]$claim.extraction_confidence } catch { return [PSCustomObject]@{ Ok = $false; Reason = "extraction_confidence not numeric" } }
+                if ($conf -lt 0.0 -or $conf -gt 1.0) { return [PSCustomObject]@{ Ok = $false; Reason = "extraction_confidence $conf out of [0,1]" } }
+                if (-not $claim.PSObject.Properties['canonical_proposition']) { return [PSCustomObject]@{ Ok = $false; Reason = 'missing canonical_proposition' } }
+                $prop = [string]$claim.canonical_proposition
+                if ([string]::IsNullOrWhiteSpace($prop)) { return [PSCustomObject]@{ Ok = $false; Reason = 'canonical_proposition empty' } }
+                $wc = @($prop -split '\s+' | Where-Object { $_ }).Count
+                if ($wc -gt 60) { return [PSCustomObject]@{ Ok = $false; Reason = "canonical_proposition too long: $wc words (> 60)" } }
+                if (-not $claim.PSObject.Properties['text']) { return [PSCustomObject]@{ Ok = $false; Reason = 'missing text' } }
+                if ([string]::IsNullOrWhiteSpace([string]$claim.text)) { return [PSCustomObject]@{ Ok = $false; Reason = 'text empty' } }
+                [PSCustomObject]@{ Ok = $true; Reason = $null }
+            }
 
             try {
                 $ai = Invoke-AIByUsage -UsageId 'enrichment.org-stance-extraction' -Values @{
@@ -286,12 +341,18 @@ function Invoke-OrgStanceExtraction {
                     $body = $body -replace '\s*```\s*$', ''
                     $parsed = $body.Trim() | ConvertFrom-Json -ErrorAction Stop
                     foreach ($c in @($parsed.claims)) {
+                        $valid = & $validator $c
+                        if (-not $valid.Ok) {
+                            $InvBag.Add("$($item.OrgId)::$($item.SourceId): $($valid.Reason)")
+                            Write-Warning "Dropped claim for $($item.OrgId)::$($item.SourceId): $($valid.Reason)"
+                            continue
+                        }
                         $NewBag.Add([PSCustomObject]@{
                             org_id                = $item.OrgId
                             source_id             = $item.SourceId
-                            text                  = $c.text
-                            canonical_proposition = $c.canonical_proposition
-                            polarity              = $c.polarity
+                            text                  = [string]$c.text
+                            canonical_proposition = [string]$c.canonical_proposition
+                            polarity              = [string]$c.polarity
                             extraction_confidence = [double]$c.extraction_confidence
                             extracted_at          = (Get-Date).ToString('o')
                             extraction_model      = if ($ai.PSObject.Properties['Model']) { $ai.Model } else { 'gemini-3.1-flash-lite' }
@@ -346,13 +407,16 @@ function Invoke-OrgStanceExtraction {
         [System.IO.File]::Move($temp, $OutputPath, $true)
     }
 
-    $failCount = @($failed).Count
+    $failCount   = @($failed).Count
+    $invalidCount = @($invalid).Count
     Write-Host ""
-    Write-Host "Done. Documents processed: $Total | Claims extracted: $writtenNew | Failed: $failCount | Skipped no-doc: $skippedNoDoc | Skipped already-done: $skippedAlreadyDone"
+    Write-Host "Done. Documents processed: $Total | Claims extracted: $writtenNew | Invalid dropped: $invalidCount | Failed: $failCount | Skipped no-doc: $skippedNoDoc | Skipped already-done: $skippedAlreadyDone"
 
     [PSCustomObject]@{
         Extracted          = $Total - $failCount
         ClaimsWritten      = $writtenNew
+        InvalidDropped     = $invalidCount
+        InvalidItems       = @($invalid)
         Failed             = $failCount
         FailedItems        = @($failed)
         SkippedNoDoc       = $skippedNoDoc

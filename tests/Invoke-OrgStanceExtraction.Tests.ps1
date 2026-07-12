@@ -125,6 +125,33 @@ Describe 'Invoke-OrgStanceExtraction (t/1553 Stage 1)' -Tag 'taxonomy' {
         }
     }
 
+    It 'Drops invalid claims (bad polarity, out-of-range confidence) and logs them (t/1553#12)' {
+        InModuleScope AITriad -Parameters @{ ClaimsPath = $script:tmpClaims } {
+            param($ClaimsPath)
+            # Mixed batch: 1 valid + 3 invalid (bad polarity, conf > 1, empty proposition).
+            Mock Invoke-AIByUsage -MockWith {
+                [PSCustomObject]@{
+                    Text = '{"claims":[' +
+                           '{"text":"good","canonical_proposition":"X ought Y","polarity":"asserts","extraction_confidence":0.9},' +
+                           '{"text":"bad-pol","canonical_proposition":"X ought Y","polarity":"maybe","extraction_confidence":0.9},' +
+                           '{"text":"bad-conf","canonical_proposition":"X ought Y","polarity":"asserts","extraction_confidence":1.7},' +
+                           '{"text":"empty-prop","canonical_proposition":"","polarity":"asserts","extraction_confidence":0.9}' +
+                           ']}'
+                    Model = 'stub'
+                }
+            }
+            $r = Invoke-OrgStanceExtraction -Concurrency 1 -OutputPath $ClaimsPath -Confirm:$false 3>$null 6>$null
+
+            # 2 eligible sources × 1 valid claim each = 2 written
+            $r.ClaimsWritten  | Should -Be 2
+            # 2 sources × 3 invalid = 6 dropped
+            $r.InvalidDropped | Should -Be 6
+            ($r.InvalidItems -join '|') | Should -Match 'polarity.*maybe'
+            ($r.InvalidItems -join '|') | Should -Match 'extraction_confidence 1\.7'
+            ($r.InvalidItems -join '|') | Should -Match 'canonical_proposition empty'
+        }
+    }
+
     It 'Strips markdown fences from AI response before parsing' {
         InModuleScope AITriad -Parameters @{ ClaimsPath = $script:tmpClaims } {
             param($ClaimsPath)
