@@ -15,6 +15,6 @@
     "rootDir": "../",
     "declaration": false
   },
-  "include": ["src/server/**/*", "../lib/ai-client/**/*", "../lib/search/**/*", "../lib/flight-recorder/**/*"],
+  "include": ["src/server/**/*", "../lib/ai-client/**/*", "../lib/organizations/**/*", "../lib/search/**/*", "../lib/flight-recorder/**/*"],
   "exclude": ["node_modules", "dist", "../lib/**/*.test.ts", "src/server/__tests__"]
 }

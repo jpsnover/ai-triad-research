@@ -68,7 +68,7 @@ export function OrganizationsTab() {
     }
     if (filters.pov) {
       list = list.filter((o) => {
-        const stance = o.pov_alignment?.[filters.pov!];
+        const stance = o.pov_alignment?.[filters.pov! as import('../../bridge/types').Pov];
         return stance && stance.score > 0;
       });
     }

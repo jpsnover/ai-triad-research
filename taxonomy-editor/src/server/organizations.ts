@@ -9,35 +9,12 @@
 import { readOrganizations } from './storage/fileIO.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
-export type Pov = 'accelerationist' | 'safetyist' | 'skeptic';
+export type { Pov, PovStance, TopicEngagement, PolicyEngagement, Organization, OrganizationEdgeType, OrganizationEdge } from '../../../lib/organizations/types.js';
+import type { Pov, Organization } from '../../../lib/organizations/types.js';
+
 export const POV_CAMPS: readonly Pov[] = ['accelerationist', 'safetyist', 'skeptic'];
 export function isPov(v: string): v is Pov {
   return (POV_CAMPS as readonly string[]).includes(v);
-}
-
-export type PovStance = { score: number; rationale?: string };
-export interface TopicEngagement { topic_ref: string; stance?: string; description?: string }
-export interface PolicyEngagement { policy_ref: string; stance: 'supports' | 'opposes' }
-
-export interface Organization {
-  id: string;
-  name: string;
-  short_name?: string;
-  type?: string;
-  description?: string;
-  url?: string;
-  headquarters?: string;
-  founded?: number;
-  status?: string;
-  pov_alignment?: Partial<Record<Pov, PovStance>>;
-  topic_engagement?: TopicEngagement[];
-  policy_engagement?: PolicyEngagement[];   // t/1225 Q1 — uniform reverse index w/ topics
-  key_figures?: unknown[];
-  external_links?: unknown[];
-  source_refs?: string[];
-  tags?: string[];
-  created_at?: string;
-  last_modified?: string;
 }
 
 interface OrgIndexes {

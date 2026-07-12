@@ -33,6 +33,7 @@
       "@lib/electron-shared/*": ["../lib/electron-shared/*"],
       "@lib/embeddings/*": ["../lib/embeddings/*"],
       "@lib/chat/*": ["../lib/chat/*"],
+      "@lib/organizations/*": ["../lib/organizations/*"],
       "zod": ["node_modules/zod"],
       "react": ["node_modules/@types/react"],
       "react/jsx-runtime": ["node_modules/@types/react/jsx-runtime"]

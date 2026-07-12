@@ -61,30 +61,17 @@ export interface SupportCaseDetail extends SupportCaseSummary {
   systemInfo: SupportCaseCreatePayload['systemInfo'];
 }
 
-export interface OrgPovStance { score: number; rationale?: string }
-export interface OrgTopicEngagement { topic_ref: string; stance?: string; description?: string }
-export interface OrgPolicyEngagement { policy_ref: string; stance: 'supports' | 'opposes' }
-
-export interface Organization {
-  id: string;
-  name: string;
-  short_name?: string;
-  type?: string;
-  description?: string;
-  url?: string;
-  headquarters?: string;
-  founded?: number;
-  status?: string;
-  pov_alignment?: Partial<Record<string, OrgPovStance>>;
-  topic_engagement?: OrgTopicEngagement[];
-  policy_engagement?: OrgPolicyEngagement[];
-  key_figures?: unknown[];
-  external_links?: unknown[];
-  source_refs?: string[];
-  tags?: string[];
-  created_at?: string;
-  last_modified?: string;
-}
+import type { Organization as _Organization, OrganizationEdge as _OrganizationEdge, OrganizationEdgeType as _OrganizationEdgeType, Pov as _Pov, PovStance as _PovStance, TopicEngagement as _TopicEngagement, PolicyEngagement as _PolicyEngagement } from '@lib/organizations/types';
+export type Organization = _Organization;
+export type OrganizationEdge = _OrganizationEdge;
+export type OrganizationEdgeType = _OrganizationEdgeType;
+export type Pov = _Pov;
+export type PovStance = _PovStance;
+export type TopicEngagement = _TopicEngagement;
+export type PolicyEngagement = _PolicyEngagement;
+export type OrgPovStance = _PovStance;
+export type OrgTopicEngagement = _TopicEngagement;
+export type OrgPolicyEngagement = _PolicyEngagement;
 
 export interface OrgFilters { type?: string; pov?: string }
 
