@@ -17,10 +17,12 @@ get made.
    no generation pipeline, no update mechanism. By the provenance register's rule these
    are stipulated by definition. org-001 lists Anthropic's RSP position paper in
    `external_links`, so the evidence exists; it just isn't wired as evidence.
-2. **Mapping stops at camp level.** `topic_engagement` on 9/25 orgs (11 links),
-   `policy_engagement` on 8/25 (8 links), **org→BDI-node mappings: zero**. The question
-   the feature exists to answer, "which real organizations hold *this specific
-   position*?", has no data path.
+2. **Mapping stops above the BDI-node level.** `topic_engagement` on 9/25 orgs (11
+   links), `policy_engagement` on 8/25 (8 links), and (post-HLD data, 2026-07-12) 36
+   curated `ADVOCATES_FOR`/`OPPOSES` edges — all targeting `sit-*` situations.
+   **Org→BDI-node mappings: zero.** The question the feature exists to answer, "which
+   real organizations hold *this specific position*?", still has no data path at node
+   granularity.
 3. **The score construct is undefined.** Anthropic's accelerationist rationale cites
    *behavior* ("builds and deploys rapidly"); its safetyist rationale cites *stated
    commitments* (RSP). Two constructs feed one undefined decimal, and nothing anchors
