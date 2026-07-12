@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import type { Organization, OrganizationEdge } from '@lib/organizations/types';
+
 export interface ElectronAPI {
   processVersions: Record<string, string | undefined>;
   osRelease: string;
@@ -228,12 +230,12 @@ export interface ElectronAPI {
   adminRemoveCommunityItem: (type: string, id: string, reason?: string) => Promise<void>;
 
   // Organizations
-  listOrganizations?: (filters?: { type?: string; pov?: string }) => Promise<unknown[]>;
-  getOrganization?: (id: string) => Promise<unknown>;
-  getOrganizationsByPov?: (pov: string) => Promise<unknown[]>;
-  getOrganizationsByTopic?: (topicRef: string) => Promise<unknown[]>;
-  getOrganizationsByPolicy?: (policyId: string) => Promise<unknown[]>;
-  getOrganizationEdges?: (orgId: string) => Promise<unknown[]>;
+  listOrganizations?: (filters?: { type?: string; pov?: string }) => Promise<Organization[]>;
+  getOrganization?: (id: string) => Promise<Organization>;
+  getOrganizationsByPov?: (pov: string) => Promise<Organization[]>;
+  getOrganizationsByTopic?: (topicRef: string) => Promise<Organization[]>;
+  getOrganizationsByPolicy?: (policyId: string) => Promise<Organization[]>;
+  getOrganizationEdges?: (orgId: string) => Promise<OrganizationEdge[]>;
 
   // Deep-link URL
   getWebAppUrl?: () => Promise<string | null>;
