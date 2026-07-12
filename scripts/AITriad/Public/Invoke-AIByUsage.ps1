@@ -83,6 +83,17 @@ function Invoke-AIByUsage {
         $config[$k] = $Override[$k]
     }
 
+    # t/1552 — Lint: {{placeholders}} in a non-template field are the classic
+    # silent-no-substitution footgun (t/1550#3). Warn naming the field and
+    # its intended *Template counterpart. Warning not error — a literal
+    # {{...}} in prompt text is conceivable, so don't hard-fail.
+    $literalFields = @{ systemMessage = 'systemMessageTemplate'; message = 'messageTemplate' }
+    foreach ($k in $literalFields.Keys) {
+        if ($config.ContainsKey($k) -and $config[$k] -and ([string]$config[$k]) -match '\{\{[^{}]+\}\}') {
+            Write-Warning "UsageID '$UsageId' field '$k' contains {{placeholder}} syntax but is not rendered — placeholders in this field are passed to the model literally. Rename the field to '$($literalFields[$k])' to enable substitution, or remove the {{...}} if the literal text is intentional."
+        }
+    }
+
     # Render templates
     $systemMessage = ''
     if ($config.ContainsKey('systemMessageTemplate') -and $config['systemMessageTemplate']) {

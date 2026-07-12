@@ -390,3 +390,92 @@ Describe 'Invoke-AIByUsage - manifest export (t/1261)' -Tag 'enrichment' {
         $manifest.ExportedFunctions.Keys | Should -Contain 'Invoke-AIByUsage'
     }
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# t/1552 — placeholder-lint for silent-no-substitution footgun (t/1550#3-#4)
+# ─────────────────────────────────────────────────────────────────────────────
+Describe 'Invoke-AIByUsage placeholder lint (t/1552)' -Tag 'enrichment' {
+
+    It 'Warns when systemMessage contains {{placeholder}} syntax (should be systemMessageTemplate)' {
+        InModuleScope AITriad {
+            Mock Get-UsageConfig -MockWith {
+                @{
+                    model           = 'gemini-3.1-flash-lite'
+                    systemMessage   = '{{prompt}}'   # WRONG — should be systemMessageTemplate
+                    messageTemplate = 'go'
+                }
+            }
+            Mock Invoke-AIApi -MockWith {
+                [PSCustomObject]@{ Text = 'ok'; Backend = 'stub'; Model = 'stub' }
+            }
+
+            $warnings = $null
+            $null = Invoke-AIByUsage -UsageId 'unit.lint-test' -WarningVariable warnings -WarningAction SilentlyContinue
+
+            ($warnings -join '|') | Should -Match "field 'systemMessage' contains .*placeholder.* syntax"
+            ($warnings -join '|') | Should -Match 'systemMessageTemplate'
+        }
+    }
+
+    It 'Warns when message contains {{placeholder}} syntax (should be messageTemplate)' {
+        InModuleScope AITriad {
+            Mock Get-UsageConfig -MockWith {
+                @{
+                    model   = 'gemini-3.1-flash-lite'
+                    message = 'Do X with {{input}}'   # WRONG — should be messageTemplate
+                }
+            }
+            Mock Invoke-AIApi -MockWith {
+                [PSCustomObject]@{ Text = 'ok'; Backend = 'stub'; Model = 'stub' }
+            }
+
+            $warnings = $null
+            $null = Invoke-AIByUsage -UsageId 'unit.lint-message' -WarningVariable warnings -WarningAction SilentlyContinue
+
+            ($warnings -join '|') | Should -Match "field 'message' contains .*placeholder.* syntax"
+            ($warnings -join '|') | Should -Match 'messageTemplate'
+        }
+    }
+
+    It 'Does NOT warn when placeholders live on the correct *Template fields' {
+        InModuleScope AITriad {
+            Mock Get-UsageConfig -MockWith {
+                @{
+                    model                 = 'gemini-3.1-flash-lite'
+                    systemMessageTemplate = '{{prompt}}'
+                    messageTemplate       = 'Node: {{id}}'
+                }
+            }
+            Mock Invoke-AIApi -MockWith {
+                [PSCustomObject]@{ Text = 'ok'; Backend = 'stub'; Model = 'stub' }
+            }
+
+            $warnings = $null
+            $null = Invoke-AIByUsage -UsageId 'unit.lint-ok' `
+                -Values @{ prompt = 'p'; id = 'x' } `
+                -WarningVariable warnings -WarningAction SilentlyContinue
+
+            ($warnings -join '|') | Should -Not -Match 'placeholder'
+        }
+    }
+
+    It 'Does NOT warn when literal fields contain no {{...}} syntax' {
+        InModuleScope AITriad {
+            Mock Get-UsageConfig -MockWith {
+                @{
+                    model         = 'gemini-3.1-flash-lite'
+                    systemMessage = 'Static system instruction — no substitution intended.'
+                    message       = 'Static user message.'
+                }
+            }
+            Mock Invoke-AIApi -MockWith {
+                [PSCustomObject]@{ Text = 'ok'; Backend = 'stub'; Model = 'stub' }
+            }
+
+            $warnings = $null
+            $null = Invoke-AIByUsage -UsageId 'unit.lint-literal' -WarningVariable warnings -WarningAction SilentlyContinue
+
+            ($warnings -join '|') | Should -Not -Match 'placeholder'
+        }
+    }
+}
