@@ -659,9 +659,10 @@ kbd {
   <!-- Load screen -->
   <div id="load-screen" class="load-screen">
     <h2>Claim Attribution Annotation Tool</h2>
-    <p>Load an annotation template JSON to begin reviewing claim-to-node attributions.</p>
+    <p>Load an annotation template JSON to review claim-to-node attributions,<br>
+    or an <code>organization_edges.json</code> to review proposed org edges (t/1554).</p>
     <label class="file-input-label">
-      Load _annotation_template.json
+      Load JSON file
       <input type="file" id="file-input" accept=".json">
     </label>
     <p style="margin-top: 24px; font-size: 12px;">Or drop the file anywhere on this page.</p>
@@ -764,7 +765,12 @@ function readFile(file) {
   const reader = new FileReader();
   reader.onload = e => {
     try {
-      data = JSON.parse(e.target.result);
+      const parsed = JSON.parse(e.target.result);
+      if (Array.isArray(parsed.edges)) {
+        startOrgReview(parsed);
+        return;
+      }
+      data = parsed;
       claims = data.claims || [];
       mergeSavedAnnotations();
       startAnnotation();
@@ -822,6 +828,7 @@ function applyFilter() {
 }
 
 function setFilter(f) {
+  if (orgMode) { setOrgFilter(f); return; }
   currentFilter = f;
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === f));
   const oldGlobal = filteredIndices[currentFilteredPos];
@@ -1152,6 +1159,7 @@ function updateAnnotator() {
 }
 
 function navigate(dir) {
+  if (orgMode) { orgNavigate(dir); return; }
   if (filteredIndices.length === 0) return;
   currentFilteredPos += dir;
   if (currentFilteredPos < 0) currentFilteredPos = filteredIndices.length - 1;
@@ -1166,6 +1174,7 @@ function handleKeys(e) {
     if (e.key === 'Escape') e.target.blur();
     return;
   }
+  if (orgMode) { handleOrgKeys(e); return; }
   if (filteredIndices.length === 0) return;
   const gi = filteredIndices[currentFilteredPos];
 
@@ -1219,6 +1228,7 @@ function autoSave() {
 }
 
 function saveProgress() {
+  if (orgMode) { autoSaveOrg(); toast('Review progress saved to browser storage'); return; }
   localStorage.setItem('annotation_progress', JSON.stringify({
     annotator: annotatorName,
     claims: claims,
@@ -1230,6 +1240,7 @@ function saveProgress() {
 }
 
 function loadSaved() {
+  if (orgMode) { toast('Org review decisions auto-merge when the edges file is loaded', true); return; }
   const saved = localStorage.getItem('annotation_progress');
   if (!saved) { toast('No saved progress found', true); return; }
   try {
@@ -1246,6 +1257,7 @@ function loadSaved() {
 }
 
 function exportAnnotations() {
+  if (orgMode) { exportOrgFile(); return; }
   const done = claims.filter(c => c.annotation.selected_node || c.annotation.none_of_above);
   const output = {
     metadata: {
@@ -1307,6 +1319,247 @@ function computeStats() {
     pov_distribution: povDist,
     notes_count: annotated.filter(c => c.annotation.notes).length
   };
+}
+
+// ── Org-edge review mode (t/1554) ──────────────────────────
+// Isolated from the claim-annotation path: own state, render, keys, save
+// key, and export. Shared chrome only (header, filter bar, toast).
+
+let orgMode = false;
+let orgFile = null;
+let orgEdges = [];
+let orgIndices = [];
+let orgPos = 0;
+let orgFilter = 'pending';
+const ORG_SAVE_KEY = 'org_edge_review_progress';
+const EDGE_TYPE_HINTS = {
+  PUBLISHED: 'org published this source document — approving admits it to the Stage 1 stance-extraction set',
+  ADVOCATES_FOR: 'org publicly advances this position',
+  OPPOSES: 'org publicly argues against this position',
+  ENGAGED_WITH: 'org engages this topic without a clear stance',
+  ALLIED_WITH: 'org-to-org alliance', COMPETES_WITH: 'org-to-org competition', FUNDS: 'org funds target',
+  SUPPORTS_POLICY: 'org supports policy action', OPPOSES_POLICY: 'org opposes policy action',
+};
+
+function edgeKey(e) { return e.source + '|' + e.target + '|' + e.type; }
+
+// Normalize-at-fetch: source_refs arrives as string in some rows (t/1553#7).
+function normalizeRefs(e) {
+  if (typeof e.source_refs === 'string') e.source_refs = e.source_refs ? [e.source_refs] : [];
+  if (!Array.isArray(e.source_refs)) e.source_refs = [];
+}
+
+function startOrgReview(parsed) {
+  orgMode = true;
+  orgFile = parsed;
+  orgEdges = parsed.edges;
+  orgEdges.forEach(normalizeRefs);
+  mergeSavedOrgDecisions();
+  document.getElementById('load-screen').style.display = 'none';
+  document.getElementById('main-ui').style.display = 'block';
+  document.querySelector('.header h1').textContent = 'Organization Edge Review';
+  const labels = { all: 'All', pending: 'Proposed', done: 'Approved (reviewed)', none: 'Rejected' };
+  document.querySelectorAll('.filter-btn').forEach(b => { if (labels[b.dataset.filter]) b.textContent = labels[b.dataset.filter]; });
+  document.querySelector('.keyboard-hints').innerHTML =
+    '<span><kbd>A</kbd> Approve</span>' +
+    '<span><kbd>X</kbd> Reject</span>' +
+    '<span><kbd>R</kbd> Reset to proposed</span>' +
+    '<span><kbd>N</kbd> Focus note</span>' +
+    '<span><kbd>&larr;</kbd> <kbd>&rarr;</kbd> Navigate</span>';
+  setOrgFilter('pending');
+  const nProposed = orgEdges.filter(e => e.status === 'proposed').length;
+  toast('Org-edge review mode: ' + nProposed + ' proposed edge(s) to review');
+}
+
+function mergeSavedOrgDecisions() {
+  const saved = localStorage.getItem(ORG_SAVE_KEY);
+  if (!saved) return;
+  try {
+    const parsed = JSON.parse(saved);
+    const map = {};
+    (parsed.decisions || []).forEach(d => { map[d.key] = d; });
+    let merged = 0;
+    orgEdges.forEach(e => {
+      const d = map[edgeKey(e)];
+      if (d) {
+        e.status = d.status;
+        if (d.review_note) e.review_note = d.review_note;
+        if (d.reviewed_by) e.reviewed_by = d.reviewed_by;
+        if (d.reviewed_at) e.reviewed_at = d.reviewed_at;
+        merged++;
+      }
+    });
+    if (parsed.annotator) { annotatorName = parsed.annotator; document.getElementById('annotator-name').value = annotatorName; }
+    if (merged > 0) toast('Merged ' + merged + ' saved review decision(s)');
+  } catch (err) {}
+}
+
+function applyOrgFilter() {
+  orgIndices = [];
+  for (let i = 0; i < orgEdges.length; i++) {
+    const e = orgEdges[i];
+    const reviewed = !!e.reviewed_at;
+    if (orgFilter === 'all') orgIndices.push(i);
+    else if (orgFilter === 'pending' && e.status === 'proposed') orgIndices.push(i);
+    else if (orgFilter === 'done' && e.status === 'approved' && reviewed) orgIndices.push(i);
+    else if (orgFilter === 'none' && e.status === 'rejected') orgIndices.push(i);
+  }
+  document.getElementById('filter-count').textContent = orgIndices.length + ' edges';
+}
+
+function setOrgFilter(f) {
+  orgFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === f));
+  applyOrgFilter();
+  orgPos = Math.min(orgPos, Math.max(0, orgIndices.length - 1));
+  renderOrgNavStrip();
+  renderOrgEdge();
+  updateOrgProgress();
+}
+
+function orgNavigate(dir) {
+  if (orgIndices.length === 0) return;
+  orgPos += dir;
+  if (orgPos < 0) orgPos = orgIndices.length - 1;
+  if (orgPos >= orgIndices.length) orgPos = 0;
+  renderOrgNavStrip();
+  renderOrgEdge();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderOrgNavStrip() {
+  const strip = document.getElementById('nav-strip');
+  strip.innerHTML = orgIndices.map((gi, pos) => {
+    const e = orgEdges[gi];
+    const color = e.status === 'approved' ? 'var(--green)' : e.status === 'rejected' ? 'var(--red)' : 'var(--text-muted)';
+    const border = pos === orgPos ? '2px solid var(--yellow)' : '1px solid transparent';
+    return '<span onclick="orgJump(' + pos + ')" title="' + escHtml(edgeKey(e)) + '" style="display:inline-block;width:12px;height:12px;margin:2px;border-radius:2px;cursor:pointer;background:' + color + ';border:' + border + ';"></span>';
+  }).join('');
+}
+
+function orgJump(pos) { orgPos = pos; renderOrgNavStrip(); renderOrgEdge(); }
+
+function matchBasisOf(e) {
+  const m = /match_basis=(\w+)/.exec(e.rationale || '');
+  return m ? m[1] : null;
+}
+
+function renderOrgEdge() {
+  const area = document.getElementById('claim-area');
+  if (orgIndices.length === 0) {
+    area.innerHTML = '<p style="color:var(--text-muted);padding:24px;">No edges in this filter.</p>';
+    document.getElementById('claim-counter').textContent = '';
+    return;
+  }
+  const e = orgEdges[orgIndices[orgPos]];
+  const basis = matchBasisOf(e);
+  const statusColor = e.status === 'approved' ? 'var(--green)' : e.status === 'rejected' ? 'var(--red)' : 'var(--yellow)';
+  const refs = e.source_refs.map(r => '<code>' + escHtml(r) + '</code>').join(', ') || '<span style="color:var(--text-muted)">none</span>';
+  area.innerHTML =
+    '<div style="border:1px solid var(--border,#444);border-radius:8px;padding:20px;margin:12px 0;">' +
+      '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">' +
+        '<strong style="font-size:16px;">' + escHtml(e.source) + '</strong>' +
+        '<span style="padding:2px 10px;border-radius:12px;background:var(--bg-alt,#222);font-size:12px;letter-spacing:0.5px;">' + escHtml(e.type) + '</span>' +
+        '<strong style="font-size:16px;">' + escHtml(e.target) + '</strong>' +
+        '<span style="margin-left:auto;color:' + statusColor + ';font-size:13px;text-transform:uppercase;">' + escHtml(e.status) + '</span>' +
+      '</div>' +
+      (EDGE_TYPE_HINTS[e.type] ? '<p style="color:var(--text-muted);font-size:12px;margin:8px 0 0;">' + escHtml(EDGE_TYPE_HINTS[e.type]) + '</p>' : '') +
+      '<div style="margin-top:14px;font-size:13px;line-height:1.6;">' +
+        '<div><span style="color:var(--text-muted);">Rationale:</span> ' + escHtml(e.rationale || '(none)') + '</div>' +
+        (basis ? '<div><span style="color:var(--text-muted);">Match basis:</span> ' + escHtml(basis) + (basis !== 'domain' ? ' <em style="color:var(--yellow);">(non-domain match — check authorship vs hosting)</em>' : '') + '</div>' : '') +
+        '<div><span style="color:var(--text-muted);">Source refs:</span> ' + refs + '</div>' +
+        '<div><span style="color:var(--text-muted);">Discovered:</span> ' + escHtml(e.discovered_at || '?') + '</div>' +
+        (e.reviewed_at ? '<div><span style="color:var(--text-muted);">Reviewed:</span> ' + escHtml(e.reviewed_at) + ' by ' + escHtml(e.reviewed_by || '?') + '</div>' : '') +
+      '</div>' +
+      '<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">' +
+        '<button class="btn btn-success" onclick="orgDecide(\'approved\')">Approve (A)</button>' +
+        '<button class="btn" style="border-color:var(--red);color:var(--red);" onclick="orgDecide(\'rejected\')">Reject (X)</button>' +
+        (e.reviewed_at ? '<button class="btn" onclick="orgReset()">Reset (R)</button>' : '') +
+      '</div>' +
+      '<textarea id="org-note-input" placeholder="Review note (optional — saved with the decision)" style="margin-top:12px;width:100%;min-height:48px;background:var(--bg-alt,#222);color:inherit;border:1px solid var(--border,#444);border-radius:6px;padding:8px;font:inherit;font-size:13px;">' + escHtml(e.review_note || '') + '</textarea>' +
+    '</div>';
+  document.getElementById('claim-counter').textContent = (orgPos + 1) + ' / ' + orgIndices.length;
+}
+
+function orgDecide(status) {
+  if (orgIndices.length === 0) return;
+  const e = orgEdges[orgIndices[orgPos]];
+  e.status = status;
+  e.reviewed_by = annotatorName || 'unknown';
+  e.reviewed_at = new Date().toISOString().slice(0, 10);
+  const note = document.getElementById('org-note-input');
+  if (note && note.value.trim()) e.review_note = note.value.trim(); else delete e.review_note;
+  autoSaveOrg();
+  const before = orgIndices.length;
+  applyOrgFilter();
+  // On a narrowing filter the decided edge leaves the list; stay in place.
+  if (orgIndices.length === before) orgNavigate(1);
+  else orgPos = Math.min(orgPos, Math.max(0, orgIndices.length - 1));
+  renderOrgNavStrip();
+  renderOrgEdge();
+  updateOrgProgress();
+  toast(status === 'approved' ? 'Approved' : 'Rejected');
+}
+
+function orgReset() {
+  if (orgIndices.length === 0) return;
+  const e = orgEdges[orgIndices[orgPos]];
+  e.status = 'proposed';
+  delete e.reviewed_by; delete e.reviewed_at; delete e.review_note;
+  autoSaveOrg();
+  applyOrgFilter();
+  orgPos = Math.min(orgPos, Math.max(0, orgIndices.length - 1));
+  renderOrgNavStrip();
+  renderOrgEdge();
+  updateOrgProgress();
+  toast('Reset to proposed');
+}
+
+function updateOrgProgress() {
+  const reviewed = orgEdges.filter(e => e.reviewed_at).length;
+  const open = orgEdges.filter(e => e.status === 'proposed').length;
+  const totalInPlay = reviewed + open;
+  const pct = totalInPlay ? Math.round(reviewed / totalInPlay * 100) : 0;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-text').textContent = reviewed + ' reviewed / ' + open + ' proposed remaining';
+  document.getElementById('progress-pct').textContent = pct + '%';
+}
+
+function autoSaveOrg() {
+  const decisions = orgEdges.filter(e => e.reviewed_at).map(e => ({
+    key: edgeKey(e), status: e.status,
+    review_note: e.review_note, reviewed_by: e.reviewed_by, reviewed_at: e.reviewed_at,
+  }));
+  localStorage.setItem(ORG_SAVE_KEY, JSON.stringify({
+    annotator: annotatorName, decisions, savedAt: new Date().toISOString(),
+  }));
+}
+
+function exportOrgFile() {
+  orgFile.last_modified = new Date().toISOString().slice(0, 10);
+  const approved = orgEdges.filter(e => e.status === 'approved' && e.reviewed_at).length;
+  const rejected = orgEdges.filter(e => e.status === 'rejected').length;
+  const blob = new Blob([JSON.stringify(orgFile, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'organization_edges.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Exported full edges file (' + approved + ' newly approved, ' + rejected + ' rejected) — drop-in replacement for the data repo');
+}
+
+function handleOrgKeys(e) {
+  if (orgIndices.length === 0 && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  if (e.key === 'ArrowLeft') { orgNavigate(-1); e.preventDefault(); }
+  else if (e.key === 'ArrowRight') { orgNavigate(1); e.preventDefault(); }
+  else if (e.key === 'a' || e.key === 'A') { orgDecide('approved'); }
+  else if (e.key === 'x' || e.key === 'X') { orgDecide('rejected'); }
+  else if (e.key === 'r' || e.key === 'R') { orgReset(); }
+  else if (e.key === 'n' || e.key === 'N') {
+    const noteEl = document.getElementById('org-note-input');
+    if (noteEl) { noteEl.focus(); e.preventDefault(); }
+  }
 }
 
 function escHtml(s) {
