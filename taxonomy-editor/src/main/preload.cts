@@ -404,6 +404,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ): Promise<{ cancelled: boolean; filePath?: string }> =>
     ipcRenderer.invoke('export-chat-to-file', entries, format, options),
 
+  // Organizations (t/1544)
+  listOrganizations: (filters?: { type?: string; pov?: string }): Promise<unknown[]> =>
+    ipcRenderer.invoke('list-organizations', filters),
+  getOrganization: (id: string): Promise<unknown> =>
+    ipcRenderer.invoke('get-organization', id),
+  getOrganizationsByPov: (pov: string): Promise<unknown[]> =>
+    ipcRenderer.invoke('get-organizations-by-pov', pov),
+  getOrganizationsByTopic: (topicRef: string): Promise<unknown[]> =>
+    ipcRenderer.invoke('get-organizations-by-topic', topicRef),
+  getOrganizationsByPolicy: (policyId: string): Promise<unknown[]> =>
+    ipcRenderer.invoke('get-organizations-by-policy', policyId),
+  getOrganizationEdges: (orgId: string): Promise<unknown[]> =>
+    ipcRenderer.invoke('get-organization-edges', orgId),
+
   loadDebateComments: (debateId: string): Promise<unknown> =>
     ipcRenderer.invoke('load-debate-comments', debateId),
 

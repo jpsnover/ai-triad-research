@@ -49,6 +49,7 @@ import {
 import { debateToText, debateToMarkdown, debateToPdf, debateToPackage } from './debateExport.js';
 import { chatToMarkdown, chatToText, chatToPrintHtml, chatExportFilename, type ChatExportEntry, type ChatExportOptions } from '../../../lib/chat/chatExportFormatters.js';
 import { storeApiKey, hasApiKey, getApiKeySummary, exportKeysForSharing, importKeysFromSharing, deleteApiKey, deleteAllApiKeys, removeApiKey, getMaskedKeys } from './apiKeyStore.js';
+import { listOrganizations, getOrganizationById, organizationsByPov, organizationsByTopic, organizationsByPolicy, organizationEdges, isPov } from './organizations.js';
 import type { KeySharePayload } from './apiKeyStore.js';
 import { isDataAvailable, getDataRootPath, setDataRootPath, loadDataConfig, PROJECT_ROOT, getSourcesDir, writeJsonFileAtomic } from './fileIO.js';
 import { computeEmbeddings, computeQueryEmbedding, generateText, generateTextWithSearch, generateChatStream, updateNodeEmbeddings, classifyNli, setDebateTemperature, getEmbeddingInfo } from './embeddings.js';
@@ -1216,6 +1217,24 @@ export function registerIpcHandlers(): void {
 
     return { cancelled: false, filePath };
   });
+
+  // Organizations (t/1544) — local read of taxonomy/Origin/organizations.json + edges,
+  // mirroring server/organizations.ts. Graceful degradation to [] when files are absent.
+  ipcMain.handle('list-organizations', (_event, filters?: { type?: string; pov?: string }) =>
+    listOrganizations(filters ?? {}));
+  ipcMain.handle('get-organization', (_event, id: string) => {
+    const org = getOrganizationById(id);
+    if (!org) throw new Error(`Organization not found: ${id}`);
+    return org;
+  });
+  ipcMain.handle('get-organizations-by-pov', (_event, pov: string) =>
+    isPov(pov) ? organizationsByPov(pov) : []);
+  ipcMain.handle('get-organizations-by-topic', (_event, topicRef: string) =>
+    organizationsByTopic(topicRef));
+  ipcMain.handle('get-organizations-by-policy', (_event, policyId: string) =>
+    organizationsByPolicy(policyId));
+  ipcMain.handle('get-organization-edges', (_event, orgId: string) =>
+    organizationEdges(orgId));
 
   ipcMain.handle('fetch-url-content', async (_event, url: string) => {
     // S-SSRF: Only allow http/https protocols to prevent file:// and internal network access
