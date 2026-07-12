@@ -234,13 +234,13 @@ export const api: AppAPI = {
   respondToSupportCase: () => Promise.reject(new Error('Support cases are only available in the web app')),
   updateSupportCaseStatus: () => Promise.reject(new Error('Support cases are only available in the web app')),
 
-  // Organizations — desktop stubs (data not loaded in Electron initially)
-  listOrganizations: () => Promise.resolve([]),
-  getOrganization: () => Promise.reject(new Error('Organization data is not available in desktop mode')),
-  getOrganizationsByPov: () => Promise.resolve([]),
-  getOrganizationsByTopic: () => Promise.resolve([]),
-  getOrganizationsByPolicy: () => Promise.resolve([]),
-  getOrganizationEdges: () => Promise.resolve([]),
+  // Organizations — delegate to IPC when available, graceful fallback otherwise
+  listOrganizations: (filters) => window.electronAPI.listOrganizations?.(filters) ?? Promise.resolve([]),
+  getOrganization: (id) => window.electronAPI.getOrganization?.(id) ?? Promise.reject(new Error('Organization data is not available in desktop mode')),
+  getOrganizationsByPov: (pov) => window.electronAPI.getOrganizationsByPov?.(pov) ?? Promise.resolve([]),
+  getOrganizationsByTopic: (topicRef) => window.electronAPI.getOrganizationsByTopic?.(topicRef) ?? Promise.resolve([]),
+  getOrganizationsByPolicy: (policyId) => window.electronAPI.getOrganizationsByPolicy?.(policyId) ?? Promise.resolve([]),
+  getOrganizationEdges: (orgId) => window.electronAPI.getOrganizationEdges?.(orgId) ?? Promise.resolve([]),
 
   // Calibration
   getCalibrationHistory: () => window.electronAPI.getCalibrationHistory(),

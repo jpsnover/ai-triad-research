@@ -227,6 +227,14 @@ export interface ElectronAPI {
   adminReviewAction: (action: unknown) => Promise<void>;
   adminRemoveCommunityItem: (type: string, id: string, reason?: string) => Promise<void>;
 
+  // Organizations
+  listOrganizations?: (filters?: { type?: string; pov?: string }) => Promise<unknown[]>;
+  getOrganization?: (id: string) => Promise<unknown>;
+  getOrganizationsByPov?: (pov: string) => Promise<unknown[]>;
+  getOrganizationsByTopic?: (topicRef: string) => Promise<unknown[]>;
+  getOrganizationsByPolicy?: (policyId: string) => Promise<unknown[]>;
+  getOrganizationEdges?: (orgId: string) => Promise<unknown[]>;
+
   // Deep-link URL
   getWebAppUrl?: () => Promise<string | null>;
 }
