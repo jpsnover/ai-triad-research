@@ -1,0 +1,363 @@
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
+function Invoke-OrgStanceExtraction {
+    <#
+    .SYNOPSIS
+        Stage 1 of t/1553 — extracts an org's own asserted/opposed positions
+        from each approved PUBLISHED document.
+    .DESCRIPTION
+        Consumes approved PUBLISHED edges (org → source) from the
+        organization_edges.json store. For each (org, source) pair whose
+        target document exists in the ingested corpus, loads snapshot.md
+        and calls the `enrichment.org-stance-extraction` UsageID.
+
+        Claims come back as structured JSON:
+          { text, canonical_proposition, polarity, extraction_confidence }
+        keyed to (org_id, source_id). Persisted to
+        organization_stance_claims.json under the taxonomy origin, with
+        an idempotence guard on (org_id, source_id) — re-runs skip
+        already-extracted pairs unless -Force.
+
+        Edges whose target isn't on disk (historical curated edges without
+        an ingested doc) are skipped with a count in the summary — never
+        an AI call.
+
+        Zero writes to organization_edges.json — Stage 1 only produces
+        claims, not proposals. Proposal emission is Stage 3.
+    .PARAMETER Org
+        Restrict to specific org id(s). Default: all orgs with at least
+        one approved PUBLISHED edge.
+    .PARAMETER MaxDocs
+        Safety cap on documents processed per run. Default: no cap.
+        Use `-MaxDocs 3` for CL first-batch review.
+    .PARAMETER Concurrency
+        Parallel AI calls. Default 3 — conservative to stay under
+        flash-lite rate limits (same lesson as t/1550 aphorism backfill).
+    .PARAMETER Force
+        Re-extract for (org, source) pairs that already have claims.
+    .PARAMETER MaxDocChars
+        Truncate document body to this many chars before extraction
+        (flash-lite context safety). Default 20000 (~5K tokens).
+    .PARAMETER OutputPath
+        Override the claim file path (data-repo taxonomy/Origin by default).
+    .EXAMPLE
+        Invoke-OrgStanceExtraction -MaxDocs 3
+    .EXAMPLE
+        Invoke-OrgStanceExtraction -Org org-001,org-002
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [Parameter()]
+        [string[]]$Org,
+
+        [Parameter()]
+        [ValidateRange(1, 500)]
+        [int]$MaxDocs,
+
+        [Parameter()]
+        [ValidateRange(1, 20)]
+        [int]$Concurrency = 3,
+
+        [Parameter()]
+        [switch]$Force,
+
+        [Parameter()]
+        [ValidateRange(500, 200000)]
+        [int]$MaxDocChars = 20000,
+
+        [Parameter()]
+        [Alias('Path')]
+        [string]$OutputPath
+    )
+
+    Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
+
+    # ── Resolve paths + registries ───────────────────────────────────────
+    $sourcesRoot = Get-SourcesDir
+    if (-not (Test-Path $sourcesRoot)) {
+        throw (New-ActionableError `
+            -Goal 'Extract org stance claims' `
+            -Problem "Sources directory not found: $sourcesRoot" `
+            -Location 'Invoke-OrgStanceExtraction' `
+            -NextSteps @('Set $env:AI_TRIAD_SOURCES_ROOT', 'Verify .aitriad.json'))
+    }
+
+    if (-not $OutputPath) {
+        $OutputPath = Join-Path (Get-TaxonomyDir) 'organization_stance_claims.json'
+    }
+
+    $orgStore   = Get-OrganizationsStore
+    $edgeStore  = Get-OrganizationEdgesStore
+    $orgs       = if ($orgStore.PSObject.Properties['organizations']) { @($orgStore.organizations) } else { @() }
+    $edges      = if ($edgeStore -and $edgeStore.PSObject.Properties['edges']) { @($edgeStore.edges) } else { @() }
+
+    $orgById = @{}
+    foreach ($o in $orgs) { $orgById[[string]$o.id] = $o }
+
+    # ── Build work list ──────────────────────────────────────────────────
+    $wanted = @()
+    if ($Org) { $wanted = @($Org) }
+    $wantedCount = @($wanted).Count
+    $approved = @($edges | Where-Object {
+        $_.PSObject.Properties['type']   -and
+        $_.PSObject.Properties['status'] -and
+        $_.PSObject.Properties['source'] -and
+        $_.PSObject.Properties['target'] -and
+        [string]$_.type -eq 'PUBLISHED' -and
+        [string]$_.status -eq 'approved' -and
+        [string]$_.target -notlike 'org-*' -and
+        (($wantedCount -eq 0) -or ([string]$_.source -in $wanted))
+    })
+
+    # ── Load existing claims (idempotence guard) ─────────────────────────
+    $existingClaims = [System.Collections.Generic.List[PSObject]]::new()
+    $covered = @{}   # "$orgId::$sourceId" → 1
+    if (Test-Path $OutputPath) {
+        $prev = Get-Content $OutputPath -Raw | ConvertFrom-Json
+        if ($prev.PSObject.Properties['claims']) {
+            foreach ($c in @($prev.claims)) {
+                $existingClaims.Add($c)
+                if ($c.PSObject.Properties['org_id'] -and $c.PSObject.Properties['source_id']) {
+                    $covered["$($c.org_id)::$($c.source_id)"] = 1
+                }
+            }
+        }
+    }
+
+    $workItems = [System.Collections.Generic.List[PSObject]]::new()
+    $skippedNoDoc     = 0
+    $skippedAlreadyDone = 0
+    $skippedNoOrg      = 0
+
+    foreach ($e in $approved) {
+        $orgId    = [string]$e.source
+        $sourceId = [string]$e.target
+        $key      = "$orgId::$sourceId"
+
+        if (-not $Force -and $covered.ContainsKey($key)) {
+            $skippedAlreadyDone++
+            continue
+        }
+
+        if (-not $orgById.ContainsKey($orgId)) {
+            $skippedNoOrg++
+            continue
+        }
+
+        $sourceDir = Join-Path $sourcesRoot $sourceId
+        $snapshot  = Join-Path $sourceDir 'snapshot.md'
+        if (-not (Test-Path $snapshot)) {
+            $skippedNoDoc++
+            continue
+        }
+
+        $org   = $orgById[$orgId]
+        $orgName = if ($org.PSObject.Properties['name']) { [string]$org.name } else { $orgId }
+        $orgType = if ($org.PSObject.Properties['type']) { [string]$org.type } else { 'organization' }
+
+        $workItems.Add([PSCustomObject]@{
+            OrgId    = $orgId
+            OrgName  = $orgName
+            OrgType  = $orgType
+            SourceId = $sourceId
+            Snapshot = $snapshot
+        })
+    }
+
+    if ($MaxDocs -and $workItems.Count -gt $MaxDocs) {
+        $workItems = $workItems | Select-Object -First $MaxDocs
+    }
+
+    $Total = @($workItems).Count
+    Write-Verbose "Work items: $Total (skipped no-doc: $skippedNoDoc, already-done: $skippedAlreadyDone, no-org: $skippedNoOrg)"
+
+    if ($Total -eq 0) {
+        Write-Host 'Nothing to extract — no approved PUBLISHED edges match the filter, or all are already done.'
+        return [PSCustomObject]@{
+            Extracted        = 0
+            ClaimsWritten    = 0
+            Failed           = 0
+            SkippedNoDoc     = $skippedNoDoc
+            SkippedAlreadyDone = $skippedAlreadyDone
+            SkippedNoOrg     = $skippedNoOrg
+            OutputPath       = $OutputPath
+        }
+    }
+
+    # ── Pre-render prompts in the outer runspace (Get-Prompt is Private,
+    # invisible in -Parallel workers — same fix as t/1550 aphorism). ────
+    $moduleRoot = $script:ModuleRoot
+    $promptSubs = [System.Collections.Generic.List[PSObject]]::new()
+    foreach ($item in $workItems) {
+        $docText = Get-Content $item.Snapshot -Raw
+        if ($docText.Length -gt $MaxDocChars) { $docText = $docText.Substring(0, $MaxDocChars) }
+        $rendered = Get-Prompt -Name 'org-stance-extraction' -Replacements @{
+            org_name = $item.OrgName
+            org_type = $item.OrgType
+            document = $docText
+        }
+        $promptSubs.Add([PSCustomObject]@{
+            OrgId     = $item.OrgId
+            OrgName   = $item.OrgName
+            OrgType   = $item.OrgType
+            SourceId  = $item.SourceId
+            Prompt    = $rendered
+            DocChars  = $docText.Length
+        })
+    }
+
+    if (-not $PSCmdlet.ShouldProcess("$Total document(s)", 'Extract stance claims via enrichment.org-stance-extraction')) {
+        return [PSCustomObject]@{
+            WouldProcess = $Total
+            OutputPath   = $OutputPath
+        }
+    }
+
+    # ── Extract (parallel) ───────────────────────────────────────────────
+    $newClaims = [System.Collections.Concurrent.ConcurrentBag[PSObject]]::new()
+    $failed    = [System.Collections.Concurrent.ConcurrentBag[string]]::new()
+    $ModulePath = Join-Path $moduleRoot 'AITriad.psm1'
+    $EnrichPath = Join-Path $moduleRoot '..' 'AIEnrich.psm1'
+    if (-not (Test-Path $EnrichPath)) { $EnrichPath = Join-Path $moduleRoot 'AIEnrich.psm1' }
+    $ProgressId = 1
+    $Completed  = [ref]0
+
+    Write-Progress -Id $ProgressId -Activity 'Extracting stance claims' -Status "0 / $Total" -PercentComplete 0
+
+    if ($Concurrency -eq 1) {
+        # Sequential path (deterministic, testable).
+        foreach ($item in $promptSubs) {
+            try {
+                $ai = Invoke-AIByUsage -UsageId 'enrichment.org-stance-extraction' -Values @{
+                    prompt = $item.Prompt
+                }
+                if ($null -ne $ai -and $ai.Text) {
+                    # Defensive strip of any ```json ... ``` fences the model might add
+                    # despite prompt "no markdown fences" instruction.
+                    $body = [string]$ai.Text
+                    $body = $body -replace '^\s*```(json)?\s*', ''
+                    $body = $body -replace '\s*```\s*$', ''
+                    $parsed = $body.Trim() | ConvertFrom-Json -ErrorAction Stop
+                    foreach ($c in @($parsed.claims)) {
+                        $newClaims.Add([PSCustomObject]@{
+                            org_id                = $item.OrgId
+                            source_id             = $item.SourceId
+                            text                  = $c.text
+                            canonical_proposition = $c.canonical_proposition
+                            polarity              = $c.polarity
+                            extraction_confidence = [double]$c.extraction_confidence
+                            extracted_at          = (Get-Date).ToString('o')
+                            extraction_model      = if ($ai.PSObject.Properties['Model']) { $ai.Model } else { 'gemini-3.1-flash-lite' }
+                        })
+                    }
+                } else {
+                    $failed.Add("$($item.OrgId)::$($item.SourceId): empty AI response")
+                }
+            } catch {
+                $failed.Add("$($item.OrgId)::$($item.SourceId): $($_.Exception.Message)")
+                Write-Warning "$($item.OrgId)::$($item.SourceId): $($_.Exception.Message)"
+            }
+            $Done = [System.Threading.Interlocked]::Increment($Completed)
+            $Pct  = [math]::Min(100, [math]::Round(($Done / $Total) * 100))
+            Write-Progress -Id $ProgressId -Activity 'Extracting stance claims' -Status "$Done / $Total" -PercentComplete $Pct
+        }
+    } else {
+        $promptSubs | ForEach-Object -Parallel {
+            Import-Module $using:ModulePath -Force -WarningAction SilentlyContinue
+            Import-Module $using:EnrichPath -Force -WarningAction SilentlyContinue
+            $item      = $_
+            $NewBag    = $using:newClaims
+            $FailBag   = $using:failed
+            $CompRef   = $using:Completed
+            $TotalCnt  = $using:Total
+            $ProgId    = $using:ProgressId
+
+            try {
+                $ai = Invoke-AIByUsage -UsageId 'enrichment.org-stance-extraction' -Values @{
+                    prompt = $item.Prompt
+                }
+                if ($null -ne $ai -and $ai.Text) {
+                    # Defensive strip of any ```json ... ``` fences the model might add
+                    # despite prompt "no markdown fences" instruction.
+                    $body = [string]$ai.Text
+                    $body = $body -replace '^\s*```(json)?\s*', ''
+                    $body = $body -replace '\s*```\s*$', ''
+                    $parsed = $body.Trim() | ConvertFrom-Json -ErrorAction Stop
+                    foreach ($c in @($parsed.claims)) {
+                        $NewBag.Add([PSCustomObject]@{
+                            org_id                = $item.OrgId
+                            source_id             = $item.SourceId
+                            text                  = $c.text
+                            canonical_proposition = $c.canonical_proposition
+                            polarity              = $c.polarity
+                            extraction_confidence = [double]$c.extraction_confidence
+                            extracted_at          = (Get-Date).ToString('o')
+                            extraction_model      = if ($ai.PSObject.Properties['Model']) { $ai.Model } else { 'gemini-3.1-flash-lite' }
+                        })
+                    }
+                } else {
+                    $FailBag.Add("$($item.OrgId)::$($item.SourceId): empty AI response")
+                }
+            } catch {
+                $FailBag.Add("$($item.OrgId)::$($item.SourceId): $($_.Exception.Message)")
+                Write-Warning "$($item.OrgId)::$($item.SourceId): $($_.Exception.Message)"
+            }
+
+            $Done = [System.Threading.Interlocked]::Increment($CompRef)
+            $Pct  = [math]::Min(100, [math]::Round(($Done / $TotalCnt) * 100))
+            Write-Progress -Id $ProgId -Activity 'Extracting stance claims' -Status "$Done / $TotalCnt" -PercentComplete $Pct
+        } -ThrottleLimit $Concurrency
+    }
+
+    Write-Progress -Id $ProgressId -Activity 'Extracting stance claims' -Completed
+
+    # ── Merge + persist ──────────────────────────────────────────────────
+    $writtenNew   = @($newClaims).Count
+    if ($writtenNew -gt 0) {
+        # -Force replaces old claims for the same (org, source); no-Force
+        # can't reach here for existing (org, source) pairs anyway.
+        if ($Force) {
+            $refreshedKeys = @{}
+            foreach ($item in $promptSubs) { $refreshedKeys["$($item.OrgId)::$($item.SourceId)"] = 1 }
+            $keep = [System.Collections.Generic.List[PSObject]]::new()
+            foreach ($c in $existingClaims) {
+                $k = "$($c.org_id)::$($c.source_id)"
+                if (-not $refreshedKeys.ContainsKey($k)) { $keep.Add($c) }
+            }
+            $existingClaims = $keep
+        }
+        foreach ($c in @($newClaims)) { $existingClaims.Add($c) }
+    }
+
+    $store = [PSCustomObject]@{
+        _schema_version = '1.0.0'
+        _doc            = 'Organization stance claims extracted per t/1553 Stage 1. Feeds Stage 2/3 claim→node matching. Machine-proposed / human-disposes downstream.'
+        last_modified   = (Get-Date).ToString('yyyy-MM-dd')
+        claim_count     = @($existingClaims).Count
+        claims          = @($existingClaims)
+    }
+
+    if ($writtenNew -gt 0) {
+        $temp = "$OutputPath.tmp"
+        $json = $store | ConvertTo-Json -Depth 8
+        Set-Content -Path $temp -Value $json -Encoding utf8NoBOM
+        [System.IO.File]::Move($temp, $OutputPath, $true)
+    }
+
+    $failCount = @($failed).Count
+    Write-Host ""
+    Write-Host "Done. Documents processed: $Total | Claims extracted: $writtenNew | Failed: $failCount | Skipped no-doc: $skippedNoDoc | Skipped already-done: $skippedAlreadyDone"
+
+    [PSCustomObject]@{
+        Extracted          = $Total - $failCount
+        ClaimsWritten      = $writtenNew
+        Failed             = $failCount
+        FailedItems        = @($failed)
+        SkippedNoDoc       = $skippedNoDoc
+        SkippedAlreadyDone = $skippedAlreadyDone
+        SkippedNoOrg       = $skippedNoOrg
+        OutputPath         = $OutputPath
+    }
+}

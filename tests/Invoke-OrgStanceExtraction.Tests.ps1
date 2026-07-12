@@ -1,0 +1,144 @@
+# Tag: taxonomy (t/1553 Stage 1)
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
+#Requires -Module Pester
+
+<#
+.SYNOPSIS
+    Covers Invoke-OrgStanceExtraction — Stage 1 of t/1553.
+.DESCRIPTION
+    Focus is filter + skip logic + persistence shape. AI is mocked so tests
+    run offline. End-to-end AI path was validated against the real corpus
+    (3 docs → 17 valid claims) before this suite landed.
+#>
+
+BeforeAll {
+    $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
+    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+
+    $script:sourcesDir = Join-Path ([System.IO.Path]::GetTempPath()) "orgstance-t1553-src-$(Get-Random)"
+    $null = New-Item -ItemType Directory -Path $script:sourcesDir -Force
+    foreach ($id in 'src-a', 'src-b') {
+        $dir = Join-Path $script:sourcesDir $id
+        $null = New-Item -ItemType Directory -Path $dir -Force
+        "Body of $id — plausible policy paragraph." | Set-Content -Path (Join-Path $dir 'snapshot.md') -Encoding utf8NoBOM
+    }
+
+    $script:tmpClaims = Join-Path ([System.IO.Path]::GetTempPath()) "orgstance-t1553-claims-$(Get-Random).json"
+}
+
+AfterAll {
+    if ($script:sourcesDir -and (Test-Path $script:sourcesDir)) {
+        Remove-Item -Recurse -Force $script:sourcesDir -ErrorAction SilentlyContinue
+    }
+    if ($script:tmpClaims -and (Test-Path $script:tmpClaims)) {
+        Remove-Item -Force $script:tmpClaims -ErrorAction SilentlyContinue
+    }
+}
+
+Describe 'Invoke-OrgStanceExtraction (t/1553 Stage 1)' -Tag 'taxonomy' {
+
+    BeforeEach {
+        InModuleScope AITriad -Parameters @{ Dir = $script:sourcesDir; ClaimsPath = $script:tmpClaims } {
+            param($Dir, $ClaimsPath)
+            if (Test-Path $ClaimsPath) { Remove-Item $ClaimsPath -Force }
+
+            # Local variables — GetNewClosure() captures locals, not $script: vars.
+            $srcDirLocal    = $Dir
+            $claimsPathLocal = $ClaimsPath
+            $orgs = @(
+                [PSCustomObject]@{ id = 'org-014'; name = 'NIST'; type = 'regulatory' }
+                [PSCustomObject]@{ id = 'org-999'; name = 'Ghost';  type = 'academic'  }
+            )
+            $edges = @(
+                [PSCustomObject]@{ source='org-014'; target='src-a'; type='PUBLISHED'; status='approved' }
+                [PSCustomObject]@{ source='org-014'; target='src-b'; type='PUBLISHED'; status='approved' }
+                [PSCustomObject]@{ source='org-014'; target='src-missing'; type='PUBLISHED'; status='approved' }
+                [PSCustomObject]@{ source='org-014'; target='src-a'; type='PUBLISHED'; status='proposed' }
+                [PSCustomObject]@{ source='org-unknown'; target='src-a'; type='PUBLISHED'; status='approved' }
+                [PSCustomObject]@{ source='org-014'; target='src-a'; type='ADVOCATES_FOR'; status='approved' }
+                [PSCustomObject]@{ source='org-014'; target='org-999'; type='PUBLISHED'; status='approved' }
+            )
+
+            Mock Get-SourcesDir -MockWith ({ $srcDirLocal }.GetNewClosure())
+            $taxDirLocal = Split-Path -Parent $claimsPathLocal
+            Mock Get-TaxonomyDir -MockWith ({ $taxDirLocal }.GetNewClosure())
+            Mock Get-OrganizationsStore -MockWith ({ [PSCustomObject]@{ organizations = $orgs } }.GetNewClosure())
+            Mock Get-OrganizationEdgesStore -MockWith ({ [PSCustomObject]@{ edges = $edges } }.GetNewClosure())
+            Mock Get-Prompt -MockWith { 'RENDERED PROMPT' }
+        }
+    }
+
+    It 'Extracts only from approved PUBLISHED edges with on-disk sources' {
+        InModuleScope AITriad -Parameters @{ ClaimsPath = $script:tmpClaims } {
+            param($ClaimsPath)
+            Mock Invoke-AIByUsage -MockWith {
+                [PSCustomObject]@{
+                    Text = '{"claims":[{"text":"stub","canonical_proposition":"X ought Y","polarity":"asserts","extraction_confidence":0.9}]}'
+                    Model = 'stub'
+                }
+            }
+            $r = Invoke-OrgStanceExtraction -Concurrency 1 -OutputPath $ClaimsPath -Confirm:$false 3>$null 6>$null
+
+            $r.Extracted           | Should -Be 2  -Because 'src-a and src-b are the only approved-on-disk pairs'
+            $r.ClaimsWritten       | Should -Be 2
+            $r.Failed              | Should -Be 0
+            $r.SkippedNoDoc        | Should -Be 1  -Because 'src-missing is approved but not on disk'
+        }
+    }
+
+    It 'Idempotence: re-run against the same set writes zero new claims' {
+        InModuleScope AITriad -Parameters @{ ClaimsPath = $script:tmpClaims } {
+            param($ClaimsPath)
+            Mock Invoke-AIByUsage -MockWith {
+                [PSCustomObject]@{
+                    Text = '{"claims":[{"text":"stub","canonical_proposition":"X ought Y","polarity":"asserts","extraction_confidence":0.9}]}'
+                    Model = 'stub'
+                }
+            }
+            $null = Invoke-OrgStanceExtraction -Concurrency 1 -OutputPath $ClaimsPath -Confirm:$false 3>$null 6>$null
+            $r2 = Invoke-OrgStanceExtraction -Concurrency 1 -OutputPath $ClaimsPath -Confirm:$false 3>$null 6>$null
+
+            $r2.ClaimsWritten      | Should -Be 0
+            $r2.SkippedAlreadyDone | Should -Be 2
+        }
+    }
+
+    It '-Force re-extracts and replaces prior claims for the same (org, source)' {
+        InModuleScope AITriad -Parameters @{ ClaimsPath = $script:tmpClaims } {
+            param($ClaimsPath)
+            $script:callCount = 0
+            Mock Invoke-AIByUsage -MockWith {
+                $script:callCount++
+                [PSCustomObject]@{
+                    Text = "{`"claims`":[{`"text`":`"stub $($script:callCount)`",`"canonical_proposition`":`"v$($script:callCount)`",`"polarity`":`"asserts`",`"extraction_confidence`":0.9}]}"
+                    Model = 'stub'
+                }
+            }
+            $null = Invoke-OrgStanceExtraction -Concurrency 1 -OutputPath $ClaimsPath -Confirm:$false 3>$null 6>$null
+            $r2 = Invoke-OrgStanceExtraction -Concurrency 1 -OutputPath $ClaimsPath -Force -Confirm:$false 3>$null 6>$null
+
+            $r2.ClaimsWritten      | Should -Be 2
+            $store = Get-Content $ClaimsPath -Raw | ConvertFrom-Json
+            @($store.claims).Count | Should -Be 2 -Because 'prior claims for these (org, source) were replaced, not appended'
+        }
+    }
+
+    It 'Strips markdown fences from AI response before parsing' {
+        InModuleScope AITriad -Parameters @{ ClaimsPath = $script:tmpClaims } {
+            param($ClaimsPath)
+            $fenced = @'
+```json
+{"claims":[{"text":"stub","canonical_proposition":"X","polarity":"asserts","extraction_confidence":0.9}]}
+```
+'@
+            Mock Invoke-AIByUsage -MockWith ({
+                [PSCustomObject]@{ Text = $fenced; Model = 'stub' }
+            }.GetNewClosure())
+            $r = Invoke-OrgStanceExtraction -Concurrency 1 -OutputPath $ClaimsPath -Confirm:$false 3>$null 6>$null
+            $r.ClaimsWritten | Should -Be 2 -Because 'fence stripping must not lose the JSON payload'
+            $r.Failed        | Should -Be 0
+        }
+    }
+}

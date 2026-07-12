@@ -42,31 +42,11 @@
     ]
   },
   "enrichment.org-stance-extraction": {
-    "description": "Extract positions an organization itself asserts or opposes from a document it published (t/1553 R1, Stage 1). Feeds the org-to-node edge proposal pipeline. CL prompt approved at t/1553#5.",
+    "description": "Extract positions an organization itself asserts or opposes from a document it published (t/1553 R1, Stage 1). Feeds the org-to-node edge proposal pipeline. CL prompt approved at t/1553#5. jsonMode/responseSchema removed — Gemini structured-output validator rejected the schema with HTTP 400 across all fallback backends; the prompt itself enforces strict JSON output and downstream parse is defensive.",
     "model": "gemini-3.1-flash-lite",
     "temperature": 0.3,
     "maxTokens": 3072,
     "timeoutMs": 60000,
-    "jsonMode": true,
-    "responseSchema": {
-      "type": "object",
-      "properties": {
-        "claims": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "text": { "type": "string" },
-              "canonical_proposition": { "type": "string" },
-              "polarity": { "type": "string", "enum": ["asserts", "opposes"] },
-              "extraction_confidence": { "type": "number" }
-            },
-            "required": ["text", "canonical_proposition", "polarity", "extraction_confidence"]
-          }
-        }
-      },
-      "required": ["claims"]
-    },
     "systemMessageTemplate": "{{prompt}}",
     "messageTemplate": "Return the extracted claims now.",
     "tags": [

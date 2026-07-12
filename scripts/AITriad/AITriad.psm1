@@ -807,6 +807,8 @@ Export-ModuleMember -Function @(
     'Invoke-AphorismBatch'
     # t/1553 Stage 0 — org PUBLISHED edge seeding
     'Invoke-OrgPublishedSeeding'
+    # t/1553 Stage 1 — org stance claim extraction
+    'Invoke-OrgStanceExtraction'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'
