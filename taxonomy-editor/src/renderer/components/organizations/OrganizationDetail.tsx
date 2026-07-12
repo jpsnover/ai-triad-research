@@ -8,6 +8,64 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useOrganizationStore } from '../../hooks/useOrganizationStore';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 
+const INITIALS_PALETTE = [
+  '#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6',
+  '#8b5cf6', '#ef4444', '#14b8a6', '#f97316', '#06b6d4',
+];
+
+function hashName(name: string): number {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = ((h << 5) - h + name.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function extractDomain(url: string): string | null {
+  try {
+    return new URL(url).hostname;
+  } catch { /* telemetry — silent by design: invalid URLs are expected data, not errors */
+    return null;
+  }
+}
+
+export function OrgLogo({ name, url, size = 24 }: { name: string; url?: string; size?: number }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const domain = url ? extractDomain(url) : null;
+  const faviconUrl = domain && !imgFailed
+    ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${size * 2}`
+    : null;
+
+  if (faviconUrl) {
+    return (
+      <img
+        src={faviconUrl}
+        alt=""
+        width={size}
+        height={size}
+        style={{ borderRadius: 4, flexShrink: 0 }}
+        onError={() => setImgFailed(true)}
+      />
+    );
+  }
+
+  const initials = name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('');
+  const bg = INITIALS_PALETTE[hashName(name) % INITIALS_PALETTE.length];
+
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      width: size, height: size, borderRadius: 4, flexShrink: 0,
+      background: bg, color: '#fff', fontSize: size * 0.4, fontWeight: 700,
+      lineHeight: 1,
+    }}>
+      {initials}
+    </span>
+  );
+}
+
 const POV_COLORS: Record<string, string> = {
   accelerationist: '#f97316',
   safetyist: '#22c55e',
@@ -180,6 +238,7 @@ export function OrganizationDetail({ org, onSelectOrg }: { org: Organization; on
       {/* Header */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <OrgLogo name={org.name} url={org.url} size={32} />
           <h2 style={{ margin: 0, fontSize: '1.1rem' }}>{org.name}</h2>
           <TypeBadge type={org.type} />
           {org.status && org.status !== 'active' && (

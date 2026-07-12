@@ -4,7 +4,7 @@
 import { useEffect, useMemo } from 'react';
 import { useOrganizationStore } from '../../hooks/useOrganizationStore';
 import { useResizablePanel } from '../../hooks/useResizablePanel';
-import { OrganizationDetail } from './OrganizationDetail';
+import { OrganizationDetail, OrgLogo } from './OrganizationDetail';
 import type { Organization } from '../../bridge/types';
 
 const POV_COLORS: Record<string, string> = {
@@ -166,6 +166,7 @@ export function OrganizationsTab() {
               onClick={() => selectOrganization(org.id)}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <OrgLogo name={org.name} url={org.url} size={20} />
                 <span className="chat-session-item-title" style={{ flex: 1 }}>{org.name}</span>
                 <PovDots alignment={org.pov_alignment} />
               </div>
