@@ -2,8 +2,13 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { api, isElectronMode } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
-import type { AggregatedCrux, CruxSource } from '../../hooks/useTaxonomyStore';
+import type { AggregatedCrux, CruxSource, CruxExternalEvidence } from '../../hooks/useTaxonomyStore';
+import { useFlag } from '../../hooks/useFeatureFlags';
+import { todayISO } from '../../utils/idGenerator';
+import './CruxesTab.css';
 import { useKeyboardNav } from '../../hooks/useKeyboardNav';
 import { useResizablePanel } from '../../hooks/useResizablePanel';
 import { SearchPreview } from '../edge-browser/SearchPreview';
@@ -362,6 +367,142 @@ export function CruxDetail({ crux, onDebateClick }: {
         expanded={expandedNodes}
         onToggle={toggleExpanded}
       />
+
+      {/* External evidence — reviewer-entered, display-only metadata (t/1541) */}
+      <ExternalEvidenceSection crux={crux} />
+    </div>
+  );
+}
+
+// ── External Evidence ──
+
+/**
+ * Reviewer-entered pointers to real-world evidence found while investigating a
+ * crux (t/1541) — the "handoff to reality" the framing paper describes. This is
+ * append-only, CL-owned DISPLAY-ONLY metadata: it must never be read by any
+ * scoring, sort-key, or tier-computation code (register entry 1584553e). Editing
+ * is gated to admins/reviewers; everyone else sees the list read-only.
+ *
+ * The bridge add/remove methods return void, so we optimistically update local
+ * state (the server stamps added_at; we mirror it with todayISO for display).
+ */
+function ExternalEvidenceSection({ crux }: { crux: AggregatedCrux }) {
+  const adminFeatures = useFlag('permission-admin-features');
+  const canEdit = isElectronMode() || adminFeatures;
+
+  const [entries, setEntries] = useState<CruxExternalEvidence[]>(crux.external_evidence ?? []);
+  const [url, setUrl] = useState('');
+  const [note, setNote] = useState('');
+  const [addedBy, setAddedBy] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Reset local state when switching cruxes.
+  useEffect(() => {
+    setEntries(crux.external_evidence ?? []);
+    setUrl(''); setNote(''); setError(null);
+  }, [crux.id, crux.external_evidence]);
+
+  const urlValid = /^https?:\/\//i.test(url.trim());
+  const canSubmit = canEdit && !busy && urlValid && addedBy.trim().length > 0;
+
+  const handleAdd = async () => {
+    if (!canSubmit) return;
+    setBusy(true); setError(null);
+    const entry = { url: url.trim(), note: note.trim() || undefined, added_by: addedBy.trim() };
+    try {
+      await api.addCruxEvidence(crux.id, entry);
+      setEntries(prev => [...prev, { ...entry, added_at: todayISO() }]);
+      setUrl(''); setNote(''); // keep addedBy for consecutive entries
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'crux-external-evidence', level: 'error',
+        message: 'Failed to add crux external evidence',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      setError('Could not save evidence. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRemove = async (index: number) => {
+    setBusy(true); setError(null);
+    try {
+      await api.removeCruxEvidence(crux.id, index);
+      setEntries(prev => prev.filter((_, i) => i !== index));
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'crux-external-evidence', level: 'error',
+        message: 'Failed to remove crux external evidence',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      setError('Could not remove evidence. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Nothing to show and no way to add — render nothing (matches ExpandableLinkList).
+  if (entries.length === 0 && !canEdit) return null;
+
+  return (
+    <div className="crux-evidence">
+      <div className="crux-section-label">
+        External Evidence{entries.length > 0 ? ` (${entries.length})` : ''}
+      </div>
+
+      {entries.length === 0 && (
+        <div className="crux-evidence-empty">No external evidence recorded yet.</div>
+      )}
+
+      {entries.map((e, i) => {
+        const display = e.url.replace(/^https?:\/\//, '');
+        return (
+          <div key={i} className="crux-evidence-item">
+            <div className="crux-evidence-item-head">
+              <a
+                className="crux-evidence-url"
+                href="#"
+                title={e.url}
+                onClick={(ev) => { ev.preventDefault(); void api.openExternal(e.url); }}
+              >
+                {display.slice(0, 60)}{display.length > 60 ? '…' : ''}
+              </a>
+              {canEdit && (
+                <button className="btn btn-danger btn-sm" disabled={busy} onClick={() => void handleRemove(i)}>
+                  Remove
+                </button>
+              )}
+            </div>
+            {e.note && <div className="crux-evidence-note">{e.note}</div>}
+            <div className="crux-evidence-meta">
+              {e.added_by}{e.added_at ? ` · ${e.added_at}` : ''}
+            </div>
+          </div>
+        );
+      })}
+
+      {canEdit && (
+        <div className="card crux-evidence-form">
+          <div className="form-group">
+            <label>Evidence URL</label>
+            <input type="url" value={url} placeholder="https://…" onChange={(e) => setUrl(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label>Note (optional)</label>
+            <textarea value={note} rows={2} placeholder="What this shows, in your words" onChange={(e) => setNote(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label>Added by</label>
+            <input type="text" value={addedBy} placeholder="Your name or reviewer id" onChange={(e) => setAddedBy(e.target.value)} />
+          </div>
+          {error && <div className="error-text">{error}</div>}
+          <button className="btn btn-primary btn-sm" disabled={!canSubmit} onClick={() => void handleAdd()}>
+            {busy ? 'Saving…' : 'Add Evidence'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
