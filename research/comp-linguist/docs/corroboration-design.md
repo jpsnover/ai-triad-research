@@ -78,6 +78,10 @@ a future extension (§Open Questions).
   "weakened": 0,
   "revisions": [
     { "date": "2026-05-12", "debate_id": "debate-...", "held_since": true }
+    // held_since: boolean | null
+    //   null  = not yet retested since this revision
+    //   true  = retested in a later debate and the revised formulation held
+    //   false = retested in a later debate and the revised formulation did NOT hold
   ],
   "last_tested": "2026-07-02",
   "description_hash": "sha256:...",  // formulation the record certifies
@@ -173,7 +177,11 @@ Definitions build only on artifacts the pipeline already persists:
   - `refined`: the node received a revision citing D, either a `WeightHistoryEntry`
     from the crux-feedback path (`cruxTaxonomyFeedback.ts`) or an accepted
     harvest-queue edit. `held_since` starts `null` and flips `true` when a later
-    debate tests the revised formulation and it holds.
+    debate tests the revised formulation (hash still matches) and it holds. It
+    flips `false` when a later debate tests the same formulation and that debate's
+    own verdict comes out `weakened` — the failure is recorded on the *new* debate's
+    entry as `weakened` per the rule above; `held_since: false` only marks the
+    superseded refinement attempt so it stops banking pending credit (§Sort Key).
   - `open`: Challenged, but the debate ended without a decisive claim outcome or
     concession (mixed evidence). Counts toward Contested, never toward Corroborated.
   - `cited`: Engaged, never Challenged.
@@ -185,8 +193,8 @@ writer:
 
 ```
 tier_rank      = untested 0 | cited 1 | contested 2 | corroborated 3
-verdict_weight = held 1.0 | refined(held_since) 1.0 | refined(pending) 0.6
-               | open 0.25 | weakened −0.5 | cited 0.0
+verdict_weight = held 1.0 | refined(held_since:true) 1.0 | refined(pending) 0.6
+               | refined(held_since:false) 0.0 | open 0.25 | weakened −0.5 | cited 0.0
 evidence       = Σ over record: strongest_attack_encountered.strength × verdict_weight
 sort_key       = tier_rank + clamp(evidence / EVIDENCE_SATURATION, 0, 0.99)
 ```
@@ -342,6 +350,53 @@ already discourages over-testing, and tests per node per cycle are capped at
 progress is inspectable ("this month: 14 nodes Untested→Contested, 5
 Contested→Corroborated").
 
+### Excluding Corroborated Nodes to Protect Testing Attention
+
+Owner direction (2026-07-13), superseding Open Question 2 below: the useful coupling
+between corroboration and the rest of the system is not feeding it into confidence
+(that stays deferred). It is the opposite move — using a node's already-earned
+corroboration as a reason to **get out of the way**, so debate attention concentrates
+on the material that still needs testing. A node that has already survived two severe
+challenges across two debates has, at the margin, less to prove than a node nobody
+has touched.
+
+This is the same lever family as `corpusCoverage.ts`'s retread downweight (t/1438),
+generalized to a different signal (corroboration tier rather than citation frequency
+plus crux-linkage), applied at the same integration point
+(`taxonomyRelevance.ts` node selection). Two modes, matched to the two ways debates
+happen in this system:
+
+- **Ordinary debates (soft downweight).** At setup-time relevance scoring, a node at
+  `corroboration.tier === 'corroborated'` gets its relevance score multiplied by
+  `CORROBORATED_INJECTION_MULTIPLIER` (proposed 0.5 — stipulated, distinct parameter
+  from the retread multiplier even though numerically close by coincidence). Soft,
+  not a ban, composing multiplicatively with the existing retread multiplier and any
+  coverage boost — same posture as t/1438, for the same reason: a Corroborated node
+  can still be the single most on-topic claim for a given debate, and a hard ban
+  would force worse substitute claims into otherwise normal debates.
+- **Severe-test scheduler batches (hard exclusion).** Inside a `Invoke-DebateBatch`
+  run driven by §Program's cycle, every OTHER Corroborated node (not the deficit
+  leader being force-injected as primary) is excluded outright from injection, not
+  merely downweighted. The batch's entire purpose is putting the targeted node under
+  pressure; a well-tested node competing for the same context slots works directly
+  against that purpose. This sharpens Phase 3's existing "force-injected as primary"
+  step (§Program cycle, step 3) into an explicit two-sided rule: force IN the target,
+  force OUT the already-Corroborated.
+
+**Guardrail (same shape as t/1438's, reused rather than reinvented):** an A/B on
+ordinary debates — soft-downweight on vs. off — must show testing-diversity gains
+(more distinct nodes crossing Untested→Cited or Cited→Contested per N debates)
+**without** degrading `crux_addressed_ratio` or `avg_grounding_confidence` on those
+same debates. Coverage of the untested tail gained at the cost of debate quality is a
+fail, exactly as it would be for the retread lever.
+
+Both new parameters are stipulated at design time (§Provenance Declarations below);
+neither is tuned against a debate-quality score that would also serve as the
+guardrail's own pass/fail metric, per the framing paper's autotuning boundary.
+Implementation is Phase 3 scope (§Ownership & Phasing) — no separate ticket exists
+yet because it is blocked on Phase 0 (`corroboration.tier` must exist on nodes before
+anything can select against it).
+
 ## Provenance Declarations
 
 Per the register's no-grade-inflation rule, every judgment-bearing parameter here is
@@ -352,11 +407,13 @@ Per the register's no-grade-inflation rule, every judgment-bearing parameter her
 |---|---|---|
 | `SEVERE_ATTACK_THRESHOLD` | 0.5 | stipulated |
 | `CORROBORATED_MIN_CHALLENGES` | 2 across ≥2 debates | stipulated |
-| Verdict weights | held 1.0 / refined-held 1.0 / refined-pending 0.6 / open 0.25 / weakened −0.5 | stipulated |
+| Verdict weights | held 1.0 / refined-held 1.0 / refined-pending 0.6 / refined-rejected 0.0 / open 0.25 / weakened −0.5 | stipulated |
 | `EVIDENCE_SATURATION` | 5 | stipulated |
 | Deficit ladder | 1.0 / 0.7 / 0.6 / 0.4 / 0.1 | stipulated |
 | Importance weights | 0.35 / 0.25 / 0.20 / 0.20 | stipulated |
 | Tier rules (the ladder itself) | — | stipulated instrument |
+| `CORROBORATED_INJECTION_MULTIPLIER` | 0.5 (ordinary debates, soft) | stipulated |
+| Scheduler-batch exclusion (hard) | boolean gate, not a magnitude | stipulated instrument |
 
 ### Validation plan (path off "stipulated")
 
@@ -392,10 +449,15 @@ absent `injection_manifest`, malformed sessions) per `/add-fault-test`.
    `sit-*`/`cc-*`. Extending verdicts to situations needs a notion of "a situation
    held" that differs from POV claims, since situations are shared rather than
    defended by one camp. Deferred; design when POV-node records prove useful.
-2. **Confidence coupling.** Should high corroboration feed a bounded boost into
-   `beliefConfidence.ts`? It already has a debate-refs boost (+0.03 per ref, capped
-   at +0.10). Deferred until the validation study establishes that the tier
-   instrument measures what it claims; the instruments stay separate meanwhile.
+2. **Confidence coupling — superseded 2026-07-13.** This item originally asked
+   whether high corroboration should feed a bounded *boost* into
+   `beliefConfidence.ts`. Owner direction reversed the framing: the useful coupling
+   runs the other way — high corroboration is a reason to *deprioritize* a node for
+   further testing, not a reason to inflate an unrelated score. See §Excluding
+   Corroborated Nodes to Protect Testing Attention. Whether corroboration should
+   *also* someday feed a confidence boost remains open and still deferred to the
+   validation study; the two questions are independent and this entry no longer
+   blocks on the coupling question, only the deficit-lever design above.
 3. **Concession wiring.** `concession_history` exists in the type schema but
    population is unverified. Phase 0 must confirm during implementation and fall
    back to crux-tracker concessions if the node-level field is unpopulated.
