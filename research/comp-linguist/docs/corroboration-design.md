@@ -86,13 +86,20 @@ a future extension (§Open Questions).
       "debate_id": "debate-...",
       "date": "2026-07-02",
       "verdict": "held",             // held | weakened | refined | open | cited
-      "strongest_attack": { "claim_id": "...", "strength": 0.82, "scheme": "rebut" },
+      "strongest_attack_encountered": { "claim_id": "...", "strength": 0.82, "scheme": "rebut" },
       "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 },
       "concession": null             // or { type: "full"|"conditional"|"tactical", turn: "..." }
     }
   ]
 }
 ```
+
+`strongest_attack_encountered` is recorded for **every** entry in `record[]`, including `cited`
+verdicts, and is `null` only when the node was engaged but never attacked at all. This is
+deliberate: it is the raw evidence a threshold reevaluation needs (see §Reevaluation Without
+Re-Harvesting). The field was `strongest_attack` in an earlier draft of this design; renamed
+to make explicit that it captures every attack encountered, not only ones that cleared
+`SEVERE_ATTACK_THRESHOLD`.
 
 **Single-writer rule** (Shared Utility Rule): the record and `sort_key` are computed
 in one place, a new `lib/debate/corroboration.ts` module invoked at harvest time and
@@ -143,7 +150,9 @@ Definitions build only on artifacts the pipeline already persists:
 - **Challenged(n, D)**: an attack (rebut/undercut/undermine, or a
   CONTRADICTS/WEAKENS-typed AN edge) targets a claim attributed to n, and the
   attacker's final-round QBAF `computed_strength` is at least
-  `SEVERE_ATTACK_THRESHOLD`.
+  `SEVERE_ATTACK_THRESHOLD`. The raw strength of the strongest attack is recorded
+  regardless of whether it clears this bar (see `strongest_attack_encountered`
+  below) — the threshold gates the *verdict label*, not what gets persisted.
 - **Verdict:**
   - `held`: Challenged, all attributed claims finished `thrived`/`survived`
     (`claimOutcomes.ts` classification), and no full concession by the owning POV's
@@ -167,7 +176,7 @@ writer:
 tier_rank      = untested 0 | cited 1 | contested 2 | corroborated 3
 verdict_weight = held 1.0 | refined(held_since) 1.0 | refined(pending) 0.6
                | open 0.25 | weakened −0.5 | cited 0.0
-evidence       = Σ over record: strongest_attack.strength × verdict_weight
+evidence       = Σ over record: strongest_attack_encountered.strength × verdict_weight
 sort_key       = tier_rank + clamp(evidence / EVIDENCE_SATURATION, 0, 0.99)
 ```
 
@@ -197,6 +206,55 @@ work queue and the answer to "which important BDIs are least tested."
 chips. The field rides `graph_attributes` on nodes already delivered through the
 existing taxonomy load path, so **no new bridge method is required**; this is a
 renderer-only change.
+
+## Reevaluation Without Re-Harvesting
+
+Owner requirement (2026-07-13): `CORROBORATED_MIN_CHALLENGES` starts at 2, and will
+likely be raised once there is a larger corpus of tested nodes. Every stipulated
+threshold in this design should be reevaluable the same way — as a cheap recompute
+over already-persisted evidence, not a re-run of debates or a re-parse of raw session
+files. This section makes that guarantee explicit and names the one gap it required
+closing.
+
+**`tier` and `sort_key` are pure functions of `{record[], current constants}`.**
+Nothing about them requires touching a debate session once `record[]` exists.
+Concretely:
+
+- Raising `CORROBORATED_MIN_CHALLENGES` (2 → N) is a recount over the already-stored
+  `verdict` labels in `record[]` per node — no dependency on raw debate data at all.
+- Changing verdict *weights* (§Sort Key) only touches `sort_key`, likewise computed
+  from `record[]`.
+- Changing `SEVERE_ATTACK_THRESHOLD` reclassifies which entries count as Challenged
+  vs. `cited`, which is why `strongest_attack_encountered` (§Data Model) is captured
+  for every entry, not only ones that cleared the old threshold. Without that field,
+  lowering or raising this threshold would require re-deriving `Challenged(n, D)`
+  from the original QBAF attack graph per debate — the one dependency this design
+  does not want to reintroduce.
+- Changing `EVIDENCE_SATURATION` or the deficit ladder (§Program) is likewise a pure
+  recompute over stored fields.
+
+**Required deliverable (added to Phase 0, §Ownership & Phasing):** `corroboration.ts`
+exposes the tier/sort-key computation as a separate pure function
+(`computeTierAndSortKey(record, constants)`), distinct from the harvest-time writer
+that appends new `record[]` entries. A **recompute-only** batch operation calls this
+pure function against every node's *existing* `record[]` under the current constant
+values and rewrites only `tier` and `sort_key` — `record[]`, `engagements`,
+`challenges`, `held`, `weakened`, and `revisions` are historical fact and are never
+rewritten by a recompute pass. Exposed to PowerShell as
+`Update-NodeCorroboration -RecomputeOnly` (Phase 2, alongside `Get-NodeCorroboration`)
+so a threshold change is one command: edit the constant, run the recompute, done.
+No re-harvest, no re-running debates, no data loss risk from repeated runs (the
+operation is idempotent).
+
+**What this does NOT cover.** If a future change alters the *verdict rules themselves*
+(§Verdict attribution rules — e.g. redefining what counts as a decisive claim outcome,
+or changing which edge types count as attacks), that changes what should have been
+written to `record[].verdict`, and reevaluating it correctly needs the AN/claim data,
+not just the corroboration record. `strongest_attack_encountered` future-proofs
+threshold changes on top of the existing rules; it does not future-proof changes to
+the rules themselves. If that need arises, the harvest pipeline provides the same
+inputs (`injection_manifest`, `taxonomy_refs`, `claimOutcomes.ts`, QBAF strengths) for
+a targeted re-harvest of affected debates.
 
 ## Measurement Pipeline
 
@@ -305,11 +363,11 @@ cmdlet), so **Main (Technical Lead)** design review precedes implementation tick
 
 | Phase | Work | Owner | Blocked by |
 |---|---|---|---|
-| 0 | `lib/debate/corroboration.ts`: reverse attribution, verdict rules, record + `sort_key` writer at harvest; `taxonomyTypes.ts` + JSON schema updates | Shared Lib | TL approval |
+| 0 | `lib/debate/corroboration.ts`: reverse attribution, verdict rules, record + `sort_key` writer at harvest; pure `computeTierAndSortKey(record, constants)` function (§Reevaluation) usable standalone from the harvest writer; `taxonomyTypes.ts` + JSON schema updates | Shared Lib | TL approval |
 | 0b | Backfill job over historical sessions + calibration JSONLs | Shared Lib | 0 |
 | 1 | Taxonomy editor: sort option, tier chips, filters, drill-down panel | Taxonomy Editor | 0 |
 | 1b | Graph heatmap overlay (optional) | Taxonomy Editor | 1 |
-| 2 | `Get-NodeCorroboration` cmdlet (`/add-ps-cmdlet`) | PowerShell | 0 |
+| 2 | `Get-NodeCorroboration` cmdlet; `Update-NodeCorroboration -RecomputeOnly` cmdlet wrapping the Phase 0 pure function for threshold reevaluation (§Reevaluation) (`/add-ps-cmdlet`) | PowerShell | 0 |
 | 3 | Severe-test scheduler: deficit ranking, targeted topic generation, batch config | Shared Lib + CL | 0, 2 |
 | 4 | Golden-set validation study; provenance upgrades | CL | ≥50 debates after 0 |
 
