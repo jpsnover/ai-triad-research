@@ -108,6 +108,20 @@ Formulas, detectors, or LLM judgments whose validity against human judgment has 
 | Intention operationality 1–5 formula | stipulated | | — |
 | Doctrinal floor values | stipulated | Identity commitments; deliberately not evidence-based (disclosed in framing paper). | — |
 
+## 8. Design-stage entries (declared before implementation)
+
+Parameters declared in approved-pending designs; rows move to §1/§5 when the implementation PR lands.
+
+| Parameter / instrument | Source design | Provenance | Evidence / notes |
+|---|---|---|---|
+| Corroboration tier ladder (Untested/Cited/Contested/Corroborated + verdict attribution rules) | `corroboration-design.md` (t/1523) | stipulated | Instrument asserted by design; validation study planned at ≥50 recorded debates (κ ≥ 0.7 target). |
+| `SEVERE_ATTACK_THRESHOLD` (0.5) | `corroboration-design.md` | stipulated | QBAF attack strength floor for a challenge to count as severe. |
+| `CORROBORATED_MIN_CHALLENGES` (2, ≥2 debates) | `corroboration-design.md` | stipulated | |
+| Corroboration verdict weights (1.0/1.0/0.6/0.25/−0.5) | `corroboration-design.md` | stipulated | Sort-key only; never displayed. |
+| `EVIDENCE_SATURATION` (5) | `corroboration-design.md` | stipulated | |
+| Testing-deficit ladder (1.0/0.7/0.6/0.4/0.1) | `corroboration-design.md` | stipulated | Severe-test scheduler input. |
+| Node importance weights (0.35/0.25/0.20/0.20) | `corroboration-design.md` | stipulated | Severe-test scheduler input. |
+
 ## Maintenance
 
 - Every PR adding or modifying a metric, threshold, weight, or lexicon must state its provenance class and update this register in the same PR (CL review checklist item).
