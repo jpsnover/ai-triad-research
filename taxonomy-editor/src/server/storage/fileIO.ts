@@ -28,6 +28,7 @@ import { parseNpy, extractNodeVectors } from '../../../../lib/npy.js';
 import { getStorageUserId, isAnonymousUser, getAnonymousSessionId } from '../security/userContext.js';
 import { getAnonymousSessionStore } from './anonymousSessionStore.js';
 import { checkQuota, type QuotaCheckResult } from '../security/quotas.js';
+import type { OrganizationEdge } from '../../../../lib/organizations/types.js';
 // ── Backend injection ──
 
 // Taxonomy / conflicts / calibration / summaries / sources use `backend`.
@@ -466,6 +467,25 @@ export async function readOrganizations(): Promise<unknown | null> {
       component: 'file-io',
       level: 'error',
       message: 'readOrganizations failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return null;
+  }
+}
+
+export async function readOrganizationEdges(): Promise<OrganizationEdge[] | null> {
+  try {
+    const p = path.join(getTaxonomyDir(), 'organization_edges.json');
+    const raw = await backend.readFile(p);
+    if (raw === null) return null;
+    const data = JSON.parse(raw);
+    return (data as { edges?: OrganizationEdge[] })?.edges ?? [];
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'file-io',
+      level: 'error',
+      message: 'readOrganizationEdges failed',
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     return null;
