@@ -91,6 +91,9 @@ function Invoke-ProposalApply {
             if ($Proposal.description) {
                 Add-TextHistoryEntry -Node $NodeObj -Field 'description' -Value $Proposal.description -Source 'initial'
             }
+            # t/1550 — generate aphorism on create. Fail-open (Set-NodeAphorism
+            # skips situations/pillars and returns without mutating on AI failure).
+            Set-NodeAphorism -Node $NodeObj -Pov $Proposal.pov -Reason 'proposal-NEW'
             $Raw.nodes += $NodeObj
         }
 
@@ -109,6 +112,10 @@ function Invoke-ProposalApply {
                 Add-TextHistoryEntry -Node $Target -Field 'description' `
                     -Previous $Target.description -Value $Proposal.description -Source 'batch_audit' -Reason "RELABEL proposal"
                 $Target.description = $Proposal.description
+            }
+            # t/1550 — regenerate aphorism after label/description modify. Fail-open.
+            if ($Proposal.label -or $Proposal.description) {
+                Set-NodeAphorism -Node $Target -Pov $Proposal.pov -Reason 'proposal-RELABEL'
             }
         }
 
@@ -131,6 +138,10 @@ function Invoke-ProposalApply {
                 Add-TextHistoryEntry -Node $Survivor -Field 'description' `
                     -Previous $Survivor.description -Value $Proposal.description -Source 'batch_audit' -Reason "MERGE proposal"
                 $Survivor.description = $Proposal.description
+            }
+            # t/1550 — regenerate aphorism on survivor if label/description changed. Fail-open.
+            if ($Proposal.label -or $Proposal.description) {
+                Set-NodeAphorism -Node $Survivor -Pov $Proposal.pov -Reason 'proposal-MERGE'
             }
 
             # Remove merged nodes (except survivor)
@@ -191,6 +202,8 @@ function Invoke-ProposalApply {
                 if ($Child.description) {
                     Add-TextHistoryEntry -Node $ChildObj -Field 'description' -Value $Child.description -Source 'initial'
                 }
+                # t/1550 — new child node from SPLIT gets an aphorism. Fail-open.
+                Set-NodeAphorism -Node $ChildObj -Pov $Proposal.pov -Reason 'proposal-SPLIT-child'
                 $Raw.nodes += $ChildObj
             }
 
@@ -273,6 +286,9 @@ function Invoke-ProposalApply {
                 if ($SubGroup.description) {
                     Add-TextHistoryEntry -Node $IntObj -Field 'description' -Value $SubGroup.description -Source 'initial'
                 }
+                # t/1550 — intermediate parent from DEPTH_EXPAND gets an aphorism. Fail-open.
+                # Note: pillar-shaped descriptions ("A thematic pillar…") are skipped by the helper.
+                Set-NodeAphorism -Node $IntObj -Pov $Proposal.pov -Reason 'proposal-DEPTH_EXPAND'
                 $Raw.nodes += $IntObj
 
                 # Move assigned children under the new intermediate node
@@ -320,6 +336,8 @@ function Invoke-ProposalApply {
             if ($Proposal.description) {
                 Add-TextHistoryEntry -Node $NewObj -Field 'description' -Value $Proposal.description -Source 'initial'
             }
+            # t/1550 — WIDTH_EXPAND is functionally NEW, so it gets an aphorism too. Fail-open.
+            Set-NodeAphorism -Node $NewObj -Pov $Proposal.pov -Reason 'proposal-WIDTH_EXPAND'
             $Raw.nodes += $NewObj
         }
 

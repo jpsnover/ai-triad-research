@@ -174,6 +174,8 @@
         'Get-ContainerAppRevision'
         # t/1499 — GH workflow run queries
         'Get-GitHubWorkflowRun'
+        # t/1550 — POV aphorism backfill
+        'Invoke-AphorismBatch'
     )
 
     # Aliases exported from this module

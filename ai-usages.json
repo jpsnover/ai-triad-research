@@ -28,6 +28,19 @@
       "vernacular"
     ]
   },
+  "enrichment.pov-aphorism": {
+    "description": "Generate a camp-voiced sober aphorism (~3-8 words) for a POV taxonomy node — presentational only, never scoring input (t/1550). CL-owned prompt.",
+    "model": "gemini-3.1-flash-lite",
+    "temperature": 0.7,
+    "maxTokens": 40,
+    "timeoutMs": 30000,
+    "systemMessage": "{{prompt}}",
+    "messageTemplate": "Return the aphorism now.",
+    "tags": [
+      "enrichment",
+      "aphorism"
+    ]
+  },
   "enrichment.crux-question-form": {
     "description": "Rewrite a crux's declarative statement into its canonical neutral question form (t/1507). CL-owned. The question is the crux read as an open pivot: answerable either way, presupposing neither side.",
     "model": "claude-sonnet-4-6",

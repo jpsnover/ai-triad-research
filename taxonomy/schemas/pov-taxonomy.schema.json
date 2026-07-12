@@ -151,6 +151,10 @@
               "type": "string",
               "description": "The strongest counterargument against the strongest version of this claim."
             },
+            "aphorism": {
+              "type": "string",
+              "description": "Camp-voiced sober aphorism — a short (~3-8 word) memorable articulation in the POV's own voice. Presentational only, never a scoring/relevance/embedding input. Regenerated on label/description modify. Added by Invoke-AphorismBatch (t/1550)."
+            },
             "debate_tested": { "$ref": "#/$defs/DebateTestedRecord" }
           }
         },

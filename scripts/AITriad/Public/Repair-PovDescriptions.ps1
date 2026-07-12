@@ -194,6 +194,8 @@ Rules:
                     -Previous $Desc -Value $NewDesc -Source 'batch_audit' `
                     -Reason "Repair: $IssueLabel"
                 $Node.description = $NewDesc
+                # t/1550 — regenerate aphorism after description rewrite. Fail-open.
+                Set-NodeAphorism -Node $Node -Pov $PovName -Reason 'repair-description'
                 $Modified = $true
                 $TotalFixed++
                 Write-Host "  FIXED $($Node.id) [$IssueLabel]" -ForegroundColor Green
