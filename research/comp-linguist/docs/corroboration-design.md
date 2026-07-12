@@ -113,6 +113,17 @@ displays as **stale** and is demoted from Corroborated to Contested for sorting 
 retested. Cosmetic edits can be exempted later via normalization; v1 treats any
 description change as material.
 
+**Write-time requirement, not just a read-time definition:** when the single writer
+appends a `refined` entry (a debate-linked edit, §Verdict attribution rules), it
+recomputes and updates `description_hash` to the *new* formulation in the same write.
+This is what keeps "refined" and "stale" mutually exclusive in practice: a
+reflection-driven edit is debate-linked by construction, so by the time it is visible
+to readers, the hash already matches the new text and the mismatch check never fires.
+An edit only shows as stale when it bypassed the refinement path entirely — i.e., it
+carries no `record[]` entry and no `revisions[]` entry at all. Missing this write-time
+step would let a legitimate reflection edit render as `refined` *and* `stale`
+simultaneously, contradicting the non-punitive design intent above.
+
 ### Schema updates
 
 - Add the `corroboration` object to `taxonomy/schemas/pov-taxonomy.schema.json`
