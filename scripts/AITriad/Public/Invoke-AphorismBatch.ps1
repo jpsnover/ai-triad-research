@@ -101,13 +101,16 @@ function Invoke-AphorismBatch {
 
             $Desc = $null
             if ($Node.PSObject.Properties['description']) { $Desc = $Node.description }
+            $LabelStr = ''
+            if ($Node.PSObject.Properties['label']) { $LabelStr = [string]$Node.label }
 
             if ([string]::IsNullOrWhiteSpace($Desc) -or $Desc.Length -lt 20) {
                 $SkippedEmpty++
                 $NodeIndex++
                 continue
             }
-            if ($Desc.StartsWith('[DEPRECATED]')) {
+            # Deprecation marker may live on either label or description (CL review t/1550#4).
+            if ($Desc.StartsWith('[DEPRECATED]') -or $LabelStr.StartsWith('[DEPRECATED]')) {
                 $SkippedDeprecated++
                 $NodeIndex++
                 continue
@@ -299,13 +302,39 @@ function Invoke-AphorismBatch {
     $FailCount = @($Failed).Count
     $SkipCount = $SkippedExisting + $SkippedPillar + $SkippedDeprecated + $SkippedEmpty + $SkippedByIdFilter
 
+    # ── Exact-dup audit (t/1550#4 CL note 2) ─────────────────────────────
+    # Flags aphorisms that came out bit-identical across nodes so CL can
+    # audit and re-run those specific IDs with -Force. Logged not
+    # regenerated — deterministic-seed retry would just recollide.
+    $Duplicates = [System.Collections.Generic.List[PSObject]]::new()
+    $bucket = @{}
+    foreach ($FilePath in $Results.Keys) {
+        $FileResults = $Results[$FilePath]
+        foreach ($Idx in $FileResults.Keys) {
+            $Entry = $FileResults[$Idx]
+            $key = $Entry.Aphorism.Trim().ToLowerInvariant()
+            if ($bucket.ContainsKey($key)) {
+                $Duplicates.Add([PSCustomObject]@{
+                    Aphorism = $Entry.Aphorism
+                    Nodes    = @($bucket[$key], "$FilePath::$Idx")
+                })
+            } else {
+                $bucket[$key] = "$FilePath::$Idx"
+            }
+        }
+    }
+    if ($Duplicates.Count -gt 0) {
+        Write-Warning "$($Duplicates.Count) exact-duplicate aphorism(s) detected — see .Duplicates on the return object; re-run affected IDs with -Force to regenerate"
+    }
+
     Write-Host ""
-    Write-Host "Done. Generated: $GenCount | Skipped: $SkipCount | Failed: $FailCount"
+    Write-Host "Done. Generated: $GenCount | Skipped: $SkipCount | Failed: $FailCount | Duplicates: $($Duplicates.Count)"
 
     [PSCustomObject]@{
-        Generated = $GenCount
-        Skipped   = $SkipCount
-        Failed    = $FailCount
+        Generated  = $GenCount
+        Skipped    = $SkipCount
+        Failed     = $FailCount
+        Duplicates = @($Duplicates)
     }
 }
 
@@ -346,10 +375,13 @@ function New-NodeAphorism {
 
     $Desc = if ($Node.PSObject.Properties['description']) { [string]$Node.description } else { '' }
     if ([string]::IsNullOrWhiteSpace($Desc) -or $Desc.Length -lt 20) { return $null }
-    if ($Desc.StartsWith('[DEPRECATED]') -or $Desc.StartsWith('A thematic pillar')) { return $null }
+    if ($Desc.StartsWith('A thematic pillar')) { return $null }
 
     $Label    = if ($Node.PSObject.Properties['label']) { [string]$Node.label } else { '' }
     $Category = if ($Node.PSObject.Properties['category']) { [string]$Node.category } else { '' }
+
+    # Deprecation marker may live on either label or description (CL review t/1550#4).
+    if ($Desc.StartsWith('[DEPRECATED]') -or $Label.StartsWith('[DEPRECATED]')) { return $null }
 
     try {
         $Rendered = Get-Prompt -Name 'pov-aphorism' -Replacements @{

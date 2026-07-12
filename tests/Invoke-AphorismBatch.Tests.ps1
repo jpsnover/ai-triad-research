@@ -210,19 +210,26 @@ Describe 'New-NodeAphorism / Set-NodeAphorism write-path helpers (t/1550)' -Tag 
         }
     }
 
-    It 'New-NodeAphorism skips pillars and deprecated nodes' {
+    It 'New-NodeAphorism skips pillars and deprecated nodes (marker on either label or description)' {
         InModuleScope AITriad {
             Mock Invoke-AIByUsage -MockWith { throw 'should not be called' }
             $pillar = [PSCustomObject]@{
                 id = 'acc-beliefs-010'; label = 'x'; category = 'Beliefs'
                 description = 'A thematic pillar grouping child beliefs.'
             }
-            $deprecated = [PSCustomObject]@{
+            $deprecatedDesc = [PSCustomObject]@{
                 id = 'acc-beliefs-011'; label = 'x'; category = 'Beliefs'
                 description = '[DEPRECATED] Old text still long enough to pass the length check but excluded by prefix.'
             }
-            New-NodeAphorism -Node $pillar     -Pov 'accelerationist' | Should -BeNullOrEmpty
-            New-NodeAphorism -Node $deprecated -Pov 'accelerationist' | Should -BeNullOrEmpty
+            # t/1550#4 — deprecation marker may live on the LABEL, not the description
+            $deprecatedLabel = [PSCustomObject]@{
+                id = 'saf-intentions-001'; category = 'Intentions'
+                label = '[DEPRECATED] Pausing Advanced AI Development'
+                description = 'An Intention within safetyist discourse that advocates legally binding international moratoriums on training runs above compute thresholds.'
+            }
+            New-NodeAphorism -Node $pillar           -Pov 'accelerationist' | Should -BeNullOrEmpty
+            New-NodeAphorism -Node $deprecatedDesc   -Pov 'accelerationist' | Should -BeNullOrEmpty
+            New-NodeAphorism -Node $deprecatedLabel  -Pov 'safetyist'       | Should -BeNullOrEmpty -Because 'label-prefix [DEPRECATED] must skip (t/1550#4)'
         }
     }
 
