@@ -305,6 +305,15 @@ export async function readAggregatedCruxes(): Promise<unknown | null> {
   try { return JSON.parse(raw); } catch { /* telemetry — silent by design */ return null; }
 }
 
+// t/1541: write path for reviewer-entered crux external_evidence edits (mirrors
+// writeEdgesFile). Callers ensureSessionBranch() first, so this lands on the
+// caller's session branch. Regeneration safety (Export-AggregatedCruxes) is
+// handled by Merge-CruxExternalEvidence.ps1 (t/1540), not here.
+export async function writeAggregatedCruxes(data: unknown): Promise<void> {
+  const filePath = path.join(getTaxonomyDir(), 'aggregated-cruxes.json');
+  await backend.writeFile(filePath, JSON.stringify(data, null, 2));
+}
+
 export async function readConflictClusters(): Promise<unknown | null> {
   const filePath = path.join(getConflictsDir(), '_conflict-clusters.json');
   const raw = await backend.readFile(filePath);

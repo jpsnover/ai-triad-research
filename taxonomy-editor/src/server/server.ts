@@ -44,6 +44,7 @@ import * as supportStore from './support/supportStore.js';
 import { isCaseStatus } from './support/types.js';
 import * as organizations from './organizations.js';
 import { isPov } from './organizations.js';
+import { appendCruxEvidence, removeCruxEvidence, type CruxEvidenceEntry } from './cruxEvidence.js';
 import { json, error, param, query, getClientIp, createRouter, withEndpointTimeout, type Handler } from './httpKit.js';
 import { registerDebatesRoutes } from './routes/debates.js';
 import { registerSyncRoutes } from './routes/sync.js';
@@ -482,6 +483,48 @@ get('/api/conflicts/clusters', async (_req, res) => {
 
 get('/api/cruxes', async (_req, res) => {
   json(res, await fileIO.readAggregatedCruxes());
+});
+
+// t/1541: reviewer-entered external_evidence write path (append-only). Persists to
+// aggregated-cruxes.json on the caller's session branch, like the /api/conflicts
+// writes above. external_evidence is CL-owned display-only metadata (never read by
+// scoring/sort code). Mutation logic is the pure cruxEvidence.ts helpers.
+post('/api/cruxes/:id/evidence', async (req, res, body) => {
+  try {
+    await ensureSessionBranch();
+    const id = param(req, 'id', '/api/cruxes/:id/evidence');
+    const { url, note, added_by } = (body ?? {}) as { url?: unknown; note?: unknown; added_by?: unknown };
+    if (typeof url !== 'string' || !/^https?:\/\//i.test(url.trim())) { error(res, 'evidence url must be an http(s) URL', 400); return; }
+    if (typeof added_by !== 'string' || added_by.trim() === '') { error(res, 'added_by is required', 400); return; }
+    const data = await fileIO.readAggregatedCruxes();
+    const entry: CruxEvidenceEntry = {
+      url: url.trim(),
+      ...(typeof note === 'string' && note.trim() ? { note: note.trim() } : {}),
+      added_by: added_by.trim(),
+      added_at: new Date().toISOString().slice(0, 10), // server-set date (YYYY-MM-DD)
+    };
+    const crux = appendCruxEvidence(data, id, entry);
+    if (!crux) { error(res, `Crux not found: ${id}`, 404); return; }
+    await fileIO.writeAggregatedCruxes(data);
+    json(res, crux);
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to add crux evidence', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
+});
+
+// DELETE by array index — under concurrent edits to the same crux the index can
+// shift between read and delete (TL-accepted tradeoff for a low-concurrency
+// reviewer tool, t/1541; would switch to an added_at+url match if it ever bites).
+del('/api/cruxes/:id/evidence/:index', async (req, res) => {
+  try {
+    await ensureSessionBranch();
+    const id = param(req, 'id', '/api/cruxes/:id/evidence/:index');
+    const index = Number(param(req, 'index', '/api/cruxes/:id/evidence/:index'));
+    const data = await fileIO.readAggregatedCruxes();
+    const result = removeCruxEvidence(data, id, index);
+    if (result === 'not_found') { error(res, `Crux not found: ${id}`, 404); return; }
+    if (result === 'out_of_range') { error(res, `Evidence index out of range: ${index}`, 404); return; }
+    await fileIO.writeAggregatedCruxes(data);
+    json(res, result);
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to remove crux evidence', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
 put('/api/conflicts/:id', async (req, res, body) => {
