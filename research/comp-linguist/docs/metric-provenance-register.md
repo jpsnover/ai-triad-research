@@ -123,6 +123,7 @@ Parameters declared in approved-pending designs; rows move to §1/§5 when the i
 | `EVIDENCE_SATURATION` (5) | `corroboration-design.md` | stipulated | |
 | Testing-deficit ladder (1.0/0.7/0.6/0.4/0.1) | `corroboration-design.md` | stipulated | Severe-test scheduler input. |
 | Node importance weights (0.35/0.25/0.20/0.20) | `corroboration-design.md` | stipulated | Severe-test scheduler input. |
+| External evidence pointer (`external_evidence[]`: `{url, note, added_by, added_at}` on cruxes; same shape planned on Debate-Tested `revisions[]` entries) | t/1535 (external review suggestion, t/1523) | `metadata` | Human-entered record of real-world evidence a reviewer found when investigating a crux or high-impact revision. Not computed, not an instrument — carries no evidence pointer because it doesn't measure anything, it records outside-the-loop input. **Hard rule:** MUST NOT be read by any scoring, sort-key, or tier-computation code path. A PR that adds such a read reopens the exact self-corroboration risk t/1523's rename closed and should be blocked outright, not merely flagged. |
 
 ## Maintenance
 
