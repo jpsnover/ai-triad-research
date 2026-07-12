@@ -112,9 +112,17 @@ function Import-Organization {
         if ($rid -eq $incomingId) { $index = $i; break }
     }
     if ($index -ge 0) {
+        # t/1555 — preserve/refresh assessed_at on pov_alignment across upserts.
+        # Rule: if pov_alignment scores/rationales changed, stamp today; else
+        # carry over the existing assessed_at so unrelated updates don't churn
+        # the staleness signal.
+        $incoming = Set-OrgAssessedAt -Existing $existing[$index] -Incoming $incoming
         $existing[$index] = $incoming
         Write-Verbose "Updating existing organization: $incomingId"
     } else {
+        # Create — carry through whatever the caller supplied (pov_alignment
+        # may already have assessed_at from an external source; if not, they
+        # can add one on a later upsert). Nothing stamped implicitly.
         $existing += $incoming
         Write-Verbose "Adding new organization: $incomingId"
     }

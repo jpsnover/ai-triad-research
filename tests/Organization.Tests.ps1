@@ -422,3 +422,125 @@ Describe 'Organization cmdlets - manifest export (t/1224)' -Tag 'taxonomy' {
         }
     }
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# t/1555 — assessed_at preserve/refresh on Import-Organization upsert
+# ─────────────────────────────────────────────────────────────────────────────
+Describe 'Set-OrgAssessedAt preserve/refresh rule (t/1555)' -Tag 'taxonomy' {
+
+    It 'Preserves existing assessed_at when pov_alignment values are unchanged' {
+        InModuleScope AITriad {
+            $existing = [PSCustomObject]@{
+                id = 'org-500'
+                pov_alignment = [PSCustomObject]@{
+                    accelerationist = [PSCustomObject]@{ score = 0.3; rationale = 'r-acc' }
+                    safetyist       = [PSCustomObject]@{ score = 0.7; rationale = 'r-saf' }
+                    skeptic         = [PSCustomObject]@{ score = -0.1; rationale = 'r-skp' }
+                    assessed_at     = '2026-07-01'
+                }
+            }
+            $incoming = [PSCustomObject]@{
+                id = 'org-500'
+                pov_alignment = [PSCustomObject]@{
+                    accelerationist = [PSCustomObject]@{ score = 0.3; rationale = 'r-acc' }
+                    safetyist       = [PSCustomObject]@{ score = 0.7; rationale = 'r-saf' }
+                    skeptic         = [PSCustomObject]@{ score = -0.1; rationale = 'r-skp' }
+                }
+            }
+            $r = Set-OrgAssessedAt -Existing $existing -Incoming $incoming
+            $r.pov_alignment.assessed_at | Should -Be '2026-07-01'
+        }
+    }
+
+    It "Stamps today's date when a camp score changes" {
+        InModuleScope AITriad {
+            $today = (Get-Date).ToString('yyyy-MM-dd')
+            $existing = [PSCustomObject]@{
+                id = 'org-501'
+                pov_alignment = [PSCustomObject]@{
+                    safetyist   = [PSCustomObject]@{ score = 0.7; rationale = 'r' }
+                    assessed_at = '2026-01-01'
+                }
+            }
+            $incoming = [PSCustomObject]@{
+                id = 'org-501'
+                pov_alignment = [PSCustomObject]@{
+                    safetyist = [PSCustomObject]@{ score = 0.9; rationale = 'r' }  # score changed
+                }
+            }
+            $r = Set-OrgAssessedAt -Existing $existing -Incoming $incoming
+            $r.pov_alignment.assessed_at | Should -Be $today
+        }
+    }
+
+    It "Stamps today's date when a camp rationale changes" {
+        InModuleScope AITriad {
+            $today = (Get-Date).ToString('yyyy-MM-dd')
+            $existing = [PSCustomObject]@{
+                id = 'org-502'
+                pov_alignment = [PSCustomObject]@{
+                    skeptic     = [PSCustomObject]@{ score = -0.1; rationale = 'old-r' }
+                    assessed_at = '2026-01-01'
+                }
+            }
+            $incoming = [PSCustomObject]@{
+                id = 'org-502'
+                pov_alignment = [PSCustomObject]@{
+                    skeptic = [PSCustomObject]@{ score = -0.1; rationale = 'new-r' }
+                }
+            }
+            $r = Set-OrgAssessedAt -Existing $existing -Incoming $incoming
+            $r.pov_alignment.assessed_at | Should -Be $today
+        }
+    }
+
+    It 'Caller-supplied assessed_at wins over both preserve and refresh' {
+        InModuleScope AITriad {
+            $existing = [PSCustomObject]@{
+                id = 'org-503'
+                pov_alignment = [PSCustomObject]@{
+                    safetyist   = [PSCustomObject]@{ score = 0.5; rationale = 'r' }
+                    assessed_at = '2026-01-01'
+                }
+            }
+            $incoming = [PSCustomObject]@{
+                id = 'org-503'
+                pov_alignment = [PSCustomObject]@{
+                    safetyist   = [PSCustomObject]@{ score = 0.6; rationale = 'r' }  # changed
+                    assessed_at = '2026-06-15'                                        # explicit
+                }
+            }
+            $r = Set-OrgAssessedAt -Existing $existing -Incoming $incoming
+            $r.pov_alignment.assessed_at | Should -Be '2026-06-15' -Because 'explicit override wins'
+        }
+    }
+
+    It "Stamps today's date when existing had no assessed_at at all (backfill on first update)" {
+        InModuleScope AITriad {
+            $today = (Get-Date).ToString('yyyy-MM-dd')
+            $existing = [PSCustomObject]@{
+                id = 'org-504'
+                pov_alignment = [PSCustomObject]@{
+                    safetyist = [PSCustomObject]@{ score = 0.5; rationale = 'r' }
+                }
+            }
+            $incoming = [PSCustomObject]@{
+                id = 'org-504'
+                pov_alignment = [PSCustomObject]@{
+                    safetyist = [PSCustomObject]@{ score = 0.5; rationale = 'r' }  # unchanged
+                }
+            }
+            $r = Set-OrgAssessedAt -Existing $existing -Incoming $incoming
+            $r.pov_alignment.assessed_at | Should -Be $today -Because 'no existing date means stamp today'
+        }
+    }
+
+    It 'No-op when Incoming has no pov_alignment' {
+        InModuleScope AITriad {
+            $existing = [PSCustomObject]@{ id = 'org-505'; pov_alignment = [PSCustomObject]@{ assessed_at = '2026-01-01' } }
+            $incoming = [PSCustomObject]@{ id = 'org-505'; name = 'renamed' }
+            $r = Set-OrgAssessedAt -Existing $existing -Incoming $incoming
+            $r.PSObject.Properties['pov_alignment'] | Should -BeNullOrEmpty
+        }
+    }
+}
