@@ -31,6 +31,7 @@ export { computeAgentUtility, PERSONA_UTILITY_WEIGHTS } from './agentUtility.js'
 export type { AgentUtility } from './agentUtility.js';
 import { computeAgentUtility } from './agentUtility.js';
 import type { AgentUtility } from './agentUtility.js';
+import { computeOperationalClosure } from './operationalClosure.js';
 
 
 import fs from 'node:fs';
@@ -352,6 +353,12 @@ export interface CalibrationDataPoint {
   unsupported_claim_rate: number | null;
   /** Per-speaker mean sufficiency score. */
   local_sufficiency_by_speaker: Record<string, number> | null;
+
+  // ── Operational closure (autopoiesis, t/1537) ──
+  /** Mean operational closure rate across speakers [0,1]. Higher = more self-sealing. Null if no dialectical edges. */
+  operational_closure_rate: number | null;
+  /** Per-speaker operational closure stats. Null if no dialectical edges. */
+  operational_closure_per_speaker: Record<string, { closure_rate: number; closure_edges: number; coupling_edges: number; standalone_rate: number }> | null;
 
   // ── Exploration seeding (t/990) ──
   /** Debate ID of the exploration run that seeded this debate. */
@@ -1497,6 +1504,15 @@ export function extractCalibrationData(
     local_sufficiency_by_speaker: localSufficiencyBySpeaker
       ? Object.fromEntries(Object.entries(localSufficiencyBySpeaker).map(([k, v]) => [k, Math.round(v * 1000) / 1000]))
       : null,
+
+    // ── Operational closure (autopoiesis, t/1537) ──
+    ...(() => {
+      const oc = computeOperationalClosure(anNodes, anEdges);
+      return {
+        operational_closure_rate: oc.debateMean,
+        operational_closure_per_speaker: Object.keys(oc.perSpeaker).length > 0 ? oc.perSpeaker : null,
+      };
+    })(),
 
     // ── Exploration seeding ──
     ...(config.explorationSummary ? {
