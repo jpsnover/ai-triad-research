@@ -144,14 +144,15 @@ Filed before this ticket closes (handoff discipline). Both are **DebateTool** sc
 touches the human-review surface) → **Main (Technical Lead) design review required** before
 implementation.
 
-- **t/1540 (DebateTool):** Unified reflection-proposal queue — wire the three dead evolution
+- **t/1542 (DebateTool):** Unified reflection-proposal queue — wire the three dead evolution
   modules (`confidenceEvolution`, `operationalityEvolution`, and the dormant
   `cruxTaxonomyFeedback.computeWeightAdjustments`) as **proposals** into a
   `session.reflection_proposals` structure parallel to `promotion_candidates`; remove the
   auto-apply path. This is the "built-never-wired" fix.
-- **t/1541 (DebateTool):** Situation interpretation revision as a proposal kind — materiality
+- **t/1543 (DebateTool):** Situation interpretation revision as a proposal kind — materiality
   gate (attack ≥ severe AND attribution ≥ 0.60, per-camp), review-queue integration, and the
-  post-approval hook to regenerate t/1299 debate-register statements + embeddings.
+  post-approval hook to regenerate t/1299 debate-register statements + embeddings. Blocked by
+  t/1542.
 
 Downstream (not filed yet — blocked on the queue structure existing): a Taxonomy Editor
 review-UI for `reflection_proposals` (the human-disposes surface). Noted as a dependency;
