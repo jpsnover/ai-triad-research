@@ -74,7 +74,7 @@ Direct counts and count-ratios of system events. No embedded judgment beyond wha
 
 `an_nodes_at_synthesis`, `gc_runs`, `near_miss_duplicate_count`, `hit_api_ceiling`, `total_api_calls`, `situation_nodes_injected`, `situation_nodes_referenced`, `qbaf_oscillation_detected`, `qbaf_iterations`, `qbaf_oscillation_rate`, `confidence_deferrals`, `confidence_bottleneck`, `low_value_claims_rejected`, `topic_reframed`, `scope_extraction_populated`, `max_prompt_chars`, `mean_prompt_chars`, `max_component_chars`, `extraction_coverage_samples`, `insularity_interventions`, `exploration_source_id`, `exploration_source_model`, `seeded_crux_count`, `seeded_effective_situation_count`, `seeded_ineffective_situation_count`, `seeded_an_node_count`, `counterfactual_type_distribution`, `lineage_frame`, `avg_utilization_rate`, `avg_primary_utilization`, `structural_error_rate`, `relevance_score_variance`, `taxonomy_mapped_ratio`, `claims_per_1k_words`, `draft_repair_rate`, `taxonomy_demotion_rate`, `demoted_node_reference_rate`, `moderator_drift_intervention_rate`, `evidence_breadth_per_claim`.
 
-## 5. Stipulated instruments (54)
+## 5. Stipulated instruments (56)
 
 Formulas, detectors, or LLM judgments whose validity against human judgment has not been checked. Grouped by what carries the judgment.
 
