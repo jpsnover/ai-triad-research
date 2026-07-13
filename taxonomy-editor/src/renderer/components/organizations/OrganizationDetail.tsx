@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import type { Organization, OrganizationEdge, OrganizationEdgeType } from '../../bridge/types';
+import type { KeyFigure, ExternalLink } from '@lib/organizations/types';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useOrganizationStore } from '../../hooks/useOrganizationStore';
@@ -25,6 +26,21 @@ function extractDomain(url: string): string | null {
   } catch { /* telemetry — silent by design: invalid URLs are expected data, not errors */
     return null;
   }
+}
+
+function humanizeUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, '');
+    const seg = u.pathname.split('/').filter(Boolean)[0];
+    return seg ? `${host} / ${decodeURIComponent(seg)}` : host;
+  } catch { /* telemetry — silent by design */
+    return url;
+  }
+}
+
+function isUrl(str: string): boolean {
+  return /^https?:\/\//i.test(str);
 }
 
 export function OrgLogo({ name, url, size = 24 }: { name: string; url?: string; size?: number }) {
@@ -60,6 +76,24 @@ export function OrgLogo({ name, url, size = 24 }: { name: string; url?: string; 
       width: size, height: size, borderRadius: 4, flexShrink: 0,
       background: bg, color: '#fff', fontSize: size * 0.4, fontWeight: 700,
       lineHeight: 1,
+    }}>
+      {initials}
+    </span>
+  );
+}
+
+function PersonAvatar({ name, size = 24 }: { name: string; size?: number }) {
+  const initials = name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('');
+  const bg = INITIALS_PALETTE[hashName(name) % INITIALS_PALETTE.length];
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      width: size, height: size, borderRadius: '50%', flexShrink: 0,
+      background: bg, color: '#fff', fontSize: size * 0.4, fontWeight: 700, lineHeight: 1,
     }}>
       {initials}
     </span>
@@ -131,6 +165,71 @@ function PovAlignmentBar({ alignment }: { alignment?: Organization['pov_alignmen
   );
 }
 
+function ExternalLinkRow({ url, title, type, orgUrl }: { url: string; title?: string; type?: string; orgUrl?: string }) {
+  const [faviconFailed, setFaviconFailed] = useState(false);
+  const domain = extractDomain(url);
+  const hostClean = domain?.replace(/^www\./, '') ?? null;
+  const faviconSrc = domain && !faviconFailed
+    ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`
+    : null;
+  const label = title || humanizeUrl(url);
+  const labelIsHostname = !title;
+  const isOrgOwn = orgUrl ? extractDomain(orgUrl) === domain : false;
+  const showType = type && !(type === 'website' && isOrgOwn);
+  const showDomain = !labelIsHostname && hostClean;
+  const isValid = domain !== null;
+
+  return (
+    <button
+      className="btn-ghost"
+      style={{
+        display: 'flex', alignItems: 'center', gap: 6, width: '100%',
+        padding: '4px 6px', textAlign: 'left', fontSize: '0.78rem',
+        borderRadius: 4, border: 'none', cursor: isValid ? 'pointer' : 'default',
+        opacity: isValid ? 1 : 0.6,
+      }}
+      title={url}
+      aria-label={`${label}, opens ${hostClean ?? 'link'} in browser`}
+      disabled={!isValid}
+      onClick={() => {
+        if (!isValid) return;
+        void api.openExternal(url).catch((err: unknown) => {
+          getGlobalRecorder()?.record({
+            type: 'system.error', component: 'org-detail', level: 'error',
+            message: 'Failed to open external link',
+            error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+          });
+        });
+      }}
+    >
+      {faviconSrc ? (
+        <img src={faviconSrc} alt="" width={16} height={16} style={{ flexShrink: 0, borderRadius: 2 }} onError={() => setFaviconFailed(true)} />
+      ) : (
+        <span style={{ width: 16, height: 16, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', color: 'var(--text-muted)' }}>{'○'}</span>
+      )}
+      <span style={{
+        flex: 1, fontWeight: 500, color: isValid ? 'var(--color-info, #3b82f6)' : 'var(--text-muted)',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>
+        {label}
+      </span>
+      {showType && (
+        <span style={{
+          padding: '1px 6px', borderRadius: 8, fontSize: 'var(--text-2xs)', fontWeight: 600,
+          background: 'var(--bg-hover)', color: 'var(--text-secondary)', flexShrink: 0,
+        }}>
+          {type!.replace(/_/g, ' ')}
+        </span>
+      )}
+      {showDomain ? (
+        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0 }}>{hostClean} {'↗'}</span>
+      ) : isValid ? (
+        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0 }}>{'↗'}</span>
+      ) : null}
+    </button>
+  );
+}
+
 const EDGE_GROUP_LABELS: Partial<Record<OrganizationEdgeType, string>> = {
   ALLIED_WITH: 'Allies',
   COMPETES_WITH: 'Competitors',
@@ -185,7 +284,7 @@ function RelationshipSection({ orgId, onSelectOrg }: { orgId: string; onSelectOr
       {[...grouped.entries()].map(([type, peers]) => (
         <div key={type}>
           <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2 }}>
-            {EDGE_GROUP_LABELS[type] ?? type}
+            {EDGE_GROUP_LABELS[type] ?? type} ({peers.length})
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {peers.map((peer) => (
@@ -196,10 +295,10 @@ function RelationshipSection({ orgId, onSelectOrg }: { orgId: string; onSelectOr
                     style={{ color: 'var(--color-info, #3b82f6)', padding: 0, textDecoration: 'underline', cursor: onSelectOrg ? 'pointer' : 'default', fontWeight: 500 }}
                     onClick={() => onSelectOrg?.(peer.id)}
                     disabled={!onSelectOrg}
+                    title={peer.id}
                   >
                     {orgNameMap.get(peer.id) ?? peer.id}
                   </button>
-                  <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{peer.id}</span>
                 </div>
                 {peer.rationale && (
                   <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: 1, paddingLeft: 2 }}>{peer.rationale}</div>
@@ -232,6 +331,16 @@ export function OrganizationDetail({ org, onSelectOrg }: { org: Organization; on
     }
     return map;
   }, [situations]);
+
+  const linkTitleByUrl = useMemo(() => {
+    const map = new Map<string, string>();
+    if (org.external_links) {
+      for (const el of org.external_links) {
+        if (typeof el !== 'string' && el.title) map.set(el.url, el.title);
+      }
+    }
+    return map;
+  }, [org.external_links]);
 
   return (
     <div style={{ padding: 16, overflowY: 'auto', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -350,11 +459,42 @@ export function OrganizationDetail({ org, onSelectOrg }: { org: Organization; on
       {/* Key Figures */}
       {org.key_figures && org.key_figures.length > 0 && (
         <div>
-          <h3 style={{ margin: '0 0 4px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Key Figures</h3>
-          <div style={{ fontSize: '0.78rem' }}>
-            {org.key_figures.map((kf, i) => (
-              <div key={i}>{typeof kf === 'string' ? kf : JSON.stringify(kf)}</div>
-            ))}
+          <h3 style={{ margin: '0 0 6px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Key Figures</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 8 }}>
+            {org.key_figures.map((kf, i) => {
+              if (typeof kf === 'string') {
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <PersonAvatar name={kf} />
+                    <span style={{ fontSize: '0.78rem', fontWeight: 500 }}>{kf}</span>
+                  </div>
+                );
+              }
+              const fig = kf as KeyFigure;
+              if (!fig.name) return null;
+              return (
+                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <PersonAvatar name={fig.name} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 500 }}>
+                      {fig.name}
+                      {fig.role && <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>{' · '}{fig.role}</span>}
+                    </div>
+                    {fig.relevance && (
+                      <div
+                        title={fig.relevance}
+                        style={{
+                          fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4, marginTop: 1,
+                          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
+                        }}
+                      >
+                        {fig.relevance}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -366,39 +506,33 @@ export function OrganizationDetail({ org, onSelectOrg }: { org: Organization; on
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {org.external_links.map((link, i) => {
               const url = typeof link === 'string' ? link : link.url;
-              const label = typeof link === 'string' ? link : (link.title ?? link.url);
+              const title = typeof link === 'string' ? undefined : link.title;
+              const type = typeof link === 'string' ? undefined : link.type;
               if (!url) return null;
-              return (
-                <button
-                  key={i}
-                  className="btn-xs btn-ghost"
-                  style={{ color: 'var(--color-info, #3b82f6)', textDecoration: 'underline', padding: 0, textAlign: 'left', fontSize: '0.78rem' }}
-                  onClick={() => { void api.openExternal(url).catch((err: unknown) => {
-                    getGlobalRecorder()?.record({
-                      type: 'system.error', component: 'org-detail', level: 'error',
-                      message: 'Failed to open external link',
-                      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-                    });
-                  }); }}
-                >
-                  {label || url}
-                </button>
-              );
+              return <ExternalLinkRow key={i} url={url} title={title} type={type} orgUrl={org.url} />;
             })}
           </div>
         </div>
       )}
 
-      {/* Source Refs */}
+      {/* Sources */}
       {org.source_refs && org.source_refs.length > 0 && (
         <div>
           <h3 style={{ margin: '0 0 4px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Sources</h3>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {org.source_refs.map((ref, i) => (
-              <span key={i} style={{ fontFamily: 'monospace', fontSize: '0.7rem', padding: '1px 6px', borderRadius: 4, background: 'var(--bg-tertiary, #1e293b)' }}>
-                {ref}
-              </span>
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {org.source_refs.map((ref, i) => {
+              if (isUrl(ref)) {
+                return <ExternalLinkRow key={i} url={ref} title={linkTitleByUrl.get(ref)} orgUrl={org.url} />;
+              }
+              return (
+                <span key={i} title={ref} style={{
+                  fontFamily: 'monospace', fontSize: '0.7rem', padding: '1px 6px', borderRadius: 4,
+                  background: 'var(--bg-tertiary, #1e293b)', userSelect: 'all', alignSelf: 'flex-start',
+                }}>
+                  {ref}
+                </span>
+              );
+            })}
           </div>
         </div>
       )}
