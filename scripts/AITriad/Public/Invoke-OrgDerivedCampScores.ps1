@@ -120,6 +120,10 @@ function Invoke-OrgDerivedCampScores {
     $povBdiPattern = '^(acc|saf|skp)-(beliefs|desires|intentions)-\d+$'
     $campEdgeTypes = @('ADVOCATES_FOR', 'OPPOSES')
 
+    # If -OrgId was passed, mirror the filter on the edge source so
+    # Approved/Candidate output is restricted too — not just orgs iteration.
+    $orgFilter = if ($OrgId -and $OrgId.Count -gt 0) { @($OrgId) } else { $null }
+
     $keep = [System.Collections.Generic.List[PSObject]]::new()
     foreach ($e in $edges) {
         if (-not $e.PSObject.Properties['source'] -or
@@ -129,6 +133,7 @@ function Invoke-OrgDerivedCampScores {
         if ($campEdgeTypes -notcontains $type) { continue }
         $target = [string]$e.target
         if ($target -notmatch $povBdiPattern) { continue }
+        if ($orgFilter -and ([string]$e.source -notin $orgFilter)) { continue }
         $keep.Add($e)
     }
     $edgesFiltered = @($keep).Count
