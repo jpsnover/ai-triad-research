@@ -182,6 +182,8 @@
         'Invoke-OrgStanceExtraction'
         # t/1553 Stages 2+3 — claim→node matching + edge proposal aggregation
         'Invoke-OrgClaimMatching'
+        # t/1560 Stage 5 — R2 rollup, per-camp derived alignment from approved edges
+        'Invoke-OrgDerivedCampScores'
     )
 
     # Aliases exported from this module

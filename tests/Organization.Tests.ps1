@@ -551,3 +551,100 @@ Describe 'Set-OrgAssessedAt preserve/refresh rule (t/1555)' -Tag 'taxonomy' {
         }
     }
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# t/1560 — pov_alignment_derived preservation on Import-Organization upsert
+# (TL condition 2 at t/1560#4 — same risk class as Merge-CruxExternalEvidence)
+# ─────────────────────────────────────────────────────────────────────────────
+Describe 'Set-OrgPreserveDerived helper (t/1560)' -Tag 'taxonomy' {
+
+    It 'Copies existing pov_alignment_derived onto incoming when incoming omits it' {
+        InModuleScope AITriad {
+            $existing = [PSCustomObject]@{
+                id = 'org-600'
+                pov_alignment_derived = [PSCustomObject]@{
+                    acc = [PSCustomObject]@{ advocates = 3; opposes = 1; n = 4; net_ratio = 0.5 }
+                    saf = [PSCustomObject]@{ advocates = 0; opposes = 0; n = 0; net_ratio = $null }
+                    provenance = [PSCustomObject]@{ computed_at = '2026-07-10' }
+                }
+            }
+            $incoming = [PSCustomObject]@{ id = 'org-600'; name = 'renamed' }
+            $r = Set-OrgPreserveDerived -Existing $existing -Incoming $incoming
+
+            $r.PSObject.Properties['pov_alignment_derived'] | Should -Not -BeNullOrEmpty
+            $r.pov_alignment_derived.acc.advocates | Should -Be 3
+            $r.pov_alignment_derived.saf.net_ratio | Should -Be $null -Because 'null must round-trip; empty n=0 case'
+            $r.pov_alignment_derived.provenance.computed_at | Should -Be '2026-07-10'
+        }
+    }
+
+    It "Incoming's own pov_alignment_derived wins — caller intent respected" {
+        InModuleScope AITriad {
+            $existing = [PSCustomObject]@{
+                id = 'org-601'
+                pov_alignment_derived = [PSCustomObject]@{ acc = [PSCustomObject]@{ advocates = 5 } }
+            }
+            $incoming = [PSCustomObject]@{
+                id = 'org-601'
+                pov_alignment_derived = [PSCustomObject]@{ acc = [PSCustomObject]@{ advocates = 99 } }
+            }
+            $r = Set-OrgPreserveDerived -Existing $existing -Incoming $incoming
+            $r.pov_alignment_derived.acc.advocates | Should -Be 99 -Because 'Invoke-OrgDerivedCampScores must be able to overwrite'
+        }
+    }
+
+    It 'Idempotent when neither has a derived block' {
+        InModuleScope AITriad {
+            $existing = [PSCustomObject]@{ id = 'org-602'; name = 'x' }
+            $incoming = [PSCustomObject]@{ id = 'org-602'; name = 'y' }
+            $r = Set-OrgPreserveDerived -Existing $existing -Incoming $incoming
+            $r.PSObject.Properties['pov_alignment_derived'] | Should -BeNullOrEmpty
+        }
+    }
+
+    It 'End-to-end via Import-Organization: partial upsert preserves the derived block byte-for-byte' {
+        # TL condition 2 (t/1560#4) verbatim: "edit an unrelated field on an
+        # org that already has a derived block, assert the block survives"
+        InModuleScope AITriad {
+            $seed = @(
+                [PSCustomObject]@{
+                    id = 'org-603'
+                    name = 'Seed Org'
+                    type = 'advocacy'
+                    pov_alignment_derived = [PSCustomObject]@{
+                        acc = [PSCustomObject]@{ advocates = 2; opposes = 0; n = 2; net_ratio = 1.0 }
+                        saf = [PSCustomObject]@{ advocates = 0; opposes = 3; n = 3; net_ratio = -1.0 }
+                        skp = [PSCustomObject]@{ advocates = 0; opposes = 0; n = 0; net_ratio = $null }
+                        provenance = [PSCustomObject]@{
+                            computed_at = '2026-07-13'
+                            cmdlet_version = 'Invoke-OrgDerivedCampScores@v0.8.6'
+                            included_status_filter = @('approved')
+                        }
+                    }
+                }
+            )
+            Mock Get-OrganizationsStore { [PSCustomObject]@{ organizations = $seed; org_count = 1 } }
+
+            # Partial upsert — no pov_alignment_derived in the incoming record
+            $incoming = [PSCustomObject]@{
+                id = 'org-603'
+                name = 'Renamed Org'
+                type = 'advocacy'
+            }
+            $r = Import-Organization -InputObject $incoming -WhatIf 3>$null 6>$null
+
+            # Return type is [Organization] (PascalCase); on-disk JSON is snake_case.
+            $r.PovAlignmentDerived | Should -Not -BeNullOrEmpty -Because 'Set-OrgPreserveDerived must have run in the upsert path'
+            $r.PovAlignmentDerived.Acc.Advocates | Should -Be 2
+            $r.PovAlignmentDerived.Acc.NetRatio  | Should -Be 1
+            $r.PovAlignmentDerived.Saf.Opposes   | Should -Be 3
+            $r.PovAlignmentDerived.Saf.NetRatio  | Should -Be -1
+            $r.PovAlignmentDerived.Skp.N         | Should -Be 0
+            $r.PovAlignmentDerived.Skp.NetRatio  | Should -Be $null -Because 'n=0 must round-trip as null, not 0.0'
+            $r.PovAlignmentDerived.Provenance.ComputedAt | Should -Be '2026-07-13'
+            $r.PovAlignmentDerived.Provenance.CmdletVersion | Should -Be 'Invoke-OrgDerivedCampScores@v0.8.6'
+            @($r.PovAlignmentDerived.Provenance.IncludedStatusFilter).Count | Should -Be 1
+            $r.PovAlignmentDerived.Provenance.IncludedStatusFilter[0] | Should -Be 'approved'
+        }
+    }
+}

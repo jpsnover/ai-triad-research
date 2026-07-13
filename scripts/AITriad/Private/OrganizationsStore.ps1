@@ -179,6 +179,40 @@ function ConvertTo-OrganizationObject {
     }
     $o.ExternalLinks = $links
 
+    # t/1560 — POV alignment derived (optional). Absent → stays $null on the
+    # typed object (meaningful: "never computed"). Present → populated with
+    # per-camp counts + provenance.
+    if ($Raw.PSObject.Properties['pov_alignment_derived'] -and $null -ne $Raw.pov_alignment_derived) {
+        $rawDer = $Raw.pov_alignment_derived
+        $der = [OrganizationPovAlignmentDerived]::new()
+        foreach ($camp in 'acc','saf','skp') {
+            if ($rawDer.PSObject.Properties[$camp] -and $null -ne $rawDer.$camp) {
+                $rc = $rawDer.$camp
+                $perCamp = [OrganizationPovAlignmentDerivedPerCamp]::new()
+                $perCamp.Advocates = if ($rc.PSObject.Properties['advocates']) { [int]$rc.advocates } else { 0 }
+                $perCamp.Opposes   = if ($rc.PSObject.Properties['opposes'])   { [int]$rc.opposes }   else { 0 }
+                $perCamp.N         = if ($rc.PSObject.Properties['n'])         { [int]$rc.n }         else { 0 }
+                # NetRatio is [Nullable[double]] — preserve null as null, do
+                # not collapse to 0.0 (three-state semantics, TL t/1560#4).
+                if ($rc.PSObject.Properties['net_ratio'] -and $null -ne $rc.net_ratio) {
+                    $perCamp.NetRatio = [double]$rc.net_ratio
+                }
+                $der.$($camp.Substring(0,1).ToUpper() + $camp.Substring(1)) = $perCamp
+            }
+        }
+        if ($rawDer.PSObject.Properties['provenance'] -and $null -ne $rawDer.provenance) {
+            $rp = $rawDer.provenance
+            $prov = [OrganizationPovAlignmentDerivedProvenance]::new()
+            $prov.ComputedAt           = if ($rp.PSObject.Properties['computed_at'])            { [string]$rp.computed_at }            else { '' }
+            $prov.CmdletVersion        = if ($rp.PSObject.Properties['cmdlet_version'])         { [string]$rp.cmdlet_version }         else { '' }
+            $prov.InputEdgesSha        = if ($rp.PSObject.Properties['input_edges_sha'])        { [string]$rp.input_edges_sha }        else { '' }
+            $prov.IncludedStatusFilter = if ($rp.PSObject.Properties['included_status_filter']) { @($rp.included_status_filter | ForEach-Object { [string]$_ }) } else { @() }
+            $prov.EdgeCount            = if ($rp.PSObject.Properties['edge_count'])             { [int]$rp.edge_count }                else { 0 }
+            $der.Provenance = $prov
+        }
+        $o.PovAlignmentDerived = $der
+    }
+
     return $o
 }
 

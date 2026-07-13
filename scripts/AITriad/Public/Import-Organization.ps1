@@ -117,6 +117,11 @@ function Import-Organization {
         # carry over the existing assessed_at so unrelated updates don't churn
         # the staleness signal.
         $incoming = Set-OrgAssessedAt -Existing $existing[$index] -Incoming $incoming
+        # t/1560 — preserve pov_alignment_derived across partial upserts.
+        # A caller who edits an unrelated field without carrying forward the
+        # derived block would otherwise wipe it (this cmdlet replaces the
+        # whole record). Only Invoke-OrgDerivedCampScores rewrites the block.
+        $incoming = Set-OrgPreserveDerived -Existing $existing[$index] -Incoming $incoming
         $existing[$index] = $incoming
         Write-Verbose "Updating existing organization: $incomingId"
     } else {

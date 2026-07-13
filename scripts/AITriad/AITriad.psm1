@@ -413,6 +413,33 @@ class OrganizationExternalLink {
     [string] $Title
 }
 
+# t/1560 — derived per-camp alignment (mirrors PovAlignmentDerivedPerCamp
+# in lib/organizations/types.ts). Three-state: PovAlignmentDerived null on
+# the Organization = never computed; NetRatio null with N=0 = computed,
+# no data; NetRatio non-null = computed with data. Do NOT collapse
+# NetRatio to 0.0 default — erases the "no data" signal (TL t/1560#4).
+class OrganizationPovAlignmentDerivedPerCamp {
+    [int]                     $Advocates
+    [int]                     $Opposes
+    [int]                     $N
+    [System.Nullable[double]] $NetRatio
+}
+
+class OrganizationPovAlignmentDerivedProvenance {
+    [string]   $ComputedAt
+    [string]   $CmdletVersion
+    [string]   $InputEdgesSha
+    [string[]] $IncludedStatusFilter
+    [int]      $EdgeCount
+}
+
+class OrganizationPovAlignmentDerived {
+    [OrganizationPovAlignmentDerivedPerCamp]    $Acc
+    [OrganizationPovAlignmentDerivedPerCamp]    $Saf
+    [OrganizationPovAlignmentDerivedPerCamp]    $Skp
+    [OrganizationPovAlignmentDerivedProvenance] $Provenance
+}
+
 class Organization {
     [string]                          $Id          # org-NNN
     [string]                          $Name
@@ -424,6 +451,7 @@ class Organization {
     [int]                             $Founded
     [string]                          $Status      # active | dissolved | merged
     [hashtable]                       $PovAlignment           # 'accelerationist'|'safetyist'|'skeptic' → OrganizationPovAlignment
+    [OrganizationPovAlignmentDerived] $PovAlignmentDerived    # t/1560; $null when never computed
     [OrganizationTopicEngagement[]]   $TopicEngagement
     [OrganizationPolicyEngagement[]]  $PolicyEngagement
     [OrganizationKeyFigure[]]         $KeyFigures
@@ -811,6 +839,8 @@ Export-ModuleMember -Function @(
     'Invoke-OrgStanceExtraction'
     # t/1553 Stages 2+3 — claim→node matching + edge proposal aggregation
     'Invoke-OrgClaimMatching'
+    # t/1560 Stage 5 — R2 rollup, per-camp derived alignment from approved edges
+    'Invoke-OrgDerivedCampScores'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'
