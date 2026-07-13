@@ -365,8 +365,8 @@ export function OrganizationDetail({ org, onSelectOrg }: { org: Organization; on
           <h3 style={{ margin: '0 0 4px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>External Links</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {org.external_links.map((link, i) => {
-              const url = typeof link === 'string' ? link : (link as Record<string, unknown>)?.url as string | undefined;
-              const label = typeof link === 'string' ? link : (link as Record<string, unknown>)?.label as string | undefined;
+              const url = typeof link === 'string' ? link : link.url;
+              const label = typeof link === 'string' ? link : (link.title ?? link.url);
               if (!url) return null;
               return (
                 <button

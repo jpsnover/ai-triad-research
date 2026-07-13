@@ -25,6 +25,9 @@ export interface PovAlignmentDerived {
   provenance: PovAlignmentDerivedProvenance;
 }
 
+export interface KeyFigure { name: string; role?: string; relevance?: string }
+export interface ExternalLink { type?: string; url: string; title?: string }
+
 export interface Organization {
   id: string;
   name: string;
@@ -39,8 +42,8 @@ export interface Organization {
   pov_alignment_derived?: PovAlignmentDerived;
   topic_engagement?: TopicEngagement[];
   policy_engagement?: PolicyEngagement[];
-  key_figures?: unknown[];
-  external_links?: unknown[];
+  key_figures?: (KeyFigure | string)[];
+  external_links?: (ExternalLink | string)[];
   source_refs?: string[];
   tags?: string[];
   created_at?: string;
