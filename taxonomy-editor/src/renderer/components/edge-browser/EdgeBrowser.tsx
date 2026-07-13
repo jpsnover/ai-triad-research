@@ -13,6 +13,7 @@ import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import type { Edge, EdgeType, EdgeStatus, EdgesFile } from '../../types/taxonomy';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { SearchWithHistory } from '../shared/SearchWithHistory';
 import { useEdgeRationale } from './EdgeDetailPanel';
 
 // ── Types ────────────────────────────────────────────────
@@ -332,12 +333,12 @@ export function EdgeBrowser() {
           </label>
         </div>
         <div className="eb-filter-row">
-          <input
+          <SearchWithHistory
+            area="edges"
             className="eb-search"
-            type="text"
             placeholder="Search nodes, rationale, type..."
             value={filters.searchText}
-            onChange={(e) => setFilter('searchText', e.target.value)}
+            onChange={(v) => setFilter('searchText', v)}
           />
           <div className="eb-confidence">
             <span>Conf &ge; {filters.minConfidence.toFixed(2)}</span>

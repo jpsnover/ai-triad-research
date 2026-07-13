@@ -11,6 +11,7 @@ import { todayISO } from '../../utils/idGenerator';
 import './CruxesTab.css';
 import { useKeyboardNav } from '../../hooks/useKeyboardNav';
 import { useResizablePanel } from '../../hooks/useResizablePanel';
+import { SearchWithHistory } from '../shared/SearchWithHistory';
 import { SearchPreview } from '../edge-browser/SearchPreview';
 import { FallacyDetailPanel } from '../analysis/FallacyPanel';
 import { PromptDetailPanel } from '../chat/PromptsPanel';
@@ -169,12 +170,12 @@ export function CruxesTab() {
 
           {/* Search */}
           <div style={{ padding: '4px 8px', borderBottom: '1px solid var(--border-color)' }}>
-            <input
-              type="text"
+            <SearchWithHistory
+              area="cruxes"
               placeholder="Search cruxes..."
               value={searchText}
-              onChange={e => setSearchText(e.target.value)}
-              style={{ width: '100%', fontSize: '0.8rem', padding: '4px 6px' }}
+              onChange={setSearchText}
+              className="search-panel-text-input"
             />
           </div>
 

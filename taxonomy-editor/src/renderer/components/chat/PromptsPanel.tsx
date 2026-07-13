@@ -7,6 +7,7 @@ import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { PROMPT_CATALOG, type PromptCatalogEntry, type PromptGroup } from '../../data/promptCatalog';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { SearchWithHistory } from '../shared/SearchWithHistory';
 
 const GROUP_LABELS: Record<PromptGroup, string> = {
   'debate-setup': 'Debate Setup',
@@ -125,17 +126,13 @@ export function PromptsPanel({ onSelectPrompt, onInspectorToggle }: PromptsPanel
       ) : (
       <>
       <div style={{ padding: '4px 8px 2px' }}>
-        <input
-          ref={searchRef}
-          type="text"
+        <SearchWithHistory
+          area="prompts"
+          inputRef={searchRef}
           placeholder="Search prompt text..."
           value={searchQuery}
-          onChange={e => { setSearchQuery(e.target.value); setSelectedIndex(0); }}
-          style={{
-            width: '100%', padding: '3px 6px', fontSize: '0.75rem',
-            border: '1px solid var(--border)', borderRadius: 4,
-            background: 'var(--bg-secondary)', color: 'var(--text-primary)',
-          }}
+          onChange={(v) => { setSearchQuery(v); setSelectedIndex(0); }}
+          className="search-panel-text-input"
         />
       </div>
       {selectedNode && !searchQuery && (

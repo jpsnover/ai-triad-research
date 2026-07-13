@@ -9,6 +9,7 @@ import {
   getL2Categories, getL2CategoriesForL1, isLineageDataLoaded,
 } from '../../data/lineageCategories';
 import { getAllLineages, getLineageInfo, lookupLineage } from '../../data/lineageLookup';
+import { SearchWithHistory } from '../shared/SearchWithHistory';
 
 interface LineagePanelProps {
   onSelectValue?: (value: string) => void;
@@ -202,11 +203,11 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
         <span className="lineage-panel-count">{filtered.length}</span>
       </div>
       <div className="lineage-panel-search">
-        <input
+        <SearchWithHistory
+          area="lineage"
           className="search-panel-text-input"
-          type="text"
           value={query}
-          onChange={(e) => { setQuery(e.target.value); setSelectedKey(null); }}
+          onChange={(v) => { setQuery(v); setSelectedKey(null); }}
           placeholder="Filter lineage values..."
         />
       </div>

@@ -9,6 +9,7 @@ import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import type { Pov, Category } from '../../types/taxonomy';
+import { SearchWithHistory } from '../shared/SearchWithHistory';
 
 // ── Types ──
 
@@ -264,13 +265,12 @@ export function SummariesTab() {
           <h3>Sources ({filteredSources.length})</h3>
         </div>
         <div style={{ padding: '4px 8px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <input
-            type="text"
+          <SearchWithHistory
+            area="summaries"
             className="search-input"
             placeholder="Filter sources..."
             value={filter}
-            onChange={e => setFilter(e.target.value)}
-            style={{ width: '100%', boxSizing: 'border-box' }}
+            onChange={setFilter}
           />
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-2xs)' }}>
             <span style={{ color: 'var(--text-muted)' }}>Sort:</span>
