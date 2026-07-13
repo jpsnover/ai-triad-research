@@ -3,6 +3,28 @@ export type PovStance = { score: number; rationale?: string };
 export interface TopicEngagement { topic_ref: string; stance?: string; description?: string }
 export interface PolicyEngagement { policy_ref: string; stance: 'supports' | 'opposes' }
 
+export interface PovAlignmentDerivedPerCamp {
+  advocates: number;
+  opposes: number;
+  n: number;
+  net_ratio: number | null;
+}
+
+export interface PovAlignmentDerivedProvenance {
+  computed_at: string;
+  cmdlet_version: string;
+  input_edges_sha: string;
+  included_status_filter: string[];
+  edge_count: number;
+}
+
+export interface PovAlignmentDerived {
+  acc: PovAlignmentDerivedPerCamp;
+  saf: PovAlignmentDerivedPerCamp;
+  skp: PovAlignmentDerivedPerCamp;
+  provenance: PovAlignmentDerivedProvenance;
+}
+
 export interface Organization {
   id: string;
   name: string;
@@ -14,6 +36,7 @@ export interface Organization {
   founded?: number;
   status?: string;
   pov_alignment?: Partial<Record<Pov, PovStance>>;
+  pov_alignment_derived?: PovAlignmentDerived;
   topic_engagement?: TopicEngagement[];
   policy_engagement?: PolicyEngagement[];
   key_figures?: unknown[];
