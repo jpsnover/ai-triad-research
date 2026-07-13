@@ -2588,7 +2588,7 @@ Identify:
 3. For each disagreement, classify:
    a. "type": EMPIRICAL, VALUES, or DEFINITIONAL
    b. "bdi_layer": "belief" (empirical disagreement), "desire" (value priorities differ), or "intention" (key terms defined differently)
-   c. "resolvability": "resolvable_by_evidence", "negotiable_via_tradeoffs", or "requires_term_clarification"
+   c. "resolvability": MUST match bdi_layer — belief → "resolvable_by_evidence", desire → "negotiable_via_tradeoffs", intention → "requires_term_clarification". No exceptions.
 4. Cruxes — specific questions that, if answered, would change a debater's position.
    For each crux, FIRST decide whether it is counterfactual at all. A crux is counterfactual only if it reasons about a state contrary to fact. If it is a direct empirical or definitional question, set counterfactual_type to "none". Otherwise classify:
    - "interventional" (Pearl do-calculus): asks what would happen if a variable were FORCED to a value — "If we imposed strict liability, would developers exit?"
@@ -2796,10 +2796,10 @@ Identify:
       - "belief" — they disagree about what is empirically true (facts, evidence, predictions)
       - "desire" — they share the facts but prioritize differently (goals, principles, trade-offs)
       - "intention" — they define a key term or concept differently (meaning, scope, framing)
-   c. "resolvability": how this disagreement could potentially be resolved:
-      - "resolvable_by_evidence" — new data or studies could settle this (typical for belief disagreements)
-      - "negotiable_via_tradeoffs" — requires explicit trade-off reasoning, not evidence (typical for value disagreements)
-      - "requires_term_clarification" — debaters need to agree on definitions first (typical for conceptual disagreements)
+   c. "resolvability": MUST match bdi_layer exactly — no exceptions:
+      - belief → "resolvable_by_evidence"
+      - desire → "negotiable_via_tradeoffs"
+      - intention → "requires_term_clarification"
 4. Cruxes — the specific factual or value questions that, if resolved, would change a debater's position. A good crux is a question where one debater would say "if the answer turned out to be X, I would actually change my position."
    For each crux, FIRST decide whether it is counterfactual at all. A crux is counterfactual only if it reasons about a state contrary to fact. If it is a direct empirical or definitional question, set counterfactual_type to "none". Otherwise classify:
    - "interventional": asks what would happen if a variable were forced to a value (Pearl do-calculus)

@@ -150,8 +150,10 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
           const typeTag = d.type ? ` [${d.type}]` : '';
           const bdiTag = d.bdi_layer ? ` {${d.bdi_layer}}` : '';
           lines.push(`- **${stripNodeIds(d.point)}**${typeTag}${bdiTag}`);
-          if (d.resolvability) {
-            lines.push(`  - *Resolution path: ${d.resolvability.replace(/_/g, ' ')}*`);
+          const BDI_RESOLVABILITY: Record<string, string> = { belief: 'resolvable_by_evidence', desire: 'negotiable_via_tradeoffs', intention: 'requires_term_clarification' };
+          const resolv = (d.bdi_layer && BDI_RESOLVABILITY[d.bdi_layer]) || d.resolvability;
+          if (resolv) {
+            lines.push(`  - *Resolution path: ${resolv.replace(/_/g, ' ')}*`);
           }
           if (Array.isArray(d.positions)) {
             for (const pos of d.positions) {
