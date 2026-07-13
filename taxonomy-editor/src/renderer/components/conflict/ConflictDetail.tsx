@@ -18,6 +18,7 @@ import { generateConflictResearchPrompt } from '../../utils/researchPrompt';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
+import { summarizeStances, type StanceSummaryKind } from './stanceSummary';
 
 interface ConflictDetailProps {
   conflict: ConflictFile;
@@ -30,6 +31,15 @@ const STATUS_COLORS: Record<string, string> = {
   open: '#ef4444',
   resolved: '#16a34a',
   'wont-fix': '#d97706',
+};
+
+// Computed stance-summary colors (t/1558) — evidentiary balance, distinct from
+// the `status` workflow field above.
+const STANCE_SUMMARY_COLORS: Record<StanceSummaryKind, string> = {
+  corroborated: 'var(--success, #16a34a)',
+  contested: 'var(--color-warning, #d97706)',
+  disputed: 'var(--danger, #ef4444)',
+  unresolved: 'var(--text-muted, #94a3b8)',
 };
 
 export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: ConflictDetailProps) {
@@ -114,6 +124,11 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
 
   const raw = conflict.linked_taxonomy_nodes;
   const linkedNodes = Array.isArray(raw) ? raw : raw ? [raw] : [];
+
+  // Computed evidentiary balance from instance stances (t/1558) — surfaces
+  // whether this claim is actually contested, so the static "CONFLICT"
+  // record-type chip isn't misread as "the sides disagree".
+  const stanceSummary = useMemo(() => summarizeStances(conflict.instances ?? []), [conflict.instances]);
 
   // Derive related policies from linked taxonomy nodes
   const { policyRegistry } = useTaxonomyStore();
@@ -216,6 +231,20 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
       {/* Title line — matches POV/CC banner style */}
       <div className="node-detail-title-line" data-cat="Conflict">
         <span className="node-detail-category">CONFLICT</span>
+        <span
+          className="conflict-stance-summary"
+          data-kind={stanceSummary.kind}
+          style={{
+            marginLeft: 6,
+            fontSize: 'var(--text-2xs, 0.7rem)',
+            fontWeight: 600,
+            letterSpacing: '0.02em',
+            color: STANCE_SUMMARY_COLORS[stanceSummary.kind],
+          }}
+          title={`Evidentiary balance across ${stanceSummary.total} source instance${stanceSummary.total === 1 ? '' : 's'} (${stanceSummary.supports} support / ${stanceSummary.disputes} dispute / ${stanceSummary.neutral} neutral / ${stanceSummary.qualifies} qualify). Derived from instance stance — the "CONFLICT" chip is the record type, not a claim that the sides disagree.`}
+        >
+          · {stanceSummary.label} ({stanceSummary.detail})
+        </span>
         <span className="node-detail-title-sep"> : </span>
         <span className="node-detail-label-text">{conflict.claim_label}</span>
       </div>
