@@ -666,7 +666,9 @@ kbd {
       <input type="file" id="file-input" accept=".json">
     </label>
     <p style="margin-top: 24px; font-size: 12px;">Or drop the file anywhere on this page.</p>
+    <p style="margin-top: 12px; font-size: 11px;">Org-edge mode: also drop <code>_taxonomy_index.json</code> (anytime, before or during review) to enable node search/reassignment.</p>
     <div id="resume-slot" style="margin-top: 16px;"></div>
+    <input type="file" id="tax-index-input" accept=".json" style="display:none">
   </div>
 
   <!-- Main annotation interface (hidden until loaded) -->
@@ -742,6 +744,7 @@ let searchFilters = { pov: null, bdi: null };
 
 function init() {
   document.getElementById('file-input').addEventListener('change', handleFile);
+  document.getElementById('tax-index-input').addEventListener('change', handleFile);
   document.addEventListener('dragover', e => e.preventDefault());
   document.addEventListener('drop', handleDrop);
   document.addEventListener('keydown', handleKeys);
@@ -776,6 +779,10 @@ function readFile(file) {
   reader.onload = e => {
     try {
       const parsed = JSON.parse(e.target.result);
+      if (Array.isArray(parsed.taxonomy_index) && !Array.isArray(parsed.edges) && !Array.isArray(parsed.claims)) {
+        loadTaxonomyIndexFile(parsed.taxonomy_index);
+        return;
+      }
       if (Array.isArray(parsed.edges)) {
         startOrgReview(parsed);
         return;
@@ -1341,7 +1348,10 @@ let orgEdges = [];
 let orgIndices = [];
 let orgPos = 0;
 let orgFilter = 'pending';
+let orgSearchOpen = false;
+let orgSearchFilters = { pov: null, bdi: null };
 const ORG_SAVE_KEY = 'org_edge_review_progress';
+const ORG_TAX_INDEX_CACHE_KEY = 'org_taxonomy_index_cache';
 const EDGE_TYPE_HINTS = {
   PUBLISHED: 'org published this source document — approving admits it to the Stage 1 stance-extraction set',
   ADVOCATES_FOR: 'org publicly advances this position',
@@ -1365,6 +1375,7 @@ function startOrgReview(parsed) {
   orgEdges = parsed.edges;
   orgEdges.forEach(normalizeRefs);
   mergeSavedOrgDecisions();
+  restoreCachedTaxonomyIndex();
   document.getElementById('load-screen').style.display = 'none';
   document.getElementById('main-ui').style.display = 'block';
   document.querySelector('.header h1').textContent = 'Organization Edge Review';
@@ -1374,11 +1385,32 @@ function startOrgReview(parsed) {
     '<span><kbd>A</kbd> Approve</span>' +
     '<span><kbd>X</kbd> Reject</span>' +
     '<span><kbd>R</kbd> Reset to proposed</span>' +
+    '<span><kbd>S</kbd> Search/reassign node</span>' +
     '<span><kbd>N</kbd> Focus note</span>' +
     '<span><kbd>&larr;</kbd> <kbd>&rarr;</kbd> Navigate</span>';
   setOrgFilter('pending');
   const nProposed = orgEdges.filter(e => e.status === 'proposed').length;
-  toast('Org-edge review mode: ' + nProposed + ' proposed edge(s) to review');
+  const idxMsg = taxonomyIndex.length > 0 ? ', node index loaded (' + taxonomyIndex.length + ')' : ', drop _taxonomy_index.json to enable node search';
+  toast('Org-edge review mode: ' + nProposed + ' proposed edge(s) to review' + idxMsg);
+}
+
+function loadTaxonomyIndexFile(index) {
+  taxonomyIndex = index;
+  try {
+    localStorage.setItem(ORG_TAX_INDEX_CACHE_KEY, JSON.stringify({ index, savedAt: new Date().toISOString() }));
+  } catch (err) {}
+  toast('Loaded taxonomy index: ' + index.length + ' nodes');
+  if (orgMode) { renderOrgEdge(); }
+}
+
+function restoreCachedTaxonomyIndex() {
+  if (taxonomyIndex.length > 0) return;
+  const cached = localStorage.getItem(ORG_TAX_INDEX_CACHE_KEY);
+  if (!cached) return;
+  try {
+    const parsed = JSON.parse(cached);
+    if (Array.isArray(parsed.index) && parsed.index.length > 0) taxonomyIndex = parsed.index;
+  } catch (err) {}
 }
 
 function mergeSavedOrgDecisions() {
@@ -1432,9 +1464,15 @@ function orgNavigate(dir) {
   orgPos += dir;
   if (orgPos < 0) orgPos = orgIndices.length - 1;
   if (orgPos >= orgIndices.length) orgPos = 0;
+  resetOrgSearchState();
   renderOrgNavStrip();
   renderOrgEdge();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetOrgSearchState() {
+  orgSearchOpen = false;
+  orgSearchFilters = { pov: null, bdi: null };
 }
 
 function renderOrgNavStrip() {
@@ -1447,7 +1485,7 @@ function renderOrgNavStrip() {
   }).join('');
 }
 
-function orgJump(pos) { orgPos = pos; renderOrgNavStrip(); renderOrgEdge(); }
+function orgJump(pos) { orgPos = pos; resetOrgSearchState(); renderOrgNavStrip(); renderOrgEdge(); }
 
 function matchBasisOf(e) {
   const m = /match_basis=(\w+)/.exec(e.rationale || '');
@@ -1481,6 +1519,7 @@ function renderOrgEdge() {
         '<div><span style="color:var(--text-muted);">Discovered:</span> ' + escHtml(e.discovered_at || '?') + '</div>' +
         (e.reviewed_at ? '<div><span style="color:var(--text-muted);">Reviewed:</span> ' + escHtml(e.reviewed_at) + ' by ' + escHtml(e.reviewed_by || '?') + '</div>' : '') +
       '</div>' +
+      renderOrgTargetSearch(e) +
       '<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">' +
         '<button class="btn btn-success" onclick="orgDecide(\'approved\')">Approve (A)</button>' +
         '<button class="btn" style="border-color:var(--red);color:var(--red);" onclick="orgDecide(\'rejected\')">Reject (X)</button>' +
@@ -1489,6 +1528,123 @@ function renderOrgEdge() {
       '<textarea id="org-note-input" placeholder="Review note (optional — saved with the decision)" style="margin-top:12px;width:100%;min-height:48px;background:var(--bg-alt,#222);color:inherit;border:1px solid var(--border,#444);border-radius:6px;padding:8px;font:inherit;font-size:13px;">' + escHtml(e.review_note || '') + '</textarea>' +
     '</div>';
   document.getElementById('claim-counter').textContent = (orgPos + 1) + ' / ' + orgIndices.length;
+  if (orgSearchOpen) doOrgSearch();
+}
+
+function renderOrgTargetSearch(e) {
+  if (taxonomyIndex.length === 0) {
+    return '<div class="search-section" style="margin-top:14px;">' +
+      '<button class="search-toggle" onclick="document.getElementById(\'tax-index-input\').click()">' +
+        '<span class="arrow">&#9656;</span> Load taxonomy index to search/reassign nodes' +
+      '</button>' +
+    '</div>';
+  }
+  const editedNote = e.original_target ? ' <em style="color:var(--yellow);">(reassigned from ' + escHtml(e.original_target) + ')</em>' : '';
+  return '<div class="search-section" style="margin-top:14px;">' +
+    '<button class="search-toggle' + (orgSearchOpen ? ' open' : '') + '" onclick="toggleOrgSearch(this)">' +
+      '<span class="arrow">' + (orgSearchOpen ? '&#9662;' : '&#9656;') + '</span> Change target node (currently <code>' + escHtml(e.target) + '</code>)' + editedNote +
+    '</button>' +
+    '<div class="search-panel' + (orgSearchOpen ? ' visible' : '') + '" id="org-search-panel">' +
+      '<div class="search-input-row">' +
+        '<input type="text" class="search-input" id="org-search-input" placeholder="Search by ID or label..." oninput="doOrgSearch()">' +
+      '</div>' +
+      '<div class="search-filters">' +
+        '<span style="font-size:11px;color:var(--text-muted);margin-right:4px;">POV:</span>' +
+        '<button class="search-filter-btn org-search-filter-btn' + (orgSearchFilters.pov === 'acc' ? ' active active-acc' : '') + '" data-pov="acc" onclick="toggleOrgSearchFilter(this,\'pov\')">acc</button>' +
+        '<button class="search-filter-btn org-search-filter-btn' + (orgSearchFilters.pov === 'saf' ? ' active active-saf' : '') + '" data-pov="saf" onclick="toggleOrgSearchFilter(this,\'pov\')">saf</button>' +
+        '<button class="search-filter-btn org-search-filter-btn' + (orgSearchFilters.pov === 'skp' ? ' active active-skp' : '') + '" data-pov="skp" onclick="toggleOrgSearchFilter(this,\'pov\')">skp</button>' +
+        '<span style="font-size:11px;color:var(--text-muted);margin-left:8px;margin-right:4px;">BDI:</span>' +
+        '<button class="search-filter-btn org-search-filter-btn' + (orgSearchFilters.bdi === 'beliefs' ? ' active' : '') + '" data-bdi="beliefs" onclick="toggleOrgSearchFilter(this,\'bdi\')">beliefs</button>' +
+        '<button class="search-filter-btn org-search-filter-btn' + (orgSearchFilters.bdi === 'desires' ? ' active' : '') + '" data-bdi="desires" onclick="toggleOrgSearchFilter(this,\'bdi\')">desires</button>' +
+        '<button class="search-filter-btn org-search-filter-btn' + (orgSearchFilters.bdi === 'intentions' ? ' active' : '') + '" data-bdi="intentions" onclick="toggleOrgSearchFilter(this,\'bdi\')">intentions</button>' +
+      '</div>' +
+      '<div class="search-count" id="org-search-count"></div>' +
+      '<div class="search-results" id="org-search-results"></div>' +
+    '</div>' +
+  '</div>';
+}
+
+function toggleOrgSearch(btn) {
+  orgSearchOpen = !orgSearchOpen;
+  const panel = document.getElementById('org-search-panel');
+  if (panel) panel.classList.toggle('visible', orgSearchOpen);
+  btn.classList.toggle('open', orgSearchOpen);
+  if (orgSearchOpen) {
+    doOrgSearch();
+    const input = document.getElementById('org-search-input');
+    if (input) setTimeout(() => input.focus(), 50);
+  }
+}
+
+function toggleOrgSearchFilter(btn, type) {
+  const val = btn.dataset[type];
+  if (orgSearchFilters[type] === val) {
+    orgSearchFilters[type] = null;
+    btn.classList.remove('active', 'active-acc', 'active-saf', 'active-skp');
+  } else {
+    document.querySelectorAll('.org-search-filter-btn[data-' + type + ']').forEach(b =>
+      b.classList.remove('active', 'active-acc', 'active-saf', 'active-skp'));
+    orgSearchFilters[type] = val;
+    if (type === 'pov') btn.classList.add('active-' + val);
+    else btn.classList.add('active');
+  }
+  doOrgSearch();
+}
+
+function doOrgSearch() {
+  const input = document.getElementById('org-search-input');
+  const resultsEl = document.getElementById('org-search-results');
+  const countEl = document.getElementById('org-search-count');
+  if (!input || !resultsEl || orgIndices.length === 0) return;
+
+  const query = input.value.trim().toLowerCase();
+  let filtered = taxonomyIndex;
+  if (orgSearchFilters.pov) filtered = filtered.filter(n => n.pov === orgSearchFilters.pov);
+  if (orgSearchFilters.bdi) filtered = filtered.filter(n => n.bdi === orgSearchFilters.bdi);
+
+  if (query.length < 2 && !orgSearchFilters.pov && !orgSearchFilters.bdi) {
+    resultsEl.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:12px;">Type at least 2 characters or select a filter</div>';
+    countEl.textContent = '';
+    return;
+  }
+
+  let results = filtered;
+  if (query.length >= 2) {
+    results = filtered.filter(n =>
+      n.id.toLowerCase().includes(query) || n.label.toLowerCase().includes(query));
+  }
+
+  const maxShow = 30;
+  countEl.textContent = results.length > maxShow
+    ? results.length + ' matches (showing first ' + maxShow + ')'
+    : results.length + ' matches';
+
+  const e = orgEdges[orgIndices[orgPos]];
+  const shown = results.slice(0, maxShow);
+  resultsEl.innerHTML = shown.map(n => {
+    const isSelected = e.target === n.id;
+    return '<div class="search-result ' + (isSelected ? 'selected' : '') + '" onclick="selectOrgTarget(\'' + n.id + '\')">' +
+      '<div class="search-result-id">' + n.id + ' <span style="color:var(--text-muted)">' + n.bdi + '</span></div>' +
+      '<div class="search-result-label">' + escHtml(n.label) + '</div>' +
+      '<div class="search-result-desc">' + escHtml(n.desc) + '</div>' +
+    '</div>';
+  }).join('');
+
+  if (results.length === 0) {
+    resultsEl.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:12px;">No nodes match your search</div>';
+  }
+}
+
+function selectOrgTarget(nodeId) {
+  if (orgIndices.length === 0) return;
+  const e = orgEdges[orgIndices[orgPos]];
+  if (e.target === nodeId) return;
+  if (!e.original_target) e.original_target = e.target;
+  e.target = nodeId;
+  autoSaveOrg();
+  renderOrgEdge();
+  renderOrgNavStrip();
+  toast('Target reassigned to ' + nodeId);
 }
 
 function orgDecide(status) {
@@ -1549,6 +1705,7 @@ function exportOrgFile() {
   orgFile.last_modified = new Date().toISOString().slice(0, 10);
   const approved = orgEdges.filter(e => e.status === 'approved' && e.reviewed_at).length;
   const rejected = orgEdges.filter(e => e.status === 'rejected').length;
+  const reassigned = orgEdges.filter(e => e.original_target).length;
   const blob = new Blob([JSON.stringify(orgFile, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1556,7 +1713,8 @@ function exportOrgFile() {
   a.download = 'organization_edges.json';
   a.click();
   URL.revokeObjectURL(url);
-  toast('Exported full edges file (' + approved + ' newly approved, ' + rejected + ' rejected) — drop-in replacement for the data repo');
+  toast('Exported full edges file (' + approved + ' newly approved, ' + rejected + ' rejected' +
+    (reassigned ? ', ' + reassigned + ' reassigned' : '') + ') — drop-in replacement for the data repo');
 }
 
 function handleOrgKeys(e) {
@@ -1566,6 +1724,10 @@ function handleOrgKeys(e) {
   else if (e.key === 'a' || e.key === 'A') { orgDecide('approved'); }
   else if (e.key === 'x' || e.key === 'X') { orgDecide('rejected'); }
   else if (e.key === 'r' || e.key === 'R') { orgReset(); }
+  else if (e.key === 's' || e.key === 'S') {
+    const searchBtn = document.querySelector('#claim-area .search-toggle');
+    if (searchBtn) { searchBtn.click(); e.preventDefault(); }
+  }
   else if (e.key === 'n' || e.key === 'N') {
     const noteEl = document.getElementById('org-note-input');
     if (noteEl) { noteEl.focus(); e.preventDefault(); }
