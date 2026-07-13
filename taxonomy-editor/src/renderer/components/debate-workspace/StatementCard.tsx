@@ -9,6 +9,7 @@ import { POVER_INFO } from '../../types/debate';
 import type { SpeakerId, TranscriptEntry, TaxonomyRef, ConvergenceSignals } from '../../types/debate';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { remarkColorizePov } from '../../utils/colorizePovPlugin';
 import { lineageMarkdownComponents, extractLineageNames } from '../../utils/lineageMatcher';
 import { getDebateMarkdownComponents, type VocabResolution } from '../../utils/vocabularyAnnotations';
 import {
@@ -275,17 +276,17 @@ function parseBullets(body: string): { top: string; subs: string[] }[] {
 function CollapsibleBulletItem({ top, subs, mdComponents }: { top: string; subs: string[]; mdComponents: object }) {
   const [expanded, setExpanded] = useState(false);
   if (subs.length === 0) {
-    return <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{fixMarkdownLinks(top)}</Markdown>;
+    return <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]} components={mdComponents}>{fixMarkdownLinks(top)}</Markdown>;
   }
   return (
     <div className="concluding-collapsible-bullet">
       <div className="concluding-bullet-top" onClick={() => setExpanded(e => !e)} style={{ cursor: 'pointer' }}>
         <span className="concluding-toggle-arrow">{expanded ? '▼' : '▶'}</span>
-        <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{fixMarkdownLinks(top)}</Markdown>
+        <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]} components={mdComponents}>{fixMarkdownLinks(top)}</Markdown>
       </div>
       {expanded && (
         <div className="concluding-bullet-subs">
-          <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{fixMarkdownLinks(subs.join('\n'))}</Markdown>
+          <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]} components={mdComponents}>{fixMarkdownLinks(subs.join('\n'))}</Markdown>
         </div>
       )}
     </div>
@@ -298,13 +299,13 @@ function ConcludingSections({ content, mdComponents }: { content: string; mdComp
     <>
       {sections.map((section, i) => {
         if (!section.heading) {
-          return <Markdown key={i} remarkPlugins={[remarkGfm]} components={mdComponents}>{fixMarkdownLinks(section.body)}</Markdown>;
+          return <Markdown key={i} remarkPlugins={[remarkGfm, remarkColorizePov]} components={mdComponents}>{fixMarkdownLinks(section.body)}</Markdown>;
         }
         if (FULLY_COLLAPSED_SECTIONS.has(section.heading)) {
           return (
             <details key={i} className="concluding-collapsed-section">
               <summary className="concluding-section-summary"><h2>{section.heading}</h2></summary>
-              <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{fixMarkdownLinks(section.body)}</Markdown>
+              <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]} components={mdComponents}>{fixMarkdownLinks(section.body)}</Markdown>
             </details>
           );
         }
@@ -319,7 +320,7 @@ function ConcludingSections({ content, mdComponents }: { content: string; mdComp
             </div>
           );
         }
-        return <Markdown key={i} remarkPlugins={[remarkGfm]} components={mdComponents}>{fixMarkdownLinks(`## ${section.heading}\n${section.body}`)}</Markdown>;
+        return <Markdown key={i} remarkPlugins={[remarkGfm, remarkColorizePov]} components={mdComponents}>{fixMarkdownLinks(`## ${section.heading}\n${section.body}`)}</Markdown>;
       })}
     </>
   );
@@ -641,7 +642,7 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
                 ? <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
                 : entry.type === 'concluding'
                   ? <ConcludingSections content={displayContent} mdComponents={mdComponents} />
-                  : <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{fixMarkdownLinks(displayContent)}</Markdown>}
+                  : <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]} components={mdComponents}>{fixMarkdownLinks(displayContent)}</Markdown>}
               {isTruncated && (
                 <span
                   className="debate-tier-truncated"
@@ -846,7 +847,7 @@ export function FactCheckCard({ entry, statementId, findQuery = '', matchOffset 
           }
           return findQuery
             ? <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
-            : <Markdown remarkPlugins={[remarkGfm]} components={{ ...lineageMarkdownComponents, a: SafeLink }}>{fixMarkdownLinks(displayContent)}</Markdown>;
+            : <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]} components={{ ...lineageMarkdownComponents, a: SafeLink }}>{fixMarkdownLinks(displayContent)}</Markdown>;
         })()}
       </div>
       {showWebEvidence && (
@@ -854,7 +855,7 @@ export function FactCheckCard({ entry, statementId, findQuery = '', matchOffset 
           <div className="debate-fact-check-web-evidence-header">Web Search Evidence</div>
           <div className="debate-fact-check-web-evidence-body markdown-body">
             {factCheck?.web_search_evidence ? (
-              <Markdown remarkPlugins={[remarkGfm]} components={{ a: SafeLink }}>{fixMarkdownLinks(factCheck.web_search_evidence)}</Markdown>
+              <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]} components={{ a: SafeLink }}>{fixMarkdownLinks(factCheck.web_search_evidence)}</Markdown>
             ) : (
               <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
                 {factCheck?.web_search_used

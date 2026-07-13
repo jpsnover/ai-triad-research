@@ -15,6 +15,7 @@ import { NodeDetail } from '../taxonomy/NodeDetail';
 import { SituationDetail } from '../debate/SituationDetail';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { remarkColorizePov } from '../../utils/colorizePovPlugin';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useResizableRightPanel } from '../../hooks/useResizablePanel';
 import { useUserProfile } from '../../hooks/useAuthStatus';
@@ -135,7 +136,7 @@ function ChatMessage({ entry, selectedNodeId, onSelectNode }: { entry: ChatEntry
           </span>
         </div>
         <div className="chat-message-content markdown-body prose">
-          <Markdown remarkPlugins={[remarkGfm]}>{entry.content}</Markdown>
+          <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]}>{entry.content}</Markdown>
         </div>
         <TaxonomyRefsSection refs={entry.taxonomy_refs} selectedNodeId={selectedNodeId} onSelectNode={onSelectNode} />
       </div>

@@ -11,6 +11,7 @@ import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { remarkColorizePov } from '../../../utils/colorizePovPlugin';
 
 export interface NavigateCommand {
   entry?: string;
@@ -930,7 +931,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
           >
             {msg.role === 'assistant' ? (
               <div className="diag-chat-markdown">
-                <Markdown remarkPlugins={[remarkGfm]}>{msg.content}</Markdown>
+                <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]}>{msg.content}</Markdown>
               </div>
             ) : (
               <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
@@ -958,7 +959,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
             userSelect: 'text', cursor: 'text',
           }}>
             <div className="diag-chat-markdown">
-              <Markdown remarkPlugins={[remarkGfm]}>{streamingText}</Markdown>
+              <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]}>{streamingText}</Markdown>
             </div>
           </div>
         )}

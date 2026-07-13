@@ -23,6 +23,7 @@ import type { ChatSessionSummary, ChatMode, ChatSession } from '../../types/chat
 import { api } from '@bridge';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { remarkColorizePov } from '../../utils/colorizePovPlugin';
 
 const MODE_LABELS: Record<ChatMode, string> = {
   brainstorm: 'Brainstorm',
@@ -488,7 +489,7 @@ function CommunityChatDetail({ chat }: { chat: CommunityChat }) {
                     </span>
                   </div>
                   <div className="chat-message-content markdown-body">
-                    <Markdown remarkPlugins={[remarkGfm]}>{entry.content}</Markdown>
+                    <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]}>{entry.content}</Markdown>
                   </div>
                 </div>
               );
