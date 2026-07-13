@@ -168,15 +168,18 @@ function Invoke-OrgClaimMatching {
     # ── Batch-encode claim propositions via embed_taxonomy.py ────────────
     $repoRoot   = $script:RepoRoot
     $embScript  = Join-Path $repoRoot 'scripts' 'embed_taxonomy.py'
-    $encodeInput = @()
-    foreach ($c in $claims) {
-        $key = "$($c.org_id)::$($c.source_id)::" + ($claims.IndexOf($c))
-        $encodeInput += [PSCustomObject]@{ id = $key; text = [string]$c.canonical_proposition }
+    $encodeInput = [System.Collections.Generic.List[PSObject]]::new()
+    for ($ei = 0; $ei -lt $totalClaims; $ei++) {
+        $c = $claims[$ei]
+        $key = "$($c.org_id)::$($c.source_id)::$ei"
+        $encodeInput.Add([PSCustomObject]@{ id = $key; text = [string]$c.canonical_proposition })
     }
     $stdin = ($encodeInput | ConvertTo-Json -Compress -Depth 4)
     Write-Verbose "Batch-encoding $($encodeInput.Count) claim propositions..."
+    $global:LASTEXITCODE = 0
     $encoded = $stdin | & python $embScript batch-encode 2>$null
-    if ($LASTEXITCODE -ne 0 -or -not $encoded) {
+    $exit = if (Test-Path variable:LASTEXITCODE) { $LASTEXITCODE } else { 0 }
+    if ($exit -ne 0 -or -not $encoded) {
         throw (New-ActionableError `
             -Goal 'Batch-encode claim propositions' `
             -Problem 'embed_taxonomy.py batch-encode failed' `
