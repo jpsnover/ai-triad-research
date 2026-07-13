@@ -48,7 +48,7 @@ import {
 } from './chatIO.js';
 import { debateToText, debateToMarkdown, debateToPdf, debateToPackage } from './debateExport.js';
 import { chatToMarkdown, chatToText, chatToPrintHtml, chatExportFilename, type ChatExportEntry, type ChatExportOptions } from '../../../lib/chat/chatExportFormatters.js';
-import { storeApiKey, hasApiKey, getApiKeySummary, exportKeysForSharing, importKeysFromSharing, deleteApiKey, deleteAllApiKeys, removeApiKey, getMaskedKeys } from './apiKeyStore.js';
+import { storeApiKey, hasApiKey, getApiKeySummary, exportKeysForSharing, importKeysFromSharing, deleteApiKey, deleteAllApiKeys, removeApiKey, getMaskedKeys, loadApiKeys } from './apiKeyStore.js';
 import { listOrganizations, getOrganizationById, organizationsByPov, organizationsByTopic, organizationsByPolicy, organizationEdges, isPov } from './organizations.js';
 import type { KeySharePayload } from './apiKeyStore.js';
 import { isDataAvailable, getDataRootPath, setDataRootPath, loadDataConfig, PROJECT_ROOT, getSourcesDir, writeJsonFileAtomic } from './fileIO.js';
@@ -358,6 +358,43 @@ export function registerIpcHandlers(): void {
       });
       return { valid: false, error: 'Could not reach provider — check your network' };
     }
+  });
+
+  ipcMain.handle('verify-stored-keys', async (_event, backend: string): Promise<{ results: { index: number; masked: string; valid: boolean; error?: string }[] }> => {
+    const keys = loadApiKeys(backend as Parameters<typeof loadApiKeys>[0]);
+    const masked = getMaskedKeys(backend as Parameters<typeof getMaskedKeys>[0]);
+    const results = await Promise.all(keys.map(async (key, i) => {
+      try {
+        let valid = false;
+        if (backend === 'gemini') {
+          const r = await net.fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
+          valid = r.ok;
+        } else if (backend === 'claude') {
+          const r = await net.fetch('https://api.anthropic.com/v1/models', { headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' } });
+          valid = r.ok;
+        } else if (backend === 'groq') {
+          const r = await net.fetch('https://api.groq.com/openai/v1/models', { headers: { 'Authorization': `Bearer ${key}` } });
+          valid = r.ok;
+        } else if (backend === 'openai') {
+          const r = await net.fetch('https://api.openai.com/v1/models', { headers: { 'Authorization': `Bearer ${key}` } });
+          valid = r.ok;
+        } else if (backend === 'deepseek') {
+          const r = await net.fetch('https://api.deepseek.com/v1/models', { headers: { 'Authorization': `Bearer ${key}` } });
+          valid = r.ok;
+        } else {
+          return { index: i, masked: masked[i] ?? '••••', valid: false, error: `Unsupported backend: ${backend}` };
+        }
+        return { index: i, masked: masked[i] ?? '••••', valid, ...(!valid && { error: 'Invalid API key' }) };
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'ipc-handlers', level: 'warn',
+          message: 'Stored key verification failed', data: { backend, index: i },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        return { index: i, masked: masked[i] ?? '••••', valid: false, error: 'Could not reach provider — check your network' };
+      }
+    }));
+    return { results };
   });
 
   ipcMain.handle('has-api-key', (_event, backend?: string) => {

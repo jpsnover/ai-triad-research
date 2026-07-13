@@ -303,7 +303,7 @@ function TestKeysButton({ hasKey }: { hasKey: Record<string, boolean> }) {
     for (const b of backendsWithKeys) {
       try {
         const { results: r } = await api.verifyStoredKeys(b.value);
-        const allValid = r.every((k: { valid: boolean }) => k.valid);
+        const allValid = r.length > 0 && r.every((k: { valid: boolean }) => k.valid);
         const firstError = r.find((k: { valid: boolean }) => !k.valid);
         setResults(prev => ({ ...prev, [b.value]: { valid: allValid, error: firstError?.error } }));
       } catch (err) {

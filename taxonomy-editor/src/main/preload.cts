@@ -138,6 +138,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getApiKeys: (backend?: string): Promise<string[]> =>
     ipcRenderer.invoke('get-api-keys', backend),
 
+  verifyStoredKeys: (backend: string): Promise<{ results: { index: number; masked: string; valid: boolean; error?: string }[] }> =>
+    ipcRenderer.invoke('verify-stored-keys', backend),
+
   exportKeysForSharing: (passphrase: string): Promise<{ dataUrl: string; payloadText: string }> =>
     ipcRenderer.invoke('export-keys-for-sharing', passphrase),
 
