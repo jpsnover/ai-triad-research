@@ -241,6 +241,12 @@
   margin-top: 4px;
 }
 
+/* ── Description prose override — use full panel width ── */
+
+.node-detail-tab-content .prose {
+  max-width: none;
+}
+
 /* ── Aphorism display + edit ── */
 
 .nd-aphorism {
