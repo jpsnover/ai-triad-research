@@ -4,21 +4,24 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { TOAST_DURATION_FEEDBACK } from '../../constants';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
-import type { ConflictFile, ConflictQbaf, DialecticTrace, DialecticTraceStep } from '../../types/taxonomy';
+import type { ConflictFile, ConflictInstance, ConflictQbaf, ConflictStance, DialecticTrace, DialecticTraceStep, TabId } from '../../types/taxonomy';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { useFeatureFlagStore } from '../../hooks/useFeatureFlags';
 import { DeleteConfirmDialog } from '../shared/DeleteConfirmDialog';
-import { ConflictInstanceForm, newEmptyInstance } from './ConflictInstanceForm';
+import { OverflowMenu } from '../shared/OverflowMenu';
+import { newEmptyInstance } from './ConflictInstanceForm';
 import { ConflictNoteForm, newEmptyNote } from './ConflictNoteForm';
-import { HighlightedInput, HighlightedTextarea } from '../shared/HighlightedField';
 import { TypeaheadSelect } from '../shared/TypeaheadSelect';
-import { FieldHelp } from '../shared/FieldHelp';
 import { LinkedNodePreview } from '../shared/LinkedNodePreview';
 import { generateConflictResearchPrompt } from '../../utils/researchPrompt';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
-import { summarizeStances, type StanceSummaryKind } from './stanceSummary';
+import { summarizeStances } from './stanceSummary';
+import { EditableField } from './EditableField';
+import { InlineConfirm } from './InlineConfirm';
+import { earliestInstanceDate, campColorVarForNodeId } from './conflictMeta';
+import './ConflictDetail.css';
 
 interface ConflictDetailProps {
   conflict: ConflictFile;
@@ -33,14 +36,30 @@ const STATUS_COLORS: Record<string, string> = {
   'wont-fix': '#d97706',
 };
 
-// Computed stance-summary colors (t/1558) — evidentiary balance, distinct from
-// the `status` workflow field above.
-const STANCE_SUMMARY_COLORS: Record<StanceSummaryKind, string> = {
-  corroborated: 'var(--success, #16a34a)',
-  contested: 'var(--color-warning, #d97706)',
-  disputed: 'var(--danger, #ef4444)',
-  unresolved: 'var(--text-muted, #94a3b8)',
+const STATUS_OPTIONS: { value: ConflictFile['status']; label: string }[] = [
+  { value: 'open', label: 'Open' },
+  { value: 'resolved', label: 'Resolved' },
+  { value: 'wont-fix', label: "Won't Fix" },
+];
+const STATUS_LABELS: Record<string, string> = { open: 'Open', resolved: 'Resolved', 'wont-fix': "Won't Fix" };
+const STANCE_CHIP: Record<ConflictStance, { label: string; cls: string }> = {
+  supports: { label: 'Supports', cls: 'cd-stance-supports' },
+  disputes: { label: 'Disputes', cls: 'cd-stance-disputes' },
+  neutral: { label: 'Neutral', cls: 'cd-stance-neutral' },
+  qualifies: { label: 'Qualifies', cls: 'cd-stance-neutral' },
 };
+
+const POLICY_COLLAPSE_THRESHOLD = 8;
+
+/** Map a taxonomy node id to the tab that lists it, for row click-to-navigate (§3.4). */
+function tabForNodeId(id: string): TabId {
+  switch (id.split('-', 1)[0]) {
+    case 'acc': return 'accelerationist';
+    case 'saf': return 'safetyist';
+    case 'skp': return 'skeptic';
+    default: return 'situations'; // sit-*, cc-*
+  }
+}
 
 export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: ConflictDetailProps) {
   const {
@@ -57,13 +76,29 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
   } = useTaxonomyStore();
   const { setActiveTab } = useTaxonomyStore();
   const getLabelForId = useTaxonomyStore(s => s.getLabelForId);
+  const navigateToNode = useTaxonomyStore(s => s.navigateToNode);
   const createConflictDebate = useDebateStore(s => s.createConflictDebate);
   const [showDelete, setShowDelete] = useState(false);
   const [clipboardState, setClipboardState] = useState<'idle' | 'copied'>('idle');
   const [debateCreating, setDebateCreating] = useState(false);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
-  const [editing, setEditing] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [showAllPolicies, setShowAllPolicies] = useState(false);
+  const [showLinkSearch, setShowLinkSearch] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
+  const statusRef = useRef<HTMLDivElement>(null);
+
+  // Close the status popover on click-outside / Escape (mirrors OverflowMenu;
+  // the shared component's trigger is a fixed "…", so the status chip needs its
+  // own trigger — reusing the .overflow-menu-* dropdown recipe. See t/1559#1).
+  useEffect(() => {
+    if (!statusOpen) return;
+    const onDown = (e: MouseEvent) => { if (statusRef.current && !statusRef.current.contains(e.target as Node)) setStatusOpen(false); };
+    const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') setStatusOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onEsc);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onEsc); };
+  }, [statusOpen]);
 
   const handleResearchPrompt = useCallback(async () => {
     const instances = (conflict.instances || []).map((i) => ({
@@ -129,6 +164,7 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
   // whether this claim is actually contested, so the static "CONFLICT"
   // record-type chip isn't misread as "the sides disagree".
   const stanceSummary = useMemo(() => summarizeStances(conflict.instances ?? []), [conflict.instances]);
+  const firstFlagged = useMemo(() => earliestInstanceDate(conflict.instances ?? []), [conflict.instances]);
 
   // Derive related policies from linked taxonomy nodes
   const { policyRegistry } = useTaxonomyStore();
@@ -199,25 +235,12 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
             Pin
           </button>
         )}
-        {!readOnly && (
-          <button
-            className="node-detail-pill"
-            onClick={() => setEditing(!editing)}
-            title={editing ? 'Done editing' : 'Edit conflict'}
-          >
-            {editing ? '✓ Done' : '✎ Edit'}
-          </button>
-        )}
         <div style={{ flex: 1 }} />
         {!readOnly && (
-          <button
-            className="node-detail-pill"
-            onClick={() => setShowDelete(true)}
-            title="Delete conflict"
-            style={{ color: 'var(--danger)' }}
-          >
-            Delete
-          </button>
+          <OverflowMenu
+            triggerClassName="node-detail-pill cd-overflow-trigger"
+            entries={[{ type: 'item', key: 'delete', label: 'Delete conflict', danger: true, onClick: () => setShowDelete(true) }]}
+          />
         )}
       </div>
 
@@ -228,156 +251,142 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
         </div>
       )}
 
-      {/* Title line — matches POV/CC banner style */}
-      <div className="node-detail-title-line" data-cat="Conflict">
-        <span className="node-detail-category">CONFLICT</span>
-        <span
-          className="conflict-stance-summary"
-          data-kind={stanceSummary.kind}
-          style={{
-            marginLeft: 6,
-            fontSize: 'var(--text-2xs, 0.7rem)',
-            fontWeight: 600,
-            letterSpacing: '0.02em',
-            color: STANCE_SUMMARY_COLORS[stanceSummary.kind],
-          }}
-          title={`Evidentiary balance across ${stanceSummary.total} source instance${stanceSummary.total === 1 ? '' : 's'} (${stanceSummary.supports} support / ${stanceSummary.disputes} dispute / ${stanceSummary.neutral} neutral / ${stanceSummary.qualifies} qualify). Derived from instance stance — the "CONFLICT" chip is the record type, not a claim that the sides disagree.`}
-        >
-          · {stanceSummary.label} ({stanceSummary.detail})
-        </span>
-        <span className="node-detail-title-sep"> : </span>
-        <span className="node-detail-label-text">{conflict.claim_label}</span>
+      {/* Header — eyebrow (record type + status chip) + serif title + meta line (§3.1) */}
+      <div className="cd-header">
+        <div className="cd-eyebrow">
+          <span className="cd-eyebrow-cat">CONFLICT</span>
+          <span className="cd-eyebrow-sep">·</span>
+          {readOnly ? (
+            <span className="cd-status-chip" data-status={conflict.status}>
+              <span className="cd-status-dot" style={{ background: STATUS_COLORS[conflict.status] || '#888' }} />
+              {STATUS_LABELS[conflict.status] ?? conflict.status}
+            </span>
+          ) : (
+            <div className="cd-status-wrap" ref={statusRef}>
+              <button
+                type="button"
+                className="cd-status-chip cd-status-chip-btn"
+                data-status={conflict.status}
+                onClick={() => setStatusOpen(o => !o)}
+                aria-haspopup="true"
+                aria-expanded={statusOpen}
+                title="Change status"
+              >
+                <span className="cd-status-dot" style={{ background: STATUS_COLORS[conflict.status] || '#888' }} />
+                {STATUS_LABELS[conflict.status] ?? conflict.status}
+                <span className="cd-status-caret" aria-hidden="true">▾</span>
+              </button>
+              {statusOpen && (
+                <div className="overflow-menu-dropdown cd-status-menu" role="menu">
+                  {STATUS_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className="overflow-menu-item"
+                      role="menuitem"
+                      onClick={() => { update({ status: opt.value }); setStatusOpen(false); }}
+                    >
+                      <span className="cd-status-dot" style={{ background: STATUS_COLORS[opt.value] }} />
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <EditableField
+          value={conflict.claim_label}
+          onCommit={(v) => update({ claim_label: v })}
+          readOnly={readOnly}
+          ariaLabel="Edit claim label"
+          placeholder="Untitled Conflict"
+          className={`cd-title${err('claim_label') ? ' has-error' : ''}`}
+          renderRead={(v) => <h2 className="cd-title-text">{v || 'Untitled Conflict'}</h2>}
+        />
+        {err('claim_label') && <div className="error-text">{err('claim_label')}</div>}
+
+        <div className="cd-meta">
+          {firstFlagged && <>First flagged {firstFlagged} · </>}
+          {conflict.instances.length} instance{conflict.instances.length === 1 ? '' : 's'}
+          {stanceSummary.total > 0 && (
+            <>
+              {' · '}
+              <span
+                className="cd-meta-stance"
+                style={{ color: stanceSummary.kind === 'contested' ? 'var(--color-warning, #d97706)' : 'var(--text-muted)' }}
+                title={`${stanceSummary.supports} support / ${stanceSummary.disputes} dispute / ${stanceSummary.neutral} neutral / ${stanceSummary.qualifies} qualify — derived from instance stance, not a claim that the sides disagree`}
+              >
+                {stanceSummary.label} ({stanceSummary.detail})
+              </span>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Body */}
       <div className="conflict-detail-body">
-        {/* Claim label — read mode: serif headline; edit mode: input field */}
-        {!readOnly && editing ? (
-          <div className={`form-group ${err('claim_label') ? 'has-error' : ''}`}>
-            <label>Claim Label</label>
-            <HighlightedInput
-              value={conflict.claim_label}
-              onChange={(v) => update({ claim_label: v })}
-            />
-            {err('claim_label') && <div className="error-text">{err('claim_label')}</div>}
-          </div>
-        ) : (
-          <h2
-            style={{
-              fontFamily: 'var(--font-serif, "Source Serif 4", Georgia, serif)',
-              fontSize: 'var(--text-lg)',
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              margin: '0 0 4px 0',
-            }}
-          >
-            {conflict.claim_label || 'Untitled Conflict'}
-          </h2>
-        )}
-
-        {/* Status + date — read mode: quiet meta line; edit mode: select */}
-        {editing ? (
-          <div className="conflict-detail-row">
-            <div className="form-group conflict-detail-status">
-              <label>Status</label>
-              <select
-                className="conflict-status-select"
-                value={conflict.status}
-                onChange={(e) => update({ status: e.target.value as ConflictFile['status'] })}
-                disabled={readOnly}
-                style={{ borderLeftColor: STATUS_COLORS[conflict.status] || '#888', borderLeftWidth: 3 }}
-              >
-                <option value="open">Open</option>
-                <option value="resolved">Resolved</option>
-                <option value="wont-fix">Won't Fix</option>
-              </select>
-            </div>
-          </div>
-        ) : (
-          <div
-            style={{
-              fontSize: 'var(--text-xs)',
-              color: 'var(--text-muted)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              marginTop: 4,
-              marginBottom: 12,
-            }}
-          >
-            <span
-              style={{
-                padding: '1px 6px',
-                borderRadius: 'var(--radius-sm)',
-                background: 'var(--bg-hover)',
-                fontSize: 'var(--text-2xs)',
-                fontWeight: 600,
-              }}
-            >
-              {conflict.status || 'Open'}
-            </span>
-          </div>
-        )}
-
-        {/* Description — read mode: prose block; edit mode: textarea */}
-        <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
-          {editing && <label>Description</label>}
-          {editing ? (
-            <HighlightedTextarea
-              value={conflict.description}
-              onChange={(v) => update({ description: v })}
-              rows={3}
-              readOnly={readOnly}
-            />
-          ) : (
-            <div
-              style={{
-                fontSize: 'var(--text-md)',
-                lineHeight: 1.5,
-                color: 'var(--text-primary)',
-                cursor: readOnly ? 'default' : 'pointer',
-                padding: '4px 0',
-                outline: 'none',
-              }}
-              onClick={() => { if (!readOnly) setEditing(true); }}
-              onKeyDown={(e) => {
-                if (!readOnly && e.key === 'Enter') setEditing(true);
-                if (e.key === 'Escape') setEditing(false);
-              }}
-              tabIndex={readOnly ? undefined : 0}
-              role={readOnly ? undefined : 'button'}
-              aria-label="Edit description"
-            >
-              {conflict.description || (
-                <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No description</span>
-              )}
-            </div>
-          )}
+        {/* Description — prose read mode; click-to-edit textarea (§3.3) */}
+        <div className={`cd-description-group ${err('description') ? 'has-error' : ''}`}>
+          <EditableField
+            type="textarea"
+            value={conflict.description}
+            onCommit={(v) => update({ description: v })}
+            readOnly={readOnly}
+            ariaLabel="Edit description"
+            placeholder="No description"
+            className="cd-description"
+            rows={4}
+            renderRead={(v) => v
+              ? <p className="cd-prose">{v}</p>
+              : <p className="cd-prose cd-empty">No description</p>}
+          />
           {err('description') && <div className="error-text">{err('description')}</div>}
         </div>
 
-        <div className="form-group">
-          <label>Linked Taxonomy Nodes</label>
-          <div className="chip-list">
+        {/* Linked taxonomy nodes — label-first rows, camp tick, hover controls (§3.4) */}
+        <section className="cd-section">
+          <div className="cd-section-head">LINKED TAXONOMY NODES</div>
+          <div className="cd-node-rows">
             {linkedNodes.map((id) => {
               const label = getLabelForId(id);
+              const expanded = expandedNodes.has(id);
+              const toggleExpand = () => setExpandedNodes(prev => {
+                const next = new Set(prev);
+                if (next.has(id)) next.delete(id); else next.add(id);
+                return next;
+              });
               return (
-                <span key={id} className={`chip${expandedNodes.has(id) ? ' chip-expanded' : ''}`}>
-                  <span
-                    className="chip-content"
-                    onClick={() => setExpandedNodes(prev => {
-                      const next = new Set(prev);
-                      if (next.has(id)) next.delete(id); else next.add(id);
-                      return next;
-                    })}
-                    title="Click to expand node content"
+                <div key={id} className="cd-node-row">
+                  <span className="cd-node-tick" style={{ background: campColorVarForNodeId(id) }} aria-hidden="true" />
+                  <button
+                    type="button"
+                    className="cd-node-main"
+                    onClick={() => navigateToNode(tabForNodeId(id), id)}
+                    title={`Go to ${label || id}`}
                   >
-                    <span className="chip-id">{id}</span>
-                    {label && <span className="chip-label">{label}</span>}
-                    <span className="chip-expand-indicator">{expandedNodes.has(id) ? '▲' : '▼'}</span>
-                  </span>
-                  {!readOnly && <button onClick={() => removeLinked(id)}>x</button>}
-                </span>
+                    <span className={`cd-node-label${label ? '' : ' cd-node-unlabeled'}`}>{label || '(unlabeled node)'}</span>
+                    <span className="cd-node-id">{id}</span>
+                  </button>
+                  <div className="cd-node-controls">
+                    <button
+                      type="button"
+                      className="cd-node-ctrl"
+                      onClick={toggleExpand}
+                      title={expanded ? 'Collapse' : 'Expand'}
+                      aria-label={expanded ? 'Collapse node' : 'Expand node'}
+                      aria-expanded={expanded}
+                    >{expanded ? '▴' : '▾'}</button>
+                    {!readOnly && (
+                      <InlineConfirm onConfirm={() => removeLinked(id)} label="Unlink?" confirmLabel="Unlink">
+                        {(start) => (
+                          <button type="button" className="cd-node-ctrl cd-node-unlink" onClick={start} title="Unlink node" aria-label="Unlink node">✕</button>
+                        )}
+                      </InlineConfirm>
+                    )}
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -385,55 +394,113 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
             <LinkedNodePreview key={id} nodeId={id} />
           ))}
           {!readOnly && (
-            <TypeaheadSelect
-              options={allNodeIds.filter(id => !linkedNodes.includes(id))}
-              onSelect={addLinked}
-              placeholder="Search nodes..."
-            />
+            showLinkSearch ? (
+              <TypeaheadSelect
+                options={allNodeIds.filter(id => !linkedNodes.includes(id))}
+                onSelect={(id) => { addLinked(id); setShowLinkSearch(false); }}
+                placeholder="Search nodes..."
+              />
+            ) : (
+              <button type="button" className="cd-add-row" onClick={() => setShowLinkSearch(true)}>＋ Link node</button>
+            )
           )}
-        </div>
+        </section>
 
-        {/* Related Policies (derived from linked nodes) */}
+        {/* Related Policies (derived from linked nodes) — two-column label-first (§3.5) */}
         {relatedPolicies.length > 0 && (
-          <div className="form-group">
-            <label>Related Policies</label>
-            <div className="conflict-related-policies">
-              {relatedPolicies.map((pol) => (
-                <span key={pol.id} className="conflict-policy-badge" title={pol.action}>
-                  <span className="conflict-policy-badge-id">{pol.id}</span>
-                  <span className="conflict-policy-badge-action">{pol.action}</span>
-                </span>
+          <section className="cd-section">
+            <div className="cd-section-head">RELATED POLICIES ({relatedPolicies.length})</div>
+            <div className="cd-policy-grid">
+              {(showAllPolicies ? relatedPolicies : relatedPolicies.slice(0, POLICY_COLLAPSE_THRESHOLD)).map((pol) => (
+                <div key={pol.id} className="cd-policy-row" title={pol.action}>
+                  <span className="cd-policy-label">{pol.action}</span>
+                  <span className="cd-policy-id">{pol.id}</span>
+                </div>
               ))}
             </div>
-          </div>
+            {relatedPolicies.length > POLICY_COLLAPSE_THRESHOLD && (
+              <button type="button" className="cd-show-all" onClick={() => setShowAllPolicies(v => !v)}>
+                {showAllPolicies ? 'Show fewer' : `Show all (${relatedPolicies.length})`}
+              </button>
+            )}
+          </section>
         )}
 
-        {/* Instances */}
-        <div className="form-group">
-          <label>
-            Instances
-            <span className="conflict-count-badge">{conflict.instances.length}</span>
-          </label>
-          {conflict.instances.map((inst, i) => (
-            <ConflictInstanceForm
-              key={i}
-              instance={inst}
-              index={i}
-              onUpdate={readOnly ? noopUpdate : (idx, updates) => updateConflictInstance(conflict.claim_id, idx, updates)}
-              onRemove={readOnly ? noopRemove : (idx) => removeConflictInstance(conflict.claim_id, idx)}
-              readOnly={readOnly}
-              errorPrefix={`${prefix}.instances.${i}`}
-            />
-          ))}
+        {/* Instances — evidence cards (§3.6) */}
+        <section className="cd-section">
+          <div className="cd-section-head">INSTANCES ({conflict.instances.length})</div>
+          {conflict.instances.map((inst, i) => {
+            const commit = (patch: Partial<ConflictInstance>) => updateConflictInstance(conflict.claim_id, i, patch);
+            return (
+              <div key={i} className="cd-evidence-card">
+                <div className="cd-evidence-meta">
+                  <EditableField
+                    value={inst.stance}
+                    onCommit={(v) => commit({ stance: v as ConflictStance })}
+                    type="select"
+                    readOnly={readOnly}
+                    ariaLabel="Stance"
+                    options={[
+                      { value: 'supports', label: 'Supports' },
+                      { value: 'disputes', label: 'Disputes' },
+                      { value: 'neutral', label: 'Neutral' },
+                      { value: 'qualifies', label: 'Qualifies' },
+                    ]}
+                    renderRead={(v) => {
+                      const c = STANCE_CHIP[v as ConflictStance] ?? STANCE_CHIP.neutral;
+                      return <span className={`cd-stance-chip ${c.cls}`}>{c.label}</span>;
+                    }}
+                  />
+                  <span className="cd-evidence-sep" aria-hidden="true">·</span>
+                  <EditableField
+                    value={inst.doc_id}
+                    onCommit={(v) => commit({ doc_id: v })}
+                    readOnly={readOnly}
+                    ariaLabel="Document ID"
+                    placeholder="(no document id)"
+                    className="cd-evidence-docid"
+                    renderRead={(v) => <span className="cd-evidence-docid-text">{v || '(no document id)'}</span>}
+                  />
+                  <span className="cd-evidence-sep" aria-hidden="true">·</span>
+                  <EditableField
+                    value={inst.date_flagged}
+                    onCommit={(v) => commit({ date_flagged: v })}
+                    type="date"
+                    readOnly={readOnly}
+                    ariaLabel="Date flagged"
+                    className="cd-evidence-date"
+                    renderRead={(v) => <span className="cd-evidence-date-text">{v || '—'}</span>}
+                  />
+                  {!readOnly && (
+                    <span className="cd-evidence-del">
+                      <InlineConfirm onConfirm={() => removeConflictInstance(conflict.claim_id, i)} label="Delete instance?" confirmLabel="Delete">
+                        {(start) => (
+                          <button type="button" className="cd-node-ctrl" onClick={start} title="Delete instance" aria-label="Delete instance">🗑</button>
+                        )}
+                      </InlineConfirm>
+                    </span>
+                  )}
+                </div>
+                <EditableField
+                  type="textarea"
+                  value={inst.assertion}
+                  onCommit={(v) => commit({ assertion: v })}
+                  readOnly={readOnly}
+                  ariaLabel="Assertion"
+                  placeholder="(no assertion)"
+                  className="cd-evidence-assertion"
+                  rows={3}
+                  renderRead={(v) => <blockquote className="cd-evidence-quote">{v || <span className="cd-empty">(no assertion)</span>}</blockquote>}
+                />
+              </div>
+            );
+          })}
           {!readOnly && (
-            <button
-              className="btn btn-sm conflict-add-btn"
-              onClick={() => addConflictInstance(conflict.claim_id, newEmptyInstance())}
-            >
-              + Add Instance
+            <button type="button" className="cd-add-row" onClick={() => addConflictInstance(conflict.claim_id, newEmptyInstance())}>
+              ＋ Add instance
             </button>
           )}
-        </div>
+        </section>
 
         {/* Human Notes */}
         <div className="form-group">

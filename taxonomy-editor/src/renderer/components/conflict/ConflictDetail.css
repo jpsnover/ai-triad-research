@@ -1,0 +1,270 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+   Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* ConflictDetail redesign (t/1559). Themed via CSS variables so it follows
+   Light / Dark / BKC / Harvard / System. Red is reserved for destructive
+   actions and Refutes/Disputes stances only. */
+
+/* ── Header (§3.1) ── */
+.cd-header { padding: 4px 0 12px; }
+.cd-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.cd-eyebrow-cat { font-weight: 700; text-transform: uppercase; }
+.cd-eyebrow-sep { opacity: 0.6; }
+
+.cd-status-wrap { position: relative; display: inline-flex; }
+.cd-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  font-size: var(--text-2xs, 0.7rem);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--text-secondary);
+  background: transparent;
+}
+.cd-status-chip-btn { cursor: pointer; }
+.cd-status-chip-btn:hover { border-color: var(--accent, #6366f1); }
+.cd-status-chip-btn:focus-visible { outline: 2px solid var(--accent, #6366f1); outline-offset: 1px; }
+.cd-status-dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+.cd-status-caret { font-size: 0.6rem; opacity: 0.7; }
+.cd-status-menu { top: calc(100% + 4px); left: 0; right: auto; min-width: 140px; }
+.cd-status-menu .overflow-menu-item { display: flex; align-items: center; gap: 6px; }
+
+.cd-title-text {
+  font-family: var(--font-serif, "Source Serif 4", Georgia, serif);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--text-primary);
+  margin: 0;
+}
+.cd-title { border-radius: var(--radius-sm); }
+.cd-title.has-error .cd-title-text { color: var(--danger, #ef4444); }
+
+.cd-meta {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.cd-meta-stance { font-weight: 600; cursor: help; }
+
+/* ── Sections ── */
+.cd-section { margin: 16px 0; }
+.cd-section-head {
+  font-size: var(--text-2xs, 0.7rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+/* ── Description (§3.3) ── */
+.cd-prose {
+  font-size: var(--text-md);
+  line-height: 1.55;
+  color: var(--text-primary);
+  margin: 0;
+  white-space: pre-wrap;
+}
+.cd-empty { color: var(--text-muted); font-style: italic; }
+
+/* ── Linked node rows (§3.4) ── */
+.cd-node-rows { display: flex; flex-direction: column; gap: 2px; }
+.cd-node-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 4px;
+  border-radius: var(--radius-sm);
+}
+.cd-node-row:hover { background: var(--bg-secondary); }
+.cd-node-tick { width: 3px; align-self: stretch; min-height: 18px; border-radius: 2px; flex: 0 0 auto; }
+.cd-node-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  background: none;
+  border: none;
+  padding: 2px 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+.cd-node-label {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cd-node-main:hover .cd-node-label { text-decoration: underline; }
+.cd-node-unlabeled { color: var(--text-muted); font-style: italic; }
+.cd-node-id {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--text-2xs, 0.7rem);
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+.cd-node-controls {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.cd-node-row:hover .cd-node-controls,
+.cd-node-row:focus-within .cd-node-controls { opacity: 1; }
+.cd-node-ctrl {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+}
+.cd-node-ctrl:hover { background: var(--bg-hover, var(--bg-secondary)); color: var(--text-primary); }
+.cd-node-unlink:hover { color: var(--danger, #ef4444); }
+
+.cd-add-row {
+  margin-top: 6px;
+  background: none;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.cd-add-row:hover { border-color: var(--accent, #6366f1); color: var(--text-primary); }
+
+/* ── Related policies (§3.5) ── */
+.cd-policy-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 16px;
+}
+@media (max-width: 640px) { .cd-policy-grid { grid-template-columns: 1fr; } }
+.cd-policy-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 4px;
+  border-radius: var(--radius-sm);
+  min-width: 0;
+}
+.cd-policy-label {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.cd-policy-id {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--text-2xs, 0.7rem);
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+.cd-show-all {
+  margin-top: 6px;
+  background: none;
+  border: none;
+  color: var(--accent, #6366f1);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  padding: 2px 0;
+}
+.cd-show-all:hover { text-decoration: underline; }
+
+/* ── Instance evidence cards (§3.6) ── */
+.cd-evidence-card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4, 12px);
+  margin-bottom: 8px;
+  background: var(--bg-primary);
+}
+.cd-evidence-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.cd-evidence-sep { opacity: 0.5; }
+.cd-evidence-docid-text,
+.cd-evidence-date-text {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--text-2xs, 0.7rem);
+  color: var(--text-secondary);
+}
+.cd-evidence-del { margin-left: auto; }
+.cd-evidence-quote {
+  font-family: var(--font-serif, "Source Serif 4", Georgia, serif);
+  font-size: var(--text-md);
+  line-height: 1.5;
+  color: var(--text-primary);
+  margin: 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--border-color);
+  white-space: pre-wrap;
+}
+
+.cd-stance-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: var(--text-2xs, 0.7rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.cd-stance-supports { color: var(--success, #16a34a); background: color-mix(in srgb, var(--success, #16a34a) 14%, transparent); }
+.cd-stance-disputes { color: var(--danger, #ef4444); background: color-mix(in srgb, var(--danger, #ef4444) 14%, transparent); }
+.cd-stance-neutral { color: var(--text-secondary); background: var(--bg-hover, var(--bg-secondary)); }
+
+/* ── EditableField primitive (t/1559 §4) ── */
+.editable-field-read {
+  border-radius: var(--radius-sm);
+  cursor: text;
+  outline: none;
+}
+.editable-field-read[role="button"]:hover { background: var(--bg-secondary); }
+.editable-field-read:focus-visible { outline: 2px solid var(--accent, #6366f1); outline-offset: 2px; }
+.editable-field-empty { color: var(--text-muted); font-style: italic; }
+.editable-field-edit { display: flex; flex-direction: column; gap: 6px; }
+.editable-field-input {
+  width: 100%;
+  font: inherit;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input, var(--bg-primary));
+  color: var(--text-primary);
+}
+.editable-field-input:focus-visible { outline: 2px solid var(--accent, #6366f1); outline-offset: -1px; }
+.editable-field-actions { display: flex; gap: 6px; justify-content: flex-end; }
+
+/* ── InlineConfirm primitive (§3.6) ── */
+.inline-confirm { display: inline-flex; align-items: center; gap: 6px; }
+.inline-confirm-label { font-size: var(--text-xs); color: var(--text-secondary); }
