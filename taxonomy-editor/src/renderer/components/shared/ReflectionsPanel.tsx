@@ -222,7 +222,7 @@ function EditCard({ edit, pover, editIndex }: {
         <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
           {edit.category}
         </span>
-        {edit.node_id && (
+        {edit.node_id && edit.edit_type !== 'add' && (
           <code style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{edit.node_id}</code>
         )}
         {edit.confidence && CONFIDENCE_STYLES[edit.confidence] && (

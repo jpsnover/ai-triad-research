@@ -203,6 +203,8 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
           // with actual taxonomy values to prevent hallucinated labels.
           let currentLabel = e.current_label;
           let currentDescription = e.current_description;
+          // t/1564: AI sometimes hallucinates existing node IDs for add edits
+          if (e.edit_type === 'add') e.node_id = null;
           if (e.node_id) {
             const realLabel = taxState.getLabelForId(e.node_id);
             const realDesc = taxState.getDescriptionForId(e.node_id);
@@ -211,7 +213,7 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
           }
           return {
             edit_type: (e.edit_type || 'revise') as ReflectionEdit['edit_type'],
-            node_id: e.node_id,
+            node_id: e.node_id ?? null,
             category: (e.category || 'Beliefs') as ReflectionEdit['category'],
             current_label: currentLabel,
             proposed_label: e.proposed_label || '',
@@ -427,6 +429,11 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
 
     let createdNodeId: string | null = null;
     if (edit.edit_type === 'add') {
+      // t/1564 backstop: snapshot existing IDs before creation so we can detect collisions
+      const preExistingIds = new Set<string>();
+      for (const p of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+        for (const n of (useTaxonomyStore.getState()[p]?.nodes ?? []) as { id: string }[]) preExistingIds.add(n.id);
+      }
       let newId = taxStore.createPovNode(povKey, edit.category);
       if (!newId && !useTaxonomyStore.getState()[povKey]) {
         await taxStore.loadAll(true);
@@ -438,6 +445,10 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
         return { ok: false, error: 'Failed to create taxonomy node. Taxonomy data may not be loaded.' };
       }
       createdNodeId = newId;
+      if (preExistingIds.has(newId)) {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'reflection-edit', level: 'error', message: 'createPovNode generated colliding ID', data: { newId, pover } });
+        return { ok: false, error: `Generated ID ${newId} already exists — refusing to overwrite. Please retry.` };
+      }
       if (newId) {
         const debateId = get().activeDebateId;
         taxStore.updatePovNode(povKey, newId, {
