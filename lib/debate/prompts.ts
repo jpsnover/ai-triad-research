@@ -3487,6 +3487,7 @@ Rules:
 - Be intellectually honest — if an opponent landed a strong blow, acknowledge it.
 - Propose 0 edits if nothing warrants change. Quality over quantity.
 - Limit to your 3-5 most important edits.
+- node_id rules: For REVISE/QUALIFY/DEPRECATE, node_id MUST be a valid existing ID from YOUR taxonomy above (e.g. "saf-beliefs-003"). For ADD, node_id MUST be null — never invent or reuse an existing ID. The system generates the ID for new nodes.
 - For each edit, assess your confidence: how strong is the debate evidence supporting this change?
 
 DESCRIPTION FORMAT — all proposed descriptions MUST follow this exact 3-line structure:

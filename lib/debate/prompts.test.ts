@@ -1191,6 +1191,16 @@ describe('reflectionPrompt', () => {
     );
     expectContains(result, 'CONVERGENCE SIGNALS', 'High convergence at 0.85');
   });
+
+  it('explicitly requires node_id null for ADD edits (t/1564)', () => {
+    const result = reflectionPrompt(
+      DEBATER.label, DEBATER.pov, DEBATER.personality,
+      TOPIC,
+      [{ id: 'acc-beliefs-001', category: 'Beliefs', label: 'Innovation', description: 'desc' }],
+      TRANSCRIPT,
+    );
+    expectContains(result, 'For ADD, node_id MUST be null');
+  });
 });
 
 describe('moderatorSelectionPrompt', () => {
