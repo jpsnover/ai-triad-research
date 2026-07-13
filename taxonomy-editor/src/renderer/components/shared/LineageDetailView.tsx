@@ -8,7 +8,7 @@ import { getCategoryLabel, classifyLineage, getL2CategoryLabel } from '../../dat
 import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import { POV_KEYS } from '@lib/debate/types';
 import type { PovNode } from '../../types/taxonomy';
-import { useDescriptionMode, resolveDescription } from './DescriptionToggle';
+import { useDescriptionMode, resolveDescription, DescriptionToggle } from './DescriptionToggle';
 
 // ── See Also helpers ──
 
@@ -66,7 +66,7 @@ const POV_LABELS: Record<string, string> = {
 };
 
 export function LineageDetailView({ value, onSelectValue, onOpenLink }: LineageDetailViewProps) {
-  const [descMode] = useDescriptionMode();
+  const [descMode, setDescMode] = useDescriptionMode();
   const [secondaryValue, setSecondaryValue] = useState<string | null>(null);
   const [linkUrl, setLinkUrl] = useState<string | null>(null);
   const [refPreviewNodeId, setRefPreviewNodeId] = useState<string | null>(null);
@@ -289,7 +289,10 @@ export function LineageDetailView({ value, onSelectValue, onOpenLink }: LineageD
           <div style={{ display: 'flex', gap: 4 }}>
             <button
               className="btn btn-sm btn-ghost"
-              onClick={() => void useTaxonomyStore.getState().navigateToNode(refNode!.pov as any, refNode!.id)}
+              onClick={() => {
+                useTaxonomyStore.getState().navigateToNode(refNode!.pov as any, refNode!.id);
+                useTaxonomyStore.setState({ toolbarPanel: null });
+              }}
               title="Go to this node"
             >Go to</button>
             <button
@@ -300,7 +303,10 @@ export function LineageDetailView({ value, onSelectValue, onOpenLink }: LineageD
           </div>
         </div>
         <div className="lineage-detail-section">
-          <div className="lineage-detail-label">Description</div>
+          <div className="lineage-detail-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>Description</span>
+            <DescriptionToggle mode={descMode} onToggle={setDescMode} hasPlainDescription={!!refNode.plain_description} />
+          </div>
           <p className="lineage-detail-text">{resolveDescription(refNode, descMode).text}</p>
         </div>
         {svText && (
