@@ -462,7 +462,7 @@ class OrganizationEdge {
     [string]   $Type            # one of Resolve-OrganizationEdgeType 9-value registry
     [string]   $Rationale
     [string[]] $SourceRefs
-    [string]   $Status          # approved | proposed | disputed (default: approved)
+    [string]   $Status          # approved | proposed | disputed | rejected (default: approved)
     [string]   $DiscoveredAt    # YYYY-MM-DD
 }
 

@@ -152,6 +152,21 @@ Describe 'Test-OrganizationEdgeIntegrity fixture cases (t/1526)' -Tag 'taxonomy'
         } finally { Remove-Item $fx -Force -ErrorAction SilentlyContinue }
     }
 
+    It 'Accepts a rejected-status edge with zero warnings (t/1557)' {
+        $fx = New-EdgeFixture @(
+            [ordered]@{ source='org-001'; target='sit-023'; type='ADVOCATES_FOR'; rationale='r'; status='rejected' }
+        )
+        try {
+            InModuleScope AITriad -Parameters @{ Path = $fx } {
+                param($Path)
+                $r = Test-OrganizationEdgeIntegrity -Path $Path
+                $r.Pass     | Should -BeTrue
+                $r.Errors   | Should -Be 0
+                $r.Warnings | Should -Be 0
+            }
+        } finally { Remove-Item $fx -Force -ErrorAction SilentlyContinue }
+    }
+
     It 'Accepts a well-formed fixture with all six populated types' {
         $fx = New-EdgeFixture @(
             [ordered]@{ source='org-001'; target='org-002'; type='COMPETES_WITH'; rationale='r' }
@@ -332,6 +347,17 @@ Describe 'Import-OrganizationEdge upsert + validation (t/1526)' -Tag 'taxonomy' 
             @($edges).Count     | Should -Be 1
             $edges[0].Source    | Should -Be 'org-005'
             $edges[0].Rationale | Should -Be 'lead investor'
+        }
+    }
+
+    It 'Accepts -Status rejected (t/1557)' {
+        InModuleScope AITriad -Parameters @{ P = $script:tmpPath } {
+            param($P)
+            $script:__testEdgePath = $P
+            Mock Get-OrganizationEdgesFilePath { $script:__testEdgePath } -ModuleName AITriad
+            $r = Import-OrganizationEdge -Source org-001 -Target org-002 -Type COMPETES_WITH -Rationale 'no longer viable' -Status rejected -Confirm:$false 6>$null 3>$null
+            $r.Status | Should -Be 'rejected'
+            (Get-OrganizationEdge)[0].Status | Should -Be 'rejected'
         }
     }
 

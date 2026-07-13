@@ -30,7 +30,7 @@ function Import-OrganizationEdge {
     .PARAMETER SourceRefs
         Optional citation/source ids supporting the relationship.
     .PARAMETER Status
-        approved (default) | proposed | disputed.
+        approved (default) | proposed | disputed | rejected.
     .PARAMETER DiscoveredAt
         YYYY-MM-DD. Defaults to today.
     .PARAMETER InputObject
@@ -63,7 +63,7 @@ function Import-OrganizationEdge {
         [string[]]$SourceRefs = @(),
 
         [Parameter(ParameterSetName='Fields')]
-        [ValidateSet('approved','proposed','disputed')]
+        [ValidateSet('approved','proposed','disputed','rejected')]
         [string]$Status = 'approved',
 
         [Parameter(ParameterSetName='Fields')]

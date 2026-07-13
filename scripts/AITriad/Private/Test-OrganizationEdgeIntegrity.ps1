@@ -20,7 +20,7 @@ function Test-OrganizationEdgeIntegrity {
               * ADVOCATES_FOR / OPPOSES              → sit-* or POV BDI node (acc-/saf-/skp-*)
               * ENGAGED_WITH                         → sit-*
               * PUBLISHED                            → src-*
-          - status enum (approved | proposed | disputed) if present
+          - status enum (approved | proposed | disputed | rejected) if present
           - discovered_at ISO-8601 YYYY-MM-DD if present
           - Composite dedup on (source, target, type)
           - No self-loops (source == target)
@@ -51,7 +51,7 @@ function Test-OrganizationEdgeIntegrity {
     if (-not $Path) { $Path = Get-OrganizationEdgesFilePath }
     $store = Get-OrganizationEdgesStore -Force -Path $Path
 
-    $validStatuses = @('approved','proposed','disputed')
+    $validStatuses = @('approved','proposed','disputed','rejected')
     $orgIdRegex    = '^org-\d{3,}$'
     $sitIdRegex    = '^sit-\d+$'
     $polIdRegex    = '^pol-\d+$'
