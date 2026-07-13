@@ -10,7 +10,7 @@ import type { ReflectionEdit, ReflectionResult, ConsensusCluster } from '../../h
 import { POVER_INFO } from '../../types/debate';
 import type { SpeakerId } from '../../types/debate';
 import { checkDolceCompliance, type ComplianceViolation } from '../../utils/dolceCompliance';
-import { DescriptionToggle, resolveDescription, type DescriptionMode } from './DescriptionToggle';
+import { DescriptionToggle, resolveDescription, useDescriptionMode } from './DescriptionToggle';
 import { generatePlainPreview } from '../../utils/regeneratePlainDescription';
 
 const PREFIX_TO_POV: Record<string, 'accelerationist' | 'safetyist' | 'skeptic'> = { acc: 'accelerationist', saf: 'safetyist', skp: 'skeptic' };
@@ -127,7 +127,9 @@ function EditCard({ edit, pover, editIndex }: {
   const [editedDescription, setEditedDescription] = useState(edit.proposed_description);
   const [applying, setApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
-  const [descMode, setDescMode] = useState<DescriptionMode>('formal');
+  // AC2 (t/1563): honor the app-wide description-mode preference (defaults to plain,
+  // remembers the user's choice) instead of hard-coding 'formal'.
+  const [descMode, setDescMode] = useDescriptionMode();
   const currentNode = useTaxonomyStore(useShallow(s => {
     if (!edit.node_id || edit.edit_type === 'add') return null;
     const prefix = edit.node_id.split('-')[0];
@@ -143,7 +145,38 @@ function EditCard({ edit, pover, editIndex }: {
   const showRegenerateToggle = !resolved && (edit.edit_type === 'revise' || edit.edit_type === 'qualify');
   const [plainPreview, setPlainPreview] = useState<string | null>(null);
   const [plainLoading, setPlainLoading] = useState(false);
+  const [plainError, setPlainError] = useState(false);
   const navigateToNode = useTaxonomyStore(s => s.navigateToNode);
+
+  // AC1/AC3 (t/1563): generate the plain (vernacular) preview for a NEW ('add')
+  // proposal on demand. Used both by the on-render effect and the Retry button.
+  // generatePlainPreview() returns null on AI/vernacular-model failure — surface
+  // that as plainError rather than silently falling back to the formal text.
+  const plainSource = editing ? editedDescription : edit.proposed_description;
+  const runPlainPreview = useCallback(async () => {
+    setPlainLoading(true);
+    setPlainError(false);
+    try {
+      const preview = await generatePlainPreview(plainSource);
+      if (preview == null) setPlainError(true);
+      else setPlainPreview(preview);
+    } catch (err) {
+      setPlainError(true);
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'reflections-panel', level: 'warn', message: 'Plain preview generation failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    } finally {
+      setPlainLoading(false);
+    }
+  }, [plainSource]);
+
+  // AC1 (t/1563): trigger generation when a new proposal is *displayed* in plain
+  // mode — not only on an explicit toggle click. Skips if already generated, in
+  // flight, or previously failed (Retry clears plainError to re-arm this).
+  useEffect(() => {
+    if (edit.edit_type === 'add' && descMode === 'plain' && !resolved
+        && !plainPreview && !plainLoading && !plainError) {
+      void runPlainPreview();
+    }
+  }, [edit.edit_type, descMode, resolved, plainPreview, plainLoading, plainError, runPlainPreview]);
 
   const isModified = editedLabel !== edit.proposed_label
                   || editedDescription !== edit.proposed_description;
@@ -357,20 +390,7 @@ function EditCard({ edit, pover, editIndex }: {
                   {edit.edit_type === 'add' && (
                     <DescriptionToggle
                       mode={descMode}
-                      onToggle={async (m) => {
-                        setDescMode(m);
-                        if (m === 'plain' && !plainPreview && !plainLoading) {
-                          setPlainLoading(true);
-                          try {
-                            const preview = await generatePlainPreview(editing ? editedDescription : edit.proposed_description);
-                            setPlainPreview(preview);
-                          } catch (err) {
-                            getGlobalRecorder()?.record({ type: 'system.error', component: 'reflections-panel', level: 'warn', message: 'Plain preview generation failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-                          } finally {
-                            setPlainLoading(false);
-                          }
-                        }
-                      }}
+                      onToggle={setDescMode}
                       hasPlainDescription={!!plainPreview}
                     />
                   )}
@@ -385,7 +405,21 @@ function EditCard({ edit, pover, editIndex }: {
               {descMode === 'plain' && edit.edit_type === 'add' ? (
                 plainLoading
                   ? <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Generating plain description…</span>
-                  : (plainPreview || edit.proposed_description)
+                  : plainError
+                    ? (
+                      <>
+                        <div style={{ color: '#ef4444', fontSize: 'var(--text-2xs)', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span>{'⚠'} Couldn&apos;t generate a plain description. Showing formal:</span>
+                          <button
+                            className="btn btn-sm"
+                            style={{ fontSize: 'var(--text-2xs)', padding: '0 8px' }}
+                            onClick={() => { void runPlainPreview(); }}
+                          >Retry</button>
+                        </div>
+                        {edit.proposed_description}
+                      </>
+                    )
+                    : (plainPreview ?? edit.proposed_description)
               ) : edit.proposed_description}
             </>
           )}
