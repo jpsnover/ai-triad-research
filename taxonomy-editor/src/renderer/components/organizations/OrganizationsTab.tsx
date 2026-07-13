@@ -72,7 +72,7 @@ export function OrganizationsTab() {
         return stance && stance.score > 0;
       });
     }
-    return list;
+    return list.slice().sort((a, b) => a.name.localeCompare(b.name));
   }, [organizations, searchQuery, filters]);
 
   return (
