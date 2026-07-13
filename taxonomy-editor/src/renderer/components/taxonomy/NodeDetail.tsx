@@ -33,6 +33,7 @@ import { triggerPovNodeRegeneration } from '../../utils/regeneratePlainDescripti
 import { generateAphorism } from '../../utils/regenerateAphorism';
 import { useDescriptionMode, resolveDescription, DescriptionToggle } from '../shared/DescriptionToggle';
 import { EmptyState } from '../shared/EmptyState';
+import { OverflowMenu, type OverflowMenuEntry } from '../shared/OverflowMenu';
 import './NodeDetail.css';
 
 interface MoveTarget {
@@ -41,68 +42,29 @@ interface MoveTarget {
   isTransfer?: boolean;
 }
 
-function OverflowMenu({ moveTargets, onDelete, onAIAnalysis, onPin }: {
-  moveTargets: MoveTarget[];
-  onDelete: () => void;
-  onAIAnalysis: () => void;
-  onPin?: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+function buildOverflowEntries(moveTargets: MoveTarget[], onDelete: () => void, onAIAnalysis: () => void, onPin?: () => void): OverflowMenuEntry[] {
+  const entries: OverflowMenuEntry[] = [
+    { type: 'item', key: 'ai', label: 'AI Analysis', onClick: onAIAnalysis },
+  ];
+  if (onPin) entries.push({ type: 'item', key: 'pin', label: 'Pin for Comparison', onClick: onPin });
 
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', esc);
-    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
-  }, [open]);
-
-  // Group: same-POV category moves first, then cross-POV transfers
   const categoryMoves = moveTargets.filter(t => !t.isTransfer);
   const transfers = moveTargets.filter(t => t.isTransfer);
 
-  return (
-    <div className="overflow-menu-wrapper" ref={menuRef}>
-      <button className="btn btn-ghost btn-sm overflow-menu-trigger" onClick={() => setOpen(!open)} title="More actions">&hellip;</button>
-      {open && (
-        <div className="overflow-menu-dropdown">
-          <button className="overflow-menu-item" onClick={() => { onAIAnalysis(); setOpen(false); }}>
-            AI Analysis
-          </button>
-          {onPin && (
-            <button className="overflow-menu-item" onClick={() => { onPin(); setOpen(false); }}>
-              Pin for Comparison
-            </button>
-          )}
-          <div className="overflow-menu-divider" />
-          {categoryMoves.map(t => (
-            <button key={t.label} className="overflow-menu-item" onClick={() => { t.action(); setOpen(false); }}>
-              Move to {t.label}
-            </button>
-          ))}
-          {transfers.length > 0 && (
-            <>
-              <div className="overflow-menu-divider" />
-              <div className="overflow-menu-section-label">Transfer to</div>
-              {transfers.map(t => (
-                <button key={t.label} className="overflow-menu-item overflow-menu-transfer" onClick={() => { t.action(); setOpen(false); }}>
-                  {t.label}
-                </button>
-              ))}
-            </>
-          )}
-          <div className="overflow-menu-divider" />
-          <button className="overflow-menu-item overflow-menu-danger" onClick={() => { onDelete(); setOpen(false); }}>
-            Delete
-          </button>
-        </div>
-      )}
-    </div>
-  );
+  entries.push({ type: 'divider' });
+  for (const t of categoryMoves) {
+    entries.push({ type: 'item', key: `move-${t.label}`, label: `Move to ${t.label}`, onClick: t.action });
+  }
+  if (transfers.length > 0) {
+    entries.push({ type: 'divider' });
+    entries.push({ type: 'label', text: 'Transfer to' });
+    for (const t of transfers) {
+      entries.push({ type: 'item', key: `xfer-${t.label}`, label: t.label, onClick: t.action, className: 'overflow-menu-transfer' });
+    }
+  }
+  entries.push({ type: 'divider' });
+  entries.push({ type: 'item', key: 'delete', label: 'Delete', onClick: onDelete, danger: true });
+  return entries;
 }
 
 interface NodeDetailProps {
@@ -394,12 +356,12 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
               </button>
             )}
             {!readOnly && (
-              <OverflowMenu
-                moveTargets={moveTargets}
-                onDelete={() => setShowDelete(true)}
-                onAIAnalysis={() => void useTaxonomyStore.getState().runNodeCritique(pov, node)}
-                onPin={onPin}
-              />
+              <OverflowMenu entries={buildOverflowEntries(
+                moveTargets,
+                () => setShowDelete(true),
+                () => void useTaxonomyStore.getState().runNodeCritique(pov, node),
+                onPin,
+              )} />
             )}
             {readOnly && onPin && (
               <button className="nd-header-btn" onClick={onPin} title="Pin for comparison">
