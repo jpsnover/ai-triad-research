@@ -520,6 +520,10 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
       return { ok: false, error: detailedError };
     }
 
+    // t/1567: force-reload taxonomy from disk so the accepting window's store
+    // is fully consistent (embeddings, situations, etc.) for subsequent debates.
+    await useTaxonomyStore.getState().loadAll(true);
+
     // Enrich with AI-generated graph attributes + synthetic embeddings.
     // Runs for new nodes AND edited nodes (skip deprecations — those are being retired).
     // Uses a dirty flag (_phrase_regen_pending) so incomplete enrichments are detectable across sessions.

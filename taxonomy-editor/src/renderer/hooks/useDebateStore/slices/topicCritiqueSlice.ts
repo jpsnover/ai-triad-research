@@ -37,6 +37,9 @@ export const createTopicCritiqueSlice: StateCreator<DebateStore, [], [], TopicCr
     getGlobalRecorder()?.record({ type: 'topic.critique', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'topicCritique.started', data: { phase: activeDebate.phase, transcript_length: activeDebate.transcript.length, model } });
 
     try {
+      // t/1567: force-reload taxonomy from disk so topic-critique scores against
+      // the latest nodes (not a stale in-memory snapshot from session start).
+      await useTaxonomyStore.getState().loadAll(true);
       const taxState = useTaxonomyStore.getState();
       const povFiles = ['accelerationist', 'safetyist', 'skeptic'] as const;
       const allPovNodes: { id: string; pov: string; category: Category }[] = [];

@@ -387,7 +387,7 @@ export function Toolbar() {
         <ToolbarAuthButton />
         <button
           className={`toolbar-icon${loading ? ' toolbar-icon-spin' : ''}`}
-          onClick={() => { if (!loading) void loadAll(); }}
+          onClick={() => { if (!loading) void loadAll(true); }}
           disabled={loading}
           aria-label="Reload taxonomy data"
           data-tooltip="Reload taxonomy data"

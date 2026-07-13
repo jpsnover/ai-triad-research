@@ -43,6 +43,7 @@ const { mockApi, mockTaxonomyState, mockPromptConfigState } = vi.hoisted(() => {
     createPovNode: vi.fn().mockReturnValue('new-node-id'),
     updatePovNode: vi.fn(),
     save: vi.fn().mockResolvedValue(undefined),
+    loadAll: vi.fn().mockResolvedValue(undefined),
     saveError: null as string | null,
   };
 

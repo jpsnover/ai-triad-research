@@ -195,7 +195,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
       } else if (action.id === 'help') {
         setShowHelp(true);
       } else if (action.id === 'reload') {
-        if (!loading) void loadAll();
+        if (!loading) void loadAll(true);
       } else if (action.id === 'settings') {
         setShowSettings(true);
       }
