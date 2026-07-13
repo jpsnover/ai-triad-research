@@ -809,6 +809,8 @@ Export-ModuleMember -Function @(
     'Invoke-OrgPublishedSeeding'
     # t/1553 Stage 1 — org stance claim extraction
     'Invoke-OrgStanceExtraction'
+    # t/1553 Stages 2+3 — claim→node matching + edge proposal aggregation
+    'Invoke-OrgClaimMatching'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

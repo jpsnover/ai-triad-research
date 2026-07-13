@@ -493,13 +493,18 @@ def cmd_generate(args):
         "nodes": nodes_dict,
     }
 
-    EMBEDDINGS_FILE.write_text(
+    # --output overrides EMBEDDINGS_FILE — used by non-default field-weights
+    # runs (t/1553 Stage 2 needs a 0.67/0.33 variant without clobbering
+    # production embeddings.json).
+    out_path = Path(args.output).expanduser().resolve() if getattr(args, "output", None) else EMBEDDINGS_FILE
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(
         json.dumps(output, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
     print(
         f"Wrote {len(nodes_dict)} embeddings ({n} nodes [{excl_count} with exclusion_vector] + "
         f"{len(policy_texts)} policies + {len(conflict_texts)} conflicts, "
-        f"{all_vecs.shape[1]}d) to {EMBEDDINGS_FILE}",
+        f"{all_vecs.shape[1]}d) to {out_path}",
         file=sys.stderr,
     )
 
@@ -887,6 +892,15 @@ def main():
             "Comma-separated weights for description,assumes,lineage,epistemic,rhetorical fields "
             "(3-value format also accepted for backward compat) "
             f"(default: {','.join(str(w) for w in DEFAULT_FIELD_WEIGHTS)}). Must sum to ~1.0."
+        ),
+    )
+    gen.add_argument(
+        "--output",
+        default=None,
+        help=(
+            "Optional output file path (default: <taxonomy-dir>/embeddings.json). "
+            "Use this to write a non-default field-weights variant without overwriting "
+            "production embeddings (t/1553 Stage 2 needs a 0.67/0.33 variant per t/524)."
         ),
     )
 
