@@ -8,13 +8,13 @@
     "evals": "node evals/run.mjs"
   },
   "devDependencies": {
-    "tsx": "^4.19.0",
+    "tsx": "^4.23.1",
     "typescript": "^6.0.3"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "jszip": "^3.10.1",
-    "onnxruntime-node": "^1.26.0",
-    "zod": "^4.4.2"
+    "onnxruntime-node": "^1.27.0",
+    "zod": "^4.4.3"
   }
 }
