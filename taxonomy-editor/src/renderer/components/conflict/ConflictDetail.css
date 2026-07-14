@@ -268,3 +268,68 @@
 /* ── InlineConfirm primitive (§3.6) ── */
 .inline-confirm { display: inline-flex; align-items: center; gap: 6px; }
 .inline-confirm-label { font-size: var(--text-xs); color: var(--text-secondary); }
+
+/* ── Linked-item select + bottom preview (t/1568) ── */
+/* Policy rows are now <button>s — reset native chrome (flex/padding come from
+   the .cd-policy-row rule above). */
+.cd-policy-row {
+  background: none;
+  border: none;
+  width: 100%;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+}
+.cd-policy-row:hover { background: var(--bg-secondary); }
+
+.cd-node-row.cd-row-selected,
+.cd-policy-row.cd-row-selected {
+  background: var(--bg-secondary);
+  box-shadow: inset 2px 0 0 var(--accent, #6366f1);
+}
+
+.cd-preview {
+  margin-top: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+.cd-preview-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: var(--text-2xs, 0.7rem);
+}
+.cd-preview-kind { font-weight: 700; letter-spacing: 0.06em; color: var(--text-muted); }
+.cd-preview-id { font-family: var(--font-mono, ui-monospace, monospace); color: var(--text-secondary); }
+.cd-preview-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.cd-preview-open {
+  background: none;
+  border: none;
+  color: var(--accent, #6366f1);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.cd-preview-open:hover { text-decoration: underline; }
+.cd-preview-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+.cd-preview-close:hover { background: var(--bg-hover, var(--border-color)); color: var(--text-primary); }
+.cd-preview-policy {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-primary);
+}

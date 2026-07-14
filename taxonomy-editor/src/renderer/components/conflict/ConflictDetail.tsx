@@ -12,7 +12,7 @@ import { OverflowMenu } from '../shared/OverflowMenu';
 import { newEmptyInstance } from './ConflictInstanceForm';
 import { ConflictNoteForm, newEmptyNote } from './ConflictNoteForm';
 import { TypeaheadSelect } from '../shared/TypeaheadSelect';
-import { LinkedNodePreview } from '../shared/LinkedNodePreview';
+import { LinkedItemPreview, toggleLinkedSelection, type SelectedLinkedItem } from './linkedItemPreview';
 import { generateConflictResearchPrompt } from '../../utils/researchPrompt';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { POV_KEYS } from '@lib/debate/types';
@@ -81,7 +81,7 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
   const [showDelete, setShowDelete] = useState(false);
   const [clipboardState, setClipboardState] = useState<'idle' | 'copied'>('idle');
   const [debateCreating, setDebateCreating] = useState(false);
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [selectedItem, setSelectedItem] = useState<SelectedLinkedItem | null>(null);
   const [statusOpen, setStatusOpen] = useState(false);
   const [showAllPolicies, setShowAllPolicies] = useState(false);
   const [showLinkSearch, setShowLinkSearch] = useState(false);
@@ -351,48 +351,33 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
           <div className="cd-node-rows">
             {linkedNodes.map((id) => {
               const label = getLabelForId(id);
-              const expanded = expandedNodes.has(id);
-              const toggleExpand = () => setExpandedNodes(prev => {
-                const next = new Set(prev);
-                if (next.has(id)) next.delete(id); else next.add(id);
-                return next;
-              });
+              const isSelected = selectedItem?.kind === 'node' && selectedItem.id === id;
               return (
-                <div key={id} className="cd-node-row">
+                <div key={id} className={`cd-node-row${isSelected ? ' cd-row-selected' : ''}`}>
                   <span className="cd-node-tick" style={{ background: campColorVarForNodeId(id) }} aria-hidden="true" />
                   <button
                     type="button"
                     className="cd-node-main"
-                    onClick={() => navigateToNode(tabForNodeId(id), id)}
-                    title={`Go to ${label || id}`}
+                    onClick={() => setSelectedItem(s => toggleLinkedSelection(s, { kind: 'node', id }))}
+                    aria-pressed={isSelected}
+                    title={`Preview ${label || id}`}
                   >
                     <span className={`cd-node-label${label ? '' : ' cd-node-unlabeled'}`}>{label || '(unlabeled node)'}</span>
                     <span className="cd-node-id">{id}</span>
                   </button>
-                  <div className="cd-node-controls">
-                    <button
-                      type="button"
-                      className="cd-node-ctrl"
-                      onClick={toggleExpand}
-                      title={expanded ? 'Collapse' : 'Expand'}
-                      aria-label={expanded ? 'Collapse node' : 'Expand node'}
-                      aria-expanded={expanded}
-                    >{expanded ? '▴' : '▾'}</button>
-                    {!readOnly && (
+                  {!readOnly && (
+                    <div className="cd-node-controls">
                       <InlineConfirm onConfirm={() => removeLinked(id)} label="Unlink?" confirmLabel="Unlink">
                         {(start) => (
                           <button type="button" className="cd-node-ctrl cd-node-unlink" onClick={start} title="Unlink node" aria-label="Unlink node">✕</button>
                         )}
                       </InlineConfirm>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
-          {linkedNodes.filter(id => expandedNodes.has(id)).map(id => (
-            <LinkedNodePreview key={id} nodeId={id} />
-          ))}
           {!readOnly && (
             showLinkSearch ? (
               <TypeaheadSelect
@@ -411,12 +396,22 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
           <section className="cd-section">
             <div className="cd-section-head">RELATED POLICIES ({relatedPolicies.length})</div>
             <div className="cd-policy-grid">
-              {(showAllPolicies ? relatedPolicies : relatedPolicies.slice(0, POLICY_COLLAPSE_THRESHOLD)).map((pol) => (
-                <div key={pol.id} className="cd-policy-row" title={pol.action}>
-                  <span className="cd-policy-label">{pol.action}</span>
-                  <span className="cd-policy-id">{pol.id}</span>
-                </div>
-              ))}
+              {(showAllPolicies ? relatedPolicies : relatedPolicies.slice(0, POLICY_COLLAPSE_THRESHOLD)).map((pol) => {
+                const isSelected = selectedItem?.kind === 'policy' && selectedItem.id === pol.id;
+                return (
+                  <button
+                    key={pol.id}
+                    type="button"
+                    className={`cd-policy-row${isSelected ? ' cd-row-selected' : ''}`}
+                    title={pol.action}
+                    aria-pressed={isSelected}
+                    onClick={() => setSelectedItem(s => toggleLinkedSelection(s, { kind: 'policy', id: pol.id, action: pol.action }))}
+                  >
+                    <span className="cd-policy-label">{pol.action}</span>
+                    <span className="cd-policy-id">{pol.id}</span>
+                  </button>
+                );
+              })}
             </div>
             {relatedPolicies.length > POLICY_COLLAPSE_THRESHOLD && (
               <button type="button" className="cd-show-all" onClick={() => setShowAllPolicies(v => !v)}>
@@ -525,6 +520,17 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
             </button>
           )}
         </div>
+
+        {/* Selected linked-item preview — single shared bottom region (t/1568) */}
+        {selectedItem && (
+          <LinkedItemPreview
+            item={selectedItem}
+            onClose={() => setSelectedItem(null)}
+            onOpenInTab={selectedItem.kind === 'node'
+              ? () => navigateToNode(tabForNodeId(selectedItem.id), selectedItem.id)
+              : undefined}
+          />
+        )}
       </div>
 
       {/* QBAF Analysis (Q-15a) — shown when qbaf field present and feature flag on */}
