@@ -184,6 +184,11 @@
         'Invoke-OrgClaimMatching'
         # t/1560 Stage 5 — R2 rollup, per-camp derived alignment from approved edges
         'Invoke-OrgDerivedCampScores'
+        # t/1500 Phase 3 — blue-green deploy orchestration (e/41)
+        'Disable-ContainerAppRevision'
+        'New-ContainerAppRevision'
+        'Set-ContainerAppTraffic'
+        'Get-ContainerAppDiagnostics'
     )
 
     # Aliases exported from this module
