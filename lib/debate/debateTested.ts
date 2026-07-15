@@ -314,6 +314,8 @@ function findNodeConcession(
     const full = povNode.concession_history.find(c => c.concession_type === 'full' && c.bdi_impact === 'belief');
     if (full) return full;
   }
+  // conceded_to holds speaker names in production (not node IDs), so this match is structurally
+  // inert today — kept as a conservative no-op guard (CL review t/1575#2).
   const nodeScoped = concessions.find(
     c => c.concession_type === 'full' && c.bdi_impact === 'belief' && c.conceded_to === nodeId,
   );
