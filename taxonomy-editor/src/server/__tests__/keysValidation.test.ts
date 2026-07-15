@@ -11,11 +11,11 @@
  * ship without a validation probe.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { KEY_VALIDATION_PROBES } from '../routes/keys.js';
+import { KEY_VALIDATION_PROBES, validateProviderKey } from '../routes/keys.js';
 
 // ai-models.json is the canonical backend registry at the repo root. Resolve it
 // relative to this test file (deterministic) rather than via getProjectRoot(),
@@ -48,5 +48,45 @@ describe('key-validation probe completeness (t/1458)', () => {
     for (const id of LOCAL_ONLY) {
       expect(KEY_VALIDATION_PROBES[id]).toBeUndefined();
     }
+  });
+});
+
+// t/1572 — the Gemini probe must hit generateContent (the real auth surface), not
+// the list-models endpoint, which returns 200 for any key and produced a
+// false-green for invalid keys. These tests mock global.fetch and assert both the
+// verdict and the endpoint actually called.
+describe('gemini key probe uses generateContent, not list-models (t/1572)', () => {
+  const realFetch = global.fetch;
+  afterEach(() => { global.fetch = realFetch; vi.restoreAllMocks(); });
+
+  it('reports valid:false when generateContent returns 401, and never hits the list endpoint (AC#2/#4)', async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    global.fetch = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      calls.push({ url: String(url), init });
+      // list-models would 200 for any key; generateContent gates on auth → 401.
+      return new Response(JSON.stringify({ error: { code: 401 } }), { status: 401 });
+    }) as unknown as typeof fetch;
+
+    const verdict = await validateProviderKey('gemini', 'bad-key');
+    expect(verdict.valid).toBe(false);
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toContain('gemini-2.0-flash:generateContent');
+    expect(calls[0].url).not.toContain('/v1beta/models?key='); // NOT the permissive list endpoint
+    expect(calls[0].init?.method).toBe('POST');
+    expect(String(calls[0].init?.body)).toContain('maxOutputTokens');
+  });
+
+  it('reports valid:true when generateContent returns 200 (AC#3 happy path)', async () => {
+    global.fetch = vi.fn(async () => new Response('{}', { status: 200 })) as unknown as typeof fetch;
+    const verdict = await validateProviderKey('gemini', 'good-key');
+    expect(verdict.valid).toBe(true);
+  });
+
+  it('reports valid:false with a provider-unreachable message on network error (AC#3 unchanged)', async () => {
+    global.fetch = vi.fn(async () => { throw new TypeError('fetch failed'); }) as unknown as typeof fetch;
+    const verdict = await validateProviderKey('gemini', 'any-key');
+    expect(verdict.valid).toBe(false);
+    expect(verdict.error).toMatch(/could not reach provider/i);
   });
 });

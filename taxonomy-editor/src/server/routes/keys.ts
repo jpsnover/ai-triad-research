@@ -34,21 +34,36 @@ function maskedKeyList(keys: string[]): { index: number; masked: string }[] {
   return keys.map((k, index) => ({ index, masked: maskApiKey(k) }));
 }
 
-/** Validate one raw key against its provider's lightweight list-models endpoint.
+/** Validate one raw key against its provider's auth-gated endpoint.
  *  Shared by POST /api/keys/validate and /api/keys/verify-stored (t/1363) so both
  *  probe identically. Never logs or returns the raw key — only a valid/error
  *  verdict; a provider-unreachable error is a result, not a swallowed failure,
  *  but is still recorded (warn) for network diagnostics. */
-// Per-backend key-validation probes: each hits the provider's lightweight,
-// auth-gated model-list endpoint. Data-driven (not an if/else chain) so it's the
-// single source of truth the completeness test checks — every registered backend
-// except the local-only ones (ollama/azure, no hosted key to validate) must have
-// a probe here, or Test Keys silently regresses to "Unsupported backend". That
-// gap recurred 3× as backends were added (t/1458); the keysValidation test now
-// forces this map to stay in sync with ai-models.json.
+// Per-backend key-validation probes: each hits an endpoint that returns 401/403
+// on a bad key. For most providers that's the lightweight auth-gated model-list
+// endpoint. Gemini is the exception (t/1572): its /v1beta/models list is
+// effectively unauthenticated (200 for any key → false-green), so it probes
+// generateContent — the real auth surface — with a 1-token body instead.
+// Data-driven (not an if/else chain) so it's the single source of truth the
+// completeness test checks — every registered backend except the local-only ones
+// (ollama/azure, no hosted key to validate) must have a probe here, or Test Keys
+// silently regresses to "Unsupported backend". That gap recurred 3× as backends
+// were added (t/1458); the keysValidation test now forces this map to stay in
+// sync with ai-models.json.
 type KeyProbe = (key: string) => Promise<Response>;
 export const KEY_VALIDATION_PROBES: Record<string, KeyProbe> = {
-  gemini: key => fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`),
+  // t/1572: generateContent, not the list endpoint — list-models returns 200 for
+  // any key (public metadata), so it can't distinguish a valid key from garbage.
+  // 1-token body keeps the cost effectively zero. Model is a stable production id;
+  // if it's ever retired the probe returns non-200 (an appropriate signal to bump).
+  gemini: key => fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(key)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: 'hi' }] }], generationConfig: { maxOutputTokens: 1 } }),
+    },
+  ),
   claude: key => fetch('https://api.anthropic.com/v1/models', { headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' } }),
   groq: key => fetch('https://api.groq.com/openai/v1/models', { headers: { Authorization: `Bearer ${key}` } }),
   openai: key => fetch('https://api.openai.com/v1/models', { headers: { Authorization: `Bearer ${key}` } }),
@@ -56,7 +71,9 @@ export const KEY_VALIDATION_PROBES: Record<string, KeyProbe> = {
   zai: key => fetch('https://api.z.ai/api/paas/v4/models', { headers: { Authorization: `Bearer ${key}` } }),
 };
 
-async function validateProviderKey(backend: string, key: string): Promise<{ valid: boolean; error?: string }> {
+// Exported for unit testing (t/1572): lets the false-green scenario assert the
+// full valid/invalid verdict against a mocked fetch without booting the server.
+export async function validateProviderKey(backend: string, key: string): Promise<{ valid: boolean; error?: string }> {
   const probe = KEY_VALIDATION_PROBES[backend];
   if (!probe) return { valid: false, error: `Unsupported backend: ${backend}` };
   try {
