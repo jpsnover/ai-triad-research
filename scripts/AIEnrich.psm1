@@ -680,6 +680,8 @@ function Invoke-AIApi {
 
             if ($StatusCode -in @(429, 503, 529) -and $Attempt -lt ($MaxRetries - 1)) {
                 if ($Attempt -lt $RetryDelays.Count) { $Delay = $RetryDelays[$Attempt] } else { $Delay = $RetryDelays[-1] }
+                # Server-side rate limiting (429) needs a longer wait than transient errors
+                if ($StatusCode -eq 429) { $Delay = [Math]::Max($Delay, 120) }
                 Write-Warning "$($Backend): HTTP $StatusCode — retrying in ${Delay}s (attempt $($Attempt + 1)/$MaxRetries)"
                 Start-Sleep -Seconds $Delay
             } else {
