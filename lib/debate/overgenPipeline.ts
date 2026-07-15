@@ -247,7 +247,7 @@ export async function runOvergenPipeline(
     }
 
     getGlobalRecorder()?.record({
-      type: 'debate.quality', component: 'overgen-pipeline', level: 'info',
+      type: 'system.info', component: 'overgen-pipeline', level: 'info',
       message: `Coherence gate attempt ${attempt + 1}: ${matchCount}/${selected.length} claims matched (need ${coherenceMinClaims})`,
     });
   }
@@ -260,7 +260,7 @@ export async function runOvergenPipeline(
 
   if (coherenceGateMiss) {
     getGlobalRecorder()?.record({
-      type: 'debate.quality', component: 'overgen-pipeline', level: 'warn',
+      type: 'system.error', component: 'overgen-pipeline', level: 'warn',
       message: `Coherence gate miss after ${coherenceAttempts} attempts — committing first rewrite`,
     });
   }

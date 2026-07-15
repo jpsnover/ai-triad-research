@@ -102,7 +102,7 @@ import { disambiguateTerms } from './vocabularyDisambiguation.js';
 import type { CampOrigin } from '../dictionary/types.js';
 import type { ContextInjectionManifest } from './taxonomyContext.js';
 import { documentAnalysisPrompt, buildTaxonomySample } from './documentAnalysis.js';
-import type { DocumentAnalysis, ReflectionProposal } from './types.js';
+import type { DocumentAnalysis, ReflectionProposal, DraftWorkProduct } from './types.js';
 import {
   cosineSimilarity,
   scoreNodeRelevance,
@@ -3594,7 +3594,7 @@ export class DebateEngine {
           const rewriteGenerateFn = async (prompt: string) =>
             this.stageGenerate(prompt, draftModel, { temperature: draftTemp }, `${responder} overgen-rewrite`);
 
-          const info = this.povers.find(p => p.id === responder)!;
+          const poverInfo = POVER_INFO[responder];
           const overgenResult = await runOvergenPipeline(
             draftFn, rewriteGenerateFn, embedFn,
             {
@@ -3602,13 +3602,13 @@ export class DebateEngine {
               existingNodes: this.session.argument_network?.nodes ?? [],
               existingEdges: this.session.argument_network?.edges ?? [],
               cruxes: this.session.crux_tracker,
-              label: info.label,
-              pov: info.pov,
-              topic: this.session.topic.text,
-              recentTranscript: this.getRecentTranscript(6),
+              label: poverInfo.label,
+              pov: poverInfo.pov,
+              topic: this.session.topic.final,
+              recentTranscript: formatRecentTranscript(this.session.transcript, 6, this.session.context_summaries),
               audience: this.config.audience,
               currentCruxContext: this.session.crux_tracker?.length
-                ? this.session.crux_tracker.map(c => `- ${c.text} [${c.status}]`).join('\n')
+                ? this.session.crux_tracker.map(c => `- ${c.description} [${c.state}]`).join('\n')
                 : undefined,
               topicScope: this.session.topic.scope,
             },
@@ -3620,10 +3620,10 @@ export class DebateEngine {
           statement = overgenResult.draft.statement;
 
           getGlobalRecorder()?.record({
-            type: 'debate.quality', component: 'overgen-pipeline', level: 'info',
+            type: 'system.info', component: 'overgen-pipeline', level: 'info',
             speaker: responder, debate_id: this.session?.id,
             message: `Over-gen pipeline complete: ${overgenResult.diagnostics.claims_pooled} pooled → ${overgenResult.diagnostics.claims_after_dedup} deduped → ${overgenResult.diagnostics.claims_selected} selected`,
-            data: overgenResult.diagnostics,
+            data: overgenResult.diagnostics as unknown as Record<string, unknown>,
           });
         }
       } catch (err) {

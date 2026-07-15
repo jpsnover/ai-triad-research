@@ -1244,6 +1244,7 @@ export interface EntryDiagnostics {
     warnings: { debater: string; node_id: string; similarity: number; draft_excerpt: string }[];
     threshold: number;
   };
+  overgen?: import('./overgenPipeline.js').OvergenDiagnostics;
 }
 
 export interface DraftQualityGateResult {
