@@ -330,13 +330,13 @@ jobs:
           Write-Host "=== Acceptance tests against 0% revision: $BaseUrl ==="
           $Results = @(Test-TaxEditorEndpoints -BaseUrl $BaseUrl -AnonymousSession)
           $Fails = @($Results | Where-Object { -not $_.Pass })
-          $Results | Format-Table Endpoint, Pass, StatusCode, Detail -AutoSize
+          $Results | Format-Table Endpoint, Pass, Status, Error -AutoSize
           Write-Host ""
           Write-Host "=== Acceptance: $($Results.Count - $Fails.Count) passed, $($Fails.Count) failed ==="
           if ($Fails.Count -gt 0) {
             Add-Content -Path $env:GITHUB_OUTPUT -Value 'accepted=false'
             Write-Host "::error::Acceptance tests failed — NOT shifting traffic"
-            foreach ($F in $Fails) { Write-Host "  FAIL  $($F.Endpoint): $($F.Detail)" }
+            foreach ($F in $Fails) { Write-Host "  FAIL  $($F.Endpoint): $($F.Error)" }
           } else {
             Add-Content -Path $env:GITHUB_OUTPUT -Value 'accepted=true'
           }
@@ -446,7 +446,7 @@ jobs:
           Write-Host "=== Post-deploy smoke test against $AppUrl ==="
           $Results = @(Test-TaxEditorEndpoints -BaseUrl $AppUrl)
           $Fails = @($Results | Where-Object { -not $_.Pass })
-          $Results | Format-Table Endpoint, Pass, StatusCode -AutoSize
+          $Results | Format-Table Endpoint, Pass, Status -AutoSize
           Write-Host ""
           Write-Host "=== Smoke test results: $($Results.Count - $Fails.Count) passed, $($Fails.Count) failed ==="
           if ($Fails.Count -gt 0) {
