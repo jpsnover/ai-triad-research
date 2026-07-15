@@ -26,7 +26,7 @@ BeforeAll {
 
 Describe 'Invoke-RemoteCheck RawBody cap (t/1500#7 regression)' -Tag 'taxonomy' {
 
-    It 'Preserves both <div id="root"> and script tag when both fall past the old 400 cap' {
+    It 'Preserves both div#root and script tag markers when both fall past the old 400 cap' {
         InModuleScope AITriad {
             # Reproduce the exact class of body that broke production:
             # a 500-char <head> followed by the SPA shell markers. Under the
