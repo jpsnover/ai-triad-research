@@ -37,15 +37,15 @@ function Find-SituationCandidates {
     .PARAMETER RepoRoot
         Path to the repository root.
     .EXAMPLE
-        Find-CrossCuttingCandidates -NoAI
+        Find-SituationCandidates -NoAI
     .EXAMPLE
-        Find-CrossCuttingCandidates -MinSimilarity 0.80 -OutputFile cc.json
+        Find-SituationCandidates -MinSimilarity 0.80 -OutputFile situations.json
     .EXAMPLE
-        Find-CrossCuttingCandidates -NoNLI
+        Find-SituationCandidates -NoNLI
     .EXAMPLE
-        Find-CrossCuttingCandidates -ShowSharedOnly -TopN 10
+        Find-SituationCandidates -ShowSharedOnly -TopN 10
     .EXAMPLE
-        Find-CrossCuttingCandidates -ShowDebatesOnly -TopN 10
+        Find-SituationCandidates -ShowDebatesOnly -TopN 10
     .LINK
         Show-AITriadHelp
     .LINK

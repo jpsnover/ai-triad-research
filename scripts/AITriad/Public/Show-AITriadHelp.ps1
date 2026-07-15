@@ -4,12 +4,22 @@
 function Show-AITriadHelp {
     <#
     .SYNOPSIS
-        Generates a self-contained HTML reference page for the AITriad module
-        and opens it in the default browser.
+        Generates a self-contained, searchable HTML reference for every public
+        AITriad cmdlet and opens it in the default browser.
     .DESCRIPTION
-        Builds a single-page HTML help document covering every public function,
-        alias, supported AI model, environment variable, and CI workflow in the
-        AITriad module. The page uses inline CSS with no external dependencies.
+        Introspects the loaded AITriad module (Get-Command + Get-Help) and builds
+        a single-page HTML reference covering EVERY exported public cmdlet. The
+        page is auto-generated from each cmdlet's comment-based help (synopsis,
+        syntax, parameters, examples, and RELATED LINKS), so it never drifts out
+        of sync with the module — adding a new cmdlet with proper help requires no
+        edit to this function.
+
+        Layout (per the Design spec in docs/ux/aitriad-help-redesign.md):
+        a sticky category sidebar on the left and a searchable cmdlet list on the
+        right. All cmdlet data is embedded as a JSON blob and filtered client-side
+        — no network calls, no external CSS/JS. Each row collapses to name +
+        synopsis and expands in place to show parameters, examples, and SEE ALSO
+        jump links.
 
         The file is written to the system temp directory with a fixed name so
         repeated calls overwrite instead of accumulating temp files.
@@ -17,7 +27,7 @@ function Show-AITriadHelp {
         Return the generated file path instead of opening the browser.
     .EXAMPLE
         Show-AITriadHelp
-        # Opens the help page in the default browser.
+        # Opens the searchable help page in the default browser.
     .EXAMPLE
         Show-AITriadHelp -PassThru
         # Returns the temp file path without opening a browser.
@@ -38,13 +48,298 @@ function Show-AITriadHelp {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
-    # Read module version from manifest
+    # ------------------------------------------------------------------ #
+    # Module version (from manifest)                                     #
+    # ------------------------------------------------------------------ #
     $ManifestPath = Join-Path (Join-Path $PSScriptRoot '..') 'AITriad.psd1'
     $ManifestData = Import-PowerShellDataFile -Path $ManifestPath
     $Version      = $ManifestData.ModuleVersion
     $Generated    = Get-Date -Format 'yyyy-MM-dd HH:mm'
 
-    # Build HTML using single-quoted here-string (no $ escaping needed)
+    $ModuleName = 'AITriad'
+    if ($MyInvocation.MyCommand.Module -and $MyInvocation.MyCommand.Module.Name) {
+        $ModuleName = $MyInvocation.MyCommand.Module.Name
+    }
+
+    # ------------------------------------------------------------------ #
+    # Category taxonomy — sidebar order + per-cmdlet assignment.         #
+    # Cmdlets absent from the map fall into 'Uncategorized' (never       #
+    # silently dropped). Seeded from the AGENTS.md cmdlet catalog and    #
+    # the RELATED LINKS family map (commit df0583f8).                    #
+    # ------------------------------------------------------------------ #
+    $CategoryOrder = @(
+        'Taxonomy Data'
+        'Edges'
+        'Graph & Conflict'
+        'Organizations'
+        'Debate Engine'
+        'Sources & Ingestion'
+        'AI Enrichment'
+        'Health & Diagnostics'
+        'Deployment & TaxEditor'
+        'Config & Setup'
+        'Data Repair & Migration'
+        'Apps & Utilities'
+    )
+
+    $CategoryMap = @{
+        # Taxonomy Data
+        'Get-Tax' = 'Taxonomy Data'; 'Get-GraphNode' = 'Taxonomy Data'
+        'Get-Policy' = 'Taxonomy Data'; 'Find-PolicyAction' = 'Taxonomy Data'
+        'Update-PolicyRegistry' = 'Taxonomy Data'; 'Invoke-PolicyRefinement' = 'Taxonomy Data'
+        'Get-TaxonomyHealth' = 'Taxonomy Data'; 'Compare-Taxonomy' = 'Taxonomy Data'
+        'Test-TaxonomyIntegrity' = 'Taxonomy Data'; 'Test-OntologyCompliance' = 'Taxonomy Data'
+        'Get-RelevantTaxonomyNodes' = 'Taxonomy Data'; 'Measure-TaxonomyBaseline' = 'Taxonomy Data'
+        'Get-TaxonomyProcess' = 'Taxonomy Data'; 'Update-TaxEmbeddings' = 'Taxonomy Data'
+        'Set-TaxonomyHierarchy' = 'Taxonomy Data'; 'Approve-TaxonomyProposal' = 'Taxonomy Data'
+        'Invoke-TaxonomyProposal' = 'Taxonomy Data'; 'Invoke-HierarchyProposal' = 'Taxonomy Data'
+        'Find-SituationCandidates' = 'Taxonomy Data'
+
+        # Edges
+        'Approve-Edge' = 'Edges'; 'Get-Edge' = 'Edges'; 'Set-Edge' = 'Edges'
+        'Test-EdgeDirection' = 'Edges'; 'Invoke-EdgeDiscovery' = 'Edges'
+        'Invoke-EdgeWeightEvaluation' = 'Edges'
+
+        # Graph & Conflict
+        'Find-GraphPath' = 'Graph & Conflict'; 'Find-Conflict' = 'Graph & Conflict'
+        'Invoke-GraphQuery' = 'Graph & Conflict'; 'Invoke-CypherQuery' = 'Graph & Conflict'
+        'Invoke-QbafConflictAnalysis' = 'Graph & Conflict'; 'Show-GraphOverview' = 'Graph & Conflict'
+        'Export-TaxonomyToGraph' = 'Graph & Conflict'; 'Get-ConflictEvolution' = 'Graph & Conflict'
+
+        # Organizations
+        'Get-Organization' = 'Organizations'; 'Find-OrganizationByPOV' = 'Organizations'
+        'Find-OrganizationByTopic' = 'Organizations'; 'Get-OrganizationStakeholders' = 'Organizations'
+        'Import-Organization' = 'Organizations'; 'Compare-OrganizationPositions' = 'Organizations'
+        'Get-OrganizationEdge' = 'Organizations'; 'Import-OrganizationEdge' = 'Organizations'
+        'Invoke-OrgClaimMatching' = 'Organizations'; 'Invoke-OrgDerivedCampScores' = 'Organizations'
+        'Invoke-OrgPublishedSeeding' = 'Organizations'; 'Invoke-OrgStanceExtraction' = 'Organizations'
+
+        # Debate Engine
+        'Show-TriadDialogue' = 'Debate Engine'; 'Invoke-AITDebate' = 'Debate Engine'
+        'Resume-AITDebate' = 'Debate Engine'; 'Get-AITDebate' = 'Debate Engine'
+        'Compare-DebateRuns' = 'Debate Engine'; 'Compare-DebateQuality' = 'Debate Engine'
+        'Measure-DebateQuality' = 'Debate Engine'; 'Invoke-DebateBatch' = 'Debate Engine'
+        'Invoke-DebateAB' = 'Debate Engine'; 'Watch-DebateProgress' = 'Debate Engine'
+        'Show-DebateDiagnostics' = 'Debate Engine'; 'Show-DebateHarvest' = 'Debate Engine'
+        'Repair-DebateOutput' = 'Debate Engine'; 'Convert-DebateToAudio' = 'Debate Engine'
+        'Get-AITClaim' = 'Debate Engine'; 'Get-CriticalInteraction' = 'Debate Engine'
+        'Test-CriticalInteractions' = 'Debate Engine'; 'Get-CalibrationTrend' = 'Debate Engine'
+        'Test-AITJudgeModel' = 'Debate Engine'; 'Test-SynthesisCompleteness' = 'Debate Engine'
+        'Get-TopicFrequency' = 'Debate Engine'; 'Export-AggregatedCruxes' = 'Debate Engine'
+        'Find-PossibleFallacy' = 'Debate Engine'; 'Show-FallacyInfo' = 'Debate Engine'
+
+        # Sources & Ingestion
+        'Import-AITriadDocument' = 'Sources & Ingestion'; 'Save-AITSource' = 'Sources & Ingestion'
+        'Find-AITSource' = 'Sources & Ingestion'; 'Get-AITSource' = 'Sources & Ingestion'
+        'Update-AITSourceIndex' = 'Sources & Ingestion'; 'Get-IntellectualLineage' = 'Sources & Ingestion'
+        'Get-PovLineage' = 'Sources & Ingestion'; 'Get-IngestionPriority' = 'Sources & Ingestion'
+        'Invoke-AttributeExtraction' = 'Sources & Ingestion'; 'Save-WaybackUrl' = 'Sources & Ingestion'
+        'Update-Snapshot' = 'Sources & Ingestion'; 'Get-ImportReport' = 'Sources & Ingestion'
+        'Get-Summary' = 'Sources & Ingestion'
+
+        # AI Enrichment
+        'Invoke-AIByUsage' = 'AI Enrichment'; 'Invoke-BatchSummary' = 'AI Enrichment'
+        'Invoke-POVSummary' = 'AI Enrichment'; 'Invoke-BDIWeightAssignment' = 'AI Enrichment'
+        'Invoke-VernacularBatch' = 'AI Enrichment'; 'Invoke-AphorismBatch' = 'AI Enrichment'
+        'New-SyntheticCorpus' = 'AI Enrichment'; 'Sync-SyntheticCorpus' = 'AI Enrichment'
+        'Update-SyntheticCorpus' = 'AI Enrichment'; 'Export-SyntheticEmbeddings' = 'AI Enrichment'
+        'Compare-EmbeddingModel' = 'AI Enrichment'; 'Test-RerankerBaseline' = 'AI Enrichment'
+        'Test-ExtractionQuality' = 'AI Enrichment'
+
+        # Health & Diagnostics
+        'Test-TaxEditorHealth' = 'Health & Diagnostics'; 'Test-TaxEditorEndpoints' = 'Health & Diagnostics'
+        'Test-AnonymousDebateFlow' = 'Health & Diagnostics'; 'Test-PersonaEndpoints' = 'Health & Diagnostics'
+        'Test-ServiceWorkerHealth' = 'Health & Diagnostics'; 'Get-FreeTierStatus' = 'Health & Diagnostics'
+        'Test-AzureHealth' = 'Health & Diagnostics'; 'Test-GitHubHealth' = 'Health & Diagnostics'
+        'Get-ContainerAppRevision' = 'Health & Diagnostics'; 'Get-GitHubWorkflowRun' = 'Health & Diagnostics'
+        'Remove-StaleContainerImages' = 'Health & Diagnostics'; 'Get-TaxonomySnapshot' = 'Health & Diagnostics'
+        'Get-AICostReport' = 'Health & Diagnostics'; 'Invoke-TaxEditorSmokeTest' = 'Health & Diagnostics'
+        'Test-TaxEditorInfra' = 'Health & Diagnostics'; 'Get-AzureFlightRecorder' = 'Health & Diagnostics'
+        'Get-FlightRecorderDump' = 'Health & Diagnostics'; 'Get-FlightRecorderReport' = 'Health & Diagnostics'
+        'Merge-FlightRecorderDumps' = 'Health & Diagnostics'; 'Request-FlightRecorderDump' = 'Health & Diagnostics'
+        'Show-FlightRecorder' = 'Health & Diagnostics'
+
+        # Deployment & TaxEditor
+        'Deploy-TaxEditorImage' = 'Deployment & TaxEditor'; 'Deploy-TaxEditorInfra' = 'Deployment & TaxEditor'
+        'Get-TaxEditorImage' = 'Deployment & TaxEditor'; 'Get-TaxEditorRevision' = 'Deployment & TaxEditor'
+        'Switch-TaxEditorRevision' = 'Deployment & TaxEditor'; 'Get-TaxEditorBlob' = 'Deployment & TaxEditor'
+        'Get-TaxEditorDataCommit' = 'Deployment & TaxEditor'; 'Restore-TaxEditorBlob' = 'Deployment & TaxEditor'
+        'Restore-TaxEditorKnownGood' = 'Deployment & TaxEditor'; 'Set-TaxEditorKnownGood' = 'Deployment & TaxEditor'
+        'Sync-TaxEditorData' = 'Deployment & TaxEditor'; 'Undo-TaxEditorDataCommit' = 'Deployment & TaxEditor'
+        'Reset-TaxEditorSession' = 'Deployment & TaxEditor'
+
+        # Config & Setup
+        'Get-TriadConfig' = 'Config & Setup'; 'Set-TriadConfig' = 'Config & Setup'
+        'Invoke-TriadConfigReload' = 'Config & Setup'; 'Register-AIBackend' = 'Config & Setup'
+        'Test-AIApiKey' = 'Config & Setup'; 'Install-AIDependencies' = 'Config & Setup'
+        'Install-AITriadData' = 'Config & Setup'; 'Install-GraphDatabase' = 'Config & Setup'
+        'Test-Dependencies' = 'Config & Setup'; 'Register-AITriadDrive' = 'Config & Setup'
+
+        # Data Repair & Migration
+        'Repair-PovAttributes' = 'Data Repair & Migration'; 'Repair-PovDescriptions' = 'Data Repair & Migration'
+        'Repair-PovLineage' = 'Data Repair & Migration'; 'Repair-ResolvedBackfill' = 'Data Repair & Migration'
+        'Repair-UnmappedConcepts' = 'Data Repair & Migration'; 'Repair-AITSummaryMappings' = 'Data Repair & Migration'
+        'Invoke-CcToSitMigration' = 'Data Repair & Migration'; 'Invoke-SchemaMigration' = 'Data Repair & Migration'
+
+        # Apps & Utilities
+        'Show-AITriadHelp' = 'Apps & Utilities'; 'Show-POViewer' = 'Apps & Utilities'
+        'Show-SummaryViewer' = 'Apps & Utilities'; 'Show-TaxonomyEditor' = 'Apps & Utilities'
+        'Show-WorkflowRunner' = 'Apps & Utilities'; 'Convert-MD2PDF' = 'Apps & Utilities'
+        'Repair-Markdown' = 'Apps & Utilities'; 'Show-Markdown' = 'Apps & Utilities'
+        'Show-OSSLicenses' = 'Apps & Utilities'; 'Get-AITSBOM' = 'Apps & Utilities'
+        'Invoke-PIIAudit' = 'Apps & Utilities'
+    }
+
+    # ------------------------------------------------------------------ #
+    # Introspect every public cmdlet via Get-Help.                       #
+    # Source of truth = the Public/ directory (this file lives in it).   #
+    # Get-Command -Module returns private helpers too (they are          #
+    # dot-sourced into the module scope), so enumerate Public/*.ps1.     #
+    # ------------------------------------------------------------------ #
+    $Commands = @(
+        Get-ChildItem -Path $PSScriptRoot -Filter '*.ps1' |
+            Sort-Object Name |
+            ForEach-Object { Get-Command -Name $_.BaseName -ErrorAction SilentlyContinue } |
+            Where-Object { $_ -and $_.CommandType -eq 'Function' }
+    )
+
+    $CmdletData = [ordered]@{}
+    $CategoryBuckets = [ordered]@{}
+
+    foreach ($cmd in $Commands) {
+        $name = $cmd.Name
+
+        $category = 'Uncategorized'
+        if ($CategoryMap.ContainsKey($name)) { $category = $CategoryMap[$name] }
+
+        $synopsis  = ''
+        $parameters = [System.Collections.Generic.List[object]]::new()
+        $examples   = [System.Collections.Generic.List[object]]::new()
+        $links      = [System.Collections.Generic.List[string]]::new()
+
+        try {
+            $help = Get-Help $name -Full -ErrorAction Stop
+
+            if ($help.PSObject.Properties['Synopsis'] -and $help.Synopsis) {
+                $synopsis = ([string]$help.Synopsis).Trim()
+            }
+
+            # Parameters (Get-Help already excludes CommonParameters)
+            if ($help.PSObject.Properties['parameters'] -and $help.parameters -and
+                $help.parameters.PSObject.Properties['parameter']) {
+                foreach ($p in @($help.parameters.parameter)) {
+                    $pType = ''
+                    if ($p.PSObject.Properties['type'] -and $p.type -and $p.type.PSObject.Properties['name']) {
+                        $pType = [string]$p.type.name
+                    }
+                    $pDesc = ''
+                    if ($p.PSObject.Properties['description'] -and $p.description) {
+                        $pDesc = (@($p.description) | ForEach-Object {
+                            if ($_.PSObject.Properties['text']) { $_.text }
+                        }) -join ' '
+                        $pDesc = $pDesc.Trim()
+                    }
+                    $pReq = $false
+                    if ($p.PSObject.Properties['required']) { $pReq = ([string]$p.required -eq 'true') }
+
+                    $parameters.Add([ordered]@{
+                        name        = [string]$p.name
+                        type        = $pType
+                        required    = $pReq
+                        description = $pDesc
+                    })
+                }
+            }
+
+            # Examples
+            if ($help.PSObject.Properties['examples'] -and $help.examples -and
+                $help.examples.PSObject.Properties['example']) {
+                foreach ($ex in @($help.examples.example)) {
+                    $code = ''
+                    if ($ex.PSObject.Properties['code'] -and $ex.code) { $code = [string]$ex.code }
+                    $remarks = ''
+                    if ($ex.PSObject.Properties['remarks'] -and $ex.remarks) {
+                        $remarks = (@($ex.remarks) | ForEach-Object {
+                            if ($_.PSObject.Properties['text']) { $_.text }
+                        }) -join ' '
+                        $remarks = $remarks.Trim()
+                    }
+                    $examples.Add([ordered]@{ code = $code.Trim(); description = $remarks })
+                }
+            }
+
+            # RELATED LINKS (.LINK entries)
+            if ($help.PSObject.Properties['relatedLinks'] -and $help.relatedLinks -and
+                $help.relatedLinks.PSObject.Properties['navigationLink']) {
+                foreach ($nl in @($help.relatedLinks.navigationLink)) {
+                    if ($nl.PSObject.Properties['linkText'] -and $nl.linkText) {
+                        $links.Add(([string]$nl.linkText).Trim())
+                    }
+                }
+            }
+        }
+        catch {
+            Write-Warning "Show-AITriadHelp: could not read help for $name — $($_.Exception.Message)"
+        }
+
+        # Syntax line(s) — reliable via Get-Command -Syntax
+        $syntax = ''
+        try {
+            $syntax = ((Get-Command $name -Syntax) | Out-String).Trim()
+        }
+        catch { $syntax = '' }
+
+        $supportsShouldProcess = $cmd.Parameters.ContainsKey('WhatIf')
+
+        $CmdletData[$name] = [ordered]@{
+            name                  = $name
+            category              = $category
+            synopsis              = $synopsis
+            syntax                = $syntax
+            supportsShouldProcess = $supportsShouldProcess
+            parameters            = $parameters
+            examples              = $examples
+            links                 = $links
+        }
+
+        if (-not $CategoryBuckets.Contains($category)) {
+            $CategoryBuckets[$category] = [System.Collections.Generic.List[string]]::new()
+        }
+        $CategoryBuckets[$category].Add($name)
+    }
+
+    # Final category order: declared order first, then any extras (e.g. Uncategorized).
+    $orderedCategories = [System.Collections.Generic.List[string]]::new()
+    foreach ($c in $CategoryOrder) {
+        if ($CategoryBuckets.Contains($c)) { $orderedCategories.Add($c) }
+    }
+    foreach ($c in $CategoryBuckets.Keys) {
+        if (-not $orderedCategories.Contains($c)) { $orderedCategories.Add($c) }
+    }
+
+    $categoriesObj = [ordered]@{}
+    foreach ($c in $orderedCategories) { $categoriesObj[$c] = @($CategoryBuckets[$c]) }
+
+    $payload = [ordered]@{
+        version       = $Version
+        generated     = $Generated
+        categoryOrder = @($orderedCategories)
+        categories    = $categoriesObj
+        cmdlets       = $CmdletData
+    }
+
+    $DataJson = $payload | ConvertTo-Json -Depth 8 -Compress
+    # Neutralize any accidental </script> so the blob can't break out of the tag.
+    $DataJson = $DataJson.Replace('</', '<\/')
+
+    $CmdletCount   = $Commands.Count
+    $CategoryCount = $orderedCategories.Count
+
+    # ------------------------------------------------------------------ #
+    # HTML shell (single-quoted here-string — no PowerShell interpolation) #
+    # Placeholders are substituted with String.Replace (literal, so the   #
+    # JSON blob's $ characters are not treated as regex backreferences).   #
+    # ------------------------------------------------------------------ #
     $Html = @'
 <!DOCTYPE html>
 <html lang="en">
@@ -54,1434 +349,406 @@ function Show-AITriadHelp {
 <title>AITriad Module Reference</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    --bg: #f8fafc; --panel: #ffffff; --border: #e2e8f0;
+    --text: #0f172a; --muted: #64748b; --accent: #3b82f6; --accent-text: #1e40af;
+    --code-bg: #f1f5f9; --hover: #f1f5f9; --mark: #fef9c3;
+  }
+  html, body { height: 100%; }
   body {
-    font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    line-height: 1.6;
-    color: #1a1a2e;
-    background: #f0f2f5;
-    margin: 0;
-    padding: 2rem 1rem;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--text); background: var(--bg); margin: 0; line-height: 1.55;
+    font-size: 14px;
   }
-  .container { max-width: 900px; margin: 0 auto; }
+  code, pre, .mono { font-family: ui-monospace, 'Cascadia Code', 'Fira Code', Consolas, monospace; }
 
-  /* Header banner */
-  .banner {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-    color: #fff;
-    padding: 2.5rem 2rem;
-    border-radius: 12px;
-    margin-bottom: 2rem;
-    text-align: center;
+  /* Sticky header */
+  header {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; gap: 1rem;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    padding: 0.6rem 1.25rem;
   }
-  .banner h1 { margin: 0 0 0.25rem; font-size: 2rem; font-weight: 700; }
-  .banner .meta { opacity: 0.8; font-size: 0.9rem; }
+  header.scrolled { box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  header .title { font-size: 1rem; font-weight: 600; white-space: nowrap; }
+  header .version { font-size: 0.75rem; color: var(--muted); }
+  header .spacer { flex: 1; }
+  header .search-wrap { position: relative; }
+  #search {
+    min-width: 240px; font-size: 0.85rem; padding: 0.4rem 0.6rem;
+    border: 1px solid var(--border); border-radius: 6px; background: var(--bg);
+    color: var(--text);
+  }
+  #search:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+  #result-count { font-size: 0.72rem; color: var(--muted); position: absolute; right: 2px; top: 100%; margin-top: 2px; }
 
-  /* Hero image */
-  .hero-img {
-    display: block;
-    max-width: 100%;
-    border-radius: 10px;
-    margin-bottom: 2rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  /* Layout */
+  .layout { display: grid; grid-template-columns: 220px 1fr; align-items: start; }
+  nav#sidebar {
+    position: sticky; top: 49px; align-self: start;
+    height: calc(100vh - 49px); overflow-y: auto;
+    background: var(--panel); border-right: 1px solid var(--border);
+    padding: 0.75rem 0;
   }
+  .cat-link {
+    display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+    padding: 0.35rem 1rem 0.35rem 0.85rem; text-decoration: none; color: var(--text);
+    border-left: 2px solid transparent; cursor: pointer; font-size: 0.82rem;
+  }
+  .cat-link:hover { background: var(--hover); }
+  .cat-link.active { border-left-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+  .cat-link.empty { color: #cbd5e1; }
+  .cat-link .cat-count { color: var(--muted); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
+  .sidebar-total { padding: 0.6rem 1rem 0.2rem; margin-top: 0.4rem; border-top: 1px solid var(--border);
+    color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
 
-  /* Navigation */
-  .toc {
-    background: #fff;
-    border-radius: 10px;
-    padding: 1.25rem 1.5rem;
-    margin-bottom: 2rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  main { padding: 1rem 1.5rem 4rem; max-width: 960px; }
+  .cat-section { scroll-margin-top: 60px; }
+  .cat-section.flash > .cat-header { background: var(--hover); }
+  .cat-header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--text); margin: 1.4rem 0 0.4rem; padding-bottom: 0.35rem;
+    border-bottom: 1px solid var(--border);
   }
-  .toc h2 { margin: 0 0 0.75rem; font-size: 1.1rem; color: #0f3460; }
-  .toc ul { margin: 0; padding: 0; list-style: none; columns: 2; column-gap: 2rem; }
-  .toc li { margin-bottom: 0.3rem; }
-  .toc a { color: #0f3460; text-decoration: none; }
-  .toc a:hover { text-decoration: underline; }
+  .cat-header .cat-header-count { color: var(--muted); font-weight: 500; letter-spacing: 0; text-transform: none; }
+  .cat-section:first-of-type .cat-header { margin-top: 0.4rem; }
 
-  /* Section cards */
-  .card {
-    background: #fff;
-    border-radius: 10px;
-    padding: 1.5rem 2rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    border-left: 4px solid #0f3460;
+  /* Rows */
+  .row { border-bottom: 1px solid var(--border); }
+  .row-head {
+    display: flex; align-items: baseline; gap: 0.55rem; padding: 0.5rem 0.25rem;
+    cursor: pointer; outline: none;
   }
-  .card h2 {
-    margin: 0 0 1rem;
-    font-size: 1.3rem;
-    color: #0f3460;
-  }
-  .card h3 {
-    margin: 1.25rem 0 0.5rem;
-    font-size: 1.05rem;
-    color: #16213e;
-  }
-  .card p { margin: 0.5rem 0; }
+  .row-head:hover { background: var(--hover); }
+  .row-head:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); border-radius: 4px; }
+  .tri { color: var(--muted); font-size: 0.7rem; width: 0.8rem; flex: none; transition: transform 0.12s; }
+  .row.open .tri { transform: rotate(90deg); }
+  .row-name { font-weight: 600; font-size: 0.86rem; white-space: nowrap; }
+  .row-syn { color: var(--muted); font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row-detail { display: none; padding: 0.4rem 0.25rem 1.1rem 1.35rem; background: var(--bg); }
+  .row.open .row-detail { display: block; }
 
-  /* Category colors */
-  .card.cat-query    { border-left-color: #2196f3; }
-  .card.cat-query h2 { color: #1565c0; }
-  .card.cat-ingest    { border-left-color: #4caf50; }
-  .card.cat-ingest h2 { color: #2e7d32; }
-  .card.cat-summary    { border-left-color: #ff9800; }
-  .card.cat-summary h2 { color: #e65100; }
-  .card.cat-analysis    { border-left-color: #e91e63; }
-  .card.cat-analysis h2 { color: #ad1457; }
-  .card.cat-util    { border-left-color: #9c27b0; }
-  .card.cat-util h2 { color: #6a1b9a; }
-  .card.cat-app    { border-left-color: #00bcd4; }
-  .card.cat-app h2 { color: #00838f; }
-  .card.cat-help   { border-left-color: #607d8b; }
-  .card.cat-help h2 { color: #37474f; }
+  .field-label { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--muted); margin: 0.9rem 0 0.35rem; }
+  .field-label:first-child { margin-top: 0.3rem; }
+  .synopsis-full { margin: 0.1rem 0; }
+  pre { background: var(--code-bg); border-radius: 4px; padding: 0.6rem 0.8rem; overflow-x: auto;
+    font-size: 0.8rem; margin: 0.2rem 0; white-space: pre-wrap; word-break: break-word; }
+  table.params { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  table.params th, table.params td { text-align: left; padding: 0.35rem 0.6rem; border-bottom: 1px solid var(--border);
+    vertical-align: top; }
+  table.params th { color: var(--muted); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  table.params td.pname { font-family: ui-monospace, 'Cascadia Code', monospace; white-space: nowrap; }
+  table.params td.ptype { color: var(--muted); white-space: nowrap; }
+  .req-star { color: #dc2626; font-weight: 700; }
+  .example { margin-bottom: 0.6rem; }
+  .example .ex-desc { color: var(--muted); font-size: 0.8rem; margin: 0.15rem 0 0; }
+  .seealso a { color: var(--accent-text); text-decoration: none; }
+  .seealso a:hover { text-decoration: underline; }
+  .seealso .sep { color: var(--muted); margin: 0 0.35rem; }
+  .sp-note { color: var(--muted); font-size: 0.75rem; margin-top: 0.3rem; }
+  mark { background: var(--mark); color: inherit; padding: 0 1px; border-radius: 2px; }
+  .no-results { color: var(--muted); padding: 2rem 0.25rem; }
 
-  /* Function cards */
-  .func {
-    background: #fafbfc;
-    border: 1px solid #e1e4e8;
-    border-radius: 8px;
-    padding: 1rem 1.25rem;
-    margin-bottom: 1rem;
-  }
-  .func h4 {
-    margin: 0 0 0.5rem;
-    font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
-    font-size: 1rem;
-    color: #0f3460;
-  }
-  .func .synopsis { font-style: italic; color: #555; margin-bottom: 0.75rem; }
+  footer { color: var(--muted); font-size: 0.72rem; padding: 1.5rem; text-align: center; }
 
-  /* Tables */
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 0.75rem 0;
-    font-size: 0.9rem;
-  }
-  th, td {
-    text-align: left;
-    padding: 0.5rem 0.75rem;
-    border-bottom: 1px solid #e1e4e8;
-  }
-  th {
-    background: #f0f2f5;
-    font-weight: 600;
-    color: #16213e;
-  }
-  tr:nth-child(even) td { background: #fafbfc; }
-
-  /* Code blocks */
-  pre {
-    background: #1a1a2e;
-    color: #e0e0e0;
-    padding: 1rem 1.25rem;
-    border-radius: 6px;
-    overflow-x: auto;
-    font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
-    font-size: 0.85rem;
-    line-height: 1.5;
-  }
-  code {
-    font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
-    font-size: 0.88em;
-  }
-  p code, li code, td code {
-    background: #eef1f5;
-    padding: 0.15em 0.4em;
-    border-radius: 4px;
-    color: #0f3460;
-  }
-
-  /* Back to contents link */
-  .back-to-top {
-    display: block;
-    text-align: right;
-    margin-top: 1rem;
-    padding-top: 0.5rem;
-    border-top: 1px solid #e1e4e8;
-    font-size: 0.85rem;
-  }
-  .back-to-top a { color: #0f3460; text-decoration: none; }
-  .back-to-top a:hover { text-decoration: underline; }
-
-  /* Footer */
-  .footer {
-    text-align: center;
-    color: #888;
-    font-size: 0.8rem;
-    margin-top: 2rem;
-    padding-top: 1rem;
-    border-top: 1px solid #ddd;
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f172a; --panel: #111827; --border: #1f2937;
+      --text: #e5e7eb; --muted: #94a3b8; --accent: #60a5fa; --accent-text: #93c5fd;
+      --code-bg: #0b1220; --hover: #172033; --mark: #78350f;
+    }
+    .cat-link.empty { color: #475569; }
+    .req-star { color: #f87171; }
   }
 </style>
 </head>
 <body>
-<div class="container">
+<header id="header">
+  <span class="title">AITriad Module Reference</span>
+  <span class="version mono">v{{VERSION}}</span>
+  <span class="spacer"></span>
+  <span class="search-wrap">
+    <input id="search" type="search" placeholder="filter cmdlets&hellip;" autocomplete="off" spellcheck="false" aria-label="Filter cmdlets">
+    <span id="result-count"></span>
+  </span>
+</header>
 
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- BANNER                                                                -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="banner">
-  <h1>AITriad Module Reference</h1>
-  <div class="meta">Version {{VERSION}} &middot; Generated {{GENERATED}}</div>
+<div class="layout">
+  <nav id="sidebar" aria-label="Categories"></nav>
+  <main>
+    <div id="list"></div>
+    <div id="no-results" class="no-results" hidden>No cmdlets match your search.</div>
+  </main>
 </div>
 
-<!-- Hero image (copied to temp dir by PowerShell) -->
-<img class="hero-img" src="AITriad-Module.png" alt="AITriad Module Reference Infographic">
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- TABLE OF CONTENTS                                                     -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="toc" id="contents">
-  <h2>Contents</h2>
-  <ul>
-    <li><a href="#overview">Module Overview</a></li>
-    <li><a href="#quickstart">Quick Start</a></li>
-    <li><a href="#taxonomy">Taxonomy &amp; Query</a></li>
-    <li><a href="#ingestion">Document Ingestion</a></li>
-    <li><a href="#summarization">Summarization</a></li>
-    <li><a href="#analysis">Analysis</a></li>
-    <li><a href="#utilities">Utilities</a></li>
-    <li><a href="#launchers">App Launchers</a></li>
-    <li><a href="#attribute-graph">LLM Attribute Graph</a></li>
-    <li><a href="#graphdb">Graph Database (Neo4j)</a></li>
-    <li><a href="#help">Help</a></li>
-    <li><a href="#aliases">Aliases</a></li>
-    <li><a href="#models">Supported AI Models</a></li>
-    <li><a href="#cicd">CI/CD Workflow</a></li>
-    <li><a href="#envvars">Environment Variables</a></li>
-  </ul>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- MODULE OVERVIEW                                                       -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="card" id="overview">
-  <h2>Module Overview</h2>
-  <p>
-    <strong>AITriad</strong> is a PowerShell 7+ research module for multi-perspective
-    analysis of AI policy and safety literature. It organizes sources through a
-    four-POV taxonomy (accelerationist, safetyist, skeptic, cross-cutting),
-    ingests documents, generates AI-powered summaries, and detects factual conflicts.
-  </p>
-  <h3>Companion Modules</h3>
-  <table>
-    <tr><th>Module</th><th>Purpose</th></tr>
-    <tr><td><code>AIEnrich</code></td><td>Multi-backend AI API abstraction (Gemini, Claude, Groq)</td></tr>
-    <tr><td><code>DocConverters</code></td><td>PDF, DOCX, and HTML to Markdown conversion</td></tr>
-    <tr><td><code>PdfOptimizer</code></td><td>PDF compression and optimization utilities</td></tr>
-  </table>
-  <h3>Taxonomy Structure</h3>
-  <p>Four points of view, each stored as a JSON file under <code>taxonomy/Origin/</code>.
-  Each node may have a <code>graph_attributes</code> object with AI-generated analytical
-  metadata (epistemic type, rhetorical strategy, assumptions, falsifiability, audience,
-  emotional register, policy actionability, intellectual lineage, and steelman vulnerability).
-  See <code>Invoke-AttributeExtraction</code>. Nodes are connected by typed, directed edges
-  (SUPPORTS, CONTRADICTS, ASSUMES, TENSION_WITH, etc.) stored in <code>edges.json</code>.
-  See <code>Invoke-EdgeDiscovery</code>.</p>
-  <table>
-    <tr><th>POV</th><th>Prefix</th><th>Description</th></tr>
-    <tr><td>Accelerationist</td><td><code>acc-</code></td><td>Pro-development, rapid AI progress</td></tr>
-    <tr><td>Safetyist</td><td><code>saf-</code></td><td>AI safety and alignment focus</td></tr>
-    <tr><td>Skeptic</td><td><code>skp-</code></td><td>Questioning AI hype and capabilities</td></tr>
-    <tr><td>Cross-cutting</td><td><code>cc-</code></td><td>Issues spanning multiple POVs</td></tr>
-  </table>
-  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- QUICK START                                                           -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="card" id="quickstart">
-  <h2>Quick Start</h2>
-<pre>
-# Import the module
-Import-Module ./scripts/AITriad -Force
-
-# Browse all taxonomy nodes
-Get-Tax
-
-# Ingest a web article
-Import-AITriadDocument -Url 'https://example.com/article' -Pov accelerationist
-
-# Run batch summarization
-Invoke-BatchSummary -DryRun
-
-# Open the help page you are reading now
-Show-AITriadHelp
-</pre>
-  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- TAXONOMY & QUERY                                                      -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="card cat-query" id="taxonomy">
-  <h2>Taxonomy &amp; Query</h2>
-
-  <div class="func">
-    <h4>Get-Tax</h4>
-    <div class="synopsis">Returns taxonomy nodes filtered by POV, ID, label, description, or semantic similarity.</div>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-POV</code></td><td>string</td><td>No</td><td>POV name (supports wildcards). Default: <code>*</code></td></tr>
-      <tr><td><code>-Id</code></td><td>string[]</td><td>No</td><td>Wildcard patterns matched against node IDs</td></tr>
-      <tr><td><code>-Label</code></td><td>string[]</td><td>No</td><td>Wildcard patterns matched against node labels</td></tr>
-      <tr><td><code>-Description</code></td><td>string[]</td><td>No</td><td>Wildcard patterns matched against node descriptions</td></tr>
-      <tr><td><code>-Similar</code></td><td>string</td><td>Yes*</td><td>Semantic similarity query (mutually exclusive with text filters)</td></tr>
-      <tr><td><code>-Top</code></td><td>int</td><td>No</td><td>Max results for <code>-Similar</code>. Default: 20</td></tr>
-    </table>
-<pre>
-Get-Tax -POV skeptic
-Get-Tax -Label "*bias*","*displacement*"
-Get-Tax -Similar "alignment safety" -Top 5
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Update-TaxEmbeddings</h4>
-    <div class="synopsis">Regenerates taxonomy/Origin/embeddings.json from all POV JSON files for semantic search.</div>
-    <p>No parameters. Requires Python with <code>sentence-transformers</code> installed.
-    Uses the local <code>all-MiniLM-L6-v2</code> model (384-dimensional vectors).
-    Each node's <strong>description</strong> field is embedded.</p>
-<pre>
-Update-TaxEmbeddings
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Get-AITSource</h4>
-    <div class="synopsis">Lists and filters source documents in the repository.</div>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-DocId</code></td><td>string</td><td>No</td><td>Wildcard pattern matched against the source document ID</td></tr>
-      <tr><td><code>-Pov</code></td><td>string</td><td>No</td><td>Filter to sources whose pov_tags contain this value</td></tr>
-      <tr><td><code>-Topic</code></td><td>string</td><td>No</td><td>Filter to sources whose topic_tags contain this value</td></tr>
-      <tr><td><code>-Status</code></td><td>string</td><td>No</td><td>Filter to sources with this summary_status</td></tr>
-      <tr><td><code>-SourceType</code></td><td>string</td><td>No</td><td>Filter to sources with this source_type</td></tr>
-    </table>
-<pre>
-Get-AITSource
-Get-AITSource '*china*'
-Get-AITSource -Pov safetyist
-Get-AITSource -Status pending
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Get-Summary</h4>
-    <div class="synopsis">Lists and filters POV summaries in the repository.</div>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-DocId</code></td><td>string</td><td>No</td><td>Wildcard pattern matched against the summary doc_id</td></tr>
-      <tr><td><code>-Pov</code></td><td>string</td><td>No</td><td>Only include key_points from this POV</td></tr>
-      <tr><td><code>-Stance</code></td><td>string</td><td>No</td><td>Only include key_points with this stance value</td></tr>
-      <tr><td><code>-Detailed</code></td><td>switch</td><td>No</td><td>Include the KeyPoints array in output</td></tr>
-    </table>
-<pre>
-Get-Summary
-Get-Summary '*safety*'
-Get-Summary -Pov skeptic -Detailed
-Get-Summary -Pov accelerationist -Stance opposed -Detailed
-</pre>
-  </div>
-
-  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- DOCUMENT INGESTION                                                    -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="card cat-ingest" id="ingestion">
-  <h2>Document Ingestion</h2>
-
-  <div class="func">
-    <h4>Import-AITriadDocument</h4>
-    <div class="synopsis">Ingests web articles, PDFs, and local files into the AI Triad research corpus.</div>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Url</code></td><td>string</td><td>Yes*</td><td>URL of web article to ingest (ByUrl set)</td></tr>
-      <tr><td><code>-File</code></td><td>string</td><td>Yes*</td><td>Path to local PDF/DOCX/HTML file (ByFile set)</td></tr>
-      <tr><td><code>-Inbox</code></td><td>switch</td><td>Yes*</td><td>Process all files in <code>sources/_inbox/</code> (ByInbox set)</td></tr>
-      <tr><td><code>-Pov</code></td><td>string[]</td><td>No</td><td>POV tags to assign</td></tr>
-      <tr><td><code>-Topic</code></td><td>string[]</td><td>No</td><td>Topic tags to assign</td></tr>
-      <tr><td><code>-SkipWayback</code></td><td>switch</td><td>No</td><td>Skip Wayback Machine archival</td></tr>
-      <tr><td><code>-NoSummaryQueue</code></td><td>switch</td><td>No</td><td>Do not mark for AI summarization</td></tr>
-      <tr><td><code>-SkipAiMeta</code></td><td>switch</td><td>No</td><td>Skip AI metadata-enrichment step</td></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model for enrichment and summarization. Default: <code>gemini-3.1-flash-lite-preview</code></td></tr>
-      <tr><td><code>-Temperature</code></td><td>double</td><td>No</td><td>Sampling temperature (0.0&ndash;1.0). Default: 0.1</td></tr>
-    </table>
-<pre>
-Import-AITriadDocument -Url 'https://example.com/article' -Pov accelerationist, skeptic
-Import-AITriadDocument -Inbox
-Import-AITriadDocument -File './paper.pdf' -Pov safetyist -Model claude-sonnet-4-5 -Temperature 0.3
-</pre>
-  </div>
-  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- SUMMARIZATION                                                         -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="card cat-summary" id="summarization">
-  <h2>Summarization</h2>
-
-  <div class="func">
-    <h4>Invoke-POVSummary</h4>
-    <div class="synopsis">Processes a single source document through AI to extract a structured POV summary mapped to the taxonomy.</div>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-DocId</code></td><td>string</td><td>Yes</td><td>Document slug ID (e.g., <code>altman-2024-agi-path</code>)</td></tr>
-      <tr><td><code>-RepoRoot</code></td><td>string</td><td>No</td><td>Path to repo root</td></tr>
-      <tr><td><code>-ApiKey</code></td><td>string</td><td>No</td><td>AI API key override</td></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-3.1-flash-lite-preview</code></td></tr>
-      <tr><td><code>-Temperature</code></td><td>double</td><td>No</td><td>Sampling temperature (0.0&ndash;1.0). Default: 0.1</td></tr>
-      <tr><td><code>-DryRun</code></td><td>switch</td><td>No</td><td>Show prompt without API calls</td></tr>
-      <tr><td><code>-Force</code></td><td>switch</td><td>No</td><td>Re-process even if summary is current</td></tr>
-    </table>
-<pre>
-Invoke-POVSummary -DocId "altman-2024-agi-path"
-Invoke-POVSummary -DocId "lecun-2024-critique" -DryRun
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Invoke-BatchSummary</h4>
-    <div class="synopsis">Smart batch POV summarization across all documents needing processing.</div>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-ForceAll</code></td><td>switch</td><td>No</td><td>Reprocess every document</td></tr>
-      <tr><td><code>-DocId</code></td><td>string</td><td>No</td><td>Reprocess single document by ID</td></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-3.1-flash-lite-preview</code></td></tr>
-      <tr><td><code>-Temperature</code></td><td>double</td><td>No</td><td>Sampling temperature (0.0&ndash;1.0). Default: 0.1</td></tr>
-      <tr><td><code>-DryRun</code></td><td>switch</td><td>No</td><td>Show plan without making API calls</td></tr>
-      <tr><td><code>-MaxConcurrent</code></td><td>int</td><td>No</td><td>Parallel documents (1&ndash;10). Default: 1</td></tr>
-      <tr><td><code>-SkipConflictDetection</code></td><td>switch</td><td>No</td><td>Skip conflict check after each summary</td></tr>
-    </table>
-<pre>
-Invoke-BatchSummary
-Invoke-BatchSummary -ForceAll -MaxConcurrent 3
-Invoke-BatchSummary -DryRun
-</pre>
-  </div>
-  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- ANALYSIS                                                              -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="card cat-analysis" id="analysis">
-  <h2>Analysis</h2>
-
-  <div class="func">
-    <h4>Find-Conflict</h4>
-    <div class="synopsis">Factual conflict detection and deduplication for document summaries.</div>
-    <p>Reads a summary's <code>factual_claims</code>, matches or creates conflict files under
-    <code>conflicts/</code>, and returns an <code>AITriad.ConflictResult</code> object with counts
-    (ClaimsProcessed, Appended, Created, Skipped). Idempotent&mdash;re-running skips duplicates.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-DocId</code></td><td>string</td><td>Yes</td><td>Document ID to check for conflicts</td></tr>
-    </table>
-<pre>
-Find-Conflict -DocId 'situational-awareness-decade-ahead-2026'
-# Re-run is safe — duplicates are skipped
-Find-Conflict -DocId 'situational-awareness-decade-ahead-2026'
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Find-AITSource</h4>
-    <div class="synopsis">Finds source documents whose summaries reference given taxonomy node IDs.</div>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Id</code></td><td>string[]</td><td>Yes</td><td>Taxonomy node ID patterns (supports wildcards)</td></tr>
-    </table>
-<pre>
-Find-AITSource -Id 'skp-intentions-005'
-Find-AITSource -Id 'skp-methods*'
-Find-AITSource -Id 'acc-desires-001','saf-beliefs-002'
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Get-TaxonomyHealth</h4>
-    <div class="synopsis">Displays a diagnostic report on taxonomy coverage and usage across all summaries.</div>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-RepoRoot</code></td><td>string</td><td>No</td><td>Path to the repository root</td></tr>
-      <tr><td><code>-OutputFile</code></td><td>string</td><td>No</td><td>Write full health data as JSON to this path</td></tr>
-      <tr><td><code>-Detailed</code></td><td>switch</td><td>No</td><td>Show per-node and per-document breakdowns</td></tr>
-      <tr><td><code>-PassThru</code></td><td>switch</td><td>No</td><td>Return the health data hashtable for piping</td></tr>
-    </table>
-<pre>
-Get-TaxonomyHealth
-Get-TaxonomyHealth -Detailed -OutputFile health.json
-$h = Get-TaxonomyHealth -PassThru
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Invoke-TaxonomyProposal</h4>
-    <div class="synopsis">Uses AI to generate structured taxonomy improvement proposals based on health data.</div>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-3.1-flash-lite-preview</code></td></tr>
-      <tr><td><code>-Temperature</code></td><td>double</td><td>No</td><td>Sampling temperature (0.0&ndash;1.0). Default: 0.3</td></tr>
-      <tr><td><code>-DryRun</code></td><td>switch</td><td>No</td><td>Show prompt without API calls</td></tr>
-      <tr><td><code>-OutputFile</code></td><td>string</td><td>No</td><td>Path for proposal JSON. Default: <code>taxonomy/proposals/proposal-{timestamp}.json</code></td></tr>
-      <tr><td><code>-HealthData</code></td><td>hashtable</td><td>No</td><td>Pre-computed health data from <code>Get-TaxonomyHealth -PassThru</code></td></tr>
-    </table>
-<pre>
-Invoke-TaxonomyProposal -DryRun
-$h = Get-TaxonomyHealth -PassThru
-Invoke-TaxonomyProposal -HealthData $h
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Approve-TaxonomyProposal</h4>
-    <div class="synopsis">Interactively reviews and applies taxonomy improvement proposals.</div>
-    <p>Loads a proposal JSON file generated by <code>Invoke-TaxonomyProposal</code> and
-    presents each proposal for approval. Approved proposals are applied directly to
-    the taxonomy JSON files.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Path</code></td><td>string</td><td>Yes</td><td>Path to the proposal JSON file</td></tr>
-      <tr><td><code>-Interactive</code></td><td>switch</td><td>No</td><td>Review all pending proposals one by one</td></tr>
-      <tr><td><code>-Index</code></td><td>int</td><td>No</td><td>Target a specific proposal by zero-based index</td></tr>
-      <tr><td><code>-Approve</code></td><td>switch</td><td>No</td><td>Apply the proposal at <code>-Index</code></td></tr>
-      <tr><td><code>-Reject</code></td><td>switch</td><td>No</td><td>Reject the proposal at <code>-Index</code></td></tr>
-      <tr><td><code>-DryRun</code></td><td>switch</td><td>No</td><td>Show what each proposal would do without writing changes</td></tr>
-    </table>
-<pre>
-Approve-TaxonomyProposal -Path taxonomy/proposals/proposal-2026-03-14.json -Interactive
-Approve-TaxonomyProposal -Path taxonomy/proposals/proposal-2026-03-14.json -Index 0 -Approve
-Approve-TaxonomyProposal -Path taxonomy/proposals/proposal-2026-03-14.json -Index 2 -Reject
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Invoke-AttributeExtraction</h4>
-    <div class="synopsis">Uses AI to generate rich graph attributes for taxonomy nodes (Phase 1 of LLM Attribute Graphs).</div>
-    <p>Reads taxonomy JSON files, sends nodes in batches to an LLM, and writes
-    <code>graph_attributes</code> back to each node. Attributes include epistemic_type,
-    rhetorical_strategy, assumes, falsifiability, audience, emotional_register,
-    policy_actionability, intellectual_lineage, and steelman_vulnerability.
-    Nodes that already have attributes are skipped unless <code>-Force</code> is specified.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-POV</code></td><td>string</td><td>No</td><td>Process only this POV file. Default: all four</td></tr>
-      <tr><td><code>-BatchSize</code></td><td>int</td><td>No</td><td>Nodes per API call (1&ndash;20). Default: 8</td></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-3.1-flash-lite</code></td></tr>
-      <tr><td><code>-ApiKey</code></td><td>string</td><td>No</td><td>Explicit API key override</td></tr>
-      <tr><td><code>-Temperature</code></td><td>double</td><td>No</td><td>Sampling temperature (0.0&ndash;1.0). Default: 0.2</td></tr>
-      <tr><td><code>-DryRun</code></td><td>switch</td><td>No</td><td>Show first batch prompt without calling AI</td></tr>
-      <tr><td><code>-Force</code></td><td>switch</td><td>No</td><td>Regenerate attributes even if already present</td></tr>
-    </table>
-<pre>
-Invoke-AttributeExtraction -DryRun
-Invoke-AttributeExtraction -POV accelerationist
-Invoke-AttributeExtraction -Force -Model gemini-2.5-pro
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Find-PolicyAction</h4>
-    <div class="synopsis">Uses AI to identify concrete policy actions implied by taxonomy nodes.</div>
-    <p>Sends taxonomy nodes to an LLM to generate specific, actionable policy recommendations
-    (5&ndash;15 words each) that each node's claim supports or implies. Results are stored in
-    <code>graph_attributes.policy_actions</code>. Nodes that are purely theoretical get an
-    empty array.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-POV</code></td><td>string</td><td>No</td><td>Process only this POV. Default: all four</td></tr>
-      <tr><td><code>-Id</code></td><td>string[]</td><td>No</td><td>One or more node IDs to analyse</td></tr>
-      <tr><td><code>-BatchSize</code></td><td>int</td><td>No</td><td>Nodes per API call (1&ndash;20). Default: 8</td></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model override</td></tr>
-      <tr><td><code>-Temperature</code></td><td>double</td><td>No</td><td>Sampling temperature (0.0&ndash;1.0). Default: 0.2</td></tr>
-      <tr><td><code>-DryRun</code></td><td>switch</td><td>No</td><td>Show first batch prompt without calling the API</td></tr>
-      <tr><td><code>-Force</code></td><td>switch</td><td>No</td><td>Re-analyse nodes that already have policy_actions</td></tr>
-    </table>
-<pre>
-Find-PolicyAction -DryRun
-Find-PolicyAction -POV accelerationist
-Find-PolicyAction -Id acc-desires-001, saf-desires-001
-Find-PolicyAction -Force -Model 'groq-llama-4-scout'
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Find-PossibleFallacy</h4>
-    <div class="synopsis">Uses AI to identify possible logical fallacies in taxonomy nodes.</div>
-    <p>Sends taxonomy nodes to an LLM to analyse their reasoning for potential logical
-    fallacies or cognitive biases. Results are stored in
-    <code>graph_attributes.possible_fallacies</code>. Each flagged fallacy includes a
-    confidence level (likely, possible, borderline) and a specific explanation.
-    Use <code>Show-FallacyInfo</code> to open the Wikipedia page for any identified fallacy.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-POV</code></td><td>string</td><td>No</td><td>Process only this POV. Default: all four</td></tr>
-      <tr><td><code>-Id</code></td><td>string[]</td><td>No</td><td>One or more node IDs to analyse</td></tr>
-      <tr><td><code>-BatchSize</code></td><td>int</td><td>No</td><td>Nodes per API call (1&ndash;20). Default: 8</td></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-3.1-flash-lite</code></td></tr>
-      <tr><td><code>-Temperature</code></td><td>double</td><td>No</td><td>Sampling temperature (0.0&ndash;1.0). Default: 0.2</td></tr>
-      <tr><td><code>-DryRun</code></td><td>switch</td><td>No</td><td>Show first batch prompt without calling the API</td></tr>
-      <tr><td><code>-Force</code></td><td>switch</td><td>No</td><td>Re-analyse nodes that already have possible_fallacies</td></tr>
-    </table>
-<pre>
-Find-PossibleFallacy -DryRun
-Find-PossibleFallacy -POV accelerationist
-Find-PossibleFallacy -Id acc-desires-001, saf-desires-001
-Find-PossibleFallacy -Force -Model 'gemini-2.5-pro'
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Show-FallacyInfo</h4>
-    <div class="synopsis">Opens the Wikipedia page for a logical fallacy in the default browser.</div>
-    <p>Looks up a fallacy name in the built-in catalog (59 fallacies across informal,
-    formal, and cognitive-bias categories) and opens its Wikipedia article. Supports
-    exact catalog keys (e.g. <code>slippery_slope</code>), display names (e.g.
-    <code>Slippery Slope</code>), or partial matches. Use <code>-Summary</code> to also
-    show which taxonomy nodes have been flagged for that fallacy.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Name</code></td><td>string</td><td>No*</td><td>Fallacy name to look up (exact key, display name, or partial match)</td></tr>
-      <tr><td><code>-List</code></td><td>switch</td><td>No*</td><td>List all 59 fallacies in the catalog grouped by category</td></tr>
-      <tr><td><code>-Summary</code></td><td>switch</td><td>No</td><td>Also show which taxonomy nodes are flagged for this fallacy</td></tr>
-      <tr><td><code>-NoBrowser</code></td><td>switch</td><td>No</td><td>Display the URL without opening the browser</td></tr>
-    </table>
-<pre>
-Show-FallacyInfo slippery_slope
-Show-FallacyInfo 'Straw Man'
-Show-FallacyInfo cherry -NoBrowser        # partial match
-Show-FallacyInfo false_dilemma -Summary   # show flagged nodes
-Show-FallacyInfo -List                    # list all 59 fallacies
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Invoke-EdgeDiscovery</h4>
-    <div class="synopsis">Uses AI to discover typed edges between taxonomy nodes (Phase 2 of LLM Attribute Graphs).</div>
-    <p>For each taxonomy node, sends the node plus the full candidate list to an LLM,
-    which proposes typed, directed edges (SUPPORTS, CONTRADICTS, ASSUMES, WEAKENS,
-    RESPONDS_TO, TENSION_WITH, CITES, INTERPRETS, SUPPORTED_BY) with confidence
-    scores and rationale. Proposed edges require human approval via <code>Approve-Edge</code>.
-    Stores results in <code>taxonomy/Origin/edges.json</code>.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-POV</code></td><td>string</td><td>No</td><td>Process only nodes from this POV. Default: all four</td></tr>
-      <tr><td><code>-NodeId</code></td><td>string</td><td>No</td><td>Process only this specific node ID</td></tr>
-      <tr><td><code>-StaleOnly</code></td><td>switch</td><td>No</td><td>Only process nodes marked STALE</td></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-3.1-flash-lite</code></td></tr>
-      <tr><td><code>-ApiKey</code></td><td>string</td><td>No</td><td>Explicit API key override</td></tr>
-      <tr><td><code>-Temperature</code></td><td>double</td><td>No</td><td>Sampling temperature (0.0&ndash;1.0). Default: 0.3</td></tr>
-      <tr><td><code>-DryRun</code></td><td>switch</td><td>No</td><td>Show first node prompt without calling AI</td></tr>
-      <tr><td><code>-Force</code></td><td>switch</td><td>No</td><td>Re-discover edges even for already-processed nodes</td></tr>
-    </table>
-<pre>
-Invoke-EdgeDiscovery -DryRun
-Invoke-EdgeDiscovery -POV accelerationist
-Invoke-EdgeDiscovery -StaleOnly
-Invoke-EdgeDiscovery -NodeId "acc-desires-001" -Force
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Get-GraphNode</h4>
-    <div class="synopsis">Retrieves a taxonomy node with its edges and graph attributes.</div>
-    <p>Loads a node by ID and returns it enriched with all inbound and outbound
-    edges from <code>edges.json</code>. Supports BFS traversal to a specified depth.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Id</code></td><td>string</td><td>Yes</td><td>Node ID (e.g., <code>acc-desires-001</code>)</td></tr>
-      <tr><td><code>-Depth</code></td><td>int</td><td>No</td><td>BFS traversal hops (0&ndash;5). Default: 1</td></tr>
-      <tr><td><code>-EdgeType</code></td><td>string</td><td>No</td><td>Filter to this edge type only</td></tr>
-      <tr><td><code>-Status</code></td><td>string</td><td>No</td><td>Filter by edge status: proposed, approved, rejected</td></tr>
-    </table>
-<pre>
-Get-GraphNode -Id "saf-desires-001"
-Get-GraphNode -Id "acc-desires-001" -Depth 2 -EdgeType TENSION_WITH
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Find-GraphPath</h4>
-    <div class="synopsis">Finds shortest paths between two nodes in the taxonomy graph.</div>
-    <p>Uses BFS to find all shortest paths from one node to another,
-    traversing edges according to directionality rules.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-From</code></td><td>string</td><td>Yes</td><td>Source node ID</td></tr>
-      <tr><td><code>-To</code></td><td>string</td><td>Yes</td><td>Target node ID</td></tr>
-      <tr><td><code>-MaxHops</code></td><td>int</td><td>No</td><td>Max path length (1&ndash;10). Default: 4</td></tr>
-      <tr><td><code>-EdgeType</code></td><td>string</td><td>No</td><td>Only traverse this edge type</td></tr>
-      <tr><td><code>-Status</code></td><td>string</td><td>No</td><td>Only traverse edges with this status</td></tr>
-    </table>
-<pre>
-Find-GraphPath -From "acc-desires-001" -To "saf-desires-001"
-Find-GraphPath -From "acc-desires-001" -To "skp-intentions-003" -MaxHops 4
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Approve-Edge</h4>
-    <div class="synopsis">Approves or rejects proposed edges in the taxonomy graph.</div>
-    <p>Changes edge status in <code>edges.json</code> from 'proposed' to 'approved'
-    or 'rejected'. Supports individual edge operations or interactive review
-    of all proposed edges.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Index</code></td><td>int</td><td>No*</td><td>Zero-based edge index to approve/reject</td></tr>
-      <tr><td><code>-Approve</code></td><td>switch</td><td>No*</td><td>Set status to 'approved'</td></tr>
-      <tr><td><code>-Reject</code></td><td>switch</td><td>No*</td><td>Set status to 'rejected'</td></tr>
-      <tr><td><code>-Interactive</code></td><td>switch</td><td>No*</td><td>Review all proposed edges interactively</td></tr>
-    </table>
-<pre>
-Approve-Edge -Index 0 -Approve
-Approve-Edge -Index 5 -Reject
-Approve-Edge -Interactive
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Get-Edge</h4>
-    <div class="synopsis">Lists and filters edges in the taxonomy graph with rich wildcard support.</div>
-    <p>Reads <code>edges.json</code> and returns edges matching the specified criteria.
-    All string filters support wildcards. Multiple filters are AND-combined.
-    With no parameters, returns all edges sorted by confidence descending.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Source</code></td><td>string</td><td>No</td><td>Wildcard pattern matched against the source node ID</td></tr>
-      <tr><td><code>-Target</code></td><td>string</td><td>No</td><td>Wildcard pattern matched against the target node ID</td></tr>
-      <tr><td><code>-NodeId</code></td><td>string</td><td>No</td><td>Wildcard matched against either source or target node ID</td></tr>
-      <tr><td><code>-Type</code></td><td>string</td><td>No</td><td>Wildcard matched against edge type (e.g., <code>SUPPORTS</code>, <code>TENS*</code>)</td></tr>
-      <tr><td><code>-Status</code></td><td>string</td><td>No</td><td>Edge approval status: proposed, approved, rejected</td></tr>
-      <tr><td><code>-MinConfidence</code></td><td>double</td><td>No</td><td>Minimum confidence threshold (0.0&ndash;1.0). Default: 0.0</td></tr>
-      <tr><td><code>-MaxConfidence</code></td><td>double</td><td>No</td><td>Maximum confidence threshold (0.0&ndash;1.0). Default: 1.0</td></tr>
-      <tr><td><code>-Bidirectional</code></td><td>bool</td><td>No</td><td>Filter to bidirectional (<code>$true</code>) or directional (<code>$false</code>) edges</td></tr>
-      <tr><td><code>-CrossPov</code></td><td>bool</td><td>No</td><td>Filter to cross-POV (<code>$true</code>) or same-POV (<code>$false</code>) edges</td></tr>
-      <tr><td><code>-Strength</code></td><td>string</td><td>No</td><td>Wildcard matched against strength (strong, moderate, weak)</td></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>Wildcard matched against the discovering AI model</td></tr>
-      <tr><td><code>-Rationale</code></td><td>string</td><td>No</td><td>Wildcard matched against the rationale text</td></tr>
-      <tr><td><code>-SourcePov</code></td><td>string</td><td>No</td><td>Filter to edges whose source node belongs to this POV</td></tr>
-      <tr><td><code>-TargetPov</code></td><td>string</td><td>No</td><td>Filter to edges whose target node belongs to this POV</td></tr>
-      <tr><td><code>-DiscoveredAfter</code></td><td>string</td><td>No</td><td>Edges discovered on or after this date (yyyy-MM-dd)</td></tr>
-      <tr><td><code>-DiscoveredBefore</code></td><td>string</td><td>No</td><td>Edges discovered on or before this date (yyyy-MM-dd)</td></tr>
-      <tr><td><code>-Index</code></td><td>int</td><td>No</td><td>Return a specific edge by zero-based index</td></tr>
-      <tr><td><code>-First</code></td><td>int</td><td>No</td><td>Return only the first N matching edges</td></tr>
-    </table>
-<pre>
-Get-Edge -Source 'acc-desires-*'
-Get-Edge -NodeId 'saf-desires-001'
-Get-Edge -Type CONTRADICTS -Status approved
-Get-Edge -CrossPov $true -MinConfidence 0.9
-Get-Edge -Rationale '*existential*' -Type 'TENS*'
-Get-Edge -SourcePov safetyist -TargetPov accelerationist
-Get-Edge -Index 42
-Get-Edge -Type SUPPORTS -First 10
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Set-Edge</h4>
-    <div class="synopsis">Modifies properties of one or more edges in the taxonomy graph.</div>
-    <p>Updates edge properties in <code>edges.json</code>. Accepts edges by index or
-    from the pipeline (output of <code>Get-Edge</code>). Supports changing status,
-    confidence, strength, notes, and type. Uses <code>ShouldProcess</code> for safety.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Index</code></td><td>int</td><td>No*</td><td>Zero-based edge index (or pipe from <code>Get-Edge</code>)</td></tr>
-      <tr><td><code>-Status</code></td><td>string</td><td>No</td><td>New status: proposed, approved, rejected</td></tr>
-      <tr><td><code>-Confidence</code></td><td>double</td><td>No</td><td>New confidence value (0.0&ndash;1.0)</td></tr>
-      <tr><td><code>-Strength</code></td><td>string</td><td>No</td><td>New strength: strong, moderate, weak (empty to clear)</td></tr>
-      <tr><td><code>-Notes</code></td><td>string</td><td>No</td><td>New notes text (empty string to clear)</td></tr>
-      <tr><td><code>-Type</code></td><td>string</td><td>No</td><td>New edge type</td></tr>
-      <tr><td><code>-PassThru</code></td><td>switch</td><td>No</td><td>Return updated edge objects</td></tr>
-    </table>
-<pre>
-Set-Edge -Index 42 -Status approved
-Set-Edge -Index 10 -Notes 'Reviewed — strong relationship'
-Get-Edge -Type CONTRADICTS -Status proposed | Set-Edge -Status approved
-Get-Edge -NodeId 'acc-desires-001' -MinConfidence 0.9 | Set-Edge -Status approved
-Get-Edge -Source 'saf-*' -MinConfidence 0.85 | Set-Edge -Status approved -PassThru
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Invoke-GraphQuery</h4>
-    <div class="synopsis">Answers natural-language questions by reasoning over the taxonomy graph (Phase 3 of LLM Attribute Graphs).</div>
-    <p>Takes a natural-language question, loads the full taxonomy graph (nodes, attributes, edges),
-    and sends it to an LLM that reasons over the graph structure to produce a grounded answer
-    with referenced nodes, traced paths, and confidence scoring.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Question</code></td><td>string</td><td>Yes</td><td>Natural-language question to answer</td></tr>
-      <tr><td><code>-IncludeConflicts</code></td><td>switch</td><td>No</td><td>Include conflict data in graph context</td></tr>
-      <tr><td><code>-StatusFilter</code></td><td>string</td><td>No</td><td>Edge status filter: approved (default), proposed, rejected, all</td></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-3.1-flash-lite</code></td></tr>
-      <tr><td><code>-Temperature</code></td><td>double</td><td>No</td><td>Sampling temperature (0.0&ndash;1.0). Default: 0.3</td></tr>
-      <tr><td><code>-Raw</code></td><td>switch</td><td>No</td><td>Return raw JSON response instead of formatted output</td></tr>
-    </table>
-<pre>
-Invoke-GraphQuery "What assumptions does the safetyist position share with the accelerationist position?"
-Invoke-GraphQuery "Which claims have no empirical support?" -StatusFilter all
-Invoke-GraphQuery "How does the skeptic position respond to existential risk arguments?" -IncludeConflicts
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Get-ConflictEvolution</h4>
-    <div class="synopsis">Analyzes how conflicts evolve across sources using graph-aware reasoning.</div>
-    <p>For each conflict, loads linked taxonomy nodes and their graph edges, then
-    optionally uses an LLM to analyze convergence trends, key assumptions,
-    resolution paths, and evidence balance.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Id</code></td><td>string</td><td>No</td><td>Conflict ID (e.g., <code>conflict-agi-timelines-001</code>). Default: all</td></tr>
-      <tr><td><code>-Analyze</code></td><td>switch</td><td>No</td><td>Use LLM for deep analysis (without this, returns structured graph context)</td></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-3.1-flash-lite</code></td></tr>
-    </table>
-<pre>
-Get-ConflictEvolution
-Get-ConflictEvolution -Id "conflict-agi-timelines-001" -Analyze
-Get-ConflictEvolution -Analyze | Where-Object { $_.analysis.convergence_trend -eq 'diverging' }
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Show-GraphOverview</h4>
-    <div class="synopsis">Displays a structural overview of the taxonomy graph.</div>
-    <p>Computes graph statistics: node/edge counts by POV, edge type distribution,
-    confidence distribution, hub nodes, and orphan detection. Works directly from
-    JSON files (no Neo4j required).</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-StatusFilter</code></td><td>string</td><td>No</td><td>Edge status filter: approved (default), proposed, rejected, all</td></tr>
-    </table>
-<pre>
-Show-GraphOverview
-Show-GraphOverview -StatusFilter all
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Get-IngestionPriority</h4>
-    <div class="synopsis">Identifies and ranks research gaps to guide source ingestion priorities.</div>
-    <p>Scores taxonomy gaps by type (orphan nodes, one-sided conflicts, echo chambers,
-    coverage imbalance) and ranks them to suggest which sources should be ingested next.
-    Optionally calls an LLM to generate targeted search queries per gap.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-TopN</code></td><td>int</td><td>No</td><td>Number of top gaps to return (1&ndash;50). Default: 10</td></tr>
-      <tr><td><code>-POV</code></td><td>string</td><td>No</td><td>Filter to a single POV or <code>all</code> (default)</td></tr>
-      <tr><td><code>-OutputFile</code></td><td>string</td><td>No</td><td>Optional path to write results as JSON</td></tr>
-      <tr><td><code>-NoAI</code></td><td>switch</td><td>No</td><td>Skip LLM-generated search queries; return raw ranked gaps only</td></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model override</td></tr>
-    </table>
-<pre>
-Get-IngestionPriority -NoAI
-Get-IngestionPriority -TopN 5 -OutputFile priority.json
-Get-IngestionPriority -POV safetyist -TopN 3
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Find-CrossCuttingCandidates</h4>
-    <div class="synopsis">Discovers candidate cross-cutting concepts by clustering similar nodes across POVs.</div>
-    <p>Computes cross-POV pairwise cosine similarity from taxonomy embeddings, filters to
-    pairs above threshold, then classifies each pair using an NLI cross-encoder
-    (<code>cross-encoder/nli-deberta-v3-small</code>, local, no API required) as
-    <strong>entailment</strong> (genuine shared concept), <strong>neutral</strong>, or
-    <strong>contradiction</strong> (opposing positions on the same topic). Merges overlapping
-    pairs into groups, boosts scores for pairs with TENSION_WITH/CONTRADICTS edges or shared
-    attributes, then optionally calls an LLM to propose cross-cutting node labels and
-    interpretations. The NLI classification is passed to the LLM so it can distinguish
-    agreement clusters from tension clusters.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-TopN</code></td><td>int</td><td>No</td><td>Number of top candidates to return (1&ndash;30). Default: 10</td></tr>
-      <tr><td><code>-MinSimilarity</code></td><td>double</td><td>No</td><td>Cosine similarity threshold (0.50&ndash;0.95). Default: 0.60</td></tr>
-      <tr><td><code>-OutputFile</code></td><td>string</td><td>No</td><td>Optional path to write results as JSON</td></tr>
-      <tr><td><code>-NoAI</code></td><td>switch</td><td>No</td><td>Skip LLM labeling; return raw clusters only</td></tr>
-      <tr><td><code>-NoNLI</code></td><td>switch</td><td>No</td><td>Skip NLI cross-encoder verification (faster, but no contradiction detection)</td></tr>
-      <tr><td><code>-ShowSharedOnly</code></td><td>switch</td><td>No</td><td>Only show shared-concept clusters (entailment/neutral)</td></tr>
-      <tr><td><code>-ShowDebatesOnly</code></td><td>switch</td><td>No</td><td>Only show debate clusters (contradiction)</td></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model override</td></tr>
-    </table>
-<pre>
-Find-CrossCuttingCandidates -NoAI
-Find-CrossCuttingCandidates -MinSimilarity 0.80 -OutputFile cc.json
-Find-CrossCuttingCandidates -ShowSharedOnly -TopN 10
-Find-CrossCuttingCandidates -ShowDebatesOnly -TopN 10
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Show-TriadDialogue</h4>
-    <div class="synopsis">Simulates a structured three-agent debate grounded in the AI Triad taxonomy.</div>
-    <p>Runs a multi-round debate between <strong>Accelerationist</strong> (accelerationist),
-    <strong>Safetyist</strong> (safetyist), and <strong>Skeptic</strong> (skeptic). Each
-    agent's arguments are grounded in taxonomy nodes and edges. Produces opening statements,
-    N debate rounds, and a synthesis. Output is compatible with the Taxonomy Editor
-    Debates tab.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Topic</code></td><td>string</td><td>Yes</td><td>The debate topic</td></tr>
-      <tr><td><code>-Rounds</code></td><td>int</td><td>No</td><td>Number of debate rounds after opening statements (1&ndash;15). Default: 3</td></tr>
-      <tr><td><code>-OutputFile</code></td><td>string</td><td>No</td><td>Path to write debate JSON. Default: <code>debates/debate-&lt;guid&gt;.json</code></td></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-3.1-flash-lite</code></td></tr>
-    </table>
-<pre>
-Show-TriadDialogue "Should AI be regulated like a public utility?" -Rounds 2
-Show-TriadDialogue "Is open-source AI safer than closed-source?" -OutputFile debate.json
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Get-TopicFrequency</h4>
-    <div class="synopsis">Discovers the most common topics per POV camp by clustering taxonomy node citations.</div>
-    <p>Scans all summary JSONs, counts how often each taxonomy node is cited per POV camp,
-    clusters cited nodes by embedding similarity (agglomerative, average-linkage), then
-    ranks clusters by total citation count. Optionally calls an LLM to generate topic
-    labels and summaries for each cluster.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-TopN</code></td><td>int</td><td>No</td><td>Top topics to show per POV camp (1&ndash;20). Default: 5</td></tr>
-      <tr><td><code>-POV</code></td><td>string</td><td>No</td><td>Filter to a single POV camp or <code>all</code> (default)</td></tr>
-      <tr><td><code>-OutputFile</code></td><td>string</td><td>No</td><td>Optional path to write full results as JSON</td></tr>
-      <tr><td><code>-NoAI</code></td><td>switch</td><td>No</td><td>Skip LLM labeling; use highest-cited node label as cluster label</td></tr>
-      <tr><td><code>-IncludeFactualClaims</code></td><td>switch</td><td>No</td><td>Also count node references in factual_claims</td></tr>
-      <tr><td><code>-ClusterThreshold</code></td><td>double</td><td>No</td><td>Cosine similarity threshold for clustering (0.3&ndash;0.9). Default: 0.55</td></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model override</td></tr>
-    </table>
-<pre>
-Get-TopicFrequency -NoAI
-Get-TopicFrequency -TopN 3 -POV safetyist -OutputFile topics.json
-Get-TopicFrequency -IncludeFactualClaims -NoAI
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Compare-Taxonomy</h4>
-    <div class="synopsis">Visually compare two taxonomy directories side-by-side in an HTML report.</div>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-ReferenceDir</code></td><td>string</td><td>Yes</td><td>Path to the first (reference) taxonomy directory</td></tr>
-      <tr><td><code>-DifferenceDir</code></td><td>string</td><td>Yes</td><td>Path to the second (difference) taxonomy directory</td></tr>
-      <tr><td><code>-PassThru</code></td><td>switch</td><td>No</td><td>Return file path instead of opening browser</td></tr>
-    </table>
-<pre>
-Compare-Taxonomy ./taxonomy/Origin ./taxonomy/Proposed
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Invoke-PIIAudit</h4>
-    <div class="synopsis">Pre-public PII scanner for the AI Triad research repository.</div>
-    <p>No parameters. Scans for email addresses, phone numbers, private file paths, and fields that should only exist in a private rolodex.</p>
-<pre>
-Invoke-PIIAudit
-Invoke-PIIAudit -Verbose
-</pre>
-  </div>
-  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- UTILITIES                                                             -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="card cat-util" id="utilities">
-  <h2>Utilities</h2>
-
-  <div class="func">
-    <h4>Install-AITriadData</h4>
-    <div class="synopsis">Clones or updates the AI Triad data repository.</div>
-    <p>Ensures the <code>ai-triad-data</code> repository is available as a sibling to the code
-    repository. If missing, clones it from GitHub. If present, optionally pulls the latest
-    changes. The data repo contains taxonomy files, source documents, summaries, conflicts,
-    and debate sessions &mdash; everything the module and Electron apps need to operate.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Update</code></td><td>switch</td><td>No</td><td>Pull latest changes if the data repo already exists</td></tr>
-      <tr><td><code>-DataPath</code></td><td>string</td><td>No</td><td>Override clone destination. Default: path in <code>.aitriad.json</code></td></tr>
-      <tr><td><code>-RepoUrl</code></td><td>string</td><td>No</td><td>Override the git clone URL</td></tr>
-    </table>
-<pre>
-Install-AITriadData                         # Clone data repo as sibling directory
-Install-AITriadData -Update                 # Pull latest changes
-Install-AITriadData -DataPath ~/my-data     # Clone to a custom location
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Install-AIDependencies</h4>
-    <div class="synopsis">Verifies and optionally installs all dependencies for AI Triad Research.</div>
-    <p>Checks each dependency, runs a smoke test, and reports the result. Use <code>-Fix</code>
-    to automatically install missing components via the system package manager (brew, apt, winget).
-    Dependencies are grouped into REQUIRED, RECOMMENDED, and OPTIONAL tiers.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Fix</code></td><td>switch</td><td>No</td><td>Attempt to install missing dependencies automatically</td></tr>
-      <tr><td><code>-Quiet</code></td><td>switch</td><td>No</td><td>Only show warnings and failures, not passing checks</td></tr>
-      <tr><td><code>-SkipNode</code></td><td>switch</td><td>No</td><td>Skip Node.js and Electron app dependency checks</td></tr>
-      <tr><td><code>-SkipPython</code></td><td>switch</td><td>No</td><td>Skip Python and embedding dependency checks</td></tr>
-    </table>
-<pre>
-Install-AIDependencies
-Install-AIDependencies -Fix
-Install-AIDependencies -Quiet -SkipNode
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Test-Dependencies</h4>
-    <div class="synopsis">Tests whether all project dependencies are present, working, and up to date.</div>
-    <p>Runs smoke tests on all dependencies and checks for outdated packages.
-    Unlike <code>Install-AIDependencies</code>, this command never installs or updates anything
-    &mdash; it only reports what it finds. Flags installed-but-outdated npm and pip packages,
-    and stale embeddings files.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Quiet</code></td><td>switch</td><td>No</td><td>Only show warnings, failures, and outdated items</td></tr>
-      <tr><td><code>-SkipNode</code></td><td>switch</td><td>No</td><td>Skip Node.js and Electron app checks</td></tr>
-      <tr><td><code>-SkipPython</code></td><td>switch</td><td>No</td><td>Skip Python and embedding checks</td></tr>
-      <tr><td><code>-PassThru</code></td><td>switch</td><td>No</td><td>Return the results object for piping</td></tr>
-    </table>
-<pre>
-Test-Dependencies
-Test-Dependencies -Quiet
-$r = Test-Dependencies -PassThru; $r.Outdated
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Register-AIBackend</h4>
-    <div class="synopsis">Opens a local GUI to configure AI backend API keys and default model.</div>
-    <p>Launches a browser-based configuration panel on a local HTTP server. Shows existing
-    API keys (masked) and default model, lets you update them, validates keys with a live
-    smoke test, and persists settings to both the current session and <code>~/.aitriad-env</code>
-    (sourced from your shell profile). Configures: <code>GEMINI_API_KEY</code>,
-    <code>ANTHROPIC_API_KEY</code>, <code>GROQ_API_KEY</code>, <code>AI_MODEL</code>.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Port</code></td><td>int</td><td>No</td><td>Local HTTP port for the configuration UI. Default: 5199</td></tr>
-      <tr><td><code>-NoBrowser</code></td><td>switch</td><td>No</td><td>Don't auto-open the browser; just print the URL</td></tr>
-    </table>
-<pre>
-Register-AIBackend
-Register-AIBackend -Port 8888 -NoBrowser
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Save-AITSource</h4>
-    <div class="synopsis">Copies raw source documents to a target directory.</div>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Directory</code></td><td>string</td><td>Yes</td><td>Target directory (created if missing)</td></tr>
-      <tr><td><code>-DocId</code></td><td>string[]</td><td>Yes</td><td>Document IDs to copy (accepts pipeline input)</td></tr>
-    </table>
-<pre>
-Save-AITSource -Directory './export' -DocId 'ai-as-normal-technology-2026'
-Find-AITSource -Id 'skp-intentions-005' | Save-AITSource -Directory './export'
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Save-WaybackUrl</h4>
-    <div class="synopsis">Submits a URL to the Wayback Machine (Internet Archive) for archival.</div>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Url</code></td><td>string</td><td>Yes</td><td>The URL to submit</td></tr>
-    </table>
-<pre>
-Save-WaybackUrl -Url 'https://example.com/important-article'
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Update-Snapshot</h4>
-    <div class="synopsis">Re-generates snapshot.md for all existing sources using updated conversion logic.</div>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-DryRun</code></td><td>switch</td><td>No</td><td>Preview conversions without writing files</td></tr>
-    </table>
-<pre>
-Update-Snapshot
-Update-Snapshot -DryRun
-Redo-Snapshots          # backward-compatible alias
-</pre>
-  </div>
-  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- APP LAUNCHERS                                                         -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="card cat-app" id="launchers">
-  <h2>App Launchers</h2>
-
-  <p>All three Electron apps support <strong>Light</strong>, <strong>Dark</strong>,
-  <strong>BKC</strong> (Berkman Klein Center), and <strong>Auto</strong> (system preference) color schemes.
-  Theme selection is persisted across sessions.</p>
-
-  <div class="func">
-    <h4>Show-TaxonomyEditor</h4>
-    <div class="synopsis">Launches the Taxonomy Editor Electron app.</div>
-    <p>Features: node editing, semantic search, "Analyze Distinction" AI comparison,
-    taxonomy proposals, graph attribute display. Right-click any Rhetorical Strategy
-    badge to view its definition, examples, and frequency in a side panel.
-    Default AI model: <code>gemini-3.1-flash-lite-preview</code> (configurable in Settings).
-    Embeddings use pre-computed local vectors from <code>embeddings.json</code>; saving a node
-    automatically re-computes its embedding via <code>all-MiniLM-L6-v2</code>.</p>
-    <p>Alias: <code>TaxonomyEditor</code></p>
-<pre>
-Show-TaxonomyEditor
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Show-POViewer</h4>
-    <div class="synopsis">Launches the POV Viewer Electron app.</div>
-    <p>Alias: <code>POViewer</code></p>
-<pre>
-Show-POViewer
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Show-SummaryViewer</h4>
-    <div class="synopsis">Launches the Summary Viewer Electron app.</div>
-    <p>Features: source browsing, key-point exploration, document search with highlighting,
-    semantic similarity search. Embeddings use <code>gemini-embedding-001</code> via Gemini API.</p>
-    <p>Alias: <code>SummaryViewer</code></p>
-<pre>
-Show-SummaryViewer
-</pre>
-  </div>
-
-  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- LLM ATTRIBUTE GRAPH                                                   -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="card cat-analysis" id="attribute-graph">
-  <h2>LLM Attribute Graph</h2>
-
-  <p>The <strong>LLM Attribute Graph</strong> (LAG) enriches the taxonomy with AI-generated
-  analytical metadata and typed relationships between nodes. It is built in three phases:</p>
-
-  <h3>Phase 1 &mdash; Attribute Extraction</h3>
-  <p>Each taxonomy node is sent to an LLM in batches. The LLM returns a
-  <code>graph_attributes</code> object with nine analytical dimensions:</p>
-  <table>
-    <tr><th>Attribute</th><th>Description</th></tr>
-    <tr><td><code>epistemic_type</code></td><td>Empirical claim, normative argument, prediction, definition, etc.</td></tr>
-    <tr><td><code>rhetorical_strategy</code></td><td>Appeal to authority, analogy, reductio ad absurdum, etc.</td></tr>
-    <tr><td><code>assumes</code></td><td>Unstated premises the node depends on</td></tr>
-    <tr><td><code>falsifiability</code></td><td>How the claim could be tested or refuted</td></tr>
-    <tr><td><code>audience</code></td><td>Intended audience (policymakers, researchers, general public)</td></tr>
-    <tr><td><code>emotional_register</code></td><td>Urgent, measured, dismissive, optimistic, etc.</td></tr>
-    <tr><td><code>policy_actionability</code></td><td>How directly the position maps to policy</td></tr>
-    <tr><td><code>intellectual_lineage</code></td><td>Thinkers, movements, or traditions the position draws from</td></tr>
-    <tr><td><code>steelman_vulnerability</code></td><td>The strongest objection even a sympathizer might raise</td></tr>
-  </table>
-  <p>See <code>docs/rhetorical-strategies.md</code> for detailed descriptions, examples,
-  and POV frequency breakdowns for each of the 14 rhetorical strategies. In the
-  Taxonomy Editor, right-click any Rhetorical Strategy badge to view this information
-  in a side panel.</p>
-<pre>
-# Extract attributes for all nodes (skips already-attributed nodes)
-Invoke-AttributeExtraction
-
-# Extract for a single POV
-Invoke-AttributeExtraction -POV safetyist
-
-# Preview without calling the AI
-Invoke-AttributeExtraction -DryRun
-</pre>
-
-  <h3>Phase 2 &mdash; Edge Discovery</h3>
-  <p>For each node, the LLM proposes typed, directed edges to other nodes. Edge types include:
-  <code>SUPPORTS</code>, <code>CONTRADICTS</code>, <code>ASSUMES</code>, <code>WEAKENS</code>,
-  <code>RESPONDS_TO</code>, <code>TENSION_WITH</code>, <code>CITES</code>, <code>INTERPRETS</code>,
-  <code>SUPPORTED_BY</code>, and LLM-proposed types like <code>REITERATES</code>,
-  <code>HIGHLIGHTS_VULNERABILITY_TO</code>, <code>PREVENTS_NEED_FOR</code>. Each edge carries a
-  confidence score (0&ndash;1) and a rationale. Proposed edges require human approval via
-  <code>Approve-Edge</code> or the Edge Viewer app.</p>
-<pre>
-# Discover edges for all nodes
-Invoke-EdgeDiscovery
-
-# Review and approve edges interactively
-Approve-Edge -Interactive
-
-# Or use the Edge Browser panel in Taxonomy Editor
-Show-TaxonomyEditor
-</pre>
-
-  <h3>Phase 3 &mdash; Graph Queries &amp; Export</h3>
-  <p>Once the graph is populated, you can query it with natural language, analyze conflict
-  evolution across the graph, view structural statistics, and export to Neo4j for
-  interactive visualization.</p>
-<pre>
-# Ask questions that reason over the graph
-Invoke-GraphQuery "What assumptions does the safetyist position share with the accelerationist position?"
-
-# Analyze how conflicts evolve with graph context
-Get-ConflictEvolution -Analyze
-
-# View graph statistics
-Show-GraphOverview
-
-# Export to Neo4j (see Graph Database section below)
-Export-TaxonomyToGraph -Full
-</pre>
-
-  <h3>Getting Started with the Graph</h3>
-  <ol>
-    <li>Import the module: <code>Import-Module ./scripts/AITriad -Force</code></li>
-    <li>Ensure attributes exist: <code>Invoke-AttributeExtraction -DryRun</code> (run without <code>-DryRun</code> to extract)</li>
-    <li>Discover edges: <code>Invoke-EdgeDiscovery</code></li>
-    <li>Review edges: <code>Approve-Edge -Interactive</code> or the Edge Browser panel in Taxonomy Editor</li>
-    <li>Query the graph: <code>Invoke-GraphQuery "your question here"</code></li>
-    <li>View stats: <code>Show-GraphOverview</code></li>
-  </ol>
-
-  <h3>Edge Browser (Taxonomy Editor)</h3>
-  <p>Edge browsing, filtering, and approval is available as a toolbar panel inside the
-  Taxonomy Editor (<code>Show-TaxonomyEditor</code>). Filter by source/target POV, edge type,
-  status, and confidence threshold. Supports bulk approve/reject of filtered edge sets.
-  For CLI-only workflows, use <code>Approve-Edge -Interactive</code>.</p>
-
-  <h3>Phase 4 &mdash; Active Discovery</h3>
-  <p>Phase 4 adds research gap analysis, cross-cutting discovery, structured debate simulation,
-  and topic clustering. See the <a href="#analysis">Analysis</a> section for full parameter documentation.</p>
-<pre>
-# Rank research gaps and get AI-suggested search queries
-Get-IngestionPriority -TopN 5
-
-# Discover candidate cross-cutting concepts across POVs
-Find-CrossCuttingCandidates -MinSimilarity 0.65
-
-# Run a structured three-agent debate
-Show-TriadDialogue "Should AI development be slowed?" -Rounds 3
-
-# Find the most-cited topic clusters per POV camp
-Get-TopicFrequency -TopN 3
-</pre>
-
-  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- GRAPH DATABASE                                                        -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="card cat-util" id="graphdb">
-  <h2>Graph Database (Neo4j)</h2>
-
-  <p>The taxonomy graph can be exported to a Neo4j instance for interactive
-  visualization and Cypher queries. The Neo4j database is a <strong>read-only
-  derived view</strong> &mdash; all edits happen in the JSON files. Requires Docker.</p>
-
-  <div class="func">
-    <h4>Install-GraphDatabase</h4>
-    <div class="synopsis">Sets up a Neo4j Community Edition instance via Docker.</div>
-    <p>Pulls and runs the Neo4j Docker container with persistent storage at
-    <code>~/ai-triad-graphdb/</code>. Exposes Bolt (7687) and HTTP Browser (7474).</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Force</code></td><td>switch</td><td>No</td><td>Remove and recreate existing container</td></tr>
-      <tr><td><code>-Password</code></td><td>string</td><td>No</td><td>Neo4j password. Falls back to <code>NEO4J_PASSWORD</code> env var, then <code>aitriad2026</code></td></tr>
-      <tr><td><code>-DataPath</code></td><td>string</td><td>No</td><td>Persistent storage path. Default: <code>~/ai-triad-graphdb</code></td></tr>
-    </table>
-<pre>
-Install-GraphDatabase
-Install-GraphDatabase -Force -Password 'mypassword'
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Export-TaxonomyToGraph</h4>
-    <div class="synopsis">Exports the taxonomy graph to Neo4j for visualization and Cypher queries.</div>
-    <p>Reads all taxonomy JSON files, edges.json, summaries, and conflicts,
-    then creates/updates nodes and relationships in Neo4j.</p>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Full</code></td><td>switch</td><td>No</td><td>Clear and rebuild the entire graph</td></tr>
-      <tr><td><code>-IncludeEmbeddings</code></td><td>switch</td><td>No</td><td>Include 384-dim embedding vectors as node properties</td></tr>
-      <tr><td><code>-Uri</code></td><td>string</td><td>No</td><td>Neo4j Bolt URI. Default: <code>bolt://localhost:7687</code></td></tr>
-      <tr><td><code>-Credential</code></td><td>PSCredential</td><td>No</td><td>Neo4j credentials</td></tr>
-    </table>
-<pre>
-Export-TaxonomyToGraph -Full
-Export-TaxonomyToGraph -Full -IncludeEmbeddings
-</pre>
-  </div>
-
-  <div class="func">
-    <h4>Invoke-CypherQuery</h4>
-    <div class="synopsis">Runs a Cypher query against Neo4j and returns structured results.</div>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Query</code></td><td>string</td><td>Yes</td><td>Cypher query string</td></tr>
-      <tr><td><code>-Parameters</code></td><td>hashtable</td><td>No</td><td>Query parameters (referenced as <code>$paramName</code> in Cypher)</td></tr>
-      <tr><td><code>-Uri</code></td><td>string</td><td>No</td><td>Neo4j Bolt URI. Default: <code>bolt://localhost:7687</code></td></tr>
-      <tr><td><code>-Raw</code></td><td>switch</td><td>No</td><td>Return raw API response</td></tr>
-    </table>
-<pre>
-Invoke-CypherQuery "MATCH (n:TaxonomyNode) RETURN n.id, n.label LIMIT 10"
-Invoke-CypherQuery "MATCH (a)-[r:TENSION_WITH]->(b) RETURN a.label, b.label, r.confidence"
-Invoke-CypherQuery "MATCH (n {pov: `$pov}) RETURN n.id" -Parameters @{ pov = 'safetyist' }
-</pre>
-  </div>
-  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- HELP                                                                  -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="card cat-help" id="help">
-  <h2>Help</h2>
-
-  <div class="func">
-    <h4>Show-AITriadHelp</h4>
-    <div class="synopsis">Generates this HTML reference page and opens it in the default browser.</div>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-PassThru</code></td><td>switch</td><td>No</td><td>Return file path instead of opening browser</td></tr>
-    </table>
-<pre>
-Show-AITriadHelp
-Show-AITriadHelp -PassThru
-</pre>
-  </div>
-  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- ALIASES                                                               -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="card" id="aliases">
-  <h2>Aliases</h2>
-  <table>
-    <tr><th>Alias</th><th>Target Function</th></tr>
-    <tr><td><code>Import-Document</code></td><td><code>Import-AITriadDocument</code></td></tr>
-    <tr><td><code>TaxonomyEditor</code></td><td><code>Show-TaxonomyEditor</code></td></tr>
-    <tr><td><code>POViewer</code></td><td><code>Show-POViewer</code></td></tr>
-    <tr><td><code>SummaryViewer</code></td><td><code>Show-SummaryViewer</code></td></tr>
-    <tr><td><code>Redo-Snapshots</code></td><td><code>Update-Snapshot</code></td></tr>
-  </table>
-  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- SUPPORTED AI MODELS                                                   -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="card" id="models">
-  <h2>Supported AI Models</h2>
-
-  <h3>Gemini (Google)</h3>
-  <table>
-    <tr><th>Model Name</th><th>API Model ID</th><th>Note</th></tr>
-    <tr><td><code>gemini-3.1-flash-lite-preview</code></td><td>gemini-3.1-flash-lite-preview</td><td><strong>Default</strong></td></tr>
-    <tr><td><code>gemini-3.1-flash-lite</code></td><td>gemini-3.1-flash-lite</td><td></td></tr>
-    <tr><td><code>gemini-3.1-flash-lite-lite</code></td><td>gemini-3.1-flash-lite-lite</td><td></td></tr>
-    <tr><td><code>gemini-2.5-pro</code></td><td>gemini-2.5-pro</td><td></td></tr>
-  </table>
-
-  <h3>Claude (Anthropic)</h3>
-  <table>
-    <tr><th>Model Name</th><th>API Model ID</th></tr>
-    <tr><td><code>claude-opus-4</code></td><td>claude-opus-4-20250514</td></tr>
-    <tr><td><code>claude-sonnet-4-5</code></td><td>claude-sonnet-4-5-20250514</td></tr>
-    <tr><td><code>claude-haiku-3.5</code></td><td>claude-3-5-haiku-20241022</td></tr>
-  </table>
-  <p><em>Note:</em> Claude 4.6 models (Opus 4.6, Sonnet 4.6) are available via the Anthropic API.
-  Use model IDs <code>claude-opus-4-6</code> and <code>claude-sonnet-4-6</code>.</p>
-
-  <h3>Embedding Models</h3>
-  <table>
-    <tr><th>Context</th><th>Model</th><th>Dimensions</th></tr>
-    <tr><td>PowerShell CLI (<code>Get-Tax -Similar</code>)</td><td><code>all-MiniLM-L6-v2</code> (local)</td><td>384</td></tr>
-    <tr><td>Taxonomy Editor</td><td><code>all-MiniLM-L6-v2</code> (local, via <code>embeddings.json</code>)</td><td>384</td></tr>
-    <tr><td>Summary Viewer</td><td><code>gemini-embedding-001</code> (API)</td><td>768</td></tr>
-  </table>
-  <p>All embedding systems encode the taxonomy node <strong>description only</strong> for POV nodes.
-  Cross-cutting nodes in the Taxonomy Editor additionally include POV interpretations.
-  Conflict nodes include claim label, description, and human notes.</p>
-
-  <h3>Groq</h3>
-  <table>
-    <tr><th>Model Name</th><th>API Model ID</th></tr>
-    <tr><td><code>groq-llama-3.3-70b</code></td><td>llama-3.3-70b-versatile</td></tr>
-    <tr><td><code>groq-llama-4-scout</code></td><td>meta-llama/llama-4-scout-17b-16e-instruct</td></tr>
-  </table>
-  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- CI/CD WORKFLOW                                                        -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="card" id="cicd">
-  <h2>CI/CD Workflow</h2>
-  <p>
-    The <code>batch-summarize.yml</code> GitHub Actions workflow triggers on pushes
-    to <code>main</code> that modify the <code>TAXONOMY_VERSION</code> file.
-    It runs <code>Invoke-BatchSummary</code> on an Ubuntu runner with a
-    120-minute timeout to re-process documents affected by taxonomy changes.
-  </p>
-<pre>
-# Trigger: push to main with changes to TAXONOMY_VERSION
-# Runner:  ubuntu-latest
-# Timeout: 120 minutes
-</pre>
-  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- ENVIRONMENT VARIABLES                                                 -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="card" id="envvars">
-  <h2>Environment Variables</h2>
-  <table>
-    <tr><th>Variable</th><th>Purpose</th></tr>
-    <tr><td><code>AI_API_KEY</code></td><td>Universal fallback API key (used if backend-specific key is not set)</td></tr>
-    <tr><td><code>AI_MODEL</code></td><td>Override default model (e.g., <code>claude-sonnet-4-5</code>)</td></tr>
-    <tr><td><code>GEMINI_API_KEY</code></td><td>Google Gemini API key</td></tr>
-    <tr><td><code>ANTHROPIC_API_KEY</code></td><td>Anthropic Claude API key</td></tr>
-    <tr><td><code>GROQ_API_KEY</code></td><td>Groq API key</td></tr>
-  </table>
-  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
-</div>
-
-<div class="footer">
-  Generated by <code>Show-AITriadHelp</code> &middot; AITriad v{{VERSION}}
-</div>
-
-</div>
+<footer>
+  {{COUNT}} cmdlets in {{CATCOUNT}} categories &middot; AITriad v{{VERSION}} &middot; generated {{GENERATED}} &middot;
+  auto-built by <span class="mono">Show-AITriadHelp</span>
+</footer>
+
+<script type="application/json" id="aitriad-data">{{DATA_JSON}}</script>
+<script>
+(function () {
+  'use strict';
+  var DATA = JSON.parse(document.getElementById('aitriad-data').textContent);
+  var CMD = DATA.cmdlets, ORDER = DATA.categoryOrder, CATS = DATA.categories;
+  var TOTAL = Object.keys(CMD).length;
+
+  var sidebar = document.getElementById('sidebar');
+  var list = document.getElementById('list');
+  var search = document.getElementById('search');
+  var resultCount = document.getElementById('result-count');
+  var noResults = document.getElementById('no-results');
+  var header = document.getElementById('header');
+
+  var rowEls = {};        // name -> row element
+  var nameSpanEls = {};   // name -> row-name span
+  var synSpanEls = {};    // name -> row-syn span
+  var secEls = {};        // category -> section element
+  var sideEls = {};       // category -> sidebar link
+  var sideCountEls = {};  // category -> count span
+  var headCountEls = {};  // category -> header count span
+
+  function slug(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
+  function esc(s) { s = (s == null) ? '' : String(s);
+    return s.replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+  function hl(s, term) {
+    s = (s == null) ? '' : String(s);
+    if (!term) return esc(s);
+    var i = s.toLowerCase().indexOf(term);
+    if (i < 0) return esc(s);
+    return esc(s.slice(0, i)) + '<mark>' + esc(s.slice(i, i + term.length)) + '</mark>' + esc(s.slice(i + term.length));
+  }
+  function el(tag, cls, txt) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (txt != null) e.textContent = txt;
+    return e;
+  }
+
+  function buildDetail(c) {
+    var d = el('div', 'row-detail');
+
+    d.appendChild(el('div', 'field-label', 'Synopsis'));
+    d.appendChild(el('p', 'synopsis-full', c.synopsis || '(no synopsis)'));
+
+    if (c.syntax) {
+      d.appendChild(el('div', 'field-label', 'Syntax'));
+      d.appendChild(el('pre', 'mono', c.syntax));
+    }
+
+    var params = c.parameters || [];
+    if (params.length) {
+      d.appendChild(el('div', 'field-label', 'Parameters'));
+      var tbl = el('table', 'params');
+      var thead = el('tr');
+      thead.appendChild(el('th', null, 'Name'));
+      thead.appendChild(el('th', null, 'Type'));
+      thead.appendChild(el('th', null, 'Description'));
+      tbl.appendChild(thead);
+      params.forEach(function (p) {
+        var tr = el('tr');
+        var nameCell = el('td', 'pname');
+        nameCell.textContent = '-' + p.name;
+        if (p.required) { var star = el('span', 'req-star', ' *'); nameCell.appendChild(star); }
+        tr.appendChild(nameCell);
+        tr.appendChild(el('td', 'ptype', p.type || ''));
+        tr.appendChild(el('td', null, p.description || ''));
+        tbl.appendChild(tr);
+      });
+      d.appendChild(tbl);
+      if (c.supportsShouldProcess) d.appendChild(el('div', 'sp-note', 'Supports -WhatIf and -Confirm.'));
+    } else if (c.supportsShouldProcess) {
+      d.appendChild(el('div', 'sp-note', 'Supports -WhatIf and -Confirm.'));
+    }
+
+    var ex = c.examples || [];
+    if (ex.length) {
+      d.appendChild(el('div', 'field-label', 'Examples'));
+      ex.forEach(function (e) {
+        var wrap = el('div', 'example');
+        wrap.appendChild(el('pre', 'mono', e.code || ''));
+        if (e.description) wrap.appendChild(el('p', 'ex-desc', e.description));
+        d.appendChild(wrap);
+      });
+    }
+
+    var links = c.links || [];
+    if (links.length) {
+      d.appendChild(el('div', 'field-label', 'See also'));
+      var sa = el('div', 'seealso');
+      links.forEach(function (lk, idx) {
+        if (idx > 0) sa.appendChild(el('span', 'sep', '·'));
+        if (CMD[lk]) {
+          var a = el('a', null, lk);
+          a.href = '#';
+          a.addEventListener('click', function (ev) { ev.preventDefault(); jumpTo(lk); });
+          sa.appendChild(a);
+        } else if (/^https?:\/\//i.test(lk)) {
+          var ext = el('a', null, lk); ext.href = lk; ext.target = '_blank'; ext.rel = 'noopener';
+          sa.appendChild(ext);
+        } else {
+          sa.appendChild(el('span', null, lk));
+        }
+      });
+      d.appendChild(sa);
+    }
+    return d;
+  }
+
+  function buildRow(name) {
+    var c = CMD[name];
+    var row = el('div', 'row'); row.id = 'cmd-' + name;
+    var head = el('div', 'row-head'); head.tabIndex = 0;
+    head.appendChild(el('span', 'tri', '▸'));
+    var nm = el('span', 'row-name'); nm.textContent = name;
+    var syn = el('span', 'row-syn'); syn.textContent = c.synopsis || '';
+    head.appendChild(nm); head.appendChild(syn);
+    row.appendChild(head);
+    row.appendChild(buildDetail(c));
+
+    function toggle() {
+      var willOpen = !row.classList.contains('open');
+      if (willOpen) {
+        // one open at a time within the same category
+        var sec = secEls[c.category];
+        if (sec) sec.querySelectorAll('.row.open').forEach(function (r) { r.classList.remove('open'); });
+      }
+      row.classList.toggle('open', willOpen);
+    }
+    head.addEventListener('click', toggle);
+    head.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(); }
+    });
+
+    rowEls[name] = row; nameSpanEls[name] = nm; synSpanEls[name] = syn;
+    return row;
+  }
+
+  function jumpTo(name) {
+    var row = rowEls[name];
+    if (!row) return;
+    var c = CMD[name];
+    var sec = secEls[c.category];
+    if (sec) sec.querySelectorAll('.row.open').forEach(function (r) { if (r !== row) r.classList.remove('open'); });
+    row.classList.add('open');
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function flash(sec) {
+    sec.classList.add('flash');
+    setTimeout(function () { sec.classList.remove('flash'); }, 220);
+  }
+
+  // Build sidebar + sections
+  ORDER.forEach(function (cat) {
+    var names = CATS[cat] || [];
+
+    var link = el('a', 'cat-link'); link.href = '#'; link.dataset.cat = cat;
+    link.appendChild(el('span', 'cat-name', cat));
+    var cnt = el('span', 'cat-count', String(names.length));
+    link.appendChild(cnt);
+    link.addEventListener('click', function (e) {
+      e.preventDefault();
+      var sec = secEls[cat];
+      if (sec) { sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); flash(sec); }
+    });
+    sidebar.appendChild(link);
+    sideEls[cat] = link; sideCountEls[cat] = cnt;
+
+    var sec = el('section', 'cat-section'); sec.id = 'sec-' + slug(cat); sec.dataset.cat = cat;
+    var h = el('h2', 'cat-header');
+    h.appendChild(el('span', null, cat));
+    var hc = el('span', 'cat-header-count', names.length + (names.length === 1 ? ' cmdlet' : ' cmdlets'));
+    h.appendChild(hc);
+    sec.appendChild(h);
+    names.forEach(function (n) { sec.appendChild(buildRow(n)); });
+    list.appendChild(sec);
+    secEls[cat] = sec; headCountEls[cat] = hc;
+  });
+
+  var totalNote = el('div', 'sidebar-total', TOTAL + ' cmdlets total');
+  sidebar.appendChild(totalNote);
+
+  // Search
+  function applyFilter(raw) {
+    var term = raw.trim().toLowerCase();
+    var shownTotal = 0;
+
+    ORDER.forEach(function (cat) {
+      var names = CATS[cat] || [];
+      var catShown = 0;
+      names.forEach(function (name) {
+        var c = CMD[name];
+        var hay = (name + ' ' + (c.synopsis || '') + ' ' +
+          (c.parameters || []).map(function (p) { return p.name; }).join(' ')).toLowerCase();
+        var match = !term || hay.indexOf(term) >= 0;
+        rowEls[name].hidden = !match;
+        if (match) {
+          catShown++; shownTotal++;
+          nameSpanEls[name].innerHTML = hl(name, term);
+          synSpanEls[name].innerHTML = hl(c.synopsis || '', term);
+        }
+      });
+      secEls[cat].hidden = (catShown === 0);
+      sideCountEls[cat].textContent = term ? String(catShown) : String(names.length);
+      sideEls[cat].classList.toggle('empty', term !== '' && catShown === 0);
+      headCountEls[cat].textContent = catShown + (catShown === 1 ? ' cmdlet' : ' cmdlets');
+    });
+
+    if (term) { resultCount.textContent = shownTotal + ' of ' + TOTAL; }
+    else { resultCount.textContent = ''; }
+    noResults.hidden = shownTotal !== 0;
+  }
+
+  search.addEventListener('input', function () { applyFilter(search.value); });
+  search.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { search.value = ''; applyFilter(''); }
+  });
+
+  // Active-category tracking via IntersectionObserver on section headers.
+  var headers = ORDER.map(function (cat) { return secEls[cat].querySelector('.cat-header'); });
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) {
+          var cat = en.target.closest('.cat-section').dataset.cat;
+          Object.keys(sideEls).forEach(function (k) { sideEls[k].classList.toggle('active', k === cat); });
+        }
+      });
+    }, { rootMargin: '-49px 0px -70% 0px', threshold: 0 });
+    headers.forEach(function (h) { if (h) io.observe(h); });
+  }
+
+  // Header shadow on scroll
+  window.addEventListener('scroll', function () {
+    header.classList.toggle('scrolled', window.scrollY > 4);
+  }, { passive: true });
+
+  // Focus search on '/'
+  document.addEventListener('keydown', function (e) {
+    if (e.key === '/' && document.activeElement !== search) { e.preventDefault(); search.focus(); }
+  });
+})();
+</script>
 </body>
 </html>
 '@
 
-    # Replace placeholders with live values
-    $Html = $Html -replace '{{VERSION}}',   $Version
-    $Html = $Html -replace '{{GENERATED}}', $Generated
+    # Literal substitutions (String.Replace, not -replace: the JSON blob and
+    # syntax lines contain '$' which -replace would treat as backreferences).
+    $Html = $Html.Replace('{{DATA_JSON}}', $DataJson)
+    $Html = $Html.Replace('{{VERSION}}',   $Version)
+    $Html = $Html.Replace('{{GENERATED}}', $Generated)
+    $Html = $Html.Replace('{{COUNT}}',     [string]$CmdletCount)
+    $Html = $Html.Replace('{{CATCOUNT}}',  [string]$CategoryCount)
 
     # Write to temp directory with a fixed filename
     $TempDir  = [System.IO.Path]::GetTempPath()
     $TempPath = Join-Path $TempDir 'AITriad-Help.html'
     Set-Content -Path $TempPath -Value $Html -Encoding utf8
-
-    # Copy hero image alongside HTML so the relative src works
-    $HeroSource = Join-Path (Join-Path $script:RepoRoot 'docs') 'AITriad-Module.png'
-    if (Test-Path $HeroSource) {
-        Copy-Item -Path $HeroSource -Destination (Join-Path $TempDir 'AITriad-Module.png') -Force
-    }
 
     if ($PassThru) {
         return $TempPath
