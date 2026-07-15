@@ -10,6 +10,7 @@ import type {
   DebateTestedEntry,
   DebateTestedRevision,
   PovNode,
+  ConcessionRecord,
 } from './taxonomyTypes.js';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge } from './types.js';
 
@@ -432,5 +433,109 @@ describe('harvestDebateTested fault injection', () => {
 
     expect(results).toHaveLength(1);
     expect(results[0].entry.strongest_attack_encountered).toBeNull();
+  });
+});
+
+// ── Bug regression tests (t/1575) ────────────────────────────────────────
+
+describe('t/1575 regression', () => {
+  const baseParams = () => ({
+    debateId: 'debate-100',
+    date: '2026-07-15',
+    pipelineVersion: '2026-07-abc123',
+    concessions: [] as ConcessionRecord[],
+    refinedNodeIds: new Set<string>(),
+    constants: DEBATE_TESTED_DEFAULTS,
+  });
+
+  it('debate-wide concession with no node linkage does NOT produce weakened verdict', () => {
+    const nodes = new Map([['saf-belief-001', makePovNode('saf-belief-001')]]);
+    const anNodes = [
+      anNode('c1', 'safetyist', ['saf-belief-001'], 0.6),
+      anNode('c2', 'accelerationist', [], 0.7),
+    ];
+    const anEdges = [anEdge('c2', 'c1')];
+    const concessions: ConcessionRecord[] = [{
+      debate_id: 'debate-100',
+      speaker: 'safetyist',
+      text: 'I concede on an unrelated point',
+      turn: 5,
+      conceded_to: 'some-other-node',
+      concession_type: 'full',
+      bdi_impact: 'belief',
+    }];
+
+    const results = harvestDebateTested({
+      ...baseParams(),
+      concessions,
+      injectionManifest: { povNodeIds: ['saf-belief-001'] },
+      anNodes, anEdges, taxonomyNodes: nodes,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].entry.verdict).not.toBe('weakened');
+    expect(results[0].entry.concession).toBeNull();
+  });
+
+  it('node-scoped concession in debate-wide array DOES produce weakened verdict', () => {
+    const nodes = new Map([['saf-belief-001', makePovNode('saf-belief-001')]]);
+    const anNodes = [
+      anNode('c1', 'safetyist', ['saf-belief-001'], 0.6),
+      anNode('c2', 'accelerationist', [], 0.7),
+    ];
+    const anEdges = [anEdge('c2', 'c1')];
+    const concessions: ConcessionRecord[] = [{
+      debate_id: 'debate-100',
+      speaker: 'safetyist',
+      text: 'I concede this belief',
+      turn: 5,
+      conceded_to: 'saf-belief-001',
+      concession_type: 'full',
+      bdi_impact: 'belief',
+    }];
+
+    const results = harvestDebateTested({
+      ...baseParams(),
+      concessions,
+      injectionManifest: { povNodeIds: ['saf-belief-001'] },
+      anNodes, anEdges, taxonomyNodes: nodes,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].entry.verdict).toBe('weakened');
+    expect(results[0].entry.concession).not.toBeNull();
+  });
+
+  it('held verdict does NOT flip held_since when description was edited externally', () => {
+    const originalDesc = 'Description of saf-belief-001';
+    const editedDesc = 'Manually edited description that differs from original';
+    const existingRecord = {
+      tier: 'contested' as const,
+      sort_key: 2.5,
+      engagements: 1, challenges: 0, held: 0, weakened: 0,
+      revisions: [{ date: '2026-07-01', debate_id: 'debate-050', held_since: null, prior_falsifiability: 'medium' }],
+      last_tested: '2026-07-01',
+      description_hash: computeDescriptionHash(originalDesc),
+      record: [entry({ debate_id: 'debate-050', verdict: 'refined', strongest_attack_encountered: null })],
+    };
+    const node = makePovNode('saf-belief-001', {
+      description: editedDesc,
+      graph_attributes: { falsifiability: 'high', debate_tested: existingRecord },
+    });
+    const nodes = new Map([['saf-belief-001', node]]);
+    const anNodes = [
+      anNode('c1', 'safetyist', ['saf-belief-001'], 0.6),
+      anNode('c2', 'accelerationist', [], 0.7),
+    ];
+    const anEdges = [anEdge('c2', 'c1')];
+
+    const results = harvestDebateTested({
+      ...baseParams(),
+      injectionManifest: { povNodeIds: ['saf-belief-001'] },
+      anNodes, anEdges, taxonomyNodes: nodes,
+    });
+
+    expect(results[0].entry.verdict).toBe('held');
+    expect(results[0].updatedRecord.revisions[0].held_since).toBeNull();
   });
 });

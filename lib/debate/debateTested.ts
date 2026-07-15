@@ -306,7 +306,7 @@ function classifyNodeClaims(
 }
 
 function findNodeConcession(
-  _nodeId: string,
+  nodeId: string,
   povNode: PovNode,
   concessions: ReadonlyArray<ConcessionRecord>,
 ): ConcessionRecord | null {
@@ -314,8 +314,10 @@ function findNodeConcession(
     const full = povNode.concession_history.find(c => c.concession_type === 'full' && c.bdi_impact === 'belief');
     if (full) return full;
   }
-  const full = concessions.find(c => c.concession_type === 'full' && c.bdi_impact === 'belief');
-  return full ?? null;
+  const nodeScoped = concessions.find(
+    c => c.concession_type === 'full' && c.bdi_impact === 'belief' && c.conceded_to === nodeId,
+  );
+  return nodeScoped ?? null;
 }
 
 function determineVerdict(
@@ -367,8 +369,11 @@ function mergeEntry(
   }
 
   if (entry.verdict === 'held' && revisions.length > 0) {
+    const currentHash = computeDescriptionHash(povNode.description);
+    const storedHash = existing?.description_hash;
     for (const rev of revisions) {
       if (rev.held_since !== null) continue;
+      if (storedHash && storedHash !== currentHash) continue;
       const currentFalsifiability = povNode.graph_attributes?.falsifiability;
       if (rev.prior_falsifiability &&
           falsifiabilityRank(currentFalsifiability) < falsifiabilityRank(rev.prior_falsifiability)) {
