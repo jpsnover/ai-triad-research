@@ -12,6 +12,10 @@ const FAST_CONFIG: RetryConfig = {
 };
 
 describe('withRetry — auth error fast-fail', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('does not retry HTTP 401 errors', async () => {
     let calls = 0;
     await expect(withRetry(async () => {
@@ -49,6 +53,7 @@ describe('withRetry — auth error fast-fail', () => {
   });
 
   it('still retries 429 rate limit errors', async () => {
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation((fn: Function) => { fn(); return 0 as unknown as ReturnType<typeof setTimeout>; });
     let calls = 0;
     await expect(withRetry(async () => {
       calls++;
@@ -76,6 +81,7 @@ describe('withRetry — auth error fast-fail', () => {
   });
 
   it('still retries "rate limit" errors', async () => {
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation((fn: Function) => { fn(); return 0 as unknown as ReturnType<typeof setTimeout>; });
     let calls = 0;
     await expect(withRetry(async () => {
       calls++;
@@ -85,6 +91,7 @@ describe('withRetry — auth error fast-fail', () => {
   });
 
   it('still retries "rate_limit" errors', async () => {
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation((fn: Function) => { fn(); return 0 as unknown as ReturnType<typeof setTimeout>; });
     let calls = 0;
     await expect(withRetry(async () => {
       calls++;
@@ -235,7 +242,7 @@ describe('retryableFetch — Retry-After header integration', () => {
     expect(retryProgress[0].rateLimitHeaders).toEqual({ retryAfterSeconds: 5 });
   });
 
-  it('caps Retry-After at maxBackoffS', async () => {
+  it('respects Retry-After unconditionally (no maxBackoffS cap)', async () => {
     const retryProgress: { backoffSeconds: number }[] = [];
     let callCount = 0;
     const cappedConfig: RetryConfig = { maxRetries: 2, strategy: 'exponential', maxBackoffS: 10 };
@@ -262,10 +269,10 @@ describe('retryableFetch — Retry-After header integration', () => {
       onRetry: (p) => retryProgress.push({ backoffSeconds: p.backoffSeconds }),
     });
 
-    expect(retryProgress[0].backoffSeconds).toBe(10);
+    expect(retryProgress[0].backoffSeconds).toBe(60);
   });
 
-  it('falls back to exponential backoff when no Retry-After header', async () => {
+  it('applies 120s rate-limit floor when no Retry-After header on 503', async () => {
     const retryProgress: { backoffSeconds: number; rateLimitHeaders?: unknown }[] = [];
     let callCount = 0;
     const fetchFn = vi.fn().mockImplementation(() => {
@@ -290,7 +297,7 @@ describe('retryableFetch — Retry-After header integration', () => {
       onRetry: (p) => retryProgress.push({ backoffSeconds: p.backoffSeconds, rateLimitHeaders: p.rateLimitHeaders }),
     });
 
-    expect(retryProgress[0].backoffSeconds).toBe(2);
+    expect(retryProgress[0].backoffSeconds).toBe(120);
     expect(retryProgress[0].rateLimitHeaders).toEqual({});
   });
 

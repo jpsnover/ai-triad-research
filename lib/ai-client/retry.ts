@@ -79,6 +79,10 @@ export const SERVER_RETRY_CONFIG: RetryConfig = {
   maxBackoffS: 30,
 };
 
+// Server-side rate limiting (429, not user quota) typically clears within 1-2 minutes.
+// Apply this as a floor so we don't hammer the API with rapid retries.
+const RATE_LIMIT_MIN_DELAY_S = 120;
+
 export async function withRetry<T>(
   fn: () => Promise<T>,
   config: RetryConfig,
@@ -103,9 +107,11 @@ export async function withRetry<T>(
         lower.includes('timed out');
       if (!isRetryable || attempt === config.maxRetries) throw err;
       if (lower.includes('per day') || lower.includes('rpd') || lower.includes('daily')) throw err;
-      const delay = config.strategy === 'fixed'
+      const isRateLimit = msg.includes('429') || /rate[_ -]?limit/.test(lower);
+      const baseDelay = config.strategy === 'fixed'
         ? (config.fixedDelays?.[attempt - 1] ?? 45)
         : Math.min(2 ** attempt, config.maxBackoffS ?? 30);
+      const delay = isRateLimit ? Math.max(baseDelay, RATE_LIMIT_MIN_DELAY_S) : baseDelay;
       const errSummary = err instanceof ActionableError ? err.problem : msg.slice(0, 300);
       onLog?.(`[retry] ${label} attempt ${attempt}/${config.maxRetries} failed (${errSummary}), waiting ${delay}s...`);
       await new Promise(r => setTimeout(r, delay * 1000));
@@ -170,8 +176,8 @@ export async function retryableFetch(opts: {
       }
       const exponentialBackoff = Math.min(2 ** attempt, config.maxBackoffS ?? 30);
       const backoff = rateLimitHeaders.retryAfterSeconds != null
-        ? Math.min(rateLimitHeaders.retryAfterSeconds, config.maxBackoffS ?? 30)
-        : exponentialBackoff;
+        ? rateLimitHeaders.retryAfterSeconds  // respect server's guidance unconditionally
+        : Math.max(exponentialBackoff, RATE_LIMIT_MIN_DELAY_S);
       opts.onRetry?.({ attempt, maxRetries: config.maxRetries, backoffSeconds: backoff, limitType, limitMessage, rateLimitHeaders });
       await new Promise(r => setTimeout(r, backoff * 1000));
       continue;
