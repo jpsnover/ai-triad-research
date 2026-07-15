@@ -24,6 +24,14 @@ export const DEBATE_TESTED_DEFAULTS = {
   COSMETIC_EDIT_SIMILARITY_THRESHOLD: 0.98,
 } as const;
 
+export const WELL_TESTED_EXCLUSION = {
+  WELL_TESTED_INJECTION_MULTIPLIER: 0.5,
+  REEXAMINATION_INTERVAL_DAYS: 90,
+  REEXAMINATION_DEBATE_COUNT: 20,
+  MAX_CONSECUTIVE_EXCLUDED_CYCLES: 3,
+  MAX_TESTS_PER_NODE_PER_CYCLE: 1,
+} as const;
+
 export const VERDICT_WEIGHTS: Record<string, number> = {
   held: 1.0,
   refined_held: 1.0,
@@ -420,4 +428,63 @@ function mergeEntry(
     description_hash: descriptionHash,
     record,
   };
+}
+
+// ── NodeTestingRecord — cross-language contract with PS Get-NodeTestingRecord ─
+
+export interface NodeTestingRecord {
+  nodeId: string;
+  pov: string;
+  category: string;
+  label: string;
+  tier: DebateTestedTier;
+  sortKey: number;
+  engagements: number;
+  challenges: number;
+  held: number;
+  weakened: number;
+  lastTested: string;
+  refined: boolean;
+  stale: boolean;
+  challengerCamps: string[];
+  importance?: number;
+  deficit?: number;
+  testingPriority?: number;
+}
+
+// ── Re-eligibility check (Phase 3 exclusion lever) ───────────────────────────
+
+export function getLastTestedDate(dt: DebateTestedRecord): Date {
+  const lastEntry = dt.record[dt.record.length - 1];
+  return new Date(lastEntry?.date ?? dt.last_tested);
+}
+
+export function getChallengerCamps(dt: DebateTestedRecord): Set<string> {
+  const camps = new Set<string>();
+  for (const entry of dt.record) {
+    if (entry.strongest_attack_encountered?.challenger_camp) {
+      camps.add(entry.strongest_attack_encountered.challenger_camp);
+    }
+  }
+  return camps;
+}
+
+export function isReeligible(
+  dt: DebateTestedRecord,
+  organicCitationsSinceLastTest: number,
+  consecutiveExclusions: number,
+  now: Date,
+): boolean {
+  const lastTested = getLastTestedDate(dt);
+  const daysSince = (now.getTime() - lastTested.getTime()) / (1000 * 60 * 60 * 24);
+  if (daysSince > WELL_TESTED_EXCLUSION.REEXAMINATION_INTERVAL_DAYS) return true;
+
+  if (organicCitationsSinceLastTest >= WELL_TESTED_EXCLUSION.REEXAMINATION_DEBATE_COUNT) return true;
+
+  if (consecutiveExclusions >= WELL_TESTED_EXCLUSION.MAX_CONSECUTIVE_EXCLUDED_CYCLES) return true;
+
+  const camps = getChallengerCamps(dt);
+  if (camps.size <= 1 && dt.record.length > 0) return true;
+
+  return false;
 }

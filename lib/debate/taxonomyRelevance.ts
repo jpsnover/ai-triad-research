@@ -13,6 +13,7 @@ import type { TrackedCrux, ArgumentNetworkNode } from './types.js';
 import { stripExcludes } from './helpers.js';
 import { filterByExclusionRatio, type ExclusionFilterResult } from './exclusionGuard.js';
 import { POV_PREFIXES } from './nodeIdUtils.js';
+import { WELL_TESTED_EXCLUSION, isReeligible } from './debateTested.js';
 
 export interface NodeRelevanceScore {
   nodeId: string;
@@ -48,6 +49,8 @@ export interface RelevanceOptions {
   situationBranchBoost?: SituationBranchBoostConfig;
   /** Corpus coverage stats — downweights retread nodes and boosts low-coverage nodes (t/1278). */
   corpusCoverage?: CorpusCoverageConfig;
+  /** Well-tested exclusion lever — downweights or excludes well_tested nodes (Phase 3, t/1587). */
+  wellTested?: WellTestedConfig;
 }
 
 export interface CorpusCoverageConfig {
@@ -115,6 +118,22 @@ export interface CorpusCoverageResult {
   boostedNodeIds: string[];
   downweightedCount: number;
   boostedCount: number;
+}
+
+export interface WellTestedConfig {
+  wellTestedMultiplier?: number;
+  excludeWellTested?: boolean;
+  organicCitationsSinceLastTest?: Record<string, number>;
+  consecutiveExclusions?: Record<string, number>;
+  now?: Date;
+}
+
+export interface WellTestedExclusionResult {
+  downweightedNodeIds: string[];
+  excludedNodeIds: string[];
+  reeligibleNodeIds: string[];
+  downweightedCount: number;
+  excludedCount: number;
 }
 
 export { cosineSimilarity } from '../embeddings/similarity.js';
@@ -280,6 +299,52 @@ export function selectRelevantNodes(
     }
   }
 
+  // Apply well-tested exclusion lever (Phase 3, t/1587)
+  let _wellTestedResult: WellTestedExclusionResult | undefined;
+  if (opts.wellTested) {
+    const wt = opts.wellTested;
+    const mult = wt.wellTestedMultiplier ?? WELL_TESTED_EXCLUSION.WELL_TESTED_INJECTION_MULTIPLIER;
+    const hardExclude = wt.excludeWellTested ?? false;
+    const citationCounts = wt.organicCitationsSinceLastTest ?? {};
+    const exclusionCounts = wt.consecutiveExclusions ?? {};
+    const now = wt.now ?? new Date();
+
+    const downweightedIds: string[] = [];
+    const excludedIds: string[] = [];
+    const reeligibleIds: string[] = [];
+
+    for (const node of povNodes) {
+      const dt = node.graph_attributes?.debate_tested;
+      if (!dt || dt.tier !== 'well_tested') continue;
+
+      const citations = citationCounts[node.id] ?? 0;
+      const consecutive = exclusionCounts[node.id] ?? 0;
+      if (isReeligible(dt, citations, consecutive, now)) {
+        reeligibleIds.push(node.id);
+        continue;
+      }
+
+      const current = effectiveScores.get(node.id) ?? 0;
+      if (hardExclude) {
+        effectiveScores.set(node.id, 0);
+        excludedIds.push(node.id);
+      } else {
+        effectiveScores.set(node.id, current * mult);
+        downweightedIds.push(node.id);
+      }
+    }
+
+    if (downweightedIds.length > 0 || excludedIds.length > 0 || reeligibleIds.length > 0) {
+      _wellTestedResult = {
+        downweightedNodeIds: downweightedIds,
+        excludedNodeIds: excludedIds,
+        reeligibleNodeIds: reeligibleIds,
+        downweightedCount: downweightedIds.length,
+        excludedCount: excludedIds.length,
+      };
+    }
+  }
+
   // Group by category
   const groups: Record<string, ScoredPovNode[]> = {
     'Beliefs': [],
@@ -364,6 +429,9 @@ export function selectRelevantNodes(
   }
   if (_corpusCoverageResult) {
     (sliced as ScoredPovNode[] & { _corpusCoverage?: CorpusCoverageResult })._corpusCoverage = _corpusCoverageResult;
+  }
+  if (_wellTestedResult) {
+    (sliced as ScoredPovNode[] & { _wellTested?: WellTestedExclusionResult })._wellTested = _wellTestedResult;
   }
 
   // Apply exclusion ratio filter when embeddings and query vector are provided
