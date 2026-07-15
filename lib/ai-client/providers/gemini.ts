@@ -104,12 +104,7 @@ export async function generateViaGemini(
     });
   }
   if (!response.ok) {
-    throw new ActionableError({
-      goal: 'Generate text via Gemini',
-      problem: `Gemini API error ${response.status}: ${bodyText.slice(0, 500)}`,
-      location: 'ai-client.generateViaGemini',
-      nextSteps: ['Check your API key', 'Verify the model ID', 'Try a different model'],
-    });
+    throw mapGeminiError(response.status, bodyText);
   }
 
   let json: {
@@ -152,4 +147,74 @@ export async function generateViaGemini(
     totalTokens: um.totalTokenCount,
   } : undefined;
   return { text, usage, toolCalls };
+}
+
+export function mapGeminiError(status: number, bodyText: string): ActionableError {
+  let errorStatus: string | undefined;
+  let reason: string | undefined;
+  try {
+    const parsed = JSON.parse(bodyText);
+    const err = parsed?.error;
+    errorStatus = err?.status;
+    const details: unknown[] = err?.details ?? [];
+    for (const d of details) {
+      const r = (d as Record<string, unknown>)?.reason;
+      if (typeof r === 'string') { reason = r; break; }
+    }
+  } catch { /* parse failed — fall through to generic */ }
+
+  if (status === 401 || errorStatus === 'UNAUTHENTICATED') {
+    if (reason === 'ACCESS_TOKEN_TYPE_UNSUPPORTED') {
+      return new ActionableError({
+        goal: 'Generate text via Gemini',
+        problem: `Gemini 401 UNAUTHENTICATED: credential is an OAuth access token, not an API key. ${bodyText.slice(0, 300)}`,
+        location: 'ai-client.generateViaGemini',
+        nextSteps: [
+          'Your Gemini credential looks like an OAuth access token, not an API key. Gemini API keys start with AIza.',
+          'Re-register a valid key (Settings → API Keys, or Register-AIBackend)',
+        ],
+      });
+    }
+    return new ActionableError({
+      goal: 'Generate text via Gemini',
+      problem: `Gemini 401 UNAUTHENTICATED: ${bodyText.slice(0, 300)}`,
+      location: 'ai-client.generateViaGemini',
+      nextSteps: [
+        'The Gemini API key is invalid or revoked',
+        'Register a new key (Settings → API Keys, or Register-AIBackend)',
+      ],
+    });
+  }
+
+  if (status === 403 || errorStatus === 'PERMISSION_DENIED') {
+    return new ActionableError({
+      goal: 'Generate text via Gemini',
+      problem: `Gemini 403 PERMISSION_DENIED: ${bodyText.slice(0, 300)}`,
+      location: 'ai-client.generateViaGemini',
+      nextSteps: [
+        'Your API key does not have permission for this model or operation',
+        'Check the API key permissions in Google AI Studio',
+        'Try a different model',
+      ],
+    });
+  }
+
+  if (status === 404 || errorStatus === 'NOT_FOUND') {
+    return new ActionableError({
+      goal: 'Generate text via Gemini',
+      problem: `Gemini 404 NOT_FOUND: ${bodyText.slice(0, 300)}`,
+      location: 'ai-client.generateViaGemini',
+      nextSteps: [
+        'The model ID was not found — check spelling and availability',
+        'Try a different model',
+      ],
+    });
+  }
+
+  return new ActionableError({
+    goal: 'Generate text via Gemini',
+    problem: `Gemini API error ${status}: ${bodyText.slice(0, 500)}`,
+    location: 'ai-client.generateViaGemini',
+    nextSteps: ['Check your API key', 'Verify the model ID', 'Try a different model'],
+  });
 }
