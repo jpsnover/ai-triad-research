@@ -28,17 +28,27 @@ function Get-NodeTestingRecord {
         cosmetic edits are surfaced, not silenced; safer than
         silently hiding an actual drift).
 
-        Deficit sort (t/1579 AC #3):
+        Deficit sort (t/1588 alignment with severeTestScheduler.ts):
             testing_priority = importance * deficit
-            importance = 0.35*degree_centrality + 0.25*policy_linkage +
-                         0.20*doctrinal_anchor + 0.20*usage_frequency
+            importance = 0.25*degree + 0.15*crux_density +
+                         0.25*policy_linkage + 0.20*doctrinal_anchor +
+                         0.15*usage
             deficit = untested 1.0 / cited 0.7 / stale 0.6 /
                       contested 0.4 / well_tested 0.1
-        Each importance summand is read from graph_attributes.<name> when
-        present; falls back to 0. If no node in the run has any
-        importance signal a single warning is emitted at the end (not
-        per-node) so a zero-priority ranking is visibly not the
-        real answer.
+
+        Signal sources (post-t/1588, mirroring severeTestScheduler.ts
+        computeNodeImportance so PS + TS are one formula, one signal set):
+          degree           = children.length + situation_refs.length +
+                             conflict_ids.length (structural)
+          crux_density     = per-node reference count from
+                             aggregated-cruxes.json (via Get-CruxLinkCount)
+          policy_linkage   = graph_attributes.policy_actions.length
+          doctrinal_anchor = node.doctrinally_anchored ? 1.0 : 0
+          usage            = debate_refs.length
+        Each signal is normalized across the batch via divide-by-max
+        → [0,1]. If every node in the run reads zero on every signal,
+        a single at-end warning surfaces so a zero-priority ranking
+        is visibly not the real answer.
     .PARAMETER Pov
         Filter to a single camp (acc / saf / skp). Default: all camps.
     .PARAMETER Category
@@ -55,6 +65,15 @@ function Get-NodeTestingRecord {
     .PARAMETER Stale
         Return only nodes whose current description hash differs from the
         recorded hash.
+    .PARAMETER OutputPath
+        Optional path to write the emitted records as a JSON array with
+        camelCase field names matching the TS NodeTestingRecord interface
+        in lib/debate/debateTested.ts (t/1588 Phase A). When set, the
+        cmdlet writes the sorted/filtered result to disk AND returns the
+        same records to the pipeline. Field names in the JSON:
+        nodeId, pov, category, label, tier, sortKey, engagements,
+        challenges, held, weakened, lastTested, refined, stale,
+        challengerCamps, importance, deficit, testingPriority.
     .OUTPUTS
         [NodeTestingRecord]
     .EXAMPLE
@@ -63,6 +82,9 @@ function Get-NodeTestingRecord {
         Get-NodeTestingRecord -SortBy Deficit -Top 20
     .EXAMPLE
         Get-NodeTestingRecord -Stale
+    .EXAMPLE
+        # t/1588 Phase A — write JSON for the TS severeTestScheduler to consume
+        Get-NodeTestingRecord -SortBy Deficit -OutputPath ./testing-records.json
     .LINK
         Update-NodeTestingRecord
     .LINK
@@ -93,7 +115,10 @@ function Get-NodeTestingRecord {
         [int]$Top,
 
         [Parameter()]
-        [switch]$Stale
+        [switch]$Stale,
+
+        [Parameter()]
+        [string]$OutputPath
     )
 
     Set-StrictMode -Version Latest
@@ -113,7 +138,12 @@ function Get-NodeTestingRecord {
     $sha256 = [System.Security.Cryptography.SHA256]::Create()
     try {
         $results = [System.Collections.Generic.List[NodeTestingRecord]]::new()
-        $hasAnyImportanceSignal = $false
+        # t/1588: raw structural signals captured per-node, keyed by NodeId,
+        # normalized-and-weighted in a second pass after all nodes are seen
+        # (severeTestScheduler.ts:computeNodeImportance normalizes divide-by-max
+        # across the batch — PS mirrors that so both sides agree byte-for-byte).
+        $rawSignals = @{}
+        $cruxLinks = if ($SortBy -eq 'Deficit') { Get-CruxLinkCount } else { @{} }
 
         foreach ($n in $nodes) {
             $ntr = [NodeTestingRecord]::new()
@@ -185,22 +215,82 @@ function Get-NodeTestingRecord {
                 }
             }
 
-            # Deficit-sort inputs (populated only when requested)
+            # Deficit-sort raw signals — capture per-node structural counts
+            # here; normalize + weight after the loop so we can divide-by-max
+            # across the whole batch (matches severeTestScheduler.ts semantics).
+            # All property reads guarded by PSObject.Properties to survive both
+            # the typed [TaxonomyNode] path and any synthetic PSCustomObject
+            # tests hand in via a mocked Get-Tax.
             if ($SortBy -eq 'Deficit') {
-                $imp = 0.0
-                foreach ($pair in @(
-                    @{ n='degree_centrality'; w=0.35 }
-                    @{ n='policy_linkage';    w=0.25 }
-                    @{ n='doctrinal_anchor';  w=0.20 }
-                    @{ n='usage_frequency';   w=0.20 }
-                )) {
-                    if ($ga -and $ga.PSObject.Properties[$pair.n] -and $null -ne $ga.($pair.n)) {
-                        $v = [double]$ga.($pair.n)
-                        if ($v -lt 0) { $v = 0 } elseif ($v -gt 1) { $v = 1 }
-                        $imp += $v * [double]$pair.w
-                        $hasAnyImportanceSignal = $true
-                    }
+                $childCount = 0
+                if ($n.PSObject.Properties['Children'] -and $n.Children) {
+                    $childCount = @($n.Children).Count
                 }
+                $sitCount = 0
+                if ($n.PSObject.Properties['SituationRefs'] -and $n.SituationRefs) {
+                    $sitCount = @($n.SituationRefs).Count
+                }
+                $confCount = 0
+                if ($n.PSObject.Properties['ConflictIds'] -and $n.ConflictIds) {
+                    $confCount = @($n.ConflictIds).Count
+                }
+                $polCount = 0
+                if ($ga -and $ga.PSObject.Properties['policy_actions'] -and $null -ne $ga.policy_actions) {
+                    $polCount = @($ga.policy_actions).Count
+                }
+                $usageCount = 0
+                if ($n.PSObject.Properties['DebateRefs'] -and $n.DebateRefs) {
+                    $usageCount = @($n.DebateRefs).Count
+                }
+                $doctrinal = 0.0
+                if ($n.PSObject.Properties['DoctrinallyAnchored'] -and $n.DoctrinallyAnchored) {
+                    $doctrinal = 1.0
+                }
+                $cruxCount = 0
+                $nid = [string]$n.Id
+                if ($cruxLinks.ContainsKey($nid)) { $cruxCount = [int]$cruxLinks[$nid] }
+
+                $rawSignals[$nid] = [PSCustomObject]@{
+                    Degree          = $childCount + $sitCount + $confCount
+                    CruxDensity     = $cruxCount
+                    PolicyLinkage   = $polCount
+                    DoctrinalAnchor = $doctrinal
+                    Usage           = $usageCount
+                }
+            }
+
+            $results.Add($ntr)
+        }
+
+        # Second pass: normalize signals across the batch (divide-by-max, same
+        # as severeTestScheduler.ts normalize()) and apply the t/1588 weights.
+        if ($SortBy -eq 'Deficit') {
+            $maxDegree = 0.0; $maxCrux = 0.0; $maxPolicy = 0.0; $maxUsage = 0.0
+            foreach ($nid in $rawSignals.Keys) {
+                $s = $rawSignals[$nid]
+                if ($s.Degree        -gt $maxDegree) { $maxDegree = [double]$s.Degree }
+                if ($s.CruxDensity   -gt $maxCrux)   { $maxCrux   = [double]$s.CruxDensity }
+                if ($s.PolicyLinkage -gt $maxPolicy) { $maxPolicy = [double]$s.PolicyLinkage }
+                if ($s.Usage         -gt $maxUsage)  { $maxUsage  = [double]$s.Usage }
+            }
+            # Match TS Math.max(...values, 1) — avoids divide-by-zero when
+            # every raw signal is 0. Doctrinal is already 0/1 so no norm.
+            $maxDegree = [Math]::Max($maxDegree, 1)
+            $maxCrux   = [Math]::Max($maxCrux,   1)
+            $maxPolicy = [Math]::Max($maxPolicy, 1)
+            $maxUsage  = [Math]::Max($maxUsage,  1)
+
+            $hasAnyImportanceSignal = $false
+            foreach ($ntr in $results) {
+                $s = $rawSignals[$ntr.NodeId]
+                $normDegree   = [double]$s.Degree        / $maxDegree
+                $normCrux     = [double]$s.CruxDensity   / $maxCrux
+                $normPolicy   = [double]$s.PolicyLinkage / $maxPolicy
+                $normUsage    = [double]$s.Usage         / $maxUsage
+                $normDoc      = [double]$s.DoctrinalAnchor  # already 0/1
+                $imp = (0.25 * $normDegree) + (0.15 * $normCrux) +
+                       (0.25 * $normPolicy) + (0.20 * $normDoc)  +
+                       (0.15 * $normUsage)
                 $effectiveTier = if ($ntr.Stale) { 'stale' } else { $ntr.Tier }
                 $def = switch ($effectiveTier) {
                     'untested'    { 1.0 }
@@ -213,9 +303,8 @@ function Get-NodeTestingRecord {
                 $ntr.Importance      = $imp
                 $ntr.Deficit         = $def
                 $ntr.TestingPriority = $imp * $def
+                if ($imp -gt 0) { $hasAnyImportanceSignal = $true }
             }
-
-            $results.Add($ntr)
         }
 
         # Filters (post-projection so tier/stale bits are populated)
@@ -238,11 +327,43 @@ function Get-NodeTestingRecord {
         }
 
         if ($SortBy -eq 'Deficit' -and -not $hasAnyImportanceSignal) {
-            Write-Warning "Get-NodeTestingRecord -SortBy Deficit: no node in the result set carries any of the four importance signals (degree_centrality, policy_linkage, doctrinal_anchor, usage_frequency). TestingPriority = 0 for every node — this ordering reflects only deficit, not importance."
+            Write-Warning "Get-NodeTestingRecord -SortBy Deficit: no node in the result set carries any of the five importance signals (degree = children+situation_refs+conflict_ids, crux_density from aggregated-cruxes.json, policy_linkage from graph_attributes.policy_actions, doctrinal_anchor, usage = debate_refs). TestingPriority = 0 for every node — this ordering reflects only deficit, not importance."
         }
 
         if ($Top) {
             $sorted = @($sorted | Select-Object -First $Top)
+        }
+
+        # t/1588 Phase A — optional JSON emit for the TS severeTestScheduler.
+        # camelCase field names match the TS NodeTestingRecord interface at
+        # lib/debate/debateTested.ts. Written AFTER filters/sort/top so the
+        # TS consumer receives the same set the pipeline emits.
+        if ($OutputPath) {
+            $jsonRecords = foreach ($x in $sorted) {
+                [ordered]@{
+                    nodeId           = $x.NodeId
+                    pov              = $x.Pov
+                    category         = $x.Category
+                    label            = $x.Label
+                    tier             = $x.Tier
+                    sortKey          = $x.SortKey
+                    engagements      = $x.Engagements
+                    challenges       = $x.Challenges
+                    held             = $x.Held
+                    weakened         = $x.Weakened
+                    lastTested       = $x.LastTested
+                    refined          = $x.Refined
+                    stale            = $x.Stale
+                    challengerCamps  = @($x.ChallengerCamps)
+                    importance       = $x.Importance
+                    deficit          = $x.Deficit
+                    testingPriority  = $x.TestingPriority
+                }
+            }
+            # -AsArray so a single-record result serializes as [{...}], not {...}.
+            $json = @($jsonRecords) | ConvertTo-Json -Depth 6 -AsArray
+            Set-Content -Path $OutputPath -Value $json -Encoding utf8NoBOM
+            Write-Verbose "Get-NodeTestingRecord: wrote $(@($sorted).Count) records to $OutputPath"
         }
 
         $sorted

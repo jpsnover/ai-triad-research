@@ -66,6 +66,19 @@ function ConvertTo-TaxonomyNode {
         if ($null -ne $Node.PSObject.Properties['parent_rationale']) {
             $Obj.ParentRationale = $Node.parent_rationale
         }
+
+        # t/1588 — structural signals for the severeTestScheduler-parity
+        # importance computation in Get-NodeTestingRecord -SortBy Deficit.
+        # All three optional on the JSON; default to empty / $false.
+        if ($null -ne $Node.PSObject.Properties['conflict_ids']) {
+            $Obj.ConflictIds = @($Node.conflict_ids)
+        }
+        if ($null -ne $Node.PSObject.Properties['doctrinally_anchored']) {
+            $Obj.DoctrinallyAnchored = [bool]$Node.doctrinally_anchored
+        }
+        if ($null -ne $Node.PSObject.Properties['debate_refs']) {
+            $Obj.DebateRefs = @($Node.debate_refs)
+        }
     }
 
     # Cross-cutting file has interpretations and linked_nodes

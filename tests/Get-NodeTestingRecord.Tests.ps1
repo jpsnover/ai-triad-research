@@ -129,27 +129,36 @@ Describe 'Get-NodeTestingRecord (t/1579 Phase 2)' -Tag 'taxonomy' {
             }
         }
 
-        It '-SortBy Deficit ranks untested + high-importance first over well-tested + no-importance' {
+        It '-SortBy Deficit ranks high-structural-signal untested over no-signal well-tested (t/1588)' {
             InModuleScope AITriad -Parameters @{ H = $script:baselineHash } {
                 param($H)
-                # Nodes built inline via non-empty [PSCustomObject]@{...} literal
-                # (which reliably returns a real PSCustomObject in PS 7, unlike
-                # empty-hashtable or New-Object -Property forms).
+                # t/1588: importance now derives from node STRUCTURE
+                # (children/situation_refs/conflict_ids/policy_actions/
+                # debate_refs/doctrinally_anchored) + aggregated-cruxes count,
+                # normalized divide-by-max across the batch. hi-untested carries
+                # max signals on every axis; lo-well-tested carries none.
                 Mock Get-Tax {
                     @(
                         [PSCustomObject]@{
                             Id = 'hi-untested'; POV = 'safetyist'; Category = 'Beliefs'
                             Label = 'Hi'; Description = 'x'
+                            Children            = @('c1','c2','c3','c4','c5')
+                            SituationRefs       = @('sit-1','sit-2')
+                            ConflictIds         = @('conf-1','conf-2','conf-3')
+                            DoctrinallyAnchored = $true
+                            DebateRefs          = @('d1','d2','d3','d4')
                             GraphAttributes = [PSCustomObject]@{
-                                degree_centrality = 1.0
-                                policy_linkage    = 1.0
-                                doctrinal_anchor  = 1.0
-                                usage_frequency   = 1.0
+                                policy_actions = @('pol-1','pol-2','pol-3')
                             }
                         }
                         [PSCustomObject]@{
                             Id = 'lo-well-tested'; POV = 'safetyist'; Category = 'Beliefs'
                             Label = 'Lo'; Description = 'x'
+                            Children            = @()
+                            SituationRefs       = @()
+                            ConflictIds         = @()
+                            DoctrinallyAnchored = $false
+                            DebateRefs          = @()
                             GraphAttributes = [PSCustomObject]@{
                                 debate_tested = [PSCustomObject]@{
                                     tier='well_tested'; sort_key=3.9; engagements=8; challenges=4; held=4; weakened=0
@@ -159,10 +168,20 @@ Describe 'Get-NodeTestingRecord (t/1579 Phase 2)' -Tag 'taxonomy' {
                         }
                     )
                 }
+                # Mock Get-CruxLinkCount so we don't touch the real
+                # aggregated-cruxes.json in the test scope.
+                Mock Get-CruxLinkCount { @{ 'hi-untested' = 7 } }
+
                 $r = Get-NodeTestingRecord -SortBy Deficit 3>$null
                 @($r.NodeId) | Should -Be @('hi-untested', 'lo-well-tested')
                 $r[0].TestingPriority | Should -BeGreaterThan $r[1].TestingPriority
-                $r[0].Importance      | Should -BeGreaterThan 0.9 -Because 'all 4 importance signals at 1.0 → 1.0 total'
+                # hi-untested is normalized to 1.0 on every axis, so importance
+                # = 0.25 + 0.15 + 0.25 + 0.20 + 0.15 = 1.0. Deficit for untested
+                # is 1.0, so testing_priority = 1.0.
+                $r[0].Importance      | Should -Be 1.0 -Because 'all 5 signals normalize to 1.0'
+                $r[0].TestingPriority | Should -Be 1.0
+                # lo-well-tested has zero raw signals → importance 0, deficit 0.1.
+                $r[1].Importance      | Should -Be 0.0
             }
         }
     }

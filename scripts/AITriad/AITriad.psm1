@@ -137,6 +137,14 @@ class TaxonomyNode {
     [string[]]$Children
     [string[]]$CrossCuttingRefs
     [string[]]$SituationRefs
+    # t/1588 — structural signals mirrored from lib/debate/severeTestScheduler.ts's
+    # computeNodeImportance() so PS + TS derive `degree` and `usage` from the
+    # same source. ConflictIds may be absent on nodes with no conflict links;
+    # DoctrinallyAnchored defaults to $false; DebateRefs is the count-source
+    # for the `usage` importance term.
+    [string[]]$ConflictIds
+    [bool]$DoctrinallyAnchored
+    [string[]]$DebateRefs
     [PSObject]$Interpretations
     [string[]]$LinkedNodes
     [double]$Score
