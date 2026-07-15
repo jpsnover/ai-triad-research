@@ -16,6 +16,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { KEY_VALIDATION_PROBES, validateProviderKey } from '../routes/keys.js';
+import { KEY_PROBE_CONFIGS } from '../../shared/keyProbes.js';
 
 // ai-models.json is the canonical backend registry at the repo root. Resolve it
 // relative to this test file (deterministic) rather than via getProjectRoot(),
@@ -48,6 +49,12 @@ describe('key-validation probe completeness (t/1458)', () => {
     for (const id of LOCAL_ONLY) {
       expect(KEY_VALIDATION_PROBES[id]).toBeUndefined();
     }
+  });
+
+  it('KEY_VALIDATION_PROBES covers every entry in KEY_PROBE_CONFIGS (t/1574 drift guard)', () => {
+    const sharedIds = Object.keys(KEY_PROBE_CONFIGS).sort();
+    const localIds = Object.keys(KEY_VALIDATION_PROBES).sort();
+    expect(localIds).toEqual(sharedIds);
   });
 });
 

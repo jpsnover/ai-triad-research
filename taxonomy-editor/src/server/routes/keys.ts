@@ -45,31 +45,21 @@ function maskedKeyList(keys: string[]): { index: number; masked: string }[] {
 // effectively unauthenticated (200 for any key → false-green), so it probes
 // generateContent — the real auth surface — with a 1-token body instead.
 // Data-driven (not an if/else chain) so it's the single source of truth the
-// completeness test checks — every registered backend except the local-only ones
-// (ollama/azure, no hosted key to validate) must have a probe here, or Test Keys
-// silently regresses to "Unsupported backend". That gap recurred 3× as backends
-// were added (t/1458); the keysValidation test now forces this map to stay in
-// sync with ai-models.json.
+// t/1574: probe configs are the shared single source of truth; this file builds
+// the fetch-based probe map from them. The keysValidation test checks both
+// KEY_PROBE_CONFIGS (shared) and KEY_VALIDATION_PROBES (local) for completeness.
+import { KEY_PROBE_CONFIGS } from '../../shared/keyProbes.js';
+
 type KeyProbe = (key: string) => Promise<Response>;
-export const KEY_VALIDATION_PROBES: Record<string, KeyProbe> = {
-  // t/1572: generateContent, not the list endpoint — list-models returns 200 for
-  // any key (public metadata), so it can't distinguish a valid key from garbage.
-  // 1-token body keeps the cost effectively zero. Model is a stable production id;
-  // if it's ever retired the probe returns non-200 (an appropriate signal to bump).
-  gemini: key => fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(key)}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: 'hi' }] }], generationConfig: { maxOutputTokens: 1 } }),
-    },
-  ),
-  claude: key => fetch('https://api.anthropic.com/v1/models', { headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' } }),
-  groq: key => fetch('https://api.groq.com/openai/v1/models', { headers: { Authorization: `Bearer ${key}` } }),
-  openai: key => fetch('https://api.openai.com/v1/models', { headers: { Authorization: `Bearer ${key}` } }),
-  deepseek: key => fetch('https://api.deepseek.com/v1/models', { headers: { Authorization: `Bearer ${key}` } }),
-  zai: key => fetch('https://api.z.ai/api/paas/v4/models', { headers: { Authorization: `Bearer ${key}` } }),
-};
+export const KEY_VALIDATION_PROBES: Record<string, KeyProbe> = Object.fromEntries(
+  Object.entries(KEY_PROBE_CONFIGS).map(([id, cfg]) => [id, (key: string) =>
+    fetch(cfg.url(key), {
+      method: cfg.method ?? 'GET',
+      headers: cfg.headers(key),
+      ...(cfg.body && { body: cfg.body() }),
+    }),
+  ]),
+);
 
 // Exported for unit testing (t/1572): lets the false-green scenario assert the
 // full valid/invalid verdict against a mocked fetch without booting the server.

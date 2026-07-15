@@ -20,6 +20,7 @@
   },
   "include": [
     "src/main/**/*",
+    "src/shared/**/*",
     "../lib/ai-client/**/*",
     "../lib/debate/debateExport.ts",
     "../lib/debate/errors.ts",
