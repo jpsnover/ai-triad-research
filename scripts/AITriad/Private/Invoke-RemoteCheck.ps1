@@ -90,10 +90,15 @@ function Invoke-RemoteCheck {
             $ContentType = @($Response.Headers['Content-Type'])[0]
         }
         # RawBody is a short slice for shape-matching (SPA-shell detection, etc). t/1355.
+        # Bumped 400 → 4096 (t/1500#7): this app's <head> is 464+ chars before
+        # Vite's script injection, so `<div id="root">` and `src="...js"` both
+        # fall past a 400-char slice → SPA-shell check always fails on `/`.
+        # 4096 gives ~10× headroom for future <head> growth without turning
+        # RawBody into a full-page buffer.
         $RawBody = ''
         if ($Response.Content) {
-            $RawBody = if ($Response.Content.Length -gt 400) {
-                $Response.Content.Substring(0, 400)
+            $RawBody = if ($Response.Content.Length -gt 4096) {
+                $Response.Content.Substring(0, 4096)
             } else {
                 $Response.Content
             }
