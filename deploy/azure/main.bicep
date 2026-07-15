@@ -516,6 +516,7 @@ resource containerAppStaging 'Microsoft.App/containerApps@2024-03-01' = {
   properties: {
     managedEnvironmentId: containerAppEnv.id
     configuration: {
+      activeRevisionsMode: 'Multiple'
       ingress: {
         external: true
         targetPort: 7862
