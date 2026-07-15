@@ -50,6 +50,7 @@ import { debateToText, debateToMarkdown, debateToPdf, debateToPackage } from './
 import { chatToMarkdown, chatToText, chatToPrintHtml, chatExportFilename, type ChatExportEntry, type ChatExportOptions } from '../../../lib/chat/chatExportFormatters.js';
 import { storeApiKey, hasApiKey, getApiKeySummary, exportKeysForSharing, importKeysFromSharing, deleteApiKey, deleteAllApiKeys, removeApiKey, getMaskedKeys, loadApiKeys } from './apiKeyStore.js';
 import { listOrganizations, getOrganizationById, organizationsByPov, organizationsByTopic, organizationsByPolicy, organizationEdges, isPov } from './organizations.js';
+import { probeApiKey, isSupportedProbeBackend } from './keyProbe.js';
 import type { KeySharePayload } from './apiKeyStore.js';
 import { isDataAvailable, getDataRootPath, setDataRootPath, loadDataConfig, PROJECT_ROOT, getSourcesDir, writeJsonFileAtomic } from './fileIO.js';
 import { computeEmbeddings, computeQueryEmbedding, generateText, generateTextWithSearch, generateChatStream, updateNodeEmbeddings, classifyNli, setDebateTemperature, getEmbeddingInfo } from './embeddings.js';
@@ -330,24 +331,9 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('validate-api-key', async (_event, key: string, backend: string): Promise<{ valid: boolean; error?: string }> => {
+    if (!isSupportedProbeBackend(backend)) return { valid: false, error: `Unsupported backend: ${backend}` };
     try {
-      let valid = false;
-      if (backend === 'gemini') {
-        const r = await net.fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
-        valid = r.ok;
-      } else if (backend === 'claude') {
-        const r = await net.fetch('https://api.anthropic.com/v1/models', {
-          headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-        });
-        valid = r.ok;
-      } else if (backend === 'groq') {
-        const r = await net.fetch('https://api.groq.com/openai/v1/models', {
-          headers: { 'Authorization': `Bearer ${key}` },
-        });
-        valid = r.ok;
-      } else {
-        return { valid: false, error: `Unsupported backend: ${backend}` };
-      }
+      const valid = await probeApiKey(backend, key);
       return valid ? { valid: true } : { valid: false, error: 'Invalid API key' };
     } catch (err) {
       getGlobalRecorder()?.record({
@@ -363,27 +349,12 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('verify-stored-keys', async (_event, backend: string): Promise<{ results: { index: number; masked: string; valid: boolean; error?: string }[] }> => {
     const keys = loadApiKeys(backend as Parameters<typeof loadApiKeys>[0]);
     const masked = getMaskedKeys(backend as Parameters<typeof getMaskedKeys>[0]);
+    if (!isSupportedProbeBackend(backend)) {
+      return { results: keys.map((_key, i) => ({ index: i, masked: masked[i] ?? '••••', valid: false, error: `Unsupported backend: ${backend}` })) };
+    }
     const results = await Promise.all(keys.map(async (key, i) => {
       try {
-        let valid = false;
-        if (backend === 'gemini') {
-          const r = await net.fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
-          valid = r.ok;
-        } else if (backend === 'claude') {
-          const r = await net.fetch('https://api.anthropic.com/v1/models', { headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' } });
-          valid = r.ok;
-        } else if (backend === 'groq') {
-          const r = await net.fetch('https://api.groq.com/openai/v1/models', { headers: { 'Authorization': `Bearer ${key}` } });
-          valid = r.ok;
-        } else if (backend === 'openai') {
-          const r = await net.fetch('https://api.openai.com/v1/models', { headers: { 'Authorization': `Bearer ${key}` } });
-          valid = r.ok;
-        } else if (backend === 'deepseek') {
-          const r = await net.fetch('https://api.deepseek.com/v1/models', { headers: { 'Authorization': `Bearer ${key}` } });
-          valid = r.ok;
-        } else {
-          return { index: i, masked: masked[i] ?? '••••', valid: false, error: `Unsupported backend: ${backend}` };
-        }
+        const valid = await probeApiKey(backend, key);
         return { index: i, masked: masked[i] ?? '••••', valid, ...(!valid && { error: 'Invalid API key' }) };
       } catch (err) {
         getGlobalRecorder()?.record({
