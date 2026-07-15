@@ -9,6 +9,18 @@ const TIER_TO_SCORE: Record<PovAlignmentTier, number> = {
   opposes: -1.0, leans_against: -0.5, mixed_or_silent: 0, leans_toward: 0.5, champions: 1.0,
 };
 function tierScore(stance: PovStance): number { return TIER_TO_SCORE[stance.tier] ?? 0; }
+
+const TIER_CHIP_COLORS: Record<PovAlignmentTier, { bg: string; fg: string }> = {
+  opposes:          { bg: '#fecaca', fg: '#991b1b' },
+  leans_against:    { bg: '#fed7aa', fg: '#9a3412' },
+  mixed_or_silent:  { bg: '#e2e8f0', fg: '#475569' },
+  leans_toward:     { bg: '#bbf7d0', fg: '#166534' },
+  champions:        { bg: '#86efac', fg: '#14532d' },
+};
+const TIER_LABELS: Record<PovAlignmentTier, string> = {
+  opposes: 'Opposes', leans_against: 'Leans Against', mixed_or_silent: 'Mixed or Silent',
+  leans_toward: 'Leans Toward', champions: 'Champions',
+};
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useOrganizationStore } from '../../hooks/useOrganizationStore';
@@ -140,29 +152,40 @@ function PovAlignmentBar({ alignment }: { alignment?: Organization['pov_alignmen
         const score = tierScore(stance);
         const absScore = Math.abs(score);
         const color = POV_COLORS[pov] ?? 'var(--text-muted)';
+        const chipColors = TIER_CHIP_COLORS[stance.tier] ?? TIER_CHIP_COLORS.mixed_or_silent;
         return (
-          <div key={pov} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem' }}>
-            <span style={{ width: 28, fontWeight: 600, color, flexShrink: 0 }}>{POV_LABELS[pov]}</span>
-            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', flexShrink: 0 }}>−1</span>
-            <div style={{ flex: 1, height: 10, background: 'var(--bg-tertiary, #1e293b)', borderRadius: 5, position: 'relative' }}>
-              <div style={{
-                position: 'absolute',
-                left: score < 0 ? `${50 - absScore * 50}%` : '50%',
-                width: `${absScore * 50}%`,
-                height: '100%',
-                background: color,
-                borderRadius: 5,
-                opacity: 0.85,
-              }} />
-              <div style={{
-                position: 'absolute', left: '50%', top: -1, bottom: -1, width: 2,
-                background: 'var(--text-muted)', transform: 'translateX(-1px)', zIndex: 1,
-              }} />
+          <div key={pov} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem' }}>
+              <span style={{ width: 28, fontWeight: 600, color, flexShrink: 0 }}>{POV_LABELS[pov]}</span>
+              <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', flexShrink: 0 }}>−1</span>
+              <div style={{ flex: 1, height: 10, background: 'var(--bg-tertiary, #1e293b)', borderRadius: 5, position: 'relative' }}>
+                <div style={{
+                  position: 'absolute',
+                  left: score < 0 ? `${50 - absScore * 50}%` : '50%',
+                  width: `${absScore * 50}%`,
+                  height: '100%',
+                  background: color,
+                  borderRadius: 5,
+                  opacity: 0.85,
+                }} />
+                <div style={{
+                  position: 'absolute', left: '50%', top: -1, bottom: -1, width: 2,
+                  background: 'var(--text-muted)', transform: 'translateX(-1px)', zIndex: 1,
+                }} />
+              </div>
+              <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', flexShrink: 0 }}>+1</span>
+              <span style={{
+                padding: '1px 7px', borderRadius: 10, fontSize: '0.65rem', fontWeight: 600,
+                background: chipColors.bg, color: chipColors.fg, flexShrink: 0, whiteSpace: 'nowrap',
+              }}>
+                {TIER_LABELS[stance.tier] ?? stance.tier}
+              </span>
             </div>
-            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', flexShrink: 0 }}>+1</span>
-            <span style={{ width: 40, textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)', flexShrink: 0, fontSize: '0.72rem' }}>
-              {stance.tier.replace('_', ' ')}
-            </span>
+            {stance.behavioral_notes && (
+              <div style={{ marginLeft: 34, fontSize: '0.7rem', fontStyle: 'italic', color: 'var(--text-muted)' }}>
+                {stance.behavioral_notes}
+              </div>
+            )}
           </div>
         );
       })}
