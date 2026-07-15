@@ -145,7 +145,6 @@ function Get-ContainerAppDiagnostics {
             'containerapp', 'logs', 'show',
             '--name', $AppName,
             '--resource-group', $ResourceGroup,
-            '--revision', $RevisionName,
             '--type', 'system',
             '--tail', '50',
             '--output', 'table'
