@@ -1,3 +1,4 @@
+import { readFileSync } from 'fs';
 import type { PovNode } from './taxonomyTypes.js';
 import type { NodeTestingRecord } from './debateTested.js';
 import { WELL_TESTED_EXCLUSION } from './debateTested.js';
@@ -100,16 +101,27 @@ export function computeDeficit(tier: string, stale: boolean): number {
   return DEFICIT_SCORES[tier] ?? DEFICIT_SCORES.untested;
 }
 
+// ── File loader ─────────────────────────────────────────────────────────────
+
+export function loadTestingRecords(path: string): NodeTestingRecord[] {
+  const raw = readFileSync(path, 'utf-8');
+  return JSON.parse(raw) as NodeTestingRecord[];
+}
+
 // ── Scheduler ────────────────────────────────────────────────────────────────
 
 export interface SchedulerInput {
   records: NodeTestingRecord[];
-  nodes: ReadonlyArray<PovNode>;
-  cruxLinks: ReadonlyMap<string, number>;
+  nodes?: ReadonlyArray<PovNode>;
+  cruxLinks?: ReadonlyMap<string, number>;
   topN?: number;
   batchName?: string;
   generatedDate?: string;
   excludeNodeIds?: Set<string>;
+}
+
+function hasPrecomputedPriority(records: NodeTestingRecord[]): boolean {
+  return records.length > 0 && records.every(r => r.testingPriority != null);
 }
 
 export function generateBatchConfig(input: SchedulerInput): DebateBatchConfig {
@@ -123,18 +135,35 @@ export function generateBatchConfig(input: SchedulerInput): DebateBatchConfig {
     excludeNodeIds,
   } = input;
 
-  const importanceMap = computeNodeImportance(nodes, cruxLinks);
-  const nodeMap = new Map(nodes.map(n => [n.id, n]));
+  let scored: Array<{ record: NodeTestingRecord; importance: number; deficit: number; testingPriority: number }>;
 
-  const scored = records
-    .filter(r => !excludeNodeIds?.has(r.nodeId))
-    .map(r => {
-      const imp = importanceMap.get(r.nodeId);
-      const importance = imp?.importance ?? 0;
-      const deficit = computeDeficit(r.tier, r.stale);
-      return { record: r, importance, deficit, testingPriority: importance * deficit };
-    })
-    .sort((a, b) => b.testingPriority - a.testingPriority);
+  if (hasPrecomputedPriority(records)) {
+    scored = records
+      .filter(r => !excludeNodeIds?.has(r.nodeId))
+      .map(r => ({
+        record: r,
+        importance: r.importance ?? 0,
+        deficit: r.deficit ?? computeDeficit(r.tier, r.stale),
+        testingPriority: r.testingPriority!,
+      }))
+      .sort((a, b) => b.testingPriority - a.testingPriority);
+  } else {
+    if (!nodes || !cruxLinks) {
+      throw new Error('nodes and cruxLinks are required when records lack pre-computed testingPriority');
+    }
+    const importanceMap = computeNodeImportance(nodes, cruxLinks);
+    scored = records
+      .filter(r => !excludeNodeIds?.has(r.nodeId))
+      .map(r => {
+        const imp = importanceMap.get(r.nodeId);
+        const importance = imp?.importance ?? 0;
+        const deficit = computeDeficit(r.tier, r.stale);
+        return { record: r, importance, deficit, testingPriority: importance * deficit };
+      })
+      .sort((a, b) => b.testingPriority - a.testingPriority);
+  }
+
+  const nodeMap = nodes ? new Map(nodes.map(n => [n.id, n])) : undefined;
 
   const povBuckets: Record<string, typeof scored> = {};
   for (const s of scored) {
@@ -170,7 +199,7 @@ export function generateBatchConfig(input: SchedulerInput): DebateBatchConfig {
 
   const dateStr = generatedDate ?? new Date().toISOString().slice(0, 10);
   const debates: DebateBatchEntry[] = selected.map((s, i) => {
-    const node = nodeMap.get(s.record.nodeId);
+    const node = nodeMap?.get(s.record.nodeId);
     const label = node?.label ?? s.record.label;
     return {
       name: `severe-test-${i + 1}-${s.record.nodeId}`,

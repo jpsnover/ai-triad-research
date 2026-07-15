@@ -1,9 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   computeImportance,
   computeDeficit,
   computeNodeImportance,
   generateBatchConfig,
+  loadTestingRecords,
   IMPORTANCE_WEIGHTS,
   DEFICIT_SCORES,
 } from './severeTestScheduler.js';
@@ -291,5 +292,93 @@ describe('generateBatchConfig', () => {
       generatedDate: '2026-07-15',
     });
     expect(config.name).toBe('pilot-batch');
+  });
+});
+
+// ── Phase B: pre-computed records ───────────────────────────────────────────
+
+function makePrecomputedRecord(
+  id: string, pov: string, tier: string, importance: number, deficit: number,
+): NodeTestingRecord {
+  return {
+    ...makeTestRecord(id, pov, tier),
+    importance,
+    deficit,
+    testingPriority: importance * deficit,
+  };
+}
+
+describe('generateBatchConfig with pre-computed testingPriority', () => {
+  it('uses pre-computed priority without nodes/cruxLinks', () => {
+    const precomputed = [
+      makePrecomputedRecord('acc-belief-001', 'accelerationist', 'untested', 0.8, 1.0),
+      makePrecomputedRecord('saf-belief-001', 'safetyist', 'cited', 0.6, 0.7),
+      makePrecomputedRecord('skp-belief-001', 'skeptic', 'contested', 0.5, 0.4),
+    ];
+    const config = generateBatchConfig({
+      records: precomputed, topN: 3, generatedDate: '2026-07-15',
+    });
+    expect(config.debates).toHaveLength(3);
+    expect(config.debates[0].targetNodeId).toBe('acc-belief-001');
+    expect(config.debates[0].testingPriority).toBe(0.8);
+  });
+
+  it('preserves POV round-robin with pre-computed records', () => {
+    const precomputed = [
+      makePrecomputedRecord('acc-belief-001', 'accelerationist', 'untested', 0.9, 1.0),
+      makePrecomputedRecord('acc-belief-002', 'accelerationist', 'cited', 0.85, 0.7),
+      makePrecomputedRecord('saf-belief-001', 'safetyist', 'untested', 0.7, 1.0),
+      makePrecomputedRecord('skp-belief-001', 'skeptic', 'untested', 0.6, 1.0),
+    ];
+    const config = generateBatchConfig({
+      records: precomputed, topN: 4, generatedDate: '2026-07-15',
+    });
+    const povs = config.debates.map(d => d.targetPov);
+    expect(povs[0]).toBe('accelerationist');
+    expect(povs[1]).toBe('safetyist');
+    expect(povs[2]).toBe('skeptic');
+    expect(povs[3]).toBe('accelerationist');
+  });
+
+  it('respects excludeNodeIds with pre-computed records', () => {
+    const precomputed = [
+      makePrecomputedRecord('acc-belief-001', 'accelerationist', 'untested', 0.9, 1.0),
+      makePrecomputedRecord('saf-belief-001', 'safetyist', 'untested', 0.7, 1.0),
+    ];
+    const config = generateBatchConfig({
+      records: precomputed, topN: 5, generatedDate: '2026-07-15',
+      excludeNodeIds: new Set(['acc-belief-001']),
+    });
+    expect(config.debates).toHaveLength(1);
+    expect(config.debates[0].targetNodeId).toBe('saf-belief-001');
+  });
+
+  it('throws when records lack testingPriority and no nodes/cruxLinks provided', () => {
+    const plain = [makeTestRecord('acc-belief-001', 'accelerationist', 'untested')];
+    expect(() => generateBatchConfig({
+      records: plain, topN: 5, generatedDate: '2026-07-15',
+    })).toThrow('nodes and cruxLinks are required');
+  });
+});
+
+// ── loadTestingRecords ──────────────────────────────────────────────────────
+
+vi.mock('fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fs')>();
+  return { ...actual, readFileSync: vi.fn(actual.readFileSync) };
+});
+
+describe('loadTestingRecords', () => {
+  it('reads and parses a JSON file of NodeTestingRecord[]', async () => {
+    const { readFileSync } = await import('fs');
+    const records = [
+      makePrecomputedRecord('acc-belief-001', 'accelerationist', 'untested', 0.8, 1.0),
+    ];
+    vi.mocked(readFileSync).mockReturnValueOnce(JSON.stringify(records));
+    const loaded = loadTestingRecords('/tmp/testing-records.json');
+    expect(loaded).toHaveLength(1);
+    expect(loaded[0].nodeId).toBe('acc-belief-001');
+    expect(loaded[0].testingPriority).toBe(0.8);
+    vi.mocked(readFileSync).mockRestore();
   });
 });
