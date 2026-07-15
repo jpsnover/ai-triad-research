@@ -204,6 +204,25 @@ Describe 'Get-NodeTestingRecord (t/1579 Phase 2)' -Tag 'taxonomy' {
                 $r[0].Stale | Should -BeFalse
             }
         }
+
+        It 'Stale=$true when description was DELETED to empty (guards CL t/1579#4 false-negative)' {
+            InModuleScope AITriad -Parameters @{ Maker = $script:MakeNode } {
+                param($Maker)
+                # Description is now empty (rolled back / deleted) but recorded
+                # hash is a real value. This IS drift and must flag stale.
+                $someHash = 'sha256:1111111111111111111111111111111111111111111111111111111111111111'
+                Mock Get-Tax {
+                    @(
+                        (& $Maker -Id 'emptied' -Pov 'safetyist' -Description '' -DT @{
+                            tier='contested'; sort_key=2.0; engagements=1; challenges=1; held=1; weakened=0;
+                            revisions=@(); last_tested='2026-07-01'; description_hash=$someHash; record=@()
+                        })
+                    )
+                }
+                $r = Get-NodeTestingRecord 3>$null
+                $r[0].Stale | Should -BeTrue -Because 'empty current description ≠ non-empty recorded hash — CL review t/1579#4'
+            }
+        }
     }
 
     Context 'ChallengerCamps projection' {

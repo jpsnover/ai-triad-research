@@ -97,7 +97,7 @@ Describe 'Update-NodeTestingRecord -RecomputeOnly (t/1579 Phase 2)' -Tag 'taxono
     BeforeEach {
         # Write the seed POV file into the per-test taxonomy dir.
         $povPath = Join-Path $script:workDir 'safetyist.json'
-        $script:povContent | ConvertTo-Json -Depth 20 | Set-Content -Path $povPath -Encoding UTF8
+        $script:povContent | ConvertTo-Json -Depth 20 | Set-Content -Path $povPath -Encoding utf8NoBOM
     }
 
     It '-WhatIf reports the correctly-mismatched node without writing' {

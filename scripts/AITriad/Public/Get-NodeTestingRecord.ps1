@@ -172,7 +172,11 @@ function Get-NodeTestingRecord {
                 # edits is documented, safer than silent negatives.
                 if ($dt.PSObject.Properties['description_hash']) {
                     $recorded = [string]$dt.description_hash
-                    if ($recorded -and $n.Description) {
+                    if ($recorded) {
+                        # Compare current hash to recorded hash. An empty current
+                        # Description is a REAL drift (delete-into-empty), so we
+                        # deliberately do not guard on $n.Description here —
+                        # per CL review t/1579#4.
                         $bytes = [System.Text.Encoding]::UTF8.GetBytes([string]$n.Description)
                         $hashBytes = $sha256.ComputeHash($bytes)
                         $current = 'sha256:' + (-join ($hashBytes | ForEach-Object { $_.ToString('x2') }))
