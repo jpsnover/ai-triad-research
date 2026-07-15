@@ -100,7 +100,7 @@ Describe 'Get-ContainerAppDiagnostics (t/1500)' -Tag 'taxonomy' {
             $r.LogsAvailable             | Should -Be $true
             $script:DiagLogCallCount     | Should -BeGreaterThan 1
             # Start-Sleep fired once per empty-result gap (2 empties = 2 sleeps)
-            Assert-MockCalled Start-Sleep -Times 2 -Scope It
+            Should -Invoke Start-Sleep -Times 2 -Scope It
         }
     }
 
@@ -162,7 +162,7 @@ Describe 'Get-ContainerAppDiagnostics (t/1500)' -Tag 'taxonomy' {
             $threw                               | Should -Be $false
             $script:DiagResult2.LogsAvailable   | Should -Be $false
             @($script:DiagResult2.ConsoleLogs).Count | Should -Be 0
-            Assert-MockCalled Write-Warning -Scope It -ParameterFilter {
+            Should -Invoke Write-Warning -Scope It -ParameterFilter {
                 $Message -match 'non-fatal'
             }
         }

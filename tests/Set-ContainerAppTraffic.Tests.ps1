@@ -62,7 +62,7 @@ Describe 'Set-ContainerAppTraffic (t/1500)' -Tag 'taxonomy' {
 
             $r.Success      | Should -Be $true
             $r.AttemptCount | Should -Be 3
-            Assert-MockCalled Start-Sleep -Times 2 -Scope It
+            Should -Invoke Start-Sleep -Times 2 -Scope It
         }
     }
 
@@ -77,8 +77,8 @@ Describe 'Set-ContainerAppTraffic (t/1500)' -Tag 'taxonomy' {
                 -RetryIntervalSec 1 } |
                 Should -Throw
 
-            Assert-MockCalled Invoke-Az   -Times 3 -Scope It
-            Assert-MockCalled Start-Sleep -Times 2 -Scope It
+            Should -Invoke Invoke-Az   -Times 3 -Scope It
+            Should -Invoke Start-Sleep -Times 2 -Scope It
         }
     }
 

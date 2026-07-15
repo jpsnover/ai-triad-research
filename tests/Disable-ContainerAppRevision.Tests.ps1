@@ -47,7 +47,7 @@ Describe 'Disable-ContainerAppRevision (t/1500)' -Tag 'taxonomy' {
             $r = Disable-ContainerAppRevision -RevisionName 'taxonomy-editor--rev-bad' -Confirm:$false
 
             $r.Deactivated | Should -Be $false
-            Assert-MockCalled Write-Warning -Times 1 -Scope It
+            Should -Invoke Write-Warning -Times 1 -Scope It
         }
     }
 
@@ -60,7 +60,7 @@ Describe 'Disable-ContainerAppRevision (t/1500)' -Tag 'taxonomy' {
             $r = Disable-ContainerAppRevision -RevisionName 'taxonomy-editor--rev-bad' -WhatIf
 
             $r.Deactivated | Should -Be $false
-            Assert-MockCalled Invoke-Az -Times 0 -Scope It
+            Should -Invoke Invoke-Az -Times 0 -Scope It
         }
     }
 
