@@ -30,16 +30,28 @@ function Invoke-Az {
 
     Set-StrictMode -Version Latest
 
-    $Output = & az @Arguments 2>&1
-    if ($LASTEXITCODE -ne 0) {
+    # Capture stdout and stderr separately by filtering type: PS represents
+    # stderr from native commands as [ErrorRecord] objects when using 2>&1.
+    # Mixing them corrupts JSON output (az update emits warnings to stderr
+    # that az revision list/show do not — discovered in t/1500 staging dry-run).
+    $RawOutput   = & az @Arguments 2>&1
+    $ExitCode    = $LASTEXITCODE
+    $StdoutLines = @($RawOutput | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] })
+    $StderrLines = @($RawOutput | Where-Object { $_ -is  [System.Management.Automation.ErrorRecord] } |
+                     ForEach-Object { $_.ToString() })
+
+    foreach ($Line in $StderrLines) { Write-Verbose "[az stderr] $Line" }
+
+    if ($ExitCode -ne 0) {
         throw (New-ActionableError `
             -Goal "Run az $($Arguments -join ' ')" `
-            -Problem "Azure CLI exit $LASTEXITCODE" `
+            -Problem "Azure CLI exit $ExitCode" `
             -Location $CallerName `
             -NextSteps @('Verify az login: az account show',
                          'Check the arguments passed to Invoke-Az',
-                         "Output: $Output"))
+                         "Stderr: $($StderrLines -join '; ')",
+                         "Output: $(($StdoutLines | Out-String).Trim())"))
     }
-    if (-not $Output) { return $null }
-    ($Output | Out-String).Trim()
+    if (-not $StdoutLines) { return $null }
+    ($StdoutLines | Out-String).Trim()
 }
