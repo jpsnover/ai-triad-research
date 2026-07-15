@@ -2312,6 +2312,92 @@ Respond ONLY with a JSON object matching this exact schema (no markdown, no code
 }`;
 }
 
+export interface RewriteFromClaimsInput {
+  label: string;
+  pov: string;
+  topic: string;
+  recentTranscript: string;
+  selectedClaims: {
+    text: string;
+    classification: 'STRONG' | 'PRESERVE';
+    dominant_component: string;
+    reason: string;
+  }[];
+  avoidClaims: { text: string; reason: string }[];
+  audience?: DebateAudience;
+  currentCruxContext?: string;
+  topicScope?: TopicScope;
+}
+
+/**
+ * Rewrite prompt for the over-generate/select/rewrite stage (t/1290).
+ * Called after greedy claim selection; selected claims are the argument backbone.
+ * Not a draft-from-scratch: the model synthesizes, not discovers.
+ */
+export function draftFromSelectedClaimsPrompt(input: RewriteFromClaimsInput): string {
+  const selectedBlock = input.selectedClaims
+    .map((c, i) => `${i + 1}. [${c.classification}] ${c.text}\n   Dominant signal: ${c.dominant_component}. ${c.reason}`)
+    .join('\n\n');
+
+  const avoidBlock = input.avoidClaims.length > 0
+    ? input.avoidClaims.map((c, i) => `${i + 1}. ${c.text}\n   Reason to avoid: ${c.reason}`).join('\n\n')
+    : 'None identified.';
+
+  return `You are ${input.label}, an AI debater representing the ${input.pov} perspective on AI policy.
+${getCharacterBlock(input.pov)}
+${otherDebaters(input.label)}
+${getReadingLevel(input.audience)}
+${getDetailInstruction(input.audience)}
+${getPolicymakerFraming(input.audience)}
+${MUST_CORE_BEHAVIORS}
+
+${STEELMAN_INSTRUCTION}
+${formatDoctrinalBoundaries(input.pov)}
+=== DEBATE TOPIC ===
+${input.topic}
+
+=== RECENT DEBATE CONTEXT ===
+${input.recentTranscript}
+${input.currentCruxContext ? `\n=== ACTIVE CRUXES ===\n${input.currentCruxContext}\n` : ''}
+=== SELECTED CLAIMS (argument backbone) ===
+Each claim below was scored for position-building value. Claims marked [STRONG] and [PRESERVE] are your backbone. Every one of them must appear in your response.
+
+${selectedBlock}
+
+=== CLAIMS TO AVOID ===
+These scored below utility threshold. Do not introduce them as a paragraph's primary point. Using them as rhetorical context or transitions is permitted, as long as they are not the point.
+
+${avoidBlock}
+
+=== YOUR ASSIGNMENT ===
+Build a speaker-voiced argument using the selected claims above as its backbone. Every selected claim must appear. Their order and framing are yours. Do not introduce additional primary claims beyond the selected set. Do not restate the selected claims as a bullet list — synthesize them into flowing argument paragraphs.
+
+PARAGRAPH STRUCTURE:
+- 3-5 paragraphs separated by \\n\\n. Each paragraph develops one distinct idea.
+- A single unbroken block will be rejected.
+
+OUTPUT CONSTRAINTS:
+- ATTRIBUTION FIDELITY: Attribute positions to other debaters only from what they have explicitly stated. Do not infer or fabricate positions.
+- TOPIC PREMISE FIDELITY: Structural features stated in the debate topic are givens. Critique their consequences, not their existence.
+- NODE-ID PROHIBITION: Never surface AN-IDs or taxonomy node IDs in your statement text.
+- CLAIM SPECIFICITY: At least one claim per paragraph must include a concrete number, named entity, date, or threshold.
+- CLAIM SKETCHING: For each paragraph, identify 1-3 distinct claims it makes. For each, extract a near-verbatim sentence and note which prior claims it engages with.${input.currentCruxContext ? `\n- CRUX ENGAGEMENT: At least one claim_sketch MUST directly address an active crux.` : ''}
+- TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that capture your argument's essence. Tooltip: 1-sentence analogy connecting the symbol to your argument.
+
+${getStyleReinforcement(input.audience)}
+Respond ONLY with a JSON object matching this exact schema (no markdown, no code fences):
+{
+  "statement": "your full debate response (3-5 paragraphs separated by \\n\\n)",
+  "turn_symbols": [
+    {"symbol": "emoji", "tooltip": "1-sentence analogy"}
+  ],
+  "claim_sketches": [
+    {"claim": "near-verbatim sentence from your statement", "targets": ["AN-3"]},
+    {"claim": "near-verbatim supporting sub-claim", "targets": []}
+  ]
+}`;
+}
+
 /**
  * Lightweight post-Draft extraction: identify key assumptions from a debate statement.
  * ~100 tokens. Deferred from Draft to reduce cognitive load during generation.
