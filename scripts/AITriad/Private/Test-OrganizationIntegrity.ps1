@@ -156,6 +156,14 @@ function Test-OrganizationIntegrity {
                     $issues.Add($iss)
                 }
                 $val = $povProp.Value
+                # Skip non-camp keys (e.g. legacy pov_alignment-root assessed_at).
+                # The unknown-POV warning above already flags them; don't cascade
+                # a bogus "no score / no rationale" complaint on top.
+                if ($validPovs -notcontains $povProp.Name) { continue }
+
+                # t/1583: legacy .score numeric bounds check retained for any
+                # pre-migration records; post-migration entries carry .tier
+                # (enum) — validate against the tier vocabulary instead.
                 if ($val.PSObject.Properties['score']) {
                     $s = [double]$val.score
                     if ($s -lt -1.0 -or $s -gt 1.0) {
@@ -165,10 +173,20 @@ function Test-OrganizationIntegrity {
                         $issues.Add($iss)
                     }
                 }
+                if ($val.PSObject.Properties['tier']) {
+                    $t = [string]$val.tier
+                    $validTiers = @('opposes','leans_against','mixed_or_silent','leans_toward','champions')
+                    if ($validTiers -notcontains $t) {
+                        $iss = [OrganizationIntegrityIssue]::new()
+                        $iss.OrgId = $id; $iss.Severity = 'error'; $iss.Field = "pov_alignment.$($povProp.Name).tier"
+                        $iss.Message = "Tier '$t' is not in enum: $($validTiers -join ', ')"
+                        $issues.Add($iss)
+                    }
+                }
                 if (-not $val.PSObject.Properties['rationale'] -or [string]::IsNullOrWhiteSpace([string]$val.rationale)) {
                     $iss = [OrganizationIntegrityIssue]::new()
                     $iss.OrgId = $id; $iss.Severity = 'warning'; $iss.Field = "pov_alignment.$($povProp.Name).rationale"
-                    $iss.Message = "Score present without rationale — makes the number opaque"
+                    $iss.Message = "Tier/score present without rationale — makes the assignment opaque"
                     $issues.Add($iss)
                 }
             }

@@ -112,17 +112,27 @@ Describe 'organizations.json integrity (t/1224 AC#4)' -Tag 'taxonomy' -Skip:(-no
         }
     }
 
-    It 'All pov_alignment scores are in [-1.0, 1.0]' {
+    It 'All pov_alignment tiers are in the PovAlignmentTier enum (t/1583)' {
         InModuleScope AITriad {
             $s = Get-OrganizationsStore
             # t/1555 added assessed_at as a sibling of the three camp entries —
-            # skip it here; the camp entries are the only score-bearing children.
-            $camps = @('accelerationist', 'safetyist', 'skeptic')
+            # skip it here; the camp entries are the only tier-bearing children.
+            # t/1583 replaced numeric .score with .tier enum; legacy .score
+            # tolerated if it survives on any org (bounds check retained).
+            $camps      = @('accelerationist', 'safetyist', 'skeptic')
+            $validTiers = @('opposes','leans_against','mixed_or_silent','leans_toward','champions')
             foreach ($o in @($s.organizations)) {
                 foreach ($povProp in $o.pov_alignment.PSObject.Properties) {
                     if ($povProp.Name -notin $camps) { continue }
-                    $povProp.Value.score | Should -BeGreaterOrEqual -1.0
-                    $povProp.Value.score | Should -BeLessOrEqual 1.0
+                    $val = $povProp.Value
+                    if ($val.PSObject.Properties['tier']) {
+                        $validTiers | Should -Contain ([string]$val.tier)
+                    } elseif ($val.PSObject.Properties['score']) {
+                        $val.score | Should -BeGreaterOrEqual -1.0
+                        $val.score | Should -BeLessOrEqual 1.0
+                    } else {
+                        throw "org $($o.id) camp $($povProp.Name) missing both tier and score"
+                    }
                 }
             }
         }
@@ -138,17 +148,25 @@ Describe 'organizations.json integrity (t/1224 AC#4)' -Tag 'taxonomy' -Skip:(-no
         }
     }
 
-    It 'At least 2 orgs are camp-spanning (positive score on ≥2 POVs)' {
+    It 'At least 2 orgs are camp-spanning (positive alignment on ≥2 POVs)' {
         InModuleScope AITriad {
             $s = Get-OrganizationsStore
-            # Skip assessed_at (t/1555) — camp entries are the only score-bearing children.
-            $camps = @('accelerationist', 'safetyist', 'skeptic')
+            # Skip assessed_at (t/1555) — camp entries are the only alignment-bearing children.
+            # t/1583: read .tier (enum) first, fall back to legacy .score (numeric).
+            $camps        = @('accelerationist', 'safetyist', 'skeptic')
+            $positiveTiers = @('leans_toward', 'champions')
             $spanners = @(
                 foreach ($o in @($s.organizations)) {
                     $positives = 0
                     foreach ($povProp in $o.pov_alignment.PSObject.Properties) {
                         if ($povProp.Name -notin $camps) { continue }
-                        if ([double]$povProp.Value.score -gt 0.3) { $positives++ }
+                        $val = $povProp.Value
+                        $isPositive = if ($val.PSObject.Properties['tier']) {
+                            $positiveTiers -contains [string]$val.tier
+                        } elseif ($val.PSObject.Properties['score']) {
+                            [double]$val.score -gt 0.3
+                        } else { $false }
+                        if ($isPositive) { $positives++ }
                     }
                     if ($positives -ge 2) { $o.id }
                 }
@@ -332,8 +350,12 @@ Describe 'Compare-OrganizationPositions' -Tag 'taxonomy' -Skip:(-not $HasDataRep
         $r = Compare-OrganizationPositions -Id org-001, org-005
         @($r).Count | Should -Be 3
         $accRow = $r | Where-Object { $_.POV -eq 'accelerationist' }
-        $accRow.Anthropic | Should -Be 0.4
-        $accRow.a16z      | Should -Be 0.9
+        # t/1583: raw numeric scores replaced with tier enum; the typed
+        # [OrganizationPovAlignment].Score is now the tier midpoint from
+        # ConvertFrom-PovTier. Anthropic on acc is 'leans_toward' (0.35);
+        # a16z on acc is 'champions' (0.775).
+        $accRow.Anthropic | Should -Be 0.35
+        $accRow.a16z      | Should -Be 0.775
     }
 
     It 'Throws on unknown org id' {

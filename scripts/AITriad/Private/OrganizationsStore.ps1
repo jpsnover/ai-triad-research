@@ -121,7 +121,18 @@ function ConvertTo-OrganizationObject {
         foreach ($povProp in $Raw.pov_alignment.PSObject.Properties) {
             $entry = [OrganizationPovAlignment]::new()
             $val = $povProp.Value
-            $entry.Score     = if ($val.PSObject.Properties['score']) { [double]$val.score } else { 0.0 }
+            # t/1583: post-migration entries carry .tier (enum) not .score
+            # (numeric). Map through ConvertFrom-PovTier to a representative
+            # midpoint so the typed [OrganizationPovAlignment].Score contract
+            # (numeric) stays populated for consumers like
+            # Compare-OrganizationPositions and Find-OrganizationByPOV.
+            $entry.Score = if ($val.PSObject.Properties['score']) {
+                [double]$val.score
+            } elseif ($val.PSObject.Properties['tier']) {
+                ConvertFrom-PovTier -Tier ([string]$val.tier)
+            } else {
+                0.0
+            }
             $entry.Rationale = if ($val.PSObject.Properties['rationale']) { [string]$val.rationale } else { '' }
             $povAlign[$povProp.Name] = $entry
         }

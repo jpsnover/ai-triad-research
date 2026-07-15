@@ -68,8 +68,16 @@ function Find-OrganizationByPOV {
         if (-not $raw.PSObject.Properties['pov_alignment']) { continue }
         if (-not $raw.pov_alignment.PSObject.Properties[$Pov]) { continue }
         $entry = $raw.pov_alignment.$Pov
-        if (-not $entry.PSObject.Properties['score']) { continue }
-        $score = [double]$entry.score
+        # Post-t/1583: entries carry .tier (enum) instead of .score (numeric).
+        # Map tier → representative midpoint so the -MinScore/-MaxScore
+        # calling convention stays stable for backward compat.
+        $score = if ($entry.PSObject.Properties['score']) {
+            [double]$entry.score
+        } elseif ($entry.PSObject.Properties['tier']) {
+            ConvertFrom-PovTier -Tier ([string]$entry.tier)
+        } else {
+            continue
+        }
         if ($score -lt $MinScore -or $score -gt $MaxScore) { continue }
         [PSCustomObject]@{ Raw = $raw; Score = $score }
     }
