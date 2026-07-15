@@ -86,6 +86,8 @@ import { DEFAULT_ATTACK_WEIGHTS } from './qbaf.js';
 import { computeStrategicHints } from './strategicHints.js';
 import { evaluateLookahead } from './lookaheadGate.js';
 import type { LookaheadDiagnostics } from './lookaheadGate.js';
+import { runOvergenPipeline } from './overgenPipeline.js';
+import type { OvergenDiagnostics } from './overgenPipeline.js';
 import { classifyTopicComplexity, extractTopicStructure } from './topicStructure.js';
 import { resolveRepoRoot, resolveDataRoot, resolveSourcesDir } from './taxonomyLoader.js';
 import { updateCruxTracker, formatCruxResolutionContext, detectConcessionCascade, transitionCrux } from './cruxResolution.js';
@@ -262,6 +264,8 @@ export interface DebateConfig {
   enableDiversityRound?: boolean;
   /** Enable corpus-coverage anti-recurrence: downweight retread nodes, boost underexplored tail (t/1438). */
   enableCorpusCoverage?: boolean;
+  /** Enable over-generate/select/rewrite pipeline: N=3 drafts, dedup, greedy top-K, rewrite, coherence gate (t/1581). */
+  experiment_overgen_select_rewrite?: boolean;
   /** Exploration summary from a prior cheap-engine run — seeds cruxes, situations, AN priming, and config overrides. */
   explorationSummary?: import('./explorationSummary.js').ExplorationSummary;
   /** Use restructured BRIEF prompt (YOUR TASK → REFERENCE → CURRENT STATE) instead of inline context. Experiment flag (t/1029). */
@@ -362,6 +366,8 @@ export class DebateEngine {
   private _explorationPriming: string = '';
   /** Insularity interventions fired during this debate (for calibration logging). */
   private _insularityInterventions: { speaker: string; round: number; injected_node_id: string; target_camp: string }[] = [];
+  /** Whether any turn's over-gen coherence gate missed during this debate. */
+  private _overgenCoherenceGateMiss = false;
   /** Adaptive backoff (ms) imposed after a 429 rate-limit error is detected. */
   private _rateLimitBackoffMs = 0;
   /** Timestamp of the last 429 detection — used with _rateLimitBackoffMs in throttle(). */
@@ -858,6 +864,9 @@ export class DebateEngine {
         docMeta: this.docTitles,
         insularityInterventions: this._insularityInterventions.length > 0 ? this._insularityInterventions : undefined,
       });
+      if (this._overgenCoherenceGateMiss) {
+        dataPoint.coherence_gate_miss = true;
+      }
       // Resolve data root — env var or .aitriad.json fallback
       const __engineDir = path.dirname(fileURLToPath(import.meta.url));
       const repoRoot = resolveRepoRoot(__engineDir);
@@ -3551,8 +3560,81 @@ export class DebateEngine {
       retryInput.model = model;
       return executeTurnWithRetry(retryInput, retryCallbacks);
     });
-    const { statement, taxonomyRefs, meta, validation, attempts, pipelineResult } = turnResult;
+    let { statement, taxonomyRefs, meta, validation, attempts, pipelineResult } = turnResult;
     this.enrichTaxonomyRefs(taxonomyRefs);
+
+    // ── Over-generate/select/rewrite pipeline (t/1581) ──
+    let overgenDiagnostics: OvergenDiagnostics | undefined;
+    let overgenCoherenceMiss = false;
+    if (this.config.experiment_overgen_select_rewrite && this.config.embedFn) {
+      try {
+        const draftDiagnostic = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
+        const draftPromptText = draftDiagnostic?.prompt;
+        const draftModel = this.config.stageModels?.draft ?? this.resolveModelForSpeaker(responder);
+        const draftTemp = this.config.temperature ?? 0.7;
+
+        if (draftPromptText) {
+          const embedFn = this.config.embedFn;
+          const draftFn = async () => {
+            const raw = await this.stageGenerate(
+              draftPromptText, draftModel,
+              { temperature: draftTemp },
+              `${responder} overgen-draft`,
+            );
+            const parsed = parseJsonRobust(raw) as Record<string, unknown>;
+            return {
+              statement: (parsed.statement as string) ?? '',
+              turn_symbols: Array.isArray(parsed.turn_symbols) ? parsed.turn_symbols : [],
+              claim_sketches: Array.isArray(parsed.claim_sketches) ? parsed.claim_sketches : [],
+              key_assumptions: Array.isArray(parsed.key_assumptions) ? parsed.key_assumptions : [],
+              disagreement_type: (parsed.disagreement_type as string) ?? '',
+            } as DraftWorkProduct;
+          };
+
+          const rewriteGenerateFn = async (prompt: string) =>
+            this.stageGenerate(prompt, draftModel, { temperature: draftTemp }, `${responder} overgen-rewrite`);
+
+          const info = this.povers.find(p => p.id === responder)!;
+          const overgenResult = await runOvergenPipeline(
+            draftFn, rewriteGenerateFn, embedFn,
+            {
+              speaker: responder,
+              existingNodes: this.session.argument_network?.nodes ?? [],
+              existingEdges: this.session.argument_network?.edges ?? [],
+              cruxes: this.session.crux_tracker,
+              label: info.label,
+              pov: info.pov,
+              topic: this.session.topic.text,
+              recentTranscript: this.getRecentTranscript(6),
+              audience: this.config.audience,
+              currentCruxContext: this.session.crux_tracker?.length
+                ? this.session.crux_tracker.map(c => `- ${c.text} [${c.status}]`).join('\n')
+                : undefined,
+              topicScope: this.session.topic.scope,
+            },
+          );
+
+          overgenDiagnostics = overgenResult.diagnostics;
+          overgenCoherenceMiss = overgenResult.coherence_gate_miss;
+          if (overgenCoherenceMiss) this._overgenCoherenceGateMiss = true;
+          statement = overgenResult.draft.statement;
+
+          getGlobalRecorder()?.record({
+            type: 'debate.quality', component: 'overgen-pipeline', level: 'info',
+            speaker: responder, debate_id: this.session?.id,
+            message: `Over-gen pipeline complete: ${overgenResult.diagnostics.claims_pooled} pooled → ${overgenResult.diagnostics.claims_after_dedup} deduped → ${overgenResult.diagnostics.claims_selected} selected`,
+            data: overgenResult.diagnostics,
+          });
+        }
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'overgen-pipeline', level: 'warn',
+          debate_id: this.session?.id, speaker: responder,
+          message: 'Over-gen pipeline failed — using original draft',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+      }
+    }
 
     // Update per-speaker hint streaks for hopeless hint suppression.
     // Uses the final validation's repairHints — these are the hints that persisted
@@ -3674,6 +3756,7 @@ export class DebateEngine {
       quality_gate: pipelineResult.qualityGateResult,
       scope_drift_warnings: scopeDriftWarnings,
       scope_drift_check: scopeDriftCheck,
+      overgen: overgenDiagnostics,
     });
 
     // Track move types and disagreement types

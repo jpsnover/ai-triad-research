@@ -703,3 +703,106 @@ function buildTentativeNodes(
 
   return [...existing, ...newNodes];
 }
+
+// ── Greedy claim selection (over-gen pipeline) ──────────
+
+/**
+ * Select the top-K claims from a candidate pool by greedy marginal Δu.
+ *
+ * 1. Classify all candidates via evaluateLookaheadPerClaim.
+ * 2. PRESERVE claims are always selected and don't consume K slots.
+ * 3. Greedy loop: init S = {PRESERVE}, repeat K times adding the candidate
+ *    with highest evaluateLookahead(S ∪ {candidate}) − evaluateLookahead(S).
+ *
+ * O(K·C) QBAF evaluations where C = non-PRESERVE candidate count.
+ */
+export function selectGreedyClaims(
+  candidates: PerClaimResult[],
+  input: LookaheadGateInput,
+  K: number,
+): { selected: PerClaimResult[]; avoided: PerClaimResult[] } {
+  const preserved = candidates.filter(c => c.classification === 'PRESERVE');
+  const nonPreserved = candidates.filter(c => c.classification !== 'PRESERVE');
+
+  if (nonPreserved.length === 0) {
+    return { selected: preserved, avoided: [] };
+  }
+
+  const selectedIndices = new Set<number>();
+  const preservedClaims: LookaheadTentativeClaim[] = preserved.map(c => ({
+    text: c.text,
+    base_strength: c.base_strength,
+  }));
+
+  const preservedNodeIds = new Set<string>();
+  if (preservedClaims.length > 0) {
+    const ids = buildTentativeNodeIds(input.existingNodes, preservedClaims);
+    ids.forEach(id => preservedNodeIds.add(id));
+  }
+
+  const preservedEdges = preservedClaims.length > 0
+    ? input.tentativeEdges.filter(e => preservedNodeIds.has(e.source) || preservedNodeIds.has(e.target))
+    : [];
+
+  for (let round = 0; round < Math.min(K, nonPreserved.length); round++) {
+    let bestIdx = -1;
+    let bestDelta = -Infinity;
+
+    const currentClaims: LookaheadTentativeClaim[] = [
+      ...preservedClaims,
+      ...Array.from(selectedIndices).map(i => ({
+        text: nonPreserved[i].text,
+        base_strength: nonPreserved[i].base_strength,
+      })),
+    ];
+
+    const currentNodeIds = buildTentativeNodeIds(input.existingNodes, currentClaims);
+    const currentNodeIdSet = new Set(currentNodeIds);
+    const currentEdges = input.tentativeEdges.filter(
+      e => currentNodeIdSet.has(e.source) || currentNodeIdSet.has(e.target),
+    );
+
+    const baseUtility = evaluateLookahead({
+      ...input,
+      tentativeClaims: currentClaims,
+      tentativeEdges: currentEdges,
+    });
+
+    for (let i = 0; i < nonPreserved.length; i++) {
+      if (selectedIndices.has(i)) continue;
+
+      const trialClaims: LookaheadTentativeClaim[] = [
+        ...currentClaims,
+        { text: nonPreserved[i].text, base_strength: nonPreserved[i].base_strength },
+      ];
+      const trialNodeIds = buildTentativeNodeIds(input.existingNodes, trialClaims);
+      const trialNodeIdSet = new Set(trialNodeIds);
+      const trialEdges = input.tentativeEdges.filter(
+        e => trialNodeIdSet.has(e.source) || trialNodeIdSet.has(e.target),
+      );
+
+      const trialUtility = evaluateLookahead({
+        ...input,
+        tentativeClaims: trialClaims,
+        tentativeEdges: trialEdges,
+      });
+
+      const marginal = trialUtility.utility_delta - baseUtility.utility_delta;
+      if (marginal > bestDelta) {
+        bestDelta = marginal;
+        bestIdx = i;
+      }
+    }
+
+    if (bestIdx === -1) break;
+    selectedIndices.add(bestIdx);
+  }
+
+  const selected = [
+    ...preserved,
+    ...nonPreserved.filter((_, i) => selectedIndices.has(i)),
+  ];
+  const avoided = nonPreserved.filter((_, i) => !selectedIndices.has(i));
+
+  return { selected, avoided };
+}

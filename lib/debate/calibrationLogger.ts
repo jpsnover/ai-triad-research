@@ -373,6 +373,10 @@ export interface CalibrationDataPoint {
   seeded_ineffective_situation_count?: number;
   /** Number of AN nodes primed from exploration. */
   seeded_an_node_count?: number;
+
+  // ── Over-generate/select/rewrite pipeline (t/1581) ──
+  /** Whether a coherence gate miss occurred (rewrite failed to preserve ≥3/4 selected claims). */
+  coherence_gate_miss?: boolean;
 }
 
 // ── Extraction logic ────────────────────────────────────────
