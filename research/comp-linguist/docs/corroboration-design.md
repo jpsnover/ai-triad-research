@@ -189,6 +189,31 @@ carries no `record[]` entry and no `revisions[]` entry at all. Missing this writ
 step would let a legitimate reflection edit render as `refined` *and* `stale`
 simultaneously, contradicting the non-punitive design intent above.
 
+**Calling-convention requirement for `prior_falsifiability` (CL review, t/1545#3):**
+The write-time requirement above means `harvestDebateTested` is called *after* the
+reflect loop has updated the node's description. If the reflect loop also updates
+`graph_attributes.falsifiability` before calling harvest, the `prior_falsifiability`
+field written into the revision entry captures the post-reflection falsifiability
+rather than the pre-reflection value. In a subsequent debate the content-increase gate
+then compares post-reflection against itself and always passes. The gate is
+ineffective for the exact edit that triggered the refinement.
+
+**Required calling pattern for orchestration code (Phase 3 / any caller that calls
+`harvestDebateTested` for a session that includes refined nodes):** read each
+`refined` node's `graph_attributes.falsifiability` *before* the reflect loop runs on
+that node, and pass the captured value explicitly to the harvest writer. The harvest
+function signature should expose a `priorFalsifiability` parameter per-node (or as
+part of a `HarvestRefinementContext`) rather than re-reading from the already-mutated
+`PovNode`. This makes the writer stateless with respect to calling order, and the
+content-increase gate unambiguous.
+
+**Backfill fallback (Phase 0b):** historical sessions do not have a reliable
+pre-reflection snapshot. For backfill-created revision entries, set
+`prior_falsifiability: null` and add `"backfill": true` to the revision object. The gate cannot fire on a value we do not have, and
+`null` is visibly distinct from a measured value. Do not substitute the current
+falsifiability as a proxy. Substituting it creates phantom "prior" values that are
+actually post-reflection, which is the failure mode this constraint exists to prevent.
+
 ### Schema updates
 
 - Add the `debate_tested` object to `taxonomy/schemas/pov-taxonomy.schema.json`
