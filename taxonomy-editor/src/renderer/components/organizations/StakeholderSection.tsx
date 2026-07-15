@@ -3,8 +3,13 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@bridge';
-import type { Organization } from '../../bridge/types';
+import type { Organization, PovStance, PovAlignmentTier } from '../../bridge/types';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+
+const TIER_TO_SCORE: Record<PovAlignmentTier, number> = {
+  opposes: -1.0, leans_against: -0.5, mixed_or_silent: 0, leans_toward: 0.5, champions: 1.0,
+};
+function tierScore(stance: PovStance): number { return TIER_TO_SCORE[stance.tier] ?? 0; }
 
 const POV_COLORS: Record<string, string> = {
   accelerationist: '#f97316',
@@ -19,12 +24,12 @@ function PovDots({ alignment }: { alignment?: Organization['pov_alignment'] }) {
       {(['accelerationist', 'safetyist', 'skeptic'] as const).map((pov) => {
         const stance = alignment[pov];
         if (!stance) return null;
-        const score = stance.score;
+        const score = tierScore(stance);
         const color = POV_COLORS[pov] ?? 'var(--text-muted)';
         return (
           <span
             key={pov}
-            title={`${pov}: ${score > 0 ? '+' : ''}${score.toFixed(1)}`}
+            title={`${pov}: ${stance.tier.replace('_', ' ')}`}
             style={{
               display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
               background: color, opacity: Math.max(0.3, Math.abs(score)),

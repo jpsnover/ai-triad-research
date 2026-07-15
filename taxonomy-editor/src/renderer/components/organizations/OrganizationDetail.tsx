@@ -2,8 +2,13 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useMemo } from 'react';
-import type { Organization, OrganizationEdge, OrganizationEdgeType } from '../../bridge/types';
+import type { Organization, OrganizationEdge, OrganizationEdgeType, PovStance, PovAlignmentTier } from '../../bridge/types';
 import type { KeyFigure, ExternalLink } from '@lib/organizations/types';
+
+const TIER_TO_SCORE: Record<PovAlignmentTier, number> = {
+  opposes: -1.0, leans_against: -0.5, mixed_or_silent: 0, leans_toward: 0.5, champions: 1.0,
+};
+function tierScore(stance: PovStance): number { return TIER_TO_SCORE[stance.tier] ?? 0; }
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useOrganizationStore } from '../../hooks/useOrganizationStore';
@@ -132,7 +137,7 @@ function PovAlignmentBar({ alignment }: { alignment?: Organization['pov_alignmen
       {povs.map((pov) => {
         const stance = alignment[pov];
         if (!stance) return null;
-        const score = stance.score;
+        const score = tierScore(stance);
         const absScore = Math.abs(score);
         const color = POV_COLORS[pov] ?? 'var(--text-muted)';
         return (
@@ -156,7 +161,7 @@ function PovAlignmentBar({ alignment }: { alignment?: Organization['pov_alignmen
             </div>
             <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', flexShrink: 0 }}>+1</span>
             <span style={{ width: 40, textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)', flexShrink: 0, fontSize: '0.72rem' }}>
-              {score > 0 ? '+' : ''}{score.toFixed(1)}
+              {stance.tier.replace('_', ' ')}
             </span>
           </div>
         );

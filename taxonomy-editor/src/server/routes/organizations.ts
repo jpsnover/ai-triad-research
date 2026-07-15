@@ -30,9 +30,7 @@ export function registerOrganizationsRoutes(r: Router, _ctx: ServerCtx): void {
       const pov = param(req, 'pov', '/api/organizations/by-pov/:pov');
       if (!isPov(pov)) { error(res, `Unknown POV camp: ${pov}`, 400); return; }
       const direction = query(req, 'direction') === 'against' ? 'against' : 'for';
-      const tRaw = Number(query(req, 'threshold'));
-      const threshold = Number.isFinite(tRaw) ? tRaw : 0.3;
-      json(res, await organizations.organizationsByPov(pov, direction, threshold));
+      json(res, await organizations.organizationsByPov(pov, direction));
     } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to query organizations by POV', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
   });
 

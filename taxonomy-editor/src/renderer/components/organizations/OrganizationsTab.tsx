@@ -5,13 +5,18 @@ import { useEffect, useMemo } from 'react';
 import { useOrganizationStore } from '../../hooks/useOrganizationStore';
 import { useResizablePanel } from '../../hooks/useResizablePanel';
 import { OrganizationDetail, OrgLogo } from './OrganizationDetail';
-import type { Organization } from '../../bridge/types';
+import type { Organization, PovStance, PovAlignmentTier } from '../../bridge/types';
 
 const POV_COLORS: Record<string, string> = {
   accelerationist: '#f97316',
   safetyist: '#22c55e',
   skeptic: '#a855f7',
 };
+
+const TIER_TO_SCORE: Record<PovAlignmentTier, number> = {
+  opposes: -1.0, leans_against: -0.5, mixed_or_silent: 0, leans_toward: 0.5, champions: 1.0,
+};
+function tierScore(stance: PovStance): number { return TIER_TO_SCORE[stance.tier] ?? 0; }
 
 const TYPE_OPTIONS = ['think_tank', 'advocacy', 'regulatory', 'academic', 'corporate', 'intergovernmental', 'civil_society', 'standards_body', 'research_lab'] as const;
 const POV_OPTIONS = ['accelerationist', 'safetyist', 'skeptic'] as const;
@@ -23,12 +28,12 @@ function PovDots({ alignment }: { alignment?: Organization['pov_alignment'] }) {
       {(['accelerationist', 'safetyist', 'skeptic'] as const).map((pov) => {
         const stance = alignment[pov];
         if (!stance) return null;
-        const score = stance.score;
+        const score = tierScore(stance);
         const color = POV_COLORS[pov] ?? 'var(--text-muted)';
         return (
           <span
             key={pov}
-            title={`${pov}: ${score > 0 ? '+' : ''}${score.toFixed(1)}`}
+            title={`${pov}: ${stance.tier.replace('_', ' ')}`}
             style={{
               display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
               background: color, opacity: Math.max(0.3, Math.abs(score)),
@@ -69,7 +74,7 @@ export function OrganizationsTab() {
     if (filters.pov) {
       list = list.filter((o) => {
         const stance = o.pov_alignment?.[filters.pov! as import('../../bridge/types').Pov];
-        return stance && stance.score > 0;
+        return stance && (stance.tier === 'leans_toward' || stance.tier === 'champions');
       });
     }
     return list.slice().sort((a, b) => a.name.localeCompare(b.name));

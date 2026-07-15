@@ -1,5 +1,13 @@
 export type Pov = 'accelerationist' | 'safetyist' | 'skeptic';
-export type PovStance = { score: number; rationale?: string };
+
+export type PovAlignmentTier =
+  | 'opposes'
+  | 'leans_against'
+  | 'mixed_or_silent'
+  | 'leans_toward'
+  | 'champions';
+
+export type PovStance = { tier: PovAlignmentTier; rationale: string; behavioral_notes?: string | null };
 export interface TopicEngagement { topic_ref: string; stance?: string; description?: string }
 export interface PolicyEngagement { policy_ref: string; stance: 'supports' | 'opposes' }
 

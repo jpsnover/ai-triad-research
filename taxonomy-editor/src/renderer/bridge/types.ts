@@ -61,11 +61,12 @@ export interface SupportCaseDetail extends SupportCaseSummary {
   systemInfo: SupportCaseCreatePayload['systemInfo'];
 }
 
-import type { Organization as _Organization, OrganizationEdge as _OrganizationEdge, OrganizationEdgeType as _OrganizationEdgeType, Pov as _Pov, PovStance as _PovStance, TopicEngagement as _TopicEngagement, PolicyEngagement as _PolicyEngagement } from '@lib/organizations/types';
+import type { Organization as _Organization, OrganizationEdge as _OrganizationEdge, OrganizationEdgeType as _OrganizationEdgeType, Pov as _Pov, PovAlignmentTier as _PovAlignmentTier, PovStance as _PovStance, TopicEngagement as _TopicEngagement, PolicyEngagement as _PolicyEngagement } from '@lib/organizations/types';
 export type Organization = _Organization;
 export type OrganizationEdge = _OrganizationEdge;
 export type OrganizationEdgeType = _OrganizationEdgeType;
 export type Pov = _Pov;
+export type PovAlignmentTier = _PovAlignmentTier;
 export type PovStance = _PovStance;
 export type TopicEngagement = _TopicEngagement;
 export type PolicyEngagement = _PolicyEngagement;

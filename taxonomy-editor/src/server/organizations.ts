@@ -10,7 +10,11 @@ import { readOrganizations, readOrganizationEdges } from './storage/fileIO.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 export type { Pov, PovStance, TopicEngagement, PolicyEngagement, Organization, OrganizationEdgeType, OrganizationEdge } from '../../../lib/organizations/types.js';
-import type { Pov, Organization, OrganizationEdge } from '../../../lib/organizations/types.js';
+import type { Pov, PovAlignmentTier, Organization, OrganizationEdge } from '../../../lib/organizations/types.js';
+
+const TIER_RANK: Record<PovAlignmentTier, number> = {
+  opposes: -2, leans_against: -1, mixed_or_silent: 0, leans_toward: 1, champions: 2,
+};
 
 export const POV_CAMPS: readonly Pov[] = ['accelerationist', 'safetyist', 'skeptic'];
 export function isPov(v: string): v is Pov {
@@ -87,14 +91,17 @@ export function resetOrganizationsCache(): void { cache = null; }
 
 // ── Query helpers (1:1 with the REST routes) ──
 
-/** All orgs, optionally filtered by `type` and/or alignment with a `pov` (score > 0.3). */
+/** All orgs, optionally filtered by `type` and/or alignment with a `pov` (leans_toward or champions). */
 export async function listOrganizations(opts: { type?: string | null; pov?: string | null } = {}): Promise<Organization[]> {
   const { all } = await load();
   let out = all;
   if (opts.type) out = out.filter(o => o.type === opts.type);
   if (opts.pov && isPov(opts.pov)) {
     const pov = opts.pov;
-    out = out.filter(o => (o.pov_alignment?.[pov]?.score ?? 0) > 0.3);
+    out = out.filter(o => {
+      const tier = o.pov_alignment?.[pov]?.tier;
+      return tier === 'leans_toward' || tier === 'champions';
+    });
   }
   return out;
 }
@@ -104,23 +111,21 @@ export async function getOrganizationById(id: string): Promise<Organization | nu
   return byId.get(id) ?? null;
 }
 
-/**
- * Orgs aligned with `pov`. `direction='for'` → score >= threshold; `'against'` →
- * score <= -threshold. Sorted by |score| descending (HLD scenario #1). (t/1225 Q2)
- */
+/** Orgs aligned with `pov`; `for` → leans_toward/champions, `against` → opposes/leans_against. Sorted by tier strength desc. (t/1225 Q2) */
 export async function organizationsByPov(
-  pov: Pov, direction: 'for' | 'against' = 'for', threshold = 0.3,
+  pov: Pov, direction: 'for' | 'against' = 'for',
 ): Promise<Organization[]> {
   const { all } = await load();
-  const t = Math.abs(threshold);
   return all
     .filter(o => {
-      const score = o.pov_alignment?.[pov]?.score;
-      if (typeof score !== 'number') return false;
-      return direction === 'for' ? score >= t : score <= -t;
+      const tier = o.pov_alignment?.[pov]?.tier;
+      if (!tier) return false;
+      const rank = TIER_RANK[tier];
+      return direction === 'for' ? rank >= 1 : rank <= -1;
     })
     .sort((a, b) =>
-      Math.abs(b.pov_alignment?.[pov]?.score ?? 0) - Math.abs(a.pov_alignment?.[pov]?.score ?? 0));
+      Math.abs(TIER_RANK[b.pov_alignment?.[pov]?.tier ?? 'mixed_or_silent']) -
+      Math.abs(TIER_RANK[a.pov_alignment?.[pov]?.tier ?? 'mixed_or_silent']));
 }
 
 /** Orgs engaged with a situation/topic (`sit-*`). Reverse index. (HLD scenario #4) */
