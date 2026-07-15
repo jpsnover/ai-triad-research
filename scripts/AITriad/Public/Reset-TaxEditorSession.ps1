@@ -18,6 +18,20 @@ function Reset-TaxEditorSession {
         Reset-TaxEditorSession -UserId 'jpsnover'
     .EXAMPLE
         Reset-TaxEditorSession -UserId 'jpsnover' -WhatIf
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-TaxEditorBlob
+    .LINK
+        Get-TaxEditorDataCommit
+    .LINK
+        Restore-TaxEditorBlob
+    .LINK
+        Restore-TaxEditorKnownGood
+    .LINK
+        Set-TaxEditorKnownGood
+    .LINK
+        Sync-TaxEditorData
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
     param(

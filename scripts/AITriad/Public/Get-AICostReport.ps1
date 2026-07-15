@@ -31,6 +31,10 @@ function Get-AICostReport {
         Get-AICostReport -GroupBy Session -After '2026-04-01'
     .EXAMPLE
         Get-AICostReport -Budget 50 -GroupBy Date
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-FreeTierStatus
     #>
     [CmdletBinding()]
     param(

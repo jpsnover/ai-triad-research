@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Test-Dependencies {
@@ -33,6 +33,16 @@ function Test-Dependencies {
         Test-Dependencies -Quiet
     .EXAMPLE
         $r = Test-Dependencies -PassThru; $r.Outdated
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Install-AIDependencies
+    .LINK
+        Install-AITriadData
+    .LINK
+        Install-GraphDatabase
+    .LINK
+        Register-AITriadDrive
     #>
     [CmdletBinding()]
     param(

@@ -29,6 +29,18 @@ function Get-FlightRecorderReport {
 
     .EXAMPLE
         Get-TaxonomyProcess | Request-FlightRecorderDump | Get-FlightRecorderReport -AsObject
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-AzureFlightRecorder
+    .LINK
+        Get-FlightRecorderDump
+    .LINK
+        Merge-FlightRecorderDumps
+    .LINK
+        Request-FlightRecorderDump
+    .LINK
+        Show-FlightRecorder
     #>
     [CmdletBinding()]
     param(

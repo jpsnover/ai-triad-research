@@ -42,6 +42,12 @@ function Import-OrganizationEdge {
         Import-OrganizationEdge -Source org-001 -Target org-002 -Type COMPETES_WITH -Rationale 'Direct rivals in frontier model training.'
     .EXAMPLE
         Import-OrganizationEdge -InputObject @{ source='org-001'; target='sit-042'; type='ADVOCATES_FOR'; rationale='...' }
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-OrganizationEdge
+    .LINK
+        Get-Organization
     #>
     [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName = 'Fields')]
     [OutputType('OrganizationEdge')]

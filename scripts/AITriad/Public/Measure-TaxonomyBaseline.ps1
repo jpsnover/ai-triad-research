@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Measure-TaxonomyBaseline {
@@ -25,6 +25,20 @@ function Measure-TaxonomyBaseline {
         Measure-TaxonomyBaseline
     .EXAMPLE
         Measure-TaxonomyBaseline -OutputPath ./baseline-2026-03-28.json
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-Tax
+    .LINK
+        Get-GraphNode
+    .LINK
+        Get-TaxonomyHealth
+    .LINK
+        Compare-Taxonomy
+    .LINK
+        Test-TaxonomyIntegrity
+    .LINK
+        Test-OntologyCompliance
     #>
     [CmdletBinding()]
     param(

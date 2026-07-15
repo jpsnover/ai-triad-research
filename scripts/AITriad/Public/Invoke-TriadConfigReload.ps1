@@ -2,6 +2,35 @@
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-TriadConfigReload {
+    <#
+    .SYNOPSIS
+        Triggers a live runtime-config reload on a taxonomy-editor deployment.
+    .DESCRIPTION
+        POSTs to the admin config reload endpoint (/api/admin/config/reload) so the
+        server re-reads its runtime configuration without a redeploy. Requires admin
+        credentials (GITHUB_TOKEN). Use after Set-TriadConfig when you did not pass
+        -Reload, or to force the server to pick up an out-of-band config change.
+    .PARAMETER BaseUrl
+        Base URL of the taxonomy-editor deployment. Defaults to the configured endpoint.
+    .PARAMETER PassThru
+        Return the server's reload response object instead of nothing.
+    .EXAMPLE
+        Invoke-TriadConfigReload
+        # Force the deployment to reload its runtime config.
+    .EXAMPLE
+        Invoke-TriadConfigReload -PassThru
+        # Reload and return the server response.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-TriadConfig
+    .LINK
+        Set-TriadConfig
+    .LINK
+        Register-AIBackend
+    .LINK
+        Test-AIApiKey
+    #>
     [CmdletBinding()]
     param(
         [Parameter()]

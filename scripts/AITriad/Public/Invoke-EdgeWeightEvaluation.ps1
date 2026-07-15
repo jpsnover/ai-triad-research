@@ -33,6 +33,20 @@ function Invoke-EdgeWeightEvaluation {
     .EXAMPLE
         Invoke-EdgeWeightEvaluation -Status proposed
         # Evaluate proposed edges.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Approve-Edge
+    .LINK
+        Get-Edge
+    .LINK
+        Set-Edge
+    .LINK
+        Test-EdgeDirection
+    .LINK
+        Invoke-EdgeDiscovery
+    .LINK
+        Invoke-AIByUsage
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

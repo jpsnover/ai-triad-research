@@ -21,6 +21,20 @@ function Sync-TaxEditorData {
         Sync-TaxEditorData -BaseUrl 'https://staging.example.com'
     .EXAMPLE
         Sync-TaxEditorData -Mode reset-main
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-TaxEditorBlob
+    .LINK
+        Get-TaxEditorDataCommit
+    .LINK
+        Restore-TaxEditorBlob
+    .LINK
+        Restore-TaxEditorKnownGood
+    .LINK
+        Set-TaxEditorKnownGood
+    .LINK
+        Undo-TaxEditorDataCommit
     #>
     [CmdletBinding()]
     param(

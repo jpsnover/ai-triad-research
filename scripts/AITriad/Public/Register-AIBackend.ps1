@@ -28,6 +28,16 @@ function Register-AIBackend {
         Register-AIBackend
     .EXAMPLE
         Register-AIBackend -Port 8888 -NoBrowser
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-TriadConfig
+    .LINK
+        Set-TriadConfig
+    .LINK
+        Invoke-TriadConfigReload
+    .LINK
+        Test-AIApiKey
     #>
     [CmdletBinding()]
     param(

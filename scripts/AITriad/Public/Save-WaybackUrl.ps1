@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Save-WaybackUrl {
@@ -11,6 +11,14 @@ function Save-WaybackUrl {
         The URL to submit to the Wayback Machine.
     .EXAMPLE
         Save-WaybackUrl -Url 'https://example.com/article'
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Invoke-AttributeExtraction
+    .LINK
+        Invoke-EdgeDiscovery
+    .LINK
+        Update-Snapshot
     #>
     [CmdletBinding()]
     param(

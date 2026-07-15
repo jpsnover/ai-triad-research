@@ -32,6 +32,18 @@ function Request-FlightRecorderDump {
 
     .EXAMPLE
         Get-TaxonomyProcess -Type electron | Request-FlightRecorderDump | Get-FlightRecorderReport
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-AzureFlightRecorder
+    .LINK
+        Get-FlightRecorderDump
+    .LINK
+        Get-FlightRecorderReport
+    .LINK
+        Merge-FlightRecorderDumps
+    .LINK
+        Show-FlightRecorder
     #>
     [CmdletBinding()]
     param(

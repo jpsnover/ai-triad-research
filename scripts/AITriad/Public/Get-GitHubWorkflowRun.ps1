@@ -35,6 +35,10 @@ function Get-GitHubWorkflowRun {
     .EXAMPLE
         (Get-GitHubWorkflowRun -Repo $r -Workflow ci.yml -CommitSha $sha).Jobs |
             Where-Object Name -eq 'test-container'
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Test-GitHubHealth
     #>
     [CmdletBinding(DefaultParameterSetName = 'BySha')]
     param(

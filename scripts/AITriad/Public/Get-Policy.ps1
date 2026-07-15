@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-Policy {
@@ -26,6 +26,14 @@ function Get-Policy {
         Get-Policy -CrossPOV
     .EXAMPLE
         Get-Policy -POV accelerationist -IncludeUsage
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Find-PolicyAction
+    .LINK
+        Update-PolicyRegistry
+    .LINK
+        Invoke-PolicyRefinement
     #>
     [CmdletBinding(DefaultParameterSetName = 'All')]
     param(

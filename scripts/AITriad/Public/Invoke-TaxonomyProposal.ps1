@@ -33,6 +33,14 @@ function Invoke-TaxonomyProposal {
     .EXAMPLE
         $h = Get-TaxonomyHealth -PassThru
         Invoke-TaxonomyProposal -HealthData $h
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Approve-TaxonomyProposal
+    .LINK
+        Invoke-HierarchyProposal
+    .LINK
+        Set-TaxonomyHierarchy
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

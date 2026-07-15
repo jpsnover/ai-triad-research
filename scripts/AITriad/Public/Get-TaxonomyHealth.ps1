@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-TaxonomyHealth {
@@ -34,6 +34,20 @@ function Get-TaxonomyHealth {
     .EXAMPLE
         $h = Get-TaxonomyHealth -PassThru
         Invoke-TaxonomyProposal -HealthData $h
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-Tax
+    .LINK
+        Get-GraphNode
+    .LINK
+        Compare-Taxonomy
+    .LINK
+        Test-TaxonomyIntegrity
+    .LINK
+        Test-OntologyCompliance
+    .LINK
+        Get-RelevantTaxonomyNodes
     #>
     [CmdletBinding()]
     param(

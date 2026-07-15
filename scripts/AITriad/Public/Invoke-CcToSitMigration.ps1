@@ -64,6 +64,12 @@ function Invoke-CcToSitMigration {
         Invoke-CcToSitMigration        # interactive
     .EXAMPLE
         Invoke-CcToSitMigration -Force -SkipSurfaces summaries,chats
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Find-SituationCandidates
+    .LINK
+        Invoke-SchemaMigration
     #>
     [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName='Forward')]
     [OutputType([PSCustomObject])]

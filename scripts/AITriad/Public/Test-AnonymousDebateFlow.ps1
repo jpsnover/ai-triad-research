@@ -41,6 +41,20 @@ function Test-AnonymousDebateFlow {
         Test-AnonymousDebateFlow -BaseUrl https://staging.example.com -Detailed
     .EXAMPLE
         Test-AnonymousDebateFlow -StopOnFailure | Where-Object { -not $_.Pass }
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Test-TaxEditorHealth
+    .LINK
+        Test-TaxEditorEndpoints
+    .LINK
+        Test-PersonaEndpoints
+    .LINK
+        Test-ServiceWorkerHealth
+    .LINK
+        Get-FreeTierStatus
+    .LINK
+        Invoke-TaxEditorSmokeTest
     #>
     [CmdletBinding()]
     [OutputType([AnonymousFlowStepResult[]])]

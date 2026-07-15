@@ -45,6 +45,20 @@ function Measure-DebateQuality {
     .EXAMPLE
         Measure-DebateQuality -Latest -PassThruMetrics |
             Select-Object OverallRating, Tier, Metrics
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Compare-DebateQuality
+    .LINK
+        Compare-DebateRuns
+    .LINK
+        Invoke-DebateAB
+    .LINK
+        Test-SynthesisCompleteness
+    .LINK
+        Get-CalibrationTrend
+    .LINK
+        Test-AITJudgeModel
     #>
     [CmdletBinding(DefaultParameterSetName = 'ByPath')]
     [OutputType([PSCustomObject])]

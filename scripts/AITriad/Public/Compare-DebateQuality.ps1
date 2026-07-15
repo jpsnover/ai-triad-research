@@ -21,6 +21,20 @@ function Compare-DebateQuality {
         Compare-DebateQuality -Baseline debate-abc.json -Treatment debate-xyz.json
     .EXAMPLE
         Compare-DebateQuality -Baseline abc123 -Treatment xyz456 -Format Json
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Compare-DebateRuns
+    .LINK
+        Measure-DebateQuality
+    .LINK
+        Invoke-DebateAB
+    .LINK
+        Test-SynthesisCompleteness
+    .LINK
+        Get-CalibrationTrend
+    .LINK
+        Test-AITJudgeModel
     #>
     [CmdletBinding()]
     param(

@@ -55,6 +55,20 @@ function Get-AITDebate {
         Get-AITDebate -Origin cli -After "2026-05-01" | Format-Table Id, Title, Phase, Rounds
     .EXAMPLE
         Get-AITDebate -Debater Skeptic -Protocol deliberation
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Show-TriadDialogue
+    .LINK
+        Invoke-AITDebate
+    .LINK
+        Resume-AITDebate
+    .LINK
+        Repair-DebateOutput
+    .LINK
+        Watch-DebateProgress
+    .LINK
+        Invoke-DebateBatch
     #>
     [CmdletBinding()]
     param(

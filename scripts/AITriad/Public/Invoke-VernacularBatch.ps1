@@ -27,6 +27,18 @@
     Invoke-VernacularBatch
 .EXAMPLE
     Invoke-VernacularBatch -Force -Concurrency 5
+.LINK
+    Show-AITriadHelp
+.LINK
+    Invoke-AIByUsage
+.LINK
+    Invoke-BDIWeightAssignment
+.LINK
+    Invoke-EdgeWeightEvaluation
+.LINK
+    Invoke-AphorismBatch
+.LINK
+    New-SyntheticCorpus
 #>
 function Invoke-VernacularBatch {
     [CmdletBinding(SupportsShouldProcess)]

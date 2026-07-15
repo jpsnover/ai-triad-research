@@ -33,6 +33,20 @@ function Invoke-DebateBatch {
         Invoke-DebateBatch -ConfigPath lib/debate/exp-1069-batch.json
         # In another terminal:
         Watch-DebateProgress -Path <output>/debate-progress.json
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Show-TriadDialogue
+    .LINK
+        Invoke-AITDebate
+    .LINK
+        Get-AITDebate
+    .LINK
+        Resume-AITDebate
+    .LINK
+        Repair-DebateOutput
+    .LINK
+        Watch-DebateProgress
     #>
     [CmdletBinding()]
     param(

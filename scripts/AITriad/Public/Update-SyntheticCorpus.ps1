@@ -18,6 +18,18 @@ function Update-SyntheticCorpus {
         Update-SyntheticCorpus -Pov acc
     .EXAMPLE
         Update-SyntheticCorpus -Force
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        New-SyntheticCorpus
+    .LINK
+        Sync-SyntheticCorpus
+    .LINK
+        Export-SyntheticEmbeddings
+    .LINK
+        Compare-EmbeddingModel
+    .LINK
+        Test-RerankerBaseline
     #>
     [CmdletBinding()]
     param(

@@ -22,6 +22,20 @@ function Invoke-TaxEditorSmokeTest {
         Invoke-TaxEditorSmokeTest -Detailed
     .EXAMPLE
         Invoke-TaxEditorSmokeTest -BaseUrl 'https://staging.example.io' | ConvertTo-Json -Depth 5
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Test-TaxEditorHealth
+    .LINK
+        Test-TaxEditorEndpoints
+    .LINK
+        Test-AnonymousDebateFlow
+    .LINK
+        Test-PersonaEndpoints
+    .LINK
+        Test-ServiceWorkerHealth
+    .LINK
+        Get-FreeTierStatus
     #>
     [CmdletBinding()]
     param(

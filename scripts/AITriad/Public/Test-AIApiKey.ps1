@@ -47,6 +47,16 @@
     # Sweep every provider that has a key on the machine.
 .EXAMPLE
     Test-AIApiKey -Backend azure -Endpoint 'https://myrg.openai.azure.com'
+.LINK
+    Show-AITriadHelp
+.LINK
+    Get-TriadConfig
+.LINK
+    Set-TriadConfig
+.LINK
+    Invoke-TriadConfigReload
+.LINK
+    Register-AIBackend
 #>
 function Test-AIApiKey {
     [CmdletBinding(DefaultParameterSetName = 'One')]

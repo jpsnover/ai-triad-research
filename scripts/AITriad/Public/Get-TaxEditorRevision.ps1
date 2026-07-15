@@ -17,6 +17,20 @@ function Get-TaxEditorRevision {
         Get-TaxEditorRevision
     .EXAMPLE
         Get-TaxEditorRevision | Where-Object Active
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Deploy-TaxEditorImage
+    .LINK
+        Deploy-TaxEditorInfra
+    .LINK
+        Get-TaxEditorImage
+    .LINK
+        Switch-TaxEditorRevision
+    .LINK
+        Test-TaxEditorInfra
+    .LINK
+        Invoke-TaxEditorSmokeTest
     #>
     [CmdletBinding()]
     param(

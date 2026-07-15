@@ -103,6 +103,20 @@ function Invoke-EdgeDiscovery {
     .EXAMPLE
         Invoke-EdgeDiscovery -EmbeddingFirst -EmbeddingFirstThreshold 0.35
         # Embedding-first with tighter threshold (fewer candidates, less LLM cost).
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Approve-Edge
+    .LINK
+        Get-Edge
+    .LINK
+        Set-Edge
+    .LINK
+        Test-EdgeDirection
+    .LINK
+        Invoke-EdgeWeightEvaluation
+    .LINK
+        Invoke-AttributeExtraction
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

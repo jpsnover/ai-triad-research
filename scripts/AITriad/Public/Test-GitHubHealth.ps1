@@ -17,6 +17,10 @@ function Test-GitHubHealth {
         Test-GitHubHealth
     .EXAMPLE
         Test-GitHubHealth -Repo 'jpsnover/ai-triad-research'
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-GitHubWorkflowRun
     #>
     [CmdletBinding()]
     param(

@@ -27,6 +27,20 @@ function Get-IngestionPriority {
         Get-IngestionPriority -NoAI
     .EXAMPLE
         Get-IngestionPriority -TopN 5 -OutputFile priority.json
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Import-AITriadDocument
+    .LINK
+        Save-AITSource
+    .LINK
+        Find-AITSource
+    .LINK
+        Get-AITSource
+    .LINK
+        Update-AITSourceIndex
+    .LINK
+        Get-ImportReport
     #>
     [CmdletBinding()]
     param(

@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Install-AITriadData {
@@ -29,6 +29,16 @@ function Install-AITriadData {
     .EXAMPLE
         Install-AITriadData -DataPath ~/research-data
         # Clone to a custom location (also updates .aitriad.json)
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Install-AIDependencies
+    .LINK
+        Install-GraphDatabase
+    .LINK
+        Test-Dependencies
+    .LINK
+        Register-AITriadDrive
     #>
     [CmdletBinding()]
     param(

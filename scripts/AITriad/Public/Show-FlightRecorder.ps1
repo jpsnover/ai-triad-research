@@ -29,6 +29,18 @@ function Show-FlightRecorder {
     .EXAMPLE
         # Pipe from Get-FlightRecorderDump
         Get-FlightRecorderDump -Last 1 | Show-FlightRecorder
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-AzureFlightRecorder
+    .LINK
+        Get-FlightRecorderDump
+    .LINK
+        Get-FlightRecorderReport
+    .LINK
+        Merge-FlightRecorderDumps
+    .LINK
+        Request-FlightRecorderDump
     #>
     [CmdletBinding(DefaultParameterSetName = 'ByPath')]
     param(

@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Find-Conflict {
@@ -27,6 +27,20 @@ function Find-Conflict {
         Find-Conflict -DocId 'some-document-id'
     .OUTPUTS
         PSCustomObject with PSTypeName 'AITriad.ConflictResult'
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Find-GraphPath
+    .LINK
+        Invoke-GraphQuery
+    .LINK
+        Invoke-CypherQuery
+    .LINK
+        Invoke-QbafConflictAnalysis
+    .LINK
+        Show-GraphOverview
+    .LINK
+        Export-TaxonomyToGraph
     #>
     [CmdletBinding()]
     param(

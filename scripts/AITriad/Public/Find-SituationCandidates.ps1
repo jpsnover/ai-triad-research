@@ -46,6 +46,12 @@ function Find-SituationCandidates {
         Find-CrossCuttingCandidates -ShowSharedOnly -TopN 10
     .EXAMPLE
         Find-CrossCuttingCandidates -ShowDebatesOnly -TopN 10
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Invoke-CcToSitMigration
+    .LINK
+        Invoke-SchemaMigration
     #>
     [CmdletBinding()]
     param(

@@ -29,6 +29,16 @@ function Repair-PovDescriptions {
         Repair-PovDescriptions -POV safetyist
     .EXAMPLE
         Repair-PovDescriptions -Category Beliefs -Model gemini-3.1-flash-lite
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Repair-PovAttributes
+    .LINK
+        Repair-PovLineage
+    .LINK
+        Repair-ResolvedBackfill
+    .LINK
+        Repair-UnmappedConcepts
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

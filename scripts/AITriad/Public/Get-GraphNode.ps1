@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-GraphNode {
@@ -25,6 +25,20 @@ function Get-GraphNode {
         Get-GraphNode -Id "acc-desires-001" -Depth 2 -EdgeType TENSION_WITH
     .EXAMPLE
         Get-GraphNode -Id "sit-001" -Status approved
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-Tax
+    .LINK
+        Get-TaxonomyHealth
+    .LINK
+        Compare-Taxonomy
+    .LINK
+        Test-TaxonomyIntegrity
+    .LINK
+        Test-OntologyCompliance
+    .LINK
+        Get-RelevantTaxonomyNodes
     #>
     [CmdletBinding()]
     param(

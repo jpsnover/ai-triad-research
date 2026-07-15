@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-AITSource {
@@ -48,6 +48,20 @@ function Get-AITSource {
     .EXAMPLE
         Get-AITSource -Today
         # Sources ingested today.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Import-AITriadDocument
+    .LINK
+        Save-AITSource
+    .LINK
+        Find-AITSource
+    .LINK
+        Update-AITSourceIndex
+    .LINK
+        Get-IngestionPriority
+    .LINK
+        Get-ImportReport
     #>
     [CmdletBinding()]
     [OutputType('AITSource')]

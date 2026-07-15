@@ -73,6 +73,20 @@ function Get-AzureFlightRecorder {
         # Chain: get latest available dumpId from -List, then merge it
         $latest = (Get-AzureFlightRecorder -List | Where-Object Name -Match '^client-(.+)\.jsonl$' | Select-Object -First 1).Name -replace '^client-','' -replace '\.jsonl$',''
         Get-AzureFlightRecorder -Merged -DumpId $latest
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Test-AzureHealth
+    .LINK
+        Get-ContainerAppRevision
+    .LINK
+        Remove-StaleContainerImages
+    .LINK
+        Test-TaxEditorInfra
+    .LINK
+        Deploy-TaxEditorInfra
+    .LINK
+        Get-FlightRecorderDump
     #>
     [CmdletBinding(DefaultParameterSetName = 'List')]
     param(

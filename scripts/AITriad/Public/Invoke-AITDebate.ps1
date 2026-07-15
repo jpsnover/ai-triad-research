@@ -39,6 +39,20 @@
     Invoke-AITDebate -Topic "AI liability" -FeatureFlags @{ Clarification = $true; Probing = $true; SalienceBeacon = $true }
 .EXAMPLE
     Invoke-AITDebate -Topic "AI liability" -ConfrontationRounds 2 -ArgumentationRounds 3 -ConcludingRounds 1
+.LINK
+    Show-AITriadHelp
+.LINK
+    Show-TriadDialogue
+.LINK
+    Get-AITDebate
+.LINK
+    Resume-AITDebate
+.LINK
+    Repair-DebateOutput
+.LINK
+    Watch-DebateProgress
+.LINK
+    Invoke-DebateBatch
 #>
 function Invoke-AITDebate {
     [CmdletBinding(DefaultParameterSetName = 'Topic')]

@@ -22,6 +22,20 @@
 .EXAMPLE
     Test-AITJudgeModel -All -Models haiku,gemini -MaxTurnsPerDebate 5
     # Quick sweep across all debates with turn validations
+.LINK
+    Show-AITriadHelp
+.LINK
+    Compare-DebateQuality
+.LINK
+    Compare-DebateRuns
+.LINK
+    Measure-DebateQuality
+.LINK
+    Invoke-DebateAB
+.LINK
+    Test-SynthesisCompleteness
+.LINK
+    Get-CalibrationTrend
 #>
 function Test-AITJudgeModel {
     [CmdletBinding(DefaultParameterSetName = 'Auto')]

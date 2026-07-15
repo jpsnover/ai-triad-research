@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Update-PolicyRegistry {
@@ -24,6 +24,14 @@ function Update-PolicyRegistry {
         Update-PolicyRegistry
     .EXAMPLE
         Update-PolicyRegistry -Fix
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Find-PolicyAction
+    .LINK
+        Get-Policy
+    .LINK
+        Invoke-PolicyRefinement
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

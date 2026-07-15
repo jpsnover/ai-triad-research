@@ -28,6 +28,14 @@ function Invoke-PolicyRefinement {
         Invoke-PolicyRefinement -Model 'claude-sonnet-4-20250514'
     .EXAMPLE
         Invoke-PolicyRefinement -PassThru
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Find-PolicyAction
+    .LINK
+        Get-Policy
+    .LINK
+        Update-PolicyRegistry
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

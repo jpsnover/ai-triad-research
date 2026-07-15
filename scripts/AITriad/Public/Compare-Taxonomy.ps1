@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Compare-Taxonomy {
@@ -17,6 +17,20 @@ function Compare-Taxonomy {
         Return the HTML file path instead of opening in the default browser.
     .EXAMPLE
         Compare-Taxonomy ./taxonomy/Origin ./taxonomy/Proposed
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-Tax
+    .LINK
+        Get-GraphNode
+    .LINK
+        Get-TaxonomyHealth
+    .LINK
+        Test-TaxonomyIntegrity
+    .LINK
+        Test-OntologyCompliance
+    .LINK
+        Get-RelevantTaxonomyNodes
     #>
     [CmdletBinding()]
     param(

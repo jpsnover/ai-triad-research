@@ -56,6 +56,18 @@ function Merge-FlightRecorderDumps {
     .EXAMPLE
         # Merge and pipe to report
         Merge-FlightRecorderDumps -DumpId 'a1b2c3d4' -PassThru | Get-FlightRecorderReport
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-AzureFlightRecorder
+    .LINK
+        Get-FlightRecorderDump
+    .LINK
+        Get-FlightRecorderReport
+    .LINK
+        Request-FlightRecorderDump
+    .LINK
+        Show-FlightRecorder
     #>
     [CmdletBinding(DefaultParameterSetName = 'ByDumpId')]
     param(

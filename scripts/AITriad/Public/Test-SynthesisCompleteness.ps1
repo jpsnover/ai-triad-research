@@ -17,6 +17,20 @@ function Test-SynthesisCompleteness {
         Test-SynthesisCompleteness -Session debate-72a6e0a2.json
     .EXAMPLE
         Test-SynthesisCompleteness -Session debate-72a6e0a2.json -PassThru
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Compare-DebateQuality
+    .LINK
+        Compare-DebateRuns
+    .LINK
+        Measure-DebateQuality
+    .LINK
+        Invoke-DebateAB
+    .LINK
+        Get-CalibrationTrend
+    .LINK
+        Test-AITJudgeModel
     #>
     [CmdletBinding()]
     param(

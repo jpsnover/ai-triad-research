@@ -33,6 +33,16 @@ function Register-AITriadDrive {
         Get-Item AITriad:\Safetyist\Beliefs\saf-beliefs-001
     .EXAMPLE
         Get-Content AITriad:\Skeptic\Desires\skp-desires-001
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Install-AIDependencies
+    .LINK
+        Install-AITriadData
+    .LINK
+        Install-GraphDatabase
+    .LINK
+        Test-Dependencies
     #>
     [CmdletBinding()]
     param(

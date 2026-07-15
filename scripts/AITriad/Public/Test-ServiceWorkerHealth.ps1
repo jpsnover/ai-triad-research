@@ -32,6 +32,20 @@ function Test-ServiceWorkerHealth {
     .EXAMPLE
         # Verify additional patterns are gated against:
         Test-ServiceWorkerHealth -ExpectedDenylist @('\.auth', 'api', '/healthz', '/metrics')
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Test-TaxEditorHealth
+    .LINK
+        Test-TaxEditorEndpoints
+    .LINK
+        Test-AnonymousDebateFlow
+    .LINK
+        Test-PersonaEndpoints
+    .LINK
+        Get-FreeTierStatus
+    .LINK
+        Invoke-TaxEditorSmokeTest
     #>
     [CmdletBinding()]
     param(

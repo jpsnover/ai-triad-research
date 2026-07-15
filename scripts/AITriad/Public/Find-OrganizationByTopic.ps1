@@ -18,6 +18,18 @@ function Find-OrganizationByTopic {
         Find-OrganizationByTopic -TopicRef sit-003
     .EXAMPLE
         Find-OrganizationByTopic -TopicRef sit-001 -Stance advocate
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-Organization
+    .LINK
+        Find-OrganizationByPOV
+    .LINK
+        Get-OrganizationStakeholders
+    .LINK
+        Import-Organization
+    .LINK
+        Compare-OrganizationPositions
     #>
     [CmdletBinding()]
     [OutputType('Organization[]')]

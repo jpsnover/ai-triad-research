@@ -32,6 +32,20 @@ function Get-TopicFrequency {
         Get-TopicFrequency -TopN 3 -POV safetyist -OutputFile topics.json
     .EXAMPLE
         Get-TopicFrequency -IncludeFactualClaims -NoAI
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Show-DebateDiagnostics
+    .LINK
+        Show-DebateHarvest
+    .LINK
+        Convert-DebateToAudio
+    .LINK
+        Get-AITClaim
+    .LINK
+        Get-CriticalInteraction
+    .LINK
+        Test-CriticalInteractions
     #>
     [CmdletBinding()]
     param(

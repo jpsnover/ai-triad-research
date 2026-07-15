@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -16,6 +16,12 @@
     'report.md', 'notes.md' | Convert-MD2PDF -OutputDirectory ./pdfs
 .EXAMPLE
     Convert-MD2PDF -Path ./docs/*.md -Margin 1in
+.LINK
+    Show-AITriadHelp
+.LINK
+    Repair-Markdown
+.LINK
+    Show-Markdown
 #>
 function Convert-MD2PDF {
     [CmdletBinding()]

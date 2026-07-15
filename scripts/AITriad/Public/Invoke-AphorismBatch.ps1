@@ -36,6 +36,18 @@
     Invoke-AphorismBatch -Id acc-desires-001,saf-beliefs-001,skp-intentions-001
 .EXAMPLE
     Invoke-AphorismBatch -Force -Concurrency 5
+.LINK
+    Show-AITriadHelp
+.LINK
+    Invoke-AIByUsage
+.LINK
+    Invoke-BDIWeightAssignment
+.LINK
+    Invoke-EdgeWeightEvaluation
+.LINK
+    Invoke-VernacularBatch
+.LINK
+    New-SyntheticCorpus
 #>
 function Invoke-AphorismBatch {
     [CmdletBinding(SupportsShouldProcess)]

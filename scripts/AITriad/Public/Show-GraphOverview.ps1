@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Show-GraphOverview {
@@ -18,6 +18,20 @@ function Show-GraphOverview {
         Show-GraphOverview
     .EXAMPLE
         Show-GraphOverview -StatusFilter all
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Find-GraphPath
+    .LINK
+        Find-Conflict
+    .LINK
+        Invoke-GraphQuery
+    .LINK
+        Invoke-CypherQuery
+    .LINK
+        Invoke-QbafConflictAnalysis
+    .LINK
+        Export-TaxonomyToGraph
     #>
     [CmdletBinding()]
     param(

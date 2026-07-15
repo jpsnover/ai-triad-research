@@ -27,6 +27,20 @@ function Switch-TaxEditorRevision {
         Switch-TaxEditorRevision -Revision 'taxonomy-editor--deploy-abc1234'
     .EXAMPLE
         Switch-TaxEditorRevision -Previous -WhatIf
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Deploy-TaxEditorImage
+    .LINK
+        Deploy-TaxEditorInfra
+    .LINK
+        Get-TaxEditorImage
+    .LINK
+        Get-TaxEditorRevision
+    .LINK
+        Test-TaxEditorInfra
+    .LINK
+        Invoke-TaxEditorSmokeTest
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High',
                    DefaultParameterSetName = 'ByName')]

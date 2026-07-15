@@ -40,6 +40,16 @@ function Repair-ResolvedBackfill {
     .EXAMPLE
         Repair-ResolvedBackfill -WhatIf
         # Preview changes without modifying files.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Repair-PovAttributes
+    .LINK
+        Repair-PovDescriptions
+    .LINK
+        Repair-PovLineage
+    .LINK
+        Repair-UnmappedConcepts
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

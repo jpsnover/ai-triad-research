@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Approve-TaxonomyProposal {
@@ -31,6 +31,14 @@ function Approve-TaxonomyProposal {
         Approve-TaxonomyProposal -Path taxonomy/proposals/proposal-2026-03-14.json -Index 0 -Approve
     .EXAMPLE
         Approve-TaxonomyProposal -Path taxonomy/proposals/proposal-2026-03-14.json -Index 2 -Reject
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Invoke-TaxonomyProposal
+    .LINK
+        Invoke-HierarchyProposal
+    .LINK
+        Set-TaxonomyHierarchy
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

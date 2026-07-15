@@ -40,6 +40,16 @@ function Invoke-OrgPublishedSeeding {
         Invoke-OrgPublishedSeeding -WhatIf
     .EXAMPLE
         Invoke-OrgPublishedSeeding -Org org-001,org-002 -WhatIf
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Invoke-OrgClaimMatching
+    .LINK
+        Invoke-OrgDerivedCampScores
+    .LINK
+        Invoke-OrgStanceExtraction
+    .LINK
+        Get-Organization
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

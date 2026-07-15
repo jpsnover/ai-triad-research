@@ -33,6 +33,16 @@ function Repair-PovAttributes {
         Repair-PovAttributes -POV safetyist -Priority critical
     .EXAMPLE
         Repair-PovAttributes -Priority full
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Repair-PovDescriptions
+    .LINK
+        Repair-PovLineage
+    .LINK
+        Repair-ResolvedBackfill
+    .LINK
+        Repair-UnmappedConcepts
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

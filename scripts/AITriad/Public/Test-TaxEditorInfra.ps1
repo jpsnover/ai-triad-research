@@ -19,6 +19,20 @@ function Test-TaxEditorInfra {
         Test-TaxEditorInfra
     .EXAMPLE
         Test-TaxEditorInfra -Parameters @{ containerImage = 'ghcr.io/jpsnover/taxonomy-editor:0.8.0' }
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Test-AzureHealth
+    .LINK
+        Get-ContainerAppRevision
+    .LINK
+        Remove-StaleContainerImages
+    .LINK
+        Get-AzureFlightRecorder
+    .LINK
+        Deploy-TaxEditorInfra
+    .LINK
+        Deploy-TaxEditorImage
     #>
     [CmdletBinding()]
     param(

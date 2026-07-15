@@ -18,6 +18,20 @@ function Update-AITSourceIndex {
         Update-AITSourceIndex
     .EXAMPLE
         Update-AITSourceIndex -Quiet
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Import-AITriadDocument
+    .LINK
+        Save-AITSource
+    .LINK
+        Find-AITSource
+    .LINK
+        Get-AITSource
+    .LINK
+        Get-IngestionPriority
+    .LINK
+        Get-ImportReport
     #>
     [CmdletBinding()]
     param(

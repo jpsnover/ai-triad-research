@@ -19,6 +19,20 @@ function Test-TaxEditorEndpoints {
         Test-TaxEditorEndpoints
     .EXAMPLE
         Test-TaxEditorEndpoints -Category Data | Format-Table
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Test-TaxEditorHealth
+    .LINK
+        Test-AnonymousDebateFlow
+    .LINK
+        Test-PersonaEndpoints
+    .LINK
+        Test-ServiceWorkerHealth
+    .LINK
+        Get-FreeTierStatus
+    .LINK
+        Invoke-TaxEditorSmokeTest
     #>
     [CmdletBinding()]
     param(

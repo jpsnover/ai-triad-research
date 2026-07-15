@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Repair-UnmappedConcepts {
@@ -33,6 +33,20 @@ function Repair-UnmappedConcepts {
     .EXAMPLE
         Repair-UnmappedConcepts -WhatIf
         # Preview changes without modifying files.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Invoke-POVSummary
+    .LINK
+        Invoke-BatchSummary
+    .LINK
+        Get-Summary
+    .LINK
+        Repair-AITSummaryMappings
+    .LINK
+        Test-ExtractionQuality
+    .LINK
+        Repair-PovAttributes
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

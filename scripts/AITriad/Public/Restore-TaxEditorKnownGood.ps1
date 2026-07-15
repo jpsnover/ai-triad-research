@@ -26,6 +26,20 @@ function Restore-TaxEditorKnownGood {
         Restore-TaxEditorKnownGood
     .EXAMPLE
         Restore-TaxEditorKnownGood -WhatIf
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-TaxEditorBlob
+    .LINK
+        Get-TaxEditorDataCommit
+    .LINK
+        Restore-TaxEditorBlob
+    .LINK
+        Set-TaxEditorKnownGood
+    .LINK
+        Sync-TaxEditorData
+    .LINK
+        Undo-TaxEditorDataCommit
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
     param(

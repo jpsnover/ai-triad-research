@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -19,6 +19,12 @@
     Get-ChildItem *.md | Show-MD -Console -Width 120
 .EXAMPLE
     Show-MD ./report.md -Console -Style dark
+.LINK
+    Show-AITriadHelp
+.LINK
+    Convert-MD2PDF
+.LINK
+    Repair-Markdown
 #>
 function Show-Markdown {
     [CmdletBinding()]

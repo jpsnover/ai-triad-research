@@ -45,6 +45,16 @@ function Invoke-OrgStanceExtraction {
         Invoke-OrgStanceExtraction -MaxDocs 3
     .EXAMPLE
         Invoke-OrgStanceExtraction -Org org-001,org-002
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Invoke-OrgClaimMatching
+    .LINK
+        Invoke-OrgDerivedCampScores
+    .LINK
+        Invoke-OrgPublishedSeeding
+    .LINK
+        Get-Organization
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

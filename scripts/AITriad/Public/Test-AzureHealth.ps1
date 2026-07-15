@@ -26,6 +26,18 @@ function Test-AzureHealth {
         Test-AzureHealth
     .EXAMPLE
         Test-AzureHealth -UseCLI -ResourceGroup ai-triad -AppName taxonomy-editor
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-ContainerAppRevision
+    .LINK
+        Remove-StaleContainerImages
+    .LINK
+        Get-AzureFlightRecorder
+    .LINK
+        Test-TaxEditorInfra
+    .LINK
+        Deploy-TaxEditorInfra
     #>
     [CmdletBinding()]
     param(

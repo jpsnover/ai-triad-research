@@ -2,6 +2,39 @@
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-TriadConfig {
+    <#
+    .SYNOPSIS
+        Downloads the live runtime configuration from a taxonomy-editor deployment.
+    .DESCRIPTION
+        Calls the admin config endpoint (/api/admin/config) and returns the current
+        runtime configuration, optionally writing it to a local file. Requires admin
+        credentials (GITHUB_TOKEN). Use this to snapshot the deployed config before
+        editing and re-uploading with Set-TriadConfig.
+    .PARAMETER OutputPath
+        Local path to write the downloaded config JSON. Default: ./runtime-config.json.
+    .PARAMETER BaseUrl
+        Base URL of the taxonomy-editor deployment. Defaults to the configured endpoint.
+    .PARAMETER IncludeDefaults
+        Include server-side default values in the returned config.
+    .PARAMETER Format
+        Output format: 'json' (default) or 'table'.
+    .EXAMPLE
+        Get-TriadConfig
+        # Download the live config to ./runtime-config.json.
+    .EXAMPLE
+        Get-TriadConfig -Format table
+        # Show the live config as a table.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Set-TriadConfig
+    .LINK
+        Invoke-TriadConfigReload
+    .LINK
+        Register-AIBackend
+    .LINK
+        Test-AIApiKey
+    #>
     [CmdletBinding()]
     param(
         [Parameter()]

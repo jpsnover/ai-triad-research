@@ -21,6 +21,20 @@ function Restore-TaxEditorBlob {
         Restore-TaxEditorBlob -Container 'user-content' -Path 'debates/abc123.json'
     .EXAMPLE
         Get-TaxEditorBlob -Deleted | Select-Object -First 1 | Restore-TaxEditorBlob
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-TaxEditorBlob
+    .LINK
+        Get-TaxEditorDataCommit
+    .LINK
+        Restore-TaxEditorKnownGood
+    .LINK
+        Set-TaxEditorKnownGood
+    .LINK
+        Sync-TaxEditorData
+    .LINK
+        Undo-TaxEditorDataCommit
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
     param(

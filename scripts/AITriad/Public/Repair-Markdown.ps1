@@ -30,6 +30,12 @@
     $md = Get-Content snapshot.md -Raw; Repair-Markdown -Text $md | Set-Content snapshot.md
 
     Re-normalizes an existing snapshot in-place.
+.LINK
+    Show-AITriadHelp
+.LINK
+    Convert-MD2PDF
+.LINK
+    Show-Markdown
 #>
 function Repair-Markdown {
     param([Parameter(Mandatory)][string]$Text)

@@ -25,6 +25,20 @@ function Deploy-TaxEditorInfra {
         Deploy-TaxEditorInfra -Commit 'abc1234' -WhatIf
     .EXAMPLE
         Deploy-TaxEditorInfra -Commit 'abc1234' -Parameters @{ containerImage = 'ghcr.io/jpsnover/taxonomy-editor:0.8.0' }
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Test-AzureHealth
+    .LINK
+        Get-ContainerAppRevision
+    .LINK
+        Remove-StaleContainerImages
+    .LINK
+        Get-AzureFlightRecorder
+    .LINK
+        Test-TaxEditorInfra
+    .LINK
+        Deploy-TaxEditorImage
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
     param(

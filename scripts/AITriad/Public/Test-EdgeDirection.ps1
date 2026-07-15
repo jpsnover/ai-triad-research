@@ -27,6 +27,18 @@ function Test-EdgeDirection {
     .EXAMPLE
         Test-EdgeDirection -MaxBatches 5
         # Check first 100 edges (5 batches × 20).
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Approve-Edge
+    .LINK
+        Get-Edge
+    .LINK
+        Set-Edge
+    .LINK
+        Invoke-EdgeDiscovery
+    .LINK
+        Invoke-EdgeWeightEvaluation
     #>
     [CmdletBinding()]
     param(

@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Set-Edge {
@@ -53,6 +53,18 @@ function Set-Edge {
     .EXAMPLE
         Set-Edge -Index 7 -Weight 0.8
         # Set the relationship weight of edge 7.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Approve-Edge
+    .LINK
+        Get-Edge
+    .LINK
+        Test-EdgeDirection
+    .LINK
+        Invoke-EdgeDiscovery
+    .LINK
+        Invoke-EdgeWeightEvaluation
     #>
     [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName = 'ByIndex')]
     param(

@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Show-TaxonomyEditor {
@@ -50,6 +50,16 @@ function Show-TaxonomyEditor {
     .EXAMPLE
         Show-TaxonomyEditor -NoDocker
         # Same as -Dev — skip Docker, use Electron directly
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Show-POViewer
+    .LINK
+        Show-SummaryViewer
+    .LINK
+        Show-WorkflowRunner
+    .LINK
+        Show-AITriadHelp
     #>
     [CmdletBinding(DefaultParameterSetName = 'Run')]
     param(

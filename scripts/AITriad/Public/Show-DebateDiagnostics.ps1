@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Show-DebateDiagnostics {
@@ -12,6 +12,20 @@ function Show-DebateDiagnostics {
         Path to the diagnostics JSON file (e.g., ./debates/my-debate-diagnostics.json).
     .EXAMPLE
         Show-DebateDiagnostics -Path ./debates/burden-of-proof-diagnostics.json
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Show-DebateHarvest
+    .LINK
+        Convert-DebateToAudio
+    .LINK
+        Get-AITClaim
+    .LINK
+        Get-CriticalInteraction
+    .LINK
+        Test-CriticalInteractions
+    .LINK
+        Get-TopicFrequency
     #>
     [CmdletBinding()]
     param(

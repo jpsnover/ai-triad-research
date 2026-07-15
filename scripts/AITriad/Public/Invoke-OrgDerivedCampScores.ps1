@@ -63,6 +63,16 @@ function Invoke-OrgDerivedCampScores {
     .EXAMPLE
         # Persist to organizations.json, tagging provenance with edge-set SHA
         Invoke-OrgDerivedCampScores -Write -InputEdgesSha 62663d3d
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Invoke-OrgClaimMatching
+    .LINK
+        Invoke-OrgPublishedSeeding
+    .LINK
+        Invoke-OrgStanceExtraction
+    .LINK
+        Get-Organization
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

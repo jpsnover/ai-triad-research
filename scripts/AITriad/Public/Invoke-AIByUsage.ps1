@@ -48,6 +48,18 @@ function Invoke-AIByUsage {
         Invoke-AIByUsage -UsageId 'enrichment.vernacular-description' `
             -Values @{ node_id='acc-b-001'; description='...'; category='belief' } `
             -Override @{ temperature = 0.3 }
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Invoke-BDIWeightAssignment
+    .LINK
+        Invoke-EdgeWeightEvaluation
+    .LINK
+        Invoke-VernacularBatch
+    .LINK
+        Invoke-AphorismBatch
+    .LINK
+        New-SyntheticCorpus
     #>
     [CmdletBinding()]
     [OutputType([PSCustomObject])]

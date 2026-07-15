@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-Edge {
@@ -80,6 +80,18 @@ function Get-Edge {
     .EXAMPLE
         Get-Edge -Type SUPPORTS -First 10
         # First 10 SUPPORTS edges by confidence.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Approve-Edge
+    .LINK
+        Set-Edge
+    .LINK
+        Test-EdgeDirection
+    .LINK
+        Invoke-EdgeDiscovery
+    .LINK
+        Invoke-EdgeWeightEvaluation
     #>
     [CmdletBinding()]
     param(

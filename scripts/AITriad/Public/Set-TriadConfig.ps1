@@ -2,6 +2,40 @@
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Set-TriadConfig {
+    <#
+    .SYNOPSIS
+        Uploads a local runtime configuration to a taxonomy-editor deployment.
+    .DESCRIPTION
+        Reads a local config JSON file and POSTs it to the admin config endpoint,
+        replacing the deployment's live runtime configuration. Requires admin
+        credentials (GITHUB_TOKEN). Supports -WhatIf/-Confirm (ConfirmImpact High),
+        an optional pre-upload diff, and an optional reload after upload. Pair with
+        Get-TriadConfig to download-edit-upload safely.
+    .PARAMETER InputPath
+        Local path to the config JSON to upload. Default: ./runtime-config.json.
+    .PARAMETER BaseUrl
+        Base URL of the taxonomy-editor deployment. Defaults to the configured endpoint.
+    .PARAMETER DiffFirst
+        Show a diff between the live config and the local file before uploading.
+    .PARAMETER Reload
+        Trigger a config reload on the server after a successful upload.
+    .EXAMPLE
+        Set-TriadConfig -DiffFirst
+        # Diff local vs live, then upload after confirmation.
+    .EXAMPLE
+        Set-TriadConfig -InputPath ./runtime-config.json -Reload
+        # Upload and reload the server config in one step.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-TriadConfig
+    .LINK
+        Invoke-TriadConfigReload
+    .LINK
+        Register-AIBackend
+    .LINK
+        Test-AIApiKey
+    #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
     param(
         [Parameter()]

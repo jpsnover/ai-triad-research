@@ -37,6 +37,18 @@ function Invoke-BDIWeightAssignment {
         Invoke-BDIWeightAssignment -DryRun
     .EXAMPLE
         Invoke-BDIWeightAssignment -POV accelerationist
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Invoke-AIByUsage
+    .LINK
+        Invoke-EdgeWeightEvaluation
+    .LINK
+        Invoke-VernacularBatch
+    .LINK
+        Invoke-AphorismBatch
+    .LINK
+        New-SyntheticCorpus
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

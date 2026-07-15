@@ -20,6 +20,20 @@ function Get-ImportReport {
         Get-ImportReport -Today
     .EXAMPLE
         Get-ImportReport -Since 2026-06-15 -PassThru
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Import-AITriadDocument
+    .LINK
+        Save-AITSource
+    .LINK
+        Find-AITSource
+    .LINK
+        Get-AITSource
+    .LINK
+        Update-AITSourceIndex
+    .LINK
+        Get-IngestionPriority
     #>
     [CmdletBinding(DefaultParameterSetName = 'All')]
     param(

@@ -48,6 +48,18 @@ function Invoke-BatchSummary {
         'doc-one','doc-two' | Invoke-BatchSummary
     .EXAMPLE
         Invoke-BatchSummary -DryRun
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Invoke-POVSummary
+    .LINK
+        Get-Summary
+    .LINK
+        Repair-AITSummaryMappings
+    .LINK
+        Test-ExtractionQuality
+    .LINK
+        Repair-UnmappedConcepts
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

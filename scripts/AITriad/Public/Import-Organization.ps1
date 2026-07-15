@@ -33,6 +33,18 @@ function Import-Organization {
     .EXAMPLE
         $rec = @{ id = 'org-027'; name = 'X'; type = 'academic'; pov_alignment = @{ safetyist = @{ score = 0.5; rationale = 'r' } } }
         Import-Organization -InputObject $rec
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-Organization
+    .LINK
+        Find-OrganizationByPOV
+    .LINK
+        Find-OrganizationByTopic
+    .LINK
+        Get-OrganizationStakeholders
+    .LINK
+        Compare-OrganizationPositions
     #>
     [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName = 'Fields')]
     [OutputType('Organization')]

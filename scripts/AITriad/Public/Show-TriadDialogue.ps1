@@ -37,6 +37,20 @@ function Show-TriadDialogue {
         Show-TriadDialogue "Is open-source AI safer than closed-source?" -OutputFile debate.json
     .EXAMPLE
         Show-TriadDialogue "Scaling limits of current AI" -UseAdaptiveStaging -Pacing thorough
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Invoke-AITDebate
+    .LINK
+        Get-AITDebate
+    .LINK
+        Resume-AITDebate
+    .LINK
+        Repair-DebateOutput
+    .LINK
+        Watch-DebateProgress
+    .LINK
+        Invoke-DebateBatch
     #>
     [CmdletBinding()]
     param(

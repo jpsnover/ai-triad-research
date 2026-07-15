@@ -24,6 +24,20 @@ function Get-CriticalInteraction {
     .EXAMPLE
         Get-CriticalInteraction -Domain Debate -Level API
         Returns debate CUIs that have API-level tests defined.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Show-DebateDiagnostics
+    .LINK
+        Show-DebateHarvest
+    .LINK
+        Convert-DebateToAudio
+    .LINK
+        Get-AITClaim
+    .LINK
+        Test-CriticalInteractions
+    .LINK
+        Get-TopicFrequency
     #>
     [CmdletBinding()]
     param(

@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Approve-Edge {
@@ -35,6 +35,18 @@ function Approve-Edge {
         Approve-Edge -BulkApprove -MinConfidence 0.8
     .EXAMPLE
         Approve-Edge -BulkApprove -MinConfidence 0.9
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-Edge
+    .LINK
+        Set-Edge
+    .LINK
+        Test-EdgeDirection
+    .LINK
+        Invoke-EdgeDiscovery
+    .LINK
+        Invoke-EdgeWeightEvaluation
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

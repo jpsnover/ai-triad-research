@@ -27,6 +27,18 @@
 .EXAMPLE
     Repair-AITSummaryMappings -UpdateEmbeddings
     # Regenerate embeddings first, then backfill
+.LINK
+    Show-AITriadHelp
+.LINK
+    Invoke-POVSummary
+.LINK
+    Invoke-BatchSummary
+.LINK
+    Get-Summary
+.LINK
+    Test-ExtractionQuality
+.LINK
+    Repair-UnmappedConcepts
 #>
 function Repair-AITSummaryMappings {
     [CmdletBinding(SupportsShouldProcess)]

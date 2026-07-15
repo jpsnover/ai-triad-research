@@ -34,6 +34,18 @@ function Remove-StaleContainerImages {
         Remove-StaleContainerImages -Package taxonomy-editor -WhatIf
     .EXAMPLE
         Remove-StaleContainerImages -Package ai-triad-base -KeepLatest 10 -OlderThanDays 14
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Test-AzureHealth
+    .LINK
+        Get-ContainerAppRevision
+    .LINK
+        Get-AzureFlightRecorder
+    .LINK
+        Test-TaxEditorInfra
+    .LINK
+        Deploy-TaxEditorInfra
     #>
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
     param(

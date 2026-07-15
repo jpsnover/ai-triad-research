@@ -26,6 +26,20 @@ function Watch-DebateProgress {
         Watch-DebateProgress
     .EXAMPLE
         Watch-DebateProgress -Path D:\debates\exp-1069\debate-progress.json -IntervalSeconds 5
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Show-TriadDialogue
+    .LINK
+        Invoke-AITDebate
+    .LINK
+        Get-AITDebate
+    .LINK
+        Resume-AITDebate
+    .LINK
+        Repair-DebateOutput
+    .LINK
+        Invoke-DebateBatch
     #>
     [CmdletBinding()]
     param(

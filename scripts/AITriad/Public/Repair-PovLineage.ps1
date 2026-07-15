@@ -42,6 +42,20 @@ function Repair-PovLineage {
     .EXAMPLE
         Repair-PovLineage -Force
         # Re-enrich all lineage entries from scratch.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-IntellectualLineage
+    .LINK
+        Get-PovLineage
+    .LINK
+        Repair-PovAttributes
+    .LINK
+        Repair-PovDescriptions
+    .LINK
+        Repair-ResolvedBackfill
+    .LINK
+        Repair-UnmappedConcepts
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

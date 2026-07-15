@@ -20,6 +20,20 @@ function Set-TaxEditorKnownGood {
         Set-TaxEditorKnownGood
     .EXAMPLE
         Set-TaxEditorKnownGood -WhatIf
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-TaxEditorBlob
+    .LINK
+        Get-TaxEditorDataCommit
+    .LINK
+        Restore-TaxEditorBlob
+    .LINK
+        Restore-TaxEditorKnownGood
+    .LINK
+        Sync-TaxEditorData
+    .LINK
+        Undo-TaxEditorDataCommit
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
     param(

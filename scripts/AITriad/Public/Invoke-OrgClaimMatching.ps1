@@ -72,6 +72,16 @@ function Invoke-OrgClaimMatching {
         Invoke-OrgClaimMatching -EmbeddingsPath ../ai-triad-data/taxonomy/Origin/embeddings-orgstance-6733.json
     .EXAMPLE
         Invoke-OrgClaimMatching -EmbeddingsPath ...-6733.json -WriteProposals -Org org-014
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Invoke-OrgDerivedCampScores
+    .LINK
+        Invoke-OrgPublishedSeeding
+    .LINK
+        Invoke-OrgStanceExtraction
+    .LINK
+        Get-Organization
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

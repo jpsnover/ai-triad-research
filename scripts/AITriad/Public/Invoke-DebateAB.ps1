@@ -27,6 +27,20 @@
     Compares 50K vs 100K truncation on the given document.
 .EXAMPLE
     Invoke-DebateAB -DocPath ../sources/my-doc/snapshot.md -LimitA 30000 -LimitB 80000 -Rounds 4
+.LINK
+    Show-AITriadHelp
+.LINK
+    Compare-DebateQuality
+.LINK
+    Compare-DebateRuns
+.LINK
+    Measure-DebateQuality
+.LINK
+    Test-SynthesisCompleteness
+.LINK
+    Get-CalibrationTrend
+.LINK
+    Test-AITJudgeModel
 #>
 function Invoke-DebateAB {
     [CmdletBinding()]

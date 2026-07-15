@@ -18,6 +18,20 @@ function Get-TaxEditorImage {
         Get-TaxEditorImage
     .EXAMPLE
         Get-TaxEditorImage -Last 5 | Where-Object IsKnownGood
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Deploy-TaxEditorImage
+    .LINK
+        Deploy-TaxEditorInfra
+    .LINK
+        Get-TaxEditorRevision
+    .LINK
+        Switch-TaxEditorRevision
+    .LINK
+        Test-TaxEditorInfra
+    .LINK
+        Invoke-TaxEditorSmokeTest
     #>
     [CmdletBinding()]
     param(

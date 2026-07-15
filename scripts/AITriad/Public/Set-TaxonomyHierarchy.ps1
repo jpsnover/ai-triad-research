@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Set-TaxonomyHierarchy {
@@ -12,6 +12,14 @@ function Set-TaxonomyHierarchy {
     .EXAMPLE
         Set-TaxonomyHierarchy -ProposalFile './taxonomy/hierarchy-proposals/hierarchy-proposal-2026-03-27-143000.json'
         Set-TaxonomyHierarchy -ProposalFile './proposal.json' -DryRun
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Approve-TaxonomyProposal
+    .LINK
+        Invoke-TaxonomyProposal
+    .LINK
+        Invoke-HierarchyProposal
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

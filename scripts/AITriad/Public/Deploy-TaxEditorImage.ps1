@@ -29,6 +29,20 @@ function Deploy-TaxEditorImage {
         Deploy-TaxEditorImage -Digest 'sha256:abc123...'
     .EXAMPLE
         Deploy-TaxEditorImage -Tag '0.8.0' -WhatIf
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Deploy-TaxEditorInfra
+    .LINK
+        Get-TaxEditorImage
+    .LINK
+        Get-TaxEditorRevision
+    .LINK
+        Switch-TaxEditorRevision
+    .LINK
+        Test-TaxEditorInfra
+    .LINK
+        Invoke-TaxEditorSmokeTest
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High',
                    DefaultParameterSetName = 'ByTag')]

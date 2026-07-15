@@ -22,6 +22,12 @@ function Show-OSSLicenses {
     .EXAMPLE
         Show-OSSLicenses -PassThru
         # Returns paths to THIRD-PARTY-NOTICES.txt files.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Invoke-PIIAudit
+    .LINK
+        Get-AITSBOM
     #>
     [CmdletBinding()]
     param(

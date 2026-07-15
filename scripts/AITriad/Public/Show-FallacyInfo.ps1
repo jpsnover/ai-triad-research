@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Show-FallacyInfo {
@@ -41,6 +41,10 @@ function Show-FallacyInfo {
     .EXAMPLE
         Show-FallacyInfo cherry -NoBrowser
         # Matches "Cherry Picking", shows URL without opening browser
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Find-PossibleFallacy
     #>
     [CmdletBinding(DefaultParameterSetName = 'Lookup')]
     param(

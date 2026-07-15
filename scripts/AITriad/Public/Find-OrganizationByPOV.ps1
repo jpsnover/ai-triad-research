@@ -26,6 +26,18 @@ function Find-OrganizationByPOV {
         Find-OrganizationByPOV -Pov safetyist -MinScore 0.5
     .EXAMPLE
         Find-OrganizationByPOV -Pov accelerationist -MinScore -1.0 -MaxScore -0.5
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-Organization
+    .LINK
+        Find-OrganizationByTopic
+    .LINK
+        Get-OrganizationStakeholders
+    .LINK
+        Import-Organization
+    .LINK
+        Compare-OrganizationPositions
     #>
     [CmdletBinding()]
     [OutputType('Organization[]')]

@@ -48,6 +48,12 @@ function Get-IntellectualLineage {
     .EXAMPLE
         Get-IntellectualLineage -Label '*commons*' -IncludeNodes
         # Shows which taxonomy nodes reference 'commons' traditions.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-PovLineage
+    .LINK
+        Repair-PovLineage
     #>
     [CmdletBinding()]
     param(

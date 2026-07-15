@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-RelevantTaxonomyNodes {
@@ -56,6 +56,20 @@ function Get-RelevantTaxonomyNodes {
     .EXAMPLE
         # Use more synthetic vectors for broader matching
         Get-RelevantTaxonomyNodes -Query $DocText -SyntheticTopN 5
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-Tax
+    .LINK
+        Get-GraphNode
+    .LINK
+        Get-TaxonomyHealth
+    .LINK
+        Compare-Taxonomy
+    .LINK
+        Test-TaxonomyIntegrity
+    .LINK
+        Test-OntologyCompliance
     #>
     [CmdletBinding()]
     param(

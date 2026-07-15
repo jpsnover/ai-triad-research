@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Test-ExtractionQuality {
@@ -24,6 +24,18 @@ function Test-ExtractionQuality {
         Test-ExtractionQuality -DocId 'ai-safety-debate-2026'
     .EXAMPLE
         Test-ExtractionQuality -All
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Invoke-POVSummary
+    .LINK
+        Invoke-BatchSummary
+    .LINK
+        Get-Summary
+    .LINK
+        Repair-AITSummaryMappings
+    .LINK
+        Repair-UnmappedConcepts
     #>
     [CmdletBinding()]
     param(

@@ -23,6 +23,18 @@ function Export-SyntheticEmbeddings {
     .EXAMPLE
         Export-SyntheticEmbeddings -Format json
         # JSON only (for TS pipeline).
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        New-SyntheticCorpus
+    .LINK
+        Sync-SyntheticCorpus
+    .LINK
+        Update-SyntheticCorpus
+    .LINK
+        Compare-EmbeddingModel
+    .LINK
+        Test-RerankerBaseline
     #>
     [CmdletBinding()]
     param(

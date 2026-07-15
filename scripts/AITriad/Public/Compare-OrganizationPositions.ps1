@@ -18,6 +18,18 @@ function Compare-OrganizationPositions {
         [PSCustomObject[]] — one row per POV camp
     .EXAMPLE
         Compare-OrganizationPositions -Id org-001,org-002,org-007
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-Organization
+    .LINK
+        Find-OrganizationByPOV
+    .LINK
+        Find-OrganizationByTopic
+    .LINK
+        Get-OrganizationStakeholders
+    .LINK
+        Import-Organization
     #>
     [CmdletBinding()]
     [OutputType([PSCustomObject[]])]

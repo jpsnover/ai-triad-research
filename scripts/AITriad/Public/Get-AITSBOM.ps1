@@ -32,6 +32,12 @@ function Get-AITSBOM {
         Get-AITSBOM -Format Json | Set-Content sbom.json
     .EXAMPLE
         Get-AITSBOM -Format CycloneDX | Set-Content sbom.cdx.json
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Invoke-PIIAudit
+    .LINK
+        Show-OSSLicenses
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

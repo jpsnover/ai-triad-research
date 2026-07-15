@@ -19,6 +19,18 @@ function Get-OrganizationStakeholders {
         [OrganizationStakeholders]
     .EXAMPLE
         Get-OrganizationStakeholders -PolicyId pol-028
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-Organization
+    .LINK
+        Find-OrganizationByPOV
+    .LINK
+        Find-OrganizationByTopic
+    .LINK
+        Import-Organization
+    .LINK
+        Compare-OrganizationPositions
     #>
     [CmdletBinding()]
     [OutputType('OrganizationStakeholders')]

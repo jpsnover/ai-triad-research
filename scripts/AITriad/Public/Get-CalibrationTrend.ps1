@@ -19,6 +19,20 @@ function Get-CalibrationTrend {
         Get-CalibrationTrend -Last 5
     .EXAMPLE
         Get-CalibrationTrend -Since 2026-06-14 -PassThru
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Compare-DebateQuality
+    .LINK
+        Compare-DebateRuns
+    .LINK
+        Measure-DebateQuality
+    .LINK
+        Invoke-DebateAB
+    .LINK
+        Test-SynthesisCompleteness
+    .LINK
+        Test-AITJudgeModel
     #>
     [CmdletBinding(DefaultParameterSetName = 'Last')]
     param(

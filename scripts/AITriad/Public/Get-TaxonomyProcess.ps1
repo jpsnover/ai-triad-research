@@ -23,6 +23,20 @@ function Get-TaxonomyProcess {
 
     .EXAMPLE
         Get-TaxonomyProcess | Request-FlightRecorderDump
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-Tax
+    .LINK
+        Get-GraphNode
+    .LINK
+        Get-TaxonomyHealth
+    .LINK
+        Compare-Taxonomy
+    .LINK
+        Test-TaxonomyIntegrity
+    .LINK
+        Test-OntologyCompliance
     #>
     [CmdletBinding()]
     param(

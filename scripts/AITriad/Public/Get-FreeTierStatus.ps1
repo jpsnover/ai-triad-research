@@ -28,6 +28,20 @@ function Get-FreeTierStatus {
         Get-FreeTierStatus -BaseUrl https://staging.example.com | Format-List
     .EXAMPLE
         (Get-FreeTierStatus).BudgetUtilizationPct
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Test-TaxEditorHealth
+    .LINK
+        Test-TaxEditorEndpoints
+    .LINK
+        Test-AnonymousDebateFlow
+    .LINK
+        Test-PersonaEndpoints
+    .LINK
+        Test-ServiceWorkerHealth
+    .LINK
+        Invoke-TaxEditorSmokeTest
     #>
     [CmdletBinding()]
     param(

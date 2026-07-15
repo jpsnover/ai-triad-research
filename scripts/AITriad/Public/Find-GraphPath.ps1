@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Find-GraphPath {
@@ -25,6 +25,20 @@ function Find-GraphPath {
         Find-GraphPath -From "acc-desires-001" -To "saf-desires-001"
     .EXAMPLE
         Find-GraphPath -From "acc-desires-001" -To "skp-intentions-003" -MaxHops 4
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Find-Conflict
+    .LINK
+        Invoke-GraphQuery
+    .LINK
+        Invoke-CypherQuery
+    .LINK
+        Invoke-QbafConflictAnalysis
+    .LINK
+        Show-GraphOverview
+    .LINK
+        Export-TaxonomyToGraph
     #>
     [CmdletBinding()]
     param(

@@ -45,6 +45,12 @@ function Get-PovLineage {
     .EXAMPLE
         Get-Tax -POV skeptic -Id 'skp-beliefs-*' | Get-PovLineage -Raw
         # Pipeline: trace ancestors for all skeptic belief nodes.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-IntellectualLineage
+    .LINK
+        Repair-PovLineage
     #>
     [CmdletBinding()]
     param(

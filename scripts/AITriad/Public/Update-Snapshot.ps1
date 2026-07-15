@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Update-Snapshot {
@@ -21,6 +21,14 @@ function Update-Snapshot {
         Update-Snapshot -DryRun
     .EXAMPLE
         Redo-Snapshots          # backward-compat alias
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Invoke-AttributeExtraction
+    .LINK
+        Invoke-EdgeDiscovery
+    .LINK
+        Save-WaybackUrl
     #>
 
     [CmdletBinding()]

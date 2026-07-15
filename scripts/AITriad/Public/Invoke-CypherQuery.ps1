@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-CypherQuery {
@@ -26,6 +26,20 @@ function Invoke-CypherQuery {
         Invoke-CypherQuery "MATCH (n:TaxonomyNode {pov: `$pov}) RETURN n.id, n.label" -Parameters @{ pov = 'safetyist' }
     .EXAMPLE
         Invoke-CypherQuery "MATCH p=shortestPath((a:TaxonomyNode {id: `$from})-[*]-(b:TaxonomyNode {id: `$to})) RETURN p" -Parameters @{ from = 'acc-desires-001'; to = 'saf-desires-001' }
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Find-GraphPath
+    .LINK
+        Find-Conflict
+    .LINK
+        Invoke-GraphQuery
+    .LINK
+        Invoke-QbafConflictAnalysis
+    .LINK
+        Show-GraphOverview
+    .LINK
+        Export-TaxonomyToGraph
     #>
     [CmdletBinding()]
     param(

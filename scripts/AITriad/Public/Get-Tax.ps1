@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-Tax {
@@ -82,6 +82,20 @@ function Get-Tax {
     .EXAMPLE
         Get-Tax -POV accelerationist -Since (Get-Date).AddDays(-7)
         # Accelerationist nodes changed in the last 7 days.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-GraphNode
+    .LINK
+        Get-TaxonomyHealth
+    .LINK
+        Compare-Taxonomy
+    .LINK
+        Test-TaxonomyIntegrity
+    .LINK
+        Test-OntologyCompliance
+    .LINK
+        Get-RelevantTaxonomyNodes
     #>
     [CmdletBinding(DefaultParameterSetName = 'Text')]
     param(

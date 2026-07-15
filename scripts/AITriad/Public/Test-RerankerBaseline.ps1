@@ -23,6 +23,18 @@ function Test-RerankerBaseline {
         # Evaluates with default settings (top-10, ms-marco reranker).
     .EXAMPLE
         Test-RerankerBaseline -TopK 20 -RerankerModel 'cross-encoder/ms-marco-MiniLM-L-12-v2'
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        New-SyntheticCorpus
+    .LINK
+        Sync-SyntheticCorpus
+    .LINK
+        Update-SyntheticCorpus
+    .LINK
+        Export-SyntheticEmbeddings
+    .LINK
+        Compare-EmbeddingModel
     #>
     [CmdletBinding()]
     param(

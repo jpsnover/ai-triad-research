@@ -44,6 +44,20 @@ function Get-AITClaim {
     .EXAMPLE
         Get-AITClaim -DocPosition contradicts | Sort-Object Confidence
         # All contradicting factual claims sorted by confidence.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Show-DebateDiagnostics
+    .LINK
+        Show-DebateHarvest
+    .LINK
+        Convert-DebateToAudio
+    .LINK
+        Get-CriticalInteraction
+    .LINK
+        Test-CriticalInteractions
+    .LINK
+        Get-TopicFrequency
     #>
     [CmdletBinding()]
     [OutputType('AITClaim')]

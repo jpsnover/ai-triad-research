@@ -22,6 +22,18 @@ function Compare-EmbeddingModel {
     .EXAMPLE
         Compare-EmbeddingModel -Models 'all-MiniLM-L6-v2', 'all-mpnet-base-v2'
         # Compares two specific models.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        New-SyntheticCorpus
+    .LINK
+        Sync-SyntheticCorpus
+    .LINK
+        Update-SyntheticCorpus
+    .LINK
+        Export-SyntheticEmbeddings
+    .LINK
+        Test-RerankerBaseline
     #>
     [CmdletBinding()]
     param(

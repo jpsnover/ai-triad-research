@@ -53,6 +53,20 @@ function Test-PersonaEndpoints {
         Test-PersonaEndpoints -Category Admin | Where-Object { -not $_.Pass }
     .EXAMPLE
         Test-PersonaEndpoints -Persona anonymous
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Test-TaxEditorHealth
+    .LINK
+        Test-TaxEditorEndpoints
+    .LINK
+        Test-AnonymousDebateFlow
+    .LINK
+        Test-ServiceWorkerHealth
+    .LINK
+        Get-FreeTierStatus
+    .LINK
+        Invoke-TaxEditorSmokeTest
     #>
     [CmdletBinding()]
     param(

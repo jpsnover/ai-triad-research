@@ -37,6 +37,20 @@ function New-SyntheticCorpus {
         New-SyntheticCorpus -PilotNodes 'acc-beliefs-003', 'saf-beliefs-023'
     .EXAMPLE
         New-SyntheticCorpus -Pov acc -Full
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Invoke-AIByUsage
+    .LINK
+        Invoke-BDIWeightAssignment
+    .LINK
+        Invoke-EdgeWeightEvaluation
+    .LINK
+        Invoke-VernacularBatch
+    .LINK
+        Invoke-AphorismBatch
+    .LINK
+        Sync-SyntheticCorpus
     #>
     [CmdletBinding(DefaultParameterSetName = 'Pilot')]
     param(

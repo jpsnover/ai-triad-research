@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Show-DebateHarvest {
@@ -14,6 +14,20 @@ function Show-DebateHarvest {
         Path to the harvest JSON file (e.g., ./debates/my-debate-harvest.json).
     .EXAMPLE
         Show-DebateHarvest -Path ./debates/burden-of-proof-harvest.json
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Show-DebateDiagnostics
+    .LINK
+        Convert-DebateToAudio
+    .LINK
+        Get-AITClaim
+    .LINK
+        Get-CriticalInteraction
+    .LINK
+        Test-CriticalInteractions
+    .LINK
+        Get-TopicFrequency
     #>
     [CmdletBinding()]
     param(

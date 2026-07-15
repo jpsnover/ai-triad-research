@@ -33,6 +33,18 @@ function Get-ContainerAppRevision {
         Get-ContainerAppRevision -Mode Stale
     .EXAMPLE
         Get-ContainerAppRevision -Mode Fqdn -RevisionName 'taxonomy-editor--deploy-abc1234'
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Test-AzureHealth
+    .LINK
+        Remove-StaleContainerImages
+    .LINK
+        Get-AzureFlightRecorder
+    .LINK
+        Test-TaxEditorInfra
+    .LINK
+        Deploy-TaxEditorInfra
     #>
     [CmdletBinding()]
     param(

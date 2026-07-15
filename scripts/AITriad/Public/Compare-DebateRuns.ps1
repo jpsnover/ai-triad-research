@@ -20,6 +20,20 @@
     Return the comparison object instead of printing a table.
 .EXAMPLE
     Compare-DebateRuns -SessionA debate-50k.json -SessionB debate-100k.json -LabelA '50K' -LabelB '100K'
+.LINK
+    Show-AITriadHelp
+.LINK
+    Compare-DebateQuality
+.LINK
+    Measure-DebateQuality
+.LINK
+    Invoke-DebateAB
+.LINK
+    Test-SynthesisCompleteness
+.LINK
+    Get-CalibrationTrend
+.LINK
+    Test-AITJudgeModel
 #>
 function Compare-DebateRuns {
     [CmdletBinding()]

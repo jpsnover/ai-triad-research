@@ -19,6 +19,20 @@ function Export-AggregatedCruxes {
         Export-AggregatedCruxes
     .EXAMPLE
         Export-AggregatedCruxes -SimilarityThreshold 0.75 -WhatIf
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Show-DebateDiagnostics
+    .LINK
+        Show-DebateHarvest
+    .LINK
+        Convert-DebateToAudio
+    .LINK
+        Get-AITClaim
+    .LINK
+        Get-CriticalInteraction
+    .LINK
+        Test-CriticalInteractions
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

@@ -17,6 +17,20 @@ function Get-TaxEditorDataCommit {
         Get-TaxEditorDataCommit -Last 5
     .EXAMPLE
         Get-TaxEditorDataCommit | Where-Object Message -like '*migration*'
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-TaxEditorBlob
+    .LINK
+        Restore-TaxEditorBlob
+    .LINK
+        Restore-TaxEditorKnownGood
+    .LINK
+        Set-TaxEditorKnownGood
+    .LINK
+        Sync-TaxEditorData
+    .LINK
+        Undo-TaxEditorDataCommit
     #>
     [CmdletBinding()]
     param(

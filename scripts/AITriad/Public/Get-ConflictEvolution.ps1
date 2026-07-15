@@ -36,6 +36,20 @@ function Get-ConflictEvolution {
         Get-ConflictEvolution -Id "conflict-agi-timelines-001" -Analyze
     .EXAMPLE
         Get-ConflictEvolution -Analyze | Where-Object { $_.analysis.convergence_trend -eq 'diverging' }
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Find-GraphPath
+    .LINK
+        Find-Conflict
+    .LINK
+        Invoke-GraphQuery
+    .LINK
+        Invoke-CypherQuery
+    .LINK
+        Invoke-QbafConflictAnalysis
+    .LINK
+        Show-GraphOverview
     #>
     [CmdletBinding()]
     param(

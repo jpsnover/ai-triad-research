@@ -29,6 +29,20 @@ function Convert-DebateToAudio {
     Convert-DebateToAudio -Path './debates/session-001.json'
 .EXAMPLE
     Convert-DebateToAudio -Path './debates/session-001.json' -IncludeFactChecks -Speed 1.1
+.LINK
+    Show-AITriadHelp
+.LINK
+    Show-DebateDiagnostics
+.LINK
+    Show-DebateHarvest
+.LINK
+    Get-AITClaim
+.LINK
+    Get-CriticalInteraction
+.LINK
+    Test-CriticalInteractions
+.LINK
+    Get-TopicFrequency
 #>
 [CmdletBinding()]
 param(

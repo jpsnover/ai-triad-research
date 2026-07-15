@@ -13,6 +13,14 @@ function Invoke-HierarchyProposal {
         Invoke-HierarchyProposal
         Invoke-HierarchyProposal -POV accelerationist -Category 'Intentions'
         Invoke-HierarchyProposal -DryRun
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Approve-TaxonomyProposal
+    .LINK
+        Invoke-TaxonomyProposal
+    .LINK
+        Set-TaxonomyHierarchy
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

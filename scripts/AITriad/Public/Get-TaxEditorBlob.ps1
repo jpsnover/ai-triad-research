@@ -21,6 +21,20 @@ function Get-TaxEditorBlob {
         Get-TaxEditorBlob
     .EXAMPLE
         Get-TaxEditorBlob -Container 'user-content' -Deleted
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-TaxEditorDataCommit
+    .LINK
+        Restore-TaxEditorBlob
+    .LINK
+        Restore-TaxEditorKnownGood
+    .LINK
+        Set-TaxEditorKnownGood
+    .LINK
+        Sync-TaxEditorData
+    .LINK
+        Undo-TaxEditorDataCommit
     #>
     [CmdletBinding()]
     param(

@@ -33,6 +33,18 @@ function Get-FlightRecorderDump {
     .EXAMPLE
         # Open the most recent dump in the viewer
         Get-FlightRecorderDump -Last 1 | Show-FlightRecorder
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-AzureFlightRecorder
+    .LINK
+        Get-FlightRecorderReport
+    .LINK
+        Merge-FlightRecorderDumps
+    .LINK
+        Request-FlightRecorderDump
+    .LINK
+        Show-FlightRecorder
     #>
     [CmdletBinding()]
     param(

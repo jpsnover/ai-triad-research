@@ -18,6 +18,18 @@ function Sync-SyntheticCorpus {
     .EXAMPLE
         Sync-SyntheticCorpus -Fix
         # Report and fix.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        New-SyntheticCorpus
+    .LINK
+        Update-SyntheticCorpus
+    .LINK
+        Export-SyntheticEmbeddings
+    .LINK
+        Compare-EmbeddingModel
+    .LINK
+        Test-RerankerBaseline
     #>
     [CmdletBinding()]
     param(

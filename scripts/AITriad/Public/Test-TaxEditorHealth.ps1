@@ -28,6 +28,20 @@ function Test-TaxEditorHealth {
     .EXAMPLE
         # Poll a fresh deploy for up to 5 minutes waiting for readiness.
         Test-TaxEditorHealth -MaxAttempts 30 -RetryIntervalSec 10
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Test-TaxEditorEndpoints
+    .LINK
+        Test-AnonymousDebateFlow
+    .LINK
+        Test-PersonaEndpoints
+    .LINK
+        Test-ServiceWorkerHealth
+    .LINK
+        Get-FreeTierStatus
+    .LINK
+        Invoke-TaxEditorSmokeTest
     #>
     [CmdletBinding()]
     param(

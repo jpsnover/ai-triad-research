@@ -50,6 +50,18 @@ function Invoke-POVSummary {
         Invoke-POVSummary -DocId "altman-2024-agi-path" -DryRun
     .EXAMPLE
         Invoke-POVSummary -DocId "lecun-2024-critique" -Model "gemini-3.1-flash-lite-lite"
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Invoke-BatchSummary
+    .LINK
+        Get-Summary
+    .LINK
+        Repair-AITSummaryMappings
+    .LINK
+        Test-ExtractionQuality
+    .LINK
+        Repair-UnmappedConcepts
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Export-TaxonomyToGraph {
@@ -29,6 +29,20 @@ function Export-TaxonomyToGraph {
         Export-TaxonomyToGraph -Full -IncludeEmbeddings
     .EXAMPLE
         Export-TaxonomyToGraph -Uri "bolt://localhost:7687" -Credential (Get-Credential)
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Find-GraphPath
+    .LINK
+        Find-Conflict
+    .LINK
+        Invoke-GraphQuery
+    .LINK
+        Invoke-CypherQuery
+    .LINK
+        Invoke-QbafConflictAnalysis
+    .LINK
+        Show-GraphOverview
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

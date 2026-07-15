@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-SchemaMigration {
@@ -31,6 +31,12 @@ function Invoke-SchemaMigration {
         Invoke-SchemaMigration -DryRun
     .EXAMPLE
         Invoke-SchemaMigration -PassThru
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Find-SituationCandidates
+    .LINK
+        Invoke-CcToSitMigration
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

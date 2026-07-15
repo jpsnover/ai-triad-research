@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Find-AITSource {
@@ -29,6 +29,20 @@ function Find-AITSource {
     .EXAMPLE
         Find-AITSource -Id 'cc-*'
         # All cross-cutting references.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Import-AITriadDocument
+    .LINK
+        Save-AITSource
+    .LINK
+        Get-AITSource
+    .LINK
+        Update-AITSourceIndex
+    .LINK
+        Get-IngestionPriority
+    .LINK
+        Get-ImportReport
     #>
     [CmdletBinding()]
     param(

@@ -38,6 +38,20 @@ function Invoke-GraphQuery {
         Invoke-GraphQuery "How does the skeptic position respond to existential risk arguments?" -IncludeConflicts
     .EXAMPLE
         Invoke-GraphQuery "What would change if scaling laws stopped holding?" -Raw
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Find-GraphPath
+    .LINK
+        Find-Conflict
+    .LINK
+        Invoke-CypherQuery
+    .LINK
+        Invoke-QbafConflictAnalysis
+    .LINK
+        Show-GraphOverview
+    .LINK
+        Export-TaxonomyToGraph
     #>
     [CmdletBinding()]
     param(

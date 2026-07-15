@@ -42,6 +42,14 @@ function Find-PolicyAction {
         Find-PolicyAction -Id acc-desires-001, saf-desires-001
     .EXAMPLE
         Find-PolicyAction -Force -Model 'groq-llama-4-scout'
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-Policy
+    .LINK
+        Update-PolicyRegistry
+    .LINK
+        Invoke-PolicyRefinement
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

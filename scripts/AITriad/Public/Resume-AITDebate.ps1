@@ -38,6 +38,20 @@ function Resume-AITDebate {
         # Run measurement on the resumed result
         $r = Resume-AITDebate -From <partial>
         $r | Measure-DebateQuality
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Show-TriadDialogue
+    .LINK
+        Invoke-AITDebate
+    .LINK
+        Get-AITDebate
+    .LINK
+        Repair-DebateOutput
+    .LINK
+        Watch-DebateProgress
+    .LINK
+        Invoke-DebateBatch
     #>
     [CmdletBinding()]
     param(

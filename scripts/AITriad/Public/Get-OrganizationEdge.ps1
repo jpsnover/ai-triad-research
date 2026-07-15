@@ -28,6 +28,12 @@ function Get-OrganizationEdge {
         Get-OrganizationEdge -OrgId org-001 -Direction Either -Type COMPETES_WITH
     .EXAMPLE
         Get-OrganizationEdge -Type FUNDS
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Import-OrganizationEdge
+    .LINK
+        Get-Organization
     #>
     [CmdletBinding()]
     [OutputType('OrganizationEdge')]

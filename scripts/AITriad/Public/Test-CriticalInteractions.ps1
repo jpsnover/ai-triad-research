@@ -11,6 +11,20 @@ function Test-CriticalInteractions {
         Test-CriticalInteractions -Level API -Priority P0 -Detailed
     .EXAMPLE
         Test-CriticalInteractions -CuiId 'CUI-TAX-001' -Level API
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Show-DebateDiagnostics
+    .LINK
+        Show-DebateHarvest
+    .LINK
+        Convert-DebateToAudio
+    .LINK
+        Get-AITClaim
+    .LINK
+        Get-CriticalInteraction
+    .LINK
+        Get-TopicFrequency
     #>
     [CmdletBinding()]
     param(

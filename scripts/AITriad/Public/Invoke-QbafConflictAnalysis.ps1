@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-QbafConflictAnalysis {
@@ -43,6 +43,20 @@ function Invoke-QbafConflictAnalysis {
         Invoke-QbafConflictAnalysis -DocId 'ai-safety-debate-2026'
     .EXAMPLE
         Invoke-QbafConflictAnalysis -DryRun
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Find-GraphPath
+    .LINK
+        Find-Conflict
+    .LINK
+        Invoke-GraphQuery
+    .LINK
+        Invoke-CypherQuery
+    .LINK
+        Show-GraphOverview
+    .LINK
+        Export-TaxonomyToGraph
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

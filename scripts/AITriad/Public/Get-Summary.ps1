@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-Summary {
@@ -32,6 +32,18 @@ function Get-Summary {
     .EXAMPLE
         Get-Summary -Pov accelerationist -Stance opposed -Detailed
         # Accelerationist points with opposed stance.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Invoke-POVSummary
+    .LINK
+        Invoke-BatchSummary
+    .LINK
+        Repair-AITSummaryMappings
+    .LINK
+        Test-ExtractionQuality
+    .LINK
+        Repair-UnmappedConcepts
     #>
     [CmdletBinding()]
     param(

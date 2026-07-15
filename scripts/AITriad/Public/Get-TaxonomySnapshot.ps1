@@ -31,6 +31,20 @@ function Get-TaxonomySnapshot {
         Get-TaxonomySnapshot -OutputPath ./taxonomy-snapshot
     .EXAMPLE
         Get-TaxonomySnapshot -OutputPath ./snap -Branch feature-x
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Get-TaxEditorBlob
+    .LINK
+        Get-TaxEditorDataCommit
+    .LINK
+        Restore-TaxEditorBlob
+    .LINK
+        Restore-TaxEditorKnownGood
+    .LINK
+        Set-TaxEditorKnownGood
+    .LINK
+        Sync-TaxEditorData
     #>
     [CmdletBinding()]
     param(

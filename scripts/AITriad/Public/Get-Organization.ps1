@@ -26,6 +26,20 @@ function Get-Organization {
         Get-Organization -Name 'anthropic'
     .EXAMPLE
         Get-Organization -Type advocacy
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Find-OrganizationByPOV
+    .LINK
+        Find-OrganizationByTopic
+    .LINK
+        Get-OrganizationStakeholders
+    .LINK
+        Import-Organization
+    .LINK
+        Compare-OrganizationPositions
+    .LINK
+        Get-OrganizationEdge
     #>
     [CmdletBinding()]
     [OutputType('Organization')]

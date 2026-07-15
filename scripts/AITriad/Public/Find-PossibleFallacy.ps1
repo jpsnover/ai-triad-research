@@ -53,6 +53,10 @@ function Find-PossibleFallacy {
     .EXAMPLE
         Show-FallacyInfo 'slippery_slope'
         # Open Wikipedia page for a flagged fallacy
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Show-FallacyInfo
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

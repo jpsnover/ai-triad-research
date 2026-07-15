@@ -21,6 +21,14 @@ function Show-AITriadHelp {
     .EXAMPLE
         Show-AITriadHelp -PassThru
         # Returns the temp file path without opening a browser.
+    .LINK
+        Show-POViewer
+    .LINK
+        Show-SummaryViewer
+    .LINK
+        Show-TaxonomyEditor
+    .LINK
+        Show-WorkflowRunner
     #>
     [CmdletBinding()]
     param(

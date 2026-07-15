@@ -38,6 +38,14 @@ function Invoke-AttributeExtraction {
         Invoke-AttributeExtraction -POV accelerationist
     .EXAMPLE
         Invoke-AttributeExtraction -Force -Model 'gemini-2.5-pro'
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Invoke-EdgeDiscovery
+    .LINK
+        Save-WaybackUrl
+    .LINK
+        Update-Snapshot
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

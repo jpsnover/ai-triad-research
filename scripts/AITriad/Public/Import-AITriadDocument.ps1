@@ -50,6 +50,20 @@ function Import-AITriadDocument {
     .NOTES
         Set backend-specific env vars (GEMINI_API_KEY, ANTHROPIC_API_KEY,
         GROQ_API_KEY) or AI_API_KEY for metadata enrichment.
+    .LINK
+        Show-AITriadHelp
+    .LINK
+        Save-AITSource
+    .LINK
+        Find-AITSource
+    .LINK
+        Get-AITSource
+    .LINK
+        Update-AITSourceIndex
+    .LINK
+        Get-IngestionPriority
+    .LINK
+        Get-ImportReport
     #>
     [CmdletBinding(DefaultParameterSetName = 'ByUrl')]
     param(
