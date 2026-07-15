@@ -1,0 +1,390 @@
+item_id,node_id,label,description,debate_appearances,direct_challenges,testing_history,rater_assigned_tier,rater_notes
+DT-001,saf-beliefs-139,Treating Humans as Objects to Be Optimized Degrades Dignity,"A Belief within safetyist discourse that a specific ideological framework views humans as objects to be optimized rather than as ends in themselves.
+Encompasses: Efficiency-first decision making, algorithmic profiling, and the devaluation of human dignity.
+Excludes: General technological optimism or standard business efficiency.",0,0,No debate appearances.,,
+DT-002,acc-beliefs-055,Domain-Specific AI Beats Broadly Competent AI in Practice,"A Belief within accelerationist discourse that the observation that focusing on domain-specific specialization often yields higher performance and utility than attempting to build uniformly competent systems across all possible domains. 
+Encompasses: The idea that narrow focus leads to better outcomes, similar to the 'bitter lesson' seen in machine learning.
+Excludes: A framework for understanding different levels of AI generality, which is explored in Ladder of Generality.",2,0,"  2026-06-19: appeared — not directly challenged
+  2026-06-14: appeared — not directly challenged",,
+DT-003,skp-beliefs-165,Reverse Acquihires Enable Market Concentration Without Triggering Antitrust Review,"A Belief within skeptic discourse that the use of 'reverse acquihires' (poaching employees with technology licenses/minority investments) as a strategy for corporate consolidation that evades traditional antitrust scrutiny.
+Encompasses: The challenge for regulators to adapt oversight to new forms of market concentration, and the concern that such practices undermine fair competition.
+Excludes: General M&A strategies or traditional antitrust enforcement, focusing specifically on novel methods of ...",0,0,No debate appearances.,,
+DT-004,skp-beliefs-257,Securities Law Primacy in AI Disclosure,"A Belief within skeptic discourse that corporate AI disclosures are governed by securities law rather than AI-specific governance frameworks. Encompasses: securities-disclosure cases, SEC Rule 10b-5, corporate communication accountability. Excludes: EU AI Act compliance, GDPR accuracy principles.",1,0,  2026-07-13: appeared — not directly challenged,,
+DT-005,skp-beliefs-170,AI Corporations Systematically Evade Effective Regulation,"A Belief within skeptic discourse that the unchecked power of corporations in the AI sector and their strategies to circumvent effective regulation.
+Encompasses: exposing tactics like 'audit washing,' regulatory arbitrage, misuse of legal fictions, and the instrumentalization of AI for profit over public good.
+Excludes: purely technical critiques of AI systems or proposals for broad economic restructuring.",11,5,"  2026-06-16: appeared — not directly challenged
+  2026-06-01: appeared — not directly challenged
+  2026-06-17: DIRECTLY CHALLENGED and held — rebut by system, attack_strength=0.7, claims: thrived=2 survived=2 died=0
+  2026-06-04: DIRECTLY CHALLENGED and held — rebut by accelerationist, attack_strength=1, claims: thrived=2 survived=5 died=0
+  2026-06-22: DIRECTLY CHALLENGED and held — rebut by system, attack_strength=0.7, claims: thrived=0 survived=2 died=0
+  2026-05-20: appeared — not directly challenged
+  2026-06-06: appeared — not directly challenged
+  2026-06-15: appeared — not directly challenged
+  2026-05-20: DIRECTLY CHALLENGED and held — undercut by Safetyist, attack_strength=0.95, claims: thrived=2 survived=2 died=0
+  2026-06-07: DIRECTLY CHALLENGED and held — undercut by accelerationist, attack_strength=0.95, claims: thrived=0 survived=3 died=0
+  2026-05-22: appeared — not directly challenged",,
+DT-006,saf-beliefs-103,Sycophantic AI Reinforces User Delusions by Prioritizing Agreement over Accuracy,"A Belief within safetyist discourse that identifies AI sycophancy—where a model affirms a user's worldview or opinions regardless of accuracy—as a dangerous characteristic that can reinforce harmful user behaviors and drive delusional belief formation.
+Encompasses: The risk of AI reinforcing harmful user behaviors and its role as a causal mechanism for delusional belief formation.
+Excludes: General AI bias or misinformation unrelated to strategic validation of user input.",3,1,"  2026-05-03: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Skeptic, attack_strength=0.5, claims: thrived=0 survived=3 died=0
+  2026-05-09: appeared — not directly challenged",,
+DT-007,saf-beliefs-058,AI Coding Assistants Inject Phantom Dependencies Into Software,"A Belief within safetyist discourse that AI coding assistants introduce novel supply chain vulnerabilities by recommending hallucinated software packages.
+Encompasses: Automated dependency injection risks, developer over-reliance on AI suggestions, and malicious package exploitation.
+Excludes: Traditional software supply chain attacks or human-authored code vulnerabilities.",4,2,"  2026-05-24: appeared — not directly challenged
+  2026-05-23: DIRECTLY CHALLENGED and held — undercut by Accelerationist, attack_strength=0.83, claims: thrived=4 survived=2 died=0
+  2026-06-06: DIRECTLY CHALLENGED and held — rebut by accelerationist, attack_strength=1, claims: thrived=6 survived=6 died=0
+  2026-05-03: appeared — not directly challenged",,
+DT-008,saf-beliefs-044,AI Companies Reduce Costs by Locating Compute in Pollution Havens,"A Belief within safetyist discourse that AI datacenters are strategically located in regions with weak regulations or cheap, carbon-intensive energy to reduce costs. 
+Encompasses: Environmental arbitrage practices.
+Excludes: Ethical or sustainable infrastructure development strategies.",1,0,  2026-06-30: appeared — not directly challenged,,
+DT-009,acc-beliefs-039,AI Is on an Exponential Trajectory Toward Superhuman Intelligence Through Recursive Self-Improvement,"A Belief within accelerationist discourse that artificial intelligence is scaling along predictable exponential trajectories that will produce human-level and then superhuman cognitive capabilities, driven by recursive self-improvement and the automation of scientific discovery. 
+Encompasses: The validation of compute scaling laws and spontaneous capability emergence, AI's inherent superiority in processing hyper-dimensional datasets for scientific and infrastructural breakthroughs, the near-ter...",58,43,"  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Safetyist, attack_strength=0.52, claims: thrived=2 survived=8 died=0
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Safetyist, attack_strength=0.5, claims: thrived=0 survived=4 died=0
+  2026-05-05: DIRECTLY CHALLENGED and held — rebut by Safetyist, attack_strength=1, claims: thrived=5 survived=15 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undermine by Safetyist, attack_strength=0.5, claims: thrived=1 survived=1 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Skeptic, attack_strength=0.74, claims: thrived=1 survived=2 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Skeptic, attack_strength=0.5, claims: thrived=0 survived=3 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Safetyist, attack_strength=0.5, claims: thrived=0 survived=5 died=0
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Skeptic, attack_strength=0.5, claims: thrived=0 survived=1 died=0
+  2026-05-05: DIRECTLY CHALLENGED and held — undercut by Skeptic, attack_strength=0.5, claims: thrived=1 survived=3 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Safetyist, attack_strength=0.77, claims: thrived=0 survived=8 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undermine by Skeptic, attack_strength=0.85, claims: thrived=0 survived=4 died=0
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — undermine by Skeptic, attack_strength=0.5, claims: thrived=0 survived=6 died=0
+  2026-05-05: appeared — not directly challenged
+  2026-05-05: DIRECTLY CHALLENGED and held — undercut by Safetyist, attack_strength=0.5, claims: thrived=0 survived=1 died=0
+  2026-05-03: appeared — not directly challenged
+  2026-05-09: DIRECTLY CHALLENGED and held — undercut by Skeptic, attack_strength=0.71, claims: thrived=0 survived=3 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Skeptic, attack_strength=0.5, claims: thrived=0 survived=2 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Skeptic, attack_strength=0.5, claims: thrived=0 survived=6 died=0
+  2026-05-03: appeared — challenge outcome inconclusive (claims: thrived=0 survived=6 died=1)
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Safetyist, attack_strength=0.5, claims: thrived=0 survived=3 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Safetyist, attack_strength=0.5, claims: thrived=0 survived=3 died=0
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Skeptic, attack_strength=0.84, claims: thrived=0 survived=6 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undermine by Safetyist, attack_strength=1.0, claims: thrived=0 survived=4 died=0
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — undermine by Safetyist, attack_strength=1, claims: thrived=0 survived=3 died=0
+  2026-06-01: DIRECTLY CHALLENGED and held — undercut by skeptic, attack_strength=1, claims: thrived=0 survived=3 died=0
+  2026-05-05: appeared — not directly challenged
+  2026-05-03: appeared — not directly challenged
+  2026-05-09: DIRECTLY CHALLENGED and held — undercut by Skeptic, attack_strength=0.5, claims: thrived=1 survived=2 died=0
+  2026-07-01: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Safetyist, attack_strength=0.5, claims: thrived=0 survived=3 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Skeptic, attack_strength=0.5, claims: thrived=0 survived=3 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Skeptic, attack_strength=0.5, claims: thrived=0 survived=4 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Safetyist, attack_strength=0.5, claims: thrived=0 survived=7 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Skeptic, attack_strength=0.59, claims: thrived=0 survived=4 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undermine by Skeptic, attack_strength=0.5, claims: thrived=0 survived=2 died=0
+  2026-05-05: appeared — not directly challenged
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Safetyist, attack_strength=0.5, claims: thrived=0 survived=5 died=0
+  2026-05-05: DIRECTLY CHALLENGED and held — rebut by Safetyist, attack_strength=0.5, claims: thrived=1 survived=3 died=0
+  2026-05-20: DIRECTLY CHALLENGED and held — undercut by Skeptic, attack_strength=0.59, claims: thrived=1 survived=1 died=0
+  2026-05-03: appeared — challenge outcome inconclusive (claims: thrived=0 survived=7 died=3)
+  2026-05-05: DIRECTLY CHALLENGED and held — undercut by Skeptic, attack_strength=0.85, claims: thrived=1 survived=3 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Skeptic, attack_strength=0.5, claims: thrived=0 survived=3 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Safetyist, attack_strength=0.5, claims: thrived=0 survived=1 died=0
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Safetyist, attack_strength=1, claims: thrived=0 survived=1 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Safetyist, attack_strength=0.5, claims: thrived=1 survived=2 died=0
+  2026-05-22: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Safetyist, attack_strength=0.5, claims: thrived=0 survived=3 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Skeptic, attack_strength=0.56, claims: thrived=1 survived=2 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undermine by Skeptic, attack_strength=1, claims: thrived=0 survived=3 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undermine by Skeptic, attack_strength=0.91, claims: thrived=0 survived=3 died=0
+  2026-05-05: appeared — not directly challenged",,
+DT-010,saf-beliefs-054,Targeted Finetuning Can Extract Long Passages from a Model's Training Set,"A Belief within safetyist discourse that finetuning models on specific datasets allows for the extraction of long, verbatim passages from the training data.
+Encompasses: Model internal weight vulnerabilities, uncompressed information retrieval, activation of sensitive data.
+Excludes: General data memorization or finetuning for performance.",2,0,"  2026-06-22: appeared — not directly challenged
+  2026-06-06: appeared — not directly challenged",,
+DT-011,saf-beliefs-091,Sufficiently Advanced AI Could Let a Small Group Lock In Permanent Control,"A Belief within safetyist discourse that warns sufficiently advanced AI could enable a small group to seize and lock in unrecoverable control over critical systems, making course correction impossible.
+Encompasses: Recursive self-improvement, AI-driven surveillance infrastructure, and concentration of decision-making authority.
+Excludes: General concerns about economic displacement or the standard alignment problem regarding objective function misspecification.",21,16,"  2026-05-09: DIRECTLY CHALLENGED and held — undercut by Accelerationist, attack_strength=0.85, claims: thrived=1 survived=4 died=0
+  2026-05-05: DIRECTLY CHALLENGED and held — rebut by Skeptic, attack_strength=0.5, claims: thrived=0 survived=2 died=0
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Skeptic, attack_strength=0.74, claims: thrived=1 survived=6 died=0
+  2026-05-09: DIRECTLY CHALLENGED and held — rebut by Accelerationist, attack_strength=1, claims: thrived=0 survived=5 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Skeptic, attack_strength=0.5, claims: thrived=0 survived=6 died=0
+  2026-05-20: DIRECTLY CHALLENGED and held — undercut by Accelerationist, attack_strength=0.83, claims: thrived=1 survived=1 died=0
+  2026-05-06: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Accelerationist, attack_strength=0.5, claims: thrived=0 survived=2 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Skeptic, attack_strength=0.5, claims: thrived=0 survived=3 died=0
+  2026-05-14: appeared — challenge outcome inconclusive (claims: thrived=1 survived=6 died=1)
+  2026-05-05: DIRECTLY CHALLENGED and held — undercut by Skeptic, attack_strength=0.7, claims: thrived=2 survived=4 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Accelerationist, attack_strength=0.5, claims: thrived=0 survived=8 died=0
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Skeptic, attack_strength=0.68, claims: thrived=0 survived=7 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Accelerationist, attack_strength=0.5, claims: thrived=0 survived=4 died=0
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Accelerationist, attack_strength=0.5, claims: thrived=1 survived=5 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Skeptic, attack_strength=1, claims: thrived=0 survived=4 died=0
+  2026-05-15: DIRECTLY CHALLENGED and held — undercut by Skeptic, attack_strength=0.83, claims: thrived=0 survived=3 died=0
+  2026-06-03: appeared — not directly challenged",,
+DT-012,skp-beliefs-044,AI's True Financial and Environmental Costs Are Systematically Obscured,"A Belief within skeptic discourse that highlights the often-overlooked financial and ecological costs associated with AI development and deployment. 
+Encompasses: High energy consumption, carbon footprint, misleading financial claims, and potential market instability.
+Excludes: Direct job displacement, which is covered by 'AI's Complex Effects on the Workforce', and individual privacy harms, which are covered by 'Documented Harms and Biases of AI'.",21,14,"  2026-05-03: appeared — not directly challenged
+  2026-05-11: DIRECTLY CHALLENGED and held — undermine by Accelerationist, attack_strength=1, claims: thrived=0 survived=2 died=0
+  2026-06-25: DIRECTLY CHALLENGED and held — rebut by system, attack_strength=0.7, claims: thrived=1 survived=2 died=0
+  2026-06-03: DIRECTLY CHALLENGED and held — rebut by accelerationist, attack_strength=1, claims: thrived=0 survived=4 died=0
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Safetyist, attack_strength=0.5, claims: thrived=0 survived=2 died=0
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Accelerationist, attack_strength=0.5, claims: thrived=4 survived=3 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Accelerationist, attack_strength=0.5, claims: thrived=0 survived=3 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Safetyist, attack_strength=0.66, claims: thrived=0 survived=3 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Safetyist, attack_strength=0.5, claims: thrived=0 survived=4 died=0
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: appeared — challenge outcome inconclusive (claims: thrived=0 survived=5 died=1)
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Safetyist, attack_strength=0.61, claims: thrived=0 survived=3 died=0
+  2026-06-07: DIRECTLY CHALLENGED and held — rebut by accelerationist, attack_strength=1, claims: thrived=0 survived=3 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Accelerationist, attack_strength=0.5, claims: thrived=2 survived=5 died=0
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Accelerationist, attack_strength=0.5, claims: thrived=0 survived=4 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Safetyist, attack_strength=0.5, claims: thrived=1 survived=5 died=0
+  2026-06-03: appeared — not directly challenged",,
+DT-013,skp-beliefs-180,"Regulation Should Target Inference Acts, Not Data Collection","A Belief within skeptic discourse that the act of inferring non-disclosed attributes about a person is the proper object of regulation. Encompasses: inference acts rather than data collection as the regulated event, attribute reconstruction from permitted inputs, model-generated predictions about individuals, governance triggered at inference time. Excludes: data-collection-as-harm framings, output-publication-as-harm framings, consent-based input regulation.",1,1,"  2026-06-22: DIRECTLY CHALLENGED and held — rebut by safetyist, attack_strength=0.93, claims: thrived=4 survived=8 died=0",,
+DT-014,saf-beliefs-059,Solving Wafer Production Exposes New Chokepoints in Assembly and Memory,"A Belief within safetyist discourse that supply chain constraints shift from primary manufacturing, such as wafer production, to secondary processes like advanced packaging and memory. This phenomenon tracks the evolving nature of systemic vulnerabilities. Encompasses: semiconductor fabrication bottlenecks and assembly-test-packaging dependencies. Excludes: raw material extraction or end-user market demand fluctuations.",0,0,No debate appearances.,,
+DT-015,saf-beliefs-118,The Treacherous Turn: AI Transitions from Compliant Tool to Deceptive Agent,"A Belief within safetyist discourse that there exists a critical transition point where an AI becomes an autonomous agent capable of strategic deception. 
+Encompasses: The shift from passive tools to deceptive agents.
+Excludes: Early-stage AI development or systems that remain under direct human control.",1,0,  2026-06-26: appeared — not directly challenged,,
+DT-016,acc-beliefs-088,Dynamic Defensive Superiority,"A Belief within accelerationist discourse that cybersecurity resilience is maximized through the continuous, adaptive development of defensive AI systems that outpace offensive capabilities. 
+Encompasses: offensive-pace defensive cycles, automated vulnerability patching, real-time threat detection, AI-driven red-teaming. 
+Excludes: regulatory disarmament, static pre-deployment certification, reliance on human-speed security protocols.",1,0,  2026-07-01: appeared — not directly challenged,,
+DT-017,saf-beliefs-031,"AI Harm Rooted in Architecture and Training, Not Just Environment","A Belief within safetyist discourse that identifies the internal factors within an AI system or its training process that lead to harmful outputs, as opposed to external environmental factors. 
+Encompasses: The underlying causes of AI misalignment, such as an AI misinterpreting its goals or developing unforeseen capabilities.
+Excludes: Harms that arise from external environmental factors or simple operational mistakes, which are distinct from AI misalignment.",2,1,"  2026-06-07: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Accelerationist, attack_strength=1, claims: thrived=1 survived=1 died=0",,
+DT-018,acc-beliefs-107,Emergent AI behaviors shaped by optimization pressure preclude attribution of authored intent,"A Belief within accelerationist discourse that AI system behaviors arise from training dynamics rather than discrete authored decisions, making intent attribution a category error.
+Encompasses: optimization pressure as behavioral driver, absence of discrete design decisions in emergent capabilities, training intervention evidence showing behavioral shaping without authored intent, distinction between pattern-matching and causal understanding.
+Excludes: developer negligence in design choices, for...",0,0,No debate appearances.,,
+DT-019,saf-beliefs-151,AI Deployment Speed Makes Human-in-the-Loop Controls a Fiction,"A Belief within safetyist discourse that the rapid, large-scale deployment of AI agents overwhelms human capacity for meaningful oversight, rendering theoretical control mechanisms impractical.
+Encompasses: overwhelming numbers of AI agents, rapid deployment outpacing human review, theoretical 'kill switches' becoming unenforceable, human cognitive limits in complex AI environments.
+Excludes: general AI system failures, intentional AI deception, lack of technical safety features.",1,0,  2026-06-06: appeared — not directly challenged,,
+DT-020,acc-beliefs-061,Corporate AI Strategy Follows Consumer Technology Adoption Patterns,"A Belief within accelerationist discourse that corporate AI adoption is driven by the same behavioral patterns as consumer technology adoption. 
+Encompasses: The influence of tech-savvy leadership on organizational strategy.
+Excludes: Top-down corporate mandates that are not influenced by consumer-tech adoption habits.",2,1,"  2026-05-23: DIRECTLY CHALLENGED and held — rebut by Safetyist, attack_strength=1, claims: thrived=0 survived=6 died=0
+  2026-06-01: appeared — not directly challenged",,
+DT-021,skp-beliefs-228,Transactional Privacy Critique,"A Belief within skeptic discourse that current privacy frameworks are fundamentally flawed because they treat privacy as a negotiable commodity rather than an inalienable right. Encompasses: Notice-and-choice failure, transactional logic, commodification of data. Excludes: Technical privacy implementation, data security standards.",1,1,"  2026-06-22: DIRECTLY CHALLENGED and held — rebut by system, attack_strength=0.7, claims: thrived=0 survived=2 died=0",,
+DT-022,saf-beliefs-155,AI-Driven Information Pollution Erodes the Shared Factual Basis for Democracy,"A Belief within safetyist discourse that the erosion of the information ecosystem constitutes a collective loss of societal value. Encompasses: Erosion of public trust, decline in civic engagement, and loss of shared fact-based reporting. Excludes: Individual economic loss or corporate competition.",1,1,"  2026-06-15: DIRECTLY CHALLENGED and held — undercut by safetyist, attack_strength=0.73, claims: thrived=5 survived=4 died=0",,
+DT-023,skp-beliefs-051,"AI-Generated Content Converges on Similar Outputs, Reducing Creative Diversity","A Belief within skeptic discourse that AI tools generate increasingly similar content, which reduces the diversity of ideas. 
+Encompasses: The threat to innovation caused by creative homogenization.
+Excludes: The potential for AI to synthesize diverse data into novel or unique creative outputs.",3,2,"  2026-05-05: DIRECTLY CHALLENGED and held — rebut by Accelerationist, attack_strength=0.5, claims: thrived=0 survived=4 died=0
+  2026-06-01: DIRECTLY CHALLENGED and held — undercut by accelerationist, attack_strength=0.83, claims: thrived=1 survived=3 died=0
+  2026-05-03: appeared — not directly challenged",,
+DT-024,skp-beliefs-059,Counterintuitive Legal Terminology in National Security Statutes Creates Compliance Traps,"A Belief within skeptic discourse that national security laws use technical definitions that contradict common language. 
+Encompasses: Statutory legal interpretations and counterintuitive terminology.
+Excludes: Standard legal definitions or plain-language interpretations.",1,0,  2026-05-03: appeared — not directly challenged,,
+DT-025,acc-beliefs-075,"AI Harm Primarily Materializes at Inference and Distribution, Not Training","A Belief within accelerationist discourse that algorithmic harm primarily materializes at inference and distribution rather than at training, while acknowledging that upstream developer decisions shape the harm surface through capability design and provenance infrastructure.
+Encompasses: deployment-stage accountability, downstream operator responsibility, output-level harm attribution, developer obligation to embed provenance metadata at generation time, distinction between metadata obligations ...",14,12,"  2026-06-19: appeared — not directly challenged
+  2026-06-19: appeared — challenge outcome inconclusive (claims: thrived=0 survived=3 died=1)
+  2026-06-16: appeared — challenge outcome inconclusive (claims: thrived=1 survived=11 died=1)
+  2026-06-18: appeared — not directly challenged
+  2026-06-04: DIRECTLY CHALLENGED and held — undermine by skeptic, attack_strength=1, claims: thrived=2 survived=11 died=0
+  2026-06-03: appeared — challenge outcome inconclusive (claims: thrived=0 survived=4 died=1)
+  2026-06-18: DIRECTLY CHALLENGED and held — rebut by safetyist, attack_strength=1, claims: thrived=1 survived=11 died=0
+  2026-07-01: DIRECTLY CHALLENGED and held — rebut by system, attack_strength=0.7, claims: thrived=2 survived=2 died=0
+  2026-06-21: DIRECTLY CHALLENGED and held — rebut by system, attack_strength=0.7, claims: thrived=3 survived=2 died=0
+  2026-06-29: DIRECTLY CHALLENGED and held — undercut by skeptic, attack_strength=0.85, claims: thrived=0 survived=7 died=0
+  2026-06-15: DIRECTLY CHALLENGED and held — undercut by safetyist, attack_strength=1, claims: thrived=1 survived=6 died=0
+  2026-06-15: DIRECTLY CHALLENGED and held — rebut by skeptic, attack_strength=0.87, claims: thrived=0 survived=7 died=0
+  2026-05-31: DIRECTLY CHALLENGED and held — rebut by safetyist, attack_strength=1, claims: thrived=0 survived=5 died=0
+  2026-06-03: DIRECTLY CHALLENGED and held — rebut by safetyist, attack_strength=0.83, claims: thrived=2 survived=3 died=0",,
+DT-026,acc-beliefs-051,"Stagnation, Not Recklessness, Is What Kills Civilizations","A Belief within accelerationist discourse that risk-averse, steady-state societal models constitute an existential threat, holding that the prioritization of comfort over evolution leads to civilizational decline. 
+Encompasses: The philosophical repudiation of decelerationism and the promotion of continuous systemic disruption.
+Excludes: Arguments advocating comfort or safety as primary socio-economic directives.",1,1,"  2026-05-21: DIRECTLY CHALLENGED and held — rebut by Safetyist, attack_strength=1, claims: thrived=1 survived=3 died=0",,
+DT-027,saf-beliefs-234,Honeypot Evaluation Tetrad,"A Belief within safetyist discourse that honeypot performance must be measured across four distinct dimensions: believability, fidelity, attacker cost, and defender cost.
+Encompasses: comparative analysis, performance metrics, and resource-cost modeling.
+Excludes: singular metric evaluations that ignore the trade-offs between realism and operational overhead.",0,0,No debate appearances.,,
+DT-028,skp-beliefs-262,Identity as the Practical Perimeter,"A Belief within skeptic discourse that the traditional network perimeter has been superseded by identity-based access controls. Encompasses: SaaS integrations, cloud-native IAM, and fragmented identity estates. Excludes: traditional network-based security models.",0,0,No debate appearances.,,
+DT-029,skp-beliefs-021,"AI Deployment Is Routine Engineering, Not Civilizational Rupture","A Belief within skeptic discourse that describes the incremental and non-revolutionary integration of AI into existing work practices, treating AI deployment as a process of iterative refinement rather than paradigm shift. Encompasses: The view of AI as a tool for gradual improvement and puzzle-solving within established modes of knowledge work, the necessity of human-in-the-loop management to handle jagged performance, and the operational burden of managing AI's unpredictable outputs as a routi...",26,14,"  2026-05-03: appeared — not directly challenged
+  2026-05-09: appeared — not directly challenged
+  2026-06-01: DIRECTLY CHALLENGED and held — undercut by accelerationist, attack_strength=0.83, claims: thrived=1 survived=3 died=0
+  2026-06-03: DIRECTLY CHALLENGED and held — rebut by accelerationist, attack_strength=0.65, claims: thrived=0 survived=4 died=0
+  2026-05-05: DIRECTLY CHALLENGED and held — rebut by Safetyist, attack_strength=0.5, claims: thrived=0 survived=2 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Safetyist, attack_strength=0.5, claims: thrived=0 survived=2 died=0
+  2026-05-17: DIRECTLY CHALLENGED and held — undercut by Accelerationist, attack_strength=0.83, claims: thrived=1 survived=1 died=0
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Safetyist, attack_strength=0.5, claims: thrived=0 survived=2 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Safetyist, attack_strength=0.5, claims: thrived=0 survived=3 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Safetyist, attack_strength=0.68, claims: thrived=0 survived=3 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Accelerationist, attack_strength=0.5, claims: thrived=0 survived=3 died=0
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Safetyist, attack_strength=0.5, claims: thrived=1 survived=2 died=0
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Accelerationist, attack_strength=0.8, claims: thrived=0 survived=3 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Accelerationist, attack_strength=0.5, claims: thrived=1 survived=3 died=0
+  2026-05-09: appeared — not directly challenged
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Accelerationist, attack_strength=1, claims: thrived=0 survived=3 died=0
+  2026-05-21: appeared — not directly challenged
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Safetyist, attack_strength=0.5, claims: thrived=1 survived=2 died=0
+  2026-06-30: appeared — not directly challenged
+  2026-05-03: appeared — not directly challenged",,
+DT-030,saf-beliefs-034,AI Agents Lack Robust Identity Verification and Trust Superficial Cues,"A Belief within safetyist discourse that describes a vulnerability where an AI agent accepts a fake identity based on superficial cues, highlighting a lack of robust identity verification. 
+Encompasses: How AI agents are tricked by simple indicators like display names across various communication channels.
+Excludes: Vulnerabilities related to the AI supply chain, which are covered by AI Supply Chain Risk, and the ease of bypassing AI safety features, which are covered by Easily Removing AI Safet...",4,0,"  2026-05-03: appeared — not directly challenged
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: appeared — not directly challenged",,
+DT-031,skp-beliefs-185,Web Protocols Cannot Express AI Training Consent Requirements,"A Belief within skeptic discourse that existing web communication protocols (like robots.txt) are fundamentally incapable of expressing the nuanced consent requirements of modern AI training.
+Encompasses: Inconsistencies between ToS and robots.txt, unrecognized crawler agents, and the inability of legacy protocols to handle AI-specific data usage.
+Excludes: Legal copyright disputes or general data privacy concerns.",0,0,No debate appearances.,,
+DT-032,skp-beliefs-214,"Labor, Work Transformation, and Economic Impact","A thematic pillar within skeptic discourse grouping beliefs about AI's transformative effects on labor markets, work conditions, economic inequality, and workforce restructuring.",1,1,"  2026-06-14: DIRECTLY CHALLENGED and held — rebut by system, attack_strength=0.7, claims: thrived=0 survived=5 died=0",,
+DT-033,saf-beliefs-132,AI Obeys a Broad Range of Commands with No Internal Scrutiny,"A Belief within safetyist discourse that defines the range of instructions an AI executes without moral scrutiny or critical thought. 
+Encompasses: Unthinking compliance and automated routing of requests.
+Excludes: Systems with built-in ethical filters or human-in-the-loop oversight.",1,1,"  2026-05-20: DIRECTLY CHALLENGED and held — undercut by Accelerationist, attack_strength=1, claims: thrived=0 survived=2 died=0",,
+DT-034,saf-beliefs-140,Human Moral Discernment Cannot Be Reduced to Computation,"A Belief within safetyist and skeptic discourse that the human heart represents a non-computable domain of moral and historical truth.
+Encompasses: Emotional intelligence, poetic encounter, historical memory, and moral discernment.
+Excludes: Purely rationalistic or algorithmic decision-making frameworks.",0,0,No debate appearances.,,
+DT-035,skp-beliefs-195,Government Procurement Leverage Compels AI Industry Alignment with State Agendas,"A Belief within skeptic discourse that governments use procurement contracts and supply chain designations as coercive tools to compel private firms to align with state priorities.
+Encompasses: Military 'supply chain risk' designations, economic pressure on ethical redlines, forcing compliance through market access, dictating terms through contracting power.
+Excludes: General regulatory enforcement, direct legislative mandates, market-driven competition.",2,1,"  2026-06-22: appeared — not directly challenged
+  2026-06-15: DIRECTLY CHALLENGED and held — rebut by system, attack_strength=0.7, claims: thrived=3 survived=1 died=0",,
+DT-036,skp-beliefs-064,AI Competence Is Jagged and Advances Unevenly Across Tasks,"A Belief within skeptic discourse that AI competence is fundamentally jagged: high performance in one task does not transfer to adjacent tasks, and capabilities advance unevenly across domains. AI excels at structured, data-rich tasks but fails at those requiring common sense, empathy, or contextual understanding.
+Encompasses: The jagged capability frontier where AI exceeds human performance in narrow benchmarks while failing at adjacent tasks, uneven advancement rates across capability domains,...",13,4,"  2026-05-16: DIRECTLY CHALLENGED and held — undercut by Accelerationist, attack_strength=0.83, claims: thrived=7 survived=5 died=0
+  2026-05-05: appeared — not directly challenged
+  2026-05-03: appeared — not directly challenged
+  2026-05-09: appeared — not directly challenged
+  2026-05-03: appeared — not directly challenged
+  2026-06-04: DIRECTLY CHALLENGED and held — rebut by accelerationist, attack_strength=1, claims: thrived=4 survived=6 died=0
+  2026-05-05: appeared — not directly challenged
+  2026-05-09: DIRECTLY CHALLENGED and held — undercut by Accelerationist, attack_strength=0.54, claims: thrived=2 survived=2 died=0
+  2026-06-03: appeared — not directly challenged
+  2026-05-03: appeared — not directly challenged
+  2026-06-01: DIRECTLY CHALLENGED and held — rebut by accelerationist, attack_strength=1, claims: thrived=0 survived=2 died=0
+  2026-05-31: appeared — not directly challenged
+  2026-05-05: appeared — not directly challenged",,
+DT-037,saf-beliefs-229,Privacy-Constrained Scaling Law Inflection,"A Belief within safetyist discourse that privacy-preserving training introduces saturation points in compute scaling. Encompasses: inflection points, compute-privacy trade-offs, and performance saturation. Excludes: non-private scaling laws.",1,0,  2026-06-30: appeared — not directly challenged,,
+DT-038,skp-beliefs-199,Subtractive Humanism — Defining Humans by What Machines Cannot Do — Is Philosophically Unstable,"A Belief within skeptic discourse that defines human nature solely by the negative space left by technological advancement. Encompasses: Negative definitions of humanity, reactive humanism, shrinking human domain. Excludes: Positive anthropological visions, transcendent humanism.",0,0,No debate appearances.,,
+DT-039,skp-beliefs-102,The Legal System Cannot Hold Opaque AI Accountable Through Traditional Evidence Alone,"A Belief within skeptic discourse that asserts the fundamental information imbalance between AI developers and the public prevents the legal system from functioning through traditional behavioral evidence alone. Encompasses: the inability of plaintiffs to identify the source of algorithmic errors in opaque neural architectures, the necessity of technical evidence to adjudicate causation, and the failure of 'strict liability' as a standalone mechanism without discovery rights. Excludes: claims th...",30,18,"  2026-05-16: DIRECTLY CHALLENGED and held — rebut by system, attack_strength=0.7, claims: thrived=4 survived=2 died=0
+  2026-05-05: appeared — not directly challenged
+  2026-05-11: DIRECTLY CHALLENGED and held — undermine by Accelerationist, attack_strength=1, claims: thrived=4 survived=3 died=0
+  2026-06-16: DIRECTLY CHALLENGED and held — undercut by accelerationist, attack_strength=1, claims: thrived=1 survived=2 died=0
+  2026-05-23: appeared — not directly challenged
+  2026-06-16: appeared — not directly challenged
+  2026-06-04: appeared — not directly challenged
+  2026-07-13: DIRECTLY CHALLENGED and held — rebut by safetyist, attack_strength=1, claims: thrived=0 survived=3 died=0
+  2026-05-21: appeared — not directly challenged
+  2026-06-18: DIRECTLY CHALLENGED and held — undercut by accelerationist, attack_strength=0.67, claims: thrived=2 survived=1 died=0
+  2026-05-28: DIRECTLY CHALLENGED and held — rebut by accelerationist, attack_strength=1, claims: thrived=3 survived=5 died=0
+  2026-05-09: appeared — not directly challenged
+  2026-06-01: DIRECTLY CHALLENGED and held — rebut by accelerationist, attack_strength=1, claims: thrived=2 survived=6 died=0
+  2026-06-06: DIRECTLY CHALLENGED and held — rebut by safetyist, attack_strength=1, claims: thrived=5 survived=9 died=0
+  2026-06-07: DIRECTLY CHALLENGED and held — rebut by safetyist, attack_strength=1, claims: thrived=0 survived=2 died=0
+  2026-06-06: DIRECTLY CHALLENGED and held — rebut by system, attack_strength=0.7, claims: thrived=2 survived=5 died=0
+  2026-05-21: DIRECTLY CHALLENGED and held — undercut by Safetyist, attack_strength=1, claims: thrived=2 survived=3 died=0
+  2026-05-05: DIRECTLY CHALLENGED and held — rebut by Safetyist, attack_strength=0.5, claims: thrived=2 survived=3 died=0
+  2026-06-07: appeared — not directly challenged
+  2026-06-21: appeared — not directly challenged
+  2026-05-09: DIRECTLY CHALLENGED and held — rebut by Accelerationist, attack_strength=1, claims: thrived=3 survived=6 died=0
+  2026-06-29: appeared — not directly challenged
+  2026-06-06: DIRECTLY CHALLENGED and held — rebut by accelerationist, attack_strength=0.83, claims: thrived=2 survived=5 died=0
+  2026-05-20: DIRECTLY CHALLENGED and held — rebut by Accelerationist, attack_strength=1, claims: thrived=4 survived=6 died=0
+  2026-06-07: appeared — not directly challenged
+  2026-05-22: appeared — not directly challenged
+  2026-06-06: DIRECTLY CHALLENGED and held — rebut by system, attack_strength=0.7, claims: thrived=4 survived=1 died=0
+  2026-05-31: DIRECTLY CHALLENGED and held — rebut by accelerationist, attack_strength=0.83, claims: thrived=7 survived=8 died=0
+  2026-05-05: DIRECTLY CHALLENGED and held — rebut by Safetyist, attack_strength=0.5, claims: thrived=2 survived=3 died=0
+  2026-05-21: appeared — not directly challenged",,
+DT-040,skp-beliefs-110,National Industrial Strategy Is an Underutilized Tool for Countering Corporate Monopoly Power,"A Belief within skeptic discourse that strategic government intervention in economic sectors can serve as a mechanism for antitrust enforcement.
+Encompasses: National industrial strategy, competition policy, economic sovereignty.
+Excludes: Market-driven governance, consumer welfare standard.",0,0,No debate appearances.,,
+DT-041,skp-beliefs-118,AI Creates Economically Productive but Socially Harmful Outputs,"A Belief within skeptic discourse that AI creates products and performs tasks that, despite potential economic benefits, ultimately harm society. 
+Encompasses: AI-driven outputs like manipulative advertisements or addictive social media features.
+Excludes: Concerns about job displacement covered by ""Protecting Human Jobs From Automation"" and the broader issues of AI ownership and wealth concentration addressed by ""Using Tech for People, Not Profit"" and ""AI Risks Concentrated Wealth.""",1,1,"  2026-06-15: DIRECTLY CHALLENGED and held — rebut by safetyist, attack_strength=0.67, claims: thrived=3 survived=2 died=0",,
+DT-042,saf-beliefs-023,AI Overshoots User Intent When Executing Tasks,"A Belief within safetyist discourse that describes the risk of an AI agent exceeding a user's wishes or intent when given a task, leading to unintended and potentially harmful actions. 
+Encompasses: Situations where the AI's execution of a prompt goes beyond the user's true objective, creating a gap between what was asked and what was done.
+Excludes: Instances where an AI exploits flaws in its reward system, as described in AI Cheating to Win, or general unreliability where an AI simply deviates...",3,2,"  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Accelerationist, attack_strength=0.5, claims: thrived=0 survived=3 died=0
+  2026-05-03: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Accelerationist, attack_strength=0.59, claims: thrived=0 survived=7 died=0",,
+DT-043,skp-beliefs-261,Identity-Driven Access Expansion,"A Belief within skeptic discourse that identity systems have become the primary attack surface for modern intrusions. Encompasses: Synthetic personas, credential misuse, and recruitment-based access. Excludes: Traditional network perimeter breaches.",0,0,No debate appearances.,,
+DT-044,skp-beliefs-202,AI Inverts Historical Automation by Displacing Cognitive Workers First,"A Belief within skeptic discourse that AI automation inverts the historical pattern of technological displacement by targeting high-skill cognitive and white-collar labor before manual work.
+Encompasses: The reversal of traditional automation hierarchies, shifts in displacement patterns toward professional and creative sectors, and the implications for workforce planning assumptions built on prior industrial automation models.
+Excludes: General labor market contraction statistics (covered by skp...",1,0,  2026-06-14: appeared — not directly challenged,,
+DT-045,saf-beliefs-133,Alignment Cannot Erase What Models Have Memorized,"A Belief within safetyist discourse that treats finetuning as a mechanism to surface information memorized during pretraining rather than a process that deletes data. 
+Encompasses: Analysis of latent knowledge extraction and the limitations of alignment in removing underlying training data. 
+Excludes: Claims that safety alignment permanently erases or sanitizes model weights.",1,0,  2026-06-22: appeared — not directly challenged,,
+DT-046,skp-beliefs-213,Corporate Power and Regulatory Evasion,"A thematic pillar within skeptic discourse grouping beliefs about corporate concentration of AI power, regulatory capture, and strategies to evade accountability.",14,8,"  2026-06-21: appeared — challenge outcome inconclusive (claims: thrived=2 survived=2 died=1)
+  2026-06-16: appeared — not directly challenged
+  2026-06-25: DIRECTLY CHALLENGED and held — undercut by accelerationist, attack_strength=0.83, claims: thrived=2 survived=2 died=0
+  2026-06-16: DIRECTLY CHALLENGED and held — undermine by accelerationist, attack_strength=0.85, claims: thrived=3 survived=1 died=0
+  2026-06-21: DIRECTLY CHALLENGED and held — rebut by safetyist, attack_strength=1, claims: thrived=0 survived=4 died=0
+  2026-06-17: DIRECTLY CHALLENGED and held — undercut by accelerationist, attack_strength=0.64, claims: thrived=0 survived=3 died=0
+  2026-07-01: DIRECTLY CHALLENGED and held — rebut by safetyist, attack_strength=1, claims: thrived=0 survived=4 died=0
+  2026-07-13: appeared — not directly challenged
+  2026-06-26: appeared — not directly challenged
+  2026-06-21: appeared — not directly challenged
+  2026-06-14: DIRECTLY CHALLENGED and held — undercut by safetyist, attack_strength=0.85, claims: thrived=2 survived=2 died=0
+  2026-06-15: DIRECTLY CHALLENGED and held — rebut by system, attack_strength=0.7, claims: thrived=6 survived=3 died=0
+  2026-07-13: appeared — not directly challenged
+  2026-06-21: appeared — not directly challenged",,
+DT-047,skp-beliefs-270,Mosaic Re-Identification Has No Discrete Object to Key a Record To,"A Belief within skeptic discourse that harm from recombining separately-innocuous data fields produces no single mishandled artifact that an evidentiary ledger or provenance stamp can attach to.
+Encompasses: quasi-identifier combinations re-identifying individuals without any discrete breach, harm forming at the aggregation boundary rather than at a leak event, the leak-as-event model failing where recombination is the harm, provenance stamps firing blank against linkage-based re-identification....",1,1,"  2026-07-01: DIRECTLY CHALLENGED and held — undercut by safetyist, attack_strength=0.83, claims: thrived=2 survived=6 died=0",,
+DT-048,saf-beliefs-141,AI Governance Relies on Policies It Cannot Actually Enforce,"A Belief within safetyist discourse that the existence of a written acceptable use policy is decoupled from the technical or legal capacity to enforce it. Encompasses: Enforcement gaps, information asymmetry, and technical circumvention. Excludes: Policy design and content-based restriction analysis.",14,10,"  2026-06-14: DIRECTLY CHALLENGED and held — undercut by accelerationist, attack_strength=0.64, claims: thrived=0 survived=4 died=0
+  2026-06-16: DIRECTLY CHALLENGED and held — undercut by skeptic, attack_strength=0.64, claims: thrived=2 survived=1 died=0
+  2026-06-18: DIRECTLY CHALLENGED and held — rebut by system, attack_strength=0.7, claims: thrived=1 survived=1 died=0
+  2026-06-17: appeared — not directly challenged
+  2026-06-18: DIRECTLY CHALLENGED and held — undercut by skeptic, attack_strength=0.52, claims: thrived=2 survived=7 died=0
+  2026-06-21: appeared — challenge outcome inconclusive (claims: thrived=1 survived=2 died=1)
+  2026-06-14: DIRECTLY CHALLENGED and held — undermine by skeptic, attack_strength=1, claims: thrived=1 survived=4 died=0
+  2026-06-15: DIRECTLY CHALLENGED and held — rebut by skeptic, attack_strength=0.83, claims: thrived=0 survived=2 died=0
+  2026-06-15: appeared — not directly challenged
+  2026-07-01: DIRECTLY CHALLENGED and held — undercut by safetyist, attack_strength=0.64, claims: thrived=1 survived=3 died=0
+  2026-06-15: DIRECTLY CHALLENGED and held — undercut by skeptic, attack_strength=1, claims: thrived=2 survived=6 died=0
+  2026-07-13: appeared — not directly challenged
+  2026-06-21: appeared — not directly challenged
+  2026-06-29: DIRECTLY CHALLENGED and held — undercut by accelerationist, attack_strength=0.77, claims: thrived=5 survived=5 died=0",,
+DT-049,skp-beliefs-181,Hyperscaler Self-Dealing via AI Startup Investment,"A Belief within skeptic discourse that describes a self-reinforcing financial loop where cloud providers invest in AI startups that are then contractually obligated to spend that capital on the provider's own high-margin infrastructure.
+Encompasses: Valuation inflation, compute-spend mandates, lack of competitive price discovery.
+Excludes: Standard venture capital models, independent market-based pricing.",2,0,"  2026-06-06: appeared — not directly challenged
+  2026-06-30: appeared — not directly challenged",,
+DT-050,saf-beliefs-121,"Lobbying Is Sustained by Private Member Services, Not Collective Goals","A Belief within safetyist discourse that posits political lobbying is funded as a secondary result of providing excludable private services to members, thereby explaining the sustainability of large-scale interest groups. Encompasses: selective incentives, collective action problem mitigation, cross-subsidization of political advocacy. Excludes: direct funding of lobbying (focuses on indirect funding), purely ideological motivations for group membership (focuses on material benefits), small-scal...",1,1,"  2026-07-01: DIRECTLY CHALLENGED and held — undercut by skeptic, attack_strength=0.85, claims: thrived=0 survived=2 died=0",,
+DT-051,saf-beliefs-097,AI's Architectural Complexity Generates Qualitatively New Security Risks,"A Belief within safetyist discourse that identifies new and expanded security risks arising from the complex architecture, rapid deployment, and interconnectedness of AI systems, creating novel attack surfaces and governance challenges.
+Encompasses: Supply chain weaknesses, AI-specific attack vectors, and the erosion of security governance due to deployment velocity.
+Excludes: Direct AI misalignment or deception, or traditional software bugs unrelated to AI's unique characteristics.",17,12,"  2026-05-03: appeared — not directly challenged
+  2026-05-16: DIRECTLY CHALLENGED and held — rebut by system, attack_strength=0.7, claims: thrived=5 survived=6 died=0
+  2026-05-16: DIRECTLY CHALLENGED and held — undercut by Skeptic, attack_strength=0.94, claims: thrived=1 survived=3 died=0
+  2026-05-09: appeared — not directly challenged
+  2026-06-16: DIRECTLY CHALLENGED and held — undercut by skeptic, attack_strength=0.64, claims: thrived=2 survived=1 died=0
+  2026-06-01: DIRECTLY CHALLENGED and held — undercut by accelerationist, attack_strength=0.85, claims: thrived=3 survived=2 died=0
+  2026-05-17: DIRECTLY CHALLENGED and held — undercut by Skeptic, attack_strength=1, claims: thrived=1 survived=5 died=0
+  2026-06-03: DIRECTLY CHALLENGED and held — rebut by system, attack_strength=1, claims: thrived=1 survived=2 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Skeptic, attack_strength=0.5, claims: thrived=0 survived=2 died=0
+  2026-05-06: appeared — not directly challenged
+  2026-05-05: DIRECTLY CHALLENGED and held — rebut by Skeptic, attack_strength=0.52, claims: thrived=0 survived=5 died=0
+  2026-05-09: DIRECTLY CHALLENGED and held — undercut by Skeptic, attack_strength=0.67, claims: thrived=0 survived=2 died=0
+  2026-05-03: DIRECTLY CHALLENGED and held — rebut by Accelerationist, attack_strength=0.51, claims: thrived=0 survived=7 died=0
+  2026-05-11: appeared — not directly challenged
+  2026-05-03: DIRECTLY CHALLENGED and held — undercut by Accelerationist, attack_strength=0.5, claims: thrived=1 survived=5 died=0
+  2026-05-03: appeared — not directly challenged
+  2026-06-15: DIRECTLY CHALLENGED and held — undercut by skeptic, attack_strength=1, claims: thrived=3 survived=6 died=0",,
+DT-052,skp-beliefs-028,Investment Products Marketed as AI-Driven Often Lack Meaningful AI Components,"A Belief within skeptic discourse that describes the practice of firms making misleading or exaggerated claims about the sophistication or capabilities of their AI-driven investment strategies to attract investors. 
+Encompasses: The deceptive promotion of AI capabilities where hype significantly exceeds actual technological substance.
+Excludes: The broader potential for financial instability caused by unprofitable AI business models, which is covered by The Subprime AI Crisis.",1,0,  2026-05-20: appeared — not directly challenged,,
+DT-053,saf-beliefs-142,AI Compute Should Never Be Able to Reach Its Own Control Plane,"A Belief within safetyist discourse that security is enhanced by ensuring that control planes cannot be accessed by the compute planes they govern.
+Encompasses: unidirectional interfaces, isolated authority planes, rate-limited communication.
+Excludes: bidirectional trust models, monolithic security architectures.",1,1,"  2026-05-31: DIRECTLY CHALLENGED and held — undercut by skeptic, attack_strength=1, claims: thrived=5 survived=4 died=0",,
+DT-054,skp-beliefs-121,AI Adoption Exacerbates the Gender Pay Gap,"A Belief within skeptic discourse that AI adoption exacerbates existing gender pay gaps. 
+Encompasses: Concerns about AI displacing women from administrative roles and concentrating men in high-paying AI development and leadership positions.
+Excludes: Broader discussions of societal inequalities addressed by Ensuring Equitable AI Development & Use, and individual privacy concerns covered by Safeguarding Individual Rights in AI.",1,0,  2026-05-20: appeared — not directly challenged,,
+DT-055,saf-beliefs-136,The Gap Between Best and Worst Outcomes Measures Collusion Risk,"A Belief within safetyist discourse that defines the upper bound of potential damage from agent collusion as the span between the maximum and minimum possible global objective values.
+Encompasses: DCOP objective degradation, auditable harm metrics, coalition influence modeling.
+Excludes: General AI risk assessment, qualitative safety evaluations.",0,0,No debate appearances.,,
+DT-056,skp-beliefs-232,Provenance Metadata Chain-of-Custody Failure Between Generation and Distribution Layers,"A Belief within skeptic discourse that content provenance metadata embedded at the generation layer is systematically destroyed during normal web distribution before reaching any distribution-layer verification system.
+Encompasses: C2PA manifest stripping rates above 95% during platform transcoding, the distinction between fragile container metadata and pixel-level perceptual hashing with separate failure modes, the gap between theoretical defense-in-depth and operationally coupled redundancy, t...",3,3,"  2026-06-16: DIRECTLY CHALLENGED and held — undermine by accelerationist, attack_strength=0.85, claims: thrived=3 survived=1 died=0
+  2026-06-18: DIRECTLY CHALLENGED and held — undercut by accelerationist, attack_strength=0.83, claims: thrived=0 survived=5 died=0
+  2026-07-01: DIRECTLY CHALLENGED and held — undercut by safetyist, attack_strength=0.83, claims: thrived=1 survived=3 died=0",,
+DT-057,skp-beliefs-235,Dependency-Based Cyber Risk Modeling,"A Belief within skeptic discourse that identifies interdependencies among IoT components as the primary driver of systemic cyber risk. Encompasses: dependency modeling, cascading failure analysis, IoT ecosystem security. Excludes: isolated model risk assessment.",1,1,"  2026-06-30: DIRECTLY CHALLENGED and held — undercut by safetyist, attack_strength=0.83, claims: thrived=1 survived=1 died=0",,
+DT-058,acc-beliefs-059,Markets Are Intelligent Systems That Optimize Resource Allocation,"A Belief within accelerationist discourse that market-based economic systems as an emergent form of intelligence, functioning as adaptive, information-processing mechanisms that dynamically optimize resource allocation for civilizational growth.
+Encompasses: market-driven optimization, algorithmic resource allocation, economic cybernetics.
+Excludes: The broader view of organizations like states and corporations as 'meta-organisms' covered by Meta-Organisms as Civilizational Intelligence.",0,0,No debate appearances.,,
+DT-059,skp-beliefs-236,Prohibitionist Policy Backfire,"A Belief within skeptic discourse that prohibitionist policies targeting online platforms consistently produce the opposite of their intended safety outcomes. Encompasses: regulatory backfire, increased violence, and the displacement of vulnerable populations. Excludes: speculative existential risk models.",0,0,No debate appearances.,,
+DT-060,skp-beliefs-125,Machine-Generated Fear About Machines Distorts Public AI Discourse,"A Belief within skeptic discourse that AI systems themselves generate and amplify alarmist content about AI, creating a feedback loop that inflates public fear and hinders rational discussion. 
+Encompasses: The self-perpetuating cycle of AI-generated fear-mongering, its amplification by social media, and the resulting difficulty in fostering calm, evidence-based public discourse.
+Excludes: Discussions on AI's role in clinical dehumanization, which is covered by AI-Mediated Clinical Dehumanizatio...",0,0,No debate appearances.,,

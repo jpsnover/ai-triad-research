@@ -1,0 +1,493 @@
+{
+  "seed": 1586,
+  "strata_size": 15,
+  "total_items": 60,
+  "tier_counts": {
+    "untested": 15,
+    "cited": 15,
+    "contested": 15,
+    "well_tested": 15
+  },
+  "items": [
+    {
+      "item_id": "DT-001",
+      "node_id": "saf-beliefs-139",
+      "pov": "safetyist",
+      "current_tier": "untested",
+      "sort_key": null,
+      "record_count": 0
+    },
+    {
+      "item_id": "DT-002",
+      "node_id": "acc-beliefs-055",
+      "pov": "accelerationist",
+      "current_tier": "cited",
+      "sort_key": 1,
+      "record_count": 2
+    },
+    {
+      "item_id": "DT-003",
+      "node_id": "skp-beliefs-165",
+      "pov": "skeptic",
+      "current_tier": "untested",
+      "sort_key": null,
+      "record_count": 0
+    },
+    {
+      "item_id": "DT-004",
+      "node_id": "skp-beliefs-257",
+      "pov": "skeptic",
+      "current_tier": "cited",
+      "sort_key": 1,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-005",
+      "node_id": "skp-beliefs-170",
+      "pov": "skeptic",
+      "current_tier": "well_tested",
+      "sort_key": 3.86,
+      "record_count": 11
+    },
+    {
+      "item_id": "DT-006",
+      "node_id": "saf-beliefs-103",
+      "pov": "safetyist",
+      "current_tier": "contested",
+      "sort_key": 2.1,
+      "record_count": 3
+    },
+    {
+      "item_id": "DT-007",
+      "node_id": "saf-beliefs-058",
+      "pov": "safetyist",
+      "current_tier": "well_tested",
+      "sort_key": 3.37,
+      "record_count": 4
+    },
+    {
+      "item_id": "DT-008",
+      "node_id": "saf-beliefs-044",
+      "pov": "safetyist",
+      "current_tier": "cited",
+      "sort_key": 1,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-009",
+      "node_id": "acc-beliefs-039",
+      "pov": "accelerationist",
+      "current_tier": "well_tested",
+      "sort_key": 3.99,
+      "record_count": 58
+    },
+    {
+      "item_id": "DT-010",
+      "node_id": "saf-beliefs-054",
+      "pov": "safetyist",
+      "current_tier": "cited",
+      "sort_key": 1,
+      "record_count": 2
+    },
+    {
+      "item_id": "DT-011",
+      "node_id": "saf-beliefs-091",
+      "pov": "safetyist",
+      "current_tier": "well_tested",
+      "sort_key": 3.99,
+      "record_count": 21
+    },
+    {
+      "item_id": "DT-012",
+      "node_id": "skp-beliefs-044",
+      "pov": "skeptic",
+      "current_tier": "well_tested",
+      "sort_key": 3.99,
+      "record_count": 21
+    },
+    {
+      "item_id": "DT-013",
+      "node_id": "skp-beliefs-180",
+      "pov": "skeptic",
+      "current_tier": "contested",
+      "sort_key": 2.19,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-014",
+      "node_id": "saf-beliefs-059",
+      "pov": "safetyist",
+      "current_tier": "untested",
+      "sort_key": null,
+      "record_count": 0
+    },
+    {
+      "item_id": "DT-015",
+      "node_id": "saf-beliefs-118",
+      "pov": "safetyist",
+      "current_tier": "cited",
+      "sort_key": 1,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-016",
+      "node_id": "acc-beliefs-088",
+      "pov": "accelerationist",
+      "current_tier": "cited",
+      "sort_key": 1,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-017",
+      "node_id": "saf-beliefs-031",
+      "pov": "safetyist",
+      "current_tier": "contested",
+      "sort_key": 2.2,
+      "record_count": 2
+    },
+    {
+      "item_id": "DT-018",
+      "node_id": "acc-beliefs-107",
+      "pov": "accelerationist",
+      "current_tier": "untested",
+      "sort_key": null,
+      "record_count": 0
+    },
+    {
+      "item_id": "DT-019",
+      "node_id": "saf-beliefs-151",
+      "pov": "safetyist",
+      "current_tier": "cited",
+      "sort_key": 1,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-020",
+      "node_id": "acc-beliefs-061",
+      "pov": "accelerationist",
+      "current_tier": "contested",
+      "sort_key": 2.2,
+      "record_count": 2
+    },
+    {
+      "item_id": "DT-021",
+      "node_id": "skp-beliefs-228",
+      "pov": "skeptic",
+      "current_tier": "contested",
+      "sort_key": 2.14,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-022",
+      "node_id": "saf-beliefs-155",
+      "pov": "safetyist",
+      "current_tier": "contested",
+      "sort_key": 2.15,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-023",
+      "node_id": "skp-beliefs-051",
+      "pov": "skeptic",
+      "current_tier": "well_tested",
+      "sort_key": 3.27,
+      "record_count": 3
+    },
+    {
+      "item_id": "DT-024",
+      "node_id": "skp-beliefs-059",
+      "pov": "skeptic",
+      "current_tier": "cited",
+      "sort_key": 1,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-025",
+      "node_id": "acc-beliefs-075",
+      "pov": "accelerationist",
+      "current_tier": "well_tested",
+      "sort_key": 3.99,
+      "record_count": 14
+    },
+    {
+      "item_id": "DT-026",
+      "node_id": "acc-beliefs-051",
+      "pov": "accelerationist",
+      "current_tier": "contested",
+      "sort_key": 2.2,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-027",
+      "node_id": "saf-beliefs-234",
+      "pov": "safetyist",
+      "current_tier": "untested",
+      "sort_key": null,
+      "record_count": 0
+    },
+    {
+      "item_id": "DT-028",
+      "node_id": "skp-beliefs-262",
+      "pov": "skeptic",
+      "current_tier": "untested",
+      "sort_key": null,
+      "record_count": 0
+    },
+    {
+      "item_id": "DT-029",
+      "node_id": "skp-beliefs-021",
+      "pov": "skeptic",
+      "current_tier": "well_tested",
+      "sort_key": 3.99,
+      "record_count": 26
+    },
+    {
+      "item_id": "DT-030",
+      "node_id": "saf-beliefs-034",
+      "pov": "safetyist",
+      "current_tier": "cited",
+      "sort_key": 1,
+      "record_count": 4
+    },
+    {
+      "item_id": "DT-031",
+      "node_id": "skp-beliefs-185",
+      "pov": "skeptic",
+      "current_tier": "untested",
+      "sort_key": null,
+      "record_count": 0
+    },
+    {
+      "item_id": "DT-032",
+      "node_id": "skp-beliefs-214",
+      "pov": "skeptic",
+      "current_tier": "contested",
+      "sort_key": 2.14,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-033",
+      "node_id": "saf-beliefs-132",
+      "pov": "safetyist",
+      "current_tier": "contested",
+      "sort_key": 2.2,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-034",
+      "node_id": "saf-beliefs-140",
+      "pov": "safetyist",
+      "current_tier": "untested",
+      "sort_key": null,
+      "record_count": 0
+    },
+    {
+      "item_id": "DT-035",
+      "node_id": "skp-beliefs-195",
+      "pov": "skeptic",
+      "current_tier": "contested",
+      "sort_key": 2.14,
+      "record_count": 2
+    },
+    {
+      "item_id": "DT-036",
+      "node_id": "skp-beliefs-064",
+      "pov": "skeptic",
+      "current_tier": "well_tested",
+      "sort_key": 3.67,
+      "record_count": 13
+    },
+    {
+      "item_id": "DT-037",
+      "node_id": "saf-beliefs-229",
+      "pov": "safetyist",
+      "current_tier": "cited",
+      "sort_key": 1,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-038",
+      "node_id": "skp-beliefs-199",
+      "pov": "skeptic",
+      "current_tier": "untested",
+      "sort_key": null,
+      "record_count": 0
+    },
+    {
+      "item_id": "DT-039",
+      "node_id": "skp-beliefs-102",
+      "pov": "skeptic",
+      "current_tier": "well_tested",
+      "sort_key": 3.99,
+      "record_count": 30
+    },
+    {
+      "item_id": "DT-040",
+      "node_id": "skp-beliefs-110",
+      "pov": "skeptic",
+      "current_tier": "untested",
+      "sort_key": null,
+      "record_count": 0
+    },
+    {
+      "item_id": "DT-041",
+      "node_id": "skp-beliefs-118",
+      "pov": "skeptic",
+      "current_tier": "contested",
+      "sort_key": 2.13,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-042",
+      "node_id": "saf-beliefs-023",
+      "pov": "safetyist",
+      "current_tier": "well_tested",
+      "sort_key": 3.22,
+      "record_count": 3
+    },
+    {
+      "item_id": "DT-043",
+      "node_id": "skp-beliefs-261",
+      "pov": "skeptic",
+      "current_tier": "untested",
+      "sort_key": null,
+      "record_count": 0
+    },
+    {
+      "item_id": "DT-044",
+      "node_id": "skp-beliefs-202",
+      "pov": "skeptic",
+      "current_tier": "cited",
+      "sort_key": 1,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-045",
+      "node_id": "saf-beliefs-133",
+      "pov": "safetyist",
+      "current_tier": "cited",
+      "sort_key": 1,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-046",
+      "node_id": "skp-beliefs-213",
+      "pov": "skeptic",
+      "current_tier": "well_tested",
+      "sort_key": 3.99,
+      "record_count": 14
+    },
+    {
+      "item_id": "DT-047",
+      "node_id": "skp-beliefs-270",
+      "pov": "skeptic",
+      "current_tier": "contested",
+      "sort_key": 2.17,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-048",
+      "node_id": "saf-beliefs-141",
+      "pov": "safetyist",
+      "current_tier": "well_tested",
+      "sort_key": 3.99,
+      "record_count": 14
+    },
+    {
+      "item_id": "DT-049",
+      "node_id": "skp-beliefs-181",
+      "pov": "skeptic",
+      "current_tier": "cited",
+      "sort_key": 1,
+      "record_count": 2
+    },
+    {
+      "item_id": "DT-050",
+      "node_id": "saf-beliefs-121",
+      "pov": "safetyist",
+      "current_tier": "contested",
+      "sort_key": 2.17,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-051",
+      "node_id": "saf-beliefs-097",
+      "pov": "safetyist",
+      "current_tier": "well_tested",
+      "sort_key": 3.99,
+      "record_count": 17
+    },
+    {
+      "item_id": "DT-052",
+      "node_id": "skp-beliefs-028",
+      "pov": "skeptic",
+      "current_tier": "cited",
+      "sort_key": 1,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-053",
+      "node_id": "saf-beliefs-142",
+      "pov": "safetyist",
+      "current_tier": "contested",
+      "sort_key": 2.2,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-054",
+      "node_id": "skp-beliefs-121",
+      "pov": "skeptic",
+      "current_tier": "cited",
+      "sort_key": 1,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-055",
+      "node_id": "saf-beliefs-136",
+      "pov": "safetyist",
+      "current_tier": "untested",
+      "sort_key": null,
+      "record_count": 0
+    },
+    {
+      "item_id": "DT-056",
+      "node_id": "skp-beliefs-232",
+      "pov": "skeptic",
+      "current_tier": "well_tested",
+      "sort_key": 3.5,
+      "record_count": 3
+    },
+    {
+      "item_id": "DT-057",
+      "node_id": "skp-beliefs-235",
+      "pov": "skeptic",
+      "current_tier": "contested",
+      "sort_key": 2.17,
+      "record_count": 1
+    },
+    {
+      "item_id": "DT-058",
+      "node_id": "acc-beliefs-059",
+      "pov": "accelerationist",
+      "current_tier": "untested",
+      "sort_key": null,
+      "record_count": 0
+    },
+    {
+      "item_id": "DT-059",
+      "node_id": "skp-beliefs-236",
+      "pov": "skeptic",
+      "current_tier": "untested",
+      "sort_key": null,
+      "record_count": 0
+    },
+    {
+      "item_id": "DT-060",
+      "node_id": "skp-beliefs-125",
+      "pov": "skeptic",
+      "current_tier": "untested",
+      "sort_key": null,
+      "record_count": 0
+    }
+  ]
+}

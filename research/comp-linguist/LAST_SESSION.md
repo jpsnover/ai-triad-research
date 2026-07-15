@@ -1,5 +1,5 @@
-**Date:** 2026-07-06
-**Working on:** Epistemic paper full revision cycle (Wachsmuth attribution, counts refresh, editorial restructure, honesty pass, vocabulary/register/harvesting sections, wisdom=digested-experience, de-artifacting; pushed 0cd4fe29); t/1306 BDI backfill shipped (data f202ddd2); t/1341 Local Sufficiency reviewed/approved; t/1343 provenance register shipped (05b104a1 + overlay dd11a7d); /review-prose skill created.
-**Status:** Paper current and pushed; t/1306/t/1318/t/1343 Done; t/1342 (affect human-rater validation) is next — rating sheet + stratified sample design startable now, collection needs owner scheduling.
-**Key context:** Owner hand-edits the paper between my passes — ALWAYS re-read before Write. Register headline: 54 stipulated / 5 derived / 0 human-validated calibration instruments. OverallRating must never become an auto-tune objective (it is our evaluation currency).
-**Next:** Design the t/1342 rating sheet + ~100-turn stratified sample, then schedule the rating session with the owner. t/1299 (language-lab per-POV statements) is unblocked after that.
+**Date:** 2026-07-15
+**Working on:** t/1586 — Debate-Tested Phase 4 reliability validation study design complete.
+**Status:** Sample generated (60 nodes, stratified 15/tier, seed=1586). Rating sheet (blind CSV), manifest (with tiers), generator script, inspector script, and rater instructions committed. t/1586 design phase done; blocked on human rater scheduling.
+**Key context:** `summarise_records()` uses `verdict` field (not `strongest_attack_encountered`) — backfill populated session-wide attacks in that field, not node-specific ones. Precursor check (10 items) passed cleanly. Pre-registered decision rule: α≥0.7 accept, 0.5–0.7 experimental, <0.5 investigate. WELL_TESTED_MIN_CHALLENGES threshold pick still pending q/30. t/1438 A/B batch still running (4/12 complete as of last ping).
+**Next:** Schedule raters for t/1586 rating pass (~30–45 min, same slot as t/1342 affect pass). Apply WELL_TESTED threshold once q/30 answered. Review t/1438 paired metrics when DebateTool posts. t/1587 PS follow-up ticket (importance formula) required before t/1587 closes.
