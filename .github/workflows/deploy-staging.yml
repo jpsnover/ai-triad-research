@@ -58,14 +58,17 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy new revision to staging
+        shell: pwsh
         run: |
-          SHORT_SHA=$(echo "${{ github.event.workflow_run.head_sha }}" | cut -c1-7)
-          az containerapp update \
-            --name ${{ env.CONTAINER_APP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.resolve_tag.outputs.tag }} \
-            --revision-suffix "staging-${SHORT_SHA}" \
-            --set-env-vars "DEPLOY_SHA=${{ github.event.workflow_run.head_sha }}" "DEPLOY_TAG=${{ steps.resolve_tag.outputs.tag }}"
+          Import-Module ./scripts/AITriad/AITriad.psm1 -Force
+          $ShortSha = '${{ github.event.workflow_run.head_sha }}'.Substring(0, 7)
+          $Result = New-ContainerAppRevision `
+            -ImageRef '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.resolve_tag.outputs.tag }}' `
+            -RevisionSuffix "staging-$ShortSha" `
+            -EnvVars @{ DEPLOY_SHA = '${{ github.event.workflow_run.head_sha }}'; DEPLOY_TAG = '${{ steps.resolve_tag.outputs.tag }}' } `
+            -AppName '${{ env.CONTAINER_APP_NAME }}' `
+            -ResourceGroup '${{ env.RESOURCE_GROUP }}'
+          Write-Host "New revision: $($Result.RevisionName)"
 
       - name: Verify staging health
         shell: pwsh
