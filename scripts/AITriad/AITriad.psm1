@@ -440,6 +440,31 @@ class OrganizationPovAlignmentDerived {
     [OrganizationPovAlignmentDerivedProvenance] $Provenance
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# NodeTestingRecord — typed emit from Get-NodeTestingRecord (t/1579 Phase 2).
+# Read-only projection of graph_attributes.debate_tested onto a
+# pipeline-composable shape for research users.
+# ─────────────────────────────────────────────────────────────────────────────
+class NodeTestingRecord {
+    [string]   $NodeId
+    [string]   $Pov              # accelerationist | safetyist | skeptic
+    [string]   $Category         # Beliefs | Desires | Intentions
+    [string]   $Label
+    [string]   $Tier             # untested | cited | contested | well_tested
+    [double]   $SortKey
+    [int]      $Engagements
+    [int]      $Challenges
+    [int]      $Held
+    [int]      $Weakened
+    [string]   $LastTested
+    [bool]     $Refined          # true if any revision has held_since
+    [bool]     $Stale            # description_hash mismatch (see help for exemption)
+    [string[]] $ChallengerCamps  # distinct camps in record[]
+    [double]   $Importance       # populated only when -SortBy Deficit
+    [double]   $Deficit          # populated only when -SortBy Deficit
+    [double]   $TestingPriority  # importance * deficit, only when -SortBy Deficit
+}
+
 class Organization {
     [string]                          $Id          # org-NNN
     [string]                          $Name
@@ -846,6 +871,9 @@ Export-ModuleMember -Function @(
     'New-ContainerAppRevision'
     'Set-ContainerAppTraffic'
     'Get-ContainerAppDiagnostics'
+    # t/1579 — Debate-Tested Phase 2 research surface
+    'Get-NodeTestingRecord'
+    'Update-NodeTestingRecord'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

@@ -189,6 +189,9 @@
         'New-ContainerAppRevision'
         'Set-ContainerAppTraffic'
         'Get-ContainerAppDiagnostics'
+        # t/1579 — Debate-Tested Phase 2 research surface
+        'Get-NodeTestingRecord'
+        'Update-NodeTestingRecord'
     )
 
     # Aliases exported from this module

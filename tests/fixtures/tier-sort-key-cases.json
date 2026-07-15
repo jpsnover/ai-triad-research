@@ -1,0 +1,156 @@
+{
+  "_meta": {
+    "purpose": "Cross-language consistency fixture for computeTierAndSortKey (t/1579 AC #10). Extracted from lib/debate/debateTested.test.ts describe('computeTierAndSortKey') to ensure the PowerShell port stays byte-identical to the TypeScript single writer. Both suites (PS Pester + TS vitest) should consume this file; any drift fails both sides at once.",
+    "source": "lib/debate/debateTested.ts computeTierAndSortKey",
+    "constants_source": "DEBATE_TESTED_DEFAULTS in same file"
+  },
+  "constants": {
+    "SEVERE_ATTACK_THRESHOLD": 0.5,
+    "WELL_TESTED_MIN_CHALLENGES": 2,
+    "WELL_TESTED_MIN_DEBATES": 2,
+    "EVIDENCE_SATURATION": 5,
+    "COSMETIC_EDIT_SIMILARITY_THRESHOLD": 0.98
+  },
+  "verdict_weights": {
+    "held": 1.0,
+    "refined_held": 1.0,
+    "refined_pending": 0.6,
+    "refined_rejected": 0.0,
+    "open": 0.25,
+    "weakened": -0.5,
+    "cited": 0.0
+  },
+  "cases": [
+    {
+      "id": "empty-record",
+      "record": [],
+      "revisions": [],
+      "expect": { "tier": "untested", "sort_key": 0 }
+    },
+    {
+      "id": "cited-only",
+      "record": [
+        { "debate_id": "debate-001", "date": "2026-07-01", "pipeline_version": "v1", "verdict": "cited", "strongest_attack_encountered": null, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null },
+        { "debate_id": "debate-002", "date": "2026-07-02", "pipeline_version": "v1", "verdict": "cited", "strongest_attack_encountered": null, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null }
+      ],
+      "revisions": [],
+      "expect": { "tier": "cited", "sort_key_range": { "min_inclusive": 1, "max_exclusive": 2 } }
+    },
+    {
+      "id": "single-challenge-below-well-tested",
+      "record": [
+        { "debate_id": "debate-001", "date": "2026-07-01", "pipeline_version": "v1", "verdict": "held", "strongest_attack_encountered": { "claim_id": "c1", "strength": 0.7, "scheme": "rebut", "challenger_camp": "accelerationist" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null }
+      ],
+      "revisions": [],
+      "expect": { "tier": "contested", "sort_key_range": { "min_inclusive": 2, "max_exclusive": 3 } }
+    },
+    {
+      "id": "well-tested-two-debates-both-held",
+      "record": [
+        { "debate_id": "debate-001", "date": "2026-07-01", "pipeline_version": "v1", "verdict": "held", "strongest_attack_encountered": { "claim_id": "c1", "strength": 0.7, "scheme": "rebut", "challenger_camp": "acc" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null },
+        { "debate_id": "debate-002", "date": "2026-07-02", "pipeline_version": "v1", "verdict": "held", "strongest_attack_encountered": { "claim_id": "c2", "strength": 0.6, "scheme": "undercut", "challenger_camp": "saf" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null }
+      ],
+      "revisions": [],
+      "expect": { "tier": "well_tested", "sort_key_range": { "min_inclusive": 3, "max_exclusive": 4 } }
+    },
+    {
+      "id": "same-debate-challenges-not-well-tested",
+      "record": [
+        { "debate_id": "debate-001", "date": "2026-07-01", "pipeline_version": "v1", "verdict": "held", "strongest_attack_encountered": { "claim_id": "c1", "strength": 0.7, "scheme": "rebut", "challenger_camp": "accelerationist" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null },
+        { "debate_id": "debate-001", "date": "2026-07-01", "pipeline_version": "v1", "verdict": "held", "strongest_attack_encountered": { "claim_id": "c1", "strength": 0.7, "scheme": "rebut", "challenger_camp": "accelerationist" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null }
+      ],
+      "revisions": [],
+      "expect": { "tier": "contested" }
+    },
+    {
+      "id": "demote-to-contested-after-weakened",
+      "record": [
+        { "debate_id": "debate-001", "date": "2026-07-01", "pipeline_version": "v1", "verdict": "held", "strongest_attack_encountered": { "claim_id": "c1", "strength": 0.7, "scheme": "rebut", "challenger_camp": "acc" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null },
+        { "debate_id": "debate-002", "date": "2026-07-02", "pipeline_version": "v1", "verdict": "held", "strongest_attack_encountered": { "claim_id": "c2", "strength": 0.7, "scheme": "rebut", "challenger_camp": "saf" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null },
+        { "debate_id": "debate-003", "date": "2026-07-03", "pipeline_version": "v1", "verdict": "weakened", "strongest_attack_encountered": { "claim_id": "c3", "strength": 0.7, "scheme": "rebut", "challenger_camp": "skp" }, "claim_outcomes": { "thrived": 0, "survived": 1, "died": 2 }, "concession": null }
+      ],
+      "revisions": [],
+      "expect": { "tier": "contested" }
+    },
+    {
+      "id": "well-tested-via-refined-held-since",
+      "record": [
+        { "debate_id": "debate-001", "date": "2026-07-01", "pipeline_version": "v1", "verdict": "held", "strongest_attack_encountered": { "claim_id": "c1", "strength": 0.7, "scheme": "rebut", "challenger_camp": "acc" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null },
+        { "debate_id": "debate-002", "date": "2026-07-02", "pipeline_version": "v1", "verdict": "refined", "strongest_attack_encountered": { "claim_id": "c2", "strength": 0.7, "scheme": "rebut", "challenger_camp": "saf" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null }
+      ],
+      "revisions": [
+        { "date": "2026-06-01", "debate_id": "debate-r1", "held_since": true }
+      ],
+      "expect": { "tier": "well_tested" }
+    },
+    {
+      "id": "clamp-max-evidence-still-below-next-tier",
+      "record": [
+        { "debate_id": "d0", "date": "2026-07-01", "pipeline_version": "v1", "verdict": "held", "strongest_attack_encountered": { "claim_id": "c0", "strength": 1.0, "scheme": "rebut", "challenger_camp": "a" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null },
+        { "debate_id": "d1", "date": "2026-07-01", "pipeline_version": "v1", "verdict": "held", "strongest_attack_encountered": { "claim_id": "c1", "strength": 1.0, "scheme": "rebut", "challenger_camp": "a" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null },
+        { "debate_id": "d2", "date": "2026-07-01", "pipeline_version": "v1", "verdict": "held", "strongest_attack_encountered": { "claim_id": "c2", "strength": 1.0, "scheme": "rebut", "challenger_camp": "a" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null },
+        { "debate_id": "d3", "date": "2026-07-01", "pipeline_version": "v1", "verdict": "held", "strongest_attack_encountered": { "claim_id": "c3", "strength": 1.0, "scheme": "rebut", "challenger_camp": "a" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null },
+        { "debate_id": "d4", "date": "2026-07-01", "pipeline_version": "v1", "verdict": "held", "strongest_attack_encountered": { "claim_id": "c4", "strength": 1.0, "scheme": "rebut", "challenger_camp": "a" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null },
+        { "debate_id": "d5", "date": "2026-07-01", "pipeline_version": "v1", "verdict": "held", "strongest_attack_encountered": { "claim_id": "c5", "strength": 1.0, "scheme": "rebut", "challenger_camp": "a" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null }
+      ],
+      "revisions": [],
+      "expect": { "tier": "well_tested", "sort_key_range": { "min_inclusive": 3, "max_exclusive": 4 } }
+    },
+    {
+      "id": "open-verdict-positive-small-weight",
+      "record": [
+        { "debate_id": "debate-001", "date": "2026-07-01", "pipeline_version": "v1", "verdict": "open", "strongest_attack_encountered": { "claim_id": "c1", "strength": 0.7, "scheme": "rebut", "challenger_camp": "accelerationist" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null }
+      ],
+      "revisions": [],
+      "expect": { "tier": "contested", "sort_key_range": { "min_inclusive": 2, "max_exclusive": 3 } }
+    },
+    {
+      "id": "weak-attacks-baseline-for-ordering",
+      "record": [
+        { "debate_id": "d1", "date": "2026-07-01", "pipeline_version": "v1", "verdict": "held", "strongest_attack_encountered": { "claim_id": "c1", "strength": 0.5, "scheme": "rebut", "challenger_camp": "a" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null },
+        { "debate_id": "d2", "date": "2026-07-02", "pipeline_version": "v1", "verdict": "held", "strongest_attack_encountered": { "claim_id": "c2", "strength": 0.5, "scheme": "rebut", "challenger_camp": "b" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null }
+      ],
+      "revisions": [],
+      "expect": { "tier": "well_tested" }
+    },
+    {
+      "id": "strong-attacks-baseline-for-ordering",
+      "record": [
+        { "debate_id": "d1", "date": "2026-07-01", "pipeline_version": "v1", "verdict": "held", "strongest_attack_encountered": { "claim_id": "c1", "strength": 0.9, "scheme": "rebut", "challenger_camp": "a" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null },
+        { "debate_id": "d2", "date": "2026-07-02", "pipeline_version": "v1", "verdict": "held", "strongest_attack_encountered": { "claim_id": "c2", "strength": 0.9, "scheme": "rebut", "challenger_camp": "b" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null }
+      ],
+      "revisions": [],
+      "expect": { "tier": "well_tested" }
+    },
+    {
+      "id": "held-single-baseline",
+      "record": [
+        { "debate_id": "d1", "date": "2026-07-01", "pipeline_version": "v1", "verdict": "held", "strongest_attack_encountered": { "claim_id": "c1", "strength": 0.7, "scheme": "rebut", "challenger_camp": "acc" }, "claim_outcomes": { "thrived": 2, "survived": 1, "died": 0 }, "concession": null }
+      ],
+      "revisions": [],
+      "expect": { "tier": "contested" }
+    },
+    {
+      "id": "weakened-single-baseline",
+      "record": [
+        { "debate_id": "d1", "date": "2026-07-01", "pipeline_version": "v1", "verdict": "weakened", "strongest_attack_encountered": { "claim_id": "c1", "strength": 0.7, "scheme": "rebut", "challenger_camp": "acc" }, "claim_outcomes": { "thrived": 0, "survived": 1, "died": 2 }, "concession": null }
+      ],
+      "revisions": [],
+      "expect": { "tier": "contested" }
+    }
+  ],
+  "orderings": [
+    {
+      "reason": "sort_key increases with stronger attacks survived (T=0.5 → 0.7071 evidence per entry; T=0.9 → 0.9 per entry)",
+      "greater_id": "strong-attacks-baseline-for-ordering",
+      "lesser_id": "weak-attacks-baseline-for-ordering",
+      "on": "sort_key"
+    },
+    {
+      "reason": "weakened verdicts reduce evidence score below held verdicts",
+      "greater_id": "held-single-baseline",
+      "lesser_id": "weakened-single-baseline",
+      "on": "sort_key"
+    }
+  ]
+}
