@@ -94,11 +94,14 @@ jobs:
           # Check only test-container — it needs: [test-powershell, test-electron]
           # so if it passed, all upstream jobs passed too. Checking test-electron
           # by name fails because the matrix creates per-app jobs (e.g. "test-electron (taxonomy-editor)").
+          # "skipped" is also acceptable: the dorny/paths-filter gate skips test-container
+          # when no container-relevant files changed, meaning the deployed image is identical
+          # to the last image that DID pass the container tests.
           for JOB in test-container; do
             STATUS=$(gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/jobs" \
               --jq ".jobs[] | select(.name == \"${JOB}\") | .conclusion // .status" 2>/dev/null || echo "")
-            if [ "$STATUS" = "success" ]; then
-              echo "  ${JOB}: passed"
+            if [ "$STATUS" = "success" ] || [ "$STATUS" = "skipped" ]; then
+              echo "  ${JOB}: ${STATUS}"
             elif [ -z "$STATUS" ]; then
               echo "::error::Job '${JOB}' not found in CI run ${RUN_ID}."
               exit 1
