@@ -1,0 +1,115 @@
+.dt-drilldown {
+  padding: 12px;
+  font-size: 0.8rem;
+}
+
+.dt-drilldown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.dt-drilldown-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.dt-drilldown-close {
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 2px 6px;
+}
+
+.dt-drilldown-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color, #334155);
+}
+
+.dt-drilldown-stats-row {
+  display: flex;
+  gap: 12px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.dt-drilldown-meta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.dt-drilldown-held-since {
+  font-size: 0.7rem;
+  color: #16a34a;
+  font-style: italic;
+}
+
+.dt-drilldown-entries-title {
+  font-weight: 600;
+  font-size: 0.75rem;
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+}
+
+.dt-drilldown-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dt-drilldown-entry {
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--bg-hover, #1e293b);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dt-drilldown-entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dt-drilldown-verdict {
+  font-weight: 700;
+  text-transform: capitalize;
+  font-size: 0.78rem;
+}
+
+.dt-drilldown-date {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.dt-drilldown-entry-details {
+  display: flex;
+  gap: 10px;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.dt-drilldown-entry-stats {
+  display: flex;
+  gap: 10px;
+  font-size: 0.7rem;
+}
+
+.dt-drilldown-attack,
+.dt-drilldown-concession {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.dt-drilldown-empty {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 0.75rem;
+  padding: 8px 0;
+}

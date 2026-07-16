@@ -12,6 +12,9 @@ import { useKeyboardNav } from '../../hooks/useKeyboardNav';
 import { useResizablePanel, useResizableRightPanel } from '../../hooks/useResizablePanel';
 import { NodeTree, getOrderedNodeIds } from './NodeTree';
 import type { SortMode } from './NodeTree';
+import { computeSha256, DEBATE_TESTED_TIER_LABELS } from './DebateTestedChip';
+import type { DebateTestedTier } from '../../bridge/types';
+import './PovTab.css';
 import { NodeDetail } from './NodeDetail';
 import { SituationDetail } from '../debate/SituationDetail';
 import { NewNodeDialog } from '../shared/NewNodeDialog';
@@ -463,6 +466,49 @@ export function PovTab({ pov }: PovTabProps) {
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showSoulDoc, setShowSoulDoc] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('label');
+  const [dtTierFilter, setDtTierFilter] = useState<DebateTestedTier | 'all'>('all');
+  const [dtStaleOnly, setDtStaleOnly] = useState(false);
+  const [staleNodeIds, setStaleNodeIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (sortMode !== 'debate_tested' || !file) {
+      setStaleNodeIds(new Set());
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const stale = new Set<string>();
+      for (const node of file.nodes) {
+        const rec = node.graph_attributes?.debate_tested;
+        if (!rec?.description_hash || !node.description) continue;
+        const hash = await computeSha256(node.description);
+        if (hash !== rec.description_hash) stale.add(node.id);
+      }
+      if (!cancelled) setStaleNodeIds(stale);
+    })().catch((err) => {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'PovTab',
+        level: 'error',
+        message: 'Failed to compute stale node hashes',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+    });
+    return () => { cancelled = true; };
+  }, [sortMode, file]);
+
+  const filteredNodes = useMemo(() => {
+    if (sortMode !== 'debate_tested' || !file) return file?.nodes ?? [];
+    let nodes = file.nodes;
+    if (dtTierFilter !== 'all') {
+      nodes = nodes.filter(n => (n.graph_attributes?.debate_tested?.tier ?? 'untested') === dtTierFilter);
+    }
+    if (dtStaleOnly) {
+      nodes = nodes.filter(n => staleNodeIds.has(n.id));
+    }
+    return nodes;
+  }, [sortMode, file, dtTierFilter, dtStaleOnly, staleNodeIds]);
+
   const [listCollapsed, setListCollapsed] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
   const [searchPreviewId, setSearchPreviewId] = useState<string | null>(null);
@@ -516,8 +562,8 @@ export function PovTab({ pov }: PovTabProps) {
   const clusterMisfits = clusterView?.misfits ?? null;
 
   const orderedIds = useMemo(
-    () => (file ? getOrderedNodeIds(file.nodes, sortMode, similarScoresMap, clusterGroups) : []),
-    [file, sortMode, similarScoresMap, clusterGroups],
+    () => (file ? getOrderedNodeIds(filteredNodes, sortMode, similarScoresMap, clusterGroups) : []),
+    [file, filteredNodes, sortMode, similarScoresMap, clusterGroups],
   );
 
   const [visibleIds, setVisibleIds] = useState<string[]>([]);
@@ -776,6 +822,7 @@ export function PovTab({ pov }: PovTabProps) {
                 <option value="label">Sort: Label</option>
                 <option value="priority">Sort: Priority</option>
                 <option value="similarity">Sort: Similarity</option>
+                <option value="debate_tested">Sort: Debate-Tested</option>
               </select>
               <button className="btn btn-sm" onClick={() => setShowNewDialog(true)}>
                 + New
@@ -785,9 +832,28 @@ export function PovTab({ pov }: PovTabProps) {
             </div>
           </div>
           {showSoulDoc && <SoulDocDialog pov={pov} onClose={() => setShowSoulDoc(false)} />}
+          {sortMode === 'debate_tested' && (
+            <div className="dt-filter-bar">
+              <select
+                className="sort-select"
+                value={dtTierFilter}
+                onChange={(e) => setDtTierFilter(e.target.value as DebateTestedTier | 'all')}
+                title="Filter by tier"
+              >
+                <option value="all">Show: All tiers</option>
+                {(Object.keys(DEBATE_TESTED_TIER_LABELS) as DebateTestedTier[]).map(t => (
+                  <option key={t} value={t}>Show: {DEBATE_TESTED_TIER_LABELS[t]}</option>
+                ))}
+              </select>
+              <label className="dt-stale-toggle" title="Show only nodes whose description changed since last test">
+                <input type="checkbox" checked={dtStaleOnly} onChange={(e) => setDtStaleOnly(e.target.checked)} />
+                Stale only
+              </label>
+            </div>
+          )}
           <div className="list-panel-items">
             <NodeTree
-              nodes={file.nodes}
+              nodes={filteredNodes}
               selectedNodeId={selectedNodeId}
               onSelect={(id: string) => { nav.push({ view: 'detail', id }); setSelectedNodeId(id); }}
               pov={pov}
@@ -799,6 +865,7 @@ export function PovTab({ pov }: PovTabProps) {
               onVisibleIdsChange={setVisibleIds}
               conflicts={nodeConflicts.conflicts}
               resolveUrl={syncStatus.pr_url}
+              showDebateTestedChip={sortMode === 'debate_tested'}
             />
           </div>
         </div>

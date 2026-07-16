@@ -1,0 +1,28 @@
+.debate-tested-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.debate-tested-chip.clickable {
+  cursor: pointer;
+}
+.debate-tested-chip.clickable:hover {
+  filter: brightness(0.92);
+}
+
+.debate-tested-chip.compact {
+  padding: 0 5px;
+  font-size: 0.6rem;
+}
+
+.debate-tested-stale {
+  font-size: 0.7rem;
+  margin-left: 1px;
+}

@@ -5,9 +5,10 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { PovNode, Pov, Category } from '../../types/taxonomy';
 import { EditConflictBadge, type NodeConflict } from '../conflict/edit-conflicts';
+import { DebateTestedChip } from './DebateTestedChip';
 import './NodeTree.css';
 
-export type SortMode = 'id' | 'label' | 'similarity' | 'priority';
+export type SortMode = 'id' | 'label' | 'similarity' | 'priority' | 'debate_tested';
 
 export interface ClusterGroup {
   label: string;
@@ -53,6 +54,13 @@ function sortNodes(nodes: PovNode[], mode: SortMode, scores: Map<string, number>
       }
       // Intentions: keep ID order
       return a.id.localeCompare(b.id);
+    });
+  }
+  if (mode === 'debate_tested') {
+    return [...nodes].sort((a, b) => {
+      const aKey = a.graph_attributes?.debate_tested?.sort_key ?? 0;
+      const bKey = b.graph_attributes?.debate_tested?.sort_key ?? 0;
+      return aKey - bKey;
     });
   }
   return nodes;
@@ -132,7 +140,7 @@ function computeVisibleIds(
     return ids;
   }
 
-  const flatMode = sortMode === 'id' || sortMode === 'priority';
+  const flatMode = sortMode === 'id' || sortMode === 'priority' || sortMode === 'debate_tested';
   const nodeMap = new Map(nodes.map(n => [n.id, n]));
   const grouped = new Map<Category, PovNode[]>();
   for (const cat of CATEGORY_ORDER) grouped.set(cat, []);
@@ -180,7 +188,7 @@ function computeVisibleIds(
   return ids;
 }
 
-export function NodeTree({ nodes, selectedNodeId, onSelect, pov, sortMode = 'id', similarScores, clusters, clusterLoading, misfits, onVisibleIdsChange, conflicts, resolveUrl }: NodeTreeProps) {
+export function NodeTree({ nodes, selectedNodeId, onSelect, pov, sortMode = 'id', similarScores, clusters, clusterLoading, misfits, onVisibleIdsChange, conflicts, resolveUrl, showDebateTestedChip }: NodeTreeProps & { showDebateTestedChip?: boolean }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => loadCollapsed());
 
   // Collapse all parent/cluster groups when sort mode changes
@@ -261,6 +269,7 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, pov, sortMode = 'id'
                   isMisfit={misfits?.has(node.id)}
                   conflict={conflicts?.get(node.id)}
                   resolveUrl={resolveUrl}
+                  showDebateTestedChip={showDebateTestedChip}
                 />
               ))}
             </div>
@@ -293,7 +302,7 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, pov, sortMode = 'id'
   }
 
   // Flat modes: 'id' and 'priority' — no parent/child hierarchy
-  const flatMode = sortMode === 'id' || sortMode === 'priority';
+  const flatMode = sortMode === 'id' || sortMode === 'priority' || sortMode === 'debate_tested';
 
   return (
     <div className="node-tree" data-pov={pov}>
@@ -423,7 +432,7 @@ function getPriorityDisplay(node: PovNode): { label: string; value: number } | u
   return undefined;
 }
 
-function NodeItem({ node, isSelected, onSelect, score, indent, relationship, isMisfit, priorityValue, conflict, resolveUrl }: {
+function NodeItem({ node, isSelected, onSelect, score, indent, relationship, isMisfit, priorityValue, conflict, resolveUrl, showDebateTestedChip }: {
   node: PovNode;
   isSelected: boolean;
   onSelect: (id: string) => void;
@@ -434,6 +443,7 @@ function NodeItem({ node, isSelected, onSelect, score, indent, relationship, isM
   priorityValue?: { label: string; value: number };
   conflict?: NodeConflict;
   resolveUrl?: string | null;
+  showDebateTestedChip?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -470,6 +480,9 @@ function NodeItem({ node, isSelected, onSelect, score, indent, relationship, isM
         {relationship && <span className="node-item-rel">{REL_LABELS[relationship] || relationship}</span>}
         {score !== undefined && <span className="node-item-score">{Math.round(score * 100)}%</span>}
         {priorityValue && <span className="node-item-priority">{priorityValue.label}</span>}
+        {showDebateTestedChip && node.category === 'Beliefs' && (
+          <DebateTestedChip record={node.graph_attributes?.debate_tested} description={node.description} compact />
+        )}
       </div>
     </div>
   );
