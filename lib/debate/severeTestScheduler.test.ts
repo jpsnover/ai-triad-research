@@ -1,4 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 import {
   computeImportance,
   computeDeficit,
@@ -363,22 +366,21 @@ describe('generateBatchConfig with pre-computed testingPriority', () => {
 
 // ── loadTestingRecords ──────────────────────────────────────────────────────
 
-vi.mock('fs', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('fs')>();
-  return { ...actual, readFileSync: vi.fn(actual.readFileSync) };
-});
-
 describe('loadTestingRecords', () => {
-  it('reads and parses a JSON file of NodeTestingRecord[]', async () => {
-    const { readFileSync } = await import('fs');
+  const tmpFile = path.join(os.tmpdir(), `test-records-${process.pid}.json`);
+
+  afterEach(() => {
+    try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+  });
+
+  it('reads and parses a JSON file of NodeTestingRecord[]', () => {
     const records = [
       makePrecomputedRecord('acc-belief-001', 'accelerationist', 'untested', 0.8, 1.0),
     ];
-    vi.mocked(readFileSync).mockReturnValueOnce(JSON.stringify(records));
-    const loaded = loadTestingRecords('/tmp/testing-records.json');
+    fs.writeFileSync(tmpFile, JSON.stringify(records), 'utf-8');
+    const loaded = loadTestingRecords(tmpFile);
     expect(loaded).toHaveLength(1);
     expect(loaded[0].nodeId).toBe('acc-belief-001');
     expect(loaded[0].testingPriority).toBe(0.8);
-    vi.mocked(readFileSync).mockRestore();
   });
 });
