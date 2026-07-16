@@ -158,6 +158,7 @@ export default defineConfig({
     exclude: ['@huggingface/transformers', 'onnxruntime-web', 'virtual:pwa-register/react'],
   },
   server: {
+    host: '127.0.0.1',
     port: 5173,
     strictPort: true,
     fs: {
