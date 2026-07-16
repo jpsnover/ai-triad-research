@@ -923,7 +923,7 @@ body {
 .toolbar-more-popover {
   position: absolute;
   left: calc(100% + 6px);
-  top: 0;
+  bottom: 0;
   min-width: 180px;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);

@@ -5,11 +5,26 @@
 // Catches module-level import crashes (e.g. Node.js modules in browser)
 // and shows a user-friendly error screen instead of a blank white window.
 
+// A "Failed to fetch dynamically imported module" error means the dev server
+// couldn't be reached — a network/address-family issue, NOT a code fault.
+// Distinguishing it avoids sending diagnosers down the wrong path (t/1590).
+function isNetworkFetchFailure(msg: string): boolean {
+  return /failed to fetch dynamically imported module|error loading dynamically imported module/i.test(msg);
+}
+
 function showCrashScreen(error: unknown) {
   const msg = error instanceof Error ? error.message : String(error);
   const stack = error instanceof Error ? error.stack ?? '' : '';
   const root = document.getElementById('root');
   if (!root) return;
+  const isNetwork = isNetworkFetchFailure(msg);
+  const heading = isNetwork ? 'Cannot reach the dev server' : 'Taxonomy Editor failed to start';
+  const explanation = isNetwork
+    ? `The renderer couldn't load its modules from the Vite dev server. The server may
+       not be running, or it bound an address family (IPv4/IPv6) the app isn't connecting to.
+       Check that <code style="color:#8fd">npm run dev</code> is running and serving on 127.0.0.1:5173.`
+    : `A module failed to load. This usually means a shared library imported
+       a Node.js-only module in the renderer process.`;
   root.innerHTML = `
     <div style="
       display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -17,10 +32,9 @@ function showCrashScreen(error: unknown) {
       background:#1a1a2e;text-align:center;
     ">
       <div style="font-size:48px;margin-bottom:16px">⚠</div>
-      <h1 style="font-size:1.4rem;margin:0 0 8px">Taxonomy Editor failed to start</h1>
+      <h1 style="font-size:1.4rem;margin:0 0 8px">${heading}</h1>
       <p style="color:#aaa;margin:0 0 16px;max-width:600px;font-size:0.9rem">
-        A module failed to load. This usually means a shared library imported
-        a Node.js-only module in the renderer process.
+        ${explanation}
       </p>
       <pre style="
         text-align:left;background:#12122a;border:1px solid #333;border-radius:8px;
