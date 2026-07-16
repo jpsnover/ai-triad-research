@@ -1,0 +1,22 @@
+.dt-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: var(--text-xs);
+}
+
+.dt-stale-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.dt-stale-toggle input[type="checkbox"] {
+  margin: 0;
+}

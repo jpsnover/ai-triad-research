@@ -356,3 +356,18 @@
 .vulnerability-subsection {
   margin-bottom: 4px;
 }
+
+/* ── Debate-Tested metrics row (t/1585) ── */
+
+.nd-metrics-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.nd-metric {
+  font-size: 0.78rem;
+}

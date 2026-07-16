@@ -34,6 +34,8 @@ import { generateAphorism } from '../../utils/regenerateAphorism';
 import { useDescriptionMode, resolveDescription, DescriptionToggle } from '../shared/DescriptionToggle';
 import { EmptyState } from '../shared/EmptyState';
 import { OverflowMenu, type OverflowMenuEntry } from '../shared/OverflowMenu';
+import { DebateTestedChip } from './DebateTestedChip';
+import { DebateTestedDrilldown } from './DebateTestedDrilldown';
 import './NodeDetail.css';
 
 interface MoveTarget {
@@ -109,6 +111,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
   const [showDelete, setShowDelete] = useState(false);
   const [activeTab, setActiveTab] = useState<NodeDetailTabId>('content');
   const [expandedLineage, setExpandedLineage] = useState<string | null>(null);
+  const [showDtDrilldown, setShowDtDrilldown] = useState(false);
   const [relatedSplitPct, setRelatedSplitPct] = useState(40);
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
@@ -519,6 +522,28 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
       <div className="node-detail-tab-content">
         {activeTab === 'content' && (
           <>
+            {node.category === 'Beliefs' && (
+              <div className="nd-metrics-row">
+                {node.confidence != null && (
+                  <span className="nd-metric" title="Confidence score">
+                    Confidence: <strong>{node.confidence.toFixed(2)}</strong>
+                  </span>
+                )}
+                <DebateTestedChip
+                  record={node.graph_attributes?.debate_tested}
+                  description={node.description}
+                  onClick={() => node.graph_attributes?.debate_tested && setShowDtDrilldown(v => !v)}
+                />
+              </div>
+            )}
+            {showDtDrilldown && node.graph_attributes?.debate_tested && (
+              <DebateTestedDrilldown
+                record={node.graph_attributes.debate_tested}
+                description={node.description}
+                onClose={() => setShowDtDrilldown(false)}
+              />
+            )}
+
             {!readOnly && err('label') && (
               <div className="error-text">{err('label')}</div>
             )}

@@ -74,6 +74,11 @@ export type OrgPovStance = _PovStance;
 export type OrgTopicEngagement = _TopicEngagement;
 export type OrgPolicyEngagement = _PolicyEngagement;
 
+import type { DebateTestedTier as _DebateTestedTier, DebateTestedRecord as _DebateTestedRecord, DebateTestedEntry as _DebateTestedEntry } from '@lib/debate/taxonomyTypes';
+export type DebateTestedTier = _DebateTestedTier;
+export type DebateTestedRecord = _DebateTestedRecord;
+export type DebateTestedEntry = _DebateTestedEntry;
+
 export interface OrgFilters { type?: string; pov?: string }
 
 export interface AppAPI {
