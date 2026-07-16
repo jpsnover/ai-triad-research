@@ -12,6 +12,29 @@ FIRE (Fact-checking with Iterative Retrieval and Evaluation) replaces single-sho
 - Prompts: `scripts/AITriad/Prompts/pov-summary-system.prompt`, `pov-summary-schema.prompt`
 - UI: `taxonomy-editor/src/renderer/components/FireProgressIndicator.tsx`
 
+## Two Modes: AutoFire (default) vs `-IterativeExtraction`
+
+FIRE runs in one of two modes:
+
+- **Default (AutoFire)**: A two-stage sniff runs automatically on every extraction. Zero extra cost unless quality signals trigger a FIRE re-run.
+- **`-IterativeExtraction`**: Force FIRE for all documents (skips the sniff, always iterates).
+
+### AutoFire Two-Stage Sniff
+
+**Stage 1 (pre-extraction, zero API cost):** Checks document characteristics. If ANY fires → go directly to FIRE:
+- Word count > 8,000
+- Document requires chunking (>20K estimated tokens)
+- Complex source format (PDF)
+
+**Stage 2 (post-extraction, evaluates single-shot output):** If 2+ of these 5 signals fire → re-run with FIRE:
+1. Low-confidence rate: >30% of claims have `fire_confidence < 0.5`
+2. Specificity collapse: >40% of claims rated `specificity: "vague"`
+3. Warrant deficit: >50% of claims have `has_warrant: false`
+4. Unmapped concept rate: >40% of key_points unmapped
+5. Claim clustering: >60% of claims map to same 3 taxonomy nodes
+
+The decision rule (2+ signals) is fixed. Individual thresholds are configurable via `Test-FireRequired -Thresholds @{...}`.
+
 ## Three Phases
 
 ### Phase 1: Initial Extraction
