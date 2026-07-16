@@ -1,11 +1,18 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import {
   computeTierAndSortKey,
-  computeDescriptionHash,
   harvestDebateTested,
+  setDescriptionHasher,
   DEBATE_TESTED_DEFAULTS,
   VERDICT_WEIGHTS,
 } from './debateTested.js';
+import { computeDescriptionHash } from './debateTestedHash.js';
+
+// harvestDebateTested computes description hashes via an injected hasher so that
+// debateTested.ts stays crypto-free (renderer-reachable). Configure it once. (t/1591)
+beforeAll(() => {
+  setDescriptionHasher(computeDescriptionHash);
+});
 import type {
   DebateTestedEntry,
   DebateTestedRevision,

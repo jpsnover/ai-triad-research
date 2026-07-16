@@ -16,7 +16,8 @@
 
 import fs from 'fs';
 import path from 'path';
-import { harvestDebateTested, computeDescriptionHash, computeTierAndSortKey } from './debateTested.js';
+import { harvestDebateTested, computeTierAndSortKey, setDescriptionHasher } from './debateTested.js';
+import { computeDescriptionHash } from './debateTestedHash.js';
 import type { HarvestResult } from './debateTested.js';
 import type {
   PovNode,
@@ -25,6 +26,10 @@ import type {
 } from './taxonomyTypes.js';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge } from './types.js';
 import { resolveDataRoot } from './taxonomyLoader.js';
+
+// Node entry point: configure the description hasher for the harvest writer.
+// debateTested.ts stays crypto-free so it can be bundled into the renderer (t/1591).
+setDescriptionHasher(computeDescriptionHash);
 
 // ── Types ─────────────────────────────────────────────────────────────────
 

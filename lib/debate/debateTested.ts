@@ -1,4 +1,3 @@
-import { createHash } from 'crypto';
 import type {
   DebateTestedTier,
   DebateTestedVerdict,
@@ -13,6 +12,7 @@ import type {
 } from './taxonomyTypes.js';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge } from './types.js';
 import { classifyOutcome, countReferences } from './claimOutcomes.js';
+import { ActionableError } from './errors.js';
 
 // ── Constants (all stipulated per metric-provenance-register) ──────────────
 
@@ -150,10 +150,32 @@ function findLastIndex<T>(arr: ReadonlyArray<T>, pred: (v: T) => boolean): numbe
   return -1;
 }
 
-// ── Description hash ───────────────────────────────────────────────────────
+// ── Description hash (injected — this module must stay crypto-free) ─────────
+//
+// This module is reachable from the Electron renderer (taxonomyRelevance imports
+// WELL_TESTED_EXCLUSION/isReeligible), so it must not statically import Node's
+// `crypto` — Vite's browser stub throws at load. Node callers inject the hasher
+// via `setDescriptionHasher(computeDescriptionHash)` from debateTestedHash.js
+// before harvesting. (t/1591)
 
-export function computeDescriptionHash(description: string): string {
-  return 'sha256:' + createHash('sha256').update(description).digest('hex');
+let _descriptionHasher: ((description: string) => string) | null = null;
+
+export function setDescriptionHasher(fn: (description: string) => string): void {
+  _descriptionHasher = fn;
+}
+
+function descriptionHash(description: string): string {
+  if (!_descriptionHasher) {
+    throw new ActionableError({
+      goal: 'Compute a Debate-Tested node description hash',
+      problem: 'Description hasher not configured before harvesting.',
+      location: 'debateTested.descriptionHash',
+      nextSteps: [
+        'Call setDescriptionHasher(computeDescriptionHash) — imported from debateTestedHash.js — before harvestDebateTested. Node-only path.',
+      ],
+    });
+  }
+  return _descriptionHasher(description);
 }
 
 // ── Falsifiability ordering (content-increase gate) ────────────────────────
@@ -379,7 +401,7 @@ function mergeEntry(
   }
 
   if (entry.verdict === 'held' && revisions.length > 0) {
-    const currentHash = computeDescriptionHash(povNode.description);
+    const currentHash = descriptionHash(povNode.description);
     const storedHash = existing?.description_hash;
     for (const rev of revisions) {
       if (rev.held_since !== null) continue;
@@ -412,9 +434,9 @@ function mergeEntry(
 
   const { tier, sort_key } = computeTierAndSortKey(record, revisions, constants);
 
-  const descriptionHash = isRefined
-    ? computeDescriptionHash(povNode.description)
-    : (existing?.description_hash ?? computeDescriptionHash(povNode.description));
+  const newDescriptionHash = isRefined
+    ? descriptionHash(povNode.description)
+    : (existing?.description_hash ?? descriptionHash(povNode.description));
 
   return {
     tier,
@@ -425,7 +447,7 @@ function mergeEntry(
     weakened,
     revisions,
     last_tested: entry.date,
-    description_hash: descriptionHash,
+    description_hash: newDescriptionHash,
     record,
   };
 }
