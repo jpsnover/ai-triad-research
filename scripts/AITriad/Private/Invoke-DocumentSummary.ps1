@@ -184,7 +184,7 @@ function Invoke-ChunkedSummary {
     foreach ($Ck in $Chunks) {
         if ($Ck.Length -gt 2000) { $ChunkQueryTexts.Add($Ck.Substring(0, 2000)) } else { $ChunkQueryTexts.Add($Ck) }
     }
-    $ChunkQueryEmb = Invoke-BatchEmbeddings -Texts $ChunkQueryTexts.ToArray() -MaxChars 2000
+    $ChunkQueryEmb = Invoke-BatchEmbeddings -Texts $ChunkQueryTexts.ToArray()
 
     # -- Process each chunk sequentially (API rate limits) --------------------
     $StartTime = Get-Date
