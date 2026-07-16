@@ -261,6 +261,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-05-22 — Technical Lead: `json.load()` failed on debate JSON files with UTF-8 characters because `open()` defaulted to cp1252 on Windows (p/8#9).
 - 2026-05-25 — Computational Linguist: stdout encoding error — cp1252 can't encode Unicode arrow U+2192. Fixed by wrapping stdout with `io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')` (p/7#9).
 - 2026-07-12 — Computational Linguist: prose-audit Python script crashed printing match context containing U+2264 (≤). Fixed with `sys.stdout.reconfigure(encoding="utf-8")` at script top (p/40#5).
+- 2026-07-15 — Computational Linguist: `open()` on a project JSON file without `encoding='utf-8'` raised UnicodeDecodeError (cp1252 can't decode 0x90). Em dashes in debate transcripts triggered it. Fixed by adding `encoding='utf-8'` (p/7#32).
 
 **Root Cause:** Python's `open()` and `sys.stdout` use `locale.getpreferredencoding()` which is cp1252 on most Windows systems, not UTF-8. Both file I/O and subprocess stdout are affected.
 
@@ -1332,3 +1333,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active
 
 **Applies To:** All agents writing PowerShell formatting for CI/diagnostic output.
+
+---
+
+## #66 [Build] Stacked-Branch Landing — Merge in Stack Order with --no-ff
+
+**Pattern:** When two branches are stacked (the child branched off the parent) and both touch the same file, landing them without respecting stack order — or squashing the base — forces an avoidable rebase of the child and manufactures merge conflicts.
+
+**Instances:**
+- 2026-07-16 — Technical Lead (t/1585, t/1601): landing `land/t-1585` into the worktree hit a merge conflict in `DebateTestedDrilldown.tsx` because t-1585 and t-1601 both touch that file and t-1601 is stacked on t-1585. Resolved by merging with `--no-ff` in dependency order (t-1585 before t-1601) so the stack stayed intact and no rebase was needed (p/8#67).
+
+**Root Cause:** A stacked child branch's commits are written on top of the parent's commits. If the parent is squashed or merged out of order, the child's base no longer matches history, so git must replay (rebase) the child's diffs against a changed base — re-deriving conflicts in any shared file. Merging the parent first with `--no-ff` preserves the base commit the child was built on, so the child merges cleanly.
+
+**Prevention:**
+1. For stacked branches sharing a file, merge in stack order (base before child) using `--no-ff` — never squash the base.
+2. Do not rebase the child unless the base's history genuinely changed; ordered `--no-ff` merges avoid the need entirely.
+3. Track stack dependencies explicitly (ticket parent/child or a note) so the landing order is unambiguous before you start.
+
+**Status:** Active
+
+**Applies To:** All agents landing stacked feature branches, especially via the worktree landing procedure.
