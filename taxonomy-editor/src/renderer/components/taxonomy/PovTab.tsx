@@ -469,9 +469,10 @@ export function PovTab({ pov }: PovTabProps) {
   const [dtTierFilter, setDtTierFilter] = useState<DebateTestedTier | 'all'>('all');
   const [dtStaleOnly, setDtStaleOnly] = useState(false);
   const [staleNodeIds, setStaleNodeIds] = useState<Set<string>>(new Set());
+  const isDtSort = sortMode === 'debate_tested' || sortMode === 'debate_tested_desc';
 
   useEffect(() => {
-    if (sortMode !== 'debate_tested' || !file) {
+    if (!isDtSort || !file) {
       setStaleNodeIds(new Set());
       return;
     }
@@ -495,10 +496,10 @@ export function PovTab({ pov }: PovTabProps) {
       });
     });
     return () => { cancelled = true; };
-  }, [sortMode, file]);
+  }, [isDtSort, file]);
 
   const filteredNodes = useMemo(() => {
-    if (sortMode !== 'debate_tested' || !file) return file?.nodes ?? [];
+    if (!isDtSort || !file) return file?.nodes ?? [];
     let nodes = file.nodes;
     if (dtTierFilter !== 'all') {
       nodes = nodes.filter(n => (n.graph_attributes?.debate_tested?.tier ?? 'untested') === dtTierFilter);
@@ -507,7 +508,7 @@ export function PovTab({ pov }: PovTabProps) {
       nodes = nodes.filter(n => staleNodeIds.has(n.id));
     }
     return nodes;
-  }, [sortMode, file, dtTierFilter, dtStaleOnly, staleNodeIds]);
+  }, [isDtSort, file, dtTierFilter, dtStaleOnly, staleNodeIds]);
 
   const [listCollapsed, setListCollapsed] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
@@ -822,7 +823,8 @@ export function PovTab({ pov }: PovTabProps) {
                 <option value="label">Sort: Label</option>
                 <option value="priority">Sort: Priority</option>
                 <option value="similarity">Sort: Similarity</option>
-                <option value="debate_tested">Sort: Debate-Tested</option>
+                <option value="debate_tested">Sort: Debate-Tested (least)</option>
+                <option value="debate_tested_desc">Sort: Debate-Tested (most)</option>
               </select>
               <button className="btn btn-sm" onClick={() => setShowNewDialog(true)}>
                 + New
@@ -832,7 +834,7 @@ export function PovTab({ pov }: PovTabProps) {
             </div>
           </div>
           {showSoulDoc && <SoulDocDialog pov={pov} onClose={() => setShowSoulDoc(false)} />}
-          {sortMode === 'debate_tested' && (
+          {isDtSort && (
             <div className="dt-filter-bar">
               <select
                 className="sort-select"
@@ -865,7 +867,7 @@ export function PovTab({ pov }: PovTabProps) {
               onVisibleIdsChange={setVisibleIds}
               conflicts={nodeConflicts.conflicts}
               resolveUrl={syncStatus.pr_url}
-              showDebateTestedChip={sortMode === 'debate_tested'}
+              showDebateTestedChip={isDtSort}
             />
           </div>
         </div>

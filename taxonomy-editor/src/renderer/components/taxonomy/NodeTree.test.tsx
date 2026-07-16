@@ -84,6 +84,35 @@ describe('getOrderedNodeIds', () => {
     const ids = getOrderedNodeIds(NODES, 'similarity', null, clusters);
     expect(ids).toEqual(['acc-I-002', 'acc-B-001', 'acc-D-001']);
   });
+
+  it('sorts Beliefs by debate_tested sort_key ascending (least tested first)', () => {
+    const nodes: PovNode[] = [
+      makeNode({ id: 'acc-B-001', category: 'Beliefs', label: 'A', graph_attributes: { debate_tested: { sort_key: 3.2 } } as any }),
+      makeNode({ id: 'acc-B-002', category: 'Beliefs', label: 'B', graph_attributes: { debate_tested: { sort_key: 0.5 } } as any }),
+      makeNode({ id: 'acc-B-003', category: 'Beliefs', label: 'C', graph_attributes: { debate_tested: { sort_key: 1.8 } } as any }),
+    ];
+    const beliefs = getOrderedNodeIds(nodes, 'debate_tested').filter(id => id.includes('-B-'));
+    expect(beliefs).toEqual(['acc-B-002', 'acc-B-003', 'acc-B-001']);
+  });
+
+  it('sorts Beliefs by debate_tested sort_key descending (most tested first)', () => {
+    const nodes: PovNode[] = [
+      makeNode({ id: 'acc-B-001', category: 'Beliefs', label: 'A', graph_attributes: { debate_tested: { sort_key: 3.2 } } as any }),
+      makeNode({ id: 'acc-B-002', category: 'Beliefs', label: 'B', graph_attributes: { debate_tested: { sort_key: 0.5 } } as any }),
+      makeNode({ id: 'acc-B-003', category: 'Beliefs', label: 'C', graph_attributes: { debate_tested: { sort_key: 1.8 } } as any }),
+    ];
+    const beliefs = getOrderedNodeIds(nodes, 'debate_tested_desc').filter(id => id.includes('-B-'));
+    expect(beliefs).toEqual(['acc-B-001', 'acc-B-003', 'acc-B-002']);
+  });
+
+  it('treats missing debate_tested as sort_key 0 (least tested)', () => {
+    const nodes: PovNode[] = [
+      makeNode({ id: 'acc-B-001', category: 'Beliefs', label: 'A', graph_attributes: { debate_tested: { sort_key: 2.0 } } as any }),
+      makeNode({ id: 'acc-B-002', category: 'Beliefs', label: 'B' }),
+    ];
+    const beliefs = getOrderedNodeIds(nodes, 'debate_tested').filter(id => id.includes('-B-'));
+    expect(beliefs).toEqual(['acc-B-002', 'acc-B-001']);
+  });
 });
 
 describe('NodeTree', () => {

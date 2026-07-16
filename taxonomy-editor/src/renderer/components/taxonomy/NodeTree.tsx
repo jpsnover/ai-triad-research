@@ -8,7 +8,7 @@ import { EditConflictBadge, type NodeConflict } from '../conflict/edit-conflicts
 import { DebateTestedChip } from './DebateTestedChip';
 import './NodeTree.css';
 
-export type SortMode = 'id' | 'label' | 'similarity' | 'priority' | 'debate_tested';
+export type SortMode = 'id' | 'label' | 'similarity' | 'priority' | 'debate_tested' | 'debate_tested_desc';
 
 export interface ClusterGroup {
   label: string;
@@ -56,11 +56,13 @@ function sortNodes(nodes: PovNode[], mode: SortMode, scores: Map<string, number>
       return a.id.localeCompare(b.id);
     });
   }
-  if (mode === 'debate_tested') {
+  if (mode === 'debate_tested' || mode === 'debate_tested_desc') {
+    // ascending = least tested first (gap-finding); descending = most tested first
+    const dir = mode === 'debate_tested_desc' ? -1 : 1;
     return [...nodes].sort((a, b) => {
       const aKey = a.graph_attributes?.debate_tested?.sort_key ?? 0;
       const bKey = b.graph_attributes?.debate_tested?.sort_key ?? 0;
-      return aKey - bKey;
+      return (aKey - bKey) * dir;
     });
   }
   return nodes;
@@ -140,7 +142,7 @@ function computeVisibleIds(
     return ids;
   }
 
-  const flatMode = sortMode === 'id' || sortMode === 'priority' || sortMode === 'debate_tested';
+  const flatMode = sortMode === 'id' || sortMode === 'priority' || sortMode === 'debate_tested' || sortMode === 'debate_tested_desc';
   const nodeMap = new Map(nodes.map(n => [n.id, n]));
   const grouped = new Map<Category, PovNode[]>();
   for (const cat of CATEGORY_ORDER) grouped.set(cat, []);
@@ -302,7 +304,7 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, pov, sortMode = 'id'
   }
 
   // Flat modes: 'id' and 'priority' — no parent/child hierarchy
-  const flatMode = sortMode === 'id' || sortMode === 'priority' || sortMode === 'debate_tested';
+  const flatMode = sortMode === 'id' || sortMode === 'priority' || sortMode === 'debate_tested' || sortMode === 'debate_tested_desc';
 
   return (
     <div className="node-tree" data-pov={pov}>
