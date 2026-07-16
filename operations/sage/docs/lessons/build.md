@@ -37,6 +37,7 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 - 2026-06-17 — Sync: `git commit -m @'...'@` in Bash tool errored — `@'...'@` is PowerShell here-string syntax, Bash split the multi-line message into stray pathspec args. Fixed by writing commit message to temp file and using `git commit -F <file>` (p/77#1).
 - 2026-06-17 — ServerAPI: same `@'...'@` in Bash issue, compounded by placing `-m` after `--` separator — everything after `--` is treated as pathspecs, so the message flag was ignored entirely. Fixed with `git commit -F <file> -- <paths>` (message flag before `--`) (p/79#1).
 - 2026-06-17 — DebateUI: `@'...'@` in Bash tool leaked a literal `@` into a commit subject on shared branch. Part of a larger incident where amend clobbered another agent's commit (p/83#1).
+- 2026-07-15 — Computational Linguist (t/1586): inline PowerShell in Bash heredoc with backtick-escaped variables hit "unexpected EOF while looking for matching backtick" — twice in the same session. Fixed by writing script to temp file with Write tool (p/7#30).
 
 **Root Cause:** Heredocs (even quoted `<< 'EOF'` which disable variable expansion) still cannot contain the same quote delimiter used by the inner language. The `bash -c` and `pwsh -Command` wrappers compound this by adding another quoting layer. Additionally, PowerShell-specific syntax (`@'...'@` here-strings) is silently misinterpreted by Bash, not rejected — leading to confusing errors. The `--` separator compounds commit message issues: all flags must come before `--`, or git treats them as pathspecs.
 
@@ -280,6 +281,7 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Instances:**
 - 2026-05-22 — Technical Lead: `json.load()` failed on debate JSON files with UTF-8 characters because `open()` defaulted to cp1252 on Windows (p/8#9).
 - 2026-05-25 — Computational Linguist: stdout encoding error — cp1252 can't encode Unicode arrow U+2192. Fixed by wrapping stdout with `io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')` (p/7#9).
+- 2026-07-12 — Computational Linguist: prose-audit Python script crashed printing match context containing U+2264 (≤). Windows console cp1252 can't encode it. Fixed with `sys.stdout.reconfigure(encoding="utf-8")` at script top (p/40#5).
 
 **Root Cause:** Python's `open()` and `sys.stdout` use `locale.getpreferredencoding()` which is cp1252 on most Windows systems, not UTF-8. Both file I/O and subprocess stdout are affected.
 
@@ -329,7 +331,7 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 2. Don't ignore false-reds — they mask genuine failures and skip downstream workflow steps (health gates, env-var stamping, traffic shifting).
 3. **Diagnosis discipline:** Read the workflow STEP log (`gh run view <id> --log-failed`) AND check the failing deployment's TIMESTAMP before concluding. `az deployment list` top-of-list can surface month-old stale failures — don't trust it without checking dates.
 
-**Status:** Active — tracked in t/702.
+**Status:** Resolved — root AGENTS.md "Gate Verification" + "Gate Co-Location" rules (overlay 5732aa7, t/1589). Part of gate-signal-integrity genus (#20/#46/#48/#61/#64).
 
 **Applies To:** DevOps agents managing Azure deployments via arm-deploy actions.
 
@@ -405,6 +407,7 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 - 2026-06-25 — DebateUI: `git commit -F msg -- <paths>` failed for newly-created files. Fix: `git add <new-files>` first, then pathspec commit. Self-resolved (deedd783, p/83#3).
 - 2026-07-06 — Technical Lead: `git commit -- <pathspec>` on a new file errored "pathspec did not match". Fixed by explicit `git add` then commit (369001bb, p/8#51).
 - 2026-07-06 — Computational Linguist: same error on a newly created file. Fixed by `git add` then pathspec commit (p/7#26).
+- 2026-07-13 — Taxonomy Editor 2 (t/1563): `git commit -- <existing.tsx> <new-test.tsx>` failed on the untracked test file. Fixed by `git add -- <both>` then commit. Compounding: a concurrent broad commit on shared main (8bec8f97) swept the working-tree .tsx into another agent's commit during the verify window — shared-index hazard (p/195#1).
 
 **Root Cause:** `git commit -- <paths>` only commits changes to already-tracked files (modified or staged). Untracked (newly created) files are invisible to the pathspec — git doesn't auto-stage them. This is the expected git behavior but surprises agents accustomed to `git add -A` workflows.
 
@@ -657,8 +660,9 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 
 **Instances:**
 - 2026-07-06 — Technical Lead (t/1303 Phase C): deleted a module and fixed 2 importers but left the importer fixes uncommitted. Local verify green, committed state red for hours. TL then "verified main is green" using the dirty shared tree, contradicting a clean-worktree agent who was correctly seeing the breakage. Diagnostic standard established in t/1303#7 (p/8#49).
+- 2026-07-12 — Computational Linguist (t/1553): an uncommitted enrichment UsageID appeared in the shared working tree; another agent read its presence as "CL authored and approved this" and nearly built Stage 1 on it. CL never authored it and activity telemetry had no event for the edit — authorship unestablishable. Resolved by reviewing on merits + delivering the real prompt (t/1553#5). **Variant:** working-tree presence read as AUTHORSHIP/authority, not just build state (p/40#7).
 
-**Root Cause:** `tsc` and `npm run verify` read the working tree, not the git index. In a multi-agent environment, the shared working tree accumulates uncommitted changes from multiple agents — it's never a reliable proxy for committed state. When two agents disagree about whether main is broken, building the dirty tree settles nothing.
+**Root Cause:** `tsc` and `npm run verify` read the working tree, not the git index. In a multi-agent environment, the shared working tree accumulates uncommitted changes from multiple agents — it's never a reliable proxy for committed state. When two agents disagree about whether main is broken, building the dirty tree settles nothing. **Authorship variant:** a file's presence in the working tree carries no provenance — anyone could have written it, or it could be an artifact of a failed tool operation. Treating "it exists" as "agent X approved it" is the attribution form of false witness.
 
 **Prevention:**
 1. **Commit ALL files in a refactor atomically** — deletions and their importer fixes in the same commit. Never commit a deletion without its dependents.
@@ -668,7 +672,8 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
    - `git grep <pattern> HEAD` — search committed content only
    - `git cat-file -e <sha>:<path>` — verify a path exists at a specific commit
    - `git stash && npm run verify && git stash pop` — build committed state only
-4. Pairs with the "Verify Before Pushing" rule in root AGENTS.md as its diagnostic complement.
+4. **Never attribute uncommitted shared-tree changes** — authorship requires a commit SHA or an activity-telemetry event. Working-tree presence alone establishes neither authorship nor approval.
+5. Pairs with the "Verify Before Pushing" rule in root AGENTS.md as its diagnostic complement.
 
 **Status:** Resolved — root AGENTS.md "Git forensics" Common Traps rule (bf738f2, p/8#58).
 
@@ -735,3 +740,84 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active
 
 **Applies To:** All agents running tsc-based verify gates after git stash/pop operations.
+
+---
+
+## [Build] UsageID Config Field Name Mismatch — Template in Non-Template Field Silently No-Ops
+
+**Pattern:** A `{{placeholder}}` template in a UsageID config field that doesn't support template rendering (e.g., `systemMessage` instead of `systemMessageTemplate`) is passed as a literal string. The AI model runs with no effective instructions and produces plausible-looking garbage — misdiagnosed as a model quality issue before the config layer is suspected.
+
+**Instances:**
+- 2026-07-12 — Computational Linguist (t/1550#3): `pov-aphorism` UsageID config had `systemMessage: "{{prompt}}"` but `Invoke-AIByUsage` only substitutes templates in `systemMessageTemplate`. The `{{prompt}}` went unrendered, model ran instruction-less, and produced famous-quote misattributions that looked like a model-quality problem. Fixed in 6e4fe06a. Lint ticket t/1552 filed (p/40#3).
+
+**Root Cause:** The UsageID config schema has two similar field names — `systemMessage` (static, passed verbatim) and `systemMessageTemplate` (rendered with `{{var}}` substitution). Nothing validates that `{{...}}` syntax only appears in `*Template` fields.
+
+**Prevention:**
+1. Use `systemMessageTemplate` (not `systemMessage`) when the value contains `{{...}}` placeholders.
+2. Lint rule (t/1552): warn on `{{...}}` patterns in non-`*Template` fields in `ai-usages.json`.
+3. When AI output looks subtly wrong (plausible but unconstrained), check the UsageID config FIRST.
+4. Same genus as gate-signal-integrity patterns (#20/#46/#48): a config that silently no-ops reads as working.
+
+**Status:** Resolved — root AGENTS.md "Gate Verification" + "Gate Co-Location" rules (overlay 5732aa7, t/1589). Part of gate-signal-integrity genus (#20/#46/#48/#61/#64). Lint rule still tracked in t/1552.
+
+**Applies To:** All agents configuring UsageID entries in `ai-usages.json`.
+
+---
+
+## [Build] `az containerapp update --revision-mode` Does Not Exist — Use `az rest PATCH`
+
+**Pattern:** `az containerapp update` does not accept a `--revision-mode` flag. The correct approach is `az rest --method PATCH` against the ARM endpoint with `{"properties":{"configuration":{"activeRevisionsMode":"Multiple"}}}`.
+
+**Instances:**
+- 2026-07-13 — DevOps: throwaway-branch dry-run (run 29437864507) failed because the workflow step used `az containerapp update --revision-mode`. Fixed by swapping to `az rest PATCH` (p/26#5).
+
+**Root Cause:** The `az containerapp update` command supports many config properties but revision mode is not one of them — it's a top-level ARM property only settable via REST API or Bicep.
+
+**Prevention:**
+1. For ACA revision mode changes, use `az rest --method PATCH` against the ARM endpoint, or set in Bicep and redeploy.
+2. When an `az containerapp` subcommand fails with "unrecognized arguments," check the ARM REST API docs.
+3. Same ACA CLI-gap family as #40 (revision snapshots + `az containerapp registry remove` swallows 409).
+
+**Status:** Active
+
+**Applies To:** DevOps, Azure infrastructure, ACA deployment workflows.
+
+---
+
+## [Build] RawBody Truncation Causes Guaranteed SPA Shell False Positive
+
+**Pattern:** An HTTP body read with a hard character cap (e.g., 400 chars) truncates the response before the content being checked appears. An SPA shell's `<head>` is 464+ chars before any `<script>` tags, so a "response contains script tag" acceptance test always fails — a guaranteed false positive.
+
+**Instances:**
+- 2026-07-15 — DevOps (t/1500): blue-green deploy acceptance test checked for `<script` in the response body but RawBody was capped at 400 chars. The SPA shell's `<head>` metadata exceeds 464 chars before the first `<script>` tag, guaranteeing a false positive. Fixed by bumping cap to 4096 (p/26#7, p/8#61).
+
+**Root Cause:** PowerShell's `Invoke-WebRequest` `-MaximumRetryCount` and body reads can silently truncate. When the truncation point falls before the content being tested, the check is structurally guaranteed to fail regardless of the actual response — not a flaky test, but a permanently broken one.
+
+**Prevention:**
+1. When checking response content, ensure the body read cap exceeds the maximum plausible offset of the target content. For SPA shells, 4096+ chars is safe.
+2. If a content check fails in CI but passes in the browser, suspect body truncation before debugging the app.
+3. Same gate-signal-integrity genus as #20/#46/#48/#61: a check that fails for structural reasons, not content reasons.
+
+**Status:** Resolved — root AGENTS.md "Gate Verification" + "Gate Co-Location" rules (overlay 5732aa7, t/1589). Part of gate-signal-integrity genus (#20/#46/#48/#61/#64).
+
+**Applies To:** All agents writing HTTP acceptance tests, especially for SPA responses.
+
+---
+
+## [Build] GHA Format-Table Wrong Property Names — Silent Empty Output
+
+**Pattern:** PowerShell `Format-Table` with property names that don't match the actual object type silently produces empty columns — no error, no warning, just blank diagnostic output in CI.
+
+**Instances:**
+- 2026-07-15 — DevOps (t/1500): GHA workflow step used `Format-Table StatusCode, Detail` but the `EndpointTestResult` object has `Status` and `Error` properties. All diagnostic columns rendered blank. Fixed by matching the actual property names (p/26#7, p/8#61).
+
+**Root Cause:** PowerShell's `Format-Table` does not error on non-existent property names — it renders empty cells. In CI logs, this looks like "the data was empty" rather than "the column names are wrong." Local testing may use different object shapes or ad-hoc hashtables where the names happen to match.
+
+**Prevention:**
+1. Verify `Format-Table` property names against the actual object type: `$obj | Get-Member -MemberType Property` before scripting.
+2. When CI diagnostic output is blank but the test ran, suspect wrong property names before assuming empty data.
+3. Consider `Select-Object` with `| ConvertTo-Json` for CI diagnostics — it errors on missing properties instead of silently blanking.
+
+**Status:** Active
+
+**Applies To:** All agents writing PowerShell diagnostic output in CI workflows.

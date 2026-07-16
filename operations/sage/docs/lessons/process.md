@@ -123,7 +123,7 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 3. Periodically **assert a deliberate failure actually fails the gate** — inject a known error and confirm the gate catches it.
 4. When claiming "verify green," check the actual exit code and output — not just "it ran without surprising me."
 
-**Status:** Active — gate repair tracked in t/1323.
+**Status:** Resolved — root AGENTS.md "Gate Verification" + "Gate Co-Location" rules (overlay 5732aa7, t/1589). Part of gate-signal-integrity genus (#20/#46/#48/#61/#64). Gate repair still tracked in t/1323.
 
 **Applies To:** All agents running verify gates, CI pipelines, or any pass/fail quality checks.
 
@@ -143,7 +143,7 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 2. When adding or updating gate annotations, verify the specific job's intended lifecycle before applying fleet-wide conventions.
 3. Same principle as gate blindness (#46): gate metadata must be self-describing at point of use.
 
-**Status:** Active — structural fix in flight: full flip/never-flip taxonomy going into ci.yml's header comment (p/28#30).
+**Status:** Resolved — root AGENTS.md "Gate Verification" + "Gate Co-Location" rules (overlay 5732aa7, t/1589). Part of gate-signal-integrity genus (#20/#46/#48/#61/#64). Structural fix (flip/never-flip taxonomy in ci.yml header) also tracked via p/28#30.
 
 **Applies To:** All agents modifying CI workflow files or gate annotations.
 
@@ -189,3 +189,23 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 **Status:** Active
 
 **Applies To:** All agents creating handoff comments in tickets.
+
+---
+
+## [Process] Same-Role Instance Duplication — No Claim Step Before Filing
+
+**Pattern:** Two instances of the same role independently action the same shared tracker (parent ticket) within minutes, filing duplicate phase/child tickets. The second instance doesn't know the first already cut the ticket because there's no claim step on the tracker.
+
+**Instances:**
+- 2026-07-13 — Computational Linguist: CL Main and CL.Investigate1 filed duplicate Phase 2 tickets (t/1577 vs t/1579) for the same tracker within 2 minutes. Second same-day near-dup after parallel answers on t/1560. Cost: dup-close + an AC nearly lost in consolidation (p/40#9).
+
+**Root Cause:** Multiple instances of a role share the same ticket board and context, but have no coordination protocol for claiming work from shared trackers. Classic check-then-act race.
+
+**Prevention:**
+1. **Announce intent on the tracker ticket BEFORE cutting child tickets** — add a comment "claiming Phase 2" and wait for the comment to land before filing.
+2. **Search open tickets for the scope first** — `search_tickets` for the tracker key + phase label before creating.
+3. When consolidating dups, **merge ACs from both** — don't just close the second; it may have unique criteria the first lacks.
+
+**Status:** Active
+
+**Applies To:** All roles with multiple active instances sharing a ticket board.

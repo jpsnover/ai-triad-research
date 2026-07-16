@@ -40,6 +40,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-06-17 — Sync: `git commit -m @'...'@` in Bash tool errored — `@'...'@` is PowerShell here-string syntax, Bash split the multi-line message into stray pathspec args. Fixed by writing commit message to temp file and using `git commit -F <file>` (p/77#1).
 - 2026-06-17 — ServerAPI: same `@'...'@` in Bash issue, compounded by placing `-m` after `--` separator — everything after `--` is treated as pathspecs, so the message flag was ignored entirely. Fixed with `git commit -F <file> -- <paths>` (message flag before `--`) (p/79#1).
 - 2026-06-17 — DebateUI: `@'...'@` in Bash tool leaked a literal `@` into a commit subject on shared branch. Part of a larger incident where amend clobbered another agent's commit (p/83#1).
+- 2026-07-15 — Computational Linguist (t/1586): inline PowerShell in Bash heredoc with backtick-escaped variables hit "unexpected EOF while looking for matching backtick" — twice in the same session. Fixed by writing script to temp file with Write tool (p/7#30).
 
 **Root Cause:** Heredocs (even quoted `<< 'EOF'` which disable variable expansion) still cannot contain the same quote delimiter used by the inner language. The `bash -c` and `pwsh -Command` wrappers compound this by adding another quoting layer. Additionally, PowerShell-specific syntax (`@'...'@` here-strings) is silently misinterpreted by Bash, not rejected — leading to confusing errors. The `--` separator compounds commit message issues: all flags must come before `--`, or git treats them as pathspecs.
 
@@ -259,6 +260,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Instances:**
 - 2026-05-22 — Technical Lead: `json.load()` failed on debate JSON files with UTF-8 characters because `open()` defaulted to cp1252 on Windows (p/8#9).
 - 2026-05-25 — Computational Linguist: stdout encoding error — cp1252 can't encode Unicode arrow U+2192. Fixed by wrapping stdout with `io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')` (p/7#9).
+- 2026-07-12 — Computational Linguist: prose-audit Python script crashed printing match context containing U+2264 (≤). Fixed with `sys.stdout.reconfigure(encoding="utf-8")` at script top (p/40#5).
 
 **Root Cause:** Python's `open()` and `sys.stdout` use `locale.getpreferredencoding()` which is cp1252 on most Windows systems, not UTF-8. Both file I/O and subprocess stdout are affected.
 
@@ -648,6 +650,8 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. Don't ignore false-reds — they mask genuine failures and skip downstream workflow steps (health gates, env-var stamping, traffic shifting).
 3. **Diagnosis discipline:** Read the workflow STEP log (`gh run view <id> --log-failed`) AND check the failing deployment's TIMESTAMP before concluding. `az deployment list` top-of-list can surface month-old stale failures — don't trust it without checking dates.
 
+**Status:** Resolved — root AGENTS.md "Gate Verification" + "Gate Co-Location" rules (overlay 5732aa7, t/1589). Part of gate-signal-integrity genus (#20/#46/#48/#61/#64).
+
 **Applies To:** DevOps agents managing Azure deployments via arm-deploy actions.
 
 ---
@@ -735,6 +739,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-06-25 — DebateUI: `git commit -F msg -- <paths>` failed for newly-created files. Fix: `git add <new-files>` first, then pathspec commit. Self-resolved (deedd783, p/83#3).
 - 2026-07-06 — Technical Lead: `git commit -- <pathspec>` on a new file errored "pathspec did not match". Fixed by explicit `git add` then commit (369001bb, p/8#51).
 - 2026-07-06 — Computational Linguist: same error on a newly created file. Fixed by `git add` then pathspec commit (p/7#26).
+- 2026-07-13 — Taxonomy Editor 2 (t/1563): `git commit -- <existing.tsx> <new-test.tsx>` failed on the untracked test file. Fixed by `git add -- <both>` then commit. Compounding: concurrent broad commit on shared main swept the working-tree .tsx (p/195#1).
 
 **Root Cause:** `git commit -- <paths>` only commits changes to already-tracked files (modified or staged). Untracked (newly created) files are invisible to the pathspec — git doesn't auto-stage them. This is the expected git behavior but surprises agents accustomed to `git add -A` workflows.
 
@@ -930,7 +935,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. Periodically **assert a deliberate failure actually fails the gate**.
 4. When claiming "verify green," check the actual exit code and output — not just "it ran without surprising me."
 
-**Status:** Active — gate repair tracked in t/1323.
+**Status:** Resolved — root AGENTS.md "Gate Verification" + "Gate Co-Location" rules (overlay 5732aa7, t/1589). Part of gate-signal-integrity genus (#20/#46/#48/#61/#64). Gate repair still tracked in t/1323.
 
 **Applies To:** All agents running verify gates, CI pipelines, or any pass/fail quality checks.
 
@@ -969,7 +974,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 1. Jobs exempt from a flip sweep need the exemption **in the workflow file comment**, not in ticket history.
 2. Verify the specific job's intended lifecycle before applying fleet-wide conventions.
 
-**Status:** Active
+**Status:** Resolved — root AGENTS.md "Gate Verification" + "Gate Co-Location" rules (overlay 5732aa7, t/1589). Part of gate-signal-integrity genus (#20/#46/#48/#61/#64).
 
 **Applies To:** All agents modifying CI workflow files or gate annotations.
 
@@ -1084,8 +1089,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-07-06 — Technical Lead (t/1303 Phase C): deleted a module and fixed 2 importers but left the importer fixes uncommitted. Local verify green, committed state red for hours. TL then "verified main is green" using the dirty shared tree, contradicting a clean-worktree agent who was correctly seeing the breakage. Diagnostic standard established in t/1303#7 (p/8#49).
+- 2026-07-12 — Computational Linguist (t/1553): uncommitted enrichment UsageID in shared working tree read as "CL authored this." CL never authored it; authorship unestablishable. **Variant:** presence read as AUTHORSHIP, not build state (p/40#7).
 
-**Root Cause:** `tsc` and `npm run verify` read the working tree, not the git index. In a multi-agent environment, the shared working tree accumulates uncommitted changes from multiple agents — it's never a reliable proxy for committed state. When two agents disagree about whether main is broken, building the dirty tree settles nothing.
+**Root Cause:** `tsc` and `npm run verify` read the working tree, not the git index. In a multi-agent environment, the shared working tree accumulates uncommitted changes from multiple agents — it's never a reliable proxy for committed state. **Authorship variant:** working-tree presence carries no provenance — treating "it exists" as "agent X approved it" is the attribution form of false witness.
 
 **Prevention:**
 1. **Commit ALL files in a refactor atomically** — deletions and their importer fixes in the same commit. Never commit a deletion without its dependents.
@@ -1095,7 +1101,8 @@ Institutional memory for failure patterns across the AI Triad Research project.
    - `git grep <pattern> HEAD` — search committed content only
    - `git cat-file -e <sha>:<path>` — verify a path exists at a specific commit
    - `git stash && npm run verify && git stash pop` — build committed state only
-4. Pairs with the "Verify Before Pushing" rule in root AGENTS.md as its diagnostic complement.
+4. **Never attribute uncommitted shared-tree changes** — authorship requires a commit SHA or activity event.
+5. Pairs with the "Verify Before Pushing" rule in root AGENTS.md as its diagnostic complement.
 
 **Status:** Resolved — root AGENTS.md "Git forensics" Common Traps rule (bf738f2, p/8#58).
 
@@ -1225,3 +1232,103 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active
 
 **Applies To:** All agents running tsc-based verify gates after git stash/pop operations.
+
+---
+
+## #61 [Build] UsageID Config Field Mismatch — systemMessage vs systemMessageTemplate
+
+**Pattern:** UsageID config has `systemMessage: '{{prompt}}'` but `Invoke-AIByUsage` only renders `systemMessageTemplate` — placeholder goes unrendered, model runs with literal `{{prompt}}` as its system message (effectively no instructions), produces plausible-looking garbage.
+
+**Instances:**
+- 2026-07-12 — Computational Linguist (t/1550#3): aphorism UsageID had `systemMessage:'{{prompt}}'` instead of `systemMessageTemplate`. Model ran with no real instructions, produced famous-quote misattributions that masqueraded as a model-quality issue. Fixed in 6e4fe06a; lint ticket t/1552 filed (p/40#3).
+
+**Root Cause:** `systemMessage` is static (verbatim), `systemMessageTemplate` is rendered with `{{var}}` substitution. Putting template placeholders in the wrong field silently no-ops — the `{{prompt}}` string passes through as literal text, which the model interprets as an empty/meaningless instruction. The output looks plausible enough that the failure mode reads as "model quality" rather than "config error."
+
+**Prevention:**
+1. Any `{{...}}` placeholder MUST be in a `*Template` field (`systemMessageTemplate`, not `systemMessage`).
+2. Lint rule (t/1552): warn on `{{...}}` patterns in non-template fields.
+3. Same gate-signal-integrity genus as #20/#46/#48: a config that silently no-ops reads as "working."
+
+**Status:** Resolved — root AGENTS.md "Gate Verification" + "Gate Co-Location" rules (overlay 5732aa7, t/1589). Part of gate-signal-integrity genus (#20/#46/#48/#61/#64). Lint rule still tracked in t/1552.
+
+**Applies To:** All agents authoring or modifying UsageID configs in `ai-usages.json`.
+
+---
+
+## #62 [Process] Same-Role Instance Duplication — No Claim Step Before Filing
+
+**Pattern:** Two instances of the same role independently action the same shared tracker within minutes, filing duplicate phase/child tickets. No claim step on the tracker prevents the race.
+
+**Instances:**
+- 2026-07-13 — Computational Linguist: CL Main and CL.Investigate1 filed duplicate Phase 2 tickets (t/1577 vs t/1579) for the same tracker within 2 minutes. Second same-day near-dup after parallel answers on t/1560. Cost: dup-close + an AC nearly lost in consolidation (p/40#9).
+
+**Root Cause:** Multiple instances of a role share the same ticket board and context, but have no coordination protocol for claiming work from shared trackers. Classic check-then-act race.
+
+**Prevention:**
+1. Announce intent on the tracker ticket BEFORE cutting child tickets — add a comment "claiming Phase 2" and wait for the comment to land before filing.
+2. Search open tickets for the scope first — `search_tickets` for the tracker key + phase label before creating.
+3. When consolidating dups, merge ACs from both — don't just close the second; it may have unique criteria the first lacks.
+
+**Status:** Active
+
+**Applies To:** All roles with multiple active instances sharing a ticket board.
+
+---
+
+## #63 [Build] az containerapp update Does Not Support --revision-mode
+
+**Pattern:** `az containerapp update --revision-mode` silently fails or errors — the CLI subcommand doesn't accept that parameter. Must use `az rest PATCH` to the ARM endpoint or Bicep to change revision mode.
+
+**Instances:**
+- 2026-07-14 — DevOps (t/1500): dry-run on throwaway branch failed because `az containerapp update` doesn't accept `--revision-mode`. Fixed by swapping to `az rest PATCH` with body `{'properties':{'configuration':{'activeRevisionsMode':'Multiple'}}}` (p/26#5).
+
+**Root Cause:** Azure CLI coverage gaps — not every ARM property is exposed via the convenience CLI. `az containerapp update` handles env vars, image, scale, etc. but NOT `activeRevisionsMode`. The error message doesn't suggest the correct approach.
+
+**Prevention:**
+1. Before scripting an `az containerapp update` with a non-standard flag, verify it's in `az containerapp update --help`.
+2. For properties not in the CLI, use `az rest` PATCH to the ARM endpoint directly.
+3. Same genus as the ACA env-var drift trap (CLI vs Bicep divergence): the CLI is a convenience layer with gaps.
+
+**Status:** Active
+
+**Applies To:** DevOps, any agent scripting Azure Container Apps configuration changes.
+
+---
+
+## #64 [Build] RawBody Truncation Causes SPA Shell False Positive
+
+**Pattern:** HTTP response body read capped at 400 chars for acceptance tests. SPA HTML shell is 464+ chars before `<script>` tags. Truncated body never contains the script marker, so the "is the app alive?" check always fails even when the app is healthy.
+
+**Instances:**
+- 2026-07-14 — DevOps (t/1500): blue-green deploy acceptance test used 400-char RawBody cap. SPA shell exceeded that before any script tags appeared, causing guaranteed false positive on every deploy. Fixed by bumping cap to 4096 (p/26#7, p/8#61).
+
+**Root Cause:** The body-read cap was set for "enough to check a status code" but the correctness check needed content deep in the response. A size cap on an HTTP body read is a silent data loss when the check depends on content past the cap.
+
+**Prevention:**
+1. HTTP body reads must NOT be size-capped when response content matters for correctness checks — set the cap to accommodate the largest expected response, or remove it entirely for small responses.
+2. Test the acceptance check against the actual response size, not just a mock.
+3. Same gate-signal-integrity genus as #20/#46/#48/#61: a check that structurally cannot pass reads as "app is broken" when the check is broken.
+
+**Status:** Resolved — root AGENTS.md "Gate Verification" + "Gate Co-Location" rules (overlay 5732aa7, t/1589). Part of gate-signal-integrity genus (#20/#46/#48/#61/#64).
+
+**Applies To:** DevOps, any agent writing HTTP-based acceptance or health checks.
+
+---
+
+## #65 [Build] Format-Table Wrong Property Names — Silent Empty Columns
+
+**Pattern:** PowerShell `Format-Table` with `-Property` names that don't match the actual object properties silently produces empty columns instead of erroring. Diagnostic output looks "blank" rather than "wrong."
+
+**Instances:**
+- 2026-07-14 — DevOps (t/1500): GHA step used `Format-Table -Property StatusCode, Detail` but the `EndpointTestResult` object had `Status` and `Error` properties. All diagnostic columns were blank — no error, no warning (p/26#7, p/8#61).
+
+**Root Cause:** PowerShell's formatting system is lenient — referencing a non-existent property yields `$null`, which renders as empty. `Format-Table` never throws on missing properties. In a CI log, empty columns look like "no data" rather than "wrong column names."
+
+**Prevention:**
+1. Verify `Format-Table` property names against the actual object type — use `Get-Member` or inspect a sample object before scripting the format.
+2. In CI/GHA scripts, add a validation step that checks at least one row has non-null values in the formatted columns.
+3. Prefer `Select-Object` (which also silently nulls, but at least the object is inspectable downstream) over `Format-Table` when the output feeds into further processing.
+
+**Status:** Active
+
+**Applies To:** All agents writing PowerShell formatting for CI/diagnostic output.
