@@ -48,6 +48,28 @@
   font-style: italic;
 }
 
+.dt-drilldown-camps {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 0.7rem;
+}
+
+.dt-drilldown-camps-label {
+  color: var(--text-muted);
+}
+
+.dt-drilldown-camp-chip {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg-hover, #1e293b);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  letter-spacing: 0.03em;
+}
+
 .dt-drilldown-entries-title {
   font-weight: 600;
   font-size: 0.75rem;

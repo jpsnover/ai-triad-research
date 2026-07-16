@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import type { DebateTestedRecord, DebateTestedEntry } from '../../bridge/types';
+import { getChallengerCamps } from '@lib/debate/debateTested';
 import { DebateTestedChip } from './DebateTestedChip';
 import './DebateTestedDrilldown.css';
 
@@ -54,6 +55,7 @@ function EntryRow({ entry }: { entry: DebateTestedEntry }) {
 }
 
 export function DebateTestedDrilldown({ record, description, onClose }: DebateTestedDrilldownProps) {
+  const challengerCamps = Array.from(getChallengerCamps(record));
   return (
     <div className="dt-drilldown">
       <div className="dt-drilldown-header">
@@ -78,6 +80,14 @@ export function DebateTestedDrilldown({ record, description, onClose }: DebateTe
         {record.revisions.filter(r => r.held_since).length > 0 && (
           <div className="dt-drilldown-held-since">
             Held since revision on {record.revisions.find(r => r.held_since)!.date}
+          </div>
+        )}
+        {challengerCamps.length > 0 && (
+          <div className="dt-drilldown-camps">
+            <span className="dt-drilldown-camps-label">Challenged by:</span>
+            {challengerCamps.map(camp => (
+              <span key={camp} className="dt-drilldown-camp-chip">{camp}</span>
+            ))}
           </div>
         )}
       </div>
