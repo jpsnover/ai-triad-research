@@ -36,23 +36,45 @@ jobs:
   ci-gate:
     runs-on: ubuntu-latest
     steps:
-      - name: Verify CI passed for this commit
+      - name: Verify container-relevant CI passed for this commit
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           echo "Checking CI status for ${{ github.sha }}..."
-          # Find the most recent CI run for this commit
-          CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${{ github.sha }}&per_page=1" \
-            --jq '.workflow_runs[0].conclusion // empty' 2>/dev/null || echo "")
-          if [ "$CONCLUSION" = "success" ]; then
-            echo "CI passed for this commit"
-          elif [ -z "$CONCLUSION" ]; then
+
+          # Get the latest CI run for this commit
+          RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${{ github.sha }}&per_page=1" \
+            --jq '.workflow_runs[0].id // empty' 2>/dev/null || echo "")
+
+          if [ -z "$RUN_ID" ]; then
             echo "::error::No CI run found for commit ${{ github.sha }}. Push to main to trigger CI first."
             exit 1
-          else
-            echo "::error::CI status is '$CONCLUSION' for commit ${{ github.sha }}. CI must pass before building a container image."
-            exit 1
           fi
+
+          # Check only test-container — it needs: [test-powershell, test-electron]
+          # so if it passed, all upstream jobs passed too. Checking test-electron
+          # by name fails because the matrix creates per-app jobs (e.g. "test-electron (taxonomy-editor)").
+          # "skipped" is also acceptable: the dorny/paths-filter gate skips test-container
+          # when no container-relevant files changed, meaning the code being containerized
+          # has been validated by prior successful runs. test-powershell failures do not
+          # block container builds.
+          for JOB in test-container; do
+            STATUS=$(gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/jobs" \
+              --jq ".jobs[] | select(.name == \"${JOB}\") | .conclusion // .status" 2>/dev/null || echo "")
+            if [ "$STATUS" = "success" ] || [ "$STATUS" = "skipped" ]; then
+              echo "  ${JOB}: ${STATUS}"
+            elif [ -z "$STATUS" ]; then
+              echo "::error::Job '${JOB}' not found in CI run ${RUN_ID}."
+              exit 1
+            elif [ "$STATUS" = "in_progress" ] || [ "$STATUS" = "queued" ]; then
+              echo "::error::Job '${JOB}' is still ${STATUS} in CI run ${RUN_ID}. Wait for CI to complete."
+              exit 1
+            else
+              echo "::error::Job '${JOB}' status is '${STATUS}' in CI run ${RUN_ID}. Container-relevant CI must pass before building."
+              exit 1
+            fi
+          done
+          echo "Container-relevant CI passed for this commit"
 
   build-and-push:
     needs: [ci-gate]
