@@ -60,7 +60,16 @@ $BatchStart = Get-Date
 foreach ($D in $Debates) {
     $Name = [string]$D.name
     $Arm = if ($D.enableCorpusCoverage) { 'TREATMENT' } else { 'CONTROL' }
-    Write-Host "[$($Results.Count + 1)/$($Debates.Count)] $Arm  $Name" -ForegroundColor Cyan
+    Write-Host "[$($Results.Count + 1)/$($Debates.Count)] $Arm  $Name" -ForegroundColor Cyan -NoNewline
+
+    # Skip if already completed (resume logic)
+    $ExistingDebate = @(Get-ChildItem -Path $OutputDirectory -Filter "$Name-debate.json" -ErrorAction SilentlyContinue)
+    if ($ExistingDebate.Count -gt 0) {
+        Write-Host " - SKIPPED (already exists)" -ForegroundColor DarkGray
+        $Results.Add([PSCustomObject]@{ Name = $Name; Arm = $Arm; Status = 'skipped'; ElapsedMin = 0; Error = $null })
+        continue
+    }
+    Write-Host ''
 
     # Write per-debate config to temp file
     $ConfigObj = @{
