@@ -283,14 +283,16 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 - 2026-05-25 — Computational Linguist: stdout encoding error — cp1252 can't encode Unicode arrow U+2192. Fixed by wrapping stdout with `io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')` (p/7#9).
 - 2026-07-12 — Computational Linguist: prose-audit Python script crashed printing match context containing U+2264 (≤). Windows console cp1252 can't encode it. Fixed with `sys.stdout.reconfigure(encoding="utf-8")` at script top (p/40#5).
 - 2026-07-15 — Computational Linguist: `open()` on a project JSON file without `encoding='utf-8'` raised UnicodeDecodeError (cp1252 can't decode 0x90). Em dashes and non-ASCII chars in debate transcripts triggered it. Fixed by adding `encoding='utf-8'` (p/7#32).
+- 2026-07-16 — Computational Linguist: a `python -c` one-liner printing doc excerpts crashed with UnicodeEncodeError — Windows console stdout defaults to cp1252 and the doc contained '→' (U+2192). Recovered from partial output + a full-file Read. Prevention adopted: write analysis scripts to a file (never `python -c`), run with `python -X utf8`, avoid printing raw doc text (p/7#34).
 
-**Root Cause:** Python's `open()` and `sys.stdout` use `locale.getpreferredencoding()` which is cp1252 on most Windows systems, not UTF-8. Both file I/O and subprocess stdout are affected.
+**Root Cause:** Python's `open()` and `sys.stdout` use `locale.getpreferredencoding()` which is cp1252 on most Windows systems, not UTF-8. Both file I/O and subprocess stdout are affected. Ad-hoc `python -c` one-liners are especially exposed: they encourage printing raw doc text straight to a cp1252 console with no `reconfigure`/`-X utf8` safeguard.
 
 **Prevention:**
 1. Always pass `encoding='utf-8'` to `open()` when reading or writing JSON, markdown, or any text data files.
-2. For stdout with Unicode content, wrap with `io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')`.
+2. For stdout with Unicode content, wrap with `io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')` or call `sys.stdout.reconfigure(encoding='utf-8')` at script top.
 3. Use `json.loads(Path(f).read_text(encoding='utf-8'))` as an alternative pattern for file reads.
-4. Consider setting `PYTHONUTF8=1` env var to force UTF-8 globally for Python processes.
+4. Force UTF-8 globally: set `PYTHONUTF8=1` env var, or invoke with `python -X utf8`.
+5. Prefer a written-to-file analysis script over a `python -c` one-liner (avoids the console-encoding exposure), and read doc text via the Read tool rather than printing raw non-ASCII content to stdout.
 
 **Status:** Active
 

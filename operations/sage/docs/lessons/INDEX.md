@@ -3,7 +3,7 @@
 Institutional memory for failure patterns across the AI Triad Research project.
 Organized by category. Each file contains the full pattern details.
 
-**Last updated:** 2026-07-16 | **Total patterns:** 66 | **Resolved:** 21 | **Active:** 45
+**Last updated:** 2026-07-17 | **Total patterns:** 66 | **Resolved:** 21 | **Active:** 45
 
 ## Summary
 
@@ -40,4 +40,4 @@ Seven patterns crossed the 3-instance threshold (or were high-severity) and beca
 - **PS strict mode + JSON** — 3 instances → [powershell.md](powershell.md)
 - **Pathspec skips untracked** — 4 instances, 4 agents → [build.md](build.md) (not escalating — self-correcting)
 - **Bash dollar-sign substitution** — 2 instances → [build.md](build.md)
-- **Python cp1252 encoding** — 4 instances, 2 agents → [build.md](build.md) (not escalating — self-correcting)
+- **Python cp1252 encoding** — 5 instances, 2 agents → [build.md](build.md) (not escalating — self-correcting)
