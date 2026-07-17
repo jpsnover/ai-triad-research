@@ -3,7 +3,7 @@
 Institutional memory for failure patterns across the AI Triad Research project.
 Organized by category. Each file contains the full pattern details.
 
-**Last updated:** 2026-07-17 | **Total patterns:** 66 | **Resolved:** 21 | **Active:** 45
+**Last updated:** 2026-07-17 | **Total patterns:** 67 | **Resolved:** 21 | **Active:** 46
 
 ## Summary
 
@@ -14,7 +14,7 @@ Organized by category. Each file contains the full pattern details.
 | Data | [data.md](data.md) | 3 | 1 | 2 |
 | Type System | [type-system.md](type-system.md) | 4 | 0 | 4 |
 | Process | [process.md](process.md) | 10 | 7 | 3 |
-| API | [api.md](api.md) | 2 | 0 | 2 |
+| API | [api.md](api.md) | 3 | 0 | 3 |
 | Design | [design.md](design.md) | 1 | 0 | 1 |
 
 ## AGENTS.md Rules (Escalated from Sage)
@@ -41,3 +41,4 @@ Seven patterns crossed the 3-instance threshold (or were high-severity) and beca
 - **Pathspec skips untracked** — 4 instances, 4 agents → [build.md](build.md) (not escalating — self-correcting)
 - **Bash dollar-sign substitution** — 2 instances → [build.md](build.md)
 - **Python cp1252 encoding** — 5 instances, 2 agents → [build.md](build.md) (not escalating — self-correcting)
+- **Lossy error boundaries (AI provider edge)** — 4 instances, 1 agent → [api.md](api.md) (escalation candidate — not self-correcting; prevention = ADR-001 ActionableError at boundaries)
