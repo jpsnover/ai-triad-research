@@ -18,6 +18,7 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 const require = createRequire(import.meta.url);
 import { getApiKey, getApiKeys, getProjectRoot, EMBED_SCRIPT, resolveDataPath, type AIBackend } from '../config.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
+import { extractProviderReason, deriveKeyErrorMessage } from './providerErrors.js';
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../../lib/search/tavily.js';
 import { resolveEmbeddings, type EmbeddingFallback } from '../../../../lib/embeddings/embeddingResolver.js';
 import type { EmbeddingsFile } from '../../../../lib/electron-shared/embeddingIO.js';
@@ -852,12 +853,27 @@ export async function refreshAIModels(): Promise<unknown> {
       if (backend === 'gemini') {
         const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
         if (!resp.ok) {
-          throw new ActionableError({
-            goal: 'Refresh AI model list',
-            problem: `Gemini model discovery failed with HTTP ${resp.status}`,
-            location: 'aiBackends.refreshAIModels',
-            nextSteps: ['Check your Gemini API key', 'Try again later'],
+          // t/1624: a non-200 is a result, not a swallowed failure. Parse the
+          // provider error body for the specific reason (SERVICE_DISABLED,
+          // restricted, quota, invalid…) instead of collapsing every case into a
+          // bare `HTTP ${status}`, and record it structured. NO key material in
+          // the message/log/FR — the key rides in the fetch URL, never the payload.
+          let reason: string | undefined;
+          try {
+            reason = extractProviderReason(await resp.json());
+          } catch {
+            /* body absent or non-JSON — silent by design: the non-200 is still
+               recorded below with reason:null, so no diagnostic is lost. */
+          }
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'ai-backends',
+            level: 'warn',
+            message: 'Gemini model discovery rejected the request',
+            data: { backend: 'gemini', httpStatus: resp.status, reason: reason ?? null },
           });
+          result[backend] = { ok: false, count: 0, error: deriveKeyErrorMessage(resp.status, reason) };
+          continue;
         }
         const json = await resp.json() as { models: unknown[] };
         result[backend] = { ok: true, count: json.models?.length || 0 };
