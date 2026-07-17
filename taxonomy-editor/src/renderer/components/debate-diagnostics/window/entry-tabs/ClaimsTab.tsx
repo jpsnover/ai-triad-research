@@ -353,12 +353,31 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
               </details>
             );
           })}
-          {diag.extracted_claims.rejected.map((c, i) => (
-            <div key={i} style={{ margin: '3px 0' }}>
-              <span style={{ color: 'var(--danger)' }}>✗</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nRejected: ${c.reason === 'low_overlap' ? 'overlap too low (not grounded)' : c.reason === 'duplicate_claim' ? 'duplicate (too similar to existing AN node)' : c.reason}.`} style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)', cursor: 'default' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
-              <div style={{ color: 'var(--warning)', fontSize: 'var(--text-2xs)', paddingLeft: 16 }}>{c.reason}</div>
-            </div>
-          ))}
+          {diag.extracted_claims.rejected.map((c, i) => {
+            const isDup = c.reason === 'duplicate_claim';
+            const dupOf = isDup ? c.duplicate_of : undefined;
+            const dupText = isDup ? c.duplicate_of_text : undefined;
+            const rejectedNote = c.reason === 'low_overlap'
+              ? 'overlap too low (not grounded)'
+              : isDup
+                ? `duplicate of existing AN node${dupOf ? ` ${dupOf}` : ''}${dupText ? `: "${dupText}"` : ''}`
+                : c.reason;
+            return (
+              <div key={i} style={{ margin: '3px 0' }}>
+                <span style={{ color: 'var(--danger)' }}>✗</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nRejected: ${rejectedNote}.`} style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)', cursor: 'default' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
+                <div style={{ color: 'var(--warning)', fontSize: 'var(--text-2xs)', paddingLeft: 16 }}>
+                  {c.reason}
+                  {isDup && dupOf && (
+                    <span style={{ color: 'var(--text-muted)' }}>
+                      {' → duplicates '}
+                      <span style={{ fontWeight: 600 }}>{dupOf}</span>
+                      {dupText && <span title={dupText}>{`: "${dupText.length > 80 ? dupText.slice(0, 80) + '…' : dupText}"`}</span>}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </Section>
         );
       })()}
