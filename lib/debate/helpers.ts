@@ -10,6 +10,7 @@ import type { SpeakerId, TranscriptEntry, TaxonomyRef, TurnSymbol } from './type
 import { POVER_INFO } from './types.js';
 import type { Pov, Category, GraphAttributes } from './taxonomyTypes.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
+import { ActionableError } from './errors.js';
 
 export function generateId(): string {
   return crypto.randomUUID();
@@ -547,11 +548,34 @@ export function parseJsonRobust(text: string): unknown {
         }
       }
       const preview = text.slice(0, 200).replace(/\n/g, '\\n');
-      throw new Error(
-        `Cannot parse JSON after all repair attempts (strip fences, repair quotes/newlines, extract braces).\n` +
-        `Input preview: ${preview}\n` +
-        `This usually means the AI returned malformed or truncated output. Retry the operation or try a different model.`
-      );
+      // ADR-003: record the discarded payload (bounded head+tail) before the
+      // throw so an unrecoverable parse is never a silent boundary.
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'parseJsonRobust',
+        level: 'warn',
+        message: `parseJsonRobust exhausted all repair strategies on a ${text.length}-char payload`,
+        data: {
+          recovery_strategy: 'strip-fences|repair|brace-extract',
+          payload_length: text.length,
+          discarded_head: text.slice(0, 400),
+          discarded_tail: text.length > 600 ? text.slice(-200) : '',
+        },
+      });
+      // ADR-001: unrecoverable → ActionableError, not a bare throw. The two
+      // substrings below ("Cannot parse JSON after all repair attempts" and
+      // "Input preview:") are load-bearing for existing helpers.test.ts asserts.
+      throw new ActionableError({
+        goal: 'Parse a JSON object from an AI model response',
+        problem:
+          `Cannot parse JSON after all repair attempts (strip fences, repair quotes/newlines, extract braces). ` +
+          `Input preview: ${preview}`,
+        location: 'parseJsonRobust (lib/debate/helpers.ts)',
+        nextSteps: [
+          'Retry the operation — the AI often returns malformed or truncated output that parses on a fresh attempt.',
+          'If it persists, switch to a model with more reliable structured-output (JSON) support.',
+        ],
+      });
     }
   }
 }

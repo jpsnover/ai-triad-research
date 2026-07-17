@@ -17,6 +17,7 @@ import {
   stripExcludes,
   sanitizeTurnSymbols,
 } from './helpers.js';
+import { ActionableError } from './errors.js';
 
 // ── Helpers ───────────────────────────────────────────────
 
@@ -366,6 +367,23 @@ describe('parseJsonRobust', () => {
   it('error message includes input preview', () => {
     const badInput = 'totally broken input that is not JSON';
     expect(() => parseJsonRobust(badInput)).toThrow(/Input preview/);
+  });
+
+  it('unrecoverable input throws an ActionableError with all four fields (ADR-001, t/1632)', () => {
+    let caught: unknown;
+    try {
+      parseJsonRobust('not json at all');
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(ActionableError);
+    const err = caught as ActionableError;
+    expect(err.name).toBe('ActionableError');
+    expect(err.goal).toBeTruthy();
+    expect(err.problem).toMatch(/Cannot parse JSON/);
+    expect(err.location).toContain('parseJsonRobust');
+    expect(Array.isArray(err.nextSteps)).toBe(true);
+    expect(err.nextSteps.length).toBeGreaterThan(0);
   });
 
   it('repairs bare newlines in string values', () => {
