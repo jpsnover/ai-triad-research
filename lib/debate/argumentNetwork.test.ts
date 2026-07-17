@@ -887,3 +887,52 @@ describe('processExtractedClaims — edge strength carry-through', () => {
     expect(result.newEdges[0].strength).toBeUndefined();
   });
 });
+
+describe('processExtractedClaims — extraction-trace math invariant (t/1616)', () => {
+  // The extraction trace must satisfy:
+  //   candidates_proposed === candidates_accepted + candidates_rejected
+  // where proposed = claims.length. Previously empty/too-short candidates hit a
+  // silent `continue` (no rejected record) and claims beyond maxClaims were dropped
+  // by `.slice(0, maxClaims)` — both broke the invariant.
+  const baseInput = {
+    statement: 'AI safety governance requires mandatory third-party auditing of frontier model deployment decisions',
+    speaker: 'safetyist' as const,
+    entryId: 'entry-1',
+    turnNumber: 1,
+    existingNodes: [] as ArgumentNetworkNode[],
+    existingEdgeCount: 0,
+    startNodeId: 1,
+    taxonomyRefIds: [],
+  };
+  const baseOptions = { groundingOverlapThreshold: 0.1, isClassifyPath: false };
+
+  it('records empty and too-short candidates as rejections (no silent drop)', () => {
+    const claims = [
+      { text: '' },                                                                                  // empty
+      { text: 'too short' },                                                                         // 9 chars < 10 → too_short
+      { text: 'AI safety governance requires mandatory third-party auditing of frontier deployment' }, // valid → accepted
+    ];
+    const result = processExtractedClaims({ ...baseInput, claims }, baseOptions);
+
+    // Invariant: every proposed candidate is either accepted or rejected.
+    expect(result.accepted.length + result.rejected.length).toBe(claims.length);
+    // Empty text is counted (previously a fully-silent drop).
+    expect(result.rejectionReasons['empty']).toBe(1);
+    expect(result.rejected.some(r => r.reason === 'empty')).toBe(true);
+    // Too-short text is counted and now also produces a rejected record.
+    expect(result.rejectionReasons['too_short']).toBe(1);
+    expect(result.rejected.some(r => r.reason === 'too_short')).toBe(true);
+  });
+
+  it('records maxClaims-truncated candidates as rejections', () => {
+    const claims = Array.from({ length: 5 }, (_, i) => ({
+      text: `Distinct governance claim ${i} about frontier oversight mechanisms and compliance obligations`,
+    }));
+    // maxClaims = 3 → 2 candidates (indices 3,4) are truncated by the cap.
+    const result = processExtractedClaims({ ...baseInput, claims }, { ...baseOptions, maxClaims: 3 });
+
+    expect(result.accepted.length + result.rejected.length).toBe(claims.length);
+    expect(result.rejectionReasons['truncated']).toBe(2);
+    expect(result.rejected.filter(r => r.reason === 'truncated')).toHaveLength(2);
+  });
+});

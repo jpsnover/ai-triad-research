@@ -986,9 +986,12 @@ export function processExtractedClaims(
   for (const rawClaim of claims.slice(0, maxClaims)) {
     const claim = normalizeExtractedClaim(rawClaim);
     if (!claim.text || claim.text.length < 10) {
-      if (claim.text) {
-        rejectionReasons['too_short'] = (rejectionReasons['too_short'] ?? 0) + 1;
-      }
+      // t/1616: never drop a candidate silently. Empty and too-short candidates
+      // both get a rejected record + reason-counter bump so the extraction-trace
+      // invariant candidates_proposed === candidates_accepted + candidates_rejected holds.
+      const reason = claim.text ? 'too_short' : 'empty';
+      rejected.push({ text: claim.text ?? '', reason, overlap_pct: 0 });
+      rejectionReasons[reason] = (rejectionReasons[reason] ?? 0) + 1;
       continue;
     }
 
@@ -1274,6 +1277,18 @@ export function processExtractedClaims(
         }
       }
     }
+  }
+
+  // t/1616: candidates beyond maxClaims are dropped without evaluation by the
+  // `claims.slice(0, maxClaims)` cap above. Record each as a `truncated` rejection
+  // so it flows into candidates_rejected and the invariant
+  // candidates_proposed === candidates_accepted + candidates_rejected holds
+  // universally. `truncated` is a distinct, labeled reason in rejectionReasons —
+  // the drop is now visible in the extraction trace rather than silently absorbed.
+  for (const rawTruncated of claims.slice(maxClaims)) {
+    const truncated = normalizeExtractedClaim(rawTruncated);
+    rejected.push({ text: truncated.text ?? '', reason: 'truncated', overlap_pct: 0 });
+    rejectionReasons['truncated'] = (rejectionReasons['truncated'] ?? 0) + 1;
   }
 
   return {
