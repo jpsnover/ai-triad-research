@@ -54,16 +54,44 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
           </div>
         );
       })()}
-      {!!meta?.my_claims && (meta.my_claims as { claim: string; targets: string[] }[]).length > 0 && (
-        <Section title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`} defaultOpen copyText={(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => `${i + 1}. ${c.claim}${c.targets?.length > 0 ? ` → ${c.targets.join(', ')}` : ''}`).join('\n')}>
+      {!!meta?.my_claims && (meta.my_claims as { claim: string; targets: string[] }[]).length > 0 && (() => {
+        // t/1617: targets are prior AN node ids the claim responds to. A forward/dangling
+        // reference (e.g. → AN-7 when the network tops out at AN-6) must not look valid —
+        // cross-reference each target against the actual argument-network node ids.
+        const anNodeIds = new Set((an?.nodes ?? []).map(n => n.id));
+        return (
+        <Section title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`} defaultOpen copyText={(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => `${i + 1}. ${c.claim}${c.targets?.length > 0 ? ` → ${c.targets.map(t => anNodeIds.has(t) ? t : `${t} (no such node)`).join(', ')}` : ''}`).join('\n')}>
           {(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => (
             <div key={i} style={{ margin: '3px 0', fontSize: '0.7rem' }}>
               <span style={{ color: 'var(--color-saf)' }}>{i + 1}.</span> <Highlight text={c.claim} />
-              {c.targets?.length > 0 && <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>→ {c.targets.join(', ')}</span>}
+              {c.targets?.length > 0 && (
+                <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>
+                  {'→ '}
+                  {c.targets.map((t, ti) => {
+                    const resolved = anNodeIds.has(t);
+                    return (
+                      <React.Fragment key={ti}>
+                        {ti > 0 && ', '}
+                        {resolved ? (
+                          <span>{t}</span>
+                        ) : (
+                          <span
+                            style={{ color: 'var(--danger)', fontWeight: 600 }}
+                            title={`No argument-network node "${t}" exists — dangling/forward reference (target ids should point to prior AN nodes).`}
+                          >
+                            {t} ⚠ (no such node)
+                          </span>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </span>
+              )}
             </div>
           ))}
         </Section>
-      )}
+        );
+      })()}
 
       {/* Extraction status + re-extract button (t/226) */}
       {(() => {
