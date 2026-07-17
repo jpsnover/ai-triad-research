@@ -453,6 +453,7 @@ export function OverviewTabRouter({
           setOverviewTab={setOverviewTab}
           setSelectedEntry={setSelectedEntry}
           setLocalOverride={setLocalOverride}
+          nodeLabels={nodeLabels}
         />
       )}
 

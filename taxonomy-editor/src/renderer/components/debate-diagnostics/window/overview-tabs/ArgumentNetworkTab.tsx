@@ -28,6 +28,8 @@ interface ArgumentNetworkTabProps {
   setOverviewTab: (tab: OverviewTab) => void;
   setSelectedEntry: (id: string | null) => void;
   setLocalOverride: (v: boolean) => void;
+  /** Taxonomy node-id → human-readable label map, used to lead attribution tooltips with the node's title. */
+  nodeLabels: Map<string, string>;
 }
 
 export function ArgumentNetworkTab({
@@ -42,6 +44,7 @@ export function ArgumentNetworkTab({
   setOverviewTab,
   setSelectedEntry,
   setLocalOverride,
+  nodeLabels,
 }: ArgumentNetworkTabProps) {
   const caCount = an.edges.filter(e => e.type === 'attacks').length;
   const raCount = an.edges.filter(e => e.type === 'supports').length;
@@ -258,6 +261,7 @@ export function ArgumentNetworkTab({
                 stmtIdByEntry={stmtIdByEntry}
                 focused={focusedNodeId === n.id}
                 onUpdateSubScore={handleUpdateSubScore}
+                nodeLabels={nodeLabels}
                 defaultExpanded={allExpanded}
               />
             );

@@ -114,7 +114,7 @@ function deriveStrength(edge: { strength?: string; weight?: number }): string {
 }
 
 /** Expandable I-node row — collapsed by default showing ID, speaker, strength. Expand reveals claim text, edges, sub-scores. */
-export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, computedStrength, statementId, strengthMap, onGotoEntry, stmtIdByEntry, focused, onUpdateSubScore, searchQuery, defaultExpanded = false }: {
+export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, computedStrength, statementId, strengthMap, onGotoEntry, stmtIdByEntry, focused, onUpdateSubScore, searchQuery, nodeLabels, defaultExpanded = false }: {
   node: ArgumentNetworkNode;
   attacks: ArgumentNetworkEdge[];
   supports: ArgumentNetworkEdge[];
@@ -130,6 +130,8 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
   onUpdateSubScore: (nodeId: string, key: string, value: number) => void;
   /** Optional search query for highlighting matched text. */
   searchQuery?: string;
+  /** Optional taxonomy node-id → human-readable label map, used to lead attribution tooltips with the node's title. */
+  nodeLabels?: Map<string, string>;
   defaultExpanded?: boolean;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -206,9 +208,11 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
               const conf = attr.attribution_confidence;
               const confColor = conf >= 0.7 ? 'var(--success)' : conf >= 0.5 ? 'var(--text-muted)' : 'var(--warning)';
               const secCount = attr.secondary_refs?.length ?? 0;
+              const primaryLabel = nodeLabels?.get(attr.primary_ref);
+              const primaryTitle = primaryLabel ? `${primaryLabel} (${attr.primary_ref})` : attr.primary_ref;
               return (
                 <span
-                  title={`Attributed to ${attr.primary_ref} (confidence: ${conf.toFixed(2)})${secCount > 0 ? `\n${secCount} secondary ref${secCount !== 1 ? 's' : ''}: ${attr.secondary_refs!.map(s => `${s.node_id} (${s.similarity.toFixed(2)})`).join(', ')}` : ''}`}
+                  title={`Attributed to ${primaryTitle} (confidence: ${conf.toFixed(2)})${secCount > 0 ? `\n${secCount} secondary ref${secCount !== 1 ? 's' : ''}: ${attr.secondary_refs!.map(s => { const l = nodeLabels?.get(s.node_id); return `${l ? `${l} (${s.node_id})` : s.node_id} (${s.similarity.toFixed(2)})`; }).join(', ')}` : ''}`}
                   style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)' }}
                 ><span style={{ color: confColor, fontSize: '0.9rem', marginRight: 3 }}>●</span>{attr.primary_ref} {conf.toFixed(2)}</span>
               );
