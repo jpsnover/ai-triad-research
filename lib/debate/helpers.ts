@@ -9,6 +9,7 @@
 import type { SpeakerId, TranscriptEntry, TaxonomyRef, TurnSymbol } from './types.js';
 import { POVER_INFO } from './types.js';
 import type { Pov, Category, GraphAttributes } from './taxonomyTypes.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 export function generateId(): string {
   return crypto.randomUUID();
@@ -85,6 +86,34 @@ export function parseAIJson<T = unknown>(text: string): T | null {
       }
     }
   }
+
+  // Strategy 4: bounded backtracking over ambiguous in-string quotes (t/1631).
+  // Last-resort layer — only reached after strategies 1-3 fail. Resolves the
+  // `,`-class ambiguity that single-token lookahead in repairJson cannot.
+  const backtracked = repairJsonBacktrack(stripped);
+  if (backtracked !== null) {
+    try { return JSON.parse(backtracked) as T; } catch { /* continue */ }
+  }
+
+  // ADR-003 Family-B (Lossy Error Boundaries): every recovery strategy has now
+  // failed on a body we could not parse. Record the discarded payload (bounded
+  // head+tail) and the terminal recovery status BEFORE dropping to null, so a
+  // silent drop is never indistinguishable from "model produced nothing."
+  const head = text.slice(0, 400);
+  const tail = text.length > 600 ? text.slice(-200) : '';
+  getGlobalRecorder()?.record({
+    type: 'system.error',
+    component: 'parseAIJson',
+    level: 'warn',
+    message: `parseAIJson exhausted all recovery strategies; dropping ${text.length}-char payload to null`,
+    data: {
+      recovery_strategy: 'backtrack-exhausted',
+      payload_length: text.length,
+      ambiguous_quote_count: countAmbiguousQuotes(stripped),
+      discarded_head: head,
+      discarded_tail: tail,
+    },
+  });
 
   return null;
 }
@@ -190,6 +219,119 @@ function repairJson(text: string): string {
   // Remove trailing commas
   repaired = repaired.replace(/,\s*([\]}])/g, '$1');
   return repaired;
+}
+
+// --- Strategy 4: bounded backtracking over ambiguous in-string quotes (t/1631) ---
+//
+// The `repairJson` heuristic (above) commits to a single interpretation of each
+// in-string `"` using a one-token lookahead: an unescaped quote followed by
+// `,` `:` `}` `]` is treated as a string terminator. When such a quote is
+// actually *inside* prose (e.g. `... the "safety" case, ...`), that guess
+// corrupts the repair and `parseAIJson` drops the whole body to null — the
+// production incident behind t/1631.
+//
+// A wider lookahead cannot resolve this: the `,`-class is genuinely ambiguous
+// (both "terminator then next field" and "in-prose quote then more prose" are
+// locally valid). The only correct resolution is to *try both* and keep the
+// interpretation that yields parseable JSON. This is a last-resort layer,
+// engaged only after strategies 1-3 have failed and only at the ambiguous
+// branch points — the happy path never reaches it.
+//
+// Bounds (TL condition: "bounded, and prove the bound"):
+//   * BACKTRACK_MAX_BRANCH_POINTS — an O(n) pre-count of ambiguous quotes; a
+//     body with more than this is rejected up front (clean null), so we never
+//     enter the search on a pathological input.
+//   * BACKTRACK_MAX_CANDIDATES — a hard cap on branches explored *and*
+//     candidate parses attempted during the search, so even within the
+//     pre-count bound total work is O(n * cap), never exponential.
+const BACKTRACK_MAX_BRANCH_POINTS = 24;
+const BACKTRACK_MAX_CANDIDATES = 40;
+
+/**
+ * Count the ambiguous in-string quotes (unescaped `"` that the single-token
+ * heuristic would read as structural). Pure O(n) scan — used to reject
+ * pathological bodies before any backtracking begins.
+ */
+function countAmbiguousQuotes(text: string): number {
+  let count = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (escaped) { escaped = false; continue; }
+    if (ch === '\\') { escaped = true; continue; }
+    if (ch === '"') {
+      if (inString) {
+        const rest = text.slice(i + 1).trimStart();
+        const isStructural = rest.length === 0 || /^[,:\]}\n\r]/.test(rest);
+        if (isStructural) { count++; inString = false; }
+      } else {
+        inString = true;
+      }
+    }
+  }
+  return count;
+}
+
+/**
+ * Bounded backtracking repair. At each ambiguous in-string `"`, first try
+ * treating it as a string terminator (recurse); if that whole path fails to
+ * yield parseable JSON, fall back to escaping the quote as in-prose and
+ * continue. Returns a parseable JSON string, or null if every bounded
+ * interpretation fails (or the input is pathological / has no ambiguity).
+ */
+function repairJsonBacktrack(text: string): string | null {
+  const ambiguousCount = countAmbiguousQuotes(text);
+  // No ambiguity → nothing this layer can add over strategies 1-3.
+  if (ambiguousCount === 0) return null;
+  // Pathological → clean null without entering the search (proves the bound).
+  if (ambiguousCount > BACKTRACK_MAX_BRANCH_POINTS) return null;
+
+  let candidatesTried = 0;
+  let branchesExplored = 0;
+
+  function search(startI: number, inStringInit: boolean, acc: string[]): string | null {
+    let inString = inStringInit;
+    let escaped = false;
+    for (let i = startI; i < text.length; i++) {
+      const ch = text[i];
+      if (escaped) { acc.push(ch); escaped = false; continue; }
+      if (ch === '\\') { acc.push(ch); escaped = true; continue; }
+      if (ch === '"') {
+        if (inString) {
+          const rest = text.slice(i + 1).trimStart();
+          const isStructural = rest.length === 0 || /^[,:\]}\n\r]/.test(rest);
+          if (isStructural) {
+            // Ambiguous branch point: try "terminate string" first.
+            if (++branchesExplored > BACKTRACK_MAX_CANDIDATES) return null;
+            const branchA = search(i + 1, false, [...acc, ch]);
+            if (branchA !== null) return branchA;
+            // Terminator interpretation failed downstream — treat as in-prose.
+            acc.push('\\', '"');
+            continue;
+          } else {
+            // Unambiguously in-prose — escape and continue (no branch).
+            acc.push('\\', '"');
+            continue;
+          }
+        } else {
+          inString = true;
+          acc.push(ch);
+          continue;
+        }
+      }
+      if (inString && (ch === '\n' || ch === '\r')) {
+        acc.push('\\', ch === '\n' ? 'n' : 'r');
+        continue;
+      }
+      acc.push(ch);
+    }
+    if (++candidatesTried > BACKTRACK_MAX_CANDIDATES) return null;
+    const candidate = acc.join('').replace(/,\s*([\]}])/g, '$1');
+    try { JSON.parse(candidate); return candidate; } catch { return null; }
+  }
+
+  return search(0, false, []);
 }
 
 /** Parse @-mentions from user input. Returns { targets, cleanedInput } */

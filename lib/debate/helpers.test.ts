@@ -301,6 +301,42 @@ I have provided my response in the required format.`;
   it('handles empty array', () => {
     expect(parseAIJson('[]')).toEqual([]);
   });
+
+  // -- Strategy 4: bounded backtracking over ambiguous in-string quotes (t/1631) --
+
+  it('parses an unescaped in-string quote followed by a comma (incident shape)', () => {
+    // Production incident: a debater sketch contained an unescaped `"` immediately
+    // followed by `,` inside a string value. repairJson's single-token lookahead
+    // misreads it as a string terminator; only trial-parse backtracking recovers it.
+    const input = '{"a": "he said "no", really", "b": 1}';
+    const result = parseAIJson<{ a: string; b: number }>(input);
+    expect(result).not.toBeNull();
+    expect(result!.a).toBe('he said "no", really');
+    expect(result!.b).toBe(1);
+  });
+
+  it('returns null for a body truncated mid-string (AC4)', () => {
+    // Unrecoverable (no closing quote/bracket) must drop to a clean null, not throw.
+    const input = '{"statement": "this got cut off mid sen';
+    expect(parseAIJson(input)).toBeNull();
+  });
+
+  it('returns clean null for a pathological many-ambiguous-quote body without backtracking blowup (bound proof)', () => {
+    // >24 ambiguous in-string quotes trips the pre-count guard, so the backtracker
+    // rejects before entering the search — proving the bound holds and the work
+    // stays linear (the test completing at all, rather than hanging, is the proof).
+    const input = '{"x": "a"' + ', "a"'.repeat(30) + '}';
+    expect(parseAIJson(input)).toBeNull();
+  });
+
+  it('does not regress valid JSON with legitimately escaped inner quotes', () => {
+    // Strategy 1 must still handle well-formed input; Strategy 4 never engages.
+    const input = '{"quote": "She said \\"hello\\"", "n": 2}';
+    const result = parseAIJson<{ quote: string; n: number }>(input);
+    expect(result).not.toBeNull();
+    expect(result!.quote).toBe('She said "hello"');
+    expect(result!.n).toBe(2);
+  });
 });
 
 // ── parseJsonRobust ─────────────────────────────────────
