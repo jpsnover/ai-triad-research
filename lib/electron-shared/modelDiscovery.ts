@@ -171,6 +171,8 @@ export async function discoverGroqModels(apiKey: string): Promise<ModelEntry[]> 
 // ── Anthropic: probe candidate model IDs ───────────────────────────────────────
 
 const CLAUDE_CANDIDATES: { apiModelId: string; label: string }[] = [
+  { apiModelId: 'claude-opus-4-8',                label: 'Opus 4.8 (alias)' },
+  { apiModelId: 'claude-fable-5',                 label: 'Fable 5 (alias)' },
   { apiModelId: 'claude-opus-4-6-20250514',       label: 'Opus 4.6' },
   { apiModelId: 'claude-sonnet-4-6-20250514',     label: 'Sonnet 4.6' },
   { apiModelId: 'claude-sonnet-4-5-20241022',     label: 'Sonnet 4.5 (Oct 2024)' },
