@@ -6,7 +6,7 @@
  * Called after each debater's turn to extract claims and relationships.
  */
 
-import { MOVE_EDGE_MAP, SUPPORT_MOVES, wordOverlap, maxOverlapVsExisting, lookupTaxonomyEdgeWeight } from './helpers.js';
+import { MOVE_EDGE_MAP, SUPPORT_MOVES, wordOverlap, bestOverlapMatch, lookupTaxonomyEdgeWeight } from './helpers.js';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge, ClaimTaxonomyAttribution } from './types.js';
 import { cosineSimilarity, scoreNodeRelevanceMeanTopN } from './taxonomyRelevance.js';
 import { retrieveEvidence } from './evidenceRetriever.js';
@@ -926,7 +926,8 @@ export interface ProcessClaimsResult {
   newNodes: ArgumentNetworkNode[];
   newEdges: ArgumentNetworkEdge[];
   accepted: { text: string; id: string; overlap_pct: number }[];
-  rejected: { text: string; reason: string; overlap_pct: number }[];
+  /** `duplicate_of`/`duplicate_of_text` set only when `reason === 'duplicate_claim'` (t/1614). */
+  rejected: { text: string; reason: string; overlap_pct: number; duplicate_of?: string; duplicate_of_text?: string }[];
   commitments: { asserted: string[]; conceded: string[]; challenged: string[] };
   rejectionReasons: Record<string, number>;
   rejectedOverlapPcts: number[];
@@ -992,12 +993,18 @@ export function processExtractedClaims(
     }
 
     const debaterNodes = allNodes.filter(n => n.speaker !== 'document');
-    const overlapVsAN = maxOverlapVsExisting(claim.text, debaterNodes);
+    const { overlap: overlapVsAN, node: dupNode } = bestOverlapMatch(claim.text, debaterNodes);
     if (overlapVsAN > maxOverlap) maxOverlap = overlapVsAN;
 
     if (overlapVsAN >= dupThreshold) {
       const pct = Math.round(overlapVsAN * 100);
-      rejected.push({ text: claim.text, reason: 'duplicate_claim', overlap_pct: pct });
+      rejected.push({
+        text: claim.text,
+        reason: 'duplicate_claim',
+        overlap_pct: pct,
+        duplicate_of: dupNode?.id,
+        duplicate_of_text: dupNode?.text,
+      });
       rejectionReasons['duplicate_claim'] = (rejectionReasons['duplicate_claim'] ?? 0) + 1;
       rejectedOverlapPcts.push(pct);
       continue;

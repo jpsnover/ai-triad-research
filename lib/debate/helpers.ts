@@ -803,13 +803,30 @@ export function defaultGraphAttributes(pov: Pov, category: Category): GraphAttri
   };
 }
 
-export function maxOverlapVsExisting(text: string, existing: { text: string }[]): number {
+/**
+ * Find the existing node with the highest word-overlap against `text`.
+ * Returns both the overlap score and the argmax node (null when `existing` is empty
+ * or nothing overlaps). Callers that only need the scalar can use
+ * {@link maxOverlapVsExisting}, which delegates here.
+ */
+export function bestOverlapMatch<T extends { text: string }>(
+  text: string,
+  existing: T[],
+): { overlap: number; node: T | null } {
   let max = 0;
+  let best: T | null = null;
   for (const n of existing) {
     const o = wordOverlap(text, n.text);
-    if (o > max) max = o;
+    if (o > max) {
+      max = o;
+      best = n;
+    }
   }
-  return max;
+  return { overlap: max, node: best };
+}
+
+export function maxOverlapVsExisting(text: string, existing: { text: string }[]): number {
+  return bestOverlapMatch(text, existing).overlap;
 }
 
 export function lookupTaxonomyEdgeWeight(

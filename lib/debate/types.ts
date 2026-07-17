@@ -1179,7 +1179,11 @@ export interface EntryDiagnostics {
   commitment_context?: string;
   extracted_claims?: {
     accepted: { text: string; id: string; overlap_pct: number }[];
-    rejected: { text: string; reason: string; overlap_pct: number }[];
+    /**
+     * `duplicate_of` / `duplicate_of_text` are set only when `reason === 'duplicate_claim'`:
+     * the AN node id (e.g. `AN-12`) whose word-overlap triggered the rejection, and its text (t/1614).
+     */
+    rejected: { text: string; reason: string; overlap_pct: number; duplicate_of?: string; duplicate_of_text?: string }[];
   };
   /** Legacy claim-extraction capture — prompt, raw response, parse count, schemes. */
   claim_extraction?: {
