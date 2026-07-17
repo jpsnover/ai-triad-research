@@ -33,8 +33,6 @@ export interface FaultProfile {
 
 export interface FaultStats {
   timeouts: number;
-  retries: number;
-  fallbackAttempts: number;
   errors: number;
 }
 
@@ -58,7 +56,7 @@ function geminiOkBody(text = 'Hello from Gemini') {
 // ── FaultHarness ─────────────────────────────────────────
 
 export class FaultHarness {
-  stats: FaultStats = { timeouts: 0, retries: 0, fallbackAttempts: 0, errors: 0 };
+  stats: FaultStats = { timeouts: 0, errors: 0 };
   private profile: FaultProfile;
   private originalFetch: typeof globalThis.fetch | null = null;
   private callCount = 0;
@@ -74,7 +72,7 @@ export class FaultHarness {
     this.installed = true;
     this.callCount = 0;
     this.startTime = Date.now();
-    this.stats = { timeouts: 0, retries: 0, fallbackAttempts: 0, errors: 0 };
+    this.stats = { timeouts: 0, errors: 0 };
 
     this.originalFetch = globalThis.fetch;
     const self = this;

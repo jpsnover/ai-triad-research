@@ -151,13 +151,13 @@ describe('Z.AI timeout failover (t/1628)', () => {
       // every simulated timeout; the primary zai model is retried once before
       // the chain runs, so at least one timeout is recorded.
       //
-      // DEVIATION (asked X, did Y, because Z): the TL-approved design (t/1628#2)
-      // proposed asserting harness.stats.fallbackAttempts >= 1. The FaultHarness
-      // declares that field but never increments it — failover happens inside
-      // aiAdapter, not the harness — so it is always 0. We assert the observable
-      // outcome (fallback statement returned) plus stats.timeouts instead, which
-      // proves the same behavior without depending on a counter the harness
-      // does not maintain.
+      // HISTORY (t/1628 → t/1633): the original TL-approved design (t/1628#2)
+      // proposed asserting a `fallbackAttempts` counter. FaultHarness only stubs
+      // fetch, while failover happens inside aiAdapter above that layer, so the
+      // counter could never be populated — it was a dead-green trap and was
+      // removed from FaultStats in t/1633. We assert the observable outcome
+      // (fallback statement returned) plus stats.timeouts instead, which proves
+      // the same behavior using only counters the harness actually maintains.
       expect(harness.stats.timeouts).toBeGreaterThanOrEqual(1);
     } finally {
       harness.teardown();
