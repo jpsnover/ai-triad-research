@@ -54,6 +54,7 @@ interface DebateDelta {
   removedEdgeIds?: string[];
   newMutations: ANMutation[];                // append into argument_network.mutations
   meta?: Partial<DebateSessionMeta>;         // DebateSessionMeta = Pick<DebateSession,'title'|'updated_at'|'phase'>
+  changedFields?: Partial<DebateSession>;    // shallow-overlay for per-turn analytics fields with no dedicated surface
 }
 ```
 
@@ -68,19 +69,20 @@ Append-mostly surfaces (`transcript`, `mutations`) send only the tail beyond
 `baseVersion`. Mutable surfaces (`nodes`, `edges`) send changed-since-base by id
 (upsert), with explicit removal lists for deletions.
 
-> **OPEN — payload completeness (t/1634 review, being resolved with DebateTool):**
+> **RESOLVED — payload completeness (t/1634#3, Case 3, frozen 2026-07-17):**
 > A large set of `DebateSession` fields mutate **per turn** and are carried by
-> *none* of the surfaces above — `convergence_tracker`, `qbaf_timeline`,
+> *none* of the purpose-built surfaces above — `convergence_tracker`, `qbaf_timeline`,
 > `turn_embeddings`, `position_drift`, `per_claim_drift`, `extraction_summary`,
 > `turn_validations`, `convergence_signals`, `process_rewards`, `commitments`,
-> `moderator_state`, and others. If those change on the web autosave path, a delta
-> that omits them either (a) silently staleness's them on the server (correctness
-> bug, same class as the t/1637 snapshot-drop), or (b) forces a full-PUT fallback
-> every save (feature never fires). Resolution options: force full-PUT whenever the
-> diff touches anything outside {transcript-append, AN-upsert, scalar-meta}; or add
-> a generic `changedFields?: Partial<DebateSession>` shallow-overlay so the payload
-> stays extensible. Decision pending DebateTool's read of the per-turn write path;
-> the `DebateDelta` shape above is **not frozen** until it lands.
+> `moderator_state`, and others. DebateTool verified (`debateLoopSlice.ts:244`,
+> `argumentNetwork.ts:875-941`) that these are written into `activeDebate`
+> client-side and uploaded on **essentially every** web autosave — i.e. **Case 3**
+> (they change every save), not case 1/2. Omitting them would silently staleness them
+> on the server (t/1637-class correctness bug). **Resolution:** the generic
+> `changedFields?: Partial<DebateSession>` shallow-overlay (added to the interface
+> above), populated from t/1637's snapshot-diff change-set. The `DebateDelta` shape
+> is now **frozen**. See the merge-order rule under *Merge Function* for how the
+> overlay interacts with the structured surfaces.
 
 ### Optimistic Concurrency: `_saveVersion`
 
@@ -103,11 +105,22 @@ already narrows, without silently clobbering.
 `lib/debate` (DebateTool scope) so both the server merge step and any client-side
 verification use one implementation. It:
 
-- appends `newTranscriptEntries` / `newMutations`,
-- upserts `changedNodes` / `changedEdges` by id,
-- applies `removedNodeIds` / `removedEdgeIds`,
-- shallow-merges `meta`,
+- overlays `changedFields` onto the root **first** (generic per-turn analytics),
+- **then** applies the purpose-built structured surfaces so they always win over the
+  generic overlay: appends `newTranscriptEntries` / `newMutations`, upserts
+  `changedNodes` / `changedEdges` by id, applies `removedNodeIds` / `removedEdgeIds`,
+  shallow-merges `meta`,
+- increments `_saveVersion` **last**, and **ignores any `_saveVersion` inside
+  `changedFields`** — the version is authoritative from the version guard + this
+  increment, never client-supplied,
 - throws `ActionableError` on a base-version mismatch (caller maps to 409).
+
+**Merge order matters and is locked (t/1634#3):** `changedFields` is a generic
+`Partial<DebateSession>` overlay, so it *could* carry a structured surface (e.g. a
+whole `argument_network`) or a stale `_saveVersion`. Applying the structured
+surfaces after the overlay, and stripping any client `_saveVersion`, keeps the
+purpose-built merges and the version authoritative. DebateTool's tests include a
+"`changedFields` overlay loses to a structured surface" case.
 
 Shipping this as an Interface-First prerequisite ticket unblocks all three
 consumers to build against the contract in parallel.
@@ -175,6 +188,11 @@ A (DebateTool: types + applyDebateDelta + tests)   [Interface-First prereq]
 - Delta for the Electron local save path (no upload leg).
 - Streaming / incremental *read* (this is save-only).
 - Compaction of `argument_network` history (`mutations` growth is t/673's concern).
+- **Field-level delta for `turn_embeddings`** (append-by-key, like `transcript`). The
+  `changedFields` overlay re-uploads the *whole* `turn_embeddings` map every save, so
+  it grows monotonically and erodes the upload-size win for that one field.
+  Correctness is unaffected (the field is carried); this is a future optimization,
+  client-side / owner D (Taxonomy Editor) territory — filed as a follow-up.
 
 ## Risks & Mitigations
 
@@ -185,3 +203,5 @@ A (DebateTool: types + applyDebateDelta + tests)   [Interface-First prereq]
 | A delta computed against a stale base corrupts the doc | Server rejects any `baseVersion ≠ stored version`; never best-effort merges |
 | Existing full-JSON debates lack a version | Lazy: absent `_saveVersion` = 0; first save always full PUT |
 | Web/Electron behavioral drift | Delta is web-only; `@bridge` contract keeps callers agnostic; Electron keeps full save |
+| `changedFields` overlay carries a structured surface or a stale `_saveVersion` | `applyDebateDelta` applies structured surfaces (transcript/AN/meta) **after** the overlay and strips any client `_saveVersion`; DebateTool test asserts the surface wins (t/1634#3) |
+| Shallow-overlay re-uploads the whole `turn_embeddings` map every save, eroding the win | Accepted for now (correctness intact); future field-level append-by-key delta for `turn_embeddings` is a Non-Goal / owner-D follow-up |
