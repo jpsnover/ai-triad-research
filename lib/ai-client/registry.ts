@@ -161,6 +161,113 @@ export function filterByCapabilities(
   });
 }
 
+export type ConfigIssueSeverity = 'warning' | 'info';
+
+export interface ConfigIssue {
+  severity: ConfigIssueSeverity;
+  /** The offending model id as written in the config. */
+  modelId: string;
+  /** Dotted path to the config site referencing it (e.g. "debateTiers.advanced.gemini"). */
+  referenceSite: string;
+  message: string;
+}
+
+/**
+ * Diagnose model-id references in a registry that do not resolve to a real model.
+ *
+ * Pure and non-throwing — returns a list of issues rather than failing, because
+ * `resolveModel` verbatim passthrough is intentional (un-curated-but-valid provider
+ * models such as azure-* BYOK ids legitimately are absent from the curated `models[]`
+ * array) and `pricing` is a deliberate superset keyed by apiModelId.
+ *
+ * - `defaults` / `debateTiers` values that resolve to neither a real model nor a known
+ *   `*-latest` alias are flagged `warning` (likely typo or a model that no longer exists).
+ * - `pricing` keys with no matching `models[].apiModelId` are flagged `info` (superset,
+ *   harmless until a matching model is discovered).
+ *
+ * Config keys beginning with `_` (e.g. `_comment`) are skipped.
+ */
+export function validateModelConfig(registry: ModelRegistry): ConfigIssue[] {
+  const issues: ConfigIssue[] = [];
+  const idMap = buildModelIdMap(registry);
+
+  const isResolvable = (id: string): boolean => {
+    // Known model id, or a synthesized `*-latest` alias present in the map.
+    if (idMap[id]) return true;
+    // A live `-latest` that getApiModelId can resolve to a real apiModelId.
+    return getApiModelId(idMap, id) !== id;
+  };
+
+  const checkReference = (id: unknown, site: string): void => {
+    if (typeof id !== 'string' || id.length === 0) return;
+    if (isResolvable(id)) return;
+    issues.push({
+      severity: 'warning',
+      modelId: id,
+      referenceSite: site,
+      message: `Model id "${id}" referenced at ${site} does not map to any entry in models[] or a known -latest alias. It would be passed verbatim to the provider API by resolveModel and only fail as a 400 at request time.`,
+    });
+  };
+
+  if (registry.defaults) {
+    for (const [backend, id] of Object.entries(registry.defaults)) {
+      if (backend.startsWith('_')) continue;
+      checkReference(id, `defaults.${backend}`);
+    }
+  }
+
+  if (registry.debateTiers) {
+    for (const [tier, tierMap] of Object.entries(registry.debateTiers)) {
+      if (tier.startsWith('_') || typeof tierMap !== 'object' || tierMap === null) continue;
+      for (const [backend, id] of Object.entries(tierMap)) {
+        if (backend.startsWith('_')) continue;
+        checkReference(id, `debateTiers.${tier}.${backend}`);
+      }
+    }
+  }
+
+  if (registry.pricing) {
+    const knownApiModelIds = new Set(registry.models.map(m => m.apiModelId));
+    for (const key of Object.keys(registry.pricing)) {
+      if (key.startsWith('_')) continue;
+      if (knownApiModelIds.has(key)) continue;
+      issues.push({
+        severity: 'info',
+        modelId: key,
+        referenceSite: `pricing.${key}`,
+        message: `Pricing entry "${key}" has no matching models[].apiModelId. Pricing is keyed by apiModelId and is a superset by design, so this is unused until a matching model is discovered.`,
+      });
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * Opt-in strict gate: throw an {@link ActionableError} if the registry has any
+ * `warning`-severity config issue. `info` issues (pricing superset) are ignored.
+ *
+ * Not wired into the default `loadModelRegistry` path — verbatim passthrough is
+ * load-bearing and the current committed config has legitimate warning-free-but-
+ * unmapped references. Call this from CI or a `Test-AIModelConfig` cmdlet to fail
+ * loud on drift before it reaches production.
+ */
+export function assertModelConfigValid(registry: ModelRegistry): void {
+  const warnings = validateModelConfig(registry).filter(i => i.severity === 'warning');
+  if (warnings.length === 0) return;
+  const detail = warnings.map(w => `  - ${w.referenceSite} -> "${w.modelId}"`).join('\n');
+  throw new ActionableError({
+    goal: 'Validate AI model registry configuration',
+    problem: `${warnings.length} model id reference(s) do not resolve to a real model or known alias:\n${detail}`,
+    location: 'registry.assertModelConfigValid',
+    nextSteps: [
+      'Fix the typo in ai-models.json, or add the model to the models[] array',
+      'If the id is an intentional provider passthrough, confirm the provider accepts it',
+      'Run validateModelConfig(registry) to see the full issue list including info-level notes',
+    ],
+  });
+}
+
 export function estimateCost(
   registry: ModelRegistry,
   apiModelId: string,

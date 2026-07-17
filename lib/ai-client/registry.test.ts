@@ -2,7 +2,13 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { getModelCapabilities, filterByCapabilities, estimateCost } from './registry.js';
+import {
+  getModelCapabilities,
+  filterByCapabilities,
+  estimateCost,
+  validateModelConfig,
+  assertModelConfigValid,
+} from './registry.js';
 import type { ModelRegistry } from './registry.js';
 
 const TEST_REGISTRY: ModelRegistry = {
@@ -169,5 +175,116 @@ describe('estimateCost', () => {
   it('handles missing token counts as zero', () => {
     const cost = estimateCost(TEST_REGISTRY, 'gpt-4o', {});
     expect(cost).toBe(0);
+  });
+});
+
+describe('validateModelConfig', () => {
+  // Base registry whose models[] synthesizes a `gemini-flash-latest` alias
+  // (via buildModelIdMap parsing `gemini-2.5-flash` → family gemini-flash, v2.5).
+  const BASE: ModelRegistry = {
+    backends: [
+      { id: 'gemini', label: 'Gemini' },
+      { id: 'openai', label: 'OpenAI' },
+    ],
+    models: [
+      { id: 'gemini-2.5-flash', apiModelId: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', backend: 'gemini' },
+      { id: 'openai-gpt-4o', apiModelId: 'gpt-4o', label: 'GPT-4o', backend: 'openai' },
+    ],
+  };
+
+  it('flags a typo\'d defaults value as a warning naming the id and site', () => {
+    const registry: ModelRegistry = { ...BASE, defaults: { gemini: 'gemini-2.5-flahs' } };
+    const issues = validateModelConfig(registry);
+    const warnings = issues.filter(i => i.severity === 'warning');
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].modelId).toBe('gemini-2.5-flahs');
+    expect(warnings[0].referenceSite).toBe('defaults.gemini');
+    expect(warnings[0].message).toContain('gemini-2.5-flahs');
+  });
+
+  it('does not warn on a synthesized -latest alias in defaults', () => {
+    const registry: ModelRegistry = { ...BASE, defaults: { gemini: 'gemini-flash-latest' } };
+    expect(validateModelConfig(registry).filter(i => i.severity === 'warning')).toHaveLength(0);
+  });
+
+  it('does not warn on a real model id in defaults', () => {
+    const registry: ModelRegistry = { ...BASE, defaults: { openai: 'openai-gpt-4o' } };
+    expect(validateModelConfig(registry).filter(i => i.severity === 'warning')).toHaveLength(0);
+  });
+
+  it('returns no warnings for a coherent config (defaults + debateTiers)', () => {
+    const registry: ModelRegistry = {
+      ...BASE,
+      defaults: { gemini: 'gemini-2.5-flash', openai: 'openai-gpt-4o' },
+      debateTiers: {
+        basic: { gemini: 'gemini-2.5-flash' },
+        advanced: { openai: 'openai-gpt-4o' },
+      },
+    };
+    expect(validateModelConfig(registry).filter(i => i.severity === 'warning')).toHaveLength(0);
+  });
+
+  it('flags an unmapped debateTiers value with the dotted tier.backend site', () => {
+    const registry: ModelRegistry = {
+      ...BASE,
+      debateTiers: { advanced: { openai: 'openai-gpt-4o-does-not-exist' } },
+    };
+    const warnings = validateModelConfig(registry).filter(i => i.severity === 'warning');
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].referenceSite).toBe('debateTiers.advanced.openai');
+  });
+
+  it('flags a pricing superset key as info (not a warning)', () => {
+    const registry: ModelRegistry = {
+      ...BASE,
+      pricing: {
+        'gpt-4o': { inputPer1M: 5, outputPer1M: 15 },       // matches models[].apiModelId
+        'gemini-2.5-pro': { inputPer1M: 1.25, outputPer1M: 10 }, // superset, no matching model
+      },
+    };
+    const issues = validateModelConfig(registry);
+    expect(issues.filter(i => i.severity === 'warning')).toHaveLength(0);
+    const infos = issues.filter(i => i.severity === 'info');
+    expect(infos).toHaveLength(1);
+    expect(infos[0].modelId).toBe('gemini-2.5-pro');
+    expect(infos[0].referenceSite).toBe('pricing.gemini-2.5-pro');
+  });
+
+  it('skips underscore-prefixed keys (_comment) in defaults, tiers, and pricing', () => {
+    const registry: ModelRegistry = {
+      ...BASE,
+      defaults: { _comment: 'a note', gemini: 'gemini-2.5-flash' } as Record<string, string>,
+      debateTiers: {
+        _comment: 'tier note' as unknown as Record<string, string>,
+        advanced: { _comment: 'inner note', openai: 'openai-gpt-4o' } as Record<string, string>,
+      },
+      pricing: { _comment: { inputPer1M: 0, outputPer1M: 0 } },
+    };
+    expect(validateModelConfig(registry)).toHaveLength(0);
+  });
+});
+
+describe('assertModelConfigValid', () => {
+  const BASE: ModelRegistry = {
+    backends: [{ id: 'openai', label: 'OpenAI' }],
+    models: [{ id: 'openai-gpt-4o', apiModelId: 'gpt-4o', label: 'GPT-4o', backend: 'openai' }],
+  };
+
+  it('throws when a warning-severity issue exists', () => {
+    const registry: ModelRegistry = { ...BASE, defaults: { openai: 'openai-typo' } };
+    expect(() => assertModelConfigValid(registry)).toThrow(/openai-typo/);
+  });
+
+  it('does not throw for info-only issues (pricing superset)', () => {
+    const registry: ModelRegistry = {
+      ...BASE,
+      pricing: { 'unmatched-model': { inputPer1M: 1, outputPer1M: 1 } },
+    };
+    expect(() => assertModelConfigValid(registry)).not.toThrow();
+  });
+
+  it('does not throw for a coherent config', () => {
+    const registry: ModelRegistry = { ...BASE, defaults: { openai: 'openai-gpt-4o' } };
+    expect(() => assertModelConfigValid(registry)).not.toThrow();
   });
 });
