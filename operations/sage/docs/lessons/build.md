@@ -845,3 +845,23 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active
 
 **Applies To:** All agents landing stacked feature branches, especially via the worktree landing procedure.
+
+---
+
+## [Build] PowerShell Through the Bash Tool — Git Bash Eats Shell Operators Before pwsh Sees Them
+
+**Pattern:** Running a PowerShell pipeline through the **Bash tool** (which is Git Bash) fails when shell metacharacters — a pipe `|` or a backtick line-continuation — sit **outside** the `pwsh -Command '...'` string. Git Bash interprets them itself before pwsh is ever invoked, so the pipe splits the command at the bash level and the backtick is consumed as a bash escape, producing truncated commands or `unexpected EOF` rather than the intended pwsh pipeline.
+
+**Instances:**
+- 2026-07-17 — PowerShell (during t/1621 work, p/20#17): two failures piping PowerShell through the Bash tool — `pwsh -Command '...' | Something` sent the `|` to bash (not the pwsh pipeline), and a backtick line-continuation was eaten by bash before pwsh saw it. Fix: keep the whole pipeline inside a single `pwsh -Command '...'` string, or use the PowerShell tool directly.
+
+**Root Cause:** The Bash tool is Git Bash, not pwsh. Only the text **inside** the quoted `-Command '...'` argument reaches PowerShell; everything else on the line is parsed by bash first. `|`, `` ` ``, `$`, `>`, `&&` and friends are bash metacharacters — placed outside the quoted command string they are consumed by bash, so pwsh receives a fragment. This is a distinct mechanism from quote-delimiter collision (see "Bash Heredoc Failures with Nested Quotes") and from `$`-substitution corruption — here the failure is a **shell operator leaking out of the command string**, not a mangled literal.
+
+**Prevention:**
+1. **Prefer the PowerShell tool** for any PowerShell work — it is the fleet default and sidesteps the two-shell problem entirely (root AGENTS.md Search Tooling Rule points the same way).
+2. If you must go through the Bash tool, keep the **entire** pipeline inside one `pwsh -Command '...'` string — every `|`, `` ` ``, and `$` must live inside the quotes so pwsh, not bash, parses them.
+3. Never rely on bash line-continuation (trailing `` ` `` or `\`) to span a pwsh command across Bash-tool lines — write the whole command on one logical line inside the quoted string, or write a script file (Shell Quoting Rule) and run it.
+
+**Status:** Active
+
+**Applies To:** All agents running PowerShell through the Bash tool on Windows/Git Bash.

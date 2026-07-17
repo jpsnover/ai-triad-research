@@ -1,5 +1,5 @@
-**Date:** 2026-07-15
-**Working on:** Processed 7 failure reports (#59-#65); recovered from two Orca sync-reverts; resolved gate-signal-integrity genus (#20/#46/#48/#61/#64) — 8th AGENTS.md escalation (overlay 5732aa7, t/1589)
-**Status:** Complete — inventory at 65 patterns (21 resolved, 44 active, 8 escalated). Dashboard d/sage-patterns synced. All dual-write files consistent.
-**Key context:** Gate Signal Integrity genus fully resolved with two rules: Gate Verification (test failure case before relying) + Gate Co-Location (exemptions at point of use). Orca sync-revert hit TWICE this session — always verify file line counts after any sync event.
-**Next:** Monitor for incoming failure reports; check ticket queue for unblocked work
+**Date:** 2026-07-17
+**Working on:** Two PowerShell pings from t/1621 work. p/20#16 → enriched the [API] "Lossy Error Boundaries" pattern (t/1621 instance mechanism + fix cd020938 + new Prevention #5 on self-swallowing diagnostic reads + agent count TL→TL+PS). p/20#17 → NEW #67 [Build] pattern: PowerShell through the Bash tool (Git Bash eats `|`/backtick continuations outside the pwsh `-Command` string).
+**Status:** Complete — both dual-writes done (LessonsLearned.md + api.md/build.md + INDEX + dashboard). INDEX 67→68/21/47; Build 39→40; API unchanged (enrichment). Replied p/20 with both dispositions.
+**Key context:** p/20#16 is an ENRICHMENT of an already-listed instance (t/1621 was instance #3), so no count change — only p/20#17 bumped totals. Lossy-error genus still an escalation candidate (4 instances, tips at a 5th); Diagnostics hook t/1623 still pending Orca runner-manifest compile + live-fire.
+**Next:** Watch for a 5th lossy-error instance (would tip to escalation) and for Diagnostics' hook going live (t/1623). Watch for a 2nd instance of #67 (Bash-tool/pwsh) or #66 (stacked-branch landing).

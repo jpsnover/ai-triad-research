@@ -3,13 +3,13 @@
 Institutional memory for failure patterns across the AI Triad Research project.
 Organized by category. Each file contains the full pattern details.
 
-**Last updated:** 2026-07-17 | **Total patterns:** 67 | **Resolved:** 21 | **Active:** 46
+**Last updated:** 2026-07-17 | **Total patterns:** 68 | **Resolved:** 21 | **Active:** 47
 
 ## Summary
 
 | Category | File | Patterns | Resolved | Active |
 |----------|------|----------|----------|--------|
-| Build | [build.md](build.md) | 39 | 10 | 29 |
+| Build | [build.md](build.md) | 40 | 10 | 30 |
 | PowerShell | [powershell.md](powershell.md) | 7 | 3 | 4 |
 | Data | [data.md](data.md) | 3 | 1 | 2 |
 | Type System | [type-system.md](type-system.md) | 4 | 0 | 4 |
@@ -41,4 +41,4 @@ Seven patterns crossed the 3-instance threshold (or were high-severity) and beca
 - **Pathspec skips untracked** — 4 instances, 4 agents → [build.md](build.md) (not escalating — self-correcting)
 - **Bash dollar-sign substitution** — 2 instances → [build.md](build.md)
 - **Python cp1252 encoding** — 5 instances, 2 agents → [build.md](build.md) (not escalating — self-correcting)
-- **Lossy error boundaries (AI provider edge)** — 4 instances, 1 agent → [api.md](api.md) (escalation candidate — not self-correcting; prevention = ADR-001 ActionableError at boundaries)
+- **Lossy error boundaries (AI provider edge)** — 4 instances, 2 agents (TL + PowerShell) → [api.md](api.md) (escalation candidate — not self-correcting; prevention = ADR-001 ActionableError at boundaries)

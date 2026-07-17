@@ -1366,16 +1366,37 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Instances:**
 - 2026-07-16 — Technical Lead (t/1618 / t/1619, Z.AI outage, resolved c51018af): an unmapped Z.AI model id was passed **verbatim** to the provider instead of being validated against the registry — the failure surfaced as a raw provider error, not "unknown model id X" (p/8#69).
 - 2026-07-16 — Technical Lead (t/1620): the Gemini API-key test **collapses the provider's reason** into a generic failure string — Google's actual reason never reaches the user (p/8#69).
-- 2026-07-16 — Technical Lead (t/1621): `Test-AIApiKey` reports `KeySource="(none found)"` on an HTTP **200** — a lossy *success* path that discards the resolved key source and mislabels a working key as absent (p/8#69).
+- 2026-07-16 — Technical Lead (t/1621), root-cause detail from PowerShell (p/20#16), fixed **cd020938**: `Test-AIApiKey` reported `KeySource="(none found)"` on an HTTP **200**. Mechanism: it read AIEnrich's private `$script:LastApiKeySource` through a cross-module scriptblock (`& (Get-Module AIEnrich) {…}`), which **throws when `Get-Module` resolves 0 or >1 module objects**; the throw was swallowed by `catch{$null}`, so a genuinely-resolved key surfaced as absent. A lossy *success* path — the **diagnostic read silently degraded its own reporting** while the primary path (`Invoke-AIApi`, same-scope read) worked fine. Fix: an exported accessor bound to the same module instance.
 
-**Root Cause:** Status/error handling at provider boundaries collapses rich provider responses into generic strings (or drops them entirely). No `ActionableError`/`New-ActionableError` captures Goal/Problem/Location/Next Steps at the edge, so the provider's verbatim reason, the resolved model id, and the detected key source are thrown away before anyone can read them. The tell is uniform: **success/failure detail discarded at the boundary** — on the error path (generic message) and the success path (`(none found)` on a 200) alike.
+**Root Cause:** Status/error handling at provider boundaries collapses rich provider responses into generic strings (or drops them entirely). No `ActionableError`/`New-ActionableError` captures Goal/Problem/Location/Next Steps at the edge, so the provider's verbatim reason, the resolved model id, and the detected key source are thrown away before anyone can read them. The tell is uniform: **success/failure detail discarded at the boundary** — on the error path (generic message) and the success path (`(none found)` on a 200) alike. A sharp sub-species (t/1621): a **diagnostic/observability read that swallows its own failure** (`catch{$null}`, sentinel default) degrades silently while the primary path works — you get a confident false-negative about a healthy system.
 
 **Prevention:**
 1. At every AI provider boundary, **preserve the provider's own reason/detail** in the surfaced error — never replace it with a generic message (ADR-001).
 2. Use `ActionableError` / `New-ActionableError`: **Problem** carries the provider's verbatim reason, **Location** names backend+model, **Next Steps** names the config fix.
 3. **Echo the resolved identity** (mapped model id, detected key source) on BOTH success and failure paths — a success that reports `(none found)` is a lossy success, not just a lossy error.
 4. **Validate model ids against the registry** before calling the provider — never pass an unmapped id verbatim; fail with the unknown id named.
+5. **Never let a diagnostic/observability read swallow its own failure** — a `catch{$null}` or sentinel default on a status/health read reports a false-negative on a working system. Surface the read's own failure distinctly from the thing it observes; bind cross-module/scope reads to the resolved instance (exported accessor) rather than a scriptblock that can throw on 0/>1 module resolution.
 
-**Status:** Active — escalation candidate (4 instances across t/1618–t/1621, not self-correcting; systemic prevention = ADR-001 ActionableError at provider boundaries). Point-of-use backstop owned by Diagnostics: **t/1623** — context hook `lossy-error-boundary-guard`, authored + enabled (t/1623#1), fires on Edit/Write to AI-provider & key-test paths (`keys.ts`, `lib/ai-client/providers/*.ts`, `Test-AIApiKey`/`Invoke-AI*`) and nudges ADR-001 wrapping + provider-reason surfacing + flight-recorder `record()` + `maskApiKey`. Not yet live — pending Orca compiling it into the runner manifest at next sync, then live-fire validation (p/9#21). Not escalated to a `scripts/AGENTS.md` rule — the hook is the intended enforcement; revisit only if a 5th instance lands or the hook proves infeasible.
+**Status:** Active — escalation candidate (4 instances across t/1618–t/1621, 2 reporting agents — TL + PowerShell; not self-correcting; systemic prevention = ADR-001 ActionableError at provider boundaries). Point-of-use backstop owned by Diagnostics: **t/1623** — context hook `lossy-error-boundary-guard`, authored + enabled (t/1623#1), fires on Edit/Write to AI-provider & key-test paths (`keys.ts`, `lib/ai-client/providers/*.ts`, `Test-AIApiKey`/`Invoke-AI*`) and nudges ADR-001 wrapping + provider-reason surfacing + flight-recorder `record()` + `maskApiKey`. Not yet live — pending Orca compiling it into the runner manifest at next sync, then live-fire validation (p/9#21). Not escalated to a `scripts/AGENTS.md` rule — the hook is the intended enforcement; revisit only if a 5th instance lands or the hook proves infeasible.
 
 **Applies To:** All AI backend/provider integration code — server `aiBackends.ts`, PS key-test cmdlets (`Test-AIApiKey`), debate-engine adapters, and any UsageID call site surfacing provider errors.
+
+---
+
+## #67 [Build] PowerShell Through the Bash Tool — Git Bash Eats Shell Operators Before pwsh Sees Them
+
+**Pattern:** Running a PowerShell pipeline through the **Bash tool** (which is Git Bash) fails when shell metacharacters — a pipe `|` or a backtick line-continuation — sit **outside** the `pwsh -Command '...'` string. Git Bash interprets them itself before pwsh is invoked, so the pipe splits the command at the bash level and the backtick is consumed as a bash escape, producing truncated commands or `unexpected EOF` rather than the intended pwsh pipeline.
+
+**Instances:**
+- 2026-07-17 — PowerShell (during t/1621 work, p/20#17): two failures piping PowerShell through the Bash tool — `pwsh -Command '...' | Something` sent the `|` to bash (not the pwsh pipeline), and a backtick line-continuation was eaten by bash before pwsh saw it. Fix: keep the whole pipeline inside a single `pwsh -Command '...'` string, or use the PowerShell tool directly.
+
+**Root Cause:** The Bash tool is Git Bash, not pwsh. Only text **inside** the quoted `-Command '...'` argument reaches PowerShell; everything else on the line is parsed by bash first. `|`, `` ` ``, `$`, `>`, `&&` and friends are bash metacharacters — placed outside the quoted command string they are consumed by bash, so pwsh receives a fragment. Distinct mechanism from quote-delimiter collision ("Bash Heredoc Failures with Nested Quotes") and `$`-substitution corruption — here the failure is a **shell operator leaking out of the command string**, not a mangled literal.
+
+**Prevention:**
+1. **Prefer the PowerShell tool** for any PowerShell work — the fleet default; sidesteps the two-shell problem (root AGENTS.md Search Tooling Rule points the same way).
+2. Through the Bash tool, keep the **entire** pipeline inside one `pwsh -Command '...'` string — every `|`, `` ` ``, and `$` must live inside the quotes so pwsh, not bash, parses them.
+3. Never rely on bash line-continuation (trailing `` ` `` or `\`) to span a pwsh command across Bash-tool lines — one logical line inside the quoted string, or write a script file (Shell Quoting Rule) and run it.
+
+**Status:** Active
+
+**Applies To:** All agents running PowerShell through the Bash tool on Windows/Git Bash.
