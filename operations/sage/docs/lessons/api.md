@@ -63,6 +63,6 @@ Failure patterns related to external APIs, HTTP handling, and authentication.
 3. **Echo the resolved identity** (mapped model id, detected key source) on BOTH success and failure paths — a success that reports `(none found)` is a lossy success, not just a lossy error.
 4. **Validate model ids against the registry** before calling the provider — never pass an unmapped/unknown id verbatim; fail with the unknown id named.
 
-**Status:** Active — escalation candidate (4 instances across t/1618–t/1621, not self-correcting; systemic prevention = ADR-001 ActionableError at provider boundaries).
+**Status:** Active — escalation candidate (4 instances across t/1618–t/1621, not self-correcting; systemic prevention = ADR-001 ActionableError at provider boundaries). Point-of-use backstop owned by Diagnostics: **t/1623** — a context-type Instant Feedback hook path-scoped to `keys.ts` + `lib/ai-client/providers/*.ts` + `Test-AIApiKey`/`Invoke-AI*` cmdlets, nudging ADR-001 wrapping of the provider reason. Blocked on t/1620+t/1621 landing so it targets the canonical shape (p/9#20). Not escalated to a `scripts/AGENTS.md` rule — the hook is the intended enforcement; revisit only if a 5th instance lands or the hook proves infeasible.
 
 **Applies To:** All AI backend/provider integration code — server `aiBackends.ts`, PS key-test cmdlets (`Test-AIApiKey`), debate-engine adapters, and any UsageID call site that surfaces provider errors.
