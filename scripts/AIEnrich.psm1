@@ -147,6 +147,32 @@ function Resolve-AIApiKey {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Get-AIApiKeySource — expose the last-resolved key source for diagnostics
+# ─────────────────────────────────────────────────────────────────────────────
+<#
+.SYNOPSIS
+    Returns the source of the most recently resolved API key.
+.DESCRIPTION
+    Resolve-AIApiKey records where it found the key ('explicit parameter',
+    '$env:ZAI_API_KEY', '$env:AI_API_KEY (fallback)', '(none found)', etc.) in a
+    module-private variable. Cross-module callers (e.g. Test-AIApiKey in the
+    AITriad module) cannot read that private reliably via
+    `& (Get-Module AIEnrich) { ... }` — that expression throws when Get-Module
+    resolves AIEnrich zero or multiple times, and the swallowed error left
+    KeySource reporting '(none found)' on genuinely-successful calls (t/1621).
+    This accessor reads the value from within the module's own scope, so it is
+    deterministic for any caller that reaches the same module instance.
+.OUTPUTS
+    [string] The last key source, or '' if no key has been resolved this session.
+#>
+function Get-AIApiKeySource {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param()
+    return $script:LastApiKeySource
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Measure-PromptTokens — pre-flight token estimation
 # ─────────────────────────────────────────────────────────────────────────────
 <#
@@ -1325,5 +1351,5 @@ function Repair-TruncatedJson {
 Set-Alias -Name 'Invoke-GeminiApi'   -Value 'Invoke-AIApi'
 Set-Alias -Name 'Get-GeminiMetadata' -Value 'Get-AIMetadata'
 
-Export-ModuleMember -Function Invoke-AIApi, Get-AIMetadata, Resolve-AIApiKey, Repair-TruncatedJson, Measure-PromptTokens `
+Export-ModuleMember -Function Invoke-AIApi, Get-AIMetadata, Resolve-AIApiKey, Get-AIApiKeySource, Repair-TruncatedJson, Measure-PromptTokens `
                     -Alias    Invoke-GeminiApi, Get-GeminiMetadata

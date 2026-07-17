@@ -91,12 +91,18 @@ Describe 'z.ai live round-trip — requires ZAI_API_KEY (t/1437 AC#4)' -Tag 'enr
         $r.KeySource  | Should -Match 'ZAI_API_KEY|AI_API_KEY'
     }
 
-    It 'Invoke-AIApi -Model zai-glm-5.2 -Prompt returns non-empty Text + usage counters' {
+    It 'Invoke-AIApi -Model zai-glm-5-2 -Prompt returns non-empty Text + usage counters' {
         if (-not $script:HasZaiKey) {
             Set-ItResult -Skipped -Because $script:SkipReason
             return
         }
-        $r = Invoke-AIApi -Model 'zai-glm-5.2' -Prompt 'Say hi in one short word.' -MaxTokens 20 -Temperature 0.1
+        # Canonical catalog id is the dash form 'zai-glm-5-2' (t/1618); the dot form
+        # 'zai-glm-5.2' is unknown to resolveModel → null → the call threw instead of
+        # exercising a live request (t/1621).
+        # MaxTokens must clear glm-5.2's reasoning budget: it's a thinking model that
+        # spends output tokens on internal reasoning before emitting visible Text, so a
+        # tight cap (20) truncates to empty Text. 200 leaves room for the reply (t/1621).
+        $r = Invoke-AIApi -Model 'zai-glm-5-2' -Prompt 'Say hi in one short word.' -MaxTokens 200 -Temperature 0.1
         $r                    | Should -Not -BeNullOrEmpty
         $r.Backend            | Should -Be 'zai'
         $r.Text               | Should -Not -BeNullOrEmpty

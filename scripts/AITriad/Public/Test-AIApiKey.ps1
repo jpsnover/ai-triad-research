@@ -106,11 +106,13 @@ function Test-AIApiKey {
         $Key = $null
         if ($B -ne 'ollama') {
             $Key = Resolve-AIApiKey -ExplicitKey $ExplicitKey -Backend $B
-            # Resolve-AIApiKey records source in its own script scope; grab it via GetVariable
-            # (avoids leaking a module-private into the caller). Falls back gracefully.
-            $LastSource = try {
-                & (Get-Module AIEnrich) { $script:LastApiKeySource }
-            } catch { $null }
+            # Resolve-AIApiKey records the source in AIEnrich's module scope; read it
+            # back through the exported accessor. The old `& (Get-Module AIEnrich) {...}`
+            # read threw (and was swallowed, leaving KeySource '(none found)' on a
+            # genuinely-successful call — t/1621) whenever Get-Module resolved AIEnrich
+            # zero or multiple times. Get-AIApiKeySource binds to the same module
+            # instance as Resolve-AIApiKey above, so it is scope-deterministic.
+            $LastSource = try { Get-AIApiKeySource } catch { $null }
             if ($LastSource) { $Result['KeySource'] = $LastSource }
 
             if (-not $Key) {
