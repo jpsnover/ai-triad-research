@@ -65,7 +65,7 @@ export function getDefaultTimeout(model: string): number {
     case 'azure':     return 180_000;
     case 'claude':    return 180_000;
     case 'groq':      return 120_000;
-    case 'zai':       return 180_000;
+    case 'zai':       return 240_000;
     case 'gemini':    return 120_000;
     default:          return 120_000;
   }
