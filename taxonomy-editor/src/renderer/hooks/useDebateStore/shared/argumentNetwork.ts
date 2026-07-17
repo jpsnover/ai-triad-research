@@ -418,21 +418,57 @@ export async function extractClaimsAndUpdateAN(
       throw callErr;
     }
     type ClaimExtractionResult = { claims?: { text: string; bdi_category?: string; base_strength?: number; bdi_sub_scores?: Record<string, number>; specificity?: string; steelman_of?: string | null; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; weight?: number; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] };
-    const parsed = parseAIJson<ClaimExtractionResult>(text);
+    let parsed = parseAIJson<ClaimExtractionResult>(text);
     if (!parsed) {
-      const parseErr = new SyntaxError('Claim extraction JSON recovery failed');
-      getGlobalRecorder()?.record({
-        type: 'system.error',
-        debate_id: debate.id,
-        component: 'debate-store',
-        level: 'error',
-        message: 'Claim extraction JSON parse failed',
-        error: { name: parseErr.name, message: `${parseErr.message} (raw length: ${text.length})`, stack: parseErr.stack },
-      });
-      extractionTrace.status = extractionTrace.response_truncated ? 'truncated_response' : 'parse_error';
-      extractionTrace.error_message = String(parseErr);
-      commitTrace();
-      throw parseErr;
+      const terminalStatus = extractionTrace.response_truncated ? 'truncated_response' : 'parse_error';
+      // AC2 (t/1626): capture enough to distinguish a truncated body from a malformed one.
+      // The trace type (DebateTool-owned) has no head/tail fields, so the bounded response
+      // window rides on the flight-recorder event's structured `data` payload instead.
+      const HEAD_TAIL_CHARS = 500;
+      const failureData: Record<string, unknown> = {
+        response_chars: text.length,
+        response_truncated: extractionTrace.response_truncated,
+        terminal_status: terminalStatus,
+        has_debater_claims: sketchCount > 0,
+        sketch_count: sketchCount,
+        response_head: text.slice(0, HEAD_TAIL_CHARS),
+        response_tail: text.length > HEAD_TAIL_CHARS ? text.slice(-HEAD_TAIL_CHARS) : '',
+      };
+
+      if (debaterClaims && debaterClaims.length > 0) {
+        // AC1 (t/1626): JSON recovery failed, but the debater already supplied claim sketches
+        // upstream. Fall back to those sketches instead of dropping every claim to zero.
+        // We preserve claim TEXT only — the debater's `targets` are un-classified references,
+        // and the failed call was precisely the step that would have typed them into
+        // responds_to edges; fabricating relationships here would inject mislabeled edges.
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          debate_id: debate.id,
+          component: 'debate-store',
+          level: 'warn',
+          message: `Claim extraction JSON parse failed — recovering ${sketchCount} debater sketch(es)`,
+          data: failureData,
+          error: { name: 'SyntaxError', message: `Claim extraction JSON recovery failed (raw length: ${text.length}); recovered from debater sketches` },
+        });
+        parsed = { claims: debaterClaims.map((s) => ({ text: s.claim })) };
+        extractionTrace.error_message = `JSON recovery failed (${terminalStatus}); recovered ${sketchCount} claim(s) from debater sketches`;
+        // fall through to normal processing below with the synthesized claims
+      } else {
+        const parseErr = new SyntaxError('Claim extraction JSON recovery failed');
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          debate_id: debate.id,
+          component: 'debate-store',
+          level: 'error',
+          message: 'Claim extraction JSON parse failed',
+          data: failureData,
+          error: { name: parseErr.name, message: `${parseErr.message} (raw length: ${text.length})`, stack: parseErr.stack },
+        });
+        extractionTrace.status = terminalStatus;
+        extractionTrace.error_message = String(parseErr);
+        commitTrace();
+        throw parseErr;
+      }
     }
     if (!parsed.claims || !Array.isArray(parsed.claims)) {
       extractionTrace.status = 'empty_response';
