@@ -41,4 +41,4 @@ Seven patterns crossed the 3-instance threshold (or were high-severity) and beca
 - **Pathspec skips untracked** — 4 instances, 4 agents → [build.md](build.md) (not escalating — self-correcting)
 - **Bash dollar-sign substitution** — 2 instances → [build.md](build.md)
 - **Python cp1252 encoding** — 5 instances, 2 agents → [build.md](build.md) (not escalating — self-correcting)
-- **Lossy error boundaries (AI provider edge)** — 4 instances, 2 agents (TL + PowerShell) → [api.md](api.md) (escalation candidate — not self-correcting; prevention = ADR-001 ActionableError at boundaries)
+- **Lossy error boundaries (generic recovery discards a real payload)** — 5 instances, 3 agents (TL + PowerShell + Diagnostics) → [api.md](api.md) (**escalation triggered** — genus broadened past the provider edge to any recovery/parse boundary, e.g. `parseAIJson`→null dropping 7 debater sketches, t/1626; action = expand the t/1623 hook path scope + ADR-001 fallback-to-recoverable-payload)
