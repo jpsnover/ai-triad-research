@@ -22,6 +22,34 @@ export interface BriefTabProps {
 
 export function BriefTab(props: BriefTabProps) {
   const { entry, briefStage, briefAttempts, turnValTrail, nodeWeights, taxNodeMap, allEdges, selectedTaxRefId, setSelectedTaxRefId } = props;
+  // Shared renderer for POV grounding items — line 1: id + label + scores; line 2: justification/applicability.
+  const renderGrounding = (grounding: { node_id: string; why: string }[], baseColor: string) => (
+    <ul style={{ margin: '2px 0 4px', paddingLeft: 14, listStyle: 'none' }}>
+      {grounding.map((g, gi) => {
+        const ref = entry.taxonomy_refs?.find(r => r.node_id === g.node_id);
+        const sc = ref?.relevance_score;
+        const scColor = sc == null ? 'var(--text-muted)' : sc >= 0.45 ? 'var(--success)' : sc >= 0.30 ? 'var(--warning)' : 'var(--danger)';
+        const tw = nodeWeights.get(g.node_id);
+        const conf = (g as Record<string, unknown>).confidence as number | undefined ?? tw?.confidence;
+        const prio = (g as Record<string, unknown>).priority as number | undefined ?? tw?.priority;
+        const oper = (g as Record<string, unknown>).operationality as number | undefined ?? tw?.operationality;
+        const label = (taxNodeMap.get(g.node_id) as { label?: string } | undefined)?.label;
+        return (
+          <li key={gi} style={{ fontSize: 'var(--text-2xs)', color: baseColor, marginBottom: 3 }}>
+            <div>
+              <button onClick={() => setSelectedTaxRefId(selectedTaxRefId === g.node_id ? null : g.node_id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}>{g.node_id}</button>
+              {label && <span style={{ marginLeft: 6, fontWeight: 600, color: 'var(--text-secondary)' }}>{label}</span>}
+              {sc != null && <span style={{ fontWeight: 600, color: scColor, marginLeft: 6 }}>{sc.toFixed(2)}</span>}
+              {conf != null && <span style={{ marginLeft: 4, fontWeight: 600, color: conf >= 0.70 ? 'var(--success)' : conf >= 0.50 ? 'var(--text-secondary)' : 'var(--warning)', background: conf < 0.50 ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : undefined, padding: conf < 0.50 ? '0 3px' : undefined, borderRadius: 2 }}>conf:{conf.toFixed(2)}</span>}
+              {prio != null && <span style={{ marginLeft: 4, fontWeight: 600, color: prio >= 4 ? 'var(--text-secondary)' : 'var(--text-muted)' }}>P{prio}/5</span>}
+              {oper != null && <span style={{ marginLeft: 4, fontWeight: 600, color: oper >= 4 ? 'var(--text-secondary)' : 'var(--text-muted)' }}>op:{oper}/5</span>}
+            </div>
+            {g.why && <div style={{ marginTop: 1, color: 'var(--text-muted)' }}>{g.why}</div>}
+          </li>
+        );
+      })}
+    </ul>
+  );
   return (
     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
       {/* -- Top section: header + content from final brief -- */}
@@ -70,29 +98,7 @@ export function BriefTab(props: BriefTabProps) {
             {((briefStage.work_product as Record<string, unknown>).key_claims_to_address as { claim: string; speaker: string; an_id?: string; grounding?: { node_id: string; why: string }[] }[]).map((c, i) => (
               <li key={i}>
                 <strong>{c.speaker}</strong>{c.an_id ? ` (${c.an_id})` : ''}: <Highlight text={c.claim} />
-                {Array.isArray(c.grounding) && c.grounding.length > 0 && (
-                  <ul style={{ margin: '2px 0 4px', paddingLeft: 14, listStyle: 'none' }}>
-                    {c.grounding.map((g, gi) => {
-                      const ref = entry.taxonomy_refs?.find(r => r.node_id === g.node_id);
-                      const sc = ref?.relevance_score;
-                      const scColor = sc == null ? 'var(--text-muted)' : sc >= 0.45 ? 'var(--success)' : sc >= 0.30 ? 'var(--warning)' : 'var(--danger)';
-                      const tw = nodeWeights.get(g.node_id);
-                      const conf = (g as Record<string, unknown>).confidence as number | undefined ?? tw?.confidence;
-                      const prio = (g as Record<string, unknown>).priority as number | undefined ?? tw?.priority;
-                      const oper = (g as Record<string, unknown>).operationality as number | undefined ?? tw?.operationality;
-                      return (
-                        <li key={gi} style={{ fontSize: 'var(--text-2xs)', color: 'var(--accent)' }}>
-                          <button onClick={() => setSelectedTaxRefId(selectedTaxRefId === g.node_id ? null : g.node_id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}>{g.node_id}</button>
-                          {sc != null && <span style={{ fontWeight: 600, color: scColor, marginLeft: 4 }}>{sc.toFixed(2)}</span>}
-                          {conf != null && <span style={{ marginLeft: 4, fontWeight: 600, color: conf >= 0.70 ? 'var(--success)' : conf >= 0.50 ? 'var(--text-secondary)' : 'var(--warning)', background: conf < 0.50 ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : undefined, padding: conf < 0.50 ? '0 3px' : undefined, borderRadius: 2 }}>conf:{conf.toFixed(2)}</span>}
-                          {prio != null && <span style={{ marginLeft: 4, fontWeight: 600, color: prio >= 4 ? 'var(--text-secondary)' : 'var(--text-muted)' }}>P{prio}/5</span>}
-                          {oper != null && <span style={{ marginLeft: 4, fontWeight: 600, color: oper >= 4 ? 'var(--text-secondary)' : 'var(--text-muted)' }}>op:{oper}/5</span>}
-                          {g.why && <span style={{ marginLeft: 4 }}>{g.why}</span>}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+                {Array.isArray(c.grounding) && c.grounding.length > 0 && renderGrounding(c.grounding, 'var(--accent)')}
               </li>
             ))}
           </ul>
@@ -105,29 +111,7 @@ export function BriefTab(props: BriefTabProps) {
             {((briefStage.work_product as Record<string, unknown>).strongest_angles as { angle: string; why: string; grounding?: { node_id: string; why: string }[] }[]).map((a, i) => (
               <li key={i}>
                 <strong>{a.angle}</strong>: <Highlight text={a.why} />
-                {Array.isArray(a.grounding) && a.grounding.length > 0 && (
-                  <ul style={{ margin: '2px 0 4px', paddingLeft: 14, listStyle: 'none' }}>
-                    {a.grounding.map((g, gi) => {
-                      const ref = entry.taxonomy_refs?.find(r => r.node_id === g.node_id);
-                      const sc = ref?.relevance_score;
-                      const scColor = sc == null ? 'var(--text-muted)' : sc >= 0.45 ? 'var(--success)' : sc >= 0.30 ? 'var(--warning)' : 'var(--danger)';
-                      const tw = nodeWeights.get(g.node_id);
-                      const conf = (g as Record<string, unknown>).confidence as number | undefined ?? tw?.confidence;
-                      const prio = (g as Record<string, unknown>).priority as number | undefined ?? tw?.priority;
-                      const oper = (g as Record<string, unknown>).operationality as number | undefined ?? tw?.operationality;
-                      return (
-                        <li key={gi} style={{ fontSize: 'var(--text-2xs)', color: 'var(--accent)' }}>
-                          <button onClick={() => setSelectedTaxRefId(selectedTaxRefId === g.node_id ? null : g.node_id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}>{g.node_id}</button>
-                          {sc != null && <span style={{ fontWeight: 600, color: scColor, marginLeft: 4 }}>{sc.toFixed(2)}</span>}
-                          {conf != null && <span style={{ marginLeft: 4, fontWeight: 600, color: conf >= 0.70 ? 'var(--success)' : conf >= 0.50 ? 'var(--text-secondary)' : 'var(--warning)', background: conf < 0.50 ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : undefined, padding: conf < 0.50 ? '0 3px' : undefined, borderRadius: 2 }}>conf:{conf.toFixed(2)}</span>}
-                          {prio != null && <span style={{ marginLeft: 4, fontWeight: 600, color: prio >= 4 ? 'var(--text-secondary)' : 'var(--text-muted)' }}>P{prio}/5</span>}
-                          {oper != null && <span style={{ marginLeft: 4, fontWeight: 600, color: oper >= 4 ? 'var(--text-secondary)' : 'var(--text-muted)' }}>op:{oper}/5</span>}
-                          {g.why && <span style={{ marginLeft: 4 }}>{g.why}</span>}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+                {Array.isArray(a.grounding) && a.grounding.length > 0 && renderGrounding(a.grounding, 'var(--accent)')}
               </li>
             ))}
           </ul>
@@ -180,27 +164,7 @@ export function BriefTab(props: BriefTabProps) {
                     {Array.isArray(dc.grounding) && dc.grounding.length > 0 && (
                       <tr style={{ borderBottom: '1px solid var(--border)' }}>
                         <td colSpan={3} style={{ padding: '0 6px 3px 20px' }}>
-                          <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
-                            {dc.grounding.map((g, gi) => {
-                              const ref = entry.taxonomy_refs?.find(r => r.node_id === g.node_id);
-                              const sc = ref?.relevance_score;
-                              const scColor = sc == null ? 'var(--text-muted)' : sc >= 0.45 ? 'var(--success)' : sc >= 0.30 ? 'var(--warning)' : 'var(--danger)';
-                              const tw = nodeWeights.get(g.node_id);
-                              const conf = (g as Record<string, unknown>).confidence as number | undefined ?? tw?.confidence;
-                              const prio = (g as Record<string, unknown>).priority as number | undefined ?? tw?.priority;
-                              const oper = (g as Record<string, unknown>).operationality as number | undefined ?? tw?.operationality;
-                              return (
-                                <li key={gi} style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
-                                  <button onClick={() => setSelectedTaxRefId(selectedTaxRefId === g.node_id ? null : g.node_id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}>{g.node_id}</button>
-                                  {sc != null && <span style={{ fontWeight: 600, color: scColor, marginLeft: 4 }}>{sc.toFixed(2)}</span>}
-                                  {conf != null && <span style={{ marginLeft: 4, fontWeight: 600, color: conf >= 0.70 ? 'var(--success)' : conf >= 0.50 ? 'var(--text-secondary)' : 'var(--warning)', background: conf < 0.50 ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : undefined, padding: conf < 0.50 ? '0 3px' : undefined, borderRadius: 2 }}>conf:{conf.toFixed(2)}</span>}
-                                  {prio != null && <span style={{ marginLeft: 4, fontWeight: 600, color: prio >= 4 ? 'var(--text-secondary)' : 'var(--text-muted)' }}>P{prio}/5</span>}
-                                  {oper != null && <span style={{ marginLeft: 4, fontWeight: 600, color: oper >= 4 ? 'var(--text-secondary)' : 'var(--text-muted)' }}>op:{oper}/5</span>}
-                                  {g.why && <span style={{ marginLeft: 4 }}>{g.why}</span>}
-                                </li>
-                              );
-                            })}
-                          </ul>
+                          {renderGrounding(dc.grounding, 'var(--text-muted)')}
                         </td>
                       </tr>
                     )}
