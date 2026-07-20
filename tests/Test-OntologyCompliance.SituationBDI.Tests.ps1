@@ -66,12 +66,14 @@ Describe 'Situation BDI-decomposition compliance check (t/1312)' -Tag 'taxonomy'
         }
     }
 
-    It 'Live-data baseline: 411 / 411 non-deprecated situations pass, 1 exempt (post-t/1306 backfill)' {
+    It 'Live-data baseline: 412 / 412 non-deprecated situations pass, 1 exempt (post-t/1306 backfill)' {
         # Trip-wire updated after CL's t/1306 backfill merged (CL sign-off p/23#62,
         # data-repo commit f202ddd2). Situation corpus is now fully BDI-decomposed;
         # the 1 exempt node uses the [DEPRECATED] description prefix per CL's Q1 answer.
+        # Baseline bumped 411->412 for t/1655: corpus grew by one net compliant
+        # non-deprecated situation (CL-confirmed via live Test-OntologyCompliance).
         $script:BdiCheck.Status | Should -Be 'pass'
-        $script:BdiCheck.Detail | Should -Match '411 / 411'
+        $script:BdiCheck.Detail | Should -Match '412 / 412'
         $script:BdiCheck.Detail | Should -Match '1 exempt via \[DEPRECATED\] prefix'
     }
 
