@@ -290,6 +290,7 @@ const routes: { method: string; path: string; handler: Handler }[] = [];
 function get(p: string, h: Handler) { routes.push({ method: 'GET', path: p, handler: h }); }
 function post(p: string, h: Handler) { routes.push({ method: 'POST', path: p, handler: h }); }
 function put(p: string, h: Handler) { routes.push({ method: 'PUT', path: p, handler: h }); }
+function patch(p: string, h: Handler) { routes.push({ method: 'PATCH', path: p, handler: h }); }
 function del(p: string, h: Handler) { routes.push({ method: 'DELETE', path: p, handler: h }); }
 
 // t/1295: registrar + read-mostly context for extracted route clusters
@@ -2666,7 +2667,7 @@ async function handleRequestInner(
   // (L11: X-Admin-Key dropped — the static admin-key auth path was removed;
   //  admin access is OAuth + ADMIN_USERS only, so there's no key to brute-force.)
   res.setHeader('Access-Control-Allow-Origin', getCorsOrigin(req));
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Filename');
   // t/1132: let the renderer read the token-budget milestone headers cross-origin
   // (same-origin reads them anyway; this covers proxied/cross-origin topologies).
@@ -2885,7 +2886,7 @@ async function handleRequestInner(
     const route = matchRoute(req.method!, url.pathname);
 
     // M7: per-IP rate limit on API write methods (100/min) — basic DoS/abuse guard.
-    if (route && (req.method === 'POST' || req.method === 'PUT' || req.method === 'DELETE') && url.pathname.startsWith('/api/')) {
+    if (route && (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH' || req.method === 'DELETE') && url.pathname.startsWith('/api/')) {
       const wr = rateLimiter.checkRate(`write:${getClientIp(req)}`, 100, 60_000);
       if (!wr.allowed) {
         const retryAfter = Math.max(1, Math.ceil((wr.retryAfterMs ?? 60_000) / 1000));
@@ -2911,7 +2912,7 @@ async function handleRequestInner(
         return;
       }
       try {
-        const body = ['POST', 'PUT', 'DELETE'].includes(req.method!) ? await readBody(req) : {};
+        const body = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method!) ? await readBody(req) : {};
         await route.handler(req, res, body);
       } catch (err) {
         getGlobalRecorder()?.record({

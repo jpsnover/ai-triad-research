@@ -19,7 +19,9 @@ import { execFile } from 'child_process';
 import { loadDataConfig, resolveDataPath, getDataRoot, getProjectRoot, getSourcesRoot, STORAGE_MODE } from '../config.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { safeSerialize } from '../../../../lib/debate/persistence.js';
+import { applyDebateDelta } from '../../../../lib/debate/applyDebateDelta.js';
 import { POV_KEYS } from '../../../../lib/debate/types.js';
+import type { DebateDelta, DebateSession } from '../../../../lib/debate/types.js';
 import type { StorageBackend } from './storageBackend.js';
 import { log } from '../logger.js';
 import { FilesystemBackend } from './filesystemBackend.js';
@@ -960,6 +962,78 @@ export async function saveDebateSession(session: unknown): Promise<void> {
     updated_at: s.updated_at || s.created_at || '',
     phase: s.phase || 'unknown',
   }).catch((err) => { log.server.warn({ err }, 'Debate index upsert failed (best-effort)'); });
+}
+
+/** Build the typed 409 version-conflict error carrying the server's current
+ *  `_saveVersion` (null when no stored session exists). The client maps this to
+ *  a re-read + full PUT, so a missing blob self-heals on the next save. */
+function debateVersionConflict(debateId: string, currentVersion: number | null): ActionableError {
+  return Object.assign(new ActionableError({
+    goal: 'Apply an incremental debate-save delta to the stored session',
+    problem: currentVersion === null
+      ? `No stored debate session found for delta apply: ${debateId}`
+      : `Delta baseVersion does not match the stored _saveVersion (${currentVersion}) for debate ${debateId}`,
+    location: 'server/fileIO.ts → applyDebateDeltaToStorage',
+    nextSteps: ['Re-read the full session, recompute against the returned currentVersion, and retry as a full PUT.'],
+  }), { statusCode: 409, code: 'version_conflict', currentVersion });
+}
+
+/**
+ * Version-aware read-merge-write for an incremental debate save (t/1635).
+ *
+ * Reads the stored session, checks its `_saveVersion` (absent ⇒ 0) against
+ * `delta.baseVersion`, and on an exact match applies the shared pure merge
+ * (`applyDebateDelta`, t/1634), writes the full merged blob, and returns the
+ * bumped `{ newVersion }`. On any mismatch — or when no stored session exists —
+ * throws a typed 409 carrying `currentVersion` so the client falls back to a
+ * full PUT. Azure Blob has no partial write: the whole merged blob is still
+ * written; the win is the client→server *upload* size only.
+ *
+ * The current user (real, anonymous, or `_local`) is resolved from
+ * AsyncLocalStorage context exactly as `saveDebateSession` does — no userId
+ * param. Anonymous sessions merge-and-mirror through the same anon store, so
+ * anonymous callers pay the same uplink saving (the entire point of the delta).
+ */
+export async function applyDebateDeltaToStorage(delta: DebateDelta): Promise<{ newVersion: number }> {
+  assertSafeId(delta.debateId, 'debate id');
+
+  if (isAnonymousUser()) {
+    const a = getAnonStore();
+    const loaded = a ? await a.store.loadDebate(a.sessionId, delta.debateId) : null;
+    if (loaded === null || a === null) throw debateVersionConflict(delta.debateId, null);
+    const existing = loaded as DebateSession;
+    const currentVersion = existing._saveVersion ?? 0;
+    if (delta.baseVersion !== currentVersion) throw debateVersionConflict(delta.debateId, currentVersion);
+    const merged = applyDebateDelta(existing, delta);
+    await a.store.saveDebate(a.sessionId, merged);
+    return { newVersion: merged._saveVersion ?? 0 };
+  }
+
+  const backend = getUserContentBackend();
+  const debatePath = path.join(getDebatesDir(), `debate-${delta.debateId}.json`);
+  const raw = await backend.readFile(debatePath);
+  if (raw === null) throw debateVersionConflict(delta.debateId, null);
+  const existing = JSON.parse(raw) as DebateSession;
+  const currentVersion = existing._saveVersion ?? 0;
+  if (delta.baseVersion !== currentVersion) throw debateVersionConflict(delta.debateId, currentVersion);
+
+  const merged = applyDebateDelta(existing, delta);
+  const { json, hadError, errorMessage } = safeSerialize(merged, 2);
+  if (hadError) {
+    log.server.warn({ debateId: delta.debateId, errorMessage }, 'Delta-merged debate session serialized with sanitizing replacer — non-serializable fields stripped');
+  }
+  await backend.writeFile(debatePath, json);
+  // Maintain the lightweight index
+  const m = merged as { title?: string; topic?: { final?: string; original?: string }; created_at?: string; updated_at?: string; phase?: string };
+  void upsertDebateIndex({
+    id: delta.debateId,
+    title: m.title || m.topic?.final || m.topic?.original || 'Untitled',
+    created_at: m.created_at || '',
+    updated_at: m.updated_at || m.created_at || '',
+    phase: m.phase || 'unknown',
+  }).catch((err) => { log.server.warn({ err }, 'Debate index upsert failed (best-effort)'); });
+
+  return { newVersion: merged._saveVersion ?? 0 };
 }
 
 export async function deleteDebateSession(id: string): Promise<void> {

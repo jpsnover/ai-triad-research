@@ -16,6 +16,7 @@ import * as fileIO from '../storage/fileIO.js';
 import * as ai from '../ai/aiBackends.js';
 import { getStorageUserId } from '../security/userContext.js';
 import { getDataRoot } from '../config.js';
+import type { DebateDelta } from '../../../../lib/debate/types.js';
 
 // t/1461: per-{userId,debateId} in-flight guard against the concurrent debate-save
 // cascade — an actively-used debate fires saveDebate from many store transitions,
@@ -27,7 +28,7 @@ const inFlightDebateSaves = new Set<string>();
 const SLOW_DEBATE_SAVE_MS = 5_000;
 
 export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
-  const { get, post, put, del } = r;
+  const { get, post, put, patch, del } = r;
 
   get('/api/debates', async (_req, res) => { json(res, await fileIO.listDebateSessions()); });
   get('/api/debates/list', async (_req, res) => { json(res, await fileIO.listDebateSessionsMeta()); });
@@ -129,6 +130,64 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
       // Clear the guard even on a thrown/aborted save (the 180s scenario) so a hung
       // save never leaves a permanently-409ing debate (Quality condition 3).
       if (saveKey) inFlightDebateSaves.delete(saveKey);
+    }
+  });
+
+  // t/1636 (parent t/1470): delta save. Instead of re-uploading the full debate
+  // blob on every dirty transition (the PUT above), PATCH ships only the changed
+  // surfaces (DebateDelta) and the storage layer merges them under an exact
+  // baseVersion match. Mirrors PUT's in-flight guard + slow-save FR verbatim so the
+  // two save paths coalesce identically per replica. Two distinct 409 codes: the
+  // in-flight guard's `save_in_progress` (retry same delta later) and the storage
+  // layer's `version_conflict` (baseVersion stale — client falls back to a full PUT).
+  patch('/api/debates/:id', async (req, res, body) => {
+    const debateId = param(req, 'id', '/api/debates/:id');
+    // debateId is always present (path param), so unlike PUT the saveKey is never null.
+    const saveKey = `${getStorageUserId()}:${debateId}`;
+    if (inFlightDebateSaves.has(saveKey)) {
+      res.writeHead(409, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'save_in_progress', message: 'A save for this debate is already in progress; your newest changes will be saved on the next attempt.' }));
+      return;
+    }
+    inFlightDebateSaves.add(saveKey);
+    const startedAt = Date.now();
+    try {
+      const delta = body as DebateDelta;
+      const { newVersion } = await fileIO.applyDebateDeltaToStorage(delta);
+
+      // t/1461: slow-save diagnostic — same >5s payload-size probe as PUT, so the
+      // Server Storage blob-timeout ticket (t/1469) sees delta saves too.
+      const durationMs = Date.now() - startedAt;
+      if (durationMs > SLOW_DEBATE_SAVE_MS) {
+        getGlobalRecorder()?.record({
+          type: 'lifecycle', component: 'debates', level: 'warn',
+          message: `Slow debate delta save: ${durationMs}ms`,
+          data: { debateId, userId: getStorageUserId(), payload_bytes: Buffer.byteLength(JSON.stringify(body)), duration_ms: durationMs },
+        });
+      }
+
+      json(res, { newVersion });
+    }
+    catch (err) {
+      // Storage signals a stale/absent baseVersion via ActionableError with
+      // code 'version_conflict' + currentVersion. Surface it as a distinct 409 so
+      // the client can fall back to a full PUT. error() already FR-records 4xx at
+      // warn, so this path returns before the unconditional system.error below.
+      if ((err as { code?: string }).code === 'version_conflict') {
+        json(res, { currentVersion: (err as { currentVersion?: number }).currentVersion, code: 'version_conflict' }, 409);
+        return;
+      }
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'server',
+        level: 'error',
+        message: 'Failed to apply debate delta',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
+    }
+    finally {
+      inFlightDebateSaves.delete(saveKey);
     }
   });
 

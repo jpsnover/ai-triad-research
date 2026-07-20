@@ -31,7 +31,7 @@ type Handler = (req: IncomingMessage, res: ServerResponse, body: unknown) => Pro
 function makeRouter() {
   const handlers: Record<string, Handler> = {};
   const reg = (m: string) => (p: string, h: Handler) => { handlers[`${m} ${p}`] = h; };
-  return { router: { get: reg('GET'), post: reg('POST'), put: reg('PUT'), del: reg('DELETE') }, handlers };
+  return { router: { get: reg('GET'), post: reg('POST'), put: reg('PUT'), patch: reg('PATCH'), del: reg('DELETE') }, handlers };
 }
 
 function fakeRes(): ServerResponse & { _status?: number; _body?: string } {

@@ -127,6 +127,7 @@ export interface Router {
   get(path: string, h: Handler): void;
   post(path: string, h: Handler): void;
   put(path: string, h: Handler): void;
+  patch(path: string, h: Handler): void;
   del(path: string, h: Handler): void;
 }
 
@@ -137,6 +138,7 @@ export function createRouter(routes: RouteRecord[]): Router {
     get: (p, h) => { routes.push({ method: 'GET', path: p, handler: h }); },
     post: (p, h) => { routes.push({ method: 'POST', path: p, handler: h }); },
     put: (p, h) => { routes.push({ method: 'PUT', path: p, handler: h }); },
+    patch: (p, h) => { routes.push({ method: 'PATCH', path: p, handler: h }); },
     del: (p, h) => { routes.push({ method: 'DELETE', path: p, handler: h }); },
   };
 }

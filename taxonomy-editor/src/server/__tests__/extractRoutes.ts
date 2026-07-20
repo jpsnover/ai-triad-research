@@ -16,12 +16,12 @@
 import fs from 'fs';
 import path from 'path';
 
-export interface RouteEntry { method: 'GET' | 'POST' | 'PUT' | 'DELETE'; path: string }
+export interface RouteEntry { method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; path: string }
 
-const METHOD: Record<string, RouteEntry['method']> = { get: 'GET', post: 'POST', put: 'PUT', del: 'DELETE' };
+const METHOD: Record<string, RouteEntry['method']> = { get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', del: 'DELETE' };
 
-// e.g.  get('/api/foo', ...)   put('/api/bar/:id', ...)
-const REG_RE = /^\s*(get|post|put|del)\(\s*['"]([^'"]+)['"]/;
+// e.g.  get('/api/foo', ...)   put('/api/bar/:id', ...)   patch('/api/baz/:id', ...)
+const REG_RE = /^\s*(get|post|put|patch|del)\(\s*['"]([^'"]+)['"]/;
 // e.g.  registerDebatesRoutes(r, ctx)  → recurse into routes/debates.ts
 const INCLUDE_RE = /^\s*register([A-Z]\w*?)Routes\(/;
 
