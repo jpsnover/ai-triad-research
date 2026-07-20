@@ -446,6 +446,11 @@ export interface DebateSession {
   title: string;
   created_at: string;
   updated_at: string;
+  /** Monotonic optimistic-concurrency counter for delta saves (t/1634 / HLD delta-debate-save).
+   *  Incremented in the document on every accepted save. A delta declares the
+   *  `baseVersion` it was computed against; the server accepts it only if the stored
+   *  `_saveVersion` matches. Absent = 0 (lazy migration; first save is always a full PUT). */
+  _saveVersion?: number;
   /** App version that created this debate session. */
   app_version?: string;
   /** Target audience for tone, language, and concern prioritization. */
@@ -629,6 +634,54 @@ export interface DebateSession {
   }>;
   /** Human-gated taxonomy evolution proposals from post-debate reflection (machine proposes, human disposes). */
   reflection_proposals?: ReflectionProposal[];
+}
+
+// ── Delta / incremental debate save (t/1470; HLD docs/hld-delta-debate-save.md) ──
+//
+// Interface-First contract shipped by DebateTool (ticket A) so Server Storage (B),
+// ServerAPI (C), and Taxonomy Editor (D) build against one frozen shape in parallel.
+// The merge function is `applyDebateDelta` in ./applyDebateDelta.ts.
+
+/** Metadata surface a delta may shallow-merge onto the session root. */
+export type DebateSessionMeta = Pick<DebateSession, 'title' | 'updated_at' | 'phase'>;
+
+/**
+ * Incremental save payload: only what changed since the client's last successful
+ * save, plus the `_saveVersion` it was computed against (`baseVersion`). Web-only —
+ * the Electron local path stays full-save (no upload leg to optimize).
+ *
+ * Merge order is load-bearing (see `applyDebateDelta`): `changedFields` is a generic
+ * shallow-overlay for per-turn analytics fields that have no dedicated structured
+ * surface; the structured surfaces below (transcript / nodes / edges / mutations /
+ * meta / `_saveVersion`) are applied AFTER and therefore always win over the overlay.
+ * Any `_saveVersion` inside `changedFields` is ignored — the version is authoritative
+ * from the guard + increment, never client-supplied.
+ */
+export interface DebateDelta {
+  debateId: string;
+  /** The `_saveVersion` this delta was computed against; server accepts only on exact match. */
+  baseVersion: number;
+  /** Appended to `transcript` (append-only tail beyond base). */
+  newTranscriptEntries: TranscriptEntry[];
+  /** Upserted by id into `argument_network.nodes` (last-wins). */
+  changedNodes: ArgumentNetworkNode[];
+  /** Upserted by id into `argument_network.edges` (last-wins). */
+  changedEdges: ArgumentNetworkEdge[];
+  /** Node ids to drop from `argument_network.nodes`; removal wins over a same-id upsert. */
+  removedNodeIds?: string[];
+  /** Edge ids to drop from `argument_network.edges`; removal wins over a same-id upsert. */
+  removedEdgeIds?: string[];
+  /** Appended to `argument_network.mutations`. */
+  newMutations: ANMutation[];
+  /** Shallow-merged onto the session root. */
+  meta?: Partial<DebateSessionMeta>;
+  /**
+   * Generic shallow-overlay for per-turn analytics fields carried by none of the
+   * structured surfaces (`convergence_tracker`, `qbaf_timeline`, `turn_embeddings`,
+   * `position_drift`, etc. — t/1634#3 Case 3). Applied FIRST; structured surfaces
+   * override. `_saveVersion` within it is ignored.
+   */
+  changedFields?: Partial<DebateSession>;
 }
 
 // ── Reflection proposals (human-gated taxonomy evolution) ──

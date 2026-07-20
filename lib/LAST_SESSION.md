@@ -1,5 +1,5 @@
-**Date:** 2026-07-15
-**Working on:** t/1587 (Phase 3 scheduler), t/1588 (PS formula alignment)
-**Status:** t/1588 Done (Phase A `4008620a` + Phase B `c968fbc7`). t/1587 blocked on CL provenance register update before Done.
-**Key context:** Phase B makes `nodes`/`cruxLinks` optional in `generateBatchConfig` when records carry pre-computed `testingPriority`. Added `loadTestingRecords(path)` for reading PS-emitted JSON. 30/30 tests green. CL pinged at p/3#100-101 with provenance register entries to move from §8→§1 (deficit ladder, importance weights) and new WELL_TESTED_EXCLUSION constants.
-**Next:** Wait for CL provenance register update, then close t/1587 with commit SHA. Check for new pings/tickets.
+**Date:** 2026-07-20
+**Working on:** t/1651 — harden onnxEmbedding.ts to offline + fp32 contract (unblocks t/1641 container ML-stack removal, closes Server AI Proxy's t/1643 half).
+**Status:** DONE. Committed `61260804`; verify green on committed code; equivalence gate PASS (cosine=1.000000 vs stored pol-* corpus). SHA handed to Server AI Proxy (p/207#5).
+**Key context:** Approach A (harden onnxruntime-node in place, TL t/1641#10) — fp32 model.onnx module-wide, AI_TRIAD_ONNX_MODEL_DIR baked-dir override with files-present short-circuit, ActionableError+flight-recorder on missing/load-fail, MAX_SEQ_LENGTH 128→256. pol-* corpus vectors are single-field individually-normalized = corpus-native equivalence target (no Python re-run). Electron importers delegate to shared module (no separate quantized pin).
+**Next:** Pick up next unblocked ticket. Server AI Proxy owns routing hosted updateNodeEmbeddings/computeQueryEmbedding + closing t/1643; DevOps owns baking the flat model dir (t/1642) — respond if they ping on the contract.

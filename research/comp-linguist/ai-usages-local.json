@@ -1,0 +1,11 @@
+{
+  "debate.custom-situation-context": {
+    "model": "local-python-script",
+    "prompt": "Call my custom_situation_model.py with node_id, speaker_pov, bdi_category, and situation_statements_corpus_path",
+    "responseSchema": {
+      "type": "string",
+      "description": "Formatted statements for situation context"
+    },
+    "timeoutMs": 10000
+  }
+}

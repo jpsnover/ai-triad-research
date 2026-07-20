@@ -1,0 +1,5147 @@
+{
+  "version": 1,
+  "last_updated": "2026-07-09T13:23:48.004Z",
+  "debate_count_threshold": 20,
+  "node_stats": {
+    "acc-beliefs-039": {
+      "debate_count": 60,
+      "crux_link_count": 7,
+      "retread_flag": false
+    },
+    "acc-beliefs-032": {
+      "debate_count": 85,
+      "crux_link_count": 21,
+      "retread_flag": false
+    },
+    "acc-desires-037": {
+      "debate_count": 72,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "acc-intentions-082": {
+      "debate_count": 15,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-028": {
+      "debate_count": 32,
+      "crux_link_count": 14,
+      "retread_flag": false
+    },
+    "saf-beliefs-092": {
+      "debate_count": 37,
+      "crux_link_count": 6,
+      "retread_flag": false
+    },
+    "saf-desires-002": {
+      "debate_count": 91,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "saf-desires-017": {
+      "debate_count": 88,
+      "crux_link_count": 30,
+      "retread_flag": false
+    },
+    "saf-intentions-139": {
+      "debate_count": 16,
+      "crux_link_count": 7,
+      "retread_flag": false
+    },
+    "saf-beliefs-040": {
+      "debate_count": 21,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-beliefs-015": {
+      "debate_count": 14,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-beliefs-033": {
+      "debate_count": 13,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "skp-desires-082": {
+      "debate_count": 61,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "skp-intentions-146": {
+      "debate_count": 48,
+      "crux_link_count": 24,
+      "retread_flag": false
+    },
+    "skp-desires-011": {
+      "debate_count": 10,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-073": {
+      "debate_count": 58,
+      "crux_link_count": 26,
+      "retread_flag": false
+    },
+    "acc-intentions-088": {
+      "debate_count": 68,
+      "crux_link_count": 7,
+      "retread_flag": false
+    },
+    "acc-beliefs-044": {
+      "debate_count": 78,
+      "crux_link_count": 1,
+      "retread_flag": true
+    },
+    "acc-beliefs-043": {
+      "debate_count": 62,
+      "crux_link_count": 1,
+      "retread_flag": true
+    },
+    "acc-desires-039": {
+      "debate_count": 100,
+      "crux_link_count": 11,
+      "retread_flag": false
+    },
+    "acc-intentions-025": {
+      "debate_count": 8,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-086": {
+      "debate_count": 18,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-052": {
+      "debate_count": 1,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-desires-014": {
+      "debate_count": 28,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-beliefs-020": {
+      "debate_count": 7,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-intentions-048": {
+      "debate_count": 3,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "acc-intentions-078": {
+      "debate_count": 72,
+      "crux_link_count": 24,
+      "retread_flag": false
+    },
+    "acc-desires-019": {
+      "debate_count": 53,
+      "crux_link_count": 0,
+      "retread_flag": true
+    },
+    "acc-intentions-084": {
+      "debate_count": 29,
+      "crux_link_count": 0,
+      "retread_flag": true
+    },
+    "acc-beliefs-085": {
+      "debate_count": 107,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-beliefs-014": {
+      "debate_count": 39,
+      "crux_link_count": 12,
+      "retread_flag": false
+    },
+    "saf-desires-008": {
+      "debate_count": 12,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-030": {
+      "debate_count": 23,
+      "crux_link_count": 16,
+      "retread_flag": false
+    },
+    "saf-beliefs-097": {
+      "debate_count": 17,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "saf-desires-003": {
+      "debate_count": 89,
+      "crux_link_count": 17,
+      "retread_flag": false
+    },
+    "skp-beliefs-094": {
+      "debate_count": 46,
+      "crux_link_count": 1,
+      "retread_flag": true
+    },
+    "skp-desires-005": {
+      "debate_count": 63,
+      "crux_link_count": 15,
+      "retread_flag": false
+    },
+    "skp-intentions-074": {
+      "debate_count": 35,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "sit-059": {
+      "debate_count": 23,
+      "crux_link_count": 24,
+      "retread_flag": false
+    },
+    "acc-beliefs-034": {
+      "debate_count": 50,
+      "crux_link_count": 14,
+      "retread_flag": false
+    },
+    "acc-intentions-056": {
+      "debate_count": 38,
+      "crux_link_count": 7,
+      "retread_flag": false
+    },
+    "skp-intentions-097": {
+      "debate_count": 52,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "sit-134": {
+      "debate_count": 13,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-beliefs-006": {
+      "debate_count": 19,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "skp-intentions-005": {
+      "debate_count": 19,
+      "crux_link_count": 7,
+      "retread_flag": false
+    },
+    "saf-beliefs-001": {
+      "debate_count": 16,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-beliefs-002": {
+      "debate_count": 39,
+      "crux_link_count": 26,
+      "retread_flag": false
+    },
+    "skp-beliefs-001": {
+      "debate_count": 42,
+      "crux_link_count": 1,
+      "retread_flag": true
+    },
+    "skp-intentions-040": {
+      "debate_count": 36,
+      "crux_link_count": 16,
+      "retread_flag": false
+    },
+    "skp-desires-007": {
+      "debate_count": 15,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-069": {
+      "debate_count": 76,
+      "crux_link_count": 19,
+      "retread_flag": false
+    },
+    "skp-intentions-065": {
+      "debate_count": 17,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-desires-026": {
+      "debate_count": 21,
+      "crux_link_count": 1,
+      "retread_flag": true
+    },
+    "acc-intentions-027": {
+      "debate_count": 62,
+      "crux_link_count": 30,
+      "retread_flag": false
+    },
+    "saf-desires-012": {
+      "debate_count": 86,
+      "crux_link_count": 17,
+      "retread_flag": false
+    },
+    "saf-intentions-081": {
+      "debate_count": 36,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "saf-intentions-020": {
+      "debate_count": 4,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "saf-beliefs-036": {
+      "debate_count": 13,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "skp-intentions-009": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-desires-008": {
+      "debate_count": 30,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-intentions-001": {
+      "debate_count": 7,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "saf-beliefs-094": {
+      "debate_count": 21,
+      "crux_link_count": 13,
+      "retread_flag": false
+    },
+    "saf-desires-001": {
+      "debate_count": 46,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "saf-intentions-144": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-009": {
+      "debate_count": 7,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "saf-intentions-135": {
+      "debate_count": 16,
+      "crux_link_count": 10,
+      "retread_flag": false
+    },
+    "skp-beliefs-041": {
+      "debate_count": 25,
+      "crux_link_count": 1,
+      "retread_flag": true
+    },
+    "skp-intentions-141": {
+      "debate_count": 59,
+      "crux_link_count": 13,
+      "retread_flag": false
+    },
+    "sit-019": {
+      "debate_count": 8,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-desires-060": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-067": {
+      "debate_count": 20,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "acc-desires-040": {
+      "debate_count": 27,
+      "crux_link_count": 0,
+      "retread_flag": true
+    },
+    "acc-intentions-052": {
+      "debate_count": 22,
+      "crux_link_count": 1,
+      "retread_flag": true
+    },
+    "acc-beliefs-029": {
+      "debate_count": 13,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "acc-desires-025": {
+      "debate_count": 9,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-desires-016": {
+      "debate_count": 64,
+      "crux_link_count": 1,
+      "retread_flag": true
+    },
+    "saf-intentions-076": {
+      "debate_count": 2,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "acc-intentions-015": {
+      "debate_count": 7,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-beliefs-049": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-008": {
+      "debate_count": 46,
+      "crux_link_count": 21,
+      "retread_flag": false
+    },
+    "acc-intentions-009": {
+      "debate_count": 9,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-intentions-113": {
+      "debate_count": 24,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "skp-beliefs-243": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-desires-003": {
+      "debate_count": 35,
+      "crux_link_count": 1,
+      "retread_flag": true
+    },
+    "cc-062": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-057": {
+      "debate_count": 8,
+      "crux_link_count": 8,
+      "retread_flag": false
+    },
+    "acc-beliefs-083": {
+      "debate_count": 22,
+      "crux_link_count": 0,
+      "retread_flag": true
+    },
+    "acc-intentions-075": {
+      "debate_count": 14,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-desires-024": {
+      "debate_count": 13,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-112": {
+      "debate_count": 11,
+      "crux_link_count": 11,
+      "retread_flag": false
+    },
+    "saf-beliefs-210": {
+      "debate_count": 13,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-217": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-192": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-212": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-029": {
+      "debate_count": 34,
+      "crux_link_count": 1,
+      "retread_flag": true
+    },
+    "skp-intentions-069": {
+      "debate_count": 9,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-093": {
+      "debate_count": 9,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-091": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-177": {
+      "debate_count": 13,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-176": {
+      "debate_count": 16,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-217": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-desires-005": {
+      "debate_count": 36,
+      "crux_link_count": 1,
+      "retread_flag": true
+    },
+    "saf-intentions-210": {
+      "debate_count": 16,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-098": {
+      "debate_count": 16,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-beliefs-047": {
+      "debate_count": 56,
+      "crux_link_count": 14,
+      "retread_flag": false
+    },
+    "skp-intentions-121": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-029": {
+      "debate_count": 16,
+      "crux_link_count": 8,
+      "retread_flag": false
+    },
+    "skp-beliefs-258": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-088": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-212": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-215": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-044": {
+      "debate_count": 21,
+      "crux_link_count": 1,
+      "retread_flag": true
+    },
+    "skp-desires-004": {
+      "debate_count": 42,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "sit-006": {
+      "debate_count": 7,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "acc-intentions-054": {
+      "debate_count": 33,
+      "crux_link_count": 1,
+      "retread_flag": true
+    },
+    "saf-beliefs-024": {
+      "debate_count": 18,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-109": {
+      "debate_count": 11,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-101": {
+      "debate_count": 13,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "saf-intentions-094": {
+      "debate_count": 20,
+      "crux_link_count": 8,
+      "retread_flag": false
+    },
+    "acc-desires-013": {
+      "debate_count": 28,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "sit-121": {
+      "debate_count": 28,
+      "crux_link_count": 0,
+      "retread_flag": true
+    },
+    "skp-beliefs-030": {
+      "debate_count": 30,
+      "crux_link_count": 1,
+      "retread_flag": true
+    },
+    "skp-desires-081": {
+      "debate_count": 58,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "sit-010": {
+      "debate_count": 16,
+      "crux_link_count": 9,
+      "retread_flag": false
+    },
+    "skp-beliefs-017": {
+      "debate_count": 16,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "acc-desires-018": {
+      "debate_count": 56,
+      "crux_link_count": 1,
+      "retread_flag": true
+    },
+    "acc-intentions-080": {
+      "debate_count": 40,
+      "crux_link_count": 16,
+      "retread_flag": false
+    },
+    "acc-beliefs-019": {
+      "debate_count": 17,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-beliefs-076": {
+      "debate_count": 16,
+      "crux_link_count": 19,
+      "retread_flag": false
+    },
+    "sit-124": {
+      "debate_count": 15,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "saf-beliefs-008": {
+      "debate_count": 59,
+      "crux_link_count": 10,
+      "retread_flag": false
+    },
+    "saf-intentions-137": {
+      "debate_count": 8,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-intentions-167": {
+      "debate_count": 6,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "cc-031": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-047": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-003": {
+      "debate_count": 40,
+      "crux_link_count": 1,
+      "retread_flag": true
+    },
+    "acc-desires-028": {
+      "debate_count": 37,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "skp-beliefs-152": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-desires-070": {
+      "debate_count": 9,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-155": {
+      "debate_count": 8,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-058": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-080": {
+      "debate_count": 11,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "acc-intentions-018": {
+      "debate_count": 5,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-beliefs-008": {
+      "debate_count": 25,
+      "crux_link_count": 0,
+      "retread_flag": true
+    },
+    "saf-intentions-061": {
+      "debate_count": 17,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-beliefs-042": {
+      "debate_count": 9,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-beliefs-090": {
+      "debate_count": 3,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "acc-desires-006": {
+      "debate_count": 7,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-018": {
+      "debate_count": 4,
+      "crux_link_count": 18,
+      "retread_flag": false
+    },
+    "skp-beliefs-128": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-049": {
+      "debate_count": 6,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-beliefs-042": {
+      "debate_count": 16,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-beliefs-046": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-055": {
+      "debate_count": 10,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "sit-100": {
+      "debate_count": 9,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-beliefs-003": {
+      "debate_count": 66,
+      "crux_link_count": 6,
+      "retread_flag": false
+    },
+    "acc-beliefs-028": {
+      "debate_count": 61,
+      "crux_link_count": 7,
+      "retread_flag": false
+    },
+    "acc-intentions-115": {
+      "debate_count": 23,
+      "crux_link_count": 0,
+      "retread_flag": true
+    },
+    "sit-025": {
+      "debate_count": 10,
+      "crux_link_count": 16,
+      "retread_flag": false
+    },
+    "saf-intentions-002": {
+      "debate_count": 35,
+      "crux_link_count": 18,
+      "retread_flag": false
+    },
+    "saf-intentions-047": {
+      "debate_count": 9,
+      "crux_link_count": 10,
+      "retread_flag": false
+    },
+    "saf-beliefs-096": {
+      "debate_count": 10,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-intentions-089": {
+      "debate_count": 24,
+      "crux_link_count": 26,
+      "retread_flag": false
+    },
+    "acc-intentions-003": {
+      "debate_count": 45,
+      "crux_link_count": 6,
+      "retread_flag": false
+    },
+    "saf-intentions-005": {
+      "debate_count": 13,
+      "crux_link_count": 18,
+      "retread_flag": false
+    },
+    "acc-beliefs-038": {
+      "debate_count": 48,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "saf-intentions-119": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-032": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-004": {
+      "debate_count": 18,
+      "crux_link_count": 46,
+      "retread_flag": false
+    },
+    "saf-intentions-088": {
+      "debate_count": 8,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-intentions-087": {
+      "debate_count": 12,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-desires-063": {
+      "debate_count": 15,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "skp-beliefs-007": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-007": {
+      "debate_count": 17,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "skp-beliefs-021": {
+      "debate_count": 26,
+      "crux_link_count": 0,
+      "retread_flag": true
+    },
+    "acc-beliefs-015": {
+      "debate_count": 8,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "acc-intentions-059": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-desires-008": {
+      "debate_count": 8,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "acc-intentions-114": {
+      "debate_count": 44,
+      "crux_link_count": 12,
+      "retread_flag": false
+    },
+    "skp-beliefs-043": {
+      "debate_count": 15,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-desires-059": {
+      "debate_count": 8,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-003": {
+      "debate_count": 13,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "skp-beliefs-031": {
+      "debate_count": 11,
+      "crux_link_count": 8,
+      "retread_flag": false
+    },
+    "acc-beliefs-008": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-desires-038": {
+      "debate_count": 6,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "acc-intentions-047": {
+      "debate_count": 16,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-056": {
+      "debate_count": 18,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-beliefs-010": {
+      "debate_count": 14,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-desires-006": {
+      "debate_count": 36,
+      "crux_link_count": 0,
+      "retread_flag": true
+    },
+    "saf-beliefs-091": {
+      "debate_count": 21,
+      "crux_link_count": 7,
+      "retread_flag": false
+    },
+    "saf-beliefs-041": {
+      "debate_count": 7,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "sit-106": {
+      "debate_count": 12,
+      "crux_link_count": 12,
+      "retread_flag": false
+    },
+    "acc-intentions-010": {
+      "debate_count": 15,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "skp-intentions-098": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-102": {
+      "debate_count": 18,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "saf-beliefs-105": {
+      "debate_count": 17,
+      "crux_link_count": 28,
+      "retread_flag": false
+    },
+    "saf-beliefs-093": {
+      "debate_count": 7,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "saf-beliefs-021": {
+      "debate_count": 28,
+      "crux_link_count": 7,
+      "retread_flag": false
+    },
+    "saf-intentions-003": {
+      "debate_count": 18,
+      "crux_link_count": 20,
+      "retread_flag": false
+    },
+    "acc-beliefs-045": {
+      "debate_count": 7,
+      "crux_link_count": 23,
+      "retread_flag": false
+    },
+    "skp-intentions-011": {
+      "debate_count": 9,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-beliefs-063": {
+      "debate_count": 12,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "acc-intentions-001": {
+      "debate_count": 42,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "acc-intentions-039": {
+      "debate_count": 6,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "acc-intentions-008": {
+      "debate_count": 22,
+      "crux_link_count": 13,
+      "retread_flag": false
+    },
+    "saf-desires-010": {
+      "debate_count": 9,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-024": {
+      "debate_count": 12,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-desires-004": {
+      "debate_count": 30,
+      "crux_link_count": 22,
+      "retread_flag": false
+    },
+    "saf-desires-011": {
+      "debate_count": 8,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-104": {
+      "debate_count": 8,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-desires-062": {
+      "debate_count": 11,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-069": {
+      "debate_count": 9,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-intentions-044": {
+      "debate_count": 16,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-234": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-139": {
+      "debate_count": 8,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-040": {
+      "debate_count": 15,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-beliefs-106": {
+      "debate_count": 26,
+      "crux_link_count": 0,
+      "retread_flag": true
+    },
+    "saf-intentions-069": {
+      "debate_count": 18,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "acc-intentions-106": {
+      "debate_count": 20,
+      "crux_link_count": 0,
+      "retread_flag": true
+    },
+    "acc-desires-027": {
+      "debate_count": 44,
+      "crux_link_count": 0,
+      "retread_flag": true
+    },
+    "sit-095": {
+      "debate_count": 3,
+      "crux_link_count": 6,
+      "retread_flag": false
+    },
+    "sit-022": {
+      "debate_count": 4,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "skp-beliefs-133": {
+      "debate_count": 8,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-desires-075": {
+      "debate_count": 13,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-120": {
+      "debate_count": 9,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-desires-026": {
+      "debate_count": 24,
+      "crux_link_count": 0,
+      "retread_flag": true
+    },
+    "saf-intentions-117": {
+      "debate_count": 13,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-172": {
+      "debate_count": 12,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-074": {
+      "debate_count": 26,
+      "crux_link_count": 0,
+      "retread_flag": true
+    },
+    "acc-desires-001": {
+      "debate_count": 31,
+      "crux_link_count": 0,
+      "retread_flag": true
+    },
+    "acc-intentions-104": {
+      "debate_count": 11,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-204": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-122": {
+      "debate_count": 11,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-044": {
+      "debate_count": 2,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "sit-166": {
+      "debate_count": 18,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "cc-078": {
+      "debate_count": 17,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-205": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-017": {
+      "debate_count": 8,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-138": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-091": {
+      "debate_count": 8,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-079": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-153": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-027": {
+      "debate_count": 12,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-014": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-065": {
+      "debate_count": 9,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-052": {
+      "debate_count": 2,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-beliefs-191": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-069": {
+      "debate_count": 10,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-075": {
+      "debate_count": 14,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-055": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-020": {
+      "debate_count": 12,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "acc-beliefs-070": {
+      "debate_count": 25,
+      "crux_link_count": 0,
+      "retread_flag": true
+    },
+    "acc-beliefs-076": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-193": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-046": {
+      "debate_count": 19,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-beliefs-026": {
+      "debate_count": 15,
+      "crux_link_count": 27,
+      "retread_flag": false
+    },
+    "skp-beliefs-075": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-174": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-184": {
+      "debate_count": 12,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-127": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-004": {
+      "debate_count": 14,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-desires-014": {
+      "debate_count": 17,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-beliefs-095": {
+      "debate_count": 19,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-098": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-142": {
+      "debate_count": 9,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-086": {
+      "debate_count": 58,
+      "crux_link_count": 13,
+      "retread_flag": false
+    },
+    "acc-desires-004": {
+      "debate_count": 17,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "acc-intentions-022": {
+      "debate_count": 6,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "saf-intentions-060": {
+      "debate_count": 2,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-beliefs-038": {
+      "debate_count": 23,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "saf-beliefs-043": {
+      "debate_count": 8,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-017": {
+      "debate_count": 35,
+      "crux_link_count": 0,
+      "retread_flag": true
+    },
+    "saf-intentions-072": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-062": {
+      "debate_count": 4,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "saf-intentions-014": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-102": {
+      "debate_count": 30,
+      "crux_link_count": 23,
+      "retread_flag": false
+    },
+    "skp-beliefs-064": {
+      "debate_count": 14,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-beliefs-024": {
+      "debate_count": 7,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "acc-intentions-051": {
+      "debate_count": 7,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-beliefs-005": {
+      "debate_count": 17,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "saf-beliefs-099": {
+      "debate_count": 5,
+      "crux_link_count": 6,
+      "retread_flag": false
+    },
+    "saf-beliefs-057": {
+      "debate_count": 17,
+      "crux_link_count": 9,
+      "retread_flag": false
+    },
+    "saf-beliefs-030": {
+      "debate_count": 12,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "acc-desires-009": {
+      "debate_count": 9,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "acc-intentions-004": {
+      "debate_count": 15,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-beliefs-005": {
+      "debate_count": 9,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-013": {
+      "debate_count": 3,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "saf-beliefs-035": {
+      "debate_count": 4,
+      "crux_link_count": 7,
+      "retread_flag": false
+    },
+    "acc-intentions-002": {
+      "debate_count": 32,
+      "crux_link_count": 13,
+      "retread_flag": false
+    },
+    "sit-020": {
+      "debate_count": 5,
+      "crux_link_count": 10,
+      "retread_flag": false
+    },
+    "sit-101": {
+      "debate_count": 2,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "sit-051": {
+      "debate_count": 6,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "saf-beliefs-126": {
+      "debate_count": 14,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-207": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-211": {
+      "debate_count": 9,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-150": {
+      "debate_count": 16,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-076": {
+      "debate_count": 10,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "skp-beliefs-196": {
+      "debate_count": 8,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-204": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-129": {
+      "debate_count": 16,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-106": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-053": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-063": {
+      "debate_count": 3,
+      "crux_link_count": 9,
+      "retread_flag": false
+    },
+    "sit-115": {
+      "debate_count": 4,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "skp-beliefs-202": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-161": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-141": {
+      "debate_count": 15,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-214": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-177": {
+      "debate_count": 16,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-170": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-054": {
+      "debate_count": 14,
+      "crux_link_count": 15,
+      "retread_flag": false
+    },
+    "sit-173": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-203": {
+      "debate_count": 14,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-026": {
+      "debate_count": 6,
+      "crux_link_count": 9,
+      "retread_flag": false
+    },
+    "saf-beliefs-050": {
+      "debate_count": 10,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "sit-066": {
+      "debate_count": 6,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "saf-intentions-024": {
+      "debate_count": 7,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-intentions-114": {
+      "debate_count": 6,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-beliefs-070": {
+      "debate_count": 4,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-beliefs-025": {
+      "debate_count": 5,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-desires-010": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-desires-021": {
+      "debate_count": 23,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "saf-intentions-056": {
+      "debate_count": 14,
+      "crux_link_count": 10,
+      "retread_flag": false
+    },
+    "saf-beliefs-037": {
+      "debate_count": 8,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-034": {
+      "debate_count": 8,
+      "crux_link_count": 17,
+      "retread_flag": false
+    },
+    "saf-intentions-138": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-001": {
+      "debate_count": 23,
+      "crux_link_count": 8,
+      "retread_flag": false
+    },
+    "saf-beliefs-016": {
+      "debate_count": 5,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "skp-beliefs-011": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-035": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-098": {
+      "debate_count": 16,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "saf-desires-007": {
+      "debate_count": 14,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-026": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-060": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-090": {
+      "debate_count": 1,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "sit-015": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-desires-006": {
+      "debate_count": 18,
+      "crux_link_count": 9,
+      "retread_flag": false
+    },
+    "acc-intentions-099": {
+      "debate_count": 31,
+      "crux_link_count": 0,
+      "retread_flag": true
+    },
+    "skp-beliefs-249": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-129": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-112": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-076": {
+      "debate_count": 14,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-061": {
+      "debate_count": 11,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-153": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-158": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-127": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-202": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-229": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-006": {
+      "debate_count": 2,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "sit-065": {
+      "debate_count": 13,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "sit-164": {
+      "debate_count": 9,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-046": {
+      "debate_count": 4,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "saf-intentions-159": {
+      "debate_count": 11,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-108": {
+      "debate_count": 12,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-246": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-071": {
+      "debate_count": 15,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-111": {
+      "debate_count": 10,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "saf-intentions-095": {
+      "debate_count": 9,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "saf-beliefs-121": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-179": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-073": {
+      "debate_count": 9,
+      "crux_link_count": 11,
+      "retread_flag": false
+    },
+    "skp-intentions-024": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-055": {
+      "debate_count": 22,
+      "crux_link_count": 0,
+      "retread_flag": true
+    },
+    "acc-intentions-037": {
+      "debate_count": 7,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-084": {
+      "debate_count": 3,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-intentions-082": {
+      "debate_count": 5,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "skp-intentions-075": {
+      "debate_count": 35,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "acc-intentions-062": {
+      "debate_count": 9,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-070": {
+      "debate_count": 2,
+      "crux_link_count": 10,
+      "retread_flag": false
+    },
+    "skp-beliefs-051": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-027": {
+      "debate_count": 40,
+      "crux_link_count": 9,
+      "retread_flag": false
+    },
+    "acc-beliefs-036": {
+      "debate_count": 14,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-005": {
+      "debate_count": 4,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "saf-beliefs-061": {
+      "debate_count": 5,
+      "crux_link_count": 11,
+      "retread_flag": false
+    },
+    "skp-beliefs-025": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-084": {
+      "debate_count": 21,
+      "crux_link_count": 1,
+      "retread_flag": true
+    },
+    "acc-desires-010": {
+      "debate_count": 3,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "acc-intentions-048": {
+      "debate_count": 6,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-beliefs-039": {
+      "debate_count": 4,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "acc-desires-011": {
+      "debate_count": 24,
+      "crux_link_count": 1,
+      "retread_flag": true
+    },
+    "saf-intentions-087": {
+      "debate_count": 12,
+      "crux_link_count": 14,
+      "retread_flag": false
+    },
+    "saf-intentions-140": {
+      "debate_count": 2,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "sit-012": {
+      "debate_count": 4,
+      "crux_link_count": 25,
+      "retread_flag": false
+    },
+    "acc-desires-007": {
+      "debate_count": 13,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-beliefs-095": {
+      "debate_count": 3,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-intentions-100": {
+      "debate_count": 7,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-046": {
+      "debate_count": 9,
+      "crux_link_count": 6,
+      "retread_flag": false
+    },
+    "skp-intentions-037": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-desires-066": {
+      "debate_count": 15,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-100": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-101": {
+      "debate_count": 2,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-intentions-050": {
+      "debate_count": 10,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "acc-intentions-017": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-127": {
+      "debate_count": 3,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-beliefs-051": {
+      "debate_count": 6,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "acc-intentions-077": {
+      "debate_count": 17,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "skp-intentions-030": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-146": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-131": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-164": {
+      "debate_count": 20,
+      "crux_link_count": 0,
+      "retread_flag": true
+    },
+    "skp-beliefs-229": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-067": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-131": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-108": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-145": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-050": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-120": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-067": {
+      "debate_count": 9,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-154": {
+      "debate_count": 9,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-beliefs-019": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-097": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-desires-061": {
+      "debate_count": 7,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-intentions-058": {
+      "debate_count": 14,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "cc-030": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-041": {
+      "debate_count": 6,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-intentions-012": {
+      "debate_count": 11,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "skp-beliefs-002": {
+      "debate_count": 38,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "acc-intentions-005": {
+      "debate_count": 13,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-033": {
+      "debate_count": 5,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-beliefs-022": {
+      "debate_count": 12,
+      "crux_link_count": 13,
+      "retread_flag": false
+    },
+    "saf-beliefs-102": {
+      "debate_count": 7,
+      "crux_link_count": 6,
+      "retread_flag": false
+    },
+    "skp-intentions-059": {
+      "debate_count": 11,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "sit-023": {
+      "debate_count": 11,
+      "crux_link_count": 8,
+      "retread_flag": false
+    },
+    "saf-beliefs-055": {
+      "debate_count": 9,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-intentions-102": {
+      "debate_count": 6,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-intentions-134": {
+      "debate_count": 20,
+      "crux_link_count": 7,
+      "retread_flag": false
+    },
+    "skp-beliefs-055": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-115": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-desires-025": {
+      "debate_count": 13,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-115": {
+      "debate_count": 7,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-014": {
+      "debate_count": 17,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "sit-070": {
+      "debate_count": 21,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "acc-intentions-111": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-077": {
+      "debate_count": 11,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-040": {
+      "debate_count": 13,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-beliefs-189": {
+      "debate_count": 12,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-145": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-109": {
+      "debate_count": 7,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-031": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-145": {
+      "debate_count": 11,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-intentions-094": {
+      "debate_count": 2,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "skp-beliefs-113": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-034": {
+      "debate_count": 2,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-beliefs-100": {
+      "debate_count": 12,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "acc-intentions-103": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-desires-020": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-107": {
+      "debate_count": 12,
+      "crux_link_count": 16,
+      "retread_flag": false
+    },
+    "risk_systemic_structural": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-016": {
+      "debate_count": 6,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "sit-104": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-146": {
+      "debate_count": 6,
+      "crux_link_count": 17,
+      "retread_flag": false
+    },
+    "cc-023": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-051": {
+      "debate_count": 20,
+      "crux_link_count": 16,
+      "retread_flag": false
+    },
+    "saf-intentions-158": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-078": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-110": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-051": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-149": {
+      "debate_count": 8,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-147": {
+      "debate_count": 14,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-114": {
+      "debate_count": 11,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-098": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-056": {
+      "debate_count": 12,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "skp-beliefs-068": {
+      "debate_count": 9,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-043": {
+      "debate_count": 5,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-intentions-038": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-103": {
+      "debate_count": 5,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "saf-beliefs-034": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-070": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-040": {
+      "debate_count": 10,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-094": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-071": {
+      "debate_count": 8,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-063": {
+      "debate_count": 10,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-intentions-143": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-068": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-085": {
+      "debate_count": 2,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "sit-087": {
+      "debate_count": 11,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "saf-intentions-122": {
+      "debate_count": 12,
+      "crux_link_count": 10,
+      "retread_flag": false
+    },
+    "saf-intentions-124": {
+      "debate_count": 1,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-beliefs-009": {
+      "debate_count": 8,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "cc-027": {
+      "debate_count": 5,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "acc-intentions-058": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-078": {
+      "debate_count": 13,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-intentions-118": {
+      "debate_count": 5,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-desires-012": {
+      "debate_count": 1,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-intentions-077": {
+      "debate_count": 11,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-intentions-034": {
+      "debate_count": 7,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-intentions-035": {
+      "debate_count": 8,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-intentions-006": {
+      "debate_count": 13,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-130": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-013": {
+      "debate_count": 10,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "acc-intentions-066": {
+      "debate_count": 9,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "acc-beliefs-037": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-064": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-046": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-158": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-074": {
+      "debate_count": 18,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-007": {
+      "debate_count": 10,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-058": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-desires-009": {
+      "debate_count": 10,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-103": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-079": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-011": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-046": {
+      "debate_count": 6,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-intentions-083": {
+      "debate_count": 13,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-beliefs-052": {
+      "debate_count": 5,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "acc-intentions-016": {
+      "debate_count": 4,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-beliefs-022": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-104": {
+      "debate_count": 15,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "skp-intentions-032": {
+      "debate_count": 6,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-intentions-071": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-026": {
+      "debate_count": 3,
+      "crux_link_count": 9,
+      "retread_flag": false
+    },
+    "skp-beliefs-099": {
+      "debate_count": 2,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-intentions-084": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-087": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-012": {
+      "debate_count": 6,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "skp-beliefs-213": {
+      "debate_count": 12,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-163": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-072": {
+      "debate_count": 10,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-174": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-219": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-desires-079": {
+      "debate_count": 12,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-133": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-080": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-231": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-131": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-170": {
+      "debate_count": 12,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-119": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-018": {
+      "debate_count": 2,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-intentions-125": {
+      "debate_count": 9,
+      "crux_link_count": 14,
+      "retread_flag": false
+    },
+    "saf-beliefs-023": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-103": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-004": {
+      "debate_count": 12,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-012": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-011": {
+      "debate_count": 1,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "sit-112": {
+      "debate_count": 9,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "acc-beliefs-024": {
+      "debate_count": 14,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "acc-intentions-050": {
+      "debate_count": 8,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-063": {
+      "debate_count": 3,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "saf-intentions-011": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-045": {
+      "debate_count": 1,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "sit-083": {
+      "debate_count": 4,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "acc-beliefs-023": {
+      "debate_count": 4,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-beliefs-016": {
+      "debate_count": 1,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-beliefs-046": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-031": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-037": {
+      "debate_count": 2,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-038": {
+      "debate_count": 6,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-intentions-022": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-089": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-046": {
+      "debate_count": 1,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-intentions-041": {
+      "debate_count": 2,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-118": {
+      "debate_count": 5,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-beliefs-048": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-desires-020": {
+      "debate_count": 2,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "acc-desires-041": {
+      "debate_count": 3,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "acc-intentions-057": {
+      "debate_count": 7,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "sit-042": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-036": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-203": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-217": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-137": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-116": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-102": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-013": {
+      "debate_count": 8,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-139": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-255": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-068": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-060": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-desires-074": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-215": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-152": {
+      "debate_count": 9,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-176": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-145": {
+      "debate_count": 3,
+      "crux_link_count": 9,
+      "retread_flag": false
+    },
+    "saf-intentions-170": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-061": {
+      "debate_count": 5,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-beliefs-061": {
+      "debate_count": 4,
+      "crux_link_count": 6,
+      "retread_flag": false
+    },
+    "skp-intentions-136": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-135": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-239": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-126": {
+      "debate_count": 12,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-126": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-026": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-058": {
+      "debate_count": 8,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "sit-142": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-108": {
+      "debate_count": 2,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-intentions-080": {
+      "debate_count": 2,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-beliefs-064": {
+      "debate_count": 3,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "saf-intentions-086": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-011": {
+      "debate_count": 9,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "acc-beliefs-041": {
+      "debate_count": 3,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-intentions-016": {
+      "debate_count": 4,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "acc-intentions-064": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-037": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-desires-018": {
+      "debate_count": 8,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-060": {
+      "debate_count": 10,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-089": {
+      "debate_count": 7,
+      "crux_link_count": 9,
+      "retread_flag": false
+    },
+    "acc-beliefs-005": {
+      "debate_count": 8,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-016": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-049": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-019": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-008": {
+      "debate_count": 3,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-intentions-073": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-062": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-061": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-006": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-125": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-105": {
+      "debate_count": 9,
+      "crux_link_count": 18,
+      "retread_flag": false
+    },
+    "skp-beliefs-120": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-009": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-116": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-213": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-018": {
+      "debate_count": 3,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "acc-intentions-090": {
+      "debate_count": 10,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-147": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-145": {
+      "debate_count": 8,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-232": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-116": {
+      "debate_count": 7,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "sit-055": {
+      "debate_count": 1,
+      "crux_link_count": 8,
+      "retread_flag": false
+    },
+    "skp-beliefs-045": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-151": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-152": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-148": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-desires-027": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-175": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-241": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-131": {
+      "debate_count": 7,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-048": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-183": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-171": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-desires-023": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-077": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-100": {
+      "debate_count": 8,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-107": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-138": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-178": {
+      "debate_count": 7,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-117": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-099": {
+      "debate_count": 2,
+      "crux_link_count": 6,
+      "retread_flag": false
+    },
+    "skp-beliefs-124": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-119": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-007": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-081": {
+      "debate_count": 1,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-beliefs-155": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-014": {
+      "debate_count": 2,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "governance_oversight": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "regulation_precautionary": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-104": {
+      "debate_count": 4,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-intentions-143": {
+      "debate_count": 6,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-beliefs-028": {
+      "debate_count": 13,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "acc-intentions-044": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-048": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-020": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-218": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-035": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-161": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-127": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-013": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-210": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-078": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-160": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-136": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-152": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-182": {
+      "debate_count": 7,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-150": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-desires-077": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-110": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-081": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-064": {
+      "debate_count": 10,
+      "crux_link_count": 6,
+      "retread_flag": false
+    },
+    "acc-beliefs-073": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-028": {
+      "debate_count": 5,
+      "crux_link_count": 11,
+      "retread_flag": false
+    },
+    "saf-intentions-099": {
+      "debate_count": 9,
+      "crux_link_count": 16,
+      "retread_flag": false
+    },
+    "cc-022": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-074": {
+      "debate_count": 1,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "skp-intentions-086": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-036": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-033": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-desires-080": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-105": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-096": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-072": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-205": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-190": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-164": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-210": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-219": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-141": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-062": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-058": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-109": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-desires-078": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-004": {
+      "debate_count": 5,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-intentions-075": {
+      "debate_count": 1,
+      "crux_link_count": 6,
+      "retread_flag": false
+    },
+    "saf-intentions-226": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-002": {
+      "debate_count": 1,
+      "crux_link_count": 7,
+      "retread_flag": false
+    },
+    "saf-intentions-015": {
+      "debate_count": 1,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-107": {
+      "debate_count": 3,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "sit-096": {
+      "debate_count": 4,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "saf-intentions-107": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-096": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-044": {
+      "debate_count": 5,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "sit-161": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-032": {
+      "debate_count": 5,
+      "crux_link_count": 6,
+      "retread_flag": false
+    },
+    "skp-intentions-023": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-155": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-230": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-092": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-116": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-desires-085": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-054": {
+      "debate_count": 10,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-040": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-076": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-010": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-007": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-038": {
+      "debate_count": 8,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-intentions-106": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-010": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-133": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-025": {
+      "debate_count": 9,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "skp-intentions-039": {
+      "debate_count": 6,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-021": {
+      "debate_count": 1,
+      "crux_link_count": 11,
+      "retread_flag": false
+    },
+    "liability_strict": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "deployment_gated": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "asymmetry_power": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-049": {
+      "debate_count": 1,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "sit-072": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-025": {
+      "debate_count": 5,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "skp-beliefs-105": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-093": {
+      "debate_count": 1,
+      "crux_link_count": 8,
+      "retread_flag": false
+    },
+    "skp-beliefs-104": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-086": {
+      "debate_count": 3,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "saf-intentions-054": {
+      "debate_count": 3,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "saf-intentions-045": {
+      "debate_count": 1,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "acc-intentions-083": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-028": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-105": {
+      "debate_count": 3,
+      "crux_link_count": 33,
+      "retread_flag": false
+    },
+    "saf-beliefs-119": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-111": {
+      "debate_count": 4,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "skp-intentions-111": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-156": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-160": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-045": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-desires-009": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-102": {
+      "debate_count": 5,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-139": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-090": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-122": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-048": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-074": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-111": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-228": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-054": {
+      "debate_count": 2,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-beliefs-220": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-180": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-desires-084": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-225": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-133": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-desires-076": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-211": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-195": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-018": {
+      "debate_count": 4,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "acc-beliefs-053": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-035": {
+      "debate_count": 2,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "acc-intentions-045": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-079": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-165": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-173": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-085": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-034": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-132": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-006": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-039": {
+      "debate_count": 1,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "sit-163": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-124": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-028": {
+      "debate_count": 1,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "skp-beliefs-121": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-068": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-067": {
+      "debate_count": 2,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "saf-intentions-168": {
+      "debate_count": 2,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "saf-desires-013": {
+      "debate_count": 2,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-117": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-215": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-004": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-137": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-142": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-198": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-153": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-036": {
+      "debate_count": 3,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-120": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-068": {
+      "debate_count": 2,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-intentions-144": {
+      "debate_count": 2,
+      "crux_link_count": 6,
+      "retread_flag": false
+    },
+    "skp-desires-073": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-092": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-147": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-043": {
+      "debate_count": 2,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-intentions-085": {
+      "debate_count": 2,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "cc-084": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-050": {
+      "debate_count": 1,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-069": {
+      "debate_count": 1,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-beliefs-052": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-047": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-142": {
+      "debate_count": 2,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "sit-091": {
+      "debate_count": 3,
+      "crux_link_count": 4,
+      "retread_flag": false
+    },
+    "sit-140": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-012": {
+      "debate_count": 4,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-intentions-136": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-055": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-056": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-052": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-200": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-153": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-027": {
+      "debate_count": 2,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "sit-157": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-039": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-009": {
+      "debate_count": 3,
+      "crux_link_count": 25,
+      "retread_flag": false
+    },
+    "acc-beliefs-021": {
+      "debate_count": 6,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-intentions-053": {
+      "debate_count": 6,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-intentions-073": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-076": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-070": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-110": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-063": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-068": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-073": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-045": {
+      "debate_count": 3,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-009": {
+      "debate_count": 1,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-intentions-025": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-065": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-118": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-146": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-135": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "oversight_human_control": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "capabilities_hazard": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "control_human_agency": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "accountability_institutional": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "autonomy_individual": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "governance_participatory": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "documented_present_harm": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "capture_institutional": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "fairness_procedural": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "oversight_audit": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "transparency_verification": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "safety_empirical": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "risk_innovation": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "governance_adaptive": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "accountability_market": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "transparency_accountability": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "autonomy_human": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "regulation_adaptive": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "bias_systemic": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-270": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-256": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-238": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-222": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-216": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-100": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-245": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-095": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-059": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-101": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-110": {
+      "debate_count": 2,
+      "crux_link_count": 7,
+      "retread_flag": false
+    },
+    "skp-intentions-055": {
+      "debate_count": 3,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-intentions-032": {
+      "debate_count": 1,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "saf-intentions-023": {
+      "debate_count": 1,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-131": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-082": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-071": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-015": {
+      "debate_count": 1,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-beliefs-103": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-181": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-075": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-desires-002": {
+      "debate_count": 11,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-desires-103": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-118": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skeptic-beliefs-031": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skeptic-beliefs-018": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skeptic-intentions-044": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skeptic-desires-009": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-007": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-200": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-163": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-110": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-051": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-136": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-003": {
+      "debate_count": 4,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-intentions-035": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-067": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "pol-1010": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-026": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-020": {
+      "debate_count": 1,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "pol-1001": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-011": {
+      "debate_count": 4,
+      "crux_link_count": 7,
+      "retread_flag": false
+    },
+    "cc-200": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-190": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-140": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-105": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-165": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-029": {
+      "debate_count": 1,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-beliefs-059": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-027": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-079": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-157": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-242": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-066": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-044": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-120": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-137": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-095": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-162": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-029": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-132": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-097": {
+      "debate_count": 1,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "cc-083": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-187": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-084": {
+      "debate_count": 2,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "saf-beliefs-155": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-019": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-118": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-169": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-160": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-148": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-132": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-235": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-146": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-214": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-087": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-141": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-206": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-081": {
+      "debate_count": 1,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "skp-beliefs-154": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-151": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-desires-042": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-132": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-128": {
+      "debate_count": 1,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "skp-desires-067": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-147": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-171": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-196": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-212": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-158": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-178": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-226": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-156": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-155": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-028": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-110": {
+      "debate_count": 1,
+      "crux_link_count": 10,
+      "retread_flag": false
+    },
+    "skp-intentions-101": {
+      "debate_count": 2,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-beliefs-123": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-142": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-201": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-desires-083": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-013": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-012": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-intentions-042": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-119": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-068": {
+      "debate_count": 1,
+      "crux_link_count": 8,
+      "retread_flag": false
+    },
+    "deployment_competitive": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-083": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-238": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-203": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-203": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-115": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-148": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-147": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-112": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-beliefs-213": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-beliefs-138": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-intentions-150": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-214": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-184": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-004": {
+      "debate_count": 9,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-002": {
+      "debate_count": 9,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-intentions-001": {
+      "debate_count": 9,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-002": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-desires-001": {
+      "debate_count": 3,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-098": {
+      "debate_count": 4,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-desires-003": {
+      "debate_count": 8,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-desires-002": {
+      "debate_count": 7,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-114": {
+      "debate_count": 5,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "acc-beliefs-002": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-101": {
+      "debate_count": 2,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-data-041": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-data-009": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-data-010": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-004": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-goals-015": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "skp-data-021": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-data-025": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-data-007": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-data-037": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-data-029": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-data-041": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-017": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "cc-008": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-goals-001": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-goals-003": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-goals-014": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "saf-goals-004": {
+      "debate_count": 1,
+      "crux_link_count": 0,
+      "retread_flag": false
+    },
+    "sit-094": {
+      "debate_count": 0,
+      "crux_link_count": 13,
+      "retread_flag": false
+    },
+    "saf-intentions-064": {
+      "debate_count": 0,
+      "crux_link_count": 8,
+      "retread_flag": false
+    },
+    "saf-intentions-036": {
+      "debate_count": 0,
+      "crux_link_count": 10,
+      "retread_flag": false
+    },
+    "sit-024": {
+      "debate_count": 0,
+      "crux_link_count": 5,
+      "retread_flag": false
+    },
+    "saf-intentions-029": {
+      "debate_count": 0,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "cc-048": {
+      "debate_count": 0,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-013": {
+      "debate_count": 0,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-intentions-141": {
+      "debate_count": 0,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "acc-desires-029": {
+      "debate_count": 0,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-intentions-095": {
+      "debate_count": 0,
+      "crux_link_count": 6,
+      "retread_flag": false
+    },
+    "sit-060": {
+      "debate_count": 0,
+      "crux_link_count": 3,
+      "retread_flag": false
+    },
+    "sit-047": {
+      "debate_count": 0,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-008": {
+      "debate_count": 0,
+      "crux_link_count": 9,
+      "retread_flag": false
+    },
+    "saf-intentions-021": {
+      "debate_count": 0,
+      "crux_link_count": 13,
+      "retread_flag": false
+    },
+    "sit-036": {
+      "debate_count": 0,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "saf-intentions-053": {
+      "debate_count": 0,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-089": {
+      "debate_count": 0,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "sit-017": {
+      "debate_count": 0,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-030": {
+      "debate_count": 0,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-113": {
+      "debate_count": 0,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-intentions-121": {
+      "debate_count": 0,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "sit-080": {
+      "debate_count": 0,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-082": {
+      "debate_count": 0,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-beliefs-059": {
+      "debate_count": 0,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-intentions-052": {
+      "debate_count": 0,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-beliefs-056": {
+      "debate_count": 0,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-intentions-019": {
+      "debate_count": 0,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-088": {
+      "debate_count": 0,
+      "crux_link_count": 2,
+      "retread_flag": false
+    },
+    "skp-beliefs-034": {
+      "debate_count": 0,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "saf-beliefs-060": {
+      "debate_count": 0,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-090": {
+      "debate_count": 0,
+      "crux_link_count": 1,
+      "retread_flag": false
+    },
+    "sit-039": {
+      "debate_count": 0,
+      "crux_link_count": 1,
+      "retread_flag": false
+    }
+  }
+}

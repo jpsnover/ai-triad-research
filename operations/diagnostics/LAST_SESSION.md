@@ -1,5 +1,5 @@
-**Date:** 2026-07-11
-**Working on:** Triaged FR dump merged-6707daca (iPad openDebateWindow login page). Filed t/1520 (window.open auth loss, high), t/1521 (FR platform field, medium), t/1522 (FR misleading ok status, low). Earlier: triaged merged-c460bf31, filed t/1515-t/1517, actioned t/1474.
-**Status:** Complete. Both FR triages done, all tickets filed and escalated.
-**Key context:** t/1520 affects 8 window.open() calls in web-bridge.ts — blast radius beyond just debate windows. t/1459 AC#4 and t/1475 post-deploy verification still blocked on next deploy. t/1474 implementation in progress at PowerShell.
-**Next:** Monitor t/1474 (PowerShell), t/1520 (Taxonomy Editor). Verify t/1459 AC#4 and t/1475 parseable logs after next deploy. Check ticket queue for new work.
+**Date:** 2026-07-20
+**Working on:** Verified fix for `Update-TaxEmbeddings` crash (t/1652) — PowerShell applied Option B guard (commit 5e52f992); `Update-TaxEmbeddings -Verbose` ran clean: 1226 nodes, 316 batches, 4001 embeddings written.
+**Status:** Complete. t/1652 verified and closed (t/1652#2). Post-diag tickets t/1653 and t/1654 filed.
+**Key context:** BATCH IS GATED — t/1646 hold still in effect (no Invoke-BatchSummary until PowerShell resolves A/B discriminator on density-floor warning / possible key_points data loss in Merge-ChunkSummaries.ps1).
+**Next:** Watch t/1646 for PowerShell A/B result. Root-cause A → batch gate lifts. Root-cause B → escalate scope (which chunked docs affected, re-processing needed).

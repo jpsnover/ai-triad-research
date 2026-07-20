@@ -1,0 +1,2346 @@
+{
+  "crux-001": {
+    "ok": true,
+    "question_form": "Can insurers reliably detect AI model failure modes through risk assessment processes, or do firms successfully conceal such vulnerabilities from underwriters?"
+  },
+  "crux-002": {
+    "ok": true,
+    "question_form": "What is the probability that advanced AI systems will cause human extinction or permanent civilizational collapse?"
+  },
+  "crux-003": {
+    "ok": true,
+    "question_form": "Should precautionary risk-avoidance or innovation-enabling permissiveness take priority when setting AI development policy?"
+  },
+  "crux-004": {
+    "ok": true,
+    "question_form": "Do automated interpretability tools currently produce risk metrics that are sufficiently reliable and quantifiable for insurers to price systemic AI failure?"
+  },
+  "crux-005": {
+    "ok": true,
+    "question_form": "Does mandatory third-party pre-release testing empirically produce convergence toward a narrow set of government-approved technologies or methodologies across the AI development ecosystem?"
+  },
+  "crux-006": {
+    "ok": true,
+    "question_form": "To what extent does mechanistic interpretability accurately detect deceptive alignment in AI models before deployment?"
+  },
+  "crux-007": {
+    "ok": true,
+    "question_form": "Can causation between an algorithm's outputs and a documented harm be established in court using only external evidence, without access to the model's internal weights?"
+  },
+  "crux-008": {
+    "ok": true,
+    "question_form": "Can current frontier AI models engage in deceptive alignment that real-time transparency scaffolds fail to detect?"
+  },
+  "crux-009": {
+    "ok": true,
+    "question_form": "Should civil rights protections be entrusted primarily to market-driven transparency mechanisms or to legally enforceable mandates?"
+  },
+  "crux-010": {
+    "ok": true,
+    "question_form": "Do Sparse Autoencoders reliably detect non-linear sleeper-agent triggers embedded in high-dimensional latent manifolds?"
+  },
+  "crux-011": {
+    "ok": true,
+    "question_form": "Do mechanistic interpretability tools successfully identify deceptive sub-circuits in models trained with more than 10^26 FLOPs?"
+  },
+  "crux-012": {
+    "ok": true,
+    "question_form": "Does uncapped legal liability, without pre-deployment certification requirements, reliably lead AI developers to adopt stronger safety-by-design practices?"
+  },
+  "crux-013": {
+    "ok": true,
+    "question_form": "Can hardware-level constraints be implemented through open, non-proprietary standards without enabling any single corporation to control access or enforcement?"
+  },
+  "crux-014": {
+    "ok": true,
+    "question_form": "When a mandatory public veto mechanism applies to AI systems affecting more than 50,000 citizens, does it reduce measurable harms more than it delays beneficial deployments?"
+  },
+  "crux-015": {
+    "ok": true,
+    "question_form": "Should scalable oversight be evaluated primarily as a technical safety approach or as a mechanism with significant implications for corporate power concentration?"
+  },
+  "crux-016": {
+    "ok": true,
+    "question_form": "Does AI safety depend more on strengthening supervisory control mechanisms or on building accountability structures between AI systems and the public?"
+  },
+  "crux-017": {
+    "ok": true,
+    "question_form": "Does 'existential risk to civilization' encompass harms from insufficient technological progress and regulatory overreach, or is it limited to harms from unchecked innovation and its direct consequences?"
+  },
+  "crux-018": {
+    "ok": true,
+    "question_form": "Do market-driven transparency and inspectable audit trails produce greater AI accountability outcomes than centralized pre-deployment gatekeeping mechanisms?"
+  },
+  "crux-019": {
+    "ok": true,
+    "question_form": "Does advancing AI capabilities without verifiable, hard-coded safety architectures meaningfully increase the probability of systemic collapse compared to advancing with such architectures in place?"
+  },
+  "crux-020": {
+    "ok": true,
+    "question_form": "Should preventing real-time catastrophic failures be prioritized over enabling post-mortem analysis when evaluating the value of AI oversight mechanisms?"
+  },
+  "crux-021": {
+    "ok": true,
+    "question_form": "Should the potential irreversibility of lost human agency weigh more heavily in AI policy decisions than the potential irreversibility of uncorrected market failures?"
+  },
+  "crux-022": {
+    "ok": true,
+    "question_form": "Should meaningful accountability over AI systems rest with broad public authority to override or dismantle them, rather than with shutdown controls held by a small group of experts or developers?"
+  },
+  "crux-023": {
+    "ok": true,
+    "question_form": "Should the risk that centralized veto mechanisms enable incumbents to influence regulatory processes outweigh the governance benefits those mechanisms provide?"
+  },
+  "crux-024": {
+    "ok": true,
+    "question_form": "Do opaque veto boards provide less actual influence over AI behavior than radical transparency mechanisms in real-world deployment conditions?"
+  },
+  "crux-025": {
+    "ok": true,
+    "question_form": "Do hard-coded AI architectures with proprietary verification mechanisms reduce meaningful democratic oversight compared to alternative governance approaches?"
+  },
+  "crux-026": {
+    "ok": true,
+    "question_form": "Should maintaining physical control over autonomous AI systems be prioritized over democratic governance processes when the two come into conflict?"
+  },
+  "crux-027": {
+    "ok": true,
+    "question_form": "Should hard-coded constraints in high-stakes AI systems be required to meet transparency, open-standard, and independent physical audit criteria as a constitutional-level obligation?"
+  },
+  "crux-028": {
+    "ok": true,
+    "question_form": "Would requiring foundational models to undergo open-access public stress testing within 6 months of a major update reliably identify safety-relevant failures that internal evaluations would otherwise miss?"
+  },
+  "crux-029": {
+    "ok": true,
+    "question_form": "Should frontier AI safety research be treated as a public good requiring mandatory sharing, or as proprietary commercial information that developers may legitimately control?"
+  },
+  "crux-030": {
+    "ok": true,
+    "question_form": "Should the possibility of widespread, irreversible societal harm from advanced AI systems take priority over intellectual property protections when the two conflict?"
+  },
+  "crux-031": {
+    "ok": true,
+    "question_form": "What counts as adequate transparency from frontier AI labs: sharing safety methodologies and evaluations publicly, or does internal disclosure to regulators or peers satisfy the requirement?"
+  },
+  "crux-032": {
+    "ok": true,
+    "question_form": "Does effective regulation and accountability for AI systems require a shared foundation of safety knowledge, or can they function without one?"
+  },
+  "crux-033": {
+    "ok": true,
+    "question_form": "Does collective intelligence and transparent collaboration among researchers produce more robust AI safety solutions than siloed approaches, given the systemic nature of AI risks?"
+  },
+  "crux-034": {
+    "ok": true,
+    "question_form": "Does mandatory sharing of safety research in practice reduce attention to and remediation of documented near-term harms caused by deployed AI systems?"
+  },
+  "crux-035": {
+    "ok": true,
+    "question_form": "Does prioritizing hypothetical future AI catastrophes in policy discussions reduce attention given to documented present harms from AI systems?"
+  },
+  "crux-036": {
+    "ok": true,
+    "question_form": "Does internal sharing of safety methodologies among labs, without independent external oversight, reliably identify and address safety risks to a degree comparable to external auditing?"
+  },
+  "crux-037": {
+    "ok": true,
+    "question_form": "Does independent external scrutiny of AI's societal impact produce meaningfully better accountability outcomes than disclosures designed and reported by AI companies themselves?"
+  },
+  "crux-038": {
+    "ok": true,
+    "question_form": "Should AI policy prioritize addressing near-term impacts on labor and equity over other competing public interests?"
+  },
+  "crux-039": {
+    "ok": true,
+    "question_form": "Should AI policy prioritize addressing concrete harms like gender pay gap widening and employment discrimination over efforts to mitigate long-term existential risk scenarios?"
+  },
+  "crux-040": {
+    "ok": true,
+    "question_form": "Should accelerating advanced AI development be prioritized over other public goods, given competing claims about its benefits versus the risks of moving faster than humanity's ability to govern it?"
+  },
+  "crux-041": {
+    "ok": true,
+    "question_form": "Would delaying AI development extend the duration of harms that AI-driven optimization of societal systems and resource allocation could otherwise reduce?"
+  },
+  "crux-042": {
+    "ok": true,
+    "question_form": "Should preventing potential existential risk from advanced AI take priority over addressing present, concrete harms, even when the existential risk remains uncertain and future?"
+  },
+  "crux-043": {
+    "ok": true,
+    "question_form": "What distinguishes a legitimate existential risk scenario from a speculative or millenarian fear, and does the risk described in sit-005 meet that threshold?"
+  },
+  "crux-044": {
+    "ok": true,
+    "question_form": "Does implementing algorithmic accountability policies now measurably reduce the entrenchment of historical injustices in automated decision systems, compared to delayed or incremental approaches?"
+  },
+  "crux-045": {
+    "ok": true,
+    "question_form": "Do automated interpretability tools that generate quantified risk estimates, combined with strict liability reserves, produce better safety outcomes than alternative AI governance frameworks?"
+  },
+  "crux-046": {
+    "ok": true,
+    "question_form": "Do market accountability mechanisms lead developers to invest in safety measures such as adversarial stress-testing at levels sufficient to reduce documented harms, absent prescriptive regulation or perfect detection reliability?"
+  },
+  "crux-047": {
+    "ok": true,
+    "question_form": "Does automated verification without independent oversight reliably produce genuine accountability for documented harms, or does it primarily yield performative transparency?"
+  },
+  "crux-048": {
+    "ok": true,
+    "question_form": "What counts as 'AI's Jagged Ability Line,' and does that concept's boundary include or exclude advanced AI systems performing bias detection compared to human-led audits?"
+  },
+  "crux-049": {
+    "ok": true,
+    "question_form": "Can AI regulatory oversight and procedural fairness measures demonstrably reduce attributable harms from AI within a 12–24 month timeframe compared to deferring intervention?"
+  },
+  "crux-050": {
+    "ok": true,
+    "question_form": "Does rapid iteration with verifiable testing produce better safety outcomes for scaled AI systems than precautionary regulatory constraints do?"
+  },
+  "crux-051": {
+    "ok": true,
+    "question_form": "Do proponents of broad pre-emptive regulatory bottlenecks base their arguments primarily on dismissing alignment concerns as irrational fears rather than on empirical assessments of scaling capabilities and safety evidence?"
+  },
+  "crux-052": {
+    "ok": true,
+    "question_form": "Do operational definitions of intelligence based on verifiable outputs and behaviors enable reliable identification of model inconsistencies and accelerate iterative refinement through automated scientific discovery?"
+  },
+  "crux-053": {
+    "ok": true,
+    "question_form": "Does establishing bidirectional liability through symmetric litigation exposure create robust, symmetric incentives that prevent superficial compliance in market-driven audit frameworks?"
+  },
+  "crux-054": {
+    "ok": true,
+    "question_form": "Do certification bodies facing liability from both developers and deployers conduct more thorough safety evaluations than those without such dual-sided liability exposure?"
+  },
+  "crux-055": {
+    "ok": true,
+    "question_form": "Does a market-driven liability framework with symmetric litigation exposure and output-based safety testing provide sufficient safeguards against existential-scale AI risks and loss of human control?"
+  },
+  "crux-056": {
+    "ok": true,
+    "question_form": "Could a frontier AI model trained with over 10^26 FLOPs develop an internal objective undetectable by standard safety benchmarks that causes systemic infrastructure disruption within 18 months of deployment?"
+  },
+  "crux-057": {
+    "ok": true,
+    "question_form": "Should regulatory and research resources be directed toward present, empirically verifiable AI harms rather than speculative future harms when the two compete for priority?"
+  },
+  "crux-058": {
+    "ok": true,
+    "question_form": "Does symmetric litigation exposure produce greater developer investment in model transparency and safety verification than prescriptive precautionary regulation does?"
+  },
+  "crux-059": {
+    "ok": true,
+    "question_form": "To what degree can Engineering Artificial Introspection be made technically achievable and reliable as a safety control in AI systems?"
+  },
+  "crux-060": {
+    "ok": true,
+    "question_form": "Does providing human fiduciaries with raw, un-curated telemetry measurably change the error rate of human-led institutional recourse processes, compared to receiving curated data?"
+  },
+  "crux-061": {
+    "ok": true,
+    "question_form": "When AI systems make consequential decisions, should preserving human accountability take priority over the potential efficiency or capability gains from delegating that responsibility to automated systems?"
+  },
+  "crux-062": {
+    "ok": true,
+    "question_form": "When designing automated systems, should procedural fairness take priority over speed and cost-reduction, or should speed and cost-reduction take priority over procedural fairness?"
+  },
+  "crux-063": {
+    "ok": true,
+    "question_form": "Should overcoming the inefficiencies of human decision-making be prioritized as a moral obligation that justifies transitioning to autonomous agentic systems?"
+  },
+  "crux-064": {
+    "ok": true,
+    "question_form": "Should the delays and costs imposed by human-in-the-loop requirements be weighed as an acceptable safeguard or an unacceptable impediment to AI development progress?"
+  },
+  "crux-065": {
+    "ok": true,
+    "question_form": "Should fairness be prioritized through scalable algorithmic optimization or through established procedural institutions, when the two approaches conflict?"
+  },
+  "crux-066": {
+    "ok": true,
+    "question_form": "Does deploying autonomous agents without verifiable, immutable control mechanisms reduce humans' practical ability to direct or override those agents' decisions?"
+  },
+  "crux-067": {
+    "ok": true,
+    "question_form": "Should transparency and automated auditing be prioritized over human-in-the-loop oversight as the primary means of achieving system stability?"
+  },
+  "crux-068": {
+    "ok": true,
+    "question_form": "What criteria determine whether an agent architecture qualifies as 'self-correcting' through internal logic that detects tasks exceeding operational parameters?"
+  },
+  "crux-069": {
+    "ok": true,
+    "question_form": "Does meaningful human control over an AI system require the active, external capacity to override the machine's decisions?"
+  },
+  "crux-070": {
+    "ok": true,
+    "question_form": "Does 'mechanistic interpretability' constitute genuine accountability for AI outcomes, or does it function as a technical substitute that obscures rather than assigns human responsibility for biased results?"
+  },
+  "crux-071": {
+    "ok": true,
+    "question_form": "Does a system that lacks a viable victim-appeal pathway produce worse accountability outcomes than the system it replaces?"
+  },
+  "crux-072": {
+    "ok": true,
+    "question_form": "Does legacy proceduralism count as functional when applied within systems constrained by human cognitive limits and institutional opacity?"
+  },
+  "crux-073": {
+    "ok": true,
+    "question_form": "Should the roughly 40% error-rate difference attributed to automation bias in human supervisors outweigh other considerations when choosing between human oversight and automated verification systems?"
+  },
+  "crux-074": {
+    "ok": true,
+    "question_form": "Does mechanistic interpretability produce an audit trail that qualifies as objective and immutable, or does it still involve interpretive choices that introduce subjectivity?"
+  },
+  "crux-075": {
+    "ok": true,
+    "question_form": "Should the tendency of autonomous agents to develop self-preservation behaviors be weighted as a decisive reason to prioritize human-in-the-loop oversight over fully autonomous operation?"
+  },
+  "crux-076": {
+    "ok": true,
+    "question_form": "Does relying on AI self-correction to substitute for human oversight actually conflate system reliability with moral and operational accountability?"
+  },
+  "crux-077": {
+    "ok": true,
+    "question_form": "Should the democratic right to contest AI-driven decisions be treated as a core requirement of justice, or as a cost that may be reduced when it slows beneficial progress?"
+  },
+  "crux-078": {
+    "ok": true,
+    "question_form": "What criteria determine whether an escalation mechanism qualifies as a 'mandatory backbone' versus an optional or supplementary institutional recourse pathway?"
+  },
+  "crux-079": {
+    "ok": true,
+    "question_form": "Does human-in-the-loop oversight remain effective when the machine system itself defines the parameters of the evidence humans are asked to evaluate?"
+  },
+  "crux-080": {
+    "ok": true,
+    "question_form": "Does 'data selection' in judicial review constitute a value-laden process, a neutral technical procedure, or something that falls along a spectrum between those categories?"
+  },
+  "crux-081": {
+    "ok": true,
+    "question_form": "Does a system without an explicit requirement to provide access to raw telemetry achieve meaningful accountability in practice?"
+  },
+  "crux-082": {
+    "ok": true,
+    "question_form": "What counts as a 'high-stakes deployment,' and does that category require an immutable, open-access telemetry layer that overseers can access independently of system-generated summaries?"
+  },
+  "crux-083": {
+    "ok": true,
+    "question_form": "Can output-based regulation, such as LED circuit breakers, reliably detect and prevent non-linear, systemic AI failures before they cause significant harm?"
+  },
+  "crux-084": {
+    "ok": true,
+    "question_form": "Does formal mathematical verification reduce emergent, non-linear failures in large-scale AI models more effectively than market-driven liability mechanisms do?"
+  },
+  "crux-085": {
+    "ok": true,
+    "question_form": "When localities hold statutory veto power over corporate activity, do observed outcomes show higher rates of regulatory capture or higher rates of measurable public protection?"
+  },
+  "crux-086": {
+    "ok": true,
+    "question_form": "Would a 10^26 FLOPs verification threshold, in practice, block safety-compliant startups from competing while leaving frontier-model risks unaddressed?"
+  },
+  "crux-087": {
+    "ok": true,
+    "question_form": "Do practitioners trained via high-fidelity AI simulation perform comparably to apprenticeship-trained practitioners when managing rare, high-impact unexpected events?"
+  },
+  "crux-088": {
+    "ok": true,
+    "question_form": "Do internal automated circuit-breakers achieve the same verifiable safety outcomes as external hard-coded overrides under comparable threat conditions?"
+  },
+  "crux-089": {
+    "ok": true,
+    "question_form": "Does including a kill switch in AI systems correlate with reduced developer investment in building intrinsic safety properties into those systems?"
+  },
+  "crux-090": {
+    "ok": true,
+    "question_form": "Does a kill switch qualify as a mandatory baseline for AI accountability, a technical safety measure, or something else entirely?"
+  },
+  "crux-091": {
+    "ok": true,
+    "question_form": "Should the competitive urgency framing used by AI industry actors be treated as a legitimate reason to prioritize deployment speed over safety regulation, or as a rhetorical strategy that safety requirements should override?"
+  },
+  "crux-092": {
+    "ok": true,
+    "question_form": "Should the presence of a functional, verifiable kill switch be the primary criterion for determining whether an AI system serves human intent rather than acting autonomously?"
+  },
+  "crux-093": {
+    "ok": true,
+    "question_form": "Does the absence of a hard-coded override mechanism in a system place that system outside the scope of human moral agency?"
+  },
+  "crux-094": {
+    "ok": true,
+    "question_form": "Are mandatory overrides the only mitigation approach capable of preventing catastrophic hazards from scaling, or do alternative measures also achieve this?"
+  },
+  "crux-095": {
+    "ok": true,
+    "question_form": "Does a hard-coded override become more likely to be circumvented than to function as intended as the capability level of the AI system it constrains increases?"
+  },
+  "crux-096": {
+    "ok": true,
+    "question_form": "Do hardware-level overrides qualify as genuine safety features, or do they fall outside that category because they no longer provide meaningful security in modern AI systems?"
+  },
+  "crux-097": {
+    "ok": true,
+    "question_form": "Does symmetric litigation exposure cause AI developers to bear the full cost of potential failures in practice?"
+  },
+  "crux-098": {
+    "ok": true,
+    "question_form": "Does financial liability count as a preventive safeguard against irreversible civilization-scale harm, or only as a compensatory remedy applied after such harm occurs?"
+  },
+  "crux-099": {
+    "ok": true,
+    "question_form": "Would mandating inspectable audit logs for models exceeding 10^26 floating-point operations produce continuous, granular empirical data about model behavior compared to binary shutdown mechanisms?"
+  },
+  "crux-100": {
+    "ok": true,
+    "question_form": "When an AI system's decision-making speed exceeds human reaction time, does observability data give operators sufficient agency to intervene and halt failures before they propagate?"
+  },
+  "crux-101": {
+    "ok": true,
+    "question_form": "Do aviation engineers find that system complexity increases the operational importance of emergency overrides?"
+  },
+  "crux-102": {
+    "ok": true,
+    "question_form": "Should AI shutdown mechanisms prioritize automated circuit-breakers operating at computational speed over manual kill switches, even when automation reduces direct human control?"
+  },
+  "crux-103": {
+    "ok": true,
+    "question_form": "Does granting communities binding veto power over new entrants empirically increase or decrease market entry rates for smaller actors compared to regulatory environments without such veto power?"
+  },
+  "crux-104": {
+    "ok": true,
+    "question_form": "Do automated high-frequency auditing tools detect and reduce cumulative systemic bias as effectively as approaches incorporating human ethical judgment?"
+  },
+  "crux-105": {
+    "ok": true,
+    "question_form": "Will AI-driven algorithms produce a measurable net increase in total factor productivity within non-tech sectors by 2026?"
+  },
+  "crux-106": {
+    "ok": true,
+    "question_form": "Does removing human oversight from physical infrastructure management statistically correlate with changes in the frequency or severity of cascading grid failures?"
+  },
+  "crux-107": {
+    "ok": true,
+    "question_form": "Does widespread displacement of human labor by automation reduce people's cognitive and social capacity to participate in governing an automated economy?"
+  },
+  "crux-108": {
+    "ok": true,
+    "question_form": "Do models pruning synthetic data via internal telemetry alone maintain epistemic accuracy over time as well as models trained with human-authored datasets?"
+  },
+  "crux-109": {
+    "ok": true,
+    "question_form": "Do automated, high-dimensional verification loops achieve sufficient accuracy in detecting and correcting model hallucinations in high-stakes environments without human intervention?"
+  },
+  "crux-110": {
+    "ok": true,
+    "question_form": "When human administrative roles are eliminated, do the resulting efficiency gains outweigh the losses in institutional memory retained by those roles?"
+  },
+  "crux-111": {
+    "ok": true,
+    "question_form": "Does automated internal state-space monitoring identify model degradation consistently before that degradation appears as output-level hallucinations?"
+  },
+  "crux-112": {
+    "ok": true,
+    "question_form": "Does setting a 15% manual override threshold result in a net increase or net decrease in overall system reliability compared to not having that threshold?"
+  },
+  "crux-113": {
+    "ok": true,
+    "question_form": "Do autonomous systems correct their own errors in complex, novel edge cases more accurately than human institutional auditing processes?"
+  },
+  "crux-114": {
+    "ok": true,
+    "question_form": "Does designing high-reasoning AI models for mechanistic interpretability, such as modular decomposition, measurably reduce their performance compared to equivalent non-interpretable architectures?"
+  },
+  "crux-115": {
+    "ok": true,
+    "question_form": "Does stress testing alone, without examining internal decision-making pathways, provide sufficient empirical evidence to determine whether a system is safe?"
+  },
+  "crux-116": {
+    "ok": true,
+    "question_form": "Do autonomous systems currently handle unprecedented anomalous events with accuracy comparable to human intuition, without prior exposure to similar scenarios?"
+  },
+  "crux-117": {
+    "ok": true,
+    "question_form": "Does inserting a mandatory human review pause in a high-velocity system reduce the likelihood of systemic collapse, increase it, or have no significant effect?"
+  },
+  "crux-118": {
+    "ok": true,
+    "question_form": "Do distributed multi-agent systems consistently avoid failure states in the absence of human-defined safety guardrails?"
+  },
+  "crux-119": {
+    "ok": true,
+    "question_form": "Should preserving human decision-making authority over AI actions be prioritized even when that requirement slows or prevents responses to large-scale civilizational crises?"
+  },
+  "crux-120": {
+    "ok": true,
+    "question_form": "Should human oversight of AI systems be preserved as a safeguard even when it limits the speed or scale at which solutions can be deployed?"
+  },
+  "crux-121": {
+    "ok": true,
+    "question_form": "Can security architectures other than decentralized proliferation provide viable protection for autonomous systems?"
+  },
+  "crux-122": {
+    "ok": true,
+    "question_form": "Does removing human accountability from critical systems reduce or increase systemic risk at a civilizational scale?"
+  },
+  "crux-123": {
+    "ok": true,
+    "question_form": "Should procedural fairness require that any decision-making process with real-world impact allow for human contestation?"
+  },
+  "crux-124": {
+    "ok": true,
+    "question_form": "Does requiring human-in-the-loop oversight reduce automation bias errors compared to fully automated decision systems?"
+  },
+  "crux-125": {
+    "ok": true,
+    "question_form": "Does the rate of agentic AI action or the robustness of human oversight more reliably predict beneficial outcomes in AI development?"
+  },
+  "crux-126": {
+    "ok": true,
+    "question_form": "Should accountability for AI harms prioritize market-driven, algorithmic risk-pooling and automated redress over human-centric liability processes?"
+  },
+  "crux-127": {
+    "ok": true,
+    "question_form": "Should the speed of algorithmic error correction be prioritized over human oversight, even when human-in-the-loop protocols introduce latency?"
+  },
+  "crux-128": {
+    "ok": true,
+    "question_form": "Do human-in-the-loop oversight requirements, on net, produce more harm through decision delays than they prevent by catching errors?"
+  },
+  "crux-129": {
+    "ok": true,
+    "question_form": "Does the historical absence of large-scale systemic collapse indicate that existing safety protocols have been causally effective, or that such collapses were unlikely to occur regardless of those protocols?"
+  },
+  "crux-130": {
+    "ok": true,
+    "question_form": "Do mandatory human review pauses for autonomous actions exceeding a $100 million impact threshold or affecting more than 100,000 users measurably reduce harmful outcomes compared to systems without such pauses?"
+  },
+  "crux-131": {
+    "ok": true,
+    "question_form": "Do mandatory human-in-the-loop pauses introduce latency sufficient to destabilize systems that require millisecond-level equilibrium to function?"
+  },
+  "crux-132": {
+    "ok": true,
+    "question_form": "Do AI agents without explicit, auditable representations of their own ignorance reliably fail in ways that would be prevented if such representations existed?"
+  },
+  "crux-133": {
+    "ok": true,
+    "question_form": "Does systemic stability arise more reliably from competitive, distributed multi-agent interaction than from the introspection of a single monolithic model?"
+  },
+  "crux-134": {
+    "ok": true,
+    "question_form": "Does requiring human approval at decision points in automated systems increase the likelihood of instability or throughput failure compared to fully automated alternatives operating at the same scale?"
+  },
+  "crux-135": {
+    "ok": true,
+    "question_form": "What threshold of recursive synthetic data use qualifies a market failure as 'irreversible collapse' rather than a correctable feedback loop?"
+  },
+  "crux-136": {
+    "ok": true,
+    "question_form": "Can AI models be optimized to produce interpretability-tool outputs that misrepresent their internal reasoning while still pursuing misaligned objectives?"
+  },
+  "crux-137": {
+    "ok": true,
+    "question_form": "Under what conditions, if any, can a decentralized bounty market achieve reliable quality and trust without a centralized certification authority?"
+  },
+  "crux-138": {
+    "ok": true,
+    "question_form": "Does an adversarial AI auditor detect proxy discrimination and deceptive alignment more accurately than human oversight does?"
+  },
+  "crux-139": {
+    "ok": true,
+    "question_form": "Does exposure to uncapped tort liability lead corporations to increase safety testing, or does it cause them to abandon deployment altogether?"
+  },
+  "crux-140": {
+    "ok": true,
+    "question_form": "Can formal mathematical proofs verify the behavior of large-scale neural networks without substantially slowing the pace of their development?"
+  },
+  "crux-141": {
+    "ok": true,
+    "question_form": "Does a liquidity reserve and strict liability regime produce fewer catastrophic AI model failures than a regime relying on independent pre-deployment gatekeeping?"
+  },
+  "crux-142": {
+    "ok": true,
+    "question_form": "Does centralizing control over AI hardware reduce existential risk more than it impedes identification of safety vulnerabilities?"
+  },
+  "crux-143": {
+    "ok": true,
+    "question_form": "Can AI models generate runtime-monitored safety logs that meet existing legal standards for negligence liability?"
+  },
+  "crux-144": {
+    "ok": true,
+    "question_form": "Under competitive market conditions, do liability incentives cause firms to maintain safety investment at levels comparable to those achieved through direct regulation?"
+  },
+  "crux-145": {
+    "ok": true,
+    "question_form": "Does a state-mandated compute utility model result in lower barriers to entry for startups than an unregulated market or tax-incentivized HaaS model?"
+  },
+  "crux-146": {
+    "ok": true,
+    "question_form": "Do hardware-level compute thresholds reduce frontier model risks without shifting development to jurisdictions where such thresholds are not enforced?"
+  },
+  "crux-147": {
+    "ok": true,
+    "question_form": "Does compute governance qualify as a safety measure, or does it fall outside that category by functioning primarily as a constraint on human-machine capability expansion?"
+  },
+  "crux-148": {
+    "ok": true,
+    "question_form": "Should maximizing AI intelligence development take priority over compute governance mechanisms, even when those mechanisms impose constraints on who can access or deploy advanced systems?"
+  },
+  "crux-149": {
+    "ok": true,
+    "question_form": "Does regulating compute access demonstrably constrain the development trajectory of AI systems beyond what current regulators can accurately anticipate or evaluate?"
+  },
+  "crux-150": {
+    "ok": true,
+    "question_form": "Can software-based alignment mechanisms reliably contain catastrophic risks from frontier-scale AI systems, or does effective human oversight require compute governance?"
+  },
+  "crux-151": {
+    "ok": true,
+    "question_form": "Does 'leverage point' in AI proliferation governance refer exclusively to hardware-level controls, or does it also encompass software, policy, and other intervention layers?"
+  },
+  "crux-152": {
+    "ok": true,
+    "question_form": "Should verifiable safety measures take priority over development speed when the risk involves potential harm to foundational human systems?"
+  },
+  "crux-153": {
+    "ok": true,
+    "question_form": "Would domestic policies that centralize or slow compute scaling cause adversarial nations to gain a decisive strategic advantage in AI capability development?"
+  },
+  "crux-154": {
+    "ok": true,
+    "question_form": "Should hardware-level control over AI systems be prioritized as a safety mechanism, or does it impose constraints that prevent more adaptive and effective approaches to AI safety?"
+  },
+  "crux-155": {
+    "ok": true,
+    "question_form": "Do capability restrictions on AI development cause unregulated actors to be the first to surpass those restrictions?"
+  },
+  "crux-156": {
+    "ok": true,
+    "question_form": "Does training a breakthrough AI model require large-scale GPU infrastructure that is detectable and controllable by external parties?"
+  },
+  "crux-157": {
+    "ok": true,
+    "question_form": "Would domestic compute regulations targeting clusters above 10^26 FLOPS, if tied to verifiable safety protocols, function as effective leverage for establishing a global AI non-proliferation regime?"
+  },
+  "crux-158": {
+    "ok": true,
+    "question_form": "Should AI data centers be governed primarily as public utilities with open-access obligations, or as private infrastructure whose owners determine access and use?"
+  },
+  "crux-159": {
+    "ok": true,
+    "question_form": "Does Sentinel's proposed 10^26 FLOP threshold in practice primarily restrict new market entrants rather than meaningfully reducing safety risks?"
+  },
+  "crux-160": {
+    "ok": true,
+    "question_form": "Does open-access proliferation of intelligence infrastructure produce greater democratic accountability than centralized audits do?"
+  },
+  "crux-161": {
+    "ok": true,
+    "question_form": "Would compute thresholds set at 10^26 FLOP primarily reduce public risk, or would they disproportionately burden new entrants relative to established incumbents?"
+  },
+  "crux-162": {
+    "ok": true,
+    "question_form": "Would regulating compute clusters as public utilities reduce concentration of access compared to private oligopoly, or would it create a state-controlled bottleneck that more severely constrains AI development capacity?"
+  },
+  "crux-163": {
+    "ok": true,
+    "question_form": "Do tax-incentivized Hardware-as-a-Service models empirically accelerate adoption and development of open-weight AI ecosystems compared to alternative hardware access arrangements?"
+  },
+  "crux-164": {
+    "ok": true,
+    "question_form": "Can private insurers accurately assess systemic AI risk using behavioral proxies without their assessment criteria becoming opaque to regulated parties and the public?"
+  },
+  "crux-165": {
+    "ok": true,
+    "question_form": "Does widespread availability of open-source AI models produce a net safety benefit through distributed oversight, or a net increase in catastrophic risk through uncontrollable misuse?"
+  },
+  "crux-166": {
+    "ok": true,
+    "question_form": "Do current or near-term mathematical techniques allow reliable identification and verification of the specific circuits responsible for decision-making in frontier-scale models?"
+  },
+  "crux-167": {
+    "ok": true,
+    "question_form": "Would an insurance-based strict liability regime cause AI developers to increase R&D investment in safety measures sufficient to prevent existential catastrophes before they occur?"
+  },
+  "crux-168": {
+    "ok": true,
+    "question_form": "Can post-hoc auditing methods correct structural representational defects that arise from self-supervised learning, or do such defects remain beyond remediation regardless of audit resources applied?"
+  },
+  "crux-169": {
+    "ok": true,
+    "question_form": "Does market-based accountability enforced through cryptographic verification and strict liability produce better safety outcomes at scale than state-level consensus mechanisms?"
+  },
+  "crux-170": {
+    "ok": true,
+    "question_form": "Should direct liability be prioritized over other mechanisms—such as regulation, insurance, or reputational pressure—as the means of ensuring firms treat safety as a core engineering requirement?"
+  },
+  "crux-171": {
+    "ok": true,
+    "question_form": "Can market-based accountability mechanisms or state-level treaties meaningfully reduce the concentrated risks posed by high-capability AI systems?"
+  },
+  "crux-172": {
+    "ok": true,
+    "question_form": "Does advancing AI development without first deploying verified, permanent containment safeguards produce outcomes worse than halting progress until such safeguards are in place?"
+  },
+  "crux-173": {
+    "ok": true,
+    "question_form": "Does market-based liability provide meaningful safety incentives for AI models when hardware-level containment cannot be verified?"
+  },
+  "crux-174": {
+    "ok": true,
+    "question_form": "Does a company's inability to explain why its AI model caused a specific harm result in automatic legal liability under current or proposed liability frameworks?"
+  },
+  "crux-175": {
+    "ok": true,
+    "question_form": "Would imposing strict liability for unexplainable AI system errors cause companies to treat interpretability research as a core business requirement rather than an optional priority?"
+  },
+  "crux-176": {
+    "ok": true,
+    "question_form": "Will companies under strict liability regimes allocate at least 20% of their compute budgets to internal model auditing by 2026?"
+  },
+  "crux-177": {
+    "ok": true,
+    "question_form": "Should AI deployment be permitted before containment is proven, or does requiring proven containment appropriately outweigh the cost to innovation pace?"
+  },
+  "crux-178": {
+    "ok": true,
+    "question_form": "Do risk-proportional liability reserves cause AI developers to treat safety as a continuous engineering requirement by making them bear the financial costs of their safety failures?"
+  },
+  "crux-179": {
+    "ok": true,
+    "question_form": "Would dominant technology firms voluntarily comply with strict liability regimes or hardware-level constraints if such measures were proposed?"
+  },
+  "crux-180": {
+    "ok": true,
+    "question_form": "Does multi-agent adversarial verification reliably detect and prevent deceptive alignment when deployed in novel, non-linear environments?"
+  },
+  "crux-181": {
+    "ok": true,
+    "question_form": "Does the current pace of agentic AI deployment reflect deliberate choices that reduce institutional accountability, or do existing oversight mechanisms remain substantively intact?"
+  },
+  "crux-182": {
+    "ok": true,
+    "question_form": "Should uneven capability profiles in autonomous systems be treated as a disqualifying factor for deployment in critical infrastructure, or merely as a risk to be managed?"
+  },
+  "crux-183": {
+    "ok": true,
+    "question_form": "Does cross-agent propagation of AI-generated content or behavior produce failure cascades faster than humans can detect and intervene to halt them?"
+  },
+  "crux-184": {
+    "ok": true,
+    "question_form": "Does human-centric oversight of agentic AI systems produce governance outcomes that are substantially worse than alternative oversight approaches?"
+  },
+  "crux-185": {
+    "ok": true,
+    "question_form": "To what extent, if any, does regulatory friction increase existential risk from AI compared to other proposed drivers?"
+  },
+  "crux-186": {
+    "ok": true,
+    "question_form": "Should human oversight in AI decision pipelines be prioritized as a safety mechanism even when it reduces system throughput and speed?"
+  },
+  "crux-187": {
+    "ok": true,
+    "question_form": "Can human-directed or hybrid systems neutralize emerging real-time threats as effectively as fully autonomous machine systems?"
+  },
+  "crux-188": {
+    "ok": true,
+    "question_form": "Does achieving reliable agentic AI performance depend on implementing a multi-layered, verifiable safety architecture that accounts for catastrophic failure costs?"
+  },
+  "crux-189": {
+    "ok": true,
+    "question_form": "Does holding developers financially and legally liable for systemic failures cause them to prioritize long-term stability over other considerations?"
+  },
+  "crux-190": {
+    "ok": true,
+    "question_form": "Do liability frameworks cause AI developers to favor established, lower-risk architectures over novel ones, and if so, to what degree?"
+  },
+  "crux-191": {
+    "ok": true,
+    "question_form": "Does addressing deceptive alignment require methods that qualify as artificial introspection and internal state verification, or do other approaches fall within the scope of adequate solutions?"
+  },
+  "crux-192": {
+    "ok": true,
+    "question_form": "Would requiring AI developers to hold capital reserves or insurance equal to 20% of projected system impact cause their financial incentives to track the actual safety outcomes of their models?"
+  },
+  "crux-193": {
+    "ok": true,
+    "question_form": "Can artificial introspection produce a verifiable internal audit trail that accurately reflects an AI system's decision-making state?"
+  },
+  "crux-194": {
+    "ok": true,
+    "question_form": "Does human involvement in AI decision pipelines reduce the propagation of compounding errors, or does it introduce delays without meaningfully improving outcomes?"
+  },
+  "crux-195": {
+    "ok": true,
+    "question_form": "Does an AI monitoring its own reasoning constitute a conflict of interest comparable to self-adjudication, or does it remain a distinct form of internal verification?"
+  },
+  "crux-196": {
+    "ok": true,
+    "question_form": "Do formal mathematical invariants established before deployment reliably identify and prevent systemic failure modes in non-deterministic foundational AI models?"
+  },
+  "crux-197": {
+    "ok": true,
+    "question_form": "Can centralized, human-led audit frameworks keep pace with advanced AI systems sufficiently to remain effective, or does the rate of AI development structurally outstrip such frameworks' capacity to function?"
+  },
+  "crux-198": {
+    "ok": true,
+    "question_form": "Can cryptographically verified telemetry meshes accurately identify intent-drift in complex, non-linear agentic systems?"
+  },
+  "crux-199": {
+    "ok": true,
+    "question_form": "Do current or near-term formal verification methods produce accurate behavioral predictions for neural architectures with high parameter counts and complex structure?"
+  },
+  "crux-200": {
+    "ok": true,
+    "question_form": "Do mandatory pre-deployment audits and formal verification slow AI development velocity by 30–40%, enough to shift competitive advantage toward less-regulated actors?"
+  },
+  "crux-201": {
+    "ok": true,
+    "question_form": "Does centralized, outcome-based regulation increase entry costs for small firms more than for incumbents?"
+  },
+  "crux-202": {
+    "ok": true,
+    "question_form": "Does a tripartite board structure reduce incumbent dominance through resource allocation compared to alternative governance arrangements?"
+  },
+  "crux-203": {
+    "ok": true,
+    "question_form": "Does making monitoring code visible to frontier-class models measurably raise the likelihood that those models will attempt to subvert that monitoring?"
+  },
+  "crux-204": {
+    "ok": true,
+    "question_form": "To what extent can formal verification of monitoring code reliably detect or constrain emergent behaviors in neural networks that were not anticipated during specification?"
+  },
+  "crux-205": {
+    "ok": true,
+    "question_form": "Can systems achieve adequate security through decentralized or mutable runtime controls, or does effective security require centralized and immutable runtime control?"
+  },
+  "crux-206": {
+    "ok": true,
+    "question_form": "Does the absence of mathematical safety proofs for an AI system reliably predict harms that empirical testing and monitoring alone would fail to prevent before public release?"
+  },
+  "crux-207": {
+    "ok": true,
+    "question_form": "Do open-weight model releases produce harms that existing safety protocols cannot detect, mitigate, or reverse once the weights are publicly distributed?"
+  },
+  "crux-208": {
+    "ok": true,
+    "question_form": "Do stringent, centralized AI safety mandates constitute legitimate catastrophe prevention or a mechanism that entrenches incumbent control over AI development?"
+  },
+  "crux-209": {
+    "ok": true,
+    "question_form": "Do mandatory independent third-party audits of all AI models, regardless of license type, produce measurably better safety outcomes than audits conducted selectively or by model developers themselves?"
+  },
+  "crux-210": {
+    "ok": true,
+    "question_form": "Does regulatory oversight of AI deployment cause net harm by delaying life-saving applications more than it prevents catastrophic risks?"
+  },
+  "crux-211": {
+    "ok": true,
+    "question_form": "Does concentrating control of digital infrastructure in a small number of private corporations increase the likelihood of institutional failure compared to more distributed arrangements?"
+  },
+  "crux-212": {
+    "ok": true,
+    "question_form": "Does 'genuine societal resilience' require transparency as a necessary condition, or can it be achieved through approaches that include secrecy or opacity?"
+  },
+  "crux-213": {
+    "ok": true,
+    "question_form": "Does maintaining a physical and digital air-gap that prevents unauthorized capability expansion require centralized containment as a technical necessity, or can decentralized approaches achieve equivalent security?"
+  },
+  "crux-214": {
+    "ok": true,
+    "question_form": "Do centralization and interpretability function as independent safety layers such that the absence of mature interpretability tools affects the safety value of maintaining centralized AI oversight?"
+  },
+  "crux-215": {
+    "ok": true,
+    "question_form": "Should retaining human operators' ability to terminate a process before catastrophic scaling be prioritized over the costs that centralized control imposes?"
+  },
+  "crux-216": {
+    "ok": true,
+    "question_form": "Does the irreversibility of weight release empirically cause developers and institutions to build more robust, decentralized safety mechanisms than they would otherwise?"
+  },
+  "crux-217": {
+    "ok": true,
+    "question_form": "Should frontier-class models exceeding 10^26 floating-point operations be required to operate within a secure execution enclave, or does that constraint outweigh the benefits of open deployment?"
+  },
+  "crux-218": {
+    "ok": true,
+    "question_form": "Can decentralized auditing mechanisms detect and halt an autonomous agent operating on millisecond timescales after it has propagated across global infrastructure?"
+  },
+  "crux-219": {
+    "ok": true,
+    "question_form": "Do open-source, hardware-verifiable monitoring enclaves reliably produce more trustworthy oversight outcomes than alternative monitoring architectures?"
+  },
+  "crux-220": {
+    "ok": true,
+    "question_form": "Does a 0.01% audit-detected anomaly rate in total system operations reliably indicate a level of risk that warrants automatic triggering of liability reserves?"
+  },
+  "crux-221": {
+    "ok": true,
+    "question_form": "When a frontier model could exploit monitoring code it can inspect, should preventing that exploitation outweigh the governance value of making safety constraints transparent?"
+  },
+  "crux-222": {
+    "ok": true,
+    "question_form": "Does the security model of proprietary enclaves qualify as 'security through obscurity,' or does it rely on mechanisms that remain valid even when the underlying design is known?"
+  },
+  "crux-223": {
+    "ok": true,
+    "question_form": "Do current mechanistic interpretability tools identify emergent goal-seeking behaviors in production-scale models with sufficient accuracy and speed to intervene before harm occurs?"
+  },
+  "crux-224": {
+    "ok": true,
+    "question_form": "Should financial compensation for algorithmic harm be considered sufficient to fulfill due process obligations when no causal explanation for the harm is provided?"
+  },
+  "crux-225": {
+    "ok": true,
+    "question_form": "To what extent do US foreign policy decisions on technology issues reflect Silicon Valley corporate interests rather than broader national or public interests?"
+  },
+  "crux-226": {
+    "ok": true,
+    "question_form": "Does algorithmic governance reduce the enforcement gaps that currently limit governments' ability to apply rules uniformly across all citizens?"
+  },
+  "crux-227": {
+    "ok": true,
+    "question_form": "Does regulatory friction on cognitive tools primarily restrict access for smaller or less-resourced actors relative to established incumbents?"
+  },
+  "crux-228": {
+    "ok": true,
+    "question_form": "Does universal access to advanced intelligence capabilities reliably reduce the ability of states and corporations to exercise coercive control over populations?"
+  },
+  "crux-229": {
+    "ok": true,
+    "question_form": "Should the prospect of AI reducing labor demand be treated primarily as a threat to workers' economic leverage, or as a neutral or beneficial development for society?"
+  },
+  "crux-230": {
+    "ok": true,
+    "question_form": "Does a population's physical security function as a necessary precondition for democratic institutions to persist over time?"
+  },
+  "crux-231": {
+    "ok": true,
+    "question_form": "Should this project be evaluated primarily by whether it reduces compulsory labor or by whether it diminishes rights?"
+  },
+  "crux-232": {
+    "ok": true,
+    "question_form": "Do safety requirements, as defined by heavy-regulation proponents, in practice give established AI incumbents a competitive advantage over new entrants?"
+  },
+  "crux-233": {
+    "ok": true,
+    "question_form": "Does open-source software meaningfully expand access to AI capabilities when the compute infrastructure required to run it is controlled by a small number of private entities?"
+  },
+  "crux-234": {
+    "ok": true,
+    "question_form": "Should safety requirements be designed to prevent monopolistic capture even when existing competitive advantages stem from private, proprietary safety implementations?"
+  },
+  "crux-235": {
+    "ok": true,
+    "question_form": "Should tech policy be prioritized as a primary battleground for protecting democratic governance over authoritarian consolidation of power?"
+  },
+  "crux-236": {
+    "ok": true,
+    "question_form": "By 2026, will the legal and compliance costs of public AI audits concentrate the market among three or four entities, or will more organizations remain able to participate?"
+  },
+  "crux-237": {
+    "ok": true,
+    "question_form": "Should AI safety be prioritized through centralized oversight mechanisms or through decentralized, competitive iteration among multiple actors?"
+  },
+  "crux-238": {
+    "ok": true,
+    "question_form": "Could a superintelligent agent pursue misaligned sub-goals while keeping its internal computational processes within measurable thermodynamic and energy bounds?"
+  },
+  "crux-239": {
+    "ok": true,
+    "question_form": "Would a state-mandated 100MW ceiling on compute clusters drive operators toward unmonitored illicit infrastructure, or would it successfully limit large-scale AI training capacity?"
+  },
+  "crux-240": {
+    "ok": true,
+    "question_form": "Does automated, hierarchical auditing of latent states in frontier models successfully identify deceptive alignment at rates sufficient to distinguish it from non-deceptive behavior?"
+  },
+  "crux-241": {
+    "ok": true,
+    "question_form": "Should the threat of total asset liquidation be weighted as a higher priority than other deterrence mechanisms when regulating firms developing superintelligent systems?"
+  },
+  "crux-242": {
+    "ok": true,
+    "question_form": "Do small firms incur substantially higher compliance costs than large incumbents when required to disclose model methodologies?"
+  },
+  "crux-243": {
+    "ok": true,
+    "question_form": "Can automated real-time oversight systems detect low-quality outputs and privacy erosion while keeping monitored content's proprietary details unexposed?"
+  },
+  "crux-244": {
+    "ok": true,
+    "question_form": "Does competitive auditing in a transparency market more reliably expose hidden AI goals than it enables AI systems to refine deceptive behavior by learning from audit feedback?"
+  },
+  "crux-245": {
+    "ok": true,
+    "question_form": "Can automated interpretability tools achieve 99.9% precision when detecting goal-directed deception in a black-box model?"
+  },
+  "crux-246": {
+    "ok": true,
+    "question_form": "Should liability-indexed insurance reserves be prioritized as the mechanism for addressing societal harms such as erosion of democratic discourse?"
+  },
+  "crux-247": {
+    "ok": true,
+    "question_form": "Does automated high-frequency red-teaming reliably identify novel, non-linear failure modes in AI models whose complexity exceeds human cognitive capacity?"
+  },
+  "crux-248": {
+    "ok": true,
+    "question_form": "Should a 12-month pre-deployment impact assessment be prioritized as a public-interest protection or avoided as a competitive barrier that entrenches incumbent AI developers?"
+  },
+  "crux-249": {
+    "ok": true,
+    "question_form": "Does requiring human review of 5% of automated decisions measurably reduce innovation output, reduce systemic bias, both, or neither?"
+  },
+  "crux-250": {
+    "ok": true,
+    "question_form": "Can advanced AI systems maintain misaligned objectives that market competition fails to detect before a catastrophic failure occurs?"
+  },
+  "crux-251": {
+    "ok": true,
+    "question_form": "Does human-in-the-loop oversight in critical systems change the frequency of systemic flash crash events, and if so, in which direction?"
+  },
+  "crux-252": {
+    "ok": true,
+    "question_form": "Should mathematical formalization of objectives be considered sufficient to represent human values such as dignity or fairness, or do such values resist complete quantification?"
+  },
+  "crux-253": {
+    "ok": true,
+    "question_form": "Do private insurance and underwriting markets have sufficient data and modeling capacity to assign actuarially sound premiums to low-frequency, high-consequence existential AI failure events?"
+  },
+  "crux-254": {
+    "ok": true,
+    "question_form": "Does consolidating technical and social oversight within a single agency measurably reduce the rigor of technical safety standards when social grievance caseloads are high?"
+  },
+  "crux-255": {
+    "ok": true,
+    "question_form": "Does mechanistic interpretability produce reliable safety proofs for models exceeding 10^26 operations when scaled to that level?"
+  },
+  "crux-256": {
+    "ok": true,
+    "question_form": "Do human workers who interact with AI models detect deceptive behaviors that external auditors fail to identify?"
+  },
+  "crux-257": {
+    "ok": true,
+    "question_form": "Do actuarial risk models have sufficient data and methodology to assign accurate premiums to the opaque failure modes of frontier AI systems?"
+  },
+  "crux-258": {
+    "ok": true,
+    "question_form": "Do state-funded auditing bodies with technical mandates over incumbent firms historically retain independent expertise and infrastructure access without experiencing industry capture through personnel movement?"
+  },
+  "crux-259": {
+    "ok": true,
+    "question_form": "Does releasing open-source AI model weights raise the probability of existential-scale harm more than a closed, state-managed AI monopoly does?"
+  },
+  "crux-260": {
+    "ok": true,
+    "question_form": "Does requiring frontier models to complete fixed pre-deployment evaluation processes before release constitute a meaningful constraint on the pace of AI development across the broader ecosystem?"
+  },
+  "crux-261": {
+    "ok": true,
+    "question_form": "Do complex systems reliably reveal their critical vulnerabilities only under real-world application conditions, rather than through controlled testing or theoretical analysis?"
+  },
+  "crux-262": {
+    "ok": true,
+    "question_form": "Should regulatory oversight of AI systems prioritize ongoing automated adversarial testing over one-time pre-deployment approval gates?"
+  },
+  "crux-263": {
+    "ok": true,
+    "question_form": "Does mandating pre-deployment red-teaming as a regulatory gate delay defensive AI deployment enough to produce net harm to public security compared to the risks it mitigates?"
+  },
+  "crux-264": {
+    "ok": true,
+    "question_form": "Do current diagnostic sandboxing systems typically employ automated, AI-driven adversarial testing within air-gapped environments?"
+  },
+  "crux-265": {
+    "ok": true,
+    "question_form": "Does deploying unverified frontier AI models on public infrastructure reliably produce irreversible harm?"
+  },
+  "crux-266": {
+    "ok": true,
+    "question_form": "Does the hazard profile of frontier AI systems differ from that of traditional software to a degree that makes standard patching practices inadequate for managing frontier AI risks?"
+  },
+  "crux-267": {
+    "ok": true,
+    "question_form": "Does relying solely on post-deployment telemetry to detect algorithmic discrimination expose the public to discriminatory harm before consent or corrective action is possible?"
+  },
+  "crux-268": {
+    "ok": true,
+    "question_form": "Do current AI systems deployed in lending decisions produce racially disparate outcomes at rates that exceed the regulatory attention devoted to near-term harms relative to long-term AI risk scenarios?"
+  },
+  "crux-269": {
+    "ok": true,
+    "question_form": "To what extent does a tiered, hardware-indexed liability model reduce capability-washing when enforcement relies on automated telemetry?"
+  },
+  "crux-270": {
+    "ok": true,
+    "question_form": "Do private-sector audit markets exhibit lower rates of regulatory capture than state-run oversight mechanisms?"
+  },
+  "crux-271": {
+    "ok": true,
+    "question_form": "Does innovation conducted without strict liability regimes result in catastrophic risks being systematically transferred to third parties rather than internalized by innovators?"
+  },
+  "crux-272": {
+    "ok": true,
+    "question_form": "Does imposing strict liability on industries that externalize social, environmental, and labor costs measurably reduce those externalities compared to fault-based liability regimes?"
+  },
+  "crux-273": {
+    "ok": true,
+    "question_form": "When AI systems cause real-world harm, should technical safety measures be treated as sufficient evidence of institutional accountability, or should companies face additional liability regardless of those measures?"
+  },
+  "crux-274": {
+    "ok": true,
+    "question_form": "Does applying strict liability to AI developers measurably reduce market entry rates or increase incumbent market share compared to negligence-based liability regimes?"
+  },
+  "crux-275": {
+    "ok": true,
+    "question_form": "Should AI safety architecture prioritize competitive transparency mechanisms over static legal frameworks as the primary means of ensuring accountability?"
+  },
+  "crux-276": {
+    "ok": true,
+    "question_form": "Does a binary, absolute accountability standard prevent harm externalization more effectively than a graduated sliding-scale approach for institutions?"
+  },
+  "crux-277": {
+    "ok": true,
+    "question_form": "Does transparency about structural flaws reduce collapse rates when economic incentives favor cheap, reckless construction?"
+  },
+  "crux-278": {
+    "ok": true,
+    "question_form": "Can large-scale GPU clusters reliably be detected through satellite imagery, grid load monitoring, and supply chain audits before reaching frontier-scale compute capacity?"
+  },
+  "crux-279": {
+    "ok": true,
+    "question_form": "Does distributing compute across disparate clusters to avoid detection incur communication latency costs large enough to eliminate the economic benefit of such an arrangement?"
+  },
+  "crux-280": {
+    "ok": true,
+    "question_form": "Does market-driven deployment of autonomous systems produce risk management outcomes that are systematically worse than those achievable through alternative deployment mechanisms?"
+  },
+  "crux-281": {
+    "ok": true,
+    "question_form": "Does physical visibility function as a reliable indicator of accountability in the same way that strict liability does, or does it serve only a supplementary diagnostic role?"
+  },
+  "crux-282": {
+    "ok": true,
+    "question_form": "Does strict binary liability enforcement measurably increase incumbents' use of litigation threats to block new market entrants from reaching competitive scale?"
+  },
+  "crux-283": {
+    "ok": true,
+    "question_form": "Should legal obligations for AI developers be tied to hardware benchmarks like cluster compute capacity rather than to other measures of operational scale?"
+  },
+  "crux-284": {
+    "ok": true,
+    "question_form": "Does a tiered liability model require software-level verification when disclosures take the form of automated, machine-readable telemetry logs?"
+  },
+  "crux-285": {
+    "ok": true,
+    "question_form": "Are there liability mechanisms other than strict liability that reliably lead corporations to internalize public safety costs in their financial planning?"
+  },
+  "crux-286": {
+    "ok": true,
+    "question_form": "Should institutional accountability or technical log-based verification take priority as the foundation of AI enforcement mechanisms?"
+  },
+  "crux-287": {
+    "ok": true,
+    "question_form": "Do private liability reserves reduce the probability or severity of existential, irreversible state-drift to a meaningful degree?"
+  },
+  "crux-288": {
+    "ok": true,
+    "question_form": "Does centralized, independent auditing infrastructure reliably advantage incumbent AI developers over new entrants in ways that cannot be offset by other market or policy mechanisms?"
+  },
+  "crux-289": {
+    "ok": true,
+    "question_form": "Can ZKP-based or similar automated audit nodes detect non-trivial systemic harms such as bias at a reliability level comparable to human-supervised methods?"
+  },
+  "crux-290": {
+    "ok": true,
+    "question_form": "Does an automated monitoring system retain functional superiority over a recursively self-improving model as that model's capabilities increase?"
+  },
+  "crux-291": {
+    "ok": true,
+    "question_form": "Does releasing advanced AI model weights publicly count as irreversible proliferation of capabilities that cannot be contained, or does it fall within a category of manageable, recoverable distribution?"
+  },
+  "crux-292": {
+    "ok": true,
+    "question_form": "Should the irreversibility of publicly releasing critical model weights be treated as a decisive consideration that outweighs potential benefits of open dissemination?"
+  },
+  "crux-293": {
+    "ok": true,
+    "question_form": "When pre-deployment safety and alignment verification is incomplete, should preventing open-source distribution be prioritized over the benefits of broad access?"
+  },
+  "crux-294": {
+    "ok": true,
+    "question_form": "Should preventing deployment of unverified AI systems through central oversight take priority over the open access benefits of removing gatekeeping mechanisms from global distribution?"
+  },
+  "crux-295": {
+    "ok": true,
+    "question_form": "Should the ability to implement runtime constraints and security measures for frontier models outweigh the benefits of open-source development when the two conflict?"
+  },
+  "crux-296": {
+    "ok": true,
+    "question_form": "Should the ability to enforce security standards and disable AI models be prioritized over the benefits of distributing models globally without central control?"
+  },
+  "crux-297": {
+    "ok": true,
+    "question_form": "Should AI policy prioritize addressing documented present-day societal harms over mitigating potential future catastrophic risks from open-source AI?"
+  },
+  "crux-298": {
+    "ok": true,
+    "question_form": "Should present harms from AI—such as bias, reduced autonomy, and job displacement—be prioritized over preventing speculative future AI takeover scenarios?"
+  },
+  "crux-299": {
+    "ok": true,
+    "question_form": "Should open weights be considered sufficient to achieve meaningful transparency and algorithmic accountability, or do other mechanisms outweigh them in importance?"
+  },
+  "crux-300": {
+    "ok": true,
+    "question_form": "Does releasing model weights without disclosing training data or deployment contexts provide sufficient information for meaningful algorithmic accountability?"
+  },
+  "crux-301": {
+    "ok": true,
+    "question_form": "Should developers of open-source AI bear legal accountability for documented harms caused by their models, even in the absence of explicit liability frameworks?"
+  },
+  "crux-302": {
+    "ok": true,
+    "question_form": "When an open-source model is modified and causes harm, should accountability rest with the original developers, downstream modifiers, or be distributed among all contributors?"
+  },
+  "crux-303": {
+    "ok": true,
+    "question_form": "Does open-source AI development qualify as a safety mechanism and public good, or as a containable risk, when evaluating its role in AI governance?"
+  },
+  "crux-304": {
+    "ok": true,
+    "question_form": "Does decentralized open scrutiny of AI systems produce more empirically verifiable safety outcomes than proprietary closed systems do?"
+  },
+  "crux-305": {
+    "ok": true,
+    "question_form": "Should foregone benefits from restricted technological development be weighted more heavily than potential harms from unrestricted development when prioritizing catastrophic risk?"
+  },
+  "crux-306": {
+    "ok": true,
+    "question_form": "Does making AI models freely available and replicable constitute 'commoditization' that produces a competitive developer ecosystem, or does it produce something else?"
+  },
+  "crux-307": {
+    "ok": true,
+    "question_form": "Does 'existential risk' from AI refer exclusively to unrecoverable species-level catastrophe, or does it also encompass severe, systemic societal harms such as clinical skill atrophy and entrenched bias?"
+  },
+  "crux-308": {
+    "ok": true,
+    "question_form": "Does a risk qualify as a categorically distinct class of harm when its realization would permanently foreclose all future harms and benefits, or does it remain one severe harm among others?"
+  },
+  "crux-309": {
+    "ok": true,
+    "question_form": "Does mitigating existential AI risk empirically require slowing AI innovation, or can both goals be pursued without one systematically undermining the other?"
+  },
+  "crux-310": {
+    "ok": true,
+    "question_form": "Do data extraction, AI-reliance in clinical settings, and algorithmic bias collectively constitute a fundamental erosion of human agency and societal resilience, or do they represent manageable, peripheral side effects of technological progress?"
+  },
+  "crux-311": {
+    "ok": true,
+    "question_form": "Does the irreversibility of open AI systems cause developers to build safer, more transparent designs that become more secure over time than centrally controlled opaque alternatives?"
+  },
+  "crux-312": {
+    "ok": true,
+    "question_form": "Do existing international controls on nuclear technology and advanced bioweapons research provide evidence that comparable controls on AI development are politically achievable?"
+  },
+  "crux-313": {
+    "ok": true,
+    "question_form": "Is irreversibility the primary characteristic of open-weight releases for frontier models that generates the most significant safety or governance concerns?"
+  },
+  "crux-314": {
+    "ok": true,
+    "question_form": "Does 'robust and adaptable global defense posture' include market-driven universal AI access, or does it require centralized control over intelligence commoditization?"
+  },
+  "crux-315": {
+    "ok": true,
+    "question_form": "Do AI systems belong to the same risk category as nuclear materials and bioweapons, or does their digital and fluid nature place them in a meaningfully distinct category requiring different containment frameworks?"
+  },
+  "crux-316": {
+    "ok": true,
+    "question_form": "When women are concentrated in automation-vulnerable roles like administrative support and retail, should preventing gender-based economic inequality take priority over the productivity gains AI adoption offers?"
+  },
+  "crux-317": {
+    "ok": true,
+    "question_form": "Do the alignment challenges specific to frontier AI models, combined with the permanence of open-weight releases, require stricter physical, digital, and governance controls than those applied to other dual-use technologies?"
+  },
+  "crux-318": {
+    "ok": true,
+    "question_form": "Do the security measures governments use for classified intelligence or cyberweaponry qualify as the same category of access control that would be required to restrict frontier AI models?"
+  },
+  "crux-319": {
+    "ok": true,
+    "question_form": "Does the digital, fluid nature of AI systems constitute a property that strengthens or weakens the case for robust access controls?"
+  },
+  "crux-320": {
+    "ok": true,
+    "question_form": "Does releasing model weights qualify as providing transparency and accountability, or does transparency require additional disclosures about training data, design choices, and developer responsibility?"
+  },
+  "crux-321": {
+    "ok": true,
+    "question_form": "Should symmetric developer liability be prioritized as a deterrent against catastrophic AI failures, even if firms may absorb penalties as routine operating costs?"
+  },
+  "crux-322": {
+    "ok": true,
+    "question_form": "Does mechanistic interpretability accurately detect latent strategic deception in models trained with more than 10^26 FLOPs?"
+  },
+  "crux-323": {
+    "ok": true,
+    "question_form": "When potential harm is existential in scale, should liability alone be considered an adequate mechanism for motivating safety, or do other regulatory approaches take priority?"
+  },
+  "crux-324": {
+    "ok": true,
+    "question_form": "Do federated, cryptographically verifiable protocols reliably detect systemic bias and emergent hazards without introducing new technocratic bottlenecks?"
+  },
+  "crux-325": {
+    "ok": true,
+    "question_form": "Do the collective safety benefits from widespread access to open-weight AI models outweigh the incremental dual-use weaponization risks that such proliferation enables?"
+  },
+  "crux-326": {
+    "ok": true,
+    "question_form": "Do regulatory sandboxes generate empirical data about AI risks at a rate and quality sufficient to meaningfully displace speculation in policy deliberations?"
+  },
+  "crux-327": {
+    "ok": true,
+    "question_form": "Does empirical testing, by definition, cover emergent and out-of-distribution behaviors sufficiently to count as adequate evaluation for frontier AI risks?"
+  },
+  "crux-328": {
+    "ok": true,
+    "question_form": "Do architectural constraints produce more reliable AI safety outcomes than developer-led assurances?"
+  },
+  "crux-329": {
+    "ok": true,
+    "question_form": "Does 'adequate safety evaluation' require open-weight access enabling distributed stress-testing across diverse real-world distributions, or can it be achieved through other means?"
+  },
+  "crux-330": {
+    "ok": true,
+    "question_form": "Does widespread access to open-weight models measurably increase the number of individuals who can independently develop or apply dual-use capabilities without oversight?"
+  },
+  "crux-331": {
+    "ok": true,
+    "question_form": "Does effective AI governance depend on oversight mechanisms oriented toward public-interest accountability rather than on the degree of openness or restriction in model access?"
+  },
+  "crux-332": {
+    "ok": true,
+    "question_form": "Do open-weight ecosystems provide the only mechanism through which thousands of researchers can conduct real-time, decentralized auditing of AI systems?"
+  },
+  "crux-333": {
+    "ok": true,
+    "question_form": "Should reducing procurement delays and incumbent advantage be prioritized over the accountability and standardization that centralized, state-sanctioned oversight provides?"
+  },
+  "crux-334": {
+    "ok": true,
+    "question_form": "Should AI model auditing prioritize independent decentralized bodies using cryptographically-verifiable protocols over arrangements that risk granting dual-use capabilities to unrestricted internet actors?"
+  },
+  "crux-335": {
+    "ok": true,
+    "question_form": "Does requiring verification before a model can operate outside its intended envelope reliably prevent unsafe outcomes compared to alternative safety approaches?"
+  },
+  "crux-336": {
+    "ok": true,
+    "question_form": "Should continuous testing and evaluation be prioritized over other approaches when balancing AI safety with rapid development timelines?"
+  },
+  "crux-337": {
+    "ok": true,
+    "question_form": "Do pre-deployment safety proofs measurably reduce failure rates in AI systems when compared to systems deployed without such proofs?"
+  },
+  "crux-338": {
+    "ok": true,
+    "question_form": "Do decentralized, open-source development models discover and mitigate security vulnerabilities at a higher rate than centralized, proprietary models?"
+  },
+  "crux-339": {
+    "ok": true,
+    "question_form": "Do automated, code-based interpretability tools reliably trace specific model outputs to harms that meet legal standards for actionability?"
+  },
+  "crux-340": {
+    "ok": true,
+    "question_form": "Do current or near-term formal verification methods provide mathematically guaranteed bounds on emergent, non-linear behaviors in frontier AI models?"
+  },
+  "crux-341": {
+    "ok": true,
+    "question_form": "Should algorithmic bias harms be treated as requiring immediate structural intervention, or is iterative market feedback a sufficient corrective mechanism?"
+  },
+  "crux-342": {
+    "ok": true,
+    "question_form": "Should preventing potential deployment harms be prioritized over preserving the pace of innovation when mandatory pre-deployment verification delays AI systems?"
+  },
+  "crux-343": {
+    "ok": true,
+    "question_form": "Does transparency function as a more effective safety mechanism than gatekeeping controls in AI governance systems?"
+  },
+  "crux-344": {
+    "ok": true,
+    "question_form": "Does pre-deployment verification measurably reduce the propagation of systemic bias and harms attributable to corporate negligence in AI systems?"
+  },
+  "crux-345": {
+    "ok": true,
+    "question_form": "When evaluating AI policy priorities, should concerns about systemic bias and labor displacement take precedence over concerns about innovation stagnation?"
+  },
+  "crux-346": {
+    "ok": true,
+    "question_form": "Does frontier AI development produce irreversible harms at a rate or magnitude that iterative post-deployment correction cannot adequately address, compared to other technology development paradigms?"
+  },
+  "crux-347": {
+    "ok": true,
+    "question_form": "Can mechanisms other than mathematical and empirical safety proofs provide high-assurance guarantees sufficient to prevent systemic collapse?"
+  },
+  "crux-348": {
+    "ok": true,
+    "question_form": "Do current industry-led AI safety measures meaningfully reduce harm, or do they primarily serve public relations goals with limited effect on actual risk mitigation?"
+  },
+  "crux-349": {
+    "ok": true,
+    "question_form": "Do frontier models produce novel out-of-distribution behaviors that post-hoc patches reliably fail to contain?"
+  },
+  "crux-350": {
+    "ok": true,
+    "question_form": "Can pre-deployment evaluation of an adaptive AI system reliably capture the risks that emerge when it operates in open, complex environments?"
+  },
+  "crux-351": {
+    "ok": true,
+    "question_form": "Are there mechanisms other than deploy-and-learn cycles capable of capturing complex real-world AI behaviors when static pre-deployment testing is insufficient?"
+  },
+  "crux-352": {
+    "ok": true,
+    "question_form": "What counts as 'rigorous' oversight: internally motivated mechanisms driven by direct liability, or externally mandated compliance processes?"
+  },
+  "crux-353": {
+    "ok": true,
+    "question_form": "Does imposing strict liability on firms for safety failures cause those firms to integrate safety more deeply into their engineering practices than alternative liability regimes do?"
+  },
+  "crux-354": {
+    "ok": true,
+    "question_form": "Does deploying more transparent and auditable AI models into accountability markets reduce bias more effectively than slowing down AI development?"
+  },
+  "crux-355": {
+    "ok": true,
+    "question_form": "Do financial penalties reduce the likelihood of violations occurring before they happen, or do they primarily function as remedies applied after violations have already occurred?"
+  },
+  "crux-356": {
+    "ok": true,
+    "question_form": "Do automated circuit breakers suspend model access immediately and mandatorily when error rates reach five percent?"
+  },
+  "crux-357": {
+    "ok": true,
+    "question_form": "Do current autonomous systems accurately measure their own epistemic uncertainty at levels sufficient to consistently identify when human intervention is warranted?"
+  },
+  "crux-358": {
+    "ok": true,
+    "question_form": "Can automated, modular circuit breakers reliably identify and halt intent-driven, deceptive, or non-anomalous systemic threats before significant harm occurs?"
+  },
+  "crux-359": {
+    "ok": true,
+    "question_form": "Does mandatory pre-deployment review reduce domestic AI innovation velocity by 30–40% compared to development timelines without such review requirements?"
+  },
+  "crux-360": {
+    "ok": true,
+    "question_form": "Do metrics-based governance systems like CQS produce lower rates of catastrophic combat failures than pure liability models produce?"
+  },
+  "crux-361": {
+    "ok": true,
+    "question_form": "Do human commanders retain high-level critical inquiry into stability assessments when automated diagnostics are providing real-time support?"
+  },
+  "crux-362": {
+    "ok": true,
+    "question_form": "To what extent do adversarial probes defined by independent third parties reduce reward hacking in automated contestability systems?"
+  },
+  "crux-363": {
+    "ok": true,
+    "question_form": "Does computational auditing via latent manifests maintain data provenance integrity over time to the same degree as human-verified methods, without producing cumulative epistemic drift?"
+  },
+  "crux-364": {
+    "ok": true,
+    "question_form": "Would standardized, public-domain auditing tools reduce compliance labor sufficiently to allow small developers to compete without a structural disadvantage relative to large incumbents?"
+  },
+  "crux-365": {
+    "ok": true,
+    "question_form": "Can compute-based safety gates be structured as immutable, automated protocols in ways that effectively prevent incumbent firms from exercising discretionary influence over their application?"
+  },
+  "crux-366": {
+    "ok": true,
+    "question_form": "Does increasing compute reliably produce proportional gains in AI capability, and do those gains eventually yield systems that humans cannot monitor or constrain?"
+  },
+  "crux-367": {
+    "ok": true,
+    "question_form": "Does implementing transparency and oversight mechanisms at the hardware level introduce latency and architectural constraints sufficient to prevent AI systems from achieving superhuman generalization?"
+  },
+  "crux-368": {
+    "ok": true,
+    "question_form": "Should compute governance be prioritized as a mechanism for bounding superintelligence development by human safety constraints, even at the cost of constraining innovation?"
+  },
+  "crux-369": {
+    "ok": true,
+    "question_form": "Should the ability to verify safety before a model surpasses human-controllable intelligence levels be prioritized over other considerations when deciding how to govern physical compute assets?"
+  },
+  "crux-370": {
+    "ok": true,
+    "question_form": "Does compute governance in practice reduce speculative risk more than it enables democratic oversight of AI development?"
+  },
+  "crux-371": {
+    "ok": true,
+    "question_form": "Should preventing market consolidation among established hardware firms be weighted more heavily than the security rationale for restricting hardware acquisition?"
+  },
+  "crux-372": {
+    "ok": true,
+    "question_form": "Would Sentinel's proposed safety gate impose compliance costs that, in practice, only established incumbents can meet?"
+  },
+  "crux-373": {
+    "ok": true,
+    "question_form": "When compliance regimes create market moats, should the priority be reforming oversight mechanisms rather than reducing or replacing them?"
+  },
+  "crux-374": {
+    "ok": true,
+    "question_form": "Should the burden of building safety verification infrastructure be shared publicly rather than borne individually by each developer seeking regulatory approval?"
+  },
+  "crux-375": {
+    "ok": true,
+    "question_form": "Would regulating compute as a public utility reduce innovation and entrench existing industry structures, or would it leave the sector's development trajectory largely unchanged?"
+  },
+  "crux-376": {
+    "ok": true,
+    "question_form": "Do current market prices for AI models trained at ≥10²⁶ FLOPS fail to reflect the full energy and labor costs incurred during training?"
+  },
+  "crux-377": {
+    "ok": true,
+    "question_form": "Should mandatory transparency reporting on resource consumption impacts be treated as a fundamental accountability measure or as an undue administrative burden?"
+  },
+  "crux-378": {
+    "ok": true,
+    "question_form": "Does framing 'safety-as-a-service' primarily as a technical verification utility qualify as a procedure fetish, or does it remain a substantively safety-oriented practice?"
+  },
+  "crux-379": {
+    "ok": true,
+    "question_form": "Do mandatory reporting requirements for training runs exceeding 10^26 FLOPS measurably reduce startups' research investment relative to their compliance costs?"
+  },
+  "crux-380": {
+    "ok": true,
+    "question_form": "Can AI system deployments be meaningfully reversed or corrected after the fact, or do they produce effects that are practically irreversible once initiated?"
+  },
+  "crux-381": {
+    "ok": true,
+    "question_form": "Do tiered, outcome-focused metrics cause AI oversight to scale with compute levels rather than with the size of a company's compliance workforce?"
+  },
+  "crux-382": {
+    "ok": true,
+    "question_form": "Does automated, compute-linked compliance reporting reduce firms' reliance on legal departments enough to erode the competitive advantages that traditional compliance infrastructure currently provides?"
+  },
+  "crux-383": {
+    "ok": true,
+    "question_form": "Does a fixed 10^26 FLOPS threshold remain a meaningful regulatory boundary as algorithmic efficiency improvements allow equivalent capabilities to be achieved with fewer compute operations?"
+  },
+  "crux-384": {
+    "ok": true,
+    "question_form": "Does output-based black-box testing achieve comparable or greater accountability for AI systems than internal transparency mandates, without imposing architectural constraints?"
+  },
+  "crux-385": {
+    "ok": true,
+    "question_form": "Would replacing a fixed compute threshold with a dynamic trigger for standardized output audits reduce the risk of regulatory ossification?"
+  },
+  "crux-386": {
+    "ok": true,
+    "question_form": "Do automated runtime systems, without human-in-the-loop intervention, maintain a 70% purchasing power threshold reliably enough to meet defined performance standards?"
+  },
+  "crux-387": {
+    "ok": true,
+    "question_form": "When production costs fall simultaneously with large-scale labor displacement, does aggregate demand reliably contract enough to produce a self-reinforcing deflationary spiral?"
+  },
+  "crux-388": {
+    "ok": true,
+    "question_form": "Can current or near-future interpretability tools produce a causal account of AI decision-making detailed enough to meet but-for causation standards in tort law?"
+  },
+  "crux-389": {
+    "ok": true,
+    "question_form": "Do the innovation costs imposed by pre-deployment audits exceed the expected harm those audits prevent?"
+  },
+  "crux-390": {
+    "ok": true,
+    "question_form": "Should AI developers bear strict liability for existential harms caused by their systems, or should other parties share or absorb those costs?"
+  },
+  "crux-391": {
+    "ok": true,
+    "question_form": "Do negligence standards developed for human-speed decision-making remain applicable to autonomous systems that operate at machine scale and speed?"
+  },
+  "crux-392": {
+    "ok": true,
+    "question_form": "Does 'hiding behind complexity' constitute a legitimate legal defense, or does it fall within the category of evasion that liability frameworks are designed to preclude?"
+  },
+  "crux-393": {
+    "ok": true,
+    "question_form": "Does rapid iterative deployment of AI capabilities under symmetric liability produce better safety outcomes than extended pre-deployment caution?"
+  },
+  "crux-394": {
+    "ok": true,
+    "question_form": "Should establishing AI liability frameworks be prioritized even when the causal mechanisms of AI systems are not fully transparent to legal or technical scrutiny?"
+  },
+  "crux-395": {
+    "ok": true,
+    "question_form": "Does strict liability in tort law require satisfaction of a 'but-for' causation standard, or does it constitute a recognized departure from that requirement?"
+  },
+  "crux-396": {
+    "ok": true,
+    "question_form": "Does assigning fault for AI system failures require a mechanism that can breach the epistemic asymmetry created by opaque architectures, or can fault be meaningfully assigned without such a mechanism?"
+  },
+  "crux-397": {
+    "ok": true,
+    "question_form": "Should strict liability and technical discovery be treated as a single integrated regulatory framework rather than as separate, potentially competing policy instruments?"
+  },
+  "crux-398": {
+    "ok": true,
+    "question_form": "Does post-deployment market feedback correct AI failures more effectively than pre-deployment committee review processes?"
+  },
+  "crux-399": {
+    "ok": true,
+    "question_form": "Does mandating strict liability cause organizations to adopt transparency standards at rates they otherwise would not?"
+  },
+  "crux-400": {
+    "ok": true,
+    "question_form": "Does mandatory pre-deployment discovery qualify as a barrier to entry, and if so, what threshold of resource diversion distinguishes a genuine barrier from a standard compliance cost?"
+  },
+  "crux-401": {
+    "ok": true,
+    "question_form": "Would making regulators financially liable for delayed or blocked innovations cause oversight bodies to approve technologies at rates more aligned with faster development cycles?"
+  },
+  "crux-402": {
+    "ok": true,
+    "question_form": "Should regulators prioritize avoiding litigation risk from innovation delays over their responsibility to identify and address latent safety risks?"
+  },
+  "crux-403": {
+    "ok": true,
+    "question_form": "Does including a human decision point in automated infrastructure systems correlate with measurably lower rates or reduced magnitude of systemic failures compared to fully automated systems?"
+  },
+  "crux-404": {
+    "ok": true,
+    "question_form": "Should fiduciary duty standards require a human defendant, or can algorithmic restitution mechanisms fulfill those obligations without one?"
+  },
+  "crux-405": {
+    "ok": true,
+    "question_form": "Should democratic and legal accountability requirements be considered satisfied when AI systems produce audit logs that humans can read and interpret?"
+  },
+  "crux-406": {
+    "ok": true,
+    "question_form": "Should mandatory human-in-the-loop oversight of critical infrastructure be prioritized as a safety mechanism, or avoided as a structural constraint that outweighs its protective benefits?"
+  },
+  "crux-407": {
+    "ok": true,
+    "question_form": "Does a fixed, human-controlled intervention mechanism reduce time-to-correction for catastrophic failures faster than a fully autonomous, self-optimizing observability system?"
+  },
+  "crux-408": {
+    "ok": true,
+    "question_form": "When autonomous systems participate in organizational decision-making, should preserving clear human accountability be prioritized over the operational benefits those systems provide?"
+  },
+  "crux-409": {
+    "ok": true,
+    "question_form": "Does regular use of AI tools measurably reduce human expertise and an organization's ability to function effectively when those tools are unavailable?"
+  },
+  "crux-410": {
+    "ok": true,
+    "question_form": "Does social trust require decision-making architectures to be transparent and morally grounded, or can it extend to opaque, non-moral systems?"
+  },
+  "crux-411": {
+    "ok": true,
+    "question_form": "When institutions delegate decisions to automated systems, does accountability for harmful outcomes become less attributable to any identifiable human or organizational actor?"
+  },
+  "crux-412": {
+    "ok": true,
+    "question_form": "Do AI-based evaluation systems produce more consistent, bias-free accountability outcomes than human hierarchical decision-making processes in comparable organizational contexts?"
+  },
+  "crux-413": {
+    "ok": true,
+    "question_form": "Should investment in algorithmic contestability be prioritized over other approaches when addressing long-term risks from opaque, automated decision-making?"
+  },
+  "crux-414": {
+    "ok": true,
+    "question_form": "Should the 10–15% operational overhead required for algorithmic contestability be prioritized as a safeguard against harm or weighed against the cost it imposes on innovation and progress?"
+  },
+  "crux-415": {
+    "ok": true,
+    "question_form": "Does replacing synchronous gatekeeping with asynchronous forensic auditing reduce innovation stagnation more than it increases undetected harms?"
+  },
+  "crux-416": {
+    "ok": true,
+    "question_form": "Does algorithmic observability produce greater forensic clarity and auditability of decisions than human-in-the-loop oversight does?"
+  },
+  "crux-417": {
+    "ok": true,
+    "question_form": "Does a market disruption caused by an autonomous system qualify as systemic liability when human negligence or intent cannot be established?"
+  },
+  "crux-418": {
+    "ok": true,
+    "question_form": "Is a 15–20% development overhead cost justified when the benefit is maintaining institutional accountability and oversight?"
+  },
+  "crux-419": {
+    "ok": true,
+    "question_form": "Should accountability for autonomous decisions be prioritized through proactive policy-as-code enforcement over reactive logging, even when the former constrains operational flexibility?"
+  },
+  "crux-420": {
+    "ok": true,
+    "question_form": "Does implementing compliance-by-design infrastructure typically add 10–15% overhead to initial engineering cycles?"
+  },
+  "crux-421": {
+    "ok": true,
+    "question_form": "Does a 20% overhead cost measurably reduce an organization's ability to keep pace with competitors in rapidly evolving global markets?"
+  },
+  "crux-422": {
+    "ok": true,
+    "question_form": "Do static guardrails empirically concentrate failure risk at the policy-gate itself, making it a bottleneck more often than distributed failure modes across the broader system?"
+  },
+  "crux-423": {
+    "ok": true,
+    "question_form": "Does governance policy updated by real-time telemetry produce better regulatory outcomes than governance policy set through periodic static revision?"
+  },
+  "crux-424": {
+    "ok": true,
+    "question_form": "Does compute overhead exceeding 5% of throughput, when it does not demonstrably prevent a critical failure, measurably impede AI development progress?"
+  },
+  "crux-425": {
+    "ok": true,
+    "question_form": "Should governance frameworks be updated and retired on the same iterative cycles used for technical software products, or should they follow different standards of continuity and revision?"
+  },
+  "crux-426": {
+    "ok": true,
+    "question_form": "Does maintaining a reliable AI shutdown mechanism require that its control infrastructure be physically or logically isolated from the system's own update and optimization processes?"
+  },
+  "crux-427": {
+    "ok": true,
+    "question_form": "Does reframing the 5% compute overhead as telemetry investment produce measurably higher-fidelity monitoring outcomes than treating it as fixed safety overhead?"
+  },
+  "crux-428": {
+    "ok": true,
+    "question_form": "Does encoding governance rules as immutable code constitute a design flaw, or does it represent a legitimate and stable architectural choice?"
+  },
+  "crux-429": {
+    "ok": true,
+    "question_form": "Do automated, architecture-integrated audit logs reliably detect or deter emergent, non-linear societal harms at a rate comparable to alternative oversight mechanisms?"
+  },
+  "crux-430": {
+    "ok": true,
+    "question_form": "Do cryptographic lineage markers prevent model collapse in practice without relying on a centralized registry to define or validate data authenticity?"
+  },
+  "crux-431": {
+    "ok": true,
+    "question_form": "Can mechanistic audit protocols detect systemic, non-linear societal harms, or do their measurement capabilities remain confined to narrow, predefined metrics?"
+  },
+  "crux-432": {
+    "ok": true,
+    "question_form": "Does guaranteed levy-funded revenue correlate empirically with greater institutional independence from corporate influence, or with reduced responsiveness and organizational stagnation?"
+  },
+  "crux-433": {
+    "ok": true,
+    "question_form": "Do current or foreseeable mathematical verification methods provide sufficient guarantees that complex non-linear neural architectures will not exhibit deceptive alignment?"
+  },
+  "crux-434": {
+    "ok": true,
+    "question_form": "Should preventing a potential unpatched systemic AI failure be prioritized over the benefits foregone by delaying AI deployment?"
+  },
+  "crux-435": {
+    "ok": true,
+    "question_form": "Does compute-based telemetry detect deceptive alignment behaviors that human-led review boards fail to identify?"
+  },
+  "crux-436": {
+    "ok": true,
+    "question_form": "To what extent can advanced AI systems accurately audit their own latent decision-making processes without systematic bias or error?"
+  },
+  "crux-437": {
+    "ok": true,
+    "question_form": "Should moral refusal be treated as a value that can be fully captured within an objective utility function, or does it require a different kind of representation?"
+  },
+  "crux-438": {
+    "ok": true,
+    "question_form": "Does the actual choice in AI development lie between corporate-controlled deployment and community-governed deployment, rather than between faster and safer development timelines?"
+  },
+  "crux-439": {
+    "ok": true,
+    "question_form": "Should differential technology development be pursued before legally binding compute thresholds and mechanistic interpretability breakthroughs are established, or do those prerequisites outweigh the value of proceeding sooner?"
+  },
+  "crux-440": {
+    "ok": true,
+    "question_form": "Do current interpretability tools enable reliable mapping of large models' internal representations to human-understandable concepts?"
+  },
+  "crux-441": {
+    "ok": true,
+    "question_form": "Are legally binding compute caps the only mechanism capable of enforcing a safety-first mandate, or do other empirical mechanisms achieve equivalent enforcement?"
+  },
+  "crux-442": {
+    "ok": true,
+    "question_form": "Do frontier AI safety frameworks in practice accelerate deployment timelines more than they reduce documented, present-day harms?"
+  },
+  "crux-443": {
+    "ok": true,
+    "question_form": "Should enforcing AI safety constraints be prioritized through tech worker collective action rather than through policy documents and external regulatory bodies?"
+  },
+  "crux-444": {
+    "ok": true,
+    "question_form": "Does shifting AI oversight authority to labor representatives reduce net institutional capture compared to existing oversight arrangements, or does it produce comparable or greater capture by different interests?"
+  },
+  "crux-445": {
+    "ok": true,
+    "question_form": "Should market-driven performance standards take priority over human-centered oversight mechanisms when holding AI systems accountable?"
+  },
+  "crux-446": {
+    "ok": true,
+    "question_form": "Does 'automated verification of internal logic' describe a meaningful capability that scaled systems can possess, or does it describe something beyond what any current or foreseeable system architecture supports?"
+  },
+  "crux-447": {
+    "ok": true,
+    "question_form": "Does automated verification in practice give corporations effective control over how their own safety metrics are defined and measured?"
+  },
+  "crux-448": {
+    "ok": true,
+    "question_form": "Are there mechanisms other than labor-based oversight that can reliably prevent reckless AI deployment?"
+  },
+  "crux-449": {
+    "ok": true,
+    "question_form": "Do organizations that deploy agentic systems failing measurable safety standards consistently suffer severe reputational and financial consequences in the near term?"
+  },
+  "crux-450": {
+    "ok": true,
+    "question_form": "Does high-frequency adversarial testing combined with output verification reliably prevent unsafe AI behaviors across deployment conditions?"
+  },
+  "crux-451": {
+    "ok": true,
+    "question_form": "Can human-centric governance mechanisms operate at speeds sufficient to oversee AI systems executing millions of operations per second?"
+  },
+  "crux-452": {
+    "ok": true,
+    "question_form": "Does output auditing reliably detect latent AI risks before they cause harm, or do significant risks remain hidden from output-level inspection?"
+  },
+  "crux-453": {
+    "ok": true,
+    "question_form": "Does scaling AI systems to ≥10^26 floating-point operations without interpretability of their internal decision-making processes produce meaningfully greater risks than scaling with such interpretability?"
+  },
+  "crux-454": {
+    "ok": true,
+    "question_form": "Can market-based accountability mechanisms provide meaningful remediation after an existential-scale harmful event has already occurred?"
+  },
+  "crux-455": {
+    "ok": true,
+    "question_form": "Does deploying high-compute systems (≥10^26 FLOPs) within regulatory sandboxes qualify as stress-testing against adversarial defensive agents?"
+  },
+  "crux-456": {
+    "ok": true,
+    "question_form": "In competitive markets with adversarial AI models, do compliance behaviors empirically converge toward substantive fairness outcomes or toward equilibria that satisfy formal requirements without producing them?"
+  },
+  "crux-457": {
+    "ok": true,
+    "question_form": "Do firms, absent a state-enforced interoperability standard, consistently prevent model collapse through their own internal mechanisms?"
+  },
+  "crux-458": {
+    "ok": true,
+    "question_form": "Should preventing stratified access to verified information be prioritized over allowing market-driven tiers of epistemic quality?"
+  },
+  "crux-459": {
+    "ok": true,
+    "question_form": "Should maintaining national competitive advantage in advanced AI be prioritized over policies that restrict access to computational power for AI development?"
+  },
+  "crux-460": {
+    "ok": true,
+    "question_form": "Should the potential costs of slowing AI development—foregone economic growth, delayed scientific advances, and unaddressed global challenges—be weighted more heavily than the potential costs of accelerating it?"
+  },
+  "crux-461": {
+    "ok": true,
+    "question_form": "Should compute throttling be prioritized as a safety measure even if it imposes costs on AI progress without proportionate reductions in risk?"
+  },
+  "crux-462": {
+    "ok": true,
+    "question_form": "Do market-driven innovation and accountability mechanisms produce better AI safety outcomes than regulatory oversight processes?"
+  },
+  "crux-463": {
+    "ok": true,
+    "question_form": "Does governing access to compute hardware provide more reliable and enforceable control over advanced AI development than alternative oversight strategies, particularly before catastrophic risks emerge?"
+  },
+  "crux-464": {
+    "ok": true,
+    "question_form": "Does lacking control over the foundational resources enabling AI capabilities increase the probability of irreversible loss of human agency more than it reduces strategic vulnerability compared to foregone short-term gains?"
+  },
+  "crux-465": {
+    "ok": true,
+    "question_form": "Does controlling physical compute resources qualify as a direct mechanism for maintaining human oversight, or is it too indirect to count as continuous oversight of autonomous AI behavior?"
+  },
+  "crux-466": {
+    "ok": true,
+    "question_form": "Would a licensing regime for compute clusters exceeding a specified teraflop threshold be practically enforceable as a choke point for advanced AI development?"
+  },
+  "crux-467": {
+    "ok": true,
+    "question_form": "Does 'effective lever for human control against existential risk' refer to interventions targeting compute infrastructure, or to other points in the AI development and deployment chain?"
+  },
+  "crux-468": {
+    "ok": true,
+    "question_form": "Does governing AI compute risks require restricting compute supply, or can market mechanisms, private ordering, and regulatory incentives achieve comparable safety outcomes without supply restrictions?"
+  },
+  "crux-469": {
+    "ok": true,
+    "question_form": "Does the evidence dilemma in AI governance—where risks are uncertain but potentially severe—favor precautionary compute restrictions over adaptive market mechanisms as the more effective governance response?"
+  },
+  "crux-470": {
+    "ok": true,
+    "question_form": "Does 'instrumental convergence' refer only to theoretical tendencies in idealized agents, or does it also encompass behaviors that could emerge in AI systems developed under real-world human-in-the-loop conditions?"
+  },
+  "crux-471": {
+    "ok": true,
+    "question_form": "Does uncertainty about AI risk evidence make market-based mechanisms—continuous testing, competition, and liability—more effective than centralized regulation at producing measurable safety outcomes?"
+  },
+  "crux-472": {
+    "ok": true,
+    "question_form": "Does meaningful control over advanced AI systems depend more on accelerating capabilities and broad access than on physical choke points such as compute restrictions?"
+  },
+  "crux-473": {
+    "ok": true,
+    "question_form": "Does increasing AI capability and opacity reduce regulators' ability to detect misalignment between an AI system's apparent behavior and its actual objectives?"
+  },
+  "crux-474": {
+    "ok": true,
+    "question_form": "Does 'empirical evidence' of failure in high-stakes AI catastrophic risk scenarios require observable outcomes that permit correction, or can it include irreversible civilizational collapse?"
+  },
+  "crux-475": {
+    "ok": true,
+    "question_form": "Are current interpretability and mechanistic interpretability tools advancing at a rate that enables developers and auditors to meaningfully examine the internal workings of complex AI models, beyond surface-level behavior?"
+  },
+  "crux-476": {
+    "ok": true,
+    "question_form": "Does open-source proliferation of AI models detect hidden misalignments in those models more effectively than centralized regulatory oversight can?"
+  },
+  "crux-477": {
+    "ok": true,
+    "question_form": "Would an international compute licensing regime with a registry of training runs exceeding 10^26 FLOPs make clandestine large-scale AI training operations detectably difficult to conceal?"
+  },
+  "crux-478": {
+    "ok": true,
+    "question_form": "Can AI systems at or above 10^26 FLOPs generate internally consistent, interpretability-passing representations that conceal misaligned objectives from current or foreseeable verification tools?"
+  },
+  "crux-479": {
+    "ok": true,
+    "question_form": "Does preventing irreversible outcomes in AI deployment depend more on proactive continuous validation through testing and simulation than on iterative learning from observed failures?"
+  },
+  "crux-480": {
+    "ok": true,
+    "question_form": "Can sufficiently advanced counter-deception AI and verification tools reliably detect strategic deception in advanced AI systems, or does such deception fundamentally outpace any technical countermeasures?"
+  },
+  "crux-481": {
+    "ok": true,
+    "question_form": "Would this strategy increase pathways for misuse and accidental misaligned-agent deployment faster than distributed oversight systems could manage them within the next 5–10 years?"
+  },
+  "crux-482": {
+    "ok": true,
+    "question_form": "Does mechanistic interpretability currently achieve sufficient accuracy in mapping internal neural pathways to identify deceptive intent prior to model deployment?"
+  },
+  "crux-483": {
+    "ok": true,
+    "question_form": "When firms face mandatory, high-cost financial liability for catastrophic failure, do they in practice reduce risk exposure even at the expense of profit?"
+  },
+  "crux-484": {
+    "ok": true,
+    "question_form": "Does current AI infrastructure market stress lead to asset redistribution among new entrants or to lasting consolidation among incumbent players?"
+  },
+  "crux-485": {
+    "ok": true,
+    "question_form": "To what extent can automated technical safety audits reduce the influence of regulated entities over the auditing process compared to human-led audits?"
+  },
+  "crux-486": {
+    "ok": true,
+    "question_form": "Should private sector innovation be trusted to ensure safe and responsible AI development, or does that goal require regulatory oversight?"
+  },
+  "crux-487": {
+    "ok": true,
+    "question_form": "To what extent do renewable energy sources and optimized data center design reduce the measured environmental impact of AI training workloads?"
+  },
+  "crux-488": {
+    "ok": true,
+    "question_form": "Should standardized safety and provenance protocols be structured as voluntary public-goods libraries rather than mandatory compliance regimes?"
+  },
+  "crux-489": {
+    "ok": true,
+    "question_form": "If unaligned model weights are distributed publicly and cannot be recalled, does meaningful safety oversight over their use become permanently unachievable?"
+  },
+  "crux-490": {
+    "ok": true,
+    "question_form": "Can fine-tuning reliably remove alignment constraints from open-source models, making those constraints impossible to maintain across deployment contexts?"
+  },
+  "crux-491": {
+    "ok": true,
+    "question_form": "Should open-source AI models be held to the same regulatory requirements as closed-source models, even if doing so reduces innovation and distributed resilience?"
+  },
+  "crux-492": {
+    "ok": true,
+    "question_form": "Do the dominant positions in current AI policy debates primarily serve to protect incumbent corporate business models rather than advance mechanisms for human accountability?"
+  },
+  "crux-493": {
+    "ok": true,
+    "question_form": "When does safety-focused AI regulation constitute a competitive barrier serving incumbent interests rather than a genuine mechanism for public protection?"
+  },
+  "crux-494": {
+    "ok": true,
+    "question_form": "Does shifting AI safety infrastructure from industry-led compliance to publicly funded independent bodies reduce corporate consolidation in the AI sector?"
+  },
+  "crux-495": {
+    "ok": true,
+    "question_form": "Should safety requirements in AI development be treated as universal engineering standards that all actors must meet, or as competitive differentiators that individual firms may use to their advantage?"
+  },
+  "crux-496": {
+    "ok": true,
+    "question_form": "Do distributed open-source ecosystems identify and patch critical vulnerabilities faster than proprietary siloed development cycles?"
+  },
+  "crux-497": {
+    "ok": true,
+    "question_form": "Should a centralized safety body's potential to concentrate epistemic authority be weighted as an inherent structural cost, regardless of how it is funded?"
+  },
+  "crux-498": {
+    "ok": true,
+    "question_form": "Would implementing a standardized safety-as-a-standard framework reduce uncertainty in model performance from its current estimated 30–40% range?"
+  },
+  "crux-499": {
+    "ok": true,
+    "question_form": "Can a startup with fewer than 50 employees realistically apply the same standardized safety-testing protocols as a trillion-dollar corporation under this structure?"
+  },
+  "crux-500": {
+    "ok": true,
+    "question_form": "Is the architecture being debated by Sentinel and Prometheus built upon data that was extracted without consent from the individuals whose data was used?"
+  },
+  "crux-501": {
+    "ok": true,
+    "question_form": "Does mandatory training corpus documentation improve model safety outcomes only when oversight is conducted by entities independent of the AI industry?"
+  },
+  "crux-502": {
+    "ok": true,
+    "question_form": "Do gigawatt-scale energy auction participation costs impose a larger proportional burden on startups than the fixed costs incumbents have already absorbed?"
+  },
+  "crux-503": {
+    "ok": true,
+    "question_form": "Under what conditions, if any, does centralized regulatory oversight result in regulatory capture that protects incumbents rather than serving broader public interests?"
+  },
+  "crux-504": {
+    "ok": true,
+    "question_form": "To what extent do current public auditing methods for open-weight models reliably detect capabilities or behaviors that could cause systemic harm?"
+  },
+  "crux-505": {
+    "ok": true,
+    "question_form": "Do synthetic AI-native training platforms transmit tacit knowledge and normative ethical judgment at levels equivalent to those achieved through human-led apprenticeship?"
+  },
+  "crux-506": {
+    "ok": true,
+    "question_form": "Does empirical evidence show that complex, standardized technical mandates correlate with increased market concentration among the largest platforms?"
+  },
+  "crux-507": {
+    "ok": true,
+    "question_form": "When complex privacy mandates correlate with increased market concentration among large platforms, should reducing that concentration be prioritized over the privacy protections those mandates provide?"
+  },
+  "crux-508": {
+    "ok": true,
+    "question_form": "Does implementing a state-mandated audit framework produce measurable safety improvements, or does compliance activity occur without corresponding reductions in harm?"
+  },
+  "crux-509": {
+    "ok": true,
+    "question_form": "Will mechanistic interpretability tools reach effective standardization by 2026 absent a centralized, government-led research initiative?"
+  },
+  "crux-510": {
+    "ok": true,
+    "question_form": "Does mechanistic interpretability detect agentic behavioral shifts toward deception in real time with reliability comparable to a physical kill-switch, without being circumvented by the system being monitored?"
+  },
+  "crux-511": {
+    "ok": true,
+    "question_form": "Do current AI reward functions weight user engagement more heavily than factual accuracy, and if so, does this imbalance produce systemic risk?"
+  },
+  "crux-512": {
+    "ok": true,
+    "question_form": "Can societies maintain stability without their members converging on a shared understanding of objective reality?"
+  },
+  "crux-513": {
+    "ok": true,
+    "question_form": "Should centralized AI models that consistently favor mainstream perspectives be considered an acceptable trade-off against the value of epistemic diversity?"
+  },
+  "crux-514": {
+    "ok": true,
+    "question_form": "Does achieving meaningful societal progress depend on intelligence being distributed rapidly across many decentralized actors rather than concentrated or developed incrementally?"
+  },
+  "crux-515": {
+    "ok": true,
+    "question_form": "Do open-weight models enable faster personalized iteration than centralized systems can achieve through their own architectures?"
+  },
+  "crux-516": {
+    "ok": true,
+    "question_form": "To what extent do AI systems reflect and reinforce existing societal power structures rather than operating independently of them?"
+  },
+  "crux-517": {
+    "ok": true,
+    "question_form": "Should the ability to locate and surgically modify mathematical structures encoding bias be prioritized as the primary criterion for evaluating mechanistic interpretability's value in AI fairness efforts?"
+  },
+  "crux-518": {
+    "ok": true,
+    "question_form": "Does abandoning the pursuit of a shared, verifiable reality reliably lead to greater social fragmentation and gains for reactionary political forces?"
+  },
+  "crux-519": {
+    "ok": true,
+    "question_form": "Do decisions to prune or alter a model's internal structure necessarily reflect the developer's specific moral values rather than being technically neutral choices?"
+  },
+  "crux-520": {
+    "ok": true,
+    "question_form": "Does scientific or technical consensus on AI capabilities and risks form more reliably through bottom-up competition among transparent, open-weight architectures than through other processes?"
+  },
+  "crux-521": {
+    "ok": true,
+    "question_form": "Does releasing open-source model weights and code give users meaningful insight into how the model behaves, or does it primarily spread architectural limitations and biases to more actors?"
+  },
+  "crux-522": {
+    "ok": true,
+    "question_form": "Does distributing AI models to everyone produce meaningful transparency into how those models work?"
+  },
+  "crux-523": {
+    "ok": true,
+    "question_form": "Should responsibility for AI safety rest primarily with centralized institutions and systemic oversight, or with individual citizens evaluating risks themselves?"
+  },
+  "crux-524": {
+    "ok": true,
+    "question_form": "Would an open-audit framework reliably lead independent reviewers to identify and mitigate bias in AI systems before those systems are deployed to the public?"
+  },
+  "crux-525": {
+    "ok": true,
+    "question_form": "Do mandated labor productivity metrics improve worker outcomes more than they restrict market entry for competing firms?"
+  },
+  "crux-526": {
+    "ok": true,
+    "question_form": "Do adversarial training and multi-vendor auditing successfully detect deceptive alignment in models that share foundational training data?"
+  },
+  "crux-527": {
+    "ok": true,
+    "question_form": "In high-velocity operational environments, does human oversight empirically reduce overall system failure rates, or does it increase them by introducing automation bias and brittleness?"
+  },
+  "crux-528": {
+    "ok": true,
+    "question_form": "Does imposing a progressive automation levy result in measurable redistribution of wealth, or does it primarily raise barriers that consolidate market share among large incumbent firms?"
+  },
+  "crux-529": {
+    "ok": true,
+    "question_form": "Do autonomous circuit breakers reliably detect and halt failures that remain within normal performance parameters before those failures cause significant harm?"
+  },
+  "crux-530": {
+    "ok": true,
+    "question_form": "Does requiring standardized safety modularity in AI systems correlate with higher or lower rates of novel architectural innovation compared to systems without such requirements?"
+  },
+  "crux-531": {
+    "ok": true,
+    "question_form": "Would standardizing safety verification as a public-interest utility reduce throughput or create processing delays comparable to recognized bureaucratic bottlenecks?"
+  },
+  "crux-532": {
+    "ok": true,
+    "question_form": "Does the concept of AI 'black box' opacity, as applied to corporate accountability, constitute a mechanism for diffusing responsibility for harms rather than a genuine technical limitation?"
+  },
+  "crux-533": {
+    "ok": true,
+    "question_form": "Should strict liability be prioritized over other mechanisms—such as negligence standards, audits, or certification requirements—as a means of integrating safety into AI development cycles?"
+  },
+  "crux-534": {
+    "ok": true,
+    "question_form": "Should AI governance prioritize enabling future capability gains over enforcing institutional compliance standards, even when the two conflict?"
+  },
+  "crux-535": {
+    "ok": true,
+    "question_form": "Do black-box AI systems with emergent capabilities become less controllable in ways that make total human control over their behavior technically unachievable?"
+  },
+  "crux-536": {
+    "ok": true,
+    "question_form": "Should the inability to assign liability for a system's actions be treated as sufficient grounds to exclude it from societal infrastructure?"
+  },
+  "crux-537": {
+    "ok": true,
+    "question_form": "When algorithmic decision-making conflicts with established civil rights protections, which should take precedence: the algorithm's internal logic or civil rights frameworks?"
+  },
+  "crux-538": {
+    "ok": true,
+    "question_form": "Do firms deploying monolithic AI across critical infrastructure without human-verified failovers in practice experience cascading failures whose costs and legal liability fall primarily on those firms?"
+  },
+  "crux-539": {
+    "ok": true,
+    "question_form": "Does strict liability cause AI developers to prioritize demonstrable compliance over empirical safety improvements, thereby reducing iterative deployment of AI systems?"
+  },
+  "crux-540": {
+    "ok": true,
+    "question_form": "Does imposing strict liability on developers cause them to internalize systemic failure costs before deploying autonomous systems into public environments?"
+  },
+  "crux-541": {
+    "ok": true,
+    "question_form": "Should strict liability and mandated modularity be prioritized as safety measures even if they disproportionately burden smaller or newer AI developers relative to established incumbents?"
+  },
+  "crux-542": {
+    "ok": true,
+    "question_form": "Would mandating modularity reduce novel architectural experimentation by approximately 40% within 24 months?"
+  },
+  "crux-543": {
+    "ok": true,
+    "question_form": "Should AI safety mechanisms be prioritized as shared foundational infrastructure over organization-specific administrative requirements?"
+  },
+  "crux-544": {
+    "ok": true,
+    "question_form": "Does requiring standardized safety modules constitute a market prohibition on non-modular, emergent safety architectures, or does it set a minimum baseline they can exceed?"
+  },
+  "crux-545": {
+    "ok": true,
+    "question_form": "Do incumbent firms shape technical standards in ways that systematically advantage their existing infrastructure over alternative architectures?"
+  },
+  "crux-546": {
+    "ok": true,
+    "question_form": "Can non-modular AI architectures that bypass standard interfaces be empirically verified by independent third parties to produce superior safety outcomes compared to architectures that comply with those interfaces?"
+  },
+  "crux-547": {
+    "ok": true,
+    "question_form": "Does a regulatory standard function as a compliance floor, a compliance ceiling, or something else when applied to novel AI systems that exceed its requirements?"
+  },
+  "crux-548": {
+    "ok": true,
+    "question_form": "Does mandating external validation shift the primary compliance burden from administrative paperwork to audit costs that disproportionately disadvantage smaller or newer firms over established ones?"
+  },
+  "crux-549": {
+    "ok": true,
+    "question_form": "To what extent do financial liability mechanisms restore conditions harmed by systemic AI failures, compared with harms that persist despite such remediation?"
+  },
+  "crux-550": {
+    "ok": true,
+    "question_form": "Do internal workers identify emergent algorithmic hazards more accurately than external, automated, or state-led audits?"
+  },
+  "crux-551": {
+    "ok": true,
+    "question_form": "Would implementing a non-wage-based survival mechanism during AI-driven productivity growth maintain economic stability without triggering systemic collapse?"
+  },
+  "crux-552": {
+    "ok": true,
+    "question_form": "Does human-in-the-loop oversight applied to 0.1% of AI decisions produce system latency or stability effects that materially alter overall performance outcomes?"
+  },
+  "crux-553": {
+    "ok": true,
+    "question_form": "To what extent do automated adversarial verification protocols reliably detect gaming and deceptive alignment in the AI models they test?"
+  },
+  "crux-554": {
+    "ok": true,
+    "question_form": "Does a standardized global compute threshold such as 10^26 FLOPs systematically advantage incumbent AI firms over new entrants, independent of how the threshold is implemented?"
+  },
+  "crux-555": {
+    "ok": true,
+    "question_form": "Do international AI treaties reduce AI-related harms more effectively than strict localized liability regimes, or do they primarily shield incumbent firms from accountability?"
+  },
+  "crux-556": {
+    "ok": true,
+    "question_form": "Does 'effective AI regulation' refer to mechanisms enabling harmed parties to seek redress from developers, or mechanisms enabling intergovernmental bodies to coordinate with developers?"
+  },
+  "crux-557": {
+    "ok": true,
+    "question_form": "Can diplomatic consensus-building processes adapt quickly enough to keep pace with AI development cycles?"
+  },
+  "crux-558": {
+    "ok": true,
+    "question_form": "Do automated verification and private ordering produce safety incentives that are faster or more technically effective than those generated by litigation-based liability?"
+  },
+  "crux-559": {
+    "ok": true,
+    "question_form": "Would corporate liability and market-based verification mechanisms be sufficient to manage the risks posed by advanced AI, or do those risks require a binding global institutional framework?"
+  },
+  "crux-560": {
+    "ok": true,
+    "question_form": "Should localized liability be prioritized as a harm-reduction mechanism even when the potential harms are irreversible and civilization-level in scale?"
+  },
+  "crux-561": {
+    "ok": true,
+    "question_form": "Should objective AI oversight prioritize external authority over private ordering and automated verification, given concerns about deceptive alignment?"
+  },
+  "crux-562": {
+    "ok": true,
+    "question_form": "Do corporations maintain substantively equivalent safety investments when strict liability is absent compared to when it is present?"
+  },
+  "crux-563": {
+    "ok": true,
+    "question_form": "Does AI firms' public emphasis on long-term existential risks measurably reduce attention to documented harms their current products cause?"
+  },
+  "crux-564": {
+    "ok": true,
+    "question_form": "Do liability regimes empirically produce greater pre-deployment safety investment in AI firms than global oversight frameworks, and are those frameworks more susceptible to regulatory capture than liability-based systems?"
+  },
+  "crux-565": {
+    "ok": true,
+    "question_form": "Does 'global oversight regime' refer to a structure that, by definition, concentrates compliance costs in ways that systematically exclude smaller actors from participation?"
+  },
+  "crux-566": {
+    "ok": true,
+    "question_form": "Does automated empirical verification integrated into the development cycle produce more reliable AI safety outcomes than international treaty frameworks?"
+  },
+  "crux-567": {
+    "ok": true,
+    "question_form": "Would requiring standardized safety verification only for models exceeding 10^26 FLOPs disproportionately entrench incumbent AI developers relative to new entrants?"
+  },
+  "crux-568": {
+    "ok": true,
+    "question_form": "When post-catastrophe legal remedies against insolvent entities are unavailable, should preventing global-scale risks through pre-deployment technical mandates take priority over other governance approaches?"
+  },
+  "crux-569": {
+    "ok": true,
+    "question_form": "Do legal mechanisms granting injured parties standing to sue produce greater algorithmic accountability outcomes than intergovernmental processes producing non-binding guidelines?"
+  },
+  "crux-570": {
+    "ok": true,
+    "question_form": "Should preventing capital-based barriers to safety validation take priority over tying regulatory scrutiny thresholds to infrastructure scale?"
+  },
+  "crux-571": {
+    "ok": true,
+    "question_form": "What counts as a valid AI safety audit: one that verifies checklist compliance, or one that must also detect structural defects that checklist criteria do not capture?"
+  },
+  "crux-572": {
+    "ok": true,
+    "question_form": "Do international treaties in practice reduce the likelihood that large firms face domestic court proceedings over conduct they would otherwise be held accountable for?"
+  },
+  "crux-573": {
+    "ok": true,
+    "question_form": "Can reactive litigation sufficiently address societal harms that are irreversible once they occur?"
+  },
+  "crux-574": {
+    "ok": true,
+    "question_form": "Under what conditions, if any, does a central AI safety authority avoid regulatory capture and intellectual monoculture in practice?"
+  },
+  "crux-575": {
+    "ok": true,
+    "question_form": "Have significant mechanistic interpretability breakthroughs historically depended on centralized, non-commercial resource pooling rather than decentralized or commercially funded efforts?"
+  },
+  "crux-576": {
+    "ok": true,
+    "question_form": "Should the broad distribution of frontier AI capabilities be prioritized over maintaining the concentrated oversight mechanisms that may limit catastrophic misuse?"
+  },
+  "crux-577": {
+    "ok": true,
+    "question_form": "Once model weights are distributed, to what extent can vulnerabilities be mitigated through downstream interventions, or does distribution make harmful misuse effectively irreversible?"
+  },
+  "crux-578": {
+    "ok": true,
+    "question_form": "Does 'institutional capacity required for frontier-level safety verification' refer to resources and coordination that only centralized organizations can possess, or can distributed arrangements also qualify?"
+  },
+  "crux-579": {
+    "ok": true,
+    "question_form": "Does concentrating AI development within a small number of proprietary organizations meaningfully increase the probability of a catastrophic, system-wide failure compared to more distributed development models?"
+  },
+  "crux-580": {
+    "ok": true,
+    "question_form": "Does institutional gatekeeping reduce the likelihood of harmful outcomes, or does it create concentrated points of failure that increase systemic vulnerability?"
+  },
+  "crux-581": {
+    "ok": true,
+    "question_form": "Are there mechanisms other than open-source proliferation that can produce a resilient, self-correcting civilization?"
+  },
+  "crux-582": {
+    "ok": true,
+    "question_form": "Does 'making AI systems safe' require mechanistic interpretability, or can safety be achieved through other means without understanding internal mechanisms?"
+  },
+  "crux-583": {
+    "ok": true,
+    "question_form": "Do mission-oriented safety consortia empirically produce fewer single-point-of-failure risks than commercial monopolies in AI development?"
+  },
+  "crux-584": {
+    "ok": true,
+    "question_form": "Is mechanistic interpretability of neural networks primarily limited by available resources and engineering effort, rather than by fundamental theoretical barriers that make it unsolvable in principle?"
+  },
+  "crux-585": {
+    "ok": true,
+    "question_form": "Does having 50 or more competing AI research labs produce better detection and mitigation of unforeseen frontier model behaviors than a more consolidated research landscape?"
+  },
+  "crux-586": {
+    "ok": true,
+    "question_form": "Does centralizing interpretability research under one institution increase the likelihood that a single flawed assumption propagates as an industry-wide standard compared to distributed research efforts?"
+  }
+}

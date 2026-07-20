@@ -1,0 +1,112 @@
+{
+  "name": "exp-1438-corpus-coverage-ab",
+  "description": "A/B experiment: corpus-coverage anti-recurrence lever (t/1438). 6 paired topics, interleaved C/T arms.",
+  "pre_registered_pass_rule": "+15% unique-nodes-cited (per-debate mean + 6-debate union), crux_addressed_ratio and avg_grounding_confidence each within -5% of control.",
+  "coverage_map": {
+    "source": "calibration/corpus-coverage.json",
+    "generated_at": "2026-07-09T13:23:48.004Z",
+    "debate_count_threshold": 20,
+    "heavy_nodes": 108,
+    "fault_lines": 70,
+    "retreads": 38
+  },
+  "created_at": "2026-07-12",
+  "debates": [
+    {
+      "topic": "Is open-source AI development a net positive or negative for society?",
+      "name": "exp-1438-01-C-opensource",
+      "model": "gemini-2.5-flash",
+      "useAdaptiveStaging": true,
+      "pacing": "moderate",
+      "enableCorpusCoverage": false
+    },
+    {
+      "topic": "Is open-source AI development a net positive or negative for society?",
+      "name": "exp-1438-02-T-opensource",
+      "model": "gemini-2.5-flash",
+      "useAdaptiveStaging": true,
+      "pacing": "moderate",
+      "enableCorpusCoverage": true
+    },
+    {
+      "topic": "Does concentrating AI development in a few large companies increase or decrease existential risk?",
+      "name": "exp-1438-03-C-concentration",
+      "model": "gemini-2.5-flash",
+      "useAdaptiveStaging": true,
+      "pacing": "moderate",
+      "enableCorpusCoverage": false
+    },
+    {
+      "topic": "Does concentrating AI development in a few large companies increase or decrease existential risk?",
+      "name": "exp-1438-04-T-concentration",
+      "model": "gemini-2.5-flash",
+      "useAdaptiveStaging": true,
+      "pacing": "moderate",
+      "enableCorpusCoverage": true
+    },
+    {
+      "topic": "Is the race to develop AGI driven more by market failure than genuine need?",
+      "name": "exp-1438-05-C-agi-race",
+      "model": "gemini-2.5-flash",
+      "useAdaptiveStaging": true,
+      "pacing": "moderate",
+      "enableCorpusCoverage": false
+    },
+    {
+      "topic": "Is the race to develop AGI driven more by market failure than genuine need?",
+      "name": "exp-1438-06-T-agi-race",
+      "model": "gemini-2.5-flash",
+      "useAdaptiveStaging": true,
+      "pacing": "moderate",
+      "enableCorpusCoverage": true
+    },
+    {
+      "topic": "Is AI-powered automation a threat to democratic governance?",
+      "name": "exp-1438-07-C-automation-democracy",
+      "model": "gemini-2.5-flash",
+      "useAdaptiveStaging": true,
+      "pacing": "moderate",
+      "enableCorpusCoverage": false
+    },
+    {
+      "topic": "Is AI-powered automation a threat to democratic governance?",
+      "name": "exp-1438-08-T-automation-democracy",
+      "model": "gemini-2.5-flash",
+      "useAdaptiveStaging": true,
+      "pacing": "moderate",
+      "enableCorpusCoverage": true
+    },
+    {
+      "topic": "Is AI bias and discrimination a systemic problem that markets cannot self-correct?",
+      "name": "exp-1438-09-C-bias-markets",
+      "model": "gemini-2.5-flash",
+      "useAdaptiveStaging": true,
+      "pacing": "moderate",
+      "enableCorpusCoverage": false
+    },
+    {
+      "topic": "Is AI bias and discrimination a systemic problem that markets cannot self-correct?",
+      "name": "exp-1438-10-T-bias-markets",
+      "model": "gemini-2.5-flash",
+      "useAdaptiveStaging": true,
+      "pacing": "moderate",
+      "enableCorpusCoverage": true
+    },
+    {
+      "topic": "Should AI be deployed to manage critical infrastructure and crisis response systems?",
+      "name": "exp-1438-11-C-infra-crisis",
+      "model": "gemini-2.5-flash",
+      "useAdaptiveStaging": true,
+      "pacing": "moderate",
+      "enableCorpusCoverage": false
+    },
+    {
+      "topic": "Should AI be deployed to manage critical infrastructure and crisis response systems?",
+      "name": "exp-1438-12-T-infra-crisis",
+      "model": "gemini-2.5-flash",
+      "useAdaptiveStaging": true,
+      "pacing": "moderate",
+      "enableCorpusCoverage": true
+    }
+  ]
+}

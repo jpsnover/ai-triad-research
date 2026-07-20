@@ -1,0 +1,78 @@
+182 corpus items; 2 already done; 180 to run
+[1/180] debate.topic-critique#0 json=True schema=True lat=329.83s ev=796 
+[2/180] debate.topic-critique#1 json=True schema=True lat=196.51s ev=790 
+[3/180] debate.topic-critique#2 json=True schema=True lat=206.05s ev=1121 
+[4/180] debate.topic-critique#3 json=True schema=True lat=200.01s ev=855 
+[5/180] debate.topic-critique#4 json=True schema=True lat=147.22s ev=148 
+[6/180] debate.topic-critique#5 json=True schema=True lat=294.25s ev=941 
+[7/180] debate.topic-critique#6 json=True schema=False lat=256.92s ev=878 ERR: reframe_suggestions[3].reframed_fragment missing/empty
+[8/180] debate.topic-critique#7 json=True schema=True lat=59.44s ev=769 
+[9/180] debate.topic-critique#8 json=True schema=True lat=260.94s ev=799 
+[10/180] debate.topic-critique#9 json=True schema=True lat=225.84s ev=895 
+[11/180] debate.topic-critique#10 json=True schema=True lat=151.06s ev=685 
+[12/180] debate.topic-critique#11 json=True schema=True lat=156.52s ev=721 
+[13/180] debate.topic-critique#12 json=True schema=True lat=150.23s ev=796 
+[14/180] debate.topic-critique#13 json=True schema=True lat=151.5s ev=767 
+[15/180] debate.topic-critique#14 json=True schema=False lat=97.05s ev=450 ERR: reframe_suggestions[0].reframed_fragment missing/empty; reframe_suggestions[1].reframed_fragment missing/empty
+[16/180] debate.topic-critique#15 json=True schema=True lat=166.16s ev=829 
+[17/180] debate.topic-critique#16 json=True schema=True lat=148.2s ev=941 
+[18/180] debate.topic-critique#17 json=True schema=True lat=183.25s ev=1118 
+[19/180] debate.topic-critique#18 json=True schema=False lat=132.25s ev=385 ERR: reframe_suggestions[0].reframed_fragment missing/empty; reframe_suggestions[1].reframed_fragment missing/empty
+182 corpus items; 21 already done; 161 to run
+[1/161] debate.topic-critique#19 json=True schema=True lat=199.42s ev=785 
+[2/161] debate.topic-critique#20 json=True schema=True lat=173.5s ev=838 
+[3/161] debate.topic-critique#21 json=True schema=False lat=113.42s ev=357 ERR: reframe_suggestions[0].reframed_fragment missing/empty; reframe_suggestions[1].reframed_fragment missing/empty
+[4/161] debate.clarification-questions#0 json=True schema=False lat=79.14s ev=234 ERR: questions[2].options missing/not array of strings
+[5/161] debate.clarification-questions#1 json=True schema=True lat=76.0s ev=401 
+[6/161] debate.clarification-questions#2 json=True schema=True lat=76.52s ev=249 
+[7/161] debate.clarification-questions#3 json=True schema=True lat=92.67s ev=863 
+[8/161] debate.clarification-questions#4 json=True schema=True lat=57.92s ev=443 
+[9/161] debate.clarification-questions#5 json=True schema=True lat=51.31s ev=357 
+[10/161] debate.clarification-questions#6 json=True schema=True lat=43.58s ev=288 
+[11/161] debate.clarification-questions#7 json=True schema=True lat=53.5s ev=416 
+[12/161] debate.clarification-questions#8 json=True schema=True lat=80.2s ev=360 
+[13/161] debate.clarification-questions#9 json=True schema=True lat=49.23s ev=145 
+[14/161] debate.clarification-questions#10 json=True schema=True lat=70.16s ev=226 
+[15/161] debate.clarification-questions#11 json=True schema=True lat=60.83s ev=371 
+[16/161] debate.clarification-questions#12 json=True schema=True lat=43.28s ev=256 
+[17/161] debate.clarification-questions#13 json=True schema=True lat=46.75s ev=330 
+[18/161] debate.clarification-questions#14 json=True schema=True lat=54.16s ev=124 
+[19/161] debate.clarification-questions#15 json=True schema=True lat=53.64s ev=290 
+[20/161] debate.clarification-questions#16 json=True schema=True lat=46.31s ev=343 
+[21/161] debate.clarification-questions#17 json=True schema=True lat=51.44s ev=348 
+[22/161] debate.clarification-questions#18 json=True schema=True lat=39.77s ev=322 
+[23/161] debate.clarification-questions#19 json=True schema=True lat=75.69s ev=408 
+[24/161] debate.clarification-questions#20 json=True schema=True lat=59.45s ev=358 
+[25/161] debate.clarification-questions#21 json=True schema=False lat=42.08s ev=237 ERR: questions[2].options missing/not array of strings
+[26/161] debate.topic-synthesis#0 json=True schema=True lat=54.75s ev=79 
+[27/161] debate.topic-synthesis#1 json=True schema=True lat=52.58s ev=123 
+[28/161] debate.topic-synthesis#2 json=True schema=True lat=39.53s ev=91 
+[29/161] debate.topic-synthesis#3 json=True schema=True lat=55.33s ev=108 
+[30/161] debate.topic-synthesis#4 json=True schema=True lat=40.55s ev=143 
+[31/161] debate.topic-synthesis#5 json=True schema=True lat=44.05s ev=109 
+[32/161] debate.crux-refresh#0 json=True schema=False lat=163.53s ev=370 ERR: crux_verdicts[1].verdict not resolved|superseded|active (got 'still active'); crux_verdicts[3].verdict not res
+[33/161] debate.crux-refresh#1 json=True schema=True lat=57.47s ev=241 
+[34/161] debate.crux-refresh#2 json=False schema=False lat=46.61s ev=None ERR: response is not parseable JSON
+[35/161] debate.crux-refresh#3 json=True schema=True lat=38.08s ev=190 
+[36/161] debate.crux-refresh#4 json=True schema=False lat=47.03s ev=269 ERR: crux_verdicts[1].verdict not resolved|superseded|active (got 'still active')
+[37/161] debate.crux-refresh#5 json=True schema=False lat=47.36s ev=374 ERR: crux_verdicts[1].verdict not resolved|superseded|active (got 'still active')
+[38/161] debate.crux-refresh#6 json=True schema=True lat=40.48s ev=208 
+[39/161] debate.crux-refresh#7 json=True schema=False lat=44.58s ev=308 ERR: crux_verdicts[1].verdict not resolved|superseded|active (got 'still active'); crux_verdicts[3].verdict not res
+[40/161] debate.crux-refresh#8 json=True schema=True lat=49.86s ev=306 
+[41/161] debate.crux-refresh#9 json=True schema=False lat=51.64s ev=246 ERR: crux_verdicts[1].verdict not resolved|superseded|active (got 'still active')
+[42/161] debate.crux-refresh#10 json=True schema=False lat=50.23s ev=323 ERR: crux_verdicts[1].verdict not resolved|superseded|active (got 'still active'); crux_verdicts[2].verdict not res
+[43/161] debate.crux-refresh#11 json=True schema=True lat=60.7s ev=198 
+[44/161] debate.crux-refresh#12 json=True schema=True lat=61.48s ev=253 
+[45/161] debate.crux-refresh#13 json=True schema=True lat=41.12s ev=270 
+[46/161] debate.crux-refresh#14 json=True schema=False lat=68.14s ev=250 ERR: crux_verdicts[1].verdict not resolved|superseded|active (got 'still active')
+[47/161] debate.crux-refresh#15 json=True schema=True lat=50.86s ev=368 
+[48/161] debate.crux-refresh#16 json=True schema=True lat=52.94s ev=220 
+[49/161] debate.crux-refresh#17 json=True schema=True lat=118.62s ev=549 
+[50/161] debate.crux-refresh#18 json=True schema=True lat=76.42s ev=279 
+[51/161] debate.crux-refresh#19 json=True schema=True lat=52.22s ev=195 
+[52/161] debate.crux-refresh#20 json=True schema=True lat=49.44s ev=248 
+[53/161] debate.crux-refresh#21 json=True schema=True lat=80.17s ev=295 
+[54/161] debate.evidence-search#0 json=True schema=True lat=49.64s ev=86 
+[55/161] debate.evidence-search#1 json=True schema=True lat=37.74s ev=77 
+[56/161] debate.evidence-search#2 json=True schema=True lat=29.74s ev=98 
+[57/161] debate.evidence-search#3 json=True schema=True lat=37.75s ev=81 

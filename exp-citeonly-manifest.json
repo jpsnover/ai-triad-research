@@ -1,0 +1,16 @@
+[
+  {
+    "topic": "compute-licensing",
+    "name": "exp-citeonly-compute-licensing-cheap",
+    "status": "exit_1",
+    "sessionPath": null,
+    "ok": false
+  },
+  {
+    "topic": "labor-policy",
+    "name": "exp-citeonly-labor-policy-cheap",
+    "status": "exit_1",
+    "sessionPath": null,
+    "ok": false
+  }
+]

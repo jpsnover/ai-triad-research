@@ -1,0 +1,309 @@
+{
+  "debate_id": "f67680e6-3da9-4b44-8243-803e708ca04c",
+  "debate_title": "exp-1438-04-T-concentration",
+  "conflicts": [],
+  "steelmans": [],
+  "debate_refs": [
+    {
+      "nodeId": "saf-desires-002",
+      "nodeLabel": "Humans Must Always Hold the Off Switch",
+      "refCount": 3,
+      "checked": true
+    },
+    {
+      "nodeId": "saf-beliefs-206",
+      "nodeLabel": "Scaling AI Without Safeguards Creates a Non-Trivial Path to Irreversible Civilizational Harm",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-beliefs-085",
+      "nodeLabel": "Regulatory Structures as Barriers to Competitive AI Innovation",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-intentions-056",
+      "nodeLabel": "Discredit Precautionary AI Regulation as Progress-Blocking",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-beliefs-053",
+      "nodeLabel": "AI Drives Net Economic Expansion Through Cost Deflation and Value Creation",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-beliefs-048",
+      "nodeLabel": "Near-Term AI Harms Are Acceptable Costs of Long-Term Transformation",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-desires-006",
+      "nodeLabel": "AI-Powered Military Decision-Making",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-intentions-078",
+      "nodeLabel": "Create Regulatory Conditions Where Market Competition Drives AI Transparency",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "sit-239",
+      "nodeLabel": "The Internet Playbook for AI Governance",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "sit-003",
+      "nodeLabel": "Who Makes the Rules for AI?",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "sit-096",
+      "nodeLabel": "Governing AI Amidst International and Domestic Competition",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-084",
+      "nodeLabel": "Mapping the Blast Radius of AI Integration Failures",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-desires-042",
+      "nodeLabel": "Actionability as Evaluation Metric",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-255",
+      "nodeLabel": "Political Market for Coercive Power",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-129",
+      "nodeLabel": "Safety Rhetoric as Instrument for Regulatory Consolidation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-intentions-141",
+      "nodeLabel": "Regulate AI for Documented Harms, Not Science-Fiction Scenarios",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-246",
+      "nodeLabel": "Funding Incidence Asymmetry",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-150",
+      "nodeLabel": "Statutory Prohibitions Fail When Companies Can Redefine What Their AI Products Are",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-205",
+      "nodeLabel": "AI Legal Status Becomes a Shield for Designer and Corporate Liability",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-160",
+      "nodeLabel": "Set the Ethical and Legal Ground Rules for AI Governance",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-desires-008",
+      "nodeLabel": "Every AI Agent Needs a Clear Duty of Care",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-069",
+      "nodeLabel": "Grounding AI Safety in Legal Compliance Rather Than Abstract Ethics",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-071",
+      "nodeLabel": "Quantifiable AI Harms Turn Fairness Into a Business Imperative, Not Just an Ethical One",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-001",
+      "nodeLabel": "Winning the AGI Race Through Open Accountability",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-047",
+      "nodeLabel": "Argue That AI Requires Entirely New Laws, Not Adapted Old Ones",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-211",
+      "nodeLabel": "Governance Enforcement and Institutional Design",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-desires-001",
+      "nodeLabel": "Humanity's Survival Above All Else",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-081",
+      "nodeLabel": "Building Adaptive Regulatory Frameworks for AI Development",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-172",
+      "nodeLabel": "Giving Victims One Clear Door for AI Liability Claims",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-072",
+      "nodeLabel": "Courts Lack the Expertise to Weigh AI's Diffuse Benefits Against Its Visible Harms",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-116",
+      "nodeLabel": "Condition AI Duty-Bearing Status on Mandatory Uncapped-Backstop Capitalization",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-080",
+      "nodeLabel": "Build Capture-Resistant AI Governance Through Organizational Structure, Not Fines",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-051",
+      "nodeLabel": "Designing AI Governance to Resist Adversarial Manipulation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-001",
+      "nodeLabel": "[DEPRECATED] Pausing Advanced AI Development",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-088",
+      "nodeLabel": "Govern AI Through Market Incentives and Industry Self-Regulation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-desires-037",
+      "nodeLabel": "Maximize AI Capability Growth by Removing All Scaling Constraints",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-104",
+      "nodeLabel": "Reframe AI Bias as a Quantifiable Business Risk to Drive Corporate Investment",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-034",
+      "nodeLabel": "AI Accountability Has a Chicken-and-Egg Problem",
+      "refCount": 1,
+      "checked": false
+    }
+  ],
+  "verdicts": [
+    {
+      "id": "hv-0",
+      "conflict": "Whether the concentration of AI development in a few large companies primarily increases or decreases existential risk.",
+      "prevails": "C1",
+      "criterion": "scope",
+      "rationale": "Claim C1 more comprehensively accounts for both the potential benefits of concentrated resources and the significant risks of reduced diversity, competitive pressures, and single points of failure. While large companies may invest heavily in safety, the 'race to the bottom' dynamic is a well-documented risk in rapidly advancing technological sectors, suggesting that market forces alone may not prioritize long-term safety over short-term deployment. Claim C2 focuses predominantly on resource allocation without fully addressing the systemic risks of a narrow development ecosystem.",
+      "whatWouldChange": "Empirical evidence demonstrating that leading AI developers consistently prioritize safety over competitive advantage, even under intense market pressure, would significantly alter this assessment.",
+      "claimIds": [
+        "C1",
+        "C2"
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hv-1",
+      "conflict": "The most effective role for governments in mitigating existential risks from concentrated AI development.",
+      "prevails": "C3",
+      "criterion": "logical_validity",
+      "rationale": "Claim C3, advocating for active regulation and potential antitrust measures, presents a logically consistent approach to counter the potential for unconstrained corporate power and market failures in a critical domain. While Claim C4 correctly identifies the importance of funding safety research, it does not fully address the systemic governance gaps that arise when powerful, concentrated entities develop technologies with existential implications. Relying solely on funding without regulatory oversight risks creating a moral hazard where public money subsidizes private development without sufficient public control over outcomes.",
+      "whatWouldChange": "Demonstrable evidence that voluntary industry self-regulation and government-funded research alone can effectively manage the risks of concentrated, powerful AI development would shift the balance.",
+      "claimIds": [
+        "C3",
+        "C4"
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hv-2",
+      "conflict": "The capacity of independent researchers and civil society to effectively counter concentrated AI power.",
+      "prevails": "C6",
+      "criterion": "specificity",
+      "rationale": "Claim C6 offers a more specific and empirically grounded assessment of the challenges faced by independent researchers and civil society, citing concrete limitations like resource disparities and lack of access to proprietary models. While Claim C5 correctly identifies the theoretical roles these groups can play, it often overestimates their practical influence against well-funded corporations operating with significant information asymmetry. Independent groups struggle to match the compute power, data access, and talent pools of leading AI labs, limiting their ability to develop truly competitive or alternative safety paradigms.",
+      "whatWouldChange": "Specific examples of independent research consortia or civil society organizations successfully developing and deploying alternative, competitive, and safer AI models that significantly influence the trajectory of large AI companies would weaken Claim C6.",
+      "claimIds": [
+        "C5",
+        "C6"
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    }
+  ],
+  "concepts": [
+    {
+      "id": "hn-0",
+      "text": "This isn't primarily a race to build genuinely safer systems; it's a race to establish regulatory moats, using the specter of 'superintelligence' to justify regulations so complex and resource-intensive that only incumbent giants can afford to comply.",
+      "speaker": "Skeptic",
+      "sourceEntryId": "23e04b13-a3b3-4ddf-99c3-c46af1dfbd01",
+      "suggestedLabel": "",
+      "suggestedDescription": "",
+      "suggestedPov": "skeptic",
+      "suggestedCategory": "Intentions",
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hn-1",
+      "text": "This is regulatory capture, plain and simple, designed to centralize control over future AI development, not genuinely mitigate existential risk.",
+      "speaker": "Skeptic",
+      "sourceEntryId": "23e04b13-a3b3-4ddf-99c3-c46af1dfbd01",
+      "suggestedLabel": "",
+      "suggestedDescription": "",
+      "suggestedPov": "skeptic",
+      "suggestedCategory": "Intentions",
+      "checked": false,
+      "warnings": []
+    }
+  ]
+}

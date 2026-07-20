@@ -1,5 +1,5 @@
-**Date:** 2026-07-07
-**Working on:** Production deploy after multi-day hold (t/1335 GHCR fix + t/1336 monitoring), plus 6 blockers found/fixed along the way.
-**Status:** Complete. Deploy live (revision taxonomy-editor--deploy-2d3a9c8-2890, 100% traffic, 16/16 endpoints). Both t/1335 and t/1336 closed per TL ruling. t/1355 filed (LOW, PowerShell) for Test-PersonaEndpoints body-shape hardening.
-**Key context:** Fixed en route: stale base image tag, node-pty needing prod-deps build stage, budget startDate must use utcNow() not hardcoded date, and a real bug where alert-image-pull-failure's query never matched ACA's actual log vocabulary (ContainerBackOff/ContainerCrashing, not literal "ImagePullBackOff") — found via historical backtest against the real 2026-07-05 outage data, fixed, proven via live Fired alerts.
-**Next:** Check ticket queue. ACA validates image manifests synchronously at deploy time — can't fault-inject via bad tags; use historical backtest + Data Collector API log injection instead for alert testing.
+**Date:** 2026-07-16
+**Working on:** t/1595 — trim operations/devops/azure/AGENTS.md context bloat (part of t/1592 fleet cleanup)
+**Status:** Complete. AGENTS.md 165→59 lines; anti-patterns + readiness checklist extracted to docs/aca-checklists.md. Doc SHA 411be79e (main git), AGENTS.md SHA 49a3954 (overlay/ogit).
+**Key context:** Load-bearing rules kept inline per TL guardrail: `az containerapp update` env-var drift rule, BYOK-no-secrets, Bicep-not-portal. No mandatory rule deleted — only relocated/pointed. Overlay commits use `pwsh ./scripts/ogit.ps1` (ogit alias unavailable in Bash tool).
+**Next:** Push both repos (main + overlay) at next reviewed-batch boundary. Still awaiting owner's live authenticated test to close t/1361; base-image retention/pin LOW ticket still unfiled.

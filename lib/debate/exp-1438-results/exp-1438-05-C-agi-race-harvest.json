@@ -1,0 +1,389 @@
+{
+  "debate_id": "a0db5a32-600b-48dc-a328-ac4dcb4f4c9b",
+  "debate_title": "exp-1438-05-C-agi-race",
+  "conflicts": [
+    {
+      "id": "hc-0",
+      "point": "The effectiveness of 'decentralized experimentation' for identifying and correcting AI biases versus amplifying harm.",
+      "bdiLayer": "belief",
+      "resolvability": "resolvable_by_evidence",
+      "positions": [
+        {
+          "pover": "accelerationist",
+          "stance": "Accelerationist argues that widespread 'deployment (competitive/rapid)' and 'transparency (verification)' through 'decentralized experimentation' is the fastest way to discover and fix AI biases, enabling real-time fixes and shrinking the 'scope of impact' of harm."
+        },
+        {
+          "pover": "safetyist",
+          "stance": "Safetyist asserts that deploying more AI systems through 'decentralized experimentation' without robust controls will amplify issues like algorithmic discrimination, expanding the 'scope of impact' of harm because biases are embedded in system design, not superficial bugs."
+        },
+        {
+          "pover": "skeptic",
+          "stance": "Skeptic maintains that Accelerationist's call for 'unrestricted experimentation' is a new form of regulatory capture, exempting powerful actors from accountability and undermining independent lifecycle oversight, rather than effectively correcting biases."
+        }
+      ],
+      "linkedNodes": [
+        "saf-beliefs-033",
+        "saf-desires-001",
+        "saf-desires-003",
+        "saf-intentions-063",
+        "sit-045",
+        "acc-beliefs-090",
+        "acc-beliefs-086",
+        "acc-beliefs-085",
+        "acc-intentions-005",
+        "sit-010"
+      ],
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hc-1",
+      "point": "The potential for the EU AI Act to foster sustainable innovation and public trust without incurring the broad economic costs and innovation stagnation observed with GDPR.",
+      "bdiLayer": "belief",
+      "resolvability": "resolvable_by_evidence",
+      "positions": [
+        {
+          "pover": "accelerationist",
+          "stance": "Accelerationist claims the EU AI Act is a blueprint for 'innovation stagnation,' similar to the GDPR, which decreased European firms' data storage by 26 percent and data processing by 15 percent, while increasing data costs by 20 percent."
+        },
+        {
+          "pover": "safetyist",
+          "stance": "Safetyist contends that the EU AI Act's targeted, risk-based framework for 'high-risk' AI applications fundamentally differs from GDPR's broad data-centric scope, thereby avoiding similar economic friction and supporting sustainable innovation by building public trust."
+        }
+      ],
+      "linkedNodes": [
+        "saf-beliefs-033",
+        "saf-desires-001",
+        "saf-desires-003",
+        "saf-intentions-063",
+        "sit-045",
+        "acc-beliefs-090",
+        "acc-beliefs-086",
+        "acc-beliefs-085",
+        "acc-intentions-005",
+        "sit-010"
+      ],
+      "checked": false,
+      "warnings": []
+    }
+  ],
+  "steelmans": [],
+  "debate_refs": [
+    {
+      "nodeId": "saf-beliefs-033",
+      "nodeLabel": "Society Cannot Absorb AI Capability Shocks at the Pace They Arrive",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "saf-desires-001",
+      "nodeLabel": "Humanity's Survival Above All Else",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "sit-045",
+      "nodeLabel": "Risky AI Business Crash",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-beliefs-085",
+      "nodeLabel": "Regulatory Structures as Barriers to Competitive AI Innovation",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "skp-beliefs-030",
+      "nodeLabel": "Unprofitable AI Business Models Create Systemic Risk of an Industry-Wide Correction",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "skp-beliefs-094",
+      "nodeLabel": "Empirical Evidence Documents Pervasive Bias, Discrimination, and Structural Harm in AI Systems",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "saf-intentions-140",
+      "nodeLabel": "Containing the Blast Radius of Autonomous AI",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "saf-desires-003",
+      "nodeLabel": "No Deployment Without Demonstrated Equity",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-063",
+      "nodeLabel": "Preventing AI-Triggered Market Crashes Through Automated Trading Halts",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-090",
+      "nodeLabel": "Boom Option Value Modeling",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-086",
+      "nodeLabel": "AI as Structurally Inevitable Economic Transformation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-005",
+      "nodeLabel": "Letting Free Markets Steer Technological Advancement",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "sit-010",
+      "nodeLabel": "Speed of AI Development vs. Safety Caution",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-intentions-108",
+      "nodeLabel": "Oppose AI Regulations That Entrench Incumbents Through Compliance Costs",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "sit-076",
+      "nodeLabel": "Two-Tiered AI Economy Risk",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-083",
+      "nodeLabel": "Acceptable Use Policies Protect Platforms from Liability, Not People from Harm",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-059",
+      "nodeLabel": "Markets Are Intelligent Systems That Optimize Resource Allocation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-desires-020",
+      "nodeLabel": "Mandatory AI Education for All",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-047",
+      "nodeLabel": "Argue That AI Requires Entirely New Laws, Not Adapted Old Ones",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-114",
+      "nodeLabel": "Accelerate AI Through Open, Decentralized, and Unrestricted Experimentation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-051",
+      "nodeLabel": "Measured AI Biases Are Leading Indicators of Discriminatory Outcomes",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-106",
+      "nodeLabel": "Liability Asymmetry Punishes Regulators for Caution and Rewards Inaction",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-desires-012",
+      "nodeLabel": "No Profit Without Accountability",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-069",
+      "nodeLabel": "Grounding AI Safety in Legal Compliance Rather Than Abstract Ethics",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-096",
+      "nodeLabel": "Treating AI as Neutral Technology Obscures Its Role in Reproducing Power Structures",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-desires-082",
+      "nodeLabel": "Eradicate Algorithmic Bias and Prevent AI from Entrenching Historical Injustice",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-intentions-097",
+      "nodeLabel": "Establish Independent Lifecycle Oversight Mechanisms for AI Systems",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-intentions-034",
+      "nodeLabel": "Apply the Public Utility Model to AI with Decentralized Democratic Oversight",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-027",
+      "nodeLabel": "Argue That Delaying AI Costs More Than Deploying It",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-desires-026",
+      "nodeLabel": "Deploying AI to Run Society at Scale",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-074",
+      "nodeLabel": "Liability Law Ignores AI's Diffuse Statistical Benefits",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-056",
+      "nodeLabel": "Discredit Precautionary AI Regulation as Progress-Blocking",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "sit-019",
+      "nodeLabel": "Acting Now vs. Waiting For Proof",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-029",
+      "nodeLabel": "Startups Drive Innovation More Than Big Tech",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-desires-008",
+      "nodeLabel": "Every AI Agent Needs a Clear Duty of Care",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-083",
+      "nodeLabel": "Inserting Human Judgment Where Autonomous AI Makes Consequential Choices",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-115",
+      "nodeLabel": "Assign Trust Duties to Every Actor in the AI Supply Chain",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-001",
+      "nodeLabel": "[DEPRECATED] Pausing Advanced AI Development",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-043",
+      "nodeLabel": "The Biggest Barriers to AI Progress Are Governance Failures, Not Technical Limits",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-desires-027",
+      "nodeLabel": "Defining Who Controls and Distributes AI",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-099",
+      "nodeLabel": "Integrating Mandatory Pre-Deployment Auditing with Strict Liability Enforcement",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-052",
+      "nodeLabel": "Remove Barriers and Increase Funding to Accelerate AI Progress",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-desires-018",
+      "nodeLabel": "Build Crisis-Proof Institutions with AI",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "sit-098",
+      "nodeLabel": "Deciding When and How to Regulate AI",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-051",
+      "nodeLabel": "Designing AI Governance to Resist Adversarial Manipulation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-150",
+      "nodeLabel": "Statutory Prohibitions Fail When Companies Can Redefine What Their AI Products Are",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-213",
+      "nodeLabel": "Requiring Layered Accountability Across the AI-Generated NCII Supply Chain",
+      "refCount": 1,
+      "checked": false
+    }
+  ],
+  "verdicts": [
+    {
+      "id": "hv-0",
+      "conflict": "The effectiveness of 'decentralized experimentation' for identifying and correcting AI biases versus amplifying harm.",
+      "prevails": "Safetyist asserts that deploying more AI systems through 'decentralized experimentation' without robust controls will amplify issues like algorithmic discrimination, expanding the 'scope of impact' of harm because biases are embedded in system design, not superficial bugs.",
+      "criterion": "logical_validity",
+      "rationale": "Safetyist's argument demonstrates stronger logical validity by acknowledging that systemic biases are frequently embedded in AI system design and training data, making them difficult to correct merely through post-deployment discovery. Accelerationist's claim of 'real-time fixes' for such deep-seated issues lacks specific empirical backing for effectiveness at scale, while Skeptic's argument, though relevant, focuses on intent rather than the direct mechanism of bias correction.",
+      "whatWouldChange": "Empirical evidence demonstrating that decentralized, rapid deployment of AI systems consistently leads to the rapid and effective *correction* of significant algorithmic biases across diverse applications, reducing overall harm scope more efficiently than pre-deployment controls.",
+      "claimIds": [
+        "Accelerationist argues that widespread 'deployment (competitive/rapid)' and 'transparency (verification)' through 'decentralized experimentation' is the fastest way to discover and fix AI biases, enabling real-time fixes and shrinking the 'scope of impact' of harm.",
+        "Safetyist asserts that deploying more AI systems through 'decentralized experimentation' without robust controls will amplify issues like algorithmic discrimination, expanding the 'scope of impact' of harm because biases are embedded in system design, not superficial bugs.",
+        "Skeptic maintains that Accelerationist's call for 'unrestricted experimentation' is a new form of regulatory capture, exempting powerful actors from accountability and undermining independent lifecycle oversight, rather than effectively correcting biases."
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hv-1",
+      "conflict": "The potential for the EU AI Act to foster sustainable innovation and public trust without incurring the broad economic costs and innovation stagnation observed with GDPR.",
+      "prevails": "Accelerationist claims the EU AI Act is a blueprint for 'innovation stagnation,' similar to the GDPR, which decreased European firms' data storage by 26 percent and data processing by 15 percent, while increasing data costs by 20 percent.",
+      "criterion": "empirical_evidence",
+      "rationale": "Accelerationist provides specific, quantified empirical evidence regarding the economic impacts of GDPR on European firms, offering a concrete historical precedent. While Safetyist logically distinguishes the EU AI Act's scope, they do not offer empirical data or case studies demonstrating how this distinction *will specifically prevent* similar economic friction, leaving their claim less substantiated by evidence regarding economic outcomes.",
+      "whatWouldChange": "Empirical studies or pilot program data demonstrating that the EU AI Act's targeted, risk-based approach has already fostered sustainable innovation and public trust without incurring significant economic costs in early implementations, or detailed economic modeling showing how its specific mechanisms mitigate the types of costs observed with GDPR.",
+      "claimIds": [
+        "Accelerationist claims the EU AI Act is a blueprint for 'innovation stagnation,' similar to the GDPR, which decreased European firms' data storage by 26 percent and data processing by 15 percent, while increasing data costs by 20 percent.",
+        "Safetyist contends that the EU AI Act's targeted, risk-based framework for 'high-risk' AI applications fundamentally differs from GDPR's broad data-centric scope, thereby avoiding similar economic friction and supporting sustainable innovation by building public trust."
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    }
+  ],
+  "concepts": []
+}

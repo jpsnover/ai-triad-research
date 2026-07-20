@@ -1,0 +1,485 @@
+{
+  "debate_id": "add43b5e-a1eb-4036-b83e-f5003e72aaf8",
+  "debate_title": "exp-1438-02-T-opensource",
+  "conflicts": [
+    {
+      "id": "hc-0",
+      "point": "Whether 'independent adversarial oversight' bodies can effectively resist institutional capture and industry influence.",
+      "bdiLayer": "belief",
+      "resolvability": "resolvable_by_evidence",
+      "positions": [
+        {
+          "pover": "safetyist",
+          "stance": "Independent adversarial oversight bodies, composed of term-limited experts from academia, civil society, and government, can ensure diversity of perspectives and prevent long-term entrenchment by any single industry interest, especially with public disclosure mandates."
+        },
+        {
+          "pover": "skeptic",
+          "stance": "Institutionalizing 'independent adversarial oversight' risks becoming another centralized point vulnerable to capture, shifting power to an elite technical body that can still be influenced by established interests through funding streams and revolving doors."
+        }
+      ],
+      "linkedNodes": [
+        "saf-beliefs-213",
+        "saf-intentions-158",
+        "sit-019",
+        "skp-beliefs-249",
+        "skp-intentions-108",
+        "skp-beliefs-196",
+        "sit-292",
+        "saf-beliefs-152",
+        "saf-desires-001",
+        "saf-intentions-005"
+      ],
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hc-1",
+      "point": "The necessity and impact of non-negotiable pre-deployment safety requirements and stringent data provenance mandates for high-stakes AI.",
+      "bdiLayer": "belief",
+      "resolvability": "resolvable_by_evidence",
+      "positions": [
+        {
+          "pover": "safetyist",
+          "stance": "For high-stakes AI impacting critical infrastructure or democratic processes, these mechanisms are non-negotiable requirements to ensure foundational integrity, prevent catastrophic failures, and provide transparency for predicting emergent behaviors."
+        },
+        {
+          "pover": "skeptic",
+          "stance": "These mandates create insurmountable technical and financial hurdles for open-source AI, acting as a 'regulatory moat' for incumbents by making compliance prohibitively expensive for smaller developers and independent researchers."
+        },
+        {
+          "pover": "accelerationist",
+          "stance": "Such pre-emptive regulatory gates prioritize speculative future harm over documented present benefits, disproportionately burdening small labs and entrenching incumbents, hindering equitable access and innovation."
+        }
+      ],
+      "linkedNodes": [
+        "acc-beliefs-085",
+        "acc-desires-039",
+        "acc-intentions-114",
+        "acc-beliefs-067",
+        "sit-019",
+        "saf-beliefs-213",
+        "saf-intentions-158",
+        "skp-beliefs-249",
+        "skp-intentions-108",
+        "skp-beliefs-196"
+      ],
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hc-2",
+      "point": "The sufficiency of output-based evaluation frameworks and market accountability for identifying and mitigating novel, emergent, or high-consequence AI risks.",
+      "bdiLayer": "belief",
+      "resolvability": "resolvable_by_evidence",
+      "positions": [
+        {
+          "pover": "accelerationist",
+          "stance": "Output-based evaluation (mutation testing, fuzzing, red-teaming) provides continuous, empirical safety validation, and market accountability with liability frameworks drives developers to build safer, more resilient systems faster, making irreversibility of release distinct from irreversibility of control."
+        },
+        {
+          "pover": "safetyist",
+          "stance": "Output-based evaluation only tests for *known* or *anticipated* failure modes; it cannot certify safety against novel, emergent, or high-consequence capabilities that have not yet been observed, which can lead to systemic shifts irreversible by community patches."
+        }
+      ],
+      "linkedNodes": [
+        "acc-beliefs-085",
+        "acc-desires-039",
+        "acc-intentions-114",
+        "acc-beliefs-067",
+        "sit-019",
+        "saf-beliefs-213",
+        "saf-intentions-158",
+        "acc-beliefs-028",
+        "acc-intentions-003",
+        "acc-intentions-078"
+      ],
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hc-3",
+      "point": "The fundamental dilemma facing AI governance.",
+      "bdiLayer": "desire",
+      "resolvability": "negotiable_via_tradeoffs",
+      "positions": [
+        {
+          "pover": "safetyist",
+          "stance": "The true dilemma is between accepting the unrecoverable cost of civilizational harm from unchecked AI and making the necessary investments for truly safety-gated deployment."
+        },
+        {
+          "pover": "accelerationist",
+          "stance": "The choice is between dynamic, market-driven accountability that distributes power and static, top-down control that inevitably leads to capture, with the latter incurring tangible human costs in foregone opportunities."
+        }
+      ],
+      "linkedNodes": [
+        "acc-beliefs-085",
+        "acc-desires-039",
+        "acc-intentions-114",
+        "acc-beliefs-067",
+        "sit-019",
+        "saf-beliefs-213",
+        "saf-intentions-158",
+        "acc-beliefs-028",
+        "acc-intentions-003",
+        "acc-intentions-078"
+      ],
+      "checked": false,
+      "warnings": []
+    }
+  ],
+  "steelmans": [],
+  "debate_refs": [
+    {
+      "nodeId": "acc-beliefs-085",
+      "nodeLabel": "Regulatory Structures as Barriers to Competitive AI Innovation",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "sit-019",
+      "nodeLabel": "Acting Now vs. Waiting For Proof",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "saf-desires-001",
+      "nodeLabel": "Humanity's Survival Above All Else",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-desires-039",
+      "nodeLabel": "Democratize AI Through Open-Source Proliferation to Prevent Oligarchic Control",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-114",
+      "nodeLabel": "Accelerate AI Through Open, Decentralized, and Unrestricted Experimentation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-067",
+      "nodeLabel": "Decentralized Markets and Open Development Outperform Central Control in Driving AI Progress",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-213",
+      "nodeLabel": "Open-Weight Model Release Is an Irreversible Deployment Decision",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-158",
+      "nodeLabel": "Use Voluntary Standards as a Bridge to Mandatory AI Regulation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-249",
+      "nodeLabel": "Bootlegger and Baptist Regulatory Strategy",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-intentions-108",
+      "nodeLabel": "Oppose AI Regulations That Entrench Incumbents Through Compliance Costs",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-196",
+      "nodeLabel": "Regressive Compliance Burdens of Centralized Algorithmic Oversight",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "sit-292",
+      "nodeLabel": "Many Eyes Theory",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-028",
+      "nodeLabel": "AI Audit Requirements Disproportionately Burden Small Labs Unless Publicly Funded",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-003",
+      "nodeLabel": "Adopt Output-Based Evaluation as the Primary AI Safety Methodology",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-078",
+      "nodeLabel": "Create Regulatory Conditions Where Market Competition Drives AI Transparency",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-056",
+      "nodeLabel": "Discredit Precautionary AI Regulation as Progress-Blocking",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-066",
+      "nodeLabel": "Blanket Rejection of New Technology Blocks Innovation and Problem-Solving",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-024",
+      "nodeLabel": "Create Regulatory Sandboxes to Accelerate AI Development",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-008",
+      "nodeLabel": "Matching AI Oversight Intensity to Decision Stakes",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-088",
+      "nodeLabel": "Govern AI Through Market Incentives and Industry Self-Regulation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-059",
+      "nodeLabel": "Markets Are Intelligent Systems That Optimize Resource Allocation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-152",
+      "nodeLabel": "Integrating Oversight with Operations Is Capture by Design",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-005",
+      "nodeLabel": "Institutionalizing Independent Adversarial Oversight",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-161",
+      "nodeLabel": "Prevent AI Harm Through Pre-Launch Checks and Operational Guardrails",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-170",
+      "nodeLabel": "Requiring Hardware Telemetry as the Price of Liability Immunity",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-113",
+      "nodeLabel": "Institutional Inertia From Entrenched Lobbies Prevents Regulatory Frameworks From Evolving",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-desires-076",
+      "nodeLabel": "Public Right to Know What AI Was Trained On",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-desires-005",
+      "nodeLabel": "Distributed AI Power and Democratic Infrastructure",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-intentions-141",
+      "nodeLabel": "Regulate AI for Documented Harms, Not Science-Fiction Scenarios",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-intentions-034",
+      "nodeLabel": "Apply the Public Utility Model to AI with Decentralized Democratic Oversight",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-intentions-153",
+      "nodeLabel": "Implementing Performance-Gated Independent AI Auditing",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-034",
+      "nodeLabel": "AI Accountability Has a Chicken-and-Egg Problem",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-078",
+      "nodeLabel": "Targeted Real-Time Safety Investment Is More Efficient Than Front-Loading",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-desires-001",
+      "nodeLabel": "AI-Powered Abundance and Global Problem-Solving",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-001",
+      "nodeLabel": "Winning the AGI Race Through Open Accountability",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-080",
+      "nodeLabel": "Build Capture-Resistant AI Governance Through Organizational Structure, Not Fines",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-087",
+      "nodeLabel": "Establish Legal Rights to Train AI on Publicly Available Data",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-001",
+      "nodeLabel": "[DEPRECATED] Pausing Advanced AI Development",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-160",
+      "nodeLabel": "Set the Ethical and Legal Ground Rules for AI Governance",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-155",
+      "nodeLabel": "AI-Driven Information Pollution Erodes the Shared Factual Basis for Democracy",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-069",
+      "nodeLabel": "Grounding AI Safety in Legal Compliance Rather Than Abstract Ethics",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-desires-024",
+      "nodeLabel": "AI Must Identify Its Principal",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-129",
+      "nodeLabel": "Safety Rhetoric as Instrument for Regulatory Consolidation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-intentions-014",
+      "nodeLabel": "Enforce Training Data Provenance Disclosure and Creator Compensation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-intentions-133",
+      "nodeLabel": "Prevent Regulatory Capture by Diversifying AI Audit Methodologies",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "sit-173",
+      "nodeLabel": "Governance Frameworks and Institutional Design",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "sit-240",
+      "nodeLabel": "Information Asymmetry in AI Governance",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "sit-025",
+      "nodeLabel": "Opaque Training Data and Unknown Origins",
+      "refCount": 1,
+      "checked": false
+    }
+  ],
+  "verdicts": [
+    {
+      "id": "hv-0",
+      "conflict": "Whether 'independent adversarial oversight' bodies can effectively resist institutional capture and industry influence.",
+      "prevails": "C2",
+      "criterion": "logical_validity",
+      "rationale": "The skeptic's position (C2) demonstrates stronger logical validity by highlighting the persistent challenge of institutional capture, referencing historical patterns of influence through funding streams and revolving doors that affect even well-intentioned regulatory bodies. While the safetyist (C1) proposes mechanisms like term limits and public disclosure to mitigate capture, these do not entirely negate the inherent risk, which remains a significant structural concern for any centralized oversight body. The skeptic's argument identifies a more fundamental vulnerability in the proposed mechanism.",
+      "whatWouldChange": "Empirical evidence demonstrating that existing or proposed 'independent adversarial oversight' bodies, particularly in fast-moving, high-stakes technical domains, have consistently resisted institutional capture and maintained diverse perspectives over extended periods, despite industry influence.",
+      "claimIds": [
+        "C1",
+        "C2"
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hv-1",
+      "conflict": "The necessity and impact of non-negotiable pre-deployment safety requirements and stringent data provenance mandates for high-stakes AI.",
+      "prevails": "C4",
+      "criterion": "scope",
+      "rationale": "The skeptic's position (C4) presents a stronger argument by considering a broader scope of impacts, specifically the practical economic and competitive consequences of stringent pre-deployment mandates. They identify the creation of a 'regulatory moat' as a tangible barrier for smaller open-source developers, which directly addresses the equitable access component of the debate topic. While the safetyist (C3) emphasizes the importance of foundational integrity, their argument does not fully account for these significant practical hurdles and their potential to centralize power within established incumbents, a critical aspect of optimal balance. The accelerationist (C5) echoes this concern, reinforcing the practical impact on smaller labs.",
+      "whatWouldChange": "Detailed, independent economic impact assessments demonstrating that the compliance costs associated with stringent pre-deployment safety requirements and data provenance mandates are manageable for small open-source developers and do not disproportionately favor large incumbents, or that the societal cost of foregoing these requirements demonstrably outweighs the burden on innovation and access.",
+      "claimIds": [
+        "C3",
+        "C4",
+        "C5"
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hv-2",
+      "conflict": "The sufficiency of output-based evaluation frameworks and market accountability for identifying and mitigating novel, emergent, or high-consequence AI risks.",
+      "prevails": "C7",
+      "criterion": "logical_validity",
+      "rationale": "The safetyist's position (C7) holds stronger logical validity by highlighting an inherent limitation of output-based evaluation: it can only test for known or anticipated failure modes. The argument that such methods cannot certify safety against truly novel, emergent, or high-consequence capabilities that have not yet been observed identifies a critical gap. While the accelerationist (C6) correctly emphasizes the value of continuous empirical validation and market accountability, these mechanisms are reactive and may prove insufficient for risks that manifest systemically or irreversibly before they can be observed and patched.",
+      "whatWouldChange": "Empirical evidence demonstrating that comprehensive output-based evaluation frameworks, including advanced red-teaming and fuzzing, reliably predict and mitigate *truly novel, high-consequence emergent AI behaviors* before they lead to systemic or irreversible societal impacts.",
+      "claimIds": [
+        "C6",
+        "C7"
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hv-3",
+      "conflict": "The fundamental dilemma facing AI governance.",
+      "prevails": "C9",
+      "criterion": "specificity",
+      "rationale": "The accelerationist's framing (C9) offers greater specificity by presenting the dilemma in terms of concrete governance mechanisms: dynamic, market-driven accountability versus static, top-down control, and linking these to tangible human costs in foregone opportunities. This provides a more actionable framework for policy discourse. The safetyist's dilemma (C8), while identifying a profound concern regarding 'civilizational harm,' uses broader, more abstract language that lacks the immediate specificity for policy design without further definition.",
+      "whatWouldChange": "A widely accepted and clearly defined framework for quantifying 'civilizational harm' and 'foregone opportunities,' enabling direct comparison of these costs to inform the trade-offs in AI governance.",
+      "claimIds": [
+        "C8",
+        "C9"
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    }
+  ],
+  "concepts": []
+}

@@ -1,0 +1,606 @@
+{
+  "debate_id": "6eaa3c75-819f-4710-87bc-29d3d97a3edd",
+  "debate_title": "exp-1438-01-C-opensource",
+  "conflicts": [
+    {
+      "id": "hc-0",
+      "point": "The primary moral imperative for AI development.",
+      "bdiLayer": "desire",
+      "resolvability": "negotiable_via_tradeoffs",
+      "positions": [
+        {
+          "pover": "accelerationist",
+          "stance": "Accelerationist claims the true moral imperative is to prevent innovation stagnation, measured in lives saved by AI, justifying rapid development."
+        },
+        {
+          "pover": "safetyist",
+          "stance": "Safetyist argues the true moral atrocity is deploying powerful AI systems without established accountability or verifiable safety mechanisms, shifting harm onto the public."
+        },
+        {
+          "pover": "skeptic",
+          "stance": "Skeptic asserts the true moral imperative is to address tangible, present harms like algorithmic discrimination and environmental burdens, rather than prioritizing speculative future benefits."
+        }
+      ],
+      "linkedNodes": [
+        "skp-beliefs-044",
+        "skp-beliefs-119",
+        "skp-desires-078",
+        "skp-desires-075",
+        "skp-intentions-074",
+        "skp-desires-081",
+        "sit-019",
+        "sit-245",
+        "saf-beliefs-131",
+        "sit-404"
+      ],
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hc-1",
+      "point": "The sufficiency of market-driven mechanisms for ensuring AI safety and accountability.",
+      "bdiLayer": "belief",
+      "resolvability": "resolvable_by_evidence",
+      "positions": [
+        {
+          "pover": "accelerationist",
+          "stance": "Accelerationist argues rapid iteration, forking, and market correction are agile, effective mechanisms for empirical safety and accountability, superior to slow legal frameworks, and open-source transparency provides granular traceability."
+        },
+        {
+          "pover": "safetyist",
+          "stance": "Safetyist contends market-driven mechanisms are insufficient for systemic risks, irreversible harm, and institutional accountability, stating that forking does not function as a recall for diffused risks."
+        },
+        {
+          "pover": "skeptic",
+          "stance": "Skeptic maintains that market forces externalize social costs, forking does not undo past harm or assign legal responsibility, and commit histories are too complex to enable legal accountability for victims."
+        }
+      ],
+      "linkedNodes": [
+        "skp-beliefs-044",
+        "skp-beliefs-119",
+        "skp-desires-078",
+        "skp-desires-075",
+        "skp-intentions-074",
+        "skp-desires-081",
+        "sit-019",
+        "sit-245",
+        "saf-beliefs-131",
+        "sit-404"
+      ],
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hc-2",
+      "point": "The applicability of hardware safety analogies, like the Boeing 737 MAX crashes, to AI development.",
+      "bdiLayer": "intention",
+      "resolvability": "requires_term_clarification",
+      "positions": [
+        {
+          "pover": "accelerationist",
+          "stance": "Accelerationist argues hardware analogies are inappropriate because AI, as software, allows rapid iteration and patching, fundamentally differing from physical machines."
+        },
+        {
+          "pover": "safetyist",
+          "stance": "Safetyist insists the Boeing 737 MAX case illustrates critical lessons about delegated safety and diffused accountability directly relevant to AI, irrespective of software versus hardware distinctions."
+        }
+      ],
+      "linkedNodes": [
+        "saf-beliefs-131",
+        "sit-404",
+        "saf-desires-012",
+        "saf-intentions-215",
+        "saf-desires-027",
+        "acc-desires-039",
+        "acc-beliefs-028",
+        "acc-intentions-074",
+        "acc-beliefs-093",
+        "acc-desires-001"
+      ],
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hc-3",
+      "point": "The necessary nature and source of effective AI oversight and accountability.",
+      "bdiLayer": "desire",
+      "resolvability": "negotiable_via_tradeoffs",
+      "positions": [
+        {
+          "pover": "skeptic",
+          "stance": "Skeptic advocates for legally binding civil rights constraints on AI development to ensure democratic oversight and algorithmic accountability, allowing the public to define acceptable deployment terms."
+        },
+        {
+          "pover": "safetyist",
+          "stance": "Safetyist calls for robust institutional guardrails, mandatory pre-deployment safety-gated release mechanisms, and comprehensive liability frameworks, drawing parallels to FDA drug approval or FAA airworthiness directives."
+        },
+        {
+          "pover": "accelerationist",
+          "stance": "Accelerationist champions federalized, adaptive regulation to foster rapid innovation, emphasizing downstream accountability at deployment and market-driven safety, while fearing that prescriptive regulation leads to market consolidation and innovation stagnation."
+        }
+      ],
+      "linkedNodes": [
+        "skp-beliefs-044",
+        "skp-beliefs-119",
+        "skp-desires-078",
+        "skp-desires-075",
+        "skp-intentions-074",
+        "skp-desires-081",
+        "sit-019",
+        "sit-245",
+        "saf-beliefs-131",
+        "sit-404"
+      ],
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hc-4",
+      "point": "The impact of open-source development on power concentration in the AI ecosystem.",
+      "bdiLayer": "belief",
+      "resolvability": "resolvable_by_evidence",
+      "positions": [
+        {
+          "pover": "skeptic",
+          "stance": "Skeptic argues that despite code accessibility, open-source AI development concentrates power due to massive compute, data, and specialized labor costs, making equitable access an illusion and relying on precarious low-wage labor."
+        },
+        {
+          "pover": "accelerationist",
+          "stance": "Accelerationist contends that open-source decentralizes power and democratizes access, citing historical examples like Linux and Apache, and will drive down compute costs through efficiency gains."
+        }
+      ],
+      "linkedNodes": [
+        "skp-beliefs-044",
+        "skp-beliefs-119",
+        "skp-desires-078",
+        "skp-desires-075",
+        "skp-intentions-074",
+        "skp-desires-081",
+        "sit-019",
+        "sit-245",
+        "acc-desires-039",
+        "acc-beliefs-028"
+      ],
+      "checked": false,
+      "warnings": []
+    }
+  ],
+  "steelmans": [],
+  "debate_refs": [
+    {
+      "nodeId": "acc-desires-039",
+      "nodeLabel": "Democratize AI Through Open-Source Proliferation to Prevent Oligarchic Control",
+      "refCount": 3,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-beliefs-093",
+      "nodeLabel": "Downstream Allocation of Algorithmic Liability",
+      "refCount": 3,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-desires-001",
+      "nodeLabel": "AI-Powered Abundance and Global Problem-Solving",
+      "refCount": 3,
+      "checked": true
+    },
+    {
+      "nodeId": "skp-desires-078",
+      "nodeLabel": "Foundational AI as a Public Good",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "skp-intentions-074",
+      "nodeLabel": "Enforce Legally Binding Civil Rights Constraints on AI Development",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "saf-desires-012",
+      "nodeLabel": "No Profit Without Accountability",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "saf-intentions-215",
+      "nodeLabel": "Shielding Compliant Open-Weight Releases from Downstream Misuse Liability",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-beliefs-028",
+      "nodeLabel": "AI Audit Requirements Disproportionately Burden Small Labs Unless Publicly Funded",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-beliefs-067",
+      "nodeLabel": "Decentralized Markets and Open Development Outperform Central Control in Driving AI Progress",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-desires-007",
+      "nodeLabel": "Build AI That Surpasses Human Versatility",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "skp-beliefs-044",
+      "nodeLabel": "AI's True Financial and Environmental Costs Are Systematically Obscured",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-119",
+      "nodeLabel": "Disproportionate AI Gains Erode the Social Contract",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-desires-075",
+      "nodeLabel": "Democratic Accountability in AI Development",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-desires-081",
+      "nodeLabel": "Restructure Economic and Social Systems to Prevent AI from Deepening Inequality",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "sit-019",
+      "nodeLabel": "Acting Now vs. Waiting For Proof",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "sit-245",
+      "nodeLabel": "Digital Wild West Governance",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-131",
+      "nodeLabel": "Once AI Weights Are Public, Control Over Their Use Is Permanently Lost",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "sit-404",
+      "nodeLabel": "Throughput Legitimacy in Standardisation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-desires-027",
+      "nodeLabel": "Treating Digital Space as a Public Trust",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-074",
+      "nodeLabel": "Federalize AI Regulation to Prevent State-by-State Fragmentation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-228",
+      "nodeLabel": "Moral Epistemic Justification Gap",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-213",
+      "nodeLabel": "Open-Weight Model Release Is an Irreversible Deployment Decision",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-044",
+      "nodeLabel": "Preventing AI Use from Lowering Legal Standards of Care",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-210",
+      "nodeLabel": "AI Liability and Legal Accountability",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-009",
+      "nodeLabel": "Unsustainable Resource Footprint of AI Infrastructure",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-212",
+      "nodeLabel": "Legal and Regulatory Gaps in AI Governance",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-001",
+      "nodeLabel": "Market Failure in Algorithmic Fairness",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-intentions-107",
+      "nodeLabel": "Close the Lab-to-Field Accountability Gap Through Coupled Audit-Liability Frameworks",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "sit-070",
+      "nodeLabel": "Moral Crumple Zone in AI",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "sit-065",
+      "nodeLabel": "Technological Exceptionalism in AI Policy",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-099",
+      "nodeLabel": "Integrating Mandatory Pre-Deployment Auditing with Strict Liability Enforcement",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "sit-213",
+      "nodeLabel": "Temporal Mismatch of AI Energy Impacts",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-030",
+      "nodeLabel": "AI Supply Chains Inherit Vulnerabilities from Upstream Components",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-206",
+      "nodeLabel": "Scaling AI Without Safeguards Creates a Non-Trivial Path to Irreversible Civilizational Harm",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-210",
+      "nodeLabel": "Legal and Regulatory Frameworks for AI Accountability",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-087",
+      "nodeLabel": "Replacing Abstract Safety Claims with Testable Engineering Controls",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-106",
+      "nodeLabel": "Liability Asymmetry Punishes Regulators for Caution and Rewards Inaction",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-095",
+      "nodeLabel": "Design Safety In Rather Than Patch It On",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-047",
+      "nodeLabel": "Argue That AI Requires Entirely New Laws, Not Adapted Old Ones",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-056",
+      "nodeLabel": "Discredit Precautionary AI Regulation as Progress-Blocking",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-017",
+      "nodeLabel": "Compute and Energy Costs Impose Hard Ceilings on AI Scaling",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-047",
+      "nodeLabel": "AI Systems Expose Fundamental Gaps in Legal Accountability Frameworks",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-215",
+      "nodeLabel": "Technical Measurement and Evaluation Methodology",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-desires-005",
+      "nodeLabel": "Distributed AI Power and Democratic Infrastructure",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-intentions-146",
+      "nodeLabel": "Implementing Performance-Gated Independent AI Auditing",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-076",
+      "nodeLabel": "Prioritize Energy, Permitting, and Data Centers Over Software Regulation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-074",
+      "nodeLabel": "Liability Law Ignores AI's Diffuse Statistical Benefits",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-079",
+      "nodeLabel": "First-Mover Loss from Safety-Induced Deployment Delays",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-114",
+      "nodeLabel": "Accelerate AI Through Open, Decentralized, and Unrestricted Experimentation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-094",
+      "nodeLabel": "Asymmetry Between Reconstructive Burden and Remediation Cost",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-085",
+      "nodeLabel": "Regulatory Structures as Barriers to Competitive AI Innovation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-desires-027",
+      "nodeLabel": "Defining Who Controls and Distributes AI",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-070",
+      "nodeLabel": "Shift AI Competition from Software to Physical Infrastructure Control",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-009",
+      "nodeLabel": "Discredit AI Safety Discourse as Irrational or Faith-Based",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-029",
+      "nodeLabel": "Victims of AI Harm Cannot Access the Technical Knowledge Needed to Prove Causation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-213",
+      "nodeLabel": "Corporate Power and Regulatory Evasion",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-258",
+      "nodeLabel": "Strategic Islands of Ignorance",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-intentions-141",
+      "nodeLabel": "Regulate AI for Documented Harms, Not Science-Fiction Scenarios",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-intentions-044",
+      "nodeLabel": "Eliminate the Regulatory Double Standard in AI Infrastructure Environmental Reporting",
+      "refCount": 1,
+      "checked": false
+    }
+  ],
+  "verdicts": [
+    {
+      "id": "hv-0",
+      "conflict": "The primary moral imperative for AI development.",
+      "prevails": "Skeptic",
+      "criterion": "specificity",
+      "rationale": "The Skeptic's position, focusing on 'tangible, present harms like algorithmic discrimination and environmental burdens,' offers greater specificity for policy intervention and measurable outcomes. While accelerationist and safetyist imperatives address significant concerns, their focus on future or systemic issues can be more abstract than the immediate, observable impacts highlighted by the skeptic.",
+      "whatWouldChange": "Quantifiable data demonstrating the magnitude and imminence of speculative future AI risks, compared to present, measurable harms, would alter this assessment.",
+      "claimIds": [
+        "Accelerationist",
+        "Safetyist",
+        "Skeptic"
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hv-1",
+      "conflict": "The sufficiency of market-driven mechanisms for ensuring AI safety and accountability.",
+      "prevails": "Safetyist/Skeptic",
+      "criterion": "logical_validity",
+      "rationale": "The Safetyist and Skeptic positions logically articulate why market-driven mechanisms, like rapid iteration and forking, are insufficient for systemic risks, irreversible harm, and legal accountability. They correctly identify that markets externalize social costs and that 'forking' does not function as a recall for diffused harm or assign legal responsibility, revealing inherent limitations in the accelerationist's reliance on market corrections for public safety.",
+      "whatWouldChange": "Empirical evidence demonstrating that market forces alone have reliably prevented systemic harm or effectively resolved accountability for diffused risks in other complex, high-impact technologies would shift this evaluation.",
+      "claimIds": [
+        "Accelerationist",
+        "Safetyist",
+        "Skeptic"
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hv-2",
+      "conflict": "The applicability of hardware safety analogies, like the Boeing 737 MAX crashes, to AI development.",
+      "prevails": "Safetyist",
+      "criterion": "scope",
+      "rationale": "The Safetyist's argument demonstrates a broader scope by asserting that the Boeing 737 MAX case offers critical lessons about delegated safety and diffused accountability, which are relevant governance principles irrespective of software versus hardware distinctions. The accelerationist's focus on the technical difference of 'rapid iteration and patching' overlooks the analogous challenges in regulatory oversight and systemic risk management that transcend the physical medium.",
+      "whatWouldChange": "A detailed analysis showing that software's ability for rapid iteration fundamentally negates the governance and accountability challenges observed in hardware failures would alter this assessment.",
+      "claimIds": [
+        "Accelerationist",
+        "Safetyist"
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hv-3",
+      "conflict": "The necessary nature and source of effective AI oversight and accountability.",
+      "prevails": "Safetyist",
+      "criterion": "specificity",
+      "rationale": "The Safetyist position offers the most specific and actionable proposals for effective oversight, including 'robust institutional guardrails, mandatory pre-deployment safety-gated release mechanisms, and comprehensive liability frameworks.' These proposals draw clear parallels to established regulatory models like FDA drug approval, providing concrete mechanisms for implementation. While the skeptic advocates for 'legally binding civil rights constraints,' the safetyist's approach details the specific processes for achieving safety before deployment.",
+      "whatWouldChange": "A detailed framework from accelerationists demonstrating how 'federalized, adaptive regulation' could prevent systemic risks and assign accountability without pre-deployment safeguards, or from skeptics detailing specific mechanisms for civil rights constraints beyond broad principles, would alter this assessment.",
+      "claimIds": [
+        "Skeptic",
+        "Safetyist",
+        "Accelerationist"
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hv-4",
+      "conflict": "The impact of open-source development on power concentration in the AI ecosystem.",
+      "prevails": "Skeptic",
+      "criterion": "empirical_evidence",
+      "rationale": "The Skeptic's argument aligns more closely with current empirical observations in frontier AI development, noting that 'massive compute, data, and specialized labor costs' concentrate power despite code accessibility. While open-source facilitates code sharing, the resources required to train and deploy state-of-the-art models remain largely in the hands of a few well-resourced entities, challenging the accelerationist's broad historical analogies like Linux and Apache for this specific context.",
+      "whatWouldChange": "Empirical data demonstrating a significant decentralization of compute and data access for training frontier AI models, leading to a broader distribution of power beyond a few large actors, would shift this assessment.",
+      "claimIds": [
+        "Skeptic",
+        "Accelerationist"
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    }
+  ],
+  "concepts": []
+}

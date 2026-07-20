@@ -1,0 +1,485 @@
+{
+  "generated": "2026-07-13T14:53:47Z",
+  "calibration_last20_debates": {
+    "source": [
+      "C:\\Users\\jsnov\\repos\\ai-triad-data\\calibration\\core\\calibration-log.jsonl",
+      "C:\\Users\\jsnov\\repos\\ai-triad-data\\calibration\\users\\local\\calibration-log.jsonl"
+    ],
+    "note": "last_20_raw is dominated by a same-minute burst of 1-round experiment runs; last_20_substantive filters to rounds>=4 (real multi-round debates) and is the representative cloud-production window.",
+    "last_20_raw": {
+      "label": "last 20 distinct debates, any",
+      "n_debates": 20,
+      "debate_window": [
+        "2026-07-13T14:36:35.496Z",
+        "2026-07-13T14:36:51.779Z"
+      ],
+      "models": [
+        "default-model",
+        "gemini-2.0-flash"
+      ],
+      "metrics": {
+        "structural_error_rate": {
+          "non_null": 20,
+          "dist": {
+            "n": 20,
+            "mean": 0,
+            "median": 0.0,
+            "min": 0,
+            "max": 0,
+            "p95": 0
+          },
+          "values": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "entailment_repair_rate": {
+          "non_null": 0,
+          "dist": null,
+          "values": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "draft_repair_rate": {
+          "non_null": 20,
+          "dist": {
+            "n": 20,
+            "mean": 0,
+            "median": 0.0,
+            "min": 0,
+            "max": 0,
+            "p95": 0
+          },
+          "values": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "entailment_pass_rate": {
+          "non_null": 0,
+          "dist": null,
+          "values": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      }
+    },
+    "last_20_substantive": {
+      "label": "last 20 distinct debates with rounds>=4",
+      "n_debates": 20,
+      "debate_window": [
+        "2026-06-27T14:03:31.828Z",
+        "2026-07-13T13:58:34.109Z"
+      ],
+      "models": [
+        "claude-opus-4",
+        "claude-opus-4-8",
+        "gemini-2.5-flash",
+        "gemini-3.1-flash-lite",
+        "gemini-flash-latest",
+        "gemini-flash-lite-latest",
+        "groq-llama-4-scout-17b-16e"
+      ],
+      "metrics": {
+        "structural_error_rate": {
+          "non_null": 20,
+          "dist": {
+            "n": 20,
+            "mean": 0,
+            "median": 0.0,
+            "min": 0,
+            "max": 0,
+            "p95": 0
+          },
+          "values": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "entailment_repair_rate": {
+          "non_null": 13,
+          "dist": {
+            "n": 13,
+            "mean": 0,
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "p95": 0
+          },
+          "values": [
+            null,
+            0,
+            null,
+            null,
+            null,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            null,
+            0,
+            0,
+            0,
+            null,
+            0,
+            0,
+            0,
+            null
+          ]
+        },
+        "draft_repair_rate": {
+          "non_null": 19,
+          "dist": {
+            "n": 19,
+            "mean": 0.0848,
+            "median": 0,
+            "min": 0,
+            "max": 0.4,
+            "p95": 0.4
+          },
+          "values": [
+            null,
+            0.111,
+            0,
+            0,
+            0,
+            0,
+            0.25,
+            0,
+            0.25,
+            0,
+            0,
+            0.4,
+            0.25,
+            0,
+            0.25,
+            0,
+            0,
+            0,
+            0,
+            0.1
+          ]
+        },
+        "entailment_pass_rate": {
+          "non_null": 13,
+          "dist": {
+            "n": 13,
+            "mean": 1,
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "p95": 1
+          },
+          "values": [
+            null,
+            1,
+            null,
+            null,
+            null,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            null,
+            1,
+            1,
+            1,
+            null,
+            1,
+            1,
+            1,
+            null
+          ]
+        }
+      }
+    }
+  },
+  "cloud_latency": {
+    "provenance": "response_time_ms persisted in debate diagnostics (standalone *-diagnostics.json in ai-triad-data/debates plus embedded diagnostics of the 40 most recent sessions). extraction_calls = claim-extraction AI calls (extraction_trace), directly comparable to the local claim-extraction schema. statement_calls = debater statement generations (larger outputs; context only).",
+    "extraction_calls_by_model_s": {
+      "gemini-3.1-flash-lite-preview": {
+        "n": 874,
+        "mean": 2.6544,
+        "median": 2.65,
+        "min": 1.115,
+        "max": 9.002,
+        "p95": 3.354
+      },
+      "claude-opus-4": {
+        "n": 184,
+        "mean": 28.2562,
+        "median": 28.349,
+        "min": 1.418,
+        "max": 41.002,
+        "p95": 37.787
+      },
+      "gemini-2.5-flash": {
+        "n": 111,
+        "mean": 27.6227,
+        "median": 29.186,
+        "min": 0.794,
+        "max": 49.279,
+        "p95": 42.955
+      },
+      "groq-llama-3.3-70b-versatile": {
+        "n": 42,
+        "mean": 2.1616,
+        "median": 2.0995,
+        "min": 1.401,
+        "max": 3.226,
+        "p95": 3.175
+      },
+      "gemini-flash-lite-latest": {
+        "n": 32,
+        "mean": 3.2782,
+        "median": 3.326,
+        "min": 1.795,
+        "max": 4.522,
+        "p95": 4.121
+      },
+      "gemini-3.1-flash-lite": {
+        "n": 23,
+        "mean": 4.6415,
+        "median": 4.063,
+        "min": 1.933,
+        "max": 7.621,
+        "p95": 7.583
+      },
+      "claude-opus-4-8": {
+        "n": 23,
+        "mean": 32.694,
+        "median": 34.042,
+        "min": 23.514,
+        "max": 40.555,
+        "p95": 37.304
+      },
+      "zai-glm-5-2": {
+        "n": 13,
+        "mean": 209.0488,
+        "median": 127.544,
+        "min": 26.472,
+        "max": 930.123,
+        "p95": 930.123
+      },
+      "gemini-flash-latest": {
+        "n": 12,
+        "mean": 29.8763,
+        "median": 28.7405,
+        "min": 11.964,
+        "max": 48.982,
+        "p95": 48.982
+      },
+      "groq-llama-4-scout-17b-16e": {
+        "n": 11,
+        "mean": 4.5127,
+        "median": 2.692,
+        "min": 1.721,
+        "max": 24.153,
+        "p95": 24.153
+      },
+      "claude-sonnet-4-6": {
+        "n": 7,
+        "mean": 47.72,
+        "median": 49.626,
+        "min": 37.13,
+        "max": 54.309,
+        "p95": 54.309
+      }
+    },
+    "statement_calls_by_model_s": {
+      "gemini-3.1-flash-lite-preview": {
+        "n": 1845,
+        "mean": 7.3346,
+        "median": 9.808,
+        "min": 0.915,
+        "max": 51.046,
+        "p95": 13.459
+      },
+      "claude-opus-4": {
+        "n": 286,
+        "mean": 108.9616,
+        "median": 124.815,
+        "min": 4.873,
+        "max": 301.033,
+        "p95": 199.45
+      },
+      "gemini-2.5-flash": {
+        "n": 221,
+        "mean": 77.2011,
+        "median": 65.439,
+        "min": 6.085,
+        "max": 520.309,
+        "p95": 240.492
+      },
+      "groq-llama-3.3-70b-versatile": {
+        "n": 87,
+        "mean": 13.8694,
+        "median": 9.646,
+        "min": 0.61,
+        "max": 65.034,
+        "p95": 59.902
+      },
+      "claude-opus-4-8": {
+        "n": 71,
+        "mean": 75.8118,
+        "median": 55.395,
+        "min": 4.626,
+        "max": 768.232,
+        "p95": 145.832
+      },
+      "gemini-flash-lite-latest": {
+        "n": 33,
+        "mean": 18.0895,
+        "median": 16.588,
+        "min": 6.266,
+        "max": 41.747,
+        "p95": 28.747
+      },
+      "claude-sonnet-4-6": {
+        "n": 15,
+        "mean": 197.3348,
+        "median": 160.436,
+        "min": 5.39,
+        "max": 1200.446,
+        "p95": 1200.446
+      },
+      "zai-glm-5-2": {
+        "n": 14,
+        "mean": 656.0404,
+        "median": 755.719,
+        "min": 251.823,
+        "max": 970.301,
+        "p95": 970.301
+      },
+      "gemini-flash-latest": {
+        "n": 13,
+        "mean": 104.3838,
+        "median": 94.148,
+        "min": 78.379,
+        "max": 171.742,
+        "p95": 171.742
+      },
+      "groq-llama-4-scout-17b-16e": {
+        "n": 12,
+        "mean": 14.5265,
+        "median": 13.189,
+        "min": 9.705,
+        "max": 30.977,
+        "p95": 30.977
+      },
+      "gemini-3.1-flash-lite": {
+        "n": 12,
+        "mean": 16.2079,
+        "median": 15.654,
+        "min": 12.747,
+        "max": 19.436,
+        "p95": 19.436
+      }
+    },
+    "n_extraction_calls": 1332,
+    "n_statement_calls": 2609,
+    "extraction_truncation_rate": 0.033,
+    "extraction_multi_attempt_rate": 0.0
+  },
+  "cloud_fence_rate": {
+    "provenance": "share of persisted raw_response strings starting with a markdown fence (```)",
+    "n_raw_responses": 2744,
+    "fence_rate": 0.0587
+  }
+}

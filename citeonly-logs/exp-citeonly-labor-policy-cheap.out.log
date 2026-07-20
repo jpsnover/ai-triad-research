@@ -1,0 +1,6 @@
+[onnxEmbedding] Using dml EP (available: cpu, dml, webgpu)
+[doctrinal] safetyist: 3/144 Beliefs anchored, 3 floor-applied
+[doctrinal] skeptic: 18/217 Beliefs anchored, 4 floor-applied
+[onnxEmbedding] Model loaded in 54083ms (384d, quantized, EP=dml)
+[ai-adapter] ONNX embedding ready — subprocess cold-starts eliminated
+{"success":false,"error":"\n  Goal:     Generate text via Claude\n  Error:    Claude API error 404: {\"type\":\"error\",\"error\":{\"type\":\"not_found_error\",\"message\":\"model: claude-opus-4\"},\"request_id\":\"req_011CcjzZLLyzDViD4QTGx3uQ\"}\n  Location: ai-client.generateViaClaude\n  Resolve:\n  1. Check your API key\n  2. Verify the model ID\n  3. Try a different model"}

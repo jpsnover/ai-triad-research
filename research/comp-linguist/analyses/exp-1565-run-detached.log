@@ -1,0 +1,61 @@
+182 corpus items; 78 already done; 104 to run
+[1/104] debate.evidence-search#4 json=True schema=True lat=32.56s ev=77 
+[2/104] debate.evidence-search#5 json=True schema=True lat=41.94s ev=71 
+[3/104] debate.evidence-search#6 json=True schema=True lat=34.88s ev=96 
+[4/104] debate.evidence-search#7 json=True schema=True lat=37.64s ev=62 
+[5/104] debate.evidence-search#8 json=True schema=True lat=48.22s ev=64 
+[6/104] debate.evidence-search#9 json=True schema=True lat=28.5s ev=69 
+[7/104] debate.evidence-search#10 json=True schema=True lat=43.97s ev=107 
+[8/104] debate.evidence-search#11 json=True schema=True lat=36.06s ev=98 
+[9/104] debate.evidence-search#12 json=True schema=True lat=30.33s ev=62 
+[10/104] debate.evidence-search#13 json=True schema=True lat=25.78s ev=58 
+[11/104] debate.evidence-search#14 json=True schema=True lat=110.34s ev=56 
+[12/104] debate.evidence-search#15 json=True schema=True lat=51.97s ev=59 
+[13/104] debate.evidence-search#16 json=True schema=True lat=41.11s ev=70 
+[14/104] debate.evidence-search#17 json=True schema=True lat=38.98s ev=83 
+[15/104] debate.evidence-search#18 json=False schema=False lat=70.58s ev=768 ERR: response is not parseable JSON
+[16/104] debate.evidence-search#19 json=True schema=True lat=43.94s ev=78 
+[17/104] debate.evidence-search#20 json=True schema=True lat=54.05s ev=88 
+[18/104] debate.evidence-search#21 json=True schema=True lat=68.26s ev=88 
+[19/104] claim-extraction#0 json=True schema=True lat=374.44s ev=1847 
+[20/104] claim-extraction#1 json=True schema=False lat=311.95s ev=1120 ERR: claims[0].belief_verification (belief) missing/not object; claims[1].belief_verification (belief) missing/not 
+[21/104] claim-extraction#2 json=True schema=False lat=393.88s ev=1867 ERR: claims[2].responds_to[0].prior_claim_id missing; claims[3].responds_to[0].prior_claim_id missing; claims[4].re
+[22/104] claim-extraction#3 json=True schema=True lat=294.7s ev=1332 
+[23/104] claim-extraction#4 json=True schema=False lat=357.45s ev=1485 ERR: claims[1].responds_to[0].prior_claim_id missing; claims[5].topic_relevance invalid (got None)
+[24/104] claim-extraction#5 json=True schema=False lat=280.64s ev=1197 ERR: claims[0].belief_verification (belief) missing/not object; claims[1].belief_verification (belief) missing/not 
+[25/104] claim-extraction#6 json=True schema=False lat=288.47s ev=1174 ERR: claims[0].belief_verification (belief) missing/not object; claims[1].belief_verification (belief) missing/not 
+[26/104] claim-extraction#7 json=True schema=True lat=365.25s ev=1485 
+[27/104] claim-extraction#8 json=False schema=False lat=Nones ev=None ERR: call failed: TimeoutError: timed out
+[28/104] claim-extraction#9 json=True schema=True lat=316.52s ev=1439 
+[29/104] claim-extraction#10 json=True schema=False lat=246.83s ev=995 ERR: claims[0].belief_verification (belief) missing/not object; claims[2].belief_verification (belief) missing/not 
+[30/104] claim-extraction#11 json=True schema=True lat=267.98s ev=1613 
+[31/104] claim-extraction#12 json=True schema=False lat=227.62s ev=1304 ERR: claims[1].responds_to[2].prior_claim_id missing; claims[1].responds_to[2].relationship not supports|attacks (g
+[32/104] claim-extraction#13 json=True schema=True lat=265.05s ev=1311 
+[33/104] claim-extraction#14 json=True schema=True lat=313.58s ev=1397 
+[34/104] claim-extraction#15 json=True schema=False lat=276.41s ev=1361 ERR: claims[0].belief_verification.evidence_supports invalid (got 'N/A'); claims[2].responds_to[0].prior_claim_id m
+[35/104] claim-extraction#16 json=True schema=False lat=339.89s ev=1695 ERR: claims[2].responds_to[0].prior_claim_id missing; claims[2].responds_to[1].prior_claim_id missing; claims[2].re
+[36/104] claim-extraction#17 json=True schema=True lat=252.89s ev=1608 
+[37/104] claim-extraction#18 json=True schema=True lat=273.3s ev=1376 
+[38/104] claim-extraction#19 json=True schema=True lat=250.7s ev=1630 
+[39/104] claim-extraction#20 json=True schema=False lat=185.95s ev=1266 ERR: claims[1].belief_verification (belief) missing/not object; claims[2].responds_to[0].prior_claim_id missing; cl
+[40/104] claim-extraction#21 json=True schema=True lat=261.19s ev=1350 
+[41/104] claim-classification#0 json=True schema=False lat=158.8s ev=621 ERR: claims[0].political_salience invalid (got None); claims[1].political_salience invalid (got None); claims[2].po
+[42/104] claim-classification#1 json=True schema=True lat=177.95s ev=564 
+[43/104] claim-classification#2 json=True schema=True lat=221.88s ev=969 
+[44/104] claim-classification#3 json=True schema=False lat=264.8s ev=1388 ERR: claims[2].responds_to[0].relationship not supports|attacks (got 'undermine')
+[45/104] claim-classification#4 json=True schema=False lat=149.45s ev=1078 ERR: claims[1].responds_to[0].prior_claim_id missing
+[46/104] claim-classification#5 json=True schema=False lat=279.72s ev=1288 ERR: claims[4].responds_to[0].relationship not supports|attacks (got 'undercut')
+[47/104] claim-classification#6 json=True schema=False lat=214.89s ev=913 ERR: claims[0].belief_verification.evidence_supports invalid (got 'none'); claims[1].belief_verification.evidence_s
+[48/104] claim-classification#7 json=True schema=False lat=252.39s ev=1146 ERR: claims[4].political_salience invalid (got None)
+[49/104] claim-classification#8 json=True schema=False lat=197.88s ev=1100 ERR: claims[0].belief_verification.evidence_supports invalid (got 'none'); claims[2].belief_verification.evidence_s
+[50/104] claim-classification#9 json=True schema=True lat=265.36s ev=1429 
+[51/104] claim-classification#10 json=True schema=False lat=193.42s ev=570 ERR: claims[2].political_salience invalid (got None)
+[52/104] claim-classification#11 json=True schema=True lat=281.95s ev=1320 
+[53/104] claim-classification#12 json=True schema=False lat=251.22s ev=1410 ERR: claims[2].political_salience invalid (got None)
+[54/104] claim-classification#13 json=True schema=False lat=172.67s ev=384 ERR: claims[1].political_salience invalid (got None)
+[55/104] claim-classification#14 json=True schema=False lat=269.69s ev=1558 ERR: claims[0].responds_to[0].prior_claim_id missing; claims[1].responds_to[0].prior_claim_id missing; claims[2].re
+[56/104] claim-classification#15 json=True schema=False lat=222.19s ev=1230 ERR: claims[0].belief_verification.evidence_supports invalid (got 'none'); claims[1].responds_to[0].prior_claim_id 
+[57/104] claim-classification#16 json=True schema=False lat=221.67s ev=931 ERR: claims[0].belief_verification.evidence_supports invalid (got 'none'); claims[2].belief_verification.evidence_s
+[58/104] claim-classification#17 json=True schema=True lat=206.47s ev=914 
+[59/104] claim-classification#18 json=True schema=False lat=330.52s ev=2591 ERR: claims[3].responds_to[0].prior_claim_id missing; claims[3].responds_to[0].attack_type not rebut|undercut|under
+[60/104] claim-classification#19 json=False schema=False lat=Nones ev=None ERR: call failed: ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote h

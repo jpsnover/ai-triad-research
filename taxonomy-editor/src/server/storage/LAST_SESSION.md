@@ -1,5 +1,5 @@
-**Date:** 2026-07-11
-**Working on:** t/1517 — anonymous session store EPERM fix (sidecar .last-access with content-based timestamp)
-**Status:** Complete — committed cd4a6578, verify gate green, ticket closed
-**Key context:** Azure Files mount rejects utimes(); content-based marker (writeFile + readFile/parseInt) avoids all metadata-write dependencies; getLastAccess() falls back to dir mtime for legacy sessions
-**Next:** No unblocked tickets — check queue on next session start
+**Date:** 2026-07-20
+**Working on:** t/1635 — version-aware read-merge-write for delta debate save (parent t/1470, HLD docs/hld-delta-debate-save.md)
+**Status:** DONE — landed via /land-from-worktree as dd9bb109 on origin/main. applyDebateDeltaToStorage(delta) + debateVersionConflict helper in fileIO.ts; 6-test suite in src/server/__tests__/applyDebateDeltaToStorage.test.ts (all pass). verify gate green on committed code. No design deviations.
+**Key context:** Test lives in src/server/__tests__/ (NOT storage/__tests__/) — MemoryBackend + fileIO.setTaxonomyBackend/setUserContentBackend + userContext.runWithUser, no vi.mock. 409 via Object.assign(new ActionableError,{statusCode,code:'version_conflict',currentVersion}); missing blob → currentVersion:null (client full-PUT self-heals); anon path mirrors into anonStore. applyDebateDelta imported from lib/debate (t/1634, DebateTool scope).
+**Next:** Ticket B done. Client half (delta-send + 409 full-PUT fallback) is renderer/Sync scope — not ours. No open Server Storage work.
