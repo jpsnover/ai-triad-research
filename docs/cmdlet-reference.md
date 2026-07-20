@@ -106,6 +106,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Get-GitHubWorkflowRun` | Fetch a workflow run + per-job conclusions for a commit SHA or run ID (t/1499) |
 | `Remove-StaleContainerImages` | GHCR cleanup — paginate → filter → delete untagged image versions with `-WhatIf` (t/1492) |
 | `Get-TaxonomySnapshot` | Fetch the 11-file taxonomy + conflict snapshot from ai-triad-data with commit-SHA stamping (t/1493) |
+| `Test-TaxonomyDirContents` | Pre-embedding TAXONOMY_DIR validation — flags files whose `nodes` field would crash `Update-TaxEmbeddings` (dict/null instead of a list of objects); mirrors embed_taxonomy.py skip logic (t/1654) |
 | `Get-FlightRecorderDump` | Pull flight recorder from server |
 | `Get-AICostReport` | Token/cost usage report |
 

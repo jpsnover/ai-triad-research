@@ -1,5 +1,5 @@
-**Date:** 2026-07-06
-**Working on:** t/1344 cross-runtime debate-quality parity guard (Pester + tsx shim) — Done. Also filed t/1346 (Measure-DebateQuality Min/Max int-coercion bug, Todo).
-**Status:** Complete. `4f1eeb19` on origin/main; 36/36 debate-tag Pester pass; AC#3 deliberate-fail proof captured in t/1344#3.
-**Key context:** Data-repo (`../ai-triad-data`) pushes fine via SSH remote (`git@github.com:jpsnover/ai-triad-data.git`) — the HTTP 408 era ended 2026-07-04. Do NOT reintroduce that claim in tickets/emails; TL corrected it four times (t/1319#2, t/1319#4, t/1312#4, p/24#84). Locked in memory as [[project-data-repo-push-ssh-remote]].
-**Next:** t/1346 (self-assigned bug) if the queue stays otherwise empty — one-line `[Math]::Min(100.0, $Score)` cast in `Measure-DebateQuality.ps1:98` + a pinned-decimal Pester assertion. Also awaiting TL routing decision on t/1344#3 note 3 (whether DevOps needs a follow-up to add `npm ci` to the test-powershell CI job so the parity guard runs instead of loud-skipping).
+**Date:** 2026-07-20
+**Working on:** t/1654 (task) — New cmdlet `Test-TaxonomyDirContents`: pre-embedding validation that flags TAXONOMY_DIR JSON files whose `nodes` field is a dict/null/scalar (would crash embed_taxonomy.py `_load_taxonomy_nodes`, the t/1652 crash). Follow-up to t/1652 diagnosis.
+**Status:** Done. Cmdlet + manifest + psm1 export + tests committed `6db133aa`; catalog row committed separately. Mirrors embed_taxonomy.py SKIP_FILES + `embeddings-` prefix skip. Classification: missing `nodes` key=Safe, null/dict/scalar=Unsafe, list-of-objects=Safe, empty list=Safe, parse error=Safe(warn). 7 Pester tests (taxonomy tag) pass on committed code. Followed /add-ps-cmdlet.
+**Key context:** ConvertFrom-Json dict-vs-list trap — a JSON object becomes `[PSCustomObject]`, so type-check PSCustomObject BEFORE `[IEnumerable]` or a dict is misclassified as a 1-element list. Catalog tables live in `docs/cmdlet-reference.md` (MAIN repo), NOT the overlay AGENTS.md.
+**Next:** Pick next unblocked ticket. Sibling of t/1652 / t/1653 / t/1644.
