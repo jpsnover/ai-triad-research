@@ -627,6 +627,12 @@ $TaxonomyDir = Get-TaxonomyDir
 if (Test-Path $TaxonomyDir) {
     foreach ($File in Get-ChildItem -Path $TaxonomyDir -Filter '*.json' -File) {
         if ($File.Name -in 'embeddings.json', 'edges.json', 'policy_actions.json', '_archived_edges.json', 'lineage_categories.json', 'interpretation_embeddings.json', 'source_evidence_index.json', 'similarity-cache.json') { continue }
+        # Embedding-variant files (e.g. embeddings-orgstance-6733.json, t/524) are legitimately
+        # large (50MB+, ~9,500 orgs x 1,536-dim vectors) and carry no .nodes array — they are
+        # loaded on demand by org-stance cmdlets, never by this POV loop. Skip them BEFORE the
+        # corruption guard so they neither trip the 10MB POV-corruption warning (t/1645) nor get
+        # parsed-then-discarded 13x per batch run. The 10MB guard below still protects POV files.
+        if ($File.Name -like 'embeddings-*.json' -or $File.Name -like '*-embeddings.json') { continue }
         if ($File.Length -gt 10MB) {
             Write-Warning "Taxonomy: skipping $($File.Name) — file is $([math]::Round($File.Length / 1MB, 1)) MB (likely corrupted, max 10 MB)."
             continue
