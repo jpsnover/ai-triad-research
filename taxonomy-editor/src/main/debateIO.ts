@@ -7,6 +7,7 @@ import path from 'path';
 import { resolveDataPath } from './fileIO.js';
 import { extractCalibrationData, appendCalibrationLog } from '../../../lib/debate/calibrationLogger.js';
 import { safeSerialize, atomicWriteSync, renameSyncWithRetry } from '../../../lib/debate/persistence.js';
+import { ActionableError } from '../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 const DEBATES_DIR = resolveDataPath('debates');
@@ -207,7 +208,39 @@ export function saveDebateSession(session: unknown): void {
       error: { name: 'SerializationFallback', message: errorMessage ?? 'unknown' },
     });
   }
-  atomicWriteSync(filePath, json + '\n');
+  try {
+    atomicWriteSync(filePath, json + '\n');
+  } catch (err) {
+    // t/1638: atomicWriteSync (t/1627) throws an ActionableError on a total-loss
+    // save (sustained rename+copy EPERM/EACCES) that names filePath/tmpPath but
+    // cannot know WHICH debate or HOW MUCH work is at risk. Re-throw enriched
+    // with the debate-specific state — id, run_id, and turn_count — so the user
+    // learns exactly which session and how many turns are preserved at the .tmp,
+    // and can recover the right file. Original error chained via innerError.
+    const tmpPath = `${filePath}.tmp`;
+    const runId = (session as { run_id?: string }).run_id ?? 'unknown';
+    const transcript = Array.isArray((session as { transcript?: unknown }).transcript)
+      ? ((session as { transcript: { type?: string }[] }).transcript)
+      : [];
+    const turnCount = transcript.filter(t => t.type === 'statement' || t.type === 'opening').length;
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'debateIO', level: 'error',
+      message: `Debate save failed for ${data.id} (run ${runId}, ${turnCount} turns) — payload preserved at ${tmpPath}`,
+      data: { debateId: data.id, runId, turnCount, tmpPath },
+      error: { name: (err as Error).name ?? 'Error', message: String((err as Error).message ?? err), stack: (err as Error).stack },
+    });
+    throw new ActionableError({
+      goal: `Save debate ${data.id} (run ${runId}, ${turnCount} turns) to ${filePath}`,
+      problem: `The atomic write to ${filePath} failed after exhausting the rename-retry budget and the in-place copy fallback — the target is held by another process (Windows antivirus/indexer). Debate ${data.id}, run ${runId}: ${turnCount} turns are at risk of being lost.`,
+      location: 'taxonomy-editor/src/main/debateIO.ts saveDebateSession',
+      nextSteps: [
+        `The full session snapshot for debate ${data.id} (run ${runId}, ${turnCount} turns) is preserved at ${tmpPath} and was NOT deleted — it is the only durable copy. Do not remove it.`,
+        `Retry the save once the file lock clears; the next successful save re-persists all ${turnCount} turns and replaces ${filePath}, after which ${tmpPath} may be removed.`,
+        `If saves keep failing, exclude the debates directory from antivirus/search-indexer scanning.`,
+      ],
+      innerError: err,
+    });
+  }
 
   // Update metadata index so next list call skips re-reading this file
   try {
