@@ -244,6 +244,11 @@ def _load_taxonomy_nodes():
     for path in sorted(TAXONOMY_DIR.glob("*.json")):
         if path.name in SKIP_FILES:
             continue
+        # Skip embedding-index artifacts (e.g. embeddings-orgstance-6733.json):
+        # their "nodes" field is a dict keyed by node ID, not a list of node
+        # dicts, so iterating it yields strings and crashes downstream (t/1652).
+        if path.stem.startswith("embeddings-"):
+            continue
         try:
             data = json.loads(path.read_text(encoding="utf-8-sig"))
         except (json.JSONDecodeError, OSError) as exc:
