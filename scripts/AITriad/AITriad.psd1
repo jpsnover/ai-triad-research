@@ -192,6 +192,8 @@
         # t/1579 — Debate-Tested Phase 2 research surface
         'Get-NodeTestingRecord'
         'Update-NodeTestingRecord'
+        # t/1654 — pre-embedding TAXONOMY_DIR validation
+        'Test-TaxonomyDirContents'
     )
 
     # Aliases exported from this module
