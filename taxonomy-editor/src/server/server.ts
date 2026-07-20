@@ -1308,10 +1308,16 @@ post('/api/embeddings/update-nodes', async (_req, res, body) => {
   } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to update node embeddings', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 });
 
-post('/api/nli/classify', (_req, res, body) => withEndpointTimeout(res, 35_000, 'nli-classify', async () => {
+post('/api/nli/classify', (req, res, body) => withEndpointTimeout(res, 35_000, 'nli-classify', async () => {
   const { pairs } = body as { pairs: { text_a: string; text_b: string }[] };
   try {
-    const results = await ai.classifyNli(pairs);
+    // t/1650: resolve a per-request BYOK/free-tier key (same gate as embeddings) so the
+    // hosted-LLM fallback in classifyNli has a key once the local Python venv is removed
+    // (t/1642). Local Python stays primary; the key is only consumed on fallback. BYOK —
+    // key rides the request, never baked, never logged.
+    const gate = freeTierEmbeddingGate(req, res);
+    if (gate.blocked) return;
+    const results = await ai.classifyNli(pairs, gate.key);
     json(res, { results });
   } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to classify NLI pairs', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
 }));
