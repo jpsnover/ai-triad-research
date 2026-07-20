@@ -330,9 +330,9 @@ function Import-AITriadDocument {
                 Write-Info "POV tags from -Pov flag (AI suggestion ignored): $($PovTags -join ', ')"
             }
 
-            $MergedTopics = @($TopicTags) + @($AiMeta.topic_tags) |
+            $MergedTopics = @(@($TopicTags) + @($AiMeta.topic_tags) |
                 Select-Object -Unique |
-                Where-Object { $_ }
+                Where-Object { $_ })
             $TopicTags = $MergedTopics
             if ($TopicTags.Count -gt 0) {
                 Write-Info "Topic tags (merged): $($TopicTags -join ', ')"
