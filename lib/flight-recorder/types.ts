@@ -102,6 +102,8 @@ export type EventType =
   | 'storage.fallback'
   | 'flight-recorder.dump.written' // t/1352: dump persisted — records which backend received it
   | 'io.retry'
+  | 'io.recovered'   // t/1627: atomicWriteSync recovered a rename-exhausted write via in-place copy fallback
+  | 'io.data-loss'   // t/1627: atomicWriteSync could not persist; new content preserved at tmpPath
   // Lock instrumentation
   | 'lock.acquire_attempt'
   | 'lock.acquired'
