@@ -18,10 +18,19 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 const require = createRequire(import.meta.url);
 import { getApiKey, getApiKeys, getProjectRoot, EMBED_SCRIPT, resolveDataPath, type AIBackend } from '../config.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
+import { parseJsonRobust } from '../../../../lib/debate/helpers.js';
 import { extractProviderReason, deriveKeyErrorMessage } from './providerErrors.js';
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../../lib/search/tavily.js';
 import { resolveEmbeddings, type EmbeddingFallback } from '../../../../lib/embeddings/embeddingResolver.js';
 import type { EmbeddingsFile } from '../../../../lib/electron-shared/embeddingIO.js';
+// t/1641/t/1643: in-process ONNX all-MiniLM-L6-v2 384-dim encoder (shared lib, t/1651).
+// Aliased on import — this file also exports `computeEmbeddings`. Provides the hosted
+// fallback when the Python ML venv is absent (DevOps venv slim, t/1642).
+import {
+  computeEmbedding as onnxComputeEmbedding,
+  computeEmbeddings as onnxComputeEmbeddings,
+  tryWarmup as onnxTryWarmup,
+} from '../../../../lib/embeddings/onnxEmbedding.js';
 import {
   resolveBackend,
   callProvider,
@@ -31,7 +40,6 @@ import {
   getDefaultTimeout,
   withTimeout,
   SERVER_RETRY_CONFIG,
-  callGeminiBatchEmbed,
   geminiGroundedSearch,
   DEFAULT_MODEL,
   getUsage,
@@ -46,10 +54,6 @@ import {
 import { log } from '../logger.js';
 
 const PYTHON = process.platform === 'win32' ? 'python' : 'python3';
-
-// ── Constants ──
-
-const BATCH_SIZE = 100;
 
 // ── Multi-provider availability (t/772) ──
 
@@ -529,41 +533,17 @@ function loadEmbeddingsFile(): EmbeddingsFile | null {
   }
 }
 
-// t/1113: bound the Gemini embeddings call (including its internal retries) so a
-// silent connection drop can't hang the request handler indefinitely — same bug
-// class as t/1068. On timeout this rejects and computeEmbeddings falls back to the
-// local Python encoder. 30s: embeddings are compute-only (no generation latency).
-const EMBED_TIMEOUT_MS = 30_000;
-
-function callGeminiBatchApi(texts: string[], taskType: string, apiKey: string): Promise<number[][]> {
-  return withTimeout(
-    callGeminiBatchEmbed(fetch, texts, taskType, apiKey, SERVER_RETRY_CONFIG),
-    EMBED_TIMEOUT_MS,
-    'gemini-embedding',
-  );
-}
-
 const EMBEDDINGS_REQUEST_TIMEOUT_MS = 45_000;
 
-export async function computeEmbeddings(texts: string[], ids?: string[], explicitApiKey?: string): Promise<number[][]> {
+// t/1641/t/1643: `_explicitApiKey` is retained for call-site arity (server.ts passes
+// the free-tier key) but is no longer consumed — embeddings are computed by the local
+// Python encoder or the in-process ONNX fallback, both 384-dim/all-MiniLM-L6-v2, no API.
+export async function computeEmbeddings(texts: string[], ids?: string[], _explicitApiKey?: string): Promise<number[][]> {
   const startMs = Date.now();
   const local = loadEmbeddingsFile();
   const chain: EmbeddingFallback[] = [];
 
-  const apiKey = explicitApiKey ?? await getApiKey('gemini');
-  if (apiKey) {
-    chain.push({
-      name: 'gemini-batch',
-      compute: async (t) => {
-        const all: number[][] = [];
-        for (let i = 0; i < t.length; i += BATCH_SIZE) {
-          all.push(...await callGeminiBatchApi(t.slice(i, i + BATCH_SIZE), 'RETRIEVAL_DOCUMENT', apiKey));
-        }
-        return all;
-      },
-    });
-  }
-
+  // Local Python encoder stays primary when present (TL ruling t/1641#10).
   if (await isPythonEmbeddingAvailable()) {
     chain.push({
       name: 'python-batch',
@@ -573,6 +553,16 @@ export async function computeEmbeddings(texts: string[], ids?: string[], explici
           : t.map((_, j) => `_idx_${j}`);
         return computeBatchViaLocalPython(t, finalIds);
       },
+    });
+  }
+
+  // t/1641/t/1643: in-process ONNX all-MiniLM-L6-v2 (shared lib t/1651) — hosted
+  // fallback when the Python ML venv is absent (DevOps venv slim, t/1642). Same
+  // 384-dim vector space as the stored corpus; no API key, no network.
+  if (await onnxTryWarmup()) {
+    chain.push({
+      name: 'onnx-batch',
+      compute: (t) => onnxComputeEmbeddings(t),
     });
   }
 
@@ -599,12 +589,10 @@ export async function computeEmbeddings(texts: string[], ids?: string[], explici
     });
     throw new ActionableError({
       goal: 'Compute embeddings',
-      problem: apiKey
-        ? `Gemini embedding API failed and local Python fallback unavailable (${elapsedMs}ms)`
-        : 'No Gemini API key configured and local Python fallback unavailable',
+      problem: `No local embedding encoder available after ${elapsedMs}ms — the Python sentence-transformers venv is absent and the in-process ONNX all-MiniLM-L6-v2 fallback failed to initialize`,
       location: 'aiBackends.computeEmbeddings',
       nextSteps: [
-        'Set your Gemini API key in Settings',
+        'Verify the baked ONNX model directory is present (AI_TRIAD_ONNX_MODEL_DIR points to model.onnx + tokenizer.json + tokenizer_config.json)',
         'Or install Python with sentence-transformers: pip install sentence-transformers',
       ],
     });
@@ -694,7 +682,13 @@ function setCachedQueryEmbedding(text: string, vec: number[]): void {
   _queryCache.set(text, vec);
 }
 
-export async function computeQueryEmbedding(text: string, explicitApiKey?: string): Promise<number[]> {
+// t/1641/t/1643: `_explicitApiKey` is retained for call-site arity (server.ts passes
+// the free-tier key) but is no longer consumed — the query embedding is computed by
+// the local Python encoder or the in-process ONNX fallback, both 384-dim/all-MiniLM-L6-v2.
+// This closes t/1643: the old Gemini fallback returned a 3072-dim RETRIEVAL_QUERY vector
+// in a different vector space than the stored 384-dim MiniLM corpus, silently breaking
+// cosine similarity whenever Python was absent.
+export async function computeQueryEmbedding(text: string, _explicitApiKey?: string): Promise<number[]> {
   const cached = getCachedQueryEmbedding(text);
   if (cached) return cached;
 
@@ -708,72 +702,113 @@ export async function computeQueryEmbedding(text: string, explicitApiKey?: strin
         type: 'system.error',
         component: 'ai-backends',
         level: 'warn',
-        message: 'Local Python embedding failed; falling back to API',
+        message: 'Local Python embedding failed; falling back to in-process ONNX',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       _pythonAvailable = false;
     }
   }
 
-  // t/1171: accept an explicit key (free-tier server key) so anonymous semantic
-  // search can finish the query-embedding step, mirroring computeEmbeddings.
-  const apiKey = explicitApiKey ?? await getApiKey('gemini');
-  if (!apiKey) {
-    throw new ActionableError({
-      goal: 'Compute query embedding',
-      problem: 'No Gemini API key and local Python embedding unavailable',
-      location: 'aiBackends.computeQueryEmbedding',
-      nextSteps: [
-        'Set your Gemini API key in Settings',
-        'Or install Python with sentence-transformers: pip install sentence-transformers',
-      ],
-    });
+  // In-process ONNX all-MiniLM-L6-v2 (shared lib t/1651) — hosted fallback when the
+  // Python ML venv is absent (DevOps venv slim, t/1642). Same 384-dim space as the
+  // stored corpus; no API key, no network.
+  if (await onnxTryWarmup()) {
+    try {
+      const vec = await onnxComputeEmbedding(text);
+      setCachedQueryEmbedding(text, vec);
+      return vec;
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ai-backends',
+        level: 'error',
+        message: 'In-process ONNX query embedding failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      // fall through to the ActionableError below
+    }
   }
-  const vectors = await callGeminiBatchApi([text], 'RETRIEVAL_QUERY', apiKey);
-  setCachedQueryEmbedding(text, vectors[0]);
-  return vectors[0];
+
+  throw new ActionableError({
+    goal: 'Compute query embedding',
+    problem: 'No local embedding encoder available — the Python sentence-transformers venv is absent and the in-process ONNX all-MiniLM-L6-v2 fallback failed to initialize',
+    location: 'aiBackends.computeQueryEmbedding',
+    nextSteps: [
+      'Verify the baked ONNX model directory is present (AI_TRIAD_ONNX_MODEL_DIR points to model.onnx + tokenizer.json + tokenizer_config.json)',
+      'Or install Python with sentence-transformers: pip install sentence-transformers',
+    ],
+  });
 }
 
 export async function updateNodeEmbeddings(nodes: { id: string; text: string; pov: string; exclusionText?: string }[]): Promise<void> {
   if (nodes.length === 0) return;
   const filePath = getEmbeddingsPath();
-  const items = nodes.map(n => ({ id: n.id, text: n.text }));
 
-  const vectors = await new Promise<Record<string, number[]>>((resolve, reject) => {
-    const child = execFile(PYTHON, [EMBED_SCRIPT, 'batch-encode'], { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
-      if (err) { reject(new Error(`batch-encode failed: ${err.message}\n${stderr}`)); return; }
-      try { resolve(JSON.parse(stdout)); } catch (e) {
+  // t/1641: encode a batch of {id,text} to an id→vector map. Local Python
+  // sentence-transformers is primary when present; the in-process ONNX
+  // all-MiniLM-L6-v2 fallback (shared lib t/1651) covers the hosted case where
+  // the Python ML venv has been slimmed away (DevOps venv slim, t/1642). Same
+  // 384-dim/all-MiniLM-L6-v2 space either way; no API key, no network.
+  const encodeBatch = async (batch: { id: string; text: string }[]): Promise<Record<string, number[]>> => {
+    const ids = batch.map(b => b.id);
+    const texts = batch.map(b => b.text);
+    let vecs: number[][] | null = null;
+
+    if (await isPythonEmbeddingAvailable()) {
+      try {
+        vecs = await computeBatchViaLocalPython(texts, ids);
+      } catch (err) {
         getGlobalRecorder()?.record({
           type: 'system.error', component: 'ai-backends', level: 'warn',
-          message: 'Failed to parse Python embedding output',
-          error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack },
+          message: 'Local Python batch embedding failed; falling back to in-process ONNX',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
-        reject(new Error(`Parse failed: ${e}`));
+        _pythonAvailable = false;
       }
-    });
-    child.stdin!.write(JSON.stringify(items));
-    child.stdin!.end();
-  });
+    }
 
-  const exclItems = nodes.filter(n => n.exclusionText).map(n => ({ id: n.id, text: n.exclusionText! }));
-  let exclVectors: Record<string, number[]> = {};
-  if (exclItems.length > 0) {
-    exclVectors = await new Promise<Record<string, number[]>>((resolve, reject) => {
-      const child = execFile(PYTHON, [EMBED_SCRIPT, 'batch-encode'], { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
-        if (err) { reject(new Error(`batch-encode (exclusion) failed: ${err.message}\n${stderr}`)); return; }
-        try { resolve(JSON.parse(stdout)); } catch (e) {
-        getGlobalRecorder()?.record({
-          type: 'system.error', component: 'ai-backends', level: 'warn',
-          message: 'Failed to parse Python exclusion-embedding output',
-          error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack },
+    if (!vecs) {
+      if (!(await onnxTryWarmup())) {
+        throw new ActionableError({
+          goal: 'Update node embeddings',
+          problem: 'No local embedding encoder available — the Python sentence-transformers venv is absent and the in-process ONNX all-MiniLM-L6-v2 fallback failed to initialize',
+          location: 'aiBackends.updateNodeEmbeddings',
+          nextSteps: [
+            'Verify the baked ONNX model directory is present (AI_TRIAD_ONNX_MODEL_DIR points to model.onnx + tokenizer.json + tokenizer_config.json)',
+            'Or install Python with sentence-transformers: pip install sentence-transformers',
+          ],
         });
-        reject(new Error(`Parse exclusion failed: ${e}`));
       }
-      });
-      child.stdin!.write(JSON.stringify(exclItems));
-      child.stdin!.end();
-    });
-  }
+      try {
+        vecs = await onnxComputeEmbeddings(texts);
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'ai-backends', level: 'error',
+          message: 'In-process ONNX batch embedding failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        throw new ActionableError({
+          goal: 'Update node embeddings',
+          problem: 'The in-process ONNX all-MiniLM-L6-v2 encoder failed while embedding a node batch',
+          location: 'aiBackends.updateNodeEmbeddings',
+          nextSteps: [
+            'Verify the baked ONNX model directory is intact (AI_TRIAD_ONNX_MODEL_DIR points to model.onnx + tokenizer.json + tokenizer_config.json)',
+            'Or install Python with sentence-transformers: pip install sentence-transformers',
+          ],
+        });
+      }
+    }
+
+    const map: Record<string, number[]> = {};
+    ids.forEach((id, i) => { map[id] = vecs![i]; });
+    return map;
+  };
+
+  const vectors = await encodeBatch(nodes.map(n => ({ id: n.id, text: n.text })));
+  const exclNodes = nodes.filter(n => n.exclusionText);
+  const exclVectors: Record<string, number[]> = exclNodes.length > 0
+    ? await encodeBatch(exclNodes.map(n => ({ id: n.id, text: n.exclusionText! })))
+    : {};
 
   let data: EmbeddingsFile;
   try { data = JSON.parse(fs.readFileSync(filePath, 'utf-8')); }
@@ -796,50 +831,186 @@ export async function updateNodeEmbeddings(nodes: { id: string; text: string; po
 // ── NLI classification ──
 
 const NLI_TIMEOUT_MS = 30_000;
+const NLI_LABELS = ['entailment', 'neutral', 'contradiction'] as const;
+type NliLabel = (typeof NLI_LABELS)[number];
 
-export async function classifyNli(pairs: { text_a: string; text_b: string }[]): Promise<unknown[]> {
-  if (pairs.length === 0) return [];
+/** The four fields the Python `nli-classify` path merges into each input item (see scripts/embed_taxonomy.py cmd_nli_classify). */
+interface NliFields {
+  nli_label: NliLabel;
+  nli_entailment: number;
+  nli_neutral: number;
+  nli_contradiction: number;
+}
+
+/**
+ * Primary path: classify pairs via the local Python sentence-transformers
+ * cross-encoder. Resolves with the merged items (input fields + 4 NLI fields)
+ * or rejects on subprocess/parse failure so the caller can fall back.
+ */
+function classifyNliViaPython(pairs: { text_a: string; text_b: string }[]): Promise<unknown[]> {
   return new Promise((resolve, reject) => {
     const child = execFile(PYTHON, [EMBED_SCRIPT, 'nli-classify'], { timeout: NLI_TIMEOUT_MS, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
         const isTimeout = !!(err as { killed?: boolean }).killed || /ETIMEDOUT|timed?\s*out/i.test(err.message);
         getGlobalRecorder()?.record({
-          type: 'system.error', component: 'ai-backends', level: 'error',
-          message: `NLI classify failed: ${isTimeout ? 'timeout' : 'subprocess error'}`,
+          type: 'system.error', component: 'ai-backends', level: 'warn',
+          message: `NLI classify (local Python) failed: ${isTimeout ? 'timeout' : 'subprocess error'} — trying API fallback`,
           error: { name: err.name ?? 'Error', message: err.message, stack: err.stack },
           data: { pairCount: pairs.length, isTimeout, stderr: stderr?.slice(0, 500), backend: 'local-python' },
         });
-        reject(new ActionableError({
-          goal: 'Classify NLI pairs via local Python encoder',
-          problem: isTimeout
-            ? `Python NLI subprocess timed out after ${NLI_TIMEOUT_MS / 1000}s (${pairs.length} pairs)`
-            : `Python NLI subprocess failed: ${err.message}`,
-          location: 'aiBackends.classifyNli',
-          nextSteps: [
-            'Reduce the number of pairs per request',
-            'Verify Python sentence-transformers is installed and working',
-          ],
-        }));
+        reject(err);
         return;
       }
       try { resolve(JSON.parse(stdout)); } catch (e) {
         getGlobalRecorder()?.record({
           type: 'system.error', component: 'ai-backends', level: 'warn',
-          message: 'Failed to parse NLI classify output',
+          message: 'Failed to parse NLI classify output (local Python) — trying API fallback',
           error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack },
           data: { pairCount: pairs.length, stdoutLength: stdout?.length },
         });
-        reject(new ActionableError({
-          goal: 'Parse NLI classification results',
-          problem: `Python NLI subprocess returned unparseable output (${stdout?.length ?? 0} bytes)`,
-          location: 'aiBackends.classifyNli',
-          nextSteps: ['Check Python encoder script for errors', 'Retry the request'],
-        }));
+        reject(e);
       }
     });
     child.stdin!.write(JSON.stringify(pairs));
     child.stdin!.end();
   });
+}
+
+/** Clamp/normalize an LLM-returned score into [0,1]; non-finite → 0. */
+function normNliScore(v: unknown): number {
+  const n = typeof v === 'number' ? v : Number(v);
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(1, Math.max(0, n));
+}
+
+/**
+ * Coerce one parsed LLM result object into the 4 canonical NLI fields.
+ * Tolerates a missing/garbled label by deriving it from the argmax score.
+ */
+function coerceNliFields(raw: Record<string, unknown>): NliFields {
+  const nli_entailment = normNliScore(raw.nli_entailment ?? raw.entailment);
+  const nli_neutral = normNliScore(raw.nli_neutral ?? raw.neutral);
+  const nli_contradiction = normNliScore(raw.nli_contradiction ?? raw.contradiction);
+  const rawLabel = String(raw.nli_label ?? raw.label ?? '').toLowerCase().trim();
+  let nli_label: NliLabel;
+  if ((NLI_LABELS as readonly string[]).includes(rawLabel)) {
+    nli_label = rawLabel as NliLabel;
+  } else {
+    const scores: [NliLabel, number][] = [
+      ['entailment', nli_entailment], ['neutral', nli_neutral], ['contradiction', nli_contradiction],
+    ];
+    nli_label = scores.reduce((a, b) => (b[1] > a[1] ? b : a))[0];
+  }
+  return { nli_label, nli_entailment, nli_neutral, nli_contradiction };
+}
+
+/**
+ * Fallback path: classify pairs via a hosted LLM (UsageID
+ * `server.nli-classify-fallback`). Used when the local Python encoder is
+ * unavailable (e.g. the ML venv has been removed from the image — t/1641).
+ * BYOK: the caller supplies the API key per-request (ADR-002); no keys baked.
+ * Returns each input item passed through plus the 4 NLI fields, matching the
+ * Python contract so downstream consumers are unaffected.
+ */
+async function classifyNliViaApi(
+  pairs: { text_a: string; text_b: string }[],
+  apiKey?: string | string[],
+): Promise<unknown[]> {
+  const items = pairs.map((p, index) => ({ index, text_a: p.text_a, text_b: p.text_b }));
+  const result = await generateTextByUsage(
+    'server.nli-classify-fallback',
+    { pairs: JSON.stringify(items) },
+    undefined,
+    undefined,
+    apiKey,
+  );
+
+  const parsed = parseJsonRobust(result.text);
+  const rows: Record<string, unknown>[] = Array.isArray(parsed)
+    ? (parsed as Record<string, unknown>[])
+    : Array.isArray((parsed as { results?: unknown })?.results)
+      ? ((parsed as { results: Record<string, unknown>[] }).results)
+      : [];
+
+  if (rows.length === 0) {
+    throw new ActionableError({
+      goal: 'Classify NLI pairs via hosted LLM fallback',
+      problem: `LLM NLI fallback returned no parseable results (${result.text?.length ?? 0} chars)`,
+      location: 'aiBackends.classifyNliViaApi',
+      nextSteps: [
+        'Verify the server.nli-classify-fallback UsageID prompt requests a JSON array',
+        'Check the AI backend is reachable and the supplied key is valid',
+      ],
+    });
+  }
+
+  // Map results back to pairs by declared index; fall back to positional order.
+  const byIndex = new Map<number, Record<string, unknown>>();
+  rows.forEach((row, i) => {
+    const idx = typeof row.index === 'number' ? row.index : i;
+    if (!byIndex.has(idx)) byIndex.set(idx, row);
+  });
+
+  return pairs.map((p, i) => ({
+    ...p,
+    ...coerceNliFields(byIndex.get(i) ?? rows[i] ?? {}),
+  }));
+}
+
+/**
+ * Classify NLI (entailment/neutral/contradiction) for each text pair.
+ *
+ * Primary path is the local Python cross-encoder; when it is unavailable or
+ * fails (subprocess error, timeout, or unparseable output) the request falls
+ * back to a hosted LLM via UsageID `server.nli-classify-fallback`. The fallback
+ * needs a caller-supplied API key (BYOK, ADR-002) — omit it and only the local
+ * path is attempted. Output items preserve input fields and add the 4 NLI
+ * fields regardless of which path served the request.
+ */
+export async function classifyNli(
+  pairs: { text_a: string; text_b: string }[],
+  apiKey?: string | string[],
+): Promise<unknown[]> {
+  if (pairs.length === 0) return [];
+
+  try {
+    return await classifyNliViaPython(pairs);
+  } catch (pyErr) {
+    try {
+      const results = await classifyNliViaApi(pairs, apiKey);
+      getGlobalRecorder()?.record({
+        type: 'ai.fallback', component: 'ai-backends', level: 'info',
+        message: 'NLI classify served by hosted LLM fallback (local Python unavailable)',
+        data: { pairCount: pairs.length, backend: 'llm-fallback' },
+      });
+      return results;
+    } catch (apiErr) {
+      const isTimeout = !!(pyErr as { killed?: boolean }).killed || /ETIMEDOUT|timed?\s*out/i.test((pyErr as Error).message ?? '');
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'ai-backends', level: 'error',
+        message: 'NLI classify failed on both local Python and API fallback',
+        error: { name: (apiErr as Error).name ?? 'Error', message: String(apiErr), stack: (apiErr as Error).stack },
+        data: {
+          pairCount: pairs.length,
+          pythonError: String((pyErr as Error).message ?? pyErr).slice(0, 300),
+          apiError: String((apiErr as Error).message ?? apiErr).slice(0, 300),
+        },
+      });
+      if (apiErr instanceof ActionableError) throw apiErr;
+      throw new ActionableError({
+        goal: 'Classify NLI pairs',
+        problem: isTimeout
+          ? `Local Python NLI subprocess timed out after ${NLI_TIMEOUT_MS / 1000}s and the API fallback also failed (${pairs.length} pairs)`
+          : `Local Python NLI encoder failed and the API fallback also failed: ${String((apiErr as Error).message ?? apiErr)}`,
+        location: 'aiBackends.classifyNli',
+        nextSteps: [
+          'Verify the AI backend is reachable and a valid API key was supplied for the fallback',
+          'If the local encoder should be available, verify Python sentence-transformers is installed',
+          'Reduce the number of pairs per request',
+        ],
+      });
+    }
+  }
 }
 
 // ── Model discovery (refresh) ──
