@@ -18,6 +18,7 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 const require = createRequire(import.meta.url);
 import { getApiKey, getApiKeys, getProjectRoot, EMBED_SCRIPT, resolveDataPath, type AIBackend } from '../config.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
+import { parseJsonRobust } from '../../../../lib/debate/helpers.js';
 import { extractProviderReason, deriveKeyErrorMessage } from './providerErrors.js';
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../../lib/search/tavily.js';
 import { resolveEmbeddings, type EmbeddingFallback } from '../../../../lib/embeddings/embeddingResolver.js';
@@ -796,50 +797,186 @@ export async function updateNodeEmbeddings(nodes: { id: string; text: string; po
 // ── NLI classification ──
 
 const NLI_TIMEOUT_MS = 30_000;
+const NLI_LABELS = ['entailment', 'neutral', 'contradiction'] as const;
+type NliLabel = (typeof NLI_LABELS)[number];
 
-export async function classifyNli(pairs: { text_a: string; text_b: string }[]): Promise<unknown[]> {
-  if (pairs.length === 0) return [];
+/** The four fields the Python `nli-classify` path merges into each input item (see scripts/embed_taxonomy.py cmd_nli_classify). */
+interface NliFields {
+  nli_label: NliLabel;
+  nli_entailment: number;
+  nli_neutral: number;
+  nli_contradiction: number;
+}
+
+/**
+ * Primary path: classify pairs via the local Python sentence-transformers
+ * cross-encoder. Resolves with the merged items (input fields + 4 NLI fields)
+ * or rejects on subprocess/parse failure so the caller can fall back.
+ */
+function classifyNliViaPython(pairs: { text_a: string; text_b: string }[]): Promise<unknown[]> {
   return new Promise((resolve, reject) => {
     const child = execFile(PYTHON, [EMBED_SCRIPT, 'nli-classify'], { timeout: NLI_TIMEOUT_MS, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
         const isTimeout = !!(err as { killed?: boolean }).killed || /ETIMEDOUT|timed?\s*out/i.test(err.message);
         getGlobalRecorder()?.record({
-          type: 'system.error', component: 'ai-backends', level: 'error',
-          message: `NLI classify failed: ${isTimeout ? 'timeout' : 'subprocess error'}`,
+          type: 'system.error', component: 'ai-backends', level: 'warn',
+          message: `NLI classify (local Python) failed: ${isTimeout ? 'timeout' : 'subprocess error'} — trying API fallback`,
           error: { name: err.name ?? 'Error', message: err.message, stack: err.stack },
           data: { pairCount: pairs.length, isTimeout, stderr: stderr?.slice(0, 500), backend: 'local-python' },
         });
-        reject(new ActionableError({
-          goal: 'Classify NLI pairs via local Python encoder',
-          problem: isTimeout
-            ? `Python NLI subprocess timed out after ${NLI_TIMEOUT_MS / 1000}s (${pairs.length} pairs)`
-            : `Python NLI subprocess failed: ${err.message}`,
-          location: 'aiBackends.classifyNli',
-          nextSteps: [
-            'Reduce the number of pairs per request',
-            'Verify Python sentence-transformers is installed and working',
-          ],
-        }));
+        reject(err);
         return;
       }
       try { resolve(JSON.parse(stdout)); } catch (e) {
         getGlobalRecorder()?.record({
           type: 'system.error', component: 'ai-backends', level: 'warn',
-          message: 'Failed to parse NLI classify output',
+          message: 'Failed to parse NLI classify output (local Python) — trying API fallback',
           error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack },
           data: { pairCount: pairs.length, stdoutLength: stdout?.length },
         });
-        reject(new ActionableError({
-          goal: 'Parse NLI classification results',
-          problem: `Python NLI subprocess returned unparseable output (${stdout?.length ?? 0} bytes)`,
-          location: 'aiBackends.classifyNli',
-          nextSteps: ['Check Python encoder script for errors', 'Retry the request'],
-        }));
+        reject(e);
       }
     });
     child.stdin!.write(JSON.stringify(pairs));
     child.stdin!.end();
   });
+}
+
+/** Clamp/normalize an LLM-returned score into [0,1]; non-finite → 0. */
+function normNliScore(v: unknown): number {
+  const n = typeof v === 'number' ? v : Number(v);
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(1, Math.max(0, n));
+}
+
+/**
+ * Coerce one parsed LLM result object into the 4 canonical NLI fields.
+ * Tolerates a missing/garbled label by deriving it from the argmax score.
+ */
+function coerceNliFields(raw: Record<string, unknown>): NliFields {
+  const nli_entailment = normNliScore(raw.nli_entailment ?? raw.entailment);
+  const nli_neutral = normNliScore(raw.nli_neutral ?? raw.neutral);
+  const nli_contradiction = normNliScore(raw.nli_contradiction ?? raw.contradiction);
+  const rawLabel = String(raw.nli_label ?? raw.label ?? '').toLowerCase().trim();
+  let nli_label: NliLabel;
+  if ((NLI_LABELS as readonly string[]).includes(rawLabel)) {
+    nli_label = rawLabel as NliLabel;
+  } else {
+    const scores: [NliLabel, number][] = [
+      ['entailment', nli_entailment], ['neutral', nli_neutral], ['contradiction', nli_contradiction],
+    ];
+    nli_label = scores.reduce((a, b) => (b[1] > a[1] ? b : a))[0];
+  }
+  return { nli_label, nli_entailment, nli_neutral, nli_contradiction };
+}
+
+/**
+ * Fallback path: classify pairs via a hosted LLM (UsageID
+ * `server.nli-classify-fallback`). Used when the local Python encoder is
+ * unavailable (e.g. the ML venv has been removed from the image — t/1641).
+ * BYOK: the caller supplies the API key per-request (ADR-002); no keys baked.
+ * Returns each input item passed through plus the 4 NLI fields, matching the
+ * Python contract so downstream consumers are unaffected.
+ */
+async function classifyNliViaApi(
+  pairs: { text_a: string; text_b: string }[],
+  apiKey?: string | string[],
+): Promise<unknown[]> {
+  const items = pairs.map((p, index) => ({ index, text_a: p.text_a, text_b: p.text_b }));
+  const result = await generateTextByUsage(
+    'server.nli-classify-fallback',
+    { pairs: JSON.stringify(items) },
+    undefined,
+    undefined,
+    apiKey,
+  );
+
+  const parsed = parseJsonRobust(result.text);
+  const rows: Record<string, unknown>[] = Array.isArray(parsed)
+    ? (parsed as Record<string, unknown>[])
+    : Array.isArray((parsed as { results?: unknown })?.results)
+      ? ((parsed as { results: Record<string, unknown>[] }).results)
+      : [];
+
+  if (rows.length === 0) {
+    throw new ActionableError({
+      goal: 'Classify NLI pairs via hosted LLM fallback',
+      problem: `LLM NLI fallback returned no parseable results (${result.text?.length ?? 0} chars)`,
+      location: 'aiBackends.classifyNliViaApi',
+      nextSteps: [
+        'Verify the server.nli-classify-fallback UsageID prompt requests a JSON array',
+        'Check the AI backend is reachable and the supplied key is valid',
+      ],
+    });
+  }
+
+  // Map results back to pairs by declared index; fall back to positional order.
+  const byIndex = new Map<number, Record<string, unknown>>();
+  rows.forEach((row, i) => {
+    const idx = typeof row.index === 'number' ? row.index : i;
+    if (!byIndex.has(idx)) byIndex.set(idx, row);
+  });
+
+  return pairs.map((p, i) => ({
+    ...p,
+    ...coerceNliFields(byIndex.get(i) ?? rows[i] ?? {}),
+  }));
+}
+
+/**
+ * Classify NLI (entailment/neutral/contradiction) for each text pair.
+ *
+ * Primary path is the local Python cross-encoder; when it is unavailable or
+ * fails (subprocess error, timeout, or unparseable output) the request falls
+ * back to a hosted LLM via UsageID `server.nli-classify-fallback`. The fallback
+ * needs a caller-supplied API key (BYOK, ADR-002) — omit it and only the local
+ * path is attempted. Output items preserve input fields and add the 4 NLI
+ * fields regardless of which path served the request.
+ */
+export async function classifyNli(
+  pairs: { text_a: string; text_b: string }[],
+  apiKey?: string | string[],
+): Promise<unknown[]> {
+  if (pairs.length === 0) return [];
+
+  try {
+    return await classifyNliViaPython(pairs);
+  } catch (pyErr) {
+    try {
+      const results = await classifyNliViaApi(pairs, apiKey);
+      getGlobalRecorder()?.record({
+        type: 'ai.fallback', component: 'ai-backends', level: 'info',
+        message: 'NLI classify served by hosted LLM fallback (local Python unavailable)',
+        data: { pairCount: pairs.length, backend: 'llm-fallback' },
+      });
+      return results;
+    } catch (apiErr) {
+      const isTimeout = !!(pyErr as { killed?: boolean }).killed || /ETIMEDOUT|timed?\s*out/i.test((pyErr as Error).message ?? '');
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'ai-backends', level: 'error',
+        message: 'NLI classify failed on both local Python and API fallback',
+        error: { name: (apiErr as Error).name ?? 'Error', message: String(apiErr), stack: (apiErr as Error).stack },
+        data: {
+          pairCount: pairs.length,
+          pythonError: String((pyErr as Error).message ?? pyErr).slice(0, 300),
+          apiError: String((apiErr as Error).message ?? apiErr).slice(0, 300),
+        },
+      });
+      if (apiErr instanceof ActionableError) throw apiErr;
+      throw new ActionableError({
+        goal: 'Classify NLI pairs',
+        problem: isTimeout
+          ? `Local Python NLI subprocess timed out after ${NLI_TIMEOUT_MS / 1000}s and the API fallback also failed (${pairs.length} pairs)`
+          : `Local Python NLI encoder failed and the API fallback also failed: ${String((apiErr as Error).message ?? apiErr)}`,
+        location: 'aiBackends.classifyNli',
+        nextSteps: [
+          'Verify the AI backend is reachable and a valid API key was supplied for the fallback',
+          'If the local encoder should be available, verify Python sentence-transformers is installed',
+          'Reduce the number of pairs per request',
+        ],
+      });
+    }
+  }
 }
 
 // ── Model discovery (refresh) ──

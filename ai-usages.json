@@ -283,6 +283,18 @@
       "debate"
     ]
   },
+  "server.nli-classify-fallback": {
+    "description": "Hosted-LLM fallback for NLI pair classification when the local Python cross-encoder is unavailable (t/1641); preserves the 384-dim MiniLM path's 3-label + score contract",
+    "model": "gemini-flash-lite-latest",
+    "temperature": 0,
+    "timeoutMs": 60000,
+    "messageTemplate": "You are a natural-language-inference (NLI) classifier. For each pair, treat text_a as the premise and text_b as the hypothesis, and decide the relationship of the hypothesis to the premise:\n- \"entailment\": the premise supports or implies the hypothesis.\n- \"contradiction\": the premise contradicts or is inconsistent with the hypothesis.\n- \"neutral\": neither — the hypothesis is unrelated to, or not determinable from, the premise.\n\nFor each pair output three probabilities in [0,1] that sum to ~1 (nli_entailment, nli_neutral, nli_contradiction) and the winning label as nli_label.\n\nRespond with ONLY a JSON object of the form {\"results\": [ ... ]} — no prose, no markdown fences. Each element must be {\"index\": <the pair's index>, \"nli_label\": \"entailment\"|\"neutral\"|\"contradiction\", \"nli_entailment\": <number>, \"nli_neutral\": <number>, \"nli_contradiction\": <number>}. Return exactly one element per input pair, preserving each pair's index.\n\nPairs:\n{{pairs}}",
+    "tags": [
+      "server",
+      "nli",
+      "fallback"
+    ]
+  },
   "debate.topic-critique": {
     "description": "Evaluate and rewrite a debate topic for frame quality (conditionality, mechanism, stakeholder, tension, scope)",
     "model": "gemini-2.5-flash",
