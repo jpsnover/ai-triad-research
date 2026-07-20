@@ -424,32 +424,37 @@ function Test-SummaryDensity {
         [hashtable]$Floors
     )
 
-    $Camps = @('accelerationist','safetyist','skeptic')
+    # Shared path constants (Get-SummaryProp.ps1) — the same camp list and
+    # dictionary-safe reader used by the merge writer, so the checker sees the
+    # exact structure Merge-ChunkSummaries stored. See t/1646.
+    $Camps = $script:AITriadPovCamps
     $Shortfalls = [System.Collections.Generic.List[string]]::new()
 
     # Collect empty_cells declared by the model (licensed emptiness per REC-1)
     $EmptyCellSet = [System.Collections.Generic.HashSet[string]]::new()
-    if ($SummaryObject.PSObject.Properties['empty_cells'] -and $SummaryObject.empty_cells) {
-        foreach ($ec in @($SummaryObject.empty_cells)) {
-            if ($ec.PSObject.Properties['camp'] -and $ec.PSObject.Properties['category']) {
-                [void]$EmptyCellSet.Add("$($ec.camp)|$($ec.category)")
+    $EmptyCells = Get-SummaryProp $SummaryObject 'empty_cells'
+    if ($EmptyCells) {
+        foreach ($ec in @($EmptyCells)) {
+            $ecCamp = Get-SummaryProp $ec 'camp'
+            $ecCat  = Get-SummaryProp $ec 'category'
+            if ($ecCamp -and $ecCat) {
+                [void]$EmptyCellSet.Add("$ecCamp|$ecCat")
             }
         }
     }
 
     # Total key_points across all camps (replaces per-camp floors)
+    $PovSummaries = Get-SummaryProp $SummaryObject 'pov_summaries'
     $TotalKp = 0
     foreach ($Camp in $Camps) {
-        $CampData = $SummaryObject.pov_summaries.$Camp
-        $Count = 0
-        if ($CampData -and $CampData.PSObject.Properties['key_points'] -and $CampData.key_points) {
-            $Count = @($CampData.key_points).Count
-        }
+        $CampData = Get-SummaryProp $PovSummaries $Camp
+        $KeyPoints = Get-SummaryProp $CampData 'key_points'
+        $Count = if ($KeyPoints) { @($KeyPoints).Count } else { 0 }
         $TotalKp += $Count
 
         # Flag camps with zero points and no empty_cell declaration
         if ($Count -eq 0) {
-            $Categories = @('Desires','Beliefs','Intentions')
+            $Categories = $script:AITriadPovCategories
             $AllDeclared = $true
             foreach ($cat in $Categories) {
                 if (-not $EmptyCellSet.Contains("$Camp|$cat")) {
@@ -468,10 +473,11 @@ function Test-SummaryDensity {
         $null = $Shortfalls.Add("total key_points: $TotalKp < $TotalFloor across all camps")
     }
 
-    $UcCount = 0
-    if ($SummaryObject.PSObject.Properties['unmapped_concepts'] -and $SummaryObject.unmapped_concepts) {
-        $UcCount = @($SummaryObject.unmapped_concepts).Count
-    }
+    # Read through Get-SummaryProp — the merged object is an [ordered] dictionary
+    # whose keys are invisible to $x.PSObject.Properties[...], the same blindness
+    # that produced the t/1646 key_points false-positive.
+    $UnmappedConcepts = Get-SummaryProp $SummaryObject 'unmapped_concepts'
+    $UcCount = if ($UnmappedConcepts) { @($UnmappedConcepts).Count } else { 0 }
     if ($UcCount -lt $Floors.UcMin) {
         $null = $Shortfalls.Add("unmapped_concepts: $UcCount < $($Floors.UcMin) min")
     }

@@ -40,19 +40,14 @@ function Merge-ChunkSummaries {
     # JSON, so their shape is not guaranteed — a truncated chunk may yield a
     # pov_summaries camp object with no 'key_points', a claim with no 'claim',
     # etc. Under StrictMode, touching a missing property throws and kills the
-    # whole document merge. Get-Prop returns $null instead so a single malformed
-    # chunk degrades gracefully rather than aborting the run.
-    function Get-Prop {
-        param($Object, [string]$Name)
-        if ($null -eq $Object) { return $null }
-        if ($Object -is [System.Collections.IDictionary]) {
-            if ($Object.Contains($Name)) { return $Object[$Name] } else { return $null }
-        }
-        $Prop = $Object.PSObject.Properties[$Name]
-        if ($Prop) { return $Prop.Value } else { return $null }
-    }
+    # whole document merge. Get-SummaryProp (Get-SummaryProp.ps1) returns $null
+    # instead so a single malformed chunk degrades gracefully rather than
+    # aborting the run. The density checker (Test-SummaryDensity) reads the
+    # merged structure through the SAME accessor and camp constant, so the two
+    # can never disagree about the pov_summaries → camp → key_points path — the
+    # divergence that produced the t/1646 false-positive density warning.
 
-    $Camps = @('accelerationist', 'safetyist', 'skeptic')
+    $Camps = $script:AITriadPovCamps
 
     # ── Cosine similarity between two vectors ───────────────────────────────
     $GetCosineSimilarity = {
@@ -73,20 +68,20 @@ function Merge-ChunkSummaries {
     $PreDedupPoints = 0; $PreDedupClaims = 0; $PreDedupConcepts = 0
     $AllPointTexts = [System.Collections.Generic.List[string]]::new()
     foreach ($Chunk in $ChunkResults) {
-        $PovSummaries = Get-Prop $Chunk 'pov_summaries'
+        $PovSummaries = Get-SummaryProp $Chunk 'pov_summaries'
         foreach ($c in $Camps) {
-            $CampPoints = Get-Prop (Get-Prop $PovSummaries $c) 'key_points'
+            $CampPoints = Get-SummaryProp (Get-SummaryProp $PovSummaries $c) 'key_points'
             if ($CampPoints) {
                 $PreDedupPoints += @($CampPoints).Count
                 foreach ($kp in $CampPoints) {
-                    $P = Get-Prop $kp 'point'
+                    $P = Get-SummaryProp $kp 'point'
                     if (-not [string]::IsNullOrWhiteSpace($P)) { $AllPointTexts.Add($P) }
                 }
             }
         }
-        $ChunkClaims = Get-Prop $Chunk 'factual_claims'
+        $ChunkClaims = Get-SummaryProp $Chunk 'factual_claims'
         if ($ChunkClaims) { $PreDedupClaims += @($ChunkClaims).Count }
-        $ChunkConcepts = Get-Prop $Chunk 'unmapped_concepts'
+        $ChunkConcepts = Get-SummaryProp $Chunk 'unmapped_concepts'
         if ($ChunkConcepts) { $PreDedupConcepts += @($ChunkConcepts).Count }
     }
 
@@ -110,13 +105,13 @@ function Merge-ChunkSummaries {
         $PointVectors = [System.Collections.Generic.List[object]]::new()  # {point, vector}
 
         foreach ($Chunk in $ChunkResults) {
-            $CampPoints = Get-Prop (Get-Prop $Chunk 'pov_summaries') $Camp
-            $CampPoints = Get-Prop $CampPoints 'key_points'
+            $CampPoints = Get-SummaryProp (Get-SummaryProp $Chunk 'pov_summaries') $Camp
+            $CampPoints = Get-SummaryProp $CampPoints 'key_points'
             if (-not $CampPoints) { continue }
 
             foreach ($kp in $CampPoints) {
                 $IsDuplicate = $false
-                $KpPoint = Get-Prop $kp 'point'
+                $KpPoint = Get-SummaryProp $kp 'point'
 
                 if ($UseEmbeddings -and $KpPoint -and $PointEmbeddings.ContainsKey($KpPoint)) {
                     # Embedding-based dedup: compare against all accepted points
@@ -146,7 +141,7 @@ function Merge-ChunkSummaries {
                 if (-not $IsDuplicate) {
                     if ($KpPoint) { $PointText = $KpPoint } else { $PointText = '' }
                     if ($PointText.Length -gt 80) { $PointPrefix = $PointText.Substring(0, 80) } else { $PointPrefix = $PointText }
-                    $DedupKey = "$(Get-Prop $kp 'taxonomy_node_id')|$($PointPrefix.ToLowerInvariant().Trim())"
+                    $DedupKey = "$(Get-SummaryProp $kp 'taxonomy_node_id')|$($PointPrefix.ToLowerInvariant().Trim())"
 
                     if ($SeenKeys.Add($DedupKey)) {
                         $AllPoints.Add($kp)
@@ -165,17 +160,17 @@ function Merge-ChunkSummaries {
     $SeenClaimLabels = [System.Collections.Generic.HashSet[string]]::new()
 
     foreach ($Chunk in $ChunkResults) {
-        $ChunkClaims = Get-Prop $Chunk 'factual_claims'
+        $ChunkClaims = Get-SummaryProp $Chunk 'factual_claims'
         if (-not $ChunkClaims) { continue }
 
         foreach ($Claim in $ChunkClaims) {
-            $ClaimLabel = Get-Prop $Claim 'claim_label'
+            $ClaimLabel = Get-SummaryProp $Claim 'claim_label'
             # Dedup on claim_label (lowercased)
             if ($ClaimLabel) {
                 $ClaimKey = $ClaimLabel.ToLowerInvariant().Trim()
             } else {
                 # Fallback: first 60 chars of claim text
-                $ClaimRaw = Get-Prop $Claim 'claim'
+                $ClaimRaw = Get-SummaryProp $Claim 'claim'
                 if (-not $ClaimRaw) { $ClaimRaw = '' }
                 if ($ClaimRaw.Length -gt 60) { $ClaimText = $ClaimRaw.Substring(0, 60) } else { $ClaimText = $ClaimRaw }
                 $ClaimKey = $ClaimText.ToLowerInvariant().Trim()
@@ -192,11 +187,11 @@ function Merge-ChunkSummaries {
     $SeenLabels  = [System.Collections.Generic.HashSet[string]]::new()
 
     foreach ($Chunk in $ChunkResults) {
-        $ChunkConcepts = Get-Prop $Chunk 'unmapped_concepts'
+        $ChunkConcepts = Get-SummaryProp $Chunk 'unmapped_concepts'
         if (-not $ChunkConcepts) { continue }
 
         foreach ($Concept in $ChunkConcepts) {
-            $SuggestedLabel = Get-Prop $Concept 'suggested_label'
+            $SuggestedLabel = Get-SummaryProp $Concept 'suggested_label'
             if ($SuggestedLabel) {
                 $LabelKey = $SuggestedLabel.ToLowerInvariant().Trim()
             } else {
