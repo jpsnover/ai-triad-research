@@ -220,6 +220,7 @@ $SnapshotText
             Add-StageTiming -Name 'api.extraction (single-shot)' -Milliseconds $__SsSw.Elapsed.TotalMilliseconds
 
             if ($null -eq $AiResult) {
+                Write-Warning "Single-shot summary: AI call returned null for '$DocId' (model=$Model, backend=unknown — call failed before returning a response)"
                 return @{ Success = $false; DocId = $DocId; Error = 'API call returned null' }
             }
 
@@ -237,6 +238,17 @@ $SnapshotText
             }
 
             if ($null -eq $SummaryObject) {
+                # Mirror the chunked path (Parse-AIResponse): persist the raw model
+                # output so a parse failure on a small doc is diagnosable. Use a
+                # -single-shot suffix so it never clobbers the chunked debug file.
+                try {
+                    $DebugPath = Join-Path (Get-SummariesDir) "${DocId}-single-shot.debug-raw.txt"
+                    Write-Utf8NoBom -Path $DebugPath -Value $AiResult.Text
+                    Write-Verbose "Pipeline: invalid JSON from $AiBackend — raw response saved: $DebugPath"
+                }
+                catch {
+                    Write-Warning "Single-shot summary: invalid JSON for '$DocId' (backend=$AiBackend); additionally failed to save debug-raw: $($_.Exception.Message)"
+                }
                 return @{ Success = $false; DocId = $DocId; Error = 'InvalidJson' }
             }
 
