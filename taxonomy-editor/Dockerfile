@@ -61,7 +61,7 @@ COPY taxonomy-editor/package.json taxonomy-editor/package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
 
 # ── Stage 3: Runtime ──
-FROM ghcr.io/jpsnover/ai-triad-base:2026-07-06 AS runtime
+FROM ghcr.io/jpsnover/ai-triad-base:2026-07-20 AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-research"
 LABEL org.opencontainers.image.description="AI Triad Taxonomy Editor"

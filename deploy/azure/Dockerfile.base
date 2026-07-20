@@ -2,9 +2,12 @@
 
 # AI Triad Base Image — heavy system dependencies, rebuilt monthly.
 #
-# Contains: Node 22, system packages, Python ML venv (torch,
-# sentence-transformers, pre-downloaded embedding model), and the aitriad
-# non-root user. No application code.
+# Contains: Node 22, system packages, a build-time-baked flat ONNX embedding
+# model (all-MiniLM-L6-v2, read in-process via onnxruntime-node), and the
+# aitriad non-root user. No application code. The torch / sentence-transformers
+# Python ML venv (~700MB) was removed to shave the long-idle cold start (t/1642);
+# hosted AI paths now degrade gracefully to in-process ONNX / hosted LLM (t/1641).
+# python3 stays — pty-broker.py needs it.
 #
 # Build:
 #   docker build -f deploy/azure/Dockerfile.base -t ghcr.io/jpsnover/ai-triad-base:latest .
@@ -14,7 +17,7 @@
 FROM node:22-bookworm-slim
 
 LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-research"
-LABEL org.opencontainers.image.description="AI Triad Research — base image with Node 22, Python ML"
+LABEL org.opencontainers.image.description="AI Triad Research — base image with Node 22 and baked ONNX embedding model"
 LABEL org.opencontainers.image.licenses="MIT"
 
 # System dependencies (runtime only — build tools like make/g++ live in the app
@@ -34,32 +37,23 @@ RUN apt-get update \
     tini \
     && rm -rf /var/lib/apt/lists/*
 
-# Python ML environment (isolated venv, CPU-only PyTorch)
-RUN python3 -m venv /opt/ml-env
-ENV PATH="/opt/ml-env/bin:$PATH"
-# Install typing-extensions from PyPI first — the PyTorch CPU index has
-# metadata inconsistency (underscore vs hyphen) that breaks pip 24+.
-# hadolint ignore=DL3013
-RUN pip install --no-cache-dir "typing-extensions>=4.10.0"
-RUN pip install --no-cache-dir \
-    torch==2.6.0 --index-url https://download.pytorch.org/whl/cpu
-
-# Python dependencies — pinned versions for reproducible builds.
-# Update pins: pip-compile --output-file=scripts/requirements-lock.txt scripts/requirements.txt
-COPY scripts/requirements-lock.txt /tmp/requirements-lock.txt
-RUN pip install --no-cache-dir -r /tmp/requirements-lock.txt && rm /tmp/requirements-lock.txt
-
-# Pre-download embedding model (~90 MB) so first app start is fast.
-# Skip in CI smoke tests where embeddings aren't needed and HuggingFace may be unreachable.
-ARG PRELOAD_MODEL=true
-RUN if [ "$PRELOAD_MODEL" = "true" ]; then \
-      python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')" \
-      || echo "WARNING: model pre-download failed — will download on first use"; \
-    fi
+# Build-time-baked embedding model (flat ONNX, ~90 MB) — read in-process at
+# runtime via onnxruntime-node (lib/embeddings/onnxEmbedding.ts). Setting
+# AI_TRIAD_ONNX_MODEL_DIR flips the encoder to offline mode: it loads the three
+# files below and NEVER fetches HuggingFace at runtime (t/1641 flat manifest).
+# The dir holds exactly three files: model.onnx (fp32), tokenizer.json,
+# tokenizer_config.json. curl -f is load-bearing — without it a 404 writes an
+# HTML error page as model.onnx and silently corrupts the offline load.
+ARG ONNX_MODEL_BASE=https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main
+ENV AI_TRIAD_ONNX_MODEL_DIR=/opt/onnx/all-MiniLM-L6-v2
+RUN mkdir -p "$AI_TRIAD_ONNX_MODEL_DIR" \
+    && curl -fSL "${ONNX_MODEL_BASE}/onnx/model.onnx" -o "$AI_TRIAD_ONNX_MODEL_DIR/model.onnx" \
+    && curl -fSL "${ONNX_MODEL_BASE}/tokenizer.json" -o "$AI_TRIAD_ONNX_MODEL_DIR/tokenizer.json" \
+    && curl -fSL "${ONNX_MODEL_BASE}/tokenizer_config.json" -o "$AI_TRIAD_ONNX_MODEL_DIR/tokenizer_config.json"
 
 # Non-root user
 RUN groupadd -r aitriad && useradd -r -g aitriad -d /home/aitriad -m aitriad \
-    && chown -R aitriad:aitriad /opt/ml-env \
+    && chown -R aitriad:aitriad /opt/onnx \
     && mkdir -p /home/aitriad/.cache /home/aitriad/.config /home/aitriad/.local/share \
     && chown -R aitriad:aitriad /home/aitriad
 ENV XDG_CACHE_HOME=/home/aitriad/.cache
