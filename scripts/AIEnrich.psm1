@@ -22,6 +22,58 @@ $script:ContextWindows = @{ gemini = 1048576; claude = 200000; groq = 131072; op
 $script:LastApiKeySource = ''
 $script:AIApiLoggedThisSession = $false
 $script:AIApiLastModel = ''
+# Correlation token for log attribution. In a parallel batch (ForEach-Object
+# -Parallel) each worker runspace re-imports this module, so this $script: var
+# is runspace-local — set it per-doc via Set-AIApiCorrelationId and every
+# downstream Invoke-AIApi log line in that runspace carries the doc's id. This
+# is what lets interleaved [AI] Backend lines be attributed to a document
+# (t/1647).
+$script:AIApiCorrelationId = ''
+$script:AIApiLastCorrelationId = ''
+
+function Set-AIApiCorrelationId {
+    <#
+    .SYNOPSIS
+        Sets (or clears) the correlation token prefixed to Invoke-AIApi log lines.
+    .DESCRIPTION
+        The token — typically a document id — is prepended to every subsequent
+        "[AI] Backend: ..." log line emitted by Invoke-AIApi in the current
+        runspace, so that in a parallel batch (ForEach-Object -Parallel, one
+        runspace per doc) an interleaved backend line can be attributed to the
+        document that produced it (t/1647). Pass an empty string to clear it.
+
+        Runspace scope: each -Parallel worker re-imports this module, so the
+        underlying $script: var is worker-local and never bleeds across docs.
+    .PARAMETER Id
+        The correlation token to prefix. Empty/whitespace clears it.
+    .EXAMPLE
+        Set-AIApiCorrelationId $Doc.DocId
+        # subsequent AI calls log: [AI] my-doc-slug | Backend: gemini | ...
+    #>
+    [CmdletBinding()]
+    param([AllowEmptyString()][string]$Id)
+    if ($null -eq $Id) { $Id = '' }
+    $script:AIApiCorrelationId = $Id
+}
+
+function Get-AIApiCorrelationPrefix {
+    <#
+    .SYNOPSIS
+        Returns the log-line prefix for the current correlation token.
+    .DESCRIPTION
+        Central formatter for the "[AI] <doc> | " prefix used by Invoke-AIApi log
+        lines (t/1647). Returns "<token> | " when a token is set via
+        Set-AIApiCorrelationId, or '' when none is set. The log block calls this
+        so the exact production prefix logic is unit-testable without a real AI
+        call.
+    #>
+    [CmdletBinding()]
+    param()
+    if (-not [string]::IsNullOrWhiteSpace($script:AIApiCorrelationId)) {
+        return "$($script:AIApiCorrelationId) | "
+    }
+    return ''
+}
 
 $_aiModelsPath = Join-Path (Split-Path $PSScriptRoot -Parent) 'ai-models.json'
 if (-not (Test-Path $_aiModelsPath)) {
@@ -388,17 +440,27 @@ function Invoke-AIApi {
     }
 
     # -- Log AI configuration --------------------------------------------------
-    Write-Verbose "[AI] Backend: $Backend | Model: $Model (API: $ApiModelId) | Key source: $($script:LastApiKeySource)"
+    # Correlation prefix: when a per-doc token is set (Set-AIApiCorrelationId,
+    # e.g. the doc id from Invoke-DocumentSummary), every log line names the doc
+    # it belongs to. In a parallel batch this is the only reliable way to
+    # attribute an interleaved [AI] line to a document (t/1647).
+    $corrPrefix = Get-AIApiCorrelationPrefix
+    Write-Verbose "[AI] ${corrPrefix}Backend: $Backend | Model: $Model (API: $ApiModelId) | Key source: $($script:LastApiKeySource)"
     $modelChanged = $script:AIApiLastModel -and ($script:AIApiLastModel -ne $Model)
-    if (-not $script:AIApiLoggedThisSession -or $modelChanged) {
+    # Re-announce the colored line whenever the doc changes too, so each document
+    # in a sequential worker gets one visible attributed [AI] line — not just the
+    # first document the worker happens to process.
+    $corrChanged = $script:AIApiLastCorrelationId -ne $script:AIApiCorrelationId
+    if (-not $script:AIApiLoggedThisSession -or $modelChanged -or $corrChanged) {
         if ($modelChanged) {
-            Write-Host "[AI] Model changed: $($script:AIApiLastModel) → $Model | Backend: $Backend | Key source: $($script:LastApiKeySource)" -ForegroundColor Yellow
+            Write-Host "[AI] ${corrPrefix}Model changed: $($script:AIApiLastModel) → $Model | Backend: $Backend | Key source: $($script:LastApiKeySource)" -ForegroundColor Yellow
         } else {
-            Write-Host "[AI] Backend: $Backend | Model: $Model | Key source: $($script:LastApiKeySource)" -ForegroundColor DarkCyan
+            Write-Host "[AI] ${corrPrefix}Backend: $Backend | Model: $Model | Key source: $($script:LastApiKeySource)" -ForegroundColor DarkCyan
         }
         $script:AIApiLoggedThisSession = $true
     }
     $script:AIApiLastModel = $Model
+    $script:AIApiLastCorrelationId = $script:AIApiCorrelationId
 
     # -- Pre-flight token check ---------------------------------------------------
     if (-not $SkipTokenCheck) {
@@ -1351,5 +1413,5 @@ function Repair-TruncatedJson {
 Set-Alias -Name 'Invoke-GeminiApi'   -Value 'Invoke-AIApi'
 Set-Alias -Name 'Get-GeminiMetadata' -Value 'Get-AIMetadata'
 
-Export-ModuleMember -Function Invoke-AIApi, Get-AIMetadata, Resolve-AIApiKey, Get-AIApiKeySource, Repair-TruncatedJson, Measure-PromptTokens `
+Export-ModuleMember -Function Invoke-AIApi, Get-AIMetadata, Resolve-AIApiKey, Get-AIApiKeySource, Repair-TruncatedJson, Measure-PromptTokens, Set-AIApiCorrelationId `
                     -Alias    Invoke-GeminiApi, Get-GeminiMetadata

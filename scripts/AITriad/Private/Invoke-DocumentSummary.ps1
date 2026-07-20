@@ -76,6 +76,13 @@ function Invoke-DocumentSummary {
     $ThisDocId = $Doc.DocId
     $Meta      = $Doc.Meta
     $ChunkThresholdTokens = 20000   # Documents above this get chunked
+
+    # Tag every downstream [AI] log line in this runspace with the doc id so that
+    # in a parallel batch (one worker runspace per doc) an interleaved backend
+    # line can be attributed to the document that produced it (t/1647). This is
+    # the single set-point that feeds all AI calls the worker makes — single-call,
+    # chunked, and FIRE/IterativeExtraction paths all run in this same runspace.
+    Set-AIApiCorrelationId $ThisDocId
     $script:ContextRotStages = @()  # accumulator for context-rot instrumentation
 
     Write-Host "`n  ┌─ $ThisDocId" -ForegroundColor White
