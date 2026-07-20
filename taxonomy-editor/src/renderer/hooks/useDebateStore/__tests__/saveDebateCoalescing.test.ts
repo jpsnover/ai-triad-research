@@ -192,3 +192,75 @@ describe('saveDebate coalescing', () => {
     expect(store.getState()._saveInFlight).toBe(false);
   });
 });
+
+// t/1639 — degraded-save UX. debateIO (t/1638) throws an enriched ActionableError
+// on durable-save total-loss; Electron IPC strips its structured fields but the
+// composed `.message` survives with stable markers (the debateIO Location line +
+// the preserved-copy wording). The renderer must surface a distinct at-risk state,
+// with the turn count recomputed locally from the transcript (not scraped from the
+// message), rather than a generic failure.
+describe('saveDebate degraded-save surfacing (t/1639)', () => {
+  let store: ReturnType<typeof createTestStore>;
+
+  // Mirrors debateIO's composed ActionableError message after IPC strips the
+  // structured fields: only `.message` reaches the renderer.
+  const durableLossMessage =
+    '\n  Goal:     Persist the debate session to disk so no turns are lost\n' +
+    '  Error:    Could not durably save debate test-debate-1 (run r-99); 3 turns are at risk of being lost.\n' +
+    '  Location: taxonomy-editor/src/main/debateIO.ts saveDebateSession\n' +
+    '  Resolve:\n' +
+    '    1. The recovery copy was preserved at C:\\Users\\me\\AppData\\debate.json.tmp and was NOT deleted — it is the only durable copy. Do not remove it.\n';
+
+  function makeDebateWithTurns() {
+    return {
+      ...makeMinimalDebate(),
+      transcript: [
+        { type: 'opening' },
+        { type: 'statement' },
+        { type: 'statement' },
+        { type: 'clarification' }, // not counted — mirrors debateIO's filter
+      ],
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRecords.length = 0;
+    store = createTestStore();
+  });
+
+  it('AC1/AC2: durable-save loss surfaces a distinct at-risk message with the locally-computed turn count', async () => {
+    mockSaveDebateSession.mockRejectedValueOnce(new Error(durableLossMessage));
+    store.setState({ activeDebate: makeDebateWithTurns() as unknown as DebateStore['activeDebate'] });
+
+    await store.getState().saveDebate('durable-loss');
+
+    const err = store.getState().debateError ?? '';
+    // AC1: distinct degraded state (not the generic permission/save-failed string).
+    expect(err).toContain('at risk');
+    // AC2: turn count recomputed locally (opening+statement = 3), and that a copy survives.
+    expect(err).toContain('3 turns');
+    expect(err.toLowerCase()).toContain('recovery copy');
+    // Does not leak the raw .tmp path to the user.
+    expect(err).not.toContain('.tmp');
+
+    // Flight recorder distinguishes the degraded case (ADR-003).
+    const errorEvents = mockRecords.filter(r => r.type === 'state.error');
+    expect(errorEvents.length).toBe(1);
+    expect(errorEvents[0].data).toMatchObject({ save_degraded: true, at_risk_turns: 3 });
+  });
+
+  it('AC3: an ordinary save failure does NOT get the degraded treatment', async () => {
+    mockSaveDebateSession.mockRejectedValueOnce(new Error('Network failure'));
+    store.setState({ activeDebate: makeDebateWithTurns() as unknown as DebateStore['activeDebate'] });
+
+    await store.getState().saveDebate('ordinary-fail');
+
+    const err = store.getState().debateError ?? '';
+    expect(err).not.toContain('recovery copy was preserved');
+
+    const errorEvents = mockRecords.filter(r => r.type === 'state.error');
+    expect(errorEvents.length).toBe(1);
+    expect(errorEvents[0].data).toMatchObject({ save_degraded: false });
+  });
+});

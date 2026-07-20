@@ -738,8 +738,28 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
         set({ _saveDirty: true });
         getGlobalRecorder()?.record({ type: 'state.save-coalesced', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Server 409 save_in_progress — will retry via coalesced follow-up' });
       } else {
-        getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: 'Failed to save debate', error: { name: 'SaveError', message: String(err), stack: (err as Error).stack }, data: { caller: caller ?? 'unknown', payload_bytes: JSON.stringify(activeDebate).length, turn_count: activeDebate.transcript.length } });
-        set({ debateError: mapErrorToUserMessage(err) });
+        // t/1639: distinguish a DURABLE-SAVE LOSS (debateIO/t/1638 total-loss:
+        // rename + copy fallback both failed, a .tmp recovery copy was preserved)
+        // from an ordinary save error, so the user is told their debate is at risk
+        // rather than seeing a generic failure. Electron IPC strips the enriched
+        // ActionableError's structured fields, but its composed `.message` survives
+        // with stable markers (the debateIO Location line + the preserved-copy
+        // wording). We do NOT parse turn_count out of that mangled message — we
+        // recompute it locally from the transcript using debateIO's exact filter,
+        // so the at-risk count is authoritative rather than string-scraped.
+        const rawMessage = String((err as Error)?.message ?? '');
+        const isDurableSaveLoss =
+          rawMessage.includes('taxonomy-editor/src/main/debateIO.ts saveDebateSession') &&
+          (rawMessage.includes('only durable copy') || rawMessage.includes('at risk of being lost'));
+        const atRiskTurns = activeDebate.transcript.filter(
+          (t) => t.type === 'statement' || t.type === 'opening',
+        ).length;
+        getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: isDurableSaveLoss ? 'Durable debate save failed — recovery copy preserved' : 'Failed to save debate', error: { name: isDurableSaveLoss ? 'DurableSaveError' : 'SaveError', message: String(err), stack: (err as Error).stack }, data: { caller: caller ?? 'unknown', payload_bytes: JSON.stringify(activeDebate).length, turn_count: activeDebate.transcript.length, save_degraded: isDurableSaveLoss, at_risk_turns: atRiskTurns } });
+        set({
+          debateError: isDurableSaveLoss
+            ? `Save failed: this debate couldn't be written to disk — a file lock (often antivirus or a file indexer) is holding the file. ${atRiskTurns} ${atRiskTurns === 1 ? 'turn is' : 'turns are'} at risk. A recovery copy was preserved on disk; retry the save once the lock clears, and don't close the app before it succeeds.`
+            : mapErrorToUserMessage(err),
+        });
       }
     } finally {
       const wasDirty = get()._saveDirty;
