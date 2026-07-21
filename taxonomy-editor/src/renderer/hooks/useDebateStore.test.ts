@@ -58,7 +58,10 @@ const { mockApi, mockTaxonomyState, mockPromptConfigState } = vi.hoisted(() => {
 
 // ── Mock dependencies BEFORE importing the store ────────────
 
-vi.mock('@bridge', () => ({ api: mockApi, setActiveDebateId: vi.fn() }));
+// Pin Electron mode: these pre-delta tests assert the always-full-save path
+// (api.saveDebateSession), which is the Electron branch of the t/1637 delta
+// rework. The web/delta path is covered by saveDebateDelta.test.ts.
+vi.mock('@bridge', () => ({ api: mockApi, setActiveDebateId: vi.fn(), isElectronMode: () => true }));
 
 vi.mock('./useTaxonomyStore', () => ({
   useTaxonomyStore: {
