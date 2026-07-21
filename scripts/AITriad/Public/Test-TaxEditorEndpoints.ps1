@@ -73,24 +73,30 @@ function Test-TaxEditorEndpoints {
         @{ Path = '/health';                   Cat = 'Health';    Field = 'status';   Desc = 'Readiness probe' }
         @{ Path = '/api/auth/me';              Cat = 'Auth';      Field = $null;      Desc = 'Auth identity' }
         @{ Path = '/api/models';               Cat = 'Models';    Field = $null;      Desc = 'Available AI models' }
-        @{ Path = '/api/taxonomy/accelerationist'; Cat = 'Data';  Field = 'nodes';    Desc = 'Accelerationist taxonomy' }
-        @{ Path = '/api/taxonomy/safetyist';   Cat = 'Data';      Field = 'nodes';    Desc = 'Safetyist taxonomy' }
-        @{ Path = '/api/taxonomy/skeptic';     Cat = 'Data';      Field = 'nodes';    Desc = 'Skeptic taxonomy' }
-        @{ Path = '/api/edges';                Cat = 'Data';      Field = $null;      Desc = 'Edge relationships' }
-        @{ Path = '/api/conflicts';            Cat = 'Data';      Field = $null;      Desc = 'Conflict data' }
-        @{ Path = '/api/policy-registry';      Cat = 'Metadata';  Field = $null;      Desc = 'Policy action registry' }
-        @{ Path = '/api/sources';              Cat = 'Metadata';  Field = $null;      Desc = 'Source document index' }
-        @{ Path = '/api/lineage-categories';   Cat = 'Metadata';  Field = $null;      Desc = 'Lineage categories' }
-        @{ Path = '/api/dictionary';           Cat = 'Metadata';  Field = $null;      Desc = 'Project dictionary' }
-        @{ Path = '/api/backends/available';   Cat = 'Models';    Field = $null;      Desc = 'Available AI backends' }
-        @{ Path = '/api/proxy/tier';           Cat = 'Auth';      Field = $null;      Desc = 'Proxy tier info' }
-        @{ Path = '/third-party-notices';      Cat = 'Static';    Field = $null;      Desc = 'Third-party notices page' }
+        # AuthGated = $true marks routes behind Azure Easy Auth. To an anonymous
+        # smoke-test caller they serve the Sign-In HTML interstitial (200 text/html),
+        # which the t/1474 ExpectJson guard flags as failure — the loop below
+        # reclassifies that specific interstitial to PASS (t/1657). Public routes
+        # (no key) keep the strict JSON guard, so a public route regressing to
+        # require-auth still fails. Route set empirically classified against prod.
+        @{ Path = '/api/taxonomy/accelerationist'; Cat = 'Data';  Field = 'nodes';    AuthGated = $true;  Desc = 'Accelerationist taxonomy' }
+        @{ Path = '/api/taxonomy/safetyist';   Cat = 'Data';      Field = 'nodes';    AuthGated = $true;  Desc = 'Safetyist taxonomy' }
+        @{ Path = '/api/taxonomy/skeptic';     Cat = 'Data';      Field = 'nodes';    AuthGated = $true;  Desc = 'Skeptic taxonomy' }
+        @{ Path = '/api/edges';                Cat = 'Data';      Field = $null;      AuthGated = $true;  Desc = 'Edge relationships' }
+        @{ Path = '/api/conflicts';            Cat = 'Data';      Field = $null;      AuthGated = $true;  Desc = 'Conflict data' }
+        @{ Path = '/api/policy-registry';      Cat = 'Metadata';  Field = $null;      AuthGated = $true;  Desc = 'Policy action registry' }
+        @{ Path = '/api/sources';              Cat = 'Metadata';  Field = $null;      AuthGated = $true;  Desc = 'Source document index' }
+        @{ Path = '/api/lineage-categories';   Cat = 'Metadata';  Field = $null;      AuthGated = $true;  Desc = 'Lineage categories' }
+        @{ Path = '/api/dictionary';           Cat = 'Metadata';  Field = $null;      AuthGated = $true;  Desc = 'Project dictionary' }
+        @{ Path = '/api/backends/available';   Cat = 'Models';    Field = $null;      AuthGated = $true;  Desc = 'Available AI backends' }
+        @{ Path = '/api/proxy/tier';           Cat = 'Auth';      Field = $null;      AuthGated = $true;  Desc = 'Proxy tier info' }
+        @{ Path = '/third-party-notices';      Cat = 'Static';    Field = $null;      AuthGated = $true;  Desc = 'Third-party notices page' }
         # t/1500 Phase 3 — deploy-time acceptance additions (e/41).
         @{ Path = '/api/data/available';       Cat = 'Health';    Field = $null;      Desc = 'Data availability flag' }
-        @{ Path = '/api/debates/list';         Cat = 'Debate';    Field = $null;      Desc = 'Debate listing' }
-        @{ Path = '/api/chats';                Cat = 'Debate';    Field = $null;      Desc = 'Chat listing' }
-        @{ Path = '/api/community/debates';    Cat = 'Community'; Field = $null;      Desc = 'Community debates' }
-        @{ Path = '/api/sync/status';          Cat = 'Sync';      Field = 'enabled';  Desc = 'Sync status' }
+        @{ Path = '/api/debates/list';         Cat = 'Debate';    Field = $null;      AuthGated = $true;  Desc = 'Debate listing' }
+        @{ Path = '/api/chats';                Cat = 'Debate';    Field = $null;      AuthGated = $true;  Desc = 'Chat listing' }
+        @{ Path = '/api/community/debates';    Cat = 'Community'; Field = $null;      AuthGated = $true;  Desc = 'Community debates' }
+        @{ Path = '/api/sync/status';          Cat = 'Sync';      Field = 'enabled';  AuthGated = $true;  Desc = 'Sync status' }
         # SPA-shell check — GET / returns HTML; success requires the React root
         # div AND a script tag, so it catches both a blank shell and a
         # bad-cache HTML/500 fallback. Kept as its own category so callers can
@@ -136,6 +142,25 @@ function Test-TaxEditorEndpoints {
         if ($Session) { $Params.Session = $Session }
 
         $Check = Invoke-RemoteCheck @Params
+
+        # t/1657 — an auth-gated route serving the Azure Easy Auth Sign-In
+        # interstitial (200 text/html) to an anonymous smoke-test caller is
+        # EXPECTED (auth-gating is working), not a failure. The t/1474 ExpectJson
+        # guard flags it as a failure; reclassify ONLY when the route is AuthGated
+        # AND the body carries the interstitial title. A down route returns a 5xx
+        # or a different body → no title match → still fails (gate-signal integrity).
+        if (-not $Check.Success -and $Ep.ContainsKey('AuthGated') -and $Ep.AuthGated -and
+            $Check.RawBody -match 'Sign In\s*—\s*AITriad Taxonomy Editor') {
+            $Check = [PSCustomObject]@{
+                Success     = $true
+                StatusCode  = $Check.StatusCode
+                ResponseMs  = $Check.ResponseMs
+                Body        = $null
+                ContentType = $Check.ContentType
+                RawBody     = $Check.RawBody
+                Error       = $null
+            }
+        }
 
         # SPA-shell validation: root-div + script-tag both present.
         # If either is missing (blank shell, cache-miss HTML), flip Pass=$false.
