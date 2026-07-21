@@ -58,6 +58,7 @@ function appendOnlyTail<T>(base: readonly T[], current: readonly T[]): T[] | nul
 const STRUCTURED_KEYS = new Set<string>([
   'transcript',
   'argument_network',
+  'turn_embeddings',
   '_saveVersion',
   'title',
   'updated_at',
@@ -89,6 +90,34 @@ function diffById<T extends { id: string }>(
 }
 
 /**
+ * Append/upsert-by-key diff for a keyed map (`turn_embeddings`: transcript-entry id →
+ * 384-dim vector — large and monotonically growing). Returns `newEntries` (keys present
+ * in `current` that are absent from, or differ from, `base`) and `representable`.
+ *
+ * `representable` is false when a base KEY is absent in current — a removal, which an
+ * append/upsert surface cannot express — signalling the caller to full-PUT. This mirrors
+ * {@link appendOnlyTail}'s truncation fallback: any shape the structured surface cannot
+ * carry degrades to a full PUT rather than silently losing data. Over-report-safe: an
+ * in-place value change re-sends that one key (idempotent upsert), never drops it.
+ */
+function diffAppendByKey(
+  base: Record<string, number[]> | undefined,
+  current: Record<string, number[]> | undefined,
+): { newEntries: Record<string, number[]>; representable: boolean } {
+  const b = base ?? {};
+  const c = current ?? {};
+  // A key present in base but absent in current is a removal — unrepresentable.
+  for (const k of Object.keys(b)) {
+    if (!(k in c)) return { newEntries: {}, representable: false };
+  }
+  const newEntries: Record<string, number[]> = {};
+  for (const k of Object.keys(c)) {
+    if (!(k in b) || !jsonEq(b[k], c[k])) newEntries[k] = c[k];
+  }
+  return { newEntries, representable: true };
+}
+
+/**
  * Build the delta from `base` (last synced) to `current` (in memory), computed
  * against `baseVersion`. Pure — does no I/O, mutates neither argument.
  *
@@ -115,6 +144,13 @@ export function buildDebateDelta(
   const curMutations = current.argument_network?.mutations ?? [];
   const newMutations = appendOnlyTail<ANMutation>(baseMutations, curMutations);
   if (newMutations === null) return { kind: 'full' };
+
+  // ── Append/upsert-by-key surface: turn_embeddings (large, monotonically growing) ──
+  // Sent as new-keys-only so per-save upload scales with turns ADDED, not total turns.
+  // A key removal is unrepresentable by this surface → fall back to a full PUT.
+  const { newEntries: newTurnEmbeddings, representable: turnEmbeddingsRepresentable } =
+    diffAppendByKey(base.turn_embeddings, current.turn_embeddings);
+  if (!turnEmbeddingsRepresentable) return { kind: 'full' };
 
   // ── argument_network nodes / edges: by-id upsert + remove ──
   const baseNodes: ArgumentNetworkNode[] = base.argument_network?.nodes ?? [];
@@ -149,6 +185,7 @@ export function buildDebateDelta(
     removedNodeIds.length > 0 ||
     removedEdgeIds.length > 0 ||
     Object.keys(meta).length > 0 ||
+    Object.keys(newTurnEmbeddings).length > 0 ||
     Object.keys(changedFields).length > 0;
 
   if (!hasChanges) return { kind: 'empty' };
@@ -166,6 +203,9 @@ export function buildDebateDelta(
   if (Object.keys(meta).length > 0) delta.meta = meta;
   if (Object.keys(changedFields).length > 0) {
     delta.changedFields = changedFields as Partial<DebateSession>;
+  }
+  if (Object.keys(newTurnEmbeddings).length > 0) {
+    delta.newTurnEmbeddings = newTurnEmbeddings;
   }
 
   return { kind: 'delta', delta };
