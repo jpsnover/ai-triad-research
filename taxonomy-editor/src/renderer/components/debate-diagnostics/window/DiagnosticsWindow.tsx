@@ -310,7 +310,12 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
       {!debate && !showHelp && (
         deepLinkError
           ? <p style={{ color: 'var(--error, var(--danger))', padding: '1rem' }}>{deepLinkError}</p>
-          : <p style={{ color: 'var(--text-muted)' }}>Waiting for debate data from main window...</p>
+          : (
+            <div className="diag-loading" role="status" aria-live="polite">
+              <span className="diag-loading-spinner" aria-hidden="true" />
+              <span>Loading debate data… large debates may take a while.</span>
+            </div>
+          )
       )}
 
       {/* ── Main content area ── */}
