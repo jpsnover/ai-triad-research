@@ -332,6 +332,7 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, pov, sortMode = 'id'
                 priorityValue={sortMode === 'priority' ? getPriorityDisplay(node) : undefined}
                 conflict={conflicts?.get(node.id)}
                 resolveUrl={resolveUrl}
+                showDebateTestedChip={showDebateTestedChip}
               />
             ))}
             {!isCollapsed && !flatMode && (() => {
@@ -482,7 +483,10 @@ function NodeItem({ node, isSelected, onSelect, score, indent, relationship, isM
         {relationship && <span className="node-item-rel">{REL_LABELS[relationship] || relationship}</span>}
         {score !== undefined && <span className="node-item-score">{Math.round(score * 100)}%</span>}
         {priorityValue && <span className="node-item-priority">{priorityValue.label}</span>}
-        {showDebateTestedChip && node.category === 'Beliefs' && (
+        {/* Beliefs always show the chip (legacy: "Untested" when no record); Desire/Intention
+            nodes show it only once they carry a debate_tested record — see t/1661. Situations
+            never reach NodeItem (node is PovNode), so BDI-only gating is implicit. */}
+        {showDebateTestedChip && (node.category === 'Beliefs' || !!node.graph_attributes?.debate_tested) && (
           <DebateTestedChip record={node.graph_attributes?.debate_tested} description={node.description} compact />
         )}
       </div>

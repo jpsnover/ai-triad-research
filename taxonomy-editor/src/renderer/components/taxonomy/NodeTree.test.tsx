@@ -177,3 +177,53 @@ describe('NodeTree', () => {
     expect(screen.getByText('acc-D-001')).toBeDefined();
   });
 });
+
+describe('NodeTree debate-tested chip display gate (t/1661)', () => {
+  beforeEach(() => {
+    mockLocalStorage.clear();
+    mockLocalStorage.setItem('taxonomy-editor-collapsed-version', '2');
+    mockLocalStorage.setItem('taxonomy-editor-collapsed-categories', '[]');
+  });
+
+  // Hybrid gate: Beliefs always show the chip (legacy "Untested" when record-less);
+  // Desire/Intention nodes show it only once they carry a debate_tested record.
+  const GATED_NODES: PovNode[] = [
+    makeNode({ id: 'acc-B-001', category: 'Beliefs', label: 'Belief no record' }),
+    makeNode({ id: 'acc-D-001', category: 'Desires', label: 'Desire cited', graph_attributes: { debate_tested: { tier: 'cited', sort_key: 1.0 } } as any }),
+    makeNode({ id: 'acc-D-002', category: 'Desires', label: 'Desire no record' }),
+    makeNode({ id: 'acc-I-001', category: 'Intentions', label: 'Intention well tested', graph_attributes: { debate_tested: { tier: 'well_tested', sort_key: 4.0 } } as any }),
+    makeNode({ id: 'acc-I-002', category: 'Intentions', label: 'Intention no record' }),
+  ];
+
+  function chipTextFor(label: string): string | null {
+    const item = screen.getByText(label).closest('.node-item');
+    return item?.querySelector('.debate-tested-chip')?.textContent ?? null;
+  }
+
+  it('renders the chip for a Desire node with a populated debate_tested record', () => {
+    render(<NodeTree nodes={GATED_NODES} selectedNodeId={null} onSelect={vi.fn()} sortMode="debate_tested" showDebateTestedChip />);
+    expect(chipTextFor('Desire cited')).toContain('Cited');
+  });
+
+  it('renders the chip for an Intention node with a populated debate_tested record', () => {
+    render(<NodeTree nodes={GATED_NODES} selectedNodeId={null} onSelect={vi.fn()} sortMode="debate_tested" showDebateTestedChip />);
+    expect(chipTextFor('Intention well tested')).toContain('Well Tested');
+  });
+
+  it('renders no chip for Desire/Intention nodes lacking a debate_tested record', () => {
+    render(<NodeTree nodes={GATED_NODES} selectedNodeId={null} onSelect={vi.fn()} sortMode="debate_tested" showDebateTestedChip />);
+    expect(chipTextFor('Desire no record')).toBeNull();
+    expect(chipTextFor('Intention no record')).toBeNull();
+  });
+
+  it('preserves the legacy Untested chip for record-less Belief nodes', () => {
+    render(<NodeTree nodes={GATED_NODES} selectedNodeId={null} onSelect={vi.fn()} sortMode="debate_tested" showDebateTestedChip />);
+    expect(chipTextFor('Belief no record')).toContain('Untested');
+  });
+
+  it('renders no chips when showDebateTestedChip is false (non-debate-tested sort)', () => {
+    render(<NodeTree nodes={GATED_NODES} selectedNodeId={null} onSelect={vi.fn()} sortMode="debate_tested" />);
+    expect(chipTextFor('Desire cited')).toBeNull();
+    expect(chipTextFor('Belief no record')).toBeNull();
+  });
+});
