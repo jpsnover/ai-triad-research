@@ -325,6 +325,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       getGlobalRecorder()?.record({ type: 'debate.phase', component: 'debate-store', level: 'info', debate_id: id, run_id: runId, message: 'debate.start', data: { phase: session.phase, topic: session.topic.final, povers: session.active_povers, protocol: session.protocol_id, model: session.debate_model, transcript_length: session.transcript.length, resumed: true } });
 
       if (session.interrupted_turn) {
+        const resumeSpeaker = session.interrupted_turn.speaker as SpeakerId;
         const speakerLabel = POVER_INFO[session.interrupted_turn.speaker as Exclude<SpeakerId, 'user'>]?.label ?? session.interrupted_turn.speaker;
         getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Interrupted turn detected on load', data: session.interrupted_turn });
         get().addTranscriptEntry({
@@ -344,7 +345,21 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
           const s = get();
           if (s.activeDebateId === id && !s.debateGenerating) {
             getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Auto-resuming after interrupted turn recovery' });
-            void s.crossRespond();
+            // Engage the generating indicator up front so the Continue button is
+            // disabled during crossRespond's ramp-up (edge load + moderator
+            // selection); crossRespond otherwise sets debateGenerating too late,
+            // leaving Continue live long enough for a click to double-fire the
+            // resumed round (t/1656). crossRespond owns the flag from here and
+            // clears it on completion/error.
+            set({ debateGenerating: resumeSpeaker, debateActivity: `${speakerLabel} is resuming…` });
+            void s.crossRespond().finally(() => {
+              // Safety net: if crossRespond bailed before taking ownership of the
+              // indicator (no activeDebate, driver-claim denied, <2 debaters), our
+              // sentinel is still set — clear it so the indicator isn't stuck on.
+              if (get().debateGenerating === resumeSpeaker) {
+                set({ debateGenerating: null, debateActivity: null });
+              }
+            });
           } else {
             getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Loop not auto-resumed', data: { reason: s.activeDebateId !== id ? 'debate_switched' : 'already_generating', activeDebateId: s.activeDebateId, debateGenerating: s.debateGenerating } });
           }
