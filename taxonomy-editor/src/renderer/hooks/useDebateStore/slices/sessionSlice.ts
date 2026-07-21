@@ -13,7 +13,8 @@ import type {
   EntryDiagnostics,
 } from '../../../types/debate';
 import { POVER_INFO, AI_POVERS, POV_KEYS, normalizeActivePovers, migrateSpeakerId } from '../../../types/debate';
-import { api, setActiveDebateId } from '@bridge';
+import { api, setActiveDebateId, isElectronMode } from '@bridge';
+import { buildDebateDelta } from './buildDebateDelta';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { trackDebateAbandon, trackDebateStart } from '../../../lib/analyticsEmitter';
 import { useTaxonomyStore } from '../../useTaxonomyStore';
@@ -57,6 +58,15 @@ export interface SessionSlice {
   saveDebate: (caller?: string) => Promise<void>;
   _saveInFlight: boolean;
   _saveDirty: boolean;
+  // Snapshot-diff dirty tracking for incremental (delta) save on web (t/1637).
+  // `_lastSyncedSnapshot` is a structuredClone of the session state as last
+  // successfully persisted to the server; `_lastSyncedVersion` is the server
+  // `_saveVersion` that snapshot was acknowledged at. Together they let saveDebate
+  // build a minimal DebateDelta. `null` = never synced this session (first save is
+  // always a full PUT — lazy migration, absent version == 0). Electron never uses
+  // these (the store routes Electron saves through the full path).
+  _lastSyncedVersion: number | null;
+  _lastSyncedSnapshot: DebateSession | null;
   toggleStepMode: () => Promise<void>;
   setDebatePhase: (phase: 'confrontation' | 'argumentation' | 'concluding') => Promise<void>;
 }
@@ -69,6 +79,8 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
   debateLoading: false,
   _saveInFlight: false,
   _saveDirty: false,
+  _lastSyncedVersion: null,
+  _lastSyncedSnapshot: null,
 
   loadSessions: async () => {
     set({ sessionsLoading: true });
@@ -303,7 +315,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       }
       const runId = generateId();
       session.run_id = runId;
-      set({ activeDebateId: id, activeDebate: session, debateLoading: false, debateModel: session.debate_model || null, debateTemperature: session.debate_temperature ?? null, audience: session.audience ?? 'policymakers', openingOrder: session.opening_order ?? [], selectedDiagEntry: null });
+      set({ activeDebateId: id, activeDebate: session, debateLoading: false, debateModel: session.debate_model || null, debateTemperature: session.debate_temperature ?? null, audience: session.audience ?? 'policymakers', openingOrder: session.opening_order ?? [], selectedDiagEntry: null, _lastSyncedVersion: session._saveVersion ?? 0, _lastSyncedSnapshot: structuredClone(session) });
       setActiveDebateId(id);
       setGapInjectionCount(session.gap_injections?.length ?? 0);
       if (!get().vocabularyTerms) {
@@ -415,6 +427,8 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       openingOrder: session.opening_order ?? [],
       selectedDiagEntry: null,
       communityReadOnly: opts?.readOnly ?? false,
+      _lastSyncedVersion: session._saveVersion ?? 0,
+      _lastSyncedSnapshot: structuredClone(session),
     });
     setGapInjectionCount(session.gap_injections?.length ?? 0);
     getGlobalRecorder()?.setEventContext({ debate_id: session.id, run_id: runId });
@@ -738,15 +752,84 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
         ? ((activeDebate as unknown as Record<string, { nodes?: unknown[] }>).argument_network?.nodes?.length ?? 0)
         : 0;
       const saveDiag = { phase: activeDebate.phase, transcript_length: turnCount, caller: caller ?? 'unknown', payload_bytes: payloadBytes, turn_count: turnCount, node_count: nodeCount };
-      await api.saveDebateSession(activeDebate);
-      set((state) => ({
-        sessions: state.sessions.map((s) =>
-          s.id === activeDebate.id
-            ? { ...s, title: activeDebate.title, updated_at: activeDebate.updated_at, phase: activeDebate.phase }
-            : s,
-        ),
-      }));
-      getGlobalRecorder()?.record({ type: 'state.save', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Debate saved', data: saveDiag });
+      // ── Save path selection (t/1637, parent t/1470) ──────────────────────
+      // Web (2nd+ save of a session that already has a sync baseline) ships a
+      // minimal delta via PATCH; Electron and the first save of any session
+      // full-PUT. The server stores a full-PUT body VERBATIM (it does NOT bump
+      // `_saveVersion`), so on the full-PUT path the client stamps the next
+      // monotonic version onto the outgoing doc and records it as the new sync
+      // baseline; on the delta path the server returns the authoritative
+      // `newVersion`.
+      const { _lastSyncedVersion, _lastSyncedSnapshot } = get();
+
+      // Post-save bookkeeping shared by every success path: refresh the sessions
+      // summary row and emit the flight-recorder save event.
+      const recordSaved = (mode: string, saveVersion?: number) => {
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === activeDebate.id
+              ? { ...s, title: activeDebate.title, updated_at: activeDebate.updated_at, phase: activeDebate.phase }
+              : s,
+          ),
+        }));
+        getGlobalRecorder()?.record({ type: 'state.save', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Debate saved', data: { ...saveDiag, save_mode: mode, save_version: saveVersion } });
+      };
+
+      // Full PUT + baseline seed. `baseVersion` is the version the server
+      // currently holds (state's `_lastSyncedVersion`, the doc's own
+      // `_saveVersion`, or a 409's reported `currentVersion`); we stamp
+      // baseVersion+1 so a subsequent delta's baseVersion matches the stored
+      // value. The snapshot we install is the EXACT state we sent, captured
+      // BEFORE the await — never a post-await re-clone (t/1637 load-bearing
+      // condition: an edit landing mid-flight must survive into the next delta).
+      const fullPutAndSeed = async (baseVersion: number) => {
+        const nextVersion = baseVersion + 1;
+        activeDebate._saveVersion = nextVersion;
+        const sent = structuredClone(activeDebate);
+        await api.saveDebateSession(activeDebate);
+        set({ _lastSyncedSnapshot: sent, _lastSyncedVersion: nextVersion });
+        recordSaved('full', nextVersion);
+      };
+
+      if (isElectronMode()) {
+        // Electron desktop: local full-save, no version bookkeeping (deltas are
+        // a web-only optimization).
+        await api.saveDebateSession(activeDebate);
+        recordSaved('electron');
+      } else if (_lastSyncedVersion === null || _lastSyncedSnapshot === null) {
+        // Web, first save of a freshly-created (never-synced) session.
+        await fullPutAndSeed(activeDebate._saveVersion ?? 0);
+      } else {
+        // Web, 2nd+ save with an established baseline → incremental delta.
+        const result = buildDebateDelta(_lastSyncedSnapshot, activeDebate, _lastSyncedVersion);
+        if (result.kind === 'empty') {
+          // Nothing changed since the last sync — skip the network round-trip.
+          getGlobalRecorder()?.record({ type: 'state.save', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Debate save skipped — no changes since last sync', data: { ...saveDiag, save_mode: 'noop' } });
+        } else if (result.kind === 'full') {
+          // A change the delta model can't represent (in-place transcript/mutation
+          // edit or truncation) — full-PUT and re-baseline.
+          await fullPutAndSeed(_lastSyncedVersion);
+        } else {
+          const sent = structuredClone(activeDebate);
+          try {
+            const { newVersion } = await api.saveDebateDelta(result.delta);
+            activeDebate._saveVersion = newVersion;
+            sent._saveVersion = newVersion;
+            set({ _lastSyncedSnapshot: sent, _lastSyncedVersion: newVersion });
+            recordSaved('delta', newVersion);
+          } catch (deltaErr) {
+            const code = (deltaErr as Error & { errorCode?: string }).errorCode;
+            if (code !== 'version_conflict') throw deltaErr; // save_in_progress / other → outer catch
+            // Stale baseVersion: another writer advanced the server. Fall back to
+            // an UNCONDITIONAL (never version-gated) full PUT — last-writer-wins —
+            // so a second concurrent write can't re-conflict us into a retry loop
+            // (t/1637). Stamp from the server's reported currentVersion when present.
+            const currentVersion = (deltaErr as Error & { currentVersion?: number }).currentVersion;
+            getGlobalRecorder()?.record({ type: 'state.save-coalesced', component: 'debate-store', level: 'warn', debate_id: activeDebate.id, message: `Delta save version_conflict (server at ${currentVersion ?? '?'}) — falling back to full PUT` });
+            await fullPutAndSeed(typeof currentVersion === 'number' ? currentVersion : _lastSyncedVersion);
+          }
+        }
+      }
     } catch (err) {
       const errorCode = (err as Error & { errorCode?: string }).errorCode;
       if (errorCode === 'save_in_progress') {

@@ -159,6 +159,13 @@ export const api: AppAPI = {
   listDebateSessionsMeta: () => window.electronAPI.listDebateSessions(), // Electron mode: local fs is fast, reuse full list
   loadDebateSession: (id) => window.electronAPI.loadDebateSession(id),
   saveDebateSession: (s) => window.electronAPI.saveDebateSession(s),
+  // Electron has no incremental save path — the local fs write is already cheap,
+  // so `saveDebateDelta` exists only to keep `AppAPI` total. The store gates on
+  // `isElectronMode()` and always routes Electron saves through the full
+  // `saveDebateSession` above; this delegate is therefore not reached in normal
+  // flow. If it ever is, we return a synthetic advanced version so the caller's
+  // version bookkeeping stays monotonic (local path tracks no server version).
+  saveDebateDelta: async (delta) => ({ newVersion: delta.baseVersion + 1 }),
   deleteDebateSession: (id) => window.electronAPI.deleteDebateSession(id),
   exportDebateToFile: (s, format, exportOptions) => window.electronAPI.exportDebateToFile(s, format, exportOptions),
   loadDebateComments: (id) => window.electronAPI.loadDebateComments(id),
