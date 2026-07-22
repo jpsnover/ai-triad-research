@@ -14,6 +14,15 @@ function Invoke-TaxEditorSmokeTest {
         The base URL of the deployed Taxonomy Editor site.
     .PARAMETER TimeoutSec
         HTTP request timeout in seconds per endpoint. Default: 15.
+    .PARAMETER HealthMaxAttempts
+        Cold-start tolerance for the Health-Checks phase (t/1696). Polls the
+        health probe up to this many attempts, returning on the first healthy
+        result, so a scale-from-zero container whose first request exceeds
+        TimeoutSec is not false-red'd. Default: 5. Set to 1 for fast-fail
+        (single-shot, prior behavior).
+    .PARAMETER HealthRetryIntervalSec
+        Seconds to sleep between health-probe attempts when HealthMaxAttempts > 1.
+        Default: 10.
     .PARAMETER Detailed
         Show per-endpoint results in addition to the summary.
     .EXAMPLE
@@ -47,6 +56,14 @@ function Invoke-TaxEditorSmokeTest {
         [int]$TimeoutSec = 15,
 
         [Parameter()]
+        [ValidateRange(1, 60)]
+        [int]$HealthMaxAttempts = 5,
+
+        [Parameter()]
+        [ValidateRange(1, 300)]
+        [int]$HealthRetryIntervalSec = 10,
+
+        [Parameter()]
         [switch]$Detailed
     )
 
@@ -57,8 +74,13 @@ function Invoke-TaxEditorSmokeTest {
     Write-Host ''
 
     # ── Phase 1: Health checks ───────────────────────────────────────────
+    # t/1696 — tolerate a scale-from-zero cold start: retry the health probe so a
+    # healthy-but-cold container (whose first request exceeds TimeoutSec) is not
+    # false-red'd. Mirrors the deploy workflow's cold-start-tolerant health gate
+    # (deploy-azure.yml: Test-TaxEditorHealth -MaxAttempts 42 -RetryIntervalSec 10).
     Write-Host '=== Health Checks ===' -ForegroundColor Cyan
-    $Health = Test-TaxEditorHealth -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec
+    $Health = Test-TaxEditorHealth -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec `
+        -MaxAttempts $HealthMaxAttempts -RetryIntervalSec $HealthRetryIntervalSec
 
     foreach ($Check in $Health.Checks) {
         $Icon = if ($Check.Healthy) { '[PASS]' } else { '[FAIL]' }
