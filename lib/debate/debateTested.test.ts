@@ -219,13 +219,59 @@ describe('harvestDebateTested', () => {
     expect(results[0].updatedRecord.description_hash).toMatch(/^sha256:/);
   });
 
-  it('skips non-belief nodes (v1 scope)', () => {
+  it('produces a record for an engaged desire node (t/1660 BDI generalization)', () => {
     const nodes = new Map([['acc-desire-001', makePovNode('acc-desire-001', { category: 'Desires' })]]);
-    const anNodes = [anNode('c1', 'accelerationist', ['acc-desire-001'], 0.6)];
+    const anNodes = [
+      anNode('c1', 'accelerationist', ['acc-desire-001'], 0.6),
+      anNode('c2', 'safetyist', [], 0.7),
+    ];
+    const anEdges = [anEdge('c2', 'c1')];
 
     const results = harvestDebateTested({
       ...baseParams(),
       injectionManifest: { povNodeIds: ['acc-desire-001'] },
+      anNodes, anEdges, taxonomyNodes: nodes,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].nodeId).toBe('acc-desire-001');
+    expect(results[0].entry.verdict).toBe('held');
+    expect(results[0].entry.strongest_attack_encountered).not.toBeNull();
+    expect(results[0].updatedRecord.tier).toBe('contested');
+    expect(results[0].updatedRecord.description_hash).toMatch(/^sha256:/);
+  });
+
+  it('produces a record for an engaged intention node (t/1660 BDI generalization)', () => {
+    const nodes = new Map([['saf-intention-001', makePovNode('saf-intention-001', { category: 'Intentions' })]]);
+    const anNodes = [
+      anNode('c1', 'safetyist', ['saf-intention-001'], 0.6),
+      anNode('c2', 'accelerationist', [], 0.7),
+    ];
+    const anEdges = [anEdge('c2', 'c1')];
+
+    const results = harvestDebateTested({
+      ...baseParams(),
+      injectionManifest: { povNodeIds: ['saf-intention-001'] },
+      anNodes, anEdges, taxonomyNodes: nodes,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].nodeId).toBe('saf-intention-001');
+    expect(results[0].entry.verdict).toBe('held');
+    expect(results[0].entry.strongest_attack_encountered).not.toBeNull();
+    expect(results[0].updatedRecord.tier).toBe('contested');
+  });
+
+  it('still excludes situation / non-BDI nodes (no category → undefined bdi_impact)', () => {
+    // Situation nodes (sit-*/cc-*) have no BDI category; categoryToBdiImpact
+    // coerces their category to undefined, so they never harvest a record (t/1660).
+    const sitNode = makePovNode('sit-001', { category: undefined as unknown as PovNode['category'] });
+    const nodes = new Map([['sit-001', sitNode]]);
+    const anNodes = [anNode('c1', 'accelerationist', ['sit-001'], 0.6)];
+
+    const results = harvestDebateTested({
+      ...baseParams(),
+      injectionManifest: { povNodeIds: ['sit-001'] },
       anNodes, anEdges: [], taxonomyNodes: nodes,
     });
 
@@ -511,6 +557,95 @@ describe('t/1575 regression', () => {
     expect(results).toHaveLength(1);
     expect(results[0].entry.verdict).toBe('weakened');
     expect(results[0].entry.concession).not.toBeNull();
+  });
+
+  it('node-scoped desire concession produces weakened verdict (t/1660 BDI generalization)', () => {
+    const nodes = new Map([['acc-desire-001', makePovNode('acc-desire-001', { category: 'Desires' })]]);
+    const anNodes = [
+      anNode('c1', 'accelerationist', ['acc-desire-001'], 0.6),
+      anNode('c2', 'safetyist', [], 0.7),
+    ];
+    const anEdges = [anEdge('c2', 'c1')];
+    const concessions: ConcessionRecord[] = [{
+      debate_id: 'debate-100',
+      speaker: 'accelerationist',
+      text: 'I concede this desire',
+      turn: 5,
+      conceded_to: 'acc-desire-001',
+      concession_type: 'full',
+      bdi_impact: 'desire',
+    }];
+
+    const results = harvestDebateTested({
+      ...baseParams(),
+      concessions,
+      injectionManifest: { povNodeIds: ['acc-desire-001'] },
+      anNodes, anEdges, taxonomyNodes: nodes,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].entry.verdict).toBe('weakened');
+    expect(results[0].entry.concession).not.toBeNull();
+  });
+
+  it('node-scoped intention concession produces weakened verdict (t/1660 BDI generalization)', () => {
+    const nodes = new Map([['saf-intention-001', makePovNode('saf-intention-001', { category: 'Intentions' })]]);
+    const anNodes = [
+      anNode('c1', 'safetyist', ['saf-intention-001'], 0.6),
+      anNode('c2', 'accelerationist', [], 0.7),
+    ];
+    const anEdges = [anEdge('c2', 'c1')];
+    const concessions: ConcessionRecord[] = [{
+      debate_id: 'debate-100',
+      speaker: 'safetyist',
+      text: 'I concede this intention',
+      turn: 5,
+      conceded_to: 'saf-intention-001',
+      concession_type: 'full',
+      bdi_impact: 'intention',
+    }];
+
+    const results = harvestDebateTested({
+      ...baseParams(),
+      concessions,
+      injectionManifest: { povNodeIds: ['saf-intention-001'] },
+      anNodes, anEdges, taxonomyNodes: nodes,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].entry.verdict).toBe('weakened');
+    expect(results[0].entry.concession).not.toBeNull();
+  });
+
+  it('desire concession is NOT applied to a belief node (cross-category isolation, t/1660)', () => {
+    // A desire-impact concession must not weaken a Beliefs node: the verdict path
+    // matches concession.bdi_impact against the node's own category-derived impact.
+    const nodes = new Map([['saf-belief-001', makePovNode('saf-belief-001')]]);
+    const anNodes = [
+      anNode('c1', 'safetyist', ['saf-belief-001'], 0.6),
+      anNode('c2', 'accelerationist', [], 0.7),
+    ];
+    const anEdges = [anEdge('c2', 'c1')];
+    const concessions: ConcessionRecord[] = [{
+      debate_id: 'debate-100',
+      speaker: 'safetyist',
+      text: 'I concede this desire',
+      turn: 5,
+      conceded_to: 'saf-belief-001',
+      concession_type: 'full',
+      bdi_impact: 'desire',
+    }];
+
+    const results = harvestDebateTested({
+      ...baseParams(),
+      concessions,
+      injectionManifest: { povNodeIds: ['saf-belief-001'] },
+      anNodes, anEdges, taxonomyNodes: nodes,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].entry.verdict).not.toBe('weakened');
+    expect(results[0].entry.concession).toBeNull();
   });
 
   it('held verdict does NOT flip held_since when description was edited externally', () => {
