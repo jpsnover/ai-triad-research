@@ -102,7 +102,12 @@ export default tseslint.config(
   {
     files: [
       'src/server/server.ts',                    // 3315
-      'src/server/storage/githubAPIBackend.ts',  // 2169
+      // JUSTIFIED STANDING EXCEPTION (t/1688 ruling C) — NOT a pending shrink.
+      // Monolithic stateful backend: the transport-seam split (GitHubRestClient) alone
+      // lands ~1736 (still >1500), and clearing the ceiling forces a high-risk rewire of
+      // the prod disk-cache/manifest layer (58 `this.manifest` sites). Deferred as
+      // asymmetric risk. Revisit only if the optional GitHubRestClient follow-up lands.
+      'src/server/storage/githubAPIBackend.ts',  // 2169 — justified exception (t/1688)
       'src/main/ipcHandlers.ts',                 // 1762 (transitional — see t/1689)
     ],
     rules: {
