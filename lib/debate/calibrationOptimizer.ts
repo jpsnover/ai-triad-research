@@ -11,13 +11,19 @@
  * Usage (programmatic): import { recalibrateParameters } from './calibrationOptimizer';
  */
 
-import type { CalibrationDataPoint, ParameterHistoryEntry } from './calibrationLogger.js';
+import type {
+  CalibrationDataPoint,
+  ParameterHistoryEntry,
+  MetricSelector,
+  ReplicationGateResult,
+} from './calibrationLogger.js';
 import {
   readCalibrationLog,
   captureSnapshot,
   diffSnapshots,
   appendParameterHistory,
   seedInitialSnapshot,
+  replicationGateByConfig,
 } from './calibrationLogger.js';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -43,11 +49,31 @@ export interface RecalibrationReport {
   min_required: number;
   results: OptimizationResult[];
   applied: boolean;
+  /**
+   * Replication gate per headline quality metric (t/1668, R-1). Maps each
+   * headline metric name to its per-fixed-config gate results — replication
+   * count, whether a regression trigger may fire (n ≥ REPLICATION_GATE_MIN_N),
+   * and the metric distribution (median + spread) over the clean replication
+   * set. Additive/optional: absent in reports written before t/1668.
+   */
+  replication_gates?: Record<string, ReplicationGateResult[]>;
 }
 
 // ── Optimizer algorithms ────────────────────────────────────
 
 const MIN_DATA_POINTS = 10;
+
+/**
+ * Headline quality metrics reported as replication-gated distributions (t/1668).
+ * A regression on any of these may only be acted on once its fixed config has
+ * n ≥ REPLICATION_GATE_MIN_N clean replications (see calibrationLogger).
+ */
+const HEADLINE_METRICS: Record<string, MetricSelector> = {
+  crux_addressed_ratio: (d) => d.crux_addressed_ratio,
+  avg_utilization_rate: (d) => d.avg_utilization_rate,
+  qbaf_preference_concordance: (d) => d.qbaf_preference_concordance,
+  borderline_claim_survival_rate: (d) => d.borderline_claim_survival_rate,
+};
 
 /**
  * Parameter 1: Exploration exit threshold.
@@ -791,12 +817,23 @@ export function recalibrateParameters(
   options: { apply?: boolean; weightsPath?: string } = {},
 ): RecalibrationReport {
   const data = readCalibrationLog(dataRoot);
+
+  // Replication gate (t/1668): compute BEFORE the min-data-points guard — a
+  // fixed config with fewer than REPLICATION_GATE_MIN_N clean replications is
+  // exactly the case the gate must surface (regression trigger not yet permitted),
+  // so the gates belong in the report even when the overall log is still sparse.
+  const replication_gates: Record<string, ReplicationGateResult[]> = {};
+  for (const [name, selector] of Object.entries(HEADLINE_METRICS)) {
+    replication_gates[name] = replicationGateByConfig(data, selector);
+  }
+
   const report: RecalibrationReport = {
     timestamp: new Date().toISOString(),
     data_points: data.length,
     min_required: MIN_DATA_POINTS,
     results: [],
     applied: false,
+    replication_gates,
   };
 
   if (data.length < MIN_DATA_POINTS) {
