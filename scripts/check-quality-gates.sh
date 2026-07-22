@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Quality gates: LOC ceilings + large-file guard (t/1292, B-408).
 # Called from ci.yml. Reads quality-gates.json for thresholds.
-# Uses ::warning:: annotations (soft fail) until 2026-07-17, then ::error::.
+# Emits ::error:: annotations on violations — the quality-gates CI job now enforces
+# (t/1692: continue-on-error removed), so a violation hard-fails the job via exit 1.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -27,7 +28,7 @@ for file in $(jq -r '.loc_ceilings | keys[]' "$CONFIG"); do
 
   loc=$(wc -l < "$filepath")
   if [ "$loc" -gt "$ceiling" ]; then
-    echo "::warning file=$file,title=LOC ceiling exceeded::$file is $loc lines (ceiling: $ceiling). $FAIL_MSG"
+    echo "::error file=$file,title=LOC ceiling exceeded::$file is $loc lines (ceiling: $ceiling). $FAIL_MSG"
     EXIT_CODE=1
   else
     echo "  $file: $loc / $ceiling OK"
@@ -59,7 +60,7 @@ else
     size=$(wc -c < "$filepath")
     if [ "$size" -gt "$MAX_BYTES" ]; then
       size_mb=$(awk "BEGIN {printf \"%.1f\", $size / 1048576}")
-      echo "::warning file=$file,title=Large file added::$file is ${size_mb}MB (limit: 5MB). $FAIL_MSG"
+      echo "::error file=$file,title=Large file added::$file is ${size_mb}MB (limit: 5MB). $FAIL_MSG"
       EXIT_CODE=1
     fi
   done <<< "$added_files"
