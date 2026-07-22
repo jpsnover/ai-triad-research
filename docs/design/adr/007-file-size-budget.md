@@ -40,3 +40,13 @@ LOC = ESLint `max-lines` counting (blank lines and comments **not** skipped, for
 - Barrel re-exports add one indirection hop per split module — accepted; importers are unaffected and the dependency graph is unchanged.
 - The budget is a fleet-wide constraint: any role adding a file over the hard-fail ceiling must either split it or supersede this ADR. Changing the thresholds or the exemption classes requires a new ADR superseding this one.
 - Test-file ceiling is deliberately higher (2000) because test files legitimately run long via many independent cases; they still get a ceiling because a `>2000`-LOC test file is itself un-Read-able and usually signals a suite that should be split by concern.
+
+## Amendment (2026-07-22) — reconciliation with the pre-existing LOC gate
+
+Design review of the gate implementation (t/1685) surfaced that a LOC gate **already existed** and this ADR did not account for it: the `quality-gates` CI job runs `scripts/check-quality-gates.sh`, reading per-file `loc_ceilings` from `quality-gates.json` via `wc -l` (warning-only; entries for `debateEngine.ts`, `server.ts`, `prompts.ts`, `styles.css`). Two LOC gates with divergent counts (`wc -l` newline-count vs ESLint physical-line `max-lines` — the visible 4650-vs-4660 drift on `prompts.ts`) is exactly the divergent-signal hazard §3's Gate Co-Location rule warns against. Rulings (t/1685#2):
+
+- **ESLint `max-lines` is the single source of truth for `.ts/.tsx` LOC.** The `.ts` entries are **removed** from `quality-gates.json.loc_ceilings`; `check-quality-gates.sh` is narrowed to what ESLint can't do — the 5MB byte-guard, the `styles.css` ceiling, and `tsc_error_ceilings` (t/1692, DevOps).
+- **lib eslint needs a CI step to have teeth.** `lib` is not a `test-electron` matrix app, so its `eslint .` (the new `max-lines` rule *and* the existing async-safety rules) never runs in CI. A `working-directory: lib` lint step is added to `ci.yml` (t/1692, DevOps). Until it lands, the lib gate is local-only.
+- **Sequencing:** the eslint gates (lib t/1685; taxonomy-editor mirror t/1691) must be in place *with teeth* before the script's `.ts` ceilings are removed, or the current offenders briefly lose LOC coverage. t/1692 is blocked_by both.
+- **Generated-file exemption** ships as a documented path-glob override (flat-config globs match by path, not a `@generated` header marker) — a minor wording deviation from §3, since there are no generated `.ts` files today.
+- **Soft-warn tiers (1000/1500) are deferred** to a follow-up: a single `max-lines` instance cannot emit warn@1000 *and* error@1500 (last-match-wins, they don't stack). Hard-fail ships now; the soft tier needs a second mechanism.
