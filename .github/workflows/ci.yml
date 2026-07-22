@@ -6,8 +6,9 @@
 #         test-powershell and test-electron completing successfully.
 #
 # ── continue-on-error flip taxonomy ──
-# FLIP 2026-07-17 (remove continue-on-error to enforce):
-#   quality-gates (t/1292)
+# FLIPPED — enforcing now (continue-on-error removed):
+#   quality-gates (t/1292; .ts/.tsx LOC moved to ESLint max-lines per ADR-007, t/1692)
+# FLIP-PENDING (remove continue-on-error to enforce):
 #   doc-accuracy  (t/1324)
 # NEVER-FLIP (annotation-only by design — continue-on-error stays permanently):
 #   debate-eval        — nondeterministic AI scores, signal not gate (t/1329)
@@ -40,6 +41,7 @@ jobs:
       electron: ${{ steps.filter.outputs.electron }}
       debate: ${{ steps.filter.outputs.debate }}
       schema: ${{ steps.filter.outputs.schema }}
+      lib: ${{ steps.filter.outputs.lib }}
     steps:
       - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d  # v4.0.1
         id: filter
@@ -66,6 +68,9 @@ jobs:
               - 'taxonomy/schemas/**'
               - 'scripts/validate-schemas.mjs'
               - '.aitriad.json'
+              - '.github/workflows/ci.yml'
+            lib:
+              - 'lib/**'
               - '.github/workflows/ci.yml'
 
   test-powershell:
@@ -188,8 +193,14 @@ jobs:
         working-directory: ${{ matrix.app }}
         run: npm run build
 
-  # ── Quality gates: LOC ceilings + large-file guard (t/1292, B-408) ──
-  # Warning-only until 2026-07-17. To enforce: remove continue-on-error.
+  # ── Quality gates: 5MB byte-guard + CSS LOC ceiling (t/1292, B-408; ADR-007) ──
+  # ENFORCING (t/1692): .ts/.tsx LOC is now owned by ESLint max-lines, co-located
+  # in the eslint configs. This gate keeps only what ESLint can't: the 5MB
+  # byte-guard, the styles.css ceiling (CSS isn't linted by the TS configs), and
+  # tsc error ceilings. continue-on-error removed so the retained guards hard-fail.
+  # NOTE: check-quality-gates.sh still prints ::warning:: lines, but exit 1 fails
+  # the job regardless; a cosmetic ::warning::->::error:: flip in that
+  # PowerShell-owned script is a tracked fast-follow (t/1692).
   quality-gates:
     runs-on: ubuntu-latest
     steps:
@@ -198,8 +209,37 @@ jobs:
           fetch-depth: 0
 
       - name: Check quality gates
-        continue-on-error: true
         run: bash scripts/check-quality-gates.sh
+
+  # ── lib lint: ESLint for the shared lib (max-lines ADR-007 + async-safety) ──
+  # lib is NOT a test-electron matrix app, so its `eslint .` runs nowhere else in
+  # CI — without this job t/1685's max-lines gate is local-only (t/1692). Plain
+  # `npm run lint`, NO --max-warnings=0: only ESLint ERRORS gate (hard-fail
+  # max-lines + async-safety rules). The ADR-007 soft-warn LOC tier (t/1695,
+  # warn@1000/1500) and pre-existing unused-disable warnings are advisory by
+  # design; gating on them would re-introduce gate noise (t/1692#1, t/1695).
+  lib-lint:
+    needs: [changes]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.lib == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: '*/package-lock.json'
+
+      - name: Install lib dependencies
+        working-directory: lib
+        run: npm ci
+
+      - name: Lint (errors gate; warnings advisory — see header)
+        working-directory: lib
+        run: npm run lint
 
   # ── Commit hygiene: flags anonymous / undersized commit subjects (t/1319) ──
   # Annotation-only by design — never flips (t/1319). Visibility, not friction.

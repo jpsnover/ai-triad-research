@@ -1,10 +1,7 @@
 {
-  "$comment": "LOC ceilings for monolith files — ratchet DOWN as extraction tickets (B-209/210/211) land. See docs/reviews/2026-07-repo-review/BACKLOG.md B-408.",
+  "$comment": "Non-LOC quality gates only (ADR-007 Gate Co-Location). ESLint `max-lines`, co-located in the eslint configs (lib/eslint.config.mjs, taxonomy-editor/eslint.config.mjs), is the SINGLE source of truth for .ts/.tsx LOC — do NOT re-add .ts ceilings here. styles.css stays: CSS is not covered by the TS eslint configs. See docs/design/adr/007-file-size-budget.md.",
   "loc_ceilings": {
-    "lib/debate/debateEngine.ts": 4028,
-    "taxonomy-editor/src/server/server.ts": 3165,
-    "taxonomy-editor/src/renderer/styles.css": 17800,
-    "lib/debate/prompts.ts": 4650
+    "taxonomy-editor/src/renderer/styles.css": 17800
   },
   "max_file_bytes": 5242880,
   "tsc_error_ceilings": {
