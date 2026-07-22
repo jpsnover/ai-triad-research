@@ -9,7 +9,7 @@
 import fs from 'fs';
 import path from 'path';
 import type { PovNode, SituationNode, EdgesFile } from './taxonomyTypes.js';
-import type { PolicyRef } from './taxonomyContext.js';
+import type { PolicyRef, SituationStatements } from './taxonomyContext.js';
 import { ActionableError } from './errors.js';
 import { parseNpy, extractNodeVectors } from '../npy.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
@@ -122,6 +122,38 @@ export function resolveSourcesDir(repoRoot: string): string | null {
   const config = loadConfig(repoRoot);
   const sourcesDir = path.join(dataRoot, config.sources_dir ?? 'sources');
   return fs.existsSync(sourcesDir) ? sourcesDir : null;
+}
+
+/**
+ * t/1450: Load the comp-linguist per-POV, per-BDI situation register-statements sidecar.
+ * Node-only (reads the filesystem) — kept OUT of taxonomyContext.ts, which is
+ * renderer-reachable and must stay browser-safe (no `fs`). Graceful-missing: a missing or
+ * malformed file returns null, so the feature is silently off (AC1). Mirrors loadCoverageMap.
+ */
+export function loadSituationStatements(dataRoot: string): SituationStatements | null {
+  const p = path.join(
+    dataRoot,
+    'research-artifacts',
+    'comp-linguist',
+    'situation-statements',
+    'situation_statements.json',
+  );
+  if (!fs.existsSync(p)) return null;
+  try {
+    const raw = JSON.parse(fs.readFileSync(p, 'utf-8').replace(/^﻿/, ''));
+    if (raw && typeof raw === 'object') {
+      // Drop the non-situation _provenance key; keep only situation entries.
+      const out: SituationStatements = {};
+      for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+        if (key.startsWith('_')) continue;
+        out[key] = value as SituationStatements[string];
+      }
+      return out;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 function loadConfig(repoRoot: string): AiTriadConfig {

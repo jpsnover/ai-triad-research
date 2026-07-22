@@ -11,12 +11,31 @@ import { interpretationText, isBdiInterpretation } from './taxonomyTypes.js';
 import { POV_KEYS } from './types.js';
 import { stripExcludes } from './helpers.js';
 import { buildSituationRootLookup } from './taxonomyRelevance.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 export interface PolicyRef {
   id: string;
   action: string;
   source_povs?: string[];
 }
+
+/** Per-POV situation "register" statements (belief/desire/intention) from the
+ *  comp-linguist sidecar. Keyed by POV long-form (accelerationist/safetyist/skeptic). */
+export interface SituationPovStatement {
+  belief_statement?: string;
+  desire_statement?: string;
+  intention_statement?: string;
+}
+
+/** One situation entry in the sidecar. `ok: false` (or absent statements) = skip. */
+export interface SituationStatementEntry {
+  ok: boolean;
+  statements?: Partial<Record<string, SituationPovStatement>>;
+}
+
+/** Sidecar shape: situation-id → entry. Extra top-level keys (e.g. `_provenance`)
+ *  are ignored — lookups are only ever by situation node ID. */
+export type SituationStatements = Record<string, SituationStatementEntry>;
 
 export interface TaxonomyContext {
   povNodes: PovNode[];
@@ -87,6 +106,13 @@ export interface FormatContextConfig {
    * nodes only (safety margin). When absent, all nodes injected (existing behavior).
    */
   relevantBranches?: Set<string>;
+  /**
+   * Per-POV situation register statements (comp-linguist sidecar, t/1450).
+   * When present, own-POV belief/desire/intention statements are injected under
+   * each matching situation node. Loaded engine-side (Node-only); renderer callers
+   * omit it (keeps this browser-safe module free of `fs`). Absent/null = feature off.
+   */
+  situationStatements?: SituationStatements | null;
 }
 
 /** Generate per-node inline guidance lines from metadata.
@@ -295,6 +321,9 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
   if (ctx.situationNodes.length > 0) {
     const SIT_PRIMARY = cfg.sitPrimary ?? 5;
     const otherPovs = POV_KEYS.filter(p => p !== pov);
+    // t/1450: own-POV register statements from the comp-linguist sidecar (engine-side only).
+    const sitStatements = cfg.situationStatements ?? null;
+    const injectedStatementIds: string[] = [];
 
     lines.push('=== SITUATIONS (contested concepts — cite sit- IDs in taxonomy_refs) ===');
     lines.push("These are contested concepts where perspectives diverge. When your argument engages a concept listed here, CITE its sit- ID in your taxonomy_refs — this tracks which contested concepts the debate actually addressed. Your interpretation differs from others'; understanding their full position helps you identify genuine disagreements.");
@@ -356,7 +385,7 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
         lines.push(`## ${group.label}`);
         for (const n of group.members) {
           const isPrimary = primaryCounter < SIT_PRIMARY;
-          _renderSituationNode(lines, n, isPrimary, pov, otherPovs);
+          _renderSituationNode(lines, n, isPrimary, pov, otherPovs, sitStatements, injectedStatementIds);
           primaryCounter++;
         }
       }
@@ -367,8 +396,22 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
         sortedSit = [...ctx.situationNodes].sort((a, b) => (ctx.nodeScores!.get(b.id) ?? 0) - (ctx.nodeScores!.get(a.id) ?? 0) || a.id.localeCompare(b.id));
       }
       for (let i = 0; i < sortedSit.length; i++) {
-        _renderSituationNode(lines, sortedSit[i], i < SIT_PRIMARY, pov, otherPovs);
+        _renderSituationNode(lines, sortedSit[i], i < SIT_PRIMARY, pov, otherPovs, sitStatements, injectedStatementIds);
       }
+    }
+
+    // t/1450 (AC3): telemetry proving the flag-gated injection actually fired. Reuse the
+    // existing `turn.situation_inject` EventType; disambiguate from the engine's
+    // situation-SELECTION event via component: 'taxonomy-context'. Browser-safe: the
+    // recorder is a no-op when unset, and renderer callers never pass situationStatements.
+    if (sitStatements && injectedStatementIds.length > 0) {
+      getGlobalRecorder()?.record({
+        type: 'turn.situation_inject',
+        component: 'taxonomy-context',
+        level: 'info',
+        message: `Injected own-POV register statements for ${injectedStatementIds.length} situation(s)`,
+        data: { situation_ids: injectedStatementIds, count: injectedStatementIds.length, pov },
+      });
     }
   }
 
@@ -403,8 +446,24 @@ function _renderSituationNode(
   isPrimary: boolean,
   pov: string,
   otherPovs: string[],
+  situationStatements: SituationStatements | null,
+  injected: string[],
 ): void {
   lines.push(`${isPrimary ? '★ ' : '  '}[${n.id}] ${n.label}: ${stripExcludes(n.description)}`);
+
+  // t/1450: flag-gated injection of the comp-linguist per-POV, per-BDI debate-register
+  // statements for THIS node — own-POV only (never opponents', to avoid parroting).
+  const entry = situationStatements?.[n.id];
+  if (entry?.ok === true) {
+    const own = entry.statements?.[pov];
+    if (own && (own.belief_statement || own.desire_statement || own.intention_statement)) {
+      lines.push(`  Register statements (your voice):`);
+      if (own.belief_statement) lines.push(`    Belief: ${own.belief_statement}`);
+      if (own.desire_statement) lines.push(`    Desire: ${own.desire_statement}`);
+      if (own.intention_statement) lines.push(`    Intention: ${own.intention_statement}`);
+      injected.push(n.id);
+    }
+  }
 
   const interp = n.interpretations?.[pov as keyof typeof n.interpretations];
   if (interp) {
