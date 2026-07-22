@@ -16,7 +16,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { harvestDebateTested, computeTierAndSortKey, setDescriptionHasher } from './debateTested.js';
+import { harvestDebateTested, computeTierAndSortKey, setDescriptionHasher, categoryToBdiImpact } from './debateTested.js';
 import { computeDescriptionHash } from './debateTestedHash.js';
 import type { HarvestResult } from './debateTested.js';
 import type {
@@ -176,10 +176,11 @@ export function runBackfill(repoRoot: string, writeMode: boolean): BackfillStats
 
   console.log(`Loaded ${nodeMap.size} taxonomy nodes from ${povFiles.size} POV files`);
 
-  // Collect tier distribution before backfill
+  // Collect tier distribution before backfill (all three BDI categories; situation
+  // nodes coerce to undefined via categoryToBdiImpact and are excluded — t/1660).
   const tiersBefore: Record<string, number> = { untested: 0, cited: 0, contested: 0, well_tested: 0 };
   for (const node of nodeMap.values()) {
-    if (node.category !== 'Beliefs') continue;
+    if (!categoryToBdiImpact(node.category)) continue;
     const tier = node.graph_attributes?.debate_tested?.tier ?? 'untested';
     tiersBefore[tier] = (tiersBefore[tier] ?? 0) + 1;
   }
@@ -262,17 +263,19 @@ export function runBackfill(repoRoot: string, writeMode: boolean): BackfillStats
       stats.entriesDeduplicated += deduped;
 
       if (created > 0 || deduped > 0) {
-        console.log(`  ${file}: AN harvest — ${created} entries created, ${deduped} deduped, ${results.length - created - deduped} skipped (non-Belief)`);
+        console.log(`  ${file}: AN harvest — ${created} entries created, ${deduped} deduped, ${results.length - created - deduped} skipped (non-BDI / situation)`);
       }
     } else {
-      // No argument_network — check transcript for taxonomy_refs → cited entries
+      // No argument_network — check transcript for taxonomy_refs → cited entries.
+      // All three BDI categories qualify; situation nodes (sit-*/cc-*) have no BDI
+      // category and coerce to undefined via categoryToBdiImpact, staying excluded (t/1660).
       const transcriptRefs = extractTranscriptTaxonomyRefs(session);
-      const beliefRefs = transcriptRefs.filter(ref => {
+      const bdiRefs = transcriptRefs.filter(ref => {
         const node = nodeMap.get(ref);
-        return node?.category === 'Beliefs';
+        return node ? !!categoryToBdiImpact(node.category) : false;
       });
 
-      if (beliefRefs.length === 0) {
+      if (bdiRefs.length === 0) {
         stats.sessionsWithoutAN++;
         stats.sessionsSkipped++;
         continue;
@@ -282,7 +285,7 @@ export function runBackfill(repoRoot: string, writeMode: boolean): BackfillStats
       let created = 0;
       let deduped = 0;
 
-      for (const nodeId of beliefRefs) {
+      for (const nodeId of bdiRefs) {
         const node = nodeMap.get(nodeId)!;
         if (nodeHasDebateEntry(node, debateId)) {
           deduped++;
@@ -311,7 +314,7 @@ export function runBackfill(repoRoot: string, writeMode: boolean): BackfillStats
   // Compute tier distribution after backfill
   const tiersAfter: Record<string, number> = { untested: 0, cited: 0, contested: 0, well_tested: 0 };
   for (const node of nodeMap.values()) {
-    if (node.category !== 'Beliefs') continue;
+    if (!categoryToBdiImpact(node.category)) continue;
     const tier = node.graph_attributes?.debate_tested?.tier ?? 'untested';
     tiersAfter[tier] = (tiersAfter[tier] ?? 0) + 1;
   }
@@ -331,7 +334,7 @@ export function runBackfill(repoRoot: string, writeMode: boolean): BackfillStats
   for (const [verdict, count] of Object.entries(stats.verdictCounts).sort()) {
     console.log(`  ${verdict}: ${count}`);
   }
-  console.log(`\nTier distribution (Beliefs only):`);
+  console.log(`\nTier distribution (all BDI categories):`);
   console.log(`  ${'Tier'.padEnd(14)} ${'Before'.padEnd(8)} ${'After'.padEnd(8)} Delta`);
   for (const tier of ['untested', 'cited', 'contested', 'well_tested'] as const) {
     const before = tiersBefore[tier] ?? 0;

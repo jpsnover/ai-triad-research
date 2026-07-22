@@ -238,7 +238,9 @@ export function harvestDebateTested(params: HarvestParams): HarvestResult[] {
   for (const nodeId of engagedNodeIds) {
     const povNode = taxonomyNodes.get(nodeId);
     if (!povNode) continue;
-    if (povNode.category !== 'Beliefs') continue;
+    // All three BDI categories are debate-tested; situation nodes (sit-*/cc-*)
+    // have no BDI category and coerce to undefined here, staying excluded (t/1660).
+    if (!categoryToBdiImpact(povNode.category)) continue;
 
     const claims = claimsByNode.get(nodeId) ?? [];
     const strongest = findStrongestAttack(claims, anNodes, anEdges);
@@ -270,6 +272,26 @@ export function harvestDebateTested(params: HarvestParams): HarvestResult[] {
 }
 
 // ── Internal helpers ───────────────────────────────────────────────────────
+
+/**
+ * Map a POV node's BDI `category` to its `bdi_impact` key. Returns `undefined`
+ * for anything that is not one of the three BDI categories — notably situation
+ * nodes (`sit-*`/`cc-*`), which have no BDI category and must stay excluded from
+ * debate-tested harvesting. Mirrors the PS map in `Get-NodeTestingRecord.ps1`
+ * (`@{ belief = 'Beliefs'; desire = 'Desires'; intention = 'Intentions' }`).
+ * Takes `string` (not `Category`) so runtime situation nodes coerce to
+ * `undefined` rather than a spurious match (t/1660).
+ */
+export function categoryToBdiImpact(
+  category: string,
+): 'belief' | 'desire' | 'intention' | undefined {
+  switch (category) {
+    case 'Beliefs': return 'belief';
+    case 'Desires': return 'desire';
+    case 'Intentions': return 'intention';
+    default: return undefined;
+  }
+}
 
 function buildClaimsByNode(
   anNodes: ReadonlyArray<ArgumentNetworkNode>,
@@ -340,14 +362,19 @@ function findNodeConcession(
   povNode: PovNode,
   concessions: ReadonlyArray<ConcessionRecord>,
 ): ConcessionRecord | null {
+  // Match concessions to THIS node's own BDI impact, derived from its category, so
+  // Desire/Intention nodes match desire/intention concessions — not a hardcoded
+  // 'belief' (t/1660). Non-BDI (situation) nodes yield undefined and match nothing.
+  const bdiImpact = categoryToBdiImpact(povNode.category);
+  if (!bdiImpact) return null;
   if (povNode.concession_history?.length) {
-    const full = povNode.concession_history.find(c => c.concession_type === 'full' && c.bdi_impact === 'belief');
+    const full = povNode.concession_history.find(c => c.concession_type === 'full' && c.bdi_impact === bdiImpact);
     if (full) return full;
   }
   // conceded_to holds speaker names in production (not node IDs), so this match is structurally
   // inert today — kept as a conservative no-op guard (CL review t/1575#2).
   const nodeScoped = concessions.find(
-    c => c.concession_type === 'full' && c.bdi_impact === 'belief' && c.conceded_to === nodeId,
+    c => c.concession_type === 'full' && c.bdi_impact === bdiImpact && c.conceded_to === nodeId,
   );
   return nodeScoped ?? null;
 }
@@ -357,13 +384,16 @@ function determineVerdict(
   isRefined: boolean,
   outcomes: DebateTestedClaimOutcomes,
   concession: ConcessionRecord | null,
-  _povNode: PovNode,
+  povNode: PovNode,
 ): DebateTestedVerdict {
   if (!isChallenged && !isRefined) return 'cited';
 
   if (isRefined) return 'refined';
 
-  if (concession?.concession_type === 'full' && concession.bdi_impact === 'belief') {
+  // A full concession weakens the node when it matches the node's OWN BDI impact
+  // (derived from category), not a hardcoded 'belief' (t/1660).
+  const bdiImpact = categoryToBdiImpact(povNode.category);
+  if (concession?.concession_type === 'full' && concession.bdi_impact === bdiImpact) {
     return 'weakened';
   }
 
