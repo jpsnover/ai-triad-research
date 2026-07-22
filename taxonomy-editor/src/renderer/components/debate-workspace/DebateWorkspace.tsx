@@ -14,7 +14,7 @@ import { ParameterHistoryPanel } from '../analysis/ParameterHistoryPanel';
 import { computeCoverageMap, computeStrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import type { CoverageMap, StrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import {
-  speakerLabel, speakerColor, nodeIdToTab, focusMainWindowNode, countOccurrences,
+  speakerLabel, speakerColor, nodeIdToTab, focusMainWindowNode, countOccurrences, renderedOffsetOf,
 } from './utils';
 import type { AdaptivePhase } from './utils';
 import { CommentCreationPopover } from '../chat/CommentCreationPopover';
@@ -607,22 +607,25 @@ export function DebateWorkspace({ onExport, exportStatus }: {
       if (entry) {
         const isSub = ['opening', 'statement', 'fact-check', 'cross_respond'].includes(entry.type);
         tier = isSub ? ((entry as any).display_tier ?? defaultTier ?? 'detailed') : 'detailed';
-        const hasSums = entry.summaries != null;
-        let displayContent: string;
-        if (hasSums && tier === 'brief') displayContent = entry.summaries!.brief;
-        else if (hasSums && tier === 'medium') displayContent = entry.summaries!.medium;
-        else if (!hasSums && tier === 'brief' && isSub) {
-          const sents = entry.content.split(/(?<=[.!?])\s+/);
-          displayContent = sents.slice(0, 2).join(' ');
-        } else if (!hasSums && tier === 'medium' && isSub) {
-          const pb = entry.content.indexOf('\n\n');
-          displayContent = pb > 0 && pb < 500 ? entry.content.slice(0, pb) : entry.content.slice(0, 500);
-        } else displayContent = entry.content;
-        // Find the selectedText within the display content for accurate offsets
-        const idx = displayContent.indexOf(selectedText);
-        if (idx !== -1) {
-          startOffset = idx;
-          endOffset = idx + selectedText.length;
+        // Rendered-text offset: measure from the start of the rendered statement
+        // container to the selection start. `selection.toString()` is already
+        // rendered text, so the offset must live in rendered-text space too —
+        // indexOf against the raw markdown silently returns -1 (→ offset 0)
+        // whenever the selection spans inline markdown (**bold**, [links]). This
+        // matches CommentOverlay's rendered-text resolution so the anchor round-
+        // trips even through inline formatting (t/1694).
+        const range = selection.getRangeAt(0);
+        const anchorEl = range.startContainer instanceof Element
+          ? range.startContainer
+          : range.startContainer.parentElement;
+        const container = anchorEl?.closest('.debate-statement-content') as HTMLElement | null;
+        if (container) {
+          // `selectedText` was trimmed; realign the offset to the trimmed start so
+          // it points at the same text CommentOverlay will locate.
+          const rawSelected = selection.toString();
+          const leadingWs = rawSelected.length - rawSelected.trimStart().length;
+          startOffset = renderedOffsetOf(container, range.startContainer, range.startOffset) + leadingWs;
+          endOffset = startOffset + selectedText.length;
         }
       }
     }

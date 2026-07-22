@@ -175,6 +175,21 @@ export function fixMarkdownLinks(text: string): string {
   });
 }
 
+/**
+ * Rendered-text offset of a DOM point `(node, offset)` within `container` — the
+ * length of the concatenated text-node content that precedes it. This lives in
+ * the same rendered-text space CommentOverlay resolves against (its TreeWalker
+ * concatenates text-node values), so a comment anchored with this offset round-
+ * trips even when the selection spans inline markdown (**bold**, [links]) that
+ * `selectedText.indexOf` on the raw markdown source would miss (t/1694).
+ */
+export function renderedOffsetOf(container: HTMLElement, node: Node, offset: number): number {
+  const preRange = document.createRange();
+  preRange.selectNodeContents(container);
+  preRange.setEnd(node, offset);
+  return preRange.toString().length;
+}
+
 // ── Find-in-debate helpers ────────────────────────────────
 
 export function countOccurrences(text: string, query: string): number {
