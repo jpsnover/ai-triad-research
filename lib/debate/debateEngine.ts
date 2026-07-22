@@ -89,7 +89,7 @@ import type { LookaheadDiagnostics } from './lookaheadGate.js';
 import { runOvergenPipeline } from './overgenPipeline.js';
 import type { OvergenDiagnostics } from './overgenPipeline.js';
 import { classifyTopicComplexity, extractTopicStructure } from './topicStructure.js';
-import { resolveRepoRoot, resolveDataRoot, resolveSourcesDir } from './taxonomyLoader.js';
+import { resolveRepoRoot, resolveDataRoot, resolveSourcesDir, loadSituationStatements } from './taxonomyLoader.js';
 import { updateCruxTracker, formatCruxResolutionContext, detectConcessionCascade, transitionCrux } from './cruxResolution.js';
 import { persistDebateCruxes, loadRegistry, findRelevantPriorCruxes, formatPriorCruxContext } from './cruxRegistry.js';
 import { findAndEnrichPromotionCandidates, computeWeightAdjustments, weightAdjustmentsToProposals } from './cruxTaxonomyFeedback.js';
@@ -264,6 +264,8 @@ export interface DebateConfig {
   enableDiversityRound?: boolean;
   /** Enable corpus-coverage anti-recurrence: downweight retread nodes, boost underexplored tail (t/1438). */
   enableCorpusCoverage?: boolean;
+  /** Inject comp-linguist per-POV, per-BDI situation register-statements at setup (t/1450 experiment). Off by default. */
+  enableSituationStatements?: boolean;
   /** Enable over-generate/select/rewrite pipeline: N=3 drafts, dedup, greedy top-K, rewrite, coherence gate (t/1581). */
   experiment_overgen_select_rewrite?: boolean;
   /** Exploration summary from a prior cheap-engine run — seeds cruxes, situations, AN priming, and config overrides. */
@@ -2432,7 +2434,22 @@ export class DebateEngine {
     }
 
     this._lastRelevanceScores = scores;
-    return formatTaxonomyContext(filteredCtx, pov);
+
+    // Inject comp-linguist per-POV situation register-statements when enabled (t/1450).
+    // Graceful-missing: a missing/malformed sidecar yields null and the feature stays off (AC1).
+    let situationStatements: import('./taxonomyContext.js').SituationStatements | null = null;
+    if (this.config.enableSituationStatements) {
+      try {
+        const __dir = path.dirname(fileURLToPath(import.meta.url));
+        const repoRoot = resolveRepoRoot(__dir);
+        const dataRoot = resolveDataRoot(repoRoot);
+        situationStatements = loadSituationStatements(dataRoot);
+      } catch (err) {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Situation statements sidecar load failed — proceeding without', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      }
+    }
+
+    return formatTaxonomyContext(filteredCtx, pov, undefined, situationStatements ? { situationStatements } : undefined);
   }
 
   private formatDebaterEdgeContext(debaterPov: string): { text: string; edges_used: { source: string; target: string; type: string; confidence: number }[] } {

@@ -3,6 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { formatTaxonomyContext } from './taxonomyContext.js';
+import type { SituationStatements } from './taxonomyContext.js';
 import type { PovNode, SituationNode } from './taxonomyTypes.js';
 
 function makeSit(id: string, label: string, parentId?: string | null): SituationNode {
@@ -140,5 +141,94 @@ describe('formatTaxonomyContext — hierarchy-grouped situations', () => {
     expect(output).toContain('[sit-001]');
     expect(output).toContain('[sit-002]');
     expect(output).not.toContain('## ');
+  });
+});
+
+describe('formatTaxonomyContext — flag-gated situation register-statement injection (t/1450)', () => {
+  // Sidecar-shaped statements keyed by situation id, with own-POV (accelerationist)
+  // and opponent-POV (safetyist/skeptic) blocks carrying distinctive markers so we
+  // can assert own-only injection.
+  const statements: SituationStatements = {
+    'sit-100': {
+      ok: true,
+      statements: {
+        accelerationist: {
+          belief_statement: 'ACC-BELIEF-MARKER',
+          desire_statement: 'ACC-DESIRE-MARKER',
+          intention_statement: 'ACC-INTENTION-MARKER',
+        },
+        safetyist: {
+          belief_statement: 'SAF-BELIEF-MARKER',
+          desire_statement: 'SAF-DESIRE-MARKER',
+          intention_statement: 'SAF-INTENTION-MARKER',
+        },
+        skeptic: {
+          belief_statement: 'SKP-BELIEF-MARKER',
+          desire_statement: 'SKP-DESIRE-MARKER',
+          intention_statement: 'SKP-INTENTION-MARKER',
+        },
+      },
+    },
+  };
+
+  function fixture(): { povNodes: PovNode[]; situationNodes: SituationNode[]; nodeScores: Map<string, number> } {
+    const nodes = [
+      makeSit('sit-100', 'Root Category', null),
+      makeSit('sit-001', 'Child Node', 'sit-100'),
+    ];
+    const nodeScores = new Map([['sit-100', 0.60], ['sit-001', 0.55]]);
+    return { povNodes: [], situationNodes: nodes, nodeScores };
+  }
+
+  it('flag off (no situationStatements config) leaves output free of register statements (AC2)', () => {
+    const output = formatTaxonomyContext(fixture(), 'accelerationist', undefined);
+    expect(output).toContain('[sit-100]');
+    expect(output).not.toContain('Register statements (your voice):');
+    expect(output).not.toContain('ACC-BELIEF-MARKER');
+  });
+
+  it('flag on injects own-POV BDI-labeled statements only, never opponents (AC2)', () => {
+    const output = formatTaxonomyContext(
+      fixture(),
+      'accelerationist',
+      undefined,
+      { situationStatements: statements },
+    );
+
+    // Own-POV register block, BDI-labeled.
+    expect(output).toContain('Register statements (your voice):');
+    expect(output).toContain('Belief: ACC-BELIEF-MARKER');
+    expect(output).toContain('Desire: ACC-DESIRE-MARKER');
+    expect(output).toContain('Intention: ACC-INTENTION-MARKER');
+
+    // Opponents' register statements must never be injected.
+    expect(output).not.toContain('SAF-BELIEF-MARKER');
+    expect(output).not.toContain('SAF-DESIRE-MARKER');
+    expect(output).not.toContain('SAF-INTENTION-MARKER');
+    expect(output).not.toContain('SKP-BELIEF-MARKER');
+    expect(output).not.toContain('SKP-DESIRE-MARKER');
+    expect(output).not.toContain('SKP-INTENTION-MARKER');
+  });
+
+  it('empty sidecar ({}) is a silent no-op (AC1)', () => {
+    const output = formatTaxonomyContext(
+      fixture(),
+      'accelerationist',
+      undefined,
+      { situationStatements: {} },
+    );
+    expect(output).toContain('[sit-100]');
+    expect(output).not.toContain('Register statements (your voice):');
+  });
+
+  it('entry with ok:false is skipped (AC1)', () => {
+    const output = formatTaxonomyContext(
+      fixture(),
+      'accelerationist',
+      undefined,
+      { situationStatements: { 'sit-100': { ok: false, statements: statements['sit-100'].statements } } },
+    );
+    expect(output).not.toContain('Register statements (your voice):');
+    expect(output).not.toContain('ACC-BELIEF-MARKER');
   });
 });
