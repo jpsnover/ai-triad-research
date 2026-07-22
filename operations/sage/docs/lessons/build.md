@@ -932,3 +932,23 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active
 
 **Applies To:** All agents running PowerShell through the Bash tool on Windows/Git Bash.
+
+---
+
+## [Build] Windows Git Bash Silently Breaks Command Chains — grep Zero-Match Exit + MSYS Path Conversion
+
+**Pattern:** Two independent Windows/Git-Bash behaviors silently abort a Bash-tool command mid-chain even though nothing is actually wrong: **(A)** `grep -c` (and any grep) **exits 1 on ZERO matches** — standard grep behavior — so an `&&`-chained check breaks at that link *even when the printed `0` was the desired result* (e.g. confirming zero `.ts` entries); **(B)** MSYS **auto path-conversion mangles a `git show <ref>:<slashed-path>` argument** — `git show origin/main:.github/workflows/ci.yml` is rewritten to `origin\main;.github\...` (colon→`;`, `/`→`\`), producing a `fatal: unknown revision` on a perfectly valid ref.
+
+**Instances:**
+- 2026-07-17 — DevOps (while landing t/1692, p/26#14): (A) a `grep -c ... && ...` chain broke because `grep -c` returned exit 1 on zero matches — the `0` count was the intended answer, but the non-zero exit killed the `&&` chain. (B) `git show origin/main:.github/workflows/ci.yml` failed "unknown revision" because MSYS converted the `<ref>:<path>` arg into `origin\main;.github\...`. Fixes: keep zero-match/count checks OUT of `&&` links (test the value separately), and prefix `MSYS_NO_PATHCONV=1` for `git show <ref>:<slashed-path>`. Both benign, resolved.
+
+**Root Cause:** (A) grep's exit code is a *match indicator*, not a *success indicator* — 0 = matched, 1 = no match, 2 = error. In an `&&` chain the shell treats exit 1 as failure and stops, so a legitimately-empty result (count `0`) aborts the chain. This is standard POSIX grep behavior, not Windows-specific, but it bites hardest in Bash-tool one-liners that chain a count check into follow-up steps. Same "exit code ≠ what you think" family as the grep-fails-silently pattern above. (B) MSYS/Git-Bash rewrites arguments that *look like* Unix paths (containing `/` or a leading drive-colon) into Windows paths before the program sees them. `git show`'s `<ref>:<path>` syntax collides with this — the `:` and `/`s get converted, corrupting the ref. `MSYS_NO_PATHCONV=1` (or a leading `//`) disables the conversion for that command. Sibling of #67 (Git Bash eats shell operators before pwsh sees them) — same root: the Bash tool is Git Bash, and its shell/MSYS layer transforms your command before the target program runs.
+
+**Prevention:**
+1. **Keep zero-match/count checks out of `&&` chains.** Capture the value first (`n=$(grep -c ... || true)`) then test it, or append `|| true` so a legitimate zero-match doesn't abort the chain. Never assume `grep`/`grep -c` exit 0 on a successful-but-empty result.
+2. **Prefix `MSYS_NO_PATHCONV=1` for git commands whose argument uses `<ref>:<slashed-path>`** — `git show`, `git cat-file`, `git checkout <ref>:<path>`. This is the object-level forensics idiom (`git show HEAD:<path>`) that the fleet uses constantly, so the MSYS mangling is a recurring trap on Windows.
+3. **When a valid ref reports "unknown revision" in the Bash tool, suspect MSYS path-conversion first** — check whether the ref/path contains `/` or `:` that got rewritten, before doubting the ref exists.
+
+**Status:** Active — sibling of #67 (Git-Bash-transforms-your-command family). Both facets benign/resolved on first sighting; recording so the next agent recognizes them instantly.
+
+**Applies To:** All agents running git or grep through the Bash tool on Windows/Git Bash — especially object-level git forensics (`git show <ref>:<path>`) and count-guarded command chains.
