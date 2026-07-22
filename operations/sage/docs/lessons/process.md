@@ -230,3 +230,23 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 **Status:** Active — Orca-platform tooling gap (cannot be fixed in-repo); forward to Orca pending network (beta-license token offline). **Directly informs the t/1623 `lossy-error-boundary-guard` live-fire watch:** its `has_run:false` must NOT be read as "hook never fired" — confirm liveness via manifest presence + a deliberate live-fire *after* the next sync boundary.
 
 **Applies To:** All agents creating, auditing, or relying on Orca feedback rules / hooks — especially anyone verifying a hook went live (Diagnostics, Sage, TL).
+
+---
+
+## [Process] Post-Compaction Summary Framing Trusted Over Object State — Phantom Loose End
+
+**Pattern:** After a context compaction, a stale post-compaction summary frames already-completed, already-committed work as an outstanding "uncommitted deliverable" or "loose end." Acting on the summary's framing instead of the object-level truth (git refs + ticket status) produces wasted redo, a duplicate ticket against work that's already Done, or an attempted re-commit of already-committed content.
+
+**Instances:**
+- 2026-07-17 — Computational Linguist (p/7#37): a post-compaction summary framed a redundant essay copy (`analyses/bronder-…`) as "the uncommitted deliverable," when the canonical review (`docs/instrument-effects-review.md`) was **already committed + CLOSED** with follow-up tickets t/1668–1673 filed. Acting on the framing, CL filed a **duplicate PM ticket (t/1684) against the already-Done t/1673**, then a `git mv` of the essay into `docs/` aborted "destination exists" — the git error was what finally surfaced the true state. Resolved: cancelled t/1684, reverted the essay to committed state, verified via same-commit blob provenance.
+
+**Root Cause:** A compaction summary is a lossy narrative reconstruction, not a source of truth. It can misrepresent *committed* state (a file it calls "uncommitted" is already in a commit) and *ticket* state (work it calls "unrouted" already has a Done ticket). Trusting the framing over the object state is the same failure as citing the working tree as evidence of committed state (Git Forensics #44/#54/#55) — extended to a second object domain: **ticket status**. The compaction boundary is the trigger; the summary is confident but stale.
+
+**Prevention:**
+1. **After any compaction, treat "loose end" claims in the summary as unverified.** Before acting, confirm against object state: `git log/show <path>` and blob-SHA provenance for "uncommitted"; `list_tickets`/`get_ticket` for "unrouted"/"undone."
+2. **Before filing a follow-up ticket, `search_tickets` for the scope** — a summary that doesn't mention an existing Done ticket is not evidence one doesn't exist (same dup-prevention step as #195).
+3. **A destination-exists / already-committed error is a signal, not just an obstacle** — when git or the tracker contradicts the summary's framing, the object state wins; stop and re-derive from it (root AGENTS.md "Git forensics — object level, never inference").
+
+**Status:** Active
+
+**Applies To:** All agents resuming after a context compaction — especially before committing a "loose end," filing a follow-up ticket, or re-doing a deliverable a summary calls incomplete.
