@@ -379,7 +379,7 @@ const POV_PREFIX_MAP: Record<string, string> = {
   accelerationist: 'acc',
   safetyist: 'saf',
   skeptic: 'skp',
-  'situations': 'cc',
+  'situations': 'sit', // cc→sit migration (t/1677): map was missed when validator + comments were updated
 };
 
 const CATEGORY_PREFIX_MAP: Record<string, string> = {
