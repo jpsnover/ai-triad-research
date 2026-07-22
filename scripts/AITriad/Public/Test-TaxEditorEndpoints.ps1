@@ -102,7 +102,11 @@ function Test-TaxEditorEndpoints {
         # bad-cache HTML/500 fallback. Kept as its own category so callers can
         # bypass it via -Category. Handled specially in the loop below
         # (Field='__spa' triggers the raw-body content check).
-        @{ Path = '/';                         Cat = 'Frontend';  Field = '__spa';    Desc = 'SPA shell (root document)' }
+        # AuthGated (t/1657) — '/' sits behind Azure Easy Auth too, so an
+        # anonymous smoke caller gets the same Sign-In interstitial as the API
+        # routes; the reclassify block restores it to PASS. A genuinely-broken
+        # shell (non-interstitial HTML) still fails the SPA-shell check below.
+        @{ Path = '/';                         Cat = 'Frontend';  Field = '__spa';    AuthGated = $true;  Desc = 'SPA shell (root document)' }
     )
 
     if ($Category) {
@@ -143,27 +147,16 @@ function Test-TaxEditorEndpoints {
 
         $Check = Invoke-RemoteCheck @Params
 
-        # t/1657 — an auth-gated route serving the Azure Easy Auth Sign-In
-        # interstitial (200 text/html) to an anonymous smoke-test caller is
-        # EXPECTED (auth-gating is working), not a failure. The t/1474 ExpectJson
-        # guard flags it as a failure; reclassify ONLY when the route is AuthGated
-        # AND the body carries the interstitial title. A down route returns a 5xx
-        # or a different body → no title match → still fails (gate-signal integrity).
-        if (-not $Check.Success -and $Ep.ContainsKey('AuthGated') -and $Ep.AuthGated -and
-            $Check.RawBody -match 'Sign In\s*—\s*AITriad Taxonomy Editor') {
-            $Check = [PSCustomObject]@{
-                Success     = $true
-                StatusCode  = $Check.StatusCode
-                ResponseMs  = $Check.ResponseMs
-                Body        = $null
-                ContentType = $Check.ContentType
-                RawBody     = $Check.RawBody
-                Error       = $null
-            }
-        }
-
         # SPA-shell validation: root-div + script-tag both present.
         # If either is missing (blank shell, cache-miss HTML), flip Pass=$false.
+        # For the AuthGated '/' route an anonymous caller receives the Easy Auth
+        # Sign-In interstitial here too — that HTML has no root div/script, so this
+        # flips it to failure; the reclassify block BELOW (which runs after this,
+        # so it observes the flipped state) restores it to PASS on the interstitial
+        # title. Order matters: the '/' row sets no ExpectJson, so Invoke-RemoteCheck
+        # returns Success=$true for the HTML-200; the reclassify guard (-not Success)
+        # only fires once this SPA check has failed it. A genuinely broken shell
+        # (non-interstitial HTML) has no title match → stays failed (gate integrity).
         if ($Check.Success -and $Ep.Field -eq '__spa') {
             $HasRootDiv = $Check.RawBody -match '<div\s+id="root"'
             $HasScript  = $Check.RawBody -match 'src="[^"]+\.js"'
@@ -177,6 +170,28 @@ function Test-TaxEditorEndpoints {
                     RawBody     = $Check.RawBody
                     Error       = "SPA shell missing root div or script tag (root-div=$HasRootDiv, script=$HasScript)"
                 }
+            }
+        }
+
+        # t/1657 — an auth-gated route serving the Azure Easy Auth Sign-In
+        # interstitial (200 text/html) to an anonymous smoke-test caller is
+        # EXPECTED (auth-gating is working), not a failure. For JSON routes the
+        # t/1474 ExpectJson guard flags it; for the '/' SPA route the SPA-shell
+        # check above flags it. Reclassify to PASS ONLY when the route is AuthGated
+        # AND the body carries the interstitial title. A down route returns a 5xx
+        # or a different body → no title match → still fails (gate-signal integrity).
+        # The dash between "Sign In" and "AITriad" varies by platform encoding
+        # (hyphen / en-dash / em-dash); match any so the anchor tokens carry the signal.
+        if (-not $Check.Success -and $Ep.ContainsKey('AuthGated') -and $Ep.AuthGated -and
+            $Check.RawBody -match 'Sign In\s*[-–—]\s*AITriad Taxonomy Editor') {
+            $Check = [PSCustomObject]@{
+                Success     = $true
+                StatusCode  = $Check.StatusCode
+                ResponseMs  = $Check.ResponseMs
+                Body        = $null
+                ContentType = $Check.ContentType
+                RawBody     = $Check.RawBody
+                Error       = $null
             }
         }
 

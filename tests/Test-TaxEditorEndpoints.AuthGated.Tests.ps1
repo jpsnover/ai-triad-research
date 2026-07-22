@@ -90,4 +90,52 @@ Describe 'Test-TaxEditorEndpoints — auth-gated interstitial reclassify (t/1657
             @($results | Where-Object { $_.Pass -eq $true }).Count | Should -Be 0
         }
     }
+
+    It 'reclassifies the interstitial on the "/" SPA root (Frontend) to PASS' {
+        InModuleScope AITriad -Parameters @{ Interstitial = $script:Interstitial } {
+            param($Interstitial)
+            Mock Get-TaxEditorBaseUrl -MockWith { 'https://stub.example.com' }
+            Mock Invoke-WebRequest -MockWith {
+                [PSCustomObject]@{
+                    StatusCode = 200
+                    Headers    = @{ 'Content-Type' = @('text/html; charset=utf-8') }
+                    Content    = $Interstitial
+                }
+            }
+
+            # -Category Frontend selects the single '/' __spa row (AuthGated). The
+            # interstitial has no root div / script tag, so the SPA-shell check
+            # flips it to fail; the reclassify block (which now runs AFTER the SPA
+            # check) restores it to PASS on the interstitial title. This guards the
+            # reopen: adding AuthGated to '/' alone is inert unless the reclassify
+            # runs after the SPA check has flipped Success to $false (t/1657#3).
+            $results = Test-TaxEditorEndpoints -BaseUrl 'https://stub' -Category Frontend 6>$null
+
+            @($results).Count | Should -Be 1
+            @($results | Where-Object { $_.Pass -eq $true }).Count | Should -Be 1
+        }
+    }
+
+    It 'still FAILS the "/" SPA root serving a broken (non-interstitial) shell (gate integrity)' {
+        InModuleScope AITriad -Parameters @{ BrokenHtml = $script:BrokenHtml } {
+            param($BrokenHtml)
+            Mock Get-TaxEditorBaseUrl -MockWith { 'https://stub.example.com' }
+            Mock Invoke-WebRequest -MockWith {
+                [PSCustomObject]@{
+                    StatusCode = 200
+                    Headers    = @{ 'Content-Type' = @('text/html; charset=utf-8') }
+                    Content    = $BrokenHtml
+                }
+            }
+
+            # A genuinely broken shell (no root div/script AND no interstitial
+            # title) must stay failed — the SPA check flips it, and the reclassify
+            # finds no title to match. This proves the '/' reclassify did not
+            # weaken the SPA-shell gate.
+            $results = Test-TaxEditorEndpoints -BaseUrl 'https://stub' -Category Frontend 6>$null
+
+            @($results).Count | Should -Be 1
+            @($results | Where-Object { $_.Pass -eq $true }).Count | Should -Be 0
+        }
+    }
 }
