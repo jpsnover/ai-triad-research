@@ -1200,6 +1200,8 @@ Lightman, H., Kosaraju, V., Burda, Y., Edwards, H., Baker, B., Lee, T., Leike, J
 
 Ling, X. and Weld, D. S. (2012). Fine-grained entity recognition. *Proceedings of the 26th AAAI Conference on Artificial Intelligence*. https://ojs.aaai.org/index.php/AAAI/article/view/8122
 
+Liu, N. F., Lin, K., Hewitt, J., Paranjape, A., Bevilacqua, M., Petroni, F., and Liang, P. (2023). Lost in the middle: How language models use long contexts. *arXiv preprint arXiv:2307.03172*. https://arxiv.org/abs/2307.03172
+
 Masolo, C., Borgo, S., Gangemi, A., Guarino, N., and Oltramari, A. (2003). WonderWeb deliverable D18: Ontology library (final). *IST Project 2001-33052 WonderWeb*. https://www.loa.istc.cnr.it/old/Papers/D18.pdf
 
 Mayer, T., Cabrio, E., and Villata, S. (2020). Transformer-based argument mining for healthcare applications. *Proceedings of the 24th European Conference on Artificial Intelligence (ECAI)*. https://ebooks.iospress.nl/volumearticle/55129
