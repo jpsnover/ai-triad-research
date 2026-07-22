@@ -486,7 +486,7 @@ export function addTaxonomyNode(req: AddTaxonomyNodeRequest): AddTaxonomyNodeRes
       return {
         success: false,
         nodeId: '',
-        error: `Generated node ID "${newId}" does not conform to the taxonomy schema (expected {acc|saf|skp}-{desires|beliefs|intentions}-NNN or sit-NNN). Legacy cc- IDs were migrated to sit- (see taxonomy/Origin/cc-to-sit-mapping.json). Refusing to write. Check pov="${req.pov}" and category="${req.category}".`,
+        error: `Generated node ID "${newId}" does not conform to the taxonomy schema (expected {acc|saf|skp}-{desires|beliefs|intentions}-NNN or sit-NNN). Legacy cc- IDs were migrated to sit- (see taxonomy/Origin/cc-to-sit-mapping.json). Refusing to write. ${isCrossCutting ? `Check pov="${req.pov}" (category is ignored for situation nodes — check POV_PREFIX_MAP).` : `Check pov="${req.pov}" and category="${req.category}".`}`,
       };
     }
 
