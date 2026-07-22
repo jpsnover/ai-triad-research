@@ -1357,6 +1357,30 @@ describe('GitHubAPIBackend — diagnostic accessors', () => {
     backend.shutdown();
   });
 
+  // Characterization test (t/1688): recordEvent pushes error/warn-level events to
+  // the secondary error buffer (t/465#5). This behavior — recordEvent + errorBuffer
+  // — moves into GitHubRestClient during the transport-seam extraction; pin the
+  // failure→buffer population against the unmodified class BEFORE the rewire so the
+  // extraction cannot silently drop it.
+  it('populates the error buffer on API failure', async () => {
+    apiHandlers.push((url, init) => {
+      if ((init?.method ?? 'GET') === 'GET' && url.includes('/contents/')) {
+        return { status: 500, body: { message: 'Internal Server Error' } };
+      }
+      return null as never;
+    });
+
+    const backend = await createBackend();
+    const result = await backend.readFile('/taxonomy/nodes.json');
+    expect(result).toBeNull(); // read fails (returns null) after retries exhausted
+
+    const buffered = backend.getErrorBuffer();
+    expect(buffered.length).toBeGreaterThan(0);
+    expect(buffered.some(e => e.type === 'github.api.error' && e.level === 'error')).toBe(true);
+
+    backend.shutdown();
+  });
+
   it('counts active branches via session overlays', async () => {
     const backend = await createBackend();
 
