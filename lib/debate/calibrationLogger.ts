@@ -21,7 +21,7 @@ import { computeAffectIntensity, computeAffectProfile, computeAffectAppropriaten
 import { computeSourceAuthority } from './sourceAuthority.js';
 import { computeCampInsularityRate } from './schemeStagnation.js';
 import type { DocMetaMap } from './evidenceFromSummaries.js';
-import { elementDecompositionPrompt, coverageCheckPrompt } from './prompts.js';
+import { elementDecompositionPrompt, coverageCheckPrompt, PROMPT_VERSION } from './prompts.js';
 import { parseJsonRobust } from './helpers.js';
 import { DEFAULT_TEMPERATURE } from '../ai-client/defaults.js';
 import { DEFAULT_ATTACK_WEIGHTS } from './qbaf.js';
@@ -36,6 +36,8 @@ import { computeOperationalClosure } from './operationalClosure.js';
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 
 // ── Calibration data point schema ──────────────────────────
 
@@ -52,6 +54,17 @@ export interface CalibrationDataPoint {
   model: string;
   /** Total rounds completed */
   rounds: number;
+
+  // ── Preregistration-by-artifact provenance (t/1672) ──
+  // Binds the instrument revision that produced this entry so a metric shift can
+  // be attributed to prompt-vs-parameter-vs-model drift rather than left ambiguous.
+  // Schema-only addition — no metric VALUES change (arXiv:2607.14399 §5 R-5).
+  /** Prompt-builder revision active when this entry was produced (prompts.ts PROMPT_VERSION) */
+  prompt_version: string;
+  /** Config revision — content hash of calibration-config.json; '' if unreadable */
+  config_revision: string;
+  /** Git working-tree state when the run executed; 'unknown' when git is unavailable (e.g. server/Azure) */
+  working_tree_state: 'clean' | 'dirty' | 'unknown';
 
   // ── Parameter 1: Exploration exit threshold ──
   /** Saturation score at the moment of exploration→synthesis transition (null if no transition) */
@@ -1102,6 +1115,13 @@ export function extractCalibrationData(
     model: (session as any).debate_model ?? (session as any).config?.model ?? (session as any).model ?? 'unknown',
     rounds,
 
+    // Preregistration-by-artifact provenance (t/1672). prompt_version is pure (imported
+    // constant); config_revision + working_tree_state are placeholders here and get stamped
+    // with real runtime values by appendCalibrationLog (the I/O funnel) — extractor stays pure.
+    prompt_version: PROMPT_VERSION,
+    config_revision: '',
+    working_tree_state: 'unknown',
+
     argumentative_saturation_at_transition: argumentativeSaturationAtTransition,
     argumentation_exit_threshold: config.argumentationExitThreshold ?? 0.65,
     engaging_real_disagreement: engaging,
@@ -1540,11 +1560,50 @@ export function extractCalibrationData(
  * Creates directories on first write. Uses JSONL (one JSON object per line)
  * for append-only writes without full-file rewrite.
  */
+/**
+ * Preregistration-by-artifact provenance captured at log-write time (t/1672).
+ *
+ * The extractor is a pure function, so the two I/O-dependent provenance fields —
+ * config revision and git working-tree state — are computed here, at the single
+ * write funnel, and stamped onto the entry before serialization.
+ *
+ * Both fields degrade gracefully: a missing config file or an unavailable git
+ * (e.g. the server/Azure deployment, which has no repo checkout) is an *absent*
+ * input, not a discarded payload — so returning the '' / 'unknown' sentinel is
+ * legitimate recovery, not silent loss (contrast t/1626). No throw, no
+ * ActionableError; this path must never fail a debate write.
+ */
+function captureRunProvenance(): { config_revision: string; working_tree_state: 'clean' | 'dirty' | 'unknown' } {
+  // Resolve relative to this file — use import.meta.url for ESM compatibility (mirrors captureSnapshot).
+  const thisDir = path.dirname(new URL(import.meta.url).pathname);
+
+  let config_revision = '';
+  try {
+    const wPath = path.resolve(thisDir, 'calibration-config.json');
+    const content = fs.readFileSync(wPath, 'utf-8');
+    config_revision = createHash('sha256').update(content).digest('hex').slice(0, 12);
+  } catch { /* config unreadable — leave '' */ }
+
+  let working_tree_state: 'clean' | 'dirty' | 'unknown' = 'unknown';
+  try {
+    const out = execFileSync('git', ['status', '--porcelain'], {
+      cwd: thisDir,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    working_tree_state = out.trim().length === 0 ? 'clean' : 'dirty';
+  } catch { /* git unavailable (e.g. server/Azure) — leave 'unknown' */ }
+
+  return { config_revision, working_tree_state };
+}
+
 export function appendCalibrationLog(
   dataPoint: CalibrationDataPoint,
   dataRoot: string,
 ): void {
-  const line = JSON.stringify(dataPoint) + '\n';
+  // Stamp I/O-dependent provenance without mutating the caller's object (t/1672).
+  const stamped: CalibrationDataPoint = { ...dataPoint, ...captureRunProvenance() };
+  const line = JSON.stringify(stamped) + '\n';
 
   const userDir = path.join(dataRoot, 'calibration', 'users', dataPoint.origin || 'local');
   if (!fs.existsSync(userDir)) {
