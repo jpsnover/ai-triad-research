@@ -48,6 +48,18 @@ I present a system that addresses the projection problem through three integrate
 
 The system is deployed and actively used for AI policy research, operating on 173 source documents, 1,182 taxonomy nodes with validated graph attributes (11 metadata fields per node, 0 errors after quality pass), ~1,900 conflict instances across 1,242 claims, and 100+ structured debate sessions.
 
+### 1.3 Research Contributions and Scope of This Paper
+
+The twelve items above describe the system as engineered. Not all are advanced here as validated research claims. This paper's central research contribution is a single, evidenced claim; the remaining novel elements are either supporting or deferred to future work, and I mark that boundary explicitly so the empirical burden of this paper is not overstated.
+
+**Lead contribution.** The most distinctive and best-evidenced research contribution is the treatment of *situation injection as a controlled experimental variable*: whether ontology-grounded situations are injected into a debate, which situations (selected by relevance band), and in what order and quantity, manipulated as a treatment whose effect on the debate process is then measured. Retrieval-augmented context injection is ubiquitous and position effects are established (Liu et al., 2023), but injection *policy* treated as a manipulable variable with a dose–response design is not covered by that literature. What is injected here is not retrieved passages but ontology-grounded situations that carry three simultaneous rival interpretations, which distinguishes the manipulation from a generic retrieval ablation.
+
+**Supporting contribution.** This lead depends on the *three-perspective Description-and-Situation interpretation layer*: the operational pattern of holding multiple simultaneous rival descriptions of one situation, elicited per ideological camp with a typed disagreement relation, and feeding them to debate agents as structured context. The D&S literature (§2.4) treats one description interpreting one situation; carrying disagreement *within* the situation representation rather than resolving it is what makes the injected content distinctive, and is therefore claimed together with the lead.
+
+**Evidence scope.** The empirical basis of this paper is a first-study package: a relevance-as-treatment comparison, a none/random/ranked injection contrast, and a count dose–response sweep, run over one topic set against one frozen backend. Claims are scoped to that evidence. Effects observed under one backend and one topic family are reported as such and not generalized to model families or domains the design did not sample.
+
+**Deferred contributions and instruments under validation.** The remaining novel elements — a Debate-Tested corroboration ledger that grades claims by how they fare under adversarial debate, the BDI+AIF hybrid discourse schema, the machine-proposes-human-disposes actor-alignment pipeline, and the genus–differentia authoring treatment — are described here as system design but reserved, with their own evidence, for subsequent papers. One boundary is load-bearing: the process-level calibration telemetry (crux engagement, repetition, claim retention, convergence trajectory, and situation uptake) is presented throughout this paper as a suite of *instruments under validation*, not as validated measures. Their inter-rater reliability is the subject of separate preregistered validity studies; until those report, no process metric is offered as validated evidence for any claim, and the convergence diagnostics in particular serve to *detect* premature consensus rather than as a graded quality score.
+
 ## 2. Related Work
 
 ### 2.1 Argument Mining and Claim Extraction
