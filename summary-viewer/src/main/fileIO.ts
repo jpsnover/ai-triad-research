@@ -375,21 +375,24 @@ const POV_FILE_MAP: Record<string, string> = {
   'situations': 'situations.json',
 };
 
-const POV_PREFIX_MAP: Record<string, string> = {
+// Exported for the ID-invariant test (t/1682): POV_PREFIX_MAP, CATEGORY_PREFIX_MAP,
+// and NODE_ID_PATTERN are two sources of truth that must not drift (see the t/1677
+// regression). Exporting is behavior-neutral.
+export const POV_PREFIX_MAP: Record<string, string> = {
   accelerationist: 'acc',
   safetyist: 'saf',
   skeptic: 'skp',
   'situations': 'sit', // cc→sit migration (t/1677): map was missed when validator + comments were updated
 };
 
-const CATEGORY_PREFIX_MAP: Record<string, string> = {
+export const CATEGORY_PREFIX_MAP: Record<string, string> = {
   'Desires': 'desires',
   'Beliefs': 'beliefs',
   'Intentions': 'intentions',
 };
 
 /** Valid ID shapes per the taxonomy schema. Situations: sit-NNN (cc→sit migration applied; legacy cc- no longer accepted). POV: {acc|saf|skp}-{desires|beliefs|intentions}-NNN. */
-const NODE_ID_PATTERN = /^(acc|saf|skp)-(desires|beliefs|intentions)-\d{3}$|^sit-\d{3}$/;
+export const NODE_ID_PATTERN = /^(acc|saf|skp)-(desires|beliefs|intentions)-\d{3}$|^sit-\d{3}$/;
 
 export interface AddTaxonomyNodeRequest {
   pov: string;

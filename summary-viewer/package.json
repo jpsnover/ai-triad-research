@@ -9,6 +9,7 @@
     "dev:vite": "vite",
     "dev:electron": "wait-on http://localhost:5175 && electron .",
     "build:main": "tsc -p tsconfig.main.json",
+    "test": "vitest run",
     "licenses": "generate-license-file --input package.json --output THIRD-PARTY-NOTICES.txt --eol lf",
     "build": "tsc -p tsconfig.main.json && vite build && npm run licenses"
   },
@@ -29,6 +30,7 @@
     "generate-license-file": "^4.2.1",
     "typescript": "^6.0.3",
     "vite": "^8.1.4",
+    "vitest": "^4.1.10",
     "wait-on": "^9.0.10"
   }
 }
