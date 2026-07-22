@@ -14,6 +14,13 @@ import { interpretationText } from './taxonomyTypes.js';
 import { stripExcludes } from './helpers.js';
 import { DOC_TRUNCATION_LIMIT } from './constants.js';
 
+// ── Prompt-builder revision (t/1672, preregistration-by-artifact) ──
+// Bump this when a change to the debate prompt builders could shift calibration
+// metrics. Calibration entries bind this value so a metric drift can be attributed
+// to prompt revision vs. parameter/model drift (arXiv:2607.14399 §5 R-5).
+// Format: 'YYYY-MM-DD.N' — date of the change plus a same-day sequence number.
+export const PROMPT_VERSION = '2026-07-22.1';
+
 // ── Model-tier prompt routing (t/331) ────────────────────────────
 // Flash/lite models can't process full prose_style + voice_hygiene blocks.
 // Set compact mode before generating prompts for weaker backends.

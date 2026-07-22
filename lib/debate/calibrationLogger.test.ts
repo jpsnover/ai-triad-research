@@ -2,10 +2,15 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import {
   computeExtractionCoverage,
   extractCalibrationData,
+  appendCalibrationLog,
 } from './calibrationLogger.js';
+import { PROMPT_VERSION } from './prompts.js';
 import type { DebateSession, EntryDiagnostics } from './types.js';
 
 function makeMinimalSession(overrides: Partial<DebateSession> = {}): DebateSession {
@@ -627,5 +632,81 @@ describe('extractCalibrationData peer_referencing_rate (t/1279)', () => {
 
     const dp = extractCalibrationData(session, 'local');
     expect(dp.peer_referencing_rate).toBe(0);
+  });
+});
+
+// ── Preregistration-by-artifact provenance (t/1672) ───────────
+// Each calibration entry binds prompt version + model id + config revision +
+// clean/dirty git flag so a metric drift is attributable to prompt-vs-parameter-
+// vs-model drift (arXiv:2607.14399 §5 R-5). Schema-only: metric VALUES unchanged.
+
+describe('extractCalibrationData provenance fields (t/1672)', () => {
+  it('binds prompt_version to the imported constant', () => {
+    const dp = extractCalibrationData(makeMinimalSession(), 'local');
+    expect(dp.prompt_version).toBe(PROMPT_VERSION);
+  });
+
+  it('leaves config_revision / working_tree_state as placeholders (pure extractor does no I/O)', () => {
+    // The extractor is pure — the I/O-dependent fields get their real values
+    // stamped later by appendCalibrationLog. Here they must be the placeholders.
+    const dp = extractCalibrationData(makeMinimalSession(), 'local');
+    expect(dp.config_revision).toBe('');
+    expect(dp.working_tree_state).toBe('unknown');
+  });
+});
+
+describe('appendCalibrationLog stamps runtime provenance (t/1672)', () => {
+  function readLastEntry(dataRoot: string, origin: string): any {
+    const file = path.join(dataRoot, 'calibration', 'core', 'calibration-log.jsonl');
+    const lines = fs.readFileSync(file, 'utf-8').trim().split('\n');
+    return JSON.parse(lines[lines.length - 1]);
+  }
+
+  it('stamps config_revision and working_tree_state onto the persisted entry', () => {
+    const dataRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'calib-prov-'));
+    try {
+      const dp = extractCalibrationData(makeMinimalSession(), 'local');
+      appendCalibrationLog(dp, dataRoot);
+
+      const entry = readLastEntry(dataRoot, 'local');
+      expect(entry.prompt_version).toBe(PROMPT_VERSION);
+      // config_revision: 12-hex content hash of calibration-config.json, or '' if unreadable.
+      expect(typeof entry.config_revision).toBe('string');
+      expect(entry.config_revision).toMatch(/^([0-9a-f]{12})?$/);
+      // working_tree_state: real git state where a repo exists, 'unknown' where git is absent.
+      expect(['clean', 'dirty', 'unknown']).toContain(entry.working_tree_state);
+    } finally {
+      fs.rmSync(dataRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('does not mutate the caller-supplied dataPoint (stamps a copy)', () => {
+    const dataRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'calib-prov-'));
+    try {
+      const dp = extractCalibrationData(makeMinimalSession(), 'local');
+      appendCalibrationLog(dp, dataRoot);
+      // The pure extractor's placeholders on the original object are untouched.
+      expect(dp.config_revision).toBe('');
+      expect(dp.working_tree_state).toBe('unknown');
+    } finally {
+      fs.rmSync(dataRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('changes only the two provenance fields — all metric values are unchanged (AC #2)', () => {
+    const dataRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'calib-prov-'));
+    try {
+      const dp = extractCalibrationData(makeMinimalSession(), 'local');
+      appendCalibrationLog(dp, dataRoot);
+
+      const entry = readLastEntry(dataRoot, 'local');
+      // Strip the two runtime-stamped fields from both sides; everything else — every
+      // metric value — must be byte-identical to the pure extractor output.
+      const { config_revision: _ec, working_tree_state: _ew, ...entryRest } = entry;
+      const { config_revision: _dc, working_tree_state: _dw, ...dpRest } = dp as any;
+      expect(entryRest).toEqual(dpRest);
+    } finally {
+      fs.rmSync(dataRoot, { recursive: true, force: true });
+    }
   });
 });
