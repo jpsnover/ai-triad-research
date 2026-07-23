@@ -38,7 +38,6 @@ import { runWithUser, getCurrentUser, getCurrentUserId, getStorageUserId, setSes
 import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies, anonymousSessionCookies, hasEasyAuthSessionCookie, resolveTestPersonaOverride } from './security/accessControl.js';
 import { sanitizeUserText } from './security/contentSanitizer.js';
 import { getRollbackStatus } from './rollbackStatus.js';
-import { LLMS_TXT } from './llmsTxt.js';
 import { getErrorSummaryCached, type ErrorEntry } from './errorAggregation.js';
 import * as supportStore from './support/supportStore.js';
 import { isCaseStatus } from './support/types.js';
@@ -54,8 +53,10 @@ import { registerCommunityRoutes } from './routes/community.js';
 import { registerHarvestRoutes } from './routes/harvest.js';
 import { registerOrganizationsRoutes } from './routes/organizations.js';
 import { registerTaxonomyRoutes } from './routes/taxonomy.js';
+import { registerMetaRoutes } from './routes/meta.js';
+import { registerEdgesRoutes } from './routes/edges.js';
 import type { ServerCtx } from './routes/context.js';
-import { getAllFlags, listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
+import { listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
 import { writeDump, isValidDumpId, readMergedDump } from './flightRecorderDumps.js';
 import { drainServerLogLines } from './serverLogBuffer.js';
 import { initAnonymousSessionStore } from './storage/anonymousSessionStore.js';
@@ -64,7 +65,6 @@ import { checkProviderBinding } from './ai/providerBinding.js';
 import * as community from './community/community.js';
 import * as fileIO from './storage/fileIO.js';
 import { FEEDBACK_CATEGORIES, isFeedbackCategory, paginateFeedback } from './storage/feedbackStore.js';
-import { stripEdgeRationale, type EdgesData } from './community/edgesApi.js';
 import { escapeForInlineScript } from './flightRecorderViewer.js';
 import { stampNodeAuthorship, diffNodes, changedFields } from './storage/editMeta.js';
 import { computeNodeConflicts } from './community/nodeConflicts.js';
@@ -301,22 +301,9 @@ const router = createRouter(routes);
 // Declared above serverCtx so ctx.invalidateConflictsCache() can null it after a
 // harvest write from the extracted routes/harvest.ts (t/1347).
 let conflictsCache: { data: unknown[]; ts: number } | null = null;
-const serverCtx: ServerCtx = {
-  getGithubBackend: () => githubBackend,
-  getSessionManager: () => sessionManager,
-  broadcastTaxonomyUpdate,
-  serverRecorder,
-  ensureSessionBranch,
-  appendServerLogs,
-  invalidateConflictsCache: () => { conflictsCache = null; },
-};
 
-// Best-effort client IP for rate limiting — first X-Forwarded-For hop (Azure
-// ingress sets it) else the socket address. (M7)
-// getClientIp moved to httpKit.ts (t/1347) — shared by server.ts + routes/*.ts.
-
-// ── Health ──
-
+// Server identity — resolved once at startup. Threaded to routes/meta.ts (/health)
+// via ServerCtx; also used by the startup log + flight-recorder context provider.
 const SERVER_VERSION = (() => {
   const candidates = [
     path.resolve(__dirname, '../package.json'),
@@ -334,128 +321,25 @@ const SERVER_VERSION = (() => {
 
 const SERVER_START_TIME = new Date().toISOString();
 
-get('/third-party-notices', (_req, res) => {
-  const noticesPath = path.join(getProjectRoot(), 'taxonomy-editor', 'THIRD-PARTY-NOTICES.txt');
-  try {
-    const content = fs.readFileSync(noticesPath, 'utf-8');
-    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end(content);
-  } catch {
-    /* telemetry — silent by design */
-    res.writeHead(404, { 'Content-Type': 'text/plain' });
-    res.end('License notices file not found. Run npm run licenses to generate.');
-  }
-});
+const serverCtx: ServerCtx = {
+  getGithubBackend: () => githubBackend,
+  getSessionManager: () => sessionManager,
+  broadcastTaxonomyUpdate,
+  serverRecorder,
+  ensureSessionBranch,
+  appendServerLogs,
+  invalidateConflictsCache: () => { conflictsCache = null; },
+  serverVersion: SERVER_VERSION,
+  serverStartTime: SERVER_START_TIME,
+};
 
-get('/healthz', async (_req, res) => {
-  const dataAvailable = await fileIO.isDataAvailable();
-  if (dataAvailable) {
-    json(res, { status: 'healthy', dataRoot: fileIO.getDataRootPath() });
-  } else {
-    json(res, { status: 'unhealthy', reason: 'taxonomy data not found', dataRoot: fileIO.getDataRootPath() }, 503);
-  }
-});
+// Best-effort client IP for rate limiting — first X-Forwarded-For hop (Azure
+// ingress sets it) else the socket address. (M7)
+// getClientIp moved to httpKit.ts (t/1347) — shared by server.ts + routes/*.ts.
 
-get('/health', async (_req, res) => {
-  // M5: liveness probes (unauthenticated) get a minimal OK. Operational detail
-  // (versions, storage internals, GitHub rate limits, paths) only for admins.
-  // AI key status is always included so deployment gates can verify readiness.
-  const geminiReady = await hasApiKey('gemini');
-  const freeKeyPoolSize = proxyTiers.parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY).length;
-  if (!community.isAdmin()) { json(res, { status: 'ok', ai: { geminiKeyConfigured: geminiReady, freeTierKeyPoolSize: freeKeyPoolSize } }); return; }
-  const base: Record<string, unknown> = {
-    status: 'ok',
-    version: SERVER_VERSION,
-    startedAt: SERVER_START_TIME,
-    uptime: Math.round(process.uptime()),
-    node: process.version,
-    platform: process.platform,
-    arch: process.arch,
-    dataRoot: getDataRoot(),
-    memoryMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
-    flightRecorder: {
-      eventsTotal: serverRecorder.buffer.count,
-      eventsRetained: serverRecorder.buffer.retained,
-      capacity: serverRecorder.buffer.capacity,
-    },
-    storage: {
-      mode: STORAGE_MODE,
-    },
-  };
-
-  base.ai = {
-    geminiKeyConfigured: geminiReady,
-    freeTierEnabled: freeKeyPoolSize > 0,
-    freeTierKeyPoolSize: freeKeyPoolSize,
-    freeTierLimits: freeKeyPoolSize > 0 ? { requestsPerMinute: proxyTiers.scaledFreeTierRpm(freeKeyPoolSize), tokensPerDay: getConfig().tiers.free.tokensPerDay } : null,
-  };
-
-  if (githubBackend) {
-    (base.storage as Record<string, unknown>).mainSha = githubBackend.getMainSha();
-    (base.storage as Record<string, unknown>).cacheFileCount = githubBackend.getCachedFileCount();
-    (base.storage as Record<string, unknown>).cacheGeneration = githubBackend.getCacheGeneration();
-    (base.storage as Record<string, unknown>).fallbackActive = githubBackend.getCircuitState() === 'open';
-    (base.storage as Record<string, unknown>).overlay = githubBackend.getOverlayStats(); // t/727 memory monitoring
-
-    base.github = {
-      rateLimit: {
-        remaining: githubBackend.getRateLimitRemaining(),
-        resetsAt: githubBackend.getRateLimitResetsAt(),
-      },
-      cacheHitRate: githubBackend.getCacheHitRate(),
-      circuitState: githubBackend.getCircuitState(),
-      coherencyViolations: githubBackend.getCoherencyViolations(),
-      activeBranches: githubBackend.getActiveBranchCount(),
-      lastPollAgeS: githubBackend.getLastPollAge(),
-    };
-  }
-
-  json(res, base);
-});
-
-// ── Taxonomy directories ──
-
-// t/1143: llms.txt convention (https://llmstxt.org) — a public, static markdown
-// file so IDE agents / AI tools get structured context about the app instead of
-// parsing raw SPA HTML. Static + cacheable.
-get('/llms.txt', (_req, res) => {
-  res.writeHead(200, {
-    'Content-Type': 'text/markdown; charset=utf-8',
-    'Cache-Control': 'public, max-age=3600',
-  });
-  res.end(LLMS_TXT);
-});
-
-get('/api/taxonomy-dirs', async (_req, res) => {
-  json(res, await fileIO.getTaxonomyDirs());
-});
-
-get('/api/taxonomy-dir/active', (_req, res) => {
-  json(res, fileIO.getActiveTaxonomyDirName());
-});
-
-put('/api/taxonomy-dir/active', (_req, res, body) => {
-  const { dirName } = body as { dirName: string };
-  const previous = fileIO.getActiveTaxonomyDirName();
-  try {
-    fileIO.setActiveTaxonomyDir(dirName);
-    log.api.info({ component: 'taxonomy-dir', previous, active: dirName }, 'Active taxonomy directory changed');
-    getGlobalRecorder()?.record({
-      type: 'lifecycle', component: 'taxonomy-dir', level: 'info',
-      message: 'Active taxonomy directory changed',
-      data: { previous, active: dirName },
-    });
-    json(res, { ok: true });
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error', component: 'taxonomy-dir', level: 'error',
-      message: 'Failed to switch active taxonomy directory',
-      data: { previous, requested: dirName },
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    error(res, String(err), 500, err);
-  }
-});
+// ── Meta / liveness / taxonomy-dirs (t/1687: extracted to routes/meta.ts) ──
+// Registers before registerTaxonomyRoutes, preserving the routeTable snapshot order.
+registerMetaRoutes(router, serverCtx);
 
 // ── Taxonomy: synthetic corpus + CRUD + node edit history ──
 // t/1383: /api/taxonomy/* cluster extracted to routes/taxonomy.ts (registrar at group position;
@@ -568,89 +452,9 @@ get('/api/policy-registry', async (_req, res) => {
 // t/1383: /api/organizations/* cluster extracted to routes/organizations.ts (registrar at group position).
 registerOrganizationsRoutes(router, serverCtx);
 
-// ── Lineage categories ──
-
-get('/api/lineage-categories', async (_req, res) => {
-  json(res, await fileIO.readLineageCategories());
-});
-
-get('/api/lineage-info', async (_req, res) => {
-  json(res, await fileIO.readLineageEnrichments());
-});
-
-// ── Edges ──
-
-let edgesCache: unknown = null;
-
-get('/api/edges', async (req, res) => {
-  edgesCache = await fileIO.readEdgesFile();
-  if (!edgesCache) { json(res, null); return; }
-  // ?include=rationale returns the full payload (backwards-compat for scripts).
-  if (query(req, 'include') === 'rationale') { json(res, edgesCache); return; }
-  json(res, stripEdgeRationale(edgesCache));
-});
-
-get('/api/edges/:index', async (req, res) => {
-  if (!edgesCache) edgesCache = await fileIO.readEdgesFile();
-  const data = edgesCache as EdgesData | null;
-  const index = parseInt(param(req, 'index', '/api/edges/:index'), 10);
-  if (!data?.edges || isNaN(index) || index < 0 || index >= data.edges.length) {
-    error(res, 'Edge not found', 404);
-    return;
-  }
-  json(res, data.edges[index]);
-});
-
-put('/api/edges/status', async (_req, res, body) => {
-  const { index, status: s } = body as { index: number; status: string };
-  if (!edgesCache) edgesCache = await fileIO.readEdgesFile();
-  edgesCache = await fileIO.updateEdgeStatus(edgesCache, index, s);
-  json(res, stripEdgeRationale(edgesCache));
-});
-
-put('/api/edges/swap', async (_req, res, body) => {
-  const { index } = body as { index: number };
-  if (!edgesCache) edgesCache = await fileIO.readEdgesFile();
-  edgesCache = await fileIO.swapEdgeDirection(edgesCache, index);
-  json(res, stripEdgeRationale(edgesCache));
-});
-
-put('/api/edges/bulk-status', async (_req, res, body) => {
-  const { indices, status: s } = body as { indices: number[]; status: string };
-  if (!edgesCache) edgesCache = await fileIO.readEdgesFile();
-  edgesCache = await fileIO.bulkUpdateEdges(edgesCache, indices, s);
-  json(res, stripEdgeRationale(edgesCache));
-});
-
-// ── Source indexes ──
-
-get('/api/node-source-index', async (_req, res) => {
-  json(res, await fileIO.buildNodeSourceIndex());
-});
-
-get('/api/policy-source-index', async (_req, res) => {
-  json(res, await fileIO.buildPolicySourceIndex());
-});
-
-// ── Data management ──
-
-get('/api/data/available', async (_req, res) => {
-  json(res, await fileIO.isDataAvailable());
-});
-
-// ── Feature flags (t/899) ──
-
-// Resolved flags for the current user (any caller). The UI gates features on these.
-get('/api/flags', (_req, res) => {
-  try { json(res, getAllFlags()); }
-  catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error', component: 'server', level: 'error', message: 'Failed to resolve feature flags',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    error(res, String(err), 500, err);
-  }
-});
+// ── Lineage / edges / source-indexes / data-availability / flags (t/1687: routes/edges.ts) ──
+// Registers between organizations and admin, preserving the routeTable snapshot order.
+registerEdgesRoutes(router, serverCtx);
 
 // ── Admin (35 routes, 6 scattered runs) extracted to routes/admin.ts — t/1295 ──
 registerAdminRoutes(router, serverCtx);
