@@ -1,0 +1,245 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+// t/1687 (Phase 2 server.ts split, ADR-007): the data-management / AI-models
+// route run, moved verbatim out of server.ts behind the registration seam. This
+// run sits between registerAdminRoutes and registerKeysRoutes, so registration
+// order — and the routeTable snapshot — is preserved by placing
+// registerDataRoutes() at its former position. serverRecorder is threaded
+// through ctx (data-pull lifecycle events); handlers otherwise depend on imports.
+
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { execFile } from 'child_process';
+import type { Router } from '../httpKit.js';
+import type { ServerCtx } from './context.js';
+import { json, error } from '../httpKit.js';
+import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
+import { getDataRoot } from '../config.js';
+import { getConfig } from '../runtimeConfig.js';
+import { isPathWithinDir } from '../security/accessControl.js';
+import { requireAdmin } from '../community/admin/reviewRegistry.js';
+import { log } from '../logger.js';
+import * as fileIO from '../storage/fileIO.js';
+import * as ai from '../ai/aiBackends.js';
+
+export function registerDataRoutes(r: Router, ctx: ServerCtx): void {
+  const { get, post } = r;
+  const { serverRecorder } = ctx;
+
+  get('/api/data/root', (_req, res) => {
+    if (!requireAdmin(res)) return; // t/855: the data-root filesystem path is admin-only
+    json(res, fileIO.getDataRootPath());
+  });
+
+  post('/api/data/set-root', (_req, res, body) => {
+    if (!requireAdmin(res)) return; // L2 (t/720): mutating the data root is admin-only
+    const { newRoot } = body as { newRoot: string };
+    try {
+      if (!fs.existsSync(newRoot)) {
+        json(res, { success: false, message: `Directory does not exist: ${newRoot}` }, 400);
+        return;
+      }
+      process.env.AI_TRIAD_DATA_ROOT = path.resolve(newRoot);
+      json(res, { success: true });
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'server',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      json(res, { success: false, message: String(err) }, 500);
+    }
+  });
+
+
+  post('/api/data/clone', async (_req, res, body) => {
+    if (!requireAdmin(res)) return; // L3 (t/720): cloning is admin-only
+    const { targetPath } = body as { targetPath: string };
+    try {
+      // L3 (t/720): confine the clone target to the configured data directory.
+      // Without this an (admin) caller could write the repo to any filesystem path.
+      if (!isPathWithinDir(targetPath, getDataRoot())) {
+        json(res, { success: false, message: 'targetPath must be within the configured data directory.' }, 400);
+        return;
+      }
+      // Clone to temp dir first, then copy contents — avoids permission issues
+      // when targetPath is root-owned (e.g. /data in Azure containers).
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'data-clone-'));
+      await new Promise<void>((resolve, reject) => {
+        execFile('git', ['clone', 'https://github.com/jpsnover/ai-triad-data.git', tmpDir], { timeout: getConfig().server.gitCloneTimeoutMs }, (err) => {
+          if (err) reject(err); else resolve();
+        });
+      });
+      const entries = fs.readdirSync(tmpDir).filter(f => f !== '.git');
+      fs.mkdirSync(targetPath, { recursive: true });
+      await new Promise<void>((resolve, reject) => {
+        execFile('cp', ['-a', ...entries.map(f => path.join(tmpDir, f)), targetPath], (err) => {
+          if (err) reject(err); else resolve();
+        });
+      });
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+      json(res, { success: true, message: 'Data repository cloned successfully.' });
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'server',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      json(res, { success: false, message: String(err) });
+    }
+  });
+
+  post('/api/data/check-updates', async (_req, res) => {
+    try {
+      const dataRoot = getDataRoot();
+      const gitDir = path.join(dataRoot, '.git');
+      if (!fs.existsSync(gitDir)) { json(res, { available: false, error: 'Not a git repo' }); return; }
+
+      const runGit = (args: string[]): Promise<string> => new Promise((resolve, reject) => {
+        execFile('git', args, { cwd: dataRoot, timeout: 15_000 }, (err, stdout) => {
+          if (err) reject(err); else resolve(stdout.trim());
+        });
+      });
+
+      await runGit(['fetch', 'origin', '--quiet']);
+      const local = await runGit(['rev-parse', 'HEAD']);
+      const remote = await runGit(['rev-parse', 'origin/main']);
+
+      if (local === remote) {
+        json(res, { available: false, behindCount: 0, aheadCount: 0, diverged: false, currentCommit: local, remoteCommit: remote });
+        return;
+      }
+
+      const lrOutput = await runGit(['rev-list', '--left-right', '--count', 'HEAD...origin/main']);
+      const [aheadStr, behindStr] = lrOutput.split(/\s+/);
+      const aheadCount = parseInt(aheadStr, 10) || 0;
+      const behindCount = parseInt(behindStr, 10) || 0;
+      const diverged = aheadCount > 0 && behindCount > 0;
+
+      json(res, { available: behindCount > 0, behindCount, aheadCount, diverged, currentCommit: local, remoteCommit: remote });
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'server',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      json(res, { available: false, error: String(err) });
+    }
+  });
+
+  post('/api/data/pull', async (_req, res) => {
+    // Stream heartbeats to prevent Azure Container Apps' Envoy proxy from
+    // returning 504 "stream timeout" during long-running git operations.
+    res.writeHead(200, {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-cache',
+      'X-Content-Type-Options': 'nosniff',
+    });
+
+    const heartbeat = setInterval(() => { res.write('\n'); }, 15_000);
+    const progress = (msg: string) => { res.write(`progress: ${msg}\n`); };
+    const pullStart = Date.now();
+
+    try {
+      const dataRoot = getDataRoot();
+      const runGit = (args: string[], timeoutMs = getConfig().server.gitDefaultTimeoutMs): Promise<string> => new Promise((resolve, reject) => {
+        execFile('git', args, { cwd: dataRoot, timeout: timeoutMs, maxBuffer: getConfig().server.gitBufferLimitBytes }, (err, stdout, stderr) => {
+          if (err) {
+            log.dataPull.error({ cmd: `git ${args.join(' ')}`, stderr: stderr?.trim() }, err.message);
+            reject(new Error(`git ${args[0]}: ${err.message}${stderr ? ' — ' + stderr.trim() : ''}`));
+          } else {
+            if (stderr) log.dataPull.debug({ cmd: `git ${args[0]}`, stderr: stderr.trim() }, 'git stderr');
+            resolve(stdout.trim());
+          }
+        });
+      });
+
+      serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.start', data: { dataRoot } });
+      log.dataPull.info({ dataRoot }, 'Starting pull');
+      progress('Starting data update...');
+
+      // Fix: Strip stale tokens from origin URL to avoid 401 on expired GitHub App tokens.
+      // Public repos work fine with plain HTTPS; embedded tokens cause auth failures when expired.
+      let remoteUrl = await runGit(['remote', 'get-url', 'origin']);
+      log.dataPull.info({ remoteUrl: remoteUrl.replace(/:\/\/[^@]+@/, '://<redacted>@') }, 'Remote URL');
+
+      if (remoteUrl.includes('x-access-token:')) {
+        const cleanUrl = remoteUrl.replace(/:\/\/x-access-token:[^@]+@/, '://');
+        log.dataPull.info('Stripping stale token from origin URL');
+        await runGit(['remote', 'set-url', 'origin', cleanUrl]);
+        remoteUrl = cleanUrl;
+      }
+
+      // If remote is SSH, convert to HTTPS for public repo access without keys
+      if (remoteUrl.startsWith('git@github.com:')) {
+        const httpsUrl = remoteUrl.replace('git@github.com:', 'https://github.com/').replace(/\.git$/, '.git');
+        log.dataPull.info({ httpsUrl }, 'Converting SSH remote to HTTPS');
+        await runGit(['remote', 'set-url', 'origin', httpsUrl]);
+      }
+
+      // Ensure we're on main before resetting — avoid clobbering a session branch
+      const currentBranch = await runGit(['rev-parse', '--abbrev-ref', 'HEAD']).catch(() => 'unknown');
+      if (currentBranch !== 'main') {
+        log.dataPull.info({ branch: currentBranch }, 'Switching to main before pull');
+        await runGit(['checkout', 'main']);
+      }
+
+      // Discard any local changes — web deployment treats data as read-only
+      await runGit(['checkout', '--', '.']).catch(() => { /* no tracked changes */ });
+      await runGit(['clean', '-fd']).catch(() => { /* no untracked files */ });
+
+      progress('Fetching updates from GitHub...');
+      serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.fetch_start' });
+      log.dataPull.info('Fetching origin');
+      const fetchStart = Date.now();
+      await runGit(['fetch', 'origin'], getConfig().server.gitFetchTimeoutMs);
+      serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.fetch_ok', duration_ms: Date.now() - fetchStart });
+
+      progress('Applying updates...');
+      serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.reset_start' });
+      log.dataPull.info('Resetting to origin/main');
+      const resetStart = Date.now();
+      await runGit(['reset', '--hard', 'origin/main'], getConfig().server.gitFetchTimeoutMs);
+      serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.reset_ok', duration_ms: Date.now() - resetStart });
+
+      log.dataPull.info('Pull completed successfully');
+      serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.ok', duration_ms: Date.now() - pullStart });
+      res.write(JSON.stringify({ success: true, message: 'Data updated.' }) + '\n');
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'server',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      const msg = err instanceof Error ? err.message : String(err);
+      log.dataPull.error({ err: msg }, 'Pull failed');
+      serverRecorder.record({ type: 'system.error', component: 'data-pull', level: 'error', message: 'pull.failed', error: { name: 'Error', message: msg, stack: (err as Error).stack }, duration_ms: Date.now() - pullStart });
+      res.write(JSON.stringify({ success: false, message: msg }) + '\n');
+    } finally {
+      clearInterval(heartbeat);
+      res.end();
+    }
+  });
+
+  // ── AI models & keys ──
+
+  get('/api/models', async (_req, res) => {
+    json(res, await fileIO.loadAIModels());
+  });
+
+  post('/api/models/refresh', async (_req, res) => {
+    try {
+      json(res, await ai.refreshAIModels());
+    } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to refresh AI models', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
+  });
+}
