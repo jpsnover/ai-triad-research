@@ -43,7 +43,6 @@ import * as supportStore from './support/supportStore.js';
 import { isCaseStatus } from './support/types.js';
 import * as organizations from './organizations.js';
 import { isPov } from './organizations.js';
-import { appendCruxEvidence, removeCruxEvidence, type CruxEvidenceEntry } from './cruxEvidence.js';
 import { json, error, param, query, getClientIp, createRouter, withEndpointTimeout, type Handler } from './httpKit.js';
 import { registerDebatesRoutes } from './routes/debates.js';
 import { registerSyncRoutes } from './routes/sync.js';
@@ -55,6 +54,7 @@ import { registerOrganizationsRoutes } from './routes/organizations.js';
 import { registerTaxonomyRoutes } from './routes/taxonomy.js';
 import { registerMetaRoutes } from './routes/meta.js';
 import { registerEdgesRoutes } from './routes/edges.js';
+import { registerConflictsRoutes, invalidateConflictsCache, warmConflictsCache } from './routes/conflicts.js';
 import type { ServerCtx } from './routes/context.js';
 import { listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
 import { writeDump, isValidDumpId, readMergedDump } from './flightRecorderDumps.js';
@@ -297,10 +297,6 @@ function del(p: string, h: Handler) { routes.push({ method: 'DELETE', path: p, h
 // (routes/*.ts). getGithubBackend is a live getter (not a snapshot) so clusters
 // registered at module-load don't capture a stale null before async init assigns it.
 const router = createRouter(routes);
-// Conflicts response cache (read/written by the /api/conflicts routes below).
-// Declared above serverCtx so ctx.invalidateConflictsCache() can null it after a
-// harvest write from the extracted routes/harvest.ts (t/1347).
-let conflictsCache: { data: unknown[]; ts: number } | null = null;
 
 // Server identity — resolved once at startup. Threaded to routes/meta.ts (/health)
 // via ServerCtx; also used by the startup log + flight-recorder context provider.
@@ -328,7 +324,7 @@ const serverCtx: ServerCtx = {
   serverRecorder,
   ensureSessionBranch,
   appendServerLogs,
-  invalidateConflictsCache: () => { conflictsCache = null; },
+  invalidateConflictsCache,
   serverVersion: SERVER_VERSION,
   serverStartTime: SERVER_START_TIME,
 };
@@ -346,107 +342,11 @@ registerMetaRoutes(router, serverCtx);
 // synthetic-embeddings registers before :pov, preserving the collision-pair order).
 registerTaxonomyRoutes(router, serverCtx);
 
-// ── Conflicts ──
-// t/929: conflicts cache TTL is runtime-configurable — getConfig().server.conflictsCacheTtlMs (default 5m).
-// `conflictsCache` is declared above serverCtx (t/1347) so ctx.invalidateConflictsCache can null it.
-
-get('/api/conflicts', async (_req, res) => {
-  if (conflictsCache && Date.now() - conflictsCache.ts < getConfig().server.conflictsCacheTtlMs) {
-    json(res, conflictsCache.data);
-    return;
-  }
-  const data = await fileIO.readAllConflictFiles();
-  conflictsCache = { data, ts: Date.now() };
-  json(res, data);
-});
-
-get('/api/conflicts/clusters', async (_req, res) => {
-  json(res, await fileIO.readConflictClusters());
-});
-
-// ── Cruxes ──
-
-get('/api/cruxes', async (_req, res) => {
-  json(res, await fileIO.readAggregatedCruxes());
-});
-
-// t/1541: reviewer-entered external_evidence write path (append-only). Persists to
-// aggregated-cruxes.json on the caller's session branch, like the /api/conflicts
-// writes above. external_evidence is CL-owned display-only metadata (never read by
-// scoring/sort code). Mutation logic is the pure cruxEvidence.ts helpers.
-post('/api/cruxes/:id/evidence', async (req, res, body) => {
-  try {
-    await ensureSessionBranch();
-    const id = param(req, 'id', '/api/cruxes/:id/evidence');
-    const { url, note, added_by } = (body ?? {}) as { url?: unknown; note?: unknown; added_by?: unknown };
-    if (typeof url !== 'string' || !/^https?:\/\//i.test(url.trim())) { error(res, 'evidence url must be an http(s) URL', 400); return; }
-    if (typeof added_by !== 'string' || added_by.trim() === '') { error(res, 'added_by is required', 400); return; }
-    const data = await fileIO.readAggregatedCruxes();
-    const entry: CruxEvidenceEntry = {
-      url: url.trim(),
-      ...(typeof note === 'string' && note.trim() ? { note: note.trim() } : {}),
-      added_by: added_by.trim(),
-      added_at: new Date().toISOString().slice(0, 10), // server-set date (YYYY-MM-DD)
-    };
-    const crux = appendCruxEvidence(data, id, entry);
-    if (!crux) { error(res, `Crux not found: ${id}`, 404); return; }
-    await fileIO.writeAggregatedCruxes(data);
-    json(res, crux);
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to add crux evidence', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
-});
-
-// DELETE by array index — under concurrent edits to the same crux the index can
-// shift between read and delete (TL-accepted tradeoff for a low-concurrency
-// reviewer tool, t/1541; would switch to an added_at+url match if it ever bites).
-del('/api/cruxes/:id/evidence/:index', async (req, res) => {
-  try {
-    await ensureSessionBranch();
-    const id = param(req, 'id', '/api/cruxes/:id/evidence/:index');
-    const index = Number(param(req, 'index', '/api/cruxes/:id/evidence/:index'));
-    const data = await fileIO.readAggregatedCruxes();
-    const result = removeCruxEvidence(data, id, index);
-    if (result === 'not_found') { error(res, `Crux not found: ${id}`, 404); return; }
-    if (result === 'out_of_range') { error(res, `Evidence index out of range: ${index}`, 404); return; }
-    await fileIO.writeAggregatedCruxes(data);
-    json(res, result);
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to remove crux evidence', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
-});
-
-put('/api/conflicts/:id', async (req, res, body) => {
-  try {
-    await ensureSessionBranch();
-    const id = param(req, 'id', '/api/conflicts/:id');
-    await fileIO.writeConflictFile(id, body);
-    conflictsCache = null;
-    json(res, { ok: true });
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to write conflict', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
-});
-
-post('/api/conflicts/:id', async (req, res, body) => {
-  try {
-    await ensureSessionBranch();
-    const id = param(req, 'id', '/api/conflicts/:id');
-    await fileIO.createConflictFile(id, body);
-    conflictsCache = null;
-    json(res, { ok: true });
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to create conflict', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
-});
-
-del('/api/conflicts/:id', async (req, res) => {
-  try {
-    await ensureSessionBranch();
-    const id = param(req, 'id', '/api/conflicts/:id');
-    await fileIO.deleteConflictFile(id);
-    conflictsCache = null;
-    json(res, { ok: true });
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to delete conflict', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
-});
-
-// ── Policy registry ──
-
-get('/api/policy-registry', async (_req, res) => {
-  json(res, await fileIO.readPolicyRegistry());
-});
+// ── Conflicts / cruxes / policy-registry (t/1687: extracted to routes/conflicts.ts) ──
+// Registers between registerTaxonomyRoutes and registerOrganizationsRoutes, preserving
+// the routeTable snapshot order. The module owns conflictsCache; its exported
+// invalidateConflictsCache() is wired into serverCtx above so harvest can null it.
+registerConflictsRoutes(router, serverCtx);
 
 // ── Organizations (t/1225) ──
 // t/1383: /api/organizations/* cluster extracted to routes/organizations.ts (registrar at group position).
@@ -3092,9 +2992,8 @@ server.listen(PORT, '0.0.0.0', () => {
       // Warm the conflicts cache in the background so the first user request
       // doesn't pay the 5s cold-start penalty (1,242 individual file reads).
       try {
-        const data = await fileIO.readAllConflictFiles();
-        conflictsCache = { data, ts: Date.now() };
-        log.server.info({ count: data.length }, 'Conflicts cache warmed');
+        const count = await warmConflictsCache();
+        log.server.info({ count }, 'Conflicts cache warmed');
       } catch (e) {
         getGlobalRecorder()?.record({
           type: 'system.error',
