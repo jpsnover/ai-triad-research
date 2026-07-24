@@ -1010,6 +1010,92 @@ describe('GitHubAPIBackend — chaos: token expiry mid-batch', () => {
 
     backend.shutdown();
   });
+
+  // Characterization (t/1698): a 401 on a LATER call of a multi-apiRequest operation
+  // must still self-refresh and let the whole operation complete. Pins the in-request
+  // 401 refresh/retry inside a batch BEFORE that logic moves into GitHubRestClient, so
+  // the extraction cannot silently break mid-batch credential recovery.
+  it('mid-batch 401 refreshes creds and the multi-step commit still completes', async () => {
+    const backend = await createBackend();
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+
+    let treePost = 0;
+    apiHandlers.push((url, init) => {
+      if (url.includes('/git/trees') && init.method === 'POST') {
+        treePost++;
+        if (treePost === 1) return { status: 401, body: { message: 'Bad credentials' } };
+      }
+      return null!; // fall through to default success handlers for all other steps
+    });
+
+    const sha = await backend.createCommitFromTree(
+      'api-session/alice',
+      [{ path: 'taxonomy/nodes.json', content: '{"v":2}' }],
+      'Test commit',
+    );
+
+    expect(sha).toBe(COMMIT_SHA);   // step 2 (tree POST) 401'd once, refreshed + retried, batch completed
+    expect(treePost).toBe(2);       // 401 then retry
+
+    backend.shutdown();
+  });
+});
+
+// Characterization (t/1698): the circuit-open short-circuit is inlined in 8 storage
+// methods; only readFile (returns null) and writeFile (throws) were pinned. These pin
+// the remaining behaviors so moving `circuitState`/`shouldProbe` into GitHubRestClient
+// (each site → `this.rest.isTripped()`) cannot silently change any of them. NOTE:
+// listDirectory's circuit guard is only reachable when repoTree is empty (normally
+// populated by initialize()), so it is a mechanical-only substitution not independently
+// characterized here — flagged, not forced (t/1698 escape hatch).
+describe('GitHubAPIBackend — circuit-open short-circuit per method (t/1698)', () => {
+  const openCircuit = async (backend: Awaited<ReturnType<typeof createBackend>>) => {
+    apiHandlers.push((url, init) => {
+      if (url.includes('/contents/') && init.method === 'GET') {
+        return { status: 500, body: { message: 'Internal Server Error' } };
+      }
+      return null!;
+    });
+    for (let i = 0; i < 2; i++) await backend.readFile(`/trip${i}.json`);
+    expect(backend.getCircuitState()).toBe('open');
+  };
+
+  it('readBinaryFile returns null when the circuit is open', async () => {
+    const backend = await createBackend();
+    await openCircuit(backend);
+    expect(await backend.readBinaryFile('/some.bin')).toBeNull();
+    backend.shutdown();
+  });
+
+  it('readFileAtRef returns null when the circuit is open', async () => {
+    const backend = await createBackend();
+    await openCircuit(backend);
+    expect(await backend.readFileAtRef('taxonomy/nodes.json', 'feature-branch')).toBeNull();
+    backend.shutdown();
+  });
+
+  it('writeBinaryFile throws when the circuit is open (direct write mode)', async () => {
+    const backend = await createBackend();
+    await openCircuit(backend);
+    await expect(backend.writeBinaryFile('/taxonomy/blob.bin', Buffer.from('x'))).rejects.toThrow(
+      /circuit breaker open/i,
+    );
+    backend.shutdown();
+  });
+
+  it('deleteFile throws when the circuit is open (direct write mode)', async () => {
+    const backend = await createBackend();
+    await openCircuit(backend);
+    await expect(backend.deleteFile('/taxonomy/nodes.json')).rejects.toThrow(/circuit breaker open/i);
+    backend.shutdown();
+  });
+
+  it('fileExists returns false when the circuit is open', async () => {
+    const backend = await createBackend();
+    await openCircuit(backend);
+    expect(await backend.fileExists('/nonexistent-xyz.json')).toBe(false);
+    backend.shutdown();
+  });
 });
 
 describe('GitHubAPIBackend — chaos: force push on main', () => {
@@ -1353,6 +1439,30 @@ describe('GitHubAPIBackend — diagnostic accessors', () => {
 
     // Should be an array (possibly empty)
     expect(Array.isArray(backend.getErrorBuffer())).toBe(true);
+
+    backend.shutdown();
+  });
+
+  // Characterization test (t/1688): recordEvent pushes error/warn-level events to
+  // the secondary error buffer (t/465#5). This behavior — recordEvent + errorBuffer
+  // — moves into GitHubRestClient during the transport-seam extraction; pin the
+  // failure→buffer population against the unmodified class BEFORE the rewire so the
+  // extraction cannot silently drop it.
+  it('populates the error buffer on API failure', async () => {
+    apiHandlers.push((url, init) => {
+      if ((init?.method ?? 'GET') === 'GET' && url.includes('/contents/')) {
+        return { status: 500, body: { message: 'Internal Server Error' } };
+      }
+      return null as never;
+    });
+
+    const backend = await createBackend();
+    const result = await backend.readFile('/taxonomy/nodes.json');
+    expect(result).toBeNull(); // read fails (returns null) after retries exhausted
+
+    const buffered = backend.getErrorBuffer();
+    expect(buffered.length).toBeGreaterThan(0);
+    expect(buffered.some(e => e.type === 'github.api.error' && e.level === 'error')).toBe(true);
 
     backend.shutdown();
   });

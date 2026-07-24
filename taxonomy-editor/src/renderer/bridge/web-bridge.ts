@@ -5,7 +5,7 @@
  * Web bridge — implements AppAPI via REST and WebSocket calls to the server.
  * Used when the app runs in a browser served by the container.
  */
-import type { AppAPI, SourceDocumentResolution } from './types';
+import type { AppAPI, SourceDocumentResolution, DebateDelta } from './types';
 import { instrumentBridge } from './instrumentBridge';
 import { ActionableError } from '@lib/debate/errors';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
@@ -415,6 +415,105 @@ async function del<T = unknown>(path: string, opts?: FetchOptions): Promise<T> {
     });
   }
   return res.json();
+}
+
+/**
+ * Incremental debate save (web-only). Sends only the changed surfaces as a PATCH.
+ *
+ * Non-idempotent — `maxRetries: 0` (renderer resilience rule 2: never auto-retry a
+ * mutation; surface the error for an explicit, caller-driven fallback instead). The
+ * server returns two distinct 409s, discriminated by different body fields:
+ *   - `code === 'version_conflict'`  → the stored version moved past `delta.baseVersion`;
+ *     the caller must fall back to a full `saveDebateSession` PUT and re-sync.
+ *   - `error === 'save_in_progress'` → an in-flight save is holding the debate; the
+ *     store coalesces and retries the same delta later (existing behavior).
+ * Both are surfaced as an `ActionableError` carrying `errorCode` so the store can branch.
+ */
+async function patchDebateDelta(delta: DebateDelta): Promise<{ newVersion: number }> {
+  const path = `/api/debates/${delta.debateId}`;
+  const cat = categorizeEndpoint(path, 'PATCH');
+  const timeoutMs = DEBATE_SAVE_TIMEOUT_MS;
+  let res: Response;
+  try {
+    res = await fetchWithSessionRecovery(path, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(delta),
+    }, {
+      timeoutMs,
+      maxRetries: 0,
+      critical: true,
+      category: cat,
+    });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'web-bridge',
+      level: 'error',
+      message: `PATCH ${path} network error`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throwTimeoutError('PATCH', path, timeoutMs);
+    }
+    throw err;
+  }
+  if (res.status === 409) {
+    const data = await res.json().catch(bridgeWarn('Failed to parse 409 response body', {})) as Record<string, unknown>;
+    if (data.code === 'version_conflict') {
+      const err = new ActionableError({
+        goal: 'Incrementally save debate session',
+        problem: 'The stored debate version has advanced past the delta base version.',
+        location: 'web-bridge.patchDebateDelta',
+        nextSteps: ['A full save will be issued to reconcile the divergence'],
+      });
+      (err as ActionableError & { errorCode: string }).errorCode = 'version_conflict';
+      // Carry the server's authoritative currentVersion so the store can stamp a
+      // monotonic version on its full-PUT fallback (t/1637).
+      if (typeof data.currentVersion === 'number') {
+        (err as ActionableError & { currentVersion: number }).currentVersion = data.currentVersion;
+      }
+      throwHttpError(409, err);
+    }
+    if (data.error === 'save_in_progress') {
+      const err = new ActionableError({
+        goal: 'Incrementally save debate session',
+        problem: 'Another save is already in progress for this debate.',
+        location: 'web-bridge.patchDebateDelta',
+        nextSteps: ['The save will be retried automatically'],
+      });
+      (err as ActionableError & { errorCode: string }).errorCode = 'save_in_progress';
+      throwHttpError(409, err);
+    }
+  }
+  if (!res.ok) {
+    const text = await res.text();
+    throwHttpError(res.status, new ActionableError({
+      goal: 'Incrementally save debate session',
+      problem: `PATCH ${path} failed with HTTP ${res.status}: ${text}`,
+      location: 'web-bridge.patchDebateDelta',
+      nextSteps: nextStepsForStatus(res.status, text),
+    }));
+  }
+  const patchCt = res.headers.get('content-type') || '';
+  if (patchCt.includes('text/html')) {
+    throw new ActionableError({
+      goal: 'Incrementally save debate session',
+      problem: 'Server returned a login page instead of JSON data — authentication may be required',
+      location: `web-bridge.patchDebateDelta ${path}`,
+      nextSteps: ['Sign in or navigate to /.auth/anonymous to start an anonymous session'],
+    });
+  }
+  const body = await res.json() as { newVersion?: number };
+  if (typeof body.newVersion !== 'number') {
+    throw new ActionableError({
+      goal: 'Incrementally save debate session',
+      problem: 'Server accepted the delta but did not return a numeric newVersion.',
+      location: 'web-bridge.patchDebateDelta',
+      nextSteps: ['Retry the save; if it persists, fall back to a full save'],
+    });
+  }
+  return { newVersion: body.newVersion };
 }
 
 export { get as bridgeGet, post as bridgePost, put as bridgePut, del as bridgeDel };
@@ -865,6 +964,7 @@ const rawApi: AppAPI = {
   listDebateSessionsMeta: () => get('/api/debates/list'),
   loadDebateSession: (id) => get(`/api/debates/${encodeURIComponent(id)}`),
   saveDebateSession: (session) => put('/api/debates', session, { timeoutMs: DEBATE_SAVE_TIMEOUT_MS }).then(() => {}),
+  saveDebateDelta: (delta) => patchDebateDelta(delta),
   deleteDebateSession: (id) => del(`/api/debates/${encodeURIComponent(id)}`).then(() => {}),
   loadDebateComments: (id) => get(`/api/debates/${encodeURIComponent(id)}/comments`),
   saveDebateComments: (id, data) => put(`/api/debates/${encodeURIComponent(id)}/comments`, data).then(() => {}),

@@ -30,4 +30,8 @@ export interface ServerCtx {
   readonly appendServerLogs: (ndjson: string) => string;
   /** Invalidate the server-local conflicts cache after a harvest write (t/1347). */
   readonly invalidateConflictsCache: () => void;
+  /** Server semver (package.json), resolved once at startup — for /health. (t/1687 meta) */
+  readonly serverVersion: string;
+  /** Server process start time (ISO), stamped once at startup — for /health. (t/1687 meta) */
+  readonly serverStartTime: string;
 }

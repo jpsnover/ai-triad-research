@@ -677,11 +677,19 @@ export interface DebateDelta {
   meta?: Partial<DebateSessionMeta>;
   /**
    * Generic shallow-overlay for per-turn analytics fields carried by none of the
-   * structured surfaces (`convergence_tracker`, `qbaf_timeline`, `turn_embeddings`,
-   * `position_drift`, etc. — t/1634#3 Case 3). Applied FIRST; structured surfaces
-   * override. `_saveVersion` within it is ignored.
+   * structured surfaces (`convergence_tracker`, `qbaf_timeline`, `position_drift`,
+   * etc. — t/1634#3 Case 3). Applied FIRST; structured surfaces override.
+   * `_saveVersion` within it is ignored. Note: `turn_embeddings` no longer rides
+   * here — it has a dedicated append-by-key surface (`newTurnEmbeddings`) below.
    */
   changedFields?: Partial<DebateSession>;
+  /**
+   * Append/upsert-by-key onto `turn_embeddings` — new keys only (transcript-entry
+   * id → 384-dim vector). Merged AFTER the `changedFields` overlay so it wins over
+   * any whole-map an old client sent through it. A key removal is unrepresentable
+   * here, so the client full-PUTs instead.
+   */
+  newTurnEmbeddings?: Record<string, number[]>;
 }
 
 // ── Reflection proposals (human-gated taxonomy evolution) ──

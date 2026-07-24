@@ -25,7 +25,7 @@ const SafeLink = ({ node: _, ...props }: AnchorHTMLAttributes<HTMLAnchorElement>
   <a {...props} target="_blank" rel="noopener noreferrer" />
 );
 import { LineageTermsView, VocabTermsView } from './VocabularyPanel';
-import { CommentHighlightedText, useEntryCommentCount, useHasCommentHighlights } from '../chat/CommentHighlights';
+import { CommentOverlay, useEntryCommentCount } from '../chat/CommentHighlights';
 import { useCommentStore } from '../../hooks/useCommentStore';
 import type { DetailTier } from '@lib/debate/comments';
 import { TaxonomyRefsSection } from './TaxonomyRefs';
@@ -407,6 +407,7 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
   const midpointTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const bodyRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (prevTierRef.current === activeTier) return;
@@ -447,8 +448,25 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
   }, []);
 
   const isMetaView = META_TIERS.has(displayedTier);
-  const hasHighlights = useHasCommentHighlights(entry.id, displayedTier as DetailTier);
   const { displayContent, isTruncated } = resolveDisplayContent(entry, displayedTier, isSubstantive);
+
+  // Memoize the rendered statement body into a reconciliation-stable subtree so
+  // CommentOverlay's imperatively-injected [data-comment-highlight] spans survive
+  // comment-only re-renders (HLD t/1683#1, Decision 2 — t/1694). A stable element
+  // ref makes React bail on re-diffing this subtree, so the injected spans aren't
+  // clobbered. Deps cover everything that changes the rendered TEXT (content,
+  // tier, find-highlight state, md components); comment state is deliberately
+  // EXCLUDED — registering a comment must not re-diff (and wipe) the wrapped nodes.
+  // CommentOverlay's sweep/normalize is only safe because of this memoization.
+  const renderedStatementBody = useMemo(() => {
+    if (findQuery) {
+      return <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />;
+    }
+    if (entry.type === 'concluding') {
+      return <ConcludingSections content={displayContent} mdComponents={mdComponents} />;
+    }
+    return <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]} components={mdComponents}>{fixMarkdownLinks(displayContent)}</Markdown>;
+  }, [findQuery, matchOffset, findCurrentIndex, entry.type, displayContent, displayedTier, mdComponents]);
 
   return (
     <div
@@ -636,23 +654,21 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
         />
       ) : (
         <>
-          {!hasHighlights && (
-            <div className="debate-statement-content markdown-body prose">
-              {findQuery
-                ? <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
-                : entry.type === 'concluding'
-                  ? <ConcludingSections content={displayContent} mdComponents={mdComponents} />
-                  : <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]} components={mdComponents}>{fixMarkdownLinks(displayContent)}</Markdown>}
-              {isTruncated && (
-                <span
-                  className="debate-tier-truncated"
-                  onClick={(e) => { e.stopPropagation(); setEntryDisplayTier(entry.id, 'detailed'); }}
-                  title="Click to show full content"
-                >... show full</span>
-              )}
-            </div>
-          )}
-          <CommentHighlightedText text={displayContent} entryId={entry.id} activeTier={displayedTier as DetailTier} />
+          {/* Always render the markdown — never suppress it when a comment exists
+              (the t/1694 root cause). CommentOverlay decorates this same container
+              in-place with highlight spans; it degrades gracefully (full markdown
+              stays intact) when a comment's selectedText can't be resolved. */}
+          <div className="debate-statement-content markdown-body prose" ref={contentRef}>
+            {renderedStatementBody}
+            {isTruncated && (
+              <span
+                className="debate-tier-truncated"
+                onClick={(e) => { e.stopPropagation(); setEntryDisplayTier(entry.id, 'detailed'); }}
+                title="Click to show full content"
+              >... show full</span>
+            )}
+          </div>
+          <CommentOverlay containerRef={contentRef} entryId={entry.id} activeTier={displayedTier as DetailTier} />
         </>
       )}
         </div>

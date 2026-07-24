@@ -16,6 +16,12 @@ vi.mock('@bridge', () => ({
     deleteDebateSession: vi.fn().mockResolvedValue(undefined),
   },
   setActiveDebateId: vi.fn(),
+  // These pre-delta tests assert the always-full-save path (saveDebateSession per
+  // save; identical repeats are not coalesced). That is the Electron branch of the
+  // t/1637 delta rework — web mode coalesces an unchanged repeat to a no-op. Pin
+  // Electron mode so behavior is unchanged; the web/delta path is covered by
+  // saveDebateDelta.test.ts.
+  isElectronMode: () => true,
 }));
 
 vi.mock('@lib/flight-recorder/index', () => ({

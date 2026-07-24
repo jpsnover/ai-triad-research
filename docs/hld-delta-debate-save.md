@@ -72,7 +72,7 @@ Append-mostly surfaces (`transcript`, `mutations`) send only the tail beyond
 > **RESOLVED — payload completeness (t/1634#3, Case 3, frozen 2026-07-17):**
 > A large set of `DebateSession` fields mutate **per turn** and are carried by
 > *none* of the purpose-built surfaces above — `convergence_tracker`, `qbaf_timeline`,
-> `turn_embeddings`, `position_drift`, `per_claim_drift`, `extraction_summary`,
+> `position_drift`, `per_claim_drift`, `extraction_summary`,
 > `turn_validations`, `convergence_signals`, `process_rewards`, `commitments`,
 > `moderator_state`, and others. DebateTool verified (`debateLoopSlice.ts:244`,
 > `argumentNetwork.ts:875-941`) that these are written into `activeDebate`
@@ -83,6 +83,13 @@ Append-mostly surfaces (`transcript`, `mutations`) send only the tail beyond
 > above), populated from t/1637's snapshot-diff change-set. The `DebateDelta` shape
 > is now **frozen**. See the merge-order rule under *Merge Function* for how the
 > overlay interacts with the structured surfaces.
+>
+> **Update (t/1640, 2026-07-21):** `turn_embeddings` — formerly carried by the generic
+> overlay in this list — was promoted to its own append/upsert-by-key surface
+> (`DebateDelta.newTurnEmbeddings`) because it is large (384-dim vectors) and grows
+> monotonically, so re-sending the whole map each save eroded the upload-size win. It is
+> now excluded from `changedFields` and merged after the overlay (surface wins). The
+> other fields above remain on the generic overlay.
 
 ### Optimistic Concurrency: `_saveVersion`
 
@@ -188,11 +195,12 @@ A (DebateTool: types + applyDebateDelta + tests)   [Interface-First prereq]
 - Delta for the Electron local save path (no upload leg).
 - Streaming / incremental *read* (this is save-only).
 - Compaction of `argument_network` history (`mutations` growth is t/673's concern).
-- **Field-level delta for `turn_embeddings`** (append-by-key, like `transcript`). The
-  `changedFields` overlay re-uploads the *whole* `turn_embeddings` map every save, so
-  it grows monotonically and erodes the upload-size win for that one field.
-  Correctness is unaffected (the field is carried); this is a future optimization,
-  client-side / owner D (Taxonomy Editor) territory — filed as a follow-up.
+- ~~**Field-level delta for `turn_embeddings`** (append-by-key, like `transcript`).~~
+  **RESOLVED by t/1640 (2026-07-21).** `turn_embeddings` now has a dedicated
+  append/upsert-by-key surface (`DebateDelta.newTurnEmbeddings`) — the client emits
+  new keys only, so per-save upload scales with turns *added*, not total turns. A key
+  removal is unrepresentable by the surface and degrades to a full PUT. See the Risks
+  table row below.
 
 ## Risks & Mitigations
 
@@ -204,4 +212,4 @@ A (DebateTool: types + applyDebateDelta + tests)   [Interface-First prereq]
 | Existing full-JSON debates lack a version | Lazy: absent `_saveVersion` = 0; first save always full PUT |
 | Web/Electron behavioral drift | Delta is web-only; `@bridge` contract keeps callers agnostic; Electron keeps full save |
 | `changedFields` overlay carries a structured surface or a stale `_saveVersion` | `applyDebateDelta` applies structured surfaces (transcript/AN/meta) **after** the overlay and strips any client `_saveVersion`; DebateTool test asserts the surface wins (t/1634#3) |
-| Shallow-overlay re-uploads the whole `turn_embeddings` map every save, eroding the win | Accepted for now (correctness intact); future field-level append-by-key delta for `turn_embeddings` is a Non-Goal / owner-D follow-up |
+| Shallow-overlay re-uploads the whole `turn_embeddings` map every save, eroding the win | **Resolved by t/1640 (2026-07-21):** dedicated `DebateDelta.newTurnEmbeddings` append/upsert-by-key surface — client emits new keys only, so per-save upload scales with turns added, not total turns. Merged after the `changedFields` overlay so the surface wins; a key removal is unrepresentable and degrades to a full PUT |

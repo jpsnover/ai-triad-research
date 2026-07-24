@@ -26,7 +26,7 @@ import { ActionableError } from '../../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import type { FlightRecorder, RecordInput } from '../../../../lib/flight-recorder/index.js';
 import { getCurrentUserId, getSessionBranchName } from '../security/userContext.js';
-import { getRequestId } from '../logger.js';
+import { GitHubRestClient, normalizeErrorForEvent, type CircuitState } from './githubRestClient.js';
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -67,14 +67,6 @@ interface CacheManifest {
   files: Record<string, { sha: string; etag: string; cachedAt: string }>;
 }
 
-interface RateLimitInfo {
-  remaining: number;
-  limit: number;
-  resetsAt: number;   // epoch ms
-}
-
-type CircuitState = 'closed' | 'open' | 'half-open';
-
 export interface GitHubAPIBackendConfig {
   cacheDir: string;
   recorder?: FlightRecorder;
@@ -85,20 +77,9 @@ export interface GitHubAPIBackendConfig {
 
 // ── Constants ────────────────────────────────────────────────────────────
 
-const GITHUB_API = 'https://api.github.com';
-const USER_AGENT = 'ai-triad-taxonomy-editor';
-const API_VERSION = '2022-11-28';
-
-const MAX_RETRIES = 3;
-const BACKOFF_BASE_MS = [100, 300, 900];
-const BACKOFF_JITTER_MS = 100;
-
 // t/727: cap uncommitted session-overlay memory per user (taxonomy POV files are
 // 1–2 MB each; many concurrent editors could otherwise exhaust memory).
 const DEFAULT_MAX_OVERLAY_BYTES_PER_USER = 20 * 1024 * 1024; // 20 MB
-
-const CIRCUIT_FAILURE_THRESHOLD = 5;
-const CIRCUIT_PROBE_SCHEDULE_MS = [30_000, 60_000, 120_000, 300_000]; // 30s→1m→2m→5m cap
 
 const POLL_INTERVAL_MS = 60_000;
 const ERROR_BUFFER_CAPACITY = 100;
@@ -131,14 +112,8 @@ export class GitHubAPIBackend implements StorageBackend {
   private sessionOverlays: Map<string, Map<string, string>> = new Map();
   private maxOverlayBytesPerUser: number = DEFAULT_MAX_OVERLAY_BYTES_PER_USER;
 
-  // Rate limit tracking
-  private rateLimit: RateLimitInfo = { remaining: 5000, limit: 5000, resetsAt: 0 };
-
-  // Circuit breaker state
-  private circuitState: CircuitState = 'closed';
-  private consecutiveFailures = 0;
-  private circuitOpenedAt = 0;
-  private probeIndex = 0;
+  // Resilient GitHub HTTP transport — rate limit + circuit breaker live here (t/1698).
+  private readonly rest: GitHubRestClient;
 
   // Secondary error-only ring buffer (100 events)
   private errorBuffer: Array<RecordInput & { _wall: number }> = [];
@@ -166,6 +141,16 @@ export class GitHubAPIBackend implements StorageBackend {
     this.coherencyProbeRate = config.coherencyProbeRate ?? 0.01;
     this.maxOverlayBytesPerUser = config.maxOverlayBytesPerUser
       ?? (process.env.OVERLAY_MAX_BYTES_PER_USER ? parseInt(process.env.OVERLAY_MAX_BYTES_PER_USER, 10) : DEFAULT_MAX_OVERLAY_BYTES_PER_USER);
+
+    this.rest = new GitHubRestClient({
+      record: (input) => this.recordEvent(input),
+      getEtag: (pathAndQuery) => this.getCachedEtag(pathAndQuery),
+      refreshCreds: async () => {
+        this.cachedCreds = null;
+        this.credsExpiresAt = 0;
+        return this.getCredsCached();
+      },
+    });
 
     this.registerSigHandler();
   }
@@ -324,7 +309,7 @@ export class GitHubAPIBackend implements StorageBackend {
       data: { path: repoPath, reason: 'missing' },
     });
 
-    if (this.circuitState === 'open' && !this.shouldProbe()) {
+    if (this.rest.isTripped()) {
       return null; // Circuit open — serve null (file not available)
     }
 
@@ -344,7 +329,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const cached = await this.readBinaryFromDiskCache(repoPath);
     if (cached !== null) return cached;
 
-    if (this.circuitState === 'open' && !this.shouldProbe()) return null;
+    if (this.rest.isTripped()) return null;
 
     const ref = this.getEffectiveRef();
     const result = await this.fetchBinaryFileFromGitHub(repoPath, ref);
@@ -359,7 +344,7 @@ export class GitHubAPIBackend implements StorageBackend {
       const cached = await this.readFromDiskCache(repoPath);
       if (cached !== null) return cached;
     }
-    if (this.circuitState === 'open' && !this.shouldProbe()) return null;
+    if (this.rest.isTripped()) return null;
     const result = await this.fetchFileFromGitHub(repoPath, ref);
     if (result === null) return null;
     if (ref === 'main') {
@@ -396,7 +381,7 @@ export class GitHubAPIBackend implements StorageBackend {
       });
     }
 
-    if (this.circuitState === 'open' && !this.shouldProbe()) {
+    if (this.rest.isTripped()) {
       throw new ActionableError({
         goal: 'Write file to GitHub',
         problem: 'GitHub API is unavailable (circuit breaker open). Edits temporarily disabled.',
@@ -422,7 +407,7 @@ export class GitHubAPIBackend implements StorageBackend {
       };
       if (sha) body.sha = sha;
 
-      const resp = await this.apiRequest(creds, 'PUT',
+      const resp = await this.rest.request(creds, 'PUT',
         `/repos/${creds.repo}/contents/${repoPath}`, body, callId);
 
       if (resp.status === 409 && attempt === 0) {
@@ -462,7 +447,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const repoPath = this.toRepoPath(filePath);
     const ref = opts?.ref ?? this.getEffectiveRef();
 
-    if (this.circuitState === 'open' && !this.shouldProbe()) {
+    if (this.rest.isTripped()) {
       throw new ActionableError({
         goal: 'Write binary file to GitHub',
         problem: 'GitHub API is unavailable (circuit breaker open). Edits temporarily disabled.',
@@ -486,7 +471,7 @@ export class GitHubAPIBackend implements StorageBackend {
       };
       if (sha) body.sha = sha;
 
-      const resp = await this.apiRequest(creds, 'PUT',
+      const resp = await this.rest.request(creds, 'PUT',
         `/repos/${creds.repo}/contents/${repoPath}`, body, callId);
 
       if (resp.status === 409 && attempt === 0) {
@@ -537,12 +522,12 @@ export class GitHubAPIBackend implements StorageBackend {
         // Direct children only — first path segment under the prefix.
         seen.add(rest.split('/')[0]);
       }
-    } else if (!(this.circuitState === 'open' && !this.shouldProbe())) {
+    } else if (!(this.rest.isTripped())) {
       const creds = await this.getCredsCached();
       if (creds) {
         const ref = opts?.ref ?? this.getEffectiveRef();
         const qRef = ref === 'main' ? '' : `?ref=${encodeURIComponent(ref)}`;
-        const resp = await this.apiRequest(creds, 'GET',
+        const resp = await this.rest.request(creds, 'GET',
           `/repos/${creds.repo}/contents/${repoPath}${qRef}`);
         if (resp.ok && Array.isArray(resp.data)) {
           for (const e of resp.data as Array<{ name: string }>) seen.add(e.name);
@@ -597,7 +582,7 @@ export class GitHubAPIBackend implements StorageBackend {
       return;
     }
 
-    if (this.circuitState === 'open' && !this.shouldProbe()) {
+    if (this.rest.isTripped()) {
       throw new ActionableError({
         goal: 'Delete file from GitHub',
         problem: 'GitHub API is unavailable (circuit breaker open). Edits temporarily disabled.',
@@ -612,7 +597,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const creds = await this.getCredsCached();
     if (!creds) throw this.noCredsError('deleteFile');
 
-    const resp = await this.apiRequest(creds, 'DELETE',
+    const resp = await this.rest.request(creds, 'DELETE',
       `/repos/${creds.repo}/contents/${repoPath}`, {
         message: `Delete ${repoPath}`,
         sha: existingSha,
@@ -658,14 +643,14 @@ export class GitHubAPIBackend implements StorageBackend {
     }
 
     // Fallback: HEAD request to Contents API
-    if (this.circuitState === 'open' && !this.shouldProbe()) return false;
+    if (this.rest.isTripped()) return false;
 
     const creds = await this.getCredsCached();
     if (!creds) return false;
 
     const ref = this.getEffectiveRef();
     const qRef = ref === 'main' ? '' : `?ref=${encodeURIComponent(ref)}`;
-    const resp = await this.apiRequest(creds, 'HEAD',
+    const resp = await this.rest.request(creds, 'HEAD',
       `/repos/${creds.repo}/contents/${repoPath}${qRef}`);
     return resp.ok;
   }
@@ -676,7 +661,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const creds = await this.getCredsCached();
     if (!creds) return '';
 
-    const resp = await this.apiRequest(creds, 'GET',
+    const resp = await this.rest.request(creds, 'GET',
       `/repos/${creds.repo}/commits/main`);
     if (!resp.ok) return '';
 
@@ -687,7 +672,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const creds = await this.getCredsCached();
     if (!creds) return [];
 
-    const resp = await this.apiRequest(creds, 'GET',
+    const resp = await this.rest.request(creds, 'GET',
       `/repos/${creds.repo}/compare/${fromSha}...${toSha}`);
 
     if (!resp.ok) {
@@ -714,7 +699,7 @@ export class GitHubAPIBackend implements StorageBackend {
     if (!creds) return [];
 
     const q = recursive ? '?recursive=1' : '';
-    const resp = await this.apiRequest(creds, 'GET',
+    const resp = await this.rest.request(creds, 'GET',
       `/repos/${creds.repo}/git/trees/${sha}${q}`);
 
     if (!resp.ok) return [];
@@ -739,7 +724,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const sha = fromSha ?? await this.getLatestCommitSha();
     const callId = crypto.randomUUID();
 
-    const resp = await this.apiRequest(creds, 'POST',
+    const resp = await this.rest.request(creds, 'POST',
       `/repos/${creds.repo}/git/refs`, {
         ref: `refs/heads/${name}`,
         sha,
@@ -777,7 +762,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const startMs = Date.now();
 
     // Step 1: Get current branch ref
-    const refResp = await this.apiRequest(creds, 'GET',
+    const refResp = await this.rest.request(creds, 'GET',
       `/repos/${creds.repo}/git/refs/heads/${branch}`, undefined, callId);
     if (!refResp.ok) {
       throw new ActionableError({
@@ -796,7 +781,7 @@ export class GitHubAPIBackend implements StorageBackend {
       type: 'blob' as const,
       content: f.content,
     }));
-    const treeResp = await this.apiRequest(creds, 'POST',
+    const treeResp = await this.rest.request(creds, 'POST',
       `/repos/${creds.repo}/git/trees`, {
         base_tree: currentSha,
         tree: treeEntries,
@@ -812,7 +797,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const newTreeSha = (treeResp.data as { sha: string }).sha;
 
     // Step 3: Create commit pointing to new tree
-    const commitResp = await this.apiRequest(creds, 'POST',
+    const commitResp = await this.rest.request(creds, 'POST',
       `/repos/${creds.repo}/git/commits`, {
         message,
         tree: newTreeSha,
@@ -829,7 +814,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const commitSha = (commitResp.data as { sha: string }).sha;
 
     // Step 4: Update branch ref
-    const updateResp = await this.apiRequest(creds, 'PATCH',
+    const updateResp = await this.rest.request(creds, 'PATCH',
       `/repos/${creds.repo}/git/refs/heads/${branch}`, {
         sha: commitSha,
         force: false,
@@ -883,7 +868,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const startMs = Date.now();
 
     // Step 1: Get current branch ref
-    const refResp = await this.apiRequest(creds, 'GET',
+    const refResp = await this.rest.request(creds, 'GET',
       `/repos/${creds.repo}/git/refs/heads/${branch}`, undefined, callId);
     if (!refResp.ok) {
       throw new ActionableError({
@@ -913,7 +898,7 @@ export class GitHubAPIBackend implements StorageBackend {
 
     const commitMsg = message || `Update ${entries.writes.length} file(s)${entries.deletes.length > 0 ? `, delete ${entries.deletes.length}` : ''}`;
 
-    const treeResp = await this.apiRequest(creds, 'POST',
+    const treeResp = await this.rest.request(creds, 'POST',
       `/repos/${creds.repo}/git/trees`, {
         base_tree: currentSha,
         tree: treeEntries,
@@ -929,7 +914,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const newTreeSha = (treeResp.data as { sha: string }).sha;
 
     // Step 3: Create commit
-    const commitResp = await this.apiRequest(creds, 'POST',
+    const commitResp = await this.rest.request(creds, 'POST',
       `/repos/${creds.repo}/git/commits`, {
         message: commitMsg,
         tree: newTreeSha,
@@ -946,7 +931,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const commitSha = (commitResp.data as { sha: string }).sha;
 
     // Step 4: Update branch ref
-    const updateResp = await this.apiRequest(creds, 'PATCH',
+    const updateResp = await this.rest.request(creds, 'PATCH',
       `/repos/${creds.repo}/git/refs/heads/${branch}`, {
         sha: commitSha,
         force: false,
@@ -987,13 +972,13 @@ export class GitHubAPIBackend implements StorageBackend {
     if (!creds) throw this.noCredsError('createOrUpdatePR');
 
     // Check if PR already exists for this branch
-    const listResp = await this.apiRequest(creds, 'GET',
+    const listResp = await this.rest.request(creds, 'GET',
       `/repos/${creds.repo}/pulls?head=${encodeURIComponent(creds.repo.split('/')[0])}:${branch}&state=open`);
 
     if (listResp.ok && Array.isArray(listResp.data) && (listResp.data as unknown[]).length > 0) {
       const existing = (listResp.data as Array<{ number: number; html_url: string }>)[0];
       // Update existing PR
-      const updateResp = await this.apiRequest(creds, 'PATCH',
+      const updateResp = await this.rest.request(creds, 'PATCH',
         `/repos/${creds.repo}/pulls/${existing.number}`, { title, body });
 
       this.recordEvent({
@@ -1007,7 +992,7 @@ export class GitHubAPIBackend implements StorageBackend {
     }
 
     // Create new PR
-    const resp = await this.apiRequest(creds, 'POST',
+    const resp = await this.rest.request(creds, 'POST',
       `/repos/${creds.repo}/pulls`, {
         title,
         body,
@@ -1041,7 +1026,7 @@ export class GitHubAPIBackend implements StorageBackend {
       return { ahead_by: 0, behind_by: 0, status: 'identical', files: [], total_commits: 0, merge_base_sha: null };
     }
 
-    const resp = await this.apiRequest(creds, 'GET',
+    const resp = await this.rest.request(creds, 'GET',
       `/repos/${creds.repo}/compare/${base}...${head}`);
 
     if (!resp.ok) {
@@ -1081,7 +1066,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const creds = await this.getCredsCached();
     if (!creds) throw this.noCredsError('mergeBranch');
 
-    const resp = await this.apiRequest(creds, 'POST',
+    const resp = await this.rest.request(creds, 'POST',
       `/repos/${creds.repo}/merges`, {
         base: branch,
         head: 'main',
@@ -1149,286 +1134,6 @@ export class GitHubAPIBackend implements StorageBackend {
     }
 
     return p;
-  }
-
-  // ── Retry + Circuit Breaker ────────────────────────────────────────────
-
-  private async apiRequest(
-    creds: SyncCredentials,
-    method: string,
-    pathAndQuery: string,
-    body?: unknown,
-    callId?: string,
-    apiOpts?: { optional?: boolean },
-  ): Promise<{ ok: boolean; status: number; data: unknown; error?: string; etag?: string }> {
-    // t/803: correlate GitHub API calls to the originating HTTP request. Never
-    // embed the user's email/principal in the id (it was PII in every log line).
-    const requestId = getRequestId() ?? `req-${crypto.randomUUID()}`;
-
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-      const startMs = Date.now();
-
-      this.recordEvent({
-        type: 'github.api.request',
-        component: 'github-api',
-        level: 'debug',
-        message: `${method} ${pathAndQuery}`,
-        call_id: callId,
-        request_id: requestId,
-        data: { method, endpoint: pathAndQuery, attempt },
-      });
-
-      try {
-        const url = `${GITHUB_API}${pathAndQuery}`;
-        const headers: Record<string, string> = {
-          Accept: 'application/vnd.github+json',
-          Authorization: `Bearer ${creds.token}`,
-          'User-Agent': USER_AGENT,
-          'X-GitHub-Api-Version': API_VERSION,
-        };
-        if (body !== undefined) headers['Content-Type'] = 'application/json';
-        if (requestId) headers['X-Request-ID'] = requestId;
-
-        // Add ETag for conditional requests
-        const cachedEtag = this.getCachedEtag(pathAndQuery);
-        if (cachedEtag && method === 'GET') {
-          headers['If-None-Match'] = cachedEtag;
-        }
-
-        const res = await fetch(url, {
-          method,
-          headers,
-          body: body === undefined ? undefined : JSON.stringify(body),
-        });
-
-        const durationMs = Date.now() - startMs;
-
-        // Track rate limits from response headers
-        this.updateRateLimit(res.headers);
-
-        // ETag from response
-        const responseEtag = res.headers.get('etag') ?? undefined;
-
-        // 304 Not Modified — return cached
-        if (res.status === 304) {
-          this.recordEvent({
-            type: 'github.api.response',
-            component: 'github-api',
-            level: 'debug',
-            duration_ms: durationMs,
-            call_id: callId,
-            request_id: requestId,
-            data: { status: 304, method, endpoint: pathAndQuery, cache_hit: true,
-                    rate_remaining: this.rateLimit.remaining },
-          });
-          this.onApiSuccess();
-          return { ok: true, status: 304, data: null, etag: responseEtag };
-        }
-
-        // Parse response body
-        const text = await res.text();
-        let data: unknown = null;
-        try { data = text ? JSON.parse(text) : null; } catch { /* telemetry — silent by design */ data = text; }
-
-        const is404Optional = !res.ok && res.status === 404 && apiOpts?.optional;
-        this.recordEvent({
-          type: res.ok ? 'github.api.response' : (is404Optional ? 'github.api.miss' : 'github.api.error'),
-          component: 'github-api',
-          level: res.ok ? 'debug' : (is404Optional ? 'debug' : 'error'),
-          duration_ms: durationMs,
-          call_id: callId,
-          request_id: requestId,
-          data: {
-            status: res.status, method, endpoint: pathAndQuery,
-            rate_remaining: this.rateLimit.remaining,
-            ...(res.ok ? {} : { error: text?.slice(0, 500) }),
-          },
-        });
-
-        if (res.ok) {
-          this.onApiSuccess();
-          return { ok: true, status: res.status, data, etag: responseEtag };
-        }
-
-        // 404 — not found, don't retry
-        if (res.status === 404) {
-          return { ok: false, status: 404, data, error: 'Not found' };
-        }
-
-        // 401 — token expired, refresh once and retry
-        if (res.status === 401 && attempt === 0) {
-          this.cachedCreds = null;
-          this.credsExpiresAt = 0;
-          const freshCreds = await this.getCredsCached();
-          if (freshCreds) {
-            creds = freshCreds;
-            continue; // retry with fresh token
-          }
-        }
-
-        // 409 — conflict (SHA mismatch on write)
-        if (res.status === 409) {
-          return { ok: false, status: 409, data,
-            error: 'Conflict — file was modified concurrently' };
-        }
-
-        // 422 — validation error (branch exists, etc.)
-        if (res.status === 422) {
-          return { ok: false, status: 422, data,
-            error: (data && typeof data === 'object' && 'message' in data)
-              ? String((data as { message: unknown }).message) : 'Validation error' };
-        }
-
-        // 429 — rate limited
-        if (res.status === 429) {
-          this.recordEvent({
-            type: 'github.api.rate_limit',
-            component: 'github-api',
-            level: 'warn',
-            message: 'Rate limited by GitHub API',
-            data: { remaining: this.rateLimit.remaining, resetsAt: this.rateLimit.resetsAt },
-          });
-
-          const retryAfter = res.headers.get('retry-after');
-          if (retryAfter && attempt < MAX_RETRIES) {
-            await this.sleep(parseInt(retryAfter, 10) * 1000);
-            continue;
-          }
-        }
-
-        // 5xx — retryable
-        if (res.status >= 500 && attempt < MAX_RETRIES) {
-          this.onApiFailure();
-          await this.sleep(this.backoffMs(attempt));
-          continue;
-        }
-
-        // Other 4xx — not retryable
-        const errorMsg = (data && typeof data === 'object' && 'message' in data)
-          ? String((data as { message: unknown }).message)
-          : text || `HTTP ${res.status}`;
-        this.onApiFailure();
-        return { ok: false, status: res.status, data, error: errorMsg };
-
-      } catch (err: unknown) {
-        getGlobalRecorder()?.record({
-          type: 'system.error',
-          component: 'github-api',
-          level: 'error',
-          message: 'Operation failed',
-          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-        });
-        // Network error — retryable
-        const durationMs = Date.now() - startMs;
-        this.recordEvent({
-          type: 'github.api.error',
-          component: 'github-api',
-          level: 'error',
-          duration_ms: durationMs,
-          call_id: callId,
-          request_id: requestId,
-          error: normalizeErrorForEvent(err),
-          data: { method, endpoint: pathAndQuery, attempt, network_error: true },
-        });
-
-        this.onApiFailure();
-        if (attempt < MAX_RETRIES) {
-          await this.sleep(this.backoffMs(attempt));
-          continue;
-        }
-
-        return { ok: false, status: 0, data: null,
-          error: `Network error: ${err instanceof Error ? err.message : String(err)}` };
-      }
-    }
-
-    // Should not reach here, but just in case
-    return { ok: false, status: 0, data: null, error: 'Max retries exceeded' };
-  }
-
-  private backoffMs(attempt: number): number {
-    const base = BACKOFF_BASE_MS[Math.min(attempt, BACKOFF_BASE_MS.length - 1)];
-    const jitter = Math.floor(Math.random() * BACKOFF_JITTER_MS);
-    return base + jitter;
-  }
-
-  private onApiSuccess(): void {
-    this.consecutiveFailures = 0;
-    if (this.circuitState !== 'closed') {
-      this.recordEvent({
-        type: 'github.api.circuit_break',
-        component: 'github-api',
-        level: 'info',
-        message: `Circuit breaker: ${this.circuitState} → closed`,
-        data: { previousState: this.circuitState },
-      });
-      this.circuitState = 'closed';
-      this.probeIndex = 0;
-    }
-  }
-
-  private onApiFailure(): void {
-    this.consecutiveFailures++;
-    if (this.consecutiveFailures >= CIRCUIT_FAILURE_THRESHOLD && this.circuitState === 'closed') {
-      this.circuitState = 'open';
-      this.circuitOpenedAt = Date.now();
-      this.probeIndex = 0;
-      this.recordEvent({
-        type: 'github.api.circuit_break',
-        component: 'github-api',
-        level: 'warn',
-        message: `Circuit breaker: closed → open (${this.consecutiveFailures} consecutive failures)`,
-        data: { failures: this.consecutiveFailures },
-      });
-    }
-  }
-
-  private shouldProbe(): boolean {
-    if (this.circuitState === 'closed') return true;
-
-    const probeDelay = CIRCUIT_PROBE_SCHEDULE_MS[
-      Math.min(this.probeIndex, CIRCUIT_PROBE_SCHEDULE_MS.length - 1)
-    ];
-    const elapsed = Date.now() - this.circuitOpenedAt;
-
-    if (elapsed >= probeDelay) {
-      this.circuitState = 'half-open';
-      this.circuitOpenedAt = Date.now(); // Reset for next probe interval
-      this.probeIndex = Math.min(this.probeIndex + 1, CIRCUIT_PROBE_SCHEDULE_MS.length - 1);
-
-      this.recordEvent({
-        type: 'github.api.circuit_break',
-        component: 'github-api',
-        level: 'info',
-        message: `Circuit breaker: probing (attempt ${this.probeIndex})`,
-        data: { probeIndex: this.probeIndex, probeDelay },
-      });
-      return true;
-    }
-
-    return false;
-  }
-
-  // ── Rate limit tracking ────────────────────────────────────────────────
-
-  private updateRateLimit(headers: Headers): void {
-    const remaining = headers.get('x-ratelimit-remaining');
-    const limit = headers.get('x-ratelimit-limit');
-    const reset = headers.get('x-ratelimit-reset');
-
-    if (remaining !== null) this.rateLimit.remaining = parseInt(remaining, 10);
-    if (limit !== null) this.rateLimit.limit = parseInt(limit, 10);
-    if (reset !== null) this.rateLimit.resetsAt = parseInt(reset, 10) * 1000;
-
-    if (this.rateLimit.remaining < 500) {
-      this.recordEvent({
-        type: 'github.api.rate_limit',
-        component: 'github-api',
-        level: this.rateLimit.remaining < 500 ? 'warn' : 'info',
-        message: `Rate limit: ${this.rateLimit.remaining}/${this.rateLimit.limit} remaining`,
-        data: { ...this.rateLimit },
-      });
-    }
   }
 
   // ── Manifest mutex ───────────────────────────────────────────────────
@@ -1667,7 +1372,7 @@ export class GitHubAPIBackend implements StorageBackend {
     if (!creds) return null;
 
     const qRef = ref === 'main' ? '' : `?ref=${encodeURIComponent(ref)}`;
-    const resp = await this.apiRequest(creds, 'GET',
+    const resp = await this.rest.request(creds, 'GET',
       `/repos/${creds.repo}/contents/${repoPath}${qRef}`,
       undefined, undefined, optional ? { optional: true } : undefined);
 
@@ -1702,7 +1407,7 @@ export class GitHubAPIBackend implements StorageBackend {
     sha: string,
     etag: string,
   ): Promise<{ content: string; sha: string; etag: string } | null> {
-    const resp = await this.apiRequest(creds, 'GET',
+    const resp = await this.rest.request(creds, 'GET',
       `/repos/${creds.repo}/git/blobs/${sha}`);
 
     if (!resp.ok) return null;
@@ -1722,7 +1427,7 @@ export class GitHubAPIBackend implements StorageBackend {
     if (!creds) return null;
 
     const qRef = ref === 'main' ? '' : `?ref=${encodeURIComponent(ref)}`;
-    const resp = await this.apiRequest(creds, 'GET',
+    const resp = await this.rest.request(creds, 'GET',
       `/repos/${creds.repo}/contents/${repoPath}${qRef}`);
 
     if (!resp.ok) return null;
@@ -1753,7 +1458,7 @@ export class GitHubAPIBackend implements StorageBackend {
     sha: string,
     etag: string,
   ): Promise<{ content: Buffer; sha: string; etag: string } | null> {
-    const resp = await this.apiRequest(creds, 'GET',
+    const resp = await this.rest.request(creds, 'GET',
       `/repos/${creds.repo}/git/blobs/${sha}`);
 
     if (!resp.ok) return null;
@@ -1780,7 +1485,7 @@ export class GitHubAPIBackend implements StorageBackend {
     if (!creds) return null;
 
     const qRef = ref === 'main' ? '' : `?ref=${encodeURIComponent(ref)}`;
-    const resp = await this.apiRequest(creds, 'GET',
+    const resp = await this.rest.request(creds, 'GET',
       `/repos/${creds.repo}/contents/${repoPath}${qRef}`);
     if (!resp.ok) return null;
     return (resp.data as { sha: string }).sha;
@@ -1795,7 +1500,7 @@ export class GitHubAPIBackend implements StorageBackend {
     if (!creds) return;
 
     // Get the tree SHA from the commit
-    const commitResp = await this.apiRequest(creds, 'GET',
+    const commitResp = await this.rest.request(creds, 'GET',
       `/repos/${creds.repo}/git/commits/${commitSha}`);
     if (!commitResp.ok) return;
 
@@ -1929,7 +1634,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const creds = await this.getCredsCached();
     if (!creds) return;
 
-    const resp = await this.apiRequest(creds, 'GET',
+    const resp = await this.rest.request(creds, 'GET',
       `/repos/${creds.repo}/contents/${repoPath}`);
 
     if (resp.status === 200) {
@@ -2004,12 +1709,6 @@ export class GitHubAPIBackend implements StorageBackend {
     }
   }
 
-  // ── Sleep utility ──────────────────────────────────────────────────────
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
   // ── Public accessors for health/diagnostics ────────────────────────────
 
   getCacheGeneration(): number { return this.manifest?.generation ?? 0; }
@@ -2019,9 +1718,9 @@ export class GitHubAPIBackend implements StorageBackend {
     if (!this.manifest?.lastUpdated) return -1;
     return Math.round((Date.now() - new Date(this.manifest.lastUpdated).getTime()) / 1000);
   }
-  getRateLimitRemaining(): number { return this.rateLimit.remaining; }
-  getRateLimitResetsAt(): string { return new Date(this.rateLimit.resetsAt).toISOString(); }
-  getCircuitState(): CircuitState { return this.circuitState; }
+  getRateLimitRemaining(): number { return this.rest.getRateLimitRemaining(); }
+  getRateLimitResetsAt(): string { return this.rest.getRateLimitResetsAt(); }
+  getCircuitState(): CircuitState { return this.rest.getCircuitState(); }
   getCoherencyViolations(): number { return this.coherencyViolations; }
   getErrorBuffer(): Array<RecordInput & { _wall: number }> { return [...this.errorBuffer]; }
   getActiveBranchCount(): number { return this.sessionOverlays.size; }
@@ -2161,9 +1860,3 @@ export class GitHubAPIBackend implements StorageBackend {
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
-function normalizeErrorForEvent(err: unknown): { name: string; message: string; stack?: string } {
-  if (err instanceof Error) {
-    return { name: err.name, message: err.message, stack: err.stack?.slice(0, 500) };
-  }
-  return { name: 'Error', message: String(err) };
-}

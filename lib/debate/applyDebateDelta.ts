@@ -57,7 +57,7 @@ function upsertByIdThenRemove<T extends { id: string }>(
  *      inside it is ignored; the version is authoritative here.
  *   2. Structured surfaces applied AFTER, so they always win over the overlay:
  *      transcript append, argument_network node/edge upsert-then-remove, mutations
- *      append, `meta` shallow-merge.
+ *      append, `meta` shallow-merge, `turn_embeddings` append/upsert-by-key.
  *   3. `_saveVersion` incremented LAST (baseVersion + 1).
  */
 export function applyDebateDelta(
@@ -123,6 +123,15 @@ export function applyDebateDelta(
   // 2c. Meta shallow-merge onto the root (title / updated_at / phase).
   if (delta.meta) {
     Object.assign(merged, delta.meta);
+  }
+
+  // 2d. turn_embeddings: append/upsert-by-key. Base is the POST-overlay map so new
+  //     keys override any whole-map an old client sent via changedFields (surface wins).
+  if (delta.newTurnEmbeddings && Object.keys(delta.newTurnEmbeddings).length > 0) {
+    merged.turn_embeddings = {
+      ...(merged.turn_embeddings ?? {}),
+      ...delta.newTurnEmbeddings,
+    };
   }
 
   // 3. Version increment last — authoritative, ignores any client-supplied value.

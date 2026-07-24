@@ -499,39 +499,51 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       api.trackEvent('taxonomy_save', 'taxonomy', { files: promises.length });
       set({ dirty: new Set() });
 
-      const stripExcludes = (text: string) => text.replace(/\s*Excludes:.*/s, '').trim();
-      const extractExcludesText = (text: string): string | undefined => {
-        const match = text.match(/\bExcludes:\s*([\s\S]*?)\.?\s*$/);
-        return match?.[1]?.trim() || undefined;
-      };
-      const nodesToEmbed: { id: string; text: string; pov: string; exclusionText?: string }[] = [];
-      for (const key of dirtyKeys) {
-        if ((POV_KEYS as readonly string[]).includes(key)) {
-          const file = state[key as typeof POV_KEYS[number]];
-          if (file) {
-            for (const node of file.nodes) {
-              nodesToEmbed.push({ id: node.id, text: node.description, pov: key, exclusionText: extractExcludesText(node.description) });
+      // Post-save embedding refresh — NON-FATAL, own boundary (t/1707).
+      // The file write, commit, and `dirty` clear above have already succeeded. A throw
+      // while building or dispatching the embedding batch must NOT surface as
+      // "Save failed" (a trust-eroding false negative — the edit IS saved). Record it as
+      // a non-blocking event and leave `saveError` untouched. The null-guards below fix
+      // today's instance (undefined `node.description`); this boundary fixes the class.
+      try {
+        const stripExcludes = (text: string | undefined) => (text ?? '').replace(/\s*Excludes:.*/s, '').trim();
+        const extractExcludesText = (text: string | undefined): string | undefined => {
+          const match = (text ?? '').match(/\bExcludes:\s*([\s\S]*?)\.?\s*$/);
+          return match?.[1]?.trim() || undefined;
+        };
+        const nodesToEmbed: { id: string; text: string; pov: string; exclusionText?: string }[] = [];
+        for (const key of dirtyKeys) {
+          if ((POV_KEYS as readonly string[]).includes(key)) {
+            const file = state[key as typeof POV_KEYS[number]];
+            if (file) {
+              for (const node of file.nodes) {
+                nodesToEmbed.push({ id: node.id, text: node.description, pov: key, exclusionText: extractExcludesText(node.description) });
+              }
             }
-          }
-        } else if (key === 'situations') {
-          const file = state.situations;
-          if (file) {
-            for (const node of file.nodes) {
-              nodesToEmbed.push({
-                id: node.id,
-                text: `[situations]\nID: ${node.id}\nLabel: ${node.label}\nDescription: ${stripExcludes(node.description)}\nAccelerationist interpretation: ${interpretationText(node.interpretations.accelerationist)}\nSafetyist interpretation: ${interpretationText(node.interpretations.safetyist)}\nSkeptic interpretation: ${interpretationText(node.interpretations.skeptic)}`,
-                pov: 'situations',
-                exclusionText: extractExcludesText(node.description),
-              });
+          } else if (key === 'situations') {
+            const file = state.situations;
+            if (file) {
+              for (const node of file.nodes) {
+                nodesToEmbed.push({
+                  id: node.id,
+                  text: `[situations]\nID: ${node.id}\nLabel: ${node.label}\nDescription: ${stripExcludes(node.description)}\nAccelerationist interpretation: ${interpretationText(node.interpretations.accelerationist)}\nSafetyist interpretation: ${interpretationText(node.interpretations.safetyist)}\nSkeptic interpretation: ${interpretationText(node.interpretations.skeptic)}`,
+                  pov: 'situations',
+                  exclusionText: extractExcludesText(node.description),
+                });
+              }
             }
           }
         }
-      }
-      if (nodesToEmbed.length > 0) {
-        api.updateNodeEmbeddings(nodesToEmbed).catch((err) => {
-          getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to update node embeddings after save', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-          console.warn('[save] Failed to update embeddings:', err);
-        });
+        if (nodesToEmbed.length > 0) {
+          api.updateNodeEmbeddings(nodesToEmbed).catch((err) => {
+            getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to update node embeddings after save', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+            console.warn('[save] Failed to update embeddings:', err);
+          });
+        }
+      } catch (embedErr) {
+        // Non-fatal: the save already succeeded. Surface as a warning, never as saveError.
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'save.embedding-refresh-failed', error: { name: (embedErr as Error).name ?? 'Error', message: String(embedErr), stack: (embedErr as Error).stack } });
+        console.warn('[save] Post-save embedding refresh failed (save itself succeeded):', embedErr);
       }
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'state.error', component: 'taxonomy-store', level: 'error', message: 'save.failed', data: { error: String(err), duration_ms: Math.round(performance.now() - saveStart) } });

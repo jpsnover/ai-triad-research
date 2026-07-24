@@ -79,6 +79,9 @@ export type DebateTestedTier = _DebateTestedTier;
 export type DebateTestedRecord = _DebateTestedRecord;
 export type DebateTestedEntry = _DebateTestedEntry;
 
+import type { DebateDelta as _DebateDelta } from '@lib/debate/types';
+export type DebateDelta = _DebateDelta;
+
 export interface OrgFilters { type?: string; pov?: string }
 
 export interface AppAPI {
@@ -203,6 +206,12 @@ export interface AppAPI {
   listDebateSessionsMeta: () => Promise<unknown[]>;
   loadDebateSession: (id: string) => Promise<unknown>;
   saveDebateSession: (session: unknown) => Promise<void>;
+  /** Incremental save (web-only optimization; Electron delegates to a full save).
+   *  Sends only the surfaces that changed since the last synced version. The server
+   *  accepts the delta only if `delta.baseVersion` matches the stored `_saveVersion`
+   *  and returns the new authoritative version. On a version mismatch the web bridge
+   *  falls back to a full `saveDebateSession` PUT (see web-bridge.ts). */
+  saveDebateDelta: (delta: DebateDelta) => Promise<{ newVersion: number }>;
   deleteDebateSession: (id: string) => Promise<void>;
   exportDebateToFile: (session: unknown, format?: 'json' | 'markdown' | 'text' | 'pdf' | 'package', exportOptions?: { includeTaxonomyRefs?: boolean; includeReasoning?: boolean }) => Promise<{ cancelled: boolean; filePath?: string }>;
   loadDebateComments: (debateId: string) => Promise<unknown>;
