@@ -556,11 +556,19 @@ let _modelMapCache: Record<string, string> | null = null;
 let _modelMapMtime = 0;
 
 function resolveApiModelId(friendlyId: string): string {
+  // Captured so the catch can advance the mtime guard when the file was statted
+  // but its contents failed to parse (t/1702).
+  let statMtime = 0;
   try {
     const configPath = findModelsConfig();
     const stat = fs.statSync(configPath);
+    statMtime = stat.mtimeMs;
     if (!_modelMapCache || stat.mtimeMs !== _modelMapMtime) {
-      const raw = fs.readFileSync(configPath, 'utf-8');
+      // Strip a leading UTF-8 BOM (EF BB BF) before parsing — ai-models.json has
+      // been saved with one, which makes JSON.parse throw `Unexpected token` and,
+      // without the mtime-guard fix below, re-failed on every generateText call
+      // (t/1702). ﻿ is the BOM code point.
+      const raw = fs.readFileSync(configPath, 'utf-8').replace(/^﻿/, '');
       const config = JSON.parse(raw) as ModelRegistry;
       _modelMapCache = buildModelIdMap(config);
       _modelMapMtime = stat.mtimeMs;
@@ -575,6 +583,12 @@ function resolveApiModelId(friendlyId: string): string {
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     if (!_modelMapCache) _modelMapCache = {};
+    // Advance the mtime guard so a file that was found but failed to parse is not
+    // re-read (and re-recorded) on every subsequent call — the flooding observed
+    // in t/1702. statMtime is 0 only when statSync itself threw (missing file), in
+    // which case we intentionally leave the guard so a later-created file is picked
+    // up; a real edit to a broken file changes mtime and re-triggers a load.
+    if (statMtime !== 0) _modelMapMtime = statMtime;
     console.error(`[model-map] FAILED to load model map: ${err instanceof Error ? err.message : err}`);
   }
   return getApiModelId(_modelMapCache!, friendlyId);
