@@ -97,8 +97,8 @@ export default tseslint.config(
   // ── Block C: offender baseline (ADR-007, epic t/1681) — SHRINKS MONOTONICALLY TO ZERO ──
   // Each entry is the current LOC (origin/main scan 2026-07-22). Remove an entry as its
   // Phase-2 split lands the file under budget. Do NOT add entries for new files — new
-  // growth must fail. `ipcHandlers.ts` is transitional: t/1689's split (commit abce0e31)
-  // drops it to ~38 LOC; remove this entry once that lands on origin/main.
+  // growth must fail. (ipcHandlers.ts was dropped once t/1689's split landed on
+  // origin/main — 38 LOC, under budget.)
   {
     files: [
       'src/server/server.ts',                    // 3315
@@ -108,7 +108,6 @@ export default tseslint.config(
       // the prod disk-cache/manifest layer (58 `this.manifest` sites). Deferred as
       // asymmetric risk. Revisit only if the optional GitHubRestClient follow-up lands.
       'src/server/storage/githubAPIBackend.ts',  // 2169 — justified exception (t/1688)
-      'src/main/ipcHandlers.ts',                 // 1762 (transitional — see t/1689)
     ],
     rules: {
       'max-lines': 'off',
