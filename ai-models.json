@@ -204,6 +204,12 @@
       "backend": "gemini"
     },
     {
+      "id": "gemini-3.5-flash-lite",
+      "apiModelId": "gemini-3.5-flash-lite",
+      "label": "Gemini 3.5 Flash Lite",
+      "backend": "gemini"
+    },
+    {
       "id": "gemini-omni-flash-preview",
       "apiModelId": "gemini-omni-flash-preview",
       "label": "Gemini Omni Flash Preview",
@@ -1169,6 +1175,10 @@
     "gemini-3.5-flash": {
       "inputPer1M": 0.75,
       "outputPer1M": 3
+    },
+    "gemini-3.5-flash-lite": {
+      "inputPer1M": 0.375,
+      "outputPer1M": 1.5
     },
     "gemini-3.1-flash-lite": {
       "inputPer1M": 0.375,
