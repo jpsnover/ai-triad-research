@@ -556,11 +556,12 @@ let _modelMapCache: Record<string, string> | null = null;
 let _modelMapMtime = 0;
 
 function resolveApiModelId(friendlyId: string): string {
-  // Captured so the catch can advance the mtime guard when the file was statted
-  // but its contents failed to parse (t/1702).
+  // Hoisted so the catch can name the file it failed on (t/1704) and advance the
+  // mtime guard when the file was statted but its contents failed to parse (t/1702).
+  let configPath: string | undefined;
   let statMtime = 0;
   try {
-    const configPath = findModelsConfig();
+    configPath = findModelsConfig();
     const stat = fs.statSync(configPath);
     statMtime = stat.mtimeMs;
     if (!_modelMapCache || stat.mtimeMs !== _modelMapMtime) {
@@ -580,6 +581,9 @@ function resolveApiModelId(friendlyId: string): string {
       component: 'embeddings',
       level: 'error',
       message: 'Operation failed',
+      // Name the file being parsed so the recorder error is self-describing —
+      // the BOM SyntaxError previously gave no hint which file failed (t/1704).
+      data: { configPath },
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     if (!_modelMapCache) _modelMapCache = {};
