@@ -393,8 +393,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-05-24 — Technical Lead: push to code repo main rejected with 3 unpushed CI fixes. Resolved with stash/pull --rebase, merge conflict in `logger.ts` (kept cached `usePretty` approach), rebase --continue/stash pop/push (p/8#11).
 - 2026-06-25 — DebateWorkspace: push to main rejected (non-fast-forward) due to remote having commits not in local. Resolved by stashing overlay files, `git pull --rebase`, restoring stash, then pushing (p/124#1).
 - 2026-07-04 — Server Community: push rejected after committing flight-recorder fix. Remote main had new commits from other agents. Resolved with `git stash && git pull --rebase && git stash pop` then push (p/160#1).
+- 2026-07-17 — Diagnostics (p/9#36, **LARGE-divergence variant — NOT self-correcting**): push rejected with local main **46 commits ahead** of origin while origin was **52 ahead** — a genuine divergence. The standard `git stash && merge/rebase` flow **aborted on conflicts in out-of-scope files** the agent didn't own — **routed to TL**. The 46 unpushed local commits are a **push-cadence breach** (root ceiling ~10); once the pile grows that large, a divergence tangles many agents' work and routine resolution stops working.
 
-**Root Cause:** Multiple agents work in parallel on the same branches. The window between local commits and push allows remote to advance, causing non-fast-forward rejections. More agents = more contention.
+**Root Cause:** Multiple agents work in parallel on the same branches. The window between local commits and push allows remote to advance, causing non-fast-forward rejections. More agents = more contention. **At small scale this is self-correcting** (stash/pull --rebase/pop/push); **at large scale it is not** — when approved commits accumulate far past the ~10 push-cadence ceiling, shared local main drifts tens of commits from origin, the rebase spans many agents' out-of-scope changes, and it must go to TL/DevOps. The large divergence is a *symptom of a cadence breach*.
 
 **Prevention:**
 1. Pull immediately before committing: `git pull --rebase` then commit and push without delay.
@@ -402,8 +403,10 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. For code conflicts, understand the intent of both changes before resolving — don't blindly take either side.
 4. Minimize the commit-to-push window — do both in quick succession.
 5. Standard resolution flow: `git stash && git pull --rebase origin main` → resolve conflicts → `git rebase --continue && git stash pop && git push`.
+6. **Bound the divergence via push cadence** — don't let approved commits pile past the ~10 ceiling; a 40+/50+ divergence is not self-correcting.
+7. **A large divergence is a TL/DevOps event** — if `git stash && pull --rebase` hits conflicts in files you don't own, STOP and route to TL/DevOps; don't force-resolve out-of-scope conflicts.
 
-**Status:** Active — 4 instances across 4 agents. Not escalating: self-correcting (git rejects the push), well-known resolution flow, all agents resolved independently.
+**Status:** Active — **6 instances / 5 agents; split by scale.** SMALL contention remains self-correcting and NOT escalating. The **LARGE-divergence variant (p/9#36: 46/52) IS a signal** — a push-cadence-ceiling breach producing out-of-scope conflicts, requiring TL/DevOps. Systemic fix = hold the cadence ceiling + fleet sync sweep, not a new push-mechanics rule.
 
 **Applies To:** All agents pushing to shared branches in either repo.
 
@@ -769,6 +772,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-06-25 — EdgeBrowser: bare `git commit` for t/1009 (3bde76f2) swept in 41 other agents' pre-staged files and pushed to origin/main. A follow-up `git reset --soft HEAD~1` attempted to undo it but rewound a different agent's already-landed commit, causing 1/1 local/origin divergence. Stopped all git surgery, escalated to TL/DevOps. No data lost; divergence mergeable (p/123#1).
+- 2026-07-17 — Diagnostics (commit 7895cbe6, p/9#36): used `git add <file> && git commit` (bare commit, no pathspec) instead of `git commit -- <file>`, sweeping other agents' pre-staged files into the commit. **2nd recorded violation** despite ADR-005 + the memory rule — the trap is that `git add <file> && git commit` *feels* scoped (you named the file to `add`) but the bare `commit` still takes the whole shared index. Surfaced alongside a large-divergence push failure the same session.
 
 **Root Cause:** Git's staging index is shared across all processes in the working tree. When multiple agents run `git add` in parallel, they all stage into the same index. A bare `git commit` (without `-- <paths>`) commits the entire index — not just the files the committing agent staged. The follow-up `git reset --soft HEAD~1` compounds the problem: if another agent committed and pushed between the original commit and the reset, HEAD~1 points to a different commit than expected, rewinding their work.
 
@@ -777,8 +781,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. Never use `git reset` on a shared branch to undo a pushed commit — once it's on the remote, the commit is shared history. Escalate to TL/DevOps for recovery.
 3. If you discover you've swept others' files into your commit but haven't pushed yet: `git reset --soft HEAD~1`, then re-commit with explicit pathspec.
 4. If already pushed: do NOT rewrite history. Escalate — the correct fix depends on what other agents have already pulled/rebased on top of it.
+5. **`git add <file> && git commit` is NOT scoped** — naming a file to `add` does not scope the `commit`; the bare `commit` still takes the whole shared index. The ONLY scoped form is `git commit -- <file>` (the pathspec on the *commit*, not the *add*).
 
-**Status:** Active — ADR-005 pathspec rule already in AGENTS.md but this is the first recorded violation with real impact.
+**Status:** Active — **2 violations (EdgeBrowser 3bde76f2, Diagnostics 7895cbe6)** despite the ADR-005 pathspec rule in AGENTS.md. The recurring mistake is the `git add <file> && git commit` idiom that *feels* scoped but isn't (prevention #5). If a 3rd appears, pairs cleanly with a mechanical hook — extend the `git-commit-pathspec-flag-order` guard to flag a bare `git commit` (no `-- <paths>`) on a shared branch.
 
 **Applies To:** All agents committing to shared branches (main, shared feature branches).
 
