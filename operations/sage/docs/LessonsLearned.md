@@ -1118,26 +1118,28 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
-## [Process] Overwrite/Clobber Claims Without Blob-SHA Comparison
+## [Process] Overwrite/Clobber Claims & Config-Failure Triage Without Object-Level Verification
 
-**Pattern:** A "commit X overwrote file F" claim is asserted, retracted, and re-confirmed across multiple diagnostic rounds — because agents reason from commit dates and symptom counts instead of comparing actual content. Three rounds of churn before the definitive check.
+**Pattern:** A "commit X broke/overwrote F" claim is asserted from the **working tree** (grep, symptom counts, commit dates) instead of the committed object, then retracted when someone finally checks the object. Two shapes: (a) a clobber claim churned across diagnostic rounds; (b) a **config failure** (missing entry, BOM, wrong value in the working-tree config file) attributed to a commit — when the committed code was correct all along and the divergence lived only in the local working tree.
 
 **Instances:**
 - 2026-07-06 — Computational Linguist + 2nd agent (t/1351): a git-forensics clobber claim went through 3 diagnostic rounds across 2 agents. Ancestry got inverted twice. Resolved only when blob SHAs were compared: `git rev-parse X:path` vs `git rev-parse X~1:path` — identical blob = file untouched, debate over in one command (p/7#22).
+- 2026-07-17 — Diagnostics (**2nd config-failure instance**, p/9#30): a flight recorder showed `zai-glm-5-2` missing from `ai-models.json` + a BOM. Diagnostics **grepped the working tree** and attributed both to a revert commit — never running `git show HEAD:ai-models.json`. The committed code was correct; the divergence was working-tree-only. The memory rule ("`git diff HEAD -- <configfile>` before blaming a commit for config") **existed but was not applied under triage pressure** — the 1st config instance was the t/1618 Z.AI triage.
 
-**Root Cause:** Timeline reasoning ("commit X came after Y, so X must have overwritten Y's changes") is unreliable — commits can touch many files, and the accused commit may not have modified the file in question at all. Without content identity (blob SHA), agents pattern-match symptoms to a plausible narrative and waste rounds arguing about it.
+**Root Cause:** Timeline/working-tree reasoning ("commit X came after Y, so X must have broken it" / "the file is wrong now, so a commit made it wrong") is unreliable — commits can touch many files, the accused commit may not have modified the file at all, and a working-tree config file can diverge from committed state via a local refresh/edit with no commit involved. Without content identity (blob SHA / `git show HEAD:<file>`), agents pattern-match symptoms to a plausible commit and waste rounds. The recurrence shows a second failure mode: **the object-level rule can exist (root AGENTS.md + memory) yet not fire during live triage** — knowing the rule ≠ invoking it when a plausible commit-blame narrative is in hand.
 
 **Prevention:**
-1. For any overwrite/clobber/data-loss claim, **blob-SHA comparison is the FIRST check** — before timeline reasoning:
+1. For any "a commit broke/overwrote F" claim, **object-level comparison is the FIRST check** — before timeline or working-tree reasoning:
    - `git rev-parse <commit>:<path>` vs `git rev-parse <commit>~1:<path>` — identical SHA = file untouched at that commit.
    - `git diff <commit>~1 <commit> -- <path>` — empty diff = no change.
 2. If blob SHAs differ, THEN examine what changed: `git show <commit> -- <path>`.
-3. Never conclude "X overwrote F" from commit dates or symptom counts alone.
-4. Same diagnostic-discipline family as #44 (one-directional ancestry → false divergence) and #54 (dirty tree as false witness): settle git disputes at the object level, not by inference.
+3. **Config-failure triage specifically:** before asserting a commit broke config, run `git diff HEAD -- <configfile>` (or `git show HEAD:<configfile>`) — a non-empty diff means the problem is **working-tree-only** (local refresh/edit), NOT the committed code. A missing entry or BOM in the working tree is a working-tree symptom until the committed object proves otherwise.
+4. Never conclude "X broke/overwrote F" from commit dates, grep of the working tree, or symptom counts alone.
+5. **The rule must fire during triage, not just exist:** when you have a plausible commit to blame, that is exactly the moment to run the object-level check — treat "I suspect commit X" as the trigger phrase for `git show HEAD:<path>`. Same diagnostic-discipline family as #44 (one-directional ancestry → false divergence) and #54 (dirty tree as false witness).
 
-**Status:** Resolved — root AGENTS.md "Git forensics" Common Traps rule (bf738f2, p/8#58).
+**Status:** Resolved (root AGENTS.md "Git forensics" Common Traps rule, bf738f2, p/8#58) — but **recurred 2026-07-17 as a config-failure variant despite the rule** (application gap under triage pressure, prevention #5). If a 3rd config instance appears, consider a point-of-use trigger (a triage-checklist step or Diagnostics hook) rather than relying on recall.
 
-**Applies To:** All agents performing git forensics — overwrite claims, data-loss triage, clobber investigations.
+**Applies To:** All agents performing git forensics and config-failure triage — overwrite/clobber claims, data-loss triage, and any "a commit broke this config" diagnosis.
 
 ---
 
