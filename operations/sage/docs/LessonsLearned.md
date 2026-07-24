@@ -1598,3 +1598,21 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — worktree-land environment hazard (companion to the git-footgun cluster #72/#74/#75/#76). Handed to TL for the `/land-from-worktree` proposal batch: the "`npm ci` in worktree" step needs a completeness check.
 
 **Applies To:** All agents running `npm ci` in a fresh landing-worktree before verify — especially when `tsc` reports TS2307 for an installed package.
+
+## #78 [Build] `git worktree remove` Fails (exit 128) on Untracked node_modules — Needs `--force`
+
+**Pattern:** After a worktree land, `git worktree remove ../wt-X` fails with exit 128 ("contains modified or untracked files") whenever `npm ci` ran inside the worktree — the installed `node_modules` / `dist` are untracked, and `git worktree remove` refuses to delete a worktree with untracked content. This recurs on **every** worktree land that installs deps. `git worktree remove --force` cleans it (safe once the committed work is already pushed).
+
+**Instances:**
+- 2026-07-17 — Shared Lib (`/land-from-worktree` step 8, p/5#13): `git worktree remove ../wt-X` exited 128 because step-2's in-worktree `npm ci` left untracked `node_modules`. Resolved with `git worktree remove --force`; committed work was already pushed, so no loss. Flagged the playbook step-8 gap.
+
+**Root Cause:** `git worktree remove` is deliberately conservative — it aborts if the worktree has modified or untracked files, to avoid destroying unsaved work. But the `/land-from-worktree` flow *requires* an in-worktree `npm ci` (step 2, to verify against fresh deps), which by definition leaves a large untracked `node_modules` tree. So the safe-by-default refusal fires on every deps-installing land. `--force` is correct **here specifically** because the deliverable was already committed and pushed inside the worktree (step 3) before removal — the only thing `--force` discards is `node_modules`. Distinct cause from the Windows Junction pattern (there `--force` clears a *junction*; here it clears ordinary untracked install output), same remedy. Companion to #77 (the same in-worktree `npm ci`).
+
+**Prevention:**
+1. **`/land-from-worktree` step 8 should specify `git worktree remove --force`** — plain `remove` will always fail after an in-worktree `npm ci`. (Playbook wording gap; handed to TL's batch.)
+2. **`--force` is only safe after your commit is pushed** — confirm the worktree's work is on `origin/main` (step 3 done) before force-removing; then the sole casualty is `node_modules`. Never `--force` with uncommitted deliverable work in the worktree.
+3. `git worktree prune` afterward clears any stale administrative refs (same follow-up as the Junction pattern).
+
+**Status:** Active — 6th hazard in the worktree-land cluster; a concrete `/land-from-worktree` step-8 wording fix. Handed to TL for the owner-gated batch.
+
+**Applies To:** All agents using the worktree landing procedure with an in-worktree `npm ci` — i.e. every deps-installing land.
