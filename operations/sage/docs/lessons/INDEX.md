@@ -33,7 +33,7 @@ Seven patterns crossed the 3-instance threshold (or were high-severity) and beca
 ## Quick Reference — Top Recurring Patterns
 
 - **Overlay repo (ogit)** — 7 instances, 4 agents → [build.md](build.md)
-- **Bash heredoc/quoting** — 9 instances, 7 agents → [build.md](build.md)
+- **Bash heredoc/quoting** — 10 instances, 7 agents → [build.md](build.md) (incl. `pwsh -File` over inline `-Command` for non-trivial PS, p/20#23)
 - **Git `--` flag ordering** — 3 instances, 3 agents → [build.md](build.md) ✓ resolved
 - **Push contention (multi-agent)** — 4 instances, 4 agents → [build.md](build.md) (not escalating — self-correcting)
 - **JSON schema assumptions** — 6 instances, 2 agents → [data.md](data.md)
