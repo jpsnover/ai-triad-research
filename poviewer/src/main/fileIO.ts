@@ -9,7 +9,24 @@ import { ActionableError } from '../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
 
-const PROJECT_ROOT = path.resolve(__dirname, '../../..');
+// Walk up from __dirname to the repo root (.aitriad.json marker) — robust to
+// compiled __dirname depth. The compiled layout (dist/main/poviewer/src/main)
+// puts __dirname several levels deep, so the old hardcoded
+// `path.resolve(__dirname, '../../..')` resolved to dist/main/ and broke taxonomy +
+// sources resolution (t/1720, same class as t/1719). Fallback matches the pre-fix
+// offset; packaged-asar hardening (app.getAppPath()) + a shared cross-app helper
+// are tracked as a follow-up.
+function findProjectRoot(): string {
+  let dir = __dirname;
+  for (let i = 0; i < 10; i++) {
+    if (fs.existsSync(path.join(dir, '.aitriad.json'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return path.resolve(__dirname, '../../..');
+}
+const PROJECT_ROOT = findProjectRoot();
 const CONFIG_DIR = path.join(os.homedir(), '.poviewer');
 
 const TAXONOMY_BASE = path.join(PROJECT_ROOT, 'taxonomy');
