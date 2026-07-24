@@ -93,13 +93,7 @@ function Merge-FlightRecorderDumps {
     # ── Resolve file paths ───────────────────────────────────────────────
     if ($PSCmdlet.ParameterSetName -eq 'ByDumpId') {
         if (-not $DumpDir) {
-            if ($IsWindows) {
-                $DumpDir = Join-Path $env:APPDATA 'taxonomy-editor/flight-recorder'
-            } elseif ($IsMacOS) {
-                $DumpDir = Join-Path $HOME 'Library/Application Support/taxonomy-editor/flight-recorder'
-            } else {
-                $DumpDir = Join-Path $HOME '.config/taxonomy-editor/flight-recorder'
-            }
+            $DumpDir = Get-FlightRecorderDir   # shared resolver (t/1712)
             $pairedDir = Join-Path (Split-Path $DumpDir) 'admin/flight-recorder-dumps'
             if (Test-Path $pairedDir) { $DumpDir = $pairedDir }
         }

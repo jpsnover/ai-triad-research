@@ -157,7 +157,7 @@ function Show-AITriadHelp {
         'Test-TaxEditorInfra' = 'Health & Diagnostics'; 'Get-AzureFlightRecorder' = 'Health & Diagnostics'
         'Get-FlightRecorderDump' = 'Health & Diagnostics'; 'Get-FlightRecorderReport' = 'Health & Diagnostics'
         'Merge-FlightRecorderDumps' = 'Health & Diagnostics'; 'Request-FlightRecorderDump' = 'Health & Diagnostics'
-        'Show-FlightRecorder' = 'Health & Diagnostics'
+        'Show-FlightRecorder' = 'Health & Diagnostics'; 'Get-LatestFlightRecorderDump' = 'Health & Diagnostics'
 
         # Deployment & TaxEditor
         'Deploy-TaxEditorImage' = 'Deployment & TaxEditor'; 'Deploy-TaxEditorInfra' = 'Deployment & TaxEditor'

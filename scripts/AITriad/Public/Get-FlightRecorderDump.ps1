@@ -56,14 +56,8 @@ function Get-FlightRecorderDump {
     )
 
     if (-not $DumpDir) {
-        # Auto-detect Electron userData path
-        if ($IsMacOS) {
-            $DumpDir = Join-Path $HOME 'Library/Application Support/taxonomy-editor/flight-recorder'
-        } elseif ($IsWindows) {
-            $DumpDir = Join-Path $env:APPDATA 'taxonomy-editor/flight-recorder'
-        } else {
-            $DumpDir = Join-Path $HOME '.config/taxonomy-editor/flight-recorder'
-        }
+        # Auto-detect Electron userData path (shared resolver, t/1712)
+        $DumpDir = Get-FlightRecorderDir
     }
 
     if (-not (Test-Path $DumpDir)) {

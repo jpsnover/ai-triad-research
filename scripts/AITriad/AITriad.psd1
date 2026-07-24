@@ -99,6 +99,7 @@
         'Invoke-DebateAB'
         'Show-OSSLicenses'
         'Get-FlightRecorderDump'
+        'Get-LatestFlightRecorderDump'
         'Get-AzureFlightRecorder'
         'Show-FlightRecorder'
         'Update-AITSourceIndex'

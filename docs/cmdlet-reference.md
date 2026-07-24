@@ -108,6 +108,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Get-TaxonomySnapshot` | Fetch the 11-file taxonomy + conflict snapshot from ai-triad-data with commit-SHA stamping (t/1493) |
 | `Test-TaxonomyDirContents` | Pre-embedding TAXONOMY_DIR validation — flags files whose `nodes` field would crash `Update-TaxEmbeddings` (dict/null instead of a list of objects); mirrors embed_taxonomy.py skip logic (t/1654) |
 | `Get-FlightRecorderDump` | Pull flight recorder from server |
+| `Get-LatestFlightRecorderDump` | Find the most recent *non-stub* flight recorder dump (>10KB) for triage — skips the tiny startup/shutdown stubs that can be newer than the real dump (t/1712) |
 | `Get-AICostReport` | Token/cost usage report |
 
 ### Config

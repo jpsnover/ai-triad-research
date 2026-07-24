@@ -795,6 +795,7 @@ Export-ModuleMember -Function @(
     'Get-AICostReport'
     'Show-OSSLicenses'
     'Get-FlightRecorderDump'
+    'Get-LatestFlightRecorderDump'
     'Get-AzureFlightRecorder'
     'Show-FlightRecorder'
     'Update-AITSourceIndex'
