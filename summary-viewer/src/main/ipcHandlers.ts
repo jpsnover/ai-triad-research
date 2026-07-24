@@ -20,6 +20,7 @@ import {
   updateNodeFields,
   persistEdges,
   getNodesByPovCategory,
+  PROJECT_ROOT,
 } from './fileIO';
 import type { AddTaxonomyNodeRequest } from './fileIO';
 import { loadEmbeddings, computeEmbeddings, computeQueryEmbedding } from './embeddings';
@@ -40,7 +41,10 @@ import {
 } from '../../../lib/electron-shared/utils/validatedIpc';
 import { loadPromptWithFragments } from '../../../lib/electron-shared/promptLoader';
 
-const PROJECT_ROOT = path.resolve(__dirname, '../../..');
+// PROJECT_ROOT imported from fileIO (findProjectRoot walk-up to .aitriad.json) —
+// NOT a hardcoded __dirname offset. The compiled layout (dist/main/summary-viewer/
+// src/main) puts __dirname 5 levels deep, so the old `path.resolve(__dirname,
+// '../../..')` resolved to dist/main/ and broke all prompt + ai-models.json loads (t/1719).
 
 export function registerIpcHandlers(): void {
   // === No-arg handlers (no validation needed) ===
