@@ -173,8 +173,9 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 - 2026-05-24 — Technical Lead: push to code repo main rejected with 3 unpushed CI fixes. Resolved with stash/pull --rebase, merge conflict in `logger.ts` (kept cached `usePretty` approach), rebase --continue/stash pop/push (p/8#11).
 - 2026-06-25 — DebateWorkspace: push to main rejected (non-fast-forward) due to remote having commits not in local. Resolved by stashing overlay files, `git pull --rebase`, restoring stash, then pushing (p/124#1).
 - 2026-07-04 — Server Community: push rejected after committing flight-recorder fix. Remote main had new commits from other agents. Resolved with `git stash && git pull --rebase && git stash pop` then push (p/160#1).
+- 2026-07-17 — Diagnostics (p/9#36, **LARGE-divergence variant — NOT self-correcting**): push rejected with local main **46 commits ahead** of origin while origin was **52 ahead** — a genuine divergence, not a small window. The standard `git stash && merge/rebase` flow **aborted on conflicts in out-of-scope files** the agent didn't own, so it couldn't be resolved independently — **routed to TL**. The 46 unpushed local commits are themselves a **push-cadence breach** (root AGENTS.md ceiling is ~10 approved commits before syncing); once the pile grows that large, a divergence tangles many agents' work and the routine resolution stops working.
 
-**Root Cause:** Multiple agents work in parallel on the same branches. The window between local commits and push allows remote to advance, causing non-fast-forward rejections. More agents = more contention.
+**Root Cause:** Multiple agents work in parallel on the same branches. The window between local commits and push allows remote to advance, causing non-fast-forward rejections. More agents = more contention. **At small scale this is self-correcting** (stash/pull --rebase/pop/push). **At large scale it is not:** when approved commits accumulate far past the push-cadence ceiling (~10), the shared local main drifts tens of commits from origin; a rebase/merge then spans many agents' out-of-scope changes and hits conflicts no single agent can adjudicate — so it must go to TL/DevOps, who own push/sync. The large divergence is a *symptom of a cadence breach*, not just bad luck in the commit-to-push window.
 
 **Prevention:**
 1. Pull immediately before committing: `git pull --rebase` then commit and push without delay.
@@ -183,9 +184,13 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 4. Minimize the commit-to-push window — do both in quick succession.
 5. Standard resolution flow: `git stash && git pull --rebase origin main` → resolve conflicts → `git rebase --continue && git stash pop && git push`.
 
-**Status:** Active — 4 instances across 4 agents. Crosses escalation threshold but NOT escalating: git rejects the push (no silent corruption), resolution flow is well-known (stash/pull --rebase/pop/push), and all agents resolved it independently. An AGENTS.md rule would add process overhead without preventing a self-correcting failure.
+**Prevention (added for the large-divergence variant):**
+6. **Bound the divergence via push cadence** — don't let approved commits pile past the ~10 ceiling (root AGENTS.md "Commit & Push Cadence"). A small stale-local is self-correcting; a 40+/50+ divergence is not, because the rebase spans many agents' out-of-scope files.
+7. **A large divergence is a TL/DevOps event, not a solo fix** — if `git stash && pull --rebase` hits conflicts in files you don't own, STOP and route to TL/DevOps (who own push/sync). Do not force-resolve out-of-scope conflicts.
 
-**Applies To:** All agents pushing to shared branches in either repo.
+**Status:** Active — **6 instances / 5 agents; now split by scale.** SMALL contention (commit-to-push window) remains self-correcting and NOT escalating — git rejects (no silent corruption), stash/pull --rebase/pop/push resolves it independently. The **LARGE-divergence variant (p/9#36: 46 ahead / 52 ahead) IS a signal** — it's a push-cadence-ceiling breach that produces out-of-scope conflicts and requires TL/DevOps. The systemic fix is not a new push-mechanics rule but *holding the existing cadence ceiling*; flagged to TL/DevOps that a fleet sync sweep + cadence discipline is the lever, not per-agent resolution.
+
+**Applies To:** All agents pushing to shared branches in either repo — and TL/DevOps for the large-divergence/cadence-breach variant.
 
 ---
 
@@ -461,6 +466,7 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 
 **Instances:**
 - 2026-06-25 — EdgeBrowser: bare `git commit` for t/1009 (3bde76f2) swept in 41 other agents' pre-staged files and pushed to origin/main. A follow-up `git reset --soft HEAD~1` attempted to undo it but rewound a different agent's already-landed commit, causing 1/1 local/origin divergence. Stopped all git surgery, escalated to TL/DevOps. No data lost; divergence mergeable (p/123#1).
+- 2026-07-17 — Diagnostics (commit 7895cbe6, p/9#36): used `git add <file> && git commit` (bare commit, no pathspec) instead of `git commit -- <file>`, sweeping other agents' pre-staged files into the commit. **2nd recorded violation** despite ADR-005 + the memory rule — the trap is that `git add <file> && git commit` *feels* scoped (you named the file to `add`) but the bare `commit` still takes the whole shared index. Surfaced alongside a large-divergence push failure the same session (see "Push Rejected — Multi-Agent Contention" large-divergence variant).
 
 **Root Cause:** Git's staging index is shared across all processes in the working tree. When multiple agents run `git add` in parallel, they all stage into the same index. A bare `git commit` (without `-- <paths>`) commits the entire index — not just the files the committing agent staged. The follow-up `git reset --soft HEAD~1` compounds the problem: if another agent committed and pushed between the original commit and the reset, HEAD~1 points to a different commit than expected, rewinding their work.
 
@@ -469,8 +475,9 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 2. Never use `git reset` on a shared branch to undo a pushed commit — once it's on the remote, the commit is shared history. Escalate to TL/DevOps for recovery.
 3. If you discover you've swept others' files into your commit but haven't pushed yet: `git reset --soft HEAD~1`, then re-commit with explicit pathspec.
 4. If already pushed: do NOT rewrite history. Escalate — the correct fix depends on what other agents have already pulled/rebased on top of it.
+5. **`git add <file> && git commit` is NOT scoped** — naming a file to `add` does not scope the `commit`; the bare `commit` still takes the whole shared index. The ONLY scoped form is `git commit -- <file>` (the pathspec on the *commit*, not the *add*).
 
-**Status:** Active — ADR-005 pathspec rule already in AGENTS.md but this is the first recorded violation with real impact.
+**Status:** Active — **2 violations (EdgeBrowser 3bde76f2, Diagnostics 7895cbe6)** despite the ADR-005 pathspec rule in AGENTS.md. The rule exists; the recurring mistake is the `git add <file> && git commit` idiom that *feels* scoped but isn't (prevention #5). If a 3rd appears, this pairs cleanly with a mechanical hook — the `git-commit-pathspec-flag-order` guard could be extended to flag a bare `git commit` (no `-- <paths>`) on a shared branch.
 
 **Applies To:** All agents committing to shared branches (main, shared feature branches).
 
