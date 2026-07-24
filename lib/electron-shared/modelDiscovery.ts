@@ -462,17 +462,28 @@ export async function refreshAIModels(deps: ModelDiscoveryDeps): Promise<Refresh
     result[backendId] = discovery.result;
   }
 
-  config.models = newModels;
+  // Merge, not replace (t/1711): only the backends probed this run are regenerated.
+  // Backends we did NOT probe (zai, azure, any manually-curated entry) must survive
+  // untouched, along with their defaults/debateTiers/fallbackChains references. A bare
+  // `config.models = newModels` silently deleted every non-probed backend — the Z.AI
+  // outage root cause (dropped zai models[] left defaults.zai -> zai-glm-5-2 dangling
+  // -> getApiModelId returns it verbatim -> Z.AI HTTP 1211 -> all opening statements fail).
+  const probed = new Set<string>(ALL_BACKENDS);
+  const preserved = config.models.filter(m => !probed.has(m.backend));
+  config.models = [...preserved, ...newModels];
   config.lastRefreshed = new Date().toISOString();
 
+  // Repoint only genuinely dangling defaults, checked against the full merged set (not
+  // just the re-probed models) so a surviving non-probed backend's default is never
+  // falsely rewritten.
   for (const [backend, defaultId] of Object.entries(config.defaults)) {
-    if (!newModels.some(m => m.id === defaultId)) {
-      const first = newModels.find(m => m.backend === backend);
+    if (!config.models.some(m => m.id === defaultId)) {
+      const first = config.models.find(m => m.backend === backend);
       if (first) config.defaults[backend] = first.id;
     }
   }
 
-  result.totalModels = newModels.length;
+  result.totalModels = config.models.length;
   saveModelConfig(deps.repoRoot, config);
   console.log(`[ModelDiscovery] Saved ${newModels.length} models to ai-models.json`);
 

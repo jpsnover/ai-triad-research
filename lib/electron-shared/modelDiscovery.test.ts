@@ -1,5 +1,15 @@
-import { describe, it, expect } from 'vitest';
-import { curateGeminiModels } from './modelDiscovery.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// In-memory ai-models.json backing store for the refreshAIModels merge test.
+let fileContent = '';
+vi.mock('fs', () => ({
+  default: {
+    readFileSync: () => fileContent,
+    writeFileSync: (_path: string, data: string) => { fileContent = data; },
+  },
+}));
+
+import { curateGeminiModels, refreshAIModels } from './modelDiscovery.js';
 
 function model(name: string, displayName: string, methods = ['generateContent']) {
   return { name: `models/${name}`, displayName, supportedGenerationMethods: methods };
@@ -143,5 +153,63 @@ describe('curateGeminiModels', () => {
     const result = curateGeminiModels(models);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe('gemini-2.5-flash');
+  });
+});
+
+// ── refreshAIModels: merge, don't replace (t/1711) ──────────────────────────────
+// Regression for the recurring Z.AI outage: a refresh probes only gemini/claude/groq/
+// openai/deepseek/ollama, so replacing config.models wholesale deleted the zai (and
+// azure) backend, leaving defaults.zai -> zai-glm-5-2 dangling -> HTTP 1211. This test
+// is RED on the old `config.models = newModels` and GREEN after the merge fix.
+
+const BASE_CONFIG = {
+  backends: [
+    { id: 'gemini', label: 'Gemini' },
+    { id: 'azure', label: 'Azure' },
+    { id: 'zai', label: 'Z.AI' },
+  ],
+  models: [
+    { id: 'gemini-2.5-flash', apiModelId: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', backend: 'gemini' },
+    { id: 'zai-glm-5-2', apiModelId: 'glm-5-2', label: 'GLM-5.2', backend: 'zai' },
+  ],
+  defaults: { gemini: 'gemini-2.5-flash', zai: 'zai-glm-5-2', azure: 'azure-gpt-5' },
+  debateTiers: { premium: { zai: 'zai-glm-5-2' } },
+  fallbackChains: { zai: ['zai-glm-5-2', 'gemini-2.5-flash'] },
+  lastRefreshed: null,
+};
+
+describe('refreshAIModels — merge, not replace (t/1711)', () => {
+  beforeEach(() => {
+    fileContent = JSON.stringify(BASE_CONFIG);
+    // No key for any backend + no network: probed backends fall back to existing entries,
+    // and ollama's localhost probe fails fast — no real IO. The bug reproduces regardless.
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('no network in test'); }));
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('preserves non-probed backends (zai/azure) — models, defaults, tiers, chains survive a refresh', async () => {
+    await refreshAIModels({ loadApiKey: () => null, repoRoot: '/fake' });
+    const saved = JSON.parse(fileContent);
+
+    // The exact failure: the zai model entry must survive (was deleted by replace).
+    expect(saved.models.some((m: { id: string }) => m.id === 'zai-glm-5-2')).toBe(true);
+    // defaults.zai must remain non-dangling (points at a model that still exists).
+    expect(saved.defaults.zai).toBe('zai-glm-5-2');
+    expect(saved.models.some((m: { id: string }) => m.id === saved.defaults.zai)).toBe(true);
+    // Non-probed backend registry + its curated references round-trip untouched.
+    expect(saved.backends.some((b: { id: string }) => b.id === 'zai')).toBe(true);
+    expect(saved.backends.some((b: { id: string }) => b.id === 'azure')).toBe(true);
+    expect(saved.debateTiers.premium.zai).toBe('zai-glm-5-2');
+    expect(saved.fallbackChains.zai).toContain('zai-glm-5-2');
+  });
+
+  it('does not reduce the models[] count for backends not probed', async () => {
+    const before = JSON.parse(fileContent).models.filter((m: { backend: string }) => m.backend === 'zai').length;
+    await refreshAIModels({ loadApiKey: () => null, repoRoot: '/fake' });
+    const after = JSON.parse(fileContent).models.filter((m: { backend: string }) => m.backend === 'zai').length;
+    expect(after).toBe(before);
+    expect(after).toBeGreaterThan(0);
   });
 });
