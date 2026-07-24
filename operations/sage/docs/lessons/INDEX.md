@@ -3,13 +3,13 @@
 Institutional memory for failure patterns across the AI Triad Research project.
 Organized by category. Each file contains the full pattern details.
 
-**Last updated:** 2026-07-17 | **Total patterns:** 76 | **Resolved:** 21 | **Active:** 55
+**Last updated:** 2026-07-17 | **Total patterns:** 78 | **Resolved:** 21 | **Active:** 57
 
 ## Summary
 
 | Category | File | Patterns | Resolved | Active |
 |----------|------|----------|----------|--------|
-| Build | [build.md](build.md) | 46 | 10 | 36 |
+| Build | [build.md](build.md) | 48 | 10 | 38 |
 | PowerShell | [powershell.md](powershell.md) | 7 | 3 | 4 |
 | Data | [data.md](data.md) | 3 | 1 | 2 |
 | Type System | [type-system.md](type-system.md) | 4 | 0 | 4 |
@@ -41,5 +41,5 @@ Seven patterns crossed the 3-instance threshold (or were high-severity) and beca
 - **Pathspec skips untracked** — 4 instances, 4 agents → [build.md](build.md) (not escalating — self-correcting)
 - **Bash dollar-sign substitution** — 2 instances → [build.md](build.md)
 - **Python cp1252 encoding** — 5 instances, 2 agents → [build.md](build.md) (not escalating — self-correcting)
-- **Worktree-land / divergence-window git footguns** — 4 hazards, 3 agents (Server Storage, DebateTool, PowerShell), all 2026-07-17 during active push-cadence lands → [build.md](build.md). Common root: *during a land/divergence, never assume a file's working-tree content is local HEAD; scope by path and act at the object level.* (#72 `git diff HEAD..origin/main` false-flags your own unpushed files + verify dirties snapshots; #74 bare `git restore <file>` reverts to local HEAD wiping origin-side content; `git checkout -- .` / `git restore .` reverts ALL unstaged tracked edits, untracked survivors mask the loss; #73 facet-B `git show <ref>:<path>` MSYS-mangling signature.) Handed to TL for the `/land-from-worktree` proposal batch (p/8#81); recommended a `git checkout -- .`/`git restore .` broad-scope-revert PreToolUse hook to Diagnostics.
+- **Worktree-land / divergence-window hazards** — 5 git footguns + 1 env hazard, 4 agents (Server Storage, DebateTool, PowerShell, ElectronMain), all 2026-07-17 during active push-cadence lands → [build.md](build.md). Common root: *during a land/divergence, never assume a file's working-tree content is local HEAD or that your commit/tree contains what you intended; scope by path, check file-counts, act at the object level.* Git footguns: #72 (`git diff HEAD..origin/main` false-flags your own unpushed files + verify dirties snapshots); #74 (bare `git restore <file>` reverts to local HEAD wiping origin-side content); #75 (`git checkout -- .` / `git restore .` reverts ALL unstaged tracked edits, untracked survivors mask the loss); #76 (`git commit -- <explicit list>` silently omits a glob-staged file → broken origin, file-count is the tell); + #73 facet-B (`git show <ref>:<path>` MSYS-mangling signature). Env hazard: #77 (`npm ci` in a fresh worktree leaves an empty package dir → false `tsc` TS2307). Handed to TL for the `/land-from-worktree` proposal batch (p/8#81/#82); recommended a broad-scope-revert PreToolUse hook + a "staged-but-uncommitted after commit" check to Diagnostics.
 - **Lossy error boundaries (generic recovery discards a real payload)** — 5 instances, 3 agents (TL + PowerShell + Diagnostics) → [api.md](api.md) (**escalation resolved 2026-07-17** — genus broadened past the provider edge to any recovery/parse boundary, e.g. `parseAIJson`→null dropping 7 debater sketches, t/1626. Two-track fix, both landed: Diagnostics expanded the t/1623 `lossy-error-boundary-guard` hook to a 2nd boundary Family B (`parseAIJson`/`repairJson` + `argumentNetwork.ts`, p/9#23) — **verified live + t/1623 closed** (p/9#25: template intact across 55 manifest snapshots, Family-A blockers t/1620/t/1621 also landed); TL-approved minimal debate-local rule landed in `lib/debate/AGENTS.md` by DebateTool (overlay 31e0eeb, p/70#5) — recovery-that-drops-a-non-empty-payload = silent lossy failure, not recovery)
