@@ -719,8 +719,12 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
       if (!newId) return { ok: false, error: 'Failed to create situation node' };
 
       taxStore.updateSituationNode(newId, {
-        label: parsed.label,
-        description: parsed.description,
+        // Defense in depth (t/1708): the `as` cast gives no runtime guarantee, so an AI
+        // response omitting a required string field yields `undefined`. Guard at the parse
+        // boundary — an undefined `description` reaching the store throws in the post-save
+        // embedding batch (`stripExcludes`, the t/1707 crash); `label` is the same class.
+        label: parsed.label ?? '',
+        description: parsed.description ?? '',
         interpretations: {
           accelerationist: parsed.interpretations.accelerationist || '',
           safetyist: parsed.interpretations.safetyist || '',
