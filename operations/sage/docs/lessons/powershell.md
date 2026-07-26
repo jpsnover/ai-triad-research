@@ -32,17 +32,18 @@ Failure patterns related to PowerShell strict mode, module system, and language 
 - 2026-05-22 — `Get-PovLineage` crashed with "The property 'parent_id' cannot be found on this object" when traversing nodes that lack a `parent_id` property (p/20#1).
 - 2026-05-24 — `HashSet[string]::new([System.StringComparer]::OrdinalIgnoreCase)` inside an inline `if/else` assignment threw "cannot call a method on a null-valued expression". Fixed by simplifying to block `if/else` with `HashSet[string]::new()` (no constructor args) (p/20#5).
 - 2026-05-25 — `.Count` on empty JSON arrays from `ConvertFrom-Json` threw under strict mode. `children: []` and `situation_refs: []` produce objects where `.Count` is unavailable. Fixed by using `foreach` with `break` to test emptiness instead (p/20#9).
+- 2026-07-26 — Technical Lead (t/1726, p/8#88): `Invoke-SummaryPipeline` crashed under strict mode accessing `.factual_claims` at **4 sites** when an LLM **omitted that optional JSON field** from its response. Same class as the `.Count`-on-scalar trap behind the `ps-strict-mode-count-guard` hook — an unguarded property read on a `ConvertFrom-Json` object whose shape varies per LLM call. Fix = `$obj.PSObject.Properties['factual_claims']` guard (prevention #1). **The recurring driver is LLM-omitted optional fields** — every optional field in an LLM JSON contract is a latent unguarded-access crash site.
 
-**Root Cause:** PowerShell strict mode interacts unpredictably with complex expressions and JSON-sourced objects — missing properties throw terminating errors, .NET constructors can fail in inline conditionals, and `ConvertFrom-Json` empty arrays may lack `.Count` unlike native `@()` arrays.
+**Root Cause:** PowerShell strict mode interacts unpredictably with complex expressions and JSON-sourced objects — missing properties throw terminating errors, .NET constructors can fail in inline conditionals, and `ConvertFrom-Json` empty arrays may lack `.Count` unlike native `@()` arrays. **The dominant recurrence source is LLM JSON with optional fields:** the model omits a field on some calls, so a property read that worked in testing crashes in production — the same object-shape-varies risk as the "normalize at fetch" data-shape rule, on the PowerShell side.
 
 **Prevention:**
 1. Guard property access with `$obj.PSObject.Properties['property_name']` before reading the value.
 2. Avoid complex .NET constructor calls inside inline `if/else` expressions — use block `if/else` with simple constructors instead.
 3. For JSON-sourced arrays, don't rely on `.Count` — use `foreach` with `break`, `@($array).Count`, or `$null -eq $array` to test emptiness.
-4. When working with JSON-sourced data that has variable schemas, assume any property may be absent.
+4. When working with JSON-sourced data that has variable schemas, assume any property may be absent — **treat every optional field in an LLM JSON contract as a guaranteed-someday-absent field** and guard it at the read site.
 5. When strict mode causes unexpected failures with valid-looking code, simplify the expression — break it into multiple statements.
 
-**Status:** Resolved — "Strict Mode + JSON Guardrails" section added to `scripts/AGENTS.md` (p/20#12).
+**Status:** Resolved — "Strict Mode + JSON Guardrails" section added to `scripts/AGENTS.md` (p/20#12). **Recurs 2026-07-26 (t/1726, 4 sites) despite the rule** — the `.Count`-on-scalar sub-case is hooked (`ps-strict-mode-count-guard`), but general unguarded *property* access is **not hookable cheaply** (TL's call, p/8#88 — property access is too pervasive to lint), so the guardrail rule (prevention #1/#4) is the only defense and it depends on the author remembering to guard. The durable mitigation is guarding at the JSON-read boundary for LLM responses specifically — pairs with the "normalize at fetch" data-shape rule.
 
 **Applies To:** All agents writing PowerShell under strict mode, especially with .NET types or JSON data.
 
