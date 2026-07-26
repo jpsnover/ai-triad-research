@@ -380,8 +380,11 @@ function Invoke-POVSummary {
         generated_at      = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
         model_info        = $modelInfo
         pov_summaries     = $summaryObject.pov_summaries
-        factual_claims    = $summaryObject.factual_claims
-        unmapped_concepts = $summaryObject.unmapped_concepts
+        # t/1726 — coerce LLM-optional fields to arrays so the persisted summary
+        # always carries them; protects every downstream consumer from the same
+        # strict-mode missing-property throw when the model omits the field.
+        factual_claims    = if ($summaryObject.PSObject.Properties['factual_claims']) { @($summaryObject.factual_claims) } else { @() }
+        unmapped_concepts = if ($summaryObject.PSObject.Properties['unmapped_concepts']) { @($summaryObject.unmapped_concepts) } else { @() }
         context_rot       = $ContextRotObj
     }
 
@@ -410,7 +413,8 @@ function Invoke-POVSummary {
         # Summary statistics — node reference counts (sum may exceed total_claims for multi-mapped claims)
         $nodeRefsByPov = @{ accelerationist = 0; safetyist = 0; skeptic = 0; situations = 0 }
         $primaryPovDist = @{ accelerationist = 0; safetyist = 0; skeptic = 0; situations = 0 }
-        foreach ($claim in @($summaryObject.factual_claims)) {
+        $mdClaims = if ($summaryObject.PSObject.Properties['factual_claims']) { @($summaryObject.factual_claims) } else { @() }
+        foreach ($claim in $mdClaims) {
             if ($null -eq $claim) { continue }
             $PrimaryAssigned = $false
             foreach ($nodeId in @($claim.linked_taxonomy_nodes)) {
@@ -481,7 +485,8 @@ function Invoke-POVSummary {
     if ($factualClaimCount -eq 0) {
         Write-Info "No factual claims to process."
     } else {
-        foreach ($claim in $summaryObject.factual_claims) {
+        $claimsToProcess = if ($summaryObject.PSObject.Properties['factual_claims']) { @($summaryObject.factual_claims) } else { @() }
+        foreach ($claim in $claimsToProcess) {
 
             $claimText   = $claim.claim
             $claimLabel  = $claim.claim_label
@@ -616,7 +621,8 @@ function Invoke-POVSummary {
 
     if ($unmappedConceptCount -gt 0) {
         Write-Host "`n  UNMAPPED CONCEPTS (potential new taxonomy nodes):" -ForegroundColor Magenta
-        foreach ($concept in $summaryObject.unmapped_concepts) {
+        $unmappedList = if ($summaryObject.PSObject.Properties['unmapped_concepts']) { @($summaryObject.unmapped_concepts) } else { @() }
+        foreach ($concept in $unmappedList) {
             $cProps = $concept.PSObject.Properties
             $povCat  = "[$( if ($cProps['suggested_pov']) { $concept.suggested_pov } else { '?' } ) / $( if ($cProps['suggested_category']) { $concept.suggested_category } else { '?' } )]"
             if ($cProps['suggested_label']) { $label = $concept.suggested_label } elseif ($cProps['concept']) { $label = $concept.concept } else { $label = '(no label)' }

@@ -125,7 +125,7 @@ function Test-FireRequired {
         }
     }
 
-    if ($SummaryObject.factual_claims) { $AllClaims = @($SummaryObject.factual_claims) } else { $AllClaims = @() }
+    if ($SummaryObject.PSObject.Properties['factual_claims'] -and $SummaryObject.factual_claims) { $AllClaims = @($SummaryObject.factual_claims) } else { $AllClaims = @() }
     $TotalKP = $AllKeyPoints.Count
     $TotalClaims = $AllClaims.Count
 
@@ -169,7 +169,7 @@ function Test-FireRequired {
 
     # Signal 4: Unmapped concept rate
     if ($TotalKP -gt 0) {
-        $Unmapped = @($AllKeyPoints | Where-Object { -not $_.taxonomy_node_id }).Count
+        $Unmapped = @($AllKeyPoints | Where-Object { -not ($_.PSObject.Properties['taxonomy_node_id'] -and $_.taxonomy_node_id) }).Count
         $UnmappedRate = $Unmapped / $TotalKP
         if ($UnmappedRate -gt $T['unmapped_concept_rate']) {
             $Stage2Signals.Add("unmapped_concept_rate=$([Math]::Round($UnmappedRate * 100))% ($Unmapped/$TotalKP key_points)")

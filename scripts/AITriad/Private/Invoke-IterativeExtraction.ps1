@@ -135,7 +135,7 @@ function Invoke-IterativeExtraction {
     }
 
     # ── Phase 2-3: Assess confidence and iterate on uncertain claims ────────
-    if (-not $Summary.factual_claims) {
+    if (-not ($Summary.PSObject.Properties['factual_claims'] -and $Summary.factual_claims)) {
         Write-Verbose "  No factual_claims in response — nothing to iterate on"
         # No claims to iterate on — return as-is
         return @{
@@ -151,7 +151,7 @@ function Invoke-IterativeExtraction {
         }
     }
 
-    $Claims = @($Summary.factual_claims)
+    $Claims = if ($Summary.PSObject.Properties['factual_claims']) { @($Summary.factual_claims) } else { @() }
     $ClaimsConfident = 0
     $ClaimsIterated = 0
     $ClaimsExhausted = 0

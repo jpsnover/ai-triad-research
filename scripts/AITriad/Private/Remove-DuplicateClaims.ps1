@@ -104,7 +104,7 @@ function Remove-DuplicateClaims {
             $Metrics.points_before += @($CampData.key_points).Count
         }
     }
-    if ($SummaryObject.factual_claims) {
+    if ($SummaryObject.PSObject.Properties['factual_claims'] -and $SummaryObject.factual_claims) {
         $Metrics.claims_before = @($SummaryObject.factual_claims).Count
     }
 

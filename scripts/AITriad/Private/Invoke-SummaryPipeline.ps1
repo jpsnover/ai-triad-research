@@ -288,7 +288,7 @@ $SnapshotText
     # FIRE produces fire_confidence on factual_claims; single-shot gets
     # extraction_confidence from the model but also needs a derived score
     # on any factual_claim missing it, using the same evidence_criteria formula.
-    if (-not $IterativeExtraction -and $SummaryObject.factual_claims) {
+    if (-not $IterativeExtraction -and $SummaryObject.PSObject.Properties['factual_claims'] -and $SummaryObject.factual_claims) {
         foreach ($Claim in @($SummaryObject.factual_claims)) {
             if (-not $Claim.PSObject.Properties['extraction_confidence'] -or $null -eq $Claim.extraction_confidence) {
                 $DerivedConf = 0.5
