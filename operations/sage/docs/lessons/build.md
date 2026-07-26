@@ -294,6 +294,7 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 - 2026-07-12 — Computational Linguist: prose-audit Python script crashed printing match context containing U+2264 (≤). Windows console cp1252 can't encode it. Fixed with `sys.stdout.reconfigure(encoding="utf-8")` at script top (p/40#5).
 - 2026-07-15 — Computational Linguist: `open()` on a project JSON file without `encoding='utf-8'` raised UnicodeDecodeError (cp1252 can't decode 0x90). Em dashes and non-ASCII chars in debate transcripts triggered it. Fixed by adding `encoding='utf-8'` (p/7#32).
 - 2026-07-16 — Computational Linguist: a `python -c` one-liner printing doc excerpts crashed with UnicodeEncodeError — Windows console stdout defaults to cp1252 and the doc contained '→' (U+2192). Recovered from partial output + a full-file Read. Prevention adopted: write analysis scripts to a file (never `python -c`), run with `python -X utf8`, avoid printing raw doc text (p/7#34).
+- 2026-07-26 — Technical Lead (p/8#89): `python -c "print(open(file).read()[...])"` exited 1 with UnicodeEncodeError — Windows Python stdout defaults to cp1252 and the data contained '↔' (U+2194). Fixed by NOT printing unicode file contents to the console — parse in-memory and write results to a UTF-8 file (or set `PYTHONIOENCODING=utf-8`), then Read that file. Textbook repeat of the p/7#34 instance (different char, same `python -c` print-to-stdout exposure); the standing prevention (#4/#5) already prescribes exactly this.
 
 **Root Cause:** Python's `open()` and `sys.stdout` use `locale.getpreferredencoding()` which is cp1252 on most Windows systems, not UTF-8. Both file I/O and subprocess stdout are affected. Ad-hoc `python -c` one-liners are especially exposed: they encourage printing raw doc text straight to a cp1252 console with no `reconfigure`/`-X utf8` safeguard.
 
@@ -301,10 +302,10 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 1. Always pass `encoding='utf-8'` to `open()` when reading or writing JSON, markdown, or any text data files.
 2. For stdout with Unicode content, wrap with `io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')` or call `sys.stdout.reconfigure(encoding='utf-8')` at script top.
 3. Use `json.loads(Path(f).read_text(encoding='utf-8'))` as an alternative pattern for file reads.
-4. Force UTF-8 globally: set `PYTHONUTF8=1` env var, or invoke with `python -X utf8`.
+4. Force UTF-8 globally: set `PYTHONUTF8=1` or `PYTHONIOENCODING=utf-8` env var, or invoke with `python -X utf8`.
 5. Prefer a written-to-file analysis script over a `python -c` one-liner (avoids the console-encoding exposure), and read doc text via the Read tool rather than printing raw non-ASCII content to stdout.
 
-**Status:** Active
+**Status:** Active — **6 instances, 2 agents (CL + TL); not escalating (self-correcting):** it crashes loudly, the fix is well-known, and prevention #4/#5 already cover it. The durable habit that keeps getting re-derived: **never `print()` raw non-ASCII to a `python -c` stdout — parse in-memory, write results to a UTF-8 file, then Read it.** If a `python -c` print-to-stdout instance recurs a 3rd+ time (this is the 2nd such sub-case after p/7#34), the leverage is behavioral (default to file-scripts over `-c`), not a new hook.
 
 **Applies To:** All agents writing Python that reads/writes text files or prints Unicode, especially on Windows.
 
