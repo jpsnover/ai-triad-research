@@ -82,6 +82,9 @@ export type DebateTestedEntry = _DebateTestedEntry;
 import type { DebateDelta as _DebateDelta } from '@lib/debate/types';
 export type DebateDelta = _DebateDelta;
 
+import type { EdgesFile as _EdgesFile } from '@lib/debate/taxonomyTypes';
+export type EdgesFile = _EdgesFile;
+
 // Canonical ref-kind contract (t/1767 §5). Re-exported so renderer consumers
 // (resolveRef / DetailPane, t/1775) have a single import site alongside `api`,
 // without forking the shared union. Never redeclared here — pure re-export.
@@ -108,6 +111,10 @@ export interface AppAPI {
   updateEdgeStatus: (index: number, status: string) => Promise<unknown>;
   swapEdgeDirection: (index: number) => Promise<unknown>;
   bulkUpdateEdges: (indices: number[], status: string) => Promise<unknown>;
+  /** Persist the full edges file via a whole-file atomic write (writeEdgesFile
+   *  temp→rename). The only path that APPENDS new edges — update/swap/bulk above
+   *  mutate existing edges by index. New-edge persistence path (t/1816). */
+  saveEdges: (data: EdgesFile) => Promise<void>;
   buildNodeSourceIndex: () => Promise<unknown>;
   buildPolicySourceIndex: () => Promise<unknown>;
 

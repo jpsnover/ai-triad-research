@@ -31,6 +31,9 @@ export const api: AppAPI = {
   // Taxonomy CRUD
   loadTaxonomyFile: (pov) => window.electronAPI.loadTaxonomyFile(pov),
   saveTaxonomyFile: (pov, data) => window.electronAPI.saveTaxonomyFile(pov, data),
+  // New-edge persistence (t/1816). Graceful-degrade until the `save-edges` IPC handler
+  // lands (ElectronMain); delegates automatically once preload exposes saveEdges.
+  saveEdges: (data) => window.electronAPI.saveEdges?.(data) ?? Promise.reject(new Error('Edge persistence is not available in desktop mode yet (pending the save-edges IPC handler, t/1816)')),
   loadPolicyRegistry: () => window.electronAPI.loadPolicyRegistry(),
   loadLineageCategories: () => window.electronAPI.loadLineageCategories(),
   loadLineageInfo: () => window.electronAPI.loadLineageInfo(),

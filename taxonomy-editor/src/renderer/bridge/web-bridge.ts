@@ -748,6 +748,9 @@ const rawApi: AppAPI = {
   updateEdgeStatus: (index, status) => put('/api/edges/status', { index, status }),
   swapEdgeDirection: (index) => put('/api/edges/swap', { index }),
   bulkUpdateEdges: (indices, status) => put('/api/edges/bulk-status', { indices, status }),
+  // New-edge persistence (t/1816). Whole-file atomic replace — PUT the resource, mirroring
+  // saveTaxonomyFile's PUT convention (idempotent), NOT the by-index status/swap/bulk ops above.
+  saveEdges: (data) => put('/api/edges', data).then(() => {}),
   buildNodeSourceIndex: () => get('/api/node-source-index'),
   buildPolicySourceIndex: () => get('/api/policy-source-index'),
 

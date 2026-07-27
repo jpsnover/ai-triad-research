@@ -3,6 +3,7 @@
 
 import type { Organization, OrganizationEdge } from '@lib/organizations/types';
 import type { EntityDetail } from '@lib/entities/types';
+import type { EdgesFile } from '@lib/debate/taxonomyTypes';
 
 export interface ElectronAPI {
   processVersions: Record<string, string | undefined>;
@@ -17,6 +18,9 @@ export interface ElectronAPI {
   // Taxonomy CRUD
   loadTaxonomyFile: (pov: string) => Promise<unknown>;
   saveTaxonomyFile: (pov: string, data: unknown) => Promise<void>;
+  // New-edge persistence (t/1816). Optional — wired by the save-edges IPC handler
+  // (ElectronMain); until then undefined and the bridge degrades gracefully.
+  saveEdges?: (data: EdgesFile) => Promise<void>;
   loadPolicyRegistry: () => Promise<unknown>;
   loadLineageCategories: () => Promise<unknown>;
   loadLineageInfo: () => Promise<Record<string, unknown>>;
