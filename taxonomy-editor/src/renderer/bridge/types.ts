@@ -82,6 +82,13 @@ export type DebateTestedEntry = _DebateTestedEntry;
 import type { DebateDelta as _DebateDelta } from '@lib/debate/types';
 export type DebateDelta = _DebateDelta;
 
+// Canonical ref-kind contract (t/1767 §5). Re-exported so renderer consumers
+// (resolveRef / DetailPane, t/1775) have a single import site alongside `api`,
+// without forking the shared union. Never redeclared here — pure re-export.
+import type { EntityRef as _EntityRef, EntityDetail as _EntityDetail } from '@lib/entities/types';
+export type EntityRef = _EntityRef;
+export type EntityDetail = _EntityDetail;
+
 export interface OrgFilters { type?: string; pov?: string }
 
 export interface AppAPI {
@@ -294,6 +301,16 @@ export interface AppAPI {
   getOrganizationsByTopic: (topicRef: string) => Promise<Organization[]>;
   getOrganizationsByPolicy: (policyId: string) => Promise<Organization[]>;
   getOrganizationEdges: (orgId: string) => Promise<OrganizationEdge[]>;
+
+  // --- Entity / ref resolution (t/1775) ---
+  /**
+   * Resolve a raw entity-ref token to its {@link EntityDetail} via the server
+   * (`GET /api/entity/:ref`). Used by `resolveRef` for the SERVER-ONLY kinds
+   * (`org-*`, `ent-*`, `term:*`); the client-side kinds (node/situation/policy)
+   * resolve from the taxonomy store without a round-trip. Follows merge tombstones
+   * server-side, stamping `redirected_from` on the result.
+   */
+  getEntity: (ref: string) => Promise<EntityDetail>;
 
   // --- Calibration ---
   getCalibrationHistory: () => Promise<{ current: unknown; history: unknown[] }>;

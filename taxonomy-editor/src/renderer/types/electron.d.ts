@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import type { Organization, OrganizationEdge } from '@lib/organizations/types';
+import type { EntityDetail } from '@lib/entities/types';
 
 export interface ElectronAPI {
   processVersions: Record<string, string | undefined>;
@@ -236,6 +237,11 @@ export interface ElectronAPI {
   getOrganizationsByTopic?: (topicRef: string) => Promise<Organization[]>;
   getOrganizationsByPolicy?: (policyId: string) => Promise<Organization[]>;
   getOrganizationEdges?: (orgId: string) => Promise<OrganizationEdge[]>;
+
+  // Entity / ref resolution (t/1775). Optional — wired by the entity-resolve IPC
+  // handler in t/1809 (ElectronMain). Until then window.electronAPI.getEntity is
+  // undefined and the bridge degrades gracefully.
+  getEntity?: (ref: string) => Promise<EntityDetail>;
 
   // Deep-link URL
   getWebAppUrl?: () => Promise<string | null>;

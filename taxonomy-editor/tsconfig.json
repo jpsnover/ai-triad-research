@@ -34,6 +34,8 @@
       "@lib/embeddings/*": ["../lib/embeddings/*"],
       "@lib/chat/*": ["../lib/chat/*"],
       "@lib/organizations/*": ["../lib/organizations/*"],
+      "@lib/entities/*": ["../lib/entities/*"],
+      "@lib/policy/*": ["../lib/policy/*"],
       "zod": ["node_modules/zod"],
       "react": ["node_modules/@types/react"],
       "react/jsx-runtime": ["node_modules/@types/react/jsx-runtime"]

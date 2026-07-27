@@ -249,6 +249,12 @@ export const api: AppAPI = {
   getOrganizationsByPolicy: (policyId) => window.electronAPI.getOrganizationsByPolicy?.(policyId) ?? Promise.resolve([]),
   getOrganizationEdges: (orgId) => window.electronAPI.getOrganizationEdges?.(orgId) ?? Promise.resolve([]),
 
+  // Entity / ref resolution (t/1775). Graceful-degrade until the `entity-resolve`
+  // IPC handler lands (t/1809): until preload exposes getEntity, this rejects with a
+  // typed, handled error (DetailPane surfaces "detail unavailable") rather than an
+  // unhandled throw. Once the handler ships it delegates automatically — no change here.
+  getEntity: (ref) => window.electronAPI.getEntity?.(ref) ?? Promise.reject(new Error('Entity resolution is not available in desktop mode yet (pending the entity-resolve IPC handler, t/1809)')),
+
   // Calibration
   getCalibrationHistory: () => window.electronAPI.getCalibrationHistory(),
   getCalibrationLog: () => window.electronAPI.getCalibrationLog(),

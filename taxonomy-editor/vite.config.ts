@@ -98,6 +98,8 @@ export default defineConfig({
       '@lib/embeddings': path.resolve(__dirname, '../lib/embeddings'),
       '@lib/chat': path.resolve(__dirname, '../lib/chat'),
       '@lib/organizations': path.resolve(__dirname, '../lib/organizations'),
+      '@lib/entities': path.resolve(__dirname, '../lib/entities'),
+      '@lib/policy': path.resolve(__dirname, '../lib/policy'),
       // Allow lib/ files to resolve packages from taxonomy-editor's node_modules
       'zod': path.resolve(__dirname, 'node_modules/zod'),
       'jszip': path.resolve(__dirname, 'node_modules/jszip'),

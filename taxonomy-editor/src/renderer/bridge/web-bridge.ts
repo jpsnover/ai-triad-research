@@ -1162,6 +1162,9 @@ const rawApi: AppAPI = {
   getOrganizationsByPolicy: (policyId) => get(`/api/organizations/by-policy/${encodeURIComponent(policyId)}`),
   getOrganizationEdges: (orgId) => get(`/api/organizations/${encodeURIComponent(orgId)}/edges`),
 
+  // Entity / ref resolution (t/1775)
+  getEntity: (ref) => get(`/api/entity/${encodeURIComponent(ref)}`),
+
   // Calibration
   getCalibrationHistory: () => get<{ current: unknown; history: unknown[] }>('/api/calibration/history').catch(bridgeWarn('getCalibrationHistory failed', { current: null, history: [] })),
   getCalibrationLog: () => get<{ entries: unknown[]; validationReport: unknown }>('/api/calibration/log').catch(bridgeWarn('getCalibrationLog failed', { entries: [], validationReport: null })),
