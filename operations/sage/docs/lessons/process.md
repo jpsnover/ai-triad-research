@@ -236,6 +236,27 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 
 ---
 
+## [Process] Feedback Hook Silently Dead on Windows — `{workspace_root}` Expands Empty → Wrong Path → crash → exit 1 Suppresses With No Guidance
+
+**Pattern:** A feedback hook whose `run.args` reference `{workspace_root}` is **silently non-functional on Windows** because `{workspace_root}` expands to an **empty string**. Node then receives `/operations/diagnostics/<script>.cjs`, which on Windows resolves to `c:\operations\...` (a path that doesn't exist), so the script crashes. The crash exits 1, which the runner treats as "suppress" — the hook neither runs its check NOR surfaces any guidance. The result is the worst kind of gate: it **looks installed** (rule enabled, manifest present) but provides **zero coverage and zero signal** — a false-green far more dangerous than no hook, because everyone believes the guard is in place.
+
+**Instances:**
+- 2026-07-26 — Diagnostics (p/9#39, discovered while extending `check-git-commit-order.cjs`, commit 039f9501): the hook's `{workspace_root}` expanded empty on Windows → node got `/operations/diagnostics/check-git-commit-order.cjs` → resolved to `c:\operations\...` → script crashed → exit 1 → suppressed with no guidance. The regex fix (overlay-form coverage) is committed but **dead until the path expansion is resolved**. Almost certainly affects **every** hook whose args use `{workspace_root}` — including the `staged-files-after-commit` hook (#76's supposed mechanical defense).
+
+**Root Cause:** The hook-runner's `{workspace_root}` template variable does not expand on this Windows setup (empty string), so absolute-path construction in `run.args` silently produces a bogus root. This is the exact opposite failure mode of the standing Diagnostics rule "always use absolute paths via `{workspace_root}`" — the rule assumed `{workspace_root}` resolves; here it doesn't. Compounded by the runner's **exit-1 = suppress-silently** contract: a *crashing* hook is indistinguishable from a *passing* hook, so the failure is invisible. This is a gate-signal-integrity failure (root AGENTS.md #20/#46): a gate that can't run can't detect anything, and one that fails silently reports false-green. Sibling of #68 (feedback tooling lies about liveness) — there the lie was manifest-lag + false counters; here it's a crash masquerading as a pass.
+
+**Prevention:**
+1. **A hook is not "landed" until it's proven to FIRE on Windows** — enabled + manifest-present is not enough (see #68). Test with a deliberate trigger and confirm the guidance actually appears; a hook that never emits output may be crashing, not passing.
+2. **Verify `{workspace_root}` actually expands** in this environment before relying on it for hook script paths; if it expands empty, use a path form that works on Windows (or resolve the script path inside the `.cjs` via `__dirname`/`process.cwd()` rather than a template arg).
+3. **A crashing hook must not silently pass** — where possible, make hook failure visible (non-suppressing error surface) so a dead guard is detected, not assumed working. Exit-1-as-suppress hides exactly the failure you most need to see.
+4. **Audit ALL `{workspace_root}` hooks for the same silent death** — this is not one hook's bug; every hook using that template on Windows is suspect. (Recommended a fleet-wide hook audit to Diagnostics.)
+
+**Status:** Active — path-expansion fix pending (Diagnostics, p/9#39); the `check-git-commit-order` regex fix (039f9501) and the `staged-files-after-commit` hook are **inert on Windows until it lands**. **This retroactively qualifies every "mechanical hook defense landed" claim this session** (#76, the extended flag-order guard): those defenses are committed but not actually guarding until `{workspace_root}` resolves. Behavioral rules (AGENTS.md) are the only live defense meanwhile.
+
+**Applies To:** All agents (esp. Diagnostics) authoring or relying on feedback hooks on Windows — and Sage/TL when recording a hook as a "mechanical defense," which must now carry a "proven-to-fire-on-Windows" caveat.
+
+---
+
 ## [Process] Post-Compaction Summary Framing Trusted Over Object State — Phantom Loose End
 
 **Pattern:** After a context compaction, a stale post-compaction summary frames already-completed, already-committed work as an outstanding "uncommitted deliverable" or "loose end." Acting on the summary's framing instead of the object-level truth (git refs + ticket status) produces wasted redo, a duplicate ticket against work that's already Done, or an attempted re-commit of already-committed content.
