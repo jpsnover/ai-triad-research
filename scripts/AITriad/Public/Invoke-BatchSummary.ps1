@@ -544,10 +544,24 @@ function Invoke-BatchSummary {
             $bag = $using:Results
             $Doc = $_
             $Params = $using:SharedParams
-            $Result = & $Mod { param($D, $P) Invoke-DocumentSummary -Doc $D @P } $Doc $Params
-            if ($Result -is [hashtable]) { $Result = [PSCustomObject]$Result }
-            [void]$bag.Add($Result)
-
+            # t/1728 — per-doc try/catch so one runspace's throw does not terminate
+            # the whole parallel block (which would kill every in-flight doc and lose
+            # its result). The catch records a failure PSCustomObject INCLUDING
+            # $_.ScriptStackTrace — the real failing line inside the runspace, which
+            # PS otherwise swallows by re-attributing the throw to this outer line.
+            # Mirrors the sequential path's catch above.
+            try {
+                $Result = & $Mod { param($D, $P) Invoke-DocumentSummary -Doc $D @P } $Doc $Params
+                if ($Result -is [hashtable]) { $Result = [PSCustomObject]$Result }
+                [void]$bag.Add($Result)
+            }
+            catch {
+                [void]$bag.Add([PSCustomObject]@{
+                    Success = $false
+                    DocId   = $Doc.DocId
+                    Error   = "$($_.Exception.Message) | Stack: $($_.ScriptStackTrace)"
+                })
+            }
         } -ThrottleLimit $MaxConcurrent
     }
 
