@@ -68,7 +68,42 @@ The contested-vocabulary dictionary (`dictionary/colloquial/`, 24 do-not-use-bar
 
 Two tiers, both mirroring machinery that already works:
 
-- **Curated index (batch).** `entity_mentions.json` maps a container id (fact, node, or debate) to its mentions, each `{entity_ref, quote, offset?}`. The mention layer is the unifier across the stores.
+- **Curated index (batch).** `entity_mentions.json` maps a container to its mentions. The mention layer is the unifier across the stores.
+
+  **Schema** (specified now because three other slices depend on it: t/1775's rendering, DebateWorkspace's stream separation, and the async-patch guard in this section):
+
+```jsonc
+{
+  "_schema_version": "1.0.0",
+  "_doc": "Entity mentions per container. Derived artifact — rebuildable by re-index.",
+  "last_modified": "2026-07-27",
+  "containers": {
+    // key = container id. For debates: "<debate_id>#<entry_id>" (one bucket per turn),
+    // so a per-turn patch touches exactly one key and never rewrites a sibling turn.
+    "debate-0118b903#entry-7": {
+      // Hash of the exact text the extraction ran against. Doubles as the
+      // idempotency key and the supersession guard: on apply, if the container's
+      // current text hashes differently, the patch is stale and is dropped.
+      "text_sha256": "3925c959ab9a",
+      "extracted_at": "2026-07-27T18:00:00Z",
+      "mentions": [
+        {
+          "entity_ref": "org-001",        // raw token; parseEntityRef() types it
+          "quote": "Anthropic",           // the matched surface form
+          "offset": 412,                   // char offset into the container text
+          "discovered_by": "alias"        // alias | extraction | human
+        }
+      ]
+    }
+  }
+}
+```
+
+  Four properties are load-bearing and easy to lose in implementation:
+  - **`entity_ref` is stored as the raw token, not a pre-parsed object.** The union lives in code (`parseEntityRef`), so persisting the parsed shape would freeze a type decision into data and force a migration every time the kind set changes. It already changed once (the `organization` split).
+  - **`text_sha256` is per container, not per mention.** It describes the text the whole extraction pass saw, which is what makes the staleness test a single comparison.
+  - **`discovered_by` distinguishes the three provenances** so a human correction is never overwritten by a later automated pass. That is what makes the manual link-correction path (below) durable rather than cosmetic.
+  - **The whole file is a derived artifact.** Nothing here is a source of truth; the retroactive re-index (Section 7) can rebuild it from containers plus approved entities. That is what licenses "apply-late-or-never" as a supported outcome.
 
   **Ref kinds are one-per-store, and that is the point** (tightening my own earlier wording, which listed id prefixes instead of kinds and left this ambiguous). The discriminant exists so a consumer can dispatch to a store and a result shape without re-inspecting the id string:
 
