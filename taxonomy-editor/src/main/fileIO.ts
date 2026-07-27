@@ -10,24 +10,15 @@ import { ActionableError } from '../../../lib/debate/errors.js';
 import { renameSyncWithRetry } from '../../../lib/debate/persistence.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { parseNpy, extractNodeVectors } from '../../../lib/npy.js';
+import { resolveRepoRootForApp } from '../../../lib/electron-shared/resolveRepoRootForApp.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-/** Walk up from __dirname to find the repo root (where .aitriad.json or scripts/ lives). */
-function findRepoRoot(): string {
-  let dir = __dirname;
-  for (let i = 0; i < 10; i++) {
-    if (fs.existsSync(path.join(dir, '.aitriad.json')) || fs.existsSync(path.join(dir, 'scripts', 'AITriad'))) {
-      return dir;
-    }
-    dir = path.dirname(dir);
-  }
-  // Fallback for packaged builds
-  return path.dirname(app.getAppPath());
-}
-
-const PROJECT_ROOT = findRepoRoot();
+// Repo root via the shared electron resolver (walk to .aitriad.json/scripts/AITriad, fall
+// back to the packaged app path). Was a local findRepoRoot — the robust reference the shared
+// helper was based on, so this is a pure dedup (t/1721/t/1813).
+const PROJECT_ROOT = resolveRepoRootForApp(__dirname, path.dirname(app.getAppPath()));
 console.log(`[fileIO] PROJECT_ROOT: ${PROJECT_ROOT} (from __dirname: ${__dirname})`);
 const IS_PACKAGED = app?.isPackaged ?? false;
 
