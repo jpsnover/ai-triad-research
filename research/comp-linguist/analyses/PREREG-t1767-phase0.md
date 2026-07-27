@@ -49,3 +49,27 @@ GO to Phase 1 iff ALL of:
 Any single failure = NO-GO on that axis; the result section must say which axis failed and what the fix hypothesis is before any re-run. A re-run with a modified prompt is a new instrument version and gets a fresh section, not an edit to this one.
 
 All thresholds are **stipulated** (this is a spike; nothing enters the provenance register until an implementing PR ships a production threshold).
+
+---
+
+## Results (run of 2026-07-27, protocol v0.1 — recorded after the preregistered rules above)
+
+Run artifacts: `_p0_out_A.json`, `_p0_out_B.json`, `_p0_out_C.json` (extraction outputs), `_p0_annotation.json` (CL hand-annotation, written before any batch output was read), `_p0_statements.json`, `_p0_score.py` (mechanical scorer), all under `analyses/p0-t1767/`.
+
+| Axis | Rule | Result | Verdict |
+|---|---|---|---|
+| 1. Precision | ≥ 0.80 on gated | 54 proposals → 40 gated after dedup; hand-score 39/40 = **0.975** (A 5/5, B 26/26, C 8/9) | PASS |
+| 2. Leakage | 0 | Mechanical check vs 44 org names, 24 dictionary terms, 1,569 policy actions, 1,310 taxonomy labels: **0** | PASS |
+| 3. Yield | ≥ 0.15/fact | 40/161 = **0.248** | PASS |
+| 4. Detect→link | ≥ 80% detected+resolved, 0 wrong links | 1 hand-annotated mention ("the 2008 financial crisis"); detections **0/1**; wrong links **0** across all 3 statements | **FAIL** |
+
+**Formal verdict: NO-GO as preregistered** (rule: any single axis failure). Failed axis: 4.
+
+**Analysis of the axis-4 failure.** The single annotated mention does not occur anywhere in the 20-node facts sample, so the spike's alias table cannot contain it; the detector was asked to find an entity its table had no entry for. Two observations separate approach from harness:
+
+1. What axis 4 could legitimately test — the refusal property — **held**: zero wrong links across three ~2,000-char statements against an 84-alias table, including heavy contested-vocabulary text ("strict liability", "oversight", "frontier") that a sloppier detector would have matched.
+2. The miss is a **coverage artifact of the spike harness**, not of the design: the production alias table comes from full-corpus extraction plus the retroactive re-index pass (proposal §7), neither of which a 20-node slice can emulate. Axis 4 as written conflated detector correctness with table coverage — an instrument-design flaw of this protocol, of exactly the kind `docs/instrument-effects-review.md` warns about. The flaw is disclosed, not repaired retroactively.
+
+**Fix hypothesis + proposed re-run (requires a fresh protocol section per the rules above, before any Phase 1 decision):** protocol v0.2 re-runs axis 4 only, against an alias table built from the facts of the nodes the selected debate actually references (a full-corpus proxy), with the same annotation and scoring rules. Axes 1–3 stand as measured; the extraction instrument itself is validated on this sample.
+
+**Type-taxonomy note for Phase 1:** the one precision miss (Rome Call for AI Ethics typed `institution`; correct reading is normative description → `legislation` bucket) and one sub-gate near-miss (FTC v. Rite Aid as `event`) suggest the prompt's teaching text should sharpen the legislation/institution differentia and note that legal cases ride the `event` bucket until the mint gate admits a `case` type (≥10 observed instances).
