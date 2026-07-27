@@ -485,6 +485,27 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 
 ---
 
+## [Build] Commit-by-Pathspec Is File-Granular — In a Live Working Tree It Sweeps Foreign HUNKS Inside Your File (ADR-005 Insufficient)
+
+**Pattern:** `git commit -- <file>` (the ADR-005 defense against sweeping others' work) protects at **file granularity** — it commits *that file's entire working-tree state*, including any **foreign uncommitted hunks** other writers left INSIDE the same file. In a live working tree (the `ai-triad-data` repo, continuously written by pipelines/sessions — often 10+ files dirty), the file you edit frequently already carries someone else's in-progress edit, so per-file staging is **not isolation**: your commit sweeps their hunk AND can split their multi-file change (committing their edit to file A while their file B stays uncommitted).
+
+**Instances:**
+- 2026-07-26 — Computational Linguist (ai-triad-data, commit 21781d25, disclosed t/1808, p/7#39): committed a one-line `sit-211` fix **by explicit pathspec** — correct per ADR-005 — but the target file also held **12 foreign lines from someone's `policy_id`→`pol-*` linking pass**, which rode into the commit. It also **split that foreign multi-file change** (their `policy_actions.json` edit stayed uncommitted). Root cause: pathspec is file-granular; the data repo is a live working tree (13 files dirty). Remediation options offered to the owner on t/1808.
+
+**Root Cause:** ADR-005 "commit by explicit pathspec" prevents the *bare-commit* hazard (sweeping other agents' STAGED files from the shared index — see "Bare Git Commit Sweeps Shared Staging Index"), but its unit is the **file**, not the **hunk**. `git commit -- <file>` snapshots the whole working-tree file, so any unrelated modification sitting in that file — common in a repo that is a live write target (debate sessions, enrichment pipelines) rather than a code repo touched only by deliberate edits — is committed too. The rule's isolation guarantee silently degrades from "only my changes" to "only my *files*", which in a shared large-JSON file is no guarantee at all. Sibling of the "Active Writers Corrupt Git Operations in Data Repo" data-repo pattern.
+
+**Prevention:**
+1. **In `ai-triad-data` (or any live-written tree), `git diff <file>` BEFORE staging/committing** — and treat **any foreign hunk as a STOP**. Only commit if every hunk in the file is yours.
+2. If foreign hunks are present, **stage by hunk** (`git add -p`) to commit only your lines, or wait/coordinate — never `git commit -- <file>` a file that carries someone else's in-progress edit.
+3. **The shared-branch pathspec rule (ADR-005) is necessary but NOT sufficient for large shared JSON** — pathspec isolates files, not hunks. Say so explicitly when the target is a live-written data file.
+4. If you discover you swept a foreign hunk, **disclose immediately** (ticket + owner) and offer remediation — a split multi-file change may need the owner to reconstruct it (as on t/1808).
+
+**Status:** Active — **defeats/qualifies ADR-005** (pathspec is file-granular, not hunk-granular) in the live data repo specifically. NOT a rule-not-applied (#82) case: the agent correctly applied the pathspec rule; the rule's granularity was insufficient for the context. Data-repo-specific; disclosed t/1808.
+
+**Applies To:** All agents committing to `ai-triad-data` or any working tree that is a live write target (pipeline/session output) — where a file you edit may carry other writers' uncommitted hunks.
+
+---
+
 ## [Build] Bare `git restore <file>` During an origin/main Divergence Silently Reverts to Local HEAD
 
 **Pattern:** During an active origin/main divergence, a file's working-tree content may legitimately hold the **origin-side** version (e.g. picked up mid-rebase/mid-land, or deliberately staged from `origin/main`). A bare `git restore <file>` reverts the working tree to the **local index/HEAD** version, silently discarding that origin-side content — a data-loss surprise, because `git restore` defaults its source to local state, not the ref the content actually came from.

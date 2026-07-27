@@ -1713,6 +1713,25 @@ Institutional memory for failure patterns across the AI Triad Research project.
    - Rationale for (b): a per-offender trigger alone never fires when the class grows via many distinct offenders each recurring once or twice — exactly the observed trend (3 instances / 3 offenders). Rank both counters in the tally header.
 3. **A candidate becomes a hook only if the trigger is cleanly detectable** — greppable command shape, specific API call — else the noise defeats it (property-access lesson). Where it isn't hookable, the honest record is "rule is the only defense; recall is the residual risk."
 
-**Status:** Active — **TRIGGER FIRED 2026-07-26.** Offender #4 (direct-commit-to-shared-main instead of worktree-landing) is the frequency leader at ≥5 instances, tripping **both** triggers at once: per-offender ≥5 ≥ 4 (a), and class-total ≥8 ≥ ~6 (b). Per the agreed rule (TL p/8#95/#97), this warrants **a point-of-use hook for that offender** — TL already proposed it (p/8#99): a PreToolUse warning on a direct commit to shared-tree `main` (cleanly hookable — greppable — leveraging the existing git-commit hook infra). Frame agreed p/8#94→#99. **Next:** TL specs/owns the hook; Sage keeps tagging + watching for the NEXT distinct offender. (Sibling context: the same direct-commit-to-main behavior drove the large-divergence push failure, p/9#36.)
+**Status:** Active — **BOTH TRIGGERS FIRED 2026-07-26.** Class-total ≥12; **two offenders trip the per-offender trigger:** #4 direct-commit-to-shared-main (≥5, p/8#99/p/21#49) and #5 data-shape type-check-not-applied (≥4, CL p/7#36/#38 — reversed an earlier not-in-#82 call). TL to spec point-of-use hook(s), weighing #4 (cleanly hookable — PreToolUse on direct commit to shared `main`, greppable) vs #5 (hookability caveat — blanket `isinstance`-before-use likely too noisy). Frame agreed p/8#94→#99. **Next:** TL specs/owns; Sage keeps tagging new distinct offenders + both counters. (Sibling: direct-commit drove the large-divergence push failure p/9#36.)
 
 **Applies To:** Sage (triage + tagging) and TL (hook-spec decision) — and anyone tempted to answer a recurrence with "add a rule" when the rule already exists.
+
+## #83 [Build] Commit-by-Pathspec Is File-Granular — In a Live Working Tree It Sweeps Foreign HUNKS Inside Your File (ADR-005 Insufficient)
+
+**Pattern:** `git commit -- <file>` (the ADR-005 defense against sweeping others' work) protects at **file granularity** — it commits *that file's entire working-tree state*, including any **foreign uncommitted hunks** other writers left INSIDE the same file. In a live working tree (`ai-triad-data`, continuously written by pipelines/sessions — often 10+ files dirty), the file you edit frequently already carries someone else's in-progress edit, so per-file staging is **not isolation**: your commit sweeps their hunk AND can split their multi-file change.
+
+**Instances:**
+- 2026-07-26 — Computational Linguist (ai-triad-data, commit 21781d25, disclosed t/1808, p/7#39): committed a one-line `sit-211` fix **by explicit pathspec** — correct per ADR-005 — but the target file also held **12 foreign lines from someone's `policy_id`→`pol-*` linking pass**, which rode into the commit; it also **split that foreign multi-file change** (their `policy_actions.json` stayed uncommitted). Root cause: pathspec is file-granular; the data repo is a live working tree (13 files dirty). Remediation options offered to the owner on t/1808.
+
+**Root Cause:** ADR-005 "commit by explicit pathspec" prevents the *bare-commit* hazard (sweeping other agents' STAGED files — see "Bare Git Commit Sweeps Shared Staging Index"), but its unit is the **file**, not the **hunk**. `git commit -- <file>` snapshots the whole working-tree file, so any unrelated modification sitting in that file — common when the repo is a live write target rather than a code repo touched only by deliberate edits — is committed too. The rule's isolation guarantee silently degrades from "only my changes" to "only my *files*", which in a shared large-JSON file is no guarantee at all. Sibling of the "Active Writers Corrupt Git Operations in Data Repo" pattern.
+
+**Prevention:**
+1. **In `ai-triad-data` (or any live-written tree), `git diff <file>` BEFORE staging/committing** — treat **any foreign hunk as a STOP**. Only commit if every hunk in the file is yours.
+2. If foreign hunks are present, **stage by hunk** (`git add -p`) to commit only your lines, or wait/coordinate — never `git commit -- <file>` a file carrying someone else's in-progress edit.
+3. **ADR-005 shared-branch pathspec rule is necessary but NOT sufficient for large shared JSON** — pathspec isolates files, not hunks.
+4. If you swept a foreign hunk, **disclose immediately** (ticket + owner) and offer remediation — a split multi-file change may need the owner to reconstruct it (t/1808).
+
+**Status:** Active — **defeats/qualifies ADR-005** (file-granular, not hunk-granular) in the live data repo. NOT a #82 rule-not-applied case: the agent correctly applied the pathspec rule; its granularity was insufficient for the context. Disclosed t/1808.
+
+**Applies To:** All agents committing to `ai-triad-data` or any working tree that is a live write target — where a file you edit may carry other writers' uncommitted hunks.
