@@ -34,4 +34,6 @@ export interface ServerCtx {
   readonly serverVersion: string;
   /** Server process start time (ISO), stamped once at startup — for /health. (t/1687 meta) */
   readonly serverStartTime: string;
+  /** Broadcast a typed event to connected WebSocket clients (e.g. focus-node). (t/1687 session) */
+  readonly broadcastEvent: (type: string, data: unknown) => void;
 }
