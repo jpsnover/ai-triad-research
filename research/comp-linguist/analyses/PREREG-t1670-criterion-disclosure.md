@@ -55,6 +55,19 @@ Golden-set topics, same topic list run in both arms, minimum 10 debates per arm 
 
 `crux_addressed_ratio` and the evaluator's status definitions are currently **stipulated**. The rubric above is stipulated at introduction. It promotes to **human-validated** only if a human rater scores transcripts against it with acceptable agreement. The A/B alone cannot do that, since it measures whether behaviour changed, not whether the rubric is correct. Register entry accompanies any adoption.
 
+## Amendment 1 — authorized deviation from the sample floor (2026-07-27, before the run)
+
+The owner authorized the run at **7 debates per arm** on **gemini-3.5-flash-lite**. Both differ from the protocol above, so they are recorded here before any result exists rather than explained afterward.
+
+**Sample: 7 per arm, against a stated floor of 10.** This is below the replication-gate floor (R-1, t/1668) that the Sample section invokes, so the debate-level result is **indicative, not stability-confirmed**. Two consequences follow and both are binding on the report:
+
+- **Per-debate spread must be reported, not just pooled counts.** At n=7 a single atypical debate carries roughly 14% of the arm's weight, so a pooled shift can be manufactured by one outlier. The report shows the per-debate status counts so a reader can see whether the shift is distributed or concentrated.
+- **The debate-level and crux-level sample sizes are different, and only one is underpowered.** The primary outcome is a distribution over *cruxes*, and each debate yields several, so the crux-level n may be adequate while the debate-level n is not. Both are reported. Any claim about *debate-to-debate stability* is out of scope at this n; a claim about the crux distribution is admissible with the spread caveat.
+
+**Model: gemini-3.5-flash-lite** (the `Show-TriadDialogue` default). Model is part of the instrument, so these results do not transport to other models, and this is a different instrument from the one Phase 0 validated. Held identical across both arms, which is what the A/B requires.
+
+**What this amendment does not do:** it does not relax any decision rule. Thresholds, the Goodhart veto, and the null-is-a-result rule stand exactly as written. If the result is ambiguous at this n, the honest report is "underpowered, inconclusive" rather than a softened threshold.
+
 ## Results
 
-Not yet run. This section is written before the run and holds no results. The run is gated on owner authorization of LLM spend (10+ debates per arm).
+Not yet run. This section is written before the run and holds no results.
