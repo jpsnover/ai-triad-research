@@ -79,6 +79,20 @@ export function extractCalibrationData(
       ? finalEval.cruxes.filter((c: { status: string }) => c.status === 'addressed').length / finalEval.cruxes.length
       : null
     : null;
+  // Observation-class 3-way tally (t/1796). Additive: does NOT alter cruxRatio above.
+  // Match the ratio's null-handling — omitted (undefined) whenever cruxRatio is null
+  // (no finalEval, or no cruxes to tally), so the two never disagree.
+  const cruxStatusCounts = finalEval && finalEval.cruxes.length > 0
+    ? finalEval.cruxes.reduce(
+        (acc: { addressed: number; partially_addressed: number; unaddressed: number }, c: { status: string }) => {
+          if (c.status === 'addressed') acc.addressed++;
+          else if (c.status === 'partially_addressed') acc.partially_addressed++;
+          else if (c.status === 'unaddressed') acc.unaddressed++;
+          return acc;
+        },
+        { addressed: 0, partially_addressed: 0, unaddressed: 0 },
+      )
+    : undefined;
 
   // ── Utilization rates from context injection manifests ──
   const { totalUtil, totalPrimaryUtil, utilCount } = computeUtilizationRates(session);
@@ -361,6 +375,7 @@ export function extractCalibrationData(
     argumentation_exit_threshold: config.argumentationExitThreshold ?? 0.65,
     engaging_real_disagreement: engaging,
     crux_addressed_ratio: cruxRatio,
+    ...(cruxStatusCounts ? { crux_status_counts: cruxStatusCounts } : {}),
 
     avg_utilization_rate: utilCount > 0 ? totalUtil / utilCount : null,
     avg_primary_utilization: utilCount > 0 ? totalPrimaryUtil / utilCount : null,

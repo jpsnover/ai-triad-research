@@ -768,3 +768,83 @@ describe('extractCalibrationData source_authority from session.doc_meta (t/1769)
     expect(dp.evidence_breadth_per_claim).toBe(1.0);
   });
 });
+
+// ── crux_status_counts 3-way tally (t/1796) ───────────────────
+describe('extractCalibrationData crux_status_counts (t/1796)', () => {
+  type CruxStatus = 'addressed' | 'partially_addressed' | 'unaddressed';
+
+  function sessionWithCruxStatuses(statuses: CruxStatus[]): DebateSession {
+    return makeMinimalSession({
+      neutral_evaluations: [
+        {
+          checkpoint: 'final',
+          timestamp: '2026-01-01T00:00:00Z',
+          cruxes: statuses.map((status, i) => ({
+            id: `crux-${i}`,
+            description: `crux ${i}`,
+            disagreement_type: 'empirical' as const,
+            speakers_involved: ['A', 'B'],
+            status,
+            confidence: 'high' as const,
+          })),
+          claims: [],
+          overall_assessment: {
+            strongest_unaddressed_claim_id: null,
+            debate_is_engaging_real_disagreement: true,
+            notes: '',
+          },
+        },
+      ],
+    } as unknown as Partial<DebateSession>);
+  }
+
+  // AC#3 — one crux of each status: counts tally 1/1/1; ratio stays addressed/total = 1/3.
+  it('tallies each 3-way status and leaves crux_addressed_ratio unchanged', () => {
+    const session = sessionWithCruxStatuses(['addressed', 'partially_addressed', 'unaddressed']);
+    const dp = extractCalibrationData(session, 'local');
+    expect(dp.crux_status_counts).toEqual({ addressed: 1, partially_addressed: 1, unaddressed: 1 });
+    expect(dp.crux_addressed_ratio).toBeCloseTo(1 / 3);
+  });
+
+  // AC#4 — the false-negative-gone proof: all-partial vs all-unaddressed are now
+  // distinguishable via crux_status_counts even though crux_addressed_ratio is 0 for both.
+  it('distinguishes all-partially_addressed from all-unaddressed (both ratio 0)', () => {
+    const allPartial = extractCalibrationData(
+      sessionWithCruxStatuses(['partially_addressed', 'partially_addressed', 'partially_addressed']),
+      'local',
+    );
+    const allUnaddressed = extractCalibrationData(
+      sessionWithCruxStatuses(['unaddressed', 'unaddressed', 'unaddressed']),
+      'local',
+    );
+
+    expect(allPartial.crux_addressed_ratio).toBe(0);
+    expect(allUnaddressed.crux_addressed_ratio).toBe(0);
+    expect(allPartial.crux_status_counts).toEqual({ addressed: 0, partially_addressed: 3, unaddressed: 0 });
+    expect(allUnaddressed.crux_status_counts).toEqual({ addressed: 0, partially_addressed: 0, unaddressed: 3 });
+    expect(allPartial.crux_status_counts).not.toEqual(allUnaddressed.crux_status_counts);
+  });
+
+  // TL condition 1 — reconciliation invariant: counts can never silently drift from
+  // the ratio (sum === crux count; addressed/total === crux_addressed_ratio).
+  it('reconciliation invariant: counts sum to crux count and reproduce the ratio', () => {
+    const statuses: CruxStatus[] = [
+      'addressed', 'addressed', 'partially_addressed', 'unaddressed', 'unaddressed',
+    ];
+    const session = sessionWithCruxStatuses(statuses);
+    const dp = extractCalibrationData(session, 'local');
+    const counts = dp.crux_status_counts!;
+    const total = counts.addressed + counts.partially_addressed + counts.unaddressed;
+
+    expect(total).toBe(statuses.length);
+    expect(counts.addressed / total).toBeCloseTo(dp.crux_addressed_ratio!);
+  });
+
+  // Back-compat: no cruxes → ratio null and crux_status_counts omitted (consistent).
+  it('omits crux_status_counts when there are no cruxes (ratio null)', () => {
+    const session = sessionWithCruxStatuses([]);
+    const dp = extractCalibrationData(session, 'local');
+    expect(dp.crux_addressed_ratio).toBeNull();
+    expect(dp.crux_status_counts).toBeUndefined();
+  });
+});

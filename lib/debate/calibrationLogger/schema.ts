@@ -48,6 +48,14 @@ export interface CalibrationDataPoint {
   engaging_real_disagreement: boolean | null;
   /** Neutral evaluator: fraction of cruxes addressed */
   crux_addressed_ratio: number | null;
+  /**
+   * Neutral evaluator: observation-class 3-way tally of crux statuses (t/1796).
+   * Additive/back-compat — absent on pre-t/1796 entries (and when there are no
+   * cruxes to tally). `crux_addressed_ratio` semantics are unchanged: it remains
+   * `addressed / total`. This exposes `partially_addressed` separately so it is no
+   * longer scored identically to `unaddressed`.
+   */
+  crux_status_counts?: { addressed: number; partially_addressed: number; unaddressed: number };
 
   // ── Parameter 2: Embedding relevance threshold ──
   /** Average utilization rate across all turns: referenced / injected */
