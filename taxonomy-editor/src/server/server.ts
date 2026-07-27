@@ -51,6 +51,7 @@ import { registerCommunityRoutes } from './routes/community.js';
 import { registerHarvestRoutes } from './routes/harvest.js';
 import { registerOrganizationsRoutes } from './routes/organizations.js';
 import { registerEntityRoutes } from './routes/entity.js';
+import { registerPublicShareRoutes } from './routes/publicShare.js';
 import { registerTaxonomyRoutes } from './routes/taxonomy.js';
 import { registerMetaRoutes } from './routes/meta.js';
 import { registerEdgesRoutes } from './routes/edges.js';
@@ -359,6 +360,12 @@ registerOrganizationsRoutes(router, serverCtx);
 // (lib/entities/types.ts) to the record type that owns each kind. Grouped with
 // organizations (shares the public read tier). Brand-new path — no collision.
 registerEntityRoutes(router, serverCtx);
+
+// ── Public share (t/1788) ──
+// GET /api/public/pov/:pov/node/:nodeId — public, no-login, read-only POV node
+// share. Grouped with organizations/entity (public read tier). Brand-new path —
+// no collision. The auth-exemption is the isPublicPath '/api/public/' clause.
+registerPublicShareRoutes(router, serverCtx);
 
 // ── Lineage / edges / source-indexes / data-availability / flags (t/1687: routes/edges.ts) ──
 // Registers between organizations and admin, preserving the routeTable snapshot order.
@@ -793,6 +800,8 @@ async function handleRequestInner(
     || urlPath === '/api/user/profile'
     || urlPath === '/api/sync/webhook/github'
     || urlPath === '/api/community/submit'
+    // t/1788: /api/public/* is a reserved auth-exempt namespace — public read-only POV node share; nothing else may be added under it without Server Auth sign-off.
+    || urlPath.startsWith('/api/public/')
     || urlPath.startsWith('/.auth/')
     || urlPath.startsWith('/assets/')
     || urlPath === '/manifest.webmanifest'

@@ -20,6 +20,27 @@ export interface RouteEntry { method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE
 
 const METHOD: Record<string, RouteEntry['method']> = { get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', del: 'DELETE' };
 
+/**
+ * Resolve `register<Cluster>Routes(...)` to its `routes/<cluster>.ts` file. The
+ * cluster capture is PascalCase (e.g. `PublicShare`); the file is conventionally
+ * its lowercased form. A single-word cluster (`Organizations`) already IS its
+ * filename lowercased, but a multi-word one (`PublicShare` → `publicShare.ts`)
+ * keeps interior capitals — so the naive `<cluster>.ts` lookup misses on a
+ * case-sensitive filesystem (Linux CI) while passing on case-insensitive Windows.
+ * Fall back to a case-insensitive scan of routes/ so the extractor resolves such
+ * files identically on every platform (else the routeTable snapshot would diverge
+ * dev↔CI). Returns the absolute path, or null if no matching module exists.
+ */
+function resolveClusterFile(dir: string, cluster: string): string | null {
+  const routesDir = path.join(dir, 'routes');
+  const target = `${cluster.toLowerCase()}.ts`;
+  const exact = path.join(routesDir, target);
+  if (fs.existsSync(exact)) return exact;
+  if (!fs.existsSync(routesDir)) return null;
+  const match = fs.readdirSync(routesDir).find(f => f.toLowerCase() === target);
+  return match ? path.join(routesDir, match) : null;
+}
+
 // e.g.  get('/api/foo', ...)   put('/api/bar/:id', ...)   patch('/api/baz/:id', ...)
 const REG_RE = /^\s*(get|post|put|patch|del)\(\s*['"]([^'"]+)['"]/;
 // e.g.  registerDebatesRoutes(r, ctx)  → recurse into routes/debates.ts
@@ -43,9 +64,8 @@ export function extractRoutes(entryFile: string, seen = new Set<string>()): Rout
 
     const inc = INCLUDE_RE.exec(line);
     if (inc) {
-      const cluster = inc[1].toLowerCase();
-      const clusterFile = path.join(dir, 'routes', `${cluster}.ts`);
-      if (fs.existsSync(clusterFile)) out.push(...extractRoutes(clusterFile, seen));
+      const clusterFile = resolveClusterFile(dir, inc[1]);
+      if (clusterFile) out.push(...extractRoutes(clusterFile, seen));
     }
   }
   return out;
