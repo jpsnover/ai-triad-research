@@ -52,7 +52,7 @@ The contested-vocabulary dictionary (`dictionary/colloquial/`, 24 do-not-use-bar
 
 - `taxonomy/Origin/entities.json` follows the org file shape (`_schema_version`, `_doc`, `entity_count`, `last_modified`, `entities[]`). An entity record carries `id` (`ent-NNN`), `name`, `aliases[]`, `entity_type`, `dolce_category`, `description` (genus-differentia, in the form *"A [type] that [differentia]..."*), `external_refs[]` (Wikipedia/Wikidata links that feed the t/1766 detail pane), `source_refs[]`, `status` (`proposed | approved | deprecated`), `merged_into?` for dedup, `discovered_by?` (UsageID and model), `confidence?`, and timestamps.
 - `taxonomy/Origin/entity_edges.json` takes the same shape as `organization_edges.json`, including drop-on-unknown validation.
-- Vectors. Each approved entity gets one embedding (name plus genus-differentia line, all-MiniLM-L6-v2) stored alongside the node vectors in `embeddings.json` under a distinct key space. Vectors serve linking and dedup, not debate relevance.
+- Vectors. Each approved entity gets one embedding (name plus genus-differentia line, all-MiniLM-L6-v2) stored in a **separate `entity_embeddings.json`**, not co-mingled with the debate-critical `embeddings.json` (TL condition, t/1767#3: that file already exceeds 1 MB and feeds live debate relevance; entity vectors serve linking and dedup only, so isolation removes the blast radius).
 - Types. `lib/entities/types.ts` (Shared Lib) becomes the single source of truth for server and renderer, as a sibling of `lib/organizations/types.ts`. The org HLD documents what happens otherwise, when the hand-copied `Organization` type diverged and had to be reconciled.
 - `organizations.json` stays a sibling and is not absorbed. There is no migration of a working feature. The unifying layer is the mention/link contract, not the storage.
 
@@ -91,7 +91,7 @@ Each edge type carries genus-differentia in the validator doc, and new edge type
 ## 8. Phasing and go/no-go
 
 - **Phase 0 (spike validation, cheap).** Run the extraction prompt over the facts of roughly 20 nodes; hand-score yield and precision; confirm the excluded-class resolution catches org/pol/taxonomy collisions. This is the go/no-go before any schema ships.
-- **Phase 1.** Schema, shared types, the facts-pass extraction, and curation cmdlets (`Get-Entity`/`Import-Entity`, mirroring the org cmdlets).
+- **Phase 1.** Schema, shared types, the facts-pass extraction, and curation cmdlets (`Get-Entity`/`Import-Entity`, mirroring the org cmdlets). Two TL conditions gate this phase (t/1767#3): `lib/entities/types.ts` ships **interface-first**, and the `entity_ref` + `getEntity` contract takes a **TL cross-role design review** before implementation, because it spans Shared Lib, ServerAPI, the taxonomy-editor renderer (t/1766), and the vocabulary tool.
 - **Phase 2.** Mention index, alias table, and the `getEntity` lookup. This unblocks t/1766.
 - **Phase 3.** Entity edges, the POV/debate/chat passes, and maintenance reports.
 
