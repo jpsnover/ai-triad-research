@@ -36,6 +36,30 @@
   ],
   "models": [
     {
+      "id": "azure-gpt-4o",
+      "apiModelId": "gpt-4o",
+      "label": "Azure GPT-4o",
+      "backend": "azure"
+    },
+    {
+      "id": "azure-gpt-4o-mini",
+      "apiModelId": "gpt-4o-mini",
+      "label": "Azure GPT-4o Mini",
+      "backend": "azure"
+    },
+    {
+      "id": "azure-gpt-4.1",
+      "apiModelId": "gpt-4.1",
+      "label": "Azure GPT-4.1",
+      "backend": "azure"
+    },
+    {
+      "id": "azure-gpt-4.1-mini",
+      "apiModelId": "gpt-4.1-mini",
+      "label": "Azure GPT-4.1 Mini",
+      "backend": "azure"
+    },
+    {
       "id": "gemini-2.5-flash",
       "apiModelId": "gemini-2.5-flash",
       "label": "Gemini 2.5 Flash",
