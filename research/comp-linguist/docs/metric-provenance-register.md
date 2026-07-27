@@ -103,7 +103,9 @@ Formulas, detectors, or LLM judgments whose validity against human judgment has 
 
 **Composite formulas with asserted weights:** `agent_utilities`, `concession_asymmetry_per_speaker`, `process_reward_series`, `process_reward_mean`, `process_reward_stddev`, `process_reward_min`, `sycophancy_guard_fired`, `max_sycophancy_score`, `topic_coherence_per_speaker`.
 
-**Lexicon/map-based:** `affect_intensity_mean`, `affect_intensity_variance`, `affect_appropriateness` (t/1342 pending), `source_authority_mean` (venue-tier map asserted), `source_recency_mean`, `local_sufficiency_mean`, `unsupported_claim_rate`, `local_sufficiency_by_speaker` (t/1341 multipliers).
+**Lexicon/map-based:** `affect_intensity_mean`, `affect_intensity_variance`, `affect_appropriateness` (t/1342 pending; **construct defect, see below**), `source_authority_mean` (venue-tier map asserted), `source_recency_mean`, `local_sufficiency_mean`, `unsupported_claim_rate`, `local_sufficiency_by_speaker` (t/1341 multipliers).
+
+`affect_appropriateness` — **stipulated, with a known construct defect (t/1771, 2026-07-27).** `computeAffectAppropriateness` compares an absolute per-category intensity (`categoryScore`, observed weighted mean 0.080) against a normalized share (`AFFECT_PHASE_BASELINES`, each phase summing to ~1.0), so the deviation is dominated by the baseline vector rather than the debate. Measured consequences over 410 real debates: a zero-affect text scores 0.400–0.457 by phase; the observed minimum is 0.444 (the zero-affect value) with sd 0.035; Pearson r against `affect_intensity_mean` is 0.041. Evidence: `research/comp-linguist/analyses/t1771-affect-appropriateness-construct-defect.md`. **Do not promote this row to `derived` on the strength of a baseline refit** — fitting baselines against the current formula pins the metric near 1.0 corpus-wide (a no-lose bucket). Construct fix is t/1785 (DebateTool); baseline and `MAX_ACCEPTABLE_DEVIATION` re-derivation is t/1771 steps 2–3, blocked until per-category profiles are logged. Excluded from the t/1342 validation study until the fix lands (t/1342#3).
 
 ## 6. Derived instruments (5)
 
