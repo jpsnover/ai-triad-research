@@ -3,7 +3,7 @@
 Institutional memory for failure patterns across the AI Triad Research project.
 Organized by category. Each file contains the full pattern details.
 
-**Last updated:** 2026-07-26 | **Total patterns:** 82 | **Resolved:** 21 | **Active:** 61
+**Last updated:** 2026-07-26 | **Total patterns:** 83 | **Resolved:** 21 | **Active:** 62
 
 ## Summary
 
@@ -13,7 +13,7 @@ Organized by category. Each file contains the full pattern details.
 | PowerShell | [powershell.md](powershell.md) | 7 | 3 | 4 |
 | Data | [data.md](data.md) | 3 | 1 | 2 |
 | Type System | [type-system.md](type-system.md) | 4 | 0 | 4 |
-| Process | [process.md](process.md) | 13 | 7 | 6 |
+| Process | [process.md](process.md) | 14 | 7 | 7 |
 | API | [api.md](api.md) | 3 | 0 | 3 |
 | Design | [design.md](design.md) | 1 | 0 | 1 |
 
@@ -32,6 +32,7 @@ Seven patterns crossed the 3-instance threshold (or were high-severity) and beca
 
 ## Quick Reference — Top Recurring Patterns
 
+- **Rule-exists-but-not-applied (point-of-use failure class)** — 3 instances, 3 offenders (config-forensics 2nd, strict-mode property access, /land-from-worktree #81) → [process.md](process.md). Meta-tracker: NOT a coverage gap; rule is correct but doesn't fire at the moment of action. Per TL (p/8#95), at the **4th instance of the highest-frequency offender** he specs a single point-of-use hook (the `.Count` guard is the model) rather than adding another rule. **Tag every new rule-not-applied instance in process.md and rank by frequency.**
 - **Overlay repo (ogit)** — 7 instances, 4 agents → [build.md](build.md)
 - **Bash heredoc/quoting** — 10 instances, 7 agents → [build.md](build.md) (incl. `pwsh -File` over inline `-Command` for non-trivial PS, p/20#23)
 - **Git `--` flag ordering** — 4 instances, 4 agents → [build.md](build.md) (main-repo ✓ resolved via rule + hook; **overlay `ogit` form recurred 2026-07-26, suspected hook-coverage gap** — flagged to Diagnostics, p/217#1)
