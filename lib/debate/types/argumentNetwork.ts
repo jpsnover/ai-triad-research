@@ -69,12 +69,13 @@ export interface ArgumentNetworkNode {
   /**
    * Inline verification status from web search (Intervention 2).
    * Uses the shared `FactVerdict` vocabulary plus the `pending` lifecycle state (not-yet-checked).
-   * Legacy stored data may carry `'verified'`; read it through `normalizeVerdict` (→ `'supported'`).
-   * `'verified'` is a TRANSITIONAL union member (Option A expand-migrate-contract, t/1715#2): kept so
-   * the taxonomy-editor renderer still typechecks until it migrates off the literal (t/1798); dropped
-   * from this union once t/1798 lands (t/1799). Always read via `normalizeVerdict`, never compare raw.
+   * The transitional `'verified'` union member was DROPPED in the t/1799 contract step
+   * (expand-migrate-contract complete: all producers migrated off the literal in t/1798). The
+   * read-time `normalizeVerdict` alias is RETAINED (Option A, TL t/1799#3): historical transcripts
+   * that still carry `'verified'` on disk keep normalizing to `'supported'` on read — no data rewrite.
+   * Always read via `normalizeVerdict`, never compare the raw string.
    */
-  verification_status?: FactVerdict | 'verified' | 'pending';
+  verification_status?: FactVerdict | 'pending';
   /** Evidence summary from inline verification. */
   verification_evidence?: string;
   /** Evidence QBAF sub-graph: source-corpus evidence items, classification, and computed strength. */

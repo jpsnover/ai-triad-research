@@ -101,7 +101,8 @@ export function factCheckToBaseStrength(
   }
   const conf = (confidence ?? 'medium').toLowerCase();
   switch (verdict) {
-    case 'verified':
+    // Legacy 'verified' is normalized to 'supported' upstream via normalizeVerdict
+    // (the single read-alias, Option A) before reaching here, so it needs no case (t/1799).
     case 'supported':
       return conf === 'high' ? 0.85 : conf === 'low' ? 0.55 : 0.70;
     case 'disputed':
