@@ -50,6 +50,7 @@ import { registerKeysRoutes } from './routes/keys.js';
 import { registerCommunityRoutes } from './routes/community.js';
 import { registerHarvestRoutes } from './routes/harvest.js';
 import { registerOrganizationsRoutes } from './routes/organizations.js';
+import { registerEntityRoutes } from './routes/entity.js';
 import { registerTaxonomyRoutes } from './routes/taxonomy.js';
 import { registerMetaRoutes } from './routes/meta.js';
 import { registerEdgesRoutes } from './routes/edges.js';
@@ -352,6 +353,12 @@ registerConflictsRoutes(router, serverCtx);
 // ── Organizations (t/1225) ──
 // t/1383: /api/organizations/* cluster extracted to routes/organizations.ts (registrar at group position).
 registerOrganizationsRoutes(router, serverCtx);
+
+// ── Entity resolver (t/1786) ──
+// GET /api/entity/:ref — public read; resolves the entity-ref discriminated union
+// (lib/entities/types.ts) to the record type that owns each kind. Grouped with
+// organizations (shares the public read tier). Brand-new path — no collision.
+registerEntityRoutes(router, serverCtx);
 
 // ── Lineage / edges / source-indexes / data-availability / flags (t/1687: routes/edges.ts) ──
 // Registers between organizations and admin, preserving the routeTable snapshot order.
