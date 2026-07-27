@@ -1,0 +1,317 @@
+{
+ "batch": "B0",
+ "facts_processed": 180,
+ "proposals": [
+  {
+   "name": "Daniel Kahneman",
+   "entity_type": "person",
+   "aliases": ["Kahneman"],
+   "quote": "Daniel Kahneman and Amos Tversky demonstrated in their 1974 paper",
+   "confidence": 0.97,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "Amos Tversky",
+   "entity_type": "person",
+   "aliases": ["Tversky"],
+   "quote": "Daniel Kahneman and Amos Tversky demonstrated in their 1974 paper",
+   "confidence": 0.97,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "Matt Goodwin",
+   "entity_type": "person",
+   "aliases": ["UK researcher Matt Goodwin"],
+   "quote": "UK researcher Matt Goodwin included fabricated quotes in his new book",
+   "confidence": 0.9,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "Barack Obama",
+   "entity_type": "person",
+   "aliases": ["Obama"],
+   "quote": "The Obama administration released a report in 2016",
+   "confidence": 0.4,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "Karen",
+   "entity_type": "person",
+   "aliases": ["'Karen' customers"],
+   "quote": "interactions with 'Karen' customers as the most common cause of burnout",
+   "confidence": 0.05,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "ChatGPT",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "since the launch of ChatGPT in November 2022",
+   "confidence": 0.97,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "GPT-3",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "GPT-3 generated propaganda is nearly as persuasive as real-world propaganda",
+   "confidence": 0.95,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "GPT-4",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "GPT-4 correctly chose 'not enough info' on 98% of ambiguous questions",
+   "confidence": 0.95,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "GPT-4.5",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Models like GPT-4.5 fool humans 73% of the time in Turing-style tests",
+   "confidence": 0.95,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "GPT-2",
+   "entity_type": "artifact",
+   "aliases": ["GPT2"],
+   "quote": "Pretrained language models like BERT, GPT2, and RoBERTa",
+   "confidence": 0.9,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "BERT",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Pretrained language models like BERT, GPT2, and RoBERTa",
+   "confidence": 0.9,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "RoBERTa",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Pretrained language models like BERT, GPT2, and RoBERTa",
+   "confidence": 0.9,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "Claude",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Claude's usage is heavily dominated by computer and mathematical occupations",
+   "confidence": 0.95,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "Pegasus",
+   "entity_type": "artifact",
+   "aliases": ["Pegasus spyware"],
+   "quote": "among the first authoritarian states to deploy Pegasus spyware against dissidents",
+   "confidence": 0.95,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "Lavender",
+   "entity_type": "artifact",
+   "aliases": ["Lavender system", "the IDF's Lavender system"],
+   "quote": "such as the IDF's use of the Lavender system, to select targets",
+   "confidence": 0.9,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "matplotlib",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "autonomously submit code to open-source projects like matplotlib",
+   "confidence": 0.85,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "Amazon Mechanical Turk",
+   "entity_type": "artifact",
+   "aliases": ["Mechanical Turk", "MTurk"],
+   "quote": "with 95% accuracy on Amazon Mechanical Turk",
+   "confidence": 0.7,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "Foundation Model Transparency Index",
+   "entity_type": "artifact",
+   "aliases": ["FMTI", "2025 Foundation Model Transparency Index", "2025 FMTI"],
+   "quote": "average transparency score for AI companies in the 2025 Foundation Model Transparency Index is 40 out of 100",
+   "confidence": 0.75,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "Bias Benchmark for QA",
+   "entity_type": "artifact",
+   "aliases": ["BBQ"],
+   "quote": "98% of ambiguous questions in the Bias Benchmark for QA",
+   "confidence": 0.75,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "STONE score",
+   "entity_type": "artifact",
+   "aliases": ["STONE score for kidney stones"],
+   "quote": "The STONE score for kidney stones assigns 3 points out of 13 to patients identified as 'nonblack'",
+   "confidence": 0.85,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "Vaginal Birth after Cesarean (VBAC) algorithm",
+   "entity_type": "artifact",
+   "aliases": ["VBAC algorithm"],
+   "quote": "The Vaginal Birth after Cesarean (VBAC) algorithm predicts a lower likelihood of success",
+   "confidence": 0.75,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "Get with the Guidelines Heart Failure Risk Score",
+   "entity_type": "artifact",
+   "aliases": ["AHA Heart Failure Risk Score", "AHA Get with the Guidelines-Heart Failure Risk Score", "American Heart Association's Get with the Guidelines Heart Failure Risk Score"],
+   "quote": "The AHA Heart Failure Risk Score assigns three additional points to nonblack patients",
+   "confidence": 0.8,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "STS cardiac surgery risk model",
+   "entity_type": "artifact",
+   "aliases": ["Society of Thoracic Surgeons' cardiac surgery risk model"],
+   "quote": "The Society of Thoracic Surgeons' cardiac surgery risk model increases the estimated risk of death by nearly 20%",
+   "confidence": 0.4,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "AAP 2011 clinical practice guidelines for urinary tract infection",
+   "entity_type": "artifact",
+   "aliases": ["American Academy of Pediatrics 2011 clinical practice guidelines"],
+   "quote": "American Academy of Pediatrics 2011 clinical practice guidelines for urinary tract infection in children",
+   "confidence": 0.35,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "NYPD stop-and-frisk dataset",
+   "entity_type": "artifact",
+   "aliases": ["NYPD stop-and-frisk dataset for 2014"],
+   "quote": "The NYPD stop-and-frisk dataset for 2014 contains 38,609 records",
+   "confidence": 0.5,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "robots.txt",
+   "entity_type": "artifact",
+   "aliases": ["robots.txt directives"],
+   "quote": "technical restrictions, such as robots.txt directives, to block AI crawlers",
+   "confidence": 0.3,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "RAIL license",
+   "entity_type": "artifact",
+   "aliases": ["RAIL licenses", "Responsible AI License"],
+   "quote": "RAIL licenses include restrictions on activities such as 'harming,' 'discriminating,'",
+   "confidence": 0.45,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "SKIG framework",
+   "entity_type": "artifact",
+   "aliases": ["SKIG"],
+   "quote": "The SKIG framework improves AI moral reasoning by decomposing the process into five distinct components",
+   "confidence": 0.55,
+   "node_id": "saf-intentions-037"
+  },
+  {
+   "name": "GDPR",
+   "entity_type": "legislation",
+   "aliases": ["General Data Protection Regulation"],
+   "quote": "The GDPR caused European firms to decrease data storage by 26 percent",
+   "confidence": 0.98,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "Colorado SB 24-205",
+   "entity_type": "legislation",
+   "aliases": ["SB 24-205"],
+   "quote": "Colorado SB 24-205 imposes a duty of care on developers and deployers",
+   "confidence": 0.97,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "10 USC 3252",
+   "entity_type": "legislation",
+   "aliases": [],
+   "quote": "The relevant statute for the Department of War's action is 10 USC 3252",
+   "confidence": 0.85,
+   "node_id": "saf-intentions-069"
+  },
+  {
+   "name": "California ADMT regulations",
+   "entity_type": "legislation",
+   "aliases": ["ADMT regulations", "California's ADMT regulations"],
+   "quote": "California's ADMT regulations require businesses to conduct and document risk assessments",
+   "confidence": 0.8,
+   "node_id": "saf-intentions-087"
+  },
+  {
+   "name": "Chinese Social Credit System",
+   "entity_type": "institution",
+   "aliases": ["Social Credit System"],
+   "quote": "The Chinese Social Credit System aggregates vast amounts of data to predict behavior",
+   "confidence": 0.6,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "Dutch childcare benefits scandal",
+   "entity_type": "event",
+   "aliases": ["childcare benefits scandal"],
+   "quote": "The Dutch childcare benefits scandal involved tax authorities using an algorithm",
+   "confidence": 0.85,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "Launch of ChatGPT",
+   "entity_type": "event",
+   "aliases": ["launch of ChatGPT in November 2022"],
+   "quote": "since the launch of ChatGPT in November 2022",
+   "confidence": 0.5,
+   "node_id": "skp-beliefs-041"
+  },
+  {
+   "name": "Cambodian genocide",
+   "entity_type": "event",
+   "aliases": ["Khmer Rouge killings 1975-1979"],
+   "quote": "The Khmer Rouge murdered a quarter of all Cambodians between 1975 and 1979",
+   "confidence": 0.4,
+   "node_id": "skp-beliefs-041"
+  }
+ ],
+ "org_mentions": [
+  {"name": "NIST", "node_id": "skp-beliefs-041"},
+  {"name": "Obama administration", "node_id": "skp-beliefs-041"},
+  {"name": "Law School Admission Council", "node_id": "skp-beliefs-041"},
+  {"name": "NYPD", "node_id": "skp-beliefs-041"},
+  {"name": "Brookings", "node_id": "skp-beliefs-041"},
+  {"name": "Goldman Sachs", "node_id": "skp-beliefs-041"},
+  {"name": "Khmer Rouge", "node_id": "skp-beliefs-041"},
+  {"name": "American Heart Association", "node_id": "skp-beliefs-041"},
+  {"name": "DARPA", "node_id": "skp-beliefs-041"},
+  {"name": "Aware", "node_id": "skp-beliefs-041"},
+  {"name": "IBM", "node_id": "skp-beliefs-041"},
+  {"name": "xAI", "node_id": "skp-beliefs-041"},
+  {"name": "Midjourney", "node_id": "skp-beliefs-041"},
+  {"name": "Society of Thoracic Surgeons", "node_id": "skp-beliefs-041"},
+  {"name": "American Academy of Pediatrics", "node_id": "skp-beliefs-041"},
+  {"name": "Hugging Face", "node_id": "skp-beliefs-041"},
+  {"name": "European Union", "node_id": "skp-beliefs-041"},
+  {"name": "Belastingdienst (Dutch tax authority)", "node_id": "skp-beliefs-041"},
+  {"name": "IDF", "node_id": "skp-beliefs-041"},
+  {"name": "New York City", "node_id": "skp-beliefs-041"},
+  {"name": "Department of War", "node_id": "saf-intentions-069"}
+ ]
+}

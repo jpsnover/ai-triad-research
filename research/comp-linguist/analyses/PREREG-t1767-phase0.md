@@ -87,3 +87,29 @@ Run artifacts: `_p0_out_A.json`, `_p0_out_B.json`, `_p0_out_C.json` (extraction 
 - **Honest-outcome clause:** if the mention is still absent from the v0.2 table, the fix hypothesis is falsified and the finding is that node-scoped extraction does not deliver mention coverage — the design would then need the retroactive/manual path (proposal §7) to carry that load, and that goes to the Phase 1 decision as an open risk, not a pass.
 
 **v0.2 precision spot-check (secondary, non-gating):** 20 proposals sampled deterministically (every Nth by sorted name) from the v0.2 gated set, hand-scored with the v0.1 precision definition — a drift check on the instrument at 11× the fact volume, reported but not part of the axis-4 verdict.
+
+### v0.2 results (run of 2026-07-27, recorded after the rules above)
+
+Scale: 1,798 facts over 295 debate-referenced nodes → 480 raw proposals → **273 gated** after dedup. Alias table = 273 v0.2 ∪ 40 v0.1 ∪ org registry = **533 entries** (13× the v0.1 table of 84).
+
+**Axis 4: FAIL again. Fix hypothesis FALSIFIED** (the honest-outcome clause applies).
+
+| Check | Result |
+|---|---|
+| Annotated mention detected | **0/1** — no detections on any of the 3 statements |
+| Wrong links | **0** (refusal property holds again, now against a 533-entry table) |
+| "2008 financial crisis" in the 533-entry table | **absent** |
+| Same string in the 480 **raw** (ungated) proposals, any confidence | **absent** — not a gate artifact |
+| Detector positive control (inject "2008 financial crisis" + "red-teaming" into the table) | **fires correctly on all statements** — the detector is sound, so this is not a false-negative scan |
+
+**What this actually establishes.** The v0.1 failure was not merely a small-sample artifact, and the diagnosis in the v0.1 section was itself incomplete. Scaling the facts corpus 11× did not surface the mention, because **the entity is not in the facts corpus at all**. The Safetyist debater invoked the 2008 financial crisis as a rhetorical precedent drawn from model world-knowledge, not from any injected fact. A facts-derived alias table therefore cannot cover debate mentions in principle, not just at small n.
+
+**Design consequence (goes to the Phase 1 decision as a required revision, not a pass).** Proposal §5's live-detection mechanism — alias-table matching at entry-add time — is sound for facts and POV text, whose entities come from the same corpus that built the table. It is structurally insufficient for debate and chat text. Options for the owner/TL, in my recommended order:
+
+1. **Statement-side extraction for debate/chat.** Run the extraction instrument on the statement text itself at entry-add time (LLM NER proposing particulars), then resolve proposals against the table; unmatched high-confidence proposals become curation candidates. Cost: one added LLM call per statement, and a new inflow of entity proposals from debate text. This is the only option that closes the gap at its source.
+2. **Accept partial coverage in v1.** Ship alias-table linking (facts/POV entities link; world-knowledge mentions stay plain text) and rely on the manual link-correction path (§5) plus retroactive re-index as entities accumulate. Cheapest; the t/1766 scenario then works for corpus entities only, which should be stated as a v1 limitation rather than discovered later.
+3. **Reject the debate/chat surface for v1** and scope entity linking to facts and POV items, where the mechanism is validated.
+
+Retroactive re-index (§7) does **not** rescue options 2–3 on its own: it keys off approved entities, which are themselves facts-derived, so a world-knowledge mention stays unlinked until someone mints that entity by hand.
+
+**Precision drift check (non-gating): no drift.** 20/20 sampled v0.2 gated proposals correct at 11× volume — including `10 USC 3252`, `Communications Decency Act`, `Fourteenth Amendment`, `Oregon SB 1546` (legislation), `Evo 2`, `GPT-4.5`, `o3`, `MMLU`, `BIRD-Verified` (artifacts), `Sam Altman`, `Marc Andreessen`, `Joshua Gans` (persons), `Chinese Social Credit System` (institution). Axes 1–3 stand confirmed; the extraction instrument is the validated part of this design.

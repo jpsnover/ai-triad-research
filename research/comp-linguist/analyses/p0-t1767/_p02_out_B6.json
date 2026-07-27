@@ -1,0 +1,464 @@
+{
+  "batch": "B6",
+  "facts_processed": 180,
+  "proposals": [
+    {
+      "name": "ChatGPT",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "ChatGPT debuted in 2023",
+      "confidence": 0.95,
+      "node_id": "saf-beliefs-041"
+    },
+    {
+      "name": "ProteinMPNN",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "Researchers used ProteinMPNN",
+      "confidence": 0.9,
+      "node_id": "saf-beliefs-041"
+    },
+    {
+      "name": "EvoDiff-MSA",
+      "entity_type": "artifact",
+      "aliases": ["EvoDiff"],
+      "quote": "ProteinMPNN, EvoDiff-MSA, and EvoDiff-Seq",
+      "confidence": 0.88,
+      "node_id": "saf-beliefs-041"
+    },
+    {
+      "name": "EvoDiff-Seq",
+      "entity_type": "artifact",
+      "aliases": ["EvoDiff"],
+      "quote": "EvoDiff-MSA, and EvoDiff-Seq to generate 76,080 synthetic hologs",
+      "confidence": 0.88,
+      "node_id": "saf-beliefs-041"
+    },
+    {
+      "name": "Sam Altman",
+      "entity_type": "person",
+      "aliases": ["Altman"],
+      "quote": "Sam Altman stated in January 2025",
+      "confidence": 0.97,
+      "node_id": "saf-beliefs-041"
+    },
+    {
+      "name": "Cold War",
+      "entity_type": "event",
+      "aliases": [],
+      "quote": "The development of nuclear weapons during the Cold War",
+      "confidence": 0.7,
+      "node_id": "saf-beliefs-041"
+    },
+    {
+      "name": "Khmer Rouge",
+      "entity_type": "institution",
+      "aliases": ["Khmer Rouge regime"],
+      "quote": "The Khmer Rouge regime murdered a quarter of all Cambodians",
+      "confidence": 0.6,
+      "node_id": "saf-beliefs-041"
+    },
+    {
+      "name": "2023 open letter on AI extinction risk",
+      "entity_type": "artifact",
+      "aliases": ["Statement on AI Risk", "2023 open letter"],
+      "quote": "A 2023 open letter signed by technology leaders",
+      "confidence": 0.35,
+      "node_id": "saf-beliefs-041"
+    },
+    {
+      "name": "World Economic Outlook",
+      "entity_type": "artifact",
+      "aliases": ["WEO", "October 2025 WEO"],
+      "quote": "a scenario presented in the October 2025 WEO",
+      "confidence": 0.55,
+      "node_id": "saf-beliefs-033"
+    },
+    {
+      "name": "2025 Foundation Model Transparency Index",
+      "entity_type": "artifact",
+      "aliases": ["Foundation Model Transparency Index", "FMTI", "the 2025 Index"],
+      "quote": "The 2025 Foundation Model Transparency Index (FMTI) has undergone a major revision",
+      "confidence": 0.8,
+      "node_id": "saf-intentions-143"
+    },
+    {
+      "name": "Ludwig van Beethoven",
+      "entity_type": "person",
+      "aliases": ["Beethoven"],
+      "quote": "Beethoven's String Quartet in C minor",
+      "confidence": 0.9,
+      "node_id": "skp-beliefs-044"
+    },
+    {
+      "name": "String Quartet in C minor",
+      "entity_type": "artifact",
+      "aliases": ["Beethoven's String Quartet in C minor"],
+      "quote": "to perform Beethoven's String Quartet in C minor",
+      "confidence": 0.65,
+      "node_id": "skp-beliefs-044"
+    },
+    {
+      "name": "S&P North American software index",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "The S&P North American software index fell 15 percent in January",
+      "confidence": 0.6,
+      "node_id": "saf-beliefs-033"
+    },
+    {
+      "name": "Ajeya Cotra",
+      "entity_type": "person",
+      "aliases": ["Cotra"],
+      "quote": "such as those by Cotra and Metaculus",
+      "confidence": 0.6,
+      "node_id": "saf-beliefs-033"
+    },
+    {
+      "name": "Slovakia 2023 parliamentary elections",
+      "entity_type": "event",
+      "aliases": ["Slovakia's 2023 parliamentary elections"],
+      "quote": "In Slovakia's 2023 parliamentary elections",
+      "confidence": 0.85,
+      "node_id": "saf-beliefs-033"
+    },
+    {
+      "name": "India 2024 general election",
+      "entity_type": "event",
+      "aliases": ["India's 2024 general election"],
+      "quote": "In India's 2024 general election",
+      "confidence": 0.85,
+      "node_id": "saf-beliefs-033"
+    },
+    {
+      "name": "Qatar November 2024 constitutional referendum",
+      "entity_type": "event",
+      "aliases": ["Qatar's November 2024 constitutional referendum"],
+      "quote": "Qatar's November 2024 constitutional referendum approved the elimination of legislative elections",
+      "confidence": 0.85,
+      "node_id": "saf-beliefs-033"
+    },
+    {
+      "name": "Shura Council",
+      "entity_type": "institution",
+      "aliases": [],
+      "quote": "elimination of legislative elections for the Shura Council",
+      "confidence": 0.7,
+      "node_id": "saf-beliefs-033"
+    },
+    {
+      "name": "Voks 2025",
+      "entity_type": "event",
+      "aliases": ["Voks 2025 consultation"],
+      "quote": "Hungary's government-run Voks 2025 consultation on Ukraine's EU accession",
+      "confidence": 0.8,
+      "node_id": "saf-beliefs-033"
+    },
+    {
+      "name": "European Union",
+      "entity_type": "institution",
+      "aliases": ["EU"],
+      "quote": "consultation on Ukraine's EU accession",
+      "confidence": 0.5,
+      "node_id": "saf-beliefs-033"
+    },
+    {
+      "name": "Standard Occupational Classification",
+      "entity_type": "artifact",
+      "aliases": ["SOC"],
+      "quote": "six information-intensive SOC groups",
+      "confidence": 0.3,
+      "node_id": "saf-beliefs-033"
+    },
+    {
+      "name": "Stargate",
+      "entity_type": "institution",
+      "aliases": ["Stargate project", "the Stargate project"],
+      "quote": "The US administration announced the Stargate project",
+      "confidence": 0.4,
+      "node_id": "acc-desires-001"
+    },
+    {
+      "name": "Donald Trump",
+      "entity_type": "person",
+      "aliases": ["President Trump", "Trump"],
+      "quote": "President Trump issued an Executive Order on December 11, 2025",
+      "confidence": 0.95,
+      "node_id": "acc-desires-001"
+    },
+    {
+      "name": "Executive Order of December 11, 2025 on a national AI policy framework",
+      "entity_type": "legislation",
+      "aliases": ["Executive Order on December 11, 2025"],
+      "quote": "issued an Executive Order on December 11, 2025, to promote a minimally burdensome national AI policy framework",
+      "confidence": 0.8,
+      "node_id": "acc-desires-001"
+    },
+    {
+      "name": "e/acc",
+      "entity_type": "institution",
+      "aliases": ["e/acc movement", "effective accelerationism"],
+      "quote": "The e/acc movement identifies Artificial General Intelligence (AGI) as the key",
+      "confidence": 0.25,
+      "node_id": "acc-desires-001"
+    },
+    {
+      "name": "KPMG 2025 global AI trust survey",
+      "entity_type": "artifact",
+      "aliases": ["KPMG survey of 47 countries"],
+      "quote": "A KPMG survey of 47 countries in 2025",
+      "confidence": 0.35,
+      "node_id": "acc-desires-001"
+    },
+    {
+      "name": "OpenAI Model Specification",
+      "entity_type": "artifact",
+      "aliases": ["Model Specification", "Model Spec"],
+      "quote": "OpenAI's Model Specification, published February 12, 2025",
+      "confidence": 0.85,
+      "node_id": "saf-intentions-117"
+    },
+    {
+      "name": "GitHub Copilot",
+      "entity_type": "artifact",
+      "aliases": ["Copilot"],
+      "quote": "GitHub Copilot allows users to block code suggestions",
+      "confidence": 0.95,
+      "node_id": "saf-intentions-117"
+    },
+    {
+      "name": "GPT-2",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "OpenAI withheld the publication of GPT-2 in 2019",
+      "confidence": 0.95,
+      "node_id": "saf-intentions-117"
+    },
+    {
+      "name": "Gender Shades",
+      "entity_type": "artifact",
+      "aliases": ["Gender Shades project"],
+      "quote": "The Gender Shades project by Buolamwini and Gebru",
+      "confidence": 0.7,
+      "node_id": "saf-intentions-117"
+    },
+    {
+      "name": "Joy Buolamwini",
+      "entity_type": "person",
+      "aliases": ["Buolamwini"],
+      "quote": "by Buolamwini and Gebru",
+      "confidence": 0.9,
+      "node_id": "saf-intentions-117"
+    },
+    {
+      "name": "Timnit Gebru",
+      "entity_type": "person",
+      "aliases": ["Gebru"],
+      "quote": "by Buolamwini and Gebru",
+      "confidence": 0.9,
+      "node_id": "saf-intentions-117"
+    },
+    {
+      "name": "Australian social media minimum age legislation",
+      "entity_type": "legislation",
+      "aliases": ["Online Safety Amendment (Social Media Minimum Age) Act 2024"],
+      "quote": "Australia enacted legislation banning social media use for children under 16",
+      "confidence": 0.55,
+      "node_id": "saf-intentions-117"
+    },
+    {
+      "name": "General Data Protection Regulation",
+      "entity_type": "legislation",
+      "aliases": ["GDPR", "EU General Data Protection Regulation"],
+      "quote": "The EU General Data Protection Regulation (GDPR)",
+      "confidence": 0.98,
+      "node_id": "saf-intentions-117"
+    },
+    {
+      "name": "Microsoft 2025 Work Trend Index Report",
+      "entity_type": "artifact",
+      "aliases": ["Work Trend Index", "2025 Work Trend Index Report"],
+      "quote": "according to Microsoft's 2025 Work Trend Index Report",
+      "confidence": 0.8,
+      "node_id": "skp-beliefs-012"
+    },
+    {
+      "name": "Sora",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "Systems like Sora and JEPA",
+      "confidence": 0.9,
+      "node_id": "saf-beliefs-039"
+    },
+    {
+      "name": "JEPA",
+      "entity_type": "artifact",
+      "aliases": ["Joint Embedding Predictive Architecture"],
+      "quote": "Systems like Sora and JEPA",
+      "confidence": 0.7,
+      "node_id": "saf-beliefs-039"
+    },
+    {
+      "name": "NIST AI 800-4",
+      "entity_type": "artifact",
+      "aliases": ["AI 800-4"],
+      "quote": "NIST AI 800-4 identifies current practices and challenges",
+      "confidence": 0.7,
+      "node_id": "skp-intentions-017"
+    },
+    {
+      "name": "Prometheus",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "Traditional observability tools, such as Prometheus and Datadog",
+      "confidence": 0.85,
+      "node_id": "skp-intentions-017"
+    },
+    {
+      "name": "Datadog",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "such as Prometheus and Datadog",
+      "confidence": 0.6,
+      "node_id": "skp-intentions-017"
+    },
+    {
+      "name": "BIRD Train set",
+      "entity_type": "artifact",
+      "aliases": ["BIRD Train", "original BIRD Train set"],
+      "quote": "Annotation errors were identified in 61.1% of a subset of the BIRD Train set",
+      "confidence": 0.85,
+      "node_id": "skp-intentions-017"
+    },
+    {
+      "name": "BIRD-Verified",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "Corrected gold SQL queries in BIRD-Verified",
+      "confidence": 0.85,
+      "node_id": "skp-intentions-017"
+    },
+    {
+      "name": "LoRA",
+      "entity_type": "artifact",
+      "aliases": ["Low-Rank Adaptation"],
+      "quote": "Fine-tuning techniques such as LoRA",
+      "confidence": 0.3,
+      "node_id": "saf-beliefs-014"
+    },
+    {
+      "name": "IBM acquisition of HashiCorp",
+      "entity_type": "event",
+      "aliases": ["IBM's $6.4 billion acquisition of HashiCorp"],
+      "quote": "IBM closed its $6.4 billion acquisition of HashiCorp in February 2025",
+      "confidence": 0.5,
+      "node_id": "acc-intentions-005"
+    },
+    {
+      "name": "OpenAI-NVIDIA compute partnership (September 2025)",
+      "entity_type": "event",
+      "aliases": ["OpenAI and NVIDIA partnership"],
+      "quote": "OpenAI and NVIDIA announced a partnership in September 2025",
+      "confidence": 0.5,
+      "node_id": "acc-intentions-005"
+    },
+    {
+      "name": "CDSM Directive",
+      "entity_type": "legislation",
+      "aliases": ["Directive on Copyright in the Digital Single Market", "Copyright in the Digital Single Market Directive"],
+      "quote": "Article 4 of the CDSM Directive",
+      "confidence": 0.9,
+      "node_id": "skp-intentions-014"
+    },
+    {
+      "name": "Gemini",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "Gemini can run securely on-premise",
+      "confidence": 0.9,
+      "node_id": "saf-intentions-115"
+    },
+    {
+      "name": "Google Distributed Cloud",
+      "entity_type": "artifact",
+      "aliases": ["Google Distributed Cloud environments"],
+      "quote": "on-premise in Google Distributed Cloud environments",
+      "confidence": 0.7,
+      "node_id": "saf-intentions-115"
+    },
+    {
+      "name": "Marc Andreessen",
+      "entity_type": "person",
+      "aliases": ["Andreessen"],
+      "quote": "Marc Andreessen published a post",
+      "confidence": 0.97,
+      "node_id": "acc-intentions-009"
+    },
+    {
+      "name": "The Techno-Optimist Manifesto",
+      "entity_type": "artifact",
+      "aliases": ["Techno-Optimist Manifesto"],
+      "quote": "a post titled 'The Techno-Optimist Manifesto'",
+      "confidence": 0.85,
+      "node_id": "acc-intentions-009"
+    },
+    {
+      "name": "Pete Hegseth",
+      "entity_type": "person",
+      "aliases": ["Defense Secretary Pete Hegseth", "Hegseth"],
+      "quote": "Defense Secretary Pete Hegseth announced he was breaking the government's contract",
+      "confidence": 0.95,
+      "node_id": "acc-intentions-009"
+    },
+    {
+      "name": "Moltbook",
+      "entity_type": "artifact",
+      "aliases": ["Moltbook social network"],
+      "quote": "The Moltbook social network hosted over 1.4 million AI agents",
+      "confidence": 0.75,
+      "node_id": "acc-desires-010"
+    },
+    {
+      "name": "GPT-5",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "promised that GPT-5 would function like a Ph.D.-level expert",
+      "confidence": 0.95,
+      "node_id": "acc-intentions-044"
+    }
+  ],
+  "org_mentions": [
+    { "name": "Federal Reserve Bank of Dallas", "node_id": "saf-beliefs-041" },
+    { "name": "OpenAI", "node_id": "saf-beliefs-041" },
+    { "name": "U.S. government", "node_id": "saf-beliefs-041" },
+    { "name": "Walmart", "node_id": "skp-beliefs-044" },
+    { "name": "IBM", "node_id": "skp-beliefs-044" },
+    { "name": "Writer", "node_id": "skp-beliefs-044" },
+    { "name": "Google", "node_id": "skp-beliefs-044" },
+    { "name": "OpenAI", "node_id": "skp-beliefs-044" },
+    { "name": "Anthropic", "node_id": "skp-beliefs-044" },
+    { "name": "S&P", "node_id": "saf-beliefs-033" },
+    { "name": "Metaculus", "node_id": "saf-beliefs-033" },
+    { "name": "KPMG", "node_id": "acc-desires-001" },
+    { "name": "Trump administration", "node_id": "acc-desires-001" },
+    { "name": "OpenAI", "node_id": "saf-intentions-117" },
+    { "name": "GitHub", "node_id": "saf-intentions-117" },
+    { "name": "Microsoft", "node_id": "skp-beliefs-012" },
+    { "name": "NIST", "node_id": "skp-intentions-017" },
+    { "name": "IBM", "node_id": "acc-intentions-005" },
+    { "name": "HashiCorp", "node_id": "acc-intentions-005" },
+    { "name": "FTC", "node_id": "acc-intentions-005" },
+    { "name": "OpenAI", "node_id": "acc-intentions-005" },
+    { "name": "NVIDIA", "node_id": "acc-intentions-005" },
+    { "name": "OpenAI", "node_id": "skp-intentions-014" },
+    { "name": "Free Software Foundation", "node_id": "skp-intentions-014" },
+    { "name": "Google", "node_id": "saf-intentions-115" },
+    { "name": "Waymo", "node_id": "acc-desires-009" },
+    { "name": "a16z", "node_id": "acc-intentions-009" },
+    { "name": "Anthropic", "node_id": "acc-intentions-009" },
+    { "name": "U.S. Department of Defense", "node_id": "acc-intentions-061" },
+    { "name": "Huawei", "node_id": "saf-intentions-018" },
+    { "name": "Stanford University", "node_id": "skp-beliefs-008" },
+    { "name": "OpenAI", "node_id": "acc-intentions-044" }
+  ]
+}
