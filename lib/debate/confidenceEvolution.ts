@@ -509,12 +509,17 @@ export function buildEvolutionHistoryEntry(
 
 // ── Reflection proposal adapters ───────────────────────
 
-import type { WeightChangeProposal } from './types.js';
+import type { WeightChangeProposal, NewPovItemProposal, ProposedReflectionEdge } from './types.js';
+import type { Category, CanonicalEdgeType } from './taxonomyTypes.js';
+import { POV_KEYS, type PovKey } from './types/synthesis.js';
+import { fuzzyCorrectNodeId } from './nodeIdUtils.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 export function confidenceUpdatesToProposals(
   updates: ConfidenceUpdate[],
 ): WeightChangeProposal[] {
   return updates.map(u => ({
+    kind: 'edit_existing' as const,
     source: 'confidence_evolution' as const,
     node_id: u.belief_id,
     field: 'confidence' as const,
@@ -536,6 +541,7 @@ export function priorityUpdatesToProposals(
     const floor = doctrinalFloors?.get(u.desire_id);
     const violatesFloor = floor != null && u.new_value < floor;
     return {
+      kind: 'edit_existing' as const,
       source: 'priority_evolution' as const,
       node_id: u.desire_id,
       field: 'priority' as const,
@@ -547,4 +553,205 @@ export function priorityUpdatesToProposals(
       floor_violation: violatesFloor ? { floor: floor!, raw_value: u.new_value } : null,
     };
   });
+}
+
+// ── propose_new reflection proposals (t/1772) ──────────────
+//
+// The `propose_new` disposition lets a reflection suggestion create a NEW POV
+// taxonomy item (leaving existing nodes untouched) instead of editing one. This
+// adapter parses the raw LLM suggestions, validates the proposed edges against the
+// same anti-hallucination discipline used elsewhere in this path (t/1268), and
+// emits `NewPovItemProposal`s only when they are well-formed and non-orphaning.
+
+/** The 8 canonical edge types as a runtime set for validation. */
+const CANONICAL_EDGE_TYPES: ReadonlySet<CanonicalEdgeType> = new Set<CanonicalEdgeType>([
+  'SUPPORTS', 'CONTRADICTS', 'ASSUMES', 'WEAKENS',
+  'RESPONDS_TO', 'TENSION_WITH', 'INTERPRETS', 'CONVERGES_WITH',
+]);
+
+/** A proposed edge as parsed from a reflection LLM response (unvalidated). */
+export interface RawProposedEdge {
+  target_node_id?: unknown;
+  edge_type?: unknown;
+  new_node_role?: unknown;
+  rationale?: unknown;
+  confidence?: unknown;
+}
+
+/** A new-item reflection suggestion as parsed from an LLM response (unvalidated). */
+export interface RawNewItemSuggestion {
+  /** Exclusive disposition per suggestion: 'propose_new' | 'edit_existing'. */
+  disposition?: unknown;
+  pov?: unknown;
+  category?: unknown;
+  label?: unknown;
+  proposed_label?: unknown;
+  description?: unknown;
+  proposed_description?: unknown;
+  interpretations?: unknown;
+  rationale?: unknown;
+  proposed_edges?: unknown;
+}
+
+function normStr(v: unknown): string {
+  return typeof v === 'string' ? v.trim() : '';
+}
+
+function normalizeCategory(v: unknown): Category | null {
+  const s = normStr(v).toLowerCase();
+  if (s === 'beliefs' || s === 'belief') return 'Beliefs';
+  if (s === 'desires' || s === 'desire') return 'Desires';
+  if (s === 'intentions' || s === 'intention') return 'Intentions';
+  return null;
+}
+
+function normalizePov(v: unknown): PovKey | null {
+  const s = normStr(v).toLowerCase();
+  return (POV_KEYS as readonly string[]).includes(s) ? (s as PovKey) : null;
+}
+
+/**
+ * Ephemeral argument-network claim ids (AN-*) and crux-registry ids (crux-*) are
+ * NOT persisted taxonomy nodes — a new node may only attach to a persisted pov
+ * node or a situation node (sit- or cc- prefix). Guarded explicitly BEFORE fuzzy
+ * correction so a suffix-collision cannot silently rewrite an ephemeral id into a
+ * real node id.
+ */
+function isEphemeralOrCruxId(id: string): boolean {
+  return /^AN[-_]/i.test(id) || /^crux[-_]/i.test(id);
+}
+
+function recordReflectionDrop(debateId: string, reason: string, detail: Record<string, unknown>): void {
+  getGlobalRecorder()?.record({
+    type: 'system.info',
+    component: 'reflection-proposals',
+    level: 'warn',
+    debate_id: debateId,
+    message: `propose_new reflection dropped: ${reason}`,
+    data: { reason, ...detail },
+  });
+}
+
+function validateProposedEdges(
+  raw: RawProposedEdge[],
+  knownNodeIds: Set<string>,
+  debateId: string,
+): ProposedReflectionEdge[] {
+  const out: ProposedReflectionEdge[] = [];
+  for (const e of raw) {
+    const rationale = normStr(e.rationale);
+    if (!rationale) {
+      recordReflectionDrop(debateId, 'edge_missing_rationale', {});
+      continue;
+    }
+
+    const edgeTypeUpper = normStr(e.edge_type).toUpperCase();
+    if (!CANONICAL_EDGE_TYPES.has(edgeTypeUpper as CanonicalEdgeType)) {
+      recordReflectionDrop(debateId, 'edge_invalid_type', { edge_type: normStr(e.edge_type) });
+      continue;
+    }
+    const edge_type = edgeTypeUpper as CanonicalEdgeType;
+
+    const rawTarget = normStr(e.target_node_id);
+    if (!rawTarget) {
+      recordReflectionDrop(debateId, 'edge_missing_target', {});
+      continue;
+    }
+    if (isEphemeralOrCruxId(rawTarget)) {
+      recordReflectionDrop(debateId, 'edge_ephemeral_target', { target: rawTarget });
+      continue;
+    }
+    // Must resolve to a persisted taxonomy node id (pov-* or situation). knownNodeIds
+    // holds only persisted pov + situation ids, so unknown/hallucinated targets fall out.
+    const target_node_id = knownNodeIds.has(rawTarget)
+      ? rawTarget
+      : fuzzyCorrectNodeId(rawTarget, knownNodeIds);
+    if (!target_node_id) {
+      recordReflectionDrop(debateId, 'edge_unknown_target', { target: rawTarget });
+      continue;
+    }
+
+    const new_node_role: 'source' | 'target' =
+      normStr(e.new_node_role).toLowerCase() === 'target' ? 'target' : 'source';
+    const confidence =
+      typeof e.confidence === 'number' && Number.isFinite(e.confidence) ? e.confidence : undefined;
+
+    out.push({ target_node_id, edge_type, new_node_role, rationale, confidence });
+  }
+  return out;
+}
+
+/**
+ * Parse reflection suggestions with disposition `propose_new` into validated
+ * `NewPovItemProposal`s. Suggestions with any other disposition are ignored here
+ * (they flow through the weight/interpretation adapters). A proposal is dropped —
+ * never emitted as an orphan — when it lacks a label/description/rationale, has an
+ * unknown BDI category, or ends up with zero valid edges after validation.
+ */
+export function newItemSuggestionsToProposals(opts: {
+  suggestions: RawNewItemSuggestion[];
+  pov: PovKey;
+  debateId: string;
+  knownNodeIds: Set<string>;
+}): NewPovItemProposal[] {
+  const { suggestions, pov: defaultPov, debateId, knownNodeIds } = opts;
+  const proposals: NewPovItemProposal[] = [];
+
+  for (const s of suggestions) {
+    if (normStr(s.disposition) !== 'propose_new') continue;
+
+    const label = normStr(s.label) || normStr(s.proposed_label);
+    const description = normStr(s.description) || normStr(s.proposed_description);
+    const rationale = normStr(s.rationale);
+
+    // Require a substantive rationale — not a lazy default (evidence-gating, t/1701).
+    if (!label || !description || !rationale) {
+      recordReflectionDrop(debateId, 'missing_required_fields', {
+        hasLabel: !!label, hasDescription: !!description, hasRationale: !!rationale,
+      });
+      continue;
+    }
+
+    const category = normalizeCategory(s.category);
+    if (!category) {
+      recordReflectionDrop(debateId, 'invalid_category', { category: String((s as { category?: unknown }).category) });
+      continue;
+    }
+
+    const pov = normalizePov(s.pov) ?? defaultPov;
+
+    const validEdges = validateProposedEdges(
+      Array.isArray(s.proposed_edges) ? (s.proposed_edges as RawProposedEdge[]) : [],
+      knownNodeIds,
+      debateId,
+    );
+
+    // Zero valid edges → dropping avoids emitting an orphan-causing proposal.
+    if (validEdges.length < 1) {
+      recordReflectionDrop(debateId, 'no_valid_edges', { label });
+      continue;
+    }
+
+    const interpretations = Array.isArray(s.interpretations)
+      ? s.interpretations.map(normStr).filter((i): i is string => i.length > 0)
+      : undefined;
+
+    proposals.push({
+      kind: 'propose_new',
+      source: 'reflection_new_item',
+      node_id: '', // no persisted id yet — minted on human approval
+      reason: rationale,
+      debate_id: debateId,
+      requires_human_review: true,
+      pov,
+      category,
+      label,
+      description,
+      interpretations: interpretations && interpretations.length > 0 ? interpretations : undefined,
+      rationale,
+      proposed_edges: validEdges,
+    });
+  }
+
+  return proposals;
 }

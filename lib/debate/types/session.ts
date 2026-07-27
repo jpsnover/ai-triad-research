@@ -26,6 +26,8 @@ import type {
   ModeratorState,
   InterventionMetadata,
 } from './moderator.js';
+import type { PovKey } from './synthesis.js';
+import type { CanonicalEdgeType, Category } from '../taxonomyTypes.js';
 
 export type DialecticalScheme =
   | 'DISTINGUISH'         // Accept evidence, deny applicability to this context
@@ -511,7 +513,10 @@ export type WeightChangeSource =
   | 'operationality_evolution'
   | 'crux_weight_adjustment';
 
-export type ReflectionProposalSource = WeightChangeSource | 'situation_interpretation';
+export type ReflectionProposalSource =
+  | WeightChangeSource
+  | 'situation_interpretation'
+  | 'reflection_new_item';
 
 interface ReflectionProposalBase {
   source: ReflectionProposalSource;
@@ -523,6 +528,8 @@ interface ReflectionProposalBase {
 }
 
 export interface WeightChangeProposal extends ReflectionProposalBase {
+  /** Discriminant (t/1772): modifies an existing node's weight. */
+  kind: 'edit_existing';
   source: WeightChangeSource;
   field: 'confidence' | 'priority' | 'operationality';
   delta: number;
@@ -531,6 +538,8 @@ export interface WeightChangeProposal extends ReflectionProposalBase {
 }
 
 export interface InterpretationRevisionProposal extends ReflectionProposalBase {
+  /** Discriminant (t/1772): revises an existing situation node's interpretation. */
+  kind: 'edit_existing';
   source: 'situation_interpretation';
   camp: 'accelerationist' | 'safetyist' | 'skeptic';
   current_interpretation: string;
@@ -542,7 +551,46 @@ export interface InterpretationRevisionProposal extends ReflectionProposalBase {
   post_approval_action: 'regenerate_debate_register';
 }
 
-export type ReflectionProposal = WeightChangeProposal | InterpretationRevisionProposal;
+/**
+ * A single edge a `propose_new` reflection proposal wants to create between the
+ * new POV item and an EXISTING persisted taxonomy node (t/1772).
+ */
+export interface ProposedReflectionEdge {
+  /** An existing persisted taxonomy node id: a pov node, or a situation node (sit- or
+   *  cc- prefix). Never an ephemeral AN claim id (AN-) or a crux-registry id — those
+   *  are rejected at validation. */
+  target_node_id: string;
+  /** One of the 8 canonical edge types. */
+  edge_type: CanonicalEdgeType;
+  /** Whether the newly proposed node is the `source` or `target` endpoint of this edge. */
+  new_node_role: 'source' | 'target';
+  rationale: string;
+  confidence?: number;
+}
+
+/**
+ * Proposal to create a NEW POV taxonomy item (t/1772). Leaves all existing nodes
+ * untouched — the `propose_new` half of the unified reflection proposal. Because
+ * the node does not yet exist, `node_id` (from the base) is the empty string until
+ * a persisted id is minted on human approval.
+ */
+export interface NewPovItemProposal extends ReflectionProposalBase {
+  /** Discriminant (t/1772): creates a new node instead of editing an existing one. */
+  kind: 'propose_new';
+  source: 'reflection_new_item';
+  pov: PovKey;
+  category: Category;
+  label: string;
+  description: string;
+  interpretations?: string[];
+  rationale: string;
+  proposed_edges: ProposedReflectionEdge[];
+}
+
+export type ReflectionProposal =
+  | WeightChangeProposal
+  | InterpretationRevisionProposal
+  | NewPovItemProposal;
 
 // ── Perturbation testing (HDE Section B2) ───────────────
 

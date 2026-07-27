@@ -459,6 +459,7 @@ export function operationalityUpdatesToProposals(
   updates: OperationalityUpdate[],
 ): WeightChangeProposal[] {
   return updates.map(u => ({
+    kind: 'edit_existing' as const,
     source: 'operationality_evolution' as const,
     node_id: u.intention_id,
     field: 'operationality' as const,

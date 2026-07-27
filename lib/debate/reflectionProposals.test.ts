@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   confidenceUpdatesToProposals,
   priorityUpdatesToProposals,
+  newItemSuggestionsToProposals,
 } from './confidenceEvolution.js';
-import type { ConfidenceUpdate, PriorityUpdate } from './confidenceEvolution.js';
+import type { ConfidenceUpdate, PriorityUpdate, RawNewItemSuggestion } from './confidenceEvolution.js';
 import { operationalityUpdatesToProposals } from './operationalityEvolution.js';
 import type { OperationalityUpdate } from './operationalityEvolution.js';
 import { weightAdjustmentsToProposals } from './cruxTaxonomyFeedback.js';
@@ -268,6 +269,7 @@ describe('ReflectionProposal type shape', () => {
 
   it('weight and interpretation proposals coexist in ReflectionProposal[]', () => {
     const weightProposal: WeightChangeProposal = {
+      kind: 'edit_existing',
       source: 'confidence_evolution',
       node_id: 'acc-beliefs-001',
       field: 'confidence',
@@ -279,6 +281,7 @@ describe('ReflectionProposal type shape', () => {
       floor_violation: null,
     };
     const interpProposal: InterpretationRevisionProposal = {
+      kind: 'edit_existing',
       source: 'situation_interpretation',
       node_id: 'sit-001',
       camp: 'accelerationist',
@@ -294,6 +297,187 @@ describe('ReflectionProposal type shape', () => {
     expect(mixed).toHaveLength(2);
     expect(mixed[0].source).toBe('confidence_evolution');
     expect(mixed[1].source).toBe('situation_interpretation');
+    expect(mixed[0].kind).toBe('edit_existing');
+    expect(mixed[1].kind).toBe('edit_existing');
+  });
+
+  it('every weight/interp adapter stamps kind: edit_existing (no regression)', () => {
+    const confUpdate: ConfidenceUpdate = {
+      belief_id: 'b1', reason: 'survived', delta: 0.05, new_value: 0.55,
+      debate_id: 'd1', requires_human_review: false,
+    };
+    const priUpdate: PriorityUpdate = {
+      desire_id: 'd1', reason: 'crux_of_disagreement', delta: 1, new_value: 4, debate_id: 'd1',
+    };
+    const opUpdate: OperationalityUpdate = {
+      intention_id: 'i1', reason: 'productive_strategy', delta: 1, new_value: 4, debate_id: 'd1',
+    };
+    const wAdj: WeightAdjustment = {
+      node_id: 'n1', type: 'confidence', delta: -0.05,
+      reason: 'test', crux_description: 'test', irreducible_count: 2,
+    };
+
+    const all: ReflectionProposal[] = [
+      ...confidenceUpdatesToProposals([confUpdate]),
+      ...priorityUpdatesToProposals([priUpdate]),
+      ...operationalityUpdatesToProposals([opUpdate]),
+      ...weightAdjustmentsToProposals([wAdj], 'd1', new Map([['n1', 0.6]])),
+    ];
+    for (const p of all) {
+      expect(p.kind).toBe('edit_existing');
+    }
+  });
+});
+
+// ── propose_new reflection proposals (t/1772) ──────────────
+
+describe('newItemSuggestionsToProposals', () => {
+  const knownNodeIds = new Set(['saf-beliefs-002', 'saf-desires-003', 'sit-014', 'cc-042']);
+
+  function proposeNew(overrides: Partial<RawNewItemSuggestion> = {}): RawNewItemSuggestion {
+    return {
+      disposition: 'propose_new',
+      pov: 'safetyist',
+      category: 'Beliefs',
+      label: 'Epistemic Asymmetry',
+      proposed_description: 'A Belief within safetyist discourse that oversight lags capability.',
+      rationale: 'Turns S8 and S12 surfaced a distinct position with no existing node.',
+      proposed_edges: [
+        {
+          target_node_id: 'saf-beliefs-002',
+          edge_type: 'SUPPORTS',
+          new_node_role: 'source',
+          rationale: 'Reinforces saf-beliefs-002 per turn S8.',
+          confidence: 0.75,
+        },
+      ],
+      ...overrides,
+    };
+  }
+
+  it('generates a propose_new proposal carrying >=1 valid edge', () => {
+    const proposals = newItemSuggestionsToProposals({
+      suggestions: [proposeNew()],
+      pov: 'safetyist',
+      debateId: 'd1',
+      knownNodeIds,
+    });
+
+    expect(proposals).toHaveLength(1);
+    const p = proposals[0];
+    expect(p.kind).toBe('propose_new');
+    expect(p.source).toBe('reflection_new_item');
+    expect(p.pov).toBe('safetyist');
+    expect(p.category).toBe('Beliefs');
+    expect(p.label).toBe('Epistemic Asymmetry');
+    expect(p.description).toBeTruthy();
+    expect(p.rationale).toBeTruthy();
+    expect(p.requires_human_review).toBe(true);
+    expect(p.proposed_edges.length).toBeGreaterThanOrEqual(1);
+    const edge = p.proposed_edges[0];
+    expect(edge.target_node_id).toBe('saf-beliefs-002');
+    expect(edge.edge_type).toBe('SUPPORTS');
+    expect(edge.new_node_role).toBe('source');
+    expect(edge.rationale).toBeTruthy();
+  });
+
+  it('resolves a situation-node target (sit-*/cc-*) and accepts lowercase edge_type', () => {
+    const proposals = newItemSuggestionsToProposals({
+      suggestions: [proposeNew({
+        proposed_edges: [
+          { target_node_id: 'cc-042', edge_type: 'interprets', new_node_role: 'target', rationale: 'r' },
+        ],
+      })],
+      pov: 'safetyist', debateId: 'd2', knownNodeIds,
+    });
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0].proposed_edges[0].target_node_id).toBe('cc-042');
+    expect(proposals[0].proposed_edges[0].edge_type).toBe('INTERPRETS');
+  });
+
+  it('rejects an ephemeral AN-* claim id as an edge target (drops the orphaned proposal)', () => {
+    const proposals = newItemSuggestionsToProposals({
+      suggestions: [proposeNew({
+        proposed_edges: [
+          { target_node_id: 'AN-7', edge_type: 'SUPPORTS', new_node_role: 'source', rationale: 'r' },
+        ],
+      })],
+      pov: 'safetyist', debateId: 'd3', knownNodeIds,
+    });
+    expect(proposals).toHaveLength(0);
+  });
+
+  it('rejects a crux-registry id and an unknown/hallucinated node id', () => {
+    const proposals = newItemSuggestionsToProposals({
+      suggestions: [proposeNew({
+        proposed_edges: [
+          { target_node_id: 'crux-001', edge_type: 'SUPPORTS', new_node_role: 'source', rationale: 'r' },
+          { target_node_id: 'saf-beliefs-999', edge_type: 'SUPPORTS', new_node_role: 'source', rationale: 'r' },
+        ],
+      })],
+      pov: 'safetyist', debateId: 'd4', knownNodeIds,
+    });
+    expect(proposals).toHaveLength(0);
+  });
+
+  it('drops edges with an invalid edge_type but keeps valid ones', () => {
+    const proposals = newItemSuggestionsToProposals({
+      suggestions: [proposeNew({
+        proposed_edges: [
+          { target_node_id: 'saf-beliefs-002', edge_type: 'ENDORSES', new_node_role: 'source', rationale: 'r' },
+          { target_node_id: 'sit-014', edge_type: 'TENSION_WITH', new_node_role: 'target', rationale: 'r2' },
+        ],
+      })],
+      pov: 'safetyist', debateId: 'd5', knownNodeIds,
+    });
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0].proposed_edges).toHaveLength(1);
+    expect(proposals[0].proposed_edges[0].target_node_id).toBe('sit-014');
+  });
+
+  it('drops a propose_new with zero valid edges rather than emit an orphan', () => {
+    const proposals = newItemSuggestionsToProposals({
+      suggestions: [proposeNew({ proposed_edges: [] })],
+      pov: 'safetyist', debateId: 'd6', knownNodeIds,
+    });
+    expect(proposals).toHaveLength(0);
+  });
+
+  it('requires a substantive rationale (no lazy default)', () => {
+    const proposals = newItemSuggestionsToProposals({
+      suggestions: [proposeNew({ rationale: '   ' })],
+      pov: 'safetyist', debateId: 'd7', knownNodeIds,
+    });
+    expect(proposals).toHaveLength(0);
+  });
+
+  it('drops an edge missing its per-edge rationale', () => {
+    const proposals = newItemSuggestionsToProposals({
+      suggestions: [proposeNew({
+        proposed_edges: [
+          { target_node_id: 'saf-beliefs-002', edge_type: 'SUPPORTS', new_node_role: 'source' },
+        ],
+      })],
+      pov: 'safetyist', debateId: 'd8', knownNodeIds,
+    });
+    expect(proposals).toHaveLength(0);
+  });
+
+  it('ignores edit_existing suggestions (disposition is exclusive)', () => {
+    const proposals = newItemSuggestionsToProposals({
+      suggestions: [{ disposition: 'edit_existing', edit_type: 'revise', node_id: 'saf-beliefs-002' } as RawNewItemSuggestion],
+      pov: 'safetyist', debateId: 'd9', knownNodeIds,
+    });
+    expect(proposals).toHaveLength(0);
+  });
+
+  it('falls back to the caller pov when the suggested pov is invalid', () => {
+    const proposals = newItemSuggestionsToProposals({
+      suggestions: [proposeNew({ pov: 'not-a-pov' })],
+      pov: 'skeptic', debateId: 'd10', knownNodeIds,
+    });
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0].pov).toBe('skeptic');
   });
 });
 

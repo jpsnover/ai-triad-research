@@ -125,6 +125,7 @@ export function computeInterpretationRevisionProposals(opts: {
     const sit = sitById.get(key.sit_id)!;
     const interp = sit.interpretations[key.camp];
     proposals.push({
+      kind: 'edit_existing',
       source: 'situation_interpretation',
       node_id: key.sit_id,
       camp: key.camp,

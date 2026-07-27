@@ -248,6 +248,7 @@ export function weightAdjustmentsToProposals(
     const floor = doctrinalFloors?.get(a.node_id);
     const violatesFloor = field === 'priority' && floor != null && newValue < floor;
     return {
+      kind: 'edit_existing' as const,
       source: 'crux_weight_adjustment' as const,
       node_id: a.node_id,
       field,

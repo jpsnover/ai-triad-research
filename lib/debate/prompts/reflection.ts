@@ -211,11 +211,23 @@ Reflect on this debate with intellectual honesty. Consider:
 
 Based on this reflection, propose SPECIFIC EDITS to your own taxonomy nodes.
 
-Edit types:
+DISPOSITION — each suggestion chooses EXACTLY ONE (they are mutually exclusive):
+- "edit_existing": modify an EXISTING node (the default reflection behavior — REVISE / ADD / QUALIFY / DEPRECATE below).
+- "propose_new": introduce a genuinely NEW POV item AND wire it into the taxonomy with explicit edges. Leave every existing node untouched. Use this only when the debate surfaced a position that (a) has no existing node and (b) needs to be connected to the existing taxonomy to be meaningful.
+
+Edit types (apply when disposition = "edit_existing"):
 - REVISE: update an existing node's label or description to better reflect what the debate revealed
 - ADD: create a new node for a position that emerged during debate but has no existing node
 - QUALIFY: add caveats or nuance to an existing node based on valid counterarguments
 - DEPRECATE: mark a node as weak/unsupported if the debate effectively refuted it
+
+PROPOSE-NEW rules (apply when disposition = "propose_new"):
+- Provide: pov (accelerationist | safetyist | skeptic — normally your own), category (Beliefs | Desires | Intentions), label, description (genus-differentia format below), optional interpretations, and a rationale grounded in specific debate moments.
+- proposed_edges: 1 or MORE edges connecting the new item to the EXISTING taxonomy. A propose_new with zero valid edges will be DISCARDED — an unconnected node is useless.
+  - target_node_id: MUST be an EXISTING node id drawn from the taxonomy/context provided above (a pov-* id like "saf-beliefs-003", or a situation id like "sit-014"/"cc-042"). NEVER invent an id, NEVER use a transcript claim id (e.g. "AN-7"), and NEVER use a crux id.
+  - edge_type: MUST be exactly one of the 8 canonical types: SUPPORTS, CONTRADICTS, ASSUMES, WEAKENS, RESPONDS_TO, TENSION_WITH, INTERPRETS, CONVERGES_WITH.
+  - new_node_role: "source" if the new item is the origin of the edge, "target" if it is the destination.
+  - rationale: one sentence, per edge, naming why this relationship holds (cite the debate moment).
 
 Rules:
 - Only propose edits with clear debate evidence. Do not suggest changes based on general knowledge.
@@ -260,6 +272,7 @@ Return ONLY JSON (no markdown, no code fences):
   "reflection_summary": "2-3 short sentences (10th-grade reading level) on what this debate revealed about your perspective",
   "edits": [
     {
+      "disposition": "edit_existing",
       "edit_type": "revise",
       "node_id": "acc-beliefs-003",
       "category": "Beliefs",
@@ -272,6 +285,7 @@ Return ONLY JSON (no markdown, no code fences):
       "evidence_entries": ["S13", "S15"]
     },
     {
+      "disposition": "edit_existing",
       "edit_type": "add",
       "node_id": null,
       "category": "Desires",
@@ -282,6 +296,26 @@ Return ONLY JSON (no markdown, no code fences):
       "rationale": "The debate surfaced a position I argued strongly for in turns S5 and S9 that has no existing node...",
       "confidence": "medium",
       "evidence_entries": ["S5", "S9"]
+    },
+    {
+      "disposition": "propose_new",
+      "pov": "safetyist",
+      "category": "Beliefs",
+      "label": "New POV Item Label",
+      "proposed_description": "A Belief within safetyist discourse that [ONE concept]. Encompasses: [...]. Excludes: [...].",
+      "interpretations": ["Optional per-facet framings of this item"],
+      "rationale": "The debate in turns S8 and S12 surfaced a distinct position that no existing node captures; it must attach to the taxonomy to matter...",
+      "proposed_edges": [
+        {
+          "target_node_id": "saf-beliefs-002",
+          "edge_type": "SUPPORTS",
+          "new_node_role": "source",
+          "rationale": "This new item reinforces saf-beliefs-002 as shown in turn S8.",
+          "confidence": 0.75
+        }
+      ],
+      "confidence": "medium",
+      "evidence_entries": ["S8", "S12"]
     }
   ]
 }
