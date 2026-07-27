@@ -1644,3 +1644,22 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 7th hazard in the worktree-land cluster; a `/land-from-worktree` step-3 refinement ("copy changed files" → "re-apply edits onto origin-clean files, or content-diff vs origin before commit"). Handed to TL for the owner-gated batch.
 
 **Applies To:** All agents landing edits to *existing* files via a worktree — especially copying from a shared tree that may carry other agents' uncommitted WIP.
+
+## #80 [Process] Feedback Hook Silently Dead on Windows — `{workspace_root}` Expands Empty → Wrong Path → crash → exit 1 Suppresses With No Guidance
+
+**Pattern:** A feedback hook whose `run.args` reference `{workspace_root}` is **silently non-functional on Windows** because `{workspace_root}` expands to an **empty string**. Node receives `/operations/diagnostics/<script>.cjs`, which on Windows resolves to `c:\operations\...` (nonexistent), so the script crashes. The crash exits 1, which the runner treats as "suppress" — the hook neither runs its check NOR surfaces guidance. It **looks installed** (rule enabled, manifest present) but provides **zero coverage and zero signal** — a false-green worse than no hook, because everyone believes the guard is in place.
+
+**Instances:**
+- 2026-07-26 — Diagnostics (p/9#39, found while extending `check-git-commit-order.cjs`, commit 039f9501): `{workspace_root}` expanded empty on Windows → node got `/operations/diagnostics/check-git-commit-order.cjs` → resolved to `c:\operations\...` → crash → exit 1 → suppressed with no guidance. The regex fix (overlay-form coverage) is committed but **dead until the path expansion is resolved**. Almost certainly affects **every** hook whose args use `{workspace_root}` — including the `staged-files-after-commit` hook (#76's supposed mechanical defense).
+
+**Root Cause:** The hook-runner's `{workspace_root}` template variable does not expand on this Windows setup (empty string), so absolute-path construction in `run.args` silently produces a bogus root — the exact opposite of the standing Diagnostics rule "always use absolute paths via `{workspace_root}`", which assumed it resolves. Compounded by the runner's **exit-1 = suppress-silently** contract: a *crashing* hook is indistinguishable from a *passing* one, so the failure is invisible. Gate-signal-integrity failure (root #20/#46): a gate that can't run detects nothing and reports false-green. Sibling of #68 (feedback tooling lies about liveness) — there manifest-lag + false counters; here a crash masquerading as a pass.
+
+**Prevention:**
+1. **A hook is not "landed" until it's proven to FIRE on Windows** — enabled + manifest-present is not enough (#68). Trigger it deliberately and confirm the guidance appears; a hook that never emits output may be crashing, not passing.
+2. **Verify `{workspace_root}` actually expands** here before relying on it for hook script paths; if empty, resolve the script path inside the `.cjs` via `__dirname` rather than a template arg.
+3. **A crashing hook must not silently pass** — make hook failure visible (non-suppressing error surface); exit-1-as-suppress hides exactly the failure you most need to see.
+4. **Audit ALL `{workspace_root}` hooks for the same silent death** — not one hook's bug; every hook using that template on Windows is suspect (recommended a fleet-wide hook audit to Diagnostics).
+
+**Status:** Active — path-expansion fix pending (Diagnostics, p/9#39); the `check-git-commit-order` regex fix (039f9501) and the `staged-files-after-commit` hook are **inert on Windows until it lands**. **Retroactively qualifies every "mechanical hook defense landed" claim this session** (#76, the extended flag-order guard): committed but not actually guarding until `{workspace_root}` resolves — behavioral AGENTS.md rules are the only live defense meanwhile.
+
+**Applies To:** All agents (esp. Diagnostics) authoring or relying on feedback hooks on Windows — and Sage/TL when recording a hook as a "mechanical defense," which must carry a "proven-to-fire-on-Windows" caveat.
