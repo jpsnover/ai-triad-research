@@ -9,7 +9,8 @@
  * Exit 1 = suppress (command is fine or not a git commit).
  */
 
-const command = process.argv[2] || '';
+// argv[1] = {command} when invoked as `node -e SCRIPT {command}`
+const command = process.argv[1] || '';
 
 // Match both `git commit …` and `git --git-dir=… --work-tree=… commit …` (overlay form)
 if (!/\bgit\b.*\bcommit\b/.test(command) || !command.includes(' -- ')) {
