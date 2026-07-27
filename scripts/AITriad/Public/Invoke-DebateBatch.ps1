@@ -26,8 +26,22 @@ function Invoke-DebateBatch {
         Override path for debate-progress.json. Default: <OutputDirectory>/debate-progress.json.
     .PARAMETER StopOnFailure
         Halt the batch at the first failing debate. Default: continue past failures.
+    .PARAMETER Synthetic
+        Mark every debate in this batch as a synthetic/fixture run (t/1812). Sets the
+        process env var AI_TRIAD_SYNTHETIC_CALIBRATION=1 around the run so the debate
+        engine routes their calibration entries to calibration/fixtures/ instead of
+        core/, keeping the real store (and the t/1668 replication gate) clean. This is
+        the batch-wide default; it can also be set by a top-level "synthetic": true in
+        the batch config, and is overridden PER-DEBATE by a "synthetic" field on any
+        debate entry (so a mixed batch is classified per-debate, not blanket). The
+        signal is toggled per debate and restored after the run so it never leaks to a
+        later real debate in the same session. Do NOT tag real experiments (e.g.
+        exp-1069) — that would misroute genuine calibration data and shrink the gate's n.
     .EXAMPLE
         Invoke-DebateBatch -ConfigPath lib/debate/exp-1069-batch.json
+    .EXAMPLE
+        # Smoke/fixture batch — tag its calibration as synthetic:
+        Invoke-DebateBatch -ConfigPath lib/debate/smoke-batch.json -Synthetic
     .EXAMPLE
         # In one terminal:
         Invoke-DebateBatch -ConfigPath lib/debate/exp-1069-batch.json
@@ -63,7 +77,10 @@ function Invoke-DebateBatch {
         [string]$ProgressFile,
 
         [Parameter()]
-        [switch]$StopOnFailure
+        [switch]$StopOnFailure,
+
+        [Parameter()]
+        [switch]$Synthetic
     )
 
     Set-StrictMode -Version Latest
@@ -87,6 +104,14 @@ function Invoke-DebateBatch {
     }
 
     $BatchName = if ($Batch.PSObject.Properties['name']) { [string]$Batch.name } else { [System.IO.Path]::GetFileNameWithoutExtension($Resolved) }
+
+    # t/1812 — synthetic/fixture tagging. SELECTIVE + PER-DEBATE (TL p/24#148): a real
+    # experiment (exp-1069) must NOT be tagged or its calibration misroutes to fixtures/
+    # and shrinks the t/1668 gate's n. This is the batch-wide DEFAULT (authoritative:
+    # -Synthetic switch or a top-level "synthetic": true); a per-debate "synthetic"
+    # field in the config overrides it per debate in the loop below — never guessed, so
+    # a mixed batch is classified per-debate, not blanket.
+    $BatchSyntheticDefault = [bool]$Synthetic -or ($Batch.PSObject.Properties['synthetic'] -and [bool]$Batch.synthetic)
 
     # ── Resolve output dir + progress file ────────────────────
     if (-not $OutputDirectory) {
@@ -120,7 +145,20 @@ function Invoke-DebateBatch {
     $Results = [System.Collections.Generic.List[PSObject]]::new()
     $BatchStart = Get-Date
 
+    # t/1812 — process-scoped synthetic signal, toggled PER-DEBATE below and restored in
+    # finally so it never leaks to a real debate later in the same session. The engine
+    # reads it PER-WRITE (calibrationLogger/io.ts isSyntheticRun at the appendCalibrationLog
+    # funnel), and each Invoke-AITDebate spawns an engine child that inherits it at spawn.
+    $PrevSynthEnv = $env:AI_TRIAD_SYNTHETIC_CALIBRATION
+    try {
     foreach ($D in $Debates) {
+        # Per-debate classification: an explicit per-debate "synthetic" field wins;
+        # otherwise the batch-wide default. Set right before the Invoke-AITDebate spawn
+        # (child inherits env), cleared for real debates so a mixed batch never over-tags.
+        $DebateSynthetic = if ($D.PSObject.Properties['synthetic']) { [bool]$D.synthetic } else { $BatchSyntheticDefault }
+        if ($DebateSynthetic) { $env:AI_TRIAD_SYNTHETIC_CALIBRATION = '1' }
+        else { Remove-Item Env:AI_TRIAD_SYNTHETIC_CALIBRATION -ErrorAction SilentlyContinue }
+
         $Name = if ($D.PSObject.Properties['name']) { [string]$D.name } else { 'unnamed' }
         Write-Host "▶ $Name" -ForegroundColor Cyan
 
@@ -164,6 +202,12 @@ function Invoke-DebateBatch {
                 break
             }
         }
+    }
+    } finally {
+        # Restore the pre-batch value so the synthetic signal never leaks to a later
+        # real debate in the same session (t/1812).
+        if ([string]::IsNullOrEmpty($PrevSynthEnv)) { Remove-Item Env:AI_TRIAD_SYNTHETIC_CALIBRATION -ErrorAction SilentlyContinue }
+        else { $env:AI_TRIAD_SYNTHETIC_CALIBRATION = $PrevSynthEnv }
     }
 
     $BatchElapsed = ((Get-Date) - $BatchStart).TotalMinutes
