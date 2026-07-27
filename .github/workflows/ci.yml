@@ -157,19 +157,11 @@ jobs:
         working-directory: lib
         run: npm ci
 
-      - name: Audit dependencies
-        working-directory: ${{ matrix.app }}
-        # Audit production deps only — devDependencies (test/build tooling such as
-        # the azurite Storage emulator) never ship in the container, which is
-        # built with `npm ci --omit=dev`. Auditing them gated CI on advisories in
-        # tooling that has no production impact (t/697 azurite tree). Prod deps
-        # are still audited at --audit-level=high.
-        run: npm audit --audit-level=high --omit=dev
-
-      - name: Verify package provenance signatures
-        working-directory: ${{ matrix.app }}
-        continue-on-error: true
-        run: npm audit signatures
+      # NOTE: dependency audit + provenance moved OUT of this job into the
+      # standalone `dependency-audit` job below (t/1800). They used to sit here
+      # BEFORE Test with no continue-on-error, so an audit failure skipped Test
+      # repo-wide — a gate-integrity false-green. Test must never be masked by
+      # the security gate; the two are now independent jobs.
 
       - name: Lint
         working-directory: ${{ matrix.app }}
@@ -192,6 +184,62 @@ jobs:
         if: matrix.app == 'taxonomy-editor'
         working-directory: ${{ matrix.app }}
         run: npm run build
+
+  # ── Dependency audit: standalone security gate (t/1800) ──
+  # SPLIT OUT of test-electron so a security-audit failure can never skip Test
+  # again (the t/1800 false-green: audit sat before Test with no
+  # continue-on-error, so its failure on a dependabot high skipped Test +
+  # Test-with-coverage repo-wide). This is a REAL hard-failing gate on
+  # high/critical advisories in PRODUCTION deps only (--omit=dev; devDeps like
+  # the azurite emulator never ship — t/697). check-audit runs
+  # .github/scripts/ci-audit.mjs, which fails on any NEW/un-baselined advisory
+  # but tolerates the per-app baselines below. Baselines are co-located here
+  # (Gate Co-Location) WITH a rationale + owner follow-up ticket; clearing an
+  # advisory = delete its baseline line (the owner ticket tracks the dep bump).
+  dependency-audit:
+    needs: [changes]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.electron == 'true')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: taxonomy-editor
+            # GHSA-8r6m-32jq-jx6q  fast-xml-parser DoS (DOCTYPE entity-expansion reset).      owner: Taxonomy Editor → t/1801
+            # GHSA-f88m-g3jw-g9cj  sharp→libvips CVEs (via @huggingface/transformers).        owner: Taxonomy Editor → t/1801
+            baseline: "GHSA-8r6m-32jq-jx6q GHSA-f88m-g3jw-g9cj"
+          - app: poviewer
+            # GHSA-mh99-v99m-4gvg  brace-expansion DoS, transitive via gaxios→rimraf→glob→minimatch. owner: project/TL → t/1802
+            baseline: "GHSA-mh99-v99m-4gvg"
+          - app: summary-viewer
+            baseline: ""
+          - app: workflow-app
+            baseline: ""
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: '*/package-lock.json'
+
+      - name: Install dependencies (lockfile for audit)
+        working-directory: ${{ matrix.app }}
+        run: npm ci --ignore-scripts
+
+      - name: Audit production dependencies (real gate; baselines co-located above)
+        working-directory: ${{ matrix.app }}
+        env:
+          AUDIT_BASELINE: ${{ matrix.baseline }}
+        run: node ../.github/scripts/ci-audit.mjs .
+
+      - name: Verify package provenance signatures
+        working-directory: ${{ matrix.app }}
+        continue-on-error: true
+        run: npm audit signatures
 
   # ── Quality gates: 5MB byte-guard + CSS LOC ceiling (t/1292, B-408; ADR-007) ──
   # ENFORCING (t/1692): .ts/.tsx LOC is now owned by ESLint max-lines, co-located
