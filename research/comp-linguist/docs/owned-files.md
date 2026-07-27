@@ -55,6 +55,7 @@ Files the Computational Linguist holds **mandatory review authority** over. Chan
 | `ai-usages.json` → `enrichment.entity-extraction` | Entity extraction prompt (CL-owned instrument) | Mandatory |
 | `<data>/taxonomy/Origin/entities.json` | Entity records — DOLCE-typed (`entity_type` + `dolce_category`, genus-differentia descriptions) | Mandatory |
 | `<data>/taxonomy/Origin/entity_edges.json` | `EntityEdgeType` vocabulary — AIF-adjacent edge semantics | Mandatory |
+| `<data>/taxonomy/Origin/entity_embeddings.json` | Entity linking/dedup vectors; `model` + `dim` recorded in-file so a silent model swap is detectable (t/1804) | Mandatory |
 | **Other** | | |
 | `scripts/AITriad/Private/Get-EmbeddingClusters.ps1` | Embeddings | Mandatory |
 | `validation-report.json` | Validation outputs | Mandatory (sign-off) |
