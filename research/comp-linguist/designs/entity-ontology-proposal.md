@@ -52,7 +52,8 @@ The contested-vocabulary dictionary (`dictionary/colloquial/`, 24 do-not-use-bar
 
   That also splits the slice by ownership, which my original assignment got wrong by placing it with the panel rather than the detector. `disambiguateTerms` lives in `lib/debate/vocabularyDisambiguation.ts` (DebateTool); the `sessionSlice` call, the `vocabulary_resolutions` write, and rendering are DebateWorkspace.
 
-  - **DebateTool owes only span fidelity, and already provides it.** `DisambiguatedTerm` carries `offset` plus `bare`, which together give the span `[offset, offset + bare.length)`. The ask is to keep those accurate and stable, not to co-own the rule.
+  - **DebateTool owes only span fidelity, and already provides it.** `DisambiguatedTerm` carries `offset` plus `bare`, which together give the span `[offset, offset + bare.length)`. The ask is to keep those accurate and stable, not to co-own the rule. Confirmed at t/1767#40: the match is a fixed-length case-insensitive literal, `offset` is `match.index`, `bare` is `term.colloquial_term`, and any normalized form would arrive as a new field rather than by mutating these two.
+  - **Positioning and display text are different things** (DebateTool's caveat, t/1767#40). Because the match is case-**insensitive**, the source text at that span can differ in case from `bare`: a speaker writing "Risk" or "RISK" matches the dictionary's `risk`. The renderer must therefore use the span for **positioning** but take the display text from `text.substring(offset, offset + bare.length)`. Rendering `bare` directly would silently rewrite the speaker's casing into the dictionary's, which is a visible fidelity bug in a transcript whose whole value is showing what was actually said.
   - **DebateWorkspace owns the arbitration**, holding both streams at render and being the only place an overlap must resolve to one link.
 
 ## 3. Storage mirrors the org pattern
