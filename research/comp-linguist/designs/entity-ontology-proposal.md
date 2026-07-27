@@ -94,7 +94,15 @@ The renderer contract for t/1766 reduces to a detected `entity_ref` plus a `getE
 - The per-kind payload **reuses the type that already owns that data rather than restating it**: `org-*` returns the existing `Organization` from `lib/organizations/types.ts`; a node ref returns the existing taxonomy-node type; `pol-*` returns the policy-action record; `term:` returns the dictionary's colloquial entry with its resolved standardized senses; `ent-*` returns the entity record from Section 3. Only `ent-*` introduces a genuinely new shape.
 - An unresolvable ref is an explicit not-found result, not an exception and not an empty record, so the pane can say "no detail available" without inferring it from a null.
   - **Transport: HTTP 200 carrying the typed not-found result, not 404** (ServerAPI's read, t/1767#19, agreed). A resolve miss is a designed outcome here, not a transport failure: the mention layer deliberately leaves ambiguous mentions unlinked, and an entity can be merged or deprecated under a ref a client still holds. Putting a designed outcome in the error channel would make normal operation emit 404s, and a real 404 (missing route, bad deploy) would stop being signal. That is the gate-integrity failure we keep meeting from the other side, most recently t/1782, where expected-nulls scored as defects would have masked genuine ones. Reserving 404 for "no such route" also removes a debugging ambiguity, since `GET /api/entity/ent-999` returning 404 would otherwise mean either the route is wrong or the entity is absent.
-  - **One refinement, ServerAPI's call to take or leave:** a ref that does not parse as any known kind is a client error (**400**), distinct from a well-formed ref that resolves to nothing (**200 + not-found**). The first says "you built a bad ref" and is a renderer bug; the second is normal operation. The load-bearing half is 200 for resolve misses.
+  - **Settled `getEntity` status shape** (ServerAPI adopted the refinement, t/1767#20). Three outcomes, each in its own channel:
+
+    | Case | Status | Body |
+    |---|---|---|
+    | Unparseable or malformed ref | **400** | client error: the caller built a bad ref, which is a renderer bug |
+    | Well-formed ref, nothing resolves | **200** | typed not-found result in the envelope (a designed miss) |
+    | Resolved | **200** | typed per-kind record, plus `redirected_from` when a merge tombstone was followed |
+
+    The division keeps 4xx meaningful: a client bug lands in the error channel, a designed miss does not.
 
 This keeps the extend-and-unify rule at the API boundary too: the response is a thin envelope over records that already exist, so there is one definition of an organization in the system, not two.
 
