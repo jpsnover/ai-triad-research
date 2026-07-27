@@ -802,6 +802,11 @@ async function handleRequestInner(
     || urlPath === '/api/community/submit'
     // t/1788: /api/public/* is a reserved auth-exempt namespace — public read-only POV node share; nothing else may be added under it without Server Auth sign-off.
     || urlPath.startsWith('/api/public/')
+    // t/1789: /share/* serves the SPA shell to fully logged-out visitors (public
+    // POV share links). Static shell only (no /api/ dynamic surface); the public
+    // read data comes from /api/public/*. Reserved auth-exempt namespace — nothing
+    // added under it without Server Auth sign-off.
+    || urlPath.startsWith('/share/')
     || urlPath.startsWith('/.auth/')
     || urlPath.startsWith('/assets/')
     || urlPath === '/manifest.webmanifest'
