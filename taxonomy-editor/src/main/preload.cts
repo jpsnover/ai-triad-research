@@ -421,6 +421,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getOrganizationEdges: (orgId: string): Promise<unknown[]> =>
     ipcRenderer.invoke('get-organization-edges', orgId),
 
+  // Entity ref resolution (t/1809) — desktop transport for getEntity (t/1775).
+  // Returns the EntityDetail union (strongly typed on the renderer side in electron.d.ts).
+  getEntity: (ref: string): Promise<unknown> =>
+    ipcRenderer.invoke('entity-resolve', ref),
+
   loadDebateComments: (debateId: string): Promise<unknown> =>
     ipcRenderer.invoke('load-debate-comments', debateId),
 
