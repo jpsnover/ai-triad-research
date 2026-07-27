@@ -1681,3 +1681,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 8th worktree-land cluster hazard; the *supply side* of the bare-commit-sweep pattern (consumption side now 2 instances). **Procedure-not-followed, not a gap** (step 7 already mandates the safe form + forbids the checkout form). TL is adding a recovery line and reinforcing the primary rule in the owner-gated `/land-from-worktree` batch (p/8#93).
 
 **Applies To:** All agents running the worktree landing procedure's sync-back, and anyone using `git checkout <ref> -- <paths>` on the shared tree.
+
+## #82 [Process] Rule-Exists-But-Not-Applied — a Point-of-Use Failure Class (not a coverage gap)
+
+**Pattern:** A recurrence whose root cause is NOT a missing rule — the rule is written, correct, and in the right place (AGENTS.md / a skill step / a memory) — but it **doesn't fire at the moment of action**. The agent doesn't recall/apply it mid-task. Distinct triage class from "no rule exists": adding more prose won't fix it, because the failure is point-of-use, not coverage. The lever is a **point-of-use gate (PreToolUse hook)** where the signal is clean — converting the rule from something-to-remember into something-enforced.
+
+**Instances (running tally — tag every new one here so the class can be ranked by frequency, per TL p/8#95):**
+- 2026-07-17 — object-level git-forensics, **2nd config-failure instance** (Diagnostics, p/9#30): the "run `git diff HEAD -- <configfile>` before blaming a commit for config" rule existed in memory + root AGENTS.md but wasn't invoked mid-triage.
+- 2026-07-26 — strict-mode unguarded property access (TL, t/1726, p/8#88): the `PSObject.Properties` guard rule existed (scripts/AGENTS.md) but wasn't applied at 4 `.factual_claims` sites; a blanket property-access hook was ruled too noisy to scope.
+- 2026-07-26 — `/land-from-worktree` #81 (ServerAPI, p/79#10 / p/8#93): step 7 mandates `git restore --worktree` and explicitly forbids `git checkout … -- <files>`; the agent used the forbidden form anyway.
+
+**Root Cause:** Rules delivered as prose (AGENTS.md, skill steps, memory) depend on recall at the exact moment of action; under task focus/triage pressure the relevant rule often doesn't surface. Coverage (the rule exists) and application (it fires when needed) are different problems, and only the latter is failing here. The reliable fix is to move enforcement to the point of use — a gate that fires mechanically — but only where the trigger is cheaply and unambiguously detectable (the `ps-strict-mode-count-guard` `.Count` guard is the model; a blanket property-access hook was rejected as too noisy — that tradeoff still holds).
+
+**Prevention:**
+1. **Triage recurrences into two buckets:** "no rule exists" (→ write/escalate a rule) vs "rule exists but wasn't applied" (→ this class; more prose won't help). Record which bucket in the pattern's Status.
+2. **For the point-of-use class, tag every instance here and rank by frequency.** Per TL (p/8#95): **at the 4th rule-not-applied instance, TL specs a single point-of-use hook for the highest-frequency offender** rather than adding another rule. (Currently 3 instances, each a *different* offender — the count that triggers the spec is 4 of the *same* offender, or a clear frequency leader.)
+3. **A candidate becomes a hook only if the trigger is cleanly detectable** — greppable command shape, specific API call — else the noise defeats it (property-access lesson). Where it isn't hookable, the honest record is "rule is the only defense; recall is the residual risk."
+
+**Status:** Active — meta-pattern / tracker. Frame agreed with TL (p/8#94→#95). Sage's standing action: tag new rule-not-applied instances above and surface the frequency leader when the 4th lands.
+
+**Applies To:** Sage (triage + tagging) and TL (hook-spec decision) — and anyone tempted to answer a recurrence with "add a rule" when the rule already exists.
