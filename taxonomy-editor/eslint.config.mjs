@@ -101,7 +101,6 @@ export default tseslint.config(
   // origin/main — 38 LOC, under budget.)
   {
     files: [
-      'src/server/server.ts',                    // 3315
       // JUSTIFIED STANDING EXCEPTION (t/1688 ruling C) — NOT a pending shrink.
       // Monolithic stateful backend: the transport-seam split (GitHubRestClient) alone
       // lands ~1736 (still >1500), and clearing the ceiling forces a high-risk rewire of
