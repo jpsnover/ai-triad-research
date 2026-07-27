@@ -504,28 +504,23 @@ function Invoke-BatchSummary {
     }
     elseif ($MaxConcurrent -le 1) {
         foreach ($Doc in $DocsToProcess) {
-            try {
-                # Inject debate context for contested nodes into the system prompt
-                $DocSharedParams = $SharedParams.Clone()
-                if ($DebateContext.Count -gt 0) {
-                    $DebateNotes = @()
-                    foreach ($NodeId in $DebateContext.Keys) {
-                        $DebateNotes += "Node $NodeId has been contested in debates: $($DebateContext[$NodeId] -join ', '). Pay close attention to claims about this node."
-                    }
-                    if ($DebateNotes.Count -gt 0) {
-                        $DocSharedParams['SystemPromptTemplate'] = $SharedParams['SystemPromptTemplate'] + "`n`nDEBATE CONTEXT: The following taxonomy nodes have been the subject of structured debates. When this document makes claims relevant to these nodes, note whether the document provides evidence that could resolve the identified disagreements.`n" + ($DebateNotes -join "`n")
-                    }
+            # Inject debate context for contested nodes into the system prompt
+            $DocSharedParams = $SharedParams.Clone()
+            if ($DebateContext.Count -gt 0) {
+                $DebateNotes = @()
+                foreach ($NodeId in $DebateContext.Keys) {
+                    $DebateNotes += "Node $NodeId has been contested in debates: $($DebateContext[$NodeId] -join ', '). Pay close attention to claims about this node."
                 }
-                $Result = Invoke-DocumentSummary -Doc $Doc @DocSharedParams
-                # Normalize to PSCustomObject so Measure-Object -Property works in PS 5.1
-                # (hashtable keys aren't exposed as PSObject properties in 5.1).
-                if ($Result -is [hashtable]) { $Result = [PSCustomObject]$Result }
-                $Results.Add($Result)
+                if ($DebateNotes.Count -gt 0) {
+                    $DocSharedParams['SystemPromptTemplate'] = $SharedParams['SystemPromptTemplate'] + "`n`nDEBATE CONTEXT: The following taxonomy nodes have been the subject of structured debates. When this document makes claims relevant to these nodes, note whether the document provides evidence that could resolve the identified disagreements.`n" + ($DebateNotes -join "`n")
+                }
             }
-            catch {
-                Write-Warn "  ✗ $($Doc.DocId) — $($_.Exception.Message)"
-                $Results.Add([PSCustomObject]@{ Success = $false; DocId = $Doc.DocId; Error = $_.Exception.Message })
+            # t/1774 — shared capture: never throws, returns a failure record on error.
+            $Result = Invoke-DocSummaryWithCapture -Doc $Doc -Params $DocSharedParams
+            if ($Result.PSObject.Properties['Success'] -and -not $Result.Success) {
+                Write-Warn "  ✗ $($Doc.DocId) — $($Result.Error)"
             }
+            $Results.Add($Result)
         }
     } else {
         Write-Info "Running $MaxConcurrent parallel workers"
@@ -544,24 +539,13 @@ function Invoke-BatchSummary {
             $bag = $using:Results
             $Doc = $_
             $Params = $using:SharedParams
-            # t/1728 — per-doc try/catch so one runspace's throw does not terminate
-            # the whole parallel block (which would kill every in-flight doc and lose
-            # its result). The catch records a failure PSCustomObject INCLUDING
-            # $_.ScriptStackTrace — the real failing line inside the runspace, which
-            # PS otherwise swallows by re-attributing the throw to this outer line.
-            # Mirrors the sequential path's catch above.
-            try {
-                $Result = & $Mod { param($D, $P) Invoke-DocumentSummary -Doc $D @P } $Doc $Params
-                if ($Result -is [hashtable]) { $Result = [PSCustomObject]$Result }
-                [void]$bag.Add($Result)
-            }
-            catch {
-                [void]$bag.Add([PSCustomObject]@{
-                    Success = $false
-                    DocId   = $Doc.DocId
-                    Error   = "$($_.Exception.Message) | Stack: $($_.ScriptStackTrace)"
-                })
-            }
+            # t/1728/t/1774 — the shared capture fn (private) runs inside this runspace
+            # via the module scope. It never throws — it records a failure PSCustomObject
+            # with the inner $_.ScriptStackTrace on error — so one doc's failure cannot
+            # terminate the whole parallel block (which would kill every in-flight doc).
+            # See Invoke-DocSummaryWithCapture.
+            $Result = & $Mod { param($D, $P) Invoke-DocSummaryWithCapture -Doc $D -Params $P } $Doc $Params
+            [void]$bag.Add($Result)
         } -ThrottleLimit $MaxConcurrent
     }
 
