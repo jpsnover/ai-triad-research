@@ -34,6 +34,8 @@ import { generateAphorism } from '../../utils/regenerateAphorism';
 import { useDescriptionMode, resolveDescription, DescriptionToggle } from '../shared/DescriptionToggle';
 import { EmptyState } from '../shared/EmptyState';
 import { OverflowMenu, type OverflowMenuEntry } from '../shared/OverflowMenu';
+import { CopyLinkButton } from '../shared/CopyLinkButton';
+import { publicPovSharePath } from '../../utils/shareLinks';
 import { DebateTestedChip } from './DebateTestedChip';
 import { DebateTestedDrilldown } from './DebateTestedDrilldown';
 import './NodeDetail.css';
@@ -353,6 +355,9 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             )}
           </div>
           <div className="nd-header-actions">
+            {nodeTypeFromId(node.id) === 'pov' && (
+              <CopyLinkButton hash={publicPovSharePath(node.id)} title="Copy public link" />
+            )}
             {onSimilarSearch && (
               <button className="nd-header-btn" onClick={onSimilarSearch} title="Find similar taxonomy elements">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
