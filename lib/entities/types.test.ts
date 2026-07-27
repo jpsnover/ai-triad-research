@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseEntityRef, isEntityRefKind } from './types.js';
+import type { EntityDetail } from './types.js';
 
 describe('parseEntityRef', () => {
   it('classifies each kind by its prefix/shape', () => {
@@ -25,11 +26,28 @@ describe('parseEntityRef', () => {
 });
 
 describe('isEntityRefKind', () => {
-  it('accepts the five kinds and rejects others', () => {
+  it('accepts the six kinds and rejects others', () => {
     for (const k of ['node', 'situation', 'policy', 'entity', 'organization', 'term']) {
       expect(isEntityRefKind(k)).toBe(true);
     }
     expect(isEntityRefKind('vocab')).toBe(false);
     expect(isEntityRefKind('')).toBe(false);
+  });
+});
+
+describe('EntityDetail (result union)', () => {
+  it('discriminates on kind; not_found carries no record', () => {
+    const found = {
+      kind: 'organization',
+      ref: { kind: 'organization', id: 'org-001' },
+      record: { id: 'org-001' },
+    } as unknown as EntityDetail;
+    const miss: EntityDetail = { kind: 'not_found', ref: { kind: 'entity', id: 'ent-999' } };
+
+    const label = (d: EntityDetail): string => (d.kind === 'not_found' ? 'none' : d.kind);
+
+    expect(label(found)).toBe('organization');
+    expect(label(miss)).toBe('none');
+    expect('record' in miss).toBe(false); // designed miss: absent, not null
   });
 });
