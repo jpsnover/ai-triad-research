@@ -45,6 +45,7 @@ function makeFactCheck(
     webSearchQueries?: string[];
     webSearchCitations?: Array<{ url?: string; title?: string }>;
     targetAnId?: string;
+    discrepancy?: unknown;
   } = {},
 ): TranscriptEntry {
   return {
@@ -59,10 +60,19 @@ function makeFactCheck(
         web_search_used: opts.webSearchUsed ?? false,
         web_search_queries: opts.webSearchQueries ?? [],
         web_search_citations: opts.webSearchCitations ?? [],
+        ...(opts.discrepancy !== undefined ? { discrepancy: opts.discrepancy } : {}),
       },
     },
   };
 }
+
+const MAGNITUDE_MINOR = {
+  dimension: 'magnitude',
+  claimed: '12 states',
+  actual: '10 states',
+  source: 'conflict-042',
+  severity: 'minor',
+} as const;
 
 function makePreciseBelief(
   id: string,
@@ -185,6 +195,76 @@ describe('VerificationSection — verdict badges', () => {
       el => (el as HTMLElement).classList?.contains('verdict-chip--flag'),
     );
     expect(flagBadge).toBeDefined();
+  });
+});
+
+describe('VerificationSection — partially_accurate must not fold into a clean pass (t/1717)', () => {
+  it('maps "partially_accurate" to the distinct caveat bin, NOT pass', () => {
+    const transcript = [makeFactCheck('partially_accurate', 'a partially accurate claim')];
+    render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
+    const badges = screen.getAllByText(/partially_accurate/);
+    const caveatBadge = badges.find(
+      el => (el as HTMLElement).classList?.contains('verdict-chip--caveat'),
+    );
+    expect(caveatBadge).toBeDefined();
+    // Explicitly NOT a pass (the whole point of the taxonomy change).
+    const passBadge = badges.find(
+      el => (el as HTMLElement).classList?.contains('verdict-chip--pass'),
+    );
+    expect(passBadge).toBeUndefined();
+  });
+
+  it('renders a partially_accurate badge in the verdict row', () => {
+    const transcript = [
+      makeFactCheck('supported', 'clean claim'),
+      makeFactCheck('partially_accurate', 'imprecise claim'),
+    ];
+    render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
+    expect(screen.getAllByText(/partially_accurate/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('surfaces severity distinctly in the collapsed detail header when a discrepancy is present', () => {
+    const transcript = [
+      makeFactCheck('partially_accurate', 'twelve states claim', { discrepancy: MAGNITUDE_MINOR }),
+    ];
+    render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
+    // MINOR severity tag visible without expanding.
+    expect(screen.getByText('MINOR')).toBeInTheDocument();
+  });
+
+  it('shows the full discrepancy (dimension, claimed→actual, source) in the expanded row', async () => {
+    const transcript = [
+      makeFactCheck('partially_accurate', 'twelve states claim', { discrepancy: MAGNITUDE_MINOR }),
+    ];
+    render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
+    await userEvent.click(screen.getByText('twelve states claim'));
+    expect(screen.getByText(/magnitude/i)).toBeInTheDocument();
+    expect(screen.getByText(/12 states/)).toBeInTheDocument();
+    expect(screen.getByText(/10 states/)).toBeInTheDocument();
+    expect(screen.getByText(/conflict-042/)).toBeInTheDocument();
+  });
+
+  it('renders a MAJOR severity tag for a major discrepancy', () => {
+    const transcript = [
+      makeFactCheck('partially_accurate', 'major-error claim', {
+        discrepancy: { ...MAGNITUDE_MINOR, severity: 'major' },
+      }),
+    ];
+    render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
+    expect(screen.getByText('MAJOR')).toBeInTheDocument();
+  });
+
+  it('ignores a malformed discrepancy (missing source) — no severity tag, no crash', () => {
+    const transcript = [
+      makeFactCheck('partially_accurate', 'no-source claim', {
+        discrepancy: { dimension: 'magnitude', claimed: '12', actual: '10', severity: 'minor' },
+      }),
+    ];
+    render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
+    expect(screen.queryByText('MINOR')).not.toBeInTheDocument();
+    // The verdict badge still renders in its caveat bin.
+    const badges = screen.getAllByText(/partially_accurate/);
+    expect(badges.find(el => (el as HTMLElement).classList?.contains('verdict-chip--caveat'))).toBeDefined();
   });
 });
 

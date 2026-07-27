@@ -3,7 +3,11 @@
 
 import './VerdictChip.css';
 
-export type Verdict = 'pass' | 'flag' | 'fail';
+// `caveat` sits between `pass` and `fail`: the core claim holds but the evidence
+// found a specific, sourced discrepancy in a detail (fact-check `partially_accurate`).
+// Kept visually distinct from `pass` so a substantially-accurate-with-imprecision
+// verdict never reads as a clean pass.
+export type Verdict = 'pass' | 'caveat' | 'flag' | 'fail';
 
 interface VerdictChipProps {
   verdict: Verdict;
@@ -13,6 +17,7 @@ interface VerdictChipProps {
 
 const VERDICT_LABELS: Record<Verdict, string> = {
   pass: 'PASS',
+  caveat: 'CAVEAT',
   flag: 'FLAG',
   fail: 'FAIL',
 };

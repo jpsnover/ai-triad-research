@@ -3,6 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import type { ArgumentNetworkNode } from '../../../types/debate';
+import type { FactDiscrepancy } from '@lib/debate/types';
 import { CollapsibleSection } from './helpers';
 import { VerdictChip } from '../window/shared/VerdictChip';
 import type { Verdict } from '../window/shared/VerdictChip';
@@ -12,14 +13,49 @@ export interface VerificationSectionProps {
   anNodes: ArgumentNetworkNode[];
 }
 
-const VERDICT_ORDER = ['supported', 'disputed', 'false', 'unverifiable', 'pending', 'unknown'];
+// `partially_accurate` (evidence-gated, t/1701) sits between `supported` and
+// `disputed`: the core claim holds but a sourced detail is off. It must NOT fold
+// into a clean pass — see mapFactCheckVerdict.
+const VERDICT_ORDER = ['supported', 'partially_accurate', 'disputed', 'false', 'unverifiable', 'pending', 'unknown'];
 
 function mapFactCheckVerdict(v: string): Verdict {
   switch (v) {
     case 'supported': return 'pass';
+    case 'partially_accurate': return 'caveat';
     case 'disputed': case 'false': return 'fail';
     default: return 'flag';
   }
+}
+
+const DISCREPANCY_SEVERITIES = new Set<FactDiscrepancy['severity']>(['minor', 'major']);
+const DISCREPANCY_DIMENSIONS = new Set<FactDiscrepancy['dimension']>([
+  'magnitude', 'temporal', 'attribution', 'scope', 'existence',
+]);
+
+/**
+ * Defensively lift a `discrepancy` object out of untyped fact-check metadata.
+ * Returns a `FactDiscrepancy` only when the required evidence fields are present
+ * and the enums are valid; otherwise `undefined` (metadata is best-effort — the
+ * upstream write sites may not populate it yet).
+ */
+function parseDiscrepancy(raw: unknown): FactDiscrepancy | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const d = raw as Record<string, unknown>;
+  const { dimension, claimed, actual, source, severity } = d;
+  if (
+    typeof claimed !== 'string' || typeof actual !== 'string' || typeof source !== 'string' ||
+    typeof dimension !== 'string' || !DISCREPANCY_DIMENSIONS.has(dimension as FactDiscrepancy['dimension']) ||
+    typeof severity !== 'string' || !DISCREPANCY_SEVERITIES.has(severity as FactDiscrepancy['severity'])
+  ) {
+    return undefined;
+  }
+  return {
+    dimension: dimension as FactDiscrepancy['dimension'],
+    claimed,
+    actual,
+    source,
+    severity: severity as FactDiscrepancy['severity'],
+  };
 }
 
 interface ParsedFactCheck {
@@ -31,6 +67,7 @@ interface ParsedFactCheck {
   webSearchQueries: string[];
   webSearchCitations: Array<{ url?: string; title?: string }>;
   targetAnId?: string;
+  discrepancy?: FactDiscrepancy;
 }
 
 function parseFactCheckMeta(meta: Record<string, unknown>): ParsedFactCheck {
@@ -44,7 +81,51 @@ function parseFactCheckMeta(meta: Record<string, unknown>): ParsedFactCheck {
     webSearchQueries: Array.isArray(fc.web_search_queries) ? fc.web_search_queries as string[] : [],
     webSearchCitations: Array.isArray(fc.web_search_citations) ? fc.web_search_citations as Array<{ url?: string; title?: string }> : [],
     targetAnId: fc.target_an_id as string | undefined,
+    discrepancy: parseDiscrepancy(fc.discrepancy),
   };
+}
+
+/** Distinct severity pill — `major` weakens the claim materially (danger), `minor` does not (warning). */
+function SeverityTag({ severity }: { severity: FactDiscrepancy['severity'] }) {
+  const color = severity === 'major' ? 'var(--danger)' : 'var(--warning)';
+  return (
+    <span
+      title={severity === 'major' ? 'Major: materially weakens the claim (direction still holds)' : 'Minor: does not change the claim’s force'}
+      style={{
+        fontSize: 'var(--text-2xs)',
+        fontWeight: 700,
+        letterSpacing: '0.5px',
+        padding: '1px 6px',
+        borderRadius: 8,
+        color,
+        background: `color-mix(in srgb, ${color} 15%, transparent)`,
+        flexShrink: 0,
+      }}
+    >
+      {severity.toUpperCase()}
+    </span>
+  );
+}
+
+/** Per-verdict discrepancy detail for a `partially_accurate` fact-check: what was off, and the source that establishes it. */
+function DiscrepancyDetail({ discrepancy }: { discrepancy: FactDiscrepancy }) {
+  return (
+    <div
+      className="diag-muted"
+      style={{ fontSize: 'var(--text-2xs)', marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}
+    >
+      <div>
+        <SeverityTag severity={discrepancy.severity} />{' '}
+        <span style={{ textTransform: 'capitalize' }}>{discrepancy.dimension}</span> discrepancy
+      </div>
+      <div>
+        Claimed <span style={{ color: 'var(--text-primary)' }}>&ldquo;{discrepancy.claimed}&rdquo;</span>
+        {' → '}
+        actual <span style={{ color: 'var(--text-primary)' }}>&ldquo;{discrepancy.actual}&rdquo;</span>
+      </div>
+      <div>Source: {discrepancy.source}</div>
+    </div>
+  );
 }
 
 export function VerificationSection({ transcript, anNodes }: VerificationSectionProps) {
@@ -160,12 +241,14 @@ export function VerificationSection({ transcript, anNodes }: VerificationSection
               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedIdx(expandedIdx === i ? null : i); } }}>
               <div className="factcheck-detail-header">
                 <VerdictChip verdict={mapFactCheckVerdict(fc.verdict)} label={fc.verdict} />
+                {fc.discrepancy && <SeverityTag severity={fc.discrepancy.severity} />}
                 <span className="factcheck-detail-claim">{fc.checkedText}</span>
                 <span className="diag-muted" style={{ fontSize: 'var(--text-2xs)' }}>{fc.isAuto ? 'auto' : 'user'}{fc.webSearchUsed ? ' · web' : ''}</span>
               </div>
               {expandedIdx === i && (
                 <div className="factcheck-detail-expanded">
                   <div className="factcheck-detail-explanation">{fc.explanation}</div>
+                  {fc.discrepancy && <DiscrepancyDetail discrepancy={fc.discrepancy} />}
                   {fc.targetAnId && <div className="diag-muted" style={{ fontSize: 'var(--text-2xs)' }}>AN node: {fc.targetAnId}</div>}
                   {fc.webSearchQueries.length > 0 && (
                     <div className="diag-muted" style={{ fontSize: 'var(--text-2xs)' }}>Queries: {fc.webSearchQueries.slice(0, 3).join(', ')}</div>
