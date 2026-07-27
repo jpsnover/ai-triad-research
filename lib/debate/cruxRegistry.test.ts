@@ -210,6 +210,28 @@ describe('persistDebateCruxes', () => {
     expect(reg.entries[0].related_taxonomy_nodes).toContain('saf-desires-002');
   });
 
+  it('persists and reloads a terminal `undecided` crux — guard-2 state/persistence agreement (t/1676)', async () => {
+    // Guard-2 (TL t/1676#6): the literal terminal `undecided` state set by the debate-end
+    // finalization sweep must survive persistDebateCruxes → loadRegistry, so the persisted
+    // registry AGREES with the in-session crux.state. The pre-t/1676 retention filter kept
+    // only `irreducible || engaged`; without adding `undecided` to it, a finalized crux would
+    // be silently dropped and state/persistence would disagree. This asserts the round-trip.
+    const session = makeSession([
+      makeCrux({
+        id: 'crux-undecided',
+        state: 'undecided',
+        history: [{ from: 'identified', to: 'undecided', turn: 5, trigger: 'Debate ended without cross-engagement' }],
+      }),
+    ]);
+    const result = await persistDebateCruxes(session, TMP_DIR, mockEmbed);
+    expect(result).toEqual({ merged: 0, created: 1 });
+
+    const reloaded = loadRegistry(TMP_DIR);
+    expect(reloaded.entries).toHaveLength(1);
+    expect(reloaded.entries[0].occurrences).toHaveLength(1);
+    expect(reloaded.entries[0].occurrences[0].final_state).toBe('undecided');
+  });
+
   it('merges occurrence when crux is similar (>0.80)', async () => {
     const existingEntry = makeEntry({
       embedding: makeEmbedding(47),
