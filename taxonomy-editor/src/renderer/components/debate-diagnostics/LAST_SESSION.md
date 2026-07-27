@@ -1,5 +1,5 @@
 **Date:** 2026-07-27
-**Working on:** t/1736 — extract the 50-line directory tree from always-on AGENTS.md into role-local FILES.md (Phase 2 of role-instruction audit, parent t/1731).
-**Status:** Complete. Marked Done. Two-repo commit split per t/1731#1 convention: FILES.md via git (SHA 23ef7b90), AGENTS.md pointer via ogit (SHA 0fb5532).
-**Key context:** FILES.md is a normal project-repo file → `git` by pathspec; AGENTS.md is overlay-tracked → `ogit`. Two commits, two repos — never cross them. Pointer left in AGENTS.md: `**File inventory / directory map → [FILES.md](./FILES.md)**`. Behavioral norms (Conventions/Dependencies/Testing) untouched — reference-only move. Post-commit `ogit diff HEAD -- AGENTS.md` empty (no sync revert). /trivial-change self-cert, no TL review (docs-only).
-**Next:** Re-check queue for next unblocked ticket (drain-until-budget, 3-ticket cap).
+**Working on:** t/1756 — dedup root-inherited restatements from AGENTS.md (Phase 3 of role-instruction audit, parent t/1732). Follows the Phase-2 FILES.md extraction (t/1736).
+**Status:** Complete. Marked Done. AGENTS.md committed via ogit (SHA e5d439b, -2 lines).
+**Key context:** Deleted two restatements the role inherits from root/parent: flight-recorder-in-every-catch (ADR-003, ESLint-enforced) + prompt-templates-in-prompts (parent Conventions). KEPT the scope-specific `@lib/debate` types rule and the light "Follow Taxonomy Editor conventions" pointer. Verify-before-delete per t/1732#1: only true root-inherited redundancy removed; gate (not prose) secures ADR compliance. Doc-only → ogit only, no git-side change. Post-commit `ogit diff HEAD -- AGENTS.md` empty. /trivial-change self-cert.
+**Next:** Re-check queue for next unblocked ticket (drain-until-budget, 3-ticket cap). Only remaining assigned ticket is t/1717 (Backlog, blocked by t/1715 in another role's scope).
