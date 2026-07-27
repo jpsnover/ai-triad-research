@@ -482,7 +482,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
                       ...updatedNodes[idx],
                       base_strength: result.computed_strength,
                       scoring_method: 'evidence_qbaf',
-                      verification_status: result.computed_strength >= 0.6 ? 'verified'
+                      verification_status: result.computed_strength >= 0.6 ? 'supported'
                         : result.computed_strength <= 0.4 ? 'disputed' : 'unverifiable',
                       evidence_graph: {
                         evidence_items: result.evidence_items,

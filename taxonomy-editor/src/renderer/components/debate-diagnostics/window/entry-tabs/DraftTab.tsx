@@ -486,7 +486,7 @@ export function DraftTab({
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, fontSize: '0.7rem' }}>
               <span style={{
                 padding: '1px 8px', borderRadius: 4, fontWeight: 600, color: 'var(--text-primary)',
-                background: verdict === 'verified' || verdict === 'supported' ? 'var(--success)' : verdict === 'disputed' || verdict === 'false' ? 'var(--danger)' : 'var(--text-muted)',
+                background: verdict === 'supported' ? 'var(--success)' : verdict === 'disputed' || verdict === 'false' ? 'var(--danger)' : 'var(--text-muted)',
               }}>{verdict ?? 'unknown'}</span>
               <span style={{ color: 'var(--text-muted)' }}>{isAuto ? 'auto-verified' : 'user-initiated'}</span>
               {targetAnId && <span style={{ color: 'var(--text-muted)' }}>AN: {targetAnId}</span>}

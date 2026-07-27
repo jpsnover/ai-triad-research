@@ -8632,7 +8632,7 @@ body {
 .factcheck-detail-explanation { font-size: var(--text-2xs); line-height: 1.4; white-space: pre-wrap; color: var(--text-primary); }
 
 /* Intervention diagnostics */
-.diag-verification-verified { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); font-size: var(--text-2xs); cursor: default; }
+.diag-verification-supported { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); font-size: var(--text-2xs); cursor: default; }
 .diag-verification-disputed { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); font-size: var(--text-2xs); cursor: default; }
 .diag-verification-unverifiable { background: color-mix(in srgb, var(--text-muted) 15%, transparent); color: var(--text-muted); font-size: var(--text-2xs); cursor: default; }
 .diag-ledger-entry { margin: 4px 0; padding: 4px 0; border-bottom: 1px solid var(--border); }

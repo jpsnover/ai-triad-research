@@ -1167,7 +1167,7 @@ export async function extractClaimsAndUpdateAN(
           factCheckMutated = true;
           phaseGuardedSet(get, set, {});  // trigger re-render without clobbering phase
 
-          if (verdict === 'disputed' || verdict === 'verified' || verdict === 'supported') {
+          if (verdict === 'disputed' || verdict === 'supported') {
             const addEntry = get().addTranscriptEntry;
             const hasWeb = !!webContext && webContext !== '(Web search unavailable)';
             const webNote = webQueries.length > 0
@@ -1176,7 +1176,7 @@ export async function extractClaimsAndUpdateAN(
                 ? '\n\n*Verified against web search results*'
                 : '';
             if (addEntry) {
-              const verdictLabel = verdict === 'disputed' ? 'Disputed' : verdict === 'supported' ? 'Supported' : 'Verified';
+              const verdictLabel = verdict === 'disputed' ? 'Disputed' : 'Supported';
               addEntry({
                 type: 'fact-check',
                 speaker: 'system',

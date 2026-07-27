@@ -12,11 +12,11 @@ export interface VerificationSectionProps {
   anNodes: ArgumentNetworkNode[];
 }
 
-const VERDICT_ORDER = ['verified', 'supported', 'disputed', 'false', 'unverifiable', 'pending', 'unknown'];
+const VERDICT_ORDER = ['supported', 'disputed', 'false', 'unverifiable', 'pending', 'unknown'];
 
 function mapFactCheckVerdict(v: string): Verdict {
   switch (v) {
-    case 'verified': case 'supported': return 'pass';
+    case 'supported': return 'pass';
     case 'disputed': case 'false': return 'fail';
     default: return 'flag';
   }

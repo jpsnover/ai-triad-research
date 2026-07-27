@@ -323,7 +323,7 @@ function PanelArgumentNetwork({ an }: { an: { nodes: ArgumentNetworkNode[]; edge
               })()}
               {n.verification_status && (
                 <span className={`diag-badge diag-verification-${n.verification_status}`} title={n.verification_evidence || n.verification_status}>
-                  {n.verification_status === 'verified' ? 'V' : n.verification_status === 'disputed' ? 'X' : '?'}
+                  {n.verification_status === 'supported' ? 'V' : n.verification_status === 'disputed' ? 'X' : '?'}
                 </span>
               )}
             </div>

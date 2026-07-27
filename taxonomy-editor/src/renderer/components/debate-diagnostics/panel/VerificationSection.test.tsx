@@ -107,14 +107,14 @@ describe('VerificationSection — hidden when empty', () => {
 
 describe('VerificationSection — renders when data is present', () => {
   it('renders the section title', () => {
-    const transcript = [makeFactCheck('verified', 'AI is advancing rapidly')];
+    const transcript = [makeFactCheck('supported', 'AI is advancing rapidly')];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
     expect(screen.getByTestId('collapsible-title')).toHaveTextContent('Fact-Check Verification');
   });
 
   it('shows total check count', () => {
     const transcript = [
-      makeFactCheck('verified', 'claim 1'),
+      makeFactCheck('supported', 'claim 1'),
       makeFactCheck('disputed', 'claim 2'),
     ];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
@@ -124,7 +124,7 @@ describe('VerificationSection — renders when data is present', () => {
 
   it('counts auto and user checks separately', () => {
     const transcript = [
-      makeFactCheck('verified', 'auto claim', { isAuto: true, targetAnId: 'acc-B-001' }),
+      makeFactCheck('supported', 'auto claim', { isAuto: true, targetAnId: 'acc-B-001' }),
       makeFactCheck('supported', 'user claim'),
     ];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
@@ -136,21 +136,21 @@ describe('VerificationSection — renders when data is present', () => {
 describe('VerificationSection — verdict badges', () => {
   it('renders a verdict badge for each unique verdict', () => {
     const transcript = [
-      makeFactCheck('verified', 'claim A'),
+      makeFactCheck('supported', 'claim A'),
       makeFactCheck('disputed', 'claim B'),
     ];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
     // Both verdicts should appear in the badge row
-    const verifiedBadge = screen.getAllByText(/verified/);
-    expect(verifiedBadge.length).toBeGreaterThanOrEqual(1);
+    const supportedBadge = screen.getAllByText(/supported/);
+    expect(supportedBadge.length).toBeGreaterThanOrEqual(1);
     const disputedBadge = screen.getAllByText(/disputed/);
     expect(disputedBadge.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('applies pass verdict class to "verified" verdict badge', () => {
-    const transcript = [makeFactCheck('verified', 'a verified claim')];
+  it('applies pass verdict class to "supported" verdict badge', () => {
+    const transcript = [makeFactCheck('supported', 'a supported claim')];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
-    const badges = screen.getAllByText(/verified/);
+    const badges = screen.getAllByText(/supported/);
     const passBadge = badges.find(
       el => (el as HTMLElement).classList?.contains('verdict-chip--pass'),
     );
@@ -191,7 +191,7 @@ describe('VerificationSection — verdict badges', () => {
 describe('VerificationSection — detail rows', () => {
   it('renders each fact-check as a clickable row', () => {
     const transcript = [
-      makeFactCheck('verified', 'claim one'),
+      makeFactCheck('supported', 'claim one'),
       makeFactCheck('disputed', 'claim two'),
     ];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
@@ -201,25 +201,25 @@ describe('VerificationSection — detail rows', () => {
 
   it('displays full checked text without truncation', () => {
     const longText = 'A'.repeat(200);
-    const transcript = [makeFactCheck('verified', longText)];
+    const transcript = [makeFactCheck('supported', longText)];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
     expect(screen.getByText(longText)).toBeInTheDocument();
   });
 
   it('shows "auto" label for auto fact-checks', () => {
-    const transcript = [makeFactCheck('verified', 'auto checked', { isAuto: true, targetAnId: 'acc-B-001' })];
+    const transcript = [makeFactCheck('supported', 'auto checked', { isAuto: true, targetAnId: 'acc-B-001' })];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
     expect(screen.getByText('auto')).toBeInTheDocument();
   });
 
   it('shows "user" label for user fact-checks', () => {
-    const transcript = [makeFactCheck('verified', 'user checked')];
+    const transcript = [makeFactCheck('supported', 'user checked')];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
     expect(screen.getByText('user')).toBeInTheDocument();
   });
 
   it('shows "· web" suffix when webSearchUsed is true', () => {
-    const transcript = [makeFactCheck('verified', 'web claim', { webSearchUsed: true })];
+    const transcript = [makeFactCheck('supported', 'web claim', { webSearchUsed: true })];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
     expect(screen.getByText(/· web/)).toBeInTheDocument();
   });
@@ -228,14 +228,14 @@ describe('VerificationSection — detail rows', () => {
 describe('VerificationSection — expand detail row', () => {
   it('does not show explanation before row is clicked', () => {
     const explanation = 'This is the detailed explanation';
-    const transcript = [makeFactCheck('verified', 'some claim', { explanation })];
+    const transcript = [makeFactCheck('supported', 'some claim', { explanation })];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
     expect(screen.queryByText(explanation)).not.toBeInTheDocument();
   });
 
   it('shows explanation after row is clicked', async () => {
     const explanation = 'This is the detailed explanation';
-    const transcript = [makeFactCheck('verified', 'some claim', { explanation })];
+    const transcript = [makeFactCheck('supported', 'some claim', { explanation })];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
     await userEvent.click(screen.getByText('some claim'));
     expect(screen.getByText(explanation)).toBeInTheDocument();
@@ -243,7 +243,7 @@ describe('VerificationSection — expand detail row', () => {
 
   it('collapses an open row when clicked again', async () => {
     const explanation = 'Detailed explanation text';
-    const transcript = [makeFactCheck('verified', 'some claim', { explanation })];
+    const transcript = [makeFactCheck('supported', 'some claim', { explanation })];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
     await userEvent.click(screen.getByText('some claim'));
     expect(screen.getByText(explanation)).toBeInTheDocument();
@@ -253,7 +253,7 @@ describe('VerificationSection — expand detail row', () => {
 
   it('shows target AN node id in expanded row when targetAnId is set', async () => {
     const transcript = [
-      makeFactCheck('verified', 'auto claim', { isAuto: true, targetAnId: 'acc-B-007' }),
+      makeFactCheck('supported', 'auto claim', { isAuto: true, targetAnId: 'acc-B-007' }),
     ];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
     await userEvent.click(screen.getByText('auto claim'));
@@ -262,7 +262,7 @@ describe('VerificationSection — expand detail row', () => {
 
   it('shows web search queries in expanded row when provided', async () => {
     const transcript = [
-      makeFactCheck('verified', 'web claim', {
+      makeFactCheck('supported', 'web claim', {
         webSearchUsed: true,
         webSearchQueries: ['query one', 'query two'],
       }),
@@ -274,7 +274,7 @@ describe('VerificationSection — expand detail row', () => {
 
   it('shows citations in expanded row when provided', async () => {
     const transcript = [
-      makeFactCheck('verified', 'cited claim', {
+      makeFactCheck('supported', 'cited claim', {
         webSearchUsed: true,
         webSearchCitations: [{ title: 'Nature Article', url: 'https://example.com/1' }],
       }),
@@ -287,18 +287,18 @@ describe('VerificationSection — expand detail row', () => {
 
 describe('VerificationSection — precise-belief coverage', () => {
   it('shows coverage bar when precise beliefs exist', () => {
-    const belief = makePreciseBelief('acc-B-001', 'verified');
-    const transcript = [makeFactCheck('verified', 'some claim')];
+    const belief = makePreciseBelief('acc-B-001', 'supported');
+    const transcript = [makeFactCheck('supported', 'some claim')];
     render(<VerificationSection transcript={transcript} anNodes={[belief]} />);
     expect(screen.getByText(/Precise-belief coverage:/)).toBeInTheDocument();
     expect(screen.getByText(/1 \/ 1/)).toBeInTheDocument();
   });
 
   it('counts only non-pending verifications as verified', () => {
-    const verified = makePreciseBelief('acc-B-001', 'verified');
+    const verified = makePreciseBelief('acc-B-001', 'supported');
     const pending  = makePreciseBelief('acc-B-002', 'pending');
     const unset    = makePreciseBelief('acc-B-003', undefined);
-    const transcript = [makeFactCheck('verified', 'claim')];
+    const transcript = [makeFactCheck('supported', 'claim')];
     render(
       <VerificationSection transcript={transcript} anNodes={[verified, pending, unset]} />,
     );
@@ -313,7 +313,7 @@ describe('VerificationSection — precise-belief coverage', () => {
   });
 
   it('does not show coverage bar when no precise beliefs exist', () => {
-    const transcript = [makeFactCheck('verified', 'some claim')];
+    const transcript = [makeFactCheck('supported', 'some claim')];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
     expect(screen.queryByText(/Precise-belief coverage:/)).not.toBeInTheDocument();
   });
@@ -357,14 +357,14 @@ describe('parseFactCheckMeta — field extraction (via rendered output)', () => 
 
   it('sets isAuto=true when target_an_id is present', () => {
     const transcript = [
-      makeFactCheck('verified', 'auto claim', { targetAnId: 'saf-B-003' }),
+      makeFactCheck('supported', 'auto claim', { targetAnId: 'saf-B-003' }),
     ];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
     expect(screen.getByText('auto')).toBeInTheDocument();
   });
 
   it('sets isAuto=false when target_an_id is absent', () => {
-    const transcript = [makeFactCheck('verified', 'user claim')];
+    const transcript = [makeFactCheck('supported', 'user claim')];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
     expect(screen.getByText('user')).toBeInTheDocument();
   });
@@ -373,7 +373,7 @@ describe('parseFactCheckMeta — field extraction (via rendered output)', () => 
     const entry: TranscriptEntry = {
       type: 'fact-check',
       content: '',
-      metadata: { verdict: 'verified', checked_text: 'no queries', explanation: 'ok' },
+      metadata: { verdict: 'supported', checked_text: 'no queries', explanation: 'ok' },
     };
     render(<VerificationSection transcript={[entry]} anNodes={NO_AN_NODES} />);
     await userEvent.click(screen.getByText('no queries'));
