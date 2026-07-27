@@ -1,0 +1,288 @@
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
+# Entity store loader + id allocator + merge-walk (t/1804, Phase 1 entity ontology).
+# Design of record: research/comp-linguist/designs/entity-ontology-proposal.md §3/§4/§7.
+# The contract is lib/entities/types.ts (Entity, EntityRef) — the SINGLE authority. The
+# records produced/consumed here are shape-matched to it (a parity test guards drift),
+# never a restated PS class (TL t/1804#2 Q1). Dot-sourced by AITriad.psm1 — do NOT export.
+
+$script:EntitiesCache = $null
+$script:EntitiesCacheTimestamp = $null
+$script:EntitiesCachePath = $null
+
+# Merge-walk depth cap. MUST equal the server's MAX_MERGE_DEPTH in
+# taxonomy-editor/src/server/routes/entity.ts (t/1786): if the two differ, one side
+# calls a chain a data defect the other tolerates. Treat as a shared contract constant
+# (verified = 16 on origin/main, TL t/1804#2 reinforcement).
+$script:EntityMergeMaxDepth = 16
+
+function Get-EntitiesFilePath {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param()
+    return Join-Path (Get-TaxonomyDir) 'entities.json'
+}
+
+function Get-EntityEmbeddingsFilePath {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param()
+    return Join-Path (Get-TaxonomyDir) 'entity_embeddings.json'
+}
+
+function New-EmptyEntitiesStore {
+    <#
+    .SYNOPSIS
+        A fresh, empty entities.json envelope (design §3 shape).
+    #>
+    [CmdletBinding()]
+    param()
+    return [PSCustomObject]@{
+        _schema_version = '1.0.0'
+        _doc            = 'Entity records (ent-*). Ref kinds and the Entity type: lib/entities/types.ts.'
+        entity_count    = 0
+        last_modified   = (Get-Date).ToString('yyyy-MM-dd')
+        entities        = @()
+    }
+}
+
+function New-EmptyEntityEmbeddingsStore {
+    <#
+    .SYNOPSIS
+        A fresh, empty entity_embeddings.json envelope (design §3 shape). model + dim are
+        recorded IN the file so a silent model swap is detectable (design §3).
+    #>
+    [CmdletBinding()]
+    param()
+    return [PSCustomObject]@{
+        _schema_version = '1.0.0'
+        _doc            = 'Entity vectors for linking and dedup ONLY. Never an input to debate relevance.'
+        model           = 'all-MiniLM-L6-v2'
+        dim             = 384
+        last_modified   = (Get-Date).ToString('yyyy-MM-dd')
+        vectors         = [PSCustomObject]@{}
+    }
+}
+
+function Get-EntitiesStore {
+    <#
+    .SYNOPSIS
+        Loads (or returns cached) entities.json content, mirroring Get-OrganizationsStore.
+    .DESCRIPTION
+        Reads ../ai-triad-data/taxonomy/Origin/entities.json, caches the parsed structure,
+        and invalidates on file mtime change. A missing store THROWS by default (a stray
+        deletion must be loud — the file is the mint authority for the never-reused id
+        allocator, design §3). The write path passes -InitIfMissing to bootstrap a fresh
+        empty store; that is the ONLY path that treats "missing" as "empty".
+    .PARAMETER Force
+        Bypass the cache and re-read from disk.
+    .PARAMETER Path
+        Override the source file path (fixtures/tests). Defaults to Get-EntitiesFilePath.
+    .PARAMETER InitIfMissing
+        When the file is absent, return a fresh empty envelope instead of throwing. Used
+        by Import-Entity to bootstrap the first write; never by the read path.
+    #>
+    [CmdletBinding()]
+    param(
+        [switch]$Force,
+        [string]$Path,
+        [switch]$InitIfMissing
+    )
+    Set-StrictMode -Version Latest
+
+    $path = if ($Path) { $Path } else { Get-EntitiesFilePath }
+
+    if (-not (Test-Path $path)) {
+        if ($InitIfMissing) { return (New-EmptyEntitiesStore) }
+        throw (New-ActionableError -PassThru `
+            -Goal 'Load entity registry' `
+            -Problem "entities.json not found at $path" `
+            -Location 'Get-EntitiesStore' `
+            -NextSteps @(
+                'The entity store has not been created yet — run Import-Entity to initialize it',
+                'Verify the data repo is present at ../ai-triad-data/ and taxonomy/Origin/ exists',
+                'Check .aitriad.json or $env:AI_TRIAD_DATA_ROOT for a data-root override'
+            ))
+    }
+
+    $mtime = (Get-Item $path).LastWriteTimeUtc
+    if (-not $Force -and $script:EntitiesCache -and $script:EntitiesCacheTimestamp -eq $mtime -and $script:EntitiesCachePath -eq $path) {
+        return $script:EntitiesCache
+    }
+
+    try {
+        $parsed = (Get-Content -Raw -Path $path -Encoding utf8) | ConvertFrom-Json
+    } catch {
+        throw (New-ActionableError -PassThru `
+            -Goal 'Parse entity registry' `
+            -Problem "Failed to parse entities.json: $($_.Exception.Message)" `
+            -Location 'Get-EntitiesStore' `
+            -NextSteps @(
+                'Validate JSON with: Get-Content entities.json | ConvertFrom-Json',
+                'Check for trailing commas or unbalanced brackets',
+                'Restore from git history if the file was recently modified'
+            ))
+    }
+
+    $script:EntitiesCache = $parsed
+    $script:EntitiesCacheTimestamp = $mtime
+    $script:EntitiesCachePath = $path
+    return $parsed
+}
+
+function Clear-EntitiesCache {
+    <#
+    .SYNOPSIS
+        Invalidates the entities cache. Called by Import-Entity after writes.
+    #>
+    [CmdletBinding()]
+    param()
+    $script:EntitiesCache = $null
+    $script:EntitiesCacheTimestamp = $null
+    $script:EntitiesCachePath = $null
+}
+
+function Write-EntityStoreAtomic {
+    <#
+    .SYNOPSIS
+        Atomically write an entity envelope (entities.json / entity_embeddings.json),
+        mirroring Import-Organization's temp + File.Move idiom.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object]$Store,
+
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+    Set-StrictMode -Version Latest
+
+    $temp = "$Path.tmp"
+    $json = $Store | ConvertTo-Json -Depth 12
+    try {
+        Set-Content -Path $temp -Value $json -Encoding utf8NoBOM
+        [System.IO.File]::Move($temp, $Path, $true)
+    } catch {
+        if (Test-Path $temp) { Remove-Item $temp -Force -ErrorAction SilentlyContinue }
+        throw (New-ActionableError -PassThru `
+            -Goal 'Write entity registry' `
+            -Problem "Failed to write $Path : $($_.Exception.Message)" `
+            -Location 'Write-EntityStoreAtomic' `
+            -NextSteps @(
+                'Check the data directory is writable and not locked',
+                'Verify free disk space and that the parent directory exists'
+            ))
+    }
+}
+
+function New-EntityId {
+    <#
+    .SYNOPSIS
+        Monotonic, NEVER-reused ent-NNN id allocator (design §3, non-negotiable).
+    .DESCRIPTION
+        Scans EVERY id in the store — including `deprecated` records and `merged_into`
+        tombstones, which are retained (never deleted). That retention is the invariant
+        that keeps `max + 1` monotonic; if a record could ever be removed the next mint
+        would recycle its id and silently repoint historical links (design §3, TL Q3).
+
+        Compares the PARSED INTEGER, not the string, so the 999 -> 1000 boundary does not
+        regress under lexical ordering. -Count mints a contiguous batch off a single
+        high-water mark so several mints inside one Import-Entity call never collide.
+        Padding is >= 3 digits (cosmetic); it widens naturally past ent-999 -> ent-1000.
+    .PARAMETER Store
+        The parsed entities.json envelope to allocate against.
+    .PARAMETER Count
+        How many contiguous ids to mint. Capped at the ~20/batch curation cap (design §4).
+    #>
+    [CmdletBinding()]
+    [OutputType([string[]])]
+    param(
+        [Parameter(Mandatory)]
+        [object]$Store,
+
+        [ValidateRange(1, 20)]
+        [int]$Count = 1
+    )
+    Set-StrictMode -Version Latest
+
+    $maxNum = 0
+    if ($Store.PSObject.Properties['entities']) {
+        foreach ($e in @($Store.entities)) {
+            if (-not $e.PSObject.Properties['id']) { continue }
+            $m = [regex]::Match([string]$e.id, '^ent-(\d+)$')
+            if ($m.Success) {
+                $n = [int]$m.Groups[1].Value      # parsed int compare — NOT lexical
+                if ($n -gt $maxNum) { $maxNum = $n }
+            }
+        }
+    }
+
+    $ids = for ($i = 1; $i -le $Count; $i++) {
+        'ent-' + ([string]($maxNum + $i)).PadLeft(3, '0')
+    }
+    return @($ids)
+}
+
+function Resolve-EntityMergedInto {
+    <#
+    .SYNOPSIS
+        Follow a merged_into tombstone chain to its canonical record (design §7).
+    .DESCRIPTION
+        Mirrors the server resolveMergedInto (taxonomy-editor/src/server/routes/entity.ts,
+        t/1786) exactly: a `visited` set for cycle detection and a depth cap
+        ($script:EntityMergeMaxDepth). Path-compression on write is the invariant; this
+        defensive walk is the safety net for a transiently-uncompressed chain. A cycle or
+        an exceeded cap is a DATA DEFECT (throws → surfaced by Get-EntityReport), never a
+        silent 404. A terminal id that is absent from the store returns $null (not_found).
+    .PARAMETER StartId
+        The requested entity id.
+    .PARAMETER ById
+        Map of id -> raw entity record for the whole store.
+    .PARAMETER MaxDepth
+        Depth cap; defaults to the shared contract constant.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$StartId,
+
+        [Parameter(Mandatory)]
+        [hashtable]$ById,
+
+        [int]$MaxDepth = $script:EntityMergeMaxDepth
+    )
+    Set-StrictMode -Version Latest
+
+    $seen = [System.Collections.Generic.HashSet[string]]::new()
+    $currentId = $StartId
+
+    for ($depth = 0; $depth -le $MaxDepth; $depth++) {
+        if (-not $ById.ContainsKey($currentId)) { return $null }   # terminal missing -> not_found
+        $rec = $ById[$currentId]
+        $mergedInto = if ($rec.PSObject.Properties['merged_into'] -and $null -ne $rec.merged_into) { [string]$rec.merged_into } else { '' }
+        if ([string]::IsNullOrWhiteSpace($mergedInto)) { return $rec }   # canonical reached
+
+        if (-not $seen.Add($currentId)) {
+            throw (New-ActionableError -PassThru `
+                -Goal 'Resolve entity merge chain' `
+                -Problem "merged_into cycle detected at '$currentId'" `
+                -Location 'Resolve-EntityMergedInto' `
+                -NextSteps @(
+                    'A merged_into cycle is a data defect — inspect the pointers in entities.json',
+                    'Run Get-EntityReport to surface merge-chain defects'
+                ))
+        }
+        $currentId = $mergedInto
+    }
+
+    throw (New-ActionableError -PassThru `
+        -Goal 'Resolve entity merge chain' `
+        -Problem "merged_into chain from '$StartId' exceeded the depth cap ($MaxDepth)" `
+        -Location 'Resolve-EntityMergedInto' `
+        -NextSteps @(
+            "If a legitimately long chain exists, raise the cap (currently $MaxDepth) IN SYNC with the server (t/1786)",
+            'Otherwise treat as a data defect and inspect the merged_into pointers'
+        ))
+}

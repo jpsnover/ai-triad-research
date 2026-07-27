@@ -38,6 +38,12 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Get-OrganizationEdge` | Look up organization actor-relationship edges (filter by OrgId, Type, Direction; t/1526) |
 | `Import-OrganizationEdge` | Upsert an organization actor edge by (source,target,type) composite key with integrity check (t/1526) |
 
+### Entities (t/1804)
+| Cmdlet | Use when |
+|--------|----------|
+| `Get-Entity` | Resolve an entity record (ent-*) from entities.json; follows merge tombstones to the canonical record and stamps `redirected_from` (t/1804) |
+| `Import-Entity` | Curation write: upsert 1-20 proposed/approved/deprecated entity records with a never-reused ent-NNN allocator; person records need a human description to approve (t/1804) |
+
 ### Graph & Conflict Analysis
 | Cmdlet | Use when |
 |--------|----------|

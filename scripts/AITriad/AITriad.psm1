@@ -858,6 +858,9 @@ Export-ModuleMember -Function @(
     # t/1526 — Organization actor-relationship edges
     'Get-OrganizationEdge'
     'Import-OrganizationEdge'
+    # t/1804 — Entity ontology (Phase 1): store + curation cmdlets
+    'Get-Entity'
+    'Import-Entity'
     # t/1261 — UsageID registry
     'Invoke-AIByUsage'
     # t/1308 — cc→sit migration
