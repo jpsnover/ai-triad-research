@@ -380,6 +380,16 @@ export class DebateEngine {
   private _claimPipeline!: ClaimExtractionPipeline;
   private _synthesisPipeline!: SynthesisPipeline;
 
+  /**
+   * t/1781: pending evidence-verification promises. verifyPreciseClaims populates
+   * evidence_graph.evidence_items (the source-authority substrate) and runs
+   * fire-and-forget during the debate to keep web-search latency off the turn path.
+   * They are tracked here (each already terminated with a .catch() so a rejection
+   * resolves) so the completion path can settle them before the calibration extract,
+   * making source_authority deterministic instead of racing the write.
+   */
+  private _pendingClaimVerifications: Promise<void>[] = [];
+
   /** Get the set of hint keys currently suppressed for this debate. */
   private getSuppressedHints(): Set<string> {
     const suppressed = new Set<string>();
@@ -864,6 +874,26 @@ export class DebateEngine {
 
     // Log calibration data point (non-blocking, never fails the debate)
     try {
+      // t/1781: evidence verification is fire-and-forget during the debate (keeps web-search
+      // latency off the turn path); settle it here, post-completion, before the calibration
+      // extract so source_authority is deterministic. Bounded — a hung search must not block
+      // the write (ADR-001 partial recovery: extract with evidence-so-far on timeout).
+      const CLAIM_VERIFY_SETTLE_TIMEOUT_MS = 30_000;
+      if (this._pendingClaimVerifications.length > 0) {
+        const settled = await Promise.race([
+          Promise.allSettled(this._pendingClaimVerifications).then(() => true),
+          new Promise<false>(res => setTimeout(() => res(false), CLAIM_VERIFY_SETTLE_TIMEOUT_MS)),
+        ]);
+        if (!settled) {
+          getGlobalRecorder()?.record({
+            type: 'system.error', component: 'debate-engine', level: 'warn',
+            debate_id: this.session?.id,
+            message: 'Claim verifications did not settle before calibration extract; extracting with evidence-so-far (t/1781)',
+          });
+        }
+        this._pendingClaimVerifications = [];
+      }
+
       const weights = loadProvisionalWeights();
       const dataPoint = extractCalibrationData(this.session, 'local', {
         argumentationExitThreshold: weights.thresholds.argumentation_exit,
@@ -2817,7 +2847,10 @@ export class DebateEngine {
       // Post-extraction interventions (non-blocking)
       if (newNodes2.length > 0) {
         this._claimPipeline.validateSteelmans(newNodes2, poverId).catch(err => this.warn('Steelman validation', String(err), 'Opening steelman check skipped'));
-        this._claimPipeline.verifyPreciseClaims(newNodes2).catch(err => this.warn('Precise claims', String(err), 'Opening precision check skipped'));
+        // t/1781: non-awaited (latency stays off the turn path) but tracked so the
+        // completion path can settle it before the calibration extract. .catch()
+        // makes the tracked promise resolve on failure (no unhandled rejection).
+        this._pendingClaimVerifications.push(this._claimPipeline.verifyPreciseClaims(newNodes2).catch(err => { this.warn('Precise claims', String(err), 'Opening precision check skipped'); }));
       }
 
       // Post-turn summarization (DT-2)
@@ -3878,7 +3911,10 @@ export class DebateEngine {
     // Post-extraction interventions (non-blocking)
     if (newNodes.length > 0) {
       this._claimPipeline.validateSteelmans(newNodes, responder).catch(err => this.warn('Steelman validation', String(err), 'Steelman check skipped'));
-      this._claimPipeline.verifyPreciseClaims(newNodes).catch(err => this.warn('Precise claims', String(err), 'Precision check skipped'));
+      // t/1781: non-awaited (latency stays off the turn path) but tracked so the
+      // completion path can settle it before the calibration extract. .catch()
+      // makes the tracked promise resolve on failure (no unhandled rejection).
+      this._pendingClaimVerifications.push(this._claimPipeline.verifyPreciseClaims(newNodes).catch(err => { this.warn('Precise claims', String(err), 'Precision check skipped'); }));
     }
 
     // Position drift detection (non-blocking)
