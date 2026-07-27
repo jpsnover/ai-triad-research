@@ -1,5 +1,11 @@
-**Date:** 2026-07-20
-**Working on:** Verified fix for `Update-TaxEmbeddings` crash (t/1652) — PowerShell applied Option B guard (commit 5e52f992); `Update-TaxEmbeddings -Verbose` ran clean: 1226 nodes, 316 batches, 4001 embeddings written.
-**Status:** Complete. t/1652 verified and closed (t/1652#2). Post-diag tickets t/1653 and t/1654 filed.
-**Key context:** BATCH IS GATED — t/1646 hold still in effect (no Invoke-BatchSummary until PowerShell resolves A/B discriminator on density-floor warning / possible key_points data loss in Merge-ChunkSummaries.ps1).
-**Next:** Watch t/1646 for PowerShell A/B result. Root-cause A → batch gate lifts. Root-cause B → escalate scope (which chunked docs affected, re-processing needed).
+**Date:** 2026-07-27
+**Working on:** t/1780 — PreToolUse hook: warn on direct shared-tree main commits.
+**Status:** Gate-verified (4/4 cases). Hook created DISABLED. Awaiting TL enable decision.
+**Key context:**
+- `check-direct-main-commit.cjs` — 5-step detection; committed by pathspec.
+- Root cause of Case A failure: `git rev-parse --git-dir` returns absolute path; `--git-common-dir` returns relative. Fixed with `path.resolve()` on both before string compare.
+- Case A (fires): exit 0, stdout warning. Cases B/C/D (suppress): exit 1.
+- Case D (feature branch) verified by code review — step 5 exits 1 when branch ≠ main.
+- Hook rule `direct-main-commit-warning`: created disabled. TL decides enable.
+- Sage #80 Part 2 (exit-1-suppresses-silently) feedback: payload shown to user — awaiting go-ahead to submit.
+**Next:** Watch t/1646 (batch gate). Confirm Sage #80 Part 2 feedback submission with user.
