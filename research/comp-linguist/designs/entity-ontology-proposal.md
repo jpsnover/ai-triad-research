@@ -3,7 +3,7 @@
 **Ticket:** t/1767 (data half; t/1766 is the rendering consumer)
 **Author:** Computational Linguist
 **Last updated:** 2026-07-27
-**Status:** Proposal. Requires owner approval before any implementation.
+**Status:** Design of record. Phase 1 implementation greenlit by the owner 2026-07-27 (§9.5); implementation tickets cite this document. Phase 0 results: `analyses/PREREG-t1767-phase0.md`.
 
 ## Verdict up front
 
@@ -318,3 +318,5 @@ TL should sanity-check blast radius per layer, which mirrors the org HLD's layer
 2. **Curation is capped at ~20 proposals per batch**, mirroring the shipped org-stance pattern (Section 4).
 3. **Person entities are curated-only.** The LLM may propose the entity, aliases, and supporting quote; a human authors every person description, and a person record cannot be approved without one (Section 4).
 4. **Debate/chat mentions use statement-side extraction (Option 1)** (decided 2026-07-27, t/1767#12, after Phase 0 falsified alias-only detection and validated this mechanism). Alias matching still runs first; statement-side extraction covers what a corpus-derived table cannot. Runs async so the live turn is never blocked, reusing the t/1781 ordering guarantee. Curation inflow is bounded at the review queue against the ~20/batch cap, never by silently dropping proposals at extraction; if inflow outruns review the lever is the registered confidence gate (Section 5).
+
+5. **Phase 1 implementation is greenlit** (owner, 2026-07-27). Every gate the proposal set for itself is discharged: Phase 0 complete across three preregistered protocol versions, TL feasibility signed off with its three conditions folded in, decisions 1–4 above answered, and TL's Condition 2 cross-role review closed with all five consumer slices aligned. The type contract is live on `origin/main` and the storage and extraction schemas are specced. TL decomposes Phases 1–3 into per-owner tickets from here; `t/1786` (ServerAPI `getEntity`) and `t/1775` (renderer) are already in flight from the partial decomposition. The status of this document changes accordingly: it stops being a proposal seeking approval and becomes the design of record that implementation tickets cite.
