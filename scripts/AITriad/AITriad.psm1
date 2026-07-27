@@ -863,6 +863,7 @@ Export-ModuleMember -Function @(
     # t/1308 — cc→sit migration
     'Invoke-CcToSitMigration'
     'Test-AIApiKey'
+    'Test-AIModelsConfig'
     # t/1492 — GHCR cleanup
     'Remove-StaleContainerImages'
     # t/1493 — Taxonomy snapshot fetch

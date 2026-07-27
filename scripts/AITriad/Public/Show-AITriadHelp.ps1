@@ -172,6 +172,7 @@ function Show-AITriadHelp {
         'Get-TriadConfig' = 'Config & Setup'; 'Set-TriadConfig' = 'Config & Setup'
         'Invoke-TriadConfigReload' = 'Config & Setup'; 'Register-AIBackend' = 'Config & Setup'
         'Test-AIApiKey' = 'Config & Setup'; 'Install-AIDependencies' = 'Config & Setup'
+        'Test-AIModelsConfig' = 'Config & Setup'
         'Install-AITriadData' = 'Config & Setup'; 'Install-GraphDatabase' = 'Config & Setup'
         'Test-Dependencies' = 'Config & Setup'; 'Register-AITriadDrive' = 'Config & Setup'
 
