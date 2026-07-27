@@ -113,3 +113,29 @@ Scale: 1,798 facts over 295 debate-referenced nodes → 480 raw proposals → **
 Retroactive re-index (§7) does **not** rescue options 2–3 on its own: it keys off approved entities, which are themselves facts-derived, so a world-knowledge mention stays unlinked until someone mints that entity by hand.
 
 **Precision drift check (non-gating): no drift.** 20/20 sampled v0.2 gated proposals correct at 11× volume — including `10 USC 3252`, `Communications Decency Act`, `Fourteenth Amendment`, `Oregon SB 1546` (legislation), `Evo 2`, `GPT-4.5`, `o3`, `MMLU`, `BIRD-Verified` (artifacts), `Sam Altman`, `Marc Andreessen`, `Joshua Gans` (persons), `Chinese Social Credit System` (institution). Axes 1–3 stand confirmed; the extraction instrument is the validated part of this design.
+
+---
+
+## Protocol v0.3 — does option 1 (statement-side extraction) actually work? (preregistered 2026-07-27, before the v0.3 run)
+
+**Why run this before the owner picks.** v0.2 established that alias-table detection cannot cover debate mentions and left three options on the table (t/1767#10). Option 1 (statement-side extraction at entry-add) is my recommendation, but recommending an untested mechanism is exactly the "stipulated instrument" failure this project's provenance rule exists to prevent. v0.3 measures it so the owner chooses on evidence. It is cheap: 3 statements, no schema, no production change.
+
+**The real risk being tested.** Debate prose is argumentative and dense with contested vocabulary ("strict liability", "oversight", "frontier", "existential risk"). Alias-matching was structurally incapable of hallucinating; a statement-side LLM extractor is not. So v0.3 tests coverage *and* whether the boundary discipline survives on prose that is nothing like a fact record.
+
+- **Instrument:** extraction prompt v0.1 verbatim (unchanged, so this isolates input-type, not prompt), applied to statement text instead of fact claims. Same 0.6 confidence gate. Same model tier.
+- **Input:** the same 3 statements (`_p0_statements.json`), same locked hand-annotation (`_p0_annotation.json`, 1 entity mention). The annotation is not revisited.
+- **Resolution table:** the v0.2 533-entry table ∪ org registry, for matching proposals to existing referents.
+
+### Decision rules (fixed before the run)
+
+Option 1 is **VALIDATED** iff ALL of:
+1. **Coverage:** ≥ 80% of hand-annotated mentions proposed at or above gate (here: the 1 annotated mention must be found).
+2. **Precision:** ≥ 0.80 of gated statement-side proposals are real, correctly-typed particulars (v0.1 precision definition).
+3. **Vocabulary boundary holds:** **0** gated proposals that are dictionary universals or bare contested vocabulary (`risk`, `oversight`, `alignment`, `strict liability`, `frontier`, …). This is the discriminating check — statement-side extraction that mints universals as entities is disqualified regardless of coverage.
+4. **Resolution:** 0 wrong links (a proposal resolved to the wrong existing referent). Unmatched proposals are curation candidates, not errors.
+
+**Failure disposition:** if rule 3 fails, option 1 needs a prose-specific prompt variant (a new instrument version, separately preregistered) before it can be recommended, and option 2 becomes the pragmatic v1 path. If rule 1 fails, option 1 does not solve the gap it was proposed to solve and option 2 or 3 is the honest v1 answer. Either way the outcome is reported as measured; no goalpost moves.
+
+### v0.3 results
+
+Not yet run. This section is written before the run and holds no results.
