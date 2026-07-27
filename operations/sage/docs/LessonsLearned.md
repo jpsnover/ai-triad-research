@@ -1733,7 +1733,45 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. If foreign hunks are present, **stage by hunk** (`git add -p`) to commit only your lines, or wait/coordinate — never `git commit -- <file>` a file carrying someone else's in-progress edit.
 3. **ADR-005 shared-branch pathspec rule is necessary but NOT sufficient for large shared JSON** — pathspec isolates files, not hunks.
 4. If you swept a foreign hunk, **disclose immediately** (ticket + owner) and offer remediation — a split multi-file change may need the owner to reconstruct it (t/1808).
+5. **Upstream fix — serialize data-repo-writing batches and announce before starting** (TL/CL, p/8#106): don't run concurrent writers to `../ai-triad-data`. Queue a data-repo-writing batch behind any in-flight one (CL queued t/1676 behind t/1670 after concurrent batches caused today's revert) and post a "starting a data-repo batch" note. Removes the foreign-hunk collision at the source.
 
 **Status:** Active — **defeats/qualifies ADR-005** (file-granular, not hunk-granular) in the live data repo. NOT a #82 rule-not-applied case: the agent correctly applied the pathspec rule; its granularity was insufficient for the context. Disclosed t/1808.
 
 **Applies To:** All agents committing to `ai-triad-data` or any working tree that is a live write target — where a file you edit may carry other writers' uncommitted hunks.
+
+## #84 [Process] Background-Task Gate Wrapper Swallows the Real Exit Code — False-Green from `&& echo PASS || echo FAIL`
+
+**Pattern:** Wrapping a gate as `cmd >log 2>&1 && echo PASS || echo FAIL` (common for background tasks) makes the **task's exit code ALWAYS 0** — the trailing `echo` succeeds whether `cmd` passed or failed, so `&&`/`||` swallows `cmd`'s real exit. The background-task "exit 0" notification is **meaningless for pass/fail**. Compounding: `>log 2>&1` captures only `cmd`, so the `PASS`/`FAIL` marker (echoed after the redirect) lands in the **task-output file, NOT the `log` you tail**.
+
+**Instances:**
+- 2026-07-26 — Taxonomy Editor 2 (t/1798, p/195#3): briefly misread a **failed `npm run verify` as green** — the `... && echo PASS || echo FAIL` wrapper exited 0 and the FAIL marker was in the task-output file, not the tailed log. Resolution: read the marker text (or the inner command's real exit), never the wrapper's exit.
+
+**Root Cause:** `A && echo PASS || echo FAIL`'s own exit status is the last `echo`'s, which always succeeds — it converts `cmd`'s pass/fail into stdout TEXT and drops it from the exit code; the harness reports the wrapper's exit (0), not `cmd`'s. Separately, `cmd >log 2>&1` redirects only `cmd`, so the post-`&&` echo writes elsewhere — verdict and log in different files. Same false-green genus as gate-blindness (#20/#46) but the mechanism is **exit-code laundering by the wrapper**, not tolerated noise.
+
+**Prevention:**
+1. **Never trust a background task's exit code when the command is `... && echo PASS || echo FAIL`** — that exit is the echo's (always 0). Trust the marker TEXT or the inner command's real exit.
+2. **Preserve the real exit:** run the gate without the echo wrapper, or capture it: `cmd >log 2>&1; ec=$?; echo "EXIT=$ec"` → read `EXIT=`.
+3. **Put the verdict where you look:** append the marker into the tailed `log` (`... ; echo RESULT=... >>log`), or `grep` the task-output file — don't tail the redirect log expecting a verdict that went to stdout.
+4. **"Verify green" from a background task = confirm the marker/exit, not the completion notification.**
+
+**Status:** Active — false-green (exit-code-laundering) variant of the gate-signal-integrity genus (#20/#46/#48/#61/#64); distinct from gate-blindness (tolerated noise) and skip-before-run.
+
+**Applies To:** All agents running gates as background Bash tasks, especially with a `&& echo PASS || echo FAIL` wrapper + tailed redirect log.
+
+## #85 [Process] Stale Barrel-Path Citations After ADR-007 Splits Fail SILENTLY (grep-empty, never a broken build)
+
+**Pattern:** The ADR-007 splits turned single files into **barrel DIRECTORIES** — `calibrationLogger.ts` → `calibrationLogger/`, plus `prompts/`, `types/`, `claimExtractionPipeline/`, `gapAndDrift/`. The import surface still works (barrel re-exports), so **builds/verify stay green** — but every prose reference to the old `<name>.ts` path (docs, register, tickets, emails) now points at a nonexistent file. The rot is **silent**: only ever caught by a **grep returning empty** or a human following a dead citation.
+
+**Instances:**
+- 2026-07-26 — Technical Lead / Computational Linguist (p/8#106/#107): **4 stale citations across 3 tickets, 1 offender class** — `prompts.ts` + `types.ts` (t/1701), `gapAndDrift.ts` (t/1782), `calibrationLogger.ts` (e/43). All 4 surfaced via grep-returning-empty, none via a broken build.
+
+**Root Cause:** Splitting `<name>.ts` → a `<name>/` barrel preserves the *import* surface (`import { x } from '.../<name>'` resolves via the barrel index), so `tsc`/verify never complain. But a **prose citation** of the concrete file path is not an import — nothing validates it — so it silently rots. No build gate catches it because the build was never wrong.
+
+**Prevention:**
+1. **Verify the cited path RESOLVES at citation time** — post-t/1686, a cited `<name>.ts` may now be a `<name>/` barrel; check for the dir + specific sub-module before citing. Don't rely on fix-on-break — it never breaks.
+2. **When splitting a file into a barrel, grep docs/register/tickets/emails for the old `<name>.ts`** and update (or leave a redirect note) as part of the split.
+3. **Silent-failure classes are verify-at-write-time, not fix-on-break** — anything caught only by grep-empty (never a red build) has no gate, so the discipline is at the moment of citation.
+
+**Status:** Active — NOT a #82 case (new hazard from ADR-007, not a pre-existing rule unapplied). **Unit note (TL p/8#107):** report units separately — 4 citations / 3 tickets / 1 offender / 2 reporters (TL owns the single report; DebateTool 2 is not a duplicate). Sage tallies (esp. #82 triggers) are unit-sensitive: citations ≠ tickets ≠ offenders ≠ agents.
+
+**Applies To:** All agents citing `lib/debate` file paths post-ADR-007 splits (docs, register, tickets, emails), and anyone splitting a file into a barrel directory.

@@ -499,8 +499,9 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 2. If foreign hunks are present, **stage by hunk** (`git add -p`) to commit only your lines, or wait/coordinate — never `git commit -- <file>` a file that carries someone else's in-progress edit.
 3. **The shared-branch pathspec rule (ADR-005) is necessary but NOT sufficient for large shared JSON** — pathspec isolates files, not hunks. Say so explicitly when the target is a live-written data file.
 4. If you discover you swept a foreign hunk, **disclose immediately** (ticket + owner) and offer remediation — a split multi-file change may need the owner to reconstruct it (as on t/1808).
+5. **Upstream fix — serialize data-repo-writing batches and announce before starting** (TL/CL, p/8#106): the surest prevention is to not have concurrent writers to `../ai-triad-data` at all. Queue a data-repo-writing batch behind any in-flight one (CL deliberately queued the t/1676 LLM batch behind in-flight t/1670 debates after concurrent batches caused today's revert), and post a "starting a data-repo batch" note so others hold off. This removes the foreign-hunk collision at the source rather than catching it at commit time.
 
-**Status:** Active — **defeats/qualifies ADR-005** (pathspec is file-granular, not hunk-granular) in the live data repo specifically. NOT a rule-not-applied (#82) case: the agent correctly applied the pathspec rule; the rule's granularity was insufficient for the context. Data-repo-specific; disclosed t/1808.
+**Status:** Active — **defeats/qualifies ADR-005** (pathspec is file-granular, not hunk-granular) in the live data repo specifically. NOT a rule-not-applied (#82) case: the agent correctly applied the pathspec rule; the rule's granularity was insufficient for the context. Data-repo-specific; disclosed t/1808. Upstream coordination convention (serialize + announce data-repo batches) added from p/8#106.
 
 **Applies To:** All agents committing to `ai-triad-data` or any working tree that is a live write target (pipeline/session output) — where a file you edit may carry other writers' uncommitted hunks.
 
