@@ -123,6 +123,63 @@ stipulated→derived promotion iff the decision rule above is met.
 
 ---
 
+## RESULTS (post-landing, 2026-07-27 — t/1676 landed `1228ad20`)
+
+Landed implementation confirmed on origin/main: the finalization sweep (`cruxResolution.ts`)
+transitions terminal-`identified` → literal `undecided`, gating **only** on `state === 'identified'`
+(idempotent; `crux_addressed_rate` denominator now excludes `undecided`, explorationSummary.ts:348-350).
+So the deterministic mapping this prereg assumed is exactly what shipped.
+
+### Step 1 — absorption (decisive)
+`undecided` uptake = the 1,274 terminal-`identified` cruxes = **72.6%** of all cruxes; drawn **100%**
+from the pool previously miscounted as "active"; **zero** cannibalization of resolved/irreducible/
+engaged/conceded (the sweep never touches them). Precision against *true terminal verdicts* is 100%
+by construction. `undecided` is the modal crux outcome.
+
+### Step 2 — calibration (the real test: is `undecided` == genuinely-not-adjudicated?)
+CL adjudicated the frozen 30-crux sample from the content-anchored digests (`ac2-digests.txt`):
+for each, did ≥2 opposing camps **adversarially engage the crux proposition** in prose (→ `undecided`
+is a FALSE label) or was it only asserted/echoed/an evidentiary premise (→ genuinely un-adjudicated)?
+
+- **~24/30 were adjudicated in prose** (FALSE `undecided`) — direct opposing rebuttals of the exact
+  proposition. Unambiguous examples: AN-13/400f834d (skeptic: "mistakes the commodification of harm
+  for the resolution of it"), AN-8/c4fe24f0 (skeptic rebuts "assumes plaintiffs survive a motion to
+  dismiss"), AN-18/57c14a81 (acc: "I disagree that requiring… 20%… a stagnation levy"), AN-35, AN-51,
+  AN-5, AN-44, AN-25, AN-9, AN-22×2, AN-1×2, AN-8/835bff57, AN-62, AN-26, AN-10, AN-15, AN-2, AN-14,
+  AN-11×2, AN-66.
+- **~6/30 genuinely un-adjudicated** (correct `undecided`) — evidentiary premises or asserted-and-
+  echoed-without-contest: AN-29/1418 (Ford stat), AN-29/1ffff (Copyright-Office stat), D-1 (China-ban
+  fact), AN-23 (Iceberg stat), AN-12, AN-24.
+
+**Precision ≈ 6/30 ≈ 0.20** — far below the pre-registered 0.75 floor.
+
+**Mechanism.** A crux *crystallizes* late: its `identified_turn` marks when cross-POV attackers cross
+the detection threshold, but the underlying disagreement was argued *before/around* that point, and no
+NEW argument-network edge lands *on the crux node* afterward — so `evaluateCruxState` never promotes it
+past `identified`. Terminal-`identified` therefore proxies **"no post-crystallization edge on the crux
+node,"** which is dominated by edge-extraction recall and crystallization timing — **NOT** genuine
+non-adjudication. All 1,274 candidates having exactly 0 history transitions (baseline) is the same
+artifact viewed structurally: the state machine simply does not re-touch these nodes after they surface.
+
+**Method caveat.** Content-overlap + CL reading is a proxy for "proposition adversarially adjudicated";
+it can over-count FALSE on same-topic-different-proposition turns. But the strongest cases are verbatim
+opposing rebuttals of the exact crux text, so the direction (precision well below 0.75) is robust even
+allowing for method error. DebateTool should confirm against the landed engagement logic.
+
+### Decision (per pre-registered rules)
+Precision < 0.75 → **do NOT promote `crux_undecided_rate` stipulated→derived** (stays stipulated with a
+defect pointer), and **escalate a genuine engagement gate to DebateTool**: as shipped, the sweep will
+report ~72.6% of cruxes "never adjudicated" when ~80% of a representative sample WERE adjudicated in
+prose — a badly miscalibrated headline. Options for DebateTool (their design call): (a) gate `undecided`
+on a transcript/AN-level engagement check rather than "no edge on the crux node"; (b) fix the crux
+state machine's `identified→engaged` recall (edges/claims engaging the proposition, not only edges
+whose endpoint is the crux node); (c) restrict `undecided` to cruxes surfaced within the last N turns
+(cap-terminated), which is the sub-population where non-adjudication is genuine. Filed to t/1676 /
+DebateTool.
+
+**AC#2:** complete (absorption measured; calibration measured — fails the floor).
+**AC#4:** NOT met — metric stays **stipulated**; no promotion.
+
 ## Resume trigger
 
 When t/1676 lands the enum + `crux_undecided_rate` in `lib/debate`: (1) run the two-step
