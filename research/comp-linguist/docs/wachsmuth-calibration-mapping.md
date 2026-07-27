@@ -2,6 +2,7 @@
 
 **Ticket:** t/1118
 **Date:** 2026-06-29
+**Last updated:** 2026-07-27 (t/1782 AC2 — Credibility section: source-authority metrics shipped per t/1122; expected-null scan rule for non-search adapters)
 **Author:** Computational Linguist
 
 Audit of `lib/debate/calibrationLogger.ts` metrics against Wachsmuth et al.'s
@@ -147,14 +148,36 @@ dialectical obligations.
 | `min_grounding_confidence` | calibrationLogger.ts:357 | Worst-case grounding quality |
 | `lineage_frame` | calibrationLogger.ts:303 | Dominant intellectual traditions in the debate |
 | `lineage_effectiveness` | calibrationLogger.ts:305 | Whether lineage-boosted nodes get referenced |
+| `source_authority_mean` | calibrationLogger.ts:342 | Venue-tier authority of cited sources (shipped t/1122) |
+| `source_recency_mean` | calibrationLogger.ts:344 | Publication recency of cited sources (shipped t/1122) |
 
-**Coverage: PARTIAL.** We measure whether claims are attributed to sources and
-whether intellectual traditions are represented. We do NOT assess source authority
-(venue prestige, author expertise, publication recency, citation count). For an
-academic debate platform this is a meaningful gap.
+**Coverage: PARTIAL.** We measure whether claims are attributed to sources, whether
+intellectual traditions are represented, and — since t/1122 — venue-tier authority and
+recency of cited sources. Author expertise and citation count remain unassessed.
 
-**Gap classification: MODERATE.** Source authority scoring would leverage existing
-document metadata in the ingestion pipeline.
+**Gap classification: MODERATE**, narrowed by t/1122. The remaining gap is
+author/citation-level authority rather than source-level.
+
+> **Scan rule — expected-null source authority on non-search adapters (t/1782).**
+> `source_authority_mean` and `source_recency_mean` are **legitimately null** for any
+> debate produced by a non-search adapter, and a coverage scan must NOT re-flag that
+> null as a dead metric or a defect.
+>
+> Why: their substrate is `node.evidence_graph.evidence_items`, populated only by
+> `verifyPreciseClaims`, which hard-returns unless the adapter implements
+> `generateTextWithSearch` (`lib/debate/claimExtractionPipeline/gapAndDrift.ts:581`,
+> comment at :571-580, landed `d9874448`). The **CLI adapter has no search capability by
+> design**, and the calibration corpus is CLI-batch-produced — so corpus-wide null here
+> is the expected reading, not missing instrumentation.
+>
+> **How to score it in a future scan:** treat these two metrics as *not applicable*
+> rather than *absent* whenever the debate's adapter lacks search; report them as null
+> with the adapter noted, and compute any coverage fraction over search-adapter debates
+> only. Pooling non-search runs into a source-authority coverage denominator is the same
+> censoring error the instrument-effects review flags (`docs/instrument-effects-review.md`,
+> check 3) — the budget/capability of the run determines which values are observable at
+> all. Enabling authority scoring on the calibration corpus is a **feature** (search-capable
+> adapter + source corpus, with latency/cost implications), not a bug fix.
 
 #### 8. Emotional Appeal
 *Does the argument appropriately engage emotions? Neither sterile nor manipulative?*
@@ -231,7 +254,7 @@ via the existing move annotation system with additional scoring logic.
 | Global Acceptability | Dialectical | Strong | — |
 | Global Relevance | Dialectical | Strong | — |
 | Global Sufficiency | Dialectical | Strong | — |
-| Credibility | Rhetorical | Partial | Moderate |
+| Credibility | Rhetorical | Partial (t/1122) | Moderate — expected-null on non-search adapters, see t/1782 scan rule |
 | **Emotional Appeal** | **Rhetorical** | **Absent** | **Material** |
 | **Clarity** | **Rhetorical** | **Weak** | **Material** |
 | Appropriateness | Rhetorical | Minimal | Minor |
@@ -285,15 +308,19 @@ Add affect/emotion scoring:
 Implementation: lexicon-based approach similar to `pragmaticSignals.ts`, potentially
 augmented with a lightweight sentiment model. No new LLM calls.
 
-### Priority 3: Source Authority Scoring (LOW-MEDIUM cost, MODERATE impact)
-Score credibility of cited sources:
-- Publication venue tier (journal, conference, preprint, blog)
-- Source recency (years since publication)
+### Priority 3: Source Authority Scoring — ~~planned~~ **PARTLY SHIPPED (t/1122)**
+Venue tier and recency shipped as `source_authority_mean` / `source_recency_mean`
+(calibrationLogger.ts:342/344). The venue-tier map is **stipulated** — see
+`metric-provenance-register.md`.
+
+Still open:
 - Citation count if available from document metadata
 - Author expertise signals from ingestion metadata
 
-Implementation: scoring function over existing `SourceEvidenceIndex` metadata.
-Minimal new infrastructure.
+**Before treating low coverage here as a gap, apply the t/1782 scan rule** (Credibility
+section above): these metrics are expected-null on non-search adapters, and the
+calibration corpus is CLI-batch-produced. Deciding whether to enable evidence retrieval
+on the corpus is a scoping question with latency/cost implications, not a defect fix.
 
 ### Priority 4: Local Sufficiency Assessment (HIGH cost, HIGH impact)
 Evaluate whether individual arguments have sufficient evidence:
