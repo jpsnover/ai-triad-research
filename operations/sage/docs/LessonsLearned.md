@@ -1660,6 +1660,24 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. **A crashing hook must not silently pass** — make hook failure visible (non-suppressing error surface); exit-1-as-suppress hides exactly the failure you most need to see.
 4. **Audit ALL `{workspace_root}` hooks for the same silent death** — not one hook's bug; every hook using that template on Windows is suspect (recommended a fleet-wide hook audit to Diagnostics).
 
-**Status:** Active — path-expansion fix pending (Diagnostics, p/9#39); the `check-git-commit-order` regex fix (039f9501) and the `staged-files-after-commit` hook are **inert on Windows until it lands**. **Retroactively qualifies every "mechanical hook defense landed" claim this session** (#76, the extended flag-order guard): committed but not actually guarding until `{workspace_root}` resolves — behavioral AGENTS.md rules are the only live defense meanwhile.
+**Status:** Active (root cause split; one part fixed). **Part 1 — `{workspace_root}` path crash: FIXED via audit (Diagnostics, p/9#41).** The fleet audit found exactly two hooks using `{workspace_root}` external scripts (`git-commit-pathspec-flag-order`, `staged-files-after-commit`); both **re-inlined via `node -e`** (no external path → no empty-`{workspace_root}` crash) and updated to match the overlay commit form. No other `run.command` hooks exist, so the path-crash class is closed. **Part 2 — exit-1-suppresses-silently: OPEN, Orca Support's platform fix.** A hook exiting non-zero for any reason is still suppressed with no signal (observed live 2026-07-26: inlined guard fires on `git commit`, runner logs `node exited code 1` while suppressing). Prevention #1 (prove-it-fires) / #3 (make crashes visible) stand until Orca Support changes the exit-code contract.
 
 **Applies To:** All agents (esp. Diagnostics) authoring or relying on feedback hooks on Windows — and Sage/TL when recording a hook as a "mechanical defense," which must carry a "proven-to-fire-on-Windows" caveat.
+
+## #81 [Build] `/land-from-worktree` Sync-Back Leaves Files Staged in the Shared Index — Manufactures ADR-005 Sweep-Bait
+
+**Pattern:** The `/land-from-worktree` sync-back step `git checkout origin/main -- <files>` (used to refresh the shared tree to the just-landed origin state) **leaves those files STAGED in the shared index**. The procedure doesn't unstage them, so any other agent's later bare `git commit` sweeps them into an unrelated commit (ADR-005). The step manufactures sweep-bait *even for a correctly-landed file*.
+
+**Instances:**
+- 2026-07-26 — ServerAPI (`/land-from-worktree`, p/79#10/#11): after landing a file, the sync-back `git checkout origin/main -- <files>` left those files staged in the shared index; another agent's bare `git commit` then swept them into an unrelated commit (co-cause: the ADR-005 bare-commit violation, Diagnostics' 039f9501 commit). **Impact harmless this time** — the swept blob was identical to what was already on origin/main. But the staged-bait is the latent hazard: the sync step reliably produces it.
+
+**Root Cause:** `git checkout <ref> -- <paths>` writes the files to **both the index and the working tree**. On the shared tree that means the files sit staged with no owning commit — exactly the "pre-staged files" a bare `git commit` sweeps (see "Bare Git Commit Sweeps Shared Staging Index"). The procedure creates the sweep-bait as a side effect of syncing; it's the *supply side* of the bare-commit-sweep hazard, so it persists even when every committer is careful. 8th hazard in the worktree-land cluster.
+
+**Prevention:**
+1. **Append `git restore --staged -- <files>` to the `/land-from-worktree` sync-back step.** After `git checkout origin/main -- <files>`, unstage them — the shared tree only needs them in the working tree (already committed on origin/main), never in the index. (Procedure gap; handed to TL's batch.)
+2. **Or sync working-tree-only:** prefer a form that doesn't touch the index for an already-committed refresh.
+3. **General rule:** any step that runs `git checkout <ref> -- <paths>` / `git restore --source` on the shared tree should be followed by `git restore --staged` unless you intend those files in the next commit — leaving them staged is ADR-005 sweep-bait for every other agent.
+
+**Status:** Active — 8th worktree-land cluster hazard; a `/land-from-worktree` sync-back-step refinement. The *supply side* of the bare-commit-sweep pattern (the *consumption* side, now 2 instances). Handed to TL for the owner-gated batch.
+
+**Applies To:** All agents running the worktree landing procedure's sync-back, and anyone using `git checkout <ref> -- <paths>` on the shared tree.
