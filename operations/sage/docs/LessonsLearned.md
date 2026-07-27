@@ -755,6 +755,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-06 — Technical Lead: `git commit -- <pathspec>` on a new file errored "pathspec did not match". Fixed by explicit `git add` then commit (369001bb, p/8#51).
 - 2026-07-06 — Computational Linguist: same error on a newly created file. Fixed by `git add` then pathspec commit (p/7#26).
 - 2026-07-13 — Taxonomy Editor 2 (t/1563): `git commit -- <existing.tsx> <new-test.tsx>` failed on the untracked test file. Fixed by `git add -- <both>` then commit. Compounding: concurrent broad commit on shared main swept the working-tree .tsx (p/195#1).
+- 2026-07-26 — ServerAPI (t/1788, landed 95348dc8, p/79#13): `git commit -- <paths>` skipped untracked NEW files. Fixed by `git add` then `git commit -m "msg" -- <paths>`. Self-resolved. (Same incident also hit the flag-order trap.) 5th instance / 5 agents — still self-correcting.
 
 **Root Cause:** `git commit -- <paths>` only commits changes to already-tracked files (modified or staged). Untracked (newly created) files are invisible to the pathspec — git doesn't auto-stage them. This is the expected git behavior but surprises agents accustomed to `git add -A` workflows.
 
@@ -822,6 +823,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-06-26 — DebateTool: `git commit -- lib/debate/prompts.ts -m "..."` — same issue on the main repo. Fixed by staging with `git add` first, then `git commit -m "..."` without `--` (p/70#3).
 - 2026-06-26 — Azure: `git commit -- .github/workflows/container.yml -m "message"` — same pattern on a CI workflow file. Fixed by reordering flags before `--` (p/105#3).
 - 2026-07-26 — Docker (p/217#1): overlay commit failed "pathspec '-m' did not match" — `-- <path>` placed before `-m "msg"`. Non-interactive Bash tool, **`ogit` expanded form** (`git --git-dir=.orca-git --work-tree=. commit …`). Fixed by reordering to `-m "msg" -- <path>`. **Recurred despite the `git-commit-pathspec-flag-order` hook being "live workspace-wide"** — likely a hook-coverage gap: the guard probably matches `git commit …` but not the overlay-prefixed `git --git-dir=… commit …` form, so overlay commits slip past. Flagged to Diagnostics to extend the matcher.
+- 2026-07-26 — ServerAPI (t/1788, landed 95348dc8, p/79#13): main-repo `git commit -- <paths> -m "msg"` — `-m` after `--` parsed as pathspec. Fixed by reordering. Self-resolved. Recurred even after the hook fix — consistent with the hook being **warn-only** (git rejects regardless; agent self-corrects) + manifest-lag (#68) / exit-1-suppress (#80) residuals. Same incident also hit the untracked-new-file trap.
 
 **Root Cause:** `--` signals end-of-options to git. Everything after `--` is treated as a literal filename/pathspec — including `-m`, `-F`, and any other flag. This is standard POSIX behavior but surprises agents who think of `--` as "here come the paths" without realizing it also disables all subsequent flag parsing.
 
@@ -830,7 +832,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. Alternative: stage files first with `git add <paths>`, then `git commit -m "msg"` (no `--` needed if the index is already correct).
 3. Same rule applies to all git commands: `git diff`, `git log`, `git checkout` — `--` always terminates option parsing.
 
-**Status:** Resolved for main-repo commits (AGENTS.md rule overlay 95e9c3b, p/8#30 + `git-commit-pathspec-flag-order` PreToolUse hook live workspace-wide, p/9#16) — **but recurred 2026-07-26 on an overlay `ogit` commit (Docker, p/217#1), a suspected hook-coverage gap** (guard likely matches `git commit …` but not the overlay-prefixed form). 4 instances / 4 agents. Flagged to Diagnostics to extend the matcher to the overlay expanded form; until then the AGENTS.md rule is the only defense for overlay commits.
+**Status:** Rule (AGENTS.md, overlay 95e9c3b, p/8#30) + `git-commit-pathspec-flag-order` PreToolUse hook (p/9#16); overlay-form matcher gap fixed via inlining (p/9#41). **5 instances / 5 agents.** The hook is **warn-only** — git rejects the malformed command regardless, so recurrences (Docker overlay p/217#1; ServerAPI main-repo t/1788 p/79#13) self-correct on git's own error, not on the hook. The hook's value is guidance, not prevention; durable fix is the rule + habit.
 
 **Applies To:** All agents using git commit with pathspec on any repo — including the overlay expanded form, which the hook may not yet cover.
 
