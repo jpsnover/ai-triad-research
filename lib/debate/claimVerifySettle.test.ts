@@ -87,7 +87,9 @@ describe('t/1781 calibration settle-gate', () => {
     capturedHasEvidenceNode = false;
   });
 
-  it('extract observes settled evidence → source_authority deterministically non-null', async () => {
+  // 20s timeout: this drives a full engine.run() + the post-completion settle-gate; the
+  // vitest 5s default flakes under the parallel taxonomy-editor verify load (t/1729 land).
+  it('extract observes settled evidence → source_authority deterministically non-null', { timeout: 20_000 }, async () => {
     const engine = new DebateEngine(createConfig(), createMockAdapter(), createMinimalTaxonomy());
 
     // Deterministic doc metadata → source_authority resolves once evidence exists.
