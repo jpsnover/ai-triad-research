@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import type { RefreshResult } from '@lib/electron-shared/modelDiscovery';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { ColorScheme, AIBackend, AIModel } from '../../hooks/useTaxonomyStore';
 import { AI_BACKENDS, MODELS_BY_BACKEND, initAIModels } from '../../hooks/useTaxonomyStore';
@@ -12,17 +13,6 @@ import { useDescriptionMode, type DescriptionMode } from '../shared/DescriptionT
 
 interface SettingsDialogProps {
   onClose: () => void;
-}
-
-interface RefreshResult {
-  gemini: { ok: boolean; count: number; error?: string };
-  claude: { ok: boolean; count: number; error?: string };
-  groq:   { ok: boolean; count: number; error?: string };
-  openai: { ok: boolean; count: number; error?: string };
-  azure?: { ok: boolean; count: number; error?: string };
-  deepseek: { ok: boolean; count: number; error?: string };
-  ollama: { ok: boolean; count: number; error?: string };
-  totalModels: number;
 }
 
 function TrashIcon() {
@@ -529,9 +519,10 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
 
         {refreshResult && (
           <div className="settings-refresh-result">
-            {(['gemini', 'claude', 'groq', 'openai', 'azure', 'deepseek', 'ollama'] as const).map((b) => {
+            {(Object.keys(refreshResult) as (keyof RefreshResult)[])
+              .filter((b): b is Exclude<keyof RefreshResult, 'totalModels'> => b !== 'totalModels')
+              .map((b) => {
               const r = refreshResult[b];
-              if (!r) return null;
               return (
                 <div key={b} className={`settings-refresh-line ${r.ok ? '' : 'settings-refresh-warn'}`}>
                   <span className="settings-refresh-backend">{b}</span>
