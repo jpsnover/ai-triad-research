@@ -38,6 +38,16 @@ Three kinds are deliberately excluded from v1, and the boundary rules are the lo
 
 There is also a mint gate against sprawl. A new `entity_type` value is an ontology change. Admitting one takes mandatory CL review, a genus-differentia definition, and at least 10 observed distinct instances in the facts corpus. This is the same discipline the AIF edge vocabulary follows.
 
+### Vocabulary items are universals, not entities
+
+The contested-vocabulary dictionary (`dictionary/colloquial/`, 24 do-not-use-bare terms; `dictionary/standardized/`, 45 senses with per-camp defaults) sits right next to this design and must not be absorbed by it. The dividing test is the classical one. An **entity is a particular**: this person, this statute, this event, this model. A **vocabulary item is a universal**: a sense of a contested word ("risk", "alignment", "safe harbor") that many utterances instantiate. DOLCE keeps these apart (endurants/perdurants versus concepts), and so do we:
+
+- **Standardized senses never become entities.** `risk_existential` is a sense with camp provenance, not a thing in the world. It stays in the dictionary, with its own detail rendering (the Vocabulary panel already provides one).
+- **The test resolves the look-alikes.** "Safe harbor" as a legal mechanism is a universal, so it belongs to the dictionary (`safe_harbor_regulatory`, which already exists). "The EU AI Act" is a particular statute, so it is a `legislation` entity. "Frontier" the concept is a dictionary term (`capability_frontier`); "Frontier Model Forum" is an organization (`org-*`).
+- **Extraction routes, in both directions.** Resolution-before-minting (Section 4) already rejects entity proposals that match dictionary terms. The reverse flow is new: when extraction repeatedly proposes a concept-like, contested abstract noun that is *not* in the dictionary, that is a signal to CL to consider a new dictionary entry, not an entity. The pipeline files those as a per-batch report to CL rather than dropping them silently.
+- **One selection model for t/1766.** The mention layer's `entity_ref` admits a `term:` ref kind (carrying the colloquial term or `canonical_form`) alongside `ent-*`/`org-*`/`pol-*`/node ids. Selecting a vocabulary mention opens the sense breakdown; selecting an entity mention opens the entity record. The renderer gets one contract, and each ref kind keeps its own detail view.
+- **Detection precedence.** The live vocabulary disambiguator and the entity mention detector scan the same statement text. Where matches overlap, the longest, most specific match wins. A multi-word proper-name entity alias ("Frontier Model Forum") beats a common-noun vocabulary term contained inside it ("frontier"). The two annotation streams stay in separate metadata fields (`vocabulary_resolutions` already exists; entity mentions get their own), so neither overwrites the other.
+
 ## 3. Storage mirrors the org pattern
 
 - `taxonomy/Origin/entities.json` follows the org file shape (`_schema_version`, `_doc`, `entity_count`, `last_modified`, `entities[]`). An entity record carries `id` (`ent-NNN`), `name`, `aliases[]`, `entity_type`, `dolce_category`, `description` (genus-differentia, in the form *"A [type] that [differentia]..."*), `external_refs[]` (Wikipedia/Wikidata links that feed the t/1766 detail pane), `source_refs[]`, `status` (`proposed | approved | deprecated`), `merged_into?` for dedup, `discovered_by?` (UsageID and model), `confidence?`, and timestamps.
@@ -57,10 +67,10 @@ There is also a mint gate against sprawl. A new `entity_type` value is an ontolo
 
 Two tiers, both mirroring machinery that already works:
 
-- **Curated index (batch).** `entity_mentions.json` maps a container id (fact, node, or debate) to its mentions, each `{entity_ref, quote, offset?}`. The `entity_ref` may be any of `ent-*`, `org-*`, `pol-*`, or a taxonomy node id. The mention layer is the unifier across all four stores.
+- **Curated index (batch).** `entity_mentions.json` maps a container id (fact, node, or debate) to its mentions, each `{entity_ref, quote, offset?}`. The `entity_ref` may be any of `ent-*`, `org-*`, `pol-*`, a taxonomy node id, or a `term:` ref into the vocabulary dictionary (Section 2). The mention layer is the unifier across all five stores.
 - **Live detection (debate/chat).** An alias-table match runs at entry-add time and stores resolutions in entry metadata, which is the vocabulary tool's `disambiguateTerms` pattern in the same place in the store with the same render hook. When an alias collides across entities, embedding similarity breaks the tie; a mention that is still ambiguous is left unlinked rather than guessed. That refusal discipline comes from the vocabulary tool's `translation_ambiguous_when`.
 
-The renderer contract for t/1766 reduces to a detected `entity_ref` plus a `getEntity(ref)` bridge/REST lookup that returns the record for the right-hand pane, regardless of which store holds it.
+The renderer contract for t/1766 reduces to a detected `entity_ref` plus a `getEntity(ref)` bridge/REST lookup that returns the record for the right-hand pane, regardless of which store holds it. A `term:` ref returns the dictionary sense breakdown instead of an entity record; the pane picks its detail view by ref kind.
 
 ## 6. Edges generalize the org vocabulary, minimally
 
