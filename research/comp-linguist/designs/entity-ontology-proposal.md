@@ -60,6 +60,41 @@ The contested-vocabulary dictionary (`dictionary/colloquial/`, 24 do-not-use-bar
 - `taxonomy/Origin/entities.json` follows the org file shape (`_schema_version`, `_doc`, `entity_count`, `last_modified`, `entities[]`). An entity record carries `id` (`ent-NNN`), `name`, `aliases[]`, `entity_type`, `dolce_category`, `description` (genus-differentia, in the form *"A [type] that [differentia]..."*), `external_refs[]` (Wikipedia/Wikidata links that feed the t/1766 detail pane), `source_refs[]`, `status` (`proposed | approved | deprecated`), `merged_into?` for dedup, `discovered_by?` (UsageID and model), `confidence?`, and timestamps.
 - `taxonomy/Origin/entity_edges.json` takes the same shape as `organization_edges.json`, including drop-on-unknown validation.
 - Vectors. Each approved entity gets one embedding (name plus genus-differentia line, all-MiniLM-L6-v2) stored in a **separate `entity_embeddings.json`**, not co-mingled with the debate-critical `embeddings.json` (TL condition, t/1767#3: that file already exceeds 1 MB and feeds live debate relevance; entity vectors serve linking and dedup only, so isolation removes the blast radius).
+
+### File schemas
+
+`entities.json` mirrors the organizations envelope, so the two stores stay recognisably the same pattern:
+
+```jsonc
+{
+  "_schema_version": "1.0.0",
+  "_doc": "Entity records (ent-*). Ref kinds and the Entity type: lib/entities/types.ts.",
+  "entity_count": 0,
+  "last_modified": "2026-07-27",
+  "entities": []            // Entity[] — the shipped type, e4ed8859
+}
+```
+
+**Id allocation, and the one rule that is not negotiable: ids are never reused.** `ent-NNN`, zero-padded to at least three digits, allocated monotonically from the highest existing id, and **never recycled** even after a record is deprecated or merged away. A merged record stays resolvable as a tombstone, and its old id is still referenced by `merged_into` chains, by `entity_mentions.json` buckets, and by mention metadata already stamped on immutable debate turns. Recycling an id would silently repoint historical links at an unrelated entity, which is a data-corruption class no validator would catch. Padding widens past three digits when the corpus demands it; the padding is cosmetic, the monotonicity is not.
+
+`entity_embeddings.json` keeps vectors physically separate:
+
+```jsonc
+{
+  "_schema_version": "1.0.0",
+  "_doc": "Entity vectors for linking and dedup ONLY. Never an input to debate relevance.",
+  "model": "all-MiniLM-L6-v2",
+  "dim": 384,
+  "last_modified": "2026-07-27",
+  "vectors": { "ent-001": [] }   // keyed by entity id
+}
+```
+
+Three decisions in that file are deliberate:
+
+- **`model` and `dim` are recorded in the file, not assumed.** Vectors from different models are not comparable, so a silent model swap would quietly corrupt every dedup and linking decision made against them. Recording the model makes the mismatch detectable instead of invisible, which is the same provenance-binding lesson t/1672 landed for calibration entries.
+- **Only `approved` entities carry vectors.** Proposed entities are not linkable, so embedding them would spend compute on candidates that may never exist and would let un-curated records influence near-duplicate reports.
+- **The embedded text is the name plus the genus-differentia line**, not the aliases. Aliases are matched exactly by the alias table, which is cheaper and more precise for what they do; embeddings exist for the fuzzy work of dedup and disambiguation, where the definition carries the signal.
 - Types. `lib/entities/types.ts` (Shared Lib) becomes the single source of truth for server and renderer, as a sibling of `lib/organizations/types.ts`. The org HLD documents what happens otherwise, when the hand-copied `Organization` type diverged and had to be reconciled.
 - `organizations.json` stays a sibling and is not absorbed. There is no migration of a working feature. The unifying layer is the mention/link contract, not the storage.
 
