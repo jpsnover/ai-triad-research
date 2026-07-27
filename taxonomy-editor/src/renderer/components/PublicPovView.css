@@ -1,0 +1,117 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Public read-only POV share view (t/1790). Slim, self-contained styling —
+   theme variables come from styles.css (imported at the renderer entry). */
+
+.ppv-root {
+  --ppv-accent: var(--text-secondary);
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(16px, 6vw, 64px) 16px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* Per-POV accent — mirrors POV_META colours via the theme's POV variables. */
+.ppv-pov-acc { --ppv-accent: var(--color-acc); }
+.ppv-pov-saf { --ppv-accent: var(--color-saf); }
+.ppv-pov-skp { --ppv-accent: var(--color-skp); }
+
+.ppv-card {
+  width: 100%;
+  max-width: 720px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-top: 4px solid var(--ppv-accent);
+  border-radius: 10px;
+  padding: clamp(20px, 4vw, 40px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+.ppv-status {
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.ppv-status-title {
+  font-size: 1.4rem;
+  margin: 0 0 8px;
+  color: var(--text-primary);
+}
+
+.ppv-status-body {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.ppv-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.ppv-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.ppv-badge-pov {
+  color: #fff;
+  background: var(--ppv-accent);
+}
+
+.ppv-badge-category {
+  color: var(--text-secondary);
+  background: var(--bg-panel);
+}
+
+.ppv-label {
+  font-size: clamp(1.4rem, 3.5vw, 2rem);
+  line-height: 1.25;
+  margin: 0 0 16px;
+  color: var(--text-primary);
+}
+
+.ppv-aphorism {
+  font-style: italic;
+  font-size: 1.05rem;
+  color: var(--ppv-accent);
+  border-left: 3px solid var(--ppv-accent);
+  padding-left: 14px;
+  margin: 0 0 20px;
+}
+
+.ppv-description {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 0 0 24px;
+  white-space: pre-wrap;
+}
+
+.ppv-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 14px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.ppv-node-id {
+  font-family: 'JetBrains Mono Variable', monospace;
+}
+
+.ppv-brand {
+  font-weight: 600;
+}
