@@ -1,0 +1,287 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+// t/1687 (Phase 2 server.ts split, ADR-007): the summaries / sources / source-
+// documents / dictionary / source-evidence / evidence-qbaf / proposals /
+// ps-prompts / fetch-url / upload-document route run, moved verbatim out of
+// server.ts behind the registration seam. This run sits between
+// registerHarvestRoutes and registerSyncRoutes, so registration order — and the
+// routeTable snapshot — is preserved by placing registerSourcesRoutes() at its
+// former position.
+//
+// The run's two module-local caches (_evidenceIndex/loadEvidenceIndex and
+// _docTitles/loadDocTitles) are read only by handlers in this run, so they move
+// in as module-local state — no ServerCtx surface, no setter/invalidator.
+//
+// Two necessary, behaviour-preserving path adjustments (routes/ is one directory
+// deeper than server.ts):
+//   1. lib dynamic/type imports go from '../../../lib/...' to '../../../../lib/...'.
+//   2. loadDocTitles walks up from __dirname to find .aitriad.json; server.ts
+//      resolved '..','..','..' from src/server (→ repo root), so from src/server/
+//      routes we resolve one extra '..' ('..','..','..','..') to land on the same
+//      repo root before the upward .aitriad.json search.
+
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import type { Router } from '../httpKit.js';
+import type { ServerCtx } from './context.js';
+import { json, error, param } from '../httpKit.js';
+import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
+import { DEFAULT_MODEL } from '../../../../lib/ai-client/index.js';
+import { log } from '../logger.js';
+import * as ai from '../ai/aiBackends.js';
+import * as fileIO from '../storage/fileIO.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// ── Source evidence (module-local caches, read only by the routes below) ──
+
+type SourceEvidenceIndex = import('../../../../lib/debate/evidenceFromSummaries.js').SourceEvidenceIndex;
+let _evidenceIndex: SourceEvidenceIndex | null = null;
+function loadEvidenceIndex(): SourceEvidenceIndex | null {
+  if (_evidenceIndex) return _evidenceIndex;
+  try {
+    const taxDir = fileIO.getTaxonomyDir();
+    const indexPath = path.join(taxDir, 'source_evidence_index.json');
+    if (!fs.existsSync(indexPath)) return null;
+    _evidenceIndex = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
+    return _evidenceIndex;
+  } catch { /* telemetry — silent by design */ return null; }
+}
+
+type DocMetaMap = import('../../../../lib/debate/evidenceFromSummaries.js').DocMetaMap;
+let _docTitles: DocMetaMap | null | undefined;
+function loadDocTitles(): DocMetaMap | null {
+  if (_docTitles !== undefined) return _docTitles;
+  try {
+    // Resolve sources root from .aitriad.json (project root)
+    let searchDir = path.resolve(__dirname, '..', '..', '..', '..');
+    let aitriadPath = '';
+    for (let i = 0; i < 5; i++) {
+      const candidate = path.join(searchDir, '.aitriad.json');
+      if (fs.existsSync(candidate)) { aitriadPath = candidate; break; }
+      searchDir = path.dirname(searchDir);
+    }
+    if (!aitriadPath) { _docTitles = null; return null; }
+    const aitriadConfig = JSON.parse(fs.readFileSync(aitriadPath, 'utf-8'));
+    const sourcesRoot = aitriadConfig.sources_root
+      ? path.resolve(path.dirname(aitriadPath), aitriadConfig.sources_root)
+      : null;
+    if (!sourcesRoot || !fs.existsSync(sourcesRoot)) { _docTitles = null; return null; }
+    const metaMap: DocMetaMap = {};
+    for (const entry of fs.readdirSync(sourcesRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const metaPath = path.join(sourcesRoot, entry.name, 'metadata.json');
+      if (!fs.existsSync(metaPath)) continue;
+      try {
+        const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+        if (meta.title) {
+          const docMeta: { title: string; resolved_url?: string; provenance_label?: string } = { title: meta.title };
+          if (meta.resolved_url) docMeta.resolved_url = meta.resolved_url;
+          if (meta.provenance?.length > 0 && meta.provenance[0].id) docMeta.provenance_label = meta.provenance[0].id;
+          if (!docMeta.resolved_url && meta.url) docMeta.resolved_url = meta.url;
+          metaMap[entry.name] = docMeta;
+        }
+      } catch { /* telemetry — silent by design;  skip */ }
+    }
+    _docTitles = Object.keys(metaMap).length > 0 ? metaMap : null;
+    return _docTitles;
+  } catch { /* telemetry — silent by design */ _docTitles = null; return null; }
+}
+
+export function registerSourcesRoutes(r: Router, _ctx: ServerCtx): void {
+  const { get, post, put } = r;
+
+  // ── Summaries & Sources ──
+
+  get('/api/sources', async (_req, res) => {
+    json(res, await fileIO.discoverSources());
+  });
+
+  get('/api/summaries/:docId', async (req, res) => {
+    const docId = param(req, 'docId', '/api/summaries/:docId');
+    const data = await fileIO.loadSummary(docId);
+    if (data === null) { error(res, `Summary not found: ${docId}`, 404); return; }
+    json(res, data);
+  });
+
+  get('/api/snapshots/:sourceId', async (req, res) => {
+    const sourceId = param(req, 'sourceId', '/api/snapshots/:sourceId');
+    const data = await fileIO.loadSnapshot(sourceId);
+    if (data === null) { error(res, `Snapshot not found: ${sourceId}`, 404); return; }
+    json(res, { content: data });
+  });
+
+  // ── Source documents (resolve doc_id → content/path; serve raw PDF) ──
+
+  get('/api/source-documents/:docId', async (req, res) => {
+    const docId = param(req, 'docId', '/api/source-documents/:docId');
+    try {
+      json(res, await fileIO.resolveSourceDocument(docId));
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'server',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      log.api.warn({ err, docId }, 'source-document resolution failed');
+      // AC #3 graceful degradation — never surface a 500 for a missing/bad doc.
+      json(res, { available: false, type: null });
+    }
+  });
+
+  get('/api/source-documents/:docId/file', async (req, res) => {
+    const docId = param(req, 'docId', '/api/source-documents/:docId/file');
+    try {
+      const pdf = await fileIO.readSourceDocumentPdf(docId);
+      if (pdf === null) { error(res, `Source document not found: ${docId}`, 404); return; }
+      res.writeHead(200, {
+        'Content-Type': 'application/pdf',
+        'Content-Length': pdf.length,
+        'Content-Disposition': `inline; filename="${encodeURIComponent(docId)}.pdf"`,
+      });
+      res.end(pdf);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'server',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      log.api.warn({ err, docId }, 'source-document file serve failed');
+      error(res, String(err));
+    }
+  });
+
+  // ── Dictionary ──
+
+  get('/api/dictionary', async (_req, res) => {
+    json(res, await fileIO.loadDictionary());
+  });
+
+  // ── Source evidence ──
+
+  get('/api/source-evidence-index', (_req, res) => {
+    json(res, loadEvidenceIndex());
+  });
+
+  get('/api/doc-titles', (_req, res) => {
+    json(res, loadDocTitles());
+  });
+
+  post('/api/source-evidence', async (_req, res, body) => {
+    const { nodeIds, pov } = body as { nodeIds: string[]; pov: string };
+    const emptyResult = { facts: [], keyPoints: [], formattedBlock: '', nodesCovered: [], totalCandidates: 0 };
+    const index = loadEvidenceIndex();
+    if (!index) { json(res, emptyResult); return; }
+    try {
+      const { retrieveSourceEvidence } = await import('../../../../lib/debate/evidenceFromSummaries.js');
+      const docTitles = loadDocTitles() ?? undefined;
+      json(res, retrieveSourceEvidence(nodeIds, pov, index, 3, 2, docTitles));
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'server',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      log.api.warn({ err }, 'source-evidence failed');
+      json(res, emptyResult);
+    }
+  });
+
+  // ── Evidence QBAF (runs full pipeline server-side) ──
+
+  post('/api/evidence-qbaf', async (_req, res, body) => {
+    const { claimText, claimId, model } = body as { claimText: string; claimId: string; model?: string };
+    if (!claimText || !claimId) { error(res, 'claimText and claimId are required', 400); return; }
+
+    const sourcesDir = fileIO.getSourcesDir();
+    if (!sourcesDir || !fs.existsSync(sourcesDir)) { json(res, null); return; }
+
+    try {
+      const { retrieveEvidence } = await import('../../../../lib/debate/evidenceRetriever.js');
+      const { buildEvidenceQbaf } = await import('../../../../lib/debate/evidenceQbaf.js');
+      type AIAdapter = import('../../../../lib/debate/aiAdapter.js').AIAdapter;
+
+      const evidenceItems = retrieveEvidence(claimText, sourcesDir, { topK: 10 });
+      if (evidenceItems.length === 0) { json(res, null); return; }
+
+      const adapter: AIAdapter = {
+        generateText: async (prompt: string, mdl: string) => {
+          const result = await ai.generateText(prompt, mdl);
+          return result.text;
+        },
+      };
+
+      const evalModel = model || DEFAULT_MODEL;
+      const result = await buildEvidenceQbaf(claimText, evidenceItems, adapter, evalModel, {
+        claimBaseStrength: 0.5,
+      });
+      json(res, { ...result, claim_id: claimId });
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'server',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      log.api.warn({ err }, `evidence-qbaf failed for ${claimId}`);
+      json(res, null);
+    }
+  });
+
+  // ── Proposals ──
+
+  get('/api/proposals', async (_req, res) => { json(res, await fileIO.listProposals()); });
+
+  put('/api/proposals/:filename', async (req, res, body) => {
+    try {
+      await fileIO.saveProposal(param(req, 'filename', '/api/proposals/:filename'), body);
+      json(res, { saved: true });
+    } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to save proposal', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
+  });
+
+  // ── PowerShell prompts ──
+
+  get('/api/ps-prompts', async (_req, res) => { json(res, await fileIO.listPsPrompts()); });
+
+  get('/api/ps-prompts/:name', async (req, res) => {
+    json(res, await fileIO.readPsPrompt(param(req, 'name', '/api/ps-prompts/:name')));
+  });
+
+  // ── URL content ──
+
+  post('/api/fetch-url', async (_req, res, body) => {
+    const { url } = body as { url: string };
+    try {
+      json(res, await fileIO.fetchUrlContent(url));
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'fetch-url', level: 'warn',
+        message: 'Failed to fetch URL content', data: { url },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      error(res, String(err), 502, err);
+    }
+  });
+
+  // ── File upload (replaces pickDocumentFile dialog) ──
+
+  post('/api/upload-document', async (req, res) => {
+    // Expects multipart form data or raw text body
+    // For now, accept raw text with filename header
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) chunks.push(chunk as Buffer);
+    const content = Buffer.concat(chunks).toString('utf-8');
+    const filename = req.headers['x-filename'] as string || 'uploaded-document';
+    json(res, { cancelled: false, filePath: filename, content });
+  });
+}
