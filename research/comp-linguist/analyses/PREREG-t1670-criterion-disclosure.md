@@ -68,6 +68,44 @@ The owner authorized the run at **7 debates per arm** on **gemini-3.5-flash-lite
 
 **What this amendment does not do:** it does not relax any decision rule. Thresholds, the Goodhart veto, and the null-is-a-result rule stand exactly as written. If the result is ambiguous at this n, the honest report is "underpowered, inconclusive" rather than a softened threshold.
 
+## Amendment 2 — measured crux density, and a second outcome channel (2026-07-27, before any arm-B data exists)
+
+### What I have looked at, and what I have not
+
+Two arm-A debates were already banked when this amendment was written. From them I read **crux counts per checkpoint** and nothing else. The status vocabulary was taken from `lib/debate/neutralEvaluator.ts:37`, which is source, not data. I have not read a single status value, a distribution, or any arm-B artifact, because no arm-B debate has finished. Counts are a power parameter and reading them is what makes this amendment possible; reading outcomes would have made it worthless.
+
+### Amendment 1's hedge does not survive contact with the data
+
+Amendment 1 allowed that "the crux-level n may be adequate while the debate-level n is not." It is not adequate. The final checkpoint carries **2 cruxes per debate** in both banked runs, so seven debates yield roughly **14 cruxes per arm**. One crux is therefore worth about 7.1 percentage points, and Rule 1's 10-point threshold cannot be crossed by fewer than two cruxes changing category. A rule that fires on two of fourteen items is close to a coin-flip detector, and I would rather say so now than discover it while writing up a positive result.
+
+This does not relax Rule 1. It sets the expectation that a Rule 1 "shift" at this n is weak evidence, and that the honest verdict for anything short of a large, distributed, direction-consistent move is "underpowered, inconclusive."
+
+### Third measure, added before results: the convergence-layer crux states
+
+`crux_tracker[].state` is added as a **preregistered third outcome**, roughly 4 cruxes per debate in the banked runs and so about 28 per arm.
+
+The reason is not only the better count. The two channels have different exposure to the intervention, and that difference is what Rule 3 has been asking for:
+
+- **Labeling channel** (`neutral_evaluations[].status`). The arm-B patch rewrites the evaluator's own rubric, so this channel sees the disclosure directly. Its labels can move without anything about the debate changing.
+- **Substance channel** (`crux_tracker[].state`). Computed by the convergence layer, which received no patch. It can only move if the debaters behaved differently, since the debater prompts are the other half of the intervention.
+
+Interpretation is fixed here, before results, so it cannot be fitted to them:
+
+| Labeling channel | Substance channel | Verdict |
+|---|---|---|
+| moves | moves, same direction | Disclosure changed behaviour. Rule 2 applies to the direction. |
+| moves | flat | **Evaluator relabeling.** The rubric renamed the same debates. This is an instrument effect, and the disclosure sentence is not adopted. |
+| flat | moves | Debate substance changed but the rubric failed to register it. The rubric under-detects, which is a finding about the rubric. |
+| flat | flat | Null, per Rule 4. |
+
+The second row is the Goodhart veto of Rule 3 in measurable form rather than as a hand-check. The hand-check in Rule 3 still runs; it now has a quantitative companion instead of carrying the veto alone.
+
+Both channels report the same way as the primary: per-debate spread alongside pooled counts, per Amendment 1.
+
+### Caveat carried forward
+
+The banked arm-A run `t1670-02` logged `an.extraction_coverage_low` at 29% against a 70% threshold. Low extraction coverage is a property of the model and pacing, held identical across arms, so it does not bias the comparison. It does bound what the run can claim: these are thin debates, and a criterion effect measured on thin debates may not appear on richer ones.
+
 ## Results
 
 Not yet run. This section is written before the run and holds no results.
