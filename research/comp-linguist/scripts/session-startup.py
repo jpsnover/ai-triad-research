@@ -18,7 +18,14 @@ sys.stdout.reconfigure(encoding='utf-8')
 REPO_ROOT = Path('C:/Users/jsnov/repos/ai-triad-research')
 DATA_ROOT = Path('C:/Users/jsnov/repos/ai-triad-data')
 
-CAL_LOG_PATHS = [
+# Live calibration data is appended per-debate to these JSONL logs.
+JSONL_LOG_PATHS = [
+    DATA_ROOT / 'calibration' / 'core' / 'calibration-log.jsonl',
+    DATA_ROOT / 'calibration' / 'users' / 'local' / 'calibration-log.jsonl',
+]
+# Legacy single-file .json — froze on 2026-06-17 when the logger switched to
+# append-mode JSONL. Kept only as a last-resort fallback (t/1770).
+JSON_LOG_PATHS = [
     REPO_ROOT / 'calibration' / 'calibration-log.json',
     DATA_ROOT / 'calibration' / 'calibration-log.json',
 ]
@@ -36,6 +43,24 @@ CONVERGENCE_FIELDS = [
 ]
 
 REGRESSION_THRESHOLD = 0.05
+
+# Fixture-exclusion filter. ~97% of calibration-log entries are smoke/fixture
+# runs (gemini-2.0-flash, rounds=1) whose one-word "turns" yield degenerate
+# prose (mean sentence length ~1). Real multi-round debates cluster at MSL
+# ~18-22 with an empty gap between ~2 and ~10, so MSL>=10 cleanly separates the
+# two populations. Derived from the 2026-07-27 Wachsmuth audit (t/1770); see
+# docs/metric-provenance-register.md.
+REAL_PROSE_MIN_MSL = 10
+
+
+def is_real_debate(e):
+    """True for genuine multi-round debates; False for smoke/fixture runs."""
+    msl = e.get('clarity_mean_sentence_length')
+    if isinstance(msl, (int, float)):
+        return msl >= REAL_PROSE_MIN_MSL
+    # Pre-2026-06-29 entries predate clarity metrics; fall back to the fixture
+    # signature (single-round gemini-2.0-flash smoke runs).
+    return not (e.get('model') == 'gemini-2.0-flash' and (e.get('rounds') or 0) <= 1)
 
 OWNED_FILES = [
     'scripts/AITriad/Prompts/',
@@ -81,15 +106,51 @@ OWNED_FILES = [
 ]
 
 
+def _dedup_by_debate(entries):
+    """Collapse duplicate debate_ids (the core and users/local logs overlap),
+    keeping the entry with the latest timestamp. Order-preserving."""
+    best, order = {}, []
+    for e in entries:
+        key = e.get('debate_id') or id(e)
+        if key not in best:
+            order.append(key)
+            best[key] = e
+        else:
+            try:
+                if parse_ts(e.get('timestamp', '')) >= parse_ts(best[key].get('timestamp', '')):
+                    best[key] = e
+            except Exception:
+                pass
+    return [best[k] for k in order]
+
+
 def load_calibration_log():
-    for path in CAL_LOG_PATHS:
+    # Prefer the live JSONL logs; union across sources and dedup by debate_id.
+    collected, found = [], []
+    for path in JSONL_LOG_PATHS:
+        if path.exists():
+            with open(path, encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        collected.append(json.loads(line))
+                    except Exception:
+                        pass
+            found.append(str(path))
+    if collected:
+        return _dedup_by_debate(collected), ' + '.join(found)
+    # Fallback: legacy frozen single-file .json (stale since 2026-06-17).
+    for path in JSON_LOG_PATHS:
         if path.exists():
             with open(path, encoding='utf-8') as f:
                 data = json.load(f)
+            suffix = ' (LEGACY .json — likely stale, t/1770)'
             if isinstance(data, list):
-                return data, str(path)
+                return data, str(path) + suffix
             if isinstance(data, dict) and 'entries' in data:
-                return data['entries'], str(path)
+                return data['entries'], str(path) + suffix
     return [], None
 
 
@@ -108,15 +169,35 @@ def calibration_scan(entries):
         return
 
     now = datetime.now(timezone.utc)
-    recent = [e for e in entries if (now - parse_ts(e['timestamp'])).days <= 14]
+
+    def _recent(e):
+        ts = e.get('timestamp')
+        if not ts:
+            return False
+        try:
+            return (now - parse_ts(ts)).days <= 14
+        except Exception:
+            return False
+
+    recent_all = [e for e in entries if _recent(e)]
+    # Exclude smoke/fixture runs so the rolling delta reflects real debates only.
+    recent = [e for e in recent_all if is_real_debate(e)]
+    excluded = len(recent_all) - len(recent)
+
     if not recent:
-        latest_ts = max(parse_ts(e['timestamp']) for e in entries)
-        days_ago = (now - latest_ts).days
-        print(f'  WARNING: No entries in last 14 days. Latest entry: {days_ago} days ago.')
+        try:
+            latest_ts = max(parse_ts(e['timestamp']) for e in entries if e.get('timestamp'))
+            days_ago = (now - latest_ts).days
+            extra = f' ({excluded} fixture entries excluded)' if excluded else ''
+            print(f'  WARNING: No real-debate entries in last 14 days.{extra} '
+                  f'Latest entry overall: {days_ago} days ago.')
+        except ValueError:
+            print('  WARNING: No timestamped entries found.')
         return
 
     dates = sorted(set(parse_ts(e['timestamp']).strftime('%Y-%m-%d') for e in recent))
-    print(f'  Entries in last 14 days: {len(recent)} across {len(dates)} days')
+    print(f'  Real-debate entries in last 14 days: {len(recent)} across {len(dates)} days '
+          f'({excluded} fixture entries excluded)')
     print(f'  Date range: {dates[0]} to {dates[-1]}')
     print()
 
