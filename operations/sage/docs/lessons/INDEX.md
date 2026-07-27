@@ -34,7 +34,7 @@ Seven patterns crossed the 3-instance threshold (or were high-severity) and beca
 
 - **Overlay repo (ogit)** — 7 instances, 4 agents → [build.md](build.md)
 - **Bash heredoc/quoting** — 10 instances, 7 agents → [build.md](build.md) (incl. `pwsh -File` over inline `-Command` for non-trivial PS, p/20#23)
-- **Git `--` flag ordering** — 3 instances, 3 agents → [build.md](build.md) ✓ resolved
+- **Git `--` flag ordering** — 4 instances, 4 agents → [build.md](build.md) (main-repo ✓ resolved via rule + hook; **overlay `ogit` form recurred 2026-07-26, suspected hook-coverage gap** — flagged to Diagnostics, p/217#1)
 - **Push contention (multi-agent)** — 6 instances, 5 agents → [build.md](build.md) (**split by scale:** small commit-to-push contention is self-correcting/not escalating; the LARGE-divergence variant — p/9#36, local 46 ahead/origin 52 ahead — is a push-cadence-ceiling breach that hits out-of-scope conflicts and needs TL/DevOps)
 - **JSON schema assumptions** — 6 instances, 2 agents → [data.md](data.md)
 - **PS strict mode + JSON** — 3 instances → [powershell.md](powershell.md)
