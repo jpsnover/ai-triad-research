@@ -73,3 +73,17 @@ Run artifacts: `_p0_out_A.json`, `_p0_out_B.json`, `_p0_out_C.json` (extraction 
 **Fix hypothesis + proposed re-run (requires a fresh protocol section per the rules above, before any Phase 1 decision):** protocol v0.2 re-runs axis 4 only, against an alias table built from the facts of the nodes the selected debate actually references (a full-corpus proxy), with the same annotation and scoring rules. Axes 1–3 stand as measured; the extraction instrument itself is validated on this sample.
 
 **Type-taxonomy note for Phase 1:** the one precision miss (Rome Call for AI Ethics typed `institution`; correct reading is normative description → `legislation` bucket) and one sub-gate near-miss (FTC v. Rite Aid as `event`) suggest the prompt's teaching text should sharpen the legislation/institution differentia and note that legal cases ride the `event` bucket until the mint gate admits a `case` type (≥10 observed instances).
+
+---
+
+## Protocol v0.2 — axis-4 re-run only (preregistered 2026-07-27, before the v0.2 extraction ran)
+
+**What changes:** only the alias table. Axes 1–3 stand as measured under v0.1. The v0.1 axis-4 flaw was table coverage: a 20-node slice cannot approximate the full-corpus table the production design specifies. v0.2 implements the fix hypothesis exactly as posted to t/1767#8.
+
+- **Alias table (v0.2):** gated proposals (confidence ≥ 0.6, exact-name dedup) from extraction over the facts of **every node the selected debate references** — 295 nodes, 1,798 facts, in 10 balanced batches (manifest `_p02_batches.json`) — UNION the v0.1 gated proposals (the two v0.1-covered nodes are excluded from re-extraction), UNION the org registry names.
+- **Instrument:** extraction prompt v0.1 verbatim, same model (claude-fable-5 subagents), same 0.6 gate. Unchanged so the re-run isolates the table-coverage variable.
+- **Statements and annotation:** unchanged — the same 3 statements and the same locked hand-annotation (`_p0_annotation.json`, 1 entity mention). The annotation was written before any extraction output existed and is not revisited.
+- **Decision rule (unchanged from axis 4):** ≥ 80% of hand-annotated mentions detected and correctly resolved, 0 wrong links; refusals on genuinely ambiguous mentions allowed.
+- **Honest-outcome clause:** if the mention is still absent from the v0.2 table, the fix hypothesis is falsified and the finding is that node-scoped extraction does not deliver mention coverage — the design would then need the retroactive/manual path (proposal §7) to carry that load, and that goes to the Phase 1 decision as an open risk, not a pass.
+
+**v0.2 precision spot-check (secondary, non-gating):** 20 proposals sampled deterministically (every Nth by sorted name) from the v0.2 gated set, hand-scored with the v0.1 precision definition — a drift check on the instrument at 11× the fact volume, reported but not part of the axis-4 verdict.
