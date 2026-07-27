@@ -8,6 +8,9 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { parseAIJson } from '@lib/debate/helpers';
 import { entrySummarizationPrompt } from '../../../prompts/debate';
 import { findNodeMetaInStore } from './taxonomyContext';
+// getDocTitles lives in a store-free module to avoid a load-order cycle (t/1779);
+// re-exported here so existing importers (debate*Slice) stay unchanged.
+export { getDocTitles } from './docTitles';
 
 /**
  * Phase-safe debate state update. Background async tasks (extractClaimsAndUpdateAN,
@@ -192,28 +195,6 @@ export async function getSourceEvidenceIndex(): Promise<Record<string, unknown> 
     });
     console.error(`[debate-store] getSourceEvidenceIndex ERROR:`, err);
     _cachedEvidenceIndex = null;
-    return undefined;
-  }
-}
-
-let _cachedDocTitles: Record<string, string> | null | undefined;
-export async function getDocTitles(): Promise<Record<string, string> | undefined> {
-  if (_cachedDocTitles !== undefined) return _cachedDocTitles ?? undefined;
-  try {
-    const bridge = api as unknown as { loadDocTitles?: () => Promise<Record<string, string> | null> };
-    if (!bridge.loadDocTitles) { _cachedDocTitles = null; return undefined; }
-    const result = await bridge.loadDocTitles();
-    _cachedDocTitles = result;
-    return result ?? undefined;
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'debate-store',
-      level: 'warn',
-      message: 'Failed to load doc titles',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    _cachedDocTitles = null;
     return undefined;
   }
 }

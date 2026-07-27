@@ -15,6 +15,8 @@ import type {
 import { POVER_INFO, AI_POVERS, POV_KEYS, normalizeActivePovers, migrateSpeakerId } from '../../../types/debate';
 import { api, setActiveDebateId, isElectronMode } from '@bridge';
 import { buildDebateDelta } from './buildDebateDelta';
+import { getDocTitles } from '../shared/docTitles';
+import type { DocMetaMap } from '@lib/debate/evidenceFromSummaries';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { trackDebateAbandon, trackDebateStart } from '../../../lib/analyticsEmitter';
 import { useTaxonomyStore } from '../../useTaxonomyStore';
@@ -694,6 +696,35 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       const promptConfig = usePromptConfigStore.getState().exportSessionConfig();
       if (Object.keys(promptConfig).length > 0) {
         (activeDebate as unknown as Record<string, unknown>).prompt_config = promptConfig;
+      }
+
+      // Stamp doc_meta for document-grounded debates so source-authority/recency
+      // calibration resolves on BOTH save paths (Electron IPC save + web POST) — t/1779.
+      // App-run debates never instantiate DebateEngine, whose filesystem-derived
+      // `docTitles` was the only place doc provenance was computed; without it,
+      // extractCalibrationData saw no docMeta and computeSourceAuthority returned all-null.
+      // Stamp from the same client-side catalog the turn pipeline already uses
+      // (getDocTitles), keyed to the doc_ids actually cited in the argument network —
+      // mirroring computeSourceAuthority's own extraction so every id it looks up is
+      // present. Carrier + read fallback shipped by t/1769; the web-delta path carries
+      // doc_meta via changedFields (it is not a STRUCTURED_KEY). Doc-less debates cite no
+      // source docs → doc_meta stays undefined (back-compat).
+      const citedDocIds = new Set<string>();
+      for (const node of activeDebate.argument_network?.nodes ?? []) {
+        for (const item of node.evidence_graph?.evidence_items ?? []) {
+          if (item.source_doc_id) citedDocIds.add(item.source_doc_id);
+        }
+      }
+      if (citedDocIds.size > 0) {
+        const catalog = await getDocTitles();
+        if (catalog) {
+          const docMeta: DocMetaMap = {};
+          for (const id of citedDocIds) {
+            const meta = catalog[id];
+            if (meta) docMeta[id] = meta;
+          }
+          if (Object.keys(docMeta).length > 0) activeDebate.doc_meta = docMeta;
+        }
       }
 
       const overview = activeDebate.diagnostics?.overview;
