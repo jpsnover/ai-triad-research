@@ -249,11 +249,12 @@ function Export-AggregatedCruxes {
         $MajorityType = ($TypeVotes.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1).Key
 
         # Resolution summary
-        $Resolved = 0; $Active = 0; $Irreducible = 0
+        $Resolved = 0; $Active = 0; $Irreducible = 0; $Undecided = 0
         foreach ($MIdx in $Members) {
             switch ($AllCruxes[$MIdx].State) {
                 'resolved'    { $Resolved++ }
                 'irreducible' { $Irreducible++ }
+                'undecided'   { $Undecided++ }
                 default       { $Active++ }
             }
         }
@@ -288,6 +289,7 @@ function Export-AggregatedCruxes {
                 resolved    = $Resolved
                 active      = $Active
                 irreducible = $Irreducible
+                undecided   = $Undecided
             }
         })
     }
