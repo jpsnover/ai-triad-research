@@ -9,6 +9,7 @@ import {
   computeExtractionCoverage,
   extractCalibrationData,
   appendCalibrationLog,
+  readCalibrationLog,
 } from './calibrationLogger.js';
 import { PROMPT_VERSION } from './prompts.js';
 import type { DebateSession, EntryDiagnostics } from './types.js';
@@ -705,6 +706,94 @@ describe('appendCalibrationLog stamps runtime provenance (t/1672)', () => {
       const { config_revision: _ec, working_tree_state: _ew, ...entryRest } = entry;
       const { config_revision: _dc, working_tree_state: _dw, ...dpRest } = dp as any;
       expect(entryRest).toEqual(dpRest);
+    } finally {
+      fs.rmSync(dataRoot, { recursive: true, force: true });
+    }
+  });
+});
+
+// ── Synthetic-run routing (t/1770) ────────────────────────────
+// Fixture/smoke/batch runs must never land in calibration/core/ (the optimizer +
+// t/1668 replication-gate source of truth). They route to calibration/fixtures/
+// instead — clean by construction, so no downstream consumer needs a !synthetic
+// filter. Signal is the CalibrationDataPoint.synthetic field OR the
+// AI_TRIAD_SYNTHETIC_CALIBRATION env var (the harness→engine transport, t/1812).
+
+describe('appendCalibrationLog synthetic routing (t/1770)', () => {
+  function coreLines(dataRoot: string): string[] {
+    const f = path.join(dataRoot, 'calibration', 'core', 'calibration-log.jsonl');
+    return fs.existsSync(f) ? fs.readFileSync(f, 'utf-8').trim().split('\n').filter(Boolean) : [];
+  }
+  function fixtureLines(dataRoot: string): string[] {
+    const f = path.join(dataRoot, 'calibration', 'fixtures', 'calibration-log.jsonl');
+    return fs.existsSync(f) ? fs.readFileSync(f, 'utf-8').trim().split('\n').filter(Boolean) : [];
+  }
+  function userLines(dataRoot: string, origin: string): string[] {
+    const f = path.join(dataRoot, 'calibration', 'users', origin, 'calibration-log.jsonl');
+    return fs.existsSync(f) ? fs.readFileSync(f, 'utf-8').trim().split('\n').filter(Boolean) : [];
+  }
+
+  it('routes a synthetic=true data point to fixtures/, never core/ or users/', () => {
+    const dataRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'calib-syn-'));
+    try {
+      const dp = extractCalibrationData(makeMinimalSession(), 'local');
+      appendCalibrationLog({ ...dp, synthetic: true }, dataRoot);
+
+      expect(coreLines(dataRoot)).toHaveLength(0);           // core stays clean
+      expect(userLines(dataRoot, 'local')).toHaveLength(0);  // no per-user pollution either
+      const fx = fixtureLines(dataRoot);
+      expect(fx).toHaveLength(1);
+      expect(JSON.parse(fx[0]).synthetic).toBe(true);        // self-describing row
+    } finally {
+      fs.rmSync(dataRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('routes to fixtures/ when AI_TRIAD_SYNTHETIC_CALIBRATION is set (harness transport)', () => {
+    const dataRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'calib-syn-'));
+    const prev = process.env.AI_TRIAD_SYNTHETIC_CALIBRATION;
+    process.env.AI_TRIAD_SYNTHETIC_CALIBRATION = '1';
+    try {
+      const dp = extractCalibrationData(makeMinimalSession(), 'local'); // no field set
+      appendCalibrationLog(dp, dataRoot);
+
+      expect(coreLines(dataRoot)).toHaveLength(0);
+      const fx = fixtureLines(dataRoot);
+      expect(fx).toHaveLength(1);
+      expect(JSON.parse(fx[0]).synthetic).toBe(true);        // env-triggered rows are stamped too
+    } finally {
+      if (prev === undefined) delete process.env.AI_TRIAD_SYNTHETIC_CALIBRATION;
+      else process.env.AI_TRIAD_SYNTHETIC_CALIBRATION = prev;
+      fs.rmSync(dataRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('real runs still write core/ + users/ and omit the synthetic field (back-compat shape)', () => {
+    const dataRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'calib-syn-'));
+    try {
+      const dp = extractCalibrationData(makeMinimalSession(), 'local');
+      appendCalibrationLog(dp, dataRoot);
+
+      expect(fixtureLines(dataRoot)).toHaveLength(0);
+      expect(coreLines(dataRoot)).toHaveLength(1);
+      expect(userLines(dataRoot, 'local')).toHaveLength(1);
+      expect('synthetic' in JSON.parse(coreLines(dataRoot)[0])).toBe(false);
+    } finally {
+      fs.rmSync(dataRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('readCalibrationLog (core-only) excludes synthetic rows by construction', () => {
+    const dataRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'calib-syn-'));
+    try {
+      const real = extractCalibrationData(makeMinimalSession(), 'local');
+      appendCalibrationLog(real, dataRoot);
+      appendCalibrationLog({ ...real, synthetic: true }, dataRoot);
+      appendCalibrationLog({ ...real, synthetic: true }, dataRoot);
+
+      const seen = readCalibrationLog(dataRoot);
+      expect(seen).toHaveLength(1);                           // only the real run
+      expect(seen.every(e => e.synthetic !== true)).toBe(true);
     } finally {
       fs.rmSync(dataRoot, { recursive: true, force: true });
     }

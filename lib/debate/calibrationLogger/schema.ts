@@ -27,6 +27,20 @@ export interface CalibrationDataPoint {
   model: string;
   /** Total rounds completed */
   rounds: number;
+  /**
+   * Synthetic-run marker (t/1770). `true` for fixture/smoke/batch runs produced by
+   * the test harness (Invoke-DebateBatch, Test-AnonymousDebateFlow,
+   * Invoke-TaxEditorSmokeTest, Test-PersonaEndpoints — wired in t/1812). Synthetic
+   * entries are ROUTED to calibration/fixtures/ and never reach calibration/core/
+   * (the optimizer + t/1668 replication-gate source of truth), so the production log
+   * stays clean by *construction* — no consumer needs a `!synthetic` filter.
+   *
+   * Populated either explicitly on the data point OR from the
+   * AI_TRIAD_SYNTHETIC_CALIBRATION env var read at the write funnel (appendCalibrationLog).
+   * Additive/back-compat: absent on real debates and on all pre-t/1770 entries (those
+   * ~14k fixtures are quarantined by CL's rounds-based backfill, not by this field).
+   */
+  synthetic?: boolean;
 
   // ── Preregistration-by-artifact provenance (t/1672) ──
   // Binds the instrument revision that produced this entry so a metric shift can

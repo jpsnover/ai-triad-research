@@ -64,13 +64,50 @@ function captureRunProvenance(): { config_revision: string; working_tree_state: 
   return { config_revision, working_tree_state };
 }
 
+/**
+ * Whether the current process is a synthetic/fixture run (t/1770).
+ *
+ * The PowerShell test harness (t/1812) sets AI_TRIAD_SYNTHETIC_CALIBRATION=1
+ * before invoking a debate; every calibration write from that process then routes
+ * to calibration/fixtures/ instead of calibration/core/. This is the harness→engine
+ * signal transport — the durable contract is the CalibrationDataPoint.synthetic
+ * field, which a caller may also set explicitly (tests, the CL backfill).
+ */
+function isSyntheticRun(): boolean {
+  const v = process.env.AI_TRIAD_SYNTHETIC_CALIBRATION;
+  return v === '1' || v === 'true';
+}
+
 export function appendCalibrationLog(
   dataPoint: CalibrationDataPoint,
   dataRoot: string,
 ): void {
+  // Synthetic detection: explicit field on the data point OR the harness env var (t/1770).
+  const synthetic = dataPoint.synthetic === true || isSyntheticRun();
+
   // Stamp I/O-dependent provenance without mutating the caller's object (t/1672).
-  const stamped: CalibrationDataPoint = { ...dataPoint, ...captureRunProvenance() };
+  // Also stamp the synthetic marker so a fixtures/ row is self-describing regardless
+  // of which signal (field vs env var) triggered the routing; real rows omit it to
+  // keep core/ entry shape stable (back-compat with the 16k existing entries).
+  const stamped: CalibrationDataPoint = {
+    ...dataPoint,
+    ...captureRunProvenance(),
+    ...(synthetic ? { synthetic: true } : {}),
+  };
   const line = JSON.stringify(stamped) + '\n';
+
+  if (synthetic) {
+    // ROUTE (t/1770): synthetic runs bypass users/ + core/ entirely — a single
+    // dedicated fixtures log. core/ (the optimizer + t/1668 replication-gate source
+    // of truth, read by readCalibrationLog below) stays clean by construction, so no
+    // downstream consumer needs a `!synthetic` filter that one miss could defeat.
+    const fixturesDir = path.join(dataRoot, 'calibration', 'fixtures');
+    if (!fs.existsSync(fixturesDir)) {
+      fs.mkdirSync(fixturesDir, { recursive: true });
+    }
+    fs.appendFileSync(path.join(fixturesDir, 'calibration-log.jsonl'), line, 'utf-8');
+    return;
+  }
 
   const userDir = path.join(dataRoot, 'calibration', 'users', dataPoint.origin || 'local');
   if (!fs.existsSync(userDir)) {
