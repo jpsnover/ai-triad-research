@@ -207,9 +207,7 @@ jobs:
       matrix:
         include:
           - app: taxonomy-editor
-            # GHSA-8r6m-32jq-jx6q  fast-xml-parser DoS (DOCTYPE entity-expansion reset).      owner: Taxonomy Editor → t/1801
-            # GHSA-f88m-g3jw-g9cj  sharp→libvips CVEs (via @huggingface/transformers).        owner: Taxonomy Editor → t/1801
-            baseline: "GHSA-8r6m-32jq-jx6q GHSA-f88m-g3jw-g9cj"
+            baseline: ""
           - app: poviewer
             # GHSA-mh99-v99m-4gvg  brace-expansion DoS, transitive via gaxios→rimraf→glob→minimatch. owner: project/TL → t/1802
             baseline: "GHSA-mh99-v99m-4gvg"
