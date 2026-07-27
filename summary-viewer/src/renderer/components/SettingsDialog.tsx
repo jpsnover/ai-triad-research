@@ -12,12 +12,17 @@ interface SettingsDialogProps {
   onClose: () => void;
 }
 
-interface RefreshResult {
-  gemini: { ok: boolean; count: number; error?: string };
-  claude: { ok: boolean; count: number; error?: string };
-  groq:   { ok: boolean; count: number; error?: string };
-  totalModels: number;
+interface BackendRefresh {
+  ok: boolean;
+  count: number;
+  error?: string;
 }
+
+// Keyed by every AIBackend so indexing by any backend value is type-safe and
+// stays aligned if the union grows. The runtime object from refreshAIModels()
+// (lib/electron-shared/modelDiscovery RefreshResult) is a superset — it also
+// carries deepseek/ollama — which is assignable to this shape.
+type RefreshResult = Record<AIBackend, BackendRefresh> & { totalModels: number };
 
 export default function SettingsDialog({ onClose }: SettingsDialogProps) {
   const { theme, setTheme, aiBackend, setAIBackend, aiModel, setAIModel } = useStore();
@@ -92,6 +97,7 @@ export default function SettingsDialog({ onClose }: SettingsDialogProps) {
     gemini: 'AIza...',
     claude: 'sk-ant-...',
     groq: 'gsk_...',
+    openai: 'sk-...',
   };
 
   return (
@@ -139,11 +145,12 @@ export default function SettingsDialog({ onClose }: SettingsDialogProps) {
 
         {refreshResult && (
           <div className="settings-refresh-result">
-            {(['gemini', 'claude', 'groq', 'openai'] as const).map((b) => {
-              const r = refreshResult[b];
+            {AI_BACKENDS.map((b) => {
+              const r = refreshResult[b.value];
+              if (!r) return null; // backend not present in this refresh result
               return (
-                <div key={b} className={`settings-refresh-line ${r.ok ? '' : 'settings-refresh-warn'}`}>
-                  <span className="settings-refresh-backend">{b}</span>
+                <div key={b.value} className={`settings-refresh-line ${r.ok ? '' : 'settings-refresh-warn'}`}>
+                  <span className="settings-refresh-backend">{b.value}</span>
                   <span>{r.ok ? `${r.count} models` : r.error || 'failed'}</span>
                 </div>
               );
