@@ -119,6 +119,30 @@ The renderer contract for t/1766 reduces to a detected `entity_ref` plus a `getE
 
 This keeps the extend-and-unify rule at the API boundary too: the response is a thin envelope over records that already exist, so there is one definition of an organization in the system, not two.
 
+Drafted so Shared Lib implements rather than interprets (import paths to be matched to actuals; `EntityRef` and `EntityRefKind` already shipped in `80cf4e48`):
+
+```ts
+/** Common envelope. `redirected_from` is set when a merged_into tombstone was followed. */
+interface EntityDetailBase { ref: EntityRef; redirected_from?: string }
+
+/**
+ * Result of resolving an EntityRef, discriminated on the SAME `kind` field as EntityRef
+ * so one switch covers both. Each payload REUSES the type that already owns that data;
+ * only `entity` introduces a new shape. `not_found` is a member of the union, not an
+ * exception — a resolve miss is a designed outcome (see the status table above).
+ */
+export type EntityDetail =
+  | (EntityDetailBase & { kind: 'node';         record: TaxonomyNode })
+  | (EntityDetailBase & { kind: 'situation';    record: Situation })
+  | (EntityDetailBase & { kind: 'policy';       record: PolicyAction })
+  | (EntityDetailBase & { kind: 'organization'; record: Organization })   // lib/organizations/types.ts
+  | (EntityDetailBase & { kind: 'entity';       record: Entity })         // Section 3, new
+  | (EntityDetailBase & { kind: 'term';         record: ColloquialTerm }) // dictionary, with resolved senses
+  | (EntityDetailBase & { kind: 'not_found' });
+```
+
+Two properties worth stating because they are easy to lose in implementation. The result `kind` set is `EntityRefKind | 'not_found'`, so a consumer's exhaustive switch still compiles when a new ref kind is added, and it is forced to handle the miss. And `record` is absent rather than null on `not_found`, so a pane cannot accidentally render an empty record as if it were data.
+
 Two seam rules make this contract workable (PM lifecycle review, t/1767#6):
 
 - **The entity layer detects; the renderer only renders.** Entity mentions are natural-language names ("Bengio", "the EU AI Act"), not ID-shaped tokens like `[acc-beliefs-070]`. Name detection therefore lives in this layer (alias table, embedding tie-break, refusal on ambiguity), which writes mention records (`entity_ref`, quote, offset, `discovered_by`) to the **mention index** rather than onto the container entry. t/1766 renders links from those records and never runs its own name matching. ID-shaped tokens remain the renderer's own cheap detection, since they need no alias table.
