@@ -50,6 +50,8 @@ Single-file trivial fixes may still commit from the shared tree by explicit path
 
 **Deploy is separate and always deliberate:** `deploy-azure.yml` is manual-dispatch, owned by DevOps — a push never deploys. Large data-repo pushes: prefer the SSH remote; stage pushes over ~200 MB (see docs/powershell-native-quoting-traps.md incident notes for the transport failure modes).
 
+**Periodic cadence check (DevOps).** At each DevOps session start and before any sync sweep, check three-repo divergence to catch backlog early. For code, data (`../ai-triad-data`), and overlay (`git --git-dir=.orca-git`): `git rev-list --count origin/<branch>..<branch>` (ahead) + the reverse (behind). **Ahead-count is a trigger, not a verdict** — worktree-landing leaves the old local-main commit as a duplicate under a new origin SHA, so a high "ahead" is usually dupes; classify commit *content* (`git log origin/<branch>..<branch> --oneline`) as genuinely-new vs. already-landed-dupe vs. garbage (stray ADR-005 sweeps) before acting. Genuinely-new approved → push; dupe/garbage-laden or bidirectional divergence → flag TL for a **worktree-replay reconciliation (see t/1714) — NEVER `reset --hard`/force on the shared tree**; never a bulk push. Escalate when genuinely-new unpushed work exceeds the ~10-commit ceiling in any repo.
+
 ## Definition of Done
 
 A ticket is **not Done** until all of the following are true:
