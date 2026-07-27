@@ -13,6 +13,8 @@ import {
   handleExplainEntry, fixMarkdownLinks, resolvePolRef, getPolicyAction,
 } from './utils';
 import type { PolicyRefEntry } from './utils';
+import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import { TaxonomyRefDetail, type TaxRefNode } from '../taxonomy/TaxonomyRefDetail';
 
 export function CoverageBadge({ coverageMap, strengthWeighted }: { coverageMap: CoverageMap; strengthWeighted?: StrengthWeightedCoverage | null }) {
   const { stats } = coverageMap;
@@ -83,6 +85,9 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
 }) {
   const [caveatsExpanded, setCaveatsExpanded] = useState(false);
   const [explainCopied, setExplainCopied] = useState(false);
+  // Selected PLAN-view taxonomy anchor → shows its POV details inline (t/1724).
+  const [selectedPlanNodeId, setSelectedPlanNodeId] = useState<string | null>(null);
+  const lookupPinnedData = useTaxonomyStore(s => s.lookupPinnedData);
   const polRefs = metaPolicyRefs || policyRefs || [];
 
   const handleExplain = () => {
@@ -242,7 +247,9 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
                                 <div style={{ marginTop: 2 }}>
                                   <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Anchor: </span>
                                   <button
-                                    onClick={() => focusMainWindowNode(s.taxonomy_anchor)}
+                                    onClick={() => setSelectedPlanNodeId(prev => prev === s.taxonomy_anchor ? null : s.taxonomy_anchor)}
+                                    aria-expanded={selectedPlanNodeId === s.taxonomy_anchor}
+                                    title="Show this POV node's details"
                                     style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'var(--text-2xs)' }}
                                   >{s.taxonomy_anchor}</button>
                                 </div>
@@ -276,6 +283,28 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
                           </ul>
                         </details>
                       )}
+                      {/* Inline POV detail for the clicked argument-structure anchor (t/1724).
+                          Resolved entirely from the client-side taxonomy store — no fetch.
+                          Rendered once at the end of the plan body so the layout above the
+                          clicked item stays put. Reuses TaxonomyRefDetail (same component the
+                          diagnostics Plan tab uses), so per-camp interpretations + graph
+                          attributes render identically. */}
+                      {selectedPlanNodeId && (() => {
+                        const data = lookupPinnedData(selectedPlanNodeId);
+                        const node = data && data.type !== 'conflict'
+                          ? (data.node as unknown as TaxRefNode)
+                          : undefined;
+                        const pov = data?.type === 'pov' ? data.pov
+                          : data?.type === 'situations' ? 'situations' : '';
+                        return (
+                          <TaxonomyRefDetail
+                            nodeId={selectedPlanNodeId}
+                            node={node}
+                            pov={pov}
+                            onClose={() => setSelectedPlanNodeId(null)}
+                          />
+                        );
+                      })()}
                     </>
                   );
                 })()}

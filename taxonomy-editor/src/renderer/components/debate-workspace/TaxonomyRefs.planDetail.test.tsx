@@ -1,0 +1,107 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+// t/1724 — clicking a POV item (argument-structure taxonomy anchor) in the debate
+// PLAN view toggles an inline TaxonomyRefDetail resolved from the client-side
+// taxonomy store (no fetch). These tests cover the wiring: click → detail with
+// the right node id, click again → toggle off, close button → dismiss.
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+
+vi.mock('react-markdown', () => ({
+  default: ({ children }: { children: string }) => <div data-testid="markdown">{children}</div>,
+}));
+vi.mock('remark-gfm', () => ({ default: {} }));
+
+vi.mock('./utils', () => ({
+  nodeIdToTab: () => ({ tab: 'acc', colorVar: 'var(--color-acc)' }),
+  getNodeLabel: (id: string) => `Label for ${id}`,
+  getNodeWeight: () => null,
+  focusMainWindowNode: vi.fn(),
+  handleExplainEntry: vi.fn(),
+  fixMarkdownLinks: (s: string) => s,
+  resolvePolRef: () => ({ id: '', relevance: null }),
+  getPolicyAction: () => undefined,
+}));
+
+vi.mock('../../utils/humanizeSpeakers', () => ({
+  humanizeSpeakerIds: (ids: string) => ids,
+}));
+
+const lookupPinnedData = vi.fn((id: string) => ({
+  type: 'pov' as const,
+  pov: 'accelerationist' as const,
+  node: { id, label: 'Test Node', category: 'Beliefs', description: 'A description' },
+}));
+
+vi.mock('../../hooks/useTaxonomyStore', () => ({
+  useTaxonomyStore: (selector: (s: Record<string, unknown>) => unknown) => selector({ lookupPinnedData }),
+}));
+
+// Stub the reused detail panel so the test targets TaxonomyRefs' wiring, not the
+// panel's internals (which pull DescriptionToggle + store hooks of their own).
+vi.mock('../taxonomy/TaxonomyRefDetail', () => ({
+  TaxonomyRefDetail: ({ nodeId, onClose }: { nodeId: string; onClose: () => void }) => (
+    <div data-testid="ref-detail" data-node={nodeId}>
+      <button onClick={onClose}>close-detail</button>
+    </div>
+  ),
+}));
+
+import { TaxonomyRefsSection } from './TaxonomyRefs';
+
+const ANCHOR = 'acc-B-001';
+
+function renderPlan() {
+  const stageDiagnostics = [
+    {
+      stage: 'plan',
+      raw_response: '',
+      work_product: {
+        strategic_goal: 'Win the point',
+        argument_structure: [
+          { point: 'P1', evidence: 'E1', taxonomy_anchor: ANCHOR },
+        ],
+      },
+    },
+  ];
+  return render(<TaxonomyRefsSection refs={[]} stageDiagnostics={stageDiagnostics} forceExpanded />);
+}
+
+describe('TaxonomyRefsSection — PLAN anchor → inline POV detail (t/1724)', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('renders the anchor as a keyboard-accessible button, no detail until clicked', () => {
+    renderPlan();
+    const btn = screen.getByRole('button', { name: ANCHOR });
+    expect(btn).toBeTruthy();
+    expect(btn.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByTestId('ref-detail')).toBeNull();
+  });
+
+  it('clicking the anchor shows the detail resolved for that node id', () => {
+    renderPlan();
+    fireEvent.click(screen.getByRole('button', { name: ANCHOR }));
+    const detail = screen.getByTestId('ref-detail');
+    expect(detail.getAttribute('data-node')).toBe(ANCHOR);
+    expect(lookupPinnedData).toHaveBeenCalledWith(ANCHOR);
+    expect(screen.getByRole('button', { name: ANCHOR }).getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('clicking the same anchor again toggles the detail off', () => {
+    renderPlan();
+    const btn = () => screen.getByRole('button', { name: ANCHOR });
+    fireEvent.click(btn());
+    expect(screen.getByTestId('ref-detail')).toBeTruthy();
+    fireEvent.click(btn());
+    expect(screen.queryByTestId('ref-detail')).toBeNull();
+  });
+
+  it('the detail Close control dismisses the panel', () => {
+    renderPlan();
+    fireEvent.click(screen.getByRole('button', { name: ANCHOR }));
+    fireEvent.click(screen.getByText('close-detail'));
+    expect(screen.queryByTestId('ref-detail')).toBeNull();
+  });
+});
