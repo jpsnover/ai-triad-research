@@ -11,7 +11,8 @@
 
 const command = process.argv[2] || '';
 
-if (!command.includes('git commit') || !command.includes(' -- ')) {
+// Match both `git commit …` and `git --git-dir=… --work-tree=… commit …` (overlay form)
+if (!/\bgit\b.*\bcommit\b/.test(command) || !command.includes(' -- ')) {
   process.exit(1);
 }
 
