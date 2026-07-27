@@ -119,7 +119,63 @@ The renderer contract for t/1766 reduces to a detected `entity_ref` plus a `getE
 
 This keeps the extend-and-unify rule at the API boundary too: the response is a thin envelope over records that already exist, so there is one definition of an organization in the system, not two.
 
-Drafted so Shared Lib implements rather than interprets (import paths to be matched to actuals; `EntityRef` and `EntityRefKind` already shipped in `80cf4e48`):
+**Type identities, verified against the tree** (Shared Lib caught that my first draft named four types that do not exist or are ambiguous, t/1767#26; the names below are checked, not assumed):
+
+| kind | payload type | home | note |
+|---|---|---|---|
+| `node` | **`PovNode`** | `lib/debate/taxonomyTypes.ts:144` | canonical. **Not** `TaxonomyNode` — that name exists at `taxonomyGapAnalysis.ts:17` but sits under a literal "Helper types for inputs" comment and is a 4-field subset, so it is a local helper and must not be the contract type |
+| `situation` | **`SituationNode`** | `lib/debate/taxonomyTypes.ts:234` | carries `interpretations` for all three POVs plus `disagreement_type`, which is what the pane needs. My `Situation` was simply wrong |
+| `policy` | **`PolicyAction`** | **`lib/policy/types.ts` (new)** | does not exist anywhere today; defined below |
+| `organization` | `Organization` | `lib/organizations/types.ts` | exists |
+| `entity` | `Entity` | `lib/entities/types.ts` | new, defined below |
+| `term` | `ColloquialTerm` | `lib/dictionary/types.ts:34` | exists (`StandardizedTerm` at `:6` for the resolved senses) |
+
+`lib/policy/types.ts` follows the established `lib/<domain>/types.ts` convention already used by `ai-client`, `dictionary`, `entities`, `flight-recorder`, `organizations`, and `translation`, and it sits in Shared Lib's own scope so it needs no cross-role handoff. Shape from `taxonomy/Origin/policy_actions.json` (1,569 records):
+
+```ts
+/** A policy action (pol-*) from taxonomy/Origin/policy_actions.json. */
+export interface PolicyAction {
+  id: string;                 // pol-*
+  action: string;             // the policy statement; this file has no separate title field
+  status?: string;
+  tags?: string[];
+  source_povs?: string[];     // which camps propose it
+  member_count?: number;
+  real_world_refs?: unknown[];
+}
+```
+
+The `Entity` record from Section 3, as TypeScript:
+
+```ts
+export type EntityType = 'person' | 'artifact' | 'event' | 'legislation' | 'institution';
+export type DolceCategory =
+  | 'agentive-physical-object' | 'non-agentive-functional-artifact'
+  | 'perdurant' | 'normative-description' | 'non-agentive-social-object';
+
+export interface Entity {
+  id: string;                     // ent-NNN
+  name: string;
+  aliases: string[];
+  entity_type: EntityType;
+  dolce_category: DolceCategory;
+  /** Genus-differentia: "A [type] that [differentia]...". Human-authored for `person`. */
+  description: string;
+  external_refs?: { label: string; url: string }[];
+  source_refs?: string[];         // doc_ids
+  status: 'proposed' | 'approved' | 'deprecated';
+  /** Set ⇒ this record is a merge tombstone; resolve to the canonical id (Section 7). */
+  merged_into?: string;
+  discovered_by?: { usage_id?: string; model?: string };
+  confidence?: number;
+  created_at: string;
+  last_modified: string;
+}
+```
+
+**One dependency-direction question for TL and Shared Lib, flagged rather than decided:** `PovNode` and `SituationNode` live in `lib/debate/`, so `lib/entities/types.ts` importing them points the shared contract at the debate module. A **type-only** import is erased at runtime and creates no runtime coupling, which is why I would not block on it. The tidier long-term home for taxonomy record types is a neutral `lib/taxonomy/types.ts`, but relocating them touches many importers and is an architecture call, not mine to make unilaterally.
+
+With those settled, the result union (import paths to actuals; `EntityRef`/`EntityRefKind` shipped in `80cf4e48`, six kinds in `fdcdc665`):
 
 ```ts
 /** Common envelope. `redirected_from` is set when a merged_into tombstone was followed. */
@@ -132,12 +188,12 @@ interface EntityDetailBase { ref: EntityRef; redirected_from?: string }
  * exception — a resolve miss is a designed outcome (see the status table above).
  */
 export type EntityDetail =
-  | (EntityDetailBase & { kind: 'node';         record: TaxonomyNode })
-  | (EntityDetailBase & { kind: 'situation';    record: Situation })
-  | (EntityDetailBase & { kind: 'policy';       record: PolicyAction })
+  | (EntityDetailBase & { kind: 'node';         record: PovNode })        // lib/debate/taxonomyTypes.ts
+  | (EntityDetailBase & { kind: 'situation';    record: SituationNode })  // lib/debate/taxonomyTypes.ts
+  | (EntityDetailBase & { kind: 'policy';       record: PolicyAction })   // lib/policy/types.ts (new)
   | (EntityDetailBase & { kind: 'organization'; record: Organization })   // lib/organizations/types.ts
-  | (EntityDetailBase & { kind: 'entity';       record: Entity })         // Section 3, new
-  | (EntityDetailBase & { kind: 'term';         record: ColloquialTerm }) // dictionary, with resolved senses
+  | (EntityDetailBase & { kind: 'entity';       record: Entity })         // lib/entities/types.ts (new)
+  | (EntityDetailBase & { kind: 'term';         record: ColloquialTerm }) // lib/dictionary/types.ts
   | (EntityDetailBase & { kind: 'not_found' });
 ```
 
