@@ -212,6 +212,16 @@ export function registerEntityRoutes(r: Router, _ctx: ServerCtx): void {
           );
           return;
         }
+
+        default: {
+          // Exhaustiveness guard (t/1786 fast-follow, TL): every EntityRefKind has a
+          // case above. If the union grows, `ref` here stops being `never` and this
+          // assignment fails to COMPILE — forcing the new kind to be handled rather
+          // than silently falling through to a hung request. Unreachable today; the
+          // throw routes through the catch below (flight-recorder + 500) if it ever is.
+          const _exhaustive: never = ref;
+          throw new Error(`Unhandled entity ref kind: ${JSON.stringify(_exhaustive)}`);
+        }
       }
     } catch (err) {
       getGlobalRecorder()?.record({
