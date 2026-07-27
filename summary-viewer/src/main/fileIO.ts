@@ -8,21 +8,11 @@ import { app } from 'electron';
 import { ActionableError } from '../../../lib/debate/errors';
 import { renameSyncWithRetry } from '../../../lib/debate/persistence';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+import { resolveRepoRootForApp } from '../../../lib/electron-shared/resolveRepoRootForApp.js';
 
-// Walk up from __dirname to find repo root (contains .aitriad.json or package.json with name "summary-viewer")
-function findProjectRoot(): string {
-  let dir = __dirname;
-  for (let i = 0; i < 10; i++) {
-    if (fs.existsSync(path.join(dir, '.aitriad.json'))) return dir;
-    if (fs.existsSync(path.join(dir, 'summary-viewer', 'package.json'))) return dir;
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  // Fallback: assume 3 levels up from source (pre-rootDir change)
-  return path.resolve(__dirname, '../../..');
-}
-export const PROJECT_ROOT = findProjectRoot();
+// Repo root via the shared electron resolver (walks to .aitriad.json/scripts/AITriad,
+// falls back to the packaged app path). Was a local findProjectRoot with a weak ../../.. fallback (t/1721).
+export const PROJECT_ROOT = resolveRepoRootForApp(__dirname, path.dirname(app.getAppPath()));
 const IS_PACKAGED = app?.isPackaged ?? false;
 
 // ── Platform-specific default data directory ──

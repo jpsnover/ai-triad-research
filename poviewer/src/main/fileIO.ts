@@ -8,25 +8,13 @@ import type { AiSettings, PromptOverrides } from './analysisTypes.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
+import { app } from 'electron';
+import { resolveRepoRootForApp } from '../../../lib/electron-shared/resolveRepoRootForApp.js';
 
-// Walk up from __dirname to the repo root (.aitriad.json marker) — robust to
-// compiled __dirname depth. The compiled layout (dist/main/poviewer/src/main)
-// puts __dirname several levels deep, so the old hardcoded
-// `path.resolve(__dirname, '../../..')` resolved to dist/main/ and broke taxonomy +
-// sources resolution (t/1720, same class as t/1719). Fallback matches the pre-fix
-// offset; packaged-asar hardening (app.getAppPath()) + a shared cross-app helper
-// are tracked as a follow-up.
-function findProjectRoot(): string {
-  let dir = __dirname;
-  for (let i = 0; i < 10; i++) {
-    if (fs.existsSync(path.join(dir, '.aitriad.json'))) return dir;
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return path.resolve(__dirname, '../../..');
-}
-const PROJECT_ROOT = findProjectRoot();
+// Repo root via the shared electron resolver (walks to .aitriad.json/scripts/AITriad,
+// falls back to the packaged app path — the asar hardening the t/1720 comment flagged
+// as a follow-up). Was a local findProjectRoot with a weak ../../.. fallback (t/1721).
+const PROJECT_ROOT = resolveRepoRootForApp(__dirname, path.dirname(app.getAppPath()));
 const CONFIG_DIR = path.join(os.homedir(), '.poviewer');
 
 const TAXONOMY_BASE = path.join(PROJECT_ROOT, 'taxonomy');

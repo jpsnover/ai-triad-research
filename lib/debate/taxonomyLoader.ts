@@ -60,6 +60,13 @@ interface AiTriadConfig {
   debates_dir: string;
 }
 
+/**
+ * Resolve the repo root for CLI/node contexts: walks up to `.aitriad.json` and THROWS
+ * if not found.
+ * ⚠ NOT for Electron apps — use `resolveRepoRootForApp` in `lib/electron-shared` (it adds
+ * the `scripts/AITriad` marker + an `app.getAppPath()` packaged fallback). Don't cross the
+ * wires. (t/1721)
+ */
 export function resolveRepoRoot(startDir: string): string {
   let dir = path.resolve(startDir);
   while (dir !== path.dirname(dir)) {
