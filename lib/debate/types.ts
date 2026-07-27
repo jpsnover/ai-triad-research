@@ -12,6 +12,7 @@
 // HINT_SUPPRESSION_THRESHOLD, MOVE_TO_FAMILY, MOVE_TO_FORCE,
 // FAMILY_BURDEN_WEIGHT, AI_POVERS, POV_KEYS, POVER_INFO).
 
+export * from './types/factVerdict.js';
 export * from './types/phase.js';
 export * from './types/session.js';
 export * from './types/convergence.js';

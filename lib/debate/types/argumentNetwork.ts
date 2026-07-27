@@ -5,6 +5,7 @@ import type { SpeakerId } from './phase.js';
 import type { DialecticalScheme, ArgumentationScheme } from './session.js';
 import type { BdiSubScores } from './validation.js';
 import type { InterventionMove } from './moderator.js';
+import type { FactVerdict } from './factVerdict.js';
 
 // ── Document pre-analysis types ────────────────────────
 
@@ -65,8 +66,15 @@ export interface ArgumentNetworkNode {
   attribution_embedding?: number[];
   /** If this claim is a steelman of an opponent's position, the opponent's SpeakerId. */
   steelman_of?: string;
-  /** Inline verification status from web search (Intervention 2). */
-  verification_status?: 'verified' | 'disputed' | 'unverifiable' | 'pending';
+  /**
+   * Inline verification status from web search (Intervention 2).
+   * Uses the shared `FactVerdict` vocabulary plus the `pending` lifecycle state (not-yet-checked).
+   * Legacy stored data may carry `'verified'`; read it through `normalizeVerdict` (→ `'supported'`).
+   * `'verified'` is a TRANSITIONAL union member (Option A expand-migrate-contract, t/1715#2): kept so
+   * the taxonomy-editor renderer still typechecks until it migrates off the literal (t/1798); dropped
+   * from this union once t/1798 lands (t/1799). Always read via `normalizeVerdict`, never compare raw.
+   */
+  verification_status?: FactVerdict | 'verified' | 'pending';
   /** Evidence summary from inline verification. */
   verification_evidence?: string;
   /** Evidence QBAF sub-graph: source-corpus evidence items, classification, and computed strength. */

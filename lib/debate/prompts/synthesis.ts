@@ -386,18 +386,34 @@ Evaluate whether this claim is factually accurate using ALL available evidence:
 3. Internal consistency: Does it align with other statements in the debate?
 4. Temporal accuracy: Is it current, or does it rely on outdated information?
 
-Rate the claim as one of:
-- "supported" — consistent with available evidence from both internal data and web sources
-- "disputed" — there is significant counter-evidence from research conflicts or web sources
-- "unverifiable" — cannot be confirmed or denied with available data (web search found nothing relevant)
-- "false" — directly contradicted by authoritative sources
+Rate the claim on the VERDICT axis — the polarity of the *core* claim. Pick exactly one:
+- "supported" — the core claim AND its material details are corroborated by the weight of evidence. Exact figures and immaterial rounding count as supported. Use this when nothing material is off.
+- "partially_accurate" — the core claim's DIRECTION is corroborated, but the evidence identifies a SPECIFIC, MATERIAL discrepancy in a detail (e.g. "12 states" when the truth is 10). This is a *support* verdict with one named error. You MUST populate the "discrepancy" object below. Do NOT use this for a vague "roughly right" hunch with no nameable, sourced error — if nothing is off, use "supported"; if the substance itself is contested or unconfirmable, use "disputed"/"unverifiable".
+- "disputed" — a *contested* verdict: authoritative sources conflict on the claim's CENTRAL assertion and the evidence is mixed, not decisive. This is NOT for peripheral detail errors (those are "partially_accurate") — reserve it for genuine dispute about the substance.
+- "false" — the central assertion is DIRECTLY contradicted by authoritative sources: the direction is wrong, decisively (not merely a detail that is off).
+- "unverifiable" — the claim can be neither confirmed nor denied with available evidence (web search found nothing relevant). This is absence of evidence, not counter-evidence.
+
+When the verdict is "partially_accurate", emit a "discrepancy" object naming the error and sourcing the truth:
+- "dimension": one of "magnitude" (off-by-N count/percentage) | "temporal" (stale/wrong date) | "attribution" (right fact, wrong actor/source) | "scope" (over/under-generalized, e.g. "all" vs "some") | "existence" (phenomenon real, a specific instance wrong)
+- "claimed": what the speaker asserted, verbatim (the figure/detail)
+- "actual": what the evidence shows
+- "source": the node_id, conflict_id, or url that establishes "actual"
+- "severity": "minor" (does not change the claim's force) | "major" (materially weakens the reasoning, though the direction still holds)
+A "partially_accurate" verdict WITHOUT a discrepancy carrying claimed + actual + source will be REJECTED and downgraded — you cannot use it as a hedge.
 
 When web search results are available, cite them specifically in your explanation.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
-  "verdict": "supported" | "disputed" | "unverifiable" | "false",
+  "verdict": "supported" | "partially_accurate" | "disputed" | "false" | "unverifiable",
   "explanation": "brief explanation of your assessment",
+  "discrepancy": {
+    "dimension": "magnitude",
+    "claimed": "12 states",
+    "actual": "10 states",
+    "source": "<node_id / conflict_id / url that establishes the true value>",
+    "severity": "minor"
+  },
   "sources": [
     {"node_id": "<a real node_id>"},
     {"conflict_id": "e.g. conflict-xyz"}

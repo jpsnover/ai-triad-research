@@ -315,7 +315,7 @@ function applyResult(
   if (!dryRun) {
     node.base_strength = newStrength;
     node.scoring_method = 'fact_check';
-    node.verification_status = newStrength >= 0.6 ? 'verified'
+    node.verification_status = newStrength >= 0.6 ? 'supported'
       : newStrength <= 0.4 ? 'disputed' : 'unverifiable';
     node.evidence_graph = {
       evidence_items: result.evidence_items,

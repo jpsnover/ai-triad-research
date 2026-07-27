@@ -12,6 +12,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import type { DebateSession, ArgumentNetworkNode, TranscriptEntry } from './types.js';
+import { normalizeVerdict } from './types.js';
 import { renameSyncWithRetry } from './persistence.js';
 
 // ── Types & Enums ─────────────────────────────────────────
@@ -233,15 +234,18 @@ export function addReply(file: CommentsFile, commentId: string, input: AddReplyI
 // ── Fact-Check Auto-Comment Generation ────────────────────
 
 function verdictToCommentType(verdict: ArgumentNetworkNode['verification_status']): CommentType | null {
-  switch (verdict) {
-    case 'verified': return 'fact_supported';
-    case 'disputed': return 'fact_not_supported';
-    default: return null; // 'unverifiable' and 'pending' don't generate comments
+  // Read-time alias shim: legacy 'verified' normalizes to 'supported'.
+  switch (verdict === undefined ? undefined : normalizeVerdict(verdict)) {
+    case 'supported': return 'fact_supported';
+    case 'disputed':
+    case 'false': return 'fact_not_supported';
+    // 'partially_accurate' (support-with-caveat), 'unverifiable', 'pending' don't generate comments
+    default: return null;
   }
 }
 
 function formatFactCheckBody(node: ArgumentNetworkNode): string {
-  const verdict = node.verification_status === 'verified' ? 'Supported' : 'Disputed';
+  const verdict = node.verification_status !== undefined && normalizeVerdict(node.verification_status) === 'supported' ? 'Supported' : 'Disputed';
   let body = `**Fact Check — ${verdict}**\n\nClaim: "${node.text}"`;
   if (node.verification_evidence) {
     body += `\n\nEvidence: ${node.verification_evidence}`;
@@ -272,10 +276,10 @@ export function generateFactCheckComments(
   file: CommentsFile,
 ): Comment[] {
   const nodes = session.argument_network?.nodes ?? [];
+  // verdictToCommentType applies the read-time alias shim (verified→supported) and returns
+  // null for verdicts that don't warrant an auto-comment — the single filter/dispatch gate.
   const factChecked = nodes.filter(
-    (n): n is ArgumentNetworkNode & { verification_status: 'verified' | 'disputed' } =>
-      n.scoring_method === 'fact_check' &&
-      (n.verification_status === 'verified' || n.verification_status === 'disputed'),
+    n => n.scoring_method === 'fact_check' && verdictToCommentType(n.verification_status) !== null,
   );
 
   const entryMap = new Map(session.transcript.map(e => [e.id, e]));

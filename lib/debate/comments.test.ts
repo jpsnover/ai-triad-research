@@ -287,11 +287,11 @@ function makeEntry(overrides: Partial<TranscriptEntry> = {}): TranscriptEntry {
 }
 
 describe('generateFactCheckComments', () => {
-  it('creates fact_supported comment for verified claim', () => {
+  it('creates fact_supported comment for supported claim', () => {
     const session = makeSession({
       transcript: [makeEntry()],
       argument_network: {
-        nodes: [makeAnNode({ verification_status: 'verified', verification_evidence: 'Multiple studies confirm this.', scoring_method: 'fact_check' })],
+        nodes: [makeAnNode({ verification_status: 'supported', verification_evidence: 'Multiple studies confirm this.', scoring_method: 'fact_check' })],
         edges: [],
       },
     });
@@ -306,6 +306,28 @@ describe('generateFactCheckComments', () => {
     expect(added[0].body).toContain('Multiple studies confirm this.');
     expect(added[0].textRange.entryId).toBe('entry-1');
     expect(added[0].textRange.selectedText).toBe('AI has reduced costs by 40%');
+  });
+
+  it('read-time alias shim: legacy verification_status "verified" reads as supported (no data write)', () => {
+    // Represent legacy stored data (pre-t/1715) that still carries 'verified' on disk.
+    const legacy: string = 'verified';
+    const node = makeAnNode({
+      verification_status: legacy as ArgumentNetworkNode['verification_status'],
+      verification_evidence: 'Multiple studies confirm this.',
+      scoring_method: 'fact_check',
+    });
+    const session = makeSession({
+      transcript: [makeEntry()],
+      argument_network: { nodes: [node], edges: [] },
+    });
+    const added = generateFactCheckComments(session, emptyFile());
+
+    // Legacy 'verified' is READ as 'supported' → generates a fact_supported comment.
+    expect(added).toHaveLength(1);
+    expect(added[0].type).toBe('fact_supported');
+    expect(added[0].body).toContain('Supported');
+    // Zero data write: the stored value is untouched by the read-time shim.
+    expect(node.verification_status).toBe('verified');
   });
 
   it('creates fact_not_supported comment for disputed claim', () => {
@@ -344,7 +366,7 @@ describe('generateFactCheckComments', () => {
     const session = makeSession({
       transcript: [makeEntry()],
       argument_network: {
-        nodes: [makeAnNode({ verification_status: 'verified', scoring_method: 'bdi_criteria' })],
+        nodes: [makeAnNode({ verification_status: 'supported', scoring_method: 'bdi_criteria' })],
         edges: [],
       },
     });
@@ -357,7 +379,7 @@ describe('generateFactCheckComments', () => {
     const session = makeSession({
       transcript: [makeEntry()],
       argument_network: {
-        nodes: [makeAnNode({ verification_status: 'verified', scoring_method: 'fact_check' })],
+        nodes: [makeAnNode({ verification_status: 'supported', scoring_method: 'fact_check' })],
         edges: [],
       },
     });
@@ -376,7 +398,7 @@ describe('generateFactCheckComments', () => {
     const session = makeSession({
       transcript: [entry],
       argument_network: {
-        nodes: [makeAnNode({ text: 'AI has reduced costs by 40%', verification_status: 'verified', scoring_method: 'fact_check' })],
+        nodes: [makeAnNode({ text: 'AI has reduced costs by 40%', verification_status: 'supported', scoring_method: 'fact_check' })],
         edges: [],
       },
     });
@@ -393,7 +415,7 @@ describe('generateFactCheckComments', () => {
     const session = makeSession({
       transcript: [entry],
       argument_network: {
-        nodes: [makeAnNode({ text: 'Claim not in entry', verification_status: 'verified', scoring_method: 'fact_check' })],
+        nodes: [makeAnNode({ text: 'Claim not in entry', verification_status: 'supported', scoring_method: 'fact_check' })],
         edges: [],
       },
     });

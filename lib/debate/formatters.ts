@@ -7,7 +7,7 @@
  */
 
 import type { DebateSession, SpeakerId, TranscriptEntry } from './types.js';
-import { POVER_INFO } from './types.js';
+import { POVER_INFO, normalizeVerdict } from './types.js';
 import {
   extractConflictCandidates,
   extractSteelmanCandidates,
@@ -337,7 +337,8 @@ function computeVerificationDiagnostics(session: DebateSession): {
   );
   const claimStatusCounts: Record<string, number> = {};
   for (const n of anNodes as { verification_status?: string }[]) {
-    const s = n.verification_status ?? 'unchecked';
+    // Read-time alias shim: bucket legacy 'verified' under 'supported' in the counts.
+    const s = n.verification_status ? normalizeVerdict(n.verification_status) : 'unchecked';
     claimStatusCounts[s] = (claimStatusCounts[s] ?? 0) + 1;
   }
 

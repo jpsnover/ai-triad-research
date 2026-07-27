@@ -11,7 +11,7 @@ import type {
   GapInjection,
   CrossCuttingProposal,
 } from '../types.js';
-import { POVER_INFO, POV_KEYS } from '../types.js';
+import { POVER_INFO, POV_KEYS, normalizeVerdict } from '../types.js';
 import type { PovKey } from '../types.js';
 import type { UnengagedNode } from '../gapCheck.js';
 
@@ -616,12 +616,14 @@ Return ONLY JSON (no markdown, no code fences):
 }`;
 
       const result = await adapter.generateTextWithSearch(prompt, ctx.config.model);
-      const parsed = parseJsonRobust(result.text) as { verdict?: ArgumentNetworkNode['verification_status']; evidence?: string; confidence?: number };
+      const parsed = parseJsonRobust(result.text) as { verdict?: string; evidence?: string; confidence?: number };
 
       if (parsed.verdict) {
-        node.verification_status = parsed.verdict;
+        // Read-time alias shim: the prompt asks for legacy 'verified'; normalize to 'supported'.
+        const verdict = normalizeVerdict(parsed.verdict);
+        node.verification_status = verdict;
         node.verification_evidence = parsed.evidence;
-        node.base_strength = factCheckToBaseStrength(parsed.verdict, parsed.confidence as unknown as string | undefined);
+        node.base_strength = factCheckToBaseStrength(verdict, parsed.confidence as unknown as string | undefined);
         node.scoring_method = 'fact_check';
 
         ctx.session.transcript.push({
@@ -629,13 +631,13 @@ Return ONLY JSON (no markdown, no code fences):
           timestamp: nowISO(),
           type: 'fact-check',
           speaker: 'system',
-          content: `Claim ${node.id} — ${parsed.verdict}: ${parsed.evidence ?? ''}`.trim(),
+          content: `Claim ${node.id} — ${verdict}: ${parsed.evidence ?? ''}`.trim(),
           taxonomy_refs: [],
           metadata: {
             source: 'auto',
             claim_id: node.id,
             claim_text: node.text,
-            verdict: parsed.verdict,
+            verdict,
             evidence: parsed.evidence,
             confidence: parsed.confidence,
             web_search_used: !!(result.citations?.length || result.searchQueries?.length),

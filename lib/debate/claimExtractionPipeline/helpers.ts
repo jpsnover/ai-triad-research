@@ -130,7 +130,7 @@ export async function runEvidenceQbaf(
   // Update node with evidence QBAF results
   node.base_strength = factCheckToBaseStrength('evidence_qbaf', undefined, result.computed_strength);
   node.scoring_method = 'fact_check';
-  node.verification_status = result.computed_strength >= 0.6 ? 'verified'
+  node.verification_status = result.computed_strength >= 0.6 ? 'supported'
     : result.computed_strength <= 0.4 ? 'disputed' : 'unverifiable';
   node.evidence_graph = {
     evidence_items: result.evidence_items,

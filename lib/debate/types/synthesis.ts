@@ -5,6 +5,9 @@ import type { SpeakerId } from './phase.js';
 import type { DialecticalScheme, DebateSession } from './session.js';
 import type { ClaimCoverageEntry } from './validation.js';
 import type { CruxResolutionState } from './convergence.js';
+// FactVerdict lives in the zero-dependency './factVerdict.js' module (shared with
+// argumentNetwork.ts, cycle-free); it is surfaced at the top level via the './types.js' barrel.
+import type { FactVerdict } from './factVerdict.js';
 
 export interface DebateSessionSummary {
   id: string;
@@ -20,11 +23,37 @@ export interface DebateSessionSummary {
   turn_count?: number;
 }
 
+/**
+ * Evidence-gated discrepancy qualifier (t/1701#1). Orthogonal to the verdict axis:
+ * populated for `partially_accurate` (the core claim's direction holds but a detail is off),
+ * optional-diagnostic on `disputed`/`false`. The anti-escape-hatch validator REQUIRES
+ * `claimed` + `actual` + `source` (all non-empty) whenever the verdict is `partially_accurate`.
+ */
+export interface FactDiscrepancy {
+  /**
+   * Which axis of the detail is off:
+   * `magnitude` (off-by-N count/percentage) | `temporal` (stale/wrong date) |
+   * `attribution` (right fact, wrong actor/source) | `scope` (over/under-generalized) |
+   * `existence` (phenomenon real, a specific instance wrong).
+   */
+  dimension: 'magnitude' | 'temporal' | 'attribution' | 'scope' | 'existence';
+  /** What the speaker asserted (verbatim figure/detail). */
+  claimed: string;
+  /** What the evidence shows. */
+  actual: string;
+  /** The source that establishes `actual` — a node_id / conflict_id / url ref. */
+  source: string;
+  /** `minor` (does not change the claim's force) | `major` (materially weakens it, though direction holds). */
+  severity: 'minor' | 'major';
+}
+
 export interface FactCheckResult {
-  verdict: 'supported' | 'disputed' | 'unverifiable' | 'false';
+  verdict: FactVerdict;
   explanation: string;
   sources: { node_id?: string; conflict_id?: string }[];
   checked_text: string;
+  /** Populated (and required) when verdict === 'partially_accurate'; diagnostic otherwise. */
+  discrepancy?: FactDiscrepancy;
 }
 
 /** AIF attack on a claim — added in dolce-phase-3. */
