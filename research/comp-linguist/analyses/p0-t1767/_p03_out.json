@@ -1,0 +1,67 @@
+{
+  "statements": [
+    {
+      "index": 1,
+      "speaker": "Accelerationist",
+      "proposals": [
+        {
+          "name": "Safetyist",
+          "entity_type": "person",
+          "aliases": ["Safetyist"],
+          "quote": "Safetyist and Skeptic may argue that government-mandated checkpoints prevent catastrophe",
+          "confidence": 0.18
+        },
+        {
+          "name": "Skeptic",
+          "entity_type": "person",
+          "aliases": ["Skeptic"],
+          "quote": "Safetyist and Skeptic may argue that government-mandated checkpoints prevent catastrophe",
+          "confidence": 0.18
+        }
+      ],
+      "org_mentions": []
+    },
+    {
+      "index": 2,
+      "speaker": "Safetyist",
+      "proposals": [
+        {
+          "name": "2008 Financial Crisis",
+          "entity_type": "event",
+          "aliases": ["the 2008 financial crisis", "Global Financial Crisis", "GFC"],
+          "quote": "as seen in the 2008 financial crisis",
+          "confidence": 0.92
+        },
+        {
+          "name": "Accelerationist",
+          "entity_type": "person",
+          "aliases": ["Accelerationist"],
+          "quote": "Accelerationist argues that mandatory red-teaming functions as a 'Proof-Before-Policy' trap",
+          "confidence": 0.18
+        }
+      ],
+      "org_mentions": []
+    },
+    {
+      "index": 3,
+      "speaker": "Skeptic",
+      "proposals": [
+        {
+          "name": "Accelerationist",
+          "entity_type": "person",
+          "aliases": ["Accelerationist"],
+          "quote": "Accelerationist argues that market-driven liability incentivizes safety",
+          "confidence": 0.18
+        },
+        {
+          "name": "Safetyist",
+          "entity_type": "person",
+          "aliases": ["Safetyist"],
+          "quote": "Safetyist correctly identifies that robust red-teaming is essential",
+          "confidence": 0.18
+        }
+      ],
+      "org_mentions": []
+    }
+  ]
+}

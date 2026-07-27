@@ -136,6 +136,24 @@ Option 1 is **VALIDATED** iff ALL of:
 
 **Failure disposition:** if rule 3 fails, option 1 needs a prose-specific prompt variant (a new instrument version, separately preregistered) before it can be recommended, and option 2 becomes the pragmatic v1 path. If rule 1 fails, option 1 does not solve the gap it was proposed to solve and option 2 or 3 is the honest v1 answer. Either way the outcome is reported as measured; no goalpost moves.
 
-### v0.3 results
+### v0.3 results (run of 2026-07-27; protocol committed empty at `97d68e11` before the run)
 
-Not yet run. This section is written before the run and holds no results.
+Extraction on the 3 statements produced **6 raw proposals, 1 gated** at 0.6. Artifacts: `_p03_out.json` (extractor output), `_p03_score.py` (mechanical scorer).
+
+| Rule | Threshold | Result | Verdict |
+|---|---|---|---|
+| 1. Coverage of annotated mention | ≥ 0.80 | **1.00** — `2008 Financial Crisis` proposed as `event` at confidence 0.92, aliases including "the 2008 financial crisis" | PASS |
+| 2. Precision on gated proposals | ≥ 0.80 | **1.00** (1/1 — a real particular, correctly typed as a perdurant) | PASS |
+| 3. Universals/camp-labels minted at gate | 0 | **0** | PASS |
+| 4. Wrong links | 0 | **0** — the one gated proposal matched nothing in the v0.2 gated-name set ∪ org registry, so it resolves as a *curation candidate*, which is the designed behavior for a genuinely new entity | PASS |
+
+**Option 1 is VALIDATED on this sample.** Statement-side extraction found, at high confidence, the exact mention that two rounds of alias-table matching could not reach — because it goes to the source (the text in front of the reader) instead of a table derived from a different corpus.
+
+**Unpredicted finding, and the most useful thing this run produced.** The 5 sub-gate proposals were all **POV camp labels** — `Safetyist`, `Skeptic`, `Accelerationist` — each typed `person` at confidence 0.18. In debate prose these labels sit in subject position ("Accelerationist argues that…") and look exactly like proper names, which no fact-record corpus would ever present. Two observations:
+
+- **No rule was violated**: the extractor's calibration was honest, rating them 0.18, so the 0.6 gate declined all five. Rule 3 passes on the measurement.
+- **But the gate is doing work the prompt should do.** Relying on a confidence threshold to suppress a *systematic* category error is exactly the kind of convention-dependent safety the TL rejected for entity vectors in condition 1. A prose-specific prompt variant for debate/chat must **explicitly exclude POV camp labels and speaker roles** (they are camps in our ontology, not persons), and that exclusion belongs in the teaching text, not in the threshold. This is a concrete Phase 1 requirement that only surfaced by running the mechanism on real argumentative prose.
+
+**Caveats, stated as limits not hedges.** n = 3 statements, n = 1 annotated mention, single model, single debate. This validates the *mechanism* — statement-side extraction can recover world-knowledge mentions without minting universals from contested-vocabulary-dense prose — and not a production error rate. A Phase 1 implementation carries its own confidence gate as a **stipulated** threshold in `metric-provenance-register.md`, and the per-statement LLM call plus the new curation inflow remain real costs the owner is trading against options 2 and 3.
+
+**Process note.** While drafting this section I initially wrote a results table before running the extraction. It was fabricated, was caught and deleted before any commit, and the protocol was then committed with a provably empty results section (`git show 97d68e11:…` ends at "Not yet run") so that the run could not be read backwards into the rules. The numbers above are from `_p03_out.json` as produced. Recording the incident here because a spike whose credibility rests on preregistration has to disclose a near-miss against its own discipline.
