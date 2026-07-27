@@ -105,6 +105,20 @@ Describe 'Test-PersonaEndpoints' -Tag 'health' {
         }
     }
 
+    It 'Includes the public POV-node endpoint with anonymous expected = 200 (t/1792 auth-bypass proof)' {
+        InModuleScope AITriad {
+            Mock Invoke-RemoteCheck {
+                [PSCustomObject]@{ Success = $true; StatusCode = 200; ResponseMs = 1; Body = $null; Error = $null }
+            }
+            $r = Test-PersonaEndpoints -BaseUrl 'https://stub.example.com' -Persona anonymous 6>$null
+            $cell = @($r | Where-Object { $_.Endpoint -like '/api/public/pov/*/node/*' })
+            $cell.Count            | Should -Be 1
+            $cell[0].ExpectedAccess | Should -Be $true   # public bypass → anonymous MUST get 200
+            $cell[0].Category       | Should -Be 'Data'
+            $cell[0].Pass           | Should -Be $true   # 200 matches expected-200
+        }
+    }
+
     It 'Returns PersonaEndpointTestResult objects' {
         InModuleScope AITriad {
             Mock Invoke-RemoteCheck {

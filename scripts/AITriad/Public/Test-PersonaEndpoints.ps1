@@ -113,6 +113,16 @@ function Test-PersonaEndpoints {
         @{ Method = 'GET';  Path = '/api/taxonomy/accelerationist';               Cat = 'Data';
            Body = $null;
            Expected = @{ admin = $true; authenticated = $true; anonymous = $true } }
+        # t/1792 — the public no-login POV-node share endpoint (t/1788). It's
+        # auth-exempt via the /api/public/ isPublicPath clause, so the anonymous
+        # (no-cookie) cell MUST be 200 — the live proof of the auth bypass that
+        # unit tests can't fully prove (this is the t/1501 cookie-less regression
+        # class). All three personas expect 200 (public bypass grants everyone).
+        # The path is a concrete instantiation; acc-desires-001 is a stable
+        # canonical node — if it 404s, the node was deleted, not an auth break.
+        @{ Method = 'GET';  Path = '/api/public/pov/accelerationist/node/acc-desires-001'; Cat = 'Data';
+           Body = $null;
+           Expected = @{ admin = $true; authenticated = $true; anonymous = $true } }
         @{ Method = 'POST'; Path = '/api/debates';                                Cat = 'Data';
            Body = @{ title = 'persona-matrix' };
            Expected = @{ admin = $true; authenticated = $true; anonymous = $true } }
