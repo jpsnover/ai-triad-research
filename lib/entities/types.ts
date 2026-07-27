@@ -7,7 +7,7 @@
 // interface-first so the five consumers build in parallel.
 
 /** The kinds of linkable target an EntityRef can point at. */
-export type EntityRefKind = 'node' | 'situation' | 'policy' | 'entity' | 'term';
+export type EntityRefKind = 'node' | 'situation' | 'policy' | 'entity' | 'organization' | 'term';
 
 /**
  * A typed reference to any linkable target — POV nodes / situations / policies /
@@ -19,8 +19,9 @@ export type EntityRef =
   | { kind: 'node'; id: string }        // {pov}-{category}-NNN, e.g. acc-desires-001
   | { kind: 'situation'; id: string }   // sit-NNN (legacy cc-NNN)
   | { kind: 'policy'; id: string }      // pol-*
-  | { kind: 'entity'; id: string }      // ent-* | org-*
-  | { kind: 'term'; id: string };       // vocabulary; wire form `term:<slug>`
+  | { kind: 'entity'; id: string }        // ent-* — new §3 entity record (entities.json)
+  | { kind: 'organization'; id: string }  // org-* — existing Organization record (organizations.json)
+  | { kind: 'term'; id: string };         // vocabulary; wire form `term:<slug>`
 
 /** POV / BDI-category node id: {acc|saf|skp}-{beliefs|desires|intentions}-NNN. */
 const NODE_ID_RE = /^(?:acc|saf|skp)-(?:beliefs|desires|intentions)-\d+$/;
@@ -36,12 +37,14 @@ export function parseEntityRef(raw: string): EntityRef | null {
   if (raw.startsWith('term:')) return { kind: 'term', id: raw };
   if (raw.startsWith('sit-') || raw.startsWith('cc-')) return { kind: 'situation', id: raw };
   if (raw.startsWith('pol-')) return { kind: 'policy', id: raw };
-  if (raw.startsWith('ent-') || raw.startsWith('org-')) return { kind: 'entity', id: raw };
+  if (raw.startsWith('org-')) return { kind: 'organization', id: raw };
+  if (raw.startsWith('ent-')) return { kind: 'entity', id: raw };
   if (NODE_ID_RE.test(raw)) return { kind: 'node', id: raw };
   return null;
 }
 
 /** Type guard for a valid {@link EntityRefKind} string. */
 export function isEntityRefKind(x: string): x is EntityRefKind {
-  return x === 'node' || x === 'situation' || x === 'policy' || x === 'entity' || x === 'term';
+  return x === 'node' || x === 'situation' || x === 'policy' ||
+    x === 'entity' || x === 'organization' || x === 'term';
 }

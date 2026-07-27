@@ -10,7 +10,7 @@ describe('parseEntityRef', () => {
     expect(parseEntityRef('cc-042')).toEqual({ kind: 'situation', id: 'cc-042' });
     expect(parseEntityRef('pol-006')).toEqual({ kind: 'policy', id: 'pol-006' });
     expect(parseEntityRef('ent-123')).toEqual({ kind: 'entity', id: 'ent-123' });
-    expect(parseEntityRef('org-openai')).toEqual({ kind: 'entity', id: 'org-openai' });
+    expect(parseEntityRef('org-001')).toEqual({ kind: 'organization', id: 'org-001' });
     expect(parseEntityRef('term:compute-governance')).toEqual({ kind: 'term', id: 'term:compute-governance' });
   });
 
@@ -26,7 +26,7 @@ describe('parseEntityRef', () => {
 
 describe('isEntityRefKind', () => {
   it('accepts the five kinds and rejects others', () => {
-    for (const k of ['node', 'situation', 'policy', 'entity', 'term']) {
+    for (const k of ['node', 'situation', 'policy', 'entity', 'organization', 'term']) {
       expect(isEntityRefKind(k)).toBe(true);
     }
     expect(isEntityRefKind('vocab')).toBe(false);
