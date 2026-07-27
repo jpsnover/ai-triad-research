@@ -111,20 +111,22 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 
 ## [Process] Gate Blindness via Pre-Existing Noise (False-Green)
 
-**Pattern:** A verification gate already exits non-zero from tolerated warnings, so new genuine errors don't change the exit code — "verify green" claims pass with live failures undetected.
+**Pattern:** A verification gate fails to detect new genuine failures because it's compromised by tolerated noise. Two mechanisms: **(A) exit-code blend** — the gate already exits non-zero from tolerated warnings, so new errors don't change the exit code; **(B) skip-before-run** — an EARLIER step that hard-fails on tolerated noise (no `continue-on-error`) aborts the pipeline *before* the real gate runs, so the real gate is **skipped entirely** and its absence reads as pass. Either way, "gate green" claims pass with live failures undetected.
 
 **Instances:**
-- 2026-07-03 — verify's eslint step was already failing from old warnings. New `RelatedEdgesPanel` errors (t/1304) survived a "green verify" claim because the exit code was already non-zero. Root cause analysis in t/1304#5, fix in c2f79267, gate repair tracked in t/1323 (p/8#37).
+- 2026-07-03 — verify's eslint step was already failing from old warnings. New `RelatedEdgesPanel` errors (t/1304) survived a "green verify" claim because the exit code was already non-zero (mechanism A). Root cause analysis in t/1304#5, fix in c2f79267, gate repair tracked in t/1323 (p/8#37).
+- 2026-07-26 — Technical Lead (t/1800, DevOps; p/8#101): the CI `Audit dependencies` step (`npm audit high`, **no `continue-on-error`**) hard-fails on lockfile dependabot vulns and sits **BEFORE Test**, so vitest+Pester are **skipped repo-wide** (mechanism B). The Test gate was a **false-green for ~3 pushes** and **masked t/1788's Linux route-table check**. The audit red was tolerated noise (dependabot vulns), so its failure was dismissed while the real gate never ran. Fix per Gate Verification + Gate Co-Location (below).
 
-**Root Cause:** When a gate is already failing for tolerated/ignored reasons, agents learn to treat its failure as normal ("it always fails"). New genuine failures blend into the existing noise and go undetected. Same family as [Build] Deploy Preflight False-Red (AlertsManagement) but **inverted** — false-green instead of false-red.
+**Root Cause:** When a gate is already failing (A) or an upstream step hard-fails (B) for tolerated/ignored reasons, agents learn to treat the red as normal ("it always fails / it's just the audit noise"). New genuine failures either blend into the existing non-zero exit (A) or never execute because the pipeline short-circuits first (B). Same family as [Build] Deploy Preflight False-Red (AlertsManagement) but **inverted** — false-green instead of false-red. Mechanism B is especially insidious: the real gate produces NO signal at all (skipped ≠ failed ≠ passed), and "skipped" is easily misread as "fine."
 
 **Prevention:**
 1. Gates must be kept at **zero tolerated noise** — fix or suppress existing warnings before relying on the gate to catch new ones.
-2. If warnings are temporarily tolerated, use **explicit baselines** (e.g., eslint `--max-warnings N`) so any *new* warning changes the exit code.
-3. Periodically **assert a deliberate failure actually fails the gate** — inject a known error and confirm the gate catches it.
-4. When claiming "verify green," check the actual exit code and output — not just "it ran without surprising me."
+2. If warnings/vulns are temporarily tolerated, use **explicit baselines co-located at the step** (eslint `--max-warnings N`; baseline the known dependabot advisory IDs in the `npm audit` step) so any *new* one changes the exit code — and set `continue-on-error` (or order the step AFTER the real gate) so a tolerated-noise step can NEVER short-circuit the real test gate.
+3. **Ordering rule (mechanism B):** never place a step that hard-fails on tolerated noise *before* the real quality gate; the test gate must run regardless of audit/lint advisory state.
+4. Periodically **assert a deliberate failure actually fails the gate** — inject a known error and confirm the gate catches it (Gate Verification). This catches BOTH mechanisms: a deliberately-broken test that still shows "green" reveals the gate is blind or skipped.
+5. When claiming "gate green," check that the real gate **actually ran** (not skipped) and its exit code/output — not just "the job didn't surprise me."
 
-**Status:** Resolved — root AGENTS.md "Gate Verification" + "Gate Co-Location" rules (overlay 5732aa7, t/1589). Part of gate-signal-integrity genus (#20/#46/#48/#61/#64). Gate repair still tracked in t/1323.
+**Status:** Resolved-genus, **recurred 2026-07-26 in a new (skip-before-run) mechanism** (t/1800). Root AGENTS.md "Gate Verification" + "Gate Co-Location" rules (overlay 5732aa7, t/1589) apply directly to the fix: TL cited both — deliberately break a test to prove the restored gate fires (Verification), and baseline any tolerated vuln in `ci.yml` at the step (Co-Location). Part of gate-signal-integrity genus (#20/#46/#48/#61/#64). Fix tracked t/1800 (DevOps).
 
 **Applies To:** All agents running verify gates, CI pipelines, or any pass/fail quality checks.
 
