@@ -495,6 +495,11 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       await Promise.all(promises);
 
       const commitResult = await api.syncCommit();
+      // save.completed = file write + git commit done — the durable save point (`dirty` is
+      // cleared next). The post-save embedding refresh below is a SEPARATE, non-fatal phase
+      // that emits its own save.embedding-refresh-{dispatched,failed} events, never
+      // save.failed. So save.failed can ONLY be a file-write/commit failure and fires
+      // BEFORE this event — never after it. (t/1710; the non-fatal boundary is t/1707.)
       getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'info', message: 'save.completed', data: { files_written: promises.length, duration_ms: Math.round(performance.now() - saveStart), commitSha: commitResult.commitSha, filesCommitted: commitResult.filesCommitted } });
       api.trackEvent('taxonomy_save', 'taxonomy', { files: promises.length });
       set({ dirty: new Set() });
@@ -535,6 +540,9 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
           }
         }
         if (nodesToEmbed.length > 0) {
+          // Positive marker that the post-save embedding phase started — distinct from
+          // save.completed (file write), pairs with save.embedding-refresh-failed (t/1710).
+          getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'info', message: 'save.embedding-refresh-dispatched', data: { node_count: nodesToEmbed.length } });
           api.updateNodeEmbeddings(nodesToEmbed).catch((err) => {
             getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to update node embeddings after save', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
             console.warn('[save] Failed to update embeddings:', err);
@@ -546,7 +554,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
         console.warn('[save] Post-save embedding refresh failed (save itself succeeded):', embedErr);
       }
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'state.error', component: 'taxonomy-store', level: 'error', message: 'save.failed', data: { error: String(err), duration_ms: Math.round(performance.now() - saveStart) } });
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'taxonomy-store', level: 'error', message: 'save.failed', data: { error: String(err), duration_ms: Math.round(performance.now() - saveStart) }, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       set({ saveError: `Save failed: ${mapErrorToUserMessage(err)}` });
     }
   },
