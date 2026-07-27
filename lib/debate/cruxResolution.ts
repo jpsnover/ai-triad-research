@@ -12,6 +12,7 @@ import type {
 } from './types.js';
 import { detectCruxNodes } from './phaseTransitions.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
+import { ActionableError } from './errors.js';
 
 const POLARITY_RESOLVED_THRESHOLD = 0.85;
 const STRENGTH_CONCESSION_THRESHOLD = 0.3;
@@ -220,6 +221,9 @@ function evaluateCruxState(
 
     case 'resolved':
     case 'irreducible':
+    case 'undecided':
+      // Terminal states (t/1676): no further per-turn evaluation. `undecided` is only ever
+      // reached via the debate-end finalization sweep, never from the live state machine.
       break;
   }
 
@@ -290,10 +294,83 @@ export function updateCruxTracker(
 
   // Evaluate state transitions for all tracked cruxes
   return tracker.map(crux =>
-    crux.state === 'resolved' || crux.state === 'irreducible'
+    // Terminal states skip live re-evaluation. `undecided` (t/1676) is terminal too — a
+    // finalized crux must not be re-opened on resume() re-runs of the tracker. Routed through
+    // the exhaustiveness-guarded classifier so a future terminal state can't be missed here.
+    isTerminalCruxState(crux.state)
       ? { ...crux, last_computed_strength: nodes.find(n => n.id === crux.id)?.computed_strength ?? crux.last_computed_strength }
       : evaluateCruxState(crux, nodes, edges, commitments, currentTurn)
   );
+}
+
+/**
+ * Debate-end finalization (t/1676). Transitions each crux still in the non-adjudicated
+ * `identified` state to the terminal `undecided` verdict, writing the LITERAL state so every
+ * downstream consumer (calibration, resolution_summary, cross-debate registry) reads it
+ * directly rather than re-deriving "terminal + identified" — a persisted `undecided` is the
+ * single source of truth (TL t/1676#4/#6).
+ *
+ * A crux reaches `identified` when it was surfaced (cross-POV attackers detected) but no
+ * opposing turn ever engaged it — the debate never adjudicated it (cap reached, or the crux
+ * was never surfaced as an explicit point of disagreement). Cruxes that advanced to
+ * `engaged` / `one_side_conceded` / `resolved` / `irreducible` WERE adjudicated (both sides
+ * engaged the proposition), so per the sufficiency gate (CL t/1669#2) they are NOT eligible
+ * for `undecided`. This structural condition IS the sufficiency gate: `identified` == "no turn
+ * pair where both debaters engaged the crux proposition."
+ *
+ * Idempotent and single-point (TL guard 1): safe to call once at debate end and again on
+ * resume() — a crux already `undecided` is no longer `identified`, so re-running is a no-op.
+ */
+export function finalizeUndecidedCruxes(
+  tracker: TrackedCrux[] | undefined,
+  currentTurn: number,
+): TrackedCrux[] {
+  if (!tracker || tracker.length === 0) return tracker ?? [];
+  return tracker.map(crux =>
+    crux.state === 'identified'
+      ? transitionCrux(
+          crux,
+          'undecided',
+          currentTurn,
+          'Debate ended without cross-engagement — crux surfaced but never adjudicated',
+        )
+      : crux,
+  );
+}
+
+/**
+ * Terminal-state classifier with a compile-time exhaustiveness guard (t/1676, TL guard 3).
+ * Terminal = the per-turn state machine performs no further transitions. Adding a future
+ * `CruxResolutionState` without updating this switch is a TYPE error (the `assertNever` arm),
+ * so no consumer can silently miscount a new state — in particular `undecided` must never be
+ * bucketed as addressed/unaddressed in the t/1796 crux-resolution metrics.
+ */
+export function isTerminalCruxState(state: CruxResolutionState): boolean {
+  switch (state) {
+    case 'resolved':
+    case 'irreducible':
+    case 'undecided':
+      return true;
+    case 'identified':
+    case 'engaged':
+    case 'one_side_conceded':
+      return false;
+    default:
+      return assertNeverCruxState(state);
+  }
+}
+
+/** Compile-time exhaustiveness sentinel for {@link CruxResolutionState} (t/1676). */
+function assertNeverCruxState(state: never): never {
+  throw new ActionableError({
+    goal: 'Classify a crux resolution state',
+    problem: `Unhandled CruxResolutionState: ${String(state)}`,
+    location: 'lib/debate/cruxResolution.ts assertNeverCruxState',
+    nextSteps: [
+      'A new CruxResolutionState value was added without updating isTerminalCruxState.',
+      'Add the new value to the terminal or non-terminal arm of the switch.',
+    ],
+  });
 }
 
 // ── Concession cascade detection ────────────────────────────────
@@ -326,7 +403,10 @@ export function formatCruxResolutionContext(tracker: TrackedCrux[]): string {
 
   const resolved = tracker.filter(c => c.state === 'resolved');
   const irreducible = tracker.filter(c => c.state === 'irreducible');
-  const active = tracker.filter(c => c.state !== 'resolved' && c.state !== 'irreducible');
+  const undecided = tracker.filter(c => c.state === 'undecided');
+  // `undecided` is terminal (t/1676) — exclude it from "active" so a cap-terminated /
+  // never-cross-engaged crux is not reported to the synthesis LLM as still contested.
+  const active = tracker.filter(c => !isTerminalCruxState(c.state));
 
   const lines: string[] = [];
 
@@ -350,6 +430,13 @@ export function formatCruxResolutionContext(tracker: TrackedCrux[]): string {
     lines.push('ACTIVE CRUXES (still contested):');
     for (const c of active) {
       lines.push(`- "${c.description}" (${c.id}) — ${c.state}, polarity ${c.support_polarity.toFixed(2)}`);
+    }
+  }
+
+  if (undecided.length > 0) {
+    lines.push('UNDECIDED CRUXES (surfaced but never adjudicated — cap reached or never cross-engaged):');
+    for (const c of undecided) {
+      lines.push(`- "${c.description}" (${c.id}) — undecided, surfaced turn ${c.identified_turn}`);
     }
   }
 

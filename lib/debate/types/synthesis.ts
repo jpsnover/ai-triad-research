@@ -115,7 +115,13 @@ export interface SynthesisCrux {
   type?: 'EMPIRICAL' | 'VALUES' | 'DEFINITIONAL';
   /** Counterfactual reasoning type (RATIO 2024): interventional (Pearl do-calculus), backtracking (Lewis), or normative (value/rule change). */
   counterfactual_type?: 'interventional' | 'backtracking' | 'normative' | 'none';
-  resolution_status?: 'resolved' | 'irreducible' | 'active';
+  /**
+   * Convergence-layer crux verdict (t/1676). `undecided` = the debate terminated without
+   * establishing whether the crux is resolvable (never surfaced, or cap reached before
+   * sufficient evidence). Distinct from the preference-layer `undecidable`
+   * (PreferenceEntry.prevails) which means two claims' strength cannot be ordered — do not conflate.
+   */
+  resolution_status?: 'resolved' | 'irreducible' | 'active' | 'undecided';
   resolution_evidence?: string;
   /** Which debaters are involved in this crux. */
   speakers?: SpeakerId[];
@@ -152,6 +158,12 @@ export interface AggregatedCrux {
     resolved: number;
     active: number;
     irreducible: number;
+    /**
+     * Cruxes that terminated undecided — never surfaced or cap-reached before sufficiency (t/1676).
+     * Optional for back-compat: aggregation artifacts written before this field existed omit it;
+     * read as `?? 0`. Not folded into `active` (TL cond 2).
+     */
+    undecided?: number;
   };
 }
 

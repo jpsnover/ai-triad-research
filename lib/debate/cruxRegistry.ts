@@ -104,8 +104,13 @@ export async function persistDebateCruxes(
   embedFn: EmbedFn,
   generateFn?: GenerateFn,
 ): Promise<{ merged: number; created: number }> {
+  // Retention consistency (t/1676, TL guard 2): persist terminal `undecided` cruxes too, so
+  // the cross-debate registry is the single source of truth and records cruxes that surfaced
+  // but were never adjudicated (input to CL's AC#2 absorption). `engaged` cruxes are still
+  // retained (mid-adjudication at cap); only never-cross-engaged `identified` cruxes became
+  // `undecided` in the finalization sweep.
   const cruxes = (session.crux_tracker ?? []).filter(
-    c => c.state === 'irreducible' || c.state === 'engaged',
+    c => c.state === 'irreducible' || c.state === 'engaged' || c.state === 'undecided',
   );
   if (cruxes.length === 0) return { merged: 0, created: 0 };
 

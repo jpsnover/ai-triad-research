@@ -443,7 +443,10 @@ export function computeConvergenceScore(ctx: SignalContext, coldStart: boolean):
   const allTexts = ctx.transcript.lastNRounds(999).map(r => r.text);
   const concludingPragmatic = computeConcludingPragmaticSignal(recentTexts, allTexts);
 
-  // Crux resolution ratio: proportion of tracked cruxes that reached terminal state
+  // Crux resolution ratio: proportion of tracked cruxes genuinely adjudicated (resolved or
+  // irreducible). `undecided` (t/1676) is terminal but was NOT adjudicated — deliberately
+  // excluded here so a cap-terminated / never-cross-engaged crux does not inflate convergence
+  // (the R-2 false-convergence distortion this verdict exists to prevent).
   const cruxResolution = ctx.phase.cruxResolution;
   const cruxResolutionRatio = cruxResolution.length > 0
     ? cruxResolution.filter(c => c.state === 'resolved' || c.state === 'irreducible').length / cruxResolution.length

@@ -25,7 +25,7 @@ import {
 import type { RawExtractedClaim } from '../argumentNetwork.js';
 import { computeQbafStrengths, computeQbafConvergence } from '../qbaf.js';
 import { computeConvergenceSignals, boostConvergenceOnConcession, boostConvergenceFromTaxonomyEdges } from '../convergenceSignals.js';
-import { detectConcessionCascade, transitionCrux, updateCruxTracker } from '../cruxResolution.js';
+import { detectConcessionCascade, transitionCrux, updateCruxTracker, isTerminalCruxState } from '../cruxResolution.js';
 import { computeProcessReward } from '../processReward.js';
 import { checkClaimExclusionBoundary, EXCLUSION_RATIO_THRESHOLD } from '../exclusionGuard.js';
 import { entailmentRepairPrompt, cruxRefreshPrompt } from '../prompts.js';
@@ -445,7 +445,7 @@ export async function extractClaims(
 
     // Crux refresh after concession cascade
     if (ctx.session.convergence_signals && ctx.session.crux_tracker) {
-      const activeCruxes = ctx.session.crux_tracker.filter(c => c.state !== 'resolved' && c.state !== 'irreducible');
+      const activeCruxes = ctx.session.crux_tracker.filter(c => !isTerminalCruxState(c.state));
       if (activeCruxes.length > 0) {
         const cascade = detectConcessionCascade(ctx.session.convergence_signals);
         if (cascade.detected) {
@@ -533,7 +533,8 @@ export async function extractClaims(
         priorMoveCount: priorMoves.length > 0 ? priorMoves.length : undefined,
         taxonomyRefCount: currentEntry?.taxonomy_refs?.length ?? 0,
         activeCruxCount: ctx.session.crux_tracker
-          ? ctx.session.crux_tracker.filter(c => c.state !== 'resolved' && c.state !== 'irreducible').length
+          // `undecided` is terminal (t/1676) — exclude so a finalized crux does not inflate the process-reward signal.
+          ? ctx.session.crux_tracker.filter(c => !isTerminalCruxState(c.state)).length
           : 0,
       });
 

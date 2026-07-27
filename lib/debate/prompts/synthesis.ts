@@ -18,7 +18,7 @@ export function synthExtractPrompt(
   cruxResolutionContext?: string,
 ): string {
   const cruxBlock = cruxResolutionContext
-    ? `\n=== CRUX RESOLUTION STATUS (from argument network analysis) ===\n${cruxResolutionContext}\nUse this to accurately classify crux resolution_status: "resolved", "irreducible", or "active".\n`
+    ? `\n=== CRUX RESOLUTION STATUS (from argument network analysis) ===\n${cruxResolutionContext}\nUse this to accurately classify crux resolution_status:\n- "resolved": the crux was engaged and settled (evidence or argument converged).\n- "irreducible": the crux was identified AND shown permanently unresolvable (e.g. a values clash that cannot be adjudicated by evidence).\n- "active": the crux is under productive live examination.\n- "undecided": the debate terminated without establishing whether the crux is resolvable — either the crux was never surfaced as an explicit point of disagreement, or the iteration cap was reached before sufficient evidence accumulated. Use ONLY when the crux was NOT adjudicated by both sides; if both debaters engaged the crux proposition, choose resolved/irreducible/active instead. (This convergence-layer "undecided" is distinct from the preference-layer "undecidable", which means two claims' strength cannot be ordered.)\n`
     : '';
 
   return `You are a debate analyst. Analyze this structured debate and extract the core synthesis.
@@ -59,7 +59,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "areas_of_agreement": [{"point": "...", "povers": ["accelerationist", "safetyist"], "converged": false, "conceded_by": null, "original_disagreement": null}],
   "areas_of_disagreement": [{"point": "...", "type": "EMPIRICAL or VALUES or DEFINITIONAL", "bdi_layer": "belief or desire or intention", "resolvability": "resolvable_by_evidence or negotiable_via_tradeoffs or requires_term_clarification", "positions": [{"pover": "accelerationist", "stance": "..."}, {"pover": "safetyist", "stance": "..."}]}],
   "cruxes": [
-    {"question": "the factual or value question that would change minds", "if_yes": "which debater's position weakens — who must concede or revise, and what they must give up", "if_no": "which debater's position weakens — who must concede or revise, and what they must give up", "type": "EMPIRICAL or VALUES", "counterfactual_type": "interventional, backtracking, normative, or none if the crux is not counterfactual in form", "resolution_status": "resolved or irreducible or active", "resolution_evidence": "what resolved it, if applicable"}
+    {"question": "the factual or value question that would change minds", "if_yes": "which debater's position weakens — who must concede or revise, and what they must give up", "if_no": "which debater's position weakens — who must concede or revise, and what they must give up", "type": "EMPIRICAL or VALUES", "counterfactual_type": "interventional, backtracking, normative, or none if the crux is not counterfactual in form", "resolution_status": "resolved or irreducible or active or undecided", "resolution_evidence": "what resolved it, if applicable"}
   ],
   "unresolved_questions": ["..."]
 }`;

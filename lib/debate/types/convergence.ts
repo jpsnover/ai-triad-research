@@ -93,7 +93,12 @@ export type CruxResolutionState =
   | 'engaged'
   | 'one_side_conceded'
   | 'resolved'
-  | 'irreducible';
+  | 'irreducible'
+  // Terminal (t/1676): the debate ended without adjudicating the crux — it was surfaced
+  // but never cross-engaged by both sides (or never surfaced). Set only by the debate-end
+  // finalization sweep, never by the per-turn state machine. Distinct from the
+  // preference-layer `undecidable` (cannot order two claims' strength) — do not conflate.
+  | 'undecided';
 
 export interface CruxStateTransition {
   from: CruxResolutionState;

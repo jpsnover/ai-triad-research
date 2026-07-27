@@ -90,7 +90,7 @@ import { runOvergenPipeline } from './overgenPipeline.js';
 import type { OvergenDiagnostics } from './overgenPipeline.js';
 import { classifyTopicComplexity, extractTopicStructure } from './topicStructure.js';
 import { resolveRepoRoot, resolveDataRoot, resolveSourcesDir, loadSituationStatements } from './taxonomyLoader.js';
-import { updateCruxTracker, formatCruxResolutionContext, detectConcessionCascade, transitionCrux } from './cruxResolution.js';
+import { updateCruxTracker, formatCruxResolutionContext, detectConcessionCascade, transitionCrux, finalizeUndecidedCruxes } from './cruxResolution.js';
 import { persistDebateCruxes, loadRegistry, findRelevantPriorCruxes, formatPriorCruxContext } from './cruxRegistry.js';
 import { findAndEnrichPromotionCandidates, computeWeightAdjustments, weightAdjustmentsToProposals } from './cruxTaxonomyFeedback.js';
 import { computeConfidenceUpdates, computePriorityUpdates, confidenceUpdatesToProposals, priorityUpdatesToProposals } from './confidenceEvolution.js';
@@ -529,6 +529,15 @@ export class DebateEngine {
       } else {
         await runFixedCrossRespond(this._internal);
       }
+
+      // Phase 3b: Finalize undecided cruxes (t/1676) — mark any crux surfaced but never
+      // cross-engaged (still `identified`) as terminal `undecided` BEFORE synthesis reads the
+      // tracker, so the synthesis prompt, calibration, and persistence all observe one
+      // consistent terminal state. Idempotent (guard 1) — safe if run again on resume().
+      this.session.crux_tracker = finalizeUndecidedCruxes(
+        this.session.crux_tracker,
+        this.session.transcript.length,
+      );
 
       // Phase 4: Synthesis + final neutral evaluation in parallel
       await Promise.all([

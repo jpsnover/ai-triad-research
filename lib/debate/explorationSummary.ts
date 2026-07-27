@@ -103,7 +103,7 @@ export function extractExplorationSummary(session: DebateSession): ExplorationSu
   const { effective, ineffective } = extractSituationEffectiveness(session);
   const phaseDynamics = extractPhaseDynamics(session);
   const convergenceProfile = extractConvergenceProfile(session);
-  const qualitySummary = extractQualitySummary(session, cruxes.length);
+  const qualitySummary = extractQualitySummary(session);
   const recommendedConfig = deriveRecommendedConfig(phaseDynamics, effective.length);
 
   return {
@@ -320,7 +320,6 @@ function extractSynthesisAreas(session: DebateSession): {
 
 function extractQualitySummary(
   session: DebateSession,
-  engagedCruxCount: number,
 ): ExplorationSummary['quality_summary'] {
   const rewards = session.process_rewards ?? [];
   const meanReward = rewards.length > 0
@@ -338,9 +337,19 @@ function extractQualitySummary(
     ? Math.round((es.total_rejected / es.total_proposed) * 10000) / 10000
     : 0;
 
-  const totalCruxes = (session.crux_tracker ?? []).length;
-  const cruxAddressedRate = totalCruxes > 0
-    ? Math.round((engagedCruxCount / totalCruxes) * 10000) / 10000
+  // crux_addressed_rate = addressed / addressable. Both exclude terminal `undecided` cruxes
+  // (t/1676, AC3 + TL cond 3): an `undecided` crux was never adjudicated, so it is neither
+  // "addressed" (numerator) nor "addressable" (denominator). Counting it either way would
+  // re-introduce the R-2 distortion this verdict exists to remove. METRIC-SEMANTICS CHANGE:
+  // pre-t/1676 the denominator was ALL cruxes and the numerator counted any state≠'identified'
+  // (which now includes `undecided`) — do not compare pre/post values naively across the
+  // cutover run-id noted in docs/metric-provenance-register.md.
+  const tracker = session.crux_tracker ?? [];
+  const undecidedCount = tracker.filter(c => c.state === 'undecided').length;
+  const addressableCruxes = tracker.length - undecidedCount;
+  const addressedCount = tracker.filter(c => c.state !== 'identified' && c.state !== 'undecided').length;
+  const cruxAddressedRate = addressableCruxes > 0
+    ? Math.round((addressedCount / addressableCruxes) * 10000) / 10000
     : null;
 
   return { mean_process_reward: meanReward, repetition_rate: repetitionRate, claims_forgotten_rate: claimsForgottenRate, crux_addressed_rate: cruxAddressedRate };

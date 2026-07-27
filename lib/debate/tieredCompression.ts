@@ -12,6 +12,7 @@ import type {
   UnansweredClaimEntry,
 } from './types.js';
 import { POVER_INFO } from './types.js';
+import { isTerminalCruxState } from './cruxResolution.js';
 
 export interface TieredCompressionInput {
   transcript: TranscriptEntry[];
@@ -111,7 +112,9 @@ export function buildDistantTierSummary(
   if (cruxTracker && cruxTracker.length > 0) {
     const resolved = cruxTracker.filter(c => c.state === 'resolved');
     const irreducible = cruxTracker.filter(c => c.state === 'irreducible');
-    const active = cruxTracker.filter(c => c.state !== 'resolved' && c.state !== 'irreducible');
+    const undecided = cruxTracker.filter(c => c.state === 'undecided');
+    // `undecided` is terminal (t/1676), not active — keep it out of the active bucket.
+    const active = cruxTracker.filter(c => !isTerminalCruxState(c.state));
     if (resolved.length > 0) {
       lines.push(`Resolved cruxes: ${resolved.map(c => c.description).join('; ')}`);
     }
@@ -120,6 +123,9 @@ export function buildDistantTierSummary(
     }
     if (active.length > 0) {
       lines.push(`Active cruxes: ${active.map(c => c.description).join('; ')}`);
+    }
+    if (undecided.length > 0) {
+      lines.push(`Undecided cruxes (never adjudicated): ${undecided.map(c => c.description).join('; ')}`);
     }
     // Disagreement type distribution
     const typeCounts: Record<string, number> = {};

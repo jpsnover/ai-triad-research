@@ -156,6 +156,18 @@ export function extractCalibrationData(
     cruxDivergenceRate = minLen > 0 ? divergences / minLen : null;
   }
 
+  // ── Crux undecided rate (t/1676) ──
+  // Share of tracked cruxes that terminated in the `undecided` verdict — surfaced but never
+  // adjudicated (cap reached, or never cross-engaged). Reads the LITERAL `state` set by the
+  // debate-end finalization sweep (not re-derived). Provenance: STIPULATED at introduction;
+  // promotes to derived only after CL's AC#2 golden-set absorption (t/1669).
+  const cruxStatesForUndecided = Array.isArray(rawCruxTracker)
+    ? (rawCruxTracker as { state?: string }[])
+    : [];
+  const cruxUndecidedRate = cruxStatesForUndecided.length > 0
+    ? cruxStatesForUndecided.filter(c => c.state === 'undecided').length / cruxStatesForUndecided.length
+    : null;
+
   // ── Counterfactual type distribution (RATIO 2024, t/1115) ──
   const cfTypeDist: { interventional: number; backtracking: number; normative: number; none: number } | null =
     engineCruxes.length > 0
@@ -402,6 +414,7 @@ export function extractCalibrationData(
     gc_trigger: config.gcTrigger ?? 175,
 
     crux_resolution_divergence_rate: cruxDivergenceRate,
+    crux_undecided_rate: cruxUndecidedRate,
     counterfactual_type_distribution: cfTypeDist,
     polarity_resolved_threshold: config.polarityResolvedThreshold ?? 0.85,
 

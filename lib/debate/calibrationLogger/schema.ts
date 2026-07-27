@@ -116,6 +116,13 @@ export interface CalibrationDataPoint {
   // ── Parameter 8: Crux resolution thresholds ──
   /** How often engine crux status agrees with neutral evaluator crux status */
   crux_resolution_divergence_rate: number | null;
+  /**
+   * Share of tracked cruxes that terminated `undecided` — surfaced but never adjudicated
+   * (t/1676). STIPULATED provenance until CL's AC#2 golden-set absorption (t/1669) promotes
+   * it to derived. Distinct from the preference-layer `undecidable`. Optional/nullable:
+   * calibration entries written before this field existed omit it.
+   */
+  crux_undecided_rate?: number | null;
   /** Distribution of counterfactual types across tracked cruxes (RATIO 2024). */
   counterfactual_type_distribution: { interventional: number; backtracking: number; normative: number; none: number } | null;
   /** POLARITY_RESOLVED_THRESHOLD used */
