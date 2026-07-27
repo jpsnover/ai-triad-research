@@ -42,6 +42,67 @@ export interface PublicPovNode {
   aphorism: string | null;
 }
 
+type PovFile = { nodes?: Array<Record<string, unknown>> };
+
+// ── t/1793: short-TTL per-POV parse cache — the DoS-amplification control ──
+// (fast-follow from the t/1788 TL security review; Server-Auth co-signed the
+// scope in t/1793#1.) This is the first UNAUTHENTICATED route, and each miss
+// does a full readTaxonomyFile + synchronous JSON.parse of a POV file (several
+// exceed 1 MB) that blocks Node's single-threaded event loop. The per-IP rate
+// key is forged-XFF-rotatable (Server Auth accepted that for *access* — the
+// data is public-by-design), so request volume is effectively unbounded and a
+// small request maps to large synchronous work = amplification.
+//
+// Keying the cache by `pov` (NOT by IP) decouples request volume from parse
+// work: under any forged-IP burst we do at most ONE read+parse per POV per TTL
+// window (3 POV files ⇒ ≤3 parses/window regardless of IPs). A public share
+// card tolerates seconds-stale data, so this needs none of the write-
+// invalidation machinery a shared readTaxonomyFile memoize would require — do
+// NOT widen this into a global read cache without Server Storage sign-off.
+const POV_CACHE_TTL_MS = 5_000;
+// Bound growth from forged-but-valid keys: SAFE_POV_RE is /^[a-z_-]+$/ (an
+// unbounded key space), and although only successful reads are cached, this cap
+// + TTL purge guarantees the map can never grow without bound no matter how
+// many distinct keys are attempted.
+const POV_CACHE_MAX_ENTRIES = 16;
+
+interface PovCacheEntry { promise: Promise<PovFile>; expires: number }
+const povCache = new Map<string, PovCacheEntry>();
+
+/**
+ * Read a POV file through the short-TTL per-POV cache. A fresh hit returns the
+ * cached (already-parsed) result with NO re-read and NO re-parse — this is what
+ * bounds the DoS amplification. Concurrent callers for the same uncached `pov`
+ * share the single in-flight promise, so a burst collapses to one read+parse.
+ * Failures are never cached (the entry is dropped on rejection) so a transient
+ * read error doesn't poison the whole TTL window with a cached 500.
+ */
+function readPovCached(pov: string): Promise<PovFile> {
+  const now = Date.now();
+  const hit = povCache.get(pov);
+  if (hit && hit.expires > now) return hit.promise;
+
+  const promise = fileIO.readTaxonomyFile(pov) as Promise<PovFile>;
+  // Drop this entry if the read rejects (only if it's still the live entry) so
+  // the next request retries rather than serving a cached failure.
+  promise.catch(() => { if (povCache.get(pov)?.promise === promise) povCache.delete(pov); });
+
+  // Bound the map: purge expired first, then evict the oldest insertion if the
+  // cap is still hit (Map preserves insertion order → keys().next() is oldest).
+  if (povCache.size >= POV_CACHE_MAX_ENTRIES) {
+    for (const [k, v] of povCache) if (v.expires <= now) povCache.delete(k);
+    if (povCache.size >= POV_CACHE_MAX_ENTRIES) {
+      const oldest = povCache.keys().next().value;
+      if (oldest !== undefined) povCache.delete(oldest);
+    }
+  }
+  povCache.set(pov, { promise, expires: now + POV_CACHE_TTL_MS });
+  return promise;
+}
+
+/** Test-only: clear the module-level per-POV cache so cases don't leak state. */
+export function _resetPublicPovCache(): void { povCache.clear(); }
+
 export function registerPublicShareRoutes(r: Router, _ctx: ServerCtx): void {
   const { get } = r;
 
@@ -70,8 +131,10 @@ export function registerPublicShareRoutes(r: Router, _ctx: ServerCtx): void {
       const pov = param(req, 'pov', ROUTE);
       const nodeId = param(req, 'nodeId', ROUTE);
 
-      // 3. Read + find.
-      const data = await fileIO.readTaxonomyFile(pov) as { nodes?: Array<Record<string, unknown>> };
+      // 3. Read + find — served through the short-TTL per-POV cache (t/1793).
+      //    A fresh hit does NO re-read and NO re-parse; that decoupling of
+      //    request volume from parse work is the DoS-amplification bound.
+      const data = await readPovCached(pov);
       const node = (data.nodes ?? []).find(n => n.id === nodeId);
       if (!node) { error(res, 'not_found', 404); return; }
 

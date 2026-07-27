@@ -39,7 +39,7 @@ vi.mock('../../../../lib/flight-recorder/index.js', () => ({ getGlobalRecorder: 
 
 import type { ServerCtx } from '../routes/context.js';
 import { createRouter, type Handler } from '../httpKit.js';
-import { registerPublicShareRoutes, type PublicPovNode } from '../routes/publicShare.js';
+import { registerPublicShareRoutes, _resetPublicPovCache, type PublicPovNode } from '../routes/publicShare.js';
 import { extractRoutes } from './extractRoutes.js';
 
 const ROUTE = '/api/public/pov/:pov/node/:nodeId';
@@ -84,6 +84,10 @@ describe('GET /api/public/pov/:pov/node/:nodeId (t/1788)', () => {
   beforeEach(() => {
     readTaxonomyFileMock.mockReset();
     recordMock.mockReset();
+    // The t/1793 per-POV cache is module-level and persists across invoke()
+    // calls (that persistence is the point) — clear it between cases so a
+    // cached 'accelerationist' parse from one test can't serve the next.
+    _resetPublicPovCache();
   });
 
   // ── (a) whitelist-only projection — the info-leak guard ──
@@ -237,6 +241,76 @@ describe('GET /api/public/pov/:pov/node/:nodeId (t/1788)', () => {
     const { status } = await invoke('%2e%2e', 'acc-beliefs-001');
     expect(status).toBe(400);
     expect(readTaxonomyFileMock).not.toHaveBeenCalled();
+  });
+
+  // ── (d) short-TTL per-POV cache — the DoS-amplification bound (t/1793) ──
+  describe('per-POV TTL cache bounds the unauthenticated parse DoS', () => {
+    it('reads+parses the POV file ONCE across a burst of rapid requests for the same pov', async () => {
+      readTaxonomyFileMock.mockResolvedValue({ nodes: [{ id: 'acc-beliefs-001', label: 'x' }] });
+      // 50 rapid hits, distinct forged IPs (rate limit can't save us — the key
+      // is XFF-forgeable), all for the same pov. Cache must collapse them to 1
+      // read+parse — this is the amplification bound Server-Auth described.
+      const results = await Promise.all(
+        Array.from({ length: 50 }, (_, i) => invoke('accelerationist', 'acc-beliefs-001', `10.0.0.${i}`)),
+      );
+      for (const { status } of results) expect(status).toBe(200);
+      expect(readTaxonomyFileMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('a cache hit re-projects from cached data (still returns the node, no re-read)', async () => {
+      readTaxonomyFileMock.mockResolvedValue({
+        nodes: [
+          { id: 'acc-beliefs-001', label: 'first', graph_attributes: { aphorism: 'A.' } },
+          { id: 'acc-beliefs-002', label: 'second' },
+        ],
+      });
+      const first = await invoke('accelerationist', 'acc-beliefs-001');
+      // Different nodeId, SAME pov → served from the cached parse, and the
+      // per-request find still resolves the distinct node.
+      const second = await invoke('accelerationist', 'acc-beliefs-002');
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+      expect((second.body as PublicPovNode).label).toBe('second');
+      expect(readTaxonomyFileMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('distinct POVs are cached independently (one read each — behavior unchanged)', async () => {
+      readTaxonomyFileMock.mockImplementation((pov: string) =>
+        Promise.resolve({ nodes: [{ id: 'acc-beliefs-001', label: pov }] }));
+      await invoke('accelerationist', 'acc-beliefs-001');
+      await invoke('safetyist', 'acc-beliefs-001');
+      await invoke('accelerationist', 'acc-beliefs-001'); // repeat → hit, no new read
+      expect(readTaxonomyFileMock).toHaveBeenCalledTimes(2); // one per distinct pov
+    });
+
+    it('does NOT cache a failed read — the next request retries (no poisoned TTL window)', async () => {
+      readTaxonomyFileMock.mockRejectedValueOnce(new Error('transient blob error'));
+      const failed = await invoke('accelerationist', 'acc-beliefs-001');
+      expect(failed.status).toBe(500);
+      // Second attempt must re-read (the miss was not cached), then succeed.
+      readTaxonomyFileMock.mockResolvedValue({ nodes: [{ id: 'acc-beliefs-001', label: 'x' }] });
+      const ok = await invoke('accelerationist', 'acc-beliefs-001');
+      expect(ok.status).toBe(200);
+      expect(readTaxonomyFileMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('stays bounded under many distinct forged-but-valid pov keys (no unbounded growth)', async () => {
+      // SAFE_POV_RE (/^[a-z_-]+$/) admits an unbounded key space. Hammer 200
+      // distinct valid povs; the cap+purge must keep the map bounded. We assert
+      // the observable proxy: re-hitting a pov evicted by the cap re-reads,
+      // while the most-recent pov is still a hit — i.e. the map did not retain
+      // all 200 entries.
+      readTaxonomyFileMock.mockResolvedValue({ nodes: [{ id: 'acc-beliefs-001', label: 'x' }] });
+      const key = (i: number) => `pov${String.fromCharCode(97 + (i % 26))}${'a'.repeat(Math.floor(i / 26) + 1)}`;
+      for (let i = 0; i < 200; i++) await invoke(key(i), 'acc-beliefs-001', `172.16.0.${i % 256}`);
+      const readsAfterFill = readTaxonomyFileMock.mock.calls.length;
+      // The earliest key was evicted long ago → re-hitting it re-reads.
+      await invoke(key(0), 'acc-beliefs-001');
+      expect(readTaxonomyFileMock.mock.calls.length).toBe(readsAfterFill + 1);
+      // The most-recent key is still cached → re-hitting it does NOT re-read.
+      await invoke(key(199), 'acc-beliefs-001');
+      expect(readTaxonomyFileMock.mock.calls.length).toBe(readsAfterFill + 1);
+    });
   });
 
   // ── error path (ADR-003 flight recorder) ──
