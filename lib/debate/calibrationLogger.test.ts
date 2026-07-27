@@ -710,3 +710,61 @@ describe('appendCalibrationLog stamps runtime provenance (t/1672)', () => {
     }
   });
 });
+
+describe('extractCalibrationData source_authority from session.doc_meta (t/1769)', () => {
+  // Anti-recurrence gate: before t/1769, source-authority calibration only worked
+  // when the caller passed config.docMeta (the in-process engine path). The
+  // renderer/main-save and server paths omit it, so source_authority/recency came
+  // out 100% null. The fix persists provenance on session.doc_meta and has the
+  // extractor fall back to it — this test locks that fallback in.
+  function sessionWithCitedDoc(): DebateSession {
+    return makeMinimalSession({
+      argument_network: {
+        nodes: [{
+          id: 'n1', text: 'claim citing docA',
+          evidence_graph: {
+            evidence_items: [
+              { id: 'e1', source_doc_id: 'docA', text: 'ev', relation: 'support', similarity: 0.9 },
+            ],
+            computed_strength: 0.8, qbaf_iterations: 3,
+          },
+        }],
+        edges: [],
+      },
+    } as unknown as Partial<DebateSession>);
+  }
+
+  it('yields non-null source_authority_mean from session.doc_meta WITHOUT config.docMeta', () => {
+    const session = sessionWithCitedDoc();
+    // Provenance rides on the session (as stamped by the engine / any write path),
+    // NOT via the config arg — this is the path that used to null out.
+    session.doc_meta = { docA: { title: 'Nature Medicine 2024 Paper' } };
+
+    const dp = extractCalibrationData(session, 'local');
+
+    expect(dp.source_authority_mean).not.toBeNull();
+    expect(dp.source_authority_mean).toBe(1.0); // peer_reviewed venue tier
+    expect(dp.source_recency_mean).not.toBeNull();
+  });
+
+  it('config.docMeta still takes precedence over session.doc_meta when both present', () => {
+    const session = sessionWithCitedDoc();
+    session.doc_meta = { docA: { title: 'Some Untitled Document' } }; // -> unknown tier 0.3
+
+    const dp = extractCalibrationData(session, 'local', {
+      docMeta: { docA: { title: 'Nature Medicine 2024 Paper' } }, // -> peer_reviewed 1.0
+    });
+
+    expect(dp.source_authority_mean).toBe(1.0);
+  });
+
+  it('back-compat: no doc_meta and no config.docMeta yields null (no crash)', () => {
+    const session = sessionWithCitedDoc(); // has cited docs but no provenance anywhere
+    const dp = extractCalibrationData(session, 'local');
+
+    expect(dp.source_authority_mean).toBeNull();
+    expect(dp.source_recency_mean).toBeNull();
+    // evidence breadth is still computable without provenance
+    expect(dp.evidence_breadth_per_claim).toBe(1.0);
+  });
+});

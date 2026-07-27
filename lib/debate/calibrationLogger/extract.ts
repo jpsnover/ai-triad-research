@@ -319,7 +319,10 @@ export function extractCalibrationData(
   const { affectIntensityMean, affectIntensityVariance, affectAppropMean } = computeAffectSignals(session, rounds);
 
   // ── Source authority (Wachsmuth: Credibility, t/1122) ──
-  const srcAuth = computeSourceAuthority(session.argument_network?.nodes ?? [], config.docMeta);
+  // Fall back to session-stamped provenance (t/1769) when the caller didn't pass
+  // docMeta — the renderer/main-save and server write paths don't have FS-derived
+  // doc titles, so without this fallback source_authority/recency come out null.
+  const srcAuth = computeSourceAuthority(session.argument_network?.nodes ?? [], config.docMeta ?? session.doc_meta);
 
   // ── Camp insularity (BEA: Reflective User Engagement, t/1117) ──
   const speakers = new Set<string>();

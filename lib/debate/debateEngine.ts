@@ -853,6 +853,15 @@ export class DebateEngine {
     // Compute extraction coverage on sampled turns (t/391)
     await this._synthesisPipeline.runExtractionCoverage();
 
+    // Stamp source provenance onto the session so source-authority calibration
+    // resolves on every write path (renderer/main-save, server), not just the
+    // in-process engine path with FS-derived doc titles (t/1769). Additive/
+    // back-compat: only set when we have titles and the session doesn't already
+    // carry them (don't clobber a caller-supplied map).
+    if (this.docTitles && !this.session.doc_meta) {
+      this.session.doc_meta = this.docTitles;
+    }
+
     // Log calibration data point (non-blocking, never fails the debate)
     try {
       const weights = loadProvisionalWeights();

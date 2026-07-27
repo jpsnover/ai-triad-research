@@ -28,6 +28,7 @@ import type {
 } from './moderator.js';
 import type { PovKey } from './synthesis.js';
 import type { CanonicalEdgeType, Category } from '../taxonomyTypes.js';
+import type { DocMetaMap } from '../evidenceFromSummaries.js';
 
 export type DialecticalScheme =
   | 'DISTINGUISH'         // Accept evidence, deny applicability to this context
@@ -447,6 +448,15 @@ export interface DebateSession {
   }>;
   /** Human-gated taxonomy evolution proposals from post-debate reflection (machine proposes, human disposes). */
   reflection_proposals?: ReflectionProposal[];
+  /**
+   * Provenance carrier for source-authority scoring (t/1769). Maps source-id →
+   * { title, resolved_url?, provenance_label? }. Stamped at debate-run / save time
+   * so credibility (venue tier) and recency calibration signals resolve on every
+   * write path — not just the in-process engine path that has FS-derived doc titles.
+   * Optional / back-compat: absent in pre-t/1769 debates, in which case calibration
+   * falls back to config-supplied docMeta (or leaves source_authority null).
+   */
+  doc_meta?: DocMetaMap;
 }
 
 // ── Delta / incremental debate save (t/1470; HLD docs/hld-delta-debate-save.md) ──
