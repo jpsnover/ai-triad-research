@@ -14,6 +14,7 @@ export default defineConfig({
       '@renderer': path.resolve(__dirname, 'src/renderer'),
       '@lib/debate': path.resolve(__dirname, '../lib/debate'),
       '@lib/flight-recorder': path.resolve(__dirname, '../lib/flight-recorder'),
+      '@lib/electron-shared': path.resolve(__dirname, '../lib/electron-shared'),
     },
     // Ensure shared lib files (lib/electron-shared/) resolve React from this project
     dedupe: ['react', 'react-dom'],

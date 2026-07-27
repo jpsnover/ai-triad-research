@@ -7,17 +7,10 @@ import { useStore } from '../store/useStore';
 import type { AIBackend, AIModel } from '../store/aiModels';
 import { AI_BACKENDS, MODELS_BY_BACKEND, initAIModels } from '../store/aiModels';
 import type { Theme } from '../types/types';
+import type { RefreshResult } from '@lib/electron-shared/modelDiscovery';
 
 interface SettingsDialogProps {
   onClose: () => void;
-}
-
-interface RefreshResult {
-  gemini: { ok: boolean; count: number; error?: string };
-  claude: { ok: boolean; count: number; error?: string };
-  groq:   { ok: boolean; count: number; error?: string };
-  openai: { ok: boolean; count: number; error?: string };
-  totalModels: number;
 }
 
 export default function SettingsDialog({ onClose }: SettingsDialogProps) {

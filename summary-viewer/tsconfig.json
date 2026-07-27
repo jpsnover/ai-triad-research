@@ -19,7 +19,8 @@
       "@renderer/*": ["src/renderer/*"],
       "@lib/debate": ["../lib/debate/index.ts"],
       "@lib/debate/*": ["../lib/debate/*"],
-      "@lib/flight-recorder/*": ["../lib/flight-recorder/*"]
+      "@lib/flight-recorder/*": ["../lib/flight-recorder/*"],
+      "@lib/electron-shared/*": ["../lib/electron-shared/*"]
     }
   },
   "include": ["src/**/*"],

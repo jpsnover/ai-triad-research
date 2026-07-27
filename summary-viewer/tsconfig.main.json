@@ -10,11 +10,14 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "outDir": "dist/main",
-    "rootDir": "../"
+    "rootDir": "../",
+    "paths": {
+      "@lib/electron-shared/*": ["../lib/electron-shared/*"]
+    }
   },
   "include": [
     "src/main/**/*",
     "../lib/debate/errors.ts"
   ],
-  "exclude": ["node_modules", "dist", "src/**/*.test.ts"]
+  "exclude": ["node_modules", "dist"]
 }
