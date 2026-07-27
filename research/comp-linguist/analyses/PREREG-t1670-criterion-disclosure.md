@@ -68,7 +68,7 @@ The owner authorized the run at **7 debates per arm** on **gemini-3.5-flash-lite
 
 **What this amendment does not do:** it does not relax any decision rule. Thresholds, the Goodhart veto, and the null-is-a-result rule stand exactly as written. If the result is ambiguous at this n, the honest report is "underpowered, inconclusive" rather than a softened threshold.
 
-## Amendment 2 — measured crux density, and a second outcome channel (2026-07-27, before any arm-B data exists)
+## Amendment 2, measured crux density and a second outcome channel (2026-07-27, before any arm-B data exists)
 
 ### What I have looked at, and what I have not
 
@@ -80,7 +80,7 @@ Amendment 1 allowed that "the crux-level n may be adequate while the debate-leve
 
 This does not relax Rule 1. It sets the expectation that a Rule 1 "shift" at this n is weak evidence, and that the honest verdict for anything short of a large, distributed, direction-consistent move is "underpowered, inconclusive."
 
-### Third measure, added before results: the convergence-layer crux states
+### A third measure, added before results, on the convergence-layer crux states
 
 `crux_tracker[].state` is added as a **preregistered third outcome**, roughly 4 cruxes per debate in the banked runs and so about 28 per arm.
 
@@ -100,11 +100,11 @@ Interpretation is fixed here, before results, so it cannot be fitted to them:
 
 The second row is the Goodhart veto of Rule 3 in measurable form rather than as a hand-check. The hand-check in Rule 3 still runs; it now has a quantitative companion instead of carrying the veto alone.
 
-Both channels report the same way as the primary: per-debate spread alongside pooled counts, per Amendment 1.
+Both channels report the same way as the primary, showing per-debate spread alongside pooled counts, per Amendment 1.
 
 ### Caveat carried forward
 
-The banked arm-A run `t1670-02` logged `an.extraction_coverage_low` at 29% against a 70% threshold. Low extraction coverage is a property of the model and pacing, held identical across arms, so it does not bias the comparison. It does bound what the run can claim: these are thin debates, and a criterion effect measured on thin debates may not appear on richer ones.
+The banked arm-A run `t1670-02` logged `an.extraction_coverage_low` at 29% against a 70% threshold. Low extraction coverage is a property of the model and pacing, held identical across arms, so it does not bias the comparison. It does bound what the run can claim. These are thin debates, and a criterion effect measured on thin debates may not appear on richer ones.
 
 ## Results
 
