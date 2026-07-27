@@ -538,7 +538,7 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 2. **Verify the commit's file set at the object level, before AND after push** — `git show --stat HEAD` (does the commit contain every file the change needs?) and `git ls-tree origin/main <dir>` file-count after push (does origin have them all?). A commit/tree with fewer files than expected is a dropped-file signal (same file-count defense as #75).
 3. **When you staged with a glob but must commit by explicit pathspec (ADR-005), derive the list from the staged set** — e.g. commit the reconciled `git diff --cached --name-only` output — rather than hand-typing a list that can omit a file. Keep ADR-005's protection (don't sweep others' files) without dropping your own.
 
-**Status:** Active — 5th hazard in the worktree-land cluster (#72/#74/#75/#76 + #73 facet-B). **Two-track defense landed 2026-07-17:** (1) mechanical — Diagnostics shipped the `staged-files-after-commit` PostToolUse/Bash hook (`operations/diagnostics/check-staged-after-commit.cjs`): after any Bash `git commit` it runs `git diff --cached --name-only` and injects a warning listing anything left staged-uncommitted; silent on non-commit / non-git-repo calls (p/9#33). Inert until the next Orca sync per the manifest-lag trap (#68) — verify live via manifest presence, not audit counters. **⚠ Additionally suspected INERT on Windows** — this hook uses `{workspace_root}` in its args, which expands empty on Windows and crashes the script silently (see "Feedback Hook Silently Dead on Windows" in process.md, p/9#39); the mechanical defense is not actually guarding until that path fix lands, so treat the behavioral rule as the only live defense meanwhile. (2) behavioral — TL folded #76 into the worktree-land cluster of the AGENTS.md/`/land-from-worktree` batch (p/8#86), owner-gated.
+**Status:** Active — 5th hazard in the worktree-land cluster (#72/#74/#75/#76 + #73 facet-B). **Two-track defense landed 2026-07-17:** (1) mechanical — Diagnostics shipped the `staged-files-after-commit` PostToolUse/Bash hook (`operations/diagnostics/check-staged-after-commit.cjs`): after any Bash `git commit` it runs `git diff --cached --name-only` and injects a warning listing anything left staged-uncommitted; silent on non-commit / non-git-repo calls (p/9#33). Inert until the next Orca sync per the manifest-lag trap (#68) — verify live via manifest presence, not audit counters. **⚠ Windows path-crash FIXED (p/9#41):** the audit found this hook among the two using `{workspace_root}`; Diagnostics **re-inlined it via `node -e`** (no external path → no empty-`{workspace_root}` crash) and matched the overlay form. Residual caveat: the runner still silent-suppresses a non-zero exit (Orca Support's fix), so confirm the guard emits guidance rather than assuming installed = guarding (see "Feedback Hook Silently Dead on Windows" in process.md). (2) behavioral — TL folded #76 into the worktree-land cluster of the AGENTS.md/`/land-from-worktree` batch (p/8#86), owner-gated.
 
 **Applies To:** All agents committing by explicit pathspec after a glob/dir `git add` — especially multi-file worktree lands where a dropped file breaks origin.
 
@@ -561,6 +561,26 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — 7th hazard in the worktree-land cluster; a `/land-from-worktree` step-3 refinement ("copy changed files" → "re-apply edits onto origin-clean files, or content-diff vs origin before commit"). Handed to TL for the owner-gated batch.
 
 **Applies To:** All agents landing edits to *existing* files via a worktree — especially copying from a shared tree that may carry other agents' uncommitted WIP.
+
+---
+
+## [Build] `/land-from-worktree` Sync-Back Leaves Files Staged in the Shared Index — Manufactures ADR-005 Sweep-Bait
+
+**Pattern:** The `/land-from-worktree` sync-back step `git checkout origin/main -- <files>` (used to refresh the shared tree to the just-landed origin state) **leaves those files STAGED in the shared index**. The procedure doesn't unstage them, so any other agent's later bare `git commit` sweeps them into an unrelated commit (ADR-005). The step manufactures sweep-bait *even for a correctly-landed file* — a latent hazard independent of whether the committing agent follows the pathspec rule.
+
+**Instances:**
+- 2026-07-26 — ServerAPI (`/land-from-worktree`, p/79#10/#11): after landing a file, the sync-back `git checkout origin/main -- <files>` left those files staged in the shared index; another agent's bare `git commit` then swept them into an unrelated commit (co-cause: the ADR-005 bare-commit violation, Diagnostics' 039f9501 commit). **Impact harmless this time** — the swept blob was identical to what was already on origin/main. But the staged-bait is the latent hazard: the sync step reliably produces it.
+
+**Root Cause:** `git checkout <ref> -- <paths>` (like `git restore --source=<ref> <paths>` without `--worktree`-only scoping) writes the files to **both the index and the working tree**. On the shared tree that means the files sit staged with no owning commit — exactly the "pre-staged files" that a bare `git commit` sweeps (see "Bare Git Commit Sweeps Shared Staging Index"). The procedure creates the sweep-bait as a side effect of syncing; it's the *supply side* of the bare-commit-sweep hazard, so it persists even when every committer is careful. 8th hazard in the worktree-land cluster.
+
+**Prevention:**
+1. **Append `git restore --staged -- <files>` to the `/land-from-worktree` sync-back step.** After `git checkout origin/main -- <files>`, unstage them — the shared tree only needs them in the working tree (they're already committed on origin/main), never in the index. (Procedure gap; handed to TL's batch.)
+2. **Or sync working-tree-only:** prefer a form that doesn't touch the index for an already-committed refresh, so no staged bait is created.
+3. **General rule:** any step that runs `git checkout <ref> -- <paths>` / `git restore --source` on the shared tree should be followed by `git restore --staged` unless you intend those files to be part of the next commit — leaving them staged is ADR-005 sweep-bait for every other agent.
+
+**Status:** Active — 8th worktree-land cluster hazard; a `/land-from-worktree` sync-back-step refinement. The *supply side* of the bare-commit-sweep pattern (which is the *consumption* side, now 2 instances). Handed to TL for the owner-gated batch.
+
+**Applies To:** All agents running the worktree landing procedure's sync-back, and anyone using `git checkout <ref> -- <paths>` on the shared tree.
 
 ---
 
@@ -602,7 +622,7 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 2. Alternative: stage files first with `git add <paths>`, then `git commit -m "msg"` (no `--` needed if the index is already correct).
 3. Same rule applies to all git commands: `git diff`, `git log`, `git checkout` — `--` always terminates option parsing.
 
-**Status:** Resolved for main-repo commits (AGENTS.md rule overlay 95e9c3b, p/8#30 + `git-commit-pathspec-flag-order` PreToolUse hook live workspace-wide, p/9#16) — **but recurred 2026-07-26 on an overlay `ogit` commit (Docker, p/217#1), a suspected hook-coverage gap:** the guard likely matches `git commit …` but not the overlay-prefixed `git --git-dir=.orca-git --work-tree=. commit …` form. 4 instances / 4 agents. Diagnostics extended the matcher to the overlay form (`/\bgit\b.*\bcommit\b/`, commit 039f9501, p/9#39) — **but that fix is INERT on Windows** until the `{workspace_root}`-expands-empty silent-hook-death is resolved (see the "Feedback Hook Silently Dead on Windows" pattern in process.md). Until then the AGENTS.md rule is the only live defense for overlay commits.
+**Status:** Resolved for main-repo commits (AGENTS.md rule overlay 95e9c3b, p/8#30 + `git-commit-pathspec-flag-order` PreToolUse hook live workspace-wide, p/9#16) — **but recurred 2026-07-26 on an overlay `ogit` commit (Docker, p/217#1), a suspected hook-coverage gap:** the guard likely matches `git commit …` but not the overlay-prefixed `git --git-dir=.orca-git --work-tree=. commit …` form. 4 instances / 4 agents. Diagnostics extended the matcher to the overlay form (`/\bgit\b.*\bcommit\b/`, commit 039f9501, p/9#39) and, in the p/9#41 audit, **re-inlined the hook via `node -e`** so it no longer depends on `{workspace_root}` (Windows path-crash resolved — see "Feedback Hook Silently Dead on Windows" in process.md). Caveat: the runner still treats a non-zero exit as silent-suppress (Orca Support's platform fix), so verify the guard actually emits guidance, not just that it's installed.
 
 **Applies To:** All agents using git commit with pathspec on any repo — including the overlay expanded form, which the hook may not yet cover.
 
