@@ -68,7 +68,20 @@ The contested-vocabulary dictionary (`dictionary/colloquial/`, 24 do-not-use-bar
 
 Two tiers, both mirroring machinery that already works:
 
-- **Curated index (batch).** `entity_mentions.json` maps a container id (fact, node, or debate) to its mentions, each `{entity_ref, quote, offset?}`. The `entity_ref` may be any of `ent-*`, `org-*`, `pol-*`, a taxonomy node id, or a `term:` ref into the vocabulary dictionary (Section 2). The mention layer is the unifier across all five stores.
+- **Curated index (batch).** `entity_mentions.json` maps a container id (fact, node, or debate) to its mentions, each `{entity_ref, quote, offset?}`. The mention layer is the unifier across the stores.
+
+  **Ref kinds are one-per-store, and that is the point** (tightening my own earlier wording, which listed id prefixes instead of kinds and left this ambiguous). The discriminant exists so a consumer can dispatch to a store and a result shape without re-inspecting the id string:
+
+  | kind | ids | store | result shape |
+  |---|---|---|---|
+  | `node` | `{pov}-{category}-NNN` | taxonomy POV files | taxonomy node |
+  | `situation` | `sit-NNN`, legacy `cc-NNN` | `situations.json` | situation (three POV interpretations) |
+  | `policy` | `pol-*` | `policy_actions.json` | policy action |
+  | `organization` | `org-*` | `organizations.json` | existing `Organization` type |
+  | `entity` | `ent-*` | `entities.json` | entity record (Section 3) |
+  | `term` | `term:<slug>` | `dictionary/` | colloquial entry + resolved senses |
+
+  `organization` stays a **distinct kind from `entity`**, not a species of it. Collapsing the two would make `kind` insufficient for dispatch (a consumer holding `{kind:'entity', id:'org-001'}` must sniff the prefix to choose between two stores and two result types), and it would soften the boundary rule that organizations are linked and never re-modelled. One kind, one store, one result shape.
 - **Live detection for debate and chat, by statement-side extraction.** Alias-table matching alone is structurally insufficient here, and Phase 0 proved it twice, because debaters name things the facts corpus has never heard of (`PREREG-t1767-phase0.md`, v0.2 falsification). So for debate and chat the entry-add path runs the **extraction instrument on the statement text itself**, then resolves each proposal against the table. Owner decision, 2026-07-27 (t/1767#12), on the strength of the v0.3 measurement (coverage 1.00, precision 1.00, zero universals minted, zero wrong links).
   - **Resolution outcomes.** A proposal matching an existing referent (`ent-*`/`org-*`/`pol-*`/node/`term:`) becomes a link immediately. A high-confidence proposal matching nothing becomes a **curation candidate**. The mention stays unlinked until the entity is approved, and the retroactive re-index (Section 7) then links it. Below-gate proposals are dropped.
   - **Alias matching still runs, and runs first.** It is free, deterministic, and catches every corpus entity. Statement-side extraction is the second pass that covers what the table cannot. Where both fire, the longest-most-specific rule (Section 2) settles overlap.
