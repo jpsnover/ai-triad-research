@@ -32,7 +32,7 @@ Seven patterns crossed the 3-instance threshold (or were high-severity) and beca
 
 ## Quick Reference — Top Recurring Patterns
 
-- **Rule-exists-but-not-applied (point-of-use failure class)** — 3 instances, 3 offenders (config-forensics 2nd, strict-mode property access, /land-from-worktree #81) → [process.md](process.md). Meta-tracker: NOT a coverage gap; rule is correct but doesn't fire at the moment of action. Per TL (p/8#95), at the **4th instance of the highest-frequency offender** he specs a single point-of-use hook (the `.Count` guard is the model) rather than adding another rule. **Tag every new rule-not-applied instance in process.md and rank by frequency.**
+- **Rule-exists-but-not-applied (point-of-use failure class)** — 3 instances, 3 offenders (config-forensics 2nd, strict-mode property access, /land-from-worktree #81) → [process.md](process.md). Meta-tracker: NOT a coverage gap; rule is correct but doesn't fire at the moment of action. **Two TL triggers, whichever first (p/8#95/#97): (a) any offender's 4th instance → point-of-use hook for that offender (`.Count` guard model); (b) class-total ~6 across offenders → systemic review-habit/checklist/meta-hook.** Current: class 3/~6, max-per-offender 1/4 (class-total is nearer). **Tag every new instance in process.md; keep both counters current.**
 - **Overlay repo (ogit)** — 7 instances, 4 agents → [build.md](build.md)
 - **Bash heredoc/quoting** — 10 instances, 7 agents → [build.md](build.md) (incl. `pwsh -File` over inline `-Command` for non-trivial PS, p/20#23)
 - **Git `--` flag ordering** — 4 instances, 4 agents → [build.md](build.md) (main-repo ✓ resolved via rule + hook; **overlay `ogit` form recurred 2026-07-26, suspected hook-coverage gap** — flagged to Diagnostics, p/217#1)
