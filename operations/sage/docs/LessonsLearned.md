@@ -949,7 +949,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-07-03 — verify's eslint step was already failing from old warnings. New `RelatedEdgesPanel` errors (t/1304) survived a "green verify" claim because the exit code was already non-zero (mechanism A). Root cause analysis in t/1304#5, fix in c2f79267, gate repair tracked in t/1323 (p/8#37).
-- 2026-07-26 — Technical Lead (t/1800, DevOps; p/8#101): the CI `Audit dependencies` step (`npm audit high`, **no `continue-on-error`**) hard-fails on lockfile dependabot vulns and sits **BEFORE Test**, so vitest+Pester are **skipped repo-wide** (mechanism B). Test gate was a **false-green for ~3 pushes** and **masked t/1788's Linux route-table check**. Fix per Gate Verification + Gate Co-Location.
+- 2026-07-26 — Technical Lead (t/1800, DevOps; p/8#101): the CI `Audit dependencies` step (`npm audit high`, **no `continue-on-error`**) hard-fails on lockfile dependabot vulns and sits **BEFORE Test**, so vitest+Pester are **skipped repo-wide** (mechanism B). Test gate was a **false-green for ~3 pushes** and **masked t/1788's Linux route-table check**. **FIXED (DevOps, 231e0f3e, p/26#17):** decoupled audit into its own job + `.github/scripts/ci-audit.mjs` with co-located per-app baselines — audit can never precede/skip Test. Durable rule: **two independent gates must be separate CI jobs.**
 
 **Root Cause:** When a gate is already failing (A) or an upstream step hard-fails (B) for tolerated/ignored reasons, agents treat the red as normal. New failures either blend into the existing non-zero exit (A) or never execute because the pipeline short-circuits first (B). Same family as [Build] Deploy Preflight False-Red (AlertsManagement) but **inverted** — false-green. Mechanism B is especially insidious: the real gate produces NO signal (skipped ≠ failed ≠ passed), and "skipped" is easily misread as "fine."
 
@@ -960,7 +960,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 4. Periodically **assert a deliberate failure actually fails the gate** (Gate Verification) — catches both mechanisms.
 5. When claiming "gate green," check that the real gate **actually ran** (not skipped) and its exit code — not just "the job didn't surprise me."
 
-**Status:** Resolved-genus, **recurred 2026-07-26 in a new (skip-before-run) mechanism** (t/1800). Root AGENTS.md "Gate Verification" + "Gate Co-Location" rules (overlay 5732aa7, t/1589) apply to the fix (TL cited both, p/8#101). Part of gate-signal-integrity genus (#20/#46/#48/#61/#64). Fix tracked t/1800 (DevOps).
+**Status:** Resolved-genus, recurred 2026-07-26 (skip-before-run mechanism, t/1800) — **now FIXED (DevOps, 231e0f3e, p/26#17):** audit decoupled into its own job + `ci-audit.mjs` with co-located per-app baselines. Root "Gate Verification" + "Gate Co-Location" rules (overlay 5732aa7, t/1589) applied; new durable rule: two independent gates = separate CI jobs. Part of gate-signal-integrity genus (#20/#46/#48/#61/#64).
 
 **Applies To:** All agents running verify gates, CI pipelines, or any pass/fail quality checks.
 
