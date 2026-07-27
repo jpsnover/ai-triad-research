@@ -135,8 +135,18 @@ export function computeAffectAppropriateness(
 ): number | null {
   if (phase === 'terminated') return null;
   const baseline = AFFECT_PHASE_BASELINES[phase];
+  // Share-normalize the profile before comparing (t/1785). `profile[cat]` is an ABSOLUTE
+  // per-category intensity (min(1, hits-per-100-words / saturation)); the baseline is a
+  // normalized SHARE (its five values sum to ~1). Deviating one from the other made the
+  // metric near-degenerate (baseline-dominated: even zero-affect text scored ~0.44). Compare
+  // shares so this measures affect BALANCE ("appropriateness of register"); intensity keeps
+  // living in affect_intensity_mean / affect_intensity_variance.
+  const total = AFFECT_CATEGORIES.reduce((s, c) => s + profile[c], 0);
+  // A turn with no emotional language is NOT evidence of inappropriate emotion — return null
+  // (no-evidence) rather than a spurious mid-range score.
+  if (total <= 0) return null;
   const meanDeviation =
-    AFFECT_CATEGORIES.reduce((sum, cat) => sum + Math.abs(profile[cat] - baseline[cat]), 0) /
+    AFFECT_CATEGORIES.reduce((s, c) => s + Math.abs(profile[c] / total - baseline[c]), 0) /
     AFFECT_CATEGORIES.length;
   return Math.max(0, 1 - meanDeviation / MAX_ACCEPTABLE_DEVIATION);
 }

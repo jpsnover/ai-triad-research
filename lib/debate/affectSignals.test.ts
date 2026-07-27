@@ -84,31 +84,53 @@ describe('computeAffectIntensity', () => {
   });
 });
 
-describe('computeAffectAppropriateness', () => {
-  it('returns 1.0 for profile matching baseline exactly', () => {
-    const baseline = AFFECT_PHASE_BASELINES.argumentation;
-    const score = computeAffectAppropriateness(baseline, 'argumentation');
-    expect(score).toBeCloseTo(1.0, 5);
+describe('computeAffectAppropriateness (share-normalized, t/1785)', () => {
+  const scale = (p: AffectProfile, k: number): AffectProfile => ({
+    urgency: p.urgency * k, fear: p.fear * k, hope: p.hope * k, outrage: p.outrage * k, empathy: p.empathy * k,
   });
 
-  it('returns lower score for mismatched profile', () => {
-    const confrontationProfile: AffectProfile = {
-      urgency: 0.30, fear: 0.25, hope: 0.20, outrage: 0.20, empathy: 0.15,
-    };
-    const inPhase = computeAffectAppropriateness(confrontationProfile, 'confrontation')!;
-    const outPhase = computeAffectAppropriateness(confrontationProfile, 'concluding')!;
-    expect(inPhase).toBeGreaterThan(outPhase);
+  it('scores near 1.0 for a profile proportional to the phase baseline (AC1)', () => {
+    // A profile proportional to the baseline has baseline-matching SHARES. (Not exactly 1.0:
+    // the baseline vector sums to ~0.95, so its own shares deviate ~0.01 from it — near, not equal.)
+    const proportional = { ...AFFECT_PHASE_BASELINES.argumentation };
+    const score = computeAffectAppropriateness(proportional, 'argumentation')!;
+    expect(score).toBeGreaterThan(0.95);
+  });
+
+  it('returns null for a zero-affect profile — no emotion is not inappropriate emotion (AC2)', () => {
+    const zero: AffectProfile = { urgency: 0, fear: 0, hope: 0, outrage: 0, empathy: 0 };
+    expect(computeAffectAppropriateness(zero, 'argumentation')).toBeNull();
   });
 
   it('returns null for terminated phase', () => {
-    const profile: AffectProfile = { urgency: 0, fear: 0, hope: 0, outrage: 0, empathy: 0 };
+    const profile: AffectProfile = { urgency: 0.2, fear: 0.1, hope: 0.3, outrage: 0.1, empathy: 0.2 };
     expect(computeAffectAppropriateness(profile, 'terminated')).toBeNull();
   });
 
-  it('returns 0 for extreme deviation', () => {
-    const extreme: AffectProfile = { urgency: 1.0, fear: 1.0, hope: 0, outrage: 1.0, empathy: 0 };
-    const score = computeAffectAppropriateness(extreme, 'concluding')!;
-    expect(score).toBeLessThanOrEqual(0.2);
+  it('depends on balance, not magnitude — same shares score identically at 5× intensity (AC3)', () => {
+    // Regression against the pre-t/1785 defect where the metric was dominated by absolute
+    // magnitude: two profiles with identical BALANCE but 5× different intensity must score equal.
+    const low: AffectProfile = { urgency: 0.10, fear: 0.05, hope: 0.02, outrage: 0.02, empathy: 0.01 };
+    const high = scale(low, 5);
+    const s1 = computeAffectAppropriateness(low, 'confrontation')!;
+    const s2 = computeAffectAppropriateness(high, 'confrontation')!;
+    expect(s1).toBeCloseTo(s2, 10);
+  });
+
+  it('distinguishes different balances at the same magnitude (AC3)', () => {
+    // Concluding baseline is hope-dominant (0.39) and outrage-minimal (0.04).
+    const hopeDominant: AffectProfile = { urgency: 0.10, fear: 0.03, hope: 0.40, outrage: 0.02, empathy: 0.25 };
+    const outrageDominant: AffectProfile = { urgency: 0.10, fear: 0.10, hope: 0.05, outrage: 0.60, empathy: 0.05 };
+    const sHope = computeAffectAppropriateness(hopeDominant, 'concluding')!;
+    const sOutrage = computeAffectAppropriateness(outrageDominant, 'concluding')!;
+    expect(sHope).toBeGreaterThan(sOutrage);
+  });
+
+  it('scores ~0 for a balance far from the phase baseline', () => {
+    // All mass in outrage; concluding rates outrage lowest (0.04) → maximal share deviation.
+    const allOutrage: AffectProfile = { urgency: 0, fear: 0, hope: 0, outrage: 1, empathy: 0 };
+    const score = computeAffectAppropriateness(allOutrage, 'concluding')!;
+    expect(score).toBeLessThanOrEqual(0.05);
   });
 });
 
