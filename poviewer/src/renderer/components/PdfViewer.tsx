@@ -312,7 +312,7 @@ function PdfPageView({
           renderTaskRef.current.cancel();
         }
 
-        const renderTask = page.render({ canvasContext: ctx, viewport });
+        const renderTask = page.render({ canvasContext: ctx, viewport, canvas });
         renderTaskRef.current = renderTask;
 
         await renderTask.promise;

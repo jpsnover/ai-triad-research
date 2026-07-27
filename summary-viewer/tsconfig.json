@@ -11,7 +11,9 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "outDir": "dist",
+    "rootDir": "..",
     "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
     "typeRoots": ["./node_modules/@types"],
     "paths": {
       "@renderer/*": ["src/renderer/*"],
@@ -20,6 +22,6 @@
       "@lib/flight-recorder/*": ["../lib/flight-recorder/*"]
     }
   },
-  "include": ["src/**/*", "../lib/**/*"],
-  "exclude": ["node_modules", "dist", "../lib/node_modules"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

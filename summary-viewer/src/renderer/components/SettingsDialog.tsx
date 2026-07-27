@@ -16,6 +16,7 @@ interface RefreshResult {
   gemini: { ok: boolean; count: number; error?: string };
   claude: { ok: boolean; count: number; error?: string };
   groq:   { ok: boolean; count: number; error?: string };
+  openai: { ok: boolean; count: number; error?: string };
   totalModels: number;
 }
 
@@ -92,6 +93,7 @@ export default function SettingsDialog({ onClose }: SettingsDialogProps) {
     gemini: 'AIza...',
     claude: 'sk-ant-...',
     groq: 'gsk_...',
+    openai: 'sk-...',
   };
 
   return (
