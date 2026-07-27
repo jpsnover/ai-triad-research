@@ -571,6 +571,13 @@ export async function verifyPreciseClaims(
   newNodes: ArgumentNetworkNode[],
 ): Promise<void> {
   const adapter = ctx.adapter as ExtendedAIAdapter;
+  // Known limitation (t/1782 / t/1769): evidence verification — which populates
+  // node.evidence_graph.evidence_items, the substrate for source_authority/recency —
+  // requires a search-capable adapter. The CLI adapter has none, so CLI-generated
+  // debates (how the calibration corpus is batch-produced) carry no evidence and yield
+  // null source-authority BY DESIGN. That is expected, not a dead metric; audits (e.g.
+  // the Wachsmuth coverage scan) should not re-flag it. Enabling it on the corpus is a
+  // feature (search-capable adapter + source corpus), not a bug fix.
   if (!adapter.generateTextWithSearch) return; // Search not available in CLI adapter
 
   const preciseBeliefs = newNodes.filter(
