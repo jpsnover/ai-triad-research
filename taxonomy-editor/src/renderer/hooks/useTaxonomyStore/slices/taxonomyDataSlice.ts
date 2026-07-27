@@ -41,6 +41,7 @@ import { POV_KEYS } from '@lib/debate/types';
 import { validateTaxonomy } from '@lib/debate/validators';
 import type { ValidationResult, ValidationIssue } from '@lib/debate/validators';
 import { validatePovNodeId } from '@lib/debate/validateNodeId';
+import type { AggregatedCrux as LibAggregatedCrux, CruxSource } from '@lib/debate/types/synthesis';
 import { api } from '@bridge';
 import { loadLineageCategoriesData } from '../../../data/lineageCategories';
 import { loadLineageInfoData } from '../../../data/lineageLookup';
@@ -60,13 +61,11 @@ export interface PolicyRegistryEntry {
   member_count: number;
 }
 
-export interface CruxSource {
-  debate_id: string;
-  debate_topic: string;
-  crux_tracker_id: string;
-  identified_turn: number;
-  final_state: string;
-}
+// `CruxSource` and the shared `AggregatedCrux` shape are owned by lib/debate
+// (types/synthesis.ts). Re-export CruxSource and EXTEND the lib AggregatedCrux with the
+// TE-UI-only fields rather than dual-maintaining a full copy — so shared fields like the
+// t/1676 `resolution_summary.undecided?` don't require parity patches here (t/1817).
+export type { CruxSource };
 
 export interface CruxExternalEvidence {
   url: string;
@@ -75,21 +74,16 @@ export interface CruxExternalEvidence {
   added_at: string;
 }
 
-export interface AggregatedCrux {
-  id: string;
-  statement: string;
+/**
+ * Aggregated crux as consumed by the TE renderer: the shared lib shape
+ * (id/statement/type/sources/linked_node_ids/frequency/resolution_summary — including the
+ * t/1676 `undecided?` field) plus TE-UI-only additions that are not part of debate synthesis.
+ */
+export interface AggregatedCrux extends LibAggregatedCrux {
+  /** TE-UI only: human-readable question phrasing shown in NodeDetail (renderer concern). */
   question_form?: string;
-  type: 'empirical' | 'values' | 'definitional';
-  sources: CruxSource[];
-  linked_node_ids: string[];
-  linked_conflict_ids?: string[];
+  /** TE-UI only: user-curated external evidence links shown in CruxesTab (renderer concern). */
   external_evidence?: CruxExternalEvidence[];
-  frequency: number;
-  resolution_summary: {
-    resolved: number;
-    active: number;
-    irreducible: number;
-  };
 }
 
 // ── Slice interface ──
