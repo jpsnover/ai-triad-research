@@ -22,6 +22,7 @@ import { FilesystemBackend } from './filesystemBackend.js';
 import { getGlobalRecorder, redactRecord } from '../../../../lib/flight-recorder/index.js';
 import { parseNpy, extractNodeVectors } from '../../../../lib/npy.js';
 import type { OrganizationEdge } from '../../../../lib/organizations/types.js';
+import type { Entity } from '../../../../lib/entities/types.js';
 
 // ── Extracted sub-modules (ADR-007, t/1688) — cohesion splits behind a stable
 // barrel: importers keep importing these symbols from './fileIO.js'. Each module
@@ -40,11 +41,19 @@ export * from './urlFetch.js';
 let backend: StorageBackend = new FilesystemBackend();
 let userContentBackend: StorageBackend | null = null;
 
+// Parsed-entities cache — memoizes entities.json so repeated public getEntity
+// (t/1786) hits, an UNAUTHENTICATED read tier, never re-parse the file per request
+// (t/1793 event-loop-DoS lesson). Static, pipeline-curated data (no server write
+// path); bounded to one entry, TTL caps staleness. Cleared when the taxonomy
+// backend is swapped (a new source legitimately invalidates the cache).
+const ENTITIES_CACHE_TTL_MS = 30_000;
+let entitiesCache: { at: number; entities: Entity[] } | null = null;
+
 /** Replace the taxonomy/default storage backend. */
-export function setBackend(b: StorageBackend): void { backend = b; }
+export function setBackend(b: StorageBackend): void { backend = b; entitiesCache = null; }
 export function getBackend(): StorageBackend { return backend; }
 /** Alias of setBackend, for explicit dual-backend wiring. */
-export function setTaxonomyBackend(b: StorageBackend): void { backend = b; }
+export function setTaxonomyBackend(b: StorageBackend): void { backend = b; entitiesCache = null; }
 /** Set the backend for user content (chats/debates/community). */
 export function setUserContentBackend(b: StorageBackend): void { userContentBackend = b; }
 /** User-content backend; falls back to the taxonomy backend when unset. */
@@ -525,6 +534,52 @@ export async function readPolicyRegistry(): Promise<unknown | null> {
     log.server.error({ err }, 'readPolicyRegistry failed');
     return null;
   }
+}
+
+// ── Entities (ent-*) ──
+
+/**
+ * Read the entity registry (`ent-*` records) from entities.json as typed `Entity[]`.
+ * Returns `null` when the store is absent. The parsed list is memoized for
+ * ENTITIES_CACHE_TTL_MS so repeated public `getEntity` (t/1786) hits — an
+ * unauthenticated read tier — never re-parse the file per request (t/1793 DoS
+ * lesson). entities.json is static, pipeline-curated data (no server write path),
+ * so a short-TTL parsed cache needs no write-invalidation.
+ */
+export async function readEntities(): Promise<Entity[] | null> {
+  if (entitiesCache && Date.now() - entitiesCache.at < ENTITIES_CACHE_TTL_MS) {
+    return entitiesCache.entities;
+  }
+  try {
+    const p = path.join(getTaxonomyDir(), 'entities.json');
+    const raw = await backend.readFile(p);
+    if (raw === null) return null;
+    const data = JSON.parse(raw) as { entities?: Entity[] };
+    const entities = data.entities ?? [];
+    entitiesCache = { at: Date.now(), entities };
+    return entities;
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'file-io',
+      level: 'error',
+      message: 'readEntities failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return null;
+  }
+}
+
+/**
+ * Entity registry as an `id → Entity` map — the lookup ServerAPI's `getEntity`
+ * (t/1786) feeds to its `resolveMergedInto` walk (the merged_into tombstone walk
+ * lives there, in exactly one layer; this layer only reads). Built fresh per call
+ * from the cached parsed list (the JSON.parse, not the O(n) index, is the DoS
+ * cost), so each caller gets a private map. Returns `null` when the store is absent.
+ */
+export async function readEntityRegistry(): Promise<Map<string, Entity> | null> {
+  const entities = await readEntities();
+  return entities ? new Map(entities.map(e => [e.id, e])) : null;
 }
 
 // ── Edges ──
