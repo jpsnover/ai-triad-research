@@ -3,7 +3,7 @@
 //   1. Unit: atomicWriteSync/safeSerialize throw or degrade correctly
 //   2. Integration: debate engine's emitSnapshot catches and continues
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -12,6 +12,17 @@ import { STORAGE_FAULT_PROFILES, makeStorageError } from './faultInjection.js';
 import { ActionableError } from '../errors.js';
 import { setGlobalRecorder, clearGlobalRecorder, type FlightRecorder } from '../../flight-recorder/index.js';
 import type { RecordInput } from '../../flight-recorder/types.js';
+
+// ── Hermetic isolation (t/1879 / Sage #88) ───────────────
+// Block all network calls so the test is independent of shell API keys.
+beforeAll(() => {
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(
+    new Error('[test] network calls blocked — use injected adapter'),
+  ));
+});
+afterAll(() => {
+  vi.unstubAllGlobals();
+});
 
 // ── Helpers ─────────────────────────────────────────────
 

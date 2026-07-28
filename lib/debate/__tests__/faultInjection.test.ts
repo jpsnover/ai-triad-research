@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { FaultHarness, AI_FAULT_PROFILES, type FaultProfile } from './faultInjection.js';
 
 // ── Mock fs for registry loading ────────────────────────
@@ -19,6 +19,19 @@ vi.mock('../../search/tavily', () => ({
   tavilySearch: vi.fn(),
   buildSearchAugmentedPrompt: vi.fn(),
 }));
+
+// ── Hermetic isolation (t/1879 / Sage #88) ───────────────
+// Block all network calls so the test is independent of shell API keys.
+// Retry/failover paths that escape the injected adapter are swallowed by
+// the engine's best-effort handlers — tests still pass, live calls cannot escape.
+beforeAll(() => {
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(
+    new Error('[test] network calls blocked — use injected adapter'),
+  ));
+});
+afterAll(() => {
+  vi.unstubAllGlobals();
+});
 
 // ── Helpers ─────────────────────────────────────────────
 
