@@ -740,11 +740,22 @@ if (process.argv.includes('--ci-golden')) {
     process.exit(1);
   });
 } else {
-  main().catch(err => {
-    const msg = err instanceof Error ? err.message : String(err);
-    log(`FATAL: ${msg}`);
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'cli', level: 'error', message: 'Fatal unhandled error', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-    console.log(JSON.stringify({ success: false, error: msg }));
-    process.exit(1);
-  });
+  main()
+    .then(() => {
+      // t/1824: main() finishes with every artifact written, but the flight-recorder named-pipe
+      // listener started in main() (recorder.startPipeListener) is a live net.Server handle that
+      // keeps Node's event loop alive. cli.ts previously released it ONLY on SIGINT, so a clean
+      // batch run — stdout piped/redirected, no signal — hung until an external watchdog killed the
+      // process and never produced exit code 0 (batch harnesses keying on returncode read success
+      // as failure). Release it here so the loop drains and the process exits 0 on the clean path.
+      // (The error path below force-exits, so the handle dies with the process there.)
+      getGlobalRecorder()?.stopPipeListener();
+    })
+    .catch(err => {
+      const msg = err instanceof Error ? err.message : String(err);
+      log(`FATAL: ${msg}`);
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'cli', level: 'error', message: 'Fatal unhandled error', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      console.log(JSON.stringify({ success: false, error: msg }));
+      process.exit(1);
+    });
 }
