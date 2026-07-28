@@ -290,3 +290,78 @@ shared refs, so no re-weighting of a zero changes the outcome. The signal itself
 When DebateTool lands a signal-B (or redefined) engagement gate: re-run `_ac2_gate_calibration.py` (swap
 the predicate), apply precision ≥0.90 **and** recall ≥4/6, then the confirmatory fresh-holdout draw (N≥10)
 before any stipulated→derived flip.
+
+---
+
+## RESULTS v3 — signal-B PRE-SWEEP (de-risk before build, 2026-07-28)
+
+Before DebateTool implemented signal B (t/1860), I ran the calibration **ahead of the build** — signal A
+had already cost one wasted implementation, so the question was whether *any* embedding threshold can
+separate the classes at the gate before spending a second one. Harness: `_ac2_signalB_presweep.py`
+(sentence-transformers all-MiniLM-L6-v2 4.1.0 — the pinned-compatible version; mean-pool + L2-norm cosine,
+adequate parity with the project ONNX path for a threshold search). Predicate = CL's t/1860#2
+recommendation: each `speakers_involved` camp (minus `system`/`document`), a turn qualifies if the **max
+sentence-level** cosine of any of its sentences vs `crux.description` ≥ τ; adjudicated iff ≥2 camps qualify.
+Sentence-level is the **finest** granularity — an upper bound on what DebateTool's 900-char windows (t/1860#3)
+can achieve, so the result generalizes to the coarser segmentation. Raw: `ac2-signalB-presweep.json`.
+
+### Result: signal B ALSO fails. Precision ceiling ≈0.44.
+
+| minTurnsPerCamp | best precision (at recall ≥4/6) | τ | at higher τ |
+|---|---|---|---|
+| 1 | **0.444** (recall 0.667) | 0.45 | recall→1.0, precision→0.20 |
+| 2 | **0.400** (recall 0.667) | 0.40 | recall→1.0, precision→0.20 |
+
+No τ at any knob setting reaches precision ≥0.90. As τ rises, recall climbs to 1.0 but precision decays to
+0.20 (everything → `undecided`, i.e. the old proxy). The peak (~0.44) is less than half the promotion floor.
+
+### Root cause (construct-level, decisive): topical co-presence ≠ adjudication
+
+The binding signal is the **2nd-highest camp's best sentence-sim** (the ≥2-camp rule hinges on it). Its
+distributions across the frozen 30 **overlap irreducibly**:
+
+| class | min | median | max |
+|---|---|---|---|
+| genuinely-undecided (n=6) | 0.00 | **0.22** | 0.59 |
+| adjudicated (n=24) | 0.00 | **0.59** | 0.74 |
+
+Medians differ, but both error directions are populated and the classes overlap in [0.45, 0.74]:
+- **5 of 24 adjudicated cruxes have 2nd-camp-sim = 0.00** — the opposing camp *did* rebut (per the hand
+  labels) but in **different vocabulary** that does not embed-match the crux `description` (oblique rebuttal,
+  premise-attack, reframe). E.g. AN-14, AN-44, AN-62, AN-22, AN-9. Embedding sim cannot see these.
+- **3 of 6 undecided cruxes have 2nd-camp-sim 0.45–0.59** — both camps *topically mention* the point
+  (AN-24, AN-12, D-1) yet it was only asserted-and-echoed, never adjudicated. Embedding sim over-fires here.
+
+So both proxies tried — signal A (shared taxonomy_ref on the crux node) and signal B (embedding similarity of
+turn text to the crux proposition) — measure **topical co-presence**, while the construct being scored,
+"was the proposition *adversarially adjudicated*," is a **dialectical/pragmatic relation** (rebut / concede /
+reframe). Adjudication occurs at low topical similarity (oblique rebuttal) and topical co-presence occurs
+without adjudication (assert-and-echo). **No cheap structural or embedding signal can reach 0.90 precision on
+this construct.** With a 6/30 positive base rate, one FP is ~10pp of precision, so the metric needs near-perfect
+class separation the signals cannot provide.
+
+### Decision — escalate a construct-level choice, do NOT build signal B
+
+Both AC#2 passes and this pre-sweep agree: the `undecided` **verdict category** is real and needed (R-2/F-2
+gap), but a **calibrated** `crux_undecided_rate` at ≥0.90 precision is **not achievable** with the available
+automatic signals. This is above implementation — routed to **TL + Main-CL**. Options:
+
+- **(a) Redefine `undecided` to a structurally-decidable sub-construct — cap-terminated cruxes** (surfaced
+  within the last N turns with no terminal verdict). Precision ≈1.0 by construction (a structural fact, no
+  adjudication inference), at the cost of recall on never-surfaced / argued-early cruxes. This is t/1818
+  option 3, previously rejected on recall grounds — but a narrow, honest metric beats a wide, miscalibrated
+  one, and it is the only high-precision definition on the table. **CL lean if a promotable metric is wanted.**
+- **(b) Keep `crux_undecided_rate` permanently stipulated**, reported as a *directional* signal with the
+  measured ≈0.44 (embedding) / ≈0.20 (structural) precision ceiling documented; never promote to derived. The
+  verdict-category gap is satisfied; the calibrated-instrument goal is retired as not-measurable. **CL lean if
+  the metric stays as-is.**
+- **(c) Per-crux LLM-judge adjudication gate** — likely the only path to ≥0.90, but expensive per crux and
+  reintroduces evaluator-sensitivity (t/1835 MAD 0.625); named for completeness, not recommended.
+
+Signal C (AN-edge bidirectional) is not separately swept: it is the same topical-co-presence family as A/B and
+CL rejected it in t/1818#2 as near-true-by-construction — it fails for the mirror-image reason.
+
+### Resume trigger (v4)
+On a construct decision: (a) → I calibrate the cap-terminated definition on the frozen 30 (should pass by
+construction) then confirm on a holdout; (b) → register records the ceiling and closes AC#4 as
+*not-promotable*; (c) → new design ticket. Until then t/1669 AC#4 stays open, metric stipulated.

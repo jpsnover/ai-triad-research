@@ -1,0 +1,925 @@
+{
+  "model": "all-MiniLM-L6-v2 (sentence-transformers)",
+  "granularity": "max-sentence-per-turn",
+  "per_crux": [
+    {
+      "file": "debate-04167ebc",
+      "crux": "AN-12",
+      "truth": "undecided",
+      "camps": [
+        "safetyist",
+        "skeptic"
+      ],
+      "camp_turn_maxsims": {
+        "safetyist": [
+          0.48691925406455994,
+          0.664559006690979,
+          0.5371339917182922,
+          0.5558595657348633
+        ],
+        "skeptic": [
+          0.4464786648750305,
+          0.5066913962364197,
+          0.4997853636741638,
+          0.41414111852645874,
+          0.44974616169929504
+        ]
+      }
+    },
+    {
+      "file": "debate-0b5dee92",
+      "crux": "AN-24",
+      "truth": "undecided",
+      "camps": [
+        "Skeptic",
+        "Accelerationist"
+      ],
+      "camp_turn_maxsims": {
+        "Skeptic": [
+          0.37899813055992126,
+          0.7710438370704651,
+          0.5928084850311279
+        ],
+        "Accelerationist": [
+          0.43426215648651123,
+          0.5937312841415405,
+          0.400989830493927,
+          0.5702471137046814
+        ]
+      }
+    },
+    {
+      "file": "debate-1418ee11",
+      "crux": "AN-29",
+      "truth": "undecided",
+      "camps": [
+        "safetyist"
+      ],
+      "camp_turn_maxsims": {
+        "safetyist": [
+          0.2797754406929016,
+          0.6346535682678223,
+          0.2713112235069275,
+          0.2676548361778259,
+          0.258244127035141
+        ]
+      }
+    },
+    {
+      "file": "debate-1685da89",
+      "crux": "AN-35",
+      "truth": "adjudicated",
+      "camps": [
+        "Accelerationist",
+        "Safetyist"
+      ],
+      "camp_turn_maxsims": {
+        "Accelerationist": [
+          0.0,
+          0.40848684310913086,
+          0.4530172348022461,
+          0.9875057935714722,
+          0.6423120498657227,
+          0.5896153450012207
+        ],
+        "Safetyist": [
+          0.3304626941680908,
+          0.3456084132194519,
+          0.5550087690353394,
+          0.5419529676437378
+        ]
+      }
+    },
+    {
+      "file": "debate-1be82941",
+      "crux": "AN-13",
+      "truth": "adjudicated",
+      "camps": [
+        "Skeptic",
+        "Accelerationist"
+      ],
+      "camp_turn_maxsims": {
+        "Skeptic": [
+          0.5000124573707581,
+          0.9316449165344238,
+          0.5198053121566772
+        ],
+        "Accelerationist": [
+          0.5148258805274963,
+          0.426599383354187,
+          0.4380840063095093
+        ]
+      }
+    },
+    {
+      "file": "debate-1ffff43a",
+      "crux": "AN-29",
+      "truth": "undecided",
+      "camps": [
+        "Safetyist"
+      ],
+      "camp_turn_maxsims": {
+        "Safetyist": [
+          0.5662271976470947,
+          0.5564894676208496,
+          0.9254214763641357,
+          0.5427614450454712,
+          0.5998440980911255,
+          0.4127679765224457
+        ]
+      }
+    },
+    {
+      "file": "debate-3210eb8a",
+      "crux": "AN-14",
+      "truth": "adjudicated",
+      "camps": [
+        "Safetyist"
+      ],
+      "camp_turn_maxsims": {
+        "Safetyist": [
+          0.909247636795044,
+          0.48682835698127747
+        ]
+      }
+    },
+    {
+      "file": "debate-396208e0",
+      "crux": "AN-66",
+      "truth": "adjudicated",
+      "camps": [
+        "safetyist",
+        "skeptic"
+      ],
+      "camp_turn_maxsims": {
+        "safetyist": [
+          0.5779038667678833,
+          0.5874858498573303,
+          0.8454237580299377,
+          0.5055652260780334
+        ],
+        "skeptic": [
+          0.46403223276138306,
+          0.6084880232810974,
+          0.5024105310440063,
+          0.5160291790962219,
+          0.49005818367004395
+        ]
+      }
+    },
+    {
+      "file": "debate-39d97d44",
+      "crux": "AN-51",
+      "truth": "adjudicated",
+      "camps": [
+        "Accelerationist",
+        "Skeptic"
+      ],
+      "camp_turn_maxsims": {
+        "Accelerationist": [
+          0.3903631269931793,
+          0.4148716628551483,
+          0.38707050681114197,
+          0.6540655493736267,
+          0.9999999403953552,
+          0.40844058990478516,
+          0.45208093523979187
+        ],
+        "Skeptic": [
+          0.4082808196544647,
+          0.4534384310245514,
+          0.5213794112205505,
+          0.5689619779586792,
+          0.7065556645393372
+        ]
+      }
+    },
+    {
+      "file": "debate-400f834d",
+      "crux": "AN-13",
+      "truth": "adjudicated",
+      "camps": [
+        "Accelerationist",
+        "Skeptic"
+      ],
+      "camp_turn_maxsims": {
+        "Accelerationist": [
+          0.402764230966568,
+          0.5447198152542114,
+          0.723581850528717,
+          0.5545547604560852,
+          0.4302891790866852,
+          0.5362012982368469
+        ],
+        "Skeptic": [
+          0.5317551493644714,
+          0.7242487668991089,
+          0.41645607352256775
+        ]
+      }
+    },
+    {
+      "file": "debate-4c766822",
+      "crux": "D-1",
+      "truth": "undecided",
+      "camps": [
+        "Skeptic",
+        "Accelerationist"
+      ],
+      "camp_turn_maxsims": {
+        "Skeptic": [
+          0.3770599365234375,
+          0.3362465798854828,
+          0.5834173560142517
+        ],
+        "Accelerationist": [
+          0.4480813145637512,
+          0.4171430766582489
+        ]
+      }
+    },
+    {
+      "file": "debate-57c14a81",
+      "crux": "AN-18",
+      "truth": "adjudicated",
+      "camps": [
+        "Safetyist",
+        "Accelerationist"
+      ],
+      "camp_turn_maxsims": {
+        "Safetyist": [
+          0.5760995745658875,
+          1.0000001192092896
+        ],
+        "Accelerationist": [
+          0.42853593826293945,
+          0.5275068283081055,
+          0.6356737017631531,
+          0.4440663456916809
+        ]
+      }
+    },
+    {
+      "file": "debate-5c33db20",
+      "crux": "AN-15",
+      "truth": "adjudicated",
+      "camps": [
+        "Skeptic",
+        "Accelerationist"
+      ],
+      "camp_turn_maxsims": {
+        "Skeptic": [
+          0.5590637922286987,
+          1.000000238418579,
+          0.4512406289577484,
+          0.5198277831077576
+        ],
+        "Accelerationist": [
+          0.5505802035331726,
+          0.6119017004966736,
+          0.47325801849365234,
+          0.6269371509552002,
+          0.7357019782066345
+        ]
+      }
+    },
+    {
+      "file": "debate-5ff58b8b",
+      "crux": "AN-10",
+      "truth": "adjudicated",
+      "camps": [
+        "safetyist",
+        "skeptic"
+      ],
+      "camp_turn_maxsims": {
+        "safetyist": [
+          0.7790041565895081,
+          0.5025529265403748,
+          0.5479814410209656,
+          0.5267600417137146,
+          0.4112900495529175
+        ],
+        "skeptic": [
+          0.3129658102989197,
+          0.3252614736557007,
+          0.40160122513771057,
+          0.45729294419288635,
+          0.5576379299163818,
+          0.40445399284362793,
+          0.48158901929855347
+        ]
+      }
+    },
+    {
+      "file": "debate-6502276d",
+      "crux": "AN-11",
+      "truth": "adjudicated",
+      "camps": [
+        "Safetyist",
+        "Accelerationist"
+      ],
+      "camp_turn_maxsims": {
+        "Safetyist": [
+          0.7541016340255737,
+          0.515266478061676,
+          0.5417620539665222
+        ],
+        "Accelerationist": [
+          0.5665280818939209,
+          0.5935677289962769,
+          0.5862118601799011,
+          0.26676368713378906
+        ]
+      }
+    },
+    {
+      "file": "debate-7490d9c2",
+      "crux": "AN-11",
+      "truth": "adjudicated",
+      "camps": [
+        "skeptic",
+        "safetyist"
+      ],
+      "camp_turn_maxsims": {
+        "skeptic": [
+          0.37451761960983276,
+          0.8014870882034302,
+          0.6014169454574585
+        ],
+        "safetyist": [
+          0.27091342210769653,
+          0.27607327699661255,
+          0.34474244713783264,
+          0.49552419781684875
+        ]
+      }
+    },
+    {
+      "file": "debate-835bff57",
+      "crux": "AN-8",
+      "truth": "adjudicated",
+      "camps": [
+        "Accelerationist",
+        "Safetyist"
+      ],
+      "camp_turn_maxsims": {
+        "Accelerationist": [
+          0.7270377278327942,
+          0.5508549213409424,
+          0.6786766052246094,
+          0.5349491238594055
+        ],
+        "Safetyist": [
+          0.5367804765701294,
+          0.8077171444892883,
+          0.48586562275886536,
+          0.4268761873245239
+        ]
+      }
+    },
+    {
+      "file": "debate-9152a7fd",
+      "crux": "AN-44",
+      "truth": "adjudicated",
+      "camps": [
+        "accelerationist"
+      ],
+      "camp_turn_maxsims": {
+        "accelerationist": [
+          0.5005031228065491,
+          0.46355926990509033,
+          0.5354431867599487,
+          0.4117185175418854,
+          0.7121671438217163
+        ]
+      }
+    },
+    {
+      "file": "debate-9dccfcbe",
+      "crux": "AN-2",
+      "truth": "adjudicated",
+      "camps": [
+        "Accelerationist",
+        "Skeptic"
+      ],
+      "camp_turn_maxsims": {
+        "Accelerationist": [
+          0.7859696745872498,
+          0.49323827028274536,
+          0.3749692738056183,
+          0.496122270822525,
+          0.4169301986694336,
+          0.4366457760334015
+        ],
+        "Skeptic": [
+          0.4761037826538086,
+          0.5065150260925293,
+          0.39041808247566223,
+          0.38402384519577026,
+          0.4581593871116638
+        ]
+      }
+    },
+    {
+      "file": "debate-a0eaaca9",
+      "crux": "AN-62",
+      "truth": "adjudicated",
+      "camps": [
+        "accelerationist"
+      ],
+      "camp_turn_maxsims": {
+        "accelerationist": [
+          0.40422147512435913,
+          0.3939814567565918,
+          0.380061537027359,
+          0.4634135961532593,
+          0.3724558353424072,
+          0.9489747881889343,
+          0.5807477831840515,
+          0.47079676389694214
+        ]
+      }
+    },
+    {
+      "file": "debate-aa493447",
+      "crux": "AN-1",
+      "truth": "adjudicated",
+      "camps": [
+        "Accelerationist",
+        "Skeptic"
+      ],
+      "camp_turn_maxsims": {
+        "Accelerationist": [
+          0.9658365845680237,
+          0.4841468632221222,
+          0.3664396405220032,
+          0.3867682218551636,
+          0.361636221408844,
+          0.3751133978366852
+        ],
+        "Skeptic": [
+          0.5875285863876343,
+          0.37575167417526245,
+          0.4600716829299927
+        ]
+      }
+    },
+    {
+      "file": "debate-ad01203f",
+      "crux": "AN-5",
+      "truth": "adjudicated",
+      "camps": [
+        "Safetyist",
+        "Skeptic"
+      ],
+      "camp_turn_maxsims": {
+        "Safetyist": [
+          0.8860002160072327,
+          0.5267320871353149,
+          0.643721342086792
+        ],
+        "Skeptic": [
+          0.41096895933151245,
+          0.5012204647064209,
+          0.3349641263484955,
+          0.4798069894313812
+        ]
+      }
+    },
+    {
+      "file": "debate-bd1d6c61",
+      "crux": "AN-22",
+      "truth": "adjudicated",
+      "camps": [
+        "Safetyist"
+      ],
+      "camp_turn_maxsims": {
+        "Safetyist": [
+          0.4743727445602417,
+          0.505262017250061,
+          1.0000001192092896,
+          0.5412726998329163,
+          0.3902866840362549
+        ]
+      }
+    },
+    {
+      "file": "debate-c4fe24f0",
+      "crux": "AN-8",
+      "truth": "adjudicated",
+      "camps": [
+        "accelerationist",
+        "skeptic"
+      ],
+      "camp_turn_maxsims": {
+        "accelerationist": [
+          0.5599126815795898,
+          1.0,
+          0.6544460654258728
+        ],
+        "skeptic": [
+          0.5684784650802612,
+          0.6859186291694641,
+          0.4206660985946655
+        ]
+      }
+    },
+    {
+      "file": "debate-cbf5bb79",
+      "crux": "AN-1",
+      "truth": "adjudicated",
+      "camps": [
+        "accelerationist",
+        "skeptic"
+      ],
+      "camp_turn_maxsims": {
+        "accelerationist": [
+          0.9999999403953552,
+          0.6414176821708679,
+          0.5949105024337769,
+          0.5157853364944458
+        ],
+        "skeptic": [
+          0.6877335906028748,
+          0.5726724863052368,
+          0.5122764110565186,
+          0.5716927647590637
+        ]
+      }
+    },
+    {
+      "file": "debate-cff6b797",
+      "crux": "AN-26",
+      "truth": "adjudicated",
+      "camps": [
+        "accelerationist",
+        "skeptic"
+      ],
+      "camp_turn_maxsims": {
+        "accelerationist": [
+          0.526248037815094,
+          0.839626669883728
+        ],
+        "skeptic": [
+          0.5455294847488403,
+          0.5518826246261597,
+          0.6331028938293457
+        ]
+      }
+    },
+    {
+      "file": "debate-d6a1b446",
+      "crux": "AN-25",
+      "truth": "adjudicated",
+      "camps": [
+        "accelerationist",
+        "skeptic"
+      ],
+      "camp_turn_maxsims": {
+        "accelerationist": [
+          0.39956653118133545,
+          0.4075712263584137,
+          1.000000238418579
+        ],
+        "skeptic": [
+          0.3977639079093933,
+          0.3962785005569458,
+          0.6260530948638916,
+          0.6655081510543823
+        ]
+      }
+    },
+    {
+      "file": "debate-eb21ef39",
+      "crux": "AN-23",
+      "truth": "undecided",
+      "camps": [
+        "safetyist"
+      ],
+      "camp_turn_maxsims": {
+        "safetyist": [
+          0.5156528353691101,
+          0.45582929253578186,
+          0.9058161377906799,
+          0.43747156858444214,
+          0.44775280356407166
+        ]
+      }
+    },
+    {
+      "file": "debate-f2a29ea0",
+      "crux": "AN-22",
+      "truth": "adjudicated",
+      "camps": [
+        "accelerationist",
+        "skeptic",
+        "safetyist"
+      ],
+      "camp_turn_maxsims": {
+        "accelerationist": [
+          0.5265042781829834,
+          0.8442671895027161,
+          0.5079885721206665,
+          0.5213418006896973,
+          0.4138943552970886,
+          0.32314518094062805
+        ],
+        "skeptic": [
+          0.41995182633399963,
+          0.4813896715641022,
+          0.397849977016449,
+          0.3612469732761383
+        ],
+        "safetyist": [
+          0.38411977887153625,
+          0.5426039099693298,
+          0.5950445532798767,
+          0.5491421222686768,
+          0.3729304075241089
+        ]
+      }
+    },
+    {
+      "file": "debate-f9c54c70",
+      "crux": "AN-9",
+      "truth": "adjudicated",
+      "camps": [
+        "accelerationist"
+      ],
+      "camp_turn_maxsims": {
+        "accelerationist": [
+          0.3964140713214874,
+          1.0000001192092896,
+          0.4730129837989807
+        ]
+      }
+    }
+  ],
+  "sweep": [
+    {
+      "min_turns": 1,
+      "tau": 0.3,
+      "precision": 0.375,
+      "recall": 0.5,
+      "tp": 3,
+      "fp": 5,
+      "fn": 3,
+      "tn": 19,
+      "passes": false
+    },
+    {
+      "min_turns": 1,
+      "tau": 0.35,
+      "precision": 0.375,
+      "recall": 0.5,
+      "tp": 3,
+      "fp": 5,
+      "fn": 3,
+      "tn": 19,
+      "passes": false
+    },
+    {
+      "min_turns": 1,
+      "tau": 0.4,
+      "precision": 0.375,
+      "recall": 0.5,
+      "tp": 3,
+      "fp": 5,
+      "fn": 3,
+      "tn": 19,
+      "passes": false
+    },
+    {
+      "min_turns": 1,
+      "tau": 0.45,
+      "precision": 0.4444444444444444,
+      "recall": 0.6666666666666666,
+      "tp": 4,
+      "fp": 5,
+      "fn": 2,
+      "tn": 19,
+      "passes": false
+    },
+    {
+      "min_turns": 1,
+      "tau": 0.5,
+      "precision": 0.4,
+      "recall": 0.6666666666666666,
+      "tp": 4,
+      "fp": 6,
+      "fn": 2,
+      "tn": 18,
+      "passes": false
+    },
+    {
+      "min_turns": 1,
+      "tau": 0.55,
+      "precision": 0.35714285714285715,
+      "recall": 0.8333333333333334,
+      "tp": 5,
+      "fp": 9,
+      "fn": 1,
+      "tn": 15,
+      "passes": false
+    },
+    {
+      "min_turns": 1,
+      "tau": 0.6,
+      "precision": 0.3,
+      "recall": 1.0,
+      "tp": 6,
+      "fp": 14,
+      "fn": 0,
+      "tn": 10,
+      "passes": false
+    },
+    {
+      "min_turns": 1,
+      "tau": 0.65,
+      "precision": 0.2608695652173913,
+      "recall": 1.0,
+      "tp": 6,
+      "fp": 17,
+      "fn": 0,
+      "tn": 7,
+      "passes": false
+    },
+    {
+      "min_turns": 1,
+      "tau": 0.7,
+      "precision": 0.23076923076923078,
+      "recall": 1.0,
+      "tp": 6,
+      "fp": 20,
+      "fn": 0,
+      "tn": 4,
+      "passes": false
+    },
+    {
+      "min_turns": 1,
+      "tau": 0.75,
+      "precision": 0.2,
+      "recall": 1.0,
+      "tp": 6,
+      "fp": 24,
+      "fn": 0,
+      "tn": 0,
+      "passes": false
+    },
+    {
+      "min_turns": 1,
+      "tau": 0.8,
+      "precision": 0.2,
+      "recall": 1.0,
+      "tp": 6,
+      "fp": 24,
+      "fn": 0,
+      "tn": 0,
+      "passes": false
+    },
+    {
+      "min_turns": 1,
+      "tau": 0.85,
+      "precision": 0.2,
+      "recall": 1.0,
+      "tp": 6,
+      "fp": 24,
+      "fn": 0,
+      "tn": 0,
+      "passes": false
+    },
+    {
+      "min_turns": 2,
+      "tau": 0.3,
+      "precision": 0.375,
+      "recall": 0.5,
+      "tp": 3,
+      "fp": 5,
+      "fn": 3,
+      "tn": 19,
+      "passes": false
+    },
+    {
+      "min_turns": 2,
+      "tau": 0.35,
+      "precision": 0.3333333333333333,
+      "recall": 0.5,
+      "tp": 3,
+      "fp": 6,
+      "fn": 3,
+      "tn": 18,
+      "passes": false
+    },
+    {
+      "min_turns": 2,
+      "tau": 0.4,
+      "precision": 0.4,
+      "recall": 0.6666666666666666,
+      "tp": 4,
+      "fp": 6,
+      "fn": 2,
+      "tn": 18,
+      "passes": false
+    },
+    {
+      "min_turns": 2,
+      "tau": 0.45,
+      "precision": 0.3333333333333333,
+      "recall": 0.6666666666666666,
+      "tp": 4,
+      "fp": 8,
+      "fn": 2,
+      "tn": 16,
+      "passes": false
+    },
+    {
+      "min_turns": 2,
+      "tau": 0.5,
+      "precision": 0.29411764705882354,
+      "recall": 0.8333333333333334,
+      "tp": 5,
+      "fp": 12,
+      "fn": 1,
+      "tn": 12,
+      "passes": false
+    },
+    {
+      "min_turns": 2,
+      "tau": 0.55,
+      "precision": 0.2,
+      "recall": 0.8333333333333334,
+      "tp": 5,
+      "fp": 20,
+      "fn": 1,
+      "tn": 4,
+      "passes": false
+    },
+    {
+      "min_turns": 2,
+      "tau": 0.6,
+      "precision": 0.2,
+      "recall": 1.0,
+      "tp": 6,
+      "fp": 24,
+      "fn": 0,
+      "tn": 0,
+      "passes": false
+    },
+    {
+      "min_turns": 2,
+      "tau": 0.65,
+      "precision": 0.2,
+      "recall": 1.0,
+      "tp": 6,
+      "fp": 24,
+      "fn": 0,
+      "tn": 0,
+      "passes": false
+    },
+    {
+      "min_turns": 2,
+      "tau": 0.7,
+      "precision": 0.2,
+      "recall": 1.0,
+      "tp": 6,
+      "fp": 24,
+      "fn": 0,
+      "tn": 0,
+      "passes": false
+    },
+    {
+      "min_turns": 2,
+      "tau": 0.75,
+      "precision": 0.2,
+      "recall": 1.0,
+      "tp": 6,
+      "fp": 24,
+      "fn": 0,
+      "tn": 0,
+      "passes": false
+    },
+    {
+      "min_turns": 2,
+      "tau": 0.8,
+      "precision": 0.2,
+      "recall": 1.0,
+      "tp": 6,
+      "fp": 24,
+      "fn": 0,
+      "tn": 0,
+      "passes": false
+    },
+    {
+      "min_turns": 2,
+      "tau": 0.85,
+      "precision": 0.2,
+      "recall": 1.0,
+      "tp": 6,
+      "fp": 24,
+      "fn": 0,
+      "tn": 0,
+      "passes": false
+    }
+  ],
+  "best_passing": null
+}
