@@ -5,7 +5,8 @@ function Get-Entity {
     <#
     .SYNOPSIS
         Resolve an entity record (ent-*) from entities.json, following merge tombstones
-        to the canonical record (t/1804, design §7).
+        to the canonical record (t/1804, design §7). With no -Id, list every canonical
+        entity in the store.
     .DESCRIPTION
         Reads the entity store and returns the record for an `ent-*` id. If the requested
         record is a merge tombstone (`merged_into` set), the walk follows the pointer chain
@@ -17,26 +18,33 @@ function Get-Entity {
         exceeded cap is a DATA DEFECT and throws (not a silent 404); a genuinely absent id
         returns nothing.
 
+        Called with NO -Id (the default parameter set), it emits every canonical entity in
+        file order. Merge tombstones (`merged_into` set) are skipped — they are forwarding
+        pointers, not live entities, and listing both a tombstone and its target would double
+        up the canonical record. No `redirected_from` is stamped on a listing.
+
         ent-* ONLY (TL t/1804#2 Q2). Cross-kind resolution (node / situation / policy /
         organization / term) is the server's unified getEntity resolver, not this per-store
         cmdlet — pass an org-*/pol-* id and it is rejected.
     .PARAMETER Id
-        The entity id to resolve (must match ^ent-\d+$).
+        The entity id to resolve (must match ^ent-\d+$). Omit to list all canonical entities.
     .PARAMETER Path
         Override entities.json path (fixtures/tests). Defaults to Get-EntitiesFilePath.
     .EXAMPLE
         Get-Entity -Id ent-001
     .EXAMPLE
         'ent-002' | Get-Entity   # follows merged_into to the canonical record
+    .EXAMPLE
+        Get-Entity   # every canonical entity in the store
     .LINK
         Import-Entity
     .LINK
         Get-Organization
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'All')]
     [OutputType([PSCustomObject])]
     param(
-        [Parameter(Mandatory, Position = 0, ValueFromPipeline, ValueFromPipelineByPropertyName)]
+        [Parameter(ParameterSetName = 'ById', Mandatory, Position = 0, ValueFromPipeline, ValueFromPipelineByPropertyName)]
         [ValidatePattern('^ent-\d+$')]
         [string]$Id,
 
@@ -58,6 +66,21 @@ function Get-Entity {
     }
 
     process {
+        if ($PSCmdlet.ParameterSetName -eq 'All') {
+            # No id supplied — emit every canonical entity in file order. Tombstones
+            # (merged_into set) are forwarding pointers, not live entities, so skip them.
+            if ($store.PSObject.Properties['entities']) {
+                foreach ($e in @($store.entities)) {
+                    if (-not $e.PSObject.Properties['id']) { continue }
+                    $mergedInto = if ($e.PSObject.Properties['merged_into'] -and $null -ne $e.merged_into) { [string]$e.merged_into } else { '' }
+                    if (-not [string]::IsNullOrWhiteSpace($mergedInto)) { continue }
+                    # Shallow copy so a downstream mutation never touches the cached store record.
+                    $e | Select-Object *
+                }
+            }
+            return
+        }
+
         if (-not $byId.ContainsKey($Id)) {
             Write-Verbose "No entity found for id '$Id'."
             return
