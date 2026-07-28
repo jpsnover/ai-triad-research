@@ -169,3 +169,39 @@
 .taxonomy-pill[data-clickable] {
   cursor: pointer;
 }
+
+/* ── Reference detail pane (shared DetailPane, t/1777) ── */
+/* Resizable host: width driven by useResizableRightPanel; DetailPane fills it. */
+.chat-refpane-host {
+  flex-shrink: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.chat-refpane {
+  width: 100%;
+  border-left: 1px solid var(--border-color);
+}
+
+/* ── Inline ID-ref links (t/1777) ─────────────────────── */
+/* `ref-link` is the shared marker class emitted by remarkLinkifyRefs (REF_LINK_CLASS);
+   values mirror the debate surface's .ref-link (StatementCard.css) so both read alike. */
+.ref-link {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
+.ref-link:hover,
+.ref-link:focus-visible {
+  text-decoration-style: solid;
+  color: var(--accent-strong, var(--accent));
+}

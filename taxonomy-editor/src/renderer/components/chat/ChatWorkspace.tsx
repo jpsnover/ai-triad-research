@@ -1,18 +1,20 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import type { HTMLAttributes } from 'react';
 import { useChatStore } from '../../hooks/useChatStore';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { api } from '@bridge';
 import { POVER_INFO } from '../../types/debate';
 import type { TaxonomyRef } from '../../types/debate';
 import type { ChatEntry, ChatMode } from '../../types/chat';
-import type { Pov } from '../../types/taxonomy';
 import { CHAT_MODE_INFO } from '../../types/chat';
-import { nodePovFromId, nodeTypeFromId } from '@lib/debate/nodeIdUtils';
-import { NodeDetail } from '../taxonomy/NodeDetail';
-import { SituationDetail } from '../debate/SituationDetail';
+import { nodePovFromId } from '@lib/debate/nodeIdUtils';
+import { DetailPane } from '../shared/DetailPane';
+import { remarkLinkifyRefs, REF_LINK_CLASS } from '../shared/refLinkifyPlugin';
+import { parseEntityRef } from '@lib/entities/types';
+import type { EntityRef } from '@lib/entities/types';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { remarkColorizePov } from '../../utils/colorizePovPlugin';
@@ -42,6 +44,34 @@ function nodeIdToTab(nodeId: string): string {
 
 // ── Taxonomy ref pills ───────────────────────────────────
 
+/**
+ * `span` md-component factory: renders a `scanRefs`-detected ID token (marked
+ * `ref-link` by remarkLinkifyRefs) as a selectable button that opens the shared
+ * DetailPane; every other span (e.g. pov-name colorization) passes through
+ * unchanged. Mirrors the debate RefLinkSpan (t/1776) but drives the surface's
+ * local `selectedRef` via `onSelectRef` instead of a store (t/1777).
+ */
+function makeRefLinkSpan(onSelectRef: (ref: EntityRef) => void) {
+  return function RefLinkSpan({ node: _node, className, children, ...props }: HTMLAttributes<HTMLSpanElement> & { node?: unknown }) {
+    if ((className ?? '').split(/\s+/).includes(REF_LINK_CLASS) && typeof children === 'string') {
+      const ref = parseEntityRef(children);
+      if (ref) {
+        return (
+          <button
+            type="button"
+            className={REF_LINK_CLASS}
+            title={`Show details for ${children}`}
+            onClick={(e) => { e.stopPropagation(); onSelectRef(ref); }}
+          >
+            {children}
+          </button>
+        );
+      }
+    }
+    return <span className={className} {...props}>{children}</span>;
+  };
+}
+
 function TaxonomyPill({ taxRef, selected, onClick }: { taxRef: TaxonomyRef; selected?: boolean; onClick?: () => void }) {
   const tab = nodeIdToTab(taxRef.node_id);
   return (
@@ -56,7 +86,7 @@ function TaxonomyPill({ taxRef, selected, onClick }: { taxRef: TaxonomyRef; sele
   );
 }
 
-function TaxonomyRefsSection({ refs, selectedNodeId, onSelectNode }: { refs: TaxonomyRef[]; selectedNodeId: string | null; onSelectNode: (id: string | null) => void }) {
+function TaxonomyRefsSection({ refs, selectedRef, onSelectRef }: { refs: TaxonomyRef[]; selectedRef: EntityRef | null; onSelectRef: (ref: EntityRef | null) => void }) {
   const [expanded, setExpanded] = useState(false);
   const [showReasoning, setShowReasoning] = useState(false);
 
@@ -75,14 +105,18 @@ function TaxonomyRefsSection({ refs, selectedNodeId, onSelectNode }: { refs: Tax
   return (
     <div className="chat-taxonomy-refs">
       <div className="chat-taxonomy-pills">
-        {refs.map((r) => (
-          <TaxonomyPill
-            key={r.node_id}
-            taxRef={r}
-            selected={r.node_id === selectedNodeId}
-            onClick={() => onSelectNode(r.node_id === selectedNodeId ? null : r.node_id)}
-          />
-        ))}
+        {refs.map((r) => {
+          const ref = parseEntityRef(r.node_id);
+          const isSel = !!ref && ref.id === selectedRef?.id;
+          return (
+            <TaxonomyPill
+              key={r.node_id}
+              taxRef={r}
+              selected={isSel}
+              onClick={() => onSelectRef(isSel ? null : ref)}
+            />
+          );
+        })}
         <button
           className="chat-taxonomy-toggle"
           onClick={() => setShowReasoning(!showReasoning)}
@@ -98,18 +132,22 @@ function TaxonomyRefsSection({ refs, selectedNodeId, onSelectNode }: { refs: Tax
       </div>
       {showReasoning && (
         <div className="chat-taxonomy-reasoning">
-          {refs.map((r) => (
-            <div key={r.node_id} className="chat-taxonomy-reasoning-item">
-              <span
-                className={`taxonomy-pill tab-${nodeIdToTab(r.node_id)}${r.node_id === selectedNodeId ? ' selected' : ''}`}
-                data-clickable=""
-                onClick={() => onSelectNode(r.node_id === selectedNodeId ? null : r.node_id)}
-              >
-                {r.node_id}
-              </span>
-              <span className="chat-reasoning-text">{r.relevance}</span>
-            </div>
-          ))}
+          {refs.map((r) => {
+            const ref = parseEntityRef(r.node_id);
+            const isSel = !!ref && ref.id === selectedRef?.id;
+            return (
+              <div key={r.node_id} className="chat-taxonomy-reasoning-item">
+                <span
+                  className={`taxonomy-pill tab-${nodeIdToTab(r.node_id)}${isSel ? ' selected' : ''}`}
+                  data-clickable=""
+                  onClick={() => onSelectRef(isSel ? null : ref)}
+                >
+                  {r.node_id}
+                </span>
+                <span className="chat-reasoning-text">{r.relevance}</span>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -118,9 +156,10 @@ function TaxonomyRefsSection({ refs, selectedNodeId, onSelectNode }: { refs: Tax
 
 // ── Chat message ─────────────────────────────────────────
 
-function ChatMessage({ entry, selectedNodeId, onSelectNode }: { entry: ChatEntry; selectedNodeId: string | null; onSelectNode: (id: string | null) => void }) {
+function ChatMessage({ entry, selectedRef, onSelectRef }: { entry: ChatEntry; selectedRef: EntityRef | null; onSelectRef: (ref: EntityRef | null) => void }) {
   const isUser = entry.speaker === 'user';
   const camp = povToCamp(entry.speaker);
+  const mdComponents = useMemo(() => ({ span: makeRefLinkSpan(onSelectRef) }), [onSelectRef]);
 
   return (
     <div className={`chat-message chat-speaker-${entry.speaker}${isUser ? ' chat-message-user' : ''}`}>
@@ -136,9 +175,9 @@ function ChatMessage({ entry, selectedNodeId, onSelectNode }: { entry: ChatEntry
           </span>
         </div>
         <div className="chat-message-content markdown-body prose">
-          <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]}>{entry.content}</Markdown>
+          <Markdown remarkPlugins={[remarkGfm, remarkColorizePov, remarkLinkifyRefs]} components={mdComponents}>{entry.content}</Markdown>
         </div>
-        <TaxonomyRefsSection refs={entry.taxonomy_refs} selectedNodeId={selectedNodeId} onSelectNode={onSelectNode} />
+        <TaxonomyRefsSection refs={entry.taxonomy_refs} selectedRef={selectedRef} onSelectRef={onSelectRef} />
       </div>
     </div>
   );
@@ -302,27 +341,6 @@ function ExportButton({ chat }: { chat: { topic: string; mode: ChatMode; pover: 
 
 // ── Main workspace ───────────────────────────────────────
 
-function useSelectedNode(nodeId: string | null) {
-  const state = useTaxonomyStore();
-  if (!nodeId) return null;
-
-  const pov = nodePovFromId(nodeId);
-  const type = nodeTypeFromId(nodeId);
-
-  if (type === 'situation') {
-    const node = state.situations?.nodes.find(n => n.id === nodeId) ?? null;
-    return node ? { type: 'situation' as const, node } : null;
-  }
-
-  if (type === 'pov' && pov) {
-    const file = state[pov as 'accelerationist' | 'safetyist' | 'skeptic'];
-    const node = file?.nodes.find(n => n.id === nodeId) ?? null;
-    return node ? { type: 'pov' as const, pov: pov as Pov, node } : null;
-  }
-
-  return null;
-}
-
 export function ChatWorkspace() {
   const {
     activeChat, chatLoading, chatError, chatGenerating, chatActivity,
@@ -333,8 +351,7 @@ export function ChatWorkspace() {
   const [input, setInput] = useState('');
   const [shareState, setShareState] = useState<'idle' | 'sharing' | 'success' | 'error'>('idle');
   const [shareError, setShareError] = useState<string | null>(null);
-  const [selectedRefNodeId, setSelectedRefNodeId] = useState<string | null>(null);
-  const selectedNode = useSelectedNode(selectedRefNodeId);
+  const [selectedRef, setSelectedRef] = useState<EntityRef | null>(null);
   const profile = useUserProfile();
   const { width: detailWidth, onMouseDown: onDetailResize, onTouchStart: onDetailTouchStart } = useResizableRightPanel({
     storageKey: 'taxonomy-editor-chat-detail-width',
@@ -370,7 +387,7 @@ export function ChatWorkspace() {
 
   // Clear selection when chat changes
   useEffect(() => {
-    setSelectedRefNodeId(null);
+    setSelectedRef(null);
   }, [activeChat?.id]);
 
   // Sync address bar with active chat ID (web popout only)
@@ -437,7 +454,7 @@ export function ChatWorkspace() {
   const headerCamp = povToCamp(activeChat.pover);
 
   return (
-    <div className={`chat-workspace${selectedNode ? ' has-detail-pane' : ''}`}>
+    <div className={`chat-workspace${selectedRef ? ' has-detail-pane' : ''}`}>
       <div className="chat-main-column">
         {/* Header */}
         <div className="chat-header">
@@ -490,7 +507,7 @@ export function ChatWorkspace() {
           ) : (
             <>
               {activeChat.transcript.map((entry) => (
-                <ChatMessage key={entry.id} entry={entry} selectedNodeId={selectedRefNodeId} onSelectNode={setSelectedRefNodeId} />
+                <ChatMessage key={entry.id} entry={entry} selectedRef={selectedRef} onSelectRef={setSelectedRef} />
               ))}
               <ProgressIndicator />
             </>
@@ -519,20 +536,20 @@ export function ChatWorkspace() {
         </div>
       </div>
 
-      {selectedNode && (
+      {selectedRef && (
         <>
         <div className="resize-handle" onMouseDown={onDetailResize} onTouchStart={onDetailTouchStart} />
         <div
-          className="chat-detail-pane"
+          className="chat-refpane-host"
           // eslint-disable-next-line local/no-inline-style -- dynamic resizable panel width
           style={{ width: detailWidth }}
         >
-          <button className="chat-detail-close" onClick={() => setSelectedRefNodeId(null)} title="Close detail pane" aria-label="Close">&times;</button>
-          {selectedNode.type === 'pov' ? (
-            <NodeDetail pov={selectedNode.pov} node={selectedNode.node} readOnly />
-          ) : (
-            <SituationDetail node={selectedNode.node} readOnly />
-          )}
+          <DetailPane
+            className="chat-refpane"
+            selectedRef={selectedRef}
+            onSelectRef={setSelectedRef}
+            onClose={() => setSelectedRef(null)}
+          />
         </div>
         </>
       )}
