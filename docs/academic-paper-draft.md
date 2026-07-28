@@ -20,7 +20,7 @@ This projection problem (Küçük and Can, 2021) is not a labeling error — it 
 
 ### 1.2 The Degeneration-of-Thought Problem
 
-Our three-persona architecture is motivated by the Degeneration-of-Thought problem (Liang et al., 2024). A single model that has committed to a stance cannot reliably generate novel counter-thoughts through self-reflection. We therefore instantiate disagreement as standing adversarial personas rather than as reflective self-critique, and, departing from consensus-seeking multi-agent debate, treat superficial convergence as a measured failure signal (see collapse detection) rather than a success criterion.
+Our three-persona architecture is motivated by the Degeneration-of-Thought problem (Liang et al., 2024). A single model that has committed to a stance cannot reliably generate novel counter-thoughts through self-reflection. We therefore instantiate disagreement as standing adversarial personas rather than as reflective self-critique, and, departing from consensus-seeking multi-agent debate, treat superficial convergence as a measured failure signal (see the convergence diagnostic) rather than a success criterion.
 
 ### 1.3 Contributions
 
