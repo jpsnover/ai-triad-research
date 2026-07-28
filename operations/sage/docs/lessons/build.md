@@ -571,10 +571,11 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 
 ## [Build] Copying a Whole File From the Shared Tree Into a Worktree Sweeps In Its Uncommitted WIP
 
-**Pattern:** In the `/land-from-worktree` flow you "copy your changed files into the worktree" (step 3). If you `cp` the **whole file from the shared working tree**, you also copy any **pre-existing uncommitted WIP** on that file — other agents' edits, an accidental BOM, an unrelated config bump — which then rides into your commit. The commit silently carries changes you didn't make. `git diff --stat` shows a line-count larger than your edit (the gap is a tell), but `--stat` alone hides **what** the extra lines are, so the sweep-in can pass a quick glance.
+**Pattern:** In the `/land-from-worktree` flow you "copy your changed files into the worktree" (step 3). If you `cp` the **whole file from the shared working tree**, you also copy any **pre-existing uncommitted WIP** on that file — other agents' edits, an accidental BOM, an unrelated config bump — which then rides into your commit. The commit silently carries changes you didn't make. `git diff --stat` shows a line-count larger than your edit (the gap is a tell), but `--stat` alone hides **what** the extra lines are, so the sweep-in can pass a quick glance. **Variant (same root, different payload):** if the copied file is *stale* — behind origin — you don't sweep in WIP, you **clobber peers' newer committed additions** to that file and reintroduce an out-of-date baseline.
 
 **Instances:**
 - 2026-07-26 — PowerShell (t/1726, caught in TL review, p/20#25): `cp`-ing a whole file from the shared tree into the landing worktree swept in an **accidental BOM** and an **unrelated gemini model-default bump** that were sitting uncommitted on that file. `git diff --stat` showed **24 lines vs the ~6 guard lines** the change actually needed — the gap flagged it, but `--stat` didn't reveal the BOM/model-bump; only the content diff did. Same family as the branch-off-origin / dirty-tree-false-witness cluster.
+- 2026-07-28 — PowerShell 2 (t/1899, resolved 21fc09fd, p/228#5): the **stale** facet — copied a whole test file whose working copy was **118 commits behind origin** instead of re-applying the targeted edit onto a fresh base. No WIP was swept, but the stale copy risked clobbering peers' newer committed additions to that file. Same fix as the WIP case: re-apply targeted edits onto an origin-clean file; never copy a whole file, WIP-dirty **or** stale. (This set up but did not itself cause the CI-red — the red came from a repo-wide lint; see "A New Test Can Trip a Cross-File / Repo-Wide Lint.")
 
 **Root Cause:** The shared working tree is every agent's live scratch space — a file there is whatever anyone last wrote, committed or not (the "dirty tree as false witness" premise). Copying that file wholesale imports its entire current content, not just your intended edit, so uncommitted WIP hitchhikes into your commit. `git diff --stat` summarizes magnitude (line counts) but not content, so it confirms "more changed than I expected" without showing the smuggled BOM/config change — you have to read the actual diff against a clean baseline to see it. Companion to #76 (there a commit had *fewer* files than intended; here a file has *more* content than intended — both caught by comparing count-vs-expectation, both needing an object-level content check to confirm).
 
@@ -1185,3 +1186,23 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — local-vs-CI (keys-present) divergence; test-isolation defect surfaced landing t/1824. Workaround (keyless verify) documented; real fix is test isolation (routed).
 
 **Applies To:** All agents running `npm run verify`/tests locally with BYOK keys set — especially debate-engine/model-routing tests that can reach a live backend.
+
+---
+
+## [Build] A New Test Can Trip a Cross-File / Repo-Wide Lint — Run the FULL Suite Before Push, Not Just the Changed File
+
+**Pattern:** Some tests are **repo-wide lints** that scan *other* files (e.g. `ModelLiteralLint.Tests.ps1`, t/1858, flags `-Model '<unregistered-id>'` literals missing the `# model-lint:allow` marker). A new test you add in file A can violate a lint that lives in file B. If you validate locally by running **only your changed test file**, the lint in the other file never executes — so it passes locally and turns **main CI red fleet-wide** on push. The single-file run gives false confidence precisely because the failing check isn't in the file you ran.
+
+**Instances:**
+- 2026-07-28 — PowerShell 2 (t/1899, resolved 21fc09fd, p/228#5): commit `5f80fd4d` added a negative test binding `-Model '<unregistered-id>'` **without** the documented `# model-lint:allow` marker. Running only the changed test file in the worktree passed; the repo-wide `ModelLiteralLint` (a *different* test file) never ran locally, so it wasn't caught until CI went red fleet-wide. Compounded by a **stale local tree** (that file was 118 commits behind origin — see the stale facet of "Copying a Whole File From the Shared Tree"). Fixed by PowerShell Main adding the one-line marker (`21fc09fd`); the byte-identical twin commit was stood down to avoid a duplicate-commit race.
+
+**Root Cause:** A repo-wide lint's *coverage* (all files) is decoupled from its *location* (one test file). An agent's mental model is "I changed file A, so I run file A's tests," but the check that governs A's content lives in B. `Invoke-Pester ./tests/` runs B; `Invoke-Pester ./tests/A.Tests.ps1` does not. This is a specific, sharp case of the general "verify before push / run the full suite" rule — the reason you can't shortcut to the changed file is that cross-cutting gates (lints, invariant checks, manifest guards) deliberately live outside the files they govern.
+
+**Prevention:**
+1. **Run the FULL `Invoke-Pester ./tests/` before every push — never just the changed test file.** The changed-file run is fine for fast iteration, but the pre-push gate must be the whole suite so repo-wide lints/invariant checks execute. (Same spirit as the CI-faithful keyless-verify rule in the pattern above.)
+2. **Know the repo-wide gates exist:** `ModelLiteralLint` (`-Model` literal staleness, t/1858), manifest/version-coherence checks, ontology referential-integrity checks — these scan files other than their own. A new literal/fixture may need an opt-out marker (`# model-lint:allow`).
+3. **Land targeted edits onto a fresh worktree base** (branched off current `origin/main`), don't copy a stale whole file — a stale base both hides newly-added gates and risks clobbering peers' additions (see the stale facet of the whole-file-copy pattern).
+
+**Status:** Active — local-vs-CI divergence by *test scope* (changed-file run ≠ full suite), sibling of the keys-present live-backend divergence above. Reinforces the standing "verify before push" rule with a concrete failure mode: repo-wide lints live outside the files they govern.
+
+**Applies To:** All agents adding or modifying tests/fixtures in a repo that has cross-file or repo-wide lint tests (`ModelLiteralLint`, manifest/invariant guards).
