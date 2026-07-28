@@ -483,6 +483,16 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
           if (conflict) {
             promises.push(api.saveConflictFile(key, conflict));
           }
+        } else if (key === 'edges') {
+          // New-edge persistence (t/1816). The whole edges file is dirty-marked by the
+          // edge-mutating paths — integrity auto-fix, node-id rename, and acceptConsensus's
+          // convergence edges — but `save()` had no edges branch, so `dirty` was cleared
+          // without ever writing them (the latent no-op). Persist via the frozen
+          // `saveEdges` bridge method (web PUT /api/edges / electron save-edges IPC →
+          // writeEdgesFile atomic temp→rename). Whole-file, mirroring update/swap/bulk.
+          if (state.edgesFile) {
+            promises.push(api.saveEdges(state.edgesFile));
+          }
         }
       }
 

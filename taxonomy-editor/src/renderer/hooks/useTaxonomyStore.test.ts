@@ -25,6 +25,7 @@ const { mockApi } = vi.hoisted(() => {
     hasApiKey: vi.fn().mockResolvedValue(false),
     onGenerateTextProgress: vi.fn().mockReturnValue(() => {}),
     trackEvent: vi.fn(),
+    saveEdges: vi.fn().mockResolvedValue(undefined),
   };
   return { mockApi };
 });
@@ -1278,6 +1279,23 @@ describe('useTaxonomyStore', () => {
 
       await useTaxonomyStore.getState().save();
       expect(mockApi.saveConflictFile).toHaveBeenCalledWith('conflict-test-001', expect.any(Object));
+    });
+
+    it('saves the dirty edges file via saveEdges (t/1816 new-edge persistence)', async () => {
+      // Edges must reference existing nodes, else save()'s integrity auto-fix strips them
+      // as dangling before the save branch runs. makePovNode/makeSituationsFile provide
+      // acc-beliefs-001 and sit-001.
+      const edgesFile = { edges: [{ source: 'acc-beliefs-001', target: 'sit-001', type: 'CONVERGES_WITH' }] } as unknown as EdgesFile;
+      useTaxonomyStore.setState({
+        accelerationist: makePovFile(),
+        situations: makeSituationsFile(),
+        edgesFile,
+        dirty: new Set(['edges']),
+      });
+
+      await useTaxonomyStore.getState().save();
+      expect(mockApi.saveEdges).toHaveBeenCalledWith(edgesFile);
+      expect(useTaxonomyStore.getState().dirty.size).toBe(0);
     });
 
     it('sets saveError on failure', async () => {
