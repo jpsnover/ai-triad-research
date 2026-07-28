@@ -718,6 +718,10 @@
     "zai": "zai-glm-5-2"
   },
   "fallbackChains": {
+    "gemini-3.6-flash": [
+      "gemini-3.5-flash-lite",
+      "groq-llama-3.3-70b-versatile"
+    ],
     "gemini-3.5-flash": [
       "gemini-2.5-flash",
       "groq-llama-3.3-70b-versatile"
