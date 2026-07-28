@@ -1835,3 +1835,22 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — local-vs-CI (keys-present) divergence; test-isolation defect surfaced landing t/1824. Keyless-verify workaround documented; real fix is test isolation (routed).
 
 **Applies To:** All agents running `npm run verify`/tests locally with BYOK keys set — especially debate-engine/model-routing tests that can reach a live backend.
+
+## #89 [Process] Subagent "Completed" Is Process-Bookkeeping, Not Deliverable-Existence — Verify Artifacts Independently
+
+**Pattern:** A background subagent's task-completion notification ("completed") fires whenever the agent **stops with no live children** — NOT when its **deliverables exist**. A subagent can report "completed" (even repeatedly) while still mid-research with **zero files written and no commit**. Trusting it and "landing" lands **nothing** — the status describes the agent's process state, not the artifacts.
+
+**Instances:**
+- 2026-07-26 — PowerShell (t/1806, delegated a large PS build to a background subagent, p/20#27): the subagent reported **"completed" TWICE while still mid-research — zero files written, no commit**. Caught by grounding-truth (filesystem/git check); nothing lost. Trusting it would have shipped nothing.
+
+**Root Cause:** The "completed" signal is **bookkeeping about the process** (agent stopped, no live children), not **evidence about the outcome** (files written, commit landed, tests pass). Same genus as #86 ("task stopped" ≠ killed) and #69 (task status ≠ committed state): a lifecycle signal is not proof of the deliverable. Delegating does NOT delegate the Definition of Done — the caller still owns verifying committed artifacts and must not inherit the subagent's word.
+
+**Prevention:**
+1. **Never treat a subagent "completed" as done — verify every deliverable independently:** `Test-Path` each expected file, `git log`/`git show` the expected commit (SHA), and **re-run the tests yourself** before landing.
+2. **Give the subagent a HARD completion gate requiring pasted EVIDENCE** — Test-Path output, Pester/vitest results, commit SHA — self-cert with proof, not a bare "done."
+3. **Apply your own Definition of Done to delegated work** (committed by pathspec, verify green on committed state, SHA cited). Delegation moves the *doing*, not the *verifying*.
+4. **Part of the bookkeeping-≠-artifact genus** (#69/#80/#84/#86): when a status/exit/lifecycle signal stands in for an outcome, verify the artifact at the object level.
+
+**Status:** Active — bookkeeping-vs-artifact genus (see the consolidated Quick-Reference entry in the lessons INDEX). Caught by grounding-truth on t/1806; no loss.
+
+**Applies To:** All agents delegating work to background subagents/consultants — especially before landing a delegated deliverable.

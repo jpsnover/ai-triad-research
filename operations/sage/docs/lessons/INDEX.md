@@ -3,7 +3,7 @@
 Institutional memory for failure patterns across the AI Triad Research project.
 Organized by category. Each file contains the full pattern details.
 
-**Last updated:** 2026-07-26 | **Total patterns:** 89 | **Resolved:** 21 | **Active:** 68
+**Last updated:** 2026-07-26 | **Total patterns:** 90 | **Resolved:** 21 | **Active:** 69
 
 ## Summary
 
@@ -13,7 +13,7 @@ Organized by category. Each file contains the full pattern details.
 | PowerShell | [powershell.md](powershell.md) | 7 | 3 | 4 |
 | Data | [data.md](data.md) | 3 | 1 | 2 |
 | Type System | [type-system.md](type-system.md) | 4 | 0 | 4 |
-| Process | [process.md](process.md) | 17 | 7 | 10 |
+| Process | [process.md](process.md) | 18 | 7 | 11 |
 | API | [api.md](api.md) | 3 | 0 | 3 |
 | Design | [design.md](design.md) | 1 | 0 | 1 |
 
@@ -32,6 +32,7 @@ Seven patterns crossed the 3-instance threshold (or were high-severity) and beca
 
 ## Quick Reference — Top Recurring Patterns
 
+- **Bookkeeping ≠ artifact (verify the outcome, not the status signal)** — cross-cutting genus, ≥5 patterns → [process.md](process.md)/[build.md](build.md). A status/lifecycle/exit signal describes the PROCESS, not the DELIVERABLE; verify the artifact at the object level. Members: **#69** (task-status/summary ≠ committed state; peer may have landed it), **#80** (hook "installed" ≠ guarding), **#84** + p/26#19 (wrapper "exit 0" / completion notification ≠ pass), **#86** ("task stopped" ≠ process killed — detached children survive), **#89** (subagent "completed" ≠ deliverables exist). Common fix: `Test-Path`/`git show HEAD:`/re-run-the-check yourself; require pasted evidence, don't trust the signal.
 - **Rule-exists-but-not-applied (point-of-use failure class)** — **class-total ≥12; 5 offenders, 2 tripping the per-offender trigger** → [process.md](process.md). Meta-tracker: NOT a coverage gap; rule is correct but doesn't fire at the moment of action. **Two TL triggers, whichever first (p/8#95/#97): (a) any offender's 4th instance → point-of-use hook for that offender (`.Count` guard model); (b) class-total ~6 across offenders → systemic review-habit/checklist/meta-hook.** **BOTH FIRED 2026-07-26:** offender #4 (direct-commit-to-shared-main, p/8#99/p/21#49, ≥5) AND offender #5 (data-shape type-check-not-applied, CL p/7#36/#38, ≥4 — reversed Sage's earlier not-in-#82 call; recording-isn't-preventing is the signature). TL to spec point-of-use hook(s), weighing #4 vs #5 (both have hookability caveats — see process.md). **Tag every new instance in process.md; keep both counters current.**
 - **Overlay repo (ogit)** — 7 instances, 4 agents → [build.md](build.md)
 - **Bash heredoc/quoting** — 10 instances, 7 agents → [build.md](build.md) (incl. `pwsh -File` over inline `-Command` for non-trivial PS, p/20#23)
