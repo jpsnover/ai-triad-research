@@ -16,6 +16,7 @@ import { EdgeBrowser } from '../edge-browser/EdgeBrowser';
 import { PolicyAlignmentPanel } from '../analysis/PolicyAlignmentPanel';
 import { PolicyDashboard } from '../analysis/PolicyDashboard';
 import { VocabularyPanel } from './VocabularyPanel';
+import { EntityBrowserPanel } from './EntityBrowserPanel';
 import { CalibrationDashboard } from '../analysis/CalibrationDashboard';
 import type { PromptCatalogEntry } from '../../data/promptCatalog';
 import './ToolbarPaneRenderer.css';
@@ -24,7 +25,7 @@ const TerminalPanel = lazy(() => import('./TerminalPanel').then(m => ({ default:
 
 const FULL_WIDTH_PANELS = new Set([
   'edges', 'console', 'policyAlignment', 'policyDashboard',
-  'vocabulary', 'attrFilter', 'attrInfo', 'calibration',
+  'vocabulary', 'attrFilter', 'attrInfo', 'calibration', 'entities',
 ]);
 
 export function isFullWidthPanel(panel: string | null, promptInspectorActive: boolean): boolean {
@@ -68,6 +69,7 @@ export function ToolbarPaneRenderer({
     case 'policyAlignment': return <PolicyAlignmentPanel />;
     case 'policyDashboard': return <PolicyDashboard />;
     case 'vocabulary': return <VocabularyPanel />;
+    case 'entities': return <EntityBrowserPanel />;
     case 'calibration': return <CalibrationDashboard />;
     default: return null;
   }
@@ -78,7 +80,7 @@ const TOOL_LABELS: Record<string, string> = {
   attrInfo: 'Attribute Info', lineage: 'Intellectual Lineage', prompts: 'Prompts',
   fallacy: 'Possible Fallacies', edges: 'Edge Browser', console: 'Console',
   policyAlignment: 'Policy Alignment', policyDashboard: 'Policy Dashboard',
-  vocabulary: 'Vocabulary', calibration: 'Calibration',
+  vocabulary: 'Vocabulary', calibration: 'Calibration', entities: 'Entities',
 };
 
 export function PhoneToolClose() {

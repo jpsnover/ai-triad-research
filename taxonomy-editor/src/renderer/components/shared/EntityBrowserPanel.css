@@ -1,0 +1,122 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* EntityBrowserPanel (t/1884 §7) — list column + shared DetailPane. Uses DEFINED
+   design-system tokens only (styles.css): --border-color (not --border), --focus-ring
+   for accents (--accent is undefined app-wide), and --text-secondary for small labels
+   so they clear WCAG AA in all four themes. Row badge = shared TypeBadge. */
+
+.entity-browser-panel {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+/* List column */
+.ebp-list-col {
+  display: flex;
+  flex-direction: column;
+  width: 340px;
+  min-width: 280px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.ebp-header { padding: 10px 12px 4px; }
+.ebp-title { margin: 0; font-size: 1rem; color: var(--text-primary); }
+
+/* Controls */
+.ebp-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+.ebp-search {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+.ebp-search::placeholder { color: var(--text-muted); }
+.ebp-sort { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; }
+.ebp-sort-label { color: var(--text-secondary); }
+.ebp-sort select {
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+/* Facets */
+.ebp-facet-group { display: flex; flex-direction: column; gap: 4px; }
+.ebp-facet-label { font-size: 0.72rem; color: var(--text-secondary); }
+.ebp-facet-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.ebp-facet-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: var(--text-2xs);
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  cursor: pointer;
+}
+/* Selected facet — AA-safe distinct state from DEFINED tokens (no --accent): filled
+   surface + focus-ring border + primary text. */
+.ebp-facet-chip-on {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+  border-color: var(--focus-ring);
+  font-weight: 600;
+}
+.ebp-facet-count { font-size: 0.65rem; }
+
+/* Count */
+.ebp-count { padding: 6px 12px; font-size: 0.72rem; color: var(--text-secondary); }
+
+/* List */
+.ebp-list-wrap { flex: 1; overflow-y: auto; min-height: 0; }
+.ebp-loading { padding: 24px 12px; color: var(--text-secondary); font-size: 0.85rem; }
+.ebp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  outline: none;
+}
+.ebp-list:focus-visible { box-shadow: inset 0 0 0 2px var(--focus-ring); }
+
+.ebp-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-color);
+}
+.ebp-row:hover { background: var(--bg-hover); }
+.ebp-row-active { background: var(--bg-hover); box-shadow: inset 3px 0 0 var(--focus-ring); }
+.ebp-row-deprecated { opacity: 0.6; }
+
+.ebp-row-main { display: flex; align-items: center; gap: 6px; }
+.ebp-row-name { font-size: 0.85rem; font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ebp-row-alias { font-size: 0.72rem; color: var(--text-secondary); padding-left: 18px; }
+
+/* Status dot — decorative (aria-hidden); status is also conveyed by title + sort/facet */
+.ebp-dot { flex-shrink: 0; font-size: 0.7rem; line-height: 1; }
+.ebp-dot-approved { color: var(--focus-ring); }
+.ebp-dot-proposed { color: var(--text-secondary); }
+.ebp-dot-deprecated { color: var(--text-muted); }
+
+/* Detail pane fills the remaining width */
+.ebp-detail-pane { flex: 1; min-width: 0; }

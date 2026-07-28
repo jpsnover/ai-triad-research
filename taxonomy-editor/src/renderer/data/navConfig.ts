@@ -7,7 +7,7 @@ import {
   Crosshair, TriangleAlert, CirclePlus, BookText,
   CircleCheck, GitFork, Link, Layers, BarChart3, ShieldAlert,
   BookOpen, LineChart, Terminal, FileText, CircleHelp, Star,
-  RefreshCw, Settings, Building2,
+  RefreshCw, Settings, Building2, Boxes,
 } from 'lucide-react';
 
 export type NavAction =
@@ -41,6 +41,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { id: 'cruxes', label: 'Cruxes', icon: CirclePlus, tier: 'secondary', group: 'browse', action: { type: 'switchTab', target: 'cruxes' } },
   { id: 'summaries', label: 'Summaries', icon: BookText, tier: 'secondary', group: 'browse', action: { type: 'switchTab', target: 'summaries' }, gate: { flag: 'env-electron-summaries' } },
   { id: 'validation', label: 'Validation', icon: CircleCheck, tier: 'secondary', group: 'browse', action: { type: 'switchTab', target: 'validation' } },
+  { id: 'entities', label: 'Entities', icon: Boxes, tier: 'secondary', group: 'browse', action: { type: 'togglePanel', target: 'entities' } },
 
   // ── Secondary tier — analysis group ──
   { id: 'lineage', label: 'Intellectual Lineage', icon: GitFork, tier: 'secondary', group: 'analysis', action: { type: 'togglePanel', target: 'lineage' } },

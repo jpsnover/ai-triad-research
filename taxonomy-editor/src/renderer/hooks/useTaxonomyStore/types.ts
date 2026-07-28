@@ -8,4 +8,4 @@ import type { TaxonomyDataSlice } from './slices/taxonomyDataSlice';
 
 export type TaxonomyStore = SettingsSlice & SearchSlice & AnalysisSlice & TaxonomyDataSlice;
 
-export type ToolbarPanel = 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard' | 'vocabulary' | 'calibration' | null;
+export type ToolbarPanel = 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard' | 'vocabulary' | 'calibration' | 'entities' | null;
