@@ -10,6 +10,12 @@ function Test-TaxEditorHealth {
         remote Taxonomy Editor instance. Returns a structured result with
         status, response times, and diagnostic details.
 
+        Also probes the anonymous-auth layer (t/1841): GET /.auth/anonymous must
+        return 2xx AND issue a session cookie, then an authenticated GET
+        /api/flags must return JSON (not the login-page HTML). This catches the
+        failure mode where /healthz + /health are green but every real API call
+        redirects to a login page — an outage the liveness/readiness probes miss.
+
         Consolidates the health-poll patterns duplicated across
         health-monitor.yml, deploy-azure.yml, and deploy-staging.yml (t/1491).
     .PARAMETER BaseUrl
@@ -132,6 +138,65 @@ function Invoke-HealthProbe {
     $ReadCheck.Ms       = $ReadinessResult.ResponseMs
     $ReadCheck.Detail   = $ReadyDetail
     $Checks.Add($ReadCheck)
+
+    # ── /.auth/anonymous (anonymous auth layer) ──────────────────────────
+    # A server can pass /healthz + /health while its anonymous-auth layer is
+    # broken — every real API call then returns the login-page HTML instead of
+    # JSON, so the liveness/readiness probes look green while the app is unusable
+    # (flight recorder 2026-07-28: 30ms health baseline while all API calls
+    # redirected to a login page, t/1841). New-AnonymousWebSession GETs
+    # /.auth/anonymous (Azure Easy Auth) and returns a cookie jar on 2xx, $null
+    # on non-2xx / transport error.
+    $AuthSw = [System.Diagnostics.Stopwatch]::StartNew()
+    $AuthSession = New-AnonymousWebSession -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec
+    $AuthSw.Stop()
+    $CookieCount = if ($AuthSession) { $AuthSession.Cookies.Count } else { 0 }
+    $AuthHealthy = ($null -ne $AuthSession) -and ($CookieCount -gt 0)
+    $AuthDetail = if ($null -eq $AuthSession) {
+        'no session established (/.auth/anonymous non-2xx or transport error)'
+    } elseif ($CookieCount -eq 0) {
+        '2xx but no Set-Cookie — anonymous auth layer not issuing sessions'
+    } else {
+        "anon session established ($CookieCount cookie$(if ($CookieCount -ne 1) { 's' }))"
+    }
+
+    $AuthCheck = [HealthCheck]::new()
+    $AuthCheck.Endpoint = '/.auth/anonymous'
+    $AuthCheck.Purpose  = 'AnonymousAuth'
+    $AuthCheck.Status   = if ($AuthHealthy) { 200 } else { 0 }
+    $AuthCheck.Healthy  = $AuthHealthy
+    $AuthCheck.Ms       = $AuthSw.ElapsedMilliseconds
+    $AuthCheck.Detail   = $AuthDetail
+    $Checks.Add($AuthCheck)
+
+    # ── /api/flags (authenticated JSON call using the anon cookie) ────────
+    # Directly reproduces the reported failure: a real API path serving the
+    # login shell (200 text/html) instead of JSON. -ExpectJson flips Success on
+    # text/html. Only meaningful once we hold a session cookie, so it's skipped
+    # when the anon session didn't establish (the AuthCheck above already fails).
+    if ($AuthHealthy) {
+        $FlagsResult = Invoke-RemoteCheck -BaseUrl $BaseUrl -Path '/api/flags' `
+            -TimeoutSec $TimeoutSec -Session $AuthSession -ExpectJson
+
+        $FlagsDetail = if ($FlagsResult.Success) {
+            'JSON response'
+        } elseif ($FlagsResult.ContentType -match 'text/html') {
+            'login-page HTML returned for an API path — anon session cookie not honored'
+        } elseif ($FlagsResult.Error) {
+            $FlagsResult.Error
+        } else {
+            "HTTP $($FlagsResult.StatusCode) ($($FlagsResult.ContentType))"
+        }
+
+        $FlagsCheck = [HealthCheck]::new()
+        $FlagsCheck.Endpoint = '/api/flags'
+        $FlagsCheck.Purpose  = 'AuthenticatedApi'
+        $FlagsCheck.Status   = $FlagsResult.StatusCode
+        $FlagsCheck.Healthy  = $FlagsResult.Success
+        $FlagsCheck.Ms       = $FlagsResult.ResponseMs
+        $FlagsCheck.Detail   = $FlagsDetail
+        $Checks.Add($FlagsCheck)
+    }
 
     # ── Summary ──────────────────────────────────────────────────────────
     $AllHealthy = @($Checks | Where-Object { -not $_.Healthy }).Count -eq 0

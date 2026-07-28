@@ -119,9 +119,14 @@ Describe 'Test-TaxEditorHealth structured result (t/1491)' -Tag 'health' {
                 }
             }
 
+            # Auth probe returns no session (t/1841) so the run is deterministic
+            # regardless of how the Invoke-WebRequest mock treats /.auth/anonymous.
+            Mock New-AnonymousWebSession -MockWith { $null }
+
             $result = Test-TaxEditorHealth -BaseUrl 'https://stub' -TimeoutSec 1
 
-            @($result.Checks).Count | Should -Be 2
+            # healthz + health + /.auth/anonymous (flags is skipped — no session).
+            @($result.Checks).Count | Should -Be 3
             $liveness  = $result.Checks | Where-Object { $_.Endpoint -eq '/healthz' }
             $readiness = $result.Checks | Where-Object { $_.Endpoint -eq '/health' }
             $liveness.Healthy  | Should -Be $true
