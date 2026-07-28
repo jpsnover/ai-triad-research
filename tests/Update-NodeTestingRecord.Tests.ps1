@@ -35,20 +35,23 @@ BeforeAll {
                     debate_tested = @{
                         tier = 'untested'      # WRONG — should be well_tested
                         sort_key = 0.0          # WRONG — should be ~3.x
-                        engagements = 2
-                        challenges = 2
-                        held = 2
+                        engagements = 5
+                        challenges = 5
+                        held = 5
                         weakened = 0
                         revisions = @()
-                        last_tested = '2026-07-02'
+                        last_tested = '2026-07-05'
                         description_hash = 'sha256:test'
+                        # 5 challenging entries across 5 debates — meets the
+                        # production WELL_TESTED_MIN_CHALLENGES default (5,
+                        # owner decision q/30); the cmdlet has no constants
+                        # override, so this fixture must clear the real bar.
                         record = @(
-                            @{ debate_id='d1'; date='2026-07-01'; pipeline_version='v'; verdict='held';
-                               strongest_attack_encountered=@{ claim_id='c1'; strength=0.7; scheme='rebut'; challenger_camp='acc' };
-                               claim_outcomes=@{ thrived=2; survived=1; died=0 }; concession=$null }
-                            @{ debate_id='d2'; date='2026-07-02'; pipeline_version='v'; verdict='held';
-                               strongest_attack_encountered=@{ claim_id='c2'; strength=0.7; scheme='rebut'; challenger_camp='saf' };
-                               claim_outcomes=@{ thrived=2; survived=1; died=0 }; concession=$null }
+                            foreach ($i in 1..5) {
+                                @{ debate_id="d$i"; date="2026-07-0$i"; pipeline_version='v'; verdict='held';
+                                   strongest_attack_encountered=@{ claim_id="c$i"; strength=0.7; scheme='rebut'; challenger_camp='acc' };
+                                   claim_outcomes=@{ thrived=2; survived=1; died=0 }; concession=$null }
+                            }
                         )
                     }
                 }
