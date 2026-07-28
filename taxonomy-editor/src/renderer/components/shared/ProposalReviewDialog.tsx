@@ -172,12 +172,14 @@ export function ProposalReviewDialog({ onClose }: ProposalReviewDialogProps) {
                   <div className="proposal-item-header">
                     <span
                       className="proposal-action-badge"
+                      /* eslint-disable-next-line local/no-inline-style -- backgroundColor is computed per-action from ACTION_COLORS lookup */
                       style={{ backgroundColor: ACTION_COLORS[p.action] ?? '#64748b' }}
                     >
                       {p.action}
                     </span>
                     <span
                       className="proposal-pov-badge"
+                      /* eslint-disable-next-line local/no-inline-style -- color is computed per-pov from POV_COLORS lookup */
                       style={{ color: POV_COLORS[p.pov] ?? 'var(--text-muted)' }}
                     >
                       {p.pov}

@@ -62,6 +62,7 @@ export function FireProgressIndicator({ progress, compact }: FireProgressIndicat
       <div className="fire-progress-bar-track">
         <div
           className={`fire-progress-bar-fill ${confidenceBar(progress.confidence)}`}
+          // eslint-disable-next-line local/no-inline-style -- width computed from progress.confidence, not static
           style={{ width: `${Math.min(progress.confidence * 100, 100)}%` }}
         />
       </div>

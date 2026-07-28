@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import './DiffWindow.css';
 
 export function DiffWindow() {
   const [filePath, setFilePath] = useState<string | null>(null);
@@ -38,38 +39,22 @@ export function DiffWindow() {
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg, #1e1e1e)', color: 'var(--text, #d4d4d4)' }}>
-      <div style={{
-        padding: '8px 16px',
-        borderBottom: '1px solid var(--border, #333)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        flexShrink: 0,
-        background: 'var(--bg-secondary, #252526)',
-      }}>
-        <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{filePath ?? 'Diff Viewer'}</span>
+    <div className="diff-window">
+      <div className="diff-window-header">
+        <span className="diff-window-filename">{filePath ?? 'Diff Viewer'}</span>
         {diff && (
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted, #888)' }}>
-            <span style={{ color: '#4ec569' }}>+{addCount}</span>
+          <span className="diff-window-stats">
+            <span className="diff-window-stats-add">+{addCount}</span>
             {' / '}
-            <span style={{ color: '#f14c4c' }}>-{delCount}</span>
+            <span className="diff-window-stats-del">-{delCount}</span>
           </span>
         )}
       </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: '0' }}>
-        {loading && <div style={{ padding: 20, color: 'var(--text-muted, #888)' }}>Loading diff...</div>}
-        {error && <div style={{ padding: 20, color: '#f14c4c' }}>Error: {error}</div>}
+      <div className="diff-window-body">
+        {loading && <div className="diff-window-loading">Loading diff...</div>}
+        {error && <div className="diff-window-error">Error: {error}</div>}
         {diff !== null && !loading && (
-          <pre style={{
-            margin: 0,
-            padding: '8px 0',
-            fontSize: '0.8rem',
-            fontFamily: 'Consolas, "Courier New", monospace',
-            lineHeight: 1.5,
-            whiteSpace: 'pre',
-            overflowX: 'auto',
-          }}>
+          <pre className="diff-window-pre">
             {lines.map((line, i) => {
               let bg = 'transparent';
               let color = 'var(--text, #d4d4d4)';
@@ -85,16 +70,24 @@ export function DiffWindow() {
                 color = 'var(--text-muted, #888)';
               }
               return (
-                <div key={i} style={{ background: bg, padding: '0 16px', minHeight: '1.5em' }}>
-                  <span style={{ display: 'inline-block', width: 48, color: 'var(--text-muted, #555)', textAlign: 'right', marginRight: 16, userSelect: 'none' }}>{i + 1}</span>
-                  <span style={{ color }}>{line}</span>
+                <div
+                  key={i}
+                  className="diff-window-line"
+                  /* eslint-disable-next-line local/no-inline-style -- background is computed per diff line type */
+                  style={{ background: bg }}
+                >
+                  <span className="diff-window-line-number">{i + 1}</span>
+                  <span
+                    /* eslint-disable-next-line local/no-inline-style -- color is computed per diff line type */
+                    style={{ color }}
+                  >{line}</span>
                 </div>
               );
             })}
           </pre>
         )}
         {diff !== null && diff.length === 0 && !loading && (
-          <div style={{ padding: 20, color: 'var(--text-muted, #888)' }}>No changes in this file.</div>
+          <div className="diff-window-empty">No changes in this file.</div>
         )}
       </div>
     </div>

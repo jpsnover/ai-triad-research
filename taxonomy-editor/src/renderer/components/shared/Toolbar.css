@@ -70,3 +70,39 @@
     display: none;
   }
 }
+
+/* Toolbar auth popover — static styles migrated from inline (t/1849) */
+
+.toolbar-auth-quota-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toolbar-auth-tier-label {
+  font-weight: 600;
+  color: var(--info, #3b82f6);
+}
+
+.toolbar-auth-usage-note {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.toolbar-auth-usage-note-mt {
+  margin-top: 2px;
+}
+
+.toolbar-more-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.toolbar-auth-tier-name {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.toolbar-auth-badge-ml {
+  margin-left: 6px;
+}

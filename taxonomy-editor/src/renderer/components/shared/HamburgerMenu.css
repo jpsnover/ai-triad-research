@@ -1,0 +1,11 @@
+/* HamburgerMenu — static styles migrated from inline (t/1849) */
+
+.hamburger-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.hamburger-item-static {
+  cursor: default;
+  opacity: 0.8;
+}

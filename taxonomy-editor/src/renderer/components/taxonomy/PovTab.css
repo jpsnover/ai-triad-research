@@ -20,3 +20,60 @@
 .dt-stale-toggle input[type="checkbox"] {
   margin: 0;
 }
+
+.soul-doc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.soul-doc-title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.soul-doc-close-btn {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.soul-doc-personality {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.soul-doc-section {
+  margin-bottom: 16px;
+}
+
+.soul-doc-boundary-group {
+  margin-bottom: 8px;
+}
+
+.soul-doc-boundary-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.soul-doc-boundary-label-hard {
+  color: #ef4444;
+}
+
+.soul-doc-boundary-label-soft {
+  color: #f59e0b;
+}
+
+.detail-panel-collapse-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0;
+  line-height: 1;
+}
+
+.pane3-crux-detail-sizing {
+  min-width: 300px;
+  overflow: auto;
+}

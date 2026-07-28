@@ -1,0 +1,205 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Shared flex utilities used across OrganizationDetail sections */
+.od-flex-col-2 { display: flex; flex-direction: column; gap: 2px; }
+.od-flex-col-4 { display: flex; flex-direction: column; gap: 4px; }
+.od-flex-col-6 { display: flex; flex-direction: column; gap: 6px; }
+.od-flex-col-8 { display: flex; flex-direction: column; gap: 8px; }
+.od-row-baseline-6 { display: flex; align-items: baseline; gap: 6px; }
+.od-muted-075 { color: var(--text-muted); font-size: 0.75rem; }
+.od-text-078 { font-size: 0.78rem; }
+.od-note-072 { color: var(--text-muted); font-size: 0.72rem; margin-top: 1px; padding-left: 2px; }
+.od-ref-mono { font-family: monospace; font-size: var(--text-2xs); color: var(--text-muted); }
+.od-section-h3 { margin: 0 0 4px; font-size: 0.8rem; color: var(--text-muted); }
+.od-section-h3-md { margin: 0 0 6px; font-size: 0.8rem; color: var(--text-muted); }
+.od-item-label { font-weight: 500; }
+
+/* OrgLogo */
+.org-logo-img { border-radius: 4px; flex-shrink: 0; }
+.org-logo-initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 4px;
+  flex-shrink: 0;
+  background: var(--bg);
+  color: #fff;
+  font-size: var(--font-size);
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* PersonAvatar */
+.person-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--bg);
+  color: #fff;
+  font-size: var(--font-size);
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* TypeBadge */
+.od-type-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+/* PovAlignmentBar */
+.od-pov-row-header { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; }
+.od-pov-label { width: 28px; font-weight: 600; flex-shrink: 0; color: var(--pov-color); }
+.od-pov-scale-label { font-size: 0.6rem; color: var(--text-muted); flex-shrink: 0; }
+.od-pov-track { flex: 1; height: 10px; background: var(--bg-tertiary, #1e293b); border-radius: 5px; position: relative; }
+.od-pov-fill {
+  position: absolute;
+  height: 100%;
+  border-radius: 5px;
+  opacity: 0.85;
+  left: var(--left);
+  width: var(--width);
+  background: var(--fill-color);
+}
+.od-pov-center-line {
+  position: absolute;
+  left: 50%;
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
+  background: var(--text-muted);
+  transform: translateX(-1px);
+  z-index: 1;
+}
+.od-pov-tier-chip {
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  flex-shrink: 0;
+  white-space: nowrap;
+  background: var(--chip-bg);
+  color: var(--chip-fg);
+}
+.od-pov-notes { margin-left: 34px; font-size: 0.7rem; font-style: italic; color: var(--text-muted); }
+
+/* ExternalLinkRow */
+.od-ext-link-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 6px;
+  text-align: left;
+  font-size: 0.78rem;
+  border-radius: 4px;
+  border: none;
+  cursor: var(--cursor);
+  opacity: var(--opacity);
+}
+.od-ext-favicon-img { flex-shrink: 0; border-radius: 2px; }
+.od-ext-favicon-placeholder {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.od-ext-label {
+  flex: 1;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--label-color);
+}
+.od-ext-type-badge {
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.od-ext-domain { font-size: 0.72rem; color: var(--text-muted); flex-shrink: 0; }
+
+/* RelationshipSection */
+.od-rel-group-header { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); margin-bottom: 2px; }
+.od-rel-link-btn {
+  color: var(--color-info, #3b82f6);
+  padding: 0;
+  text-decoration: underline;
+  font-weight: 500;
+  cursor: var(--cursor);
+}
+
+/* OrganizationDetail root + sections */
+.org-detail { padding: 16px; overflow-y: auto; font-size: 0.85rem; display: flex; flex-direction: column; gap: 16px; }
+.od-header-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.od-title { margin: 0; font-size: 1.1rem; }
+.od-status { font-size: 0.7rem; color: var(--text-muted); font-style: italic; }
+.od-short-name { color: var(--text-muted); font-size: 0.78rem; margin-top: 2px; }
+.od-meta-row { display: flex; gap: 12px; margin-top: 4px; font-size: 0.75rem; color: var(--text-muted); flex-wrap: wrap; }
+.od-website-link { color: var(--color-info, #3b82f6); text-decoration: underline; padding: 0; }
+.od-description { margin: 0; line-height: 1.5; }
+.od-stance-badge {
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+.od-policy-stance-badge {
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  background: var(--stance-bg);
+  color: var(--stance-fg);
+}
+.od-figures-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.od-figure-row { display: flex; align-items: center; gap: 8px; }
+.od-figure-row-start { display: flex; gap: 8px; align-items: flex-start; }
+.od-figure-name { font-size: 0.78rem; font-weight: 500; }
+.od-figure-body { flex: 1; min-width: 0; }
+.od-figure-role { font-weight: 400; color: var(--text-secondary); }
+.od-figure-relevance {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: 1px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.od-ref-chip {
+  font-family: monospace;
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg-tertiary, #1e293b);
+  user-select: all;
+  align-self: flex-start;
+}
+.od-tags-row { display: flex; flex-wrap: wrap; gap: 4px; }
+.od-tag-chip { padding: 1px 8px; border-radius: 10px; font-size: var(--text-2xs); background: var(--bg-tertiary, #1e293b); color: var(--text-muted); }
+.od-footer { border-top: 1px solid var(--border); padding-top: 8px; font-size: 0.7rem; color: var(--text-muted); }
+.od-footer-id { font-family: monospace; user-select: all; }
+.od-footer-spaced { margin-left: 12px; }

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect } from 'react';
+import './StakeholderSection.css';
 import { api } from '@bridge';
 import type { Organization, PovStance, PovAlignmentTier } from '../../bridge/types';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
@@ -20,7 +21,7 @@ const POV_COLORS: Record<string, string> = {
 function PovDots({ alignment }: { alignment?: Organization['pov_alignment'] }) {
   if (!alignment) return null;
   return (
-    <span style={{ display: 'inline-flex', gap: 3 }}>
+    <span className="stakeholder-section-pov-dots">
       {(['accelerationist', 'safetyist', 'skeptic'] as const).map((pov) => {
         const stance = alignment[pov];
         if (!stance) return null;
@@ -30,10 +31,9 @@ function PovDots({ alignment }: { alignment?: Organization['pov_alignment'] }) {
           <span
             key={pov}
             title={`${pov}: ${stance.tier.replace('_', ' ')}`}
-            style={{
-              display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
-              background: color, opacity: Math.max(0.3, Math.abs(score)),
-            }}
+            className="stakeholder-section-pov-dot"
+            // eslint-disable-next-line local/no-inline-style -- background/opacity computed from pov + stance score
+            style={{ background: color, opacity: Math.max(0.3, Math.abs(score)) }}
           />
         );
       })}
@@ -74,15 +74,12 @@ export function StakeholderSection({ nodeId, queryType }: StakeholderSectionProp
   return (
     <div className="form-group">
       <label>Stakeholders</label>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div className="stakeholder-section-list">
         {orgs.map((org) => (
-          <div key={org.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8rem' }}>
-            <span style={{ flex: 1 }}>{org.name}</span>
+          <div key={org.id} className="stakeholder-section-item">
+            <span className="stakeholder-section-name">{org.name}</span>
             {org.type && (
-              <span style={{
-                padding: '1px 6px', borderRadius: 8, fontSize: 'var(--text-2xs)', fontWeight: 600,
-                background: 'var(--bg-tertiary, #334155)', color: 'var(--text-primary)',
-              }}>
+              <span className="stakeholder-section-type-badge">
                 {org.type.replace('_', ' ')}
               </span>
             )}

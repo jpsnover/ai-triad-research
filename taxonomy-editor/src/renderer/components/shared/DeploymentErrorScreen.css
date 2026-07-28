@@ -1,0 +1,58 @@
+/* DeploymentErrorScreen — static styles migrated from inline (t/1849) */
+
+.deployment-error-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 32px;
+  background: var(--bg-primary, #1a1a2e);
+  color: var(--text-primary, #e0e0e0);
+}
+
+.deployment-error-content {
+  max-width: 600px;
+  width: 100%;
+}
+
+.deployment-error-title {
+  font-size: 1.4rem;
+  margin-bottom: 8px;
+  color: #ef4444;
+}
+
+.deployment-error-desc {
+  font-size: 0.9rem;
+  margin-bottom: 24px;
+  color: var(--text-muted, #999);
+}
+
+.deployment-error-code-box {
+  background: var(--bg-secondary, #16213e);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border-color, #333);
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+.deployment-error-row {
+  margin-bottom: 8px;
+}
+
+.deployment-error-label {
+  color: var(--text-muted, #999);
+}
+
+.deployment-error-subtitle {
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+}
+
+.deployment-error-list {
+  font-size: 0.85rem;
+  line-height: 1.8;
+  padding-left: 20px;
+  margin: 0;
+}

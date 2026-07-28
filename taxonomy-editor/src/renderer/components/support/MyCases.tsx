@@ -4,6 +4,7 @@
 import { useEffect } from 'react';
 import { useSupportStore } from '../../hooks/useSupportStore';
 import { CaseDetail } from './CaseDetail';
+import './MyCases.css';
 
 const STATUS_COLORS: Record<string, string> = {
   open: 'var(--color-info, #3b82f6)',
@@ -42,7 +43,7 @@ export function MyCases() {
 
   if (loading) {
     return (
-      <div style={{ padding: 20, color: 'var(--text-muted)', textAlign: 'center' }}>
+      <div className="support-mycases-centered">
         Loading cases…
       </div>
     );
@@ -50,8 +51,8 @@ export function MyCases() {
 
   if (error && cases.length === 0) {
     return (
-      <div style={{ padding: 20, textAlign: 'center' }}>
-        <p style={{ color: 'var(--color-error, #ef4444)', marginBottom: 12 }}>{error}</p>
+      <div className="support-mycases-centered-plain">
+        <p className="support-mycases-error-text">{error}</p>
         <button className="btn btn-sm" onClick={() => void fetchCases()}>
           Retry
         </button>
@@ -61,9 +62,9 @@ export function MyCases() {
 
   if (cases.length === 0) {
     return (
-      <div style={{ padding: 20, color: 'var(--text-muted)', textAlign: 'center' }}>
-        <p style={{ marginBottom: 8 }}>No support cases yet.</p>
-        <p style={{ fontSize: '0.8rem' }}>
+      <div className="support-mycases-centered">
+        <p className="support-mycases-mb-8">No support cases yet.</p>
+        <p className="support-mycases-fs-80">
           Use &ldquo;Report a Problem&rdquo; below to file a new case.
         </p>
       </div>
@@ -73,23 +74,22 @@ export function MyCases() {
   // Detail drill-down view
   if (selectedCaseId) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div className="support-mycases-detail-wrap">
         <button
-          className="btn btn-sm btn-ghost"
+          className="btn btn-sm btn-ghost support-mycases-back-btn"
           onClick={clearSelection}
-          style={{ alignSelf: 'flex-start', marginBottom: 4, fontSize: '0.78rem' }}
         >
           ← Back to cases
         </button>
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+        <div className="support-mycases-detail-scroll">
           {detailLoading ? (
-            <div style={{ padding: 20, color: 'var(--text-muted)', textAlign: 'center' }}>
+            <div className="support-mycases-centered">
               Loading…
             </div>
           ) : selectedDetail ? (
             <CaseDetail detail={selectedDetail} />
           ) : error ? (
-            <div style={{ padding: 20, textAlign: 'center', color: 'var(--color-error, #ef4444)' }}>
+            <div className="support-mycases-detail-error">
               {error}
             </div>
           ) : null}
@@ -100,15 +100,14 @@ export function MyCases() {
 
   // List view
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.85rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+    <div className="support-mycases-list">
+      <div className="support-mycases-list-header">
+        <span className="support-mycases-count">
           {cases.length} case{cases.length !== 1 ? 's' : ''}
         </span>
         <button
-          className="btn btn-sm btn-ghost"
+          className="btn btn-sm btn-ghost support-mycases-refresh-btn"
           onClick={() => void fetchCases()}
-          style={{ fontSize: '0.75rem' }}
         >
           Refresh
         </button>
@@ -119,15 +118,8 @@ export function MyCases() {
         return (
           <div
             key={c.id}
+            className="support-mycases-row"
             onClick={() => void selectCase(c.id)}
-            style={{
-              padding: '8px 10px',
-              borderRadius: 6,
-              border: '1px solid var(--border)',
-              cursor: 'pointer',
-              background: 'var(--bg-primary)',
-              transition: 'background 0.1s',
-            }}
             onMouseEnter={(e) => {
               (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-secondary)';
             }}
@@ -135,25 +127,19 @@ export function MyCases() {
               (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-primary)';
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontWeight: 500, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div className="support-mycases-row-header">
+              <span className="support-mycases-row-subject">
                 {c.subject}
               </span>
               <span
-                style={{
-                  padding: '1px 8px',
-                  borderRadius: 10,
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  background: statusColor,
-                  color: '#fff',
-                  flexShrink: 0,
-                }}
+                className="support-mycases-status-badge"
+                /* eslint-disable-next-line local/no-inline-style -- statusColor is a per-case dynamic value passed as a CSS custom property */
+                style={{ '--status-color': statusColor } as React.CSSProperties}
               >
                 {c.status}
               </span>
             </div>
-            <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+            <div className="support-mycases-row-meta">
               {dot && <span title={c.priority}>{dot} {c.priority}</span>}
               <span>Updated {formatShortDate(c.updatedAt)}</span>
               {c.attachmentCount > 0 && <span>{c.attachmentCount} file{c.attachmentCount !== 1 ? 's' : ''}</span>}

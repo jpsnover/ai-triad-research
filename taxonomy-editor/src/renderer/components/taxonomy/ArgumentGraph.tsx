@@ -12,6 +12,7 @@ import { EmptyState } from '../shared/EmptyState';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge } from '../../types/debate';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import { explainNodeStrength } from '../../utils/qbafExplain';
+import './ArgumentGraph.css';
 
 // ── Colors & Constants ────────────────────────────────────
 
@@ -181,9 +182,8 @@ export function ArgumentGraph({ nodes, edges, selectedNodeId, onSelectNode, turn
           return (
             <g
               key={node.id}
-              className={`ag-node ${isSelected ? 'ag-node-selected' : ''} ${isNew ? 'ag-node-new' : ''}`}
+              className={`ag-node ag-node-clickable ${isSelected ? 'ag-node-selected' : ''} ${isNew ? 'ag-node-new' : ''}`}
               onClick={() => onSelectNode?.(node.id)}
-              style={{ cursor: 'pointer' }}
             >
               {/* Node shape based on BDI type */}
               {bdi === 'Beliefs' ? (
@@ -215,16 +215,16 @@ export function ArgumentGraph({ nodes, edges, selectedNodeId, onSelectNode, turn
       {/* Legend */}
       <div className="ag-legend">
         <span className="ag-legend-title">Legend:</span>
-        <span className="ag-legend-item"><span className="ag-legend-dot" style={{ background: '#27AE60', borderRadius: '50%' }} /> Acc</span>
-        <span className="ag-legend-item"><span className="ag-legend-dot" style={{ background: '#E74C3C', borderRadius: '50%' }} /> Saf</span>
-        <span className="ag-legend-item"><span className="ag-legend-dot" style={{ background: '#F1C40F', borderRadius: '50%' }} /> Skp</span>
+        <span className="ag-legend-item"><span className="ag-legend-dot ag-legend-dot-round ag-legend-dot-acc" /> Acc</span>
+        <span className="ag-legend-item"><span className="ag-legend-dot ag-legend-dot-round ag-legend-dot-saf" /> Saf</span>
+        <span className="ag-legend-item"><span className="ag-legend-dot ag-legend-dot-round ag-legend-dot-skp" /> Skp</span>
         <span className="ag-legend-sep">|</span>
         <span className="ag-legend-item">&#9679; Belief</span>
         <span className="ag-legend-item">&#9670; Desire</span>
         <span className="ag-legend-item">&#9632; Intention</span>
         <span className="ag-legend-sep">|</span>
-        <span className="ag-legend-item" style={{ color: '#16a34a' }}>&#8212; supports</span>
-        <span className="ag-legend-item" style={{ color: '#dc2626' }}>- - attacks</span>
+        <span className="ag-legend-item ag-legend-item-supports">&#8212; supports</span>
+        <span className="ag-legend-item ag-legend-item-attacks">- - attacks</span>
       </div>
     </div>
   );
@@ -256,6 +256,7 @@ export function GraphNodeDetailPanel({ node, edges, allNodes, onClose }: NodeDet
   return (
     <div className="ag-detail-panel">
       <div className="ag-detail-header">
+        {/* eslint-disable-next-line local/no-inline-style -- POV-derived color lookup */}
         <span className="ag-detail-id" style={{ color }}>{node.id}</span>
         <span className="ag-detail-bdi">{bdi}</span>
         <button className="ag-detail-close" onClick={onClose}>&times;</button>
@@ -291,6 +292,7 @@ export function GraphNodeDetailPanel({ node, edges, allNodes, onClose }: NodeDet
           <strong>Incoming:</strong>
           {incomingEdges.map((e, i) => (
             <div key={i} className="ag-detail-edge">
+              {/* eslint-disable-next-line local/no-inline-style -- edge-type-derived color */}
               <span style={{ color: e.type === 'attacks' ? '#dc2626' : '#16a34a' }}>
                 {e.type}{e.attack_type ? ` (${e.attack_type})` : ''}
               </span>
@@ -305,6 +307,7 @@ export function GraphNodeDetailPanel({ node, edges, allNodes, onClose }: NodeDet
           <strong>Outgoing:</strong>
           {outgoingEdges.map((e, i) => (
             <div key={i} className="ag-detail-edge">
+              {/* eslint-disable-next-line local/no-inline-style -- edge-type-derived color */}
               <span style={{ color: e.type === 'attacks' ? '#dc2626' : '#16a34a' }}>
                 {e.type}{e.attack_type ? ` (${e.attack_type})` : ''}
               </span>
@@ -324,12 +327,15 @@ export function GraphNodeDetailPanel({ node, edges, allNodes, onClose }: NodeDet
                 <div
                   key={i}
                   className="ag-detail-attr-row"
+                  // eslint-disable-next-line local/no-inline-style -- ranked emphasis (top attribution bolded)
                   style={{ fontWeight: i === 0 ? 700 : 400 }}
                 >
+                  {/* eslint-disable-next-line local/no-inline-style -- influence-sign-derived color */}
                   <span style={{ color: a.influence >= 0 ? '#16a34a' : '#dc2626' }}>
                     {a.influence >= 0 ? '+' : ''}{a.influence.toFixed(3)}
                   </span>
                   {' '}
+                  {/* eslint-disable-next-line local/no-inline-style -- edge-type-derived color */}
                   <span className="ag-detail-attr-type" style={{ color: a.edgeType === 'attacks' ? '#dc2626' : '#16a34a' }}>
                     {a.edgeType}{a.attackType ? ` (${a.attackType})` : ''}
                   </span>

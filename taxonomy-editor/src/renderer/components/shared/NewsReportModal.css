@@ -1,0 +1,122 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root.
+ *
+ * Co-located styles for NewsReportModal (t/1849 — migrated off inline style={{}}).
+ */
+
+.news-report-modal-body {
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.news-report-modal-headline {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.news-report-modal-subhead {
+  color: var(--text-muted);
+  font-style: italic;
+  margin-bottom: 16px;
+}
+
+.news-report-modal-h2 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+
+.news-report-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.news-report-modal-window {
+  width: 700px;
+  height: 80vh;
+  min-width: 400px;
+  min-height: 300px;
+  max-width: 95vw;
+  max-height: 95vh;
+  resize: both;
+  overflow: hidden;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+}
+
+.news-report-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  user-select: none;
+}
+
+.news-report-modal-title {
+  margin: 0;
+  font-size: 1rem;
+  flex: 1;
+}
+
+.news-report-modal-header-btn {
+  font-size: 0.7rem;
+  padding: 3px 10px;
+}
+
+.news-report-modal-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+.news-report-modal-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px;
+}
+
+.news-report-modal-loading {
+  text-align: center;
+  padding: 48px 0;
+  color: var(--text-muted);
+}
+
+.news-report-modal-loading-icon {
+  font-size: 1.5rem;
+  margin-bottom: 12px;
+}
+
+.news-report-modal-loading-text {
+  font-size: 0.85rem;
+}
+
+.news-report-modal-error {
+  text-align: center;
+  padding: 48px 0;
+}
+
+.news-report-modal-error-text {
+  font-size: 0.85rem;
+  color: #ef4444;
+  margin-bottom: 16px;
+}
+
+.news-report-modal-retry-btn {
+  font-size: 0.8rem;
+  padding: 6px 18px;
+}

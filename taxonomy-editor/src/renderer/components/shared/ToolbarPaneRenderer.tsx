@@ -18,6 +18,7 @@ import { PolicyDashboard } from '../analysis/PolicyDashboard';
 import { VocabularyPanel } from './VocabularyPanel';
 import { CalibrationDashboard } from '../analysis/CalibrationDashboard';
 import type { PromptCatalogEntry } from '../../data/promptCatalog';
+import './ToolbarPaneRenderer.css';
 
 const TerminalPanel = lazy(() => import('./TerminalPanel').then(m => ({ default: m.TerminalPanel })));
 
@@ -62,7 +63,7 @@ export function ToolbarPaneRenderer({
     case 'fallacy': return <FallacyPanel onSelectFallacy={onSelectFallacy} />;
     case 'edges': return <EdgeBrowser />;
     case 'console': return adminFeatures
-      ? <Suspense fallback={<div style={{ padding: 16, color: 'var(--text-muted)' }}>Loading terminal...</div>}><TerminalPanel /></Suspense>
+      ? <Suspense fallback={<div className="toolbar-pane-terminal-loading">Loading terminal...</div>}><TerminalPanel /></Suspense>
       : null;
     case 'policyAlignment': return <PolicyAlignmentPanel />;
     case 'policyDashboard': return <PolicyDashboard />;

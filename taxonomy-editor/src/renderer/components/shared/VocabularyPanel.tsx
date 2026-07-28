@@ -169,6 +169,7 @@ export function VocabularyPanel() {
                 <div className="vocab-entry-header">
                   <span
                     className="camp-dot"
+                    /* eslint-disable-next-line local/no-inline-style -- color is computed per-term from POV_COLORS lookup */
                     style={{ color: POV_COLORS[term.primary_camp_origin] }}
                     title={term.primary_camp_origin}
                   >
@@ -276,7 +277,11 @@ export function VocabularyPanel() {
                       </code>
                       <span className="when">{r.when}</span>
                       {r.default_for_camp && (
-                        <span className="camp-tag" style={{ color: POV_COLORS[r.default_for_camp] }}>
+                        <span
+                          className="camp-tag"
+                          /* eslint-disable-next-line local/no-inline-style -- color is computed per-camp from POV_COLORS lookup */
+                          style={{ color: POV_COLORS[r.default_for_camp] }}
+                        >
                           {r.default_for_camp}
                         </span>
                       )}

@@ -109,9 +109,11 @@ function ClaimListSidebar({ width, onResizeMouseDown }: {
   }, [currentClaimIndex]);
 
   return (
+    // eslint-disable-next-line local/no-inline-style -- width is a resizable-panel prop (runtime drag value)
     <div className="validation-sidebar" style={{ width, minWidth: width, maxWidth: width }}>
       <div className="validation-sidebar-header">
         <div className="validation-progress-bar">
+          {/* eslint-disable-next-line local/no-inline-style -- computed progress percentage */}
           <div className="validation-progress-fill" style={{ width: `${meta.total ? (meta.reviewed / meta.total) * 100 : 0}%` }} />
           <span className="validation-progress-text">{meta.reviewed} of {meta.total} reviewed</span>
         </div>
@@ -174,6 +176,7 @@ function ClaimListSidebar({ width, onResizeMouseDown }: {
                 )}
               </span>
               <span className="validation-claim-id">{claim.claim_id}</span>
+              {/* eslint-disable-next-line local/no-inline-style -- speaker-derived color lookup */}
               <span className="validation-speaker-badge" style={{ backgroundColor: speakerColor(claim.speaker) }}>
                 {claim.speaker.slice(0, 3)}
               </span>
@@ -223,6 +226,7 @@ function ClaimDetail({ claim }: { claim: GoldenClaim | null }) {
   return (
     <div className="validation-detail">
       <div className="validation-detail-header">
+        {/* eslint-disable-next-line local/no-inline-style -- speaker-derived color lookup */}
         <span className="validation-speaker-badge large" style={{ backgroundColor: speakerColor(claim.speaker) }}>
           {claim.speaker}
         </span>
@@ -249,6 +253,7 @@ function ClaimDetail({ claim }: { claim: GoldenClaim | null }) {
       </div>
       <div className="validation-context-row">
         <span className="validation-context-label">Similarity:</span>
+        {/* eslint-disable-next-line local/no-inline-style -- score-derived color band */}
         <span className="validation-score" style={{ color: scoreColor(claim.similarity_score) }}>
           {claim.similarity_score.toFixed(3)}
         </span>
@@ -341,6 +346,7 @@ function AttributionPanel({
 
   if (!claim) {
     return (
+      // eslint-disable-next-line local/no-inline-style -- width is a resizable-panel prop (runtime drag value)
       <div className="validation-attribution" style={{ width, minWidth: width, maxWidth: width }}>
         <div className="validation-detail-empty">No claim selected</div>
         <div className="resize-handle left" onMouseDown={onResizeMouseDown} />
@@ -367,6 +373,7 @@ function AttributionPanel({
   };
 
   return (
+    // eslint-disable-next-line local/no-inline-style -- width is a resizable-panel prop (runtime drag value)
     <div className="validation-attribution" style={{ width, minWidth: width, maxWidth: width }}>
       <div className="resize-handle left" onMouseDown={onResizeMouseDown} />
 
@@ -377,6 +384,7 @@ function AttributionPanel({
           <div className="validation-node-label">{primaryNode.label}</div>
           <div className="validation-node-desc">{resolveDescription(primaryNode, descMode).text}</div>
           <div className="validation-node-score">
+            {/* eslint-disable-next-line local/no-inline-style -- score-derived color band */}
             Score: <span style={{ color: scoreColor(claim.similarity_score) }}>
               {claim.similarity_score.toFixed(3)}
             </span>
@@ -425,6 +433,7 @@ function AttributionPanel({
                     <div className="validation-alt-header">
                       <span className={`validation-pov-badge pov-${id.split('-')[0]}`}>{nodePovBadge(id)}</span>
                       <span className="validation-node-id">{id}</span>
+                      {/* eslint-disable-next-line local/no-inline-style -- score-derived color band */}
                       <span className="validation-alt-score" style={{ color: scoreColor(similarity) }}>
                         {similarity.toFixed(3)}
                       </span>

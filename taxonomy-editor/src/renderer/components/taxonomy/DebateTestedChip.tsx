@@ -53,6 +53,7 @@ export function DebateTestedChip({ record, description, onClick, compact }: Deba
   return (
     <span
       className={`debate-tested-chip${onClick ? ' clickable' : ''}${compact ? ' compact' : ''}`}
+      // eslint-disable-next-line local/no-inline-style -- tier colors computed from record.tier, not static
       style={{ background: colors.bg, color: colors.fg }}
       onClick={onClick}
       title={isStale ? 'Stale — node description changed since last test' : `Debate-Tested: ${TIER_LABELS[tier]}`}

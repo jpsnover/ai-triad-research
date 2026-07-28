@@ -3,6 +3,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useFlag } from '../../hooks/useFeatureFlags';
+import './CommunityShareBanner.css';
 
 interface CommunityShareBannerProps {
   itemType: 'chat' | 'debate';
@@ -23,7 +24,7 @@ export function CommunityShareBanner({ itemType, compact, onDismiss }: Community
 
   if (isAdmin) {
     return (
-      <span role="status" style={{ color: 'var(--green, #22c55e)', fontSize: '0.75rem' }}>
+      <span role="status" className="community-share-banner-admin">
         {'✓ Shared to community'}
       </span>
     );
@@ -33,26 +34,15 @@ export function CommunityShareBanner({ itemType, compact, onDismiss }: Community
     return (
       <div
         role="status"
-        style={{
-          background: 'var(--bg-secondary, #f5f5f5)',
-          borderLeft: '3px solid var(--green, #22c55e)',
-          borderRadius: 6,
-          padding: '6px 12px',
-          marginTop: 6,
-          fontSize: '0.75rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-        }}
+        className="community-share-banner-compact"
       >
-        <span style={{ color: 'var(--green, #22c55e)', flexShrink: 0 }}>{'✓'}</span>
-        <span style={{ color: 'var(--text-secondary, #666)', flex: 1 }}>
+        <span className="community-share-banner-compact-icon">{'✓'}</span>
+        <span className="community-share-banner-compact-text">
           {'Submitted for review — your ' + itemType + ' will appear in the community library once reviewed and approved.'}
         </span>
         <button
           onClick={onDismiss}
-          className="btn btn-sm"
-          style={{ fontSize: '0.7rem', padding: '1px 8px', flexShrink: 0 }}
+          className="btn btn-sm community-share-banner-compact-btn"
         >
           OK
         </button>
@@ -63,26 +53,19 @@ export function CommunityShareBanner({ itemType, compact, onDismiss }: Community
   return (
     <div
       role="status"
-      style={{
-        background: 'var(--bg-secondary, #f5f5f5)',
-        borderLeft: '3px solid var(--green, #22c55e)',
-        borderRadius: 6,
-        padding: '8px 12px',
-        marginTop: 6,
-      }}
+      className="community-share-banner"
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-        <span style={{ color: 'var(--green, #22c55e)', flexShrink: 0 }}>{'✓'}</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 600, fontSize: '0.78rem' }}>Submitted for review</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #666)', marginTop: 2 }}>
+      <div className="community-share-banner-row">
+        <span className="community-share-banner-icon">{'✓'}</span>
+        <div className="community-share-banner-body">
+          <div className="community-share-banner-title">Submitted for review</div>
+          <div className="community-share-banner-subtitle">
             {'Your ' + itemType + ' will appear in the community library once it has been reviewed and approved.'}
           </div>
         </div>
         <button
           onClick={onDismiss}
-          className="btn btn-sm"
-          style={{ fontSize: '0.7rem', padding: '1px 8px', flexShrink: 0, alignSelf: 'flex-end' }}
+          className="btn btn-sm community-share-banner-btn"
         >
           OK
         </button>

@@ -3,6 +3,7 @@ import { POV_META, povKeyFromNodeId, type PovMetaKey } from '@lib/electron-share
 import { POV_KEYS } from '@lib/debate/types';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { useDescriptionMode, resolveDescription } from '../shared/DescriptionToggle';
+import './TaxonomyRefDetail.css';
 
 /** Raw node shape as loaded from POV JSON files, used read-only in Diagnostics. */
 export interface TaxRefNode {
@@ -90,33 +91,17 @@ export function TaxonomyRefDetail({ nodeId, node, pov, onClose, edges }: Props) 
   const hasSkpInterp = !!(interps?.skeptic);
 
   return (
-    <div
-      style={{
-        marginTop: 12,
-        padding: '12px 16px 16px',
-        background: 'var(--bg-primary)',
-        border: '1px solid var(--border)',
-        borderLeft: '3px solid var(--accent)',
-        borderRadius: 4,
-        maxHeight: '70vh',
-        overflowY: 'auto',
-      }}
-    >
+    <div className="taxref-detail">
       {/* Header: big serif title + category pill + pov pill + close */}
-      <div className="nd-header" style={{ padding: '0 0 10px' }}>
+      <div className="nd-header taxref-header-pad">
         <div className="nd-header-title">
-          <span className="nd-header-label" style={{ fontSize: '1.4rem' }}>
+          <span className="nd-header-label taxref-title">
             {node?.label || nodeId}
           </span>
           {pov && (
-            <span style={{
-              fontSize: 'var(--text-2xs)', padding: '2px 10px', borderRadius: 20,
-              background: 'rgba(148,163,184,0.15)', color: 'var(--text-muted)',
-              fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
-              border: '1px solid var(--border)',
-            }}>{pov}</span>
+            <span className="taxref-pov-pill">{pov}</span>
           )}
-          <span style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+          <span className="taxref-node-id">
             {nodeId}
           </span>
         </div>
@@ -125,18 +110,13 @@ export function TaxonomyRefDetail({ nodeId, node, pov, onClose, edges }: Props) 
         )}
         <button
           onClick={onClose}
-          style={{
-            fontSize: 'var(--text-2xs)', padding: '2px 10px',
-            border: '1px solid var(--border)', borderRadius: 4,
-            background: 'transparent', color: 'var(--text-muted)',
-            cursor: 'pointer', marginLeft: 8,
-          }}
+          className="taxref-close-btn"
           title="Close detail panel"
         >Close</button>
       </div>
 
       {!node ? (
-        <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', padding: '8px 0' }}>
+        <div className="taxref-not-found">
           Node not found in loaded Perspective files. (Taxonomy may not be loaded yet, or this id belongs to a non-Perspective registry.)
         </div>
       ) : (
@@ -148,41 +128,36 @@ export function TaxonomyRefDetail({ nodeId, node, pov, onClose, edges }: Props) 
               onClick={() => setTab('content')}
             >Content</button>
             <button
-              className={`node-detail-tab ${tab === 'related' ? 'node-detail-tab-active' : ''}`}
+              className={`node-detail-tab ${tab === 'related' ? 'node-detail-tab-active' : ''}${hasRelated ? '' : ' taxref-tab-disabled'}`}
               onClick={() => setTab('related')}
               disabled={!hasRelated}
-              style={{ opacity: hasRelated ? 1 : 0.4, cursor: hasRelated ? 'pointer' : 'not-allowed' }}
             >Related</button>
             <button
-              className={`node-detail-tab ${tab === 'attributes' ? 'node-detail-tab-active' : ''}`}
+              className={`node-detail-tab ${tab === 'attributes' ? 'node-detail-tab-active' : ''}${hasAttributes ? '' : ' taxref-tab-disabled'}`}
               onClick={() => setTab('attributes')}
               disabled={!hasAttributes}
-              style={{ opacity: hasAttributes ? 1 : 0.4, cursor: hasAttributes ? 'pointer' : 'not-allowed' }}
             >Attributes</button>
             {isSituation && hasAccInterp && (
               <button
-                className={`node-detail-tab ${tab === 'pov-acc' ? 'node-detail-tab-active' : ''}`}
+                className={`node-detail-tab taxref-tab-acc ${tab === 'pov-acc' ? 'node-detail-tab-active' : ''}`}
                 onClick={() => setTab('pov-acc')}
-                style={{ color: 'var(--color-acc, #f59e0b)' }}
               >Accelerationist</button>
             )}
             {isSituation && hasSafInterp && (
               <button
-                className={`node-detail-tab ${tab === 'pov-saf' ? 'node-detail-tab-active' : ''}`}
+                className={`node-detail-tab taxref-tab-saf ${tab === 'pov-saf' ? 'node-detail-tab-active' : ''}`}
                 onClick={() => setTab('pov-saf')}
-                style={{ color: 'var(--color-saf, #3b82f6)' }}
               >Safetyist</button>
             )}
             {isSituation && hasSkpInterp && (
               <button
-                className={`node-detail-tab ${tab === 'pov-skp' ? 'node-detail-tab-active' : ''}`}
+                className={`node-detail-tab taxref-tab-skp ${tab === 'pov-skp' ? 'node-detail-tab-active' : ''}`}
                 onClick={() => setTab('pov-skp')}
-                style={{ color: 'var(--color-skp, #a855f7)' }}
               >Skeptic</button>
             )}
           </div>
 
-          <div style={{ paddingTop: 12, fontSize: '0.82rem', lineHeight: 1.55 }}>
+          <div className="taxref-tab-content">
             {tab === 'content' && <ContentTab node={node} isSituation={isSituation} />}
             {tab === 'related' && <RelatedTab node={node} nodeId={nodeId} edges={edges} />}
             {tab === 'attributes' && <AttributesTab node={node} />}
@@ -198,19 +173,6 @@ export function TaxonomyRefDetail({ nodeId, node, pov, onClose, edges }: Props) 
 
 /* ── Tab Content ──────────────────────────────────────── */
 
-const sectionHeader: React.CSSProperties = {
-  fontSize: '0.95rem', fontWeight: 600, marginTop: 14, marginBottom: 6,
-  color: 'var(--text-primary)',
-};
-
-const chipStyle: React.CSSProperties = {
-  display: 'inline-block', fontSize: '0.72rem',
-  padding: '3px 10px', borderRadius: 4,
-  background: 'var(--bg-secondary)', color: 'var(--text-primary)',
-  border: '1px solid var(--border)',
-  marginRight: 6, marginBottom: 4,
-};
-
 function ContentTab({ node, isSituation }: { node: TaxRefNode; isSituation?: boolean }) {
   const [descMode] = useDescriptionMode();
   const ga = node.graph_attributes;
@@ -222,34 +184,26 @@ function ContentTab({ node, isSituation }: { node: TaxRefNode; isSituation?: boo
     <>
       {descText && (
         <div>
-          <div style={{ ...sectionHeader, marginTop: 0 }}>Description</div>
-          <div style={{
-            padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6,
-            background: 'var(--bg-secondary)', whiteSpace: 'pre-wrap', fontSize: '0.82rem',
-          }}>{descText}</div>
+          <div className="taxref-section-header taxref-section-header-mt0">Description</div>
+          <div className="taxref-desc-box">{descText}</div>
         </div>
       )}
 
       {div != null && (
         <div>
-          <div style={sectionHeader}>Interpretation Divergence</div>
-          <div style={{
-            padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6,
-            background: 'var(--bg-secondary)', fontSize: '0.82rem',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-              <span style={{ fontWeight: 600, fontSize: '1.1rem', color: divColor }}>{div.toFixed(2)}</span>
-              <span style={{
-                fontSize: 'var(--text-2xs)', fontWeight: 600, color: divColor,
-                padding: '2px 8px', borderRadius: 10,
-                background: `${divColor}18`,
-                textTransform: 'uppercase', letterSpacing: '0.04em',
-              }}>{divLabel}</span>
-              <div style={{ flex: 1, height: 8, background: 'var(--bg-tertiary, var(--border))', borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{ width: `${Math.round(div * 100)}%`, height: '100%', background: divColor, borderRadius: 4 }} />
+          <div className="taxref-section-header">Interpretation Divergence</div>
+          <div className="taxref-info-box">
+            <div className="taxref-divergence-row">
+              {/* eslint-disable-next-line local/no-inline-style -- dynamic: color computed from divergence value */}
+              <span className="taxref-divergence-value" style={{ color: divColor }}>{div.toFixed(2)}</span>
+              {/* eslint-disable-next-line local/no-inline-style -- dynamic: color + background computed from divergence value */}
+              <span className="taxref-divergence-badge" style={{ color: divColor, background: `${divColor}18` }}>{divLabel}</span>
+              <div className="taxref-divergence-track">
+                {/* eslint-disable-next-line local/no-inline-style -- dynamic: width + background computed from divergence value */}
+                <div className="taxref-divergence-fill" style={{ width: `${Math.round(div * 100)}%`, background: divColor }} />
               </div>
             </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+            <div className="taxref-divergence-note">
               Mean pairwise cosine distance across the three POV interpretation embeddings.
               {div > 0.40 ? ' High divergence indicates strong disagreement between perspectives.'
                 : div >= 0.20 ? ' Moderate divergence — perspectives partially overlap.'
@@ -261,19 +215,19 @@ function ContentTab({ node, isSituation }: { node: TaxRefNode; isSituation?: boo
 
       {(node.parent_id || (node.children && node.children.length > 0)) && (
         <>
-          <div style={sectionHeader}>Hierarchy</div>
+          <div className="taxref-section-header">Hierarchy</div>
           <div>
             {node.parent_id && (
-              <span style={chipStyle} title={node.parent_relationship || ''}>
+              <span className="taxref-chip" title={node.parent_relationship || ''}>
                 ▲ {node.parent_id}
               </span>
             )}
             {node.children && node.children.map(c => (
-              <span key={c} style={chipStyle}>▼ {c}</span>
+              <span key={c} className="taxref-chip">▼ {c}</span>
             ))}
           </div>
           {node.parent_rationale && (
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: 4 }}>
+            <div className="taxref-hierarchy-note">
               {node.parent_rationale}
             </div>
           )}
@@ -282,30 +236,27 @@ function ContentTab({ node, isSituation }: { node: TaxRefNode; isSituation?: boo
 
       {ga?.steelman_vulnerability && (
         <>
-          <div style={sectionHeader}>Steelman Vulnerability</div>
+          <div className="taxref-section-header">Steelman Vulnerability</div>
           {typeof ga.steelman_vulnerability === 'string' ? (
-            <div style={{
-              borderLeft: '3px solid #dc2626', paddingLeft: 12,
-              fontStyle: 'italic', color: 'var(--text-secondary)', fontSize: '0.82rem',
-            }}>{ga.steelman_vulnerability}</div>
+            <div className="taxref-steelman-quote">{ga.steelman_vulnerability}</div>
           ) : (
-            <div style={{ borderLeft: '3px solid #dc2626', paddingLeft: 12 }}>
+            <div className="taxref-steelman-block">
               {ga.steelman_vulnerability.from_accelerationist && (
-                <div style={{ marginBottom: 6 }}>
-                  <strong style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>From Accelerationist:</strong>{' '}
-                  <span style={{ fontStyle: 'italic' }}>{ga.steelman_vulnerability.from_accelerationist}</span>
+                <div className="taxref-steelman-item">
+                  <strong className="taxref-steelman-label">From Accelerationist:</strong>{' '}
+                  <span className="taxref-italic">{ga.steelman_vulnerability.from_accelerationist}</span>
                 </div>
               )}
               {ga.steelman_vulnerability.from_safetyist && (
-                <div style={{ marginBottom: 6 }}>
-                  <strong style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>From Safetyist:</strong>{' '}
-                  <span style={{ fontStyle: 'italic' }}>{ga.steelman_vulnerability.from_safetyist}</span>
+                <div className="taxref-steelman-item">
+                  <strong className="taxref-steelman-label">From Safetyist:</strong>{' '}
+                  <span className="taxref-italic">{ga.steelman_vulnerability.from_safetyist}</span>
                 </div>
               )}
               {ga.steelman_vulnerability.from_skeptic && (
                 <div>
-                  <strong style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>From Skeptic:</strong>{' '}
-                  <span style={{ fontStyle: 'italic' }}>{ga.steelman_vulnerability.from_skeptic}</span>
+                  <strong className="taxref-steelman-label">From Skeptic:</strong>{' '}
+                  <span className="taxref-italic">{ga.steelman_vulnerability.from_skeptic}</span>
                 </div>
               )}
             </div>
@@ -315,12 +266,10 @@ function ContentTab({ node, isSituation }: { node: TaxRefNode; isSituation?: boo
 
       {ga?.intellectual_lineage && ga.intellectual_lineage.length > 0 && (
         <>
-          <div style={sectionHeader}>Intellectual Lineage</div>
+          <div className="taxref-section-header">Intellectual Lineage</div>
           <div>
             {[...ga.intellectual_lineage].map(v => typeof v === 'string' ? v : (v as { name?: string })?.name).filter((v): v is string => typeof v === 'string' && v.length > 0).sort((a, b) => a.localeCompare(b)).map((l, i) => (
-              <span key={i} style={{
-                ...chipStyle, background: 'var(--bg-primary)', fontWeight: 600,
-              }}>{l}</span>
+              <span key={i} className="taxref-chip taxref-chip-strong">{l}</span>
             ))}
           </div>
         </>
@@ -330,24 +279,26 @@ function ContentTab({ node, isSituation }: { node: TaxRefNode; isSituation?: boo
 }
 
 function PovInterpretationTab({ interp, povLabel, povColor }: { interp: unknown; povLabel: string; povColor: string }) {
-  if (!interp) return <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>No {povLabel} interpretation available.</div>;
+  if (!interp) return <div className="taxref-empty-msg">No {povLabel} interpretation available.</div>;
 
   if (typeof interp === 'string') {
-    return <div style={{ padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-secondary)', fontSize: '0.82rem' }}>{interp}</div>;
+    return <div className="taxref-info-box">{interp}</div>;
   }
 
   const bdi = interp as { belief?: string; desire?: string; intention?: string; summary?: string };
   const bdiItem = (label: string, text: string | undefined) => text ? (
-    <div style={{ margin: '8px 0', paddingLeft: 12, borderLeft: `2px solid ${povColor}` }}>
-      <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: '0.82rem' }}>{text}</div>
+    // eslint-disable-next-line local/no-inline-style -- dynamic: border-left color from povColor prop
+    <div className="taxref-pov-item" style={{ borderLeft: `2px solid ${povColor}` }}>
+      <div className="taxref-pov-item-label">{label}</div>
+      <div className="taxref-pov-item-text">{text}</div>
     </div>
   ) : null;
 
   return (
     <>
       {bdi.summary && (
-        <div style={{ padding: '10px 12px', border: `1px solid var(--border)`, borderLeft: `3px solid ${povColor}`, borderRadius: 6, background: 'var(--bg-secondary)', fontSize: '0.82rem', marginBottom: 10 }}>
+        // eslint-disable-next-line local/no-inline-style -- dynamic: border-left color from povColor prop
+        <div className="taxref-pov-summary-box" style={{ borderLeft: `3px solid ${povColor}` }}>
           {bdi.summary}
         </div>
       )}
@@ -411,24 +362,19 @@ function TaxRefEdgeGroup({
         return (
           <div key={i}
             onClick={() => onSelect(isSelected ? null : key)}
-            style={{
-              padding: '6px 10px', borderBottom: '1px solid var(--border)',
-              fontSize: '0.78rem', cursor: 'pointer',
-              background: isSelected ? 'rgba(249,115,22,0.08)' : 'transparent',
-              borderLeft: isSelected ? '3px solid #f97316' : '3px solid transparent',
-            }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>{direction}</span>
-              <span style={{ fontWeight: 600, fontSize: '0.75rem' }}>{otherLabel || other}</span>
+            className={`taxref-edge-row${isSelected ? ' taxref-edge-row-selected' : ''}`}>
+            <div className="taxref-edge-row-main">
+              <span className="taxref-edge-direction">{direction}</span>
+              <span className="taxref-edge-other-label">{otherLabel || other}</span>
               {e.strength && (
-                <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>({e.strength})</span>
+                <span className="taxref-edge-strength">({e.strength})</span>
               )}
-              <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+              <span className="taxref-edge-confidence">
                 c{(e.confidence * 100).toFixed(0)}%
               </span>
             </div>
             {otherLabel && (
-              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: 1 }}>{other}</div>
+              <div className="taxref-edge-other-id">{other}</div>
             )}
           </div>
         );
@@ -446,45 +392,51 @@ function EdgeDetailPanel({ edge, typeColor, srcLabel, tgtLabel, pct, onClose }: 
   const tgtPovColor = edge.target.startsWith('acc-') ? '#f97316' : edge.target.startsWith('saf-') ? '#3b82f6' : edge.target.startsWith('skp-') ? '#a855f7' : 'var(--text-primary)';
 
   return (
-    <div style={{ marginTop: 12, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-primary)', overflow: 'hidden' }}>
+    <div className="taxref-edge-panel">
       {/* Edge type banner */}
-      <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 3, height: 20, borderRadius: 2, background: typeColor, flexShrink: 0 }} />
-        <span style={{ fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', color: typeColor, letterSpacing: '0.03em' }}>
+      <div className="taxref-edge-banner">
+        {/* eslint-disable-next-line local/no-inline-style -- dynamic: edge-type color */}
+        <div className="taxref-edge-banner-bar" style={{ background: typeColor }} />
+        {/* eslint-disable-next-line local/no-inline-style -- dynamic: edge-type color */}
+        <span className="taxref-edge-banner-type" style={{ color: typeColor }}>
           {edge.type.replace(/_/g, ' ')}
         </span>
-        <span style={{ fontSize: '0.85rem', color: typeColor }}>{edge.bidirectional ? '↔' : '→'}</span>
-        <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.7rem' }}>✕</button>
+        {/* eslint-disable-next-line local/no-inline-style -- dynamic: edge-type color */}
+        <span className="taxref-edge-banner-arrow" style={{ color: typeColor }}>{edge.bidirectional ? '↔' : '→'}</span>
+        <button onClick={onClose} className="taxref-edge-banner-close">✕</button>
       </div>
 
       {/* Source → Target */}
-      <div style={{ display: 'flex', alignItems: 'center', padding: '12px 12px 8px', gap: 8 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 'var(--text-2xs)', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 2 }}>Source</div>
-          <div style={{ fontWeight: 600, color: srcPovColor, fontSize: '0.78rem', lineHeight: 1.3 }}>{srcLabel}</div>
-          <div style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>{edge.source}</div>
+      <div className="taxref-edge-endpoints">
+        <div className="taxref-edge-endpoint">
+          <div className="taxref-edge-endpoint-label">Source</div>
+          {/* eslint-disable-next-line local/no-inline-style -- dynamic: per-side POV color */}
+          <div className="taxref-edge-endpoint-name" style={{ color: srcPovColor }}>{srcLabel}</div>
+          <div className="taxref-edge-endpoint-id">{edge.source}</div>
         </div>
-        <div style={{ color: typeColor, fontSize: '1rem', fontWeight: 700, flexShrink: 0, padding: '0 4px' }}>
+        {/* eslint-disable-next-line local/no-inline-style -- dynamic: edge-type color */}
+        <div className="taxref-edge-arrow-mid" style={{ color: typeColor }}>
           {edge.bidirectional ? '↔' : '→'}
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 'var(--text-2xs)', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 2 }}>Target</div>
-          <div style={{ fontWeight: 600, color: tgtPovColor, fontSize: '0.78rem', lineHeight: 1.3 }}>{tgtLabel}</div>
-          <div style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>{edge.target}</div>
+        <div className="taxref-edge-endpoint">
+          <div className="taxref-edge-endpoint-label">Target</div>
+          {/* eslint-disable-next-line local/no-inline-style -- dynamic: per-side POV color */}
+          <div className="taxref-edge-endpoint-name" style={{ color: tgtPovColor }}>{tgtLabel}</div>
+          <div className="taxref-edge-endpoint-id">{edge.target}</div>
         </div>
       </div>
 
       {/* Rationale */}
       {edge.rationale && (
-        <div style={{ padding: '8px 12px 12px' }}>
-          <div style={{ fontSize: 'var(--text-2xs)', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, marginBottom: 6 }}>Rationale</div>
-          <div style={{ borderLeft: '3px solid #3b82f6', paddingLeft: 10, fontSize: '0.75rem', color: 'var(--text-primary)', lineHeight: 1.55, background: 'var(--bg-secondary)', borderRadius: '0 4px 4px 0', padding: '8px 10px 8px 12px' }}>
+        <div className="taxref-edge-rationale-wrap">
+          <div className="taxref-edge-rationale-label">Rationale</div>
+          <div className="taxref-edge-rationale-text">
             {!rationaleExpanded && edge.rationale.length > RATIONALE_LIMIT
               ? edge.rationale.slice(0, RATIONALE_LIMIT) + '…'
               : edge.rationale}
           </div>
           {edge.rationale.length > RATIONALE_LIMIT && (
-            <div onClick={() => setRationaleExpanded(!rationaleExpanded)} style={{ fontSize: 'var(--text-2xs)', color: '#3b82f6', cursor: 'pointer', marginTop: 4 }}>
+            <div onClick={() => setRationaleExpanded(!rationaleExpanded)} className="taxref-edge-rationale-toggle">
               {rationaleExpanded ? 'Show less' : 'Show more'}
             </div>
           )}
@@ -492,15 +444,15 @@ function EdgeDetailPanel({ edge, typeColor, srcLabel, tgtLabel, pct, onClose }: 
       )}
 
       {/* Confidence & Strength */}
-      <div style={{ padding: '4px 12px 10px', display: 'flex', gap: 16, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-        <span>Confidence: <strong style={{ color: 'var(--text-primary)' }}>{pct}%</strong></span>
-        {edge.strength && <span>Strength: <strong style={{ color: 'var(--text-primary)' }}>{edge.strength}</strong></span>}
+      <div className="taxref-edge-meta">
+        <span>Confidence: <strong className="taxref-strong-primary">{pct}%</strong></span>
+        {edge.strength && <span>Strength: <strong className="taxref-strong-primary">{edge.strength}</strong></span>}
         {edge.status && edge.status !== 'approved' && (
-          <span style={{ color: edge.status === 'rejected' ? '#ef4444' : '#f59e0b', fontWeight: 600 }}>
+          <span className={edge.status === 'rejected' ? 'taxref-edge-status-rejected' : 'taxref-edge-status-pending'}>
             {edge.status === 'rejected' ? '✗' : '●'} {edge.status}
           </span>
         )}
-        {edge.status === 'approved' && <span style={{ color: '#22c55e', fontWeight: 600 }}>✓ Approved</span>}
+        {edge.status === 'approved' && <span className="taxref-edge-status-approved">✓ Approved</span>}
       </div>
     </div>
   );
@@ -578,20 +530,18 @@ function RelatedTab({ node, nodeId, edges }: { node: TaxRefNode; nodeId: string;
     <>
       {edges && edges.length > 0 && (
         <>
-          <div style={{ ...sectionHeader, marginTop: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="taxref-section-header taxref-section-header-mt0 taxref-section-header-flex">
             Related Edges
-            <span style={{
-              fontSize: '0.72rem', padding: '1px 8px', borderRadius: 10,
-              background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-            }}>{totalEdges}</span>
+            <span className="taxref-related-count-badge">{totalEdges}</span>
           </div>
 
           {/* POV filter pills */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+          <div className="taxref-pov-filter-row">
             {displayPovs.map(k => (
               <button
                 key={k}
                 className={`related-edges-pov-btn${hiddenPovs.has(k) ? ' related-edges-pov-btn-hidden' : ''}`}
+                // eslint-disable-next-line local/no-inline-style -- dynamic: per-POV CSS custom property
                 style={{ '--pov-color': `var(${POV_META[k].cssVar})` } as React.CSSProperties}
                 onClick={() => togglePov(k)}
                 title={`${hiddenPovs.has(k) ? 'Show' : 'Hide'} ${POV_META[k].label}`}
@@ -603,7 +553,7 @@ function RelatedTab({ node, nodeId, edges }: { node: TaxRefNode; nodeId: string;
           </div>
 
           {/* Status + confidence filters */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, fontSize: '0.75rem' }}>
+          <div className="taxref-filter-row">
             <select
               className="related-edges-filter"
               value={statusFilter}
@@ -614,7 +564,7 @@ function RelatedTab({ node, nodeId, edges }: { node: TaxRefNode; nodeId: string;
               <option value="proposed">Proposed</option>
               <option value="rejected">Rejected</option>
             </select>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)' }}>
+            <label className="taxref-confidence-label">
               Confidence &ge; {Math.round(confidenceThreshold * 100)}%
               <input
                 type="range" min="0" max="100"
@@ -631,7 +581,7 @@ function RelatedTab({ node, nodeId, edges }: { node: TaxRefNode; nodeId: string;
           ))}
 
           {totalEdges === 0 && (
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: 8 }}>
+            <div className="taxref-no-match-note">
               No edges match the current filters.
             </div>
           )}
@@ -659,56 +609,54 @@ function RelatedTab({ node, nodeId, edges }: { node: TaxRefNode; nodeId: string;
 
       {node.children && node.children.length > 0 && (
         <>
-          <div style={{ ...sectionHeader, marginTop: edges && edges.length > 0 ? 14 : 0 }}>Children ({node.children.length})</div>
-          <div>{node.children.map(c => <span key={c} style={chipStyle}>{c}</span>)}</div>
+          <div className={`taxref-section-header${edges && edges.length > 0 ? '' : ' taxref-section-header-mt0'}`}>Children ({node.children.length})</div>
+          <div>{node.children.map(c => <span key={c} className="taxref-chip">{c}</span>)}</div>
         </>
       )}
 
       {node.situation_refs && node.situation_refs.length > 0 && (
         <>
-          <div style={sectionHeader}>Situation Refs ({node.situation_refs.length})</div>
-          <div>{node.situation_refs.map(s => <span key={s} style={chipStyle}>{s}</span>)}</div>
+          <div className="taxref-section-header">Situation Refs ({node.situation_refs.length})</div>
+          <div>{node.situation_refs.map(s => <span key={s} className="taxref-chip">{s}</span>)}</div>
         </>
       )}
 
       {node.conflict_ids && node.conflict_ids.length > 0 && (
         <>
-          <div style={sectionHeader}>Conflicts ({node.conflict_ids.length})</div>
-          <div>{node.conflict_ids.map(c => <span key={c} style={chipStyle}>{c}</span>)}</div>
+          <div className="taxref-section-header">Conflicts ({node.conflict_ids.length})</div>
+          <div>{node.conflict_ids.map(c => <span key={c} className="taxref-chip">{c}</span>)}</div>
         </>
       )}
 
       {node.debate_refs && node.debate_refs.length > 0 && (
         <>
-          <div style={sectionHeader}>Debate Refs ({node.debate_refs.length})</div>
-          <div>{node.debate_refs.map(d => <span key={d} style={chipStyle}>{d}</span>)}</div>
+          <div className="taxref-section-header">Debate Refs ({node.debate_refs.length})</div>
+          <div>{node.debate_refs.map(d => <span key={d} className="taxref-chip">{d}</span>)}</div>
         </>
       )}
 
       {node.interpretations && (
         <>
-          <div style={sectionHeader}>Interpretations</div>
+          <div className="taxref-section-header">Interpretations</div>
           {POV_KEYS.map(p => {
             const interp = node.interpretations?.[p];
             if (!interp) return null;
             if (typeof interp === 'string') {
               return (
-                <div key={p} style={{ marginTop: 6 }}>
-                  <strong style={{ color: 'var(--text-muted)', textTransform: 'capitalize' }}>{p}:</strong>{' '}
+                <div key={p} className="taxref-interp-item">
+                  <strong className="taxref-interp-label">{p}:</strong>{' '}
                   <span>{interp}</span>
                 </div>
               );
             }
             const bdi = interp as { belief?: string; desire?: string; intention?: string; summary?: string };
             return (
-              <div key={p} style={{
-                marginTop: 8, paddingLeft: 12, borderLeft: '2px solid var(--border)',
-              }}>
-                <div><strong style={{ color: 'var(--text-muted)', textTransform: 'capitalize' }}>{p}</strong></div>
-                {bdi.summary && <div style={{ marginTop: 3 }}>{bdi.summary}</div>}
-                {bdi.belief && <div style={{ marginTop: 3 }}><em>Belief:</em> {bdi.belief}</div>}
-                {bdi.desire && <div style={{ marginTop: 3 }}><em>Desire:</em> {bdi.desire}</div>}
-                {bdi.intention && <div style={{ marginTop: 3 }}><em>Intention:</em> {bdi.intention}</div>}
+              <div key={p} className="taxref-interp-block">
+                <div><strong className="taxref-interp-label">{p}</strong></div>
+                {bdi.summary && <div className="taxref-interp-block-line">{bdi.summary}</div>}
+                {bdi.belief && <div className="taxref-interp-block-line"><em>Belief:</em> {bdi.belief}</div>}
+                {bdi.desire && <div className="taxref-interp-block-line"><em>Desire:</em> {bdi.desire}</div>}
+                {bdi.intention && <div className="taxref-interp-block-line"><em>Intention:</em> {bdi.intention}</div>}
               </div>
             );
           })}
@@ -723,8 +671,8 @@ function AttributesTab({ node }: { node: TaxRefNode }) {
   if (!ga) return null;
 
   const kv = (label: string, val: string | undefined) => val ? (
-    <div style={{ marginBottom: 4 }}>
-      <strong style={{ color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}:</strong>{' '}
+    <div className="taxref-kv-row">
+      <strong className="taxref-kv-label">{label}:</strong>{' '}
       {val}
     </div>
   ) : null;
@@ -734,7 +682,7 @@ function AttributesTab({ node }: { node: TaxRefNode }) {
       {(ga.epistemic_type || ga.rhetorical_strategy || ga.falsifiability ||
         ga.audience || ga.emotional_register || ga.node_scope) && (
         <>
-          <div style={{ ...sectionHeader, marginTop: 0 }}>Graph Attributes</div>
+          <div className="taxref-section-header taxref-section-header-mt0">Graph Attributes</div>
           {kv('Epistemic', ga.epistemic_type)}
           {kv('Rhetorical', ga.rhetorical_strategy)}
           {kv('Falsifiability', ga.falsifiability)}
@@ -746,8 +694,8 @@ function AttributesTab({ node }: { node: TaxRefNode }) {
 
       {ga.assumes && ga.assumes.length > 0 && (
         <>
-          <div style={sectionHeader}>Assumes ({ga.assumes.length})</div>
-          <ul style={{ margin: '4px 0', paddingLeft: 20, lineHeight: 1.6 }}>
+          <div className="taxref-section-header">Assumes ({ga.assumes.length})</div>
+          <ul className="taxref-attr-list">
             {ga.assumes.map((a, i) => <li key={i}>{a}</li>)}
           </ul>
         </>
@@ -755,15 +703,12 @@ function AttributesTab({ node }: { node: TaxRefNode }) {
 
       {ga.policy_actions && ga.policy_actions.length > 0 && (
         <>
-          <div style={sectionHeader}>Policy Actions ({ga.policy_actions.length})</div>
+          <div className="taxref-section-header">Policy Actions ({ga.policy_actions.length})</div>
           {ga.policy_actions.map((p, i) => (
-            <div key={i} style={{
-              marginTop: 6, paddingLeft: 10, borderLeft: '2px solid var(--border)',
-              fontSize: '0.78rem',
-            }}>
-              {p.policy_id && <span style={chipStyle}>{p.policy_id}</span>}
-              {p.action && <div><strong style={{ color: 'var(--text-muted)' }}>Action:</strong> {p.action}</div>}
-              {p.framing && <div><strong style={{ color: 'var(--text-muted)' }}>Framing:</strong> {p.framing}</div>}
+            <div key={i} className="taxref-attr-block">
+              {p.policy_id && <span className="taxref-chip">{p.policy_id}</span>}
+              {p.action && <div><strong className="taxref-attr-label">Action:</strong> {p.action}</div>}
+              {p.framing && <div><strong className="taxref-attr-label">Framing:</strong> {p.framing}</div>}
             </div>
           ))}
         </>
@@ -771,14 +716,11 @@ function AttributesTab({ node }: { node: TaxRefNode }) {
 
       {ga.possible_fallacies && ga.possible_fallacies.length > 0 && (
         <>
-          <div style={sectionHeader}>Possible Fallacies ({ga.possible_fallacies.length})</div>
+          <div className="taxref-section-header">Possible Fallacies ({ga.possible_fallacies.length})</div>
           {ga.possible_fallacies.map((f, i) => (
-            <div key={i} style={{
-              marginTop: 6, paddingLeft: 10, borderLeft: '2px solid var(--border)',
-              fontSize: '0.78rem',
-            }}>
+            <div key={i} className="taxref-attr-block">
               {f.fallacy && <div><strong>{f.fallacy}</strong>{f.confidence ? ` (${f.confidence})` : ''}</div>}
-              {f.explanation && <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>{f.explanation}</div>}
+              {f.explanation && <div className="taxref-fallacy-explanation">{f.explanation}</div>}
             </div>
           ))}
         </>

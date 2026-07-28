@@ -6,6 +6,7 @@ import { useTaxonomyStore, type PinnedData } from '../../hooks/useTaxonomyStore'
 import { NodeDetail } from '../taxonomy/NodeDetail';
 import { SituationDetail } from '../debate/SituationDetail';
 import { ConflictDetail } from '../conflict/ConflictDetail';
+import './PinnedPanel.css';
 
 function PinnedPanelEntry({ data, depth, onClose }: {
   data: PinnedData;
@@ -27,7 +28,7 @@ function PinnedPanelEntry({ data, depth, onClose }: {
     <div className="pinned-panel">
       <div className="pinned-panel-header">
         <div className="pinned-badge">Pinned {depth > 0 ? `(${depth + 1})` : ''}</div>
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <div className="pinned-panel-header-actions">
           <button className="pane-collapse-btn" onClick={() => setCollapsed(true)} title="Collapse">&lsaquo;</button>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>
             Close
