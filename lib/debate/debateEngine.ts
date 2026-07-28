@@ -79,15 +79,12 @@ import {
   cruxRefreshPrompt,
 } from './prompts.js';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims, factCheckToBaseStrength, computeClaimTaxonomyAttribution, sampleNodesForEntailment, type RawExtractedClaim } from './argumentNetwork.js';
-import { embedDoctrinalBoundaries, computeDoctrinalAnchoring, checkThresholdAnomalies } from './doctrinalAnchoring.js';
-import type { BoundaryEmbeddings, DoctrinalAnchoringConfig } from './doctrinalAnchoring.js';
+import { embedDoctrinalBoundaries, computeDoctrinalAnchoring, checkThresholdAnomalies, type BoundaryEmbeddings, type DoctrinalAnchoringConfig } from './doctrinalAnchoring.js';
 import { extractCalibrationData, appendCalibrationLog, readCalibrationLog } from './calibrationLogger.js';
 import { DEFAULT_ATTACK_WEIGHTS } from './qbaf.js';
 import { computeStrategicHints } from './strategicHints.js';
-import { evaluateLookahead } from './lookaheadGate.js';
-import type { LookaheadDiagnostics } from './lookaheadGate.js';
-import { runOvergenPipeline } from './overgenPipeline.js';
-import type { OvergenDiagnostics } from './overgenPipeline.js';
+import { evaluateLookahead, type LookaheadDiagnostics } from './lookaheadGate.js';
+import { runOvergenPipeline, type OvergenDiagnostics } from './overgenPipeline.js';
 import { classifyTopicComplexity, extractTopicStructure } from './topicStructure.js';
 import { resolveRepoRoot, resolveDataRoot, resolveSourcesDir, loadSituationStatements } from './taxonomyLoader.js';
 import { updateCruxTracker, formatCruxResolutionContext, detectConcessionCascade, transitionCrux, finalizeUndecidedCruxes } from './cruxResolution.js';

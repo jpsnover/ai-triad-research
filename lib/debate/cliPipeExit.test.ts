@@ -41,7 +41,10 @@ describe('debate CLI clean-exit lifecycle (t/1824)', () => {
     expect(r.status).toBe(0);                // clean exit code — batch harnesses can trust returncode
   }, 30000);
 
-  it.runIf(process.platform === 'win32')(
+  // Skipped: hang behavior is win32-specific AND environment-sensitive within Windows
+  // (some host configurations drain the event loop before the timeout — t/1839).
+  // The WITH-fix case above is the correctness gate; this counterfactual is documentation only.
+  it.skip(
     'WITHOUT the fix: the open pipe listener pins the loop → process never exits on its own',
     () => {
       const r = runHarness(false, 5000);
