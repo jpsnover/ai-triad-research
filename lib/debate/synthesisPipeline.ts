@@ -24,7 +24,7 @@ import { runSynthesisPhases } from './synthesisPhases.js';
 import { missingArgumentsPrompt, taxonomyRefinementPrompt } from './prompts.js';
 import { generateDialecticTraces } from './dialecticTrace.js';
 import { computeExtractionCoverage } from './calibrationLogger.js';
-import { runNeutralEvaluation, buildSpeakerMapping } from './neutralEvaluator.js';
+import { runNeutralEvaluation, buildSpeakerMapping, resolveEvaluatorModel } from './neutralEvaluator.js';
 import { buildMediumTierSummary, buildDistantTierSummary } from './tieredCompression.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 
@@ -363,13 +363,21 @@ export class SynthesisPipeline {
         this.ctx.session.neutral_speaker_mapping = this._neutralMapping;
       }
 
+      // Pinned evaluator (t/1846): never the debate's own model — crux metrics are
+      // evaluator-model-relative, so the evaluator is a recorded calibration invariant.
+      // Experimental probes may override via config; whatever runs gets stamped.
+      const evaluatorModel = resolveEvaluatorModel(
+        (this.ctx.config as { evaluatorModelOverride?: string }).evaluatorModelOverride,
+      );
+      this.ctx.session.evaluator_model_id = evaluatorModel;
+
       const evaluation = await runNeutralEvaluation(checkpoint, {
         adapter: this.ctx.adapter,
         topic: this.ctx.session.topic.final || this.ctx.session.topic.original,
         transcript: this.ctx.session.transcript,
         contextSummaries: this.ctx.session.context_summaries,
         activePovers: this.ctx.config.activePovers,
-        model: this.ctx.config.model,
+        model: evaluatorModel,
         speakerMapping: this._neutralMapping,
       });
 

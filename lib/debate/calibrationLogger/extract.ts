@@ -71,8 +71,14 @@ export function extractCalibrationData(
   const now = new Date().toISOString();
 
   // ── Neutral evaluator metrics ──
-  const finalEval = (session.neutral_evaluations ?? [])
+  // An evaluation marked evaluation_invalid (truncated/salvaged/unparseable response,
+  // t/1846) is treated as ABSENT here: every evaluator-derived metric below reads null,
+  // never a fake 0-crux / fabricated-engaging value. Display paths still show the raw one.
+  const finalEvalRaw = (session.neutral_evaluations ?? [])
     .find((e: NeutralEvaluation) => e.checkpoint === 'final');
+  const finalEval = finalEvalRaw && finalEvalRaw.evaluation_invalid !== true
+    ? finalEvalRaw
+    : undefined;
   const engaging = finalEval?.overall_assessment.debate_is_engaging_real_disagreement ?? null;
   const cruxRatio = finalEval
     ? finalEval.cruxes.length > 0
@@ -382,6 +388,8 @@ export function extractCalibrationData(
     prompt_version: PROMPT_VERSION,
     config_revision: '',
     working_tree_state: 'unknown',
+    // Same-evaluator comparison window key (t/1846); omitted on sessions that predate the pin.
+    ...(session.evaluator_model_id ? { evaluator_model_id: session.evaluator_model_id } : {}),
 
     argumentative_saturation_at_transition: argumentativeSaturationAtTransition,
     argumentation_exit_threshold: config.argumentationExitThreshold ?? 0.65,

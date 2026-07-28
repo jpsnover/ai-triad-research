@@ -24,6 +24,36 @@ import {
   stripCodeFences,
   parseJsonRobust,
 } from './helpers.js';
+import { loadProvisionalWeights } from './phaseTransitions.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
+
+// ── Evaluator pin (t/1846) ────────────────────────────────
+//
+// Crux metrics are evaluator-model-relative (t/1835 probe: MAD 0.625 across
+// evaluator families), so the neutral evaluator runs on a PINNED model recorded
+// in calibration-config.json (`evaluator` block) — never the debate's own model.
+// This fallback mirrors the config for browser contexts, same as the
+// loadProvisionalWeights hardcoded fallback it sits behind.
+
+/** Mirror of calibration-config.json `evaluator.model` for config-unreadable contexts. */
+export const PINNED_EVALUATOR_MODEL = 'gemini-3.5-flash-lite';
+
+/**
+ * Evaluator output ceiling. Raised from 8192 (t/1846): the old ceiling silently
+ * truncated long evaluations, and a truncated-then-salvaged response parsed as a
+ * plausible 0-crux evaluation — corrupting crux metrics with fake zeros.
+ */
+export const EVALUATOR_MAX_TOKENS = 16384;
+
+/**
+ * Resolve the neutral-evaluator model: pinned config value unless the caller
+ * passes an explicit experimental override (t/1835-style probes). Whatever this
+ * returns is what gets stamped into the session as `evaluator_model_id`.
+ */
+export function resolveEvaluatorModel(override?: string): string {
+  if (override) return override;
+  return loadProvisionalWeights().evaluator?.model ?? PINNED_EVALUATOR_MODEL;
+}
 
 // ── Types ─────────────────────────────────────────────────
 
@@ -68,6 +98,14 @@ export interface NeutralEvaluation {
   diagnostics_raw_response?: string;
   /** Diagnostics: LLM response time in milliseconds. */
   diagnostics_response_time_ms?: number;
+  /**
+   * The response did not strict-parse (truncation or malformed output), so crux/claim
+   * content is unreliable — calibration extraction must treat this evaluation as ABSENT
+   * (null metrics), never as a real 0-crux result (t/1846). Display may still show it.
+   */
+  evaluation_invalid?: boolean;
+  /** Why the evaluation was marked invalid. */
+  invalid_reason?: 'parse_failed' | 'parse_salvaged';
 }
 
 // ── Persona stripping ─────────────────────────────────────
@@ -322,28 +360,53 @@ export async function runNeutralEvaluation(
   const startMs = Date.now();
   const result = await config.adapter.generateText(prompt, config.model, {
     temperature: 0.2,
-    maxTokens: 8192,
+    maxTokens: EVALUATOR_MAX_TOKENS,
     responseSchema: evaluationSchema,
   });
   const elapsedMs = Date.now() - startMs;
 
   const rawText = stripCodeFences(result);
   let parsed: NeutralEvaluation;
+  // Strict parse first (t/1846): a response that only parses after robust salvage
+  // is a truncation/malformation signal — its content may be a plausible partial
+  // (e.g. 0 cruxes), so it is marked invalid for calibration rather than trusted.
   try {
-    parsed = parseJsonRobust(rawText) as NeutralEvaluation;
-  } catch {
-    // Fallback: return a minimal evaluation with the parse error noted
-    parsed = {
-      checkpoint,
-      timestamp: new Date().toISOString(),
-      cruxes: [],
-      claims: [],
-      overall_assessment: {
-        strongest_unaddressed_claim_id: null,
-        debate_is_engaging_real_disagreement: true,
-        notes: `Evaluation parse error. Raw response length: ${rawText.length} chars.`,
-      },
-    };
+    parsed = JSON.parse(rawText) as NeutralEvaluation;
+  } catch (strictErr) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'neutral-evaluator', level: 'warn',
+      message: `Neutral evaluation (${checkpoint}) failed strict JSON parse — attempting salvage; result will be marked evaluation_invalid`,
+      error: { name: (strictErr as Error).name ?? 'Error', message: String(strictErr) },
+    });
+    try {
+      const salvaged = parseJsonRobust(rawText);
+      if (!salvaged || typeof salvaged !== 'object' || Array.isArray(salvaged)) {
+        throw new Error(`salvage produced a non-object (${Array.isArray(salvaged) ? 'array' : typeof salvaged})`);
+      }
+      parsed = salvaged as NeutralEvaluation;
+      parsed.evaluation_invalid = true;
+      parsed.invalid_reason = 'parse_salvaged';
+    } catch (salvageErr) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'neutral-evaluator', level: 'warn',
+        message: `Neutral evaluation (${checkpoint}) unparseable even after salvage — returning invalid placeholder`,
+        error: { name: (salvageErr as Error).name ?? 'Error', message: String(salvageErr) },
+      });
+      // Fallback: minimal placeholder for display; calibration treats it as absent.
+      parsed = {
+        checkpoint,
+        timestamp: new Date().toISOString(),
+        cruxes: [],
+        claims: [],
+        overall_assessment: {
+          strongest_unaddressed_claim_id: null,
+          debate_is_engaging_real_disagreement: true,
+          notes: `Evaluation parse error. Raw response length: ${rawText.length} chars.`,
+        },
+        evaluation_invalid: true,
+        invalid_reason: 'parse_failed',
+      };
+    }
   }
 
   // Ensure checkpoint and timestamp are set correctly regardless of AI output

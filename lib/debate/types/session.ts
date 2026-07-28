@@ -356,6 +356,13 @@ export interface DebateSession {
   neutral_evaluations?: import('../neutralEvaluator.js').NeutralEvaluation[];
   /** Speaker mapping used for neutral evaluator (randomized per debate). Absent in pre-evaluator debates. */
   neutral_speaker_mapping?: import('../neutralEvaluator.js').SpeakerMapping;
+  /**
+   * The model that produced this session's neutral evaluations (t/1846). Stamped when the
+   * first neutral checkpoint runs; flows into CalibrationDataPoint.evaluator_model_id so the
+   * optimizer can enforce same-evaluator-only comparison windows. Absent on pre-pin sessions,
+   * whose evaluator was the debate's own model (evaluator-mixed by construction).
+   */
+  evaluator_model_id?: string;
   /** Unanswered claims ledger — persistent tracking across the 8-entry compression window. */
   unanswered_claims_ledger?: UnansweredClaimEntry[];
   /** Position drift snapshots per round — embedding similarity tracking for sycophancy detection. */

@@ -41,9 +41,15 @@ export interface ParameterSnapshot {
 /** A history entry recording a parameter change event. */
 export interface ParameterHistoryEntry {
   timestamp: string;
-  source: 'initial' | 'optimizer' | 'manual';
+  source: 'initial' | 'optimizer' | 'manual' | 'evaluator-cutover';
   /** Number of calibration data points at time of change */
   data_points: number;
+  /**
+   * Pinned evaluator model in force when this entry was written (t/1846). An entry with
+   * source 'evaluator-cutover' marks a hard baseline reset: history before it was earned
+   * under a different evaluator and is not comparable across the boundary.
+   */
+  evaluator_id?: string;
   before: ParameterSnapshot;
   after: ParameterSnapshot;
   /** Per-parameter change details (only parameters that actually changed) */

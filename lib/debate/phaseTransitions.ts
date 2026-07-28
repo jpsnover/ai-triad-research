@@ -47,6 +47,8 @@ interface ProvisionalWeights {
   network: Record<string, number>;
   budget: Record<string, number>;
   crux_detection?: { min_base_strength: number; min_cross_pov_attackers: number; min_total_cross_pov_edges: number };
+  /** Pinned neutral-evaluator model — calibration invariant (t/1846). */
+  evaluator?: { model: string; version: number };
 }
 
 let _cachedWeights: ProvisionalWeights | null = null;
@@ -109,6 +111,7 @@ export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
     },
     network: { gc_trigger: 175, gc_target: 150, hard_cap: 200 },
     budget: { soft_multiplier: 6, hard_multiplier: 10, max_soft_multiplier: 8 },
+    evaluator: { model: 'gemini-3.5-flash-lite', version: 1 },
   };
   return _cachedWeights;
 }

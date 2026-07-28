@@ -22,9 +22,11 @@ import {
   captureSnapshot,
   diffSnapshots,
   appendParameterHistory,
+  readParameterHistory,
   seedInitialSnapshot,
   replicationGateByConfig,
 } from './calibrationLogger.js';
+import { PINNED_EVALUATOR_MODEL } from './neutralEvaluator.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -45,10 +47,25 @@ export interface OptimizationResult {
 
 export interface RecalibrationReport {
   timestamp: string;
+  /** Rows eligible for optimization: stamped with the pinned evaluator id (t/1846). */
   data_points: number;
   min_required: number;
   results: OptimizationResult[];
   applied: boolean;
+  /** The pinned evaluator id this run compared against (t/1846). */
+  evaluator_model_id?: string;
+  /** Rows excluded from the window: unstamped legacy rows or rows scored by another evaluator. Never silently dropped. */
+  excluded_rows_wrong_evaluator?: number;
+  /**
+   * Explicit cold-start state (TL t/1846#3): set when the optimizer is held because too few
+   * rows carry the pinned evaluator stamp — so "no recommendation" is never ambiguous.
+   */
+  cold_start_hold?: string;
+  /**
+   * Crux-axis recommendations computed but NOT applied — held at zero weight in the
+   * config-writing objective until reference-calibrated (t/1843 ruling; re-entry via t/1847).
+   */
+  held_recommendations?: { parameter: string; reason: string }[];
   /**
    * Replication gate per headline quality metric (t/1668, R-1). Maps each
    * headline metric name to its per-fixed-config gate results — replication
@@ -62,6 +79,20 @@ export interface RecalibrationReport {
 // ── Optimizer algorithms ────────────────────────────────────
 
 const MIN_DATA_POINTS = 10;
+
+/**
+ * Config-writing invariant (t/1843#1, t/1846): parameters whose optimization objective
+ * consumes the evaluator-sensitive crux metrics (`crux_addressed_ratio`,
+ * `situation_crux_alignment`, `crux_resolution_divergence_rate`). Their recommendations
+ * are still computed and reported for visibility, but carry ZERO weight in `--apply`
+ * config writes until the metrics are reference-calibrated against a human-scored crux
+ * set (t/1847). An unvalidated, evaluator-sensitive metric cannot move calibration-config.
+ */
+const CRUX_AXIS_PARAMS = new Set([
+  'thresholds.argumentation_exit',   // optimizeExplorationExit: crux_addressed_ratio × engaging
+  'argumentative_saturation',        // optimizeSaturationWeights: same objective
+  'crux_resolution.polarity_resolved', // optimizeCruxThreshold: crux_resolution_divergence_rate
+]);
 
 /**
  * Headline quality metrics reported as replication-gated distributions (t/1668).
@@ -806,6 +837,44 @@ function optimizeBudgetMultiplier(data: CalibrationDataPoint[]): OptimizationRes
   };
 }
 
+/**
+ * Evaluator-change hard cutover (t/1846, t/1670 discipline): when the pinned evaluator
+ * differs from the one on the latest parameter-history entry — including history that
+ * predates the pin entirely — append an 'evaluator-cutover' entry. Everything before it
+ * was earned under a different (or unknown, per-debate) evaluator and is not comparable
+ * across the boundary. Idempotent: no-ops when the latest entry already carries the pin.
+ */
+function ensureEvaluatorBaseline(
+  dataRoot: string,
+  pinnedEvaluator: string,
+  dataPoints: number,
+  weightsPath?: string,
+): void {
+  try {
+    seedInitialSnapshot(dataRoot, weightsPath);
+    const history = readParameterHistory(dataRoot);
+    const latest = history[history.length - 1];
+    if (latest?.evaluator_id === pinnedEvaluator) return;
+
+    const snapshot = captureSnapshot(weightsPath);
+    appendParameterHistory({
+      timestamp: new Date().toISOString(),
+      source: 'evaluator-cutover',
+      data_points: dataPoints,
+      evaluator_id: pinnedEvaluator,
+      before: snapshot,
+      after: snapshot,
+      changes: [],
+    }, dataRoot);
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'calibration-optimizer', level: 'warn',
+      message: 'Failed to record evaluator-cutover baseline in parameter history',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+  }
+}
+
 // ── Main orchestrator ───────────────────────────────────────
 
 /**
@@ -816,12 +885,40 @@ export function recalibrateParameters(
   dataRoot: string,
   options: { apply?: boolean; weightsPath?: string } = {},
 ): RecalibrationReport {
-  const data = readCalibrationLog(dataRoot);
+  const allData = readCalibrationLog(dataRoot);
+
+  // Same-evaluator comparison window (t/1846): the optimizer only compares rows
+  // scored by the pinned evaluator. Unstamped legacy rows are permanently ineligible —
+  // their evaluator was the debate's own model (evaluator-mixed by construction).
+  const weightsPathForPin = options.weightsPath ?? path.resolve(__dirname, 'calibration-config.json');
+  let pinnedEvaluator = PINNED_EVALUATOR_MODEL;
+  try {
+    const cfg = JSON.parse(fs.readFileSync(weightsPathForPin, 'utf-8'));
+    if (typeof cfg?.evaluator?.model === 'string' && cfg.evaluator.model) {
+      pinnedEvaluator = cfg.evaluator.model;
+    }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'calibration-optimizer', level: 'warn',
+      message: `calibration-config.json unreadable for evaluator pin — using mirror fallback '${PINNED_EVALUATOR_MODEL}'`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
+  }
+  const data = allData.filter(d => d.evaluator_model_id === pinnedEvaluator);
+  const excluded = allData.length - data.length;
+  if (excluded > 0) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'calibration-optimizer', level: 'info',
+      message: `Evaluator window: ${excluded}/${allData.length} calibration rows excluded (not stamped '${pinnedEvaluator}') — reported, not silently dropped (t/1846)`,
+    });
+  }
 
   // Replication gate (t/1668): compute BEFORE the min-data-points guard — a
   // fixed config with fewer than REPLICATION_GATE_MIN_N clean replications is
   // exactly the case the gate must surface (regression trigger not yet permitted),
   // so the gates belong in the report even when the overall log is still sparse.
+  // Gates run on the same-evaluator window: a distribution pooled across evaluators
+  // would re-import exactly the mixing the window exists to prevent.
   const replication_gates: Record<string, ReplicationGateResult[]> = {};
   for (const [name, selector] of Object.entries(HEADLINE_METRICS)) {
     replication_gates[name] = replicationGateByConfig(data, selector);
@@ -833,10 +930,21 @@ export function recalibrateParameters(
     min_required: MIN_DATA_POINTS,
     results: [],
     applied: false,
+    evaluator_model_id: pinnedEvaluator,
+    excluded_rows_wrong_evaluator: excluded,
     replication_gates,
   };
 
+  // Evaluator cutover baseline (t/1846): if the pinned evaluator differs from the one on
+  // the latest history entry (or history predates the pin), mark a hard baseline reset.
+  ensureEvaluatorBaseline(dataRoot, pinnedEvaluator, data.length, options.weightsPath);
+
   if (data.length < MIN_DATA_POINTS) {
+    // Explicit cold-start state (TL t/1846#3) — "no recommendation" must never be ambiguous.
+    report.cold_start_hold =
+      `optimizer held: ${data.length}/${MIN_DATA_POINTS} rows stamped with pinned evaluator ` +
+      `'${pinnedEvaluator}' (${excluded} excluded as unstamped/other-evaluator). ` +
+      `Accumulates as new debates run under the pin.`;
     return report;
   }
 
@@ -868,9 +976,6 @@ export function recalibrateParameters(
     if (result) report.results.push(result);
   }
 
-  // Ensure initial snapshot exists
-  seedInitialSnapshot(dataRoot);
-
   // Apply to calibration-config.json if requested
   if (options.apply && report.results.length > 0) {
 
@@ -882,27 +987,29 @@ export function recalibrateParameters(
       const beforeSnapshot = captureSnapshot(weightsPath);
       const raw = fs.readFileSync(weightsPath, 'utf-8');
       const weights = JSON.parse(raw);
+      let anyApplied = false;
 
       for (const result of report.results) {
+        // Config-writing invariant (t/1843#1): crux-axis recommendations are computed
+        // and reported, but never write config until reference-calibrated (t/1847).
+        if (CRUX_AXIS_PARAMS.has(result.parameter)) {
+          (report.held_recommendations ??= []).push({
+            parameter: result.parameter,
+            reason: 'crux axis held at zero weight pending reference calibration (t/1843 ruling; t/1847)',
+          });
+          continue;
+        }
         if (result.confidence === 'low') continue; // Only apply medium/high confidence
 
         switch (result.parameter) {
-          case 'thresholds.argumentation_exit':
-            weights.thresholds.argumentation_exit = result.recommended_value;
-            break;
-          case 'argumentative_saturation':
-            if (typeof result.recommended_value === 'object') {
-              weights.argumentative_saturation = result.recommended_value;
-            }
-            break;
           case 'network.gc_trigger':
-            if (weights.network) weights.network.gc_trigger = result.recommended_value as number;
+            if (weights.network) { weights.network.gc_trigger = result.recommended_value as number; anyApplied = true; }
             break;
           case 'budget.hard_multiplier':
-            if (weights.budget) weights.budget.hard_multiplier = result.recommended_value as number;
+            if (weights.budget) { weights.budget.hard_multiplier = result.recommended_value as number; anyApplied = true; }
             break;
           case 'relevance_threshold':
-            if (weights.relevance) weights.relevance.embedding_threshold = result.recommended_value as number;
+            if (weights.relevance) { weights.relevance.embedding_threshold = result.recommended_value as number; anyApplied = true; }
             break;
           // draft_temperature, attack_weights, recent_window,
           // crux thresholds, node caps, and recycling threshold are not yet in
@@ -910,8 +1017,10 @@ export function recalibrateParameters(
         }
       }
 
-      fs.writeFileSync(weightsPath, JSON.stringify(weights, null, 2) + '\n', 'utf-8');
-      report.applied = true;
+      if (anyApplied) {
+        fs.writeFileSync(weightsPath, JSON.stringify(weights, null, 2) + '\n', 'utf-8');
+      }
+      report.applied = anyApplied;
 
       // Record history entry with before/after snapshots
       const afterSnapshot = captureSnapshot(weightsPath);
@@ -929,6 +1038,7 @@ export function recalibrateParameters(
           timestamp: new Date().toISOString(),
           source: 'optimizer',
           data_points: data.length,
+          evaluator_id: pinnedEvaluator,
           before: beforeSnapshot,
           after: afterSnapshot,
           changes,
@@ -980,8 +1090,13 @@ if (isMain) {
   const apply = process.argv.includes('--apply');
   const report = recalibrateParameters(dataRoot, { apply });
 
-  console.log(`\nCalibration Report — ${report.data_points} data points (min: ${report.min_required})\n`);
+  console.log(`\nCalibration Report — ${report.data_points} data points (min: ${report.min_required})`);
+  console.log(`Evaluator window: '${report.evaluator_model_id}' (${report.excluded_rows_wrong_evaluator ?? 0} rows excluded as unstamped/other-evaluator)\n`);
 
+  if (report.cold_start_hold) {
+    console.log(`${report.cold_start_hold}\n`);
+    process.exit(0);
+  }
   if (report.data_points < report.min_required) {
     console.log(`Not enough data. Run ${report.min_required - report.data_points} more debates.\n`);
     process.exit(0);
@@ -995,10 +1110,14 @@ if (isMain) {
     console.log(`       (${r.data_points_used} data points)\n`);
   }
 
+  for (const held of report.held_recommendations ?? []) {
+    console.log(`[HELD] ${held.parameter}: ${held.reason}`);
+  }
+
   if (apply && report.applied) {
     console.log('Applied changes to calibration-config.json');
   } else if (apply && !report.applied) {
-    console.log('--apply requested but no changes met confidence threshold');
+    console.log('--apply requested but no changes met confidence threshold (crux-axis recommendations are held — see [HELD] lines)');
   } else {
     console.log('Dry run. Use --apply to write changes to calibration-config.json');
   }

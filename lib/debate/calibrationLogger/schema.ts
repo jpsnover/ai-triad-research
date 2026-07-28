@@ -52,6 +52,14 @@ export interface CalibrationDataPoint {
   config_revision: string;
   /** Git working-tree state when the run executed; 'unknown' when git is unavailable (e.g. server/Azure) */
   working_tree_state: 'clean' | 'dirty' | 'unknown';
+  /**
+   * Model that produced this entry's neutral-evaluator metrics (t/1846). Crux metrics are
+   * evaluator-model-relative (t/1835: MAD 0.625 across evaluator families), so the optimizer
+   * only compares rows sharing this id. ABSENT on legacy rows, whose evaluator was the
+   * debate's own model — those rows are permanently ineligible for the optimizer window
+   * (evaluator-mixed by construction; TL t/1846#3).
+   */
+  evaluator_model_id?: string;
 
   // ── Parameter 1: Exploration exit threshold ──
   /** Saturation score at the moment of exploration→synthesis transition (null if no transition) */

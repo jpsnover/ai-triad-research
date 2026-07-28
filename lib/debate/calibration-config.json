@@ -2,6 +2,11 @@
   "schema_version": 1,
   "status": "CALIBRATED — 290 data points, 2026-05-03. 3 parameters updated by optimizer. Thresholds raised 2026-05-30 for post-compression prompt regime.",
   "calibrated_with_prompt_version": "2026-05-30-post-compression",
+  "evaluator": {
+    "model": "gemini-3.5-flash-lite",
+    "version": 1,
+    "_doc": "Pinned neutral-evaluator model — a recorded calibration invariant (t/1843 ruling, t/1846). Crux metrics are evaluator-model-relative (t/1835: MAD 0.625 across evaluator families), so the optimizer only compares calibration rows scored by this exact model. Changing it is a hard cutover: bump version, which resets the parameter-history baseline; never mix evaluators inside one comparison window. Pin choice must survive config migrations (TL t/1843#1)."
+  },
   "argumentative_saturation": {
     "recycling_pressure": 0.01,
     "crux_maturity": 0.28,
