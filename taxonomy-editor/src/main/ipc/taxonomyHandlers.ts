@@ -359,6 +359,51 @@ export function registerTaxonomyHandlers(): void {
     return { updated, status };
   });
 
+  // Whole-file edge persistence for the new-edge path (t/1816/t/1822). Unlike the
+  // index-based update/swap/bulk handlers above, this WRITES the entire EdgesFile,
+  // so it CREATES edges.json when absent (persisting the very first edge) rather
+  // than preconditioning on an existing file — requiring one would defeat the
+  // new-edge purpose. It guards the incoming BODY SHAPE instead: a non-{edges:[...]}
+  // payload is rejected rather than written over edges.json, mirroring the server
+  // transport's PUT /api/edges 400 body guard (t/1821) so desktop and web behave
+  // identically. writeEdgesFile is atomic (temp→rename).
+  ipcMain.handle('save-edges', (_event, data: unknown) => {
+    if (!data || typeof data !== 'object' || !Array.isArray((data as { edges?: unknown }).edges)) {
+      // Client bug (400-equivalent) — thrown before the recording catch, so a bad
+      // payload doesn't flood the flight recorder (mirrors the server's 400 path).
+      throw new ActionableError({
+        goal: 'Persist the taxonomy edges to disk',
+        problem: 'save-edges received a payload that is not a valid EdgesFile (missing an `edges` array)',
+        location: 'ipcHandlers.saveEdges',
+        nextSteps: [
+          'Send the whole edges file as { edges: [...] }',
+          'This is a renderer bug — the bridge should pass a valid EdgesFile',
+        ],
+      });
+    }
+    try {
+      writeEdgesFile(data);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-save-edges',
+        level: 'error',
+        message: 'Failed to persist edges.json',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      throw new ActionableError({
+        goal: 'Persist the taxonomy edges to disk',
+        problem: 'Could not write edges.json to the active taxonomy directory',
+        location: 'ipcHandlers.saveEdges',
+        nextSteps: [
+          'Verify the data directory is configured correctly (Settings > Data Root)',
+          'Check that edges.json is not locked by another process (antivirus/indexer)',
+        ],
+        innerError: err,
+      });
+    }
+  });
+
   ipcMain.handle('load-synthetic-corpus', (_event, pov: string) => {
     return loadSyntheticCorpus(pov);
   });

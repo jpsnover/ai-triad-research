@@ -361,6 +361,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   bulkUpdateEdges: (indices: number[], status: string): Promise<unknown> =>
     ipcRenderer.invoke('bulk-update-edges', indices, status),
 
+  // Whole-file edge persistence (t/1816) — desktop transport for saveEdges.
+  // electron-bridge delegates here; strongly typed on the renderer side (electron.d.ts).
+  saveEdges: (data: unknown): Promise<void> =>
+    ipcRenderer.invoke('save-edges', data),
+
   // Chat sessions
   listChatSessions: (): Promise<unknown[]> =>
     ipcRenderer.invoke('list-chat-sessions'),
