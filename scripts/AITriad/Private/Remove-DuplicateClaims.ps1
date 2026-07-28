@@ -48,16 +48,7 @@ function Remove-DuplicateClaims {
         used_embeddings  = $false
     }
 
-    # ── Cosine similarity helper ─────────────────────────────────────────────
-    function Get-CosineSimilarity([double[]]$A, [double[]]$B) {
-        if ($A.Count -ne $B.Count -or $A.Count -eq 0) { return 0.0 }
-        $Dot = 0.0; $NA = 0.0; $NB = 0.0
-        for ($i = 0; $i -lt $A.Count; $i++) {
-            $Dot += $A[$i] * $B[$i]; $NA += $A[$i] * $A[$i]; $NB += $B[$i] * $B[$i]
-        }
-        $Denom = [Math]::Sqrt($NA) * [Math]::Sqrt($NB)
-        if ($Denom -gt 0) { return $Dot / $Denom } else { return 0.0 }
-    }
+    # Cosine similarity via the shared Private Get-CosineSimilarity helper (t/1806).
 
     # ── Get confidence score from a claim/point ──────────────────────────────
     function Get-ClaimConfidence($Item) {

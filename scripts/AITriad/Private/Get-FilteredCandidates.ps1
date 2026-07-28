@@ -3,19 +3,7 @@
 
 # Embedding-based candidate pre-filtering for edge discovery.
 # Dot-sourced by AITriad.psm1 — do NOT export.
-
-function Get-CosineSimilarity {
-    param([double[]]$A, [double[]]$B)
-    $Dot = 0.0; $NormA = 0.0; $NormB = 0.0
-    for ($i = 0; $i -lt $A.Length; $i++) {
-        $Dot   += $A[$i] * $B[$i]
-        $NormA += $A[$i] * $A[$i]
-        $NormB += $B[$i] * $B[$i]
-    }
-    $Denom = [Math]::Sqrt($NormA) * [Math]::Sqrt($NormB)
-    if ($Denom -eq 0) { return 0.0 }
-    return $Dot / $Denom
-}
+# Cosine similarity via the shared Private Get-CosineSimilarity helper (t/1806).
 
 function Get-FilteredCandidates {
     <#
