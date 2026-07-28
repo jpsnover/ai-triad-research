@@ -842,6 +842,46 @@ describe('Synthesis slice: requestReflections', () => {
     expect(reflections[0].edits[0].status).toBe('pending');
     expect(useDebateStore.getState().debateGenerating).toBeNull();
   });
+
+  it('partitions propose_new out of edit_existing edits and wires new_item_proposals (t/1773)', async () => {
+    useDebateStore.setState({
+      activeDebate: makeSession({
+        phase: 'debate',
+        active_povers: ['accelerationist'],
+        transcript: [
+          { id: 'e1', timestamp: 't', type: 'statement', speaker: 'accelerationist', content: 'X', taxonomy_refs: [] },
+        ],
+      }) as any,
+    });
+    mockApi.generateText.mockResolvedValue({
+      text: JSON.stringify({
+        reflection_summary: 'summary',
+        edits: [
+          {
+            disposition: 'edit_existing', edit_type: 'revise', node_id: 'acc-B-001', category: 'Beliefs',
+            current_label: 'Old', proposed_label: 'Revised', current_description: 'd', proposed_description: 'nd',
+            rationale: 'r', confidence: 'high', evidence_entries: ['e1'],
+          },
+          {
+            disposition: 'propose_new', pov: 'accelerationist', category: 'Beliefs', label: 'Brand New Belief',
+            proposed_description: 'A new belief', rationale: 'r', confidence: 'high', evidence_entries: ['e1'],
+            proposed_edges: [{ target_node_id: 'acc-B-001', edge_type: 'supports', new_node_role: 'source', rationale: 'r', confidence: 0.8 }],
+          },
+        ],
+      }),
+    });
+
+    await useDebateStore.getState().requestReflections();
+
+    const r = useDebateStore.getState().reflections[0];
+    // propose_new must NOT be mangled into an edit_existing edit — only the revise remains.
+    expect(r.edits).toHaveLength(1);
+    expect(r.edits[0].edit_type).toBe('revise');
+    expect(r.edits.some(e => e.proposed_label === 'Brand New Belief')).toBe(false);
+    // new_item_proposals is wired (array present). Its contents depend on the live taxonomy
+    // store's known node ids for edge validation (empty in this mock → validated to []).
+    expect(Array.isArray(r.new_item_proposals)).toBe(true);
+  });
 });
 
 describe('Synthesis slice: consensus management', () => {

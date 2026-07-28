@@ -39,6 +39,9 @@ import {
   midDebateGapPrompt,
   crossCuttingNodePrompt,
 } from '../../../prompts/debate';
+import { newItemSuggestionsToProposals } from '@lib/debate/confidenceEvolution';
+import type { RawNewItemSuggestion } from '@lib/debate/confidenceEvolution';
+import type { NewPovItemProposal } from '@lib/debate/types/session';
 import { checkDolceCompliance } from '../../../utils/dolceCompliance';
 import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
 import { computeQbafStrengths } from '@lib/debate/qbaf';
@@ -184,6 +187,7 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
         const parsed = parseAIJson<{
           reflection_summary?: string;
           edits?: Array<{
+            disposition?: string;
             edit_type: string;
             node_id: string | null;
             category: string;
@@ -198,7 +202,13 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
         }>(text);
 
         const taxState = useTaxonomyStore.getState();
-        const edits: ReflectionEdit[] = (parsed?.edits ?? []).map(e => {
+        // Partition by disposition (t/1773): edit_existing entries flow through the
+        // existing ReflectionEdit mapping unchanged (no-regression). propose_new entries
+        // were silently mangled into 'revise' edits before — they are excluded here and
+        // routed to newItemSuggestionsToProposals below. `add` is retired at the prompt
+        // (t/1820), so edit_existing is revise/qualify/deprecate only.
+        const rawEdits = parsed?.edits ?? [];
+        const edits: ReflectionEdit[] = rawEdits.filter(e => e.disposition !== 'propose_new').map(e => {
           // Ground-truth: override AI-provided current_label/current_description
           // with actual taxonomy values to prevent hallucinated labels.
           let currentLabel = e.current_label;
@@ -225,6 +235,30 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
             status: 'pending' as const,
           };
         });
+
+        // Validated new-node proposals (t/1773 front-half): wire the shared generator
+        // (previously zero production callers) so propose_new suggestions actually
+        // materialize. Edges are validated against real node ids; a proposal with no valid
+        // edge is dropped (anti-orphan, t/1725). Accept/apply + UI land in the follow-on.
+        // NON-FATAL: proposal generation must never break the edit_existing reflection
+        // flow (the load-bearing path) — on any failure, fall back to no new-item proposals.
+        let newItemProposals: NewPovItemProposal[] = [];
+        try {
+          const knownNodeIds = new Set<string>();
+          for (const p of POV_KEYS) {
+            const f = taxState[p];
+            if (f) for (const n of f.nodes) knownNodeIds.add(n.id);
+          }
+          if (taxState.situations) for (const n of taxState.situations.nodes) knownNodeIds.add(n.id);
+          newItemProposals = newItemSuggestionsToProposals({
+            suggestions: rawEdits as unknown as RawNewItemSuggestion[],
+            pov: povKey,
+            debateId: activeDebate.id,
+            knownNodeIds,
+          });
+        } catch (genErr) {
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'propose_new proposal generation failed (non-fatal)', error: { name: (genErr as Error).name ?? 'Error', message: String(genErr), stack: (genErr as Error).stack } });
+        }
 
         // DOLCE compliance retry — fix non-compliant descriptions up to 3 times
         for (let ei = 0; ei < edits.length; ei++) {
@@ -268,6 +302,7 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
           label: info.label,
           reflection_summary: parsed?.reflection_summary || '',
           edits,
+          new_item_proposals: newItemProposals,
         });
 
         set({ reflections: [...results] });

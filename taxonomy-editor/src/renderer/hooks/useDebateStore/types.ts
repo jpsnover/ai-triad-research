@@ -11,6 +11,7 @@ import type { DebateLoopSlice } from './slices/debateLoopSlice';
 import type { DebatePhaseSlice } from './slices/debatePhaseSlice';
 import type { DebateReflectionSlice } from './slices/debateReflectionSlice';
 import type { ExplorationSlice } from './slices/explorationSlice';
+import type { NewPovItemProposal } from '@lib/debate/types/session';
 
 export type DebateStore =
   ConfigSlice &
@@ -45,6 +46,9 @@ export interface ReflectionResult {
   label: string;
   reflection_summary: string;
   edits: ReflectionEdit[];
+  /** Validated new-node proposals (disposition:'propose_new') from the shared generator.
+   *  Additive front-half of t/1773; the accept/apply + UI land in the follow-on. */
+  new_item_proposals?: NewPovItemProposal[];
 }
 
 export interface ConsensusProposal {
