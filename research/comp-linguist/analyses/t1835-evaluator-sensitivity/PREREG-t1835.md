@@ -118,3 +118,43 @@ On completion: a Results addendum to this file (arm-A/arm-B per-metric table, th
 4. RA's guard (a), pinning the evaluator disjoint from debater backends, is necessary but insufficient: the issue is not only same-family favoritism but that the metric's absolute level depends on the evaluator model. Pinning fixes cross-run comparability without making the metric a model-invariant measurement. A stronger fix (calibration against a fixed reference evaluator, or ensembling the evaluator) is the real path off stipulated.
 
 **Confidence.** N = 5 is small, but the effect is 3 to 6× the band and single-direction on every debate, so the out-of-band conclusion holds despite the sample size: a within-band result at N = 5 would have needed caution, an out-of-band result of this magnitude does not. A confirmatory run at larger N and a third family would sharpen the effect size but is not needed to act. Follow-up worth filing: raise the evaluator's completion-token ceiling so the `6eaa3c75` truncation does not recur, and add the register cutover note from escalation item 1.
+
+---
+
+## Results — re-run on the ceiling-fixed instrument (t/1855, 2026-07-28)
+
+The follow-up flagged above (raise the completion-token ceiling) landed as t/1846 (`8602567a`): `EVALUATOR_MAX_TOKENS` 8192 → **16384**, and any response that only parses after salvage is now marked `evaluation_invalid` and nulled at extraction. This re-run repeats the frozen §6 probe on that fixed instrument for a **clean magnitude** — the original 0.625 was computed at n=4 because the one truncated arm-B run (`6eaa3c75`) was excluded. No decision hangs on it (the evaluator pin + optimizer-window guard landed regardless); this is magnitude hygiene, closing t/1843 AC#4.
+
+**Instrument provenance.** `lib/debate/neutralEvaluator.ts` verified **byte-identical to `origin/main`** (`EVALUATOR_MAX_TOKENS = 16384`, t/1846 `8602567a`, ancestor of `origin/main`); the probe's full import closure (`neutralEvaluator.ts`, `aiAdapter.ts`) matches `origin/main` with no working-tree drift, so the run exercises the committed fixed instrument. Same 5 archived exp-1438 transcripts, same speaker mappings, same arms (**A = gemini-3.5-flash-lite, B = claude-haiku-4-5**), same frozen §6 band. Raw evaluations in `raw-t1855/`, machine summary in `results-t1855.json` (originals in `raw/` and `results.json` preserved for comparison).
+
+**Harness alignments (disclosed; not band changes):** (1) `computeMetrics` now nulls **all** metrics for any arm with `evaluation_invalid === true`, matching production's "treat as absent" — without this the probe would count a salvaged partial as real, the exact contamination t/1846 fixed. (2) output paths are env-overridable (`PROBE_SUBDIR`/`PROBE_RESULTS`) so the re-run does not destroy the original evidence. The frozen decision band (§6) is unchanged.
+
+**The truncation is gone.** With the 16384 ceiling, `6eaa3c75` arm-B parsed cleanly (strict parse, no salvage) and returned **6 cruxes** instead of the previously capped/salvaged 0 — a normal arm-B result consistent with the other debates, confirming the earlier 0 was a token-budget artifact, not an evaluator judgment. **All 10 evaluations were valid (`invalid=false`); zero exclusions; n = 5 on every continuous metric.**
+
+**Per-debate (A = gemini-3.5-flash-lite, B = claude-haiku-4-5):**
+
+| debate | A car | B car | A cdr | B cdr | A sca | B sca | A/B eng | A nCruxes | B nCruxes |
+|---|---|---|---|---|---|---|---|---|---|
+| 6eaa3c75 | 0.500 | 0.167 | 0.500 | 0.167 | 1.0 | 1.0 | true/true | 2 | 6 |
+| add43b5e | 1.000 | 0.200 | 1.000 | 0.200 | 1.0 | 1.0 | true/true | 3 | 5 |
+| e63ad484 | 1.000 | 0.400 | 1.000 | 0.400 | 1.0 | 1.0 | true/true | 3 | 5 |
+| f67680e6 | 1.000 | 0.167 | 1.000 | 0.167 | 1.0 | 1.0 | true/true | 2 | 6 |
+| a0db5a32 | 0.000 | 0.200 | 0.000 | 0.200 | 1.0 | 1.0 | true/true | 2 | 5 |
+
+**Summary statistics (§6):**
+
+| Metric | n | Statistic | Band | Result | vs. original (t/1835) |
+|---|---|---|---|---|---|
+| `crux_addressed_ratio` | 5 | MAD = **0.553** | ≤ 0.10 | **OUT (5.5×)** | 0.625 (n=4) → 0.553 (n=5) |
+| `crux_resolution_divergence_rate` | 5 | MAD = **0.553** | ≤ 0.10 | **OUT** | 0.625 → 0.553 |
+| `situation_crux_alignment` | 5 | MAD = **0.000** | ≤ 0.10 | within | 0.25 (OUT) → 0.00 (within) |
+| `engaging_real_disagreement` | 5 | DR = **0.00** | ≤ 0.20 | within | 0.00 → 0.00 (unchanged) |
+
+**Verdict per the frozen §6 rule: OUT OF BAND — unchanged.** The clean magnitude on the crux-addressed axis is **MAD ≈ 0.55**, 5.5× the escalation threshold and single-direction on every debate (Gemini extracts fewer cruxes and marks more "addressed"; Claude extracts more and marks fewer). `crux_resolution_divergence_rate` tracks it one-to-one (engine cruxes seldom resolved, so divergence reduces to the evaluator's addressed fraction, as before).
+
+**What the clean re-run changes vs. the original readout:**
+1. **The 0.625 was modestly inflated (~0.07, ~11%)** by excluding the truncated `6eaa3c75`. Including it as valid data — arm-B delta 0.333, below the old mean — pulls the corpus MAD to 0.553. So the ceiling fix confirmed the original hypothesis on t/1855: the point estimate was partly a truncation artifact, but only partly. The effect is real and large.
+2. **`situation_crux_alignment` is NOT robustly evaluator-sensitive.** Its original 0.25 (out of band) was driven by a single debate (`f67680e6`: arm-A sca 0.0 vs arm-B 1.0) whose arm-A crux extraction, on re-run, aligned with the injected situation like every other debate. All 5 debates now show sca = 1.0 in both arms (MAD 0). This was a small-N single-debate crux-extraction variance, not a systematic evaluator effect — the clean run demotes it from OUT to within.
+3. **The decisive, robust sensitivity is on the crux-addressed axis alone** (`crux_addressed_ratio` and its dependent `crux_resolution_divergence_rate`). `engaging_real_disagreement` remains stable-but-uninformative (both arms `true` on all 5).
+
+**Disposition (updates t/1843 AC#4).** The escalation from the original stands and is now on cleaner footing: the crux-addressed evaluator metrics are **evaluator-model-relative** with a clean measured magnitude of **MAD ≈ 0.55** at the 0.6 gate — the evaluator pin + config-window guard (t/1843/t/1846) remain the correct response. No band was changed; no decision reverses; the number is now free of the token-ceiling artifact. `situation_crux_alignment`'s provenance note may be softened (its out-of-band was not reproducible), but it stays **stipulated** — one clean run at n=5 is not derivation. `metric-provenance-register.md`'s evaluator-sensitivity pointer should cite this re-run (MAD 0.553, n=5, clean) alongside the original.

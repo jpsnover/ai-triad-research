@@ -1,0 +1,141 @@
+{
+  "arms": {
+    "A": {
+      "label": "gemini",
+      "model": "gemini-3.5-flash-lite"
+    },
+    "B": {
+      "label": "claude",
+      "model": "claude-haiku-4-5"
+    }
+  },
+  "instrument": {
+    "evaluator_max_tokens": 16384,
+    "note": "t/1855 re-run on the t/1846 ceiling-fixed instrument (16384); evaluation_invalid responses nulled at extraction, matching production calibration semantics."
+  },
+  "rows": [
+    {
+      "id": "6eaa3c75-819f-4710-87bc-29d3d97a3edd",
+      "A": {
+        "crux_addressed_ratio": 0.5,
+        "situation_crux_alignment": 1,
+        "crux_resolution_divergence_rate": 0.5,
+        "engaging": true,
+        "n_cruxes": 2,
+        "invalid": false,
+        "invalid_reason": null
+      },
+      "B": {
+        "crux_addressed_ratio": 0.16666666666666666,
+        "situation_crux_alignment": 1,
+        "crux_resolution_divergence_rate": 0.16666666666666666,
+        "engaging": true,
+        "n_cruxes": 6,
+        "invalid": false,
+        "invalid_reason": null
+      }
+    },
+    {
+      "id": "add43b5e-a1eb-4036-b83e-f5003e72aaf8",
+      "A": {
+        "crux_addressed_ratio": 1,
+        "situation_crux_alignment": 1,
+        "crux_resolution_divergence_rate": 1,
+        "engaging": true,
+        "n_cruxes": 3,
+        "invalid": false,
+        "invalid_reason": null
+      },
+      "B": {
+        "crux_addressed_ratio": 0.2,
+        "situation_crux_alignment": 1,
+        "crux_resolution_divergence_rate": 0.2,
+        "engaging": true,
+        "n_cruxes": 5,
+        "invalid": false,
+        "invalid_reason": null
+      }
+    },
+    {
+      "id": "e63ad484-bbd5-4326-ac97-b92a117b3940",
+      "A": {
+        "crux_addressed_ratio": 1,
+        "situation_crux_alignment": 1,
+        "crux_resolution_divergence_rate": 1,
+        "engaging": true,
+        "n_cruxes": 3,
+        "invalid": false,
+        "invalid_reason": null
+      },
+      "B": {
+        "crux_addressed_ratio": 0.4,
+        "situation_crux_alignment": 1,
+        "crux_resolution_divergence_rate": 0.4,
+        "engaging": true,
+        "n_cruxes": 5,
+        "invalid": false,
+        "invalid_reason": null
+      }
+    },
+    {
+      "id": "f67680e6-3da9-4b44-8243-803e708ca04c",
+      "A": {
+        "crux_addressed_ratio": 1,
+        "situation_crux_alignment": 1,
+        "crux_resolution_divergence_rate": 1,
+        "engaging": true,
+        "n_cruxes": 2,
+        "invalid": false,
+        "invalid_reason": null
+      },
+      "B": {
+        "crux_addressed_ratio": 0.16666666666666666,
+        "situation_crux_alignment": 1,
+        "crux_resolution_divergence_rate": 0.16666666666666666,
+        "engaging": true,
+        "n_cruxes": 6,
+        "invalid": false,
+        "invalid_reason": null
+      }
+    },
+    {
+      "id": "a0db5a32-600b-48dc-a328-ac4dcb4f4c9b",
+      "A": {
+        "crux_addressed_ratio": 0,
+        "situation_crux_alignment": 1,
+        "crux_resolution_divergence_rate": 0,
+        "engaging": true,
+        "n_cruxes": 2,
+        "invalid": false,
+        "invalid_reason": null
+      },
+      "B": {
+        "crux_addressed_ratio": 0.2,
+        "situation_crux_alignment": 1,
+        "crux_resolution_divergence_rate": 0.2,
+        "engaging": true,
+        "n_cruxes": 5,
+        "invalid": false,
+        "invalid_reason": null
+      }
+    }
+  ],
+  "summary": {
+    "crux_addressed_ratio": {
+      "n": 5,
+      "MAD": 0.5533333333333335
+    },
+    "situation_crux_alignment": {
+      "n": 5,
+      "MAD": 0
+    },
+    "crux_resolution_divergence_rate": {
+      "n": 5,
+      "MAD": 0.5533333333333335
+    },
+    "engaging_real_disagreement": {
+      "n": 5,
+      "DR": 0
+    }
+  }
+}

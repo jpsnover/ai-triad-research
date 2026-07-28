@@ -18,11 +18,15 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createCLIAdapter } from '../../../../lib/debate/aiAdapter.js';
-import { runNeutralEvaluation, buildSpeakerMapping } from '../../../../lib/debate/neutralEvaluator.js';
+import { runNeutralEvaluation, buildSpeakerMapping, EVALUATOR_MAX_TOKENS } from '../../../../lib/debate/neutralEvaluator.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '../../../../');
-const RAW_DIR = path.join(__dirname, 'raw');
+// t/1855: output paths are overridable so a re-run on the ceiling-fixed instrument
+// (t/1846) does not destroy the original t/1835 evidence. Defaults preserve the
+// original harness behaviour for any future reuse.
+const RAW_DIR = path.join(__dirname, process.env.PROBE_SUBDIR ?? 'raw');
+const RESULTS_PATH = path.join(__dirname, process.env.PROBE_RESULTS ?? 'results.json');
 const ARM_A = { label: 'gemini', model: 'gemini-3.5-flash-lite' };
 const ARM_B = { label: 'claude', model: 'claude-haiku-4-5' };
 const MIN_TURNS = 6;
@@ -34,6 +38,22 @@ function readJsonBom(p: string): any {
 
 /** Replicates the four evaluator-derived calibration metrics (calibrationLogger.ts). */
 function computeMetrics(ev: any, session: any, mapping: any) {
+  // t/1855 / t/1846: a response that only parsed after salvage (or not at all) is
+  // marked evaluation_invalid and its content — even a plausible partial like 0 cruxes —
+  // must NOT enter the arm as real data. Production nulls it at extraction; the probe
+  // does the same here so the re-run reflects the fixed instrument's calibration semantics.
+  const invalid = ev?.evaluation_invalid === true;
+  if (invalid) {
+    return {
+      crux_addressed_ratio: null,
+      situation_crux_alignment: null,
+      crux_resolution_divergence_rate: null,
+      engaging: null,
+      n_cruxes: (ev?.cruxes ?? []).length,
+      invalid: true,
+      invalid_reason: ev?.invalid_reason ?? 'evaluation_invalid',
+    };
+  }
   const cruxes: any[] = ev?.cruxes ?? [];
   const total = cruxes.length;
   const crux_addressed_ratio =
@@ -87,7 +107,7 @@ function computeMetrics(ev: any, session: any, mapping: any) {
     situation_crux_alignment = aligned / total;
   }
 
-  return { crux_addressed_ratio, situation_crux_alignment, crux_resolution_divergence_rate, engaging, n_cruxes: total };
+  return { crux_addressed_ratio, situation_crux_alignment, crux_resolution_divergence_rate, engaging, n_cruxes: total, invalid: false, invalid_reason: null };
 }
 
 async function main() {
@@ -119,7 +139,7 @@ async function main() {
       const mB = computeMetrics(evB, session, mapping);
       rows.push({ id, A: mA, B: mB });
       // eslint-disable-next-line no-console
-      console.log(`${id}: A eng=${mA.engaging} car=${fmt(mA.crux_addressed_ratio)} nC=${mA.n_cruxes} | B eng=${mB.engaging} car=${fmt(mB.crux_addressed_ratio)} nC=${mB.n_cruxes}`);
+      console.log(`${id}: A eng=${mA.engaging} car=${fmt(mA.crux_addressed_ratio)} nC=${mA.n_cruxes} inv=${mA.invalid} | B eng=${mB.engaging} car=${fmt(mB.crux_addressed_ratio)} nC=${mB.n_cruxes} inv=${mB.invalid}`);
     } catch (err) {
       rows.push({ id, error: String((err as Error)?.message ?? err) });
       console.error(`${id}: ERROR ${String((err as Error)?.message ?? err)}`);
@@ -137,8 +157,16 @@ async function main() {
   const disagree = boolRows.filter((r) => r.A.engaging !== r.B.engaging).length;
   summary.engaging_real_disagreement = { n: boolRows.length, DR: boolRows.length ? disagree / boolRows.length : null };
 
-  const out = { arms: { A: ARM_A, B: ARM_B }, generated_note: 'stamp added post-run', rows, summary };
-  fs.writeFileSync(path.join(__dirname, 'results.json'), JSON.stringify(out, null, 2));
+  const out = {
+    arms: { A: ARM_A, B: ARM_B },
+    instrument: {
+      evaluator_max_tokens: EVALUATOR_MAX_TOKENS,
+      note: 't/1855 re-run on the t/1846 ceiling-fixed instrument (16384); evaluation_invalid responses nulled at extraction, matching production calibration semantics.',
+    },
+    rows,
+    summary,
+  };
+  fs.writeFileSync(RESULTS_PATH, JSON.stringify(out, null, 2));
   console.log('\n=== SUMMARY ===');
   console.log(JSON.stringify(summary, null, 2));
 }
