@@ -54,6 +54,184 @@ export interface ClarificationSlice {
   submitUserOpening: (statement: string) => Promise<void>;
 }
 
+// ── runOpeningStatements sub-steps (t/1848 batch 4) ──────────────────
+// Behavior-preserving extraction of the escape-free blocks (topic-scope,
+// opening-embedding cache, auto-run cross-respond). Bodies moved verbatim.
+// The per-speaker retry engine (method-exiting returns/breaks) is left for
+// a follow-up — it needs a return-protocol refactor, higher risk.
+async function extractTopicScope(get: () => DebateStore, set: (partial: any) => void, activeDebate: DebateSession, model: string, topic: string): Promise<void> {
+    // Topic scope extraction (t/336) — extract before openings so scope constraints are active
+    if (!activeDebate.topic.scope) {
+      try {
+        set({ debateActivity: 'Extracting topic scope...' });
+        const scopePrompt = topicScopeExtractionPrompt(topic);
+        const { text: scopeText } = await api.generateText(scopePrompt, model);
+        const scopeParsed = parseAIJson<Record<string, unknown>>(scopeText);
+        if (scopeParsed && typeof scopeParsed === 'object') {
+          const validRiskLevels: TopicScopeRiskLevel[] = ['low', 'medium', 'high', 'catastrophic', 'unspecified'];
+          const toArr = (v: unknown): string[] => Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : [];
+          const scope: TopicScope = {
+            core_proposition: typeof scopeParsed.core_proposition === 'string' ? scopeParsed.core_proposition : topic,
+            relevant_disciplines: toArr(scopeParsed.relevant_disciplines),
+            on_scope_evidence: toArr(scopeParsed.on_scope_evidence),
+            key_tensions: toArr(scopeParsed.key_tensions),
+            off_scope_topics: toArr(scopeParsed.off_scope_topics),
+            drift_signatures: toArr(scopeParsed.drift_signatures),
+            example_ceiling: typeof scopeParsed.example_ceiling === 'string' ? scopeParsed.example_ceiling : '',
+            risk_level: validRiskLevels.includes(scopeParsed.risk_level as TopicScopeRiskLevel) ? scopeParsed.risk_level as TopicScopeRiskLevel : 'unspecified',
+            domain: typeof scopeParsed.domain === 'string' ? scopeParsed.domain : '',
+            product_type: typeof scopeParsed.product_type === 'string' ? scopeParsed.product_type : null,
+            time_horizon: typeof scopeParsed.time_horizon === 'string' ? scopeParsed.time_horizon : null,
+            excluded_scenarios: toArr(scopeParsed.excluded_scenarios),
+            explicit_qualifiers: toArr(scopeParsed.explicit_qualifiers),
+            constraint_confidence: scopeParsed.constraint_confidence === 'explicit' ? 'explicit' : 'inferred',
+          };
+          setTopicScope(scope);
+          const fresh = get().activeDebate;
+          if (fresh) {
+            set({ activeDebate: { ...fresh, topic: { ...fresh.topic, scope } } });
+            await get().saveDebate('extractTopicScope');
+          }
+          getGlobalRecorder()?.record({
+            type: 'topic_scope_extracted', debate_id: activeDebate?.id, component: 'debate-store', level: 'info',
+            message: `Topic scope extracted (${scope.constraint_confidence})`,
+            data: { core_proposition: scope.core_proposition, risk_level: scope.risk_level, off_scope_count: scope.off_scope_topics.length },
+          });
+        }
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', debate_id: activeDebate?.id, component: 'debate-store', level: 'warn',
+          message: 'Topic scope extraction failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+      }
+      set({ debateActivity: null });
+    } else {
+      setTopicScope(activeDebate.topic.scope);
+    }
+}
+
+async function cacheOpeningEmbeddings(get: () => DebateStore, set: (partial: any) => void): Promise<void> {
+    // Cache opening embeddings for position drift detection (non-blocking)
+    try {
+      const currentDebate = get().activeDebate;
+      if (currentDebate) {
+        const openingEmbeddings: Record<string, number[]> = {};
+        for (const entry of currentDebate.transcript) {
+          if (entry.type !== 'opening' || entry.speaker === 'system') continue;
+          try {
+            const result = await api.computeQueryEmbedding(entry.content.slice(0, 1000));
+            openingEmbeddings[entry.speaker] = result.vector;
+          } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: get().activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Opening embedding computation failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
+        }
+        // Store on session metadata for cross-respond access
+        if (Object.keys(openingEmbeddings).length > 0) {
+          const d = get().activeDebate;
+          if (d) {
+            if (!d.metadata) d.metadata = {};
+            d.metadata._openingEmbeddings = openingEmbeddings;
+            set({ activeDebate: { ...d } });
+          }
+        }
+      }
+    } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: get().activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Opening embeddings caching failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
+}
+
+async function runInitialCrossRespondRounds(get: () => DebateStore, set: (partial: any) => void, activeDebate: DebateSession): Promise<void> {
+    // Auto-run initial cross-respond rounds if configured
+    const { initialCrossRespondRounds } = get();
+    if (!activeDebate.user_is_pover) {
+      const freshDebate = get().activeDebate;
+      const adaptive = freshDebate?.adaptive_staging;
+      if (adaptive?.enabled) {
+        // Adaptive: run until phase transitions signal termination (up to maxTotalRounds)
+        const weights = loadProvisionalWeights();
+        const pacingPresetName = adaptive.pacing ?? 'moderate';
+        const pacingPreset = weights.pacing_presets[pacingPresetName] ?? weights.pacing_presets.moderate;
+        const maxRounds = pacingPreset?.maxTotalRounds ?? 12;
+        const loopDebateId = freshDebate?.id;
+        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'info', debate_id: loopDebateId, message: 'Adaptive loop started', data: { pacing: pacingPresetName, maxTotalRounds: maxRounds, argumentationExit: pacingPreset?.argumentationExit, concludingExit: pacingPreset?.concludingExit } });
+        let loopExitReason = 'maxRounds_exhausted';
+        let loopIterations = 0;
+        let consecutiveNoStatement = 0;
+        for (let i = 0; i < maxRounds; i++) {
+          loopIterations = i + 1;
+          const d = get().activeDebate;
+          if (!d) { loopExitReason = 'debate_null'; break; }
+          // Stop if phase reached termination
+          if (d.adaptive_staging?.phase_state?.current_phase === 'terminated') { loopExitReason = 'phase_terminated'; break; }
+          const preLen = d.transcript.length;
+          try {
+            await get().crossRespond();
+          } catch (loopErr) {
+            console.error(`[debate] Adaptive loop iteration ${i} failed:`, loopErr);
+            getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'error', debate_id: d.id, message: `Adaptive loop failed at iteration ${i}`, data: { iteration: i, error: String(loopErr), stack: (loopErr as Error).stack?.slice(0, 500) } });
+            if (isDailyLimitError(loopErr)) {
+              set({ debateError: DAILY_LIMIT_MESSAGE, dailyLimitPaused: true });
+              loopExitReason = 'daily_token_limit';
+            } else {
+              set({ debateError: `Cross-respond failed: ${(loopErr as Error).message?.slice(0, 200) ?? String(loopErr)}` });
+              loopExitReason = 'crossRespond_error';
+            }
+            break;
+          }
+          if (get().dailyLimitPaused) { loopExitReason = 'daily_token_limit'; break; }
+          const post = get().activeDebate;
+          if (!post) { loopExitReason = 'post_debate_null'; break; }
+          if (post.transcript.length === preLen) {
+            loopExitReason = `no_transcript_growth(preLen=${preLen},postLen=${post.transcript.length})`;
+            getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'warn', debate_id: loopDebateId, message: 'Loop break: no transcript growth', data: { iteration: i, preLen, postLen: post.transcript.length, phase: post.adaptive_staging?.phase_state?.current_phase } });
+            break;
+          }
+          // If only system entries were added (moderator deliberation, phase transitions,
+          // compression markers), continue — the debater didn't speak this iteration but
+          // the loop should not exit prematurely. Break only after 3 consecutive rounds
+          // without a debater statement to catch genuine stalls.
+          if (!post.transcript.slice(preLen).some(e => e.type === 'statement')) {
+            consecutiveNoStatement++;
+            const newEntryTypes = post.transcript.slice(preLen).map(e => e.type);
+            if (consecutiveNoStatement >= 3) {
+              loopExitReason = `consecutive_no_statement(count=${consecutiveNoStatement},types=${newEntryTypes.join(',')})`;
+              getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'warn', debate_id: loopDebateId, message: 'Loop break: 3 consecutive rounds without debater statement', data: { iteration: i, consecutiveNoStatement, preLen, postLen: post.transcript.length, newEntryTypes, phase: post.adaptive_staging?.phase_state?.current_phase } });
+              break;
+            }
+            getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'debug', debate_id: loopDebateId, message: 'No statement in new entries — continuing', data: { iteration: i, consecutiveNoStatement, newEntryTypes, phase: post.adaptive_staging?.phase_state?.current_phase } });
+            continue;
+          }
+          consecutiveNoStatement = 0;
+        }
+        // Log loop completion with full context
+        const finalDebate = get().activeDebate;
+        const finalPhase = finalDebate?.adaptive_staging?.phase_state?.current_phase;
+        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'info', debate_id: loopDebateId, message: `Adaptive loop ended: ${loopExitReason}`, data: { exit_reason: loopExitReason, iterations: loopIterations, maxRounds, final_phase: finalPhase, transcript_length: finalDebate?.transcript?.length, an_nodes: finalDebate?.argument_network?.nodes?.length } });
+        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: loopDebateId, message: 'debate.ended', data: { reason: 'adaptive_loop_complete', exit_reason: loopExitReason, iterations: loopIterations } });
+        // Always run synthesis when the loop exits with enough debater content.
+        // Normal path: phase reached 'terminated'. Abnormal: loop exhausted, consecutive
+        // system-only rounds, errors, etc. — still synthesize what we have.
+        const statementsInTranscript = finalDebate?.transcript.filter(e => e.type === 'statement').length ?? 0;
+        if (finalDebate && statementsInTranscript >= 3 && loopExitReason !== 'daily_token_limit') {
+          if (finalPhase !== 'terminated') {
+            getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'warn', debate_id: loopDebateId, message: `Forcing synthesis: loop exited before termination (${loopExitReason})`, data: { exit_reason: loopExitReason, iterations: loopIterations, maxRounds, final_phase: finalPhase, statements: statementsInTranscript } });
+          }
+          await get().requestSynthesis();
+        }
+      } else if (initialCrossRespondRounds > 0) {
+        for (let i = 0; i < initialCrossRespondRounds; i++) {
+          const d = get().activeDebate;
+          if (!d || get().dailyLimitPaused) break;
+          const preLen = d.transcript.length;
+          await get().crossRespond();
+          if (get().dailyLimitPaused) break;
+          const post = get().activeDebate;
+          if (!post || post.transcript.length === preLen) break;
+          const hasStatement = post.transcript.slice(preLen).some(e => e.type === 'statement');
+          const onlySystemEntries = post.transcript.slice(preLen).every(e => e.type === 'system');
+          if (!hasStatement && !onlySystemEntries) break;
+        }
+      }
+    }
+}
+
 export const createClarificationSlice: StateCreator<DebateStore, [], [], ClarificationSlice> = (set, get) => ({
   runClarification: async () => {
     const { activeDebate, addTranscriptEntry, saveDebate, debateGenerating } = get();
@@ -653,55 +831,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
     const model = getConfiguredModel();
     const topic = activeDebate.topic.final;
 
-    // Topic scope extraction (t/336) — extract before openings so scope constraints are active
-    if (!activeDebate.topic.scope) {
-      try {
-        set({ debateActivity: 'Extracting topic scope...' });
-        const scopePrompt = topicScopeExtractionPrompt(topic);
-        const { text: scopeText } = await api.generateText(scopePrompt, model);
-        const scopeParsed = parseAIJson<Record<string, unknown>>(scopeText);
-        if (scopeParsed && typeof scopeParsed === 'object') {
-          const validRiskLevels: TopicScopeRiskLevel[] = ['low', 'medium', 'high', 'catastrophic', 'unspecified'];
-          const toArr = (v: unknown): string[] => Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : [];
-          const scope: TopicScope = {
-            core_proposition: typeof scopeParsed.core_proposition === 'string' ? scopeParsed.core_proposition : topic,
-            relevant_disciplines: toArr(scopeParsed.relevant_disciplines),
-            on_scope_evidence: toArr(scopeParsed.on_scope_evidence),
-            key_tensions: toArr(scopeParsed.key_tensions),
-            off_scope_topics: toArr(scopeParsed.off_scope_topics),
-            drift_signatures: toArr(scopeParsed.drift_signatures),
-            example_ceiling: typeof scopeParsed.example_ceiling === 'string' ? scopeParsed.example_ceiling : '',
-            risk_level: validRiskLevels.includes(scopeParsed.risk_level as TopicScopeRiskLevel) ? scopeParsed.risk_level as TopicScopeRiskLevel : 'unspecified',
-            domain: typeof scopeParsed.domain === 'string' ? scopeParsed.domain : '',
-            product_type: typeof scopeParsed.product_type === 'string' ? scopeParsed.product_type : null,
-            time_horizon: typeof scopeParsed.time_horizon === 'string' ? scopeParsed.time_horizon : null,
-            excluded_scenarios: toArr(scopeParsed.excluded_scenarios),
-            explicit_qualifiers: toArr(scopeParsed.explicit_qualifiers),
-            constraint_confidence: scopeParsed.constraint_confidence === 'explicit' ? 'explicit' : 'inferred',
-          };
-          setTopicScope(scope);
-          const fresh = get().activeDebate;
-          if (fresh) {
-            set({ activeDebate: { ...fresh, topic: { ...fresh.topic, scope } } });
-            await get().saveDebate('extractTopicScope');
-          }
-          getGlobalRecorder()?.record({
-            type: 'topic_scope_extracted', debate_id: activeDebate?.id, component: 'debate-store', level: 'info',
-            message: `Topic scope extracted (${scope.constraint_confidence})`,
-            data: { core_proposition: scope.core_proposition, risk_level: scope.risk_level, off_scope_count: scope.off_scope_topics.length },
-          });
-        }
-      } catch (err) {
-        getGlobalRecorder()?.record({
-          type: 'system.error', debate_id: activeDebate?.id, component: 'debate-store', level: 'warn',
-          message: 'Topic scope extraction failed',
-          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-        });
-      }
-      set({ debateActivity: null });
-    } else {
-      setTopicScope(activeDebate.topic.scope);
-    }
+    await extractTopicScope(get, set, activeDebate, model, topic);
 
     // Use the user-configurable opening order (randomized at proceedToOpening).
     // Priority: Zustand state > persisted on debate object > default order.
@@ -1005,127 +1135,14 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
       });
     }
 
-    // Cache opening embeddings for position drift detection (non-blocking)
-    try {
-      const currentDebate = get().activeDebate;
-      if (currentDebate) {
-        const openingEmbeddings: Record<string, number[]> = {};
-        for (const entry of currentDebate.transcript) {
-          if (entry.type !== 'opening' || entry.speaker === 'system') continue;
-          try {
-            const result = await api.computeQueryEmbedding(entry.content.slice(0, 1000));
-            openingEmbeddings[entry.speaker] = result.vector;
-          } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: get().activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Opening embedding computation failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
-        }
-        // Store on session metadata for cross-respond access
-        if (Object.keys(openingEmbeddings).length > 0) {
-          const d = get().activeDebate;
-          if (d) {
-            if (!d.metadata) d.metadata = {};
-            d.metadata._openingEmbeddings = openingEmbeddings;
-            set({ activeDebate: { ...d } });
-          }
-        }
-      }
-    } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: get().activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Opening embeddings caching failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
+    await cacheOpeningEmbeddings(get, set);
 
     // Neutral evaluation: baseline checkpoint (after openings, before cross-respond)
     void runNeutralCheckpoint('baseline', get, set as any, addTranscriptEntry as Parameters<typeof runNeutralCheckpoint>[3]);
 
     await saveDebate('runOpeningStatements:end');
 
-    // Auto-run initial cross-respond rounds if configured
-    const { initialCrossRespondRounds } = get();
-    if (!activeDebate.user_is_pover) {
-      const freshDebate = get().activeDebate;
-      const adaptive = freshDebate?.adaptive_staging;
-      if (adaptive?.enabled) {
-        // Adaptive: run until phase transitions signal termination (up to maxTotalRounds)
-        const weights = loadProvisionalWeights();
-        const pacingPresetName = adaptive.pacing ?? 'moderate';
-        const pacingPreset = weights.pacing_presets[pacingPresetName] ?? weights.pacing_presets.moderate;
-        const maxRounds = pacingPreset?.maxTotalRounds ?? 12;
-        const loopDebateId = freshDebate?.id;
-        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'info', debate_id: loopDebateId, message: 'Adaptive loop started', data: { pacing: pacingPresetName, maxTotalRounds: maxRounds, argumentationExit: pacingPreset?.argumentationExit, concludingExit: pacingPreset?.concludingExit } });
-        let loopExitReason = 'maxRounds_exhausted';
-        let loopIterations = 0;
-        let consecutiveNoStatement = 0;
-        for (let i = 0; i < maxRounds; i++) {
-          loopIterations = i + 1;
-          const d = get().activeDebate;
-          if (!d) { loopExitReason = 'debate_null'; break; }
-          // Stop if phase reached termination
-          if (d.adaptive_staging?.phase_state?.current_phase === 'terminated') { loopExitReason = 'phase_terminated'; break; }
-          const preLen = d.transcript.length;
-          try {
-            await get().crossRespond();
-          } catch (loopErr) {
-            console.error(`[debate] Adaptive loop iteration ${i} failed:`, loopErr);
-            getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'error', debate_id: d.id, message: `Adaptive loop failed at iteration ${i}`, data: { iteration: i, error: String(loopErr), stack: (loopErr as Error).stack?.slice(0, 500) } });
-            if (isDailyLimitError(loopErr)) {
-              set({ debateError: DAILY_LIMIT_MESSAGE, dailyLimitPaused: true });
-              loopExitReason = 'daily_token_limit';
-            } else {
-              set({ debateError: `Cross-respond failed: ${(loopErr as Error).message?.slice(0, 200) ?? String(loopErr)}` });
-              loopExitReason = 'crossRespond_error';
-            }
-            break;
-          }
-          if (get().dailyLimitPaused) { loopExitReason = 'daily_token_limit'; break; }
-          const post = get().activeDebate;
-          if (!post) { loopExitReason = 'post_debate_null'; break; }
-          if (post.transcript.length === preLen) {
-            loopExitReason = `no_transcript_growth(preLen=${preLen},postLen=${post.transcript.length})`;
-            getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'warn', debate_id: loopDebateId, message: 'Loop break: no transcript growth', data: { iteration: i, preLen, postLen: post.transcript.length, phase: post.adaptive_staging?.phase_state?.current_phase } });
-            break;
-          }
-          // If only system entries were added (moderator deliberation, phase transitions,
-          // compression markers), continue — the debater didn't speak this iteration but
-          // the loop should not exit prematurely. Break only after 3 consecutive rounds
-          // without a debater statement to catch genuine stalls.
-          if (!post.transcript.slice(preLen).some(e => e.type === 'statement')) {
-            consecutiveNoStatement++;
-            const newEntryTypes = post.transcript.slice(preLen).map(e => e.type);
-            if (consecutiveNoStatement >= 3) {
-              loopExitReason = `consecutive_no_statement(count=${consecutiveNoStatement},types=${newEntryTypes.join(',')})`;
-              getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'warn', debate_id: loopDebateId, message: 'Loop break: 3 consecutive rounds without debater statement', data: { iteration: i, consecutiveNoStatement, preLen, postLen: post.transcript.length, newEntryTypes, phase: post.adaptive_staging?.phase_state?.current_phase } });
-              break;
-            }
-            getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'debug', debate_id: loopDebateId, message: 'No statement in new entries — continuing', data: { iteration: i, consecutiveNoStatement, newEntryTypes, phase: post.adaptive_staging?.phase_state?.current_phase } });
-            continue;
-          }
-          consecutiveNoStatement = 0;
-        }
-        // Log loop completion with full context
-        const finalDebate = get().activeDebate;
-        const finalPhase = finalDebate?.adaptive_staging?.phase_state?.current_phase;
-        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'info', debate_id: loopDebateId, message: `Adaptive loop ended: ${loopExitReason}`, data: { exit_reason: loopExitReason, iterations: loopIterations, maxRounds, final_phase: finalPhase, transcript_length: finalDebate?.transcript?.length, an_nodes: finalDebate?.argument_network?.nodes?.length } });
-        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: loopDebateId, message: 'debate.ended', data: { reason: 'adaptive_loop_complete', exit_reason: loopExitReason, iterations: loopIterations } });
-        // Always run synthesis when the loop exits with enough debater content.
-        // Normal path: phase reached 'terminated'. Abnormal: loop exhausted, consecutive
-        // system-only rounds, errors, etc. — still synthesize what we have.
-        const statementsInTranscript = finalDebate?.transcript.filter(e => e.type === 'statement').length ?? 0;
-        if (finalDebate && statementsInTranscript >= 3 && loopExitReason !== 'daily_token_limit') {
-          if (finalPhase !== 'terminated') {
-            getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'warn', debate_id: loopDebateId, message: `Forcing synthesis: loop exited before termination (${loopExitReason})`, data: { exit_reason: loopExitReason, iterations: loopIterations, maxRounds, final_phase: finalPhase, statements: statementsInTranscript } });
-          }
-          await get().requestSynthesis();
-        }
-      } else if (initialCrossRespondRounds > 0) {
-        for (let i = 0; i < initialCrossRespondRounds; i++) {
-          const d = get().activeDebate;
-          if (!d || get().dailyLimitPaused) break;
-          const preLen = d.transcript.length;
-          await get().crossRespond();
-          if (get().dailyLimitPaused) break;
-          const post = get().activeDebate;
-          if (!post || post.transcript.length === preLen) break;
-          const hasStatement = post.transcript.slice(preLen).some(e => e.type === 'statement');
-          const onlySystemEntries = post.transcript.slice(preLen).every(e => e.type === 'system');
-          if (!hasStatement && !onlySystemEntries) break;
-        }
-      }
-    }
+    await runInitialCrossRespondRounds(get, set, activeDebate);
   },
 
   submitUserOpening: async (statement: string) => {
