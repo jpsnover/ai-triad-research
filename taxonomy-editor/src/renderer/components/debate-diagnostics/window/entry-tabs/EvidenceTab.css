@@ -1,0 +1,365 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Static styles extracted from EvidenceTab.tsx (behavior-preserving migration). */
+
+.evid-root {
+  padding: 8px 10px;
+  flex: 1;
+  min-height: 200px;
+  overflow-y: auto;
+}
+
+.evid-empty {
+  padding: 12px 8px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.evid-summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.72rem;
+  margin-bottom: 6px;
+}
+
+.evid-summary-secondary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.72rem;
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+}
+
+.evid-summary-muted {
+  cursor: pointer;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.evid-meta-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.evid-parse-error {
+  padding: 4px 6px;
+  margin-bottom: 6px;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  border-left: 3px solid var(--danger);
+  border-radius: 3px;
+  font-size: var(--text-2xs);
+  color: var(--danger);
+}
+
+.evid-cards-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.evid-card {
+  flex: 1 1 90px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.evid-card-label {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.evid-card-value {
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: monospace;
+}
+
+.evid-details-mt {
+  margin-top: 8px;
+}
+
+.evid-mt2 {
+  margin-top: 2px;
+}
+
+.evid-fact {
+  margin-bottom: 6px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border-left: 3px solid var(--text-secondary);
+  background: var(--bg-subtle);
+}
+
+.evid-row-center-gap6 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+.evid-doc-link {
+  font-size: var(--text-2xs);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.evid-temporal {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.evid-claim {
+  font-size: var(--text-2xs);
+  line-height: 1.35;
+}
+
+.evid-linked-nodes {
+  font-size: var(--text-2xs);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.evid-verbatim {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 2px;
+  border-left: 2px solid var(--border);
+  padding-left: 6px;
+}
+
+.evid-raw-pre {
+  font-size: var(--text-2xs);
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow: auto;
+}
+
+.evid-empty-cite {
+  font-size: var(--text-2xs);
+  color: var(--danger);
+  padding: 4px 6px;
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  border-radius: 3px;
+}
+
+.evid-bold600 {
+  font-weight: 600;
+}
+
+.evid-table {
+  width: 100%;
+  font-size: var(--text-2xs);
+  border-collapse: collapse;
+}
+
+.evid-thead-row {
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.evid-th-left {
+  text-align: left;
+  padding: 2px 4px;
+}
+
+.evid-th-center {
+  text-align: center;
+  padding: 2px 4px;
+}
+
+.evid-td-source {
+  padding: 3px 4px;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evid-td-title {
+  padding: 3px 4px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evid-td-center {
+  text-align: center;
+  padding: 3px 4px;
+}
+
+.evid-cite-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.evid-muted-2xs {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.evid-provenance {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.evid-ungrounded-note {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.evid-ungrounded-item {
+  margin-bottom: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border-left: 3px solid var(--text-secondary);
+  background: color-mix(in srgb, var(--text-secondary) 6%, transparent);
+  font-size: var(--text-2xs);
+}
+
+.evid-funnel-wrap {
+  margin-bottom: 6px;
+}
+
+.evid-funnel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: var(--text-2xs);
+}
+
+.evid-funnel-label {
+  width: 70px;
+  text-align: right;
+  color: var(--text-muted);
+}
+
+.evid-funnel-track {
+  flex: 1;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--bg-primary);
+}
+
+.evid-funnel-count {
+  font-family: monospace;
+  font-weight: 600;
+  min-width: 30px;
+}
+
+.evid-reasons-row {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  padding-left: 78px;
+}
+
+.evid-reason-chip {
+  font-size: var(--text-2xs);
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.evid-delta-cards {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: var(--text-2xs);
+  margin-bottom: 8px;
+}
+
+.evid-delta-card {
+  flex: 1 1 120px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+}
+
+.evid-mono700 {
+  font-family: monospace;
+  font-weight: 700;
+}
+
+.evid-nodes-added {
+  font-size: var(--text-2xs);
+  color: var(--text-secondary);
+  margin-top: 2px;
+  word-break: break-all;
+}
+
+.evid-edges-sub {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.evid-success {
+  color: var(--success);
+}
+
+.evid-danger {
+  color: var(--danger);
+}
+
+.evid-edges-list {
+  font-size: var(--text-2xs);
+}
+
+.evid-edge-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.evid-edge-node {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.evid-scheme-chip {
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: var(--text-2xs);
+  background: color-mix(in srgb, var(--text-secondary) 12%, transparent);
+  color: var(--text-secondary);
+}
+
+.evid-edge-text {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.evid-warrant {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 1px;
+  padding-left: 4px;
+  border-left: 1px solid var(--border);
+}

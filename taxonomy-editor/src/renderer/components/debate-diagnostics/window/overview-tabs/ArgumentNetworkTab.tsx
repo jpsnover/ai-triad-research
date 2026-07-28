@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import React, { useState, useMemo } from 'react';
+import './ArgumentNetworkTab.css';
 import type { DebateSession, ArgumentNetworkNode, ArgumentNetworkEdge } from '../../../../types/debate';
 import type { WeightHistoryEntry } from '../../../../types/taxonomy';
 import { computeQbafStrengths } from '@lib/debate/qbaf';
@@ -128,25 +129,25 @@ export function ArgumentNetworkTab({
   const [allExpanded, setAllExpanded] = useState(false);
 
   return (
-    <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+    <div className="ant-root">
       <ArgNetMinimap nodes={an.nodes} edges={an.edges} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+      <div className="ant-header-row">
+        <span className="ant-header-summary">
           {an.nodes.length} I-nodes · {caCount} CA · {raCount} RA{modCount > 0 ? ` · ${modCount} moderator decisions` : ''}
         </span>
         <button
           onClick={() => setAllExpanded(!allExpanded)}
-          style={{ marginLeft: 'auto', fontSize: 'var(--text-2xs)', padding: '2px 6px', borderRadius: 3, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', cursor: 'pointer' }}
+          className="ant-expand-btn"
         >
           {allExpanded ? 'Collapse All' : 'Expand All'}
         </button>
       </div>
       {/* AN claim filter bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap', fontSize: 'var(--text-2xs)' }}>
+      <div className="ant-filter-bar">
         <select
           value={anFilterMode}
           onChange={e => setAnFilterMode(e.target.value as typeof anFilterMode)}
-          style={{ fontSize: 'var(--text-2xs)', padding: '2px 4px', borderRadius: 4, background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color, rgba(255,255,255,0.1))' }}
+          className="ant-filter-select"
         >
           <option value="all">All claims</option>
           <option value="unattributed">Unattributed only</option>
@@ -158,14 +159,14 @@ export function ArgumentNetworkTab({
           placeholder="Filter by node ID…"
           value={anFilterNodeId}
           onChange={e => setAnFilterNodeId(e.target.value)}
-          style={{ fontSize: 'var(--text-2xs)', padding: '2px 6px', borderRadius: 4, background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color, rgba(255,255,255,0.1))', width: 140 }}
+          className="ant-filter-input"
         />
         {isFiltered && (
-          <span style={{ color: 'var(--text-muted)' }}>
+          <span className="ant-muted">
             {filteredNodeCount}/{an.nodes.length} shown
             <button
               onClick={() => { setAnFilterMode('all'); setAnFilterNodeId(''); }}
-              style={{ marginLeft: 4, cursor: 'pointer', background: 'none', border: 'none', color: 'var(--color-saf)', fontSize: 'var(--text-2xs)', padding: 0 }}
+              className="ant-clear-btn"
             >clear</button>
           </span>
         )}
@@ -178,55 +179,47 @@ export function ArgumentNetworkTab({
           {/* Source statement header */}
           {srcEntry && groupNodes.length > 0 && (
             <div
-              style={{
-                margin: '10px 0 2px', padding: '4px 8px', borderRadius: 4,
-                background: 'color-mix(in srgb, var(--color-saf) 6%, transparent)', borderLeft: '3px solid color-mix(in srgb, var(--color-saf) 40%, transparent)',
-                fontSize: 'var(--text-2xs)', color: 'var(--text-secondary)',
-                cursor: 'pointer',
-              }}
+              className="ant-src-header"
               onClick={() => { setOverviewTab('transcript'); setSelectedEntry(entryId); setLocalOverride(true); }}
               title={`Go to ${stmtId ?? entryId} in transcript`}
             >
-              <span style={{ fontWeight: 700, color: 'var(--color-saf)', marginRight: 6 }}>{stmtId ?? entryId}</span>
-              <span style={{ fontWeight: 600, marginRight: 6 }}>{speakerLabel(srcEntry.speaker)}</span>
-              <span style={{ color: 'var(--text-muted)' }}>
+              <span className="ant-stmt-id">{stmtId ?? entryId}</span>
+              <span className="ant-speaker">{speakerLabel(srcEntry.speaker)}</span>
+              <span className="ant-muted">
                 {srcEntry.content.length > 200 ? srcEntry.content.slice(0, 200) + '…' : srcEntry.content}
               </span>
             </div>
           )}
           {/* Moderator deliberation banner */}
           {trace && (
-            <div style={{
-              margin: '8px 0 4px', padding: '6px 10px', borderRadius: 6,
-              background: 'color-mix(in srgb, var(--color-acc) 8%, transparent)', borderLeft: '3px solid var(--color-acc)',
-              fontSize: 'var(--text-2xs)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <span style={{ fontWeight: 700, color: 'var(--color-acc)', fontSize: 'var(--text-2xs)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Moderator</span>
-                <span style={{ fontWeight: 600 }}>→ {speakerLabel(trace.selected)}</span>
+            <div className="ant-mod-banner">
+              <div className="ant-mod-row">
+                <span className="ant-mod-label">Moderator</span>
+                <span className="ant-bold">→ {speakerLabel(trace.selected)}</span>
                 {trace.selection_reason && (
-                  <span style={{ padding: '1px 5px', borderRadius: 3, background: 'color-mix(in srgb, var(--color-acc) 15%, transparent)', color: 'var(--color-acc)', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>
+                  <span className="ant-reason-chip">
                     {trace.selection_reason.replace(/_/g, ' ')}
                   </span>
                 )}
                 {trace.recent_scheme && (
-                  <span style={{ padding: '1px 5px', borderRadius: 3, background: 'color-mix(in srgb, var(--text-secondary) 15%, transparent)', color: 'var(--text-secondary)', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>
+                  <span className="ant-scheme-chip">
                     {trace.recent_scheme}
                   </span>
                 )}
                 {trace.convergence_score != null && (
-                  <span style={{ color: 'var(--text-muted)' }}>
+                  <span className="ant-muted">
                     conv: {(trace.convergence_score * 100).toFixed(0)}%
-                    {trace.convergence_triggered && <span style={{ color: 'var(--success)', marginLeft: 3, fontWeight: 700 }}>triggered</span>}
+                    {trace.convergence_triggered && <span className="ant-triggered">triggered</span>}
                   </span>
                 )}
               </div>
-              <div style={{ marginTop: 3, color: 'var(--text-muted)' }}>
+              <div className="ant-focus-line">
                 <strong>Focus:</strong> <Highlight text={trace.focus_point} />
               </div>
               {trace.candidates && trace.candidates.length > 0 && (
-                <div style={{ marginTop: 3, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <div className="ant-candidates">
                   {trace.candidates.map((c, i) => (
+                    // eslint-disable-next-line local/no-inline-style -- opacity/fontWeight are data-driven (selected candidate)
                     <span key={i} style={{
                       fontSize: 'var(--text-2xs)',
                       opacity: c.debater === trace.selected ? 1 : 0.6,
@@ -309,7 +302,7 @@ function ArgNetMinimap({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: 
 
   if (nodes.length > MINIMAP_DEGRADE_CEILING) {
     return (
-      <div style={{ padding: '6px 10px', marginBottom: 8, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
+      <div className="ant-minimap-toolarge">
         Network too large for minimap ({nodes.length} nodes, {edges.length} edges)
       </div>
     );
@@ -320,7 +313,8 @@ function ArgNetMinimap({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: 
   const { W, H, positions } = layout;
 
   return (
-    <div style={{ marginBottom: 8, textAlign: 'center' }}>
+    <div className="ant-minimap-wrap">
+      {/* eslint-disable-next-line local/no-inline-style -- height is computed from layout dimensions */}
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: 360, height: H }}>
         {edges.map((e, i) => {
           const s = positions.get(e.source);
@@ -342,18 +336,19 @@ function ArgNetMinimap({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: 
           );
         })}
       </svg>
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 12, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
+      <div className="ant-legend">
         {layout.speakers.map(s => (
-          <span key={s} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <span key={s} className="ant-legend-item">
+            {/* eslint-disable-next-line local/no-inline-style -- background is data-driven per speaker */}
             <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: MINIMAP_SPEAKER_COLORS[s] ?? 'var(--text-muted)' }} />
             {speakerLabel(s)}
           </span>
         ))}
-        <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--danger, var(--danger))' }} /> attack
+        <span className="ant-legend-item">
+          <span className="ant-legend-attack" /> attack
         </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--success, var(--success))' }} /> support
+        <span className="ant-legend-item">
+          <span className="ant-legend-support" /> support
         </span>
       </div>
     </div>
@@ -393,27 +388,28 @@ function ConfidenceImpactTrace({ debateId }: { debateId: string }) {
   }
   if (impacts.length === 0) return null;
   return (
-    <div style={{ marginTop: 12, padding: '8px 10px', borderRadius: 6, background: 'color-mix(in srgb, var(--success) 6%, transparent)', borderLeft: '3px solid var(--success)' }}>
-      <div style={{ fontWeight: 700, fontSize: 'var(--text-2xs)', color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+    <div className="ant-impact">
+      <div className="ant-impact-title">
         Confidence Impact ({impacts.length})
       </div>
       {impacts.map((imp, i) => {
         const deltaColor = imp.entry.delta > 0 ? 'var(--success)' : imp.entry.delta < 0 ? 'var(--danger)' : 'var(--text-muted)';
         return (
-          <div key={i} style={{ fontSize: 'var(--text-2xs)', marginBottom: 3, display: 'flex', gap: 6, alignItems: 'baseline', flexWrap: 'wrap' }}>
-            <code style={{ fontSize: 'var(--text-2xs)', background: 'var(--bg-secondary)', padding: '0 3px', borderRadius: 2 }}>{imp.nodeId}</code>
-            <span style={{ color: 'var(--text-muted)' }}>{imp.label.length > 40 ? imp.label.slice(0, 40) + '…' : imp.label}</span>
-            <span style={{ fontWeight: 700 }}>{imp.entry.value.toFixed(2)}</span>
+          <div key={i} className="ant-impact-row">
+            <code className="ant-impact-code">{imp.nodeId}</code>
+            <span className="ant-muted">{imp.label.length > 40 ? imp.label.slice(0, 40) + '…' : imp.label}</span>
+            <span className="ant-value">{imp.entry.value.toFixed(2)}</span>
+            {/* eslint-disable-next-line local/no-inline-style -- color is data-driven from delta sign */}
             <span style={{ color: deltaColor, fontWeight: 600 }}>
               {imp.entry.delta > 0 ? '+' : ''}{imp.entry.delta.toFixed(2)}
             </span>
             {imp.entry.attack_claim && (
-              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }} title={imp.entry.attack_claim}>
+              <span className="ant-attack-claim" title={imp.entry.attack_claim}>
                 ← {imp.entry.attack_claim.length > 50 ? imp.entry.attack_claim.slice(0, 50) + '…' : imp.entry.attack_claim}
               </span>
             )}
             {imp.entry.robustness != null && imp.entry.robustness >= 2 && (
-              <span style={{ fontSize: 'var(--text-2xs)', padding: '0 4px', borderRadius: 3, background: 'color-mix(in srgb, var(--success) 15%, transparent)', color: 'var(--success)', fontWeight: 600 }}>
+              <span className="ant-robust-chip">
                 {imp.entry.robustness}× confirmed
               </span>
             )}

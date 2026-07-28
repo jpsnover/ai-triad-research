@@ -1,0 +1,258 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Co-located styles for BriefTab. Static styles migrated from inline `style={{}}`
+   to reduce local/no-inline-style ESLint warnings. Values preserved exactly. */
+
+.brief-container {
+  padding: 8px 10px;
+  flex: 1;
+  min-height: 200px;
+  overflow-y: auto;
+}
+
+.brief-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.brief-badge {
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--color-saf) 20%, transparent);
+  color: var(--color-saf);
+  font-weight: 600;
+}
+
+.brief-parse-error {
+  padding: 6px 8px;
+  margin: 6px 0;
+  background: rgba(220, 38, 38, 0.1);
+  border-left: 3px solid var(--danger);
+  border-radius: 4px;
+  font-size: 0.72rem;
+  color: var(--danger);
+}
+
+.brief-directive {
+  padding: 8px;
+  margin: 6px 0;
+  border-left: 3px solid color-mix(in srgb, var(--warning) 60%, transparent);
+  background: color-mix(in srgb, var(--warning) 8%, transparent);
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.brief-directive-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.brief-directive-badge {
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--warning) 20%, transparent);
+  color: var(--warning);
+  font-weight: 600;
+  font-size: var(--text-2xs);
+}
+
+.brief-mb4 {
+  margin-bottom: 4px;
+}
+
+.brief-mb3 {
+  margin-bottom: 3px;
+}
+
+.brief-situation {
+  padding: 8px;
+  margin: 6px 0;
+  border-left: 3px solid color-mix(in srgb, var(--color-saf) 40%, transparent);
+  background: color-mix(in srgb, var(--color-saf) 5%, transparent);
+  font-size: 0.78rem;
+}
+
+.brief-summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.72rem;
+  margin: 6px 0;
+}
+
+.brief-list {
+  font-size: 0.72rem;
+  margin: 4px 0;
+  padding-left: 16px;
+}
+
+.brief-table {
+  width: 100%;
+  font-size: 0.7rem;
+  border-collapse: collapse;
+}
+
+.brief-thead-row {
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.brief-th {
+  padding: 3px 6px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.brief-th-w60 {
+  width: 60px;
+}
+
+.brief-th-w70 {
+  width: 70px;
+}
+
+.brief-td {
+  padding: 3px 6px;
+  vertical-align: top;
+}
+
+.brief-td-nowrap {
+  padding: 3px 6px;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.brief-td-did {
+  padding: 3px 6px;
+  vertical-align: top;
+  font-family: monospace;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+.brief-td-why {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+}
+
+.brief-tr-border {
+  border-bottom: 1px solid var(--border);
+}
+
+.brief-td-grounding {
+  padding: 0 6px 3px 20px;
+}
+
+.brief-phase {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+  font-style: italic;
+}
+
+.brief-turn-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 6px;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.brief-turn-rule {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.brief-valbox {
+  margin-top: 6px;
+  background: var(--bg-subtle);
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 0.7rem;
+}
+
+.brief-valbox-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.brief-valdims {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: var(--text-2xs);
+}
+
+.brief-valfooter {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 3px;
+  font-size: var(--text-2xs);
+  display: flex;
+  gap: 12px;
+}
+
+.brief-muted {
+  color: var(--text-muted);
+}
+
+.brief-valscore {
+  margin-top: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.brief-feedback {
+  margin-top: 4px;
+  font-size: 0.72rem;
+}
+
+.brief-feedback-summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.brief-feedback-list {
+  margin: 4px 0 0 16px;
+  padding: 0;
+  font-size: 0.7rem;
+}
+
+.brief-grounding-list {
+  margin: 2px 0 4px;
+  padding-left: 14px;
+  list-style: none;
+}
+
+.brief-taxref-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--accent);
+  text-decoration: underline;
+  font-family: monospace;
+  font-size: inherit;
+}
+
+.brief-grounding-label {
+  margin-left: 6px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.brief-grounding-why {
+  margin-top: 1px;
+  color: var(--text-muted);
+}

@@ -6,6 +6,7 @@ import { humanizeSpeakerIds } from '../../../../utils/humanizeSpeakers';
 import { Highlight, CopyButton } from '../helpers';
 import { classifyHintTarget, HINT_TARGET_STYLE } from '../shared';
 import { TaxonomyRefDetail, type TaxRefNode, type TaxRefEdge } from '../../../taxonomy/TaxonomyRefDetail';
+import './PlanTab.css';
 
 export interface PlanTabProps {
   planStage: any;
@@ -19,23 +20,23 @@ export interface PlanTabProps {
 export function PlanTab(props: PlanTabProps) {
   const { planStage, planAttempts, taxNodeMap, allEdges, selectedTaxRefId, setSelectedTaxRefId } = props;
   return (
-    <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+    <div className="plan-root">
       {/* -- Top section: header + content from final plan -- */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-        <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--color-skp) 20%, transparent)', color: 'var(--color-skp)', fontWeight: 600 }}>PLAN</span>
+      <div className="plan-header">
+        <span className="plan-badge">PLAN</span>
         <span>{planStage.model}</span>
         <span>temp={planStage.temperature}</span>
         <span>{(planStage.response_time_ms / 1000).toFixed(1)}s</span>
       </div>
       {/* Parse error banner */}
       {planStage.parse_error && (
-        <div style={{ padding: '6px 8px', margin: '6px 0', background: 'rgba(220,38,38,0.1)', borderLeft: '3px solid var(--danger)', borderRadius: 4, fontSize: '0.72rem', color: 'var(--danger)' }}>
+        <div className="plan-parse-error">
           <strong>Parse error:</strong> {planStage.parse_error}
         </div>
       )}
       {/* Empty work_product fallback */}
       {!planStage.parse_error && planStage.work_product && Object.keys(planStage.work_product).length === 0 && (
-        <div style={{ padding: '6px 8px', margin: '6px 0', background: 'color-mix(in srgb, var(--warning) 10%, transparent)', borderLeft: '3px solid var(--warning)', borderRadius: 4, fontSize: '0.72rem', color: 'var(--warning)' }}>
+        <div className="plan-empty-warning">
           No structured plan data — expand Raw Response below to inspect the model output.
         </div>
       )}
@@ -50,11 +51,11 @@ export function PlanTab(props: PlanTabProps) {
         const hints = hintLines.map((l: string) => l.trim().slice(2));
         return (
           <details open>
-            <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--danger) 15%, transparent)', color: 'var(--danger)', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>OPPONENT INTELLIGENCE</span>
-              <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontWeight: 400 }}>{hints.length} hint{hints.length !== 1 ? 's' : ''}</span>
+            <summary className="plan-oi-summary">
+              <span className="plan-oi-badge">OPPONENT INTELLIGENCE</span>
+              <span className="plan-oi-count">{hints.length} hint{hints.length !== 1 ? 's' : ''}</span>
             </summary>
-            <div style={{ padding: '4px 8px', fontSize: '0.72rem' }}>
+            <div className="plan-oi-body">
               {hints.map((h: string, i: number) => {
                 const isTrap = h.includes('asserted') && h.includes('conceded');
                 const isGap = h.includes('sparse coverage') || h.includes('knowledge gap');
@@ -62,7 +63,9 @@ export function PlanTab(props: PlanTabProps) {
                 const typeLabel = isTrap ? 'TRAP' : isGap ? 'GAP' : isShift ? 'SHIFT' : 'HINT';
                 const typeColor = isTrap ? 'var(--danger)' : isGap ? 'var(--warning)' : isShift ? 'var(--text-secondary)' : 'var(--text-muted)';
                 return (
+                  // eslint-disable-next-line local/no-inline-style -- dynamic borderLeft color from typeColor
                   <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: `2px solid ${typeColor}40` }}>
+                    {/* eslint-disable-next-line local/no-inline-style -- dynamic background/color from typeColor */}
                     <span style={{ display: 'inline-block', padding: '0 4px', borderRadius: 3, background: `${typeColor}15`, color: typeColor, fontSize: 'var(--text-2xs)', fontWeight: 600, marginRight: 6 }}>{typeLabel}</span>
                     <Highlight text={h} />
                   </div>
@@ -79,13 +82,13 @@ export function PlanTab(props: PlanTabProps) {
         const dr = wp.directive_response as { directive: string; how_addressed: string } | undefined;
         if (!drp && !dr) return null;
         return (
-          <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid color-mix(in srgb, var(--warning) 60%, transparent)', background: 'color-mix(in srgb, var(--warning) 8%, transparent)', borderRadius: 4, fontSize: '0.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--warning) 20%, transparent)', color: 'var(--warning)', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>MODERATOR DIRECTIVE</span>
+          <div className="plan-directive">
+            <div className="plan-directive-head">
+              <span className="plan-directive-badge">MODERATOR DIRECTIVE</span>
             </div>
             {dr && (
               <>
-                <div style={{ marginBottom: 4 }}><strong>Directive:</strong> <Highlight text={dr.directive} /></div>
+                <div className="plan-mb4"><strong>Directive:</strong> <Highlight text={dr.directive} /></div>
                 <div><strong>How addressed:</strong> <Highlight text={dr.how_addressed} /></div>
               </>
             )}
@@ -95,26 +98,27 @@ export function PlanTab(props: PlanTabProps) {
       })()}
       {/* Strategic Goal */}
       {!!(planStage.work_product as Record<string, unknown>).strategic_goal && (
-        <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid color-mix(in srgb, var(--color-skp) 40%, transparent)', background: 'color-mix(in srgb, var(--color-skp) 5%, transparent)', fontSize: '0.78rem', fontWeight: 600 }}>
+        <div className="plan-strategic-goal">
           <Highlight text={String((planStage.work_product as Record<string, unknown>).strategic_goal)} />
         </div>
       )}
       {/* Core Thesis */}
       {!!(planStage.work_product as Record<string, unknown>).core_thesis && (
-        <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid color-mix(in srgb, var(--color-skp) 40%, transparent)', background: 'color-mix(in srgb, var(--color-skp) 5%, transparent)', fontSize: '0.78rem' }}>
-          <span style={{ fontWeight: 600, fontSize: '0.7rem' }}>Core Thesis: </span>
+        <div className="plan-core-thesis">
+          <span className="plan-label">Core Thesis: </span>
           <Highlight text={String((planStage.work_product as Record<string, unknown>).core_thesis)} />
         </div>
       )}
       {/* Framing Choices */}
       {!!(planStage.work_product as Record<string, unknown>).framing_choices && (
-        <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid color-mix(in srgb, var(--color-skp) 30%, transparent)', fontSize: '0.72rem' }}>
-          <span style={{ fontWeight: 600, fontSize: '0.7rem' }}>Framing: </span>
+        <div className="plan-framing">
+          <span className="plan-label">Framing: </span>
           {Array.isArray((planStage.work_product as Record<string, unknown>).framing_choices)
             ? ((planStage.work_product as Record<string, unknown>).framing_choices as { frame: string; why: string }[]).map((fc, i) => (
+              // eslint-disable-next-line local/no-inline-style -- dynamic marginTop from index
               <div key={i} style={{ marginTop: i > 0 ? 6 : 2 }}>
                 <strong>{fc.frame}</strong>
-                {fc.why && <span style={{ opacity: 0.7 }}> — {fc.why}</span>}
+                {fc.why && <span className="plan-why"> — {fc.why}</span>}
               </div>
             ))
             : <Highlight text={String((planStage.work_product as Record<string, unknown>).framing_choices)} />
@@ -123,31 +127,31 @@ export function PlanTab(props: PlanTabProps) {
       )}
       {/* Planned Moves */}
       {Array.isArray((planStage.work_product as Record<string, unknown>).planned_moves) && (
-        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Planned Moves</summary>
+        <details open><summary className="plan-section-summary">Planned Moves</summary>
           {((planStage.work_product as Record<string, unknown>).planned_moves as { move: string; target?: string; detail: string }[]).map((m, i) => (
-            <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid color-mix(in srgb, var(--color-skp) 30%, transparent)' }}>
-              <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--color-skp) 20%, transparent)', color: 'var(--color-skp)', fontSize: '0.7rem', fontWeight: 600 }}>{m.move}</span>
-              {m.target && <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{'→'} {m.target}</span>}
-              {m.detail && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}><Highlight text={m.detail} /></div>}
+            <div key={i} className="plan-move">
+              <span className="plan-move-badge">{m.move}</span>
+              {m.target && <span className="plan-move-target">{'→'} {m.target}</span>}
+              {m.detail && <div className="plan-detail-text"><Highlight text={m.detail} /></div>}
             </div>
           ))}
         </details>
       )}
       {/* Argumentation Structure */}
       {Array.isArray((planStage.work_product as Record<string, unknown>).argument_structure) && ((planStage.work_product as Record<string, unknown>).argument_structure as { point: string; evidence: string; taxonomy_anchor: string }[]).length > 0 && (
-        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Argumentation Structure</summary>
+        <details open><summary className="plan-section-summary">Argumentation Structure</summary>
           {((planStage.work_product as Record<string, unknown>).argument_structure as { point: string; evidence: string; taxonomy_anchor: string }[]).map((s, i) => (
-            <div key={i} style={{ margin: '4px 0', padding: '6px 8px', borderLeft: '2px solid color-mix(in srgb, var(--color-skp) 30%, transparent)', background: 'color-mix(in srgb, var(--color-skp) 3%, transparent)', borderRadius: '0 4px 4px 0' }}>
-              <div style={{ fontSize: '0.72rem', fontWeight: 600 }}><Highlight text={s.point} /></div>
-              {s.evidence && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}><Highlight text={s.evidence} /></div>}
+            <div key={i} className="plan-arg">
+              <div className="plan-arg-point"><Highlight text={s.point} /></div>
+              {s.evidence && <div className="plan-detail-text"><Highlight text={s.evidence} /></div>}
               {s.taxonomy_anchor && (
-                <div style={{ marginTop: 3 }}>
-                  <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Anchor: </span>
+                <div className="plan-mt3">
+                  <span className="plan-muted-2xs">Anchor: </span>
                   <button
                     onClick={() => setSelectedTaxRefId(selectedTaxRefId === s.taxonomy_anchor ? null : s.taxonomy_anchor)}
-                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'var(--text-2xs)' }}
+                    className="plan-anchor-btn"
                   >{s.taxonomy_anchor}</button>
-                  {(() => { const lbl = (taxNodeMap.get(s.taxonomy_anchor!) as TaxRefNode | undefined)?.label; return lbl ? <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}> — {lbl}</span> : null; })()}
+                  {(() => { const lbl = (taxNodeMap.get(s.taxonomy_anchor!) as TaxRefNode | undefined)?.label; return lbl ? <span className="plan-muted-2xs"> — {lbl}</span> : null; })()}
                 </div>
               )}
             </div>
@@ -156,16 +160,16 @@ export function PlanTab(props: PlanTabProps) {
       )}
       {/* Argument Sketch */}
       {!!(planStage.work_product as Record<string, unknown>).argument_sketch && (
-        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Argument Sketch</summary>
-          <div style={{ fontSize: '0.72rem', padding: 6, background: 'color-mix(in srgb, var(--text-muted) 5%, transparent)', borderRadius: 4 }}>
+        <details open><summary className="plan-section-summary">Argument Sketch</summary>
+          <div className="plan-sketch">
             <Highlight text={String((planStage.work_product as Record<string, unknown>).argument_sketch)} />
           </div>
         </details>
       )}
       {/* Anticipated Responses */}
       {Array.isArray((planStage.work_product as Record<string, unknown>).anticipated_responses) && ((planStage.work_product as Record<string, unknown>).anticipated_responses as string[]).length > 0 && (
-        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Anticipated Responses</summary>
-          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
+        <details open><summary className="plan-section-summary">Anticipated Responses</summary>
+          <ul className="plan-list">
             {((planStage.work_product as Record<string, unknown>).anticipated_responses as string[]).map((r, i) => (
               <li key={i}><Highlight text={r} /></li>
             ))}
@@ -174,8 +178,8 @@ export function PlanTab(props: PlanTabProps) {
       )}
       {/* Anticipated Challenges */}
       {Array.isArray((planStage.work_product as Record<string, unknown>).anticipated_challenges) && ((planStage.work_product as Record<string, unknown>).anticipated_challenges as string[]).length > 0 && (
-        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Anticipated Challenges</summary>
-          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
+        <details open><summary className="plan-section-summary">Anticipated Challenges</summary>
+          <ul className="plan-list">
             {((planStage.work_product as Record<string, unknown>).anticipated_challenges as string[]).map((r, i) => (
               <li key={i}><Highlight text={r} /></li>
             ))}
@@ -192,33 +196,32 @@ export function PlanTab(props: PlanTabProps) {
           <div key={ai}>
             {/* Attempt separator — omit for single attempt */}
             {!isSingle && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0 6px',
-                fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontWeight: 600,
-              }}>
-                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+              <div className="plan-attempt-sep">
+                <div className="plan-sep-line" />
                 <span>Attempt {ai + 1}{isFinal ? ' (accepted)' : ' (rejected)'}</span>
-                <span style={{ fontWeight: 400 }}>{(attempt.response_time_ms / 1000).toFixed(1)}s</span>
-                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                <span className="plan-fw400">{(attempt.response_time_ms / 1000).toFixed(1)}s</span>
+                <div className="plan-sep-line" />
               </div>
             )}
             {/* Raw Prompt */}
+            {/* eslint-disable-next-line local/no-inline-style -- dynamic marginTop from isSingle */}
             <details style={{ marginTop: isSingle ? 8 : 4 }}>
-              <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <summary className="plan-raw-summary">
                 Raw Prompt <CopyButton text={attempt.prompt} />
               </summary>
-              <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.prompt}</pre>
+              <pre className="plan-raw-pre">{attempt.prompt}</pre>
             </details>
             {/* Raw Response */}
             <details>
-              <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <summary className="plan-raw-summary">
                 Raw Response <CopyButton text={attempt.raw_response} />
               </summary>
-              <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.raw_response}</pre>
+              <pre className="plan-raw-pre">{attempt.raw_response}</pre>
             </details>
             {/* Validation pass/fail + per-rule details */}
             {valData && (
-              <div style={{ marginTop: 4, fontSize: '0.7rem' }}>
+              <div className="plan-val">
+                {/* eslint-disable-next-line local/no-inline-style -- dynamic color/background from valData.pass */}
                 <span style={{
                   display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '1px 6px',
                   borderRadius: 3, marginRight: 6,
@@ -227,13 +230,14 @@ export function PlanTab(props: PlanTabProps) {
                 }}>{valData.pass ? '✓ Pass' : '✗ Fail'}</span>
                 {/* Per-rule details (Plan stage) */}
                 {(valData as unknown as { details?: { rule: string; pass: boolean; value?: string }[] }).details && (
-                  <table style={{ marginTop: 4, fontSize: 'var(--text-2xs)', borderCollapse: 'collapse' }}>
+                  <table className="plan-val-table">
                     <tbody>
                       {(valData as unknown as { details: { rule: string; pass: boolean; value?: string }[] }).details.map((d, di) => (
                         <tr key={di}>
+                          {/* eslint-disable-next-line local/no-inline-style -- dynamic color from d.pass */}
                           <td style={{ padding: '1px 4px 1px 0', color: d.pass ? 'var(--success)' : 'var(--danger)', width: 14 }}>{d.pass ? '✓' : '✗'}</td>
-                          <td style={{ padding: '1px 6px 1px 0', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{d.rule}</td>
-                          <td style={{ padding: '1px 0', color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)', fontSize: 'var(--text-2xs)', whiteSpace: 'nowrap' }}>{d.value ?? ''}</td>
+                          <td className="plan-val-rule">{d.rule}</td>
+                          <td className="plan-val-value">{d.value ?? ''}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -242,14 +246,15 @@ export function PlanTab(props: PlanTabProps) {
               </div>
             )}
             {hints.length > 0 && (
-              <details open style={{ marginTop: 4, fontSize: '0.72rem' }}>
-                <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Validation Feedback</summary>
-                <ul style={{ margin: '4px 0 0 16px', padding: 0, fontSize: '0.7rem' }}>
+              <details open className="plan-val-feedback">
+                <summary className="plan-feedback-summary">Validation Feedback</summary>
+                <ul className="plan-feedback-list">
                   {hints.map((h, hi) => {
                     const target = classifyHintTarget(h);
                     const ts = HINT_TARGET_STYLE[target];
                     return (
-                      <li key={hi} style={{ marginBottom: 3 }}>
+                      <li key={hi} className="plan-mb3">
+                        {/* eslint-disable-next-line local/no-inline-style -- dynamic color/background from ts */}
                         <span style={{
                           display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
                           color: ts.color, background: ts.bg, padding: '1px 5px',

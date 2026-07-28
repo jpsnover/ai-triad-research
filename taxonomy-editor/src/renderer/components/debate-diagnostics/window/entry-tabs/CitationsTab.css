@@ -1,0 +1,203 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+.ctn-root {
+  padding: 8px 10px;
+  flex: 1;
+  min-height: 200px;
+  overflow-y: auto;
+}
+
+.ctn-empty {
+  padding: 12px 8px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.ctn-cards {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.ctn-card {
+  flex: 1 1 100px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.ctn-card-label {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.ctn-details {
+  margin-top: 8px;
+}
+
+.ctn-details-sm {
+  margin-top: 2px;
+}
+
+.ctn-summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.72rem;
+  margin-bottom: 6px;
+}
+
+.ctn-summary-more {
+  cursor: pointer;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.ctn-match-card {
+  margin-bottom: 6px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border-left: 3px solid var(--success);
+  background: var(--bg-subtle);
+}
+
+.ctn-match-text {
+  font-size: var(--text-2xs);
+  font-family: monospace;
+  margin-bottom: 3px;
+  color: var(--success);
+}
+
+.ctn-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-2xs);
+}
+
+.ctn-fw600 {
+  font-weight: 600;
+}
+
+.ctn-fw700 {
+  font-weight: 700;
+}
+
+.ctn-muted {
+  color: var(--text-muted);
+}
+
+.ctn-sub-muted {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.ctn-fab-card {
+  margin-bottom: 6px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border-left: 3px solid var(--danger);
+  background: var(--bg-subtle);
+}
+
+.ctn-fab-text {
+  font-size: var(--text-2xs);
+  font-family: monospace;
+  margin-bottom: 3px;
+  color: var(--danger);
+}
+
+.ctn-replacement {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 3px;
+}
+
+.ctn-bank-src {
+  font-size: var(--text-2xs);
+  padding: 2px 0;
+  color: var(--color-saf);
+}
+
+.ctn-tc-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+  font-size: var(--text-2xs);
+}
+
+.ctn-empty-badge {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
+  color: var(--warning);
+}
+
+.ctn-tc-line {
+  font-size: var(--text-2xs);
+  margin-bottom: 2px;
+}
+
+.ctn-tc-type {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.ctn-tc-results {
+  font-size: var(--text-2xs);
+  margin-top: 2px;
+}
+
+.ctn-warn-text {
+  color: var(--warning);
+}
+
+.ctn-saf {
+  color: var(--color-saf);
+}
+
+.ctn-scrub-summary {
+  font-size: var(--text-2xs);
+  margin-bottom: 4px;
+}
+
+.ctn-scrub-stats {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.ctn-warn-list {
+  margin: 0;
+  padding: 0 0 0 16px;
+  font-size: var(--text-2xs);
+}
+
+.ctn-warn-item {
+  margin-bottom: 3px;
+  line-height: 1.35;
+}
+
+.ctn-status-bar {
+  margin-top: 10px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  display: flex;
+  gap: 12px;
+}

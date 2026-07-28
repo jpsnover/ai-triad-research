@@ -1,0 +1,151 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+.tv-attempt-row {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+
+.tv-attempt-header {
+  cursor: pointer;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+}
+
+.tv-muted {
+  color: var(--text-muted);
+}
+
+.tv-muted-2xs {
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+}
+
+.tv-attempt-body {
+  padding: 4px 10px 10px;
+  font-size: 0.72rem;
+}
+
+.tv-section-label {
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.tv-section-label-mt6 {
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+.tv-hint-list {
+  margin: 2px 0 6px 16px;
+  padding: 0;
+}
+
+.tv-mb3 {
+  margin-bottom: 3px;
+}
+
+.tv-mt4 {
+  margin-top: 4px;
+}
+
+.tv-he-summary {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 6px;
+  font-size: var(--text-2xs);
+}
+
+.tv-success-bold {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.tv-warning-bold {
+  color: var(--warning);
+  font-weight: 700;
+}
+
+.tv-muted-bold {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.tv-danger-bold {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.tv-he-row-head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.tv-muted-2xs-mt2 {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.tv-prompt-delta {
+  white-space: pre-wrap;
+  background: var(--bg-subtle);
+  padding: 6px;
+  border-radius: 3px;
+  max-height: 200px;
+  overflow: auto;
+  font-size: 0.7rem;
+}
+
+.tv-final-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.tv-fs-08 {
+  font-size: 0.8rem;
+}
+
+.tv-fs-08-muted {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.tv-fs-07-muted {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.tv-best-attempt {
+  font-size: var(--text-2xs);
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  color: var(--success);
+  font-weight: 600;
+}
+
+.tv-fs-075-mb8 {
+  font-size: 0.75rem;
+  margin-bottom: 8px;
+}
+
+.tv-caveat-list {
+  margin: 4px 0 0 16px;
+  padding: 0;
+}
+
+.tv-attempts-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}

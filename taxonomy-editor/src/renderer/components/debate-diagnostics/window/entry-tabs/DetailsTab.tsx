@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import React, { useMemo } from 'react';
+import './DetailsTab.css';
 import { POVER_INFO } from '../../../../types/debate';
 import type {
   SpeakerId,
@@ -69,16 +70,12 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
   }, []);
 
   return (
-    <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+    <div className="det-root">
       {/* Pipeline error banner */}
       {entry.type === 'statement' && diag && (diag.stage_diagnostics?.length ?? 0) > 0 && !diag.extracted_claims && !(diag as Record<string, unknown>).extraction_trace && (
-        <div style={{
-          marginBottom: 10, padding: '10px 12px', borderRadius: 6,
-          background: 'color-mix(in srgb, var(--danger) 8%, transparent)', borderLeft: '3px solid var(--danger)',
-          fontSize: '0.75rem',
-        }}>
-          <div style={{ fontWeight: 700, color: 'var(--danger)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Pipeline Error</div>
-          <div style={{ color: 'var(--text-primary)', lineHeight: 1.5 }}>
+        <div className="det-pipeline-error">
+          <div className="det-pipeline-error-title">Pipeline Error</div>
+          <div className="det-body-15">
             Pipeline stages completed ({diag.stage_diagnostics!.map(s => s.stage).join(' → ')}),
             but post-pipeline processing failed. Claim extraction, evidence gathering, and argument
             network updates were skipped for this turn. Check the flight recorder for error details.
@@ -91,34 +88,23 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
           {entryErrors.map((evt, i) => {
             const data = evt.data as Record<string, unknown> | undefined;
             return (
-              <div key={i} style={{
-                marginBottom: 8, padding: '8px 10px', borderRadius: 5,
-                background: 'color-mix(in srgb, var(--danger) 6%, transparent)', borderLeft: '3px solid var(--danger)',
-                fontSize: '0.72rem',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <span style={{
-                    padding: '1px 6px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600,
-                    background: 'color-mix(in srgb, var(--danger) 15%, transparent)', color: 'var(--danger)',
-                  }}>{evt.error.name}</span>
+              <div key={i} className="det-error-item">
+                <div className="det-error-head">
+                  <span className="det-error-badge">{evt.error.name}</span>
                   {!!data?.speaker && (
-                    <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
+                    <span className="det-muted-2xs">
                       {String(data.speaker)}{data.round ? ` R${data.round}` : ''}
                     </span>
                   )}
-                  <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginLeft: 'auto', fontFamily: 'monospace' }}>
+                  <span className="det-error-time">
                     {new Date(evt._wall).toLocaleTimeString()}
                   </span>
                 </div>
-                <div style={{ color: 'var(--text-primary)', lineHeight: 1.4 }}>{evt.error.message}</div>
+                <div className="det-error-msg">{evt.error.message}</div>
                 {evt.error.stack && (
-                  <details style={{ marginTop: 4 }}>
-                    <summary style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', cursor: 'pointer' }}>Stack trace</summary>
-                    <pre style={{
-                      fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', margin: '4px 0 0',
-                      padding: '6px 8px', borderRadius: 3, background: 'var(--bg-secondary)',
-                      whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 150, overflow: 'auto',
-                    }}>{evt.error.stack}</pre>
+                  <details className="det-mt4">
+                    <summary className="det-stack-summary">Stack trace</summary>
+                    <pre className="det-stack-pre">{evt.error.stack}</pre>
                   </details>
                 )}
               </div>
@@ -145,29 +131,35 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
           const dStr = d !== null ? (d >= 0 ? `+${d.toFixed(3)}` : d.toFixed(3)) : '';
           const dColor = d !== null ? (d > 0.01 ? 'var(--success)' : d < -0.01 ? 'var(--danger)' : 'var(--text-muted)') : 'var(--text-muted)';
           return (
-            <span key={label} style={{ display: 'inline-flex', gap: 3, alignItems: 'baseline' }}>
-              <span style={{ color: 'var(--text-muted)' }}>{label}:</span>
+            <span key={label} className="det-fmt-delta">
+              <span className="det-muted">{label}:</span>
               <strong>{v.toFixed(3)}</strong>
-              {dStr && <span style={{ fontSize: 'var(--text-2xs)', color: dColor }}>{dStr}</span>}
+              {dStr && (
+                // eslint-disable-next-line local/no-inline-style -- dynamic dColor
+                <span style={{ fontSize: 'var(--text-2xs)', color: dColor }}>{dStr}</span>
+              )}
             </span>
           );
         };
         return (
+          // eslint-disable-next-line local/no-inline-style -- dynamic speaker color background/border-left
           <div style={{
             marginBottom: 10, padding: '8px 10px', borderRadius: 5,
             background: `${color}08`, borderLeft: `3px solid ${color}`,
             fontSize: '0.72rem',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <div className="det-row-g8-mb4">
+              {/* eslint-disable-next-line local/no-inline-style -- dynamic speaker color */}
               <span style={{ fontWeight: 700, fontSize: 'var(--text-2xs)', textTransform: 'uppercase', letterSpacing: '0.05em', color }}>Utility</span>
-              <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{curr.composite.toFixed(3)}</span>
+              <span className="det-num-bold">{curr.composite.toFixed(3)}</span>
               {delta !== null && (
+                // eslint-disable-next-line local/no-inline-style -- dynamic deltaColor
                 <span style={{ fontSize: '0.7rem', fontWeight: 600, color: deltaColor }}>
                   {delta >= 0 ? '+' : ''}{delta.toFixed(3)}
                 </span>
               )}
             </div>
-            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+            <div className="det-flex-wrap-g14">
               {fmtDelta(curr.position_strength, 'pos', prev?.position_strength)}
               {fmtDelta(curr.attack_effectiveness, 'atk', prev?.attack_effectiveness)}
               {fmtDelta(curr.crux_engagement, 'crux', prev?.crux_engagement)}
@@ -230,32 +222,32 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
         };
 
         return (
-          <div style={{
-            marginBottom: 12, padding: '10px 12px', borderRadius: 6,
-            background: 'color-mix(in srgb, var(--color-skp) 8%, transparent)', borderLeft: '3px solid var(--color-skp)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ fontWeight: 700, color: 'var(--color-skp)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <div className="det-mod-directive">
+            <div className="det-row-g8-mb6">
+              <span className="det-mod-directive-title">
                 Moderator Directive
               </span>
-              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--color-skp) 15%, transparent)', color: 'var(--color-skp)', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>
+              <span className="det-skp-badge">
                 {moveLabel}{familyLabel ? ` · ${familyLabel}` : ''}
               </span>
               {targetLabel && (
+                // eslint-disable-next-line local/no-inline-style -- dynamic color/weight from speakerIsTarget
                 <span style={{ fontSize: 'var(--text-2xs)', color: !speakerIsTarget ? 'var(--text-secondary)' : 'var(--text-muted)', fontWeight: !speakerIsTarget ? 600 : 400 }}>
                   directed at {targetLabel}{!speakerIsTarget ? ` (not ${speakerLabel(entry.speaker)})` : ''}
                 </span>
               )}
             </div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-primary)', lineHeight: 1.5, marginBottom: 8, fontStyle: 'italic' }}>
+            <div className="det-directive-text">
               &ldquo;{directiveText}&rdquo;
             </div>
+            {/* eslint-disable-next-line local/no-inline-style -- dynamic complianceColor background/border */}
             <div style={{
               display: 'flex', alignItems: 'flex-start', gap: 8,
               padding: '6px 10px', borderRadius: 4,
               background: `${complianceColor}12`,
               border: `1px solid ${complianceColor}30`,
             }}>
+              {/* eslint-disable-next-line local/no-inline-style -- dynamic complianceColor background */}
               <span style={{
                 width: 8, height: 8, borderRadius: '50%',
                 background: complianceColor,
@@ -264,35 +256,38 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
               <div>
                 {hasResponse && (
                   <>
+                    {/* eslint-disable-next-line local/no-inline-style -- dynamic complianceColor */}
                     <span style={{ fontWeight: 700, fontSize: '0.72rem', color: complianceColor }}>
                       {complianceIcon} {isFromPlan ? 'Addressed in plan' : 'Responded'}
                     </span>
                     {isFromPlan && (
-                      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 1 }}>
+                      <div className="det-muted-2xs-mt1">
                         Structured response field missing &mdash; showing plan intent
                       </div>
                     )}
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}>
+                    <div className="det-primary-7-mt2">
                       {formatResponseSummary()}
                     </div>
                   </>
                 )}
                 {!hasResponse && !speakerIsTarget && (
                   <>
+                    {/* eslint-disable-next-line local/no-inline-style -- dynamic complianceColor */}
                     <span style={{ fontWeight: 700, fontSize: '0.72rem', color: complianceColor }}>
                       {complianceIcon} Not targeted
                     </span>
-                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
+                    <div className="det-muted-2xs-mt2">
                       This directive was aimed at {targetLabel}, but {speakerLabel(entry.speaker)} was selected to speak. {speakerLabel(entry.speaker)} was not required to respond.
                     </div>
                   </>
                 )}
                 {!hasResponse && speakerIsTarget && (
                   <>
+                    {/* eslint-disable-next-line local/no-inline-style -- dynamic complianceColor */}
                     <span style={{ fontWeight: 700, fontSize: '0.72rem', color: complianceColor }}>
                       {complianceIcon} No response
                     </span>
-                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
+                    <div className="det-muted-2xs-mt2">
                       The debater did not provide an explicit response to this directive.
                     </div>
                   </>
@@ -305,41 +300,30 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
 
       {/* Suppressed Intervention */}
       {suppressedIntervention ? (
-        <div style={{
-          marginBottom: 10, padding: '8px 10px', borderRadius: 6,
-          background: 'color-mix(in srgb, var(--warning) 8%, transparent)',
-          border: '1px solid color-mix(in srgb, var(--warning) 25%, transparent)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--warning)' }}>
+        <div className="det-suppressed">
+          <div className="det-row-g6-mb6">
+            <span className="det-suppressed-title">
               {'⚠'} Suppressed Intervention
             </span>
             {suppressedIntervention.intervention_move && (
-              <span style={{
-                padding: '1px 6px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600,
-                background: 'color-mix(in srgb, var(--warning) 18%, transparent)', color: 'var(--warning)',
-              }}>
+              <span className="det-warning-badge">
                 {suppressedIntervention.intervention_move}
               </span>
             )}
           </div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginBottom: 4 }}>
+          <div className="det-primary-7-mb4">
             The moderator recommended a <strong>{suppressedIntervention.intervention_move ?? 'intervention'}</strong>
             {suppressedIntervention.intervention_target && (
               <> directed at <strong>{speakerLabel(suppressedIntervention.intervention_target)}</strong></>
             )}
             , but it was blocked by the engine.
           </div>
-          <div style={{
-            fontSize: '0.7rem', color: 'var(--warning)', padding: '5px 10px', borderRadius: 4,
-            background: 'color-mix(in srgb, var(--warning) 12%, transparent)', marginBottom: 4,
-            borderLeft: '3px solid var(--warning)',
-          }}>
-            <strong style={{ color: 'var(--warning)' }}>Reason: </strong>
+          <div className="det-suppressed-reason">
+            <strong className="det-warning">Reason: </strong>
             {suppressedIntervention.intervention_suppressed_reason && (
               <span
                 title={SUPPRESSION_REASON_TOOLTIPS[suppressedIntervention.intervention_suppressed_reason] ?? ''}
-                style={{ cursor: 'default', borderBottom: '1px dotted var(--warning)' }}
+                className="det-suppressed-reason-label"
               >
                 {String(suppressedIntervention.intervention_suppressed_reason ?? '').replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
               </span>
@@ -350,7 +334,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
             }
           </div>
           {suppressedIntervention.trigger_reasoning && (
-            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>
+            <div className="det-muted-2xs-mt4-italic">
               {suppressedIntervention.trigger_reasoning}
             </div>
           )}
@@ -395,20 +379,23 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
                 }
               }
               return (
+                // eslint-disable-next-line local/no-inline-style -- dynamic catColor border-left
                 <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: `2px solid ${catColor}44` }}>
-                  <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--color-saf) 20%, transparent)', color: 'var(--color-saf)', fontSize: '0.7rem', fontWeight: 600 }}>{name}</span>
+                  <span className="det-saf-badge">{name}</span>
+                  {/* eslint-disable-next-line local/no-inline-style -- dynamic catColor background/color */}
                   <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 3, background: `${catColor}18`, color: catColor, fontSize: 'var(--text-2xs)', fontWeight: 600, textTransform: 'capitalize' }}>{cat}</span>
                   {ann?.target && (() => {
                     const targetNode = an?.nodes?.find(n => n.id === ann.target);
                     return (<>
-                      <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{'→'} {ann.target}</span>
-                      {targetNode && <span style={{ marginLeft: 4, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>"{targetNode.text.length > 100 ? targetNode.text.slice(0, 100) + '…' : targetNode.text}"</span>}
+                      <span className="det-ml6-muted-2xs">{'→'} {ann.target}</span>
+                      {targetNode && <span className="det-ml4-muted-2xs-italic">"{targetNode.text.length > 100 ? targetNode.text.slice(0, 100) + '…' : targetNode.text}"</span>}
                     </>);
                   })()}
                   {!ann?.target && inferredTargets.length > 0 && (
-                    <div style={{ marginTop: 3, display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                      <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{'→'}</span>
+                    <div className="det-inferred-targets">
+                      <span className="det-muted-2xs">{'→'}</span>
                       {inferredTargets.map(t => (
+                        // eslint-disable-next-line local/no-inline-style -- dynamic attack/support color
                         <span key={t.id} data-tooltip={t.text} style={{
                           padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, cursor: 'default',
                           background: `${t.type === 'attacks' ? 'var(--danger)' : 'var(--success)'}15`,
@@ -418,14 +405,14 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
                     </div>
                   )}
                   {!ann?.target && inferredTargets.length === 0 && (
-                    <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', opacity: 0.6 }}>no AN target</span>
+                    <span className="det-ml6-muted-2xs-o6">no AN target</span>
                   )}
-                  {ann?.detail && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}>{ann.detail}</div>}
+                  {ann?.detail && <div className="det-primary-7-mt2">{ann.detail}</div>}
                 </div>
               );
             });
           })()}
-          {meta.disagreement_type ? <div style={{ marginTop: 4 }}>Type: <strong>{String(meta.disagreement_type)}</strong></div> : null}
+          {meta.disagreement_type ? <div className="det-mt4">Type: <strong>{String(meta.disagreement_type)}</strong></div> : null}
         </Section>
       )}
 
@@ -436,25 +423,27 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
           defaultOpen
         >
           {/* Inline turn validation summary (lightweight version) */}
-          <div style={{ fontSize: '0.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <div className="det-fs-75">
+            <div className="det-row-g8-mb4">
+              {/* eslint-disable-next-line local/no-inline-style -- dynamic outcome-based background/color */}
               <span style={{
                 padding: '2px 8px', borderRadius: 4, fontWeight: 700, fontSize: '0.7rem',
                 background: turnValTrail.final.outcome === 'pass' ? 'rgba(22,163,74,0.15)' : turnValTrail.final.outcome === 'accept_with_flag' ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : 'rgba(220,38,38,0.15)',
                 color: turnValTrail.final.outcome === 'pass' ? 'var(--success)' : turnValTrail.final.outcome === 'accept_with_flag' ? 'var(--warning)' : 'var(--danger)',
               }}>{turnValTrail.final.outcome}</span>
               <span>score <strong>{(turnValTrail.final.process_reward ?? 0).toFixed(2)}</strong></span>
-              <span style={{ color: 'var(--text-muted)' }}>{turnValTrail.attempts.length} attempt{turnValTrail.attempts.length === 1 ? '' : 's'}</span>
+              <span className="det-muted">{turnValTrail.attempts.length} attempt{turnValTrail.attempts.length === 1 ? '' : 's'}</span>
             </div>
             {turnValTrail.final.repairHints && turnValTrail.final.repairHints.length > 0 && (
-              <div style={{ marginTop: 4 }}>
+              <div className="det-mt4">
                 <strong>Caveats:</strong>
-                <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                <ul className="det-caveats-list">
                   {turnValTrail.final.repairHints.map((h, i) => {
                     const target = classifyHintTarget(h);
                     const ts = HINT_TARGET_STYLE[target];
                     return (
-                      <li key={i} style={{ marginBottom: 3 }}>
+                      <li key={i} className="det-mb3">
+                        {/* eslint-disable-next-line local/no-inline-style -- dynamic hint-target color/bg */}
                         <span style={{
                           display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
                           color: ts.color, background: ts.bg, padding: '1px 5px',
@@ -489,9 +478,9 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
       {!!meta?.key_assumptions && (meta.key_assumptions as { assumption: string; if_wrong: string }[]).length > 0 && (
         <Section title={`Key Assumptions (${(meta.key_assumptions as unknown[]).length})`} defaultOpen copyText={(meta.key_assumptions as { assumption: string; if_wrong: string }[]).map(a => `Assumes: ${a.assumption}\nIf wrong: ${a.if_wrong}`).join('\n\n')}>
           {(meta.key_assumptions as { assumption: string; if_wrong: string }[]).map((a, i) => (
-            <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid var(--border)' }}>
+            <div key={i} className="det-assumption">
               <div><strong>Assumes:</strong> {a.assumption}</div>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>If wrong: {a.if_wrong}</div>
+              <div className="det-muted-7">If wrong: {a.if_wrong}</div>
             </div>
           ))}
         </Section>
@@ -504,21 +493,21 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
         if (polIds.length === 0) return null;
         return (
         <Section title={`Policy Refs (${polIds.length})`} defaultOpen copyText={polIds.join(', ')}>
-          <ul style={{ margin: '4px 0', paddingLeft: 0, listStyle: 'none' }}>
+          <ul className="det-policy-list">
             {polIds.map((p, i) => {
               const pol = policyMap.get(p);
               return (
-                <li key={i} style={{ margin: '3px 0', display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                  <span style={{ flexShrink: 0, padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--text-secondary) 15%, transparent)', color: 'var(--text-secondary)', fontSize: 'var(--text-2xs)', fontWeight: 600, fontFamily: 'monospace' }}>{p}</span>
+                <li key={i} className="det-policy-item">
+                  <span className="det-policy-id">{p}</span>
                   {pol ? (
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-primary)' }}>
+                    <span className="det-primary-72">
                       {pol.action}
-                      <span style={{ marginLeft: 6, color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
+                      <span className="det-ml6-muted-2xs">
                         ({pol.source_povs.join(', ')}{pol.member_count > 0 ? ` · ${pol.member_count} members` : ''})
                       </span>
                     </span>
                   ) : (
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>not in registry</span>
+                    <span className="det-muted-72-italic">not in registry</span>
                   )}
                 </li>
               );
@@ -562,23 +551,24 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
         return (
           <Section title={`Lineage Frame (${frame.length} categor${frame.length !== 1 ? 'ies' : 'y'})`} copyText={frame.map((f: { label?: string; cluster_id: string; percentage: number; traditions?: string[] }) => `${f.label ?? f.cluster_id}: ${f.percentage.toFixed(1)}%${f.traditions?.length ? ` (${f.traditions.join(', ')})` : ''}`).join('\n')}>
             {frame.map((f: { cluster_id: string; label?: string; percentage: number; traditions?: string[] }, i: number) => (
-              <div key={i} style={{ marginBottom: 6 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ flex: 1, fontSize: '0.72rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>{f.label ?? f.cluster_id}</div>
-                  <div style={{ width: 60, height: 6, borderRadius: 3, background: 'var(--border)', overflow: 'hidden', flexShrink: 0 }}>
+              <div key={i} className="det-mb6">
+                <div className="det-row-g6">
+                  <div className="det-lineage-label">{f.label ?? f.cluster_id}</div>
+                  <div className="det-lineage-bar">
+                    {/* eslint-disable-next-line local/no-inline-style -- dynamic computed width */}
                     <div style={{ width: `${maxPct > 0 ? (f.percentage / maxPct) * 100 : 0}%`, height: '100%', borderRadius: 3, background: 'var(--warning)' }} />
                   </div>
-                  <div style={{ width: 36, textAlign: 'right', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', flexShrink: 0 }}>{f.percentage.toFixed(1)}%</div>
+                  <div className="det-lineage-pct">{f.percentage.toFixed(1)}%</div>
                 </div>
                 {f.traditions && f.traditions.length > 0 && (
-                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2, paddingLeft: 4 }}>
+                  <div className="det-lineage-traditions">
                     {f.traditions.join(', ')}
                   </div>
                 )}
               </div>
             ))}
-            <div style={{ marginTop: 4, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
-              Boost: {lb ? <span style={{ color: 'var(--success)' }}>active</span> : <span>inactive</span>}
+            <div className="det-mt4-muted-2xs">
+              Boost: {lb ? <span className="det-success">active</span> : <span>inactive</span>}
               {lb && lb.promotedNodeIds && lb.promotedNodeIds.length > 0 && (
                 <> {'·'} {lb.promotedNodeIds.length} promoted</>
               )}
@@ -590,7 +580,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
       {/* Statement (opening entries) */}
       {entry.content && entry.type === 'opening' && (
         <Section title="Statement" defaultOpen copyText={entry.content}>
-          <div style={{ fontSize: '0.75rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+          <div className="det-statement">
             <Highlight text={entry.content} />
           </div>
         </Section>

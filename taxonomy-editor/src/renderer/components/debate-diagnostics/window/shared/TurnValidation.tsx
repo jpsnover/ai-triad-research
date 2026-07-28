@@ -5,6 +5,7 @@ import { useState } from 'react';
 import type { TurnAttempt, TurnValidationTrail, TurnValidationDimensions } from '../../../../types/debate';
 import { humanizeSpeakerIds } from '../../../../utils/humanizeSpeakers';
 import { ScoreBreakdown, OutcomeBadge } from './ScoreBreakdown';
+import './TurnValidation.css';
 
 // NOTE: Section and CopyButton stay in DiagnosticsWindow.tsx (parent).
 // NOTE: Highlight stays in DiagnosticsWindow.tsx (parent).
@@ -30,23 +31,20 @@ export function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
   const [open, setOpen] = useState(false);
   const v = a.validation;
   return (
-    <div style={{ border: '1px solid var(--border)', borderRadius: 4, marginBottom: 6 }}>
+    <div className="tv-attempt-row">
       <div
         onClick={() => setOpen(o => !o)}
-        style={{
-          cursor: 'pointer', padding: '6px 8px', display: 'flex',
-          alignItems: 'center', gap: 8, fontSize: '0.75rem',
-        }}
+        className="tv-attempt-header"
       >
-        <span style={{ color: 'var(--text-muted)' }}>{open ? '▾' : '▸'}</span>
+        <span className="tv-muted">{open ? '▾' : '▸'}</span>
         <strong>Attempt {a.attempt}{a.attempt === 0 ? ' (original)' : ''}</strong>
         <OutcomeBadge outcome={v.outcome} />
-        <span style={{ color: 'var(--text-muted)' }}>score {(v.process_reward ?? 0).toFixed(2)}</span>
-        <span style={{ color: 'var(--text-muted)' }}>{((a.response_time_ms ?? 0) / 1000).toFixed(1)}s</span>
-        {v.judge_used && <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>judge: {v.judge_model}</span>}
+        <span className="tv-muted">score {(v.process_reward ?? 0).toFixed(2)}</span>
+        <span className="tv-muted">{((a.response_time_ms ?? 0) / 1000).toFixed(1)}s</span>
+        {v.judge_used && <span className="tv-muted-2xs">judge: {v.judge_model}</span>}
       </div>
       {open && (
-        <div style={{ padding: '4px 10px 10px', fontSize: '0.72rem' }}>
+        <div className="tv-attempt-body">
           {v.dimensions && (
             <ScoreBreakdown dims={{
               schema: v.dimensions.schema ?? { pass: true, issues: [] },
@@ -57,13 +55,14 @@ export function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
           )}
           {(v.repairHints?.length ?? 0) > 0 && (
             <>
-              <div style={{ fontWeight: 600, marginTop: 4 }}>Caveats</div>
-              <ul style={{ margin: '2px 0 6px 16px', padding: 0 }}>
+              <div className="tv-section-label">Caveats</div>
+              <ul className="tv-hint-list">
                 {v.repairHints.map((h, i) => {
                   const target = classifyHintTarget(h);
                   const ts = HINT_TARGET_STYLE[target];
                   return (
-                    <li key={i} style={{ marginBottom: 3 }}>
+                    <li key={i} className="tv-mb3">
+                      {/* eslint-disable-next-line local/no-inline-style -- dynamic color/bg from HINT_TARGET_STYLE */}
                       <span style={{
                         display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
                         color: ts.color, background: ts.bg, padding: '1px 5px',
@@ -78,8 +77,8 @@ export function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
           )}
           {(v.clarifies_taxonomy?.length ?? 0) > 0 && (
             <>
-              <div style={{ fontWeight: 600, marginTop: 4 }}>Taxonomy clarification hints</div>
-              <ul style={{ margin: '2px 0 6px 16px', padding: 0 }}>
+              <div className="tv-section-label">Taxonomy clarification hints</div>
+              <ul className="tv-hint-list">
                 {v.clarifies_taxonomy.map((h, i) => (
                   <li key={i}>
                     <strong>{h.action}</strong>
@@ -93,8 +92,8 @@ export function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
           {/* Hint effectiveness tracking (retry attempts only) */}
           {a.hint_effectiveness && a.hint_effectiveness.length > 0 && (
             <>
-              <div style={{ fontWeight: 600, marginTop: 6 }}>Hint Effectiveness</div>
-              <div style={{ marginTop: 4 }}>
+              <div className="tv-section-label-mt6">Hint Effectiveness</div>
+              <div className="tv-mt4">
                 {(() => {
                   const he = a.hint_effectiveness as Array<{
                     hint_text: string; category: string; source: string; specificity: string;
@@ -113,37 +112,40 @@ export function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
                   };
                   return (
                     <>
-                      <div style={{ display: 'flex', gap: 10, marginBottom: 6, fontSize: 'var(--text-2xs)' }}>
-                        <span style={{ color: 'var(--success)', fontWeight: 700 }}>Fixed: {fixed}</span>
-                        <span style={{ color: 'var(--warning)', fontWeight: 700 }}>Partial: {partial}</span>
-                        <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>Ignored: {ignored}</span>
-                        <span style={{ color: 'var(--danger)', fontWeight: 700 }}>Worse: {worse}</span>
-                        <span style={{ color: 'var(--text-muted)' }}>
+                      <div className="tv-he-summary">
+                        <span className="tv-success-bold">Fixed: {fixed}</span>
+                        <span className="tv-warning-bold">Partial: {partial}</span>
+                        <span className="tv-muted-bold">Ignored: {ignored}</span>
+                        <span className="tv-danger-bold">Worse: {worse}</span>
+                        <span className="tv-muted">
                           Score: {he[0]?.pre_score?.toFixed(2)} → {he[0]?.post_score?.toFixed(2)} ({(he[0]?.score_delta ?? 0) >= 0 ? '+' : ''}{he[0]?.score_delta?.toFixed(2)})
                         </span>
                       </div>
                       {he.map((h, hi) => (
+                        // eslint-disable-next-line local/no-inline-style -- dynamic borderLeft color from resColors
                         <div key={hi} style={{
                           marginBottom: 4, padding: '4px 8px', borderRadius: 4, fontSize: 'var(--text-2xs)',
                           borderLeft: `3px solid ${resColors[h.resolution] ?? 'var(--text-muted)'}`,
                           background: 'var(--bg-subtle)',
                         }}>
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 2 }}>
+                          <div className="tv-he-row-head">
+                            {/* eslint-disable-next-line local/no-inline-style -- dynamic color/bg from resColors */}
                             <span style={{
                               fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 4px', borderRadius: 3,
                               color: resColors[h.resolution] ?? 'var(--text-muted)',
                               background: `${resColors[h.resolution] ?? 'var(--text-muted)'}18`,
                             }}>{h.resolution.toUpperCase().replace('_', ' ')}</span>
+                            {/* eslint-disable-next-line local/no-inline-style -- dynamic color/bg from specColors */}
                             <span style={{
                               fontSize: 'var(--text-2xs)', padding: '0 4px', borderRadius: 3,
                               color: specColors[h.specificity] ?? 'var(--text-muted)',
                               background: `${specColors[h.specificity] ?? 'var(--text-muted)'}18`,
                             }}>{h.specificity}</span>
-                            <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{h.source.replace('_', ' ')}</span>
+                            <span className="tv-muted-2xs">{h.source.replace('_', ' ')}</span>
                           </div>
                           <div>{humanizeSpeakerIds(h.hint_text)}</div>
                           {h.cited_fragment && (
-                            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
+                            <div className="tv-muted-2xs-mt2">
                               Fragment: &ldquo;{humanizeSpeakerIds(h.cited_fragment)}&rdquo; {h.fragment_persists ? '— still present' : '— removed'}
                             </div>
                           )}
@@ -157,12 +159,8 @@ export function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
           )}
           {a.prompt_delta && (
             <>
-              <div style={{ fontWeight: 600, marginTop: 4 }}>Repair prompt delta</div>
-              <pre style={{
-                whiteSpace: 'pre-wrap', background: 'var(--bg-subtle)',
-                padding: 6, borderRadius: 3, maxHeight: 200, overflow: 'auto',
-                fontSize: '0.7rem',
-              }}>{a.prompt_delta}</pre>
+              <div className="tv-section-label">Repair prompt delta</div>
+              <pre className="tv-prompt-delta">{a.prompt_delta}</pre>
             </>
           )}
         </div>
@@ -193,14 +191,14 @@ export function TurnValidationSection({ trail: rawTrail }: { trail: TurnValidati
   const f = trail.final;
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+      <div className="tv-final-header">
         <OutcomeBadge outcome={f.outcome} />
-        <span style={{ fontSize: '0.8rem' }}>score <strong>{(f.process_reward ?? 0).toFixed(2)}</strong></span>
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+        <span className="tv-fs-08">score <strong>{(f.process_reward ?? 0).toFixed(2)}</strong></span>
+        <span className="tv-fs-08-muted">
           {trail.attempts.length} attempt{trail.attempts.length === 1 ? '' : 's'}
         </span>
         {f.judge_used && (
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>judge: {f.judge_model}</span>
+          <span className="tv-fs-07-muted">judge: {f.judge_model}</span>
         )}
         {/* Best-attempt indicator — shows when the system used an earlier attempt over the last */}
         {trail.attempts.length > 1 && (() => {
@@ -209,7 +207,7 @@ export function TurnValidationSection({ trail: rawTrail }: { trail: TurnValidati
           const lastIdx = scores.length - 1;
           if (bestIdx !== lastIdx) {
             return (
-              <span style={{ fontSize: 'var(--text-2xs)', padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--success) 15%, transparent)', color: 'var(--success)', fontWeight: 600 }}>
+              <span className="tv-best-attempt">
                 Used attempt {bestIdx} (score {scores[bestIdx].toFixed(2)}) — last attempt regressed to {scores[lastIdx].toFixed(2)}
               </span>
             );
@@ -219,14 +217,15 @@ export function TurnValidationSection({ trail: rawTrail }: { trail: TurnValidati
       </div>
       <ScoreBreakdown dims={f.dimensions!} processReward={f.process_reward ?? 0} judgeUsed={f.judge_used} />
       {f.repairHints.length > 0 && (
-        <div style={{ fontSize: '0.75rem', marginBottom: 8 }}>
+        <div className="tv-fs-075-mb8">
           <strong>Caveats (final)</strong>
-          <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+          <ul className="tv-caveat-list">
             {f.repairHints.map((h, i) => {
               const target = classifyHintTarget(h);
               const ts = HINT_TARGET_STYLE[target];
               return (
-                <li key={i} style={{ marginBottom: 3 }}>
+                <li key={i} className="tv-mb3">
+                  {/* eslint-disable-next-line local/no-inline-style -- dynamic color/bg from HINT_TARGET_STYLE */}
                   <span style={{
                     display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
                     color: ts.color, background: ts.bg, padding: '1px 5px',
@@ -239,7 +238,7 @@ export function TurnValidationSection({ trail: rawTrail }: { trail: TurnValidati
           </ul>
         </div>
       )}
-      <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>Attempts</div>
+      <div className="tv-attempts-label">Attempts</div>
       {trail.attempts.map((a, i) => <TurnValidationAttemptRow key={i} a={a} />)}
     </div>
   );

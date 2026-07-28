@@ -1,0 +1,253 @@
+/* Co-located styles for ArgumentNetworkTab. Class prefix: ant- */
+
+.ant-root {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.ant-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.ant-header-summary {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.ant-expand-btn {
+  margin-left: auto;
+  font-size: var(--text-2xs);
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.ant-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  font-size: var(--text-2xs);
+}
+
+.ant-filter-select {
+  font-size: var(--text-2xs);
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+}
+
+.ant-filter-input {
+  font-size: var(--text-2xs);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  width: 140px;
+}
+
+.ant-muted {
+  color: var(--text-muted);
+}
+
+.ant-clear-btn {
+  margin-left: 4px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: var(--color-saf);
+  font-size: var(--text-2xs);
+  padding: 0;
+}
+
+.ant-src-header {
+  margin: 10px 0 2px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-saf) 6%, transparent);
+  border-left: 3px solid color-mix(in srgb, var(--color-saf) 40%, transparent);
+  font-size: var(--text-2xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.ant-stmt-id {
+  font-weight: 700;
+  color: var(--color-saf);
+  margin-right: 6px;
+}
+
+.ant-speaker {
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.ant-mod-banner {
+  margin: 8px 0 4px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-acc) 8%, transparent);
+  border-left: 3px solid var(--color-acc);
+  font-size: var(--text-2xs);
+}
+
+.ant-mod-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ant-mod-label {
+  font-weight: 700;
+  color: var(--color-acc);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ant-bold {
+  font-weight: 600;
+}
+
+.ant-reason-chip {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--color-acc) 15%, transparent);
+  color: var(--color-acc);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+}
+
+.ant-scheme-chip {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text-secondary) 15%, transparent);
+  color: var(--text-secondary);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+}
+
+.ant-triggered {
+  color: var(--success);
+  margin-left: 3px;
+  font-weight: 700;
+}
+
+.ant-focus-line {
+  margin-top: 3px;
+  color: var(--text-muted);
+}
+
+.ant-candidates {
+  margin-top: 3px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ant-minimap-toolarge {
+  padding: 6px 10px;
+  margin-bottom: 8px;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+
+.ant-minimap-wrap {
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.ant-legend {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.ant-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.ant-legend-attack {
+  display: inline-block;
+  width: 10px;
+  height: 2px;
+  background: var(--danger, var(--danger));
+}
+
+.ant-legend-support {
+  display: inline-block;
+  width: 10px;
+  height: 2px;
+  background: var(--success, var(--success));
+}
+
+.ant-impact {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--success) 6%, transparent);
+  border-left: 3px solid var(--success);
+}
+
+.ant-impact-title {
+  font-weight: 700;
+  font-size: var(--text-2xs);
+  color: var(--success);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.ant-impact-row {
+  font-size: var(--text-2xs);
+  margin-bottom: 3px;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.ant-impact-code {
+  font-size: var(--text-2xs);
+  background: var(--bg-secondary);
+  padding: 0 3px;
+  border-radius: 2px;
+}
+
+.ant-value {
+  font-weight: 700;
+}
+
+.ant-attack-claim {
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+}
+
+.ant-robust-chip {
+  font-size: var(--text-2xs);
+  padding: 0 4px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  color: var(--success);
+  font-weight: 600;
+}

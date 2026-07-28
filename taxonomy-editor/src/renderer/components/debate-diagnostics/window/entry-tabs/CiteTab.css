@@ -1,0 +1,363 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Co-located styles for CiteTab. Hoisted from inline style={{}} props
+   (local/no-inline-style migration). Values preserved verbatim from the
+   original inline styles so themes render identically. */
+
+.cit-root {
+  padding: 8px 10px;
+  flex: 1;
+  min-height: 200px;
+  overflow-y: auto;
+}
+
+.cit-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.cit-badge {
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--warning) 20%, transparent);
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.cit-parse-error {
+  padding: 6px 8px;
+  margin: 6px 0;
+  background: rgba(220, 38, 38, 0.1);
+  border-left: 3px solid var(--danger);
+  border-radius: 4px;
+  font-size: 0.72rem;
+  color: var(--danger);
+}
+
+.cit-directive {
+  padding: 8px;
+  margin: 6px 0;
+  border-left: 3px solid color-mix(in srgb, var(--warning) 60%, transparent);
+  background: color-mix(in srgb, var(--warning) 8%, transparent);
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.cit-directive-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.cit-badge-2xs {
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--warning) 20%, transparent);
+  color: var(--warning);
+  font-weight: 600;
+  font-size: var(--text-2xs);
+}
+
+.cit-mb4 { margin-bottom: 4px; }
+.cit-mb3 { margin-bottom: 3px; }
+
+.cit-summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.72rem;
+  margin: 6px 0;
+}
+
+.cit-summary-plain {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.cit-boost-note {
+  margin-left: 6px;
+  font-weight: 400;
+  font-size: var(--text-2xs);
+  color: var(--warning);
+}
+
+.cit-table {
+  width: 100%;
+  font-size: 0.7rem;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.cit-col-180 { width: 180px; }
+.cit-col-120 { width: 120px; }
+
+.cit-td-node {
+  padding: 3px 6px;
+  vertical-align: top;
+  overflow: hidden;
+}
+
+.cit-new-badge {
+  margin-left: 3px;
+  color: var(--success);
+  font-weight: 700;
+  font-size: 0.8em;
+}
+
+.cit-promoted-badge {
+  margin-left: 3px;
+  display: inline-block;
+  padding: 0 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--warning) 25%, transparent);
+  color: var(--warning);
+  font-weight: 700;
+  font-size: 0.65em;
+  line-height: 1.4;
+}
+
+.cit-boosted-badge {
+  margin-left: 3px;
+  display: inline-block;
+  padding: 0 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  color: var(--warning);
+  font-weight: 600;
+  font-size: 0.65em;
+  line-height: 1.4;
+}
+
+.cit-node-label {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 1px;
+}
+
+.cit-td-top {
+  padding: 3px 6px;
+  vertical-align: top;
+}
+
+.cit-move-row {
+  margin: 4px 0;
+  padding-left: 8px;
+  border-left: 2px solid color-mix(in srgb, var(--warning) 30%, transparent);
+}
+
+.cit-move-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--warning) 20%, transparent);
+  color: var(--warning);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.cit-move-target {
+  margin-left: 6px;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.cit-move-detail {
+  font-size: 0.7rem;
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
+.cit-td-pol {
+  padding: 3px 6px;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.cit-td-action {
+  padding: 3px 6px;
+  vertical-align: top;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cit-muted-italic {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.cit-pol-detail {
+  margin: 6px 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--text-secondary) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-secondary) 20%, transparent);
+}
+
+.cit-pol-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.cit-pol-id {
+  font-family: monospace;
+  font-weight: 700;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+.cit-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.cit-pol-action {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+
+.cit-2xs-muted {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.cit-notfound {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.cit-boost-active {
+  margin-left: 6px;
+  font-size: var(--text-2xs);
+  color: var(--success);
+  font-weight: 400;
+}
+
+.cit-flex-gap6 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cit-frame-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.cit-pct {
+  font-size: var(--text-2xs);
+  color: var(--warning);
+}
+
+.cit-traditions {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.cit-boost-summary {
+  margin-top: 4px;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.cit-turn-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 6px;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.cit-hr-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.cit-raw-summary {
+  cursor: pointer;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cit-raw-pre {
+  font-size: var(--text-2xs);
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow: auto;
+}
+
+.cit-valscore-box {
+  margin-top: 6px;
+  background: var(--bg-subtle);
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 0.7rem;
+}
+
+.cit-valscore-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.cit-dims-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: var(--text-2xs);
+}
+
+.cit-mono {
+  font-family: monospace;
+  font-size: var(--text-2xs);
+}
+
+.cit-muted { color: var(--text-muted); }
+
+.cit-breakdown {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 3px;
+  font-size: var(--text-2xs);
+  display: flex;
+  gap: 12px;
+}
+
+.cit-fallback-val {
+  margin-top: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.cit-feedback {
+  margin-top: 4px;
+  font-size: 0.72rem;
+}
+
+.cit-feedback-list {
+  margin: 4px 0 0 16px;
+  padding: 0;
+  font-size: 0.7rem;
+}

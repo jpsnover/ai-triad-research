@@ -1,0 +1,55 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Co-located styles for INodeRow.tsx — static styles migrated verbatim from
+   inline `style={{}}` (values incl. var(--*)/color-mix preserved exactly).
+   Unique `inr-` prefix (CSS is global). */
+
+.inr-hl-mark { background: var(--warning); color: var(--text-primary); border-radius: 2px; padding: 0 1px; }
+
+.inr-subscore-row { padding-left: 18px; margin-top: 3px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.inr-subscore-item { display: inline-flex; align-items: center; gap: 3px; font-weight: 600; }
+.inr-subscore-val { color: var(--text-secondary); min-width: 26px; }
+
+.inr-text-secondary { color: var(--text-secondary); }
+.inr-text-muted { color: var(--text-muted); }
+.inr-text-muted-italic { color: var(--text-muted); font-style: italic; }
+.inr-accent { color: var(--accent); }
+
+.inr-header-row { display: flex; align-items: flex-start; gap: 4px; }
+.inr-expand-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0; font-size: 0.7rem; line-height: 1; margin-top: 2px; flex-shrink: 0; }
+
+.inr-claim-grid { flex: 1; display: grid; grid-template-columns: 84px 110px 72px 180px 200px 60px 1fr; gap: 4px; align-items: center; }
+.inr-flex-center-g2 { display: flex; align-items: center; gap: 2px; }
+
+.inr-attr-badge { font-weight: 700; padding: 1px 5px; border-radius: 3px; color: var(--text-secondary); }
+.inr-attr-dot-danger { color: var(--danger); font-size: 0.9rem; margin-right: 3px; }
+
+.inr-edgecount { color: var(--text-muted); cursor: default; }
+.inr-claim-text { padding-left: 18px; margin-top: 2px; color: var(--text-secondary); }
+.inr-pl18 { padding-left: 18px; }
+.inr-explanation { padding-left: 18px; margin-top: 2px; color: var(--text-muted); font-style: italic; }
+
+.inr-edges-container { padding-left: 18px; margin-top: 4px; }
+.inr-edge-grid { display: grid; grid-template-columns: 72px 60px 80px 76px 140px 180px 40px; gap: 4px; align-items: center; }
+
+.inr-atk-edge { margin-top: 4px; padding-left: 8px; border-left: 2px solid color-mix(in srgb, var(--danger) 30%, transparent); }
+.inr-sup-edge { margin-top: 4px; padding-left: 8px; border-left: 2px solid color-mix(in srgb, var(--success) 30%, transparent); }
+
+.inr-ca-node { font-weight: 700; padding: 1px 5px; border-radius: 3px; background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
+.inr-ra-node { font-weight: 700; padding: 1px 5px; border-radius: 3px; background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+
+.inr-goto-btn-danger { padding: 0 4px; border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); border-radius: 3px; background: none; color: var(--danger); cursor: pointer; font-weight: 600; }
+.inr-goto-btn-success { padding: 0 4px; border: 1px solid color-mix(in srgb, var(--success) 40%, transparent); border-radius: 3px; background: none; color: var(--success); cursor: pointer; font-weight: 600; }
+.inr-goto-btn-success-ml { margin-left: 6px; padding: 0 4px; border: 1px solid color-mix(in srgb, var(--success) 40%, transparent); border-radius: 3px; background: none; color: var(--success); cursor: pointer; font-weight: 600; }
+.inr-goto-btn-acc { margin-left: 6px; padding: 0 4px; border: 1px solid color-mix(in srgb, var(--color-acc) 40%, transparent); border-radius: 3px; background: none; color: var(--color-acc); cursor: pointer; font-weight: 600; }
+
+.inr-warrant { padding-left: 8px; color: var(--text-muted); font-style: italic; margin-top: 2px; }
+.inr-debater-block { padding-left: 8px; margin-top: 3px; padding: 4px 8px; border-radius: 3px; }
+.inr-mt2 { margin-top: 2px; }
+
+.inr-loo-container { margin-top: 8px; padding: 6px 8px; border-radius: 4px; border-left: 2px solid color-mix(in srgb, var(--warning) 40%, transparent); }
+.inr-loo-heading { font-weight: 700; color: var(--text-primary); background: color-mix(in srgb, var(--warning) 15%, transparent); padding: 2px 6px; border-radius: 3px; margin-bottom: 3px; display: inline-block; }
+.inr-loo-summary { color: var(--text-secondary); font-style: italic; margin-bottom: 4px; }
+.inr-loo-row { display: grid; grid-template-columns: 72px 160px 100px 1fr; gap: 4px; align-items: center; margin-top: 1px; }
+.inr-loo-more { font-size: var(--text-2xs); color: var(--text-muted); margin-top: 2px; }

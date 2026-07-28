@@ -3,6 +3,7 @@
 
 import React from 'react';
 import type { DebateSession } from '../../../../types/debate';
+import './AdaptiveStagingTab.css';
 
 interface AdaptiveStagingDiagnostics {
   phases: { phase: string; rounds: number[]; exit_reason: string }[];
@@ -30,7 +31,7 @@ interface AdaptiveStagingTabProps {
 export function AdaptiveStagingTab({ debate }: AdaptiveStagingTabProps) {
   const sm = debate.stage_models;
   const diag = (debate as unknown as Record<string, unknown>).adaptive_staging_diagnostics as AdaptiveStagingDiagnostics | undefined;
-  if (!diag && !sm) return <div style={{ color: 'var(--text-secondary)', padding: 16 }}>No adaptive staging data available.</div>;
+  if (!diag && !sm) return <div className="adst-empty">No adaptive staging data available.</div>;
 
   const downloadSignals = () => {
     const blob = new Blob([JSON.stringify(diag, null, 2)], { type: 'application/json' });
@@ -43,40 +44,41 @@ export function AdaptiveStagingTab({ debate }: AdaptiveStagingTabProps) {
   };
 
   return (
-    <div style={{ fontSize: '0.75rem' }}>
+    <div className="adst-root">
       {/* Stage Models config */}
       {sm && Object.keys(sm).length > 0 && (
-        <div style={{ marginBottom: 12, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 6 }}>
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>Stage Model Overrides</div>
-          <div style={{ display: 'flex', gap: 12, fontSize: '0.7rem' }}>
+        <div className="adst-stage-models">
+          <div className="adst-section-header">Stage Model Overrides</div>
+          <div className="adst-stage-row">
             {(['brief', 'plan', 'cite'] as const).map(stage => (
               <div key={stage}>
-                <span style={{ fontWeight: 500, textTransform: 'capitalize' }}>{stage}: </span>
+                <span className="adst-stage-name">{stage}: </span>
+                {/* eslint-disable-next-line local/no-inline-style -- dynamic color: override presence */}
                 <span style={{ color: sm[stage] ? 'var(--accent, var(--color-saf))' : 'var(--text-muted)' }}>
                   {sm[stage] || 'debate model'}
                 </span>
               </div>
             ))}
             <div>
-              <span style={{ fontWeight: 500 }}>Draft: </span>
-              <span style={{ color: 'var(--text-muted)' }}>debate model (always)</span>
+              <span className="adst-draft-name">Draft: </span>
+              <span className="adst-muted">debate model (always)</span>
             </div>
           </div>
         </div>
       )}
 
-      {!diag && <div style={{ color: 'var(--text-secondary)', padding: 8 }}>No adaptive staging signal data yet.</div>}
+      {!diag && <div className="adst-empty-sm">No adaptive staging signal data yet.</div>}
 
       {diag && <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ fontWeight: 600 }}>Adaptive Staging Diagnostics</span>
-        <button onClick={downloadSignals} style={{ fontSize: '0.7rem', padding: '2px 8px', cursor: 'pointer', borderRadius: 4, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-primary)' }}>
+      <div className="adst-diag-header">
+        <span className="adst-title">Adaptive Staging Diagnostics</span>
+        <button onClick={downloadSignals} className="adst-download-btn">
           Download Signals JSON
         </button>
       </div>
 
       {/* Summary stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 12 }}>
+      <div className="adst-stats-grid">
         {[
           { label: 'Predicate evals', value: diag.total_predicate_evaluations },
           { label: 'Confidence deferrals', value: diag.confidence_deferrals },
@@ -87,31 +89,32 @@ export function AdaptiveStagingTab({ debate }: AdaptiveStagingTabProps) {
           { label: 'Regressions', value: diag.regressions.length },
           { label: 'Phases', value: diag.phases.length },
         ].map(s => (
-          <div key={s.label} style={{ background: 'var(--bg-secondary)', padding: '4px 8px', borderRadius: 4, textAlign: 'center' }}>
-            <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>{s.value}</div>
-            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-secondary)' }}>{s.label}</div>
+          <div key={s.label} className="adst-stat-card">
+            <div className="adst-stat-value">{s.value}</div>
+            <div className="adst-stat-label">{s.label}</div>
           </div>
         ))}
       </div>
 
       {/* Phase timeline */}
       {diag.phases.length > 0 && (
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>Phase Timeline</div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.7rem' }}>
+        <div className="adst-mb12">
+          <div className="adst-section-header">Phase Timeline</div>
+          <table className="adst-phase-table">
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                <th style={{ textAlign: 'left', padding: 4 }}>Phase</th>
-                <th style={{ textAlign: 'left', padding: 4 }}>Rounds</th>
-                <th style={{ textAlign: 'left', padding: 4 }}>Exit Reason</th>
+              <tr className="adst-row-border">
+                <th className="adst-th-left">Phase</th>
+                <th className="adst-th-left">Rounds</th>
+                <th className="adst-th-left">Exit Reason</th>
               </tr>
             </thead>
             <tbody>
               {diag.phases.map((p, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                <tr key={i} className="adst-row-border">
+                  {/* eslint-disable-next-line local/no-inline-style -- dynamic color by phase */}
                   <td style={{ padding: 4, fontWeight: 600, color: p.phase === 'confrontation' ? 'var(--text-secondary)' : p.phase === 'argumentation' ? 'var(--warning)' : 'var(--text-secondary)' }}>{p.phase}</td>
-                  <td style={{ padding: 4 }}>{p.rounds.length > 0 ? `${p.rounds[0]}–${p.rounds[p.rounds.length - 1]}` : '—'}</td>
-                  <td style={{ padding: 4, color: 'var(--text-secondary)' }}>{p.exit_reason}</td>
+                  <td className="adst-td">{p.rounds.length > 0 ? `${p.rounds[0]}–${p.rounds[p.rounds.length - 1]}` : '—'}</td>
+                  <td className="adst-td-secondary">{p.exit_reason}</td>
                 </tr>
               ))}
             </tbody>
@@ -122,37 +125,48 @@ export function AdaptiveStagingTab({ debate }: AdaptiveStagingTabProps) {
       {/* Signal telemetry table */}
       {diag.signal_telemetry.length > 0 && (
         <div>
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>Signal Telemetry (per round)</div>
-          <div style={{ overflowX: 'auto', maxHeight: 300, overflowY: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-2xs)', whiteSpace: 'nowrap' }}>
+          <div className="adst-section-header">Signal Telemetry (per round)</div>
+          <div className="adst-telemetry-scroll">
+            <table className="adst-telemetry-table">
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--bg-primary)' }}>
-                  <th style={{ padding: '2px 4px' }}>Rd</th>
-                  <th style={{ padding: '2px 4px' }}>Phase</th>
-                  <th style={{ padding: '2px 4px' }}>Sat</th>
-                  <th style={{ padding: '2px 4px' }}>Conv</th>
-                  <th style={{ padding: '2px 4px' }}>Conf</th>
-                  <th style={{ padding: '2px 4px' }} title="Topic Coherence — mean embedding similarity to crux centroid (anti-drift)">TC</th>
-                  <th style={{ padding: '2px 4px' }}>Net</th>
-                  <th style={{ padding: '2px 4px' }}>Action</th>
-                  <th style={{ padding: '2px 4px' }}>Reason</th>
+                <tr className="adst-telemetry-head-row">
+                  <th className="adst-cell-sm">Rd</th>
+                  <th className="adst-cell-sm">Phase</th>
+                  <th className="adst-cell-sm">Sat</th>
+                  <th className="adst-cell-sm">Conv</th>
+                  <th className="adst-cell-sm">Conf</th>
+                  <th className="adst-cell-sm" title="Topic Coherence — mean embedding similarity to crux centroid (anti-drift)">TC</th>
+                  <th className="adst-cell-sm">Net</th>
+                  <th className="adst-cell-sm">Action</th>
+                  <th className="adst-cell-sm">Reason</th>
                 </tr>
               </thead>
               <tbody>
                 {diag.signal_telemetry.map((t, i) => (
-                  <tr key={i} style={{
-                    borderBottom: '1px solid var(--border)',
+                  // eslint-disable-next-line local/no-inline-style -- dynamic row background by action
+                  <tr key={i} className="adst-row-border" style={{
                     background: t.predicate_result.action !== 'stay' ? 'color-mix(in srgb, var(--warning) 10%, transparent)' : undefined,
                   }}>
-                    <td style={{ padding: '2px 4px' }}>{t.round}</td>
+                    <td className="adst-cell-sm">{t.round}</td>
+                    {/* eslint-disable-next-line local/no-inline-style -- dynamic color by phase */}
                     <td style={{ padding: '2px 4px', color: t.phase === 'confrontation' ? 'var(--text-secondary)' : t.phase === 'argumentation' ? 'var(--warning)' : 'var(--text-secondary)' }}>{t.phase.slice(0, 5)}</td>
-                    <td style={{ padding: '2px 4px' }}>{t.composite.saturation_score?.toFixed(2) ?? '—'}</td>
-                    <td style={{ padding: '2px 4px' }}>{t.composite.convergence_score?.toFixed(2) ?? '—'}</td>
+                    <td className="adst-cell-sm">{t.composite.saturation_score?.toFixed(2) ?? '—'}</td>
+                    <td className="adst-cell-sm">{t.composite.convergence_score?.toFixed(2) ?? '—'}</td>
+                    {/* eslint-disable-next-line local/no-inline-style -- dynamic color by confidence threshold */}
                     <td style={{ padding: '2px 4px', color: (t.confidence?.global ?? 0) < 0.4 ? 'var(--danger)' : undefined }}>{(t.confidence?.global ?? 0).toFixed(2)}</td>
-                    {(() => { const raw = t.signals?.topic_coherence; if (raw == null) return <td style={{ padding: '2px 4px', color: 'var(--text-muted)' }}>{'—'}</td>; const coh = 1 - raw; return <td style={{ padding: '2px 4px', color: coh > 0.7 ? 'var(--success)' : coh > 0.4 ? 'var(--warning)' : 'var(--danger)' }} title={`Coherence: ${coh.toFixed(3)} (raw signal: ${raw.toFixed(3)})`}>{coh.toFixed(2)}</td>; })()}
-                    <td style={{ padding: '2px 4px' }}>{t.network_size}</td>
+                    {(() => {
+                      const raw = t.signals?.topic_coherence;
+                      if (raw == null) return <td className="adst-cell-sm adst-muted">{'—'}</td>;
+                      const coh = 1 - raw;
+                      return (
+                        // eslint-disable-next-line local/no-inline-style -- dynamic color by coherence threshold
+                        <td style={{ padding: '2px 4px', color: coh > 0.7 ? 'var(--success)' : coh > 0.4 ? 'var(--warning)' : 'var(--danger)' }} title={`Coherence: ${coh.toFixed(3)} (raw signal: ${raw.toFixed(3)})`}>{coh.toFixed(2)}</td>
+                      );
+                    })()}
+                    <td className="adst-cell-sm">{t.network_size}</td>
+                    {/* eslint-disable-next-line local/no-inline-style -- dynamic font-weight by action */}
                     <td style={{ padding: '2px 4px', fontWeight: t.predicate_result.action !== 'stay' ? 700 : 400 }}>{t.predicate_result.action}</td>
-                    <td style={{ padding: '2px 4px', color: 'var(--text-secondary)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.predicate_result.reason}>{t.predicate_result.reason}</td>
+                    <td className="adst-td-reason" title={t.predicate_result.reason}>{t.predicate_result.reason}</td>
                   </tr>
                 ))}
               </tbody>
@@ -163,10 +177,10 @@ export function AdaptiveStagingTab({ debate }: AdaptiveStagingTabProps) {
 
       {/* Regressions */}
       {diag.regressions.length > 0 && (
-        <div style={{ marginTop: 12 }}>
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>Regressions</div>
+        <div className="adst-mt12">
+          <div className="adst-section-header">Regressions</div>
           {diag.regressions.map((r, i) => (
-            <div key={i} style={{ padding: '4px 8px', background: 'color-mix(in srgb, var(--danger) 10%, transparent)', borderRadius: 4, marginBottom: 4, fontSize: '0.7rem' }}>
+            <div key={i} className="adst-regression-item">
               Round {r.from_round}: crux {r.crux_id}, threshold ratcheted to {(r.threshold_after * 100).toFixed(0)}%
             </div>
           ))}
@@ -175,10 +189,10 @@ export function AdaptiveStagingTab({ debate }: AdaptiveStagingTabProps) {
 
       {/* GC Events */}
       {diag.gc_events.length > 0 && (
-        <div style={{ marginTop: 12 }}>
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>Network GC Events</div>
+        <div className="adst-mt12">
+          <div className="adst-section-header">Network GC Events</div>
           {diag.gc_events.map((g, i) => (
-            <div key={i} style={{ padding: '4px 8px', background: 'var(--bg-secondary)', borderRadius: 4, marginBottom: 4, fontSize: '0.7rem' }}>
+            <div key={i} className="adst-gc-item">
               Round {g.round}: {g.before} → {g.after} nodes ({g.pruned} pruned)
             </div>
           ))}

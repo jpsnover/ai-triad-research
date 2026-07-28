@@ -7,6 +7,7 @@ import { humanizeSpeakerIds } from '../../../../utils/humanizeSpeakers';
 import { TaxonomyRefDetail, type TaxRefNode, type TaxRefEdge } from '../../../taxonomy/TaxonomyRefDetail';
 import { Highlight, CopyButton } from '../helpers';
 import { classifyHintTarget, HINT_TARGET_STYLE } from '../shared';
+import './CiteTab.css';
 
 export interface CiteTabProps {
   entry: DebateSession['transcript'][number];
@@ -27,21 +28,22 @@ export interface CiteTabProps {
 export function CiteTab(props: CiteTabProps) {
   const { entry, debate, citeStage, citeAttempts, briefStage, turnValTrail, taxNodeMap, allEdges, policyMap, selectedTaxRefId, setSelectedTaxRefId, selectedPolicyId, setSelectedPolicyId } = props;
   return (
-    <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+    <div className="cit-root">
       {/* -- Top section: header + content from final cite -- */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-        <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--warning) 20%, transparent)', color: 'var(--warning)', fontWeight: 600 }}>CITE</span>
+      <div className="cit-header">
+        <span className="cit-badge">CITE</span>
         <span>{citeStage.model}</span>
         <span>temp={citeStage.temperature}</span>
         <span>{(citeStage.response_time_ms / 1000).toFixed(1)}s</span>
         {typeof (citeStage.work_product as Record<string, unknown>).grounding_confidence === 'number' && (
+          // eslint-disable-next-line local/no-inline-style -- confidence-threshold-driven background
           <span style={{ padding: '1px 6px', borderRadius: 3, background: (citeStage.work_product as Record<string, unknown>).grounding_confidence as number >= 0.7 ? 'color-mix(in srgb, var(--success) 20%, transparent)' : 'color-mix(in srgb, var(--warning) 20%, transparent)', fontSize: 'var(--text-2xs)' }}>
             confidence: {((citeStage.work_product as Record<string, unknown>).grounding_confidence as number).toFixed(2)}
           </span>
         )}
       </div>
       {citeStage.parse_error && (
-        <div style={{ padding: '6px 8px', margin: '6px 0', background: 'rgba(220,38,38,0.1)', borderLeft: '3px solid var(--danger)', borderRadius: 4, fontSize: '0.72rem', color: 'var(--danger)' }}>
+        <div className="cit-parse-error">
           <strong>Parse error:</strong> {citeStage.parse_error}
         </div>
       )}
@@ -52,13 +54,13 @@ export function CiteTab(props: CiteTabProps) {
         const dr = wp.directive_response as { directive: string; how_addressed: string } | undefined;
         if (!drp && !dr) return null;
         return (
-          <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid color-mix(in srgb, var(--warning) 60%, transparent)', background: 'color-mix(in srgb, var(--warning) 8%, transparent)', borderRadius: 4, fontSize: '0.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--warning) 20%, transparent)', color: 'var(--warning)', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>MODERATOR DIRECTIVE</span>
+          <div className="cit-directive">
+            <div className="cit-directive-head">
+              <span className="cit-badge-2xs">MODERATOR DIRECTIVE</span>
             </div>
             {dr && (
               <>
-                <div style={{ marginBottom: 4 }}><strong>Directive:</strong> <Highlight text={dr.directive} /></div>
+                <div className="cit-mb4"><strong>Directive:</strong> <Highlight text={dr.directive} /></div>
                 <div><strong>How addressed:</strong> <Highlight text={dr.how_addressed} /></div>
               </>
             )}
@@ -96,18 +98,18 @@ export function CiteTab(props: CiteTabProps) {
             : [];
         })());
         return (
-        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>
+        <details open><summary className="cit-summary">
           Taxonomy References
           {boostedSet.size > 0 && (
-            <span style={{ marginLeft: 6, fontWeight: 400, fontSize: 'var(--text-2xs)', color: 'var(--warning)' }}>
+            <span className="cit-boost-note">
               {boostedSet.size} lineage-boosted{promotedSet.size > 0 ? `, ${promotedSet.size} promoted` : ''}
               {frameLabels.length > 0 && <> · {frameLabels.join(', ')}</>}
             </span>
           )}
         </summary>
-          <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+          <table className="cit-table">
             <colgroup>
-              <col style={{ width: 180 }} />
+              <col className="cit-col-180" />
               <col />
             </colgroup>
             <tbody>
@@ -116,36 +118,38 @@ export function CiteTab(props: CiteTabProps) {
                 const isNew = !briefNodes.has(r.node_id);
                 const nodeLabel = (taxNodeMap.get(r.node_id) as TaxRefNode | undefined)?.label;
                 return (
+                  // eslint-disable-next-line local/no-inline-style -- selection-driven background
                   <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'transparent' }}>
-                    <td style={{ padding: '3px 6px', verticalAlign: 'top', overflow: 'hidden' }}>
+                    <td className="cit-td-node">
                       <div>
                         <button
                           onClick={() => setSelectedTaxRefId(isSelected ? null : r.node_id)}
+                          // eslint-disable-next-line local/no-inline-style -- selection-driven fontWeight
                           style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', fontWeight: isSelected ? 700 : 600, textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit', textAlign: 'left' }}
                           title="Show node details"
                         >{r.primary ? '★ ' : ''}{r.node_id}</button>
                         {isNew && (
-                          <span title="New: not in Brief's relevant taxonomy nodes" style={{ marginLeft: 3, color: 'var(--success)', fontWeight: 700, fontSize: '0.8em' }}>+</span>
+                          <span title="New: not in Brief's relevant taxonomy nodes" className="cit-new-badge">+</span>
                         )}
                         {promotedSet.has(r.node_id) ? (
                           <span
                             title={`Promoted into context by lineage boost — would not appear without boost${boostTraditions.length > 0 ? ` (${boostTraditions.join(', ')})` : ''}`}
-                            style={{ marginLeft: 3, display: 'inline-block', padding: '0 4px', borderRadius: 2, background: 'color-mix(in srgb, var(--warning) 25%, transparent)', color: 'var(--warning)', fontWeight: 700, fontSize: '0.65em', lineHeight: '1.4' }}
+                            className="cit-promoted-badge"
                           >L{'↑'}</span>
                         ) : boostedSet.has(r.node_id) ? (
                           <span
                             title={`Relevance score boosted by lineage matching${boostTraditions.length > 0 ? ` (${boostTraditions.join(', ')})` : ''}`}
-                            style={{ marginLeft: 3, display: 'inline-block', padding: '0 3px', borderRadius: 2, background: 'color-mix(in srgb, var(--warning) 12%, transparent)', color: 'var(--warning)', fontWeight: 600, fontSize: '0.65em', lineHeight: '1.4' }}
+                            className="cit-boosted-badge"
                           >L</span>
                         ) : null}
                       </div>
                       {nodeLabel && (
-                        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }} title={nodeLabel}>
+                        <div className="cit-node-label" title={nodeLabel}>
                           {nodeLabel}
                         </div>
                       )}
                     </td>
-                    <td style={{ padding: '3px 6px', verticalAlign: 'top' }}><Highlight text={r.relevance} /></td>
+                    <td className="cit-td-top"><Highlight text={r.relevance} /></td>
                   </tr>
                 );
               })}
@@ -173,12 +177,12 @@ export function CiteTab(props: CiteTabProps) {
       })()}
       {/* Move Annotations */}
       {Array.isArray((citeStage.work_product as Record<string, unknown>).move_annotations) && (
-        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Move Annotations</summary>
+        <details open><summary className="cit-summary">Move Annotations</summary>
           {((citeStage.work_product as Record<string, unknown>).move_annotations as { move: string; target?: string; detail: string }[]).map((m, i) => (
-            <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid color-mix(in srgb, var(--warning) 30%, transparent)' }}>
-              <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--warning) 20%, transparent)', color: 'var(--warning)', fontSize: '0.7rem', fontWeight: 600 }}>{m.move}</span>
-              {m.target && <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{'→'} {m.target}</span>}
-              {m.detail && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}><Highlight text={m.detail} /></div>}
+            <div key={i} className="cit-move-row">
+              <span className="cit-move-badge">{m.move}</span>
+              {m.target && <span className="cit-move-target">{'→'} {m.target}</span>}
+              {m.detail && <div className="cit-move-detail"><Highlight text={m.detail} /></div>}
             </div>
           ))}
         </details>
@@ -189,10 +193,10 @@ export function CiteTab(props: CiteTabProps) {
         if (!Array.isArray(rawCitePolRefs) || rawCitePolRefs.length === 0) return null;
         const citePolIds = (rawCitePolRefs as (string | { policy_id: string; relevance?: string })[]).map(p => typeof p === 'string' ? p : p.policy_id);
         return (
-        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Policy References</summary>
-          <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+        <details open><summary className="cit-summary">Policy References</summary>
+          <table className="cit-table">
             <colgroup>
-              <col style={{ width: 120 }} />
+              <col className="cit-col-120" />
               <col />
             </colgroup>
             <tbody>
@@ -200,16 +204,18 @@ export function CiteTab(props: CiteTabProps) {
                 const isSelected = selectedPolicyId === p;
                 const pol = policyMap.get(p);
                 return (
+                  // eslint-disable-next-line local/no-inline-style -- selection-driven background
                   <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'color-mix(in srgb, var(--text-secondary) 8%, transparent)' : 'transparent' }}>
-                    <td style={{ padding: '3px 6px', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+                    <td className="cit-td-pol">
                       <button
                         onClick={() => setSelectedPolicyId(isSelected ? null : p)}
+                        // eslint-disable-next-line local/no-inline-style -- selection-driven fontWeight
                         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-secondary)', fontWeight: isSelected ? 700 : 600, textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit', textAlign: 'left' }}
                         title="Show policy details"
                       >{p}</button>
                     </td>
-                    <td style={{ padding: '3px 6px', verticalAlign: 'top', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {pol?.action ?? <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{'—'}</span>}
+                    <td className="cit-td-action">
+                      {pol?.action ?? <span className="cit-muted-italic">{'—'}</span>}
                     </td>
                   </tr>
                 );
@@ -219,18 +225,18 @@ export function CiteTab(props: CiteTabProps) {
           {selectedPolicyId && (() => {
             const pol = policyMap.get(selectedPolicyId);
             return (
-              <div style={{ margin: '6px 0', padding: '8px 10px', borderRadius: 6, background: 'color-mix(in srgb, var(--text-secondary) 6%, transparent)', border: '1px solid color-mix(in srgb, var(--text-secondary) 20%, transparent)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--text-secondary)', fontSize: '0.72rem' }}>{selectedPolicyId}</span>
-                  <button onClick={() => setSelectedPolicyId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{'×'}</button>
+              <div className="cit-pol-detail">
+                <div className="cit-pol-detail-head">
+                  <span className="cit-pol-id">{selectedPolicyId}</span>
+                  <button onClick={() => setSelectedPolicyId(null)} className="cit-close-btn">{'×'}</button>
                 </div>
                 {pol ? (<>
-                  <div style={{ fontSize: '0.75rem', lineHeight: 1.5, marginBottom: 4 }}>{pol.action}</div>
-                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
+                  <div className="cit-pol-action">{pol.action}</div>
+                  <div className="cit-2xs-muted">
                     POVs: {pol.source_povs.join(', ')} · {pol.member_count} member{pol.member_count !== 1 ? 's' : ''}
                   </div>
                 </>) : (
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Policy not found in registry</div>
+                  <div className="cit-notfound">Policy not found in registry</div>
                 )}
               </div>
             );
@@ -247,25 +253,25 @@ export function CiteTab(props: CiteTabProps) {
         } | undefined;
         const lb = lbManifest?.lineage_boost;
         return (
-          <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>
+          <details open><summary className="cit-summary">
             Intellectual Lineage ({frame.length})
-            {lb && <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--success)', fontWeight: 400 }}>boost active</span>}
+            {lb && <span className="cit-boost-active">boost active</span>}
           </summary>
             {frame.map((f: { cluster_id: string; label?: string; percentage: number; traditions?: string[] }, i: number) => (
-              <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid color-mix(in srgb, var(--warning) 30%, transparent)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>{f.label ?? f.cluster_id}</span>
-                  <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--warning)' }}>{(f.percentage * 100).toFixed(0)}%</span>
+              <div key={i} className="cit-move-row">
+                <div className="cit-flex-gap6">
+                  <span className="cit-frame-label">{f.label ?? f.cluster_id}</span>
+                  <span className="cit-pct">{(f.percentage * 100).toFixed(0)}%</span>
                 </div>
                 {f.traditions && f.traditions.length > 0 && (
-                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 1 }}>
+                  <div className="cit-traditions">
                     {f.traditions.join(', ')}
                   </div>
                 )}
               </div>
             ))}
             {lb && (
-              <div style={{ marginTop: 4, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
+              <div className="cit-boost-summary">
                 Boosted: {lb.boosted ?? 0} nodes · Promoted: {lb.promoted ?? 0} nodes
               </div>
             )}
@@ -283,27 +289,24 @@ export function CiteTab(props: CiteTabProps) {
         return (
           <div key={ai}>
             {/* Turn header */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0 6px',
-              fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontWeight: 600,
-            }}>
-              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+            <div className="cit-turn-header">
+              <div className="cit-hr-line" />
               <span>Turn {ai + 1}</span>
-              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+              <div className="cit-hr-line" />
             </div>
             {/* Raw Prompt */}
             <details>
-              <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <summary className="cit-raw-summary">
                 Raw Prompt <CopyButton text={attempt.prompt} />
               </summary>
-              <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.prompt}</pre>
+              <pre className="cit-raw-pre">{attempt.prompt}</pre>
             </details>
             {/* Raw Response */}
             <details>
-              <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <summary className="cit-raw-summary">
                 Raw Response <CopyButton text={attempt.raw_response} />
               </summary>
-              <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.raw_response}</pre>
+              <pre className="cit-raw-pre">{attempt.raw_response}</pre>
             </details>
             {/* Validation Score */}
             {(() => {
@@ -319,53 +322,58 @@ export function CiteTab(props: CiteTabProps) {
                 const mono = { fontFamily: 'monospace', fontSize: 'var(--text-2xs)' } as const;
                 const dimColor = (pass: boolean) => pass ? 'var(--success)' : 'var(--danger)';
                 return (
-                  <div style={{
-                    marginTop: 6, background: 'var(--bg-subtle)', borderRadius: 4,
-                    padding: '5px 8px', fontSize: '0.7rem',
-                  }}>
-                    <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                  <div className="cit-valscore-box">
+                    <div className="cit-valscore-title">
                       Validation Score:{' '}
+                      {/* eslint-disable-next-line local/no-inline-style -- score-threshold-driven color */}
                       <span style={{ ...mono, color: turnScore >= 0.7 ? 'var(--success)' : turnScore >= 0.5 ? 'var(--warning)' : 'var(--danger)' }}>
                         {turnScore.toFixed(2)}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px', fontSize: 'var(--text-2xs)' }}>
-                      <span><span style={{ color: dimColor(dims.schema.pass) }}>{'●'}</span> schema {'×'}0.4 = <strong style={mono}>{(0.4 * (dims.schema.pass ? 1 : 0)).toFixed(2)}</strong></span>
-                      <span><span style={{ color: dimColor(dims.grounding.pass) }}>{'●'}</span> grounding {'×'}0.3 = <strong style={mono}>{(0.3 * (dims.grounding.pass ? 1 : 0)).toFixed(2)}</strong></span>
-                      <span><span style={{ color: dimColor(dims.advancement.pass) }}>{'●'}</span> advancement {'×'}0.2 = <strong style={mono}>{(0.2 * (dims.advancement.pass ? 1 : 0)).toFixed(2)}</strong></span>
-                      <span><span style={{ color: dimColor(dims.clarifies.pass) }}>{'●'}</span> clarifies {'×'}0.1 = <strong style={mono}>{(0.1 * (dims.clarifies.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                    <div className="cit-dims-row">
+                      {/* eslint-disable-next-line local/no-inline-style -- dimension-pass-driven color */}
+                      <span><span style={{ color: dimColor(dims.schema.pass) }}>{'●'}</span> schema {'×'}0.4 = <strong className="cit-mono">{(0.4 * (dims.schema.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                      {/* eslint-disable-next-line local/no-inline-style -- dimension-pass-driven color */}
+                      <span><span style={{ color: dimColor(dims.grounding.pass) }}>{'●'}</span> grounding {'×'}0.3 = <strong className="cit-mono">{(0.3 * (dims.grounding.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                      {/* eslint-disable-next-line local/no-inline-style -- dimension-pass-driven color */}
+                      <span><span style={{ color: dimColor(dims.advancement.pass) }}>{'●'}</span> advancement {'×'}0.2 = <strong className="cit-mono">{(0.2 * (dims.advancement.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                      {/* eslint-disable-next-line local/no-inline-style -- dimension-pass-driven color */}
+                      <span><span style={{ color: dimColor(dims.clarifies.pass) }}>{'●'}</span> clarifies {'×'}0.1 = <strong className="cit-mono">{(0.1 * (dims.clarifies.pass ? 1 : 0)).toFixed(2)}</strong></span>
                     </div>
-                    <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3, fontSize: 'var(--text-2xs)', display: 'flex', gap: 12 }}>
-                      <span>Stage A: <strong style={mono}>{stageA.toFixed(2)}</strong> <span style={{ color: 'var(--text-muted)' }}>{'×'}0.4 = {(0.4 * stageA).toFixed(2)}</span></span>
-                      <span>Judge: <strong style={mono}>{judgeQ.toFixed(2)}</strong>{!judgeUsed && <span style={{ color: 'var(--text-muted)' }}> (default)</span>} <span style={{ color: 'var(--text-muted)' }}>{'×'}0.6 = {(0.6 * judgeQ).toFixed(2)}</span></span>
+                    <div className="cit-breakdown">
+                      <span>Stage A: <strong className="cit-mono">{stageA.toFixed(2)}</strong> <span className="cit-muted">{'×'}0.4 = {(0.4 * stageA).toFixed(2)}</span></span>
+                      <span>Judge: <strong className="cit-mono">{judgeQ.toFixed(2)}</strong>{!judgeUsed && <span className="cit-muted"> (default)</span>} <span className="cit-muted">{'×'}0.6 = {(0.6 * judgeQ).toFixed(2)}</span></span>
+                      {/* eslint-disable-next-line local/no-inline-style -- score-threshold-driven color */}
                       <span>Total: <strong style={{ ...mono, color: turnScore >= 0.7 ? 'var(--success)' : turnScore >= 0.5 ? 'var(--warning)' : 'var(--danger)' }}>{turnScore.toFixed(2)}</strong></span>
                     </div>
                   </div>
                 );
               }
               return (
-                <div style={{ marginTop: 6, fontSize: '0.72rem', fontWeight: 600 }}>
+                <div className="cit-fallback-val">
                   Validation Score:{' '}
                   {valData ? (
+                    // eslint-disable-next-line local/no-inline-style -- pass-driven color
                     <span style={{ color: valData.pass ? 'var(--success)' : 'var(--danger)' }}>
                       {valData.pass ? 'Pass' : 'Fail'}
                     </span>
                   ) : (
-                    <span style={{ color: 'var(--text-muted)' }}>{'—'}</span>
+                    <span className="cit-muted">{'—'}</span>
                   )}
                 </div>
               );
             })()}
             {/* Validation Feedback */}
             {hints.length > 0 && (
-              <details open style={{ marginTop: 4, fontSize: '0.72rem' }}>
-                <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Validation Feedback</summary>
-                <ul style={{ margin: '4px 0 0 16px', padding: 0, fontSize: '0.7rem' }}>
+              <details open className="cit-feedback">
+                <summary className="cit-summary-plain">Validation Feedback</summary>
+                <ul className="cit-feedback-list">
                   {hints.map((h, hi) => {
                     const target = classifyHintTarget(h);
                     const ts = HINT_TARGET_STYLE[target];
                     return (
-                      <li key={hi} style={{ marginBottom: 3 }}>
+                      <li key={hi} className="cit-mb3">
+                        {/* eslint-disable-next-line local/no-inline-style -- hint-target-driven color/background */}
                         <span style={{
                           display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
                           color: ts.color, background: ts.bg, padding: '1px 5px',

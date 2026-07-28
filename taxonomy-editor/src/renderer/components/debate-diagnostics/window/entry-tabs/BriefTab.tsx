@@ -7,6 +7,7 @@ import { humanizeSpeakerIds } from '../../../../utils/humanizeSpeakers';
 import { Highlight } from '../helpers';
 import { classifyHintTarget, HINT_TARGET_STYLE, ArtifactBlock } from '../shared';
 import { TaxonomyRefDetail, type TaxRefNode, type TaxRefEdge } from '../../../taxonomy/TaxonomyRefDetail';
+import './BriefTab.css';
 
 export interface BriefTabProps {
   entry: DebateSession['transcript'][number];
@@ -24,7 +25,7 @@ export function BriefTab(props: BriefTabProps) {
   const { entry, briefStage, briefAttempts, turnValTrail, nodeWeights, taxNodeMap, allEdges, selectedTaxRefId, setSelectedTaxRefId } = props;
   // Shared renderer for POV grounding items — line 1: id + label + scores; line 2: justification/applicability.
   const renderGrounding = (grounding: { node_id: string; why: string }[], baseColor: string) => (
-    <ul style={{ margin: '2px 0 4px', paddingLeft: 14, listStyle: 'none' }}>
+    <ul className="brief-grounding-list">
       {grounding.map((g, gi) => {
         const ref = entry.taxonomy_refs?.find(r => r.node_id === g.node_id);
         const sc = ref?.relevance_score;
@@ -35,32 +36,37 @@ export function BriefTab(props: BriefTabProps) {
         const oper = (g as Record<string, unknown>).operationality as number | undefined ?? tw?.operationality;
         const label = (taxNodeMap.get(g.node_id) as { label?: string } | undefined)?.label;
         return (
+          // eslint-disable-next-line local/no-inline-style -- dynamic baseColor
           <li key={gi} style={{ fontSize: 'var(--text-2xs)', color: baseColor, marginBottom: 3 }}>
             <div>
-              <button onClick={() => setSelectedTaxRefId(selectedTaxRefId === g.node_id ? null : g.node_id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}>{g.node_id}</button>
-              {label && <span style={{ marginLeft: 6, fontWeight: 600, color: 'var(--text-secondary)' }}>{label}</span>}
+              <button onClick={() => setSelectedTaxRefId(selectedTaxRefId === g.node_id ? null : g.node_id)} className="brief-taxref-btn">{g.node_id}</button>
+              {label && <span className="brief-grounding-label">{label}</span>}
+              {/* eslint-disable-next-line local/no-inline-style -- dynamic scColor */}
               {sc != null && <span style={{ fontWeight: 600, color: scColor, marginLeft: 6 }}>{sc.toFixed(2)}</span>}
+              {/* eslint-disable-next-line local/no-inline-style -- dynamic conf coloring */}
               {conf != null && <span style={{ marginLeft: 4, fontWeight: 600, color: conf >= 0.70 ? 'var(--success)' : conf >= 0.50 ? 'var(--text-secondary)' : 'var(--warning)', background: conf < 0.50 ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : undefined, padding: conf < 0.50 ? '0 3px' : undefined, borderRadius: 2 }}>conf:{conf.toFixed(2)}</span>}
+              {/* eslint-disable-next-line local/no-inline-style -- dynamic prio coloring */}
               {prio != null && <span style={{ marginLeft: 4, fontWeight: 600, color: prio >= 4 ? 'var(--text-secondary)' : 'var(--text-muted)' }}>P{prio}/5</span>}
+              {/* eslint-disable-next-line local/no-inline-style -- dynamic oper coloring */}
               {oper != null && <span style={{ marginLeft: 4, fontWeight: 600, color: oper >= 4 ? 'var(--text-secondary)' : 'var(--text-muted)' }}>op:{oper}/5</span>}
             </div>
-            {g.why && <div style={{ marginTop: 1, color: 'var(--text-muted)' }}>{g.why}</div>}
+            {g.why && <div className="brief-grounding-why">{g.why}</div>}
           </li>
         );
       })}
     </ul>
   );
   return (
-    <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+    <div className="brief-container">
       {/* -- Top section: header + content from final brief -- */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-        <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--color-saf) 20%, transparent)', color: 'var(--color-saf)', fontWeight: 600 }}>BRIEF</span>
+      <div className="brief-header">
+        <span className="brief-badge">BRIEF</span>
         <span>{briefStage.model}</span>
         <span>temp={briefStage.temperature}</span>
         <span>{(briefStage.response_time_ms / 1000).toFixed(1)}s</span>
       </div>
       {briefStage.parse_error && (
-        <div style={{ padding: '6px 8px', margin: '6px 0', background: 'rgba(220,38,38,0.1)', borderLeft: '3px solid var(--danger)', borderRadius: 4, fontSize: '0.72rem', color: 'var(--danger)' }}>
+        <div className="brief-parse-error">
           <strong>Parse error:</strong> {briefStage.parse_error}
         </div>
       )}
@@ -71,13 +77,13 @@ export function BriefTab(props: BriefTabProps) {
         const dr = wp.directive_response as { directive: string; how_addressed: string } | undefined;
         if (!drp && !dr) return null;
         return (
-          <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid color-mix(in srgb, var(--warning) 60%, transparent)', background: 'color-mix(in srgb, var(--warning) 8%, transparent)', borderRadius: 4, fontSize: '0.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--warning) 20%, transparent)', color: 'var(--warning)', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>MODERATOR DIRECTIVE</span>
+          <div className="brief-directive">
+            <div className="brief-directive-header">
+              <span className="brief-directive-badge">MODERATOR DIRECTIVE</span>
             </div>
             {dr && (
               <>
-                <div style={{ marginBottom: 4 }}><strong>Directive:</strong> <Highlight text={dr.directive} /></div>
+                <div className="brief-mb4"><strong>Directive:</strong> <Highlight text={dr.directive} /></div>
                 <div><strong>How addressed:</strong> <Highlight text={dr.how_addressed} /></div>
               </>
             )}
@@ -87,14 +93,14 @@ export function BriefTab(props: BriefTabProps) {
       })()}
       {/* Core BRIEF statement (situation assessment) */}
       {!!(briefStage.work_product as Record<string, unknown>).situation_assessment && (
-        <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid color-mix(in srgb, var(--color-saf) 40%, transparent)', background: 'color-mix(in srgb, var(--color-saf) 5%, transparent)', fontSize: '0.78rem' }}>
+        <div className="brief-situation">
           <Highlight text={String((briefStage.work_product as Record<string, unknown>).situation_assessment)} />
         </div>
       )}
       {/* Key Claims to Address */}
       {Array.isArray((briefStage.work_product as Record<string, unknown>).key_claims_to_address) && (
-        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Key Claims to Address</summary>
-          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
+        <details open><summary className="brief-summary">Key Claims to Address</summary>
+          <ul className="brief-list">
             {((briefStage.work_product as Record<string, unknown>).key_claims_to_address as { claim: string; speaker: string; an_id?: string; grounding?: { node_id: string; why: string }[] }[]).map((c, i) => (
               <li key={i}>
                 <strong>{c.speaker}</strong>{c.an_id ? ` (${c.an_id})` : ''}: <Highlight text={c.claim} />
@@ -106,8 +112,8 @@ export function BriefTab(props: BriefTabProps) {
       )}
       {/* Strongest Angles */}
       {Array.isArray((briefStage.work_product as Record<string, unknown>).strongest_angles) && (
-        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Strongest Angles</summary>
-          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
+        <details open><summary className="brief-summary">Strongest Angles</summary>
+          <ul className="brief-list">
             {((briefStage.work_product as Record<string, unknown>).strongest_angles as { angle: string; why: string; grounding?: { node_id: string; why: string }[] }[]).map((a, i) => (
               <li key={i}>
                 <strong>{a.angle}</strong>: <Highlight text={a.why} />
@@ -119,8 +125,8 @@ export function BriefTab(props: BriefTabProps) {
       )}
       {/* Edge Tensions */}
       {Array.isArray((briefStage.work_product as Record<string, unknown>).edge_tensions) && ((briefStage.work_product as Record<string, unknown>).edge_tensions as { edge: string; relevance: string }[]).length > 0 && (
-        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Edge Tensions</summary>
-          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
+        <details open><summary className="brief-summary">Edge Tensions</summary>
+          <ul className="brief-list">
             {((briefStage.work_product as Record<string, unknown>).edge_tensions as { edge: string; relevance: string }[]).map((t, i) => (
               <li key={i}><strong>{t.edge}</strong>: <Highlight text={t.relevance} /></li>
             ))}
@@ -129,8 +135,8 @@ export function BriefTab(props: BriefTabProps) {
       )}
       {/* Key Tensions */}
       {Array.isArray((briefStage.work_product as Record<string, unknown>).key_tensions) && ((briefStage.work_product as Record<string, unknown>).key_tensions as { tension: string; opportunity: string }[]).length > 0 && (
-        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Key Tensions</summary>
-          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
+        <details open><summary className="brief-summary">Key Tensions</summary>
+          <ul className="brief-list">
             {((briefStage.work_product as Record<string, unknown>).key_tensions as { tension: string; opportunity: string }[]).map((t, i) => (
               <li key={i}><strong>{t.tension}</strong>: <Highlight text={t.opportunity} /></li>
             ))}
@@ -139,13 +145,13 @@ export function BriefTab(props: BriefTabProps) {
       )}
       {/* Document Claims to Engage */}
       {Array.isArray((briefStage.work_product as Record<string, unknown>).document_claims_to_engage) && ((briefStage.work_product as Record<string, unknown>).document_claims_to_engage as { d_id: string; claim: string; stance: string; why: string; grounding?: { node_id: string; why: string }[] }[]).length > 0 && (
-        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Document Claims to Engage</summary>
-          <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
+        <details open><summary className="brief-summary">Document Claims to Engage</summary>
+          <table className="brief-table">
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
-                <th style={{ padding: '3px 6px', fontWeight: 600, color: 'var(--text-muted)', width: '60px' }}>D-ID</th>
-                <th style={{ padding: '3px 6px', fontWeight: 600, color: 'var(--text-muted)', width: '70px' }}>Stance</th>
-                <th style={{ padding: '3px 6px', fontWeight: 600, color: 'var(--text-muted)' }}>Claim &amp; Rationale</th>
+              <tr className="brief-thead-row">
+                <th className="brief-th brief-th-w60">D-ID</th>
+                <th className="brief-th brief-th-w70">Stance</th>
+                <th className="brief-th">Claim &amp; Rationale</th>
               </tr>
             </thead>
             <tbody>
@@ -153,17 +159,19 @@ export function BriefTab(props: BriefTabProps) {
                 const stanceColor = dc.stance === 'accept' ? 'var(--success)' : dc.stance === 'challenge' ? 'var(--danger)' : 'var(--warning)';
                 return (
                   <Fragment key={i}>
+                    {/* eslint-disable-next-line local/no-inline-style -- dynamic borderBottom */}
                     <tr style={{ borderBottom: Array.isArray(dc.grounding) && dc.grounding.length > 0 ? 'none' : '1px solid var(--border)' }}>
-                      <td style={{ padding: '3px 6px', verticalAlign: 'top', fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', opacity: 0.8 }}>{dc.d_id}</td>
+                      <td className="brief-td-did">{dc.d_id}</td>
+                      {/* eslint-disable-next-line local/no-inline-style -- dynamic stanceColor */}
                       <td style={{ padding: '3px 6px', verticalAlign: 'top', fontWeight: 600, color: stanceColor, textTransform: 'uppercase', fontSize: 'var(--text-2xs)' }}>{dc.stance}</td>
-                      <td style={{ padding: '3px 6px', verticalAlign: 'top' }}>
+                      <td className="brief-td">
                         <Highlight text={dc.claim} />
-                        <div style={{ marginTop: 2, color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}><Highlight text={dc.why} /></div>
+                        <div className="brief-td-why"><Highlight text={dc.why} /></div>
                       </td>
                     </tr>
                     {Array.isArray(dc.grounding) && dc.grounding.length > 0 && (
-                      <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td colSpan={3} style={{ padding: '0 6px 3px 20px' }}>
+                      <tr className="brief-tr-border">
+                        <td colSpan={3} className="brief-td-grounding">
                           {renderGrounding(dc.grounding, 'var(--text-muted)')}
                         </td>
                       </tr>
@@ -181,8 +189,8 @@ export function BriefTab(props: BriefTabProps) {
         const hasNested = (arr: unknown) => Array.isArray(arr) && (arr as { grounding?: unknown[] }[]).some(x => Array.isArray(x.grounding) && x.grounding.length > 0);
         return hasNested(wp.key_claims_to_address) || hasNested(wp.strongest_angles) || hasNested(wp.document_claims_to_engage);
       })() && (
-        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Relevant Taxonomy Nodes</summary>
-          <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
+        <details open><summary className="brief-summary">Relevant Taxonomy Nodes</summary>
+          <table className="brief-table">
             <tbody>
               {((briefStage.work_product as Record<string, unknown>).relevant_taxonomy_nodes as { node_id: string; why: string }[]).map((n, i) => {
                 const isSelected = selectedTaxRefId === n.node_id;
@@ -193,18 +201,21 @@ export function BriefTab(props: BriefTabProps) {
                   : briefScore >= 0.30 ? 'var(--warning)'
                   : 'var(--danger)';
                 return (
+                  // eslint-disable-next-line local/no-inline-style -- dynamic selected background
                   <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'transparent' }}>
-                    <td style={{ padding: '3px 6px', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+                    <td className="brief-td-nowrap">
                       <button
                         onClick={() => setSelectedTaxRefId(isSelected ? null : n.node_id)}
+                        // eslint-disable-next-line local/no-inline-style -- dynamic fontWeight when selected
                         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', fontWeight: isSelected ? 700 : 600, textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit', textAlign: 'left' }}
                         title="Show node details"
                       >{n.node_id}</button>
                     </td>
+                    {/* eslint-disable-next-line local/no-inline-style -- dynamic briefScoreColor */}
                     <td style={{ padding: '3px 6px', verticalAlign: 'top', textAlign: 'center', fontWeight: 600, color: briefScoreColor, fontFamily: 'monospace', width: '40px' }}>
                       {briefScore != null ? briefScore.toFixed(2) : '—'}
                     </td>
-                    <td style={{ padding: '3px 6px', verticalAlign: 'top' }}><Highlight text={n.why} /></td>
+                    <td className="brief-td"><Highlight text={n.why} /></td>
                   </tr>
                 );
               })}
@@ -214,7 +225,7 @@ export function BriefTab(props: BriefTabProps) {
       )}
       {/* Phase Considerations */}
       {!!(briefStage.work_product as Record<string, unknown>).phase_considerations && (
-        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 6, fontStyle: 'italic' }}>
+        <div className="brief-phase">
           <Highlight text={String((briefStage.work_product as Record<string, unknown>).phase_considerations)} />
         </div>
       )}
@@ -229,13 +240,10 @@ export function BriefTab(props: BriefTabProps) {
         return (
           <div key={ai}>
             {/* Turn header */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0 6px',
-              fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontWeight: 600,
-            }}>
-              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+            <div className="brief-turn-header">
+              <div className="brief-turn-rule" />
               <span>Turn {ai + 1}</span>
-              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+              <div className="brief-turn-rule" />
             </div>
             <ArtifactBlock label="Raw Prompt" text={attempt.prompt} />
             <ArtifactBlock label="Raw Response" text={attempt.raw_response} />
@@ -253,53 +261,60 @@ export function BriefTab(props: BriefTabProps) {
                 const mono = { fontFamily: 'monospace', fontSize: 'var(--text-2xs)' } as const;
                 const dimColor = (pass: boolean) => pass ? 'var(--success)' : 'var(--danger)';
                 return (
-                  <div style={{
-                    marginTop: 6, background: 'var(--bg-subtle)', borderRadius: 4,
-                    padding: '5px 8px', fontSize: '0.7rem',
-                  }}>
-                    <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                  <div className="brief-valbox">
+                    <div className="brief-valbox-title">
                       Validation Score:{' '}
+                      {/* eslint-disable-next-line local/no-inline-style -- mono spread + dynamic score color */}
                       <span style={{ ...mono, color: turnScore >= 0.7 ? 'var(--success)' : turnScore >= 0.5 ? 'var(--warning)' : 'var(--danger)' }}>
                         {turnScore.toFixed(2)}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px', fontSize: 'var(--text-2xs)' }}>
+                    <div className="brief-valdims">
+                      {/* eslint-disable-next-line local/no-inline-style -- dynamic dimColor + mono var */}
                       <span><span style={{ color: dimColor(dims.schema.pass) }}>{'●'}</span> schema {'×'}0.4 = <strong style={mono}>{(0.4 * (dims.schema.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                      {/* eslint-disable-next-line local/no-inline-style -- dynamic dimColor + mono var */}
                       <span><span style={{ color: dimColor(dims.grounding.pass) }}>{'●'}</span> grounding {'×'}0.3 = <strong style={mono}>{(0.3 * (dims.grounding.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                      {/* eslint-disable-next-line local/no-inline-style -- dynamic dimColor + mono var */}
                       <span><span style={{ color: dimColor(dims.advancement.pass) }}>{'●'}</span> advancement {'×'}0.2 = <strong style={mono}>{(0.2 * (dims.advancement.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                      {/* eslint-disable-next-line local/no-inline-style -- dynamic dimColor + mono var */}
                       <span><span style={{ color: dimColor(dims.clarifies.pass) }}>{'●'}</span> clarifies {'×'}0.1 = <strong style={mono}>{(0.1 * (dims.clarifies.pass ? 1 : 0)).toFixed(2)}</strong></span>
                     </div>
-                    <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3, fontSize: 'var(--text-2xs)', display: 'flex', gap: 12 }}>
-                      <span>Stage A: <strong style={mono}>{stageA.toFixed(2)}</strong> <span style={{ color: 'var(--text-muted)' }}>{'×'}0.4 = {(0.4 * stageA).toFixed(2)}</span></span>
-                      <span>Judge: <strong style={mono}>{judgeQ.toFixed(2)}</strong>{!judgeUsed && <span style={{ color: 'var(--text-muted)' }}> (default)</span>} <span style={{ color: 'var(--text-muted)' }}>{'×'}0.6 = {(0.6 * judgeQ).toFixed(2)}</span></span>
+                    <div className="brief-valfooter">
+                      {/* eslint-disable-next-line local/no-inline-style -- mono var */}
+                      <span>Stage A: <strong style={mono}>{stageA.toFixed(2)}</strong> <span className="brief-muted">{'×'}0.4 = {(0.4 * stageA).toFixed(2)}</span></span>
+                      {/* eslint-disable-next-line local/no-inline-style -- mono var */}
+                      <span>Judge: <strong style={mono}>{judgeQ.toFixed(2)}</strong>{!judgeUsed && <span className="brief-muted"> (default)</span>} <span className="brief-muted">{'×'}0.6 = {(0.6 * judgeQ).toFixed(2)}</span></span>
+                      {/* eslint-disable-next-line local/no-inline-style -- mono spread + dynamic score color */}
                       <span>Total: <strong style={{ ...mono, color: turnScore >= 0.7 ? 'var(--success)' : turnScore >= 0.5 ? 'var(--warning)' : 'var(--danger)' }}>{turnScore.toFixed(2)}</strong></span>
                     </div>
                   </div>
                 );
               }
               return (
-                <div style={{ marginTop: 6, fontSize: '0.72rem', fontWeight: 600 }}>
+                <div className="brief-valscore">
                   Validation Score:{' '}
                   {valData ? (
+                    // eslint-disable-next-line local/no-inline-style -- dynamic pass/fail color
                     <span style={{ color: valData.pass ? 'var(--success)' : 'var(--danger)' }}>
                       {valData.pass ? 'Pass' : 'Fail'}
                     </span>
                   ) : (
-                    <span style={{ color: 'var(--text-muted)' }}>{'—'}</span>
+                    <span className="brief-muted">{'—'}</span>
                   )}
                 </div>
               );
             })()}
             {/* Validation Feedback */}
             {hints.length > 0 && (
-              <details open style={{ marginTop: 4, fontSize: '0.72rem' }}>
-                <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Validation Feedback</summary>
-                <ul style={{ margin: '4px 0 0 16px', padding: 0, fontSize: '0.7rem' }}>
+              <details open className="brief-feedback">
+                <summary className="brief-feedback-summary">Validation Feedback</summary>
+                <ul className="brief-feedback-list">
                   {hints.map((h, hi) => {
                     const target = classifyHintTarget(h);
                     const ts = HINT_TARGET_STYLE[target];
                     return (
-                      <li key={hi} style={{ marginBottom: 3 }}>
+                      <li key={hi} className="brief-mb3">
+                        {/* eslint-disable-next-line local/no-inline-style -- dynamic hint-target color/bg */}
                         <span style={{
                           display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
                           color: ts.color, background: ts.bg, padding: '1px 5px',

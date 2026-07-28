@@ -3,6 +3,7 @@
 
 import React from 'react';
 import { Highlight, CopyButton } from '../helpers';
+import './LookaheadTab.css';
 
 export interface LookaheadTabProps {
   lookaheadDiag: any;
@@ -11,9 +12,10 @@ export interface LookaheadTabProps {
 export function LookaheadTab(props: LookaheadTabProps) {
   const { lookaheadDiag } = props;
   return (
-    <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+    <div className="look-container">
       {/* Header */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+      <div className="look-header">
+        {/* eslint-disable-next-line local/no-inline-style -- dynamic pass/fail background+color */}
         <span style={{
           padding: '1px 6px', borderRadius: 3, fontWeight: 600,
           background: lookaheadDiag.final_pass ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)',
@@ -21,7 +23,7 @@ export function LookaheadTab(props: LookaheadTabProps) {
         }}>{lookaheadDiag.final_pass ? '✓ PASS' : '✗ FAIL'}</span>
         <span>LOOKAHEAD</span>
         <span>{(lookaheadDiag.elapsed_ms / 1000).toFixed(1)}s</span>
-        {lookaheadDiag.regen_triggered && <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--warning) 20%, transparent)', color: 'var(--warning)', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>REGEN TRIGGERED</span>}
+        {lookaheadDiag.regen_triggered && <span className="look-regen-badge">REGEN TRIGGERED</span>}
       </div>
 
       {/* Utility Delta Gauge */}
@@ -33,17 +35,20 @@ export function LookaheadTab(props: LookaheadTabProps) {
         const pct = Math.min(Math.max((after / Math.max(before, 0.01)) * 50, 5), 95);
         const deltaColor = delta > 0.05 ? 'var(--success)' : delta >= 0 ? 'var(--warning)' : 'var(--danger)';
         return (
+          // eslint-disable-next-line local/no-inline-style -- dynamic deltaColor border/background
           <div style={{ padding: 8, margin: '6px 0', borderLeft: `3px solid ${deltaColor}`, background: `${deltaColor}08`, borderRadius: 4 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', marginBottom: 6 }}>
+            <div className="look-gauge-row">
               <span>Before: <strong>{before.toFixed(3)}</strong></span>
+              {/* eslint-disable-next-line local/no-inline-style -- dynamic deltaColor */}
               <span style={{ color: deltaColor, fontWeight: 700 }}>{'Δ'}u = {delta >= 0 ? '+' : ''}{delta.toFixed(3)}</span>
               <span>After: <strong>{after.toFixed(3)}</strong></span>
             </div>
-            <div style={{ height: 10, borderRadius: 5, background: 'var(--bg-secondary)', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '50%', background: 'color-mix(in srgb, var(--text-muted) 15%, transparent)', borderRight: '2px solid var(--text-muted)' }} />
+            <div className="look-bar-track">
+              <div className="look-bar-baseline" />
+              {/* eslint-disable-next-line local/no-inline-style -- dynamic pct width + deltaColor */}
               <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${pct}%`, background: deltaColor, borderRadius: 5, transition: 'width 0.3s' }} />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
+            <div className="look-bar-footer">
               <span>threshold: {r.threshold.toFixed(3)}</span>
               <span>{r.pass ? '✓ passed' : '✗ below threshold'}</span>
             </div>
@@ -93,9 +98,10 @@ export function LookaheadTab(props: LookaheadTabProps) {
 
         if (assessments.length === 0) return null;
         return (
-          <div style={{ margin: '6px 0', padding: '6px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontSize: '0.7rem', lineHeight: 1.5 }}>
-            <div style={{ fontWeight: 600, fontSize: 'var(--text-2xs)', marginBottom: 4, color: 'var(--text-muted)' }}>STRATEGIC ASSESSMENT</div>
+          <div className="look-assessment">
+            <div className="look-section-label">STRATEGIC ASSESSMENT</div>
             {assessments.map((a, i) => (
+              // eslint-disable-next-line local/no-inline-style -- dynamic borderLeft color
               <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${a.includes('Pattern:') ? (r.pass ? 'var(--success)40' : 'var(--danger)40') : 'var(--text-muted)40'}` }}>
                 {a}
               </div>
@@ -105,15 +111,15 @@ export function LookaheadTab(props: LookaheadTabProps) {
       })()}
 
       {/* Utility Breakdown */}
-      <details open style={{ marginTop: 6 }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem' }}>Utility Breakdown</summary>
-        <table style={{ width: '100%', fontSize: 'var(--text-2xs)', borderCollapse: 'collapse', marginTop: 4 }}>
+      <details open className="look-mt6"><summary className="look-summary">Utility Breakdown</summary>
+        <table className="look-table">
           <thead>
-            <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-              <th style={{ textAlign: 'left', padding: '2px 6px' }}>Component</th>
-              <th style={{ textAlign: 'right', padding: '2px 6px' }}>Before</th>
-              <th style={{ textAlign: 'right', padding: '2px 6px' }}>After</th>
-              <th style={{ textAlign: 'right', padding: '2px 6px' }}>{'Δ'}</th>
-              <th style={{ textAlign: 'left', padding: '2px 6px' }}>Assessment</th>
+            <tr className="look-thead-row">
+              <th className="look-cell-l">Component</th>
+              <th className="look-cell-r">Before</th>
+              <th className="look-cell-r">After</th>
+              <th className="look-cell-r">{'Δ'}</th>
+              <th className="look-cell-l">Assessment</th>
             </tr>
           </thead>
           <tbody>
@@ -132,11 +138,14 @@ export function LookaheadTab(props: LookaheadTabProps) {
                 : hint === 'stable' || hint === 'plateau' || hint === 'fully engaged' ? 'var(--text-muted)'
                 : 'var(--success)';
               return (
+                // eslint-disable-next-line local/no-inline-style -- dynamic fontWeight for composite row
                 <tr key={k} style={{ borderBottom: '1px solid var(--border)', fontWeight: k === 'composite' ? 700 : 400 }}>
-                  <td style={{ padding: '2px 6px' }}>{k.replace(/_/g, ' ')}</td>
-                  <td style={{ textAlign: 'right', padding: '2px 6px' }}>{b.toFixed(3)}</td>
-                  <td style={{ textAlign: 'right', padding: '2px 6px' }}>{a.toFixed(3)}</td>
+                  <td className="look-cell-p">{k.replace(/_/g, ' ')}</td>
+                  <td className="look-cell-r">{b.toFixed(3)}</td>
+                  <td className="look-cell-r">{a.toFixed(3)}</td>
+                  {/* eslint-disable-next-line local/no-inline-style -- dynamic delta color */}
                   <td style={{ textAlign: 'right', padding: '2px 6px', color: d > 0 ? 'var(--success)' : d < 0 ? 'var(--danger)' : 'var(--text-muted)' }}>{d >= 0 ? '+' : ''}{d.toFixed(3)}</td>
+                  {/* eslint-disable-next-line local/no-inline-style -- dynamic hintColor */}
                   <td style={{ padding: '2px 6px', fontSize: 'var(--text-2xs)', color: hintColor, fontStyle: 'italic' }}>{hint}</td>
                 </tr>
               );
@@ -152,12 +161,12 @@ export function LookaheadTab(props: LookaheadTabProps) {
         const strongCount = firstPca ? firstPca.perClaim.filter((pc: any) => pc.classification === 'STRONG').length : claims.filter((c: any) => c.strength >= 0.7).length;
         const weakCount = firstPca ? firstPca.perClaim.filter((pc: any) => pc.classification === 'WEAK').length : claims.filter((c: any) => c.strength < 0.4).length;
         return (
-          <details open style={{ marginTop: 6 }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem' }}>
+          <details open className="look-mt6"><summary className="look-summary">
             Tentative Claims ({claims.length})
-            <span style={{ fontWeight: 400, fontSize: 'var(--text-2xs)', marginLeft: 8, color: 'var(--text-muted)' }}>
-              {strongCount > 0 && <span style={{ color: 'var(--success)' }}>{strongCount} strong</span>}
+            <span className="look-claims-meta">
+              {strongCount > 0 && <span className="look-c-success">{strongCount} strong</span>}
               {strongCount > 0 && weakCount > 0 && ', '}
-              {weakCount > 0 && <span style={{ color: 'var(--danger)' }}>{weakCount} weak</span>}
+              {weakCount > 0 && <span className="look-c-danger">{weakCount} weak</span>}
             </span>
           </summary>
             {claims.map((c: any, i: number) => {
@@ -169,11 +178,15 @@ export function LookaheadTab(props: LookaheadTabProps) {
               const claimColor = classification === 'STRONG' ? 'var(--success)' : classification === 'WEAK' ? 'var(--danger)' : (c.strength >= 0.7 ? 'var(--success)' : c.strength >= 0.4 ? 'var(--warning)' : 'var(--danger)');
               const label = classification ?? (c.strength >= 0.7 ? 'STRONG' : c.strength >= 0.4 ? 'MODERATE' : 'WEAK');
               return (
+                // eslint-disable-next-line local/no-inline-style -- dynamic claimColor border
                 <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: `2px solid ${claimColor}40`, fontSize: '0.7rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, flexWrap: 'wrap' }}>
+                  <div className="look-claim-header">
+                    {/* eslint-disable-next-line local/no-inline-style -- dynamic claimColor */}
                     <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: claimColor, fontWeight: 600 }}>{c.strength.toFixed(2)}</span>
+                    {/* eslint-disable-next-line local/no-inline-style -- dynamic claimColor background+color */}
                     <span style={{ fontSize: 'var(--text-2xs)', padding: '0 4px', borderRadius: 3, background: `${claimColor}15`, color: claimColor, fontWeight: 600 }}>{label}</span>
                     {marginalDelta != null && (
+                      // eslint-disable-next-line local/no-inline-style -- dynamic marginalDelta color
                       <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: marginalDelta >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
                         {'Δ'}u {marginalDelta >= 0 ? '+' : ''}{marginalDelta.toFixed(4)}
                       </span>
@@ -181,12 +194,12 @@ export function LookaheadTab(props: LookaheadTabProps) {
                   </div>
                   <Highlight text={c.text} />
                   {reason && (
-                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2, paddingLeft: 4 }}>{reason}</div>
+                    <div className="look-reason-inline">{reason}</div>
                   )}
                 </div>
               );
             })}
-            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4 }}>
+            <div className="look-net-size">
               Tentative network: {lookaheadDiag.first_attempt.tentative_network_size.nodes} nodes, {lookaheadDiag.first_attempt.tentative_network_size.edges} edges
             </div>
           </details>
@@ -195,7 +208,7 @@ export function LookaheadTab(props: LookaheadTabProps) {
 
       {/* Attempt Progression Summary */}
       {lookaheadDiag.per_claim_analysis && lookaheadDiag.per_claim_analysis.length > 0 && (
-        <div style={{ margin: '6px 0', padding: '6px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
+        <div className="look-progression">
           {lookaheadDiag.per_claim_analysis.map((pca: any, idx: number) => {
             const sCount = pca.perClaim.filter((pc: any) => pc.classification === 'STRONG').length;
             const wCount = pca.perClaim.filter((pc: any) => pc.classification === 'WEAK').length;
@@ -203,8 +216,9 @@ export function LookaheadTab(props: LookaheadTabProps) {
             const delta = idx === 0 ? lookaheadDiag.first_attempt.utility_delta : regenAttempts[idx - 1]?.utility_delta;
             const pass = idx === 0 ? lookaheadDiag.first_attempt.pass : regenAttempts[idx - 1]?.pass;
             return (
-              <div key={idx} style={{ display: 'inline-block', marginRight: 12 }}>
-                <span style={{ fontWeight: 600 }}>Attempt {idx + 1}:</span>{' '}
+              <div key={idx} className="look-attempt">
+                <span className="look-fw600">Attempt {idx + 1}:</span>{' '}
+                {/* eslint-disable-next-line local/no-inline-style -- dynamic delta sign color */}
                 <span style={{ color: delta != null && delta >= 0 ? 'var(--success)' : 'var(--danger)' }}>{'Δ'}u = {delta != null ? (delta >= 0 ? '+' : '') + delta.toFixed(3) : '?'}</span>{' '}
                 ({sCount} strong, {wCount} weak){pass ? ' ✓' : ''}
               </div>
@@ -222,43 +236,44 @@ export function LookaheadTab(props: LookaheadTabProps) {
           const guidancePca = pcaLog?.[ai];
           const regenPca = pcaLog?.[ai + 1];
           return (
-            <div key={ai} style={{ marginTop: 8, padding: 8, borderLeft: '3px solid var(--warning)', background: 'color-mix(in srgb, var(--warning) 6%, transparent)', borderRadius: 4 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--warning) 20%, transparent)', color: 'var(--warning)', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>REGEN {ai + 1}/{attempts.length}</span>
+            <div key={ai} className="look-regen-box">
+              <div className="look-regen-header">
+                <span className="look-regen-badge">REGEN {ai + 1}/{attempts.length}</span>
+                {/* eslint-disable-next-line local/no-inline-style -- dynamic ra.pass background+color */}
                 <span style={{
                   padding: '1px 6px', borderRadius: 3, fontWeight: 600, fontSize: 'var(--text-2xs)',
                   background: ra.pass ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)',
                   color: ra.pass ? 'var(--success)' : 'var(--danger)',
                 }}>{ra.pass ? '✓ PASS' : '✗ FAIL'}</span>
               </div>
-              <div style={{ fontSize: '0.72rem' }}>
+              <div className="look-fs072">
                 <span>{'Δ'}u = {ra.utility_delta >= 0 ? '+' : ''}{ra.utility_delta.toFixed(3)}</span>
-                <span style={{ marginLeft: 12, color: 'var(--text-muted)' }}>threshold: {ra.threshold.toFixed(3)}</span>
+                <span className="look-threshold">threshold: {ra.threshold.toFixed(3)}</span>
               </div>
 
               {/* Guidance injected into this retry */}
               {guidancePca && (guidancePca.analysis.strongFoundations.length > 0 || guidancePca.analysis.avoidClaims.length > 0) && (
-                <details style={{ marginTop: 4 }}><summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Guidance Injected</summary>
+                <details className="look-mt4"><summary className="look-summary-sm">Guidance Injected</summary>
                   {guidancePca.analysis.strongFoundations.length > 0 && (
-                    <div style={{ marginTop: 2 }}>
-                      <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, color: 'var(--success)', marginBottom: 2 }}>STRONG FOUNDATIONS</div>
+                    <div className="look-mt2">
+                      <div className="look-guide-head-success">STRONG FOUNDATIONS</div>
                       {guidancePca.analysis.strongFoundations.map((sf: any, si: number) => (
-                        <div key={si} style={{ margin: '2px 0', paddingLeft: 8, borderLeft: '2px solid rgba(22,163,74,0.3)', fontSize: 'var(--text-2xs)' }}>
-                          <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--success)', marginRight: 4 }}>{'Δ'}u +{sf.marginal_delta.toFixed(4)}</span>
+                        <div key={si} className="look-guide-item-success">
+                          <span className="look-mono-success">{'Δ'}u +{sf.marginal_delta.toFixed(4)}</span>
                           <span>{sf.text.slice(0, 80)}{sf.text.length > 80 ? '…' : ''}</span>
-                          <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>{sf.reason}</div>
+                          <div className="look-reason">{sf.reason}</div>
                         </div>
                       ))}
                     </div>
                   )}
                   {guidancePca.analysis.avoidClaims.length > 0 && (
-                    <div style={{ marginTop: 4 }}>
-                      <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, color: 'var(--danger)', marginBottom: 2 }}>DO NOT USE</div>
+                    <div className="look-mt4">
+                      <div className="look-guide-head-danger">DO NOT USE</div>
                       {guidancePca.analysis.avoidClaims.map((ac: any, aci: number) => (
-                        <div key={aci} style={{ margin: '2px 0', paddingLeft: 8, borderLeft: '2px solid rgba(220,38,38,0.3)', fontSize: 'var(--text-2xs)' }}>
-                          <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--danger)', marginRight: 4 }}>{'Δ'}u {ac.marginal_delta.toFixed(4)}</span>
+                        <div key={aci} className="look-guide-item-danger">
+                          <span className="look-mono-danger">{'Δ'}u {ac.marginal_delta.toFixed(4)}</span>
                           <span>{ac.text.slice(0, 80)}{ac.text.length > 80 ? '…' : ''}</span>
-                          <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>{ac.reason}</div>
+                          <div className="look-reason">{ac.reason}</div>
                         </div>
                       ))}
                     </div>
@@ -268,15 +283,19 @@ export function LookaheadTab(props: LookaheadTabProps) {
 
               {/* Regen claims with per-claim analysis if available */}
               {ra.tentative_claims.length > 0 && (
-                <details style={{ marginTop: 4 }}><summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Regen Claims ({ra.tentative_claims.length})</summary>
+                <details className="look-mt4"><summary className="look-summary-sm">Regen Claims ({ra.tentative_claims.length})</summary>
                   {ra.tentative_claims.map((c: any, ci: number) => {
                     const pc = regenPca?.perClaim[ci];
                     const pcColor = pc ? (pc.classification === 'STRONG' ? 'var(--success)' : 'var(--danger)') : 'var(--text-muted)';
                     return (
+                      // eslint-disable-next-line local/no-inline-style -- dynamic pcColor border
                       <div key={ci} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${pcColor}40`, fontSize: 'var(--text-2xs)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 1 }}>
+                        <div className="look-regen-claim-header">
+                          {/* eslint-disable-next-line local/no-inline-style -- dynamic pcColor */}
                           <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: pcColor, fontWeight: 600 }}>{c.strength.toFixed(2)}</span>
+                          {/* eslint-disable-next-line local/no-inline-style -- dynamic pcColor background+color */}
                           {pc && <span style={{ fontSize: 'var(--text-2xs)', padding: '0 3px', borderRadius: 2, background: `${pcColor}15`, color: pcColor, fontWeight: 600 }}>{pc.classification}</span>}
+                          {/* eslint-disable-next-line local/no-inline-style -- dynamic pcColor */}
                           {pc && <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: pcColor }}>{'Δ'}u {pc.marginal_delta >= 0 ? '+' : ''}{pc.marginal_delta.toFixed(4)}</span>}
                         </div>
                         <Highlight text={c.text} />
@@ -292,21 +311,17 @@ export function LookaheadTab(props: LookaheadTabProps) {
 
       {/* Low Utility Warning */}
       {!lookaheadDiag.final_pass && (
-        <div style={{
-          marginTop: 8, padding: '8px 10px', borderRadius: 4,
-          borderLeft: '3px solid var(--danger)', background: 'rgba(220,38,38,0.08)',
-          fontSize: '0.72rem', color: 'var(--danger)', fontWeight: 600,
-        }}>
+        <div className="look-low-util">
           Low utility turn — all attempts failed threshold. Committed anyway; <code>low_utility_turn</code> logged.
         </div>
       )}
 
       {/* Raw Data */}
-      <details style={{ marginTop: 8 }}>
-        <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <details className="look-mt8">
+        <summary className="look-summary-raw">
           Raw Data <CopyButton text={JSON.stringify(lookaheadDiag, null, 2)} />
         </summary>
-        <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{JSON.stringify(lookaheadDiag, null, 2)}</pre>
+        <pre className="look-pre">{JSON.stringify(lookaheadDiag, null, 2)}</pre>
       </details>
     </div>
   );

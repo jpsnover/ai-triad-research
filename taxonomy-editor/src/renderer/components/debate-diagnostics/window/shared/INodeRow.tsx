@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import './INodeRow.css';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge } from '../../../../types/debate';
 import { POVER_INFO } from '../../../../types/debate';
@@ -38,7 +39,7 @@ function Highlight({ text, query }: { text: string; query?: string }) {
     idx = lower.indexOf(q, lastIdx);
   }
   if (lastIdx < text.length) parts.push({ text: text.slice(lastIdx), match: false });
-  return <>{parts.map((p, i) => p.match ? <mark key={i} data-search-match="" style={{ background: 'var(--warning)', color: 'var(--text-primary)', borderRadius: 2, padding: '0 1px' }}>{p.text}</mark> : p.text)}</>;
+  return <>{parts.map((p, i) => p.match ? <mark key={i} data-search-match="" className="inr-hl-mark">{p.text}</mark> : p.text)}</>;
 }
 
 /** Returns a verbose tooltip for a BDI sub-score key+value. */
@@ -63,7 +64,7 @@ function SubScoreRow({ node, onUpdateSubScore }: { node: ArgumentNetworkNode; on
   const isBelief = node.bdi_category === 'belief';
 
   return (
-    <div style={{ paddingLeft: 18, marginTop: 3, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+    <div className="inr-subscore-row">
       {Object.entries(node.bdi_sub_scores).filter(([, v]) => v != null).map(([key, val]) => {
         const v = val as number;
         const editable = isBelief && BELIEF_KEYS.has(key);
@@ -77,16 +78,17 @@ function SubScoreRow({ node, onUpdateSubScore }: { node: ArgumentNetworkNode; on
         const accentColor = v >= 0.7 ? 'var(--success)' : v >= 0.4 ? 'var(--warning)' : 'var(--danger)';
         const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
         return (
-          <span key={key} title={subScoreTip(key, v)} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontWeight: 600 }}>
-            <span style={{ color: 'var(--text-secondary)' }}>{label}:</span>
+          <span key={key} title={subScoreTip(key, v)} className="inr-subscore-item">
+            <span className="inr-text-secondary">{label}:</span>
             <input
               type="range"
               min={0} max={1} step={0.05}
               value={v ?? 0}
               onChange={(e) => onUpdateSubScore(node.id, key, parseFloat(e.target.value))}
+              // eslint-disable-next-line local/no-inline-style -- data-driven accentColor
               style={{ width: 48, height: 10, accentColor, cursor: 'pointer' }}
             />
-            <span style={{ color: 'var(--text-secondary)', minWidth: 26 }}>{(v ?? 0).toFixed(2)}</span>
+            <span className="inr-subscore-val">{(v ?? 0).toFixed(2)}</span>
           </span>
         );
       })}
@@ -151,22 +153,27 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
   }, [focused]);
 
   return (
-    <div ref={rowRef} style={{ margin: '6px 0', paddingBottom: 6, borderBottom: '1px solid var(--border)', outline: focused ? '2px solid var(--warning)' : 'none', borderRadius: focused ? 4 : 0, fontSize: '0.85rem' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
+    <div
+      ref={rowRef}
+      // eslint-disable-next-line local/no-inline-style -- focus-driven outline/borderRadius
+      style={{ margin: '6px 0', paddingBottom: 6, borderBottom: '1px solid var(--border)', outline: focused ? '2px solid var(--warning)' : 'none', borderRadius: focused ? 4 : 0, fontSize: '0.85rem' }}
+    >
+      <div className="inr-header-row">
         <button
           onClick={() => setExpanded(!expanded)}
-          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, fontSize: '0.7rem', lineHeight: 1, marginTop: 2, flexShrink: 0 }}
+          className="inr-expand-btn"
         >
           {expanded ? '▼' : '▶'}
         </button>
-        <div className="diag-claim-row" style={{ flex: 1, display: 'grid', gridTemplateColumns: '84px 110px 72px 180px 200px 60px 1fr', gap: '4px', alignItems: 'center' }}>
+        <div className="diag-claim-row inr-claim-grid">
           {/* Col 1: AN ID + Statement ID */}
-          <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <strong title={`Argument Network node ${node.id.replace('AN-', '')}${statementId ? `, extracted from debate statement ${statementId}` : ''}`} style={{ color: 'var(--accent)' }}><Highlight text={node.id} query={searchQuery} /></strong>
+          <span className="inr-flex-center-g2">
+            <strong title={`Argument Network node ${node.id.replace('AN-', '')}${statementId ? `, extracted from debate statement ${statementId}` : ''}`} className="inr-accent"><Highlight text={node.id} query={searchQuery} /></strong>
             {statementId && (
               <span
                 title={`Claim extracted from debate turn ${statementId} by ${speakerLabel(node.speaker)}${onGotoEntry ? ' — click to go to statement' : ''}`}
                 onClick={onGotoEntry && node.source_entry_id ? (e) => { e.stopPropagation(); onGotoEntry(node.source_entry_id); } : undefined}
+                // eslint-disable-next-line local/no-inline-style -- clickability-driven cursor/textDecoration
                 style={{
                   cursor: onGotoEntry && node.source_entry_id ? 'pointer' : 'default',
                   textDecoration: onGotoEntry && node.source_entry_id ? 'underline' : 'none',
@@ -201,8 +208,8 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
                 return (
                   <span
                     title={`Unattributed: ${attr.unattributed_reason === 'novel_argument' ? 'claim is a novel argument not closely matching any taxonomy Belief node (best similarity < 0.35)' : 'missing embedding — cannot compute similarity'}`}
-                    style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)' }}
-                  ><span style={{ color: 'var(--danger)', fontSize: '0.9rem', marginRight: 3 }}>●</span>{reasonLabel}</span>
+                    className="inr-attr-badge"
+                  ><span className="inr-attr-dot-danger">●</span>{reasonLabel}</span>
                 );
               }
               const conf = attr.attribution_confidence;
@@ -213,8 +220,10 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
               return (
                 <span
                   title={`Attributed to ${primaryTitle} (confidence: ${conf.toFixed(2)})${secCount > 0 ? `\n${secCount} secondary ref${secCount !== 1 ? 's' : ''}: ${attr.secondary_refs!.map(s => { const l = nodeLabels?.get(s.node_id); return `${l ? `${l} (${s.node_id})` : s.node_id} (${s.similarity.toFixed(2)})`; }).join(', ')}` : ''}`}
-                  style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)' }}
-                ><span style={{ color: confColor, fontSize: '0.9rem', marginRight: 3 }}>●</span>{attr.primary_ref} {conf.toFixed(2)}</span>
+                  className="inr-attr-badge"
+                >
+                  {/* eslint-disable-next-line local/no-inline-style -- confidence-driven dot color */}
+                  <span style={{ color: confColor, fontSize: '0.9rem', marginRight: 3 }}>●</span>{attr.primary_ref} {conf.toFixed(2)}</span>
               );
             })()}
           </span>
@@ -232,13 +241,13 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
             );
           })()}
           {/* Col 6: Edge count */}
-          <span style={{ color: 'var(--text-muted)', cursor: 'default' }} title={hasChildren ? `${attacks.length + supports.length} attack/support relationship${attacks.length + supports.length !== 1 ? 's' : ''} connected to this claim` : undefined}>
+          <span className="inr-edgecount" title={hasChildren ? `${attacks.length + supports.length} attack/support relationship${attacks.length + supports.length !== 1 ? 's' : ''} connected to this claim` : undefined}>
             {hasChildren ? `${attacks.length + supports.length} edge${attacks.length + supports.length !== 1 ? 's' : ''}` : ''}
           </span>
         </div>
       </div>
-      <div style={{ paddingLeft: 18, marginTop: 2, color: 'var(--text-secondary)' }}><Highlight text={node.text} query={searchQuery} /></div>
-      {expanded && node.attribution_text_genus && <div className="claim-attribution-text" style={{ paddingLeft: 18 }}><span className="claim-attribution-label">Attribution:</span>{node.attribution_text_genus}</div>}
+      <div className="inr-claim-text"><Highlight text={node.text} query={searchQuery} /></div>
+      {expanded && node.attribution_text_genus && <div className="claim-attribution-text inr-pl18"><span className="claim-attribution-label">Attribution:</span>{node.attribution_text_genus}</div>}
       {/* NL strength explanation (B2) */}
       {expanded && (attacks.length > 0 || supports.length > 0) && (() => {
         const base = node.base_strength ?? 0.5;
@@ -280,7 +289,7 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
           explanation += ` despite "${strongestAtk.text}" (−${strongestAtk.contribution.toFixed(2)})`;
         }
         return (
-          <div style={{ paddingLeft: 18, marginTop: 2, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+          <div className="inr-explanation">
             {explanation}
           </div>
         );
@@ -289,7 +298,7 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
 
       {/* Edges — shown when expanded */}
       {hasChildren && expanded && (
-        <div style={{ paddingLeft: 18, marginTop: 4 }}>
+        <div className="inr-edges-container">
           {attacks.map(a => {
             const sourceNode = allNodes.find(n => n.id === a.source);
             const srcStr = strengthMap?.get(a.source);
@@ -298,40 +307,42 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
             const edgeWeight = a.weight ?? 0.5;
             const contribution = srcStr != null ? srcStr * edgeWeight * atkMult : undefined;
             return (
-              <div key={a.id} style={{ marginTop: 4, paddingLeft: 8, borderLeft: '2px solid color-mix(in srgb, var(--danger) 30%, transparent)' }}>
-                <div className="diag-edge-row" style={{ display: 'grid', gridTemplateColumns: '72px 60px 80px 76px 140px 180px 40px', gap: '4px', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: 'color-mix(in srgb, var(--danger) 15%, transparent)', color: 'var(--danger)' }}>CA-node</span>
+              <div key={a.id} className="inr-atk-edge">
+                <div className="diag-edge-row inr-edge-grid">
+                  <span className="inr-ca-node">CA-node</span>
                   <span>← {a.source}</span>
                   <strong>{a.attack_type}</strong>
                   {(() => { const s = deriveStrength(a); const st = STRENGTH_STYLES[s] ?? STRENGTH_STYLES.substantial; return (
+                    // eslint-disable-next-line local/no-inline-style -- strength-band-driven background/color
                     <span style={{ padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: st.bg, color: st.color }}>{st.label}</span>
                   ); })()}
-                  <span style={{ color: 'var(--text-muted)' }}>{a.scheme ? `via ${a.scheme}` : ''}</span>
+                  <span className="inr-text-muted">{a.scheme ? `via ${a.scheme}` : ''}</span>
                   {contribution != null ? (
+                    // eslint-disable-next-line local/no-inline-style -- weight-presence-driven opacity
                     <span title={`Attack contribution = (source strength (${(srcStr ?? 0).toFixed(2)}) × edge weight (${edgeWeight.toFixed(1)}${hasWeight ? '' : ' — default, no AI weight'})) × attack type multiplier (${a.attack_type}: ${atkMult.toFixed(1)}).\nRebut=1.0, Undercut=1.1 (denies inference), Undermine=1.2 (attacks premise).`} style={{ color: 'var(--danger)', cursor: 'default', opacity: hasWeight ? 1 : 0.5 }}>
-                      −{contribution.toFixed(2)} <span style={{ color: 'var(--text-muted)' }}>({(srcStr ?? 0).toFixed(2)}×{edgeWeight.toFixed(1)}{hasWeight ? '' : '?'}×{atkMult.toFixed(1)})</span>
+                      −{contribution.toFixed(2)} <span className="inr-text-muted">({(srcStr ?? 0).toFixed(2)}×{edgeWeight.toFixed(1)}{hasWeight ? '' : '?'}×{atkMult.toFixed(1)})</span>
                     </span>
                   ) : <span />}
                   {onGotoEntry && sourceNode?.source_entry_id ? (
                     <button
                       onClick={(ev) => { ev.stopPropagation(); onGotoEntry(sourceNode.source_entry_id); }}
                       title={`Go to ${stmtIdByEntry?.get(sourceNode.source_entry_id) || sourceNode.source_entry_id}`}
-                      style={{ padding: '0 4px', border: '1px solid color-mix(in srgb, var(--danger) 40%, transparent)', borderRadius: 3, background: 'none', color: 'var(--danger)', cursor: 'pointer', fontWeight: 600 }}
+                      className="inr-goto-btn-danger"
                     >{stmtIdByEntry?.get(sourceNode.source_entry_id) || 'goto'}</button>
                   ) : <span />}
                 </div>
-                {a.warrant && <div style={{ paddingLeft: 8, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>Warrant: <Highlight text={a.warrant} query={searchQuery} /></div>}
+                {a.warrant && <div className="inr-warrant">Warrant: <Highlight text={a.warrant} query={searchQuery} /></div>}
                 {expanded && sourceNode && (
-                  <div style={{ paddingLeft: 8, marginTop: 3, padding: '4px 8px', borderRadius: 3 }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Debater:</span> <strong>{speakerLabel(sourceNode.speaker)}</strong>
+                  <div className="inr-debater-block">
+                    <span className="inr-text-muted">Debater:</span> <strong>{speakerLabel(sourceNode.speaker)}</strong>
                     {onGotoEntry && sourceNode.source_entry_id && (
                       <button
                         onClick={() => onGotoEntry(sourceNode.source_entry_id)}
                         title={`Go to ${stmtIdByEntry?.get(sourceNode.source_entry_id) || sourceNode.source_entry_id}`}
-                        style={{ marginLeft: 6, padding: '0 4px', border: '1px solid color-mix(in srgb, var(--color-acc) 40%, transparent)', borderRadius: 3, background: 'none', color: 'var(--color-acc)', cursor: 'pointer', fontWeight: 600 }}
+                        className="inr-goto-btn-acc"
                       >{stmtIdByEntry?.get(sourceNode.source_entry_id) || 'goto'}</button>
                     )}
-                    <div style={{ marginTop: 2 }}><Highlight text={sourceNode.text} query={searchQuery} /></div>
+                    <div className="inr-mt2"><Highlight text={sourceNode.text} query={searchQuery} /></div>
                   </div>
                 )}
               </div>
@@ -344,40 +355,42 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
             const edgeWeightS = s.weight ?? 0.5;
             const contributionS = srcStrS != null ? srcStrS * edgeWeightS : undefined;
             return (
-              <div key={s.id} style={{ marginTop: 4, paddingLeft: 8, borderLeft: '2px solid color-mix(in srgb, var(--success) 30%, transparent)' }}>
-                <div className="diag-edge-row" style={{ display: 'grid', gridTemplateColumns: '72px 60px 80px 76px 140px 180px 40px', gap: '4px', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: 'color-mix(in srgb, var(--success) 15%, transparent)', color: 'var(--success)' }}>RA-node</span>
+              <div key={s.id} className="inr-sup-edge">
+                <div className="diag-edge-row inr-edge-grid">
+                  <span className="inr-ra-node">RA-node</span>
                   <span>← {s.source}</span>
                   <strong>supports</strong>
                   {(() => { const str = deriveStrength(s); const st = STRENGTH_STYLES[str] ?? STRENGTH_STYLES.substantial; return (
+                    // eslint-disable-next-line local/no-inline-style -- strength-band-driven background/color
                     <span style={{ padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: st.bg, color: st.color }}>{st.label}</span>
                   ); })()}
-                  <span style={{ color: 'var(--text-muted)' }}>{s.scheme ? `via ${s.scheme}` : ''}</span>
+                  <span className="inr-text-muted">{s.scheme ? `via ${s.scheme}` : ''}</span>
                   {contributionS != null ? (
+                    // eslint-disable-next-line local/no-inline-style -- weight-presence-driven opacity
                     <span title={`Support contribution = source strength (${(srcStrS ?? 0).toFixed(2)}) × edge weight (${edgeWeightS.toFixed(1)}${hasWeightS ? '' : ' — default, no AI weight'}). No type multiplier for supports — all support relationships are weighted equally.`} style={{ color: 'var(--success)', cursor: 'default', opacity: hasWeightS ? 1 : 0.5 }}>
-                      +{contributionS.toFixed(2)} <span style={{ color: 'var(--text-muted)' }}>({(srcStrS ?? 0).toFixed(2)}×{edgeWeightS.toFixed(1)}{hasWeightS ? '' : '?'})</span>
+                      +{contributionS.toFixed(2)} <span className="inr-text-muted">({(srcStrS ?? 0).toFixed(2)}×{edgeWeightS.toFixed(1)}{hasWeightS ? '' : '?'})</span>
                     </span>
                   ) : <span />}
                   {onGotoEntry && sourceNode?.source_entry_id ? (
                     <button
                       onClick={(ev) => { ev.stopPropagation(); onGotoEntry(sourceNode.source_entry_id); }}
                       title={`Go to ${stmtIdByEntry?.get(sourceNode.source_entry_id) || sourceNode.source_entry_id}`}
-                      style={{ padding: '0 4px', border: '1px solid color-mix(in srgb, var(--success) 40%, transparent)', borderRadius: 3, background: 'none', color: 'var(--success)', cursor: 'pointer', fontWeight: 600 }}
+                      className="inr-goto-btn-success"
                     >{stmtIdByEntry?.get(sourceNode.source_entry_id) || 'goto'}</button>
                   ) : <span />}
                 </div>
-                {s.warrant && <div style={{ paddingLeft: 8, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>Warrant: {s.warrant}</div>}
+                {s.warrant && <div className="inr-warrant">Warrant: {s.warrant}</div>}
                 {expanded && sourceNode && (
-                  <div style={{ paddingLeft: 8, marginTop: 3, padding: '4px 8px', borderRadius: 3 }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Debater:</span> <strong>{speakerLabel(sourceNode.speaker)}</strong>
+                  <div className="inr-debater-block">
+                    <span className="inr-text-muted">Debater:</span> <strong>{speakerLabel(sourceNode.speaker)}</strong>
                     {onGotoEntry && sourceNode.source_entry_id && (
                       <button
                         onClick={() => onGotoEntry(sourceNode.source_entry_id)}
                         title={`Go to ${stmtIdByEntry?.get(sourceNode.source_entry_id) || sourceNode.source_entry_id}`}
-                        style={{ marginLeft: 6, padding: '0 4px', border: '1px solid color-mix(in srgb, var(--success) 40%, transparent)', borderRadius: 3, background: 'none', color: 'var(--success)', cursor: 'pointer', fontWeight: 600 }}
+                        className="inr-goto-btn-success-ml"
                       >{stmtIdByEntry?.get(sourceNode.source_entry_id) || 'goto'}</button>
                     )}
-                    <div style={{ marginTop: 2 }}><Highlight text={sourceNode.text} query={searchQuery} /></div>
+                    <div className="inr-mt2"><Highlight text={sourceNode.text} query={searchQuery} /></div>
                   </div>
                 )}
               </div>
@@ -385,23 +398,25 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
           })}
           {/* Leave-one-out QBAF attribution */}
           {attribution && attribution.attributions.length > 0 && (
-            <div style={{ marginTop: 8, padding: '6px 8px', borderRadius: 4, borderLeft: '2px solid color-mix(in srgb, var(--warning) 40%, transparent)' }}>
-              <div style={{ fontWeight: 700, color: 'var(--text-primary)', background: 'color-mix(in srgb, var(--warning) 15%, transparent)', padding: '2px 6px', borderRadius: 3, marginBottom: 3, display: 'inline-block' }}>QBAF Attribution (leave-one-out)</div>
-              <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: 4 }}>{attribution.summary}</div>
+            <div className="inr-loo-container">
+              <div className="inr-loo-heading">QBAF Attribution (leave-one-out)</div>
+              <div className="inr-loo-summary">{attribution.summary}</div>
               {attribution.attributions.slice(0, 6).map((a, i) => (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: '72px 160px 100px 1fr', gap: '4px', alignItems: 'center', marginTop: 1 }}>
+                <div key={i} className="inr-loo-row">
+                  {/* eslint-disable-next-line local/no-inline-style -- influence-sign-driven color */}
                   <span style={{ color: a.influence >= 0 ? 'var(--success)' : 'var(--danger)', textAlign: 'right' }}>
                     {a.influence >= 0 ? '+' : ''}{a.influence.toFixed(3)}
                   </span>
+                  {/* eslint-disable-next-line local/no-inline-style -- edge-type-driven color */}
                   <span style={{ color: a.edgeType === 'attacks' ? 'var(--danger)' : 'var(--success)' }}>
                     {a.edgeType}{a.attackType ? ` (${a.attackType})` : ''}
                   </span>
-                  <span style={{ color: 'var(--text-muted)' }}>from {a.sourceId}</span>
-                  <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{a.scheme ? `via ${a.scheme}` : ''}</span>
+                  <span className="inr-text-muted">from {a.sourceId}</span>
+                  <span className="inr-text-muted-italic">{a.scheme ? `via ${a.scheme}` : ''}</span>
                 </div>
               ))}
               {attribution.attributions.length > 6 && (
-                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>...and {attribution.attributions.length - 6} more</div>
+                <div className="inr-loo-more">...and {attribution.attributions.length - 6} more</div>
               )}
             </div>
           )}

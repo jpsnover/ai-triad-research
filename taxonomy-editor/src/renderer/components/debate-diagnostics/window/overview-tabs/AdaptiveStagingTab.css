@@ -1,0 +1,172 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+.adst-empty {
+  color: var(--text-secondary);
+  padding: 16px;
+}
+
+.adst-root {
+  font-size: 0.75rem;
+}
+
+.adst-stage-models {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+}
+
+.adst-section-header {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.adst-stage-row {
+  display: flex;
+  gap: 12px;
+  font-size: 0.7rem;
+}
+
+.adst-stage-name {
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.adst-draft-name {
+  font-weight: 500;
+}
+
+.adst-muted {
+  color: var(--text-muted);
+}
+
+.adst-empty-sm {
+  color: var(--text-secondary);
+  padding: 8px;
+}
+
+.adst-diag-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.adst-title {
+  font-weight: 600;
+}
+
+.adst-download-btn {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.adst-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.adst-stat-card {
+  background: var(--bg-secondary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.adst-stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.adst-stat-label {
+  font-size: var(--text-2xs);
+  color: var(--text-secondary);
+}
+
+.adst-mb12 {
+  margin-bottom: 12px;
+}
+
+.adst-phase-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.7rem;
+}
+
+.adst-row-border {
+  border-bottom: 1px solid var(--border);
+}
+
+.adst-th-left {
+  text-align: left;
+  padding: 4px;
+}
+
+.adst-td {
+  padding: 4px;
+}
+
+.adst-td-secondary {
+  padding: 4px;
+  color: var(--text-secondary);
+}
+
+.adst-telemetry-scroll {
+  overflow-x: auto;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.adst-telemetry-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-2xs);
+  white-space: nowrap;
+}
+
+.adst-telemetry-head-row {
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg-primary);
+}
+
+.adst-cell-sm {
+  padding: 2px 4px;
+}
+
+.adst-td-reason {
+  padding: 2px 4px;
+  color: var(--text-secondary);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adst-mt12 {
+  margin-top: 12px;
+}
+
+.adst-regression-item {
+  padding: 4px 8px;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  border-radius: 4px;
+  margin-bottom: 4px;
+  font-size: 0.7rem;
+}
+
+.adst-gc-item {
+  padding: 4px 8px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  margin-bottom: 4px;
+  font-size: 0.7rem;
+}
