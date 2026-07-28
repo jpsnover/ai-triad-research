@@ -1,6 +1,9 @@
 /* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
-/* EntityDetail — read-only entity record view (t/1882 §5). Uses design-system tokens
-   only; mirrors OrganizationDetail's rhythm. Badges/links come from DetailPrimitives. */
+/* EntityDetail — read-only entity record view (t/1882 §5). Uses DEFINED design-system
+   tokens only (styles.css): --border-color (not --border), --focus-ring/--warning for
+   accents (--accent is undefined app-wide), and --text-secondary for small labels so
+   they clear WCAG AA 4.5:1 in all four themes (--text-muted fails in light/harvard/bkc).
+   Verified per Design review t/1882#4. Badges/links come from DetailPrimitives. */
 
 .entity-detail {
   padding: 16px;
@@ -16,17 +19,17 @@
 /* Redirect (merge-tombstone) note */
 .ed-redirect-note {
   font-size: 0.72rem;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
-/* Deprecated banner — muted warning tone, NOT error red */
+/* Deprecated banner — muted warning tone (theme --warning), NOT error red */
 .ed-deprecated-banner {
   padding: 6px 10px;
   border-radius: 6px;
   font-size: 0.78rem;
-  background: var(--color-warning-bg, rgba(180, 83, 9, 0.12));
-  color: var(--color-warning, #b45309);
-  border: 1px solid var(--color-warning-border, rgba(180, 83, 9, 0.35));
+  background: var(--bg-secondary);
+  color: var(--warning);
+  border: 1px solid var(--warning);
 }
 
 /* Identity header */
@@ -34,10 +37,10 @@
 .ed-title { margin: 0; font-size: 1.1rem; color: var(--text-primary); }
 .ed-dolce-chip {
   font-size: 0.72rem;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   cursor: help;
 }
-.ed-aliases { margin-top: 4px; font-size: 0.78rem; color: var(--text-muted); }
+.ed-aliases { margin-top: 4px; font-size: 0.78rem; color: var(--text-secondary); }
 .ed-status-row { margin-top: 6px; }
 .ed-status-pill {
   display: inline-block;
@@ -45,19 +48,20 @@
   border-radius: 10px;
   font-size: var(--text-2xs);
   font-weight: 600;
+  border: 1px solid transparent;
 }
-.ed-status-approved { background: var(--accent); color: var(--accent-contrast, #fff); }
-.ed-status-proposed { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
-.ed-status-deprecated {
-  background: var(--color-warning-bg, rgba(180, 83, 9, 0.12));
-  color: var(--color-warning, #b45309);
-}
+/* Distinct, AA-safe status tones from DEFINED tokens (no --accent). Approved reads as a
+   solid/active fill with a focus-ring accent border; proposed is a muted outline;
+   deprecated is a warning outline. */
+.ed-status-approved { background: var(--bg-hover); color: var(--text-secondary); border-color: var(--focus-ring); }
+.ed-status-proposed { background: transparent; color: var(--text-secondary); border-color: var(--border-color); }
+.ed-status-deprecated { background: transparent; color: var(--warning); border-color: var(--warning); }
 
 /* Description — hero content */
 .ed-description { margin: 0; line-height: 1.5; color: var(--text-primary); }
 
 /* Section headings */
-.ed-section-h3 { margin: 0 0 4px; font-size: 0.8rem; color: var(--text-muted); }
+.ed-section-h3 { margin: 0 0 4px; font-size: 0.8rem; color: var(--text-secondary); }
 
 /* Appears-in source chips — non-interactive (no viewer target yet, spec open-Q3) */
 .ed-source-chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -68,16 +72,16 @@
   border-radius: 4px;
   background: var(--bg-secondary);
   color: var(--text-secondary);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-color);
   cursor: default;
 }
 
-/* Provenance footer — muted, below a divider */
+/* Provenance footer — de-emphasized (via smaller size), below a divider */
 .ed-provenance {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-color);
   padding-top: 8px;
   font-size: 0.72rem;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   display: flex;
   flex-direction: column;
   gap: 2px;
