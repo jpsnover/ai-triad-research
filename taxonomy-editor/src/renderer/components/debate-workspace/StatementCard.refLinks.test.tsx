@@ -66,8 +66,9 @@ vi.mock('../../utils/vocabularyAnnotations', () => ({ getDebateMarkdownComponent
 import { StatementCard } from './StatementCard';
 import type { TranscriptEntry } from '@lib/debate/types';
 
-// Content carries a linkable node id, a non-linkable entity id (org-*), and some
-// bold text to anchor a comment on for the coexistence test.
+// Content carries a linkable node id, a linkable org-* id (the LINKABLE_KINDS widening
+// in t/1882 §4.1 made entity/org/term ID tokens clickable too), and some bold text to
+// anchor a comment on for the coexistence test.
 const CONTENT = 'The Accelerationist cites acc-beliefs-001 and org-001; here is some bold ground.';
 
 function makeEntry(over: Partial<TranscriptEntry> = {}): TranscriptEntry {
@@ -120,13 +121,12 @@ beforeEach(() => {
 });
 
 describe('StatementCard — ID-token ref links (t/1776)', () => {
-  it('renders a linkable node id as a .ref-link button, but not an org-* id', () => {
+  it('renders node and org-* ID tokens as .ref-link buttons (widened LINKABLE_KINDS, t/1882)', () => {
     const { container: root } = render(<StatementCard entry={makeEntry()} />);
     const links = refLinks(root);
-    expect(links.map(b => b.textContent)).toEqual(['acc-beliefs-001']);
-    // The org-* token stays plain text (v1 render-boundary filter).
-    expect(content(root).textContent).toContain('org-001');
-    expect(content(root).querySelector('button[class~="ref-link"]')?.textContent).not.toBe('org-001');
+    // Both linkify now that entity/org/term joined LINKABLE_KINDS (t/1882 §4.1); the
+    // display text stays the raw source token, in source order.
+    expect(links.map(b => b.textContent)).toEqual(['acc-beliefs-001', 'org-001']);
   });
 
   it('clicking a ref link sets the store selectedRef to the parsed EntityRef', () => {

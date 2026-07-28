@@ -8,12 +8,13 @@ import { scanRefs } from '@lib/entities/scanRefs';
 import type { EntityRefKind } from '@lib/entities/types';
 
 /**
- * v1 render-boundary kind filter (t/1776): the shared `scanRefs` detects ALL six
- * EntityRef kinds, but only these are linkifiable in the transcript today —
- * `entity`/`organization`/`term` are the t/1767 entity/vocab layer (not resolvable
- * as ID tokens here). Widening later is a filter change, not a scanner change.
+ * Render-boundary kind filter: the shared `scanRefs` detects ALL six EntityRef kinds,
+ * and all six now linkify — the entity/vocab layer (`entity`/`organization`/`term`)
+ * resolves through the DetailPane's `EntityDetail` / org / term branches (t/1882 §4.1).
+ * `term` opens a Phase-1.5 fallback until its rich renderer lands (§6). The set is kept
+ * explicit so a future non-linkable kind can be excluded without a scanner change.
  */
-const LINKABLE_KINDS: ReadonlySet<EntityRefKind> = new Set(['node', 'situation', 'policy']);
+const LINKABLE_KINDS: ReadonlySet<EntityRefKind> = new Set(['node', 'situation', 'policy', 'entity', 'organization', 'term']);
 
 /** Marker class the consuming surface's `span` md-component keys on to render a clickable ref. */
 export const REF_LINK_CLASS = 'ref-link';

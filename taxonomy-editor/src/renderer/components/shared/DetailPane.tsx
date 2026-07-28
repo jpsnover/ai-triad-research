@@ -10,6 +10,8 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { NodeDetail } from '../taxonomy/NodeDetail';
 import { SituationDetail } from '../debate/SituationDetail';
 import { OrganizationDetail } from '../organizations/OrganizationDetail';
+// Aliased: `EntityDetail` (the resolve-result union type) is already imported above.
+import { EntityDetail as EntityDetailView } from './EntityDetail';
 import { EmptyState } from './EmptyState';
 import { resolveRef } from './resolveRef';
 import './DetailPane.css';
@@ -106,7 +108,8 @@ export function DetailPane({ selectedRef, onSelectRef, onClose, className }: Det
           </button>
         )}
       </div>
-      <div className="detail-pane-body">{renderBody(state, onSelectRef)}</div>
+      {/* aria-live: loading / error / not_found state changes are announced (§8, AC #2). */}
+      <div className="detail-pane-body" aria-live="polite">{renderBody(state, onSelectRef)}</div>
     </div>
   );
 }
@@ -165,10 +168,10 @@ function renderDetail(detail: EntityDetail, onSelectRef?: (ref: EntityRef) => vo
         />
       );
     case 'entity':
-      // Placeholder — the rich entity renderer is added by t/1767 (§5 consumer).
-      return <EmptyState headline={detail.record.name} direction="Detailed entity view coming soon." />;
+      return <EntityDetailView entity={detail.record} redirectedFrom={detail.redirected_from} />;
     case 'term':
-      // Placeholder — the rich vocabulary renderer is added by t/1767.
+      // Deliberate Phase-1.5 fallback (t/1882): the term ID-token linkifies (§4.1) but the
+      // rich vocabulary renderer is deferred (PM p/21#63) — build §6 in the follow-up ticket.
       return <EmptyState headline={detail.ref.id.replace(/^term:/, '')} direction="Detailed term view coming soon." />;
     case 'not_found':
       return <EmptyState headline="Not found" direction={`No ${detail.ref.kind} matches "${detail.ref.id}".`} />;

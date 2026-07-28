@@ -13,10 +13,12 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { remarkLinkifyRefs, REF_LINK_CLASS } from './refLinkifyPlugin';
 
-/** Surfaces only the ref-link spans the plugin emits (plain spans get no testid). */
-function TestSpan({ className, children }: { className?: string; children?: ReactNode; node?: unknown }) {
+/** Surfaces only the ref-link spans the plugin emits (plain spans get no testid).
+ *  Forwards `data-ref-kind` so tests can assert the kind carried by each hit. */
+function TestSpan({ className, children, ...rest }: { className?: string; children?: ReactNode; node?: unknown }) {
   const isRef = (className ?? '').split(/\s+/).includes(REF_LINK_CLASS);
-  return <span data-testid={isRef ? 'ref' : 'plain'} className={className}>{children}</span>;
+  const kind = (rest as Record<string, unknown>)['data-ref-kind'];
+  return <span data-testid={isRef ? 'ref' : 'plain'} className={className} data-ref-kind={kind as string | undefined}>{children}</span>;
 }
 
 function renderMd(text: string) {
@@ -45,9 +47,17 @@ describe('remarkLinkifyRefs', () => {
     expect(refTexts(container).sort()).toEqual(['pol-002', 'sit-001']);
   });
 
-  it('does NOT linkify entity/organization ids (v1 render-boundary filter)', () => {
-    const { container } = renderMd('org-001 and ent-002 are entity-layer refs.');
-    expect(refTexts(container)).toEqual([]);
+  it('linkifies entity, organization, and term ids (t/1882 widened LINKABLE_KINDS)', () => {
+    const { container } = renderMd('org-001 and ent-002 and term:p-doom are entity-layer refs.');
+    expect(refTexts(container).sort()).toEqual(['ent-002', 'org-001', 'term:p-doom']);
+  });
+
+  it('stamps data-ref-kind for the widened kinds (kind conveyed by attribute, not color)', () => {
+    const { container } = renderMd('org-001 ent-002 term:p-doom');
+    const kinds = Array.from(container.querySelectorAll('[data-testid="ref"]'))
+      .map(el => el.getAttribute('data-ref-kind'))
+      .sort();
+    expect(kinds).toEqual(['entity', 'organization', 'term']);
   });
 
   it('leaves non-ref text untouched', () => {

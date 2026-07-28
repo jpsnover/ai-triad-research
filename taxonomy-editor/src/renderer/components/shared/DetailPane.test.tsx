@@ -21,6 +21,7 @@ vi.mock('./resolveRef', () => ({
 vi.mock('../taxonomy/NodeDetail', () => ({ NodeDetail: (p: any) => <div data-testid="node-detail" data-pov={p.pov}>{p.node.id}</div> }));
 vi.mock('../debate/SituationDetail', () => ({ SituationDetail: (p: any) => <div data-testid="situation-detail">{p.node.id}</div> }));
 vi.mock('../organizations/OrganizationDetail', () => ({ OrganizationDetail: (p: any) => <div data-testid="org-detail">{p.org.name}</div> }));
+vi.mock('./EntityDetail', () => ({ EntityDetail: (p: any) => <div data-testid="entity-detail" data-redirect={p.redirectedFrom}>{p.entity.name}</div> }));
 
 import { DetailPane } from './DetailPane';
 
@@ -61,6 +62,19 @@ describe('DetailPane — dispatch by EntityDetail.kind', () => {
     ready({ kind: 'policy', ref: { kind: 'policy', id: 'pol-010' }, record: { id: 'pol-010', action: 'Pause training' } });
     render(<DetailPane selectedRef={{ kind: 'policy', id: 'pol-010' }} />);
     expect(await screen.findByText('pol-010')).toBeInTheDocument();
+  });
+
+  it('dispatches an entity ref to the rich EntityDetail (no placeholder)', async () => {
+    ready({ kind: 'entity', ref: { kind: 'entity', id: 'ent-042' }, record: { name: 'OpenAI' } });
+    render(<DetailPane selectedRef={{ kind: 'entity', id: 'ent-042' }} />);
+    expect(await screen.findByTestId('entity-detail')).toHaveTextContent('OpenAI');
+    expect(screen.queryByText('Detailed entity view coming soon.')).not.toBeInTheDocument();
+  });
+
+  it('still renders a term ref as the deferred Phase-1.5 fallback', async () => {
+    ready({ kind: 'term', ref: { kind: 'term', id: 'term:p-doom' }, record: { colloquial_term: 'p(doom)' } });
+    render(<DetailPane selectedRef={{ kind: 'term', id: 'term:p-doom' }} />);
+    expect(await screen.findByText('Detailed term view coming soon.')).toBeInTheDocument();
   });
 
   it('renders a not_found result as an empty state', async () => {
