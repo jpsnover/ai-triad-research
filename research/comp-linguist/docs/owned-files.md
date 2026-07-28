@@ -51,6 +51,11 @@ Files the Computational Linguist holds **mandatory review authority** over. Chan
 | `lib/debate/vocabularyContext.ts` | Vocabulary constraints | Mandatory |
 | `lib/debate/counterfactualCrux.ts` | Counterfactual crux identification | Mandatory |
 | `lib/debate/cruxTaxonomyFeedback.ts` | Crux-to-situation promotion | Mandatory |
+| **Entity ontology (t/1767, t/1803)** | | |
+| `ai-usages.json` → `enrichment.entity-extraction` | Entity extraction prompt (CL-owned instrument) | Mandatory |
+| `<data>/taxonomy/Origin/entities.json` | Entity records — DOLCE-typed (`entity_type` + `dolce_category`, genus-differentia descriptions) | Mandatory |
+| `<data>/taxonomy/Origin/entity_edges.json` | `EntityEdgeType` vocabulary — AIF-adjacent edge semantics | Mandatory |
+| `<data>/taxonomy/Origin/entity_embeddings.json` | Entity linking/dedup vectors; `model` + `dim` recorded in-file so a silent model swap is detectable (t/1804) | Mandatory |
 | **Other** | | |
 | `scripts/AITriad/Private/Get-EmbeddingClusters.ps1` | Embeddings | Mandatory |
 | `validation-report.json` | Validation outputs | Mandatory (sign-off) |

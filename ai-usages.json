@@ -123,6 +123,48 @@
       "situation-statements"
     ]
   },
+  "enrichment.entity-extraction": {
+    "description": "Propose entity candidates (ent-*) from fact-record claim text. CL-owned; design of record research/comp-linguist/designs/entity-ontology-proposal.md §4. Phase 0 validated this instrument at precision 0.975 (then 20/20 at 11x volume), zero excluded-class leakage, yield 0.248/fact — BUT those figures were measured on claude-fable-5 with a prompt that lacked the person exception and resolution guidance below, so they DO NOT transport to this entry. Re-establish precision on the first production batch before trusting the numbers; see analyses/PREREG-t1767-phase0.md.",
+    "model": "claude-sonnet-4-6",
+    "temperature": 0.1,
+    "maxTokens": 2000,
+    "timeoutMs": 60000,
+    "jsonMode": true,
+    "responseSchema": {
+      "type": "object",
+      "properties": {
+        "proposals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "entity_type": { "type": "string", "enum": ["person", "artifact", "event", "legislation", "institution"] },
+              "aliases": { "type": "array", "items": { "type": "string" } },
+              "quote": { "type": "string" },
+              "confidence": { "type": "number" }
+            },
+            "required": ["name", "entity_type", "aliases", "quote", "confidence"]
+          }
+        },
+        "org_mentions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": { "name": { "type": "string" } },
+            "required": ["name"]
+          }
+        }
+      },
+      "required": ["proposals", "org_mentions"]
+    },
+    "systemMessage": "You extract named entities from fact records in an AI-policy research corpus. Propose the entities each claim mentions.\n\nAn entity is a PARTICULAR: a specific person, a specific named AI system or tool (artifact), a specific named event, a specific law or regulation or executive order (legislation), or a specific named framework-institution such as a named treaty regime (institution). Type every proposal as exactly one of: person | artifact | event | legislation | institution.\n\nDo NOT propose UNIVERSALS. Concepts, ideas, fields, technologies-in-general, and contested vocabulary such as 'alignment', 'risk', 'oversight', 'safety', 'governance' are senses of words, not things in the world. They belong to the project's vocabulary dictionary, not here. The test: a particular is one identifiable thing you could point at; a universal is a category many things instantiate.\n\nDo NOT propose organizations or companies as entities. They already exist in a separate registry. List them in org_mentions instead.\n\nPERSON EXCEPTION (mandatory). For entity_type 'person', propose ONLY the name, aliases, and supporting quote. Never write a description or characterize the person's views, however well attested. Person records are completed by a human author, and a wrong inferred view about a named living individual is a far worse failure than a missing entity.\n\nRESOLUTION HAPPENS DOWNSTREAM. Every proposal is matched against existing entities, the organization registry, policy actions, taxonomy labels, and the vocabulary dictionary before anything is created. So do not attempt to deduplicate against the wider corpus, and do not suppress a proposal because it might already exist. Propose what the text says and let resolution decide.\n\nCALIBRATE CONFIDENCE HONESTLY. Confidence is the probability that the item is a real, correctly-typed particular. Emit every candidate you see, including borderline ones, at your honest confidence rather than self-censoring; a downstream gate drops low-confidence items, and an over-confident wrong proposal is more damaging than a low-confidence right one.",
+    "messageTemplate": "Node: {{node_id}}\n\nFact claims to extract from:\n{{facts}}",
+    "tags": [
+      "enrichment",
+      "entity-ontology"
+    ]
+  },
   "enrichment.situation-bdi-decomposition": {
     "description": "Decompose a situation node's per-POV interpretations into BDI (belief/desire/intention) layers. CL-owned; used by the t/1306 backfill and t/1307 crux->situation creation path.",
     "model": "claude-sonnet-4-6",
