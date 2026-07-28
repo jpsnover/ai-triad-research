@@ -53,16 +53,21 @@ function OutcomeBadge({ outcome }: { outcome: 'taken' | 'missed' | 'none' }) {
   };
   const s = styles[outcome];
   return (
-    <span className="conv-outcome-badge" style={{ background: s.bg, color: s.fg }}>{s.label}</span>
+    <span
+      className="conv-outcome-badge"
+      /* eslint-disable-next-line local/no-inline-style -- dynamic: badge bg/fg from outcome variant */
+      style={{ background: s.bg, color: s.fg }}
+    >{s.label}</span>
   );
 }
 
 function MiniBar({ value, max, color }: { value: number; max: number; color: string }) {
   const w = max > 0 ? Math.min(1, value / max) * 100 : 0;
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      <div style={{ width: 50, height: 6, background: 'var(--bg-tertiary, #333)', borderRadius: 'var(--radius-sm)' }}>
-        <div style={{ width: `${w}%`, height: '100%', background: color, borderRadius: 'var(--radius-sm)' }} />
+    <div className="csig-minibar-wrap">
+      <div className="csig-minibar-track">
+        {/* eslint-disable-next-line local/no-inline-style -- dynamic: fill width from value, background from prop */}
+        <div className="csig-minibar-fill" style={{ width: `${w}%`, background: color }} />
       </div>
       <span className="conv-minibar-value">{value.toFixed(2)}</span>
     </div>
@@ -87,12 +92,14 @@ function DispositionChart({ signals }: { signals: ConvergenceSignals[] }) {
   const gridY = (val: number) => H - PAD - val * (H - 2 * PAD);
 
   return (
-    <div style={{ marginBottom: 8 }}>
+    <div className="csig-chart-wrap">
       <div className="conv-chart-title" title={TOOLTIPS.chartTitle}>
         Collaborative Ratio Over Time
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none"
-        style={{ display: 'block', width: '100%', height: H, maxWidth: 720 }}>
+        className="csig-chart-svg"
+        /* eslint-disable-next-line local/no-inline-style -- dynamic: svg height from H constant */
+        style={{ height: H }}>
         {[0.25, 0.5, 0.75].map(v => (
           <line key={v} x1={PAD} y1={gridY(v)} x2={W - PAD} y2={gridY(v)}
             stroke="var(--border-color, rgba(128,128,128,0.2))" strokeWidth={0.5} strokeDasharray="3,3" />
@@ -111,7 +118,11 @@ function DispositionChart({ signals }: { signals: ConvergenceSignals[] }) {
       </svg>
       <div className="conv-chart-legend">
         {speakers.map(s => (
-          <span key={s} style={{ color: speakerColor(s as SpeakerId) }}>
+          <span
+            key={s}
+            /* eslint-disable-next-line local/no-inline-style -- dynamic: color from speaker */
+            style={{ color: speakerColor(s as SpeakerId) }}
+          >
             {speakerLabel(s as SpeakerId)}
           </span>
         ))}
@@ -134,11 +145,23 @@ function SummaryStats({ signals }: { signals: ConvergenceSignals[] }) {
   });
 
   return (
-    <div className="conv-summary-grid" style={{ gridTemplateColumns: `repeat(${speakers.length}, 1fr)` }}>
+    <div
+      className="conv-summary-grid"
+      /* eslint-disable-next-line local/no-inline-style -- dynamic: column count from speaker count */
+      style={{ gridTemplateColumns: `repeat(${speakers.length}, 1fr)` }}
+    >
       {stats.map(s => (
-        <div key={s.speaker} className="conv-summary-card"
-          style={{ borderLeft: `3px solid ${speakerColor(s.speaker as SpeakerId)}` }}>
-          <div className="conv-card-speaker" style={{ color: speakerColor(s.speaker as SpeakerId) }}>
+        <div
+          key={s.speaker}
+          className="conv-summary-card"
+          /* eslint-disable-next-line local/no-inline-style -- dynamic: border color from speaker */
+          style={{ borderLeft: `3px solid ${speakerColor(s.speaker as SpeakerId)}` }}
+        >
+          <div
+            className="conv-card-speaker"
+            /* eslint-disable-next-line local/no-inline-style -- dynamic: color from speaker */
+            style={{ color: speakerColor(s.speaker as SpeakerId) }}
+          >
             {speakerLabel(s.speaker as SpeakerId)}
           </div>
           <div className="conv-card-stats">
@@ -219,7 +242,7 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
   }, [selected, debate.argument_network]);
 
   return (
-    <div ref={containerRef} tabIndex={0} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', outline: 'none' }}>
+    <div ref={containerRef} tabIndex={0} className="csig-container">
       <SummaryStats signals={signals} />
       <DispositionChart signals={signals} />
 
@@ -227,9 +250,9 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
         <span className="conv-filter-label">Filter:</span>
         <button
           onClick={() => setFilterSpeaker('all')}
-          className="conv-filter-btn"
+          className="conv-filter-btn csig-filter-btn-all"
+          /* eslint-disable-next-line local/no-inline-style -- dynamic: active bg/color from filter state */
           style={{
-            border: '1px solid var(--border)',
             background: filterSpeaker === 'all' ? 'var(--warning, #f59e0b)' : 'transparent',
             color: filterSpeaker === 'all' ? 'var(--bg-primary)' : 'var(--text-primary)',
           }}
@@ -239,6 +262,7 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
             key={s}
             onClick={() => setFilterSpeaker(s)}
             className="conv-filter-btn"
+            /* eslint-disable-next-line local/no-inline-style -- dynamic: border/bg/color from speaker + filter state */
             style={{
               border: `1px solid ${speakerColor(s)}`,
               background: filterSpeaker === s ? speakerColor(s) : 'transparent',
@@ -248,18 +272,18 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
         ))}
       </div>
 
-      <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
+      <div className="csig-table-scroll">
         <table className="conv-table">
           <thead>
             <tr>
               <th>Rnd</th>
               <th>Speaker</th>
-              <th style={{ textAlign: 'center' }} title={TOOLTIPS.confCollab}>Conf/Collab</th>
-              <th style={{ textAlign: 'center' }} title={TOOLTIPS.engagement}>Dialectical Engagement</th>
-              <th style={{ textAlign: 'center' }} title={TOOLTIPS.recyclingCol}>Argument Redundancy</th>
-              <th style={{ textAlign: 'center' }} title={TOOLTIPS.concessionCol}>Concession</th>
-              <th style={{ textAlign: 'center' }} title={TOOLTIPS.drift}>Drift</th>
-              <th style={{ textAlign: 'center' }} title={TOOLTIPS.cruxCol}>Crux</th>
+              <th className="csig-center" title={TOOLTIPS.confCollab}>Conf/Collab</th>
+              <th className="csig-center" title={TOOLTIPS.engagement}>Dialectical Engagement</th>
+              <th className="csig-center" title={TOOLTIPS.recyclingCol}>Argument Redundancy</th>
+              <th className="csig-center" title={TOOLTIPS.concessionCol}>Concession</th>
+              <th className="csig-center" title={TOOLTIPS.drift}>Drift</th>
+              <th className="csig-center" title={TOOLTIPS.cruxCol}>Crux</th>
             </tr>
           </thead>
           <tbody>
@@ -267,37 +291,41 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
               <tr
                 key={sig.entry_id}
                 onClick={() => setSelectedIdx(selectedIdx === i ? null : i)}
+                /* eslint-disable-next-line local/no-inline-style -- dynamic: row highlight from selection */
                 style={{
                   background: selectedIdx === i ? 'color-mix(in srgb, var(--warning, #f59e0b) 10%, transparent)' : undefined,
                 }}
               >
                 <td>{sig.round}</td>
-                <td style={{ color: speakerColor(sig.speaker) }}>
+                <td
+                  /* eslint-disable-next-line local/no-inline-style -- dynamic: color from speaker */
+                  style={{ color: speakerColor(sig.speaker) }}
+                >
                   {speakerLabel(sig.speaker)}
                 </td>
-                <td style={{ textAlign: 'center' }}>
-                  <span style={{ color: 'var(--danger)' }}>{sig.move_polarity?.confrontational ?? 0}</span>
+                <td className="csig-center">
+                  <span className="csig-danger">{sig.move_polarity?.confrontational ?? 0}</span>
                   {' / '}
-                  <span style={{ color: 'var(--success)' }}>{sig.move_polarity?.collaborative ?? 0}</span>
+                  <span className="csig-success">{sig.move_polarity?.collaborative ?? 0}</span>
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="csig-center">
                   <MiniBar value={sig.dialectical_engagement?.ratio ?? 0} max={1} color="var(--color-saf, #3b82f6)" />
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="csig-center">
                   {(() => {
                     const effective = Math.max(sig.argument_redundancy?.max_self_overlap ?? 0, sig.argument_redundancy?.semantic_max_similarity ?? 0);
                     return <MiniBar value={effective} max={1} color={sig.argument_redundancy?.semantically_recycled ? 'var(--danger)' : effective > 0.5 ? 'var(--warning, #f59e0b)' : 'var(--success)'} />;
                   })()}
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="csig-center">
                   <OutcomeBadge outcome={sig.concession_opportunity?.outcome ?? 'none'} />
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="csig-center">
                   {pct(sig.position_drift?.drift ?? 0)}
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="csig-center">
                   {sig.crux_engagement_rate?.used_this_turn ? '1' : '0'}
-                  <span style={{ color: 'var(--text-muted)' }}> ({sig.crux_engagement_rate?.cumulative_count ?? 0})</span>
+                  <span className="csig-muted"> ({sig.crux_engagement_rate?.cumulative_count ?? 0})</span>
                 </td>
               </tr>
             ))}
@@ -314,10 +342,17 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
         const pd = selected.position_drift;
         const cr = selected.crux_engagement_rate;
         return (
-          <div className="conv-detail"
-            style={{ borderLeft: `3px solid ${speakerColor(selected.speaker)}` }}>
+          <div
+            className="conv-detail"
+            /* eslint-disable-next-line local/no-inline-style -- dynamic: border color from speaker */
+            style={{ borderLeft: `3px solid ${speakerColor(selected.speaker)}` }}
+          >
             <div className="conv-detail-header">
-              <span className="conv-detail-speaker" style={{ color: speakerColor(selected.speaker) }}>
+              <span
+                className="conv-detail-speaker"
+                /* eslint-disable-next-line local/no-inline-style -- dynamic: color from speaker */
+                style={{ color: speakerColor(selected.speaker) }}
+              >
                 Round {selected.round} — {speakerLabel(selected.speaker)}
               </span>
               <span className="conv-detail-hint">← → to navigate, Esc to close</span>
@@ -326,8 +361,8 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
               <div className="conv-detail-cell">
                 <div className="conv-detail-lbl">Polarity</div>
                 <div className="conv-detail-val">
-                  <span style={{ color: 'var(--danger)' }}>{md?.confrontational ?? 0}C</span>{' / '}
-                  <span style={{ color: 'var(--success)' }}>{md?.collaborative ?? 0}S</span>
+                  <span className="csig-danger">{md?.confrontational ?? 0}C</span>{' / '}
+                  <span className="csig-success">{md?.collaborative ?? 0}S</span>
                   {' = '}<strong>{pct(md?.ratio ?? 0)}</strong>
                   {(md?.ratio ?? 0) >= 0.5
                     ? <span className="conv-status-good">cooperative</span>
@@ -370,7 +405,7 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
                           ? <span className="conv-status-warn">moderate</span>
                           : <span className="conv-status-good">weak</span>}
                     </>
-                  ) : <span style={{ color: 'var(--text-muted)' }}>none</span>}
+                  ) : <span className="csig-muted">none</span>}
                 </div>
               </div>
               <div className="conv-detail-cell">
@@ -390,7 +425,7 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
                       : <span className="conv-status-good">evolved</span>}
                 </div>
               </div>
-              <div className="conv-detail-cell" style={{ gridColumn: '1 / -1' }}>
+              <div className="conv-detail-cell csig-grid-full">
                 <div className="conv-detail-lbl">Crux Engagement</div>
                 <div className="conv-detail-val">
                   this turn: {cr?.used_this_turn ? 'Yes' : 'No'} | cumulative: {cr?.cumulative_count ?? 0} | follow-through: {cr?.cumulative_follow_through ?? 0}
@@ -405,7 +440,7 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
             </div>
             {concessionVerbatims.length > 0 && (
               <div className="conv-verbatim-section">
-                <div className="conv-detail-lbl" style={{ marginBottom: 3 }}>Concession Verbatims ({concessionVerbatims.length})</div>
+                <div className="conv-detail-lbl csig-mb-3">Concession Verbatims ({concessionVerbatims.length})</div>
                 {concessionVerbatims.map((cv, i) => (
                   <div key={i} className="conv-verbatim-entry">
                     <div className="conv-verbatim-ids">{cv.sourceId} → {cv.targetId} via {cv.scheme}</div>
