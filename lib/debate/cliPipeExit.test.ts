@@ -34,12 +34,12 @@ function runHarness(fix: boolean, timeoutMs: number): SpawnSyncReturns<string> {
 }
 
 describe('debate CLI clean-exit lifecycle (t/1824)', () => {
-  it('WITH the fix (stopPipeListener): the loop drains → process exits 0 within seconds', () => {
-    const r = runHarness(true, 20000);
+  it('WITH the fix (stopPipeListener): the loop drains → process exits 0', () => {
+    const r = runHarness(true, 60000); // 60s: tsx cold-start on loaded CI runners can take >20s
     expect(r.stdout).toContain('finalized'); // reached finalization
-    expect(r.signal).toBeNull();             // not killed
+    expect(r.signal).toBeNull();             // not killed by timeout
     expect(r.status).toBe(0);                // clean exit code — batch harnesses can trust returncode
-  }, 30000);
+  }, 90000);
 
   // Skipped: hang behavior is win32-specific AND environment-sensitive within Windows
   // (some host configurations drain the event loop before the timeout — t/1839).

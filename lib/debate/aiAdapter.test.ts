@@ -1,3 +1,4 @@
+// @vitest-environment node
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -88,6 +89,13 @@ vi.mock('fs', () => ({
 vi.mock('../search/tavily', () => ({
   tavilySearch: vi.fn(),
   buildSearchAugmentedPrompt: vi.fn(),
+}));
+
+vi.mock('../embeddings/onnxEmbedding.js', () => ({
+  computeEmbedding: vi.fn(),
+  computeEmbeddings: vi.fn(),
+  tryWarmup: vi.fn().mockResolvedValue(false),
+  isReady: vi.fn().mockReturnValue(false),
 }));
 
 // ── Setup / teardown ────────────────────────────────────
