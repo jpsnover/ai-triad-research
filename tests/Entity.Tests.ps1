@@ -172,6 +172,20 @@ Describe 'Get-Entity — resolve + merge walk (t/1804 §7)' -Tag 'unit' {
     It 'Rejects a non-ent id (ent-* only, TL Q2)' {
         { Get-Entity -Id 'org-001' -Path $script:GePath } | Should -Throw
     }
+
+    It 'With no -Id, lists all canonical entities and skips tombstones' {
+        # Fixture: ent-001 canonical; ent-002 was minted then converted to a tombstone -> ent-001.
+        $all = @(Get-Entity -Path $script:GePath)
+        $all.Count           | Should -Be 1                       # ent-002 tombstone skipped
+        $all.id              | Should -Not -Contain 'ent-002'
+        $all[0].id           | Should -Be 'ent-001'
+        $all[0].name         | Should -Be 'Canonical'
+    }
+
+    It 'A listed record carries NO redirected_from' {
+        $all = @(Get-Entity -Path $script:GePath)
+        foreach ($e in $all) { $e.PSObject.Properties['redirected_from'] | Should -BeNullOrEmpty }
+    }
 }
 
 Describe 'Resolve-EntityMergedInto — cycle + depth cap mirror the server (t/1786)' -Tag 'unit' {
