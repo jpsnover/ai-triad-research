@@ -8,6 +8,7 @@ import remarkGfm from 'remark-gfm';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { ApiKeyErrorMessage } from '../settings/ApiKeyErrorMessage';
 import type { PovNode } from '../../types/taxonomy';
+import './AnalysisPanel.css';
 
 interface AnalysisPanelProps {
   width?: number;
@@ -376,7 +377,11 @@ export function AnalysisPanel({ width }: AnalysisPanelProps) {
   };
 
   return (
-    <div className="analysis-panel" style={width ? { width, minWidth: 320 } : undefined}>
+    <div
+      className="analysis-panel"
+      /* eslint-disable-next-line local/no-inline-style -- dynamic: panel width driven by `width` prop */
+      style={width ? { width, minWidth: 320 } : undefined}
+    >
       <div className="analysis-panel-header">
         <div className="analysis-panel-title">
           {analysisTitle || 'Analysis'}
@@ -460,7 +465,7 @@ export function AnalysisPanel({ width }: AnalysisPanelProps) {
       {analysisError && (
         <>
           <ApiKeyErrorMessage error={analysisError} />
-          <button className="btn btn-sm" style={{ marginTop: 8 }} onClick={handleRetry}>
+          <button className="btn btn-sm apanel-retry-btn" onClick={handleRetry}>
             Retry
           </button>
         </>
@@ -514,7 +519,7 @@ export function AnalysisPanel({ width }: AnalysisPanelProps) {
 
           {diffs.length === 0 && (
             <div className="analysis-diffs">
-              <div className="analysis-diffs-header" style={{ marginBottom: 0 }}>No changes proposed</div>
+              <div className="analysis-diffs-header apanel-diffs-header-flush">No changes proposed</div>
             </div>
           )}
 

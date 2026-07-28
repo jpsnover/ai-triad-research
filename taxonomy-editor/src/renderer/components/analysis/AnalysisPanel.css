@@ -1,0 +1,13 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Co-located styles for AnalysisPanel — migrated from inline (t/1865).
+   The panel width stays inline (conditional on the `width` prop). */
+
+.apanel-retry-btn {
+  margin-top: 8px;
+}
+
+.apanel-diffs-header-flush {
+  margin-bottom: 0;
+}

@@ -185,12 +185,17 @@ export function PolicyDashboard() {
           <div className="policy-dashboard-bars">
             {stats.tagEntries.map(([tag, count]) => (
               <div key={tag} className="policy-dashboard-bar-row">
-                <span className="policy-dashboard-bar-label" style={{ color: POV_COLORS[tag] ?? 'var(--text-secondary)' }}>
+                <span
+                  className="policy-dashboard-bar-label"
+                  /* eslint-disable-next-line local/no-inline-style -- dynamic: data-driven POV color */
+                  style={{ color: POV_COLORS[tag] ?? 'var(--text-secondary)' }}
+                >
                   {tag}
                 </span>
                 <div className="policy-dashboard-bar-track">
                   <div
                     className="policy-dashboard-bar-fill"
+                    /* eslint-disable-next-line local/no-inline-style -- dynamic: data-driven bar width/color */
                     style={{
                       width: `${(count / stats.maxTag) * 100}%`,
                       backgroundColor: POV_COLORS[tag] ?? 'var(--text-muted)',

@@ -134,7 +134,13 @@ export function PolicyAlignmentPanel() {
                 <span className="policy-alignment-id">{pol.id}</span>
                 <span className="policy-alignment-povs">
                   {pol.povs.map(p => (
-                    <span key={p} className="policy-alignment-pov-dot" style={{ background: POV_META[p as PovMetaKey]?.cssVar ? `var(${POV_META[p as PovMetaKey].cssVar})` : '#888' }} title={POV_META[p as PovMetaKey]?.label || p} />
+                    <span
+                      key={p}
+                      className="policy-alignment-pov-dot"
+                      /* eslint-disable-next-line local/no-inline-style -- dynamic: data-driven POV color */
+                      style={{ background: POV_META[p as PovMetaKey]?.cssVar ? `var(${POV_META[p as PovMetaKey].cssVar})` : '#888' }}
+                      title={POV_META[p as PovMetaKey]?.label || p}
+                    />
                   ))}
                 </span>
                 <span className="policy-alignment-action">{pol.action}</span>
@@ -154,7 +160,11 @@ export function PolicyAlignmentPanel() {
                     {pol.usages.map((u, i) => (
                       <div key={i} className="policy-alignment-framing">
                         <div className="policy-alignment-framing-header">
-                          <span className="policy-alignment-framing-pov" style={{ color: POV_META[u.pov as PovMetaKey]?.cssVar ? `var(${POV_META[u.pov as PovMetaKey].cssVar})` : '#888' }}>
+                          <span
+                            className="policy-alignment-framing-pov"
+                            /* eslint-disable-next-line local/no-inline-style -- dynamic: data-driven POV color */
+                            style={{ color: POV_META[u.pov as PovMetaKey]?.cssVar ? `var(${POV_META[u.pov as PovMetaKey].cssVar})` : '#888' }}
+                          >
                             {POV_META[u.pov as PovMetaKey]?.label || u.pov}
                           </span>
                           <span className="policy-alignment-framing-node">{u.nodeId}</span>

@@ -6,6 +6,7 @@ import { FALLACY_CATALOG, type FallacyEntry } from '../../data/fallacyInfo';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
+import './FallacyPanel.css';
 
 const CATEGORY_LABELS: Record<string, string> = {
   informal: 'Informal',
@@ -237,7 +238,7 @@ export function FallacyDetailPanel({ fallacyKey, onSelectNode }: { fallacyKey: s
       {entry.example && (
         <div className="fallacy-detail-section">
           <div className="fallacy-detail-label">Example (AI Policy)</div>
-          <p className="fallacy-detail-text" style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>{entry.example}</p>
+          <p className="fallacy-detail-text fpanel-detail-example">{entry.example}</p>
         </div>
       )}
 
@@ -252,7 +253,11 @@ export function FallacyDetailPanel({ fallacyKey, onSelectNode }: { fallacyKey: s
                 onClick={() => onSelectNode?.(n.id, n.pov)}
               >
                 <div className="fallacy-detail-node-header">
-                  <span className="fallacy-detail-node-pov" style={{ color: POV_COLOR[n.pov] || 'var(--text-muted)' }}>
+                  <span
+                    className="fallacy-detail-node-pov"
+                    /* eslint-disable-next-line local/no-inline-style -- dynamic: data-driven POV color */
+                    style={{ color: POV_COLOR[n.pov] || 'var(--text-muted)' }}
+                  >
                     {n.pov.slice(0, 3)}
                   </span>
                   <span className="fallacy-detail-node-id">{n.id}</span>

@@ -1,0 +1,10 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Co-located styles for FallacyPanel — migrated from inline (t/1865).
+   The per-node POV color stays inline (data-driven). */
+
+.fpanel-detail-example {
+  font-style: italic;
+  color: var(--text-muted);
+}
