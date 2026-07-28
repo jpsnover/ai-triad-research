@@ -7,6 +7,7 @@ import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { PolicyRegistryEntry } from '../../hooks/useTaxonomyStore';
 import { FALLACY_CATALOG } from '../../data/fallacyInfo';
 import { api } from '@bridge';
+import './GraphAttributesPanel.css';
 
 interface GraphAttributesPanelProps {
   attrs: GraphAttributes;
@@ -132,6 +133,7 @@ function Badge({ field, value, onClick, onContextMenu }: {
   return (
     <span
       className={`ga-badge ${onClick ? 'ga-badge-clickable' : ''}`}
+      // eslint-disable-next-line local/no-inline-style -- border/text color comes from the badge's value-specific color lookup
       style={{ borderColor: color, color }}
       onClick={onClick ? (e) => { e.stopPropagation(); onClick(field, value); } : undefined}
       onContextMenu={onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(e, field, value); } : undefined}
@@ -161,33 +163,34 @@ function ConfidenceCell({ value, readOnly, doctrinallyAnchored, evidentialConfid
   return (
     <div className="ga-cell">
       <div className="ga-label">Confidence</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className="ga-confidence-row">
         <input
           type="range"
           min={0} max={1} step={0.05}
           value={value}
           disabled={readOnly || !onUpdate}
           onChange={(e) => onUpdate?.({ confidence: parseFloat(e.target.value) })}
-          style={{ flex: 1 }}
+          className="ga-confidence-slider"
         />
-        <span style={{ fontSize: '0.8rem', fontWeight: 700, minWidth: 36, textAlign: 'right', color: confidenceColor(value) }}>
+        {/* eslint-disable-next-line local/no-inline-style -- color reflects the current confidence value via confidenceColor() */}
+        <span className="ga-confidence-value" style={{ color: confidenceColor(value) }}>
           {value.toFixed(2)}
         </span>
         {doctrinallyAnchored && (
           <span
-            style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: 'rgba(99,102,241,0.12)', color: '#6366f1', whiteSpace: 'nowrap' }}
+            className="ga-doctrinal-anchor-badge"
             title="This Belief is cosine-similar to the POV's doctrinal boundaries — a confidence floor is applied to prevent it from dropping below the doctrinal minimum"
           >⚓ Doctrinally Anchored</span>
         )}
       </div>
       {doctrinallyAnchored && evidentialConfidence != null && (
-        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>
+        <div className="ga-evidential-confidence">
           Evidential confidence: <strong>{evidentialConfidence.toFixed(2)}</strong>
-          <span style={{ marginLeft: 4, fontSize: 'var(--text-2xs)' }}>(floor applied: {value.toFixed(2)} ≥ doctrinal minimum)</span>
+          <span className="ga-floor-applied-note">(floor applied: {value.toFixed(2)} ≥ doctrinal minimum)</span>
         </div>
       )}
       {history && history.length > 0 && (
-        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4 }}>
+        <div className="ga-history-note">
           {history.length} update(s) — latest: {history[history.length - 1].reason}
         </div>
       )}
@@ -211,18 +214,20 @@ function RankedSelectCell({ label, value, options, badge, history, readOnly, onU
         value={value}
         disabled={readOnly || !onUpdate}
         onChange={(e) => onUpdate?.(parseInt(e.target.value, 10))}
-        style={{ fontSize: '0.8rem', padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+        className="ga-ranked-select"
       >
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
       {badge?.show && (
         <span
-          style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: badge.bg, color: badge.color, marginTop: 4, display: 'inline-block' }}
+          className="ga-ranked-badge"
+          // eslint-disable-next-line local/no-inline-style -- background/color come from the caller-supplied badge config
+          style={{ background: badge.bg, color: badge.color }}
           title={badge.title}
         >{badge.text}</span>
       )}
       {history && history.length > 0 && (
-        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4 }}>
+        <div className="ga-history-note">
           {history.length} update(s) — latest: {history[history.length - 1].reason}
         </div>
       )}
@@ -355,8 +360,7 @@ function AssumptionsCell({ assumes, readOnly, editing, onToggleEdit, onUpdate, o
         {LABEL_MAP.assumes}
         {!readOnly && onUpdate && (
           <button
-            className="btn btn-ghost btn-sm"
-            style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', padding: '1px 5px' }}
+            className="btn btn-ghost btn-sm ga-edit-toggle-btn"
             onClick={onToggleEdit}
           >{editing ? 'Done' : 'Edit'}</button>
         )}
@@ -760,6 +764,7 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo,
       {contextMenu && (
         <div
           className="context-menu"
+          // eslint-disable-next-line local/no-inline-style -- position tracks the click point that opened the menu
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
           <button

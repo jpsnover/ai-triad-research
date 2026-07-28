@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useEffect, useState, lazy, Suspense } from 'react';
+import './App.css';
 import { api } from '@bridge';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import ErrorBoundary from '../../../lib/electron-shared/components/ErrorBoundary';
@@ -118,10 +119,10 @@ function FileViewerApp() {
 
   console.log('[FileViewer] Render — loading:', loading, 'fileArg:', fileArg?.type, 'hasData:', !!fileArg?.data);
 
-  if (loading) return <div style={{ padding: 20, color: 'var(--text-muted)' }}>Loading file...</div>;
+  if (loading) return <div className="app-viewer-padding">Loading file...</div>;
 
   if (fileArg?.error) {
-    return <div style={{ padding: 20, color: '#ef4444' }}>Error loading file: {fileArg.error}<br/>Path: {fileArg.path}</div>;
+    return <div className="app-viewer-error">Error loading file: {fileArg.error}<br/>Path: {fileArg.path}</div>;
   }
 
   if (fileArg?.type === 'diagnostics' && fileArg.data) {
@@ -137,10 +138,10 @@ function FileViewerApp() {
       concepts: (harvestData.concepts as unknown[])?.length ?? 0,
     });
     return (
-      <div style={{ padding: 20 }}>
-        <h2 style={{ color: '#f59e0b' }}>Harvest Review</h2>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>File: {fileArg.path}</p>
-        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+      <div className="app-harvest-wrap">
+        <h2 className="app-harvest-title">Harvest Review</h2>
+        <p className="app-harvest-path">File: {fileArg.path}</p>
+        <p className="app-harvest-items">
           Items: {(harvestData.conflicts as unknown[])?.length ?? 0} conflicts,
           {' '}{(harvestData.steelmans as unknown[])?.length ?? 0} steelmans,
           {' '}{(harvestData.verdicts as unknown[])?.length ?? 0} verdicts,
@@ -151,9 +152,9 @@ function FileViewerApp() {
     );
   }
 
-  return <div style={{ padding: 20, color: 'var(--text-muted)' }}>
+  return <div className="app-viewer-padding">
     No file data found.
-    <pre style={{ fontSize: '0.7rem', marginTop: 8 }}>{JSON.stringify(fileArg, null, 2)}</pre>
+    <pre className="app-viewer-pre">{JSON.stringify(fileArg, null, 2)}</pre>
   </div>;
 }
 
@@ -518,7 +519,11 @@ function MainApp() {
         {total > 0 && (
           <>
             <div className="loading-bar-track">
-              <div className="loading-bar-fill" style={{ width: `${pct}%` }} />
+              <div
+                className="loading-bar-fill"
+                // eslint-disable-next-line local/no-inline-style -- width reflects loading progress percentage
+                style={{ width: `${pct}%` }}
+              />
             </div>
             <div className="loading-detail">
               {completed.length < 1 ? 'Loading...' : 'Initializing...'}
@@ -601,10 +606,10 @@ function MainApp() {
           )}
           {showFiles && changedFiles && (
             <div className="data-update-files">
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>
+              <div className="app-files-count">
                 {changedFiles.length} file{changedFiles.length !== 1 ? 's' : ''} changed:
               </div>
-              <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+              <div className="app-files-scroll">
                 {changedFiles.map(f => (
                   <div key={f.path} className="data-update-file-row">
                     <span className={`data-update-file-status data-update-file-status-${f.status}`}>

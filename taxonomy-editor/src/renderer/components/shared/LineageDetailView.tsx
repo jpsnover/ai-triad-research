@@ -9,6 +9,7 @@ import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import { POV_KEYS } from '@lib/debate/types';
 import type { PovNode } from '../../types/taxonomy';
 import { useDescriptionMode, resolveDescription, DescriptionToggle } from './DescriptionToggle';
+import './LineageDetailView.css';
 
 // ── See Also helpers ──
 
@@ -114,22 +115,20 @@ export function LineageDetailView({ value, onSelectValue, onOpenLink }: LineageD
 
   const renderReferencedBy = () => referencingNodes.length > 0 && (
     <div className="lineage-detail-section">
-      <div className="lineage-detail-label" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      <div className="lineage-detail-label lineage-detail-label-row">
         <span>Referenced By ({referencingNodes.length})</span>
-        <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
+        <span className="lineage-detail-filter-group">
           <button
-            className={`btn btn-xs${!refPovFilter ? '' : ' btn-ghost'}`}
+            className={`btn btn-xs${!refPovFilter ? '' : ' btn-ghost'} lineage-detail-filter-btn`}
             onClick={() => setRefPovFilter(null)}
-            style={{ fontSize: '0.7rem', padding: '1px 6px' }}
           >All</button>
           {Object.entries(povCounts).map(([pov, count]) => (
             <button
               key={pov}
-              className={`btn btn-xs${refPovFilter === pov ? '' : ' btn-ghost'}`}
+              className={`btn btn-xs${refPovFilter === pov ? '' : ' btn-ghost'} lineage-detail-filter-btn`}
               onClick={() => setRefPovFilter(refPovFilter === pov ? null : pov)}
-              style={{ fontSize: '0.7rem', padding: '1px 6px' }}
             >
-              <span className={`pov-badge pov-badge-${pov.slice(0, 3)}`} style={{ fontSize: 'var(--text-2xs)', marginRight: 3 }}>{pov.slice(0, 3).toUpperCase()}</span>
+              <span className={`pov-badge pov-badge-${pov.slice(0, 3)} lineage-detail-pov-badge-sm`}>{pov.slice(0, 3).toUpperCase()}</span>
               {POV_LABELS[pov] ?? pov} ({count})
             </button>
           ))}
@@ -154,7 +153,7 @@ export function LineageDetailView({ value, onSelectValue, onOpenLink }: LineageD
   const renderSeeAlso = () => seeAlsoItems.length > 0 && (
     <div className="lineage-detail-section">
       <div className="lineage-detail-label">See Also</div>
-      <div className="lineage-detail-links" style={{ position: 'relative' }}>
+      <div className="lineage-detail-links lineage-detail-links-relative">
         {seeAlsoItems.map(({ key, label }) => (
           <button
             key={key}
@@ -168,20 +167,13 @@ export function LineageDetailView({ value, onSelectValue, onOpenLink }: LineageD
         ))}
         {ctxMenu && (
           <div
-            style={{
-              position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999,
-              background: 'var(--bg-primary, #1a1a2e)', border: '1px solid var(--border, #333)',
-              borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.3)', padding: '2px 0',
-              minWidth: 160,
-            }}
+            className="lineage-detail-ctx-menu"
+            /* eslint-disable-next-line local/no-inline-style -- menu position follows the triggering click coordinates */
+            style={{ '--ctx-x': `${ctxMenu.x}px`, '--ctx-y': `${ctxMenu.y}px` } as React.CSSProperties}
             onMouseDown={(e) => e.stopPropagation()}
           >
             <button
-              style={{
-                display: 'block', width: '100%', padding: '6px 14px', border: 'none',
-                background: 'transparent', color: 'var(--text-primary)', fontSize: '0.78rem',
-                textAlign: 'left', cursor: 'pointer',
-              }}
+              className="lineage-detail-ctx-menu-item"
               onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'var(--accent, #3b82f6)'; (e.target as HTMLElement).style.color = '#fff'; }}
               onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'transparent'; (e.target as HTMLElement).style.color = 'var(--text-primary)'; }}
               onClick={() => { navigateToLineage(ctxMenu.key); setCtxMenu(null); }}
@@ -205,7 +197,7 @@ export function LineageDetailView({ value, onSelectValue, onOpenLink }: LineageD
             <h3 className="lineage-detail-secondary-title">{secInfo?.label ?? secondaryValue}</h3>
             <div className="lineage-category-badge">{getCategoryLabel(secondaryValue)}{getL2CategoryLabel(secondaryValue) ? ` › ${getL2CategoryLabel(secondaryValue)}` : ''}</div>
           </div>
-          <div style={{ display: 'flex', gap: 4 }}>
+          <div className="lineage-detail-actions">
             <button
               className="btn btn-sm btn-ghost"
               onClick={() => { onSelectValue(secondaryValue); }}
@@ -251,7 +243,7 @@ export function LineageDetailView({ value, onSelectValue, onOpenLink }: LineageD
           </>
         ) : (
           <div className="lineage-detail-section">
-            <p className="lineage-detail-text" style={{ color: 'var(--text-muted)' }}>No detailed information available.</p>
+            <p className="lineage-detail-text lineage-detail-text-muted">No detailed information available.</p>
           </div>
         )}
       </div>
@@ -284,9 +276,9 @@ export function LineageDetailView({ value, onSelectValue, onOpenLink }: LineageD
               {' '}{refNode.category && <span className="lineage-category-badge">{refNode.category}</span>}
             </h3>
             <h3 className="lineage-detail-secondary-title">{refNode.label}</h3>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.85em' }}>{refNode.id}</div>
+            <div className="lineage-detail-ref-id">{refNode.id}</div>
           </div>
-          <div style={{ display: 'flex', gap: 4 }}>
+          <div className="lineage-detail-actions">
             <button
               className="btn btn-sm btn-ghost"
               onClick={() => {
@@ -303,7 +295,7 @@ export function LineageDetailView({ value, onSelectValue, onOpenLink }: LineageD
           </div>
         </div>
         <div className="lineage-detail-section">
-          <div className="lineage-detail-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="lineage-detail-label lineage-detail-label-between">
             <span>Description</span>
             <DescriptionToggle mode={descMode} onToggle={setDescMode} hasPlainDescription={!!refNode.plain_description} />
           </div>
@@ -343,7 +335,7 @@ export function LineageDetailView({ value, onSelectValue, onOpenLink }: LineageD
       <h2 className="lineage-detail-title">{value}</h2>
       <div className="lineage-category-badge">{getCategoryLabel(value)}{getL2CategoryLabel(value) ? ` › ${getL2CategoryLabel(value)}` : ''}</div>
       <div className="lineage-detail-section">
-        <p className="lineage-detail-text" style={{ color: 'var(--text-muted)' }}>No detailed information available for this lineage value.</p>
+        <p className="lineage-detail-text lineage-detail-text-muted">No detailed information available for this lineage value.</p>
       </div>
       {renderReferencedBy()}
       {renderRefPreview()}

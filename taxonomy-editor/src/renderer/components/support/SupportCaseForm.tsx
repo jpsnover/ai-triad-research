@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@bridge';
 import type { SupportCaseCreatePayload } from '../../bridge/types';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import './SupportCaseForm.css';
 
 declare const __APP_VERSION__: string;
 
@@ -237,26 +238,25 @@ export function SupportCaseForm({ onClose, onSubmitted }: SupportCaseFormProps) 
     <div className="dialog-overlay" onMouseDown={formState === 'submitting' || formState === 'uploading' ? undefined : onClose}>
       <div
         ref={formRef}
-        className="dialog"
+        className="dialog support-form-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="support-form-title"
         onMouseDown={(e) => e.stopPropagation()}
-        style={{ width: 560, maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
       >
-        <h3 id="support-form-title" style={{ margin: '0 0 12px' }}>Report a Problem</h3>
+        <h3 id="support-form-title" className="support-form-title">Report a Problem</h3>
 
         {formState === 'success' ? (
-          <div style={{ padding: '24px 0', textAlign: 'center' }}>
-            <p style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--success, #22c55e)' }}>Case submitted successfully</p>
-            <p style={{ color: 'var(--text-secondary)', marginTop: 8 }}>You can track your case from the Help menu.</p>
+          <div className="support-form-success-wrap">
+            <p className="support-form-success-text">Case submitted successfully</p>
+            <p className="support-form-success-subtext">You can track your case from the Help menu.</p>
           </div>
         ) : (
-          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="support-form-body">
             {/* Subject */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>
-                Subject <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({subjectTrimmed.length}/{MAX_SUBJECT})</span>
+              <label className="support-form-label">
+                Subject <span className="support-form-label-hint">({subjectTrimmed.length}/{MAX_SUBJECT})</span>
               </label>
               <input
                 type="text"
@@ -265,18 +265,14 @@ export function SupportCaseForm({ onClose, onSubmitted }: SupportCaseFormProps) 
                 placeholder="Brief summary of the issue"
                 maxLength={MAX_SUBJECT}
                 disabled={formState !== 'idle'}
-                style={{
-                  width: '100%', padding: '8px 10px', borderRadius: 6,
-                  border: '1px solid var(--border)', background: 'var(--bg-secondary)',
-                  color: 'var(--text-primary)', fontSize: '0.9rem', boxSizing: 'border-box',
-                }}
+                className="support-form-input"
               />
             </div>
 
             {/* Description */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>
-                Description <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>
+              <label className="support-form-label">
+                Description <span className="support-form-label-hint">
                   ({descTrimmed.length}/{MAX_DESCRIPTION}{descTrimmed.length > 0 && descTrimmed.length < MIN_DESCRIPTION ? `, min ${MIN_DESCRIPTION}` : ''})
                 </span>
               </label>
@@ -287,21 +283,16 @@ export function SupportCaseForm({ onClose, onSubmitted }: SupportCaseFormProps) 
                 maxLength={MAX_DESCRIPTION}
                 disabled={formState !== 'idle'}
                 rows={5}
-                style={{
-                  width: '100%', padding: '8px 10px', borderRadius: 6, resize: 'vertical',
-                  border: '1px solid var(--border)', background: 'var(--bg-secondary)',
-                  color: 'var(--text-primary)', fontSize: '0.85rem', boxSizing: 'border-box',
-                  fontFamily: 'inherit',
-                }}
+                className="support-form-textarea"
               />
             </div>
 
             {/* Priority */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>Priority</label>
-              <div style={{ display: 'flex', gap: 16 }}>
+              <label className="support-form-label">Priority</label>
+              <div className="support-form-priority-row">
                 {(['low', 'medium', 'high'] as const).map((p) => (
-                  <label key={p} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.85rem', cursor: 'pointer' }}>
+                  <label key={p} className="support-form-priority-label">
                     <input
                       type="radio"
                       name="priority"
@@ -318,30 +309,24 @@ export function SupportCaseForm({ onClose, onSubmitted }: SupportCaseFormProps) 
 
             {/* Attachments */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>
-                Attachments <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>
+              <label className="support-form-label">
+                Attachments <span className="support-form-label-hint">
                   ({attachments.length}/{MAX_ATTACHMENTS}, {formatBytes(totalBytes)})
                 </span>
               </label>
 
               {attachments.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
+                <div className="support-form-attachment-list">
                   {attachments.map((a) => (
-                    <div key={a.id} style={{
-                      display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px',
-                      borderRadius: 4, background: 'var(--bg-secondary)', fontSize: '0.8rem',
-                    }}>
-                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div key={a.id} className="support-form-attachment-item">
+                      <span className="support-form-attachment-name">
                         {a.file.name}
                       </span>
-                      <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{formatBytes(a.file.size)}</span>
+                      <span className="support-form-attachment-size">{formatBytes(a.file.size)}</span>
                       <button
                         onClick={() => handleRemoveAttachment(a.id)}
                         disabled={formState !== 'idle'}
-                        style={{
-                          background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px',
-                          color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1,
-                        }}
+                        className="support-form-attachment-remove-btn"
                         aria-label={`Remove ${a.file.name}`}
                         title="Remove"
                       >
@@ -352,7 +337,7 @@ export function SupportCaseForm({ onClose, onSubmitted }: SupportCaseFormProps) 
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div className="support-form-attach-actions">
                 <button
                   className="btn btn-sm btn-ghost"
                   onClick={handleFileSelect}
@@ -376,31 +361,27 @@ export function SupportCaseForm({ onClose, onSubmitted }: SupportCaseFormProps) 
                 accept="image/*,video/webm,application/json,text/plain"
                 multiple
                 onChange={handleFileInputChange}
-                style={{ display: 'none' }}
+                className="support-form-file-input-hidden"
               />
 
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 6 }}>
+              <p className="support-form-hint-text">
                 Paste screenshots with Ctrl+V. Max 10 MB per file, 50 MB total.
               </p>
 
               {attachError && (
-                <p style={{ fontSize: '0.8rem', color: 'var(--error, #ef4444)', marginTop: 4 }}>{attachError}</p>
+                <p className="support-form-attach-error">{attachError}</p>
               )}
             </div>
 
             {/* System Info */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>
-                System Info <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(auto-captured)</span>
+              <label className="support-form-label">
+                System Info <span className="support-form-label-hint">(auto-captured)</span>
               </label>
-              <div style={{
-                padding: '6px 10px', borderRadius: 6, background: 'var(--bg-secondary)',
-                border: '1px solid var(--border)', fontSize: '0.78rem', color: 'var(--text-secondary)',
-                fontFamily: 'monospace',
-              }}>
+              <div className="support-form-sysinfo-box">
                 <div>Version: {systemInfo.appVersion}</div>
                 <div>Mode: {systemInfo.deploymentMode}</div>
-                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={systemInfo.browser}>
+                <div className="support-form-ellipsis" title={systemInfo.browser}>
                   Browser: {systemInfo.browser}
                 </div>
                 <div>OS: {systemInfo.os}</div>
@@ -409,12 +390,12 @@ export function SupportCaseForm({ onClose, onSubmitted }: SupportCaseFormProps) 
 
             {/* Error message */}
             {formState === 'error' && errorMsg && (
-              <p style={{ fontSize: '0.85rem', color: 'var(--error, #ef4444)', margin: 0 }}>{errorMsg}</p>
+              <p className="support-form-error-msg">{errorMsg}</p>
             )}
           </div>
         )}
 
-        <div className="dialog-actions" style={{ marginTop: 12 }}>
+        <div className="dialog-actions support-form-actions">
           {formState === 'success' ? (
             <button className="btn btn-primary" onClick={onClose}>Close</button>
           ) : (

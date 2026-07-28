@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useEffect, useMemo } from 'react';
+import './OrganizationsTab.css';
 import { useOrganizationStore } from '../../hooks/useOrganizationStore';
 import { useResizablePanel } from '../../hooks/useResizablePanel';
 import { OrganizationDetail, OrgLogo } from './OrganizationDetail';
@@ -24,7 +25,7 @@ const POV_OPTIONS = ['accelerationist', 'safetyist', 'skeptic'] as const;
 function PovDots({ alignment }: { alignment?: Organization['pov_alignment'] }) {
   if (!alignment) return null;
   return (
-    <span style={{ display: 'inline-flex', gap: 3 }}>
+    <span className="orgs-tab-pov-dots">
       {(['accelerationist', 'safetyist', 'skeptic'] as const).map((pov) => {
         const stance = alignment[pov];
         if (!stance) return null;
@@ -34,10 +35,9 @@ function PovDots({ alignment }: { alignment?: Organization['pov_alignment'] }) {
           <span
             key={pov}
             title={`${pov}: ${stance.tier.replace('_', ' ')}`}
-            style={{
-              display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
-              background: color, opacity: Math.max(0.3, Math.abs(score)),
-            }}
+            className="orgs-tab-pov-dot"
+            // eslint-disable-next-line local/no-inline-style -- background/opacity computed from pov + stance score
+            style={{ background: color, opacity: Math.max(0.3, Math.abs(score)) }}
           />
         );
       })}
@@ -83,33 +83,35 @@ export function OrganizationsTab() {
   return (
     <div className="two-column">
       {/* Left pane: list */}
-      <div className="list-panel" style={{ width }}>
+      <div
+        className="list-panel"
+        // eslint-disable-next-line local/no-inline-style -- width is resizable-panel state
+        style={{ width }}
+      >
         <div className="list-panel-header">
           <h2>Organizations</h2>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          <span className="orgs-tab-muted-075">
             {filtered.length}{filtered.length !== organizations.length ? ` / ${organizations.length}` : ''}
           </span>
         </div>
 
         {/* Search */}
-        <div style={{ padding: '4px 8px' }}>
+        <div className="orgs-tab-search-wrap">
           <input
             type="text"
             placeholder="Search organizations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="input-field"
-            style={{ width: '100%', fontSize: '0.8rem', padding: '4px 8px' }}
+            className="input-field orgs-tab-search-input"
           />
         </div>
 
         {/* Filters */}
-        <div style={{ padding: '4px 8px', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div className="orgs-tab-filters-row">
           <select
             value={filters.type ?? ''}
             onChange={(e) => setFilters({ ...filters, type: e.target.value || undefined })}
-            className="input-field"
-            style={{ fontSize: '0.72rem', padding: '2px 4px' }}
+            className="input-field orgs-tab-type-select"
           >
             <option value="">All types</option>
             {TYPE_OPTIONS.map((t) => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
@@ -117,13 +119,12 @@ export function OrganizationsTab() {
           {POV_OPTIONS.map((pov) => (
             <button
               key={pov}
-              className={`btn-xs${filters.pov === pov ? '' : ' btn-ghost'}`}
+              className={`btn-xs orgs-tab-pov-btn${filters.pov === pov ? '' : ' btn-ghost'}`}
+              // eslint-disable-next-line local/no-inline-style -- background/color/border depend on selected pov filter
               style={{
-                fontSize: 'var(--text-2xs)',
                 background: filters.pov === pov ? POV_COLORS[pov] : undefined,
                 color: filters.pov === pov ? '#000' : POV_COLORS[pov],
                 border: `1px solid ${POV_COLORS[pov]}`,
-                borderRadius: 10,
               }}
               onClick={() => setFilters({ ...filters, pov: filters.pov === pov ? undefined : pov })}
             >
@@ -132,8 +133,7 @@ export function OrganizationsTab() {
           ))}
           {(filters.type || filters.pov || searchQuery) && (
             <button
-              className="btn-xs btn-ghost"
-              style={{ fontSize: 'var(--text-2xs)' }}
+              className="btn-xs btn-ghost orgs-tab-fs-2xs"
               onClick={() => { setFilters({}); setSearchQuery(''); }}
             >
               Clear
@@ -147,8 +147,8 @@ export function OrganizationsTab() {
             <div className="chat-session-empty">Loading organizations...</div>
           )}
           {error && organizations.length === 0 && (
-            <div style={{ padding: 16, textAlign: 'center' }}>
-              <p style={{ color: 'var(--color-error, #ef4444)', marginBottom: 8, fontSize: '0.8rem' }}>{error}</p>
+            <div className="orgs-tab-empty-state">
+              <p className="orgs-tab-error-text">{error}</p>
               <button className="btn btn-sm" onClick={() => void fetchOrganizations()}>Retry</button>
             </div>
           )}
@@ -156,7 +156,7 @@ export function OrganizationsTab() {
             <div className="chat-session-empty">
               No organizations available yet.
               <br />
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              <span className="orgs-tab-muted-075">
                 Organization data has not been loaded.
               </span>
             </div>
@@ -170,25 +170,22 @@ export function OrganizationsTab() {
               className={`chat-session-item${selectedOrg?.id === org.id ? ' selected' : ''}`}
               onClick={() => selectOrganization(org.id)}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div className="orgs-tab-item-header">
                 <OrgLogo name={org.name} url={org.url} size={20} />
-                <span className="chat-session-item-title" style={{ flex: 1 }}>{org.name}</span>
+                <span className="chat-session-item-title orgs-tab-flex-1">{org.name}</span>
                 <PovDots alignment={org.pov_alignment} />
               </div>
               <div className="chat-session-item-meta">
                 {org.type && (
-                  <span style={{
-                    padding: '1px 6px', borderRadius: 8, fontSize: 'var(--text-2xs)', fontWeight: 600,
-                    background: 'var(--bg-hover)', color: 'var(--text-secondary)',
-                  }}>
+                  <span className="orgs-tab-type-badge">
                     {org.type.replace(/_/g, ' ')}
                   </span>
                 )}
                 {org.short_name && org.short_name !== org.name && (
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{org.short_name}</span>
+                  <span className="orgs-tab-muted-072">{org.short_name}</span>
                 )}
                 {org.headquarters && (
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{org.headquarters}</span>
+                  <span className="orgs-tab-muted-072">{org.headquarters}</span>
                 )}
               </div>
             </div>

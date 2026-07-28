@@ -1,0 +1,77 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root.
+ *
+ * Co-located styles for LineageDetailView (t/1849 — migrated off inline style={{}}).
+ */
+
+.lineage-detail-label-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lineage-detail-filter-group {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.lineage-detail-filter-btn {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+}
+
+.lineage-detail-pov-badge-sm {
+  font-size: var(--text-2xs);
+  margin-right: 3px;
+}
+
+.lineage-detail-links-relative {
+  position: relative;
+}
+
+.lineage-detail-ctx-menu {
+  position: fixed;
+  left: var(--ctx-x);
+  top: var(--ctx-y);
+  z-index: 9999;
+  background: var(--bg-primary, #1a1a2e);
+  border: 1px solid var(--border, #333);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  padding: 2px 0;
+  min-width: 160px;
+}
+
+.lineage-detail-ctx-menu-item {
+  display: block;
+  width: 100%;
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lineage-detail-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.lineage-detail-text-muted {
+  color: var(--text-muted);
+}
+
+.lineage-detail-ref-id {
+  color: var(--text-muted);
+  font-size: 0.85em;
+}
+
+.lineage-detail-label-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}

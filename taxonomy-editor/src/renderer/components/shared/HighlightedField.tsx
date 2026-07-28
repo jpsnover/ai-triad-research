@@ -109,6 +109,7 @@ export function HighlightedInput({ value, onChange, readOnly, disabled, type, st
         onChange={handleChange}
         readOnly={readOnly}
         disabled={disabled}
+        /* eslint-disable-next-line local/no-inline-style -- style is a caller-supplied prop (arbitrary CSSProperties), not a static literal */
         style={style}
       />
     </div>
@@ -194,7 +195,11 @@ export function HighlightedTextarea({ value, onChange, readOnly, rows, style, bo
   // Read-only: render as formatted div with line breaks before keywords
   if (readOnly) {
     return (
-      <div className="hl-readonly-display" style={style}>
+      <div
+        className="hl-readonly-display"
+        /* eslint-disable-next-line local/no-inline-style -- style is a caller-supplied prop (arbitrary CSSProperties), not a static literal */
+        style={style}
+      >
         {formattedParts}
       </div>
     );
@@ -214,6 +219,7 @@ export function HighlightedTextarea({ value, onChange, readOnly, rows, style, bo
         onScroll={handleScroll}
         readOnly={readOnly}
         rows={rows}
+        /* eslint-disable-next-line local/no-inline-style -- style is a caller-supplied prop (arbitrary CSSProperties), not a static literal */
         style={style}
       />
     </div>

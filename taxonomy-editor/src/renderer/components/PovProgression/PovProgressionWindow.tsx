@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import './PovProgressionWindow.css';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { DebateSession } from '../../types/debate';
@@ -71,11 +72,7 @@ export function PovProgressionWindow() {
   }, []);
 
   return (
-    <div style={{
-      height: '100vh', display: 'flex', flexDirection: 'column',
-      background: 'var(--bg)', color: 'var(--text)',
-      fontFamily: 'system-ui, sans-serif',
-    }}>
+    <div className="pov-progression-window-root">
       <PovProgressionView session={debate} nodeLabels={nodeLabels} />
     </div>
   );

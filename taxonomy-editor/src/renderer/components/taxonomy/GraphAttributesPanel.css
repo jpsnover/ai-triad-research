@@ -1,0 +1,67 @@
+.ga-confidence-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ga-confidence-slider {
+  flex: 1;
+}
+
+.ga-confidence-value {
+  font-size: 0.8rem;
+  font-weight: 700;
+  min-width: 36px;
+  text-align: right;
+}
+
+.ga-doctrinal-anchor-badge {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366f1;
+  white-space: nowrap;
+}
+
+.ga-evidential-confidence {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.ga-floor-applied-note {
+  margin-left: 4px;
+  font-size: var(--text-2xs);
+}
+
+.ga-history-note {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.ga-ranked-select {
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.ga-ranked-badge {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-top: 4px;
+  display: inline-block;
+}
+
+.ga-edit-toggle-btn {
+  margin-left: 6px;
+  font-size: var(--text-2xs);
+  padding: 1px 5px;
+}

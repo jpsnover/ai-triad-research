@@ -1,0 +1,25 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+.orgs-tab-pov-dots { display: inline-flex; gap: 3px; }
+.orgs-tab-pov-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.orgs-tab-muted-075 { font-size: 0.75rem; color: var(--text-muted); }
+.orgs-tab-muted-072 { font-size: 0.72rem; color: var(--text-muted); }
+.orgs-tab-search-wrap { padding: 4px 8px; }
+.orgs-tab-search-input { width: 100%; font-size: 0.8rem; padding: 4px 8px; }
+.orgs-tab-filters-row { padding: 4px 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+.orgs-tab-type-select { font-size: 0.72rem; padding: 2px 4px; }
+.orgs-tab-pov-btn { font-size: var(--text-2xs); border-radius: 10px; }
+.orgs-tab-fs-2xs { font-size: var(--text-2xs); }
+.orgs-tab-empty-state { padding: 16px; text-align: center; }
+.orgs-tab-error-text { color: var(--color-error, #ef4444); margin-bottom: 8px; font-size: 0.8rem; }
+.orgs-tab-item-header { display: flex; align-items: center; gap: 6px; }
+.orgs-tab-flex-1 { flex: 1; }
+.orgs-tab-type-badge {
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}

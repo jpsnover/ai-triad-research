@@ -6,6 +6,7 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
+import './NewsReportModal.css';
 
 /** Fix markdown links broken by newlines inside `[text](url)` — AI models often wrap long URLs. */
 function fixMarkdownLinks(text: string): string {
@@ -26,14 +27,14 @@ function ArticleContent({ markdown }: { markdown: string }) {
   const body = lines.slice(bodyStart).join('\n').trim();
 
   return (
-    <div className="markdown-body" style={{ fontSize: '0.85rem', lineHeight: 1.6 }}>
-      {headline && <h1 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: 4 }}>{headline}</h1>}
-      {subhead && <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 16 }}>{subhead}</p>}
+    <div className="markdown-body news-report-modal-body">
+      {headline && <h1 className="news-report-modal-headline">{headline}</h1>}
+      {subhead && <p className="news-report-modal-subhead">{subhead}</p>}
       <Markdown
         remarkPlugins={[remarkGfm]}
         components={{
           h2: ({ children }) => (
-            <h2 style={{ fontSize: '0.95rem', fontWeight: 700, marginTop: 20, marginBottom: 8 }}>{children}</h2>
+            <h2 className="news-report-modal-h2">{children}</h2>
           ),
         }}
       >
@@ -109,38 +110,22 @@ export function NewsReportModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 1100,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      pointerEvents: 'none',
-    }}>
-      <div style={{
-        width: 700, height: '80vh',
-        minWidth: 400, minHeight: 300,
-        maxWidth: '95vw', maxHeight: '95vh',
-        resize: 'both', overflow: 'hidden',
-        background: 'var(--bg-primary)', borderRadius: 12,
-        border: '1px solid var(--border-color)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-        display: 'flex', flexDirection: 'column',
-        pointerEvents: 'auto',
-        transform: `translate(${pos.x}px, ${pos.y}px)`,
-      }}>
+    <div className="news-report-modal-overlay">
+      <div
+        className="news-report-modal-window"
+        /* eslint-disable-next-line local/no-inline-style -- drag position is computed from pointer movement state */
+        style={{ transform: `translate(${pos.x}px, ${pos.y}px)` }}
+      >
         {/* Header */}
         <div
           onMouseDown={onMouseDown}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            padding: '12px 16px',
-            borderBottom: '1px solid var(--border-color)',
-            cursor: dragRef.current ? 'grabbing' : 'grab',
-            userSelect: 'none',
-          }}
+          className="news-report-modal-header"
+          /* eslint-disable-next-line local/no-inline-style -- cursor reflects live drag ref, not a static value */
+          style={{ cursor: dragRef.current ? 'grabbing' : 'grab' }}
         >
-          <h3 style={{ margin: 0, fontSize: '1rem', flex: 1 }}>News Report</h3>
+          <h3 className="news-report-modal-title">News Report</h3>
           <button
-            className="btn"
-            style={{ fontSize: '0.7rem', padding: '3px 10px' }}
+            className="btn news-report-modal-header-btn"
             onClick={handleCopy}
             disabled={!newsReport}
             title="Copy raw markdown to clipboard"
@@ -148,8 +133,7 @@ export function NewsReportModal({ onClose }: { onClose: () => void }) {
             {copyFeedback ? 'Copied!' : 'Copy'}
           </button>
           <button
-            className="btn"
-            style={{ fontSize: '0.7rem', padding: '3px 10px' }}
+            className="btn news-report-modal-header-btn"
             onClick={handleExport}
             disabled={!newsReport}
             title="Download as markdown file"
@@ -158,27 +142,26 @@ export function NewsReportModal({ onClose }: { onClose: () => void }) {
           </button>
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}
+            className="news-report-modal-close-btn"
           >&times;</button>
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
+        <div className="news-report-modal-content">
           {newsReportLoading && (
-            <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-muted)' }}>
-              <div style={{ fontSize: '1.5rem', marginBottom: 12 }}>&#8987;</div>
-              <div style={{ fontSize: '0.85rem' }}>Generating news report...</div>
+            <div className="news-report-modal-loading">
+              <div className="news-report-modal-loading-icon">&#8987;</div>
+              <div className="news-report-modal-loading-text">Generating news report...</div>
             </div>
           )}
 
           {newsReportError && !newsReportLoading && (
-            <div style={{ textAlign: 'center', padding: '48px 0' }}>
-              <div style={{ fontSize: '0.85rem', color: '#ef4444', marginBottom: 16 }}>
+            <div className="news-report-modal-error">
+              <div className="news-report-modal-error-text">
                 {newsReportError}
               </div>
               <button
-                className="btn btn-primary"
-                style={{ fontSize: '0.8rem', padding: '6px 18px' }}
+                className="btn btn-primary news-report-modal-retry-btn"
                 onClick={() => void generateNewsReport()}
               >
                 Retry

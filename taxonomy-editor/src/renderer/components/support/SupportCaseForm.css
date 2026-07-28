@@ -1,0 +1,171 @@
+.support-form-dialog {
+  width: 560px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.support-form-title {
+  margin: 0 0 12px;
+}
+
+.support-form-success-wrap {
+  padding: 24px 0;
+  text-align: center;
+}
+
+.support-form-success-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--success, #22c55e);
+}
+
+.support-form-success-subtext {
+  color: var(--text-secondary);
+  margin-top: 8px;
+}
+
+.support-form-body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.support-form-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.support-form-label-hint {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.support-form-input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+
+.support-form-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.support-form-priority-row {
+  display: flex;
+  gap: 16px;
+}
+
+.support-form-priority-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.support-form-attachment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.support-form-attachment-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  font-size: 0.8rem;
+}
+
+.support-form-attachment-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.support-form-attachment-size {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.support-form-attachment-remove-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.support-form-attach-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.support-form-file-input-hidden {
+  display: none;
+}
+
+.support-form-hint-text {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.support-form-attach-error {
+  font-size: 0.8rem;
+  color: var(--error, #ef4444);
+  margin-top: 4px;
+}
+
+.support-form-sysinfo-box {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+
+.support-form-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.support-form-error-msg {
+  font-size: 0.85rem;
+  color: var(--error, #ef4444);
+  margin: 0;
+}
+
+.support-form-actions {
+  margin-top: 12px;
+}

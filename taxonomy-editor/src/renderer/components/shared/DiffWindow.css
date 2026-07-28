@@ -1,0 +1,86 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root.
+ *
+ * Co-located styles for DiffWindow (t/1849 — migrated off inline style={{}}).
+ */
+
+.diff-window {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg, #1e1e1e);
+  color: var(--text, #d4d4d4);
+}
+
+.diff-window-header {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border, #333);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  background: var(--bg-secondary, #252526);
+}
+
+.diff-window-filename {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.diff-window-stats {
+  font-size: 0.75rem;
+  color: var(--text-muted, #888);
+}
+
+.diff-window-stats-add {
+  color: #4ec569;
+}
+
+.diff-window-stats-del {
+  color: #f14c4c;
+}
+
+.diff-window-body {
+  flex: 1;
+  overflow: auto;
+  padding: 0;
+}
+
+.diff-window-loading {
+  padding: 20px;
+  color: var(--text-muted, #888);
+}
+
+.diff-window-error {
+  padding: 20px;
+  color: #f14c4c;
+}
+
+.diff-window-pre {
+  margin: 0;
+  padding: 8px 0;
+  font-size: 0.8rem;
+  font-family: Consolas, "Courier New", monospace;
+  line-height: 1.5;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.diff-window-line {
+  padding: 0 16px;
+  min-height: 1.5em;
+}
+
+.diff-window-line-number {
+  display: inline-block;
+  width: 48px;
+  color: var(--text-muted, #555);
+  text-align: right;
+  margin-right: 16px;
+  user-select: none;
+}
+
+.diff-window-empty {
+  padding: 20px;
+  color: var(--text-muted, #888);
+}

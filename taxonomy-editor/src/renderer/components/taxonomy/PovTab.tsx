@@ -60,14 +60,14 @@ function SoulDocDialog({ pov, onClose }: { pov: string; onClose: () => void }) {
   return (
     <div className="dialog-overlay" onClick={onClose}>
       <div className="soul-doc-dialog" onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 style={{ margin: 0, fontSize: '1.1rem' }}>{info.label} Soul Document</h2>
-          <button className="btn btn-ghost" onClick={onClose} style={{ fontSize: '1.2rem', lineHeight: 1 }}>&times;</button>
+        <div className="soul-doc-header">
+          <h2 className="soul-doc-title">{info.label} Soul Document</h2>
+          <button className="btn btn-ghost soul-doc-close-btn" onClick={onClose}>&times;</button>
         </div>
-        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 12 }}>{info.personality}</div>
+        <div className="soul-doc-personality">{info.personality}</div>
 
         {voice && (
-          <section style={{ marginBottom: 16 }}>
+          <section className="soul-doc-section">
             <h3 className="soul-doc-section-title">Voice</h3>
             <div className="soul-doc-field"><strong>Disposition:</strong> {voice.disposition}</div>
             <div className="soul-doc-field"><strong>Style:</strong> {voice.style}</div>
@@ -78,31 +78,31 @@ function SoulDocDialog({ pov, onClose }: { pov: string; onClose: () => void }) {
         )}
 
         {valueHierarchy && valueHierarchy.length > 0 && (
-          <section style={{ marginBottom: 16 }}>
+          <section className="soul-doc-section">
             <h3 className="soul-doc-section-title">Value Hierarchy</h3>
             <ol className="soul-doc-list">{valueHierarchy.map((v, i) => <li key={i}>{v}</li>)}</ol>
           </section>
         )}
 
         {epistemicStance && epistemicStance.length > 0 && (
-          <section style={{ marginBottom: 16 }}>
+          <section className="soul-doc-section">
             <h3 className="soul-doc-section-title">Epistemic Stance</h3>
             <ul className="soul-doc-list">{epistemicStance.map((s, i) => <li key={i}>{s}</li>)}</ul>
           </section>
         )}
 
         {(boundaries.hardcoded.length > 0 || boundaries.softcoded.length > 0) && (
-          <section style={{ marginBottom: 16 }}>
+          <section className="soul-doc-section">
             <h3 className="soul-doc-section-title">Boundaries</h3>
             {boundaries.hardcoded.length > 0 && (
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#ef4444', marginBottom: 4 }}>Identity (never concede)</div>
+              <div className="soul-doc-boundary-group">
+                <div className="soul-doc-boundary-label soul-doc-boundary-label-hard">Identity (never concede)</div>
                 <ul className="soul-doc-list">{boundaries.hardcoded.map((b, i) => <li key={i}>{b}</li>)}</ul>
               </div>
             )}
             {boundaries.softcoded.length > 0 && (
               <div>
-                <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#f59e0b', marginBottom: 4 }}>Default (can evolve)</div>
+                <div className="soul-doc-boundary-label soul-doc-boundary-label-soft">Default (can evolve)</div>
                 <ul className="soul-doc-list">{boundaries.softcoded.map((b, i) => <li key={i}>{b}</li>)}</ul>
               </div>
             )}
@@ -369,6 +369,7 @@ function DataRecovery({ pov }: { pov: string }) {
 
       {/* Progress bar */}
       <div className="recovery-progress">
+        {/* eslint-disable-next-line local/no-inline-style -- width is a computed percentage of completed steps */}
         <div className="recovery-progress-bar" style={{ width: `${(completedCount / steps.length) * 100}%` }} />
       </div>
       <div className="recovery-progress-text">
@@ -792,6 +793,7 @@ export function PovTab({ pov }: PovTabProps) {
           />
         </div>
       ) : hasToolbarPane ? (
+        // eslint-disable-next-line local/no-inline-style -- width is a user-resized panel size from useResizablePanel
         <div className="list-panel" style={{ width }}>
             {isPhone && <PhoneToolClose />}
           <ToolbarPaneRenderer
@@ -809,6 +811,7 @@ export function PovTab({ pov }: PovTabProps) {
           <span className="pane-collapsed-label">{pov}</span>
         </div>
       ) : (
+        // eslint-disable-next-line local/no-inline-style -- width is a user-resized panel size from useResizablePanel
         <div className="list-panel" ref={listPanelRef} style={{ width }}>
           <div className="list-panel-header">
             <h2>{pov}</h2>
@@ -934,7 +937,7 @@ export function PovTab({ pov }: PovTabProps) {
                   </button>
                 </div>
               ) : (
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 0, lineHeight: 1 }}>
+                <div className="detail-panel-collapse-row">
                   <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
                 </div>
               )}
@@ -957,7 +960,8 @@ export function PovTab({ pov }: PovTabProps) {
       {showCruxPane && selectedCrux && (
         <>
           <div className="resize-handle" onMouseDown={onPane3Resize} />
-          <div className="pane3-crux-detail" style={{ width: pane3Width, minWidth: 300, overflow: 'auto' }}>
+          {/* eslint-disable-next-line local/no-inline-style -- width is the user-resized pane3 size from useResizableRightPanel */}
+          <div className="pane3-crux-detail pane3-crux-detail-sizing" style={{ width: pane3Width }}>
             <div className="pane3-crux-detail-header">
               <span>Crux Detail</span>
               <button className="pane3-close-btn" onClick={() => showCruxDetail(null)} title="Close">✕</button>

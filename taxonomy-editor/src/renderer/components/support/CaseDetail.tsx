@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '@bridge';
 import type { SupportCaseDetail as CaseDetailType } from '../../bridge/types';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import './CaseDetail.css';
 
 const STATUS_COLORS: Record<string, string> = {
   open: 'var(--color-info, #3b82f6)',
@@ -80,57 +81,42 @@ export function CaseDetail({ detail }: CaseDetailProps) {
   const statusColor = STATUS_COLORS[detail.status] ?? 'var(--text-muted)';
 
   return (
-    <div style={{ padding: 16, fontSize: '0.85rem' }}>
-      <h3 style={{ margin: '0 0 8px', fontSize: '1.05rem' }}>{detail.subject}</h3>
+    <div className="support-case-detail-root">
+      <h3 className="support-case-detail-title">{detail.subject}</h3>
 
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+      <div className="support-case-detail-meta-row">
         <span
-          style={{
-            padding: '2px 10px',
-            borderRadius: 12,
-            fontSize: '0.73rem',
-            fontWeight: 600,
-            background: statusColor,
-            color: '#fff',
-          }}
+          className="support-case-detail-status-badge"
+          /* eslint-disable-next-line local/no-inline-style -- statusColor is a per-case dynamic value passed as a CSS custom property */
+          style={{ '--status-color': statusColor } as React.CSSProperties}
         >
           {detail.status}
         </span>
-        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+        <span className="support-case-detail-meta-text">
           {PRIORITY_LABELS[detail.priority] ?? detail.priority}
         </span>
-        <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+        <span className="support-case-detail-meta-text-sm">
           Created {formatDate(detail.createdAt)}
         </span>
         {detail.resolvedAt && (
-          <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+          <span className="support-case-detail-meta-text-sm">
             Resolved {formatDate(detail.resolvedAt)}
           </span>
         )}
       </div>
 
-      <div style={{ marginBottom: 16, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{detail.description}</div>
+      <div className="support-case-detail-description">{detail.description}</div>
 
       {/* System Info (collapsible) */}
-      <div style={{ marginBottom: 16 }}>
+      <div className="support-case-detail-section">
         <button
-          className="btn btn-sm btn-ghost"
+          className="btn btn-sm btn-ghost support-case-detail-toggle-btn"
           onClick={() => setShowSystemInfo(!showSystemInfo)}
-          style={{ fontSize: '0.76rem' }}
         >
           {showSystemInfo ? '▼' : '▶'} System Info
         </button>
         {showSystemInfo && detail.systemInfo && (
-          <div
-            style={{
-              marginTop: 4,
-              padding: 8,
-              borderRadius: 6,
-              background: 'var(--bg-secondary)',
-              fontSize: '0.76rem',
-              fontFamily: 'monospace',
-            }}
-          >
+          <div className="support-case-detail-sysinfo-box">
             <div>App: {detail.systemInfo.appVersion}</div>
             <div>Mode: {detail.systemInfo.deploymentMode}</div>
             <div>Browser: {detail.systemInfo.browser}</div>
@@ -141,35 +127,29 @@ export function CaseDetail({ detail }: CaseDetailProps) {
 
       {/* Attachments */}
       {detail.attachments.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <h4 style={{ margin: '0 0 8px', fontSize: '0.88rem' }}>
+        <div className="support-case-detail-section">
+          <h4 className="support-case-detail-section-title">
             Attachments ({detail.attachments.length})
           </h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="support-case-detail-attachment-list">
             {detail.attachments.map((att) => {
               const isImage = att.mimeType.startsWith('image/');
               const url = previewUrls.get(att.id);
               return (
                 <div
                   key={att.id}
-                  style={{
-                    padding: 8,
-                    borderRadius: 6,
-                    border: '1px solid var(--border)',
-                    background: 'var(--bg-secondary)',
-                  }}
+                  className="support-case-detail-attachment-item"
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 500, fontSize: '0.82rem' }}>{att.filename}</span>
-                    <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)' }}>
+                  <div className="support-case-detail-attachment-row">
+                    <span className="support-case-detail-attachment-filename">{att.filename}</span>
+                    <span className="support-case-detail-attachment-size">
                       {formatBytes(att.sizeBytes)}
                     </span>
                   </div>
                   {isImage && !url && (
                     <button
-                      className="btn btn-sm btn-ghost"
+                      className="btn btn-sm btn-ghost support-case-detail-preview-btn"
                       onClick={() => void loadPreview(att.id)}
-                      style={{ marginTop: 4, fontSize: '0.73rem' }}
                     >
                       Show preview
                     </button>
@@ -178,7 +158,7 @@ export function CaseDetail({ detail }: CaseDetailProps) {
                     <img
                       src={url}
                       alt={att.filename}
-                      style={{ marginTop: 6, maxWidth: '100%', maxHeight: 300, borderRadius: 4 }}
+                      className="support-case-detail-preview-img"
                     />
                   )}
                 </div>
@@ -191,30 +171,25 @@ export function CaseDetail({ detail }: CaseDetailProps) {
       {/* Response timeline */}
       {detail.responses.length > 0 ? (
         <div>
-          <h4 style={{ margin: '0 0 8px', fontSize: '0.88rem' }}>
+          <h4 className="support-case-detail-section-title">
             Responses ({detail.responses.length})
           </h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="support-case-detail-response-list">
             {detail.responses.map((resp) => (
               <div
                 key={resp.id}
-                style={{
-                  padding: 10,
-                  borderRadius: 6,
-                  background: 'var(--bg-secondary)',
-                  borderLeft: '3px solid var(--accent, #3b82f6)',
-                }}
+                className="support-case-detail-response-item"
               >
-                <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginBottom: 4 }}>
+                <div className="support-case-detail-response-meta">
                   {resp.authorId} &mdash; {formatDate(resp.createdAt)}
                 </div>
-                <div style={{ lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{resp.body}</div>
+                <div className="support-case-detail-response-body">{resp.body}</div>
               </div>
             ))}
           </div>
         </div>
       ) : (
-        <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', margin: 0 }}>
+        <p className="support-case-detail-no-responses">
           No responses yet. We&rsquo;ll get back to you soon.
         </p>
       )}

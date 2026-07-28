@@ -1,0 +1,16 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+.stakeholder-section-pov-dots { display: inline-flex; gap: 3px; }
+.stakeholder-section-pov-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.stakeholder-section-list { display: flex; flex-direction: column; gap: 4px; }
+.stakeholder-section-item { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; }
+.stakeholder-section-name { flex: 1; }
+.stakeholder-section-type-badge {
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  background: var(--bg-tertiary, #334155);
+  color: var(--text-primary);
+}

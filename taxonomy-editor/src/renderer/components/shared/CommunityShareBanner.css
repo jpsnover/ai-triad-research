@@ -1,0 +1,79 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root.
+ *
+ * Co-located styles for CommunityShareBanner (t/1849 — migrated off inline style={{}}).
+ */
+
+.community-share-banner-admin {
+  color: var(--green, #22c55e);
+  font-size: 0.75rem;
+}
+
+.community-share-banner-compact {
+  background: var(--bg-secondary, #f5f5f5);
+  border-left: 3px solid var(--green, #22c55e);
+  border-radius: 6px;
+  padding: 6px 12px;
+  margin-top: 6px;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.community-share-banner-compact-icon {
+  color: var(--green, #22c55e);
+  flex-shrink: 0;
+}
+
+.community-share-banner-compact-text {
+  color: var(--text-secondary, #666);
+  flex: 1;
+}
+
+.community-share-banner-compact-btn {
+  font-size: 0.7rem;
+  padding: 1px 8px;
+  flex-shrink: 0;
+}
+
+.community-share-banner {
+  background: var(--bg-secondary, #f5f5f5);
+  border-left: 3px solid var(--green, #22c55e);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-top: 6px;
+}
+
+.community-share-banner-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.community-share-banner-icon {
+  color: var(--green, #22c55e);
+  flex-shrink: 0;
+}
+
+.community-share-banner-body {
+  flex: 1;
+}
+
+.community-share-banner-title {
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+
+.community-share-banner-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #666);
+  margin-top: 2px;
+}
+
+.community-share-banner-btn {
+  font-size: 0.7rem;
+  padding: 1px 8px;
+  flex-shrink: 0;
+  align-self: flex-end;
+}

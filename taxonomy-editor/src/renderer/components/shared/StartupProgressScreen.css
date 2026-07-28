@@ -1,0 +1,44 @@
+/* StartupProgressScreen — static styles migrated from inline (t/1849) */
+
+.startup-progress-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 32px;
+  background: var(--bg-primary, #1a1a2e);
+  color: var(--text-primary, #e0e0e0);
+}
+
+.startup-progress-content {
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+}
+
+.startup-progress-title {
+  font-size: 1.4rem;
+  margin-bottom: 8px;
+}
+
+.startup-progress-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted, #999);
+  margin-bottom: 24px;
+}
+
+.startup-progress-track {
+  background: var(--bg-secondary, #16213e);
+  border-radius: 6px;
+  height: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-color, #333);
+}
+
+.startup-progress-fill {
+  width: var(--startup-progress-pct);
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 6px;
+  transition: width 0.5s ease;
+}

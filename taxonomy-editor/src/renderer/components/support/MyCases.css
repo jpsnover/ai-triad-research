@@ -1,0 +1,112 @@
+.support-mycases-centered {
+  padding: 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.support-mycases-centered-plain {
+  padding: 20px;
+  text-align: center;
+}
+
+.support-mycases-error-text {
+  color: var(--color-error, #ef4444);
+  margin-bottom: 12px;
+}
+
+.support-mycases-mb-8 {
+  margin-bottom: 8px;
+}
+
+.support-mycases-fs-80 {
+  font-size: 0.8rem;
+}
+
+.support-mycases-detail-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.support-mycases-back-btn {
+  align-self: flex-start;
+  margin-bottom: 4px;
+  font-size: 0.78rem;
+}
+
+.support-mycases-detail-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.support-mycases-detail-error {
+  padding: 20px;
+  text-align: center;
+  color: var(--color-error, #ef4444);
+}
+
+.support-mycases-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+
+.support-mycases-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.support-mycases-count {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.support-mycases-refresh-btn {
+  font-size: 0.75rem;
+}
+
+.support-mycases-row {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  background: var(--bg-primary);
+  transition: background 0.1s;
+}
+
+.support-mycases-row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.support-mycases-row-subject {
+  font-weight: 500;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.support-mycases-status-badge {
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: var(--status-color);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.support-mycases-row-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}

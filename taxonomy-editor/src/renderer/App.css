@@ -1,0 +1,12 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+.app-viewer-padding { padding: 20px; color: var(--text-muted); }
+.app-viewer-error { padding: 20px; color: #ef4444; }
+.app-harvest-wrap { padding: 20px; }
+.app-harvest-title { color: #f59e0b; }
+.app-harvest-path { font-size: 0.8rem; color: var(--text-muted); }
+.app-harvest-items { font-size: 0.75rem; color: var(--text-muted); }
+.app-viewer-pre { font-size: 0.7rem; margin-top: 8px; }
+.app-files-count { font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; }
+.app-files-scroll { max-height: 200px; overflow-y: auto; }
