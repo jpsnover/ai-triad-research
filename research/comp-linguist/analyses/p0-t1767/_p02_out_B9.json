@@ -1,0 +1,441 @@
+{
+ "batch": "B9",
+ "facts_processed": 179,
+ "proposals": [
+  {
+   "name": "Mark Walters",
+   "entity_type": "person",
+   "aliases": ["Walters"],
+   "quote": "falsely accused Mark Walters of defrauding the Second Amendment Foundation",
+   "confidence": 0.95,
+   "node_id": "saf-beliefs-038"
+  },
+  {
+   "name": "John McCarthy",
+   "entity_type": "person",
+   "aliases": ["McCarthy"],
+   "quote": "a limitation identified by McCarthy in 1960",
+   "confidence": 0.8,
+   "node_id": "saf-beliefs-038"
+  },
+  {
+   "name": "Eric Martinez",
+   "entity_type": "person",
+   "aliases": [],
+   "quote": "A study by Eric Martinez found that GPT-4's performance on the Uniform Bar Exam",
+   "confidence": 0.95,
+   "node_id": "skp-beliefs-095"
+  },
+  {
+   "name": "Pete Hegseth",
+   "entity_type": "person",
+   "aliases": ["Secretary of Defense Pete Hegseth"],
+   "quote": "Secretary of Defense Pete Hegseth issued an AI strategy memo in January 2026",
+   "confidence": 0.97,
+   "node_id": "acc-intentions-001"
+  },
+  {
+   "name": "Marsha Blackburn",
+   "entity_type": "person",
+   "aliases": ["Sen. Marsha Blackburn"],
+   "quote": "Sen. Marsha Blackburn released an updated discussion draft of the TRUMP AMERICA AI Act",
+   "confidence": 0.97,
+   "node_id": "saf-intentions-136"
+  },
+  {
+   "name": "Marc Andreessen",
+   "entity_type": "person",
+   "aliases": [],
+   "quote": "Marc Andreessen published a post on the a16z website titled 'The Techno-Optimist Manifesto'",
+   "confidence": 0.97,
+   "node_id": "acc-intentions-056"
+  },
+  {
+   "name": "Donald Trump",
+   "entity_type": "person",
+   "aliases": ["Trump", "Trump administration"],
+   "quote": "The Trump administration's July 2025 AI Action Plan",
+   "confidence": 0.6,
+   "node_id": "acc-intentions-001"
+  },
+  {
+   "name": "Colorado SB 24-205",
+   "entity_type": "legislation",
+   "aliases": ["SB 24-205", "Colorado AI Act"],
+   "quote": "Colorado passed the first comprehensive AI governance bill in the United States, SB 24-205, in May 2024",
+   "confidence": 0.97,
+   "node_id": "saf-intentions-135"
+  },
+  {
+   "name": "EU AI Act",
+   "entity_type": "legislation",
+   "aliases": ["AI Act", "The AI Act"],
+   "quote": "The EU AI Act imposes significant financial penalties for non-compliance",
+   "confidence": 0.98,
+   "node_id": "saf-intentions-135"
+  },
+  {
+   "name": "GDPR",
+   "entity_type": "legislation",
+   "aliases": ["General Data Protection Regulation", "EU's GDPR"],
+   "quote": "The GDPR caused EU firms to decrease data storage by 26 percent",
+   "confidence": 0.98,
+   "node_id": "sit-063"
+  },
+  {
+   "name": "Medical Device Regulation",
+   "entity_type": "legislation",
+   "aliases": ["MDR"],
+   "quote": "requires Medical Device Regulation (MDR) conformity followed by AI Act conformity",
+   "confidence": 0.9,
+   "node_id": "sit-063"
+  },
+  {
+   "name": "Digital Services Act",
+   "entity_type": "legislation",
+   "aliases": ["DSA"],
+   "quote": "related digital laws (DSA, DMA)",
+   "confidence": 0.85,
+   "node_id": "sit-063"
+  },
+  {
+   "name": "Digital Markets Act",
+   "entity_type": "legislation",
+   "aliases": ["DMA"],
+   "quote": "related digital laws (DSA, DMA)",
+   "confidence": 0.85,
+   "node_id": "sit-063"
+  },
+  {
+   "name": "CHIPS and Science Act",
+   "entity_type": "legislation",
+   "aliases": ["U.S. CHIPS and Science Act", "CHIPS Act"],
+   "quote": "The U.S. CHIPS and Science Act has catalyzed over $630 billion in private investments",
+   "confidence": 0.97,
+   "node_id": "acc-intentions-001"
+  },
+  {
+   "name": "TRUMP AMERICA AI Act",
+   "entity_type": "legislation",
+   "aliases": [],
+   "quote": "an updated discussion draft of the TRUMP AMERICA AI Act on March 18, 2026",
+   "confidence": 0.85,
+   "node_id": "saf-intentions-136"
+  },
+  {
+   "name": "AI Action Plan (July 2025)",
+   "entity_type": "legislation",
+   "aliases": ["AI Action Plan", "US government's AI Action Plan", "America's AI Action Plan"],
+   "quote": "The Trump administration's July 2025 AI Action Plan explicitly states that the US must export its full AI technology stack",
+   "confidence": 0.55,
+   "node_id": "acc-intentions-001"
+  },
+  {
+   "name": "Concerning the Use of Automated Decision-Making Technology (ADMT) in Consequential Decisions",
+   "entity_type": "legislation",
+   "aliases": ["ADMT draft framework"],
+   "quote": "being replaced by a draft framework entitled 'Concerning the Use of Automated Decision-Making Technology (ADMT) in Consequential Decisions'",
+   "confidence": 0.7,
+   "node_id": "saf-intentions-135"
+  },
+  {
+   "name": "ICRC Interpretive Guidance on the Notion of Direct Participation in Hostilities",
+   "entity_type": "legislation",
+   "aliases": ["ICRC Interpretive Guidance"],
+   "quote": "The ICRC Interpretive Guidance on the Notion of Direct Participation in Hostilities attempted to establish an obligation",
+   "confidence": 0.5,
+   "node_id": "saf-intentions-061"
+  },
+  {
+   "name": "International Humanitarian Law",
+   "entity_type": "legislation",
+   "aliases": ["IHL"],
+   "quote": "prompts designed to elicit violations of International Humanitarian Law",
+   "confidence": 0.25,
+   "node_id": "saf-intentions-136"
+  },
+  {
+   "name": "2016 US presidential election",
+   "entity_type": "event",
+   "aliases": ["2016 U.S. presidential election"],
+   "quote": "microtargeting campaigns during the 2016 US presidential election",
+   "confidence": 0.9,
+   "node_id": "skp-beliefs-060"
+  },
+  {
+   "name": "Brexit referendum",
+   "entity_type": "event",
+   "aliases": ["UK Brexit vote", "Brexit"],
+   "quote": "and the UK Brexit vote",
+   "confidence": 0.9,
+   "node_id": "skp-beliefs-060"
+  },
+  {
+   "name": "AI Summit in France",
+   "entity_type": "event",
+   "aliases": ["Paris AI Action Summit", "AI Action Summit"],
+   "quote": "publish a safety framework focused on severe risks by the upcoming AI Summit in France",
+   "confidence": 0.6,
+   "node_id": "saf-intentions-135"
+  },
+  {
+   "name": "Walters v. OpenAI",
+   "entity_type": "event",
+   "aliases": ["OpenAI ChatGPT defamation lawsuit"],
+   "quote": "OpenAI was sued for a ChatGPT hallucination that falsely accused Mark Walters",
+   "confidence": 0.5,
+   "node_id": "saf-beliefs-038"
+  },
+  {
+   "name": "Pentagon supply-chain-risk designation of Anthropic",
+   "entity_type": "event",
+   "aliases": ["Department of War supply chain risk designation"],
+   "quote": "The Pentagon designated Anthropic as a supply chain risk on February 27, 2026",
+   "confidence": 0.45,
+   "node_id": "saf-beliefs-010"
+  },
+  {
+   "name": "GTG-1002 AI-orchestrated espionage campaign (November 2025)",
+   "entity_type": "event",
+   "aliases": ["GTG-1002 campaign"],
+   "quote": "In November 2025, a state-sponsored threat group (GTG-1002) used an AI agent to autonomously execute 80-90% of operational tasks",
+   "confidence": 0.45,
+   "node_id": "saf-beliefs-091"
+  },
+  {
+   "name": "ChatGPT",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "sued for a ChatGPT hallucination",
+   "confidence": 0.97,
+   "node_id": "saf-beliefs-038"
+  },
+  {
+   "name": "GPT-4o",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "citations generated by GPT-4o in the study",
+   "confidence": 0.97,
+   "node_id": "skp-beliefs-095"
+  },
+  {
+   "name": "GPT-4",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "GPT-4's performance on the Uniform Bar Exam",
+   "confidence": 0.95,
+   "node_id": "skp-beliefs-095"
+  },
+  {
+   "name": "GPT-4.1",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Production LLMs (Claude 3.7 Sonnet, GPT-4.1, Gemini 2.5 Pro, and Grok 3)",
+   "confidence": 0.95,
+   "node_id": "saf-beliefs-054"
+  },
+  {
+   "name": "GPT-4-base",
+   "entity_type": "artifact",
+   "aliases": ["GPT-4 base"],
+   "quote": "GPT-4-base models demonstrate above-chance performance in identifying themselves as AI systems",
+   "confidence": 0.85,
+   "node_id": "saf-beliefs-019"
+  },
+  {
+   "name": "GPT-3.5",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "trustworthiness evaluation framework for GPT-3.5 and GPT-4",
+   "confidence": 0.95,
+   "node_id": "saf-intentions-135"
+  },
+  {
+   "name": "GPT-3",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "a reduction in toxic output generation compared to GPT-3",
+   "confidence": 0.95,
+   "node_id": "saf-intentions-003"
+  },
+  {
+   "name": "InstructGPT",
+   "entity_type": "artifact",
+   "aliases": ["InstructGPT models"],
+   "quote": "InstructGPT models demonstrate a reduction in toxic output generation",
+   "confidence": 0.95,
+   "node_id": "saf-intentions-003"
+  },
+  {
+   "name": "Claude 3.7 Sonnet",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Production LLMs (Claude 3.7 Sonnet, GPT-4.1, Gemini 2.5 Pro, and Grok 3)",
+   "confidence": 0.95,
+   "node_id": "saf-beliefs-054"
+  },
+  {
+   "name": "Claude 3",
+   "entity_type": "artifact",
+   "aliases": ["Claude 3 family"],
+   "quote": "Models in the Claude 3 family show increased performance on anti-imitation tasks",
+   "confidence": 0.85,
+   "node_id": "acc-beliefs-020"
+  },
+  {
+   "name": "Gemini 2.5 Pro",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Production LLMs (Claude 3.7 Sonnet, GPT-4.1, Gemini 2.5 Pro, and Grok 3)",
+   "confidence": 0.95,
+   "node_id": "saf-beliefs-054"
+  },
+  {
+   "name": "Grok 3",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Production LLMs (Claude 3.7 Sonnet, GPT-4.1, Gemini 2.5 Pro, and Grok 3)",
+   "confidence": 0.95,
+   "node_id": "saf-beliefs-054"
+  },
+  {
+   "name": "AlphaFold 2",
+   "entity_type": "artifact",
+   "aliases": ["AlphaFold2"],
+   "quote": "AlphaFold 2 training cost was approximately $1 million at 2021 cloud prices",
+   "confidence": 0.97,
+   "node_id": "saf-intentions-135"
+  },
+  {
+   "name": "Protein Data Bank",
+   "entity_type": "artifact",
+   "aliases": ["PDB"],
+   "quote": "The Protein Data Bank, which AlphaFold 2 relied on, cost approximately $12 billion to accumulate",
+   "confidence": 0.6,
+   "node_id": "saf-intentions-135"
+  },
+  {
+   "name": "DecodingTrust",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "DecodingTrust provides a comprehensive trustworthiness evaluation framework",
+   "confidence": 0.85,
+   "node_id": "saf-intentions-135"
+  },
+  {
+   "name": "TruthfulQA",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "lower rates of hallucination compared to GPT-3 on TruthfulQA benchmarks",
+   "confidence": 0.9,
+   "node_id": "saf-intentions-003"
+  },
+  {
+   "name": "LegalBench",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "benchmarks like LegalBench show high accuracy in applying legal rules",
+   "confidence": 0.85,
+   "node_id": "acc-beliefs-035"
+  },
+  {
+   "name": "BIRD",
+   "entity_type": "artifact",
+   "aliases": ["BIRD Train set", "BIRD Train"],
+   "quote": "Annotation errors were identified in 61.1% of a subset of the BIRD Train set",
+   "confidence": 0.7,
+   "node_id": "skp-beliefs-095"
+  },
+  {
+   "name": "Common Crawl",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Common Crawl contains approximately four billion web pages collected without content filtering",
+   "confidence": 0.65,
+   "node_id": "skp-beliefs-095"
+  },
+  {
+   "name": "ConsentGPT",
+   "entity_type": "artifact",
+   "aliases": ["Consent?GPT"],
+   "quote": "AI systems like Consent?GPT may struggle to register non-verbal cues",
+   "confidence": 0.8,
+   "node_id": "skp-beliefs-095"
+  },
+  {
+   "name": "Nvidia H200",
+   "entity_type": "artifact",
+   "aliases": ["H200", "H200 chips"],
+   "quote": "allow Nvidia to export advanced H200 chips to China in December 2025",
+   "confidence": 0.85,
+   "node_id": "acc-intentions-001"
+  },
+  {
+   "name": "The Techno-Optimist Manifesto",
+   "entity_type": "artifact",
+   "aliases": ["Techno-Optimist Manifesto"],
+   "quote": "a post on the a16z website titled 'The Techno-Optimist Manifesto'",
+   "confidence": 0.8,
+   "node_id": "acc-intentions-056"
+  },
+  {
+   "name": "AI Index Report 2025",
+   "entity_type": "artifact",
+   "aliases": ["AI Index Report"],
+   "quote": "The AI Index Report 2025 methodology for tracking global AI legislation",
+   "confidence": 0.7,
+   "node_id": "saf-intentions-136"
+  },
+  {
+   "name": "Constitutional AI",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Constitutional AI uses a self-improvement process involving self-critique and revision",
+   "confidence": 0.3,
+   "node_id": "saf-intentions-033"
+  },
+  {
+   "name": "Uniform Bar Exam",
+   "entity_type": "institution",
+   "aliases": ["UBE"],
+   "quote": "GPT-4's performance on the Uniform Bar Exam is significantly lower than vendor-reported figures",
+   "confidence": 0.4,
+   "node_id": "skp-beliefs-095"
+  }
+ ],
+ "org_mentions": [
+  {"name": "OpenAI", "node_id": "saf-beliefs-038"},
+  {"name": "Second Amendment Foundation", "node_id": "saf-beliefs-038"},
+  {"name": "Anthropic", "node_id": "saf-beliefs-038"},
+  {"name": "Turing Institute", "node_id": "saf-intentions-135"},
+  {"name": "Anthropic", "node_id": "saf-intentions-135"},
+  {"name": "UK AISI", "node_id": "saf-intentions-135"},
+  {"name": "CAISI", "node_id": "saf-intentions-135"},
+  {"name": "Nvidia", "node_id": "acc-intentions-001"},
+  {"name": "SpaceX", "node_id": "acc-intentions-001"},
+  {"name": "OpenAI", "node_id": "acc-intentions-001"},
+  {"name": "Google", "node_id": "acc-intentions-001"},
+  {"name": "Reflection", "node_id": "acc-intentions-001"},
+  {"name": "Microsoft", "node_id": "acc-intentions-001"},
+  {"name": "Amazon Web Services", "node_id": "acc-intentions-001"},
+  {"name": "Oracle", "node_id": "acc-intentions-001"},
+  {"name": "War Department", "node_id": "acc-intentions-001"},
+  {"name": "Defense Department", "node_id": "acc-intentions-001"},
+  {"name": "Anthropic", "node_id": "saf-beliefs-010"},
+  {"name": "Department of War", "node_id": "saf-beliefs-010"},
+  {"name": "Pentagon", "node_id": "saf-beliefs-010"},
+  {"name": "Cambridge Analytica", "node_id": "skp-beliefs-060"},
+  {"name": "European Commission", "node_id": "sit-063"},
+  {"name": "Luxembourg Tech School", "node_id": "saf-intentions-136"},
+  {"name": "Google", "node_id": "saf-beliefs-091"},
+  {"name": "Facebook", "node_id": "saf-beliefs-091"},
+  {"name": "IBM", "node_id": "saf-beliefs-091"},
+  {"name": "Amazon", "node_id": "saf-beliefs-091"},
+  {"name": "Microsoft", "node_id": "saf-beliefs-091"},
+  {"name": "Apple", "node_id": "saf-beliefs-091"},
+  {"name": "Baidu", "node_id": "saf-beliefs-091"},
+  {"name": "GTG-1002", "node_id": "saf-beliefs-091"},
+  {"name": "ICRC", "node_id": "saf-intentions-061"},
+  {"name": "a16z", "node_id": "acc-intentions-056"}
+ ]
+}

@@ -1,0 +1,318 @@
+{
+  "batch": "B8",
+  "facts_processed": 179,
+  "proposals": [
+    {
+      "name": "Dario Amodei",
+      "entity_type": "person",
+      "aliases": [],
+      "quote": "Anthropic CEO Dario Amodei predicted AI could wipe out half of all entry-level white-collar jobs",
+      "confidence": 0.98,
+      "node_id": "skp-beliefs-002"
+    },
+    {
+      "name": "ChatGPT",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "since the release of ChatGPT 33 months ago",
+      "confidence": 0.97,
+      "node_id": "skp-beliefs-002"
+    },
+    {
+      "name": "GPT-4",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "fell by approximately 13% following the release of GPT-4",
+      "confidence": 0.96,
+      "node_id": "skp-beliefs-002"
+    },
+    {
+      "name": "Executive Order 14365",
+      "entity_type": "legislation",
+      "aliases": ["EO 14365", "Removing Barriers to American Leadership in Artificial Intelligence"],
+      "quote": "issued Executive Order 14365, 'Removing Barriers to American Leadership in Artificial Intelligence,' on December 11, 2025",
+      "confidence": 0.96,
+      "node_id": "acc-intentions-074"
+    },
+    {
+      "name": "Executive Order 14179",
+      "entity_type": "legislation",
+      "aliases": ["EO 14179"],
+      "quote": "revoked Executive Order 14179 of January 23, 2025",
+      "confidence": 0.95,
+      "node_id": "acc-intentions-074"
+    },
+    {
+      "name": "AI Action Plan",
+      "entity_type": "legislation",
+      "aliases": ["America's AI Action Plan"],
+      "quote": "The Trump administration issued an AI Action Plan in July 2025",
+      "confidence": 0.7,
+      "node_id": "acc-intentions-074"
+    },
+    {
+      "name": "EU AI Act",
+      "entity_type": "legislation",
+      "aliases": ["AI Act"],
+      "quote": "The EU AI Act's General-Purpose AI Code of Practice encourages innovation in AI safety",
+      "confidence": 0.97,
+      "node_id": "acc-intentions-074"
+    },
+    {
+      "name": "General-Purpose AI Code of Practice",
+      "entity_type": "legislation",
+      "aliases": ["GPAI Code of Practice"],
+      "quote": "The EU AI Act's General-Purpose AI Code of Practice encourages innovation in AI safety",
+      "confidence": 0.7,
+      "node_id": "acc-intentions-074"
+    },
+    {
+      "name": "Texas Senate Bill 6",
+      "entity_type": "legislation",
+      "aliases": ["SB6", "SB 6"],
+      "quote": "Texas Senate Bill 6 (SB6) was enacted in June 2025 to reform interconnection and cost-sharing rules for data centers",
+      "confidence": 0.92,
+      "node_id": "acc-intentions-074"
+    },
+    {
+      "name": "Donald Trump",
+      "entity_type": "person",
+      "aliases": ["Trump"],
+      "quote": "The Trump Administration issued Executive Order 14365",
+      "confidence": 0.55,
+      "node_id": "acc-intentions-074"
+    },
+    {
+      "name": "Ronald Fisher",
+      "entity_type": "person",
+      "aliases": ["Fisher"],
+      "quote": "Fisher's fundamental theorem of natural selection states that the rate of change of average fitness",
+      "confidence": 0.65,
+      "node_id": "acc-intentions-055"
+    },
+    {
+      "name": "AlphaFold",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "Google DeepMind's AlphaFold can handle over 200 million protein structure predictions",
+      "confidence": 0.97,
+      "node_id": "acc-intentions-055"
+    },
+    {
+      "name": "Rebecca Sutter",
+      "entity_type": "person",
+      "aliases": [],
+      "quote": "The author, Rebecca Sutter, has been a professional software engineer since 1984",
+      "confidence": 0.9,
+      "node_id": "acc-intentions-055"
+    },
+    {
+      "name": "Karl Marx",
+      "entity_type": "person",
+      "aliases": ["Marx"],
+      "quote": "Marx's 'Capital' volume 1, page 443",
+      "confidence": 0.85,
+      "node_id": "acc-intentions-055"
+    },
+    {
+      "name": "Capital",
+      "entity_type": "artifact",
+      "aliases": ["Das Kapital", "Capital, Volume 1"],
+      "quote": "Marx's 'Capital' volume 1, page 443, discusses the social force developed when many hands cooperate",
+      "confidence": 0.4,
+      "node_id": "acc-intentions-055"
+    },
+    {
+      "name": "A.I.+ plan",
+      "entity_type": "legislation",
+      "aliases": ["'A.I.+' plan", "AI+ plan"],
+      "quote": "The Chinese government's 'A.I.+' plan aims for AI to penetrate 70 percent of society by 2027",
+      "confidence": 0.6,
+      "node_id": "acc-desires-013"
+    },
+    {
+      "name": "Drake Equation",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "can be estimated using the Drake Equation, with N ~ 0.01 L",
+      "confidence": 0.3,
+      "node_id": "saf-beliefs-002"
+    },
+    {
+      "name": "Claude 4 Opus",
+      "entity_type": "artifact",
+      "aliases": ["Claude Opus 4"],
+      "quote": "Claude 4 Opus demonstrated the ability to help users source nuclear-grade uranium",
+      "confidence": 0.96,
+      "node_id": "saf-desires-001"
+    },
+    {
+      "name": "Pete Hegseth",
+      "entity_type": "person",
+      "aliases": [],
+      "quote": "Defense Secretary Pete Hegseth announced he was breaking the government's contract with Anthropic",
+      "confidence": 0.96,
+      "node_id": "saf-desires-001"
+    },
+    {
+      "name": "Digital Omnibus",
+      "entity_type": "legislation",
+      "aliases": ["Digital Omnibus on AI"],
+      "quote": "The EU's Digital Omnibus proposes delaying the application of high-risk AI system requirements until December 2027",
+      "confidence": 0.8,
+      "node_id": "saf-intentions-134"
+    },
+    {
+      "name": "European Blockchain Sandbox for Distributed Ledger Technologies",
+      "entity_type": "institution",
+      "aliases": ["European Blockchain Sandbox"],
+      "quote": "The European Blockchain Sandbox for Distributed Ledger Technologies involves an average of 1.5 regulators per use case",
+      "confidence": 0.5,
+      "node_id": "saf-intentions-134"
+    },
+    {
+      "name": "Truth Social",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "The President announced on Truth Social that Anthropic would be removed from all federal systems",
+      "confidence": 0.5,
+      "node_id": "saf-intentions-134"
+    },
+    {
+      "name": "Claude",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "Claude allows users to upload documents up to 75,000 words in length",
+      "confidence": 0.95,
+      "node_id": "saf-intentions-074"
+    },
+    {
+      "name": "BIRD-Verified",
+      "entity_type": "artifact",
+      "aliases": ["BIRD-Verified dataset"],
+      "quote": "Training on BIRD-Verified boosts single-generation accuracy by 8.2% to 13.9%",
+      "confidence": 0.8,
+      "node_id": "saf-beliefs-011"
+    },
+    {
+      "name": "BIRD",
+      "entity_type": "artifact",
+      "aliases": ["BIRD Train set", "original BIRD"],
+      "quote": "compared to the original BIRD Train set",
+      "confidence": 0.7,
+      "node_id": "saf-beliefs-011"
+    },
+    {
+      "name": "Charles Goodhart",
+      "entity_type": "person",
+      "aliases": ["Goodhart"],
+      "quote": "Goodhart's Law states that when a metric is used as a target, it ceases to be a good metric",
+      "confidence": 0.55,
+      "node_id": "saf-beliefs-011"
+    },
+    {
+      "name": "DeepRetrieval",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "DeepRetrieval uses reinforcement learning (PPO) to train an LLM to rewrite user queries",
+      "confidence": 0.85,
+      "node_id": "acc-beliefs-005"
+    },
+    {
+      "name": "ReZero",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "ReZero improves agentic search by incentivizing persistence",
+      "confidence": 0.85,
+      "node_id": "acc-beliefs-005"
+    },
+    {
+      "name": "GPT-2",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "identifying specific circuits for indirect object identification in GPT-2",
+      "confidence": 0.96,
+      "node_id": "saf-intentions-056"
+    },
+    {
+      "name": "William Nordhaus",
+      "entity_type": "person",
+      "aliases": ["Nordhaus"],
+      "quote": "William Nordhaus's research demonstrates that historical improvements in lighting efficiency provided massive welfare gains",
+      "confidence": 0.96,
+      "node_id": "skp-beliefs-018"
+    },
+    {
+      "name": "SB 53",
+      "entity_type": "legislation",
+      "aliases": ["California SB 53"],
+      "quote": "Current regulations like California's SB 53 and the EU AI Act require frontier AI developers to assess catastrophic risks",
+      "confidence": 0.88,
+      "node_id": "skp-intentions-104"
+    },
+    {
+      "name": "SB 24-205",
+      "entity_type": "legislation",
+      "aliases": ["Colorado SB 24-205"],
+      "quote": "Colorado passed the first comprehensive AI governance bill in the United States, SB 24-205, in May 2024",
+      "confidence": 0.92,
+      "node_id": "skp-intentions-104"
+    },
+    {
+      "name": "Texas Responsible Artificial Intelligence Governance Act",
+      "entity_type": "legislation",
+      "aliases": ["TRAIGA"],
+      "quote": "The Texas Responsible Artificial Intelligence Governance Act establishes a regulatory sandbox for AI testing",
+      "confidence": 0.93,
+      "node_id": "acc-intentions-073"
+    },
+    {
+      "name": "World Economic Outlook (October 2025)",
+      "entity_type": "artifact",
+      "aliases": ["October 2025 WEO", "WEO"],
+      "quote": "Under a scenario presented in the October 2025 WEO, global growth declines by 0.4 percent in 2026",
+      "confidence": 0.5,
+      "node_id": "saf-beliefs-064"
+    }
+  ],
+  "org_mentions": [
+    {"name": "Goldman Sachs", "node_id": "skp-beliefs-002"},
+    {"name": "McKinsey", "node_id": "skp-beliefs-002"},
+    {"name": "Anthropic", "node_id": "skp-beliefs-002"},
+    {"name": "U.S. Senate", "node_id": "acc-intentions-074"},
+    {"name": "Trump Administration", "node_id": "acc-intentions-074"},
+    {"name": "FTC", "node_id": "acc-intentions-074"},
+    {"name": "Pentagon", "node_id": "acc-intentions-074"},
+    {"name": "Chief Digital and Artificial Intelligence Office (CDAO)", "node_id": "acc-intentions-074"},
+    {"name": "Anthropic", "node_id": "acc-intentions-074"},
+    {"name": "Center for AI Standards and Innovation (CAISI)", "node_id": "acc-intentions-074"},
+    {"name": "Moderna", "node_id": "acc-intentions-055"},
+    {"name": "LinkedIn", "node_id": "acc-intentions-055"},
+    {"name": "Google DeepMind", "node_id": "acc-intentions-055"},
+    {"name": "Scale AI", "node_id": "acc-intentions-055"},
+    {"name": "Meta", "node_id": "acc-intentions-055"},
+    {"name": "Informatica", "node_id": "acc-intentions-055"},
+    {"name": "Salesforce", "node_id": "acc-intentions-055"},
+    {"name": "Gartner", "node_id": "acc-intentions-055"},
+    {"name": "IBM", "node_id": "acc-desires-013"},
+    {"name": "HashiCorp", "node_id": "acc-desires-013"},
+    {"name": "Meta", "node_id": "acc-desires-013"},
+    {"name": "Scale AI", "node_id": "acc-desires-013"},
+    {"name": "OpenAI", "node_id": "acc-desires-013"},
+    {"name": "NVIDIA", "node_id": "acc-desires-013"},
+    {"name": "Chinese government", "node_id": "acc-desires-013"},
+    {"name": "Anthropic", "node_id": "saf-desires-001"},
+    {"name": "OpenAI", "node_id": "saf-desires-001"},
+    {"name": "European Union", "node_id": "saf-intentions-134"},
+    {"name": "EU Council", "node_id": "saf-intentions-134"},
+    {"name": "Anthropic", "node_id": "saf-intentions-134"},
+    {"name": "MIT", "node_id": "saf-beliefs-036"},
+    {"name": "News Corp", "node_id": "acc-intentions-071"},
+    {"name": "OpenAI", "node_id": "acc-intentions-071"},
+    {"name": "Reddit", "node_id": "acc-intentions-071"},
+    {"name": "Google", "node_id": "acc-intentions-071"},
+    {"name": "FTC", "node_id": "skp-intentions-080"},
+    {"name": "Bureau of Technology", "node_id": "skp-intentions-080"},
+    {"name": "Bureau of Consumer Protection", "node_id": "skp-intentions-080"}
+  ]
+}

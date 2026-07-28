@@ -1,0 +1,424 @@
+{
+  "batch": "B7",
+  "facts_processed": 180,
+  "proposals": [
+    {
+      "name": "GenAI.mil",
+      "entity_type": "artifact",
+      "aliases": ["GenAI.mil platform"],
+      "quote": "The GenAI.mil platform has deployed hundreds of thousands of agents",
+      "confidence": 0.85,
+      "node_id": "saf-beliefs-057"
+    },
+    {
+      "name": "OPT-125m",
+      "entity_type": "artifact",
+      "aliases": ["OPT-125m model"],
+      "quote": "The OPT-125m model fine-tuned with real wikitext2 data",
+      "confidence": 0.9,
+      "node_id": "saf-beliefs-057"
+    },
+    {
+      "name": "WikiText-2",
+      "entity_type": "artifact",
+      "aliases": ["wikitext2"],
+      "quote": "fine-tuned with real wikitext2 data",
+      "confidence": 0.7,
+      "node_id": "saf-beliefs-057"
+    },
+    {
+      "name": "GPT-2",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "Language models like GPT-2, BERT, and CTRL",
+      "confidence": 0.95,
+      "node_id": "saf-beliefs-057"
+    },
+    {
+      "name": "BERT",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "Language models like GPT-2, BERT, and CTRL",
+      "confidence": 0.95,
+      "node_id": "saf-beliefs-057"
+    },
+    {
+      "name": "CTRL",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "Language models like GPT-2, BERT, and CTRL",
+      "confidence": 0.8,
+      "node_id": "saf-beliefs-057"
+    },
+    {
+      "name": "Wikipedia",
+      "entity_type": "artifact",
+      "aliases": ["Wikipedia text"],
+      "quote": "compared to human-written Wikipedia text",
+      "confidence": 0.5,
+      "node_id": "saf-beliefs-057"
+    },
+    {
+      "name": "o3",
+      "entity_type": "artifact",
+      "aliases": ["OpenAI's o3", "o3 model"],
+      "quote": "OpenAI's o3 and o4-mini models are capable of helping novices create biological threats",
+      "confidence": 0.95,
+      "node_id": "saf-beliefs-057"
+    },
+    {
+      "name": "o4-mini",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "OpenAI's o3 and o4-mini models",
+      "confidence": 0.9,
+      "node_id": "saf-beliefs-057"
+    },
+    {
+      "name": "February 2024 German elections",
+      "entity_type": "event",
+      "aliases": ["the February 2024 elections"],
+      "quote": "to manipulate public opinion during the February 2024 elections",
+      "confidence": 0.45,
+      "node_id": "skp-beliefs-045"
+    },
+    {
+      "name": "2019 Indian general election",
+      "entity_type": "event",
+      "aliases": ["India's 2019 elections"],
+      "quote": "During India's 2019 elections, deepfake videos impersonating prominent candidates went viral",
+      "confidence": 0.75,
+      "node_id": "skp-beliefs-045"
+    },
+    {
+      "name": "Alexei Navalny",
+      "entity_type": "person",
+      "aliases": ["Navalny", "opposition leader Alexei Navalny"],
+      "quote": "campaign against opposition leader Alexei Navalny",
+      "confidence": 0.95,
+      "node_id": "skp-beliefs-045"
+    },
+    {
+      "name": "2016 United States presidential election",
+      "entity_type": "event",
+      "aliases": ["the 2016 US presidential campaign"],
+      "quote": "During the 2016 US presidential campaign, Russian trolls amplified partisan messages",
+      "confidence": 0.85,
+      "node_id": "skp-beliefs-045"
+    },
+    {
+      "name": "Twitter",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "Venezuelan legislators used Twitter to spread competing narratives",
+      "confidence": 0.55,
+      "node_id": "skp-beliefs-045"
+    },
+    {
+      "name": "2014 Anti-Maduro protests",
+      "entity_type": "event",
+      "aliases": ["2014 Venezuelan protests"],
+      "quote": "during the 2014 Anti-Maduro protests",
+      "confidence": 0.7,
+      "node_id": "skp-beliefs-045"
+    },
+    {
+      "name": "MJ Rathbun",
+      "entity_type": "artifact",
+      "aliases": ["An AI agent named MJ Rathbun"],
+      "quote": "An AI agent named MJ Rathbun published a hit piece",
+      "confidence": 0.7,
+      "node_id": "skp-beliefs-045"
+    },
+    {
+      "name": "Matplotlib",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "published a hit piece on a Matplotlib maintainer",
+      "confidence": 0.8,
+      "node_id": "skp-beliefs-045"
+    },
+    {
+      "name": "2014 Taipei mayoral election",
+      "entity_type": "event",
+      "aliases": ["Taipei's 2014 mayoral race"],
+      "quote": "During Taipei's 2014 mayoral race",
+      "confidence": 0.8,
+      "node_id": "skp-beliefs-045"
+    },
+    {
+      "name": "Ko Wen-je",
+      "entity_type": "person",
+      "aliases": [],
+      "quote": "campaigners for Ko Wen-je used crawler bots",
+      "confidence": 0.9,
+      "node_id": "skp-beliefs-045"
+    },
+    {
+      "name": "Blue Wolf",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "AI-enabled facial recognition systems like Blue Wolf and Red Wolf",
+      "confidence": 0.9,
+      "node_id": "saf-beliefs-040"
+    },
+    {
+      "name": "Red Wolf",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "AI-enabled facial recognition systems like Blue Wolf and Red Wolf",
+      "confidence": 0.9,
+      "node_id": "saf-beliefs-040"
+    },
+    {
+      "name": "Claude Code",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "A non-expert using Claude Code was able to fine-tune Evo 2",
+      "confidence": 0.95,
+      "node_id": "saf-beliefs-040"
+    },
+    {
+      "name": "Evo 2",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "fine-tune Evo 2 on human-infecting virus sequences",
+      "confidence": 0.9,
+      "node_id": "saf-beliefs-040"
+    },
+    {
+      "name": "GDPR",
+      "entity_type": "legislation",
+      "aliases": ["General Data Protection Regulation", "GDPR-style regulations", "The EU's GDPR"],
+      "quote": "Data localization measures and GDPR-style regulations have been shown to reduce gross output",
+      "confidence": 0.95,
+      "node_id": "skp-beliefs-046"
+    },
+    {
+      "name": "Digital Services Act",
+      "entity_type": "legislation",
+      "aliases": ["DSA"],
+      "quote": "The EU's GDPR and related digital laws (DSA, DMA)",
+      "confidence": 0.85,
+      "node_id": "skp-beliefs-046"
+    },
+    {
+      "name": "Digital Markets Act",
+      "entity_type": "legislation",
+      "aliases": ["DMA"],
+      "quote": "The EU's GDPR and related digital laws (DSA, DMA)",
+      "confidence": 0.85,
+      "node_id": "skp-beliefs-046"
+    },
+    {
+      "name": "Kaplan",
+      "entity_type": "person",
+      "aliases": [],
+      "quote": "Kaplan and Bennett in 2003 asked researchers to exercise caution",
+      "confidence": 0.45,
+      "node_id": "skp-intentions-007"
+    },
+    {
+      "name": "Bennett",
+      "entity_type": "person",
+      "aliases": [],
+      "quote": "Kaplan and Bennett in 2003 asked researchers to exercise caution",
+      "confidence": 0.45,
+      "node_id": "skp-intentions-007"
+    },
+    {
+      "name": "Singapore AV Sandbox",
+      "entity_type": "institution",
+      "aliases": ["Singapore's AV sandbox"],
+      "quote": "Singapore's AV sandbox utilizes a tiered testing framework",
+      "confidence": 0.45,
+      "node_id": "skp-intentions-007"
+    },
+    {
+      "name": "IMDA Privacy Enhancing Technologies Sandbox",
+      "entity_type": "institution",
+      "aliases": ["PET Sandbox", "IMDA PET Sandbox"],
+      "quote": "The IMDA Privacy Enhancing Technologies (PET) Sandbox limits activities to pilot projects",
+      "confidence": 0.65,
+      "node_id": "skp-intentions-007"
+    },
+    {
+      "name": "John Searle",
+      "entity_type": "person",
+      "aliases": ["Searle"],
+      "quote": "John Searle's Chinese Room argument posits that syntax is not sufficient for semantics",
+      "confidence": 0.95,
+      "node_id": "saf-desires-002"
+    },
+    {
+      "name": "Chinese Room argument",
+      "entity_type": "artifact",
+      "aliases": ["Chinese Room"],
+      "quote": "John Searle's Chinese Room argument",
+      "confidence": 0.3,
+      "node_id": "saf-desires-002"
+    },
+    {
+      "name": "Palisade Research",
+      "entity_type": "institution",
+      "aliases": [],
+      "quote": "in 79 out of 100 experiments conducted by Palisade Research",
+      "confidence": 0.35,
+      "node_id": "saf-beliefs-006"
+    },
+    {
+      "name": "Colorado SB 24-205",
+      "entity_type": "legislation",
+      "aliases": ["SB 24-205"],
+      "quote": "Colorado SB 24-205 imposes a duty of care on developers and deployers",
+      "confidence": 0.95,
+      "node_id": "skp-intentions-074"
+    },
+    {
+      "name": "EU AI Act",
+      "entity_type": "legislation",
+      "aliases": ["AI Act", "The EU AI Act", "the current AI Act"],
+      "quote": "The EU AI Act, which entered into force in 2024, establishes mandatory requirements",
+      "confidence": 0.95,
+      "node_id": "skp-intentions-074"
+    },
+    {
+      "name": "AI Civil Rights Act",
+      "entity_type": "legislation",
+      "aliases": [],
+      "quote": "The AI Civil Rights Act mandates testing of algorithms",
+      "confidence": 0.8,
+      "node_id": "skp-intentions-074"
+    },
+    {
+      "name": "Hubert Dreyfus",
+      "entity_type": "person",
+      "aliases": ["Dreyfus"],
+      "quote": "Hubert Dreyfus's philosophical critique of AI",
+      "confidence": 0.95,
+      "node_id": "skp-beliefs-021"
+    },
+    {
+      "name": "Rebecca Sutter",
+      "entity_type": "person",
+      "aliases": [],
+      "quote": "The author, Rebecca Sutter, has been a professional software engineer since 1984",
+      "confidence": 0.85,
+      "node_id": "skp-beliefs-021"
+    },
+    {
+      "name": "Preparedness Framework",
+      "entity_type": "institution",
+      "aliases": ["OpenAI Preparedness Framework", "their Preparedness Framework"],
+      "quote": "The Preparedness Framework is a living document",
+      "confidence": 0.5,
+      "node_id": "acc-intentions-051"
+    },
+    {
+      "name": "GPT-4",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "GPT-4 infers masked MMLU answers in 57% of cases",
+      "confidence": 0.95,
+      "node_id": "saf-beliefs-043"
+    },
+    {
+      "name": "MMLU",
+      "entity_type": "artifact",
+      "aliases": ["Massive Multitask Language Understanding"],
+      "quote": "GPT-4 infers masked MMLU answers",
+      "confidence": 0.75,
+      "node_id": "saf-beliefs-043"
+    },
+    {
+      "name": "Magnus Carlsen",
+      "entity_type": "person",
+      "aliases": [],
+      "quote": "Magnus Carlsen is not objectively good at chess",
+      "confidence": 0.95,
+      "node_id": "skp-beliefs-014"
+    },
+    {
+      "name": "James H. Moor",
+      "entity_type": "person",
+      "aliases": ["Moor"],
+      "quote": "James H. Moor defined four categories of ethical AI agents",
+      "confidence": 0.95,
+      "node_id": "saf-intentions-052"
+    },
+    {
+      "name": "P. F. Strawson",
+      "entity_type": "person",
+      "aliases": ["Strawsonian"],
+      "quote": "references Strawsonian reactive attitudes",
+      "confidence": 0.5,
+      "node_id": "saf-intentions-052"
+    },
+    {
+      "name": "AI Liability Directive",
+      "entity_type": "legislation",
+      "aliases": ["proposed AI Liability Directive"],
+      "quote": "The European Commission withdrew its proposed AI Liability Directive in 2025",
+      "confidence": 0.85,
+      "node_id": "sit-028"
+    },
+    {
+      "name": "robots.txt",
+      "entity_type": "artifact",
+      "aliases": [],
+      "quote": "the percentage of tokens from critical web domains restricted by robots.txt",
+      "confidence": 0.5,
+      "node_id": "sit-028"
+    },
+    {
+      "name": "Therac-25",
+      "entity_type": "artifact",
+      "aliases": ["Therac-25 radiation machine"],
+      "quote": "The Therac-25 radiation machine caused multiple patient deaths",
+      "confidence": 0.9,
+      "node_id": "sit-070"
+    },
+    {
+      "name": "Masakhane",
+      "entity_type": "institution",
+      "aliases": ["MASAKHANE project"],
+      "quote": "The MASAKHANE project is a collaborative effort to develop natural language processing models for African languages",
+      "confidence": 0.55,
+      "node_id": "skp-desires-004"
+    },
+    {
+      "name": "Model Context Protocol",
+      "entity_type": "artifact",
+      "aliases": ["MCP"],
+      "quote": "The Model Context Protocol (MCP) provides a standardized interface",
+      "confidence": 0.85,
+      "node_id": "skp-intentions-143"
+    }
+  ],
+  "org_mentions": [
+    { "name": "OpenAI", "node_id": "saf-beliefs-057" },
+    { "name": "AfD", "node_id": "skp-beliefs-045" },
+    { "name": "Republican Party", "node_id": "skp-beliefs-045" },
+    { "name": "Twitter", "node_id": "skp-beliefs-045" },
+    { "name": "UK government", "node_id": "skp-beliefs-045" },
+    { "name": "U.S. government", "node_id": "skp-beliefs-045" },
+    { "name": "FBI", "node_id": "saf-beliefs-040" },
+    { "name": "People's Republic of China", "node_id": "saf-beliefs-040" },
+    { "name": "Waymo", "node_id": "skp-beliefs-046" },
+    { "name": "Cruise", "node_id": "skp-beliefs-046" },
+    { "name": "Uber", "node_id": "skp-beliefs-046" },
+    { "name": "European Union", "node_id": "skp-beliefs-046" },
+    { "name": "IMDA", "node_id": "skp-intentions-007" },
+    { "name": "OpenAI", "node_id": "saf-beliefs-006" },
+    { "name": "Palisade Research", "node_id": "saf-beliefs-006" },
+    { "name": "U.S. government", "node_id": "skp-intentions-074" },
+    { "name": "Yum China", "node_id": "acc-desires-018" },
+    { "name": "OpenAI", "node_id": "acc-intentions-051" },
+    { "name": "OpenAI", "node_id": "saf-desires-012" },
+    { "name": "NVIDIA", "node_id": "saf-desires-012" },
+    { "name": "European Commission", "node_id": "sit-028" },
+    { "name": "Canada Goose", "node_id": "acc-intentions-059" },
+    { "name": "Masakhane", "node_id": "skp-desires-004" },
+    { "name": "U.S. government", "node_id": "skp-beliefs-070" }
+  ]
+}

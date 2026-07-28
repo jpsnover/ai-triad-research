@@ -1,0 +1,175 @@
+{
+ "batch": "C",
+ "nodes": [
+  "acc-beliefs-048",
+  "acc-desires-007",
+  "acc-intentions-001",
+  "acc-intentions-036",
+  "acc-intentions-070",
+  "saf-beliefs-001",
+  "saf-beliefs-034",
+  "saf-beliefs-098",
+  "saf-desires-024",
+  "saf-intentions-038",
+  "saf-intentions-087",
+  "skp-beliefs-040",
+  "skp-beliefs-115",
+  "skp-beliefs-152",
+  "skp-intentions-004",
+  "sit-001",
+  "sit-046",
+  "sit-088"
+ ],
+ "facts_processed": 33,
+ "proposals": [
+  {
+   "name": "CHIPS and Science Act",
+   "entity_type": "legislation",
+   "aliases": ["U.S. CHIPS and Science Act", "CHIPS Act"],
+   "quote": "The U.S. CHIPS and Science Act has catalyzed over $630 billion in private investments",
+   "confidence": 0.98,
+   "node_id": "acc-intentions-001",
+   "fact_index": 0
+  },
+  {
+   "name": "AI Action Plan",
+   "entity_type": "legislation",
+   "aliases": ["July 2025 AI Action Plan", "Trump administration's AI Action Plan", "US government's AI Action Plan", "America's AI Action Plan"],
+   "quote": "The Trump administration's July 2025 AI Action Plan explicitly states that the US must export its full AI technology stack",
+   "confidence": 0.9,
+   "node_id": "acc-intentions-001",
+   "fact_index": 3
+  },
+  {
+   "name": "Donald Trump",
+   "entity_type": "person",
+   "aliases": ["Trump", "President Trump"],
+   "quote": "The Trump administration's July 2025 AI Action Plan",
+   "confidence": 0.5,
+   "node_id": "acc-intentions-001",
+   "fact_index": 3
+  },
+  {
+   "name": "Trump administration",
+   "entity_type": "institution",
+   "aliases": ["the Trump administration"],
+   "quote": "The Trump administration's July 2025 AI Action Plan explicitly states",
+   "confidence": 0.55,
+   "node_id": "acc-intentions-001",
+   "fact_index": 3
+  },
+  {
+   "name": "Nvidia H200",
+   "entity_type": "artifact",
+   "aliases": ["H200", "advanced H200 chips", "H200 chips"],
+   "quote": "allow Nvidia to export advanced H200 chips to China in December 2025",
+   "confidence": 0.85,
+   "node_id": "acc-intentions-001",
+   "fact_index": 5
+  },
+  {
+   "name": "Pete Hegseth",
+   "entity_type": "person",
+   "aliases": ["Secretary of Defense Pete Hegseth", "Hegseth"],
+   "quote": "Secretary of Defense Pete Hegseth issued an AI strategy memo in January 2026",
+   "confidence": 0.97,
+   "node_id": "acc-intentions-001",
+   "fact_index": 8
+  },
+  {
+   "name": "Hegseth AI Strategy Memo (January 2026)",
+   "entity_type": "legislation",
+   "aliases": ["AI strategy memo"],
+   "quote": "issued an AI strategy memo in January 2026 requiring all Defense Department AI contracts to include 'any lawful use' language",
+   "confidence": 0.4,
+   "node_id": "acc-intentions-001",
+   "fact_index": 8
+  },
+  {
+   "name": "California ADMT Regulations",
+   "entity_type": "legislation",
+   "aliases": ["ADMT regulations", "California Automated Decisionmaking Technology regulations"],
+   "quote": "California's ADMT regulations require businesses to conduct and document risk assessments for high-risk tools before first use",
+   "confidence": 0.85,
+   "node_id": "saf-intentions-087",
+   "fact_index": 0
+  },
+  {
+   "name": "FTC v. Rite Aid Corporation & Rite Aid Headquarters Corporation",
+   "entity_type": "event",
+   "aliases": ["FTC v. Rite Aid"],
+   "quote": "FTC v. Rite Aid Corporation & Rite Aid Headquarters Corporation demonstrates that large companies may not be able to shift blame to vendors",
+   "confidence": 0.75,
+   "node_id": "skp-beliefs-040",
+   "fact_index": 0
+  },
+  {
+   "name": "Jensen Huang",
+   "entity_type": "person",
+   "aliases": ["Jensen Huang, CEO of NVIDIA"],
+   "quote": "Jensen Huang, CEO of NVIDIA, has predicted the attainment of Artificial General Intelligence (AGI) by the year 2028",
+   "confidence": 0.98,
+   "node_id": "skp-beliefs-115",
+   "fact_index": 0
+  },
+  {
+   "name": "European Union",
+   "entity_type": "institution",
+   "aliases": ["EU"],
+   "quote": "The European Union has existing legal precedents for collective licensing",
+   "confidence": 0.55,
+   "node_id": "skp-intentions-004",
+   "fact_index": 0
+  },
+  {
+   "name": "EU AI Act",
+   "entity_type": "legislation",
+   "aliases": ["AI Act", "European Union Artificial Intelligence Act"],
+   "quote": "The EU AI Act classifies AI systems by risk",
+   "confidence": 0.98,
+   "node_id": "sit-046",
+   "fact_index": 0
+  },
+  {
+   "name": "Rome Call for AI Ethics",
+   "entity_type": "institution",
+   "aliases": ["The Rome Call for AI Ethics", "Rome Call"],
+   "quote": "The Rome Call for AI Ethics was published by The Pontifical Academy of Life",
+   "confidence": 0.6,
+   "node_id": "sit-088",
+   "fact_index": 1
+  },
+  {
+   "name": "Artificial Intelligence: An Evangelical Statement of Principles",
+   "entity_type": "institution",
+   "aliases": ["Evangelical Statement of Principles"],
+   "quote": "The Southern Baptist Convention published 'Artificial Intelligence: An Evangelical Statement of Principles' in 2019",
+   "confidence": 0.5,
+   "node_id": "sit-088",
+   "fact_index": 2
+  }
+ ],
+ "org_mentions": [
+  {"name": "Nvidia", "node_id": "acc-intentions-001", "fact_index": 1},
+  {"name": "War Department", "node_id": "acc-intentions-001", "fact_index": 2},
+  {"name": "SpaceX", "node_id": "acc-intentions-001", "fact_index": 2},
+  {"name": "OpenAI", "node_id": "acc-intentions-001", "fact_index": 2},
+  {"name": "Google", "node_id": "acc-intentions-001", "fact_index": 2},
+  {"name": "NVIDIA", "node_id": "acc-intentions-001", "fact_index": 2},
+  {"name": "Reflection", "node_id": "acc-intentions-001", "fact_index": 2},
+  {"name": "Microsoft", "node_id": "acc-intentions-001", "fact_index": 2},
+  {"name": "Amazon Web Services", "node_id": "acc-intentions-001", "fact_index": 2},
+  {"name": "Oracle", "node_id": "acc-intentions-001", "fact_index": 2},
+  {"name": "Nvidia", "node_id": "acc-intentions-001", "fact_index": 5},
+  {"name": "US government", "node_id": "acc-intentions-001", "fact_index": 7},
+  {"name": "Defense Department", "node_id": "acc-intentions-001", "fact_index": 8},
+  {"name": "Nvidia", "node_id": "acc-intentions-001", "fact_index": 10},
+  {"name": "FTC", "node_id": "skp-beliefs-040", "fact_index": 0},
+  {"name": "Rite Aid Corporation", "node_id": "skp-beliefs-040", "fact_index": 0},
+  {"name": "Rite Aid Headquarters Corporation", "node_id": "skp-beliefs-040", "fact_index": 0},
+  {"name": "NVIDIA", "node_id": "skp-beliefs-115", "fact_index": 0},
+  {"name": "US government", "node_id": "sit-001", "fact_index": 1},
+  {"name": "The Pontifical Academy of Life", "node_id": "sit-088", "fact_index": 1},
+  {"name": "Southern Baptist Convention", "node_id": "sit-088", "fact_index": 2}
+ ]
+}

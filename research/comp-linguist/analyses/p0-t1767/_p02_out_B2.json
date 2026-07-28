@@ -1,0 +1,481 @@
+{
+ "batch": "B2",
+ "facts_processed": 180,
+ "proposals": [
+  {
+   "name": "EU AI Act",
+   "entity_type": "legislation",
+   "aliases": ["AI Act", "EU's AI Act", "European Union AI Act"],
+   "quote": "The EU AI Act and GDPR require developers of risky AI systems to conduct impact or conformity assessments",
+   "confidence": 0.98,
+   "node_id": "saf-intentions-081"
+  },
+  {
+   "name": "GDPR",
+   "entity_type": "legislation",
+   "aliases": ["EU General Data Protection Regulation", "General Data Protection Regulation"],
+   "quote": "The EU General Data Protection Regulation (GDPR) debated a potential 'right to explanation' for AI systems",
+   "confidence": 0.98,
+   "node_id": "saf-intentions-081"
+  },
+  {
+   "name": "Digital Omnibus",
+   "entity_type": "legislation",
+   "aliases": ["EU's Digital Omnibus", "the Digital Omnibus"],
+   "quote": "The EU's Digital Omnibus proposes fixed backstop deadlines of December 2, 2027",
+   "confidence": 0.85,
+   "node_id": "saf-intentions-081"
+  },
+  {
+   "name": "National Policy Framework for Artificial Intelligence",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "The White House released a National Policy Framework for Artificial Intelligence on March 20, 2026",
+   "confidence": 0.6,
+   "node_id": "saf-intentions-081"
+  },
+  {
+   "name": "Frontier AI Safety Framework",
+   "entity_type": "artifact",
+   "aliases": ["Frontier AI Safety Frameworks", "'Frontier AI' safety frameworks"],
+   "quote": "Twelve companies published or updated Frontier AI Safety Frameworks in 2025",
+   "confidence": 0.35,
+   "node_id": "saf-intentions-081"
+  },
+  {
+   "name": "Project Glasswing",
+   "entity_type": "institution",
+   "aliases": [],
+   "quote": "Project Glasswing, a coalition of major tech companies including Microsoft, Google, and NVIDIA, was launched on April 7, 2026",
+   "confidence": 0.6,
+   "node_id": "saf-intentions-081"
+  },
+  {
+   "name": "DAIGE",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "The Delphi panel reached consensus on 26 of 28 DAIGE elements",
+   "confidence": 0.4,
+   "node_id": "saf-intentions-081"
+  },
+  {
+   "name": "OECD AI Principles",
+   "entity_type": "institution",
+   "aliases": [],
+   "quote": "The OECD AI Principles, established in 2019, represent the first set of AI standards that governments have pledged to incorporate",
+   "confidence": 0.7,
+   "node_id": "saf-intentions-081"
+  },
+  {
+   "name": "OECD Recommendation on AI",
+   "entity_type": "legislation",
+   "aliases": [],
+   "quote": "The OECD Recommendation on AI was first adopted on 22 May 2019",
+   "confidence": 0.7,
+   "node_id": "saf-intentions-081"
+  },
+  {
+   "name": "AI Policy Observatory",
+   "entity_type": "artifact",
+   "aliases": ["OECD.AI"],
+   "quote": "The OECD launched the AI Policy Observatory (OECD.AI) in February 2020",
+   "confidence": 0.6,
+   "node_id": "saf-intentions-081"
+  },
+  {
+   "name": "SB 53",
+   "entity_type": "legislation",
+   "aliases": ["California SB 53", "California's SB 53"],
+   "quote": "Current regulations like California's SB 53 and the EU AI Act require frontier AI developers to assess catastrophic risks",
+   "confidence": 0.9,
+   "node_id": "saf-intentions-081"
+  },
+  {
+   "name": "CHIPS and Science Act",
+   "entity_type": "legislation",
+   "aliases": ["U.S. CHIPS and Science Act"],
+   "quote": "The U.S. CHIPS and Science Act has catalyzed over $630 billion in private investments",
+   "confidence": 0.95,
+   "node_id": "saf-intentions-081"
+  },
+  {
+   "name": "AI Liability Directive",
+   "entity_type": "legislation",
+   "aliases": ["draft AI Liability Directive"],
+   "quote": "The European Commission withdrew the draft AI Liability Directive from its 2025 work program",
+   "confidence": 0.85,
+   "node_id": "saf-intentions-081"
+  },
+  {
+   "name": "AILCCP",
+   "entity_type": "artifact",
+   "aliases": ["AILCCP framework"],
+   "quote": "The AILCCP framework contains 37 principles organized across 10 pillars",
+   "confidence": 0.5,
+   "node_id": "saf-intentions-081"
+  },
+  {
+   "name": "AI Civil Rights Act",
+   "entity_type": "legislation",
+   "aliases": [],
+   "quote": "The AI Civil Rights Act mandates testing of algorithms both before and after deployment",
+   "confidence": 0.7,
+   "node_id": "saf-intentions-081"
+  },
+  {
+   "name": "Control Quality Score",
+   "entity_type": "artifact",
+   "aliases": ["CQS"],
+   "quote": "The Control Quality Score (CQS) is a composite real-time metric",
+   "confidence": 0.3,
+   "node_id": "saf-intentions-081"
+  },
+  {
+   "name": "ChatGPT",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "70% of ChatGPT messages were not work-related",
+   "confidence": 0.95,
+   "node_id": "skp-beliefs-043"
+  },
+  {
+   "name": "Slovakia 2023 parliamentary elections",
+   "entity_type": "event",
+   "aliases": ["Slovakia's 2023 parliamentary elections"],
+   "quote": "In Slovakia's 2023 parliamentary elections, a fabricated audio recording of a candidate was used to influence the vote",
+   "confidence": 0.75,
+   "node_id": "saf-beliefs-017"
+  },
+  {
+   "name": "India 2024 general election",
+   "entity_type": "event",
+   "aliases": ["India's 2024 general election"],
+   "quote": "In India's 2024 general election, AI-generated persona bots and synthetic content were deployed at an unprecedented scale",
+   "confidence": 0.75,
+   "node_id": "saf-beliefs-017"
+  },
+  {
+   "name": "Pegasus",
+   "entity_type": "artifact",
+   "aliases": ["Pegasus spyware"],
+   "quote": "among the first authoritarian states to deploy Pegasus spyware to hack the phones of dissidents",
+   "confidence": 0.9,
+   "node_id": "saf-beliefs-017"
+  },
+  {
+   "name": "LIME",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Post-hoc explanation methods like LIME and SHAP can be fooled by adversarial attacks",
+   "confidence": 0.5,
+   "node_id": "saf-beliefs-024"
+  },
+  {
+   "name": "SHAP",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Post-hoc explanation methods like LIME and SHAP can be fooled by adversarial attacks",
+   "confidence": 0.5,
+   "node_id": "saf-beliefs-024"
+  },
+  {
+   "name": "Claude 3 Opus",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Five models, including Claude 3 Opus and Claude 3.5 Sonnet, displayed measurable compliance gaps",
+   "confidence": 0.95,
+   "node_id": "saf-beliefs-024"
+  },
+  {
+   "name": "Claude 3.5 Sonnet",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Five models, including Claude 3 Opus and Claude 3.5 Sonnet, displayed measurable compliance gaps",
+   "confidence": 0.95,
+   "node_id": "saf-beliefs-024"
+  },
+  {
+   "name": "AI Impact Summit",
+   "entity_type": "event",
+   "aliases": ["February 2026 AI Impact Summit"],
+   "quote": "India is hosting the February 2026 AI Impact Summit as a leader in AI sovereignty initiatives",
+   "confidence": 0.85,
+   "node_id": "acc-desires-021"
+  },
+  {
+   "name": "DP-SGD",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Differential Privacy (DP) mechanisms like DP-SGD introduce computational overhead",
+   "confidence": 0.4,
+   "node_id": "skp-beliefs-005"
+  },
+  {
+   "name": "Claude 3.7 Sonnet",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Production LLMs (Claude 3.7 Sonnet, GPT-4.1, Gemini 2.5 Pro, and Grok 3) can be induced to output near-verbatim long-form copyrighted text",
+   "confidence": 0.95,
+   "node_id": "skp-beliefs-005"
+  },
+  {
+   "name": "GPT-4.1",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Production LLMs (Claude 3.7 Sonnet, GPT-4.1, Gemini 2.5 Pro, and Grok 3) can be induced to output near-verbatim long-form copyrighted text",
+   "confidence": 0.95,
+   "node_id": "skp-beliefs-005"
+  },
+  {
+   "name": "Gemini 2.5 Pro",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Production LLMs (Claude 3.7 Sonnet, GPT-4.1, Gemini 2.5 Pro, and Grok 3) can be induced to output near-verbatim long-form copyrighted text",
+   "confidence": 0.95,
+   "node_id": "skp-beliefs-005"
+  },
+  {
+   "name": "Grok 3",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Production LLMs (Claude 3.7 Sonnet, GPT-4.1, Gemini 2.5 Pro, and Grok 3) can be induced to output near-verbatim long-form copyrighted text",
+   "confidence": 0.95,
+   "node_id": "skp-beliefs-005"
+  },
+  {
+   "name": "Common Crawl",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "SSL models trained on Common Crawl can memorize and reproduce verbatim PII",
+   "confidence": 0.75,
+   "node_id": "skp-beliefs-005"
+  },
+  {
+   "name": "NIST AI 800-4",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "NIST AI 800-4 identifies current practices and challenges in post-deployment monitoring of AI systems",
+   "confidence": 0.8,
+   "node_id": "skp-intentions-055"
+  },
+  {
+   "name": "Chevrolet Corvair",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "The Chevrolet Corvair is a historical case study where design outpaced safety",
+   "confidence": 0.9,
+   "node_id": "skp-intentions-055"
+  },
+  {
+   "name": "Rome Call for AI Ethics",
+   "entity_type": "institution",
+   "aliases": [],
+   "quote": "The Rome Call for AI Ethics and the Baptist Statement both explicitly reject the attribution of legal responsibility to AI systems",
+   "confidence": 0.65,
+   "node_id": "saf-intentions-040"
+  },
+  {
+   "name": "Baptist Statement",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "The Rome Call for AI Ethics and the Baptist Statement both explicitly reject the attribution of legal responsibility to AI systems",
+   "confidence": 0.4,
+   "node_id": "saf-intentions-040"
+  },
+  {
+   "name": "Eighth Amendment",
+   "entity_type": "legislation",
+   "aliases": [],
+   "quote": "The Eighth Amendment prohibits prison officials from withholding medical treatment from prisoners",
+   "confidence": 0.9,
+   "node_id": "saf-intentions-040"
+  },
+  {
+   "name": "Direct Preference Optimization",
+   "entity_type": "artifact",
+   "aliases": ["DPO"],
+   "quote": "Direct Preference Optimization (DPO) can align models with human preferences",
+   "confidence": 0.3,
+   "node_id": "acc-intentions-083"
+  },
+  {
+   "name": "Search-o1",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Search-o1 improves performance on complex reasoning tasks by using an agentic RAG mechanism",
+   "confidence": 0.8,
+   "node_id": "acc-intentions-083"
+  },
+  {
+   "name": "OmegaPRM",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Autonomous methods like OmegaPRM can improve reasoning performance without human supervision",
+   "confidence": 0.75,
+   "node_id": "acc-intentions-083"
+  },
+  {
+   "name": "EWC",
+   "entity_type": "artifact",
+   "aliases": ["Elastic Weight Consolidation"],
+   "quote": "EWC under-estimates parameter uncertainty, which limits its performance",
+   "confidence": 0.35,
+   "node_id": "saf-beliefs-005"
+  },
+  {
+   "name": "Warner v. Gilbarco, Inc.",
+   "entity_type": "event",
+   "aliases": [],
+   "quote": "In Warner v. Gilbarco, Inc., a court ruled that a pro se litigant's AI outputs are protected by the work product doctrine",
+   "confidence": 0.55,
+   "node_id": "acc-intentions-047"
+  },
+  {
+   "name": "Warner",
+   "entity_type": "person",
+   "aliases": [],
+   "quote": "In Warner v. Gilbarco, Inc., a court ruled that a pro se litigant's AI outputs are protected",
+   "confidence": 0.3,
+   "node_id": "acc-intentions-047"
+  },
+  {
+   "name": "Responsible Scaling Policy",
+   "entity_type": "artifact",
+   "aliases": ["RSP", "Anthropic's Responsible Scaling Policy"],
+   "quote": "Anthropic's Responsible Scaling Policy (RSP) defines AI Safety Levels (ASL) to manage catastrophic risks",
+   "confidence": 0.7,
+   "node_id": "saf-intentions-025"
+  },
+  {
+   "name": "AI Safety Levels",
+   "entity_type": "artifact",
+   "aliases": ["ASL"],
+   "quote": "defines AI Safety Levels (ASL) to manage catastrophic risks, modeled after US government biosafety levels",
+   "confidence": 0.3,
+   "node_id": "saf-intentions-025"
+  },
+  {
+   "name": "Qianyue Hao",
+   "entity_type": "person",
+   "aliases": [],
+   "quote": "A study in Nature by Qianyue Hao, Fengli Xu, Yong Li, and James Evans",
+   "confidence": 0.9,
+   "node_id": "saf-intentions-086"
+  },
+  {
+   "name": "Fengli Xu",
+   "entity_type": "person",
+   "aliases": [],
+   "quote": "A study in Nature by Qianyue Hao, Fengli Xu, Yong Li, and James Evans",
+   "confidence": 0.9,
+   "node_id": "saf-intentions-086"
+  },
+  {
+   "name": "Yong Li",
+   "entity_type": "person",
+   "aliases": [],
+   "quote": "A study in Nature by Qianyue Hao, Fengli Xu, Yong Li, and James Evans",
+   "confidence": 0.9,
+   "node_id": "saf-intentions-086"
+  },
+  {
+   "name": "James Evans",
+   "entity_type": "person",
+   "aliases": [],
+   "quote": "A study in Nature by Qianyue Hao, Fengli Xu, Yong Li, and James Evans",
+   "confidence": 0.9,
+   "node_id": "saf-intentions-086"
+  },
+  {
+   "name": "g-mean2",
+   "entity_type": "artifact",
+   "aliases": ["g-mean2 metric"],
+   "quote": "The g-mean2 metric is undefined or uninformative when the total effect of an intervention is non-positive",
+   "confidence": 0.3,
+   "node_id": "skp-beliefs-061"
+  },
+  {
+   "name": "o1",
+   "entity_type": "artifact",
+   "aliases": ["OpenAI o1", "o1 model"],
+   "quote": "OpenAI's o1 model is approximately 40 times slower than GPT-4o",
+   "confidence": 0.9,
+   "node_id": "acc-beliefs-028"
+  },
+  {
+   "name": "GPT-4o",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "OpenAI's o1 model is approximately 40 times slower than GPT-4o, with a time-to-first-token of 29.7 seconds compared to 0.72 seconds for GPT-4o",
+   "confidence": 0.95,
+   "node_id": "acc-beliefs-028"
+  },
+  {
+   "name": "Cross-Border Privacy Enforcement Arrangement",
+   "entity_type": "institution",
+   "aliases": ["CPEA", "APEC CPEA"],
+   "quote": "APEC's Cross-Border Privacy Enforcement Arrangement (CPEA) and Cross-Border Privacy Rules (CBPR) are currently used by multiple nations",
+   "confidence": 0.75,
+   "node_id": "acc-intentions-022"
+  },
+  {
+   "name": "Cross-Border Privacy Rules",
+   "entity_type": "institution",
+   "aliases": ["CBPR", "APEC CBPR"],
+   "quote": "APEC's Cross-Border Privacy Enforcement Arrangement (CPEA) and Cross-Border Privacy Rules (CBPR) are currently used by multiple nations",
+   "confidence": 0.75,
+   "node_id": "acc-intentions-022"
+  },
+  {
+   "name": "OECD Framework for the Classification of AI Systems",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "The OECD Framework for the Classification of AI Systems categorizes AI along five key dimensions",
+   "confidence": 0.6,
+   "node_id": "saf-intentions-111"
+  },
+  {
+   "name": "Elon Musk",
+   "entity_type": "person",
+   "aliases": [],
+   "quote": "Elon Musk proposed 'universal high income' via checks issued by the Federal government",
+   "confidence": 0.98,
+   "node_id": "skp-intentions-013"
+  }
+ ],
+ "org_mentions": [
+  {"name": "White House", "node_id": "saf-intentions-081"},
+  {"name": "Congress", "node_id": "saf-intentions-081"},
+  {"name": "FMF", "node_id": "saf-intentions-081"},
+  {"name": "Anthropic", "node_id": "saf-intentions-081"},
+  {"name": "U.S. Department of Defense", "node_id": "saf-intentions-081"},
+  {"name": "Microsoft", "node_id": "saf-intentions-081"},
+  {"name": "Google", "node_id": "saf-intentions-081"},
+  {"name": "NVIDIA", "node_id": "saf-intentions-081"},
+  {"name": "OECD", "node_id": "saf-intentions-081"},
+  {"name": "SEC", "node_id": "saf-intentions-081"},
+  {"name": "European Commission", "node_id": "saf-intentions-081"},
+  {"name": "European Union", "node_id": "saf-intentions-081"},
+  {"name": "Register of Copyrights", "node_id": "saf-intentions-081"},
+  {"name": "OECD informal AI Group of experts", "node_id": "saf-intentions-081"},
+  {"name": "Working Party on AI Governance (AIGO)", "node_id": "saf-intentions-081"},
+  {"name": "OpenAI", "node_id": "skp-beliefs-043"},
+  {"name": "AWS", "node_id": "acc-desires-021"},
+  {"name": "Microsoft Azure", "node_id": "acc-desires-021"},
+  {"name": "Google Cloud", "node_id": "acc-desires-021"},
+  {"name": "Dominion Energy", "node_id": "acc-desires-021"},
+  {"name": "Nvidia", "node_id": "acc-desires-021"},
+  {"name": "NIST", "node_id": "skp-intentions-055"},
+  {"name": "Chevrolet", "node_id": "skp-intentions-055"},
+  {"name": "Anthropic", "node_id": "saf-intentions-012"},
+  {"name": "Pentagon", "node_id": "saf-intentions-012"},
+  {"name": "Congress", "node_id": "saf-intentions-012"},
+  {"name": "Anthropic", "node_id": "acc-desires-008"},
+  {"name": "Gilbarco, Inc.", "node_id": "acc-intentions-047"},
+  {"name": "Texas Artificial Intelligence Council", "node_id": "acc-intentions-047"},
+  {"name": "Anthropic", "node_id": "saf-intentions-025"},
+  {"name": "Nature", "node_id": "saf-intentions-086"},
+  {"name": "OpenAI", "node_id": "acc-beliefs-028"},
+  {"name": "APEC", "node_id": "acc-intentions-022"}
+ ]
+}

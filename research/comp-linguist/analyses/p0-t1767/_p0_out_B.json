@@ -1,0 +1,275 @@
+{
+ "batch": "B",
+ "node": "skp-beliefs-001",
+ "facts_processed": 67,
+ "proposals": [
+  {
+   "name": "BiDil",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "a race-specific indication for the heart failure drug BiDil",
+   "confidence": 0.45,
+   "fact_index": 1
+  },
+  {
+   "name": "MDRD equation",
+   "entity_type": "artifact",
+   "aliases": ["Modification of Diet in Renal Disease equation"],
+   "quote": "the MDRD equation reporting a higher eGFR for black patients by a factor of 1.212",
+   "confidence": 0.6,
+   "fact_index": 4
+  },
+  {
+   "name": "CKD-EPI equation",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "the CKD-EPI equation by a factor of 1.159",
+   "confidence": 0.6,
+   "fact_index": 4
+  },
+  {
+   "name": "Kidney Donor Risk Index",
+   "entity_type": "artifact",
+   "aliases": ["KDRI"],
+   "quote": "The Kidney Donor Risk Index (KDRI) was implemented by the national Kidney Allocation System in 2014",
+   "confidence": 0.7,
+   "fact_index": 6
+  },
+  {
+   "name": "Kidney Allocation System",
+   "entity_type": "institution",
+   "aliases": ["national Kidney Allocation System"],
+   "quote": "implemented by the national Kidney Allocation System in 2014",
+   "confidence": 0.45,
+   "fact_index": 6
+  },
+  {
+   "name": "VBAC algorithm",
+   "entity_type": "artifact",
+   "aliases": ["Vaginal Birth after Cesarean algorithm", "VBAC calculator"],
+   "quote": "The Vaginal Birth after Cesarean (VBAC) algorithm predicts a lower likelihood of success",
+   "confidence": 0.6,
+   "fact_index": 8
+  },
+  {
+   "name": "STONE score",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "The STONE score for kidney stones adds 3 points (of a possible 13)",
+   "confidence": 0.7,
+   "fact_index": 11
+  },
+  {
+   "name": "AAP UTI testing guidelines (2011)",
+   "entity_type": "artifact",
+   "aliases": ["2011 AAP UTI guidelines"],
+   "quote": "UTI testing guidelines released by the American Academy of Pediatrics in 2011",
+   "confidence": 0.3,
+   "fact_index": 13
+  },
+  {
+   "name": "COMPAS",
+   "entity_type": "artifact",
+   "aliases": ["Correctional Offender Management Profiling for Alternative Sanctions"],
+   "quote": "The COMPAS (Correctional Offender Management Profiling for Alternative Sanctions) recidivism-prediction tool",
+   "confidence": 0.9,
+   "fact_index": 17
+  },
+  {
+   "name": "Breast Cancer Risk Assessment Tool",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "The Breast Cancer Risk Assessment Tool returns lower risk estimates for nonwhite women",
+   "confidence": 0.65,
+   "fact_index": 18
+  },
+  {
+   "name": "Rectal Cancer Survival Calculator",
+   "entity_type": "artifact",
+   "aliases": ["NCI Rectal Cancer Survival Calculator"],
+   "quote": "The National Cancer Institute's Rectal Cancer Survival Calculator predicts that black patients will have shorter cancer-specific survival rates",
+   "confidence": 0.6,
+   "fact_index": 20
+  },
+  {
+   "name": "FRAX",
+   "entity_type": "artifact",
+   "aliases": ["Osteoporosis Risk Assessment tool"],
+   "quote": "The Osteoporosis Risk Assessment tool (FRAX) reports a 10-year risk of major osteoporotic fracture",
+   "confidence": 0.75,
+   "fact_index": 21
+  },
+  {
+   "name": "Get With The Guidelines—Heart Failure Risk Score",
+   "entity_type": "artifact",
+   "aliases": ["GWTG-HF Risk Score", "American Heart Association Get with the Guidelines—Heart Failure Risk Score"],
+   "quote": "The American Heart Association Get with the Guidelines—Heart Failure Risk Score assigns three additional points to any patient identified as 'nonblack'",
+   "confidence": 0.65,
+   "fact_index": 22
+  },
+  {
+   "name": "2016 US presidential election",
+   "entity_type": "event",
+   "aliases": ["2016 United States presidential election"],
+   "quote": "microtargeting campaigns during the 2016 US presidential election",
+   "confidence": 0.8,
+   "fact_index": 27
+  },
+  {
+   "name": "Brexit referendum",
+   "entity_type": "event",
+   "aliases": ["UK Brexit vote", "2016 United Kingdom EU membership referendum"],
+   "quote": "the 2016 US presidential election and the UK Brexit vote",
+   "confidence": 0.75,
+   "fact_index": 27
+  },
+  {
+   "name": "Fortune AIQ 50",
+   "entity_type": "artifact",
+   "aliases": ["Fortune AIQ 50 list"],
+   "quote": "Women lead 18% of the companies on the Fortune AIQ 50 list",
+   "confidence": 0.4,
+   "fact_index": 28
+  },
+  {
+   "name": "Fortune 500",
+   "entity_type": "artifact",
+   "aliases": ["Fortune 500 list"],
+   "quote": "compared to 11% of all Fortune 500 companies",
+   "confidence": 0.35,
+   "fact_index": 28
+  },
+  {
+   "name": "GPT-2",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "models like GPT-2, CTRL-OPN, and CTRL-THT generate more polar and toxic content",
+   "confidence": 0.9,
+   "fact_index": 37
+  },
+  {
+   "name": "CTRL-OPN",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "models like GPT-2, CTRL-OPN, and CTRL-THT generate more polar and toxic content",
+   "confidence": 0.7,
+   "fact_index": 37
+  },
+  {
+   "name": "CTRL-THT",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "models like GPT-2, CTRL-OPN, and CTRL-THT generate more polar and toxic content",
+   "confidence": 0.7,
+   "fact_index": 37
+  },
+  {
+   "name": "CTRL-WIKI",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "generate more polar and toxic content than BERT or CTRL-WIKI",
+   "confidence": 0.7,
+   "fact_index": 37
+  },
+  {
+   "name": "BERT",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "generate more polar and toxic content than BERT or CTRL-WIKI",
+   "confidence": 0.85,
+   "fact_index": 37
+  },
+  {
+   "name": "Wikipedia",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "compared to models trained on Wikipedia data",
+   "confidence": 0.35,
+   "fact_index": 37
+  },
+  {
+   "name": "GPT-4 Turbo",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Leading LLMs, including GPT-4 Turbo and Claude 3, exhibit statistically significant racial disparities in mortgage underwriting recommendations",
+   "confidence": 0.9,
+   "fact_index": 41
+  },
+  {
+   "name": "Claude 3",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Leading LLMs, including GPT-4 Turbo and Claude 3, exhibit statistically significant racial disparities",
+   "confidence": 0.9,
+   "fact_index": 41
+  },
+  {
+   "name": "GPT-4",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Leading LLMs, including GPT-4 and Claude 3, demonstrate statistically significant racial bias in mortgage underwriting tasks",
+   "confidence": 0.9,
+   "fact_index": 42
+  },
+  {
+   "name": "Pegasus",
+   "entity_type": "artifact",
+   "aliases": ["Pegasus spyware"],
+   "quote": "among the first authoritarian states to deploy the Pegasus spyware tool",
+   "confidence": 0.9,
+   "fact_index": 53
+  },
+  {
+   "name": "2023 Slovak parliamentary elections",
+   "entity_type": "event",
+   "aliases": ["Slovakia's 2023 parliamentary elections"],
+   "quote": "In Slovakia's 2023 parliamentary elections, a fabricated audio recording of a liberal candidate discussing vote-rigging circulated",
+   "confidence": 0.8,
+   "fact_index": 64
+  },
+  {
+   "name": "2024 Indian general election",
+   "entity_type": "event",
+   "aliases": ["India's 2024 general election"],
+   "quote": "In India's 2024 general election, AI-generated persona bots and synthetic content were deployed at an unprecedented scale",
+   "confidence": 0.8,
+   "fact_index": 65
+  },
+  {
+   "name": "VADER",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Sentiment Analysis models like VADER, DistilBERT, and RoBERTa show varying levels of effectiveness",
+   "confidence": 0.8,
+   "fact_index": 66
+  },
+  {
+   "name": "DistilBERT",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Sentiment Analysis models like VADER, DistilBERT, and RoBERTa show varying levels of effectiveness",
+   "confidence": 0.85,
+   "fact_index": 66
+  },
+  {
+   "name": "RoBERTa",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Sentiment Analysis models like VADER, DistilBERT, and RoBERTa show varying levels of effectiveness",
+   "confidence": 0.85,
+   "fact_index": 66
+  }
+ ],
+ "org_mentions": [
+  {"name": "Journal of Medicine", "fact_index": 0},
+  {"name": "Food and Drug Administration", "fact_index": 1},
+  {"name": "American Academy of Pediatrics", "fact_index": 13},
+  {"name": "National Cancer Institute", "fact_index": 20},
+  {"name": "American Heart Association", "fact_index": 22},
+  {"name": "Cambridge Analytica", "fact_index": 27},
+  {"name": "Workday", "fact_index": 56},
+  {"name": "Earnest Operations LLC", "fact_index": 60},
+  {"name": "Massachusetts Attorney General", "fact_index": 60},
+  {"name": "SafeRent Solutions", "fact_index": 61}
+ ]
+}

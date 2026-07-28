@@ -1,0 +1,77 @@
+{
+  "batch": "A",
+  "node": "acc-beliefs-003",
+  "facts_processed": 61,
+  "proposals": [
+    {
+      "name": "GLM-TTS",
+      "entity_type": "artifact",
+      "aliases": ["GLM-TTS technology"],
+      "quote": "GLM-TTS technology achieves a 0.89 Character Error Rate",
+      "confidence": 0.85,
+      "fact_index": 6
+    },
+    {
+      "name": "Apollo Project",
+      "entity_type": "event",
+      "aliases": ["The Apollo Project", "Apollo program"],
+      "quote": "The Apollo Project cost approximately $180 billion in today's dollars",
+      "confidence": 0.7,
+      "fact_index": 9
+    },
+    {
+      "name": "Manhattan Project",
+      "entity_type": "event",
+      "aliases": ["The Manhattan project", "Manhattan project"],
+      "quote": "the Manhattan Project cost approximately $11.6 billion in today's dollars",
+      "confidence": 0.75,
+      "fact_index": 9
+    },
+    {
+      "name": "Office Agent",
+      "entity_type": "artifact",
+      "aliases": ["the Office Agent"],
+      "quote": "a consumer-ready preview of the Office Agent",
+      "confidence": 0.7,
+      "fact_index": 43
+    },
+    {
+      "name": "Ludwig van Beethoven",
+      "entity_type": "person",
+      "aliases": ["Beethoven"],
+      "quote": "Beethoven's String Quartet in C minor",
+      "confidence": 0.9,
+      "fact_index": 53
+    },
+    {
+      "name": "Surface Index",
+      "entity_type": "artifact",
+      "aliases": ["Surface Index (visible AI adoption)", "Surface Index (visible tech AI adoption)"],
+      "quote": "The Surface Index (visible AI adoption) represents 2.2% of wage value ($211 billion)",
+      "confidence": 0.5,
+      "fact_index": 17
+    },
+    {
+      "name": "String Quartet in C minor",
+      "entity_type": "artifact",
+      "aliases": ["Beethoven's String Quartet in C minor"],
+      "quote": "perform Beethoven's String Quartet in C minor",
+      "confidence": 0.3,
+      "fact_index": 53
+    },
+    {
+      "name": "Kardashev scale",
+      "entity_type": "artifact",
+      "aliases": ["extended Kardashev scale"],
+      "quote": "approximately 0.73 on the extended Kardashev scale",
+      "confidence": 0.2,
+      "fact_index": 1
+    }
+  ],
+  "org_mentions": [
+    {"name": "Citigroup", "fact_index": 18},
+    {"name": "Citigroup", "fact_index": 26},
+    {"name": "Amazon", "fact_index": 35},
+    {"name": "PepsiCo", "fact_index": 40}
+  ]
+}

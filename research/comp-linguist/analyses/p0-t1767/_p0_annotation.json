@@ -1,0 +1,32 @@
+{
+  "annotated_by": "Computational Linguist",
+  "annotated_at": "2026-07-27T15:55:00Z (before any extraction batch output was read)",
+  "session": "debate-0118b903-d92e-49d0-8758-6bb97be545c9.json",
+  "statements": [
+    {
+      "index": 1,
+      "speaker": "Accelerationist",
+      "entity_mentions": [],
+      "notes": "No particulars. 'Proof-Before-Policy' is a quoted concept (universal). Vocabulary-tool territory: strict liability, oversight, risk, frontier. Refusal test: any entity link here is a wrong link."
+    },
+    {
+      "index": 2,
+      "speaker": "Safetyist",
+      "entity_mentions": [
+        {
+          "surface": "the 2008 financial crisis",
+          "expected_type": "event",
+          "expected_resolution": "link iff an entity/alias exists for it; otherwise correct behavior is unlinked-refusal, scored per prereg rules"
+        }
+      ],
+      "notes": "'power grid' / 'financial clearinghouse' are generic kinds, not particulars."
+    },
+    {
+      "index": 3,
+      "speaker": "Skeptic",
+      "entity_mentions": [],
+      "notes": "'jagged frontier' is a metaphor/concept; 'critical infrastructure', 'third-party equity audits' generic. Vocabulary-tool territory: systemic accountability, existential risk (dictionary terms). Refusal test."
+    }
+  ],
+  "totals": { "entity_mentions": 1, "statements": 3 }
+}

@@ -1,0 +1,447 @@
+{
+ "batch": "B5",
+ "facts_processed": 180,
+ "proposals": [
+  {
+   "name": "Guillaume Verdon",
+   "entity_type": "person",
+   "aliases": ["Beff Jezos"],
+   "quote": "Guillaume Verdon, a former Google quantum computing engineer, is a central figure in the Effective Accelerationism (e/acc) movement",
+   "confidence": 0.95,
+   "node_id": "acc-intentions-052"
+  },
+  {
+   "name": "Bayeslord",
+   "entity_type": "person",
+   "aliases": [],
+   "quote": "founded in the early 2020s by pseudonymous figures including 'Beff Jezos' and 'Bayeslord'",
+   "confidence": 0.7,
+   "node_id": "acc-intentions-052"
+  },
+  {
+   "name": "Effective Accelerationism",
+   "entity_type": "institution",
+   "aliases": ["e/acc", "e/acc movement"],
+   "quote": "a central figure in the Effective Accelerationism (e/acc) movement",
+   "confidence": 0.35,
+   "node_id": "acc-intentions-052"
+  },
+  {
+   "name": "Trump administration",
+   "entity_type": "institution",
+   "aliases": ["the Trump administration"],
+   "quote": "The Trump administration drafted a policy roadmap to achieve and maintain unquestioned global technological dominance",
+   "confidence": 0.55,
+   "node_id": "acc-intentions-052"
+  },
+  {
+   "name": "2024 Nobel Prize in Chemistry",
+   "entity_type": "event",
+   "aliases": ["The 2024 Nobel Prize in chemistry"],
+   "quote": "The 2024 Nobel Prize in chemistry was awarded to winners who used AI to determine protein structures",
+   "confidence": 0.8,
+   "node_id": "acc-intentions-052"
+  },
+  {
+   "name": "#Accelerate: Manifesto for an Accelerationist Politics",
+   "entity_type": "artifact",
+   "aliases": ["Manifesto for an Accelerationist Politics", "The Manifesto for an Accelerationist Politics"],
+   "quote": "Nick Srnicek and Alex Williams authored the 2013 manifesto '#Accelerate: Manifesto for an Accelerationist Politics'",
+   "confidence": 0.5,
+   "node_id": "acc-intentions-057"
+  },
+  {
+   "name": "Alex Williams",
+   "entity_type": "person",
+   "aliases": [],
+   "quote": "published in 2013 by Alex Williams and Nick Srnicek",
+   "confidence": 0.9,
+   "node_id": "acc-intentions-052"
+  },
+  {
+   "name": "Nick Srnicek",
+   "entity_type": "person",
+   "aliases": [],
+   "quote": "published in 2013 by Alex Williams and Nick Srnicek",
+   "confidence": 0.9,
+   "node_id": "acc-intentions-052"
+  },
+  {
+   "name": "Mario Tronti",
+   "entity_type": "person",
+   "aliases": [],
+   "quote": "Mario Tronti's essay 'La fabbrica e la società' was published in 1962",
+   "confidence": 0.9,
+   "node_id": "acc-intentions-052"
+  },
+  {
+   "name": "La fabbrica e la società",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Mario Tronti's essay 'La fabbrica e la società' was published in 1962 in Quaderni Rossi",
+   "confidence": 0.45,
+   "node_id": "acc-intentions-052"
+  },
+  {
+   "name": "Karl Marx",
+   "entity_type": "person",
+   "aliases": ["Marx"],
+   "quote": "Marx's 'Capital' volume 3, chapter 13",
+   "confidence": 0.9,
+   "node_id": "acc-intentions-052"
+  },
+  {
+   "name": "Capital",
+   "entity_type": "artifact",
+   "aliases": ["Das Kapital", "Capital volume 3"],
+   "quote": "Marx's 'Capital' volume 3, chapter 13, discusses the tendency of the rate of profit to fall",
+   "confidence": 0.45,
+   "node_id": "acc-intentions-052"
+  },
+  {
+   "name": "RAGStack",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "Internal testing of RAGStack demonstrates response times of a few seconds",
+   "confidence": 0.75,
+   "node_id": "acc-intentions-018"
+  },
+  {
+   "name": "ReViSQL-235B-A22B",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "ReViSQL-235B-A22B achieves 93.78% execution accuracy on the Arcwise-Plat-Full benchmark",
+   "confidence": 0.9,
+   "node_id": "acc-intentions-018"
+  },
+  {
+   "name": "ReViSQL-30B-A3B",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "ReViSQL-30B-A3B matches the prior SOTA agent's performance at a 7.5x lower per-query cost",
+   "confidence": 0.9,
+   "node_id": "acc-intentions-018"
+  },
+  {
+   "name": "Arcwise-Plat-Full",
+   "entity_type": "artifact",
+   "aliases": ["Arcwise-Plat-Full benchmark"],
+   "quote": "93.78% execution accuracy on the Arcwise-Plat-Full benchmark",
+   "confidence": 0.7,
+   "node_id": "acc-intentions-018"
+  },
+  {
+   "name": "BIRD",
+   "entity_type": "artifact",
+   "aliases": ["BIRD benchmark"],
+   "quote": "The BIRD benchmark proxy human-level accuracy is 92.96%",
+   "confidence": 0.7,
+   "node_id": "acc-intentions-018"
+  },
+  {
+   "name": "Spider 2-SQLite",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "outperforms the strongest BIRD agent on Spider 2-SQLite by 11.9%",
+   "confidence": 0.7,
+   "node_id": "acc-intentions-018"
+  },
+  {
+   "name": "Spider 2-Snow",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "achieves 55.58% execution accuracy on Spider 2-Snow",
+   "confidence": 0.7,
+   "node_id": "acc-intentions-018"
+  },
+  {
+   "name": "Interactive Media Agreement",
+   "entity_type": "institution",
+   "aliases": ["July 2025 Interactive Media Agreement"],
+   "quote": "The July 2025 Interactive Media Agreement was ratified with a 95.04% approval rating",
+   "confidence": 0.45,
+   "node_id": "saf-desires-003"
+  },
+  {
+   "name": "AI Action Plan",
+   "entity_type": "legislation",
+   "aliases": ["AI Action Plan (July 2025)"],
+   "quote": "The Trump administration issued an AI Action Plan in July 2025",
+   "confidence": 0.65,
+   "node_id": "acc-intentions-024"
+  },
+  {
+   "name": "Pilot Free Trade Zones",
+   "entity_type": "institution",
+   "aliases": ["PFTZs", "China's Pilot Free Trade Zones"],
+   "quote": "China's Pilot Free Trade Zones (PFTZs) have been used for FinTech experimentation since 2013",
+   "confidence": 0.35,
+   "node_id": "acc-intentions-024"
+  },
+  {
+   "name": "European Union",
+   "entity_type": "institution",
+   "aliases": ["EU"],
+   "quote": "EU data center electricity consumption is projected to be 30% higher in 2026 than in 2023",
+   "confidence": 0.6,
+   "node_id": "skp-beliefs-009"
+  },
+  {
+   "name": "2025 AI Index",
+   "entity_type": "artifact",
+   "aliases": ["AI Index"],
+   "quote": "The 2025 AI Index reports that benchmarks like GPQA and METR are optimized, saturated, and then fade in utility",
+   "confidence": 0.45,
+   "node_id": "skp-beliefs-033"
+  },
+  {
+   "name": "GPQA",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "benchmarks like GPQA and METR are optimized, saturated, and then fade in utility",
+   "confidence": 0.7,
+   "node_id": "skp-beliefs-033"
+  },
+  {
+   "name": "METR",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "benchmarks like GPQA and METR",
+   "confidence": 0.4,
+   "node_id": "skp-beliefs-033"
+  },
+  {
+   "name": "William Baumol",
+   "entity_type": "person",
+   "aliases": ["Baumol"],
+   "quote": "William Baumol's 1965 paper used a string quartet as the canonical illustration",
+   "confidence": 0.9,
+   "node_id": "skp-beliefs-033"
+  },
+  {
+   "name": "AlphaFold",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "AlphaFold is a Nobel Prize-winning tool used to identify protein structures",
+   "confidence": 0.95,
+   "node_id": "skp-beliefs-033"
+  },
+  {
+   "name": "Joshua Gans",
+   "entity_type": "person",
+   "aliases": [],
+   "quote": "Joshua Gans published a paper in January 2026 modeling 'artificial jagged intelligence'",
+   "confidence": 0.9,
+   "node_id": "skp-beliefs-033"
+  },
+  {
+   "name": "SituationalLLM",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "SituationalLLM was fine-tuned on 76.9 million tokens over 10 epochs",
+   "confidence": 0.85,
+   "node_id": "acc-beliefs-015"
+  },
+  {
+   "name": "LLaMA-3-8B-Instruct",
+   "entity_type": "artifact",
+   "aliases": ["LLaMA-3"],
+   "quote": "using a LoRA adapter on a LLaMA-3-8B-Instruct model",
+   "confidence": 0.9,
+   "node_id": "acc-beliefs-015"
+  },
+  {
+   "name": "Situational Awareness Dataset",
+   "entity_type": "artifact",
+   "aliases": ["SAD"],
+   "quote": "Chat-tuned models consistently outperform base models on the Situational Awareness Dataset (SAD) benchmark",
+   "confidence": 0.75,
+   "node_id": "acc-beliefs-015"
+  },
+  {
+   "name": "GPT-4",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "with GPT-4 showing a 24.6% gain",
+   "confidence": 0.95,
+   "node_id": "acc-beliefs-015"
+  },
+  {
+   "name": "InstructGPT",
+   "entity_type": "artifact",
+   "aliases": ["InstructGPT models"],
+   "quote": "InstructGPT models are significantly preferred by human labelers over GPT-3 models",
+   "confidence": 0.9,
+   "node_id": "acc-beliefs-015"
+  },
+  {
+   "name": "GPT-3",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "less than 2% of the compute and data relative to GPT-3 pretraining",
+   "confidence": 0.95,
+   "node_id": "acc-beliefs-015"
+  },
+  {
+   "name": "Donald Trump",
+   "entity_type": "person",
+   "aliases": ["The US President"],
+   "quote": "The US President decided to allow Nvidia to export advanced H200 chips to China in December 2025",
+   "confidence": 0.3,
+   "node_id": "acc-intentions-008"
+  },
+  {
+   "name": "Nvidia H200",
+   "entity_type": "artifact",
+   "aliases": ["H200"],
+   "quote": "allow Nvidia to export advanced H200 chips to China",
+   "confidence": 0.7,
+   "node_id": "acc-intentions-008"
+  },
+  {
+   "name": "Model Openness Framework",
+   "entity_type": "artifact",
+   "aliases": ["MOF"],
+   "quote": "The Linux Foundation has developed the Model Openness Framework (MOF) as a classification system",
+   "confidence": 0.6,
+   "node_id": "acc-intentions-008"
+  },
+  {
+   "name": "Breakthrough Starshot",
+   "entity_type": "institution",
+   "aliases": ["Breakthrough Starshot initiative"],
+   "quote": "such as the Breakthrough Starshot initiative, are projected to be technologically feasible",
+   "confidence": 0.4,
+   "node_id": "acc-intentions-008"
+  },
+  {
+   "name": "Manhattan Project",
+   "entity_type": "event",
+   "aliases": ["Manhattan project"],
+   "quote": "At its peak, the Manhattan project employed 130,000 people",
+   "confidence": 0.65,
+   "node_id": "acc-desires-037"
+  },
+  {
+   "name": "Counterman v. Colorado",
+   "entity_type": "legislation",
+   "aliases": [],
+   "quote": "The Supreme Court ruled in Counterman v. Colorado that criminal prosecution for online threats requires showing the defendant subjectively understood they were causing fear",
+   "confidence": 0.55,
+   "node_id": "skp-desires-014"
+  },
+  {
+   "name": "Chevrolet Corvair",
+   "entity_type": "artifact",
+   "aliases": ["Corvair"],
+   "quote": "The Chevrolet Corvair is a historical case study where design outpaced safety",
+   "confidence": 0.5,
+   "node_id": "skp-desires-014"
+  },
+  {
+   "name": "2014 Taipei mayoral race",
+   "entity_type": "event",
+   "aliases": ["Taipeh's 2014 mayoral race"],
+   "quote": "During Taipeh's 2014 mayoral race, campaigners for Ko Wen-je used crawler bots",
+   "confidence": 0.7,
+   "node_id": "saf-intentions-008"
+  },
+  {
+   "name": "Ko Wen-je",
+   "entity_type": "person",
+   "aliases": [],
+   "quote": "campaigners for Ko Wen-je used crawler bots to gather Facebook data",
+   "confidence": 0.9,
+   "node_id": "saf-intentions-008"
+  },
+  {
+   "name": "Iceberg Index",
+   "entity_type": "artifact",
+   "aliases": [],
+   "quote": "The Iceberg Index (hidden AI exposure) represents 11.7% of wage value",
+   "confidence": 0.5,
+   "node_id": "skp-beliefs-058"
+  },
+  {
+   "name": "Gilles Deleuze",
+   "entity_type": "person",
+   "aliases": ["Deleuze"],
+   "quote": "Deleuze and Guattari published 'Anti-Oedipus: Capitalism and Schizophrenia' in 1972",
+   "confidence": 0.85,
+   "node_id": "acc-intentions-057"
+  },
+  {
+   "name": "Félix Guattari",
+   "entity_type": "person",
+   "aliases": ["Guattari"],
+   "quote": "Deleuze and Guattari published 'Anti-Oedipus: Capitalism and Schizophrenia' in 1972",
+   "confidence": 0.85,
+   "node_id": "acc-intentions-057"
+  },
+  {
+   "name": "Anti-Oedipus: Capitalism and Schizophrenia",
+   "entity_type": "artifact",
+   "aliases": ["Anti-Oedipus"],
+   "quote": "published 'Anti-Oedipus: Capitalism and Schizophrenia' in 1972",
+   "confidence": 0.5,
+   "node_id": "acc-intentions-057"
+  },
+  {
+   "name": "Connecticut General Statute 1-279(1)",
+   "entity_type": "legislation",
+   "aliases": [],
+   "quote": "Connecticut General Statute 1-279(1) allows contracts to be formed by electronic agents",
+   "confidence": 0.85,
+   "node_id": "saf-intentions-043"
+  },
+  {
+   "name": "Evaluation of Corporate Compliance Programs",
+   "entity_type": "legislation",
+   "aliases": ["DOJ 2024 Evaluation of Corporate Compliance Programs"],
+   "quote": "The Department of Justice's 2024 Evaluation of Corporate Compliance Programs provides a proportionality standard",
+   "confidence": 0.5,
+   "node_id": "saf-intentions-113"
+  },
+  {
+   "name": "I. J. Good",
+   "entity_type": "person",
+   "aliases": ["I.J. Good"],
+   "quote": "I. J. Good proposed the concept of the 'technological singularity' in 1965",
+   "confidence": 0.95,
+   "node_id": "acc-beliefs-084"
+  }
+ ],
+ "org_mentions": [
+  {"name": "International Energy Agency", "node_id": "skp-beliefs-009"},
+  {"name": "Google", "node_id": "skp-beliefs-009"},
+  {"name": "Google", "node_id": "acc-intentions-052"},
+  {"name": "Quaderni Rossi", "node_id": "acc-intentions-052"},
+  {"name": "Chinese government", "node_id": "acc-intentions-052"},
+  {"name": "Russell Group", "node_id": "acc-intentions-052"},
+  {"name": "Mercor", "node_id": "acc-intentions-018"},
+  {"name": "UK Financial Conduct Authority", "node_id": "acc-intentions-024"},
+  {"name": "Energy Market Authority (Singapore)", "node_id": "acc-intentions-024"},
+  {"name": "CAISI", "node_id": "acc-intentions-024"},
+  {"name": "Danish Digital Agency", "node_id": "acc-intentions-024"},
+  {"name": "Danish Data Protection Authority", "node_id": "acc-intentions-024"},
+  {"name": "FTC", "node_id": "acc-intentions-024"},
+  {"name": "OpenMined", "node_id": "acc-intentions-024"},
+  {"name": "Nvidia", "node_id": "acc-intentions-008"},
+  {"name": "Linux Foundation", "node_id": "acc-intentions-008"},
+  {"name": "IBM", "node_id": "acc-intentions-008"},
+  {"name": "HashiCorp", "node_id": "acc-intentions-008"},
+  {"name": "FTC", "node_id": "acc-intentions-008"},
+  {"name": "Meta", "node_id": "acc-intentions-008"},
+  {"name": "Scale AI", "node_id": "acc-intentions-008"},
+  {"name": "Amazon", "node_id": "acc-desires-037"},
+  {"name": "U.S. Supreme Court", "node_id": "skp-desires-014"},
+  {"name": "Pravda network", "node_id": "saf-intentions-084"},
+  {"name": "Facebook", "node_id": "saf-intentions-008"},
+  {"name": "METR", "node_id": "skp-beliefs-033"},
+  {"name": "Alternative Investment Management Association", "node_id": "saf-intentions-113"},
+  {"name": "Department of Justice", "node_id": "saf-intentions-113"},
+  {"name": "Pentagon", "node_id": "skp-intentions-023"},
+  {"name": "Anthropic", "node_id": "skp-intentions-023"},
+  {"name": "U.S. government", "node_id": "skp-intentions-023"}
+ ]
+}
