@@ -290,6 +290,689 @@ export function detectZeroClaims(
   try { void triggerManualDump(); } catch { /* flight recorder dump — silent by design */ }
 }
 
+// ── extractClaimsAndUpdateAN sub-steps (t/1848 batch 3) ──────────────
+// Behavior-preserving decomposition of the AN extraction hot-path. Bodies
+// moved verbatim (line-slice transform); only signatures/calls hand-authored.
+type _ProcessedClaims = ReturnType<typeof processExtractedClaims>;
+type NewAnNode = _ProcessedClaims['newNodes'][number];
+type NewAnEdge = _ProcessedClaims['newEdges'][number];
+type PriorClaimList = Parameters<typeof extractClaimsPrompt>[2];
+type ClaimExtractionResult = { claims?: { text: string; bdi_category?: string; base_strength?: number; bdi_sub_scores?: Record<string, number>; specificity?: string; steelman_of?: string | null; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; weight?: number; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] };
+
+async function embedNewAnNodes(newNodes: NewAnNode[], debate: DebateSession): Promise<void> {
+    // Embed new AN nodes for AN-based taxonomy relevance scoring (non-blocking)
+    for (const node of newNodes) {
+      try {
+        const { vector } = await api.computeQueryEmbedding(node.text.slice(0, 300));
+        if (vector && vector.length > 0) node.embedding = vector;
+      } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn', message: 'AN node embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
+      if (node.attribution_text_genus) {
+        try {
+          const { vector } = await api.computeQueryEmbedding(node.attribution_text_genus.slice(0, 300));
+          if (vector && vector.length > 0) node.attribution_embedding = vector;
+        } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn', message: 'AN node genus embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
+      }
+    }
+}
+
+async function computeTaxonomyAttribution(newNodes: NewAnNode[], speaker: SpeakerId, extractionTrace: ClaimExtractionTrace, debate: DebateSession): Promise<void> {
+    // Per-claim taxonomy attribution (t/110): compare AN embeddings against same-POV nodes (all BDI categories)
+    if (newNodes.length > 0) {
+      const speakerPov = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.pov;
+      if (speakerPov) {
+        try {
+          const taxState = useTaxonomyStore.getState();
+          const povFile = taxState[speakerPov as keyof typeof taxState] as { nodes: { id: string; category: string; label: string; description: string }[] } | null;
+          const povNodes = povFile?.nodes ?? [];
+          const allPovNodeIds = new Set(povNodes.map((n) => n.id));
+
+          // Ensure we have embeddings for POV nodes — load from embeddings.json via IPC
+          let embCache = taxState.embeddingCache;
+          if (embCache.size === 0 || !povNodes.some(n => embCache.has(n.id))) {
+            const { ids, texts } = taxState.buildEmbeddingTexts(new Set(), new Set());
+            if (ids.length > 0) {
+              const { vectors } = await api.computeEmbeddings(texts, ids);
+              embCache = new Map<string, number[]>();
+              for (let i = 0; i < ids.length; i++) {
+                if (vectors[i]?.length > 0) embCache.set(ids[i], vectors[i]);
+              }
+              useTaxonomyStore.setState({ embeddingCache: embCache, embeddingDirty: false });
+            }
+          }
+
+          // Build nodeEmbeddings from embeddingCache — add pov from node ID prefix
+          const baseNodeEmbeddings: Record<string, { pov: string; vector: number[] }> = {};
+          const povMap: Record<string, string> = { acc: 'accelerationist', saf: 'safetyist', skp: 'skeptic' };
+          for (const [nodeId, vector] of embCache) {
+            const prefix = nodeId.split('-')[0];
+            const pov = povMap[prefix];
+            if (pov && vector.length > 0) {
+              baseNodeEmbeddings[nodeId] = { pov, vector };
+            }
+          }
+
+          // Merge synthetic multi-vector embeddings when available
+          const synVecs = await loadSyntheticVectors();
+          const nodeEmbeddings = synVecs
+            ? mergeSyntheticVectors(baseNodeEmbeddings, synVecs)
+            : baseNodeEmbeddings;
+
+          const attrResult = computeClaimTaxonomyAttribution(
+            newNodes, speakerPov, nodeEmbeddings, allPovNodeIds,
+          );
+          extractionTrace.attribution_attributed = attrResult.attributed;
+          extractionTrace.attribution_unattributed = attrResult.unattributed;
+          extractionTrace.attribution_missing_embedding = attrResult.missing_embedding;
+          extractionTrace.attribution_novel_argument = attrResult.novel_argument;
+          extractionTrace.attribution_decisions = attrResult.decisions;
+        } catch (e) {
+          getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn', message: 'Claim taxonomy attribution failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } });
+          // Attribution failure never blocks extraction
+        }
+      }
+    }
+}
+
+async function runLookaheadGate(speaker: SpeakerId, an: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] }, newNodes: NewAnNode[], newEdges: NewAnEdge[], debate: DebateSession, regenCallback: LookaheadRegenCallback | undefined, entryId: string, speakerLabel: string, priorClaims: PriorClaimList, taxonomyRefs: string[], turnNumber: number, model: string, get: () => any, set: (partial: any) => void, extractionTrace: ClaimExtractionTrace, parsed: ClaimExtractionResult): Promise<{ lookaheadDiag: LookaheadDiagnostics | undefined; bestPerClaim: PerClaimResult[] | undefined }> {
+    // ── Pre-commit lookahead gate (t/34) — evaluate before committing ──
+    let lookaheadDiag: LookaheadDiagnostics | undefined;
+    let bestPerClaim: PerClaimResult[] | undefined;
+    try {
+      const lookaheadStart = Date.now();
+      const lookaheadInput = {
+        speaker,
+        existingNodes: an.nodes,
+        existingEdges: an.edges,
+        tentativeClaims: newNodes.map(n => ({ text: n.text, base_strength: n.base_strength ?? 0.5 })),
+        tentativeEdges: newEdges,
+        cruxes: debate.crux_tracker,
+      };
+      const { batchResult: firstResult, perClaim: firstPerClaim } = evaluateLookaheadPerClaim(lookaheadInput);
+      bestPerClaim = firstPerClaim;
+
+      const MAX_REGEN_ATTEMPTS = 3;
+      let bestResult = firstResult;
+      let bestNodes = [...newNodes];
+      let bestEdges = [...newEdges];
+      let bestStatement: string | null = null;
+      const regenAttempts: LookaheadGateResult[] = [];
+      const perClaimAnalysisLog: { perClaim: PerClaimResult[]; analysis: ClaimAnalysis }[] = [];
+
+      if (!firstResult.pass && regenCallback) {
+        // Seed cumulative guidance from the first attempt's per-claim analysis
+        const firstAnalysis = buildClaimAnalysis(firstPerClaim);
+        perClaimAnalysisLog.push({ perClaim: firstPerClaim, analysis: firstAnalysis });
+        const cumulativeStrong = [...firstAnalysis.strongFoundations];
+        const cumulativeAvoid = [...firstAnalysis.avoidClaims];
+
+        for (let attempt = 0; attempt < MAX_REGEN_ATTEMPTS; attempt++) {
+          console.log(`[Lookahead] Gate failed (Δu=${bestResult.utility_delta.toFixed(3)}), requesting regen ${attempt + 1}/${MAX_REGEN_ATTEMPTS} (${cumulativeStrong.length} strong, ${cumulativeAvoid.length} avoid)`);
+          getGlobalRecorder()?.record({ type: 'lookahead.regen', component: 'argument-network-extraction', level: 'info', debate_id: debate.id, turn_id: entryId, speaker, message: `Lookahead gate failed, triggering regen attempt ${attempt + 1}`, data: { attempt: attempt + 1, utility_delta: bestResult.utility_delta, threshold: bestResult.threshold, strong_count: cumulativeStrong.length, avoid_count: cumulativeAvoid.length } });
+
+          const regenResult = await regenCallback({
+            strongFoundations: cumulativeStrong.length > 0 ? cumulativeStrong : undefined,
+            avoidClaims: cumulativeAvoid.length > 0 ? cumulativeAvoid : undefined,
+          });
+          if (!regenResult) break; // callback returned null — stop retrying
+
+          // Re-extract claims from regenerated response
+          const regenPrompt = regenResult.debaterClaims && regenResult.debaterClaims.length > 0
+            ? classifyClaimsPrompt(regenResult.statement, speakerLabel, regenResult.debaterClaims, priorClaims)
+            : extractClaimsPrompt(regenResult.statement, speakerLabel, priorClaims);
+          try {
+            const { text: regenText } = await api.generateText(regenPrompt, model);
+            const regenParsed = parseAIJson<{ claims?: typeof parsed.claims }>(regenText);
+
+            if (!regenParsed?.claims || !Array.isArray(regenParsed.claims) || regenParsed.claims.length === 0) {
+              regenAttempts.push({ ...bestResult, pass: false, tentative_claims: [], tentative_network_size: { nodes: 0, edges: 0 } });
+              continue;
+            }
+
+            const taxEdgesRetry = useTaxonomyStore.getState().edgesFile?.edges;
+            const regenClaims = processExtractedClaims(
+              {
+                claims: regenParsed.claims,
+                statement: regenResult.statement,
+                speaker,
+                entryId,
+                taxonomyRefIds: taxonomyRefs,
+                turnNumber,
+                existingNodes: an.nodes,
+                existingEdgeCount: an.edges.length,
+                startNodeId: an.nodes.length + 1,
+                taxonomyEdges: taxEdgesRetry,
+              },
+              { groundingOverlapThreshold: 0.3, isClassifyPath: !!(regenResult.debaterClaims && regenResult.debaterClaims.length > 0) },
+            );
+
+            if (regenClaims.newNodes.length === 0) {
+              regenAttempts.push({ ...bestResult, pass: false, tentative_claims: [], tentative_network_size: { nodes: 0, edges: 0 } });
+              continue;
+            }
+
+            // Embed retry claims
+            for (const node of regenClaims.newNodes) {
+              try {
+                const { vector } = await api.computeQueryEmbedding(node.text.slice(0, 300));
+                if (vector && vector.length > 0) node.embedding = vector;
+              } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn', message: 'Regen claim embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
+            }
+
+            // Per-claim evaluation on retry claims
+            const { batchResult: retryResult, perClaim: retryPerClaim } = evaluateLookaheadPerClaim({
+              speaker,
+              existingNodes: an.nodes,
+              existingEdges: an.edges,
+              tentativeClaims: regenClaims.newNodes.map(n => ({ text: n.text, base_strength: n.base_strength ?? 0.5 })),
+              tentativeEdges: regenClaims.newEdges,
+              cruxes: debate.crux_tracker,
+            });
+            regenAttempts.push(retryResult);
+
+            // Accumulate analysis from this attempt for subsequent retries
+            const retryAnalysis = buildClaimAnalysis(retryPerClaim);
+            perClaimAnalysisLog.push({ perClaim: retryPerClaim, analysis: retryAnalysis });
+            // Merge: add new strong/avoid items, dedup by text
+            const seenStrong = new Set(cumulativeStrong.map(s => s.text));
+            for (const s of retryAnalysis.strongFoundations) {
+              if (!seenStrong.has(s.text)) { cumulativeStrong.push(s); seenStrong.add(s.text); }
+            }
+            const seenAvoid = new Set(cumulativeAvoid.map(a => a.text));
+            for (const a of retryAnalysis.avoidClaims) {
+              if (!seenAvoid.has(a.text)) { cumulativeAvoid.push(a); seenAvoid.add(a.text); }
+            }
+
+            // Track the best attempt — use if it passes or beats previous best
+            if (retryResult.pass || retryResult.utility_delta > bestResult.utility_delta) {
+              bestResult = retryResult;
+              bestPerClaim = retryPerClaim;
+              bestNodes = regenClaims.newNodes;
+              bestEdges = regenClaims.newEdges;
+              bestStatement = regenResult.statement;
+              console.log(`[Lookahead] Attempt ${attempt + 1} improved: Δu=${retryResult.utility_delta.toFixed(3)} (was ${firstResult.utility_delta.toFixed(3)})`);
+            }
+
+            // Stop early if we pass
+            if (retryResult.pass) break;
+          } catch (regenErr) {
+            getGlobalRecorder()?.record({
+              type: 'system.error',
+              debate_id: debate.id,
+              component: 'debate-store',
+              level: 'warn',
+              message: `Lookahead regen attempt ${attempt + 1} extraction failed`,
+              error: { name: (regenErr as Error).name ?? 'Error', message: String(regenErr), stack: (regenErr as Error).stack },
+            });
+            console.warn(`[Lookahead] Regen attempt ${attempt + 1} extraction failed:`, regenErr);
+            break;
+          }
+        }
+
+        // Apply best result: update claims and transcript only if an attempt improved on the original
+        if (bestResult !== firstResult) {
+          newNodes.length = 0;
+          newNodes.push(...bestNodes);
+          newEdges.length = 0;
+          newEdges.push(...bestEdges);
+          extractionTrace.candidates_accepted = newNodes.length;
+
+          // Update transcript entry with the best regenerated statement
+          if (bestStatement) {
+            const currDebate = get().activeDebate as DebateSession | null;
+            if (currDebate) {
+              const updatedTranscript = currDebate.transcript.map(e =>
+                e.id === entryId ? { ...e, content: bestStatement!, metadata: { ...(e.metadata as Record<string, unknown>), lookahead_regenerated: true, lookahead_regen_attempts: regenAttempts.length } } : e,
+              );
+              phaseGuardedSet(get, set, { transcript: updatedTranscript });
+            }
+          }
+        }
+
+        lookaheadDiag = {
+          stage: 'lookahead',
+          first_attempt: firstResult,
+          regen_triggered: true,
+          regen_attempt: regenAttempts[regenAttempts.length - 1], // backwards compat
+          regen_attempts: regenAttempts,
+          per_claim_analysis: perClaimAnalysisLog,
+          final_pass: bestResult !== firstResult && (bestResult.pass || bestResult.utility_delta > firstResult.utility_delta),
+          elapsed_ms: Date.now() - lookaheadStart,
+        };
+      } else {
+        // Gate passed or no regen callback — still record per-claim analysis for diagnostics
+        const firstAnalysis = buildClaimAnalysis(firstPerClaim);
+        lookaheadDiag = {
+          stage: 'lookahead',
+          first_attempt: firstResult,
+          regen_triggered: false,
+          per_claim_analysis: [{ perClaim: firstPerClaim, analysis: firstAnalysis }],
+          final_pass: firstResult.pass,
+          elapsed_ms: Date.now() - lookaheadStart,
+        };
+      }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        debate_id: debate.id,
+        component: 'debate-store',
+        level: 'warn',
+        message: 'Lookahead pre-commit gate evaluation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      console.warn('[Lookahead] Pre-commit gate evaluation failed (non-blocking):', err);
+    }
+  return { lookaheadDiag, bestPerClaim };
+}
+
+function filterWeakClaims(lookaheadDiag: LookaheadDiagnostics | undefined, bestPerClaim: PerClaimResult[] | undefined, newNodes: NewAnNode[], newEdges: NewAnEdge[], extractionTrace: ClaimExtractionTrace, debate: DebateSession): void {
+    // Filter WEAK claims from passing batches before commit (t/459)
+    if (lookaheadDiag?.final_pass && debate.lookahead_filter_weak !== false && bestPerClaim) {
+      const weakIndices = new Set(
+        bestPerClaim.filter(pc => pc.classification === 'WEAK').map(pc => pc.index),
+      );
+      if (weakIndices.size > 0) {
+        const filteredTexts = [...weakIndices].map(i => newNodes[i]?.text).filter(Boolean);
+        const removedIds = new Set(newNodes.filter((_, i) => weakIndices.has(i)).map(n => n.id));
+        newNodes.splice(0, newNodes.length, ...newNodes.filter((_, i) => !weakIndices.has(i)));
+        newEdges.splice(0, newEdges.length, ...newEdges.filter(e => !removedIds.has(e.source) && !removedIds.has(e.target)));
+        extractionTrace.candidates_accepted = newNodes.length;
+        lookaheadDiag.filtered_weak_claims = filteredTexts;
+        getGlobalRecorder()?.record({
+          type: 'debate.lookahead.filter',
+          debate_id: debate.id,
+          component: 'debate-store',
+          level: 'info',
+          message: `Filtered ${weakIndices.size} WEAK claim(s) from passing lookahead batch`,
+          data: { filtered_count: weakIndices.size, remaining_count: newNodes.length },
+        });
+      }
+    }
+}
+
+async function runPostExtractionAnalytics(get: () => any, set: (partial: any) => void, entryId: string, speaker: SpeakerId): Promise<void> {
+    // ── Post-extraction analytics (batched into a single set() to avoid re-render storm) ──
+    const baseDebate = get().activeDebate;
+    if (baseDebate?.argument_network) {
+      const an = baseDebate.argument_network;
+      const patches: Partial<typeof baseDebate> = {};
+
+      // 1. QBAF strength propagation — computed ONCE, reused by convergence signals and GC
+      const qNodes: QbafNode[] = an.nodes.map((n: ArgumentNetworkNode) => ({ id: n.id, base_strength: n.base_strength ?? 0.5 }));
+      const qEdges: QbafEdge[] = an.edges.map((e: ArgumentNetworkEdge) => ({
+        source: e.source, target: e.target,
+        type: e.type as 'attacks' | 'supports',
+        weight: e.weight ?? 0.5,
+        attack_type: e.attack_type,
+      }));
+      const qbafResult = computeQbafStrengths(qNodes, qEdges);
+      getGlobalRecorder()?.record({ type: 'an.qbaf', component: 'qbaf', level: 'info', debate_id: baseDebate.id, turn_id: entryId, message: `QBAF propagation: ${qbafResult.iterations} iterations`, data: { iterations: qbafResult.iterations, converged: qbafResult.converged, node_count: qNodes.length } });
+      let currentNodes = an.nodes.map((n: ArgumentNetworkNode) => ({
+        ...n,
+        computed_strength: qbafResult.strengths.get(n.id) ?? n.computed_strength,
+      }));
+      let currentEdges = an.edges;
+
+      // 2. Convergence tracker
+      const getLabelForId = useTaxonomyStore.getState().getLabelForId;
+      const turnNumber = an.nodes.length;
+      patches.convergence_tracker = updateConvergenceTracker(
+        baseDebate.convergence_tracker,
+        { ...an, nodes: currentNodes },
+        baseDebate.commitments || {},
+        turnNumber,
+        getLabelForId,
+      );
+
+      // 3. Unanswered claims ledger
+      patches.unanswered_claims_ledger = updateUnansweredLedger(
+        baseDebate.unanswered_claims_ledger ?? [],
+        currentNodes,
+        currentEdges,
+        baseDebate.transcript.length,
+      );
+
+      // 4. Convergence signals (reuses QBAF strengths via precomputedStrengths param)
+      if (entryId) {
+        try {
+          let turnEmbeddings: Map<string, number[]> | undefined;
+          const cachedEmbeddings = { ...(baseDebate.turn_embeddings ?? {}) };
+          try {
+            const currentEntry = baseDebate.transcript.find((e: { id: string }) => e.id === entryId);
+            if (currentEntry) {
+              const { vector } = await api.computeQueryEmbedding(currentEntry.content.slice(0, 1000));
+              cachedEmbeddings[entryId] = vector;
+            }
+            turnEmbeddings = new Map(Object.entries(cachedEmbeddings));
+          } catch (e) {
+            getGlobalRecorder()?.record({ type: 'system.error', debate_id: baseDebate.id, component: 'debate-store', level: 'warn', message: 'Convergence turn embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } });
+            if (Object.keys(cachedEmbeddings).length > 0) {
+              turnEmbeddings = new Map(Object.entries(cachedEmbeddings));
+            }
+          }
+          // Prune stale turn embeddings — keep only the most recent N entries
+          const recentEntryIds = new Set(
+            baseDebate.transcript.slice(-TURN_EMBEDDING_WINDOW).map((e: { id: string }) => e.id),
+          );
+          for (const key of Object.keys(cachedEmbeddings)) {
+            if (!recentEntryIds.has(key)) delete cachedEmbeddings[key];
+          }
+          patches.turn_embeddings = cachedEmbeddings;
+
+          const sig = computeConvergenceSignals(
+            entryId,
+            speaker,
+            baseDebate.transcript,
+            currentNodes,
+            currentEdges,
+            baseDebate.convergence_signals ?? [],
+            turnEmbeddings,
+            qbafResult.strengths,
+            baseDebate.topic?.embedding,
+            baseDebate.topic?.clause_embeddings,
+          );
+          patches.convergence_signals = [...(get().activeDebate?.convergence_signals ?? []), sig];
+          getGlobalRecorder()?.record({ type: 'debate.signal', component: 'convergence-signals', level: 'info', debate_id: baseDebate.id, turn_id: entryId, speaker, message: 'Convergence signals computed', data: { round: sig.round, move_polarity: sig.move_polarity?.ratio, dialectical_engagement: sig.dialectical_engagement?.ratio, argument_redundancy: sig.argument_redundancy?.avg_self_overlap, crux_engagement_rate: sig.crux_engagement_rate?.cumulative_count } });
+
+          // 4b. Process reward — continuous turn quality score (PRM-adjacent signal)
+          const turnTrail = get().activeDebate?.turn_validations?.[entryId];
+          const turnValidation = turnTrail?.final;
+          if (turnValidation) {
+            const currentEntry = baseDebate.transcript.find((e: { id: string }) => e.id === entryId);
+            const entryMeta = currentEntry?.metadata as Record<string, unknown> | undefined;
+            const moveTypes = (entryMeta?.move_types as (string | MoveAnnotation)[]) ?? [];
+            const phase = ((entryMeta?.debate_phase as string) ?? 'argumentation') as DebatePhase;
+
+            // Count prior turn's distinct moves for diversity comparison
+            const priorSpeakerEntry = baseDebate.transcript
+              .filter((e: { speaker: string; type: string }) => e.speaker === speaker && e.type === 'statement')
+              .slice(-2)[0]; // second-to-last statement by this speaker
+            const priorMeta = priorSpeakerEntry?.metadata as Record<string, unknown> | undefined;
+            const priorMoves = (priorMeta?.move_types as (string | MoveAnnotation)[]) ?? [];
+
+            const pr = computeProcessReward({
+              convergenceSignals: sig,
+              turnValidation,
+              phase,
+              moveCount: moveTypes.length,
+              priorMoveCount: priorMoves.length > 0 ? priorMoves.length : undefined,
+              taxonomyRefCount: currentEntry?.taxonomy_refs?.length ?? 0,
+            });
+
+            const prEntry: ProcessRewardEntry = {
+              entry_id: entryId,
+              round: sig.round,
+              speaker,
+              phase,
+              score: pr.score,
+              components: pr.components,
+            };
+            patches.process_rewards = [...(get().activeDebate?.process_rewards ?? []), prEntry];
+            getGlobalRecorder()?.record({ type: 'debate.signal', component: 'process-reward', level: 'info', debate_id: baseDebate.id, turn_id: entryId, speaker, message: `Process reward: ${pr.score.toFixed(3)}`, data: { score: pr.score, ...pr.components } });
+          }
+        } catch (convErr) {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            debate_id: baseDebate.id,
+            component: 'debate-store',
+            level: 'warn',
+            message: 'Convergence signal computation failed',
+            error: { name: (convErr as Error).name ?? 'Error', message: String(convErr), stack: (convErr as Error).stack },
+          });
+          console.warn('[Convergence] Signal computation failed (non-blocking):', convErr);
+          pushWarning(get, set, 'Convergence analysis skipped this turn');
+        }
+      }
+
+      // 5. Network GC (uses QBAF-updated computed_strength already on nodes)
+      if (needsGc(currentNodes.length, GC_TRIGGER)) {
+        const gcResult = pruneArgumentNetwork(currentNodes, currentEdges, GC_TARGET);
+        if (gcResult.prunedNodes.length > 0) {
+          currentNodes = gcResult.nodes;
+          currentEdges = gcResult.edges;
+          console.info(`[AN-GC] Pruned ${gcResult.before} → ${gcResult.after} nodes`);
+          getGlobalRecorder()?.record({ type: 'an.gc', component: 'argument-network-extraction', level: 'info', debate_id: baseDebate.id, message: `Network GC: ${gcResult.before} → ${gcResult.after} nodes`, data: { nodes_before: gcResult.before, nodes_after: gcResult.after, edges_removed: gcResult.prunedNodes.length } });
+        }
+      }
+
+      // 6. Crux resolution tracking
+      try {
+        patches.crux_tracker = updateCruxTracker(
+          baseDebate.crux_tracker,
+          currentNodes,
+          currentEdges,
+          baseDebate.commitments ?? {},
+          turnNumber,
+        );
+      } catch (cruxErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          debate_id: baseDebate.id,
+          component: 'debate-store',
+          level: 'warn',
+          message: 'Crux resolution tracker update failed',
+          error: { name: (cruxErr as Error).name ?? 'Error', message: String(cruxErr), stack: (cruxErr as Error).stack },
+        });
+        console.warn('[CruxResolution] Tracker update failed (non-blocking):', cruxErr);
+        pushWarning(get, set, 'Crux resolution tracking skipped');
+      }
+
+      // Single batched state update — re-read fresh state to avoid clobbering
+      // concurrent writes (turn_validations, position_drift, adaptive_staging)
+      // from the main crossRespond flow which runs in parallel.
+      const freshForBatch = get().activeDebate;
+      if (freshForBatch) {
+        set({
+          activeDebate: {
+            ...freshForBatch,
+            ...patches,
+            argument_network: { ...an, nodes: currentNodes, edges: currentEdges },
+          },
+        });
+      }
+    }
+}
+
+async function runSteelmanValidation(newNodes: NewAnNode[], get: () => any, set: (partial: any) => void, speaker: SpeakerId, debate: DebateSession): Promise<void> {
+    // Steelman validation (non-blocking)
+    const steelmanNodes = newNodes.filter(n => n.steelman_of);
+    if (steelmanNodes.length > 0) {
+      try {
+        for (const sNode of steelmanNodes) {
+          const targetPover = sNode.steelman_of!;
+          const targetCommits = (get().activeDebate?.commitments?.[targetPover] as CommitmentStore | undefined);
+          if (!targetCommits || targetCommits.asserted.length === 0) continue;
+
+          const pairs = targetCommits.asserted.slice(-10).map(assertion => ({
+            text_a: sNode.text,
+            text_b: assertion,
+          }));
+          const nliResult = await api.nliClassify(pairs);
+          const maxEntailment = Math.max(...nliResult.results.map(r => r.nli_entailment ?? 0));
+
+          if (maxEntailment < 0.6) {
+            const targetLabel = POVER_INFO[targetPover as Exclude<SpeakerId, 'user'>]?.label ?? targetPover;
+            const speakerLbl = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label ?? speaker;
+            const topAssertions = targetCommits.asserted.slice(-3).map(a => `"${a}"`).join('; ');
+
+            const addEntry = get().addTranscriptEntry;
+            if (addEntry) {
+              const steelEntryId = addEntry({
+                type: 'system',
+                speaker: 'system',
+                content: `[Steelman check] ${speakerLbl}'s steelman of ${targetLabel}'s position (max entailment: ${maxEntailment.toFixed(2)}) diverges from their actual assertions. ${targetLabel} actually asserted: ${topAssertions}`,
+                taxonomy_refs: [],
+              });
+              recordDiagnostic(get, set, steelEntryId, {
+                raw_response: JSON.stringify({ steelman_text: sNode.text, target_pover: targetPover, max_entailment: maxEntailment, nli_results: nliResult.results }),
+                model: 'nli',
+              });
+            }
+          }
+        }
+      } catch (nliErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          debate_id: debate.id,
+          component: 'debate-store',
+          level: 'warn',
+          message: 'Steelman NLI validation failed',
+          error: { name: (nliErr as Error).name ?? 'Error', message: String(nliErr), stack: (nliErr as Error).stack },
+        });
+        console.warn('[Steelman] NLI validation failed (non-blocking):', nliErr);
+        pushWarning(get, set, 'Steelman validation skipped this turn');
+      }
+    }
+}
+
+async function runInlineFactCheck(newNodes: NewAnNode[], get: () => any, set: (partial: any) => void, entryId: string, debate: DebateSession): Promise<void> {
+    // Inline empirical claim verification (non-blocking)
+    // Uses the same two-pass approach as the manual factCheckSelection path:
+    //   Pass 1: grounded web search for evidence
+    //   Pass 2: structured verdict analysis with the evidence
+    const preciseBeliefs = newNodes.filter(n => n.bdi_category === 'belief' && n.specificity === 'precise');
+    let factCheckMutated = false;
+    for (const pNode of preciseBeliefs.slice(0, 2)) {
+      try {
+        const fcModel = getConfiguredModel();
+
+        // Pass 1: web search for evidence (same as manual path)
+        let webContext = '';
+        let webQueries: string[] = [];
+        let webCitations: GroundingCitation[] = [];
+        try {
+          const searchResult = await api.generateTextWithSearch(
+            `Fact-check this claim from an AI policy debate. Find recent, authoritative sources that support or contradict it. Be specific about what evidence you found.\n\nClaim: "${pNode.text}"`,
+            fcModel,
+          );
+          webContext = searchResult.text;
+          webQueries = searchResult.searchQueries || [];
+          webCitations = searchResult.citations || [];
+        } catch (searchErr) {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            debate_id: debate.id,
+            component: 'debate-store',
+            level: 'warn',
+            message: `Inline verify web search failed for ${pNode.id}`,
+            error: { name: (searchErr as Error).name ?? 'Error', message: String(searchErr), stack: (searchErr as Error).stack },
+          });
+          console.warn(`[Verify] Web search failed for ${pNode.id}, proceeding without:`, searchErr);
+          pushWarning(get, set, 'Web verification unavailable for some claims');
+          webContext = '(Web search unavailable)';
+        }
+
+        // Pass 2: structured verdict analysis with all evidence
+        const verdictPrompt = buildFactCheckPrompt(
+          pNode.text,
+          pNode.text,
+          '',
+          webContext && webContext !== '(Web search unavailable)' ? `=== WEB SEARCH RESULTS ===\n${webContext}` : '',
+          get().activeDebate?.audience,
+        );
+        const { text: vText } = await api.generateText(verdictPrompt, fcModel);
+        let vParsed = parseAIJson<{ verdict?: string; explanation?: string; evidence?: string; confidence?: string; discrepancy?: unknown }>(vText);
+        if (!vParsed) {
+          vParsed = { verdict: 'unverifiable', evidence: vText.trim() };
+        }
+        const explanation = vParsed.explanation || vParsed.evidence || '';
+        // Gate + normalize the auto-verification verdict (t/1828): unsourced
+        // `partially_accurate` → `unverifiable`, legacy `verified` → `supported`, so the
+        // verdict that reaches factCheckToBaseStrength (and verification_status) is correct.
+        const validated = validateFactCheckResult({ ...vParsed, explanation }, get().activeDebate?.id);
+        const verdict = validated.verdict;
+
+        if (vParsed.verdict) {
+          pNode.verification_status = verdict;
+          pNode.verification_evidence = explanation;
+
+          // Update base_strength from fact-check verdict (theory-of-success §4.4)
+          const fcConfidence = vParsed.confidence as string | undefined;
+          pNode.base_strength = factCheckToBaseStrength(verdict, fcConfidence);
+          pNode.scoring_method = 'fact_check';
+
+          factCheckMutated = true;
+          phaseGuardedSet(get, set, {});  // trigger re-render without clobbering phase
+
+          if (verdict === 'disputed' || verdict === 'supported') {
+            const addEntry = get().addTranscriptEntry;
+            const hasWeb = !!webContext && webContext !== '(Web search unavailable)';
+            const webNote = webQueries.length > 0
+              ? `\n\n*Web sources consulted: ${webQueries.slice(0, 3).join(', ')}*`
+              : hasWeb
+                ? '\n\n*Verified against web search results*'
+                : '';
+            if (addEntry) {
+              const verdictLabel = verdict === 'disputed' ? 'Disputed' : 'Supported';
+              addEntry({
+                type: 'fact-check',
+                speaker: 'system',
+                content: `**Fact Check: ${verdictLabel}**\n\n"${pNode.text}"\n\n${explanation}${webNote}`,
+                taxonomy_refs: [],
+                metadata: {
+                  fact_check: {
+                    verdict,
+                    explanation,
+                    ...(validated.discrepancy ? { discrepancy: validated.discrepancy } : {}),
+                    checked_text: pNode.text,
+                    web_search_used: hasWeb,
+                    web_search_queries: webQueries.length ? webQueries : undefined,
+                    web_search_evidence: hasWeb ? webContext : undefined,
+                    web_search_citations: webCitations.length ? webCitations : undefined,
+                    target_an_id: pNode.id,
+                  },
+                },
+              });
+            }
+
+            // Create an AN node + edge capturing the fact-check finding so the
+            // argument network reflects the evidence (mirrors manual fact-check path).
+            const cur = get().activeDebate as DebateSession | null;
+            if (cur) {
+              const attackType = verdict === 'disputed' ? 'attacks' : 'supports';
+              const factCheckEntryId = cur.transcript[cur.transcript.length - 1]?.id || entryId;
+              const fcNode: ArgumentNetworkNode = {
+                id: 'pending-fc-node',
+                text: `Fact-check (${verdict}): ${explanation}`,
+                speaker: 'system',
+                source_entry_id: factCheckEntryId,
+                taxonomy_refs: [],
+                turn_number: cur.transcript.length,
+                base_strength: attackType === 'attacks' ? 0.7 : 0.6,
+                scoring_method: 'bdi_criteria',
+                bdi_category: 'belief',
+                specificity: 'precise',
+              };
+              const fcEdge: ArgumentNetworkEdge = {
+                id: 'pending-fc-edge',
+                source: 'pending-fc-node',
+                target: pNode.id,
+                type: attackType,
+                attack_type: attackType === 'attacks' ? 'rebut' : undefined,
+                scheme: attackType === 'attacks' ? 'EMPIRICAL CHALLENGE' : 'EXTEND',
+                warrant: `Inline fact-check evidence (web search): ${String(explanation).slice(0, 100)}`,
+                argumentation_scheme: 'ARGUMENT_FROM_EVIDENCE',
+              };
+              commitAnNodes(get, set, `factcheck(inline,pNode=${pNode.id})`, [fcNode], [fcEdge]);
+              factCheckMutated = true;
+            }
+          }
+        }
+      } catch (verifyErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          debate_id: debate.id,
+          component: 'debate-store',
+          level: 'warn',
+          message: `Inline verification failed for ${pNode.id}`,
+          error: { name: (verifyErr as Error).name ?? 'Error', message: String(verifyErr), stack: (verifyErr as Error).stack },
+        });
+        console.warn(`[Verify] Inline verification failed for ${pNode.id} (non-blocking):`, verifyErr);
+        pushWarning(get, set, 'Claim verification skipped');
+        pNode.verification_status = 'pending';
+      }
+    }
+}
+
 export async function extractClaimsAndUpdateAN(
   statement: string,
   speaker: SpeakerId,
@@ -554,285 +1237,12 @@ export async function extractClaimsAndUpdateAN(
       return;
     }
 
-    // Embed new AN nodes for AN-based taxonomy relevance scoring (non-blocking)
-    for (const node of newNodes) {
-      try {
-        const { vector } = await api.computeQueryEmbedding(node.text.slice(0, 300));
-        if (vector && vector.length > 0) node.embedding = vector;
-      } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn', message: 'AN node embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
-      if (node.attribution_text_genus) {
-        try {
-          const { vector } = await api.computeQueryEmbedding(node.attribution_text_genus.slice(0, 300));
-          if (vector && vector.length > 0) node.attribution_embedding = vector;
-        } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn', message: 'AN node genus embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
-      }
-    }
+    await embedNewAnNodes(newNodes, debate);
 
-    // Per-claim taxonomy attribution (t/110): compare AN embeddings against same-POV nodes (all BDI categories)
-    if (newNodes.length > 0) {
-      const speakerPov = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.pov;
-      if (speakerPov) {
-        try {
-          const taxState = useTaxonomyStore.getState();
-          const povFile = taxState[speakerPov as keyof typeof taxState] as { nodes: { id: string; category: string; label: string; description: string }[] } | null;
-          const povNodes = povFile?.nodes ?? [];
-          const allPovNodeIds = new Set(povNodes.map((n) => n.id));
+    await computeTaxonomyAttribution(newNodes, speaker, extractionTrace, debate);
 
-          // Ensure we have embeddings for POV nodes — load from embeddings.json via IPC
-          let embCache = taxState.embeddingCache;
-          if (embCache.size === 0 || !povNodes.some(n => embCache.has(n.id))) {
-            const { ids, texts } = taxState.buildEmbeddingTexts(new Set(), new Set());
-            if (ids.length > 0) {
-              const { vectors } = await api.computeEmbeddings(texts, ids);
-              embCache = new Map<string, number[]>();
-              for (let i = 0; i < ids.length; i++) {
-                if (vectors[i]?.length > 0) embCache.set(ids[i], vectors[i]);
-              }
-              useTaxonomyStore.setState({ embeddingCache: embCache, embeddingDirty: false });
-            }
-          }
-
-          // Build nodeEmbeddings from embeddingCache — add pov from node ID prefix
-          const baseNodeEmbeddings: Record<string, { pov: string; vector: number[] }> = {};
-          const povMap: Record<string, string> = { acc: 'accelerationist', saf: 'safetyist', skp: 'skeptic' };
-          for (const [nodeId, vector] of embCache) {
-            const prefix = nodeId.split('-')[0];
-            const pov = povMap[prefix];
-            if (pov && vector.length > 0) {
-              baseNodeEmbeddings[nodeId] = { pov, vector };
-            }
-          }
-
-          // Merge synthetic multi-vector embeddings when available
-          const synVecs = await loadSyntheticVectors();
-          const nodeEmbeddings = synVecs
-            ? mergeSyntheticVectors(baseNodeEmbeddings, synVecs)
-            : baseNodeEmbeddings;
-
-          const attrResult = computeClaimTaxonomyAttribution(
-            newNodes, speakerPov, nodeEmbeddings, allPovNodeIds,
-          );
-          extractionTrace.attribution_attributed = attrResult.attributed;
-          extractionTrace.attribution_unattributed = attrResult.unattributed;
-          extractionTrace.attribution_missing_embedding = attrResult.missing_embedding;
-          extractionTrace.attribution_novel_argument = attrResult.novel_argument;
-          extractionTrace.attribution_decisions = attrResult.decisions;
-        } catch (e) {
-          getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn', message: 'Claim taxonomy attribution failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } });
-          // Attribution failure never blocks extraction
-        }
-      }
-    }
-
-    // ── Pre-commit lookahead gate (t/34) — evaluate before committing ──
-    let lookaheadDiag: LookaheadDiagnostics | undefined;
-    let bestPerClaim: PerClaimResult[] | undefined;
-    try {
-      const lookaheadStart = Date.now();
-      const lookaheadInput = {
-        speaker,
-        existingNodes: an.nodes,
-        existingEdges: an.edges,
-        tentativeClaims: newNodes.map(n => ({ text: n.text, base_strength: n.base_strength ?? 0.5 })),
-        tentativeEdges: newEdges,
-        cruxes: debate.crux_tracker,
-      };
-      const { batchResult: firstResult, perClaim: firstPerClaim } = evaluateLookaheadPerClaim(lookaheadInput);
-      bestPerClaim = firstPerClaim;
-
-      const MAX_REGEN_ATTEMPTS = 3;
-      let bestResult = firstResult;
-      let bestNodes = [...newNodes];
-      let bestEdges = [...newEdges];
-      let bestStatement: string | null = null;
-      const regenAttempts: LookaheadGateResult[] = [];
-      const perClaimAnalysisLog: { perClaim: PerClaimResult[]; analysis: ClaimAnalysis }[] = [];
-
-      if (!firstResult.pass && regenCallback) {
-        // Seed cumulative guidance from the first attempt's per-claim analysis
-        const firstAnalysis = buildClaimAnalysis(firstPerClaim);
-        perClaimAnalysisLog.push({ perClaim: firstPerClaim, analysis: firstAnalysis });
-        const cumulativeStrong = [...firstAnalysis.strongFoundations];
-        const cumulativeAvoid = [...firstAnalysis.avoidClaims];
-
-        for (let attempt = 0; attempt < MAX_REGEN_ATTEMPTS; attempt++) {
-          console.log(`[Lookahead] Gate failed (Δu=${bestResult.utility_delta.toFixed(3)}), requesting regen ${attempt + 1}/${MAX_REGEN_ATTEMPTS} (${cumulativeStrong.length} strong, ${cumulativeAvoid.length} avoid)`);
-          getGlobalRecorder()?.record({ type: 'lookahead.regen', component: 'argument-network-extraction', level: 'info', debate_id: debate.id, turn_id: entryId, speaker, message: `Lookahead gate failed, triggering regen attempt ${attempt + 1}`, data: { attempt: attempt + 1, utility_delta: bestResult.utility_delta, threshold: bestResult.threshold, strong_count: cumulativeStrong.length, avoid_count: cumulativeAvoid.length } });
-
-          const regenResult = await regenCallback({
-            strongFoundations: cumulativeStrong.length > 0 ? cumulativeStrong : undefined,
-            avoidClaims: cumulativeAvoid.length > 0 ? cumulativeAvoid : undefined,
-          });
-          if (!regenResult) break; // callback returned null — stop retrying
-
-          // Re-extract claims from regenerated response
-          const regenPrompt = regenResult.debaterClaims && regenResult.debaterClaims.length > 0
-            ? classifyClaimsPrompt(regenResult.statement, speakerLabel, regenResult.debaterClaims, priorClaims)
-            : extractClaimsPrompt(regenResult.statement, speakerLabel, priorClaims);
-          try {
-            const { text: regenText } = await api.generateText(regenPrompt, model);
-            const regenParsed = parseAIJson<{ claims?: typeof parsed.claims }>(regenText);
-
-            if (!regenParsed?.claims || !Array.isArray(regenParsed.claims) || regenParsed.claims.length === 0) {
-              regenAttempts.push({ ...bestResult, pass: false, tentative_claims: [], tentative_network_size: { nodes: 0, edges: 0 } });
-              continue;
-            }
-
-            const taxEdgesRetry = useTaxonomyStore.getState().edgesFile?.edges;
-            const regenClaims = processExtractedClaims(
-              {
-                claims: regenParsed.claims,
-                statement: regenResult.statement,
-                speaker,
-                entryId,
-                taxonomyRefIds: taxonomyRefs,
-                turnNumber,
-                existingNodes: an.nodes,
-                existingEdgeCount: an.edges.length,
-                startNodeId: an.nodes.length + 1,
-                taxonomyEdges: taxEdgesRetry,
-              },
-              { groundingOverlapThreshold: 0.3, isClassifyPath: !!(regenResult.debaterClaims && regenResult.debaterClaims.length > 0) },
-            );
-
-            if (regenClaims.newNodes.length === 0) {
-              regenAttempts.push({ ...bestResult, pass: false, tentative_claims: [], tentative_network_size: { nodes: 0, edges: 0 } });
-              continue;
-            }
-
-            // Embed retry claims
-            for (const node of regenClaims.newNodes) {
-              try {
-                const { vector } = await api.computeQueryEmbedding(node.text.slice(0, 300));
-                if (vector && vector.length > 0) node.embedding = vector;
-              } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn', message: 'Regen claim embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
-            }
-
-            // Per-claim evaluation on retry claims
-            const { batchResult: retryResult, perClaim: retryPerClaim } = evaluateLookaheadPerClaim({
-              speaker,
-              existingNodes: an.nodes,
-              existingEdges: an.edges,
-              tentativeClaims: regenClaims.newNodes.map(n => ({ text: n.text, base_strength: n.base_strength ?? 0.5 })),
-              tentativeEdges: regenClaims.newEdges,
-              cruxes: debate.crux_tracker,
-            });
-            regenAttempts.push(retryResult);
-
-            // Accumulate analysis from this attempt for subsequent retries
-            const retryAnalysis = buildClaimAnalysis(retryPerClaim);
-            perClaimAnalysisLog.push({ perClaim: retryPerClaim, analysis: retryAnalysis });
-            // Merge: add new strong/avoid items, dedup by text
-            const seenStrong = new Set(cumulativeStrong.map(s => s.text));
-            for (const s of retryAnalysis.strongFoundations) {
-              if (!seenStrong.has(s.text)) { cumulativeStrong.push(s); seenStrong.add(s.text); }
-            }
-            const seenAvoid = new Set(cumulativeAvoid.map(a => a.text));
-            for (const a of retryAnalysis.avoidClaims) {
-              if (!seenAvoid.has(a.text)) { cumulativeAvoid.push(a); seenAvoid.add(a.text); }
-            }
-
-            // Track the best attempt — use if it passes or beats previous best
-            if (retryResult.pass || retryResult.utility_delta > bestResult.utility_delta) {
-              bestResult = retryResult;
-              bestPerClaim = retryPerClaim;
-              bestNodes = regenClaims.newNodes;
-              bestEdges = regenClaims.newEdges;
-              bestStatement = regenResult.statement;
-              console.log(`[Lookahead] Attempt ${attempt + 1} improved: Δu=${retryResult.utility_delta.toFixed(3)} (was ${firstResult.utility_delta.toFixed(3)})`);
-            }
-
-            // Stop early if we pass
-            if (retryResult.pass) break;
-          } catch (regenErr) {
-            getGlobalRecorder()?.record({
-              type: 'system.error',
-              debate_id: debate.id,
-              component: 'debate-store',
-              level: 'warn',
-              message: `Lookahead regen attempt ${attempt + 1} extraction failed`,
-              error: { name: (regenErr as Error).name ?? 'Error', message: String(regenErr), stack: (regenErr as Error).stack },
-            });
-            console.warn(`[Lookahead] Regen attempt ${attempt + 1} extraction failed:`, regenErr);
-            break;
-          }
-        }
-
-        // Apply best result: update claims and transcript only if an attempt improved on the original
-        if (bestResult !== firstResult) {
-          newNodes.length = 0;
-          newNodes.push(...bestNodes);
-          newEdges.length = 0;
-          newEdges.push(...bestEdges);
-          extractionTrace.candidates_accepted = newNodes.length;
-
-          // Update transcript entry with the best regenerated statement
-          if (bestStatement) {
-            const currDebate = get().activeDebate as DebateSession | null;
-            if (currDebate) {
-              const updatedTranscript = currDebate.transcript.map(e =>
-                e.id === entryId ? { ...e, content: bestStatement!, metadata: { ...(e.metadata as Record<string, unknown>), lookahead_regenerated: true, lookahead_regen_attempts: regenAttempts.length } } : e,
-              );
-              phaseGuardedSet(get, set, { transcript: updatedTranscript });
-            }
-          }
-        }
-
-        lookaheadDiag = {
-          stage: 'lookahead',
-          first_attempt: firstResult,
-          regen_triggered: true,
-          regen_attempt: regenAttempts[regenAttempts.length - 1], // backwards compat
-          regen_attempts: regenAttempts,
-          per_claim_analysis: perClaimAnalysisLog,
-          final_pass: bestResult !== firstResult && (bestResult.pass || bestResult.utility_delta > firstResult.utility_delta),
-          elapsed_ms: Date.now() - lookaheadStart,
-        };
-      } else {
-        // Gate passed or no regen callback — still record per-claim analysis for diagnostics
-        const firstAnalysis = buildClaimAnalysis(firstPerClaim);
-        lookaheadDiag = {
-          stage: 'lookahead',
-          first_attempt: firstResult,
-          regen_triggered: false,
-          per_claim_analysis: [{ perClaim: firstPerClaim, analysis: firstAnalysis }],
-          final_pass: firstResult.pass,
-          elapsed_ms: Date.now() - lookaheadStart,
-        };
-      }
-    } catch (err) {
-      getGlobalRecorder()?.record({
-        type: 'system.error',
-        debate_id: debate.id,
-        component: 'debate-store',
-        level: 'warn',
-        message: 'Lookahead pre-commit gate evaluation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-      });
-      console.warn('[Lookahead] Pre-commit gate evaluation failed (non-blocking):', err);
-    }
-    // Filter WEAK claims from passing batches before commit (t/459)
-    if (lookaheadDiag?.final_pass && debate.lookahead_filter_weak !== false && bestPerClaim) {
-      const weakIndices = new Set(
-        bestPerClaim.filter(pc => pc.classification === 'WEAK').map(pc => pc.index),
-      );
-      if (weakIndices.size > 0) {
-        const filteredTexts = [...weakIndices].map(i => newNodes[i]?.text).filter(Boolean);
-        const removedIds = new Set(newNodes.filter((_, i) => weakIndices.has(i)).map(n => n.id));
-        newNodes.splice(0, newNodes.length, ...newNodes.filter((_, i) => !weakIndices.has(i)));
-        newEdges.splice(0, newEdges.length, ...newEdges.filter(e => !removedIds.has(e.source) && !removedIds.has(e.target)));
-        extractionTrace.candidates_accepted = newNodes.length;
-        lookaheadDiag.filtered_weak_claims = filteredTexts;
-        getGlobalRecorder()?.record({
-          type: 'debate.lookahead.filter',
-          debate_id: debate.id,
-          component: 'debate-store',
-          level: 'info',
-          message: `Filtered ${weakIndices.size} WEAK claim(s) from passing lookahead batch`,
-          data: { filtered_count: weakIndices.size, remaining_count: newNodes.length },
-        });
-      }
-    }
+    const { lookaheadDiag, bestPerClaim } = await runLookaheadGate(speaker, an, newNodes, newEdges, debate, regenCallback, entryId, speakerLabel, priorClaims, taxonomyRefs, turnNumber, model, get, set, extractionTrace, parsed);
+    filterWeakClaims(lookaheadDiag, bestPerClaim, newNodes, newEdges, extractionTrace, debate);
 
     if (lookaheadDiag) recordDiagnostic(get, set, entryId, { lookahead: lookaheadDiag });
 
@@ -873,383 +1283,11 @@ export async function extractClaimsAndUpdateAN(
       duration_ms: Date.now() - extractStartedAt,
     });
 
-    // ── Post-extraction analytics (batched into a single set() to avoid re-render storm) ──
-    const baseDebate = get().activeDebate;
-    if (baseDebate?.argument_network) {
-      const an = baseDebate.argument_network;
-      const patches: Partial<typeof baseDebate> = {};
+    await runPostExtractionAnalytics(get, set, entryId, speaker);
 
-      // 1. QBAF strength propagation — computed ONCE, reused by convergence signals and GC
-      const qNodes: QbafNode[] = an.nodes.map((n: ArgumentNetworkNode) => ({ id: n.id, base_strength: n.base_strength ?? 0.5 }));
-      const qEdges: QbafEdge[] = an.edges.map((e: ArgumentNetworkEdge) => ({
-        source: e.source, target: e.target,
-        type: e.type as 'attacks' | 'supports',
-        weight: e.weight ?? 0.5,
-        attack_type: e.attack_type,
-      }));
-      const qbafResult = computeQbafStrengths(qNodes, qEdges);
-      getGlobalRecorder()?.record({ type: 'an.qbaf', component: 'qbaf', level: 'info', debate_id: baseDebate.id, turn_id: entryId, message: `QBAF propagation: ${qbafResult.iterations} iterations`, data: { iterations: qbafResult.iterations, converged: qbafResult.converged, node_count: qNodes.length } });
-      let currentNodes = an.nodes.map((n: ArgumentNetworkNode) => ({
-        ...n,
-        computed_strength: qbafResult.strengths.get(n.id) ?? n.computed_strength,
-      }));
-      let currentEdges = an.edges;
+    await runSteelmanValidation(newNodes, get, set, speaker, debate);
 
-      // 2. Convergence tracker
-      const getLabelForId = useTaxonomyStore.getState().getLabelForId;
-      const turnNumber = an.nodes.length;
-      patches.convergence_tracker = updateConvergenceTracker(
-        baseDebate.convergence_tracker,
-        { ...an, nodes: currentNodes },
-        baseDebate.commitments || {},
-        turnNumber,
-        getLabelForId,
-      );
-
-      // 3. Unanswered claims ledger
-      patches.unanswered_claims_ledger = updateUnansweredLedger(
-        baseDebate.unanswered_claims_ledger ?? [],
-        currentNodes,
-        currentEdges,
-        baseDebate.transcript.length,
-      );
-
-      // 4. Convergence signals (reuses QBAF strengths via precomputedStrengths param)
-      if (entryId) {
-        try {
-          let turnEmbeddings: Map<string, number[]> | undefined;
-          const cachedEmbeddings = { ...(baseDebate.turn_embeddings ?? {}) };
-          try {
-            const currentEntry = baseDebate.transcript.find((e: { id: string }) => e.id === entryId);
-            if (currentEntry) {
-              const { vector } = await api.computeQueryEmbedding(currentEntry.content.slice(0, 1000));
-              cachedEmbeddings[entryId] = vector;
-            }
-            turnEmbeddings = new Map(Object.entries(cachedEmbeddings));
-          } catch (e) {
-            getGlobalRecorder()?.record({ type: 'system.error', debate_id: baseDebate.id, component: 'debate-store', level: 'warn', message: 'Convergence turn embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } });
-            if (Object.keys(cachedEmbeddings).length > 0) {
-              turnEmbeddings = new Map(Object.entries(cachedEmbeddings));
-            }
-          }
-          // Prune stale turn embeddings — keep only the most recent N entries
-          const recentEntryIds = new Set(
-            baseDebate.transcript.slice(-TURN_EMBEDDING_WINDOW).map((e: { id: string }) => e.id),
-          );
-          for (const key of Object.keys(cachedEmbeddings)) {
-            if (!recentEntryIds.has(key)) delete cachedEmbeddings[key];
-          }
-          patches.turn_embeddings = cachedEmbeddings;
-
-          const sig = computeConvergenceSignals(
-            entryId,
-            speaker,
-            baseDebate.transcript,
-            currentNodes,
-            currentEdges,
-            baseDebate.convergence_signals ?? [],
-            turnEmbeddings,
-            qbafResult.strengths,
-            baseDebate.topic?.embedding,
-            baseDebate.topic?.clause_embeddings,
-          );
-          patches.convergence_signals = [...(get().activeDebate?.convergence_signals ?? []), sig];
-          getGlobalRecorder()?.record({ type: 'debate.signal', component: 'convergence-signals', level: 'info', debate_id: baseDebate.id, turn_id: entryId, speaker, message: 'Convergence signals computed', data: { round: sig.round, move_polarity: sig.move_polarity?.ratio, dialectical_engagement: sig.dialectical_engagement?.ratio, argument_redundancy: sig.argument_redundancy?.avg_self_overlap, crux_engagement_rate: sig.crux_engagement_rate?.cumulative_count } });
-
-          // 4b. Process reward — continuous turn quality score (PRM-adjacent signal)
-          const turnTrail = get().activeDebate?.turn_validations?.[entryId];
-          const turnValidation = turnTrail?.final;
-          if (turnValidation) {
-            const currentEntry = baseDebate.transcript.find((e: { id: string }) => e.id === entryId);
-            const entryMeta = currentEntry?.metadata as Record<string, unknown> | undefined;
-            const moveTypes = (entryMeta?.move_types as (string | MoveAnnotation)[]) ?? [];
-            const phase = ((entryMeta?.debate_phase as string) ?? 'argumentation') as DebatePhase;
-
-            // Count prior turn's distinct moves for diversity comparison
-            const priorSpeakerEntry = baseDebate.transcript
-              .filter((e: { speaker: string; type: string }) => e.speaker === speaker && e.type === 'statement')
-              .slice(-2)[0]; // second-to-last statement by this speaker
-            const priorMeta = priorSpeakerEntry?.metadata as Record<string, unknown> | undefined;
-            const priorMoves = (priorMeta?.move_types as (string | MoveAnnotation)[]) ?? [];
-
-            const pr = computeProcessReward({
-              convergenceSignals: sig,
-              turnValidation,
-              phase,
-              moveCount: moveTypes.length,
-              priorMoveCount: priorMoves.length > 0 ? priorMoves.length : undefined,
-              taxonomyRefCount: currentEntry?.taxonomy_refs?.length ?? 0,
-            });
-
-            const prEntry: ProcessRewardEntry = {
-              entry_id: entryId,
-              round: sig.round,
-              speaker,
-              phase,
-              score: pr.score,
-              components: pr.components,
-            };
-            patches.process_rewards = [...(get().activeDebate?.process_rewards ?? []), prEntry];
-            getGlobalRecorder()?.record({ type: 'debate.signal', component: 'process-reward', level: 'info', debate_id: baseDebate.id, turn_id: entryId, speaker, message: `Process reward: ${pr.score.toFixed(3)}`, data: { score: pr.score, ...pr.components } });
-          }
-        } catch (convErr) {
-          getGlobalRecorder()?.record({
-            type: 'system.error',
-            debate_id: baseDebate.id,
-            component: 'debate-store',
-            level: 'warn',
-            message: 'Convergence signal computation failed',
-            error: { name: (convErr as Error).name ?? 'Error', message: String(convErr), stack: (convErr as Error).stack },
-          });
-          console.warn('[Convergence] Signal computation failed (non-blocking):', convErr);
-          pushWarning(get, set, 'Convergence analysis skipped this turn');
-        }
-      }
-
-      // 5. Network GC (uses QBAF-updated computed_strength already on nodes)
-      if (needsGc(currentNodes.length, GC_TRIGGER)) {
-        const gcResult = pruneArgumentNetwork(currentNodes, currentEdges, GC_TARGET);
-        if (gcResult.prunedNodes.length > 0) {
-          currentNodes = gcResult.nodes;
-          currentEdges = gcResult.edges;
-          console.info(`[AN-GC] Pruned ${gcResult.before} → ${gcResult.after} nodes`);
-          getGlobalRecorder()?.record({ type: 'an.gc', component: 'argument-network-extraction', level: 'info', debate_id: baseDebate.id, message: `Network GC: ${gcResult.before} → ${gcResult.after} nodes`, data: { nodes_before: gcResult.before, nodes_after: gcResult.after, edges_removed: gcResult.prunedNodes.length } });
-        }
-      }
-
-      // 6. Crux resolution tracking
-      try {
-        patches.crux_tracker = updateCruxTracker(
-          baseDebate.crux_tracker,
-          currentNodes,
-          currentEdges,
-          baseDebate.commitments ?? {},
-          turnNumber,
-        );
-      } catch (cruxErr) {
-        getGlobalRecorder()?.record({
-          type: 'system.error',
-          debate_id: baseDebate.id,
-          component: 'debate-store',
-          level: 'warn',
-          message: 'Crux resolution tracker update failed',
-          error: { name: (cruxErr as Error).name ?? 'Error', message: String(cruxErr), stack: (cruxErr as Error).stack },
-        });
-        console.warn('[CruxResolution] Tracker update failed (non-blocking):', cruxErr);
-        pushWarning(get, set, 'Crux resolution tracking skipped');
-      }
-
-      // Single batched state update — re-read fresh state to avoid clobbering
-      // concurrent writes (turn_validations, position_drift, adaptive_staging)
-      // from the main crossRespond flow which runs in parallel.
-      const freshForBatch = get().activeDebate;
-      if (freshForBatch) {
-        set({
-          activeDebate: {
-            ...freshForBatch,
-            ...patches,
-            argument_network: { ...an, nodes: currentNodes, edges: currentEdges },
-          },
-        });
-      }
-    }
-
-    // Steelman validation (non-blocking)
-    const steelmanNodes = newNodes.filter(n => n.steelman_of);
-    if (steelmanNodes.length > 0) {
-      try {
-        for (const sNode of steelmanNodes) {
-          const targetPover = sNode.steelman_of!;
-          const targetCommits = (get().activeDebate?.commitments?.[targetPover] as CommitmentStore | undefined);
-          if (!targetCommits || targetCommits.asserted.length === 0) continue;
-
-          const pairs = targetCommits.asserted.slice(-10).map(assertion => ({
-            text_a: sNode.text,
-            text_b: assertion,
-          }));
-          const nliResult = await api.nliClassify(pairs);
-          const maxEntailment = Math.max(...nliResult.results.map(r => r.nli_entailment ?? 0));
-
-          if (maxEntailment < 0.6) {
-            const targetLabel = POVER_INFO[targetPover as Exclude<SpeakerId, 'user'>]?.label ?? targetPover;
-            const speakerLbl = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label ?? speaker;
-            const topAssertions = targetCommits.asserted.slice(-3).map(a => `"${a}"`).join('; ');
-
-            const addEntry = get().addTranscriptEntry;
-            if (addEntry) {
-              const steelEntryId = addEntry({
-                type: 'system',
-                speaker: 'system',
-                content: `[Steelman check] ${speakerLbl}'s steelman of ${targetLabel}'s position (max entailment: ${maxEntailment.toFixed(2)}) diverges from their actual assertions. ${targetLabel} actually asserted: ${topAssertions}`,
-                taxonomy_refs: [],
-              });
-              recordDiagnostic(get, set, steelEntryId, {
-                raw_response: JSON.stringify({ steelman_text: sNode.text, target_pover: targetPover, max_entailment: maxEntailment, nli_results: nliResult.results }),
-                model: 'nli',
-              });
-            }
-          }
-        }
-      } catch (nliErr) {
-        getGlobalRecorder()?.record({
-          type: 'system.error',
-          debate_id: debate.id,
-          component: 'debate-store',
-          level: 'warn',
-          message: 'Steelman NLI validation failed',
-          error: { name: (nliErr as Error).name ?? 'Error', message: String(nliErr), stack: (nliErr as Error).stack },
-        });
-        console.warn('[Steelman] NLI validation failed (non-blocking):', nliErr);
-        pushWarning(get, set, 'Steelman validation skipped this turn');
-      }
-    }
-
-    // Inline empirical claim verification (non-blocking)
-    // Uses the same two-pass approach as the manual factCheckSelection path:
-    //   Pass 1: grounded web search for evidence
-    //   Pass 2: structured verdict analysis with the evidence
-    const preciseBeliefs = newNodes.filter(n => n.bdi_category === 'belief' && n.specificity === 'precise');
-    let factCheckMutated = false;
-    for (const pNode of preciseBeliefs.slice(0, 2)) {
-      try {
-        const fcModel = getConfiguredModel();
-
-        // Pass 1: web search for evidence (same as manual path)
-        let webContext = '';
-        let webQueries: string[] = [];
-        let webCitations: GroundingCitation[] = [];
-        try {
-          const searchResult = await api.generateTextWithSearch(
-            `Fact-check this claim from an AI policy debate. Find recent, authoritative sources that support or contradict it. Be specific about what evidence you found.\n\nClaim: "${pNode.text}"`,
-            fcModel,
-          );
-          webContext = searchResult.text;
-          webQueries = searchResult.searchQueries || [];
-          webCitations = searchResult.citations || [];
-        } catch (searchErr) {
-          getGlobalRecorder()?.record({
-            type: 'system.error',
-            debate_id: debate.id,
-            component: 'debate-store',
-            level: 'warn',
-            message: `Inline verify web search failed for ${pNode.id}`,
-            error: { name: (searchErr as Error).name ?? 'Error', message: String(searchErr), stack: (searchErr as Error).stack },
-          });
-          console.warn(`[Verify] Web search failed for ${pNode.id}, proceeding without:`, searchErr);
-          pushWarning(get, set, 'Web verification unavailable for some claims');
-          webContext = '(Web search unavailable)';
-        }
-
-        // Pass 2: structured verdict analysis with all evidence
-        const verdictPrompt = buildFactCheckPrompt(
-          pNode.text,
-          pNode.text,
-          '',
-          webContext && webContext !== '(Web search unavailable)' ? `=== WEB SEARCH RESULTS ===\n${webContext}` : '',
-          get().activeDebate?.audience,
-        );
-        const { text: vText } = await api.generateText(verdictPrompt, fcModel);
-        let vParsed = parseAIJson<{ verdict?: string; explanation?: string; evidence?: string; confidence?: string; discrepancy?: unknown }>(vText);
-        if (!vParsed) {
-          vParsed = { verdict: 'unverifiable', evidence: vText.trim() };
-        }
-        const explanation = vParsed.explanation || vParsed.evidence || '';
-        // Gate + normalize the auto-verification verdict (t/1828): unsourced
-        // `partially_accurate` → `unverifiable`, legacy `verified` → `supported`, so the
-        // verdict that reaches factCheckToBaseStrength (and verification_status) is correct.
-        const validated = validateFactCheckResult({ ...vParsed, explanation }, get().activeDebate?.id);
-        const verdict = validated.verdict;
-
-        if (vParsed.verdict) {
-          pNode.verification_status = verdict;
-          pNode.verification_evidence = explanation;
-
-          // Update base_strength from fact-check verdict (theory-of-success §4.4)
-          const fcConfidence = vParsed.confidence as string | undefined;
-          pNode.base_strength = factCheckToBaseStrength(verdict, fcConfidence);
-          pNode.scoring_method = 'fact_check';
-
-          factCheckMutated = true;
-          phaseGuardedSet(get, set, {});  // trigger re-render without clobbering phase
-
-          if (verdict === 'disputed' || verdict === 'supported') {
-            const addEntry = get().addTranscriptEntry;
-            const hasWeb = !!webContext && webContext !== '(Web search unavailable)';
-            const webNote = webQueries.length > 0
-              ? `\n\n*Web sources consulted: ${webQueries.slice(0, 3).join(', ')}*`
-              : hasWeb
-                ? '\n\n*Verified against web search results*'
-                : '';
-            if (addEntry) {
-              const verdictLabel = verdict === 'disputed' ? 'Disputed' : 'Supported';
-              addEntry({
-                type: 'fact-check',
-                speaker: 'system',
-                content: `**Fact Check: ${verdictLabel}**\n\n"${pNode.text}"\n\n${explanation}${webNote}`,
-                taxonomy_refs: [],
-                metadata: {
-                  fact_check: {
-                    verdict,
-                    explanation,
-                    ...(validated.discrepancy ? { discrepancy: validated.discrepancy } : {}),
-                    checked_text: pNode.text,
-                    web_search_used: hasWeb,
-                    web_search_queries: webQueries.length ? webQueries : undefined,
-                    web_search_evidence: hasWeb ? webContext : undefined,
-                    web_search_citations: webCitations.length ? webCitations : undefined,
-                    target_an_id: pNode.id,
-                  },
-                },
-              });
-            }
-
-            // Create an AN node + edge capturing the fact-check finding so the
-            // argument network reflects the evidence (mirrors manual fact-check path).
-            const cur = get().activeDebate as DebateSession | null;
-            if (cur) {
-              const attackType = verdict === 'disputed' ? 'attacks' : 'supports';
-              const factCheckEntryId = cur.transcript[cur.transcript.length - 1]?.id || entryId;
-              const fcNode: ArgumentNetworkNode = {
-                id: 'pending-fc-node',
-                text: `Fact-check (${verdict}): ${explanation}`,
-                speaker: 'system',
-                source_entry_id: factCheckEntryId,
-                taxonomy_refs: [],
-                turn_number: cur.transcript.length,
-                base_strength: attackType === 'attacks' ? 0.7 : 0.6,
-                scoring_method: 'bdi_criteria',
-                bdi_category: 'belief',
-                specificity: 'precise',
-              };
-              const fcEdge: ArgumentNetworkEdge = {
-                id: 'pending-fc-edge',
-                source: 'pending-fc-node',
-                target: pNode.id,
-                type: attackType,
-                attack_type: attackType === 'attacks' ? 'rebut' : undefined,
-                scheme: attackType === 'attacks' ? 'EMPIRICAL CHALLENGE' : 'EXTEND',
-                warrant: `Inline fact-check evidence (web search): ${String(explanation).slice(0, 100)}`,
-                argumentation_scheme: 'ARGUMENT_FROM_EVIDENCE',
-              };
-              commitAnNodes(get, set, `factcheck(inline,pNode=${pNode.id})`, [fcNode], [fcEdge]);
-              factCheckMutated = true;
-            }
-          }
-        }
-      } catch (verifyErr) {
-        getGlobalRecorder()?.record({
-          type: 'system.error',
-          debate_id: debate.id,
-          component: 'debate-store',
-          level: 'warn',
-          message: `Inline verification failed for ${pNode.id}`,
-          error: { name: (verifyErr as Error).name ?? 'Error', message: String(verifyErr), stack: (verifyErr as Error).stack },
-        });
-        console.warn(`[Verify] Inline verification failed for ${pNode.id} (non-blocking):`, verifyErr);
-        pushWarning(get, set, 'Claim verification skipped');
-        pNode.verification_status = 'pending';
-      }
-    }
+    await runInlineFactCheck(newNodes, get, set, entryId, debate);
     try { await get().saveDebate('extractClaimsAndUpdateAN:postAnalytics'); } catch (saveErr) {
       getGlobalRecorder()?.record({
         type: 'system.error',
