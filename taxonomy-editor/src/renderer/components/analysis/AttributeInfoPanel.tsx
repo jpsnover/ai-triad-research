@@ -10,6 +10,7 @@ import type { AttributeInfo } from '../../data/epistemicTypeInfo';
 import { classifyLineage, getCategoryById, getL2CategoryLabel } from '../../data/lineageCategories';
 import { lookupLineage, getAllLineages } from '../../data/lineageLookup';
 import { api } from '@bridge';
+import './AttributeInfoPanel.css';
 
 interface AttributeInfoPanelProps {
   width?: number;
@@ -85,7 +86,11 @@ export function AttributeInfoPanel({ width }: AttributeInfoPanelProps) {
   };
 
   return (
-    <div className="strategy-info-panel" style={width ? { width, minWidth: 320 } : undefined}>
+    <div
+      className="strategy-info-panel"
+      /* eslint-disable-next-line local/no-inline-style -- dynamic: panel width driven by `width` prop */
+      style={width ? { width, minWidth: 320 } : undefined}
+    >
       <div className="strategy-info-header">
         <div>
           <div className="strategy-info-field-label">{fieldLabel}</div>
@@ -93,7 +98,7 @@ export function AttributeInfoPanel({ width }: AttributeInfoPanelProps) {
             {info ? info.label : formatValue(value)}
           </h3>
         </div>
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <div className="attrinfo-header-actions">
           <button className="pane-collapse-btn" onClick={() => setCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
           <button className="btn btn-ghost btn-sm" onClick={clearAttributeInfo}>
             Close

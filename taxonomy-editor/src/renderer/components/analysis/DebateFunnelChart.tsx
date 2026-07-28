@@ -61,6 +61,7 @@ export function DebateFunnelChart({ eventTypes }: { eventTypes?: Record<string, 
             <div className="funnel-bar-track">
               <div
                 className="funnel-bar"
+                /* eslint-disable-next-line local/no-inline-style -- dynamic: data-driven bar width/opacity/color */
                 style={{
                   width: `${(s.count / max) * 100}%`,
                   opacity: s.instrumented ? 1 : 0.3,

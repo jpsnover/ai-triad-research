@@ -71,7 +71,10 @@ export function DebateHealthCard({ eventTypes }: { eventTypes?: Record<string, n
         <div>{complete} done · {abandon} abandoned</div>
         <div>
           avg quality {quality ? quality.avg.toFixed(2) : '—'}
-          {quality && <span style={{ color: trendColor }}> {arrow}</span>}
+          {quality && (
+            /* eslint-disable-next-line local/no-inline-style -- dynamic: data-driven trend color */
+            <span style={{ color: trendColor }}> {arrow}</span>
+          )}
         </div>
       </div>
     </div>

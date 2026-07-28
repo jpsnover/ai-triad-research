@@ -1,0 +1,11 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Co-located styles for AttributeInfoPanel — migrated from inline (t/1865).
+   The panel width stays inline (conditional on the `width` prop). */
+
+.attrinfo-header-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}

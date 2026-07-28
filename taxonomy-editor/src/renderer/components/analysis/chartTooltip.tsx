@@ -36,6 +36,7 @@ export function ChartTooltipLayer({ tip }: { tip: ChartTip | null }) {
     <div
       className="chart-tooltip"
       role="tooltip"
+      /* eslint-disable-next-line local/no-inline-style -- dynamic: cursor-follow position + viewport clamp */
       style={{ left, top, transform: `translate(-50%, ${below ? '0' : '-100%'})` }}
     >
       {tip.content}
