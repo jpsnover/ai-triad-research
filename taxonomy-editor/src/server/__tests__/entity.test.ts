@@ -7,11 +7,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { IncomingMessage, ServerResponse } from 'http';
 
-const { readPolicyRegistryMock, readTaxonomyFileMock, loadDictionaryMock, getOrganizationByIdMock, recordMock } =
+const { readPolicyRegistryMock, readTaxonomyFileMock, loadDictionaryMock, readEntityRegistryMock, getOrganizationByIdMock, recordMock } =
   vi.hoisted(() => ({
     readPolicyRegistryMock: vi.fn(),
     readTaxonomyFileMock: vi.fn(),
     loadDictionaryMock: vi.fn(),
+    readEntityRegistryMock: vi.fn(),
     getOrganizationByIdMock: vi.fn(),
     recordMock: vi.fn(),
   }));
@@ -20,6 +21,7 @@ vi.mock('../storage/fileIO.js', () => ({
   readPolicyRegistry: readPolicyRegistryMock,
   readTaxonomyFile: readTaxonomyFileMock,
   loadDictionary: loadDictionaryMock,
+  readEntityRegistry: readEntityRegistryMock,
 }));
 vi.mock('../organizations.js', () => ({ getOrganizationById: getOrganizationByIdMock }));
 vi.mock('../../../../lib/flight-recorder/index.js', () => ({ getGlobalRecorder: () => ({ record: recordMock }) }));
@@ -56,6 +58,7 @@ describe('GET /api/entity/:ref (t/1786)', () => {
     readPolicyRegistryMock.mockReset();
     readTaxonomyFileMock.mockReset();
     loadDictionaryMock.mockReset();
+    readEntityRegistryMock.mockReset();
     getOrganizationByIdMock.mockReset();
     recordMock.mockReset();
 
@@ -72,6 +75,9 @@ describe('GET /api/entity/:ref (t/1786)', () => {
       lintViolations: [],
       colloquial: [{ colloquial_term: 'labor displacement', status: 'do_not_use_bare' }],
     });
+    // Default: entities.json absent (null) → ent-* resolves to not_found. Tests that
+    // exercise a populated registry override this with a Map (t/1829 / t/1807).
+    readEntityRegistryMock.mockResolvedValue(null);
   });
 
   it('resolves an organization ref (200, kind=organization)', async () => {
@@ -118,10 +124,34 @@ describe('GET /api/entity/:ref (t/1786)', () => {
     expect(body).not.toHaveProperty('record');
   });
 
-  it('returns not_found for ent-* (entities.json deferred)', async () => {
+  it('returns not_found for ent-* when the registry is absent (null store)', async () => {
+    // Server Storage returns null when entities.json is unpopulated (t/1807) — the
+    // not_found semantic is held stable until the store lands.
+    readEntityRegistryMock.mockResolvedValue(null);
     const { status, body } = await invoke('ent-001');
     expect(status).toBe(200);
     expect(body).toEqual({ kind: 'not_found', ref: { kind: 'entity', id: 'ent-001' } });
+    expect(body).not.toHaveProperty('record');
+  });
+
+  it('resolves an ent-* ref to its Entity record (200, kind=entity)', async () => {
+    readEntityRegistryMock.mockResolvedValue(new Map([
+      ['ent-001', { id: 'ent-001', name: 'OpenAI' } as unknown as Entity],
+    ]));
+    const { status, body } = await invoke('ent-001');
+    expect(status).toBe(200);
+    expect(body).toMatchObject({ kind: 'entity', ref: { kind: 'entity', id: 'ent-001' }, record: { id: 'ent-001', name: 'OpenAI' } });
+    expect(body).not.toHaveProperty('redirected_from');
+  });
+
+  it('follows a merged_into tombstone to the canonical Entity + stamps redirected_from', async () => {
+    readEntityRegistryMock.mockResolvedValue(new Map([
+      ['ent-001', { id: 'ent-001', merged_into: 'ent-002' } as unknown as Entity],
+      ['ent-002', { id: 'ent-002', name: 'Canonical' } as unknown as Entity],
+    ]));
+    const { status, body } = await invoke('ent-001');
+    expect(status).toBe(200);
+    expect(body).toMatchObject({ kind: 'entity', record: { id: 'ent-002', name: 'Canonical' }, redirected_from: 'ent-001' });
   });
 
   it('returns 400 for a malformed / unrecognized ref', async () => {

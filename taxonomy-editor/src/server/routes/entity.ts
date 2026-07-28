@@ -125,17 +125,14 @@ export function resolveMergedInto(
 }
 
 /**
- * Best-effort load of the entity registry (ent-* records) as an id→Entity map.
- *
- * DEFERRED (t/1786): entities.json does not exist yet — the §3 Entity record and
- * its storage land in a follow-up. Until then this returns null, so the `entity`
- * branch below always resolves to not_found. When entities.json ships, replace
- * this body with a fileIO read (a `readEntityRegistry()` storage method, Server
- * Storage scope) building the Map; the `resolveMergedInto` wiring below then goes
- * live unchanged.
+ * Load the entity registry (ent-* records) as an id→Entity map. Delegates to the
+ * Server-Storage-owned fileIO.readEntityRegistry() (t/1807: 30s TTL cache; returns
+ * null when entities.json is absent, which keeps the `entity` branch's not_found
+ * semantic stable until the store is populated). Wired live in t/1829 (was the
+ * deferred null stub from t/1786).
  */
 async function loadEntityRegistry(): Promise<Map<string, Entity> | null> {
-  return null;
+  return fileIO.readEntityRegistry();
 }
 
 export function registerEntityRoutes(r: Router, _ctx: ServerCtx): void {
@@ -195,11 +192,10 @@ export function registerEntityRoutes(r: Router, _ctx: ServerCtx): void {
         }
 
         case 'entity': {
-          // DEFERRED (t/1786): entities.json is not shipped yet — loadEntityRegistry
-          // returns null, so this resolves to not_found today. The resolveMergedInto
-          // wiring is live-but-inert: it activates automatically once the registry
-          // loads, following a merge tombstone to the canonical record and stamping
-          // redirected_from.
+          // t/1829: ent-* resolves via the entity registry (fileIO.readEntityRegistry,
+          // t/1807). resolveMergedInto follows a merge tombstone to the canonical
+          // record and stamps redirected_from. Absent store → registry is null →
+          // not_found (semantic held stable until entities.json is populated).
           const registry = await loadEntityRegistry();
           if (!registry) { json(res, notFound(ref)); return; }
           const resolved = resolveMergedInto(ref.id, id => registry.get(id) ?? null, { maxDepth: MAX_MERGE_DEPTH });
