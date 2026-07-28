@@ -24,6 +24,8 @@ import {
   stripCodeFences,
   parseJsonRobust,
 } from './helpers.js';
+import { ActionableError } from './errors.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 // ── Types ─────────────────────────────────────────────────
 
@@ -322,7 +324,7 @@ export async function runNeutralEvaluation(
   const startMs = Date.now();
   const result = await config.adapter.generateText(prompt, config.model, {
     temperature: 0.2,
-    maxTokens: 8192,
+    maxTokens: 24576,
     responseSchema: evaluationSchema,
   });
   const elapsedMs = Date.now() - startMs;
@@ -331,19 +333,58 @@ export async function runNeutralEvaluation(
   let parsed: NeutralEvaluation;
   try {
     parsed = parseJsonRobust(rawText) as NeutralEvaluation;
-  } catch {
-    // Fallback: return a minimal evaluation with the parse error noted
-    parsed = {
-      checkpoint,
-      timestamp: new Date().toISOString(),
-      cruxes: [],
-      claims: [],
-      overall_assessment: {
-        strongest_unaddressed_claim_id: null,
-        debate_is_engaging_real_disagreement: true,
-        notes: `Evaluation parse error. Raw response length: ${rawText.length} chars.`,
+  } catch (parseErr) {
+    getGlobalRecorder()?.record({
+      type: 'ai.error',
+      component: 'neutral-evaluator',
+      level: 'error',
+      message: `Neutral evaluation (${checkpoint}) JSON parse failed — aborting to prevent silent 0-crux result`,
+      data: {
+        checkpoint,
+        raw_response_length: rawText.length,
+        raw_response_tail: rawText.slice(-300),
+        likely_truncated: !rawText.trimEnd().endsWith('}'),
       },
-    };
+    });
+    throw new ActionableError({
+      goal: `Run neutral evaluation at checkpoint "${checkpoint}"`,
+      problem: `Evaluator response could not be parsed as JSON (${parseErr instanceof Error ? parseErr.message.slice(0, 120) : String(parseErr)}). Returning a 0-crux sentinel would silently corrupt calibration metrics.`,
+      location: 'runNeutralEvaluation (lib/debate/neutralEvaluator.ts)',
+      nextSteps: [
+        'The debate continues — the caller handles evaluation failures gracefully.',
+        'Check the flight recorder for the raw response tail to diagnose truncation.',
+        'If the response tail is cut off mid-JSON, maxTokens may still be too low for this transcript length.',
+      ],
+    });
+  }
+
+  // Detect silent truncation: parseJsonRobust may recover a partial JSON via brace extraction,
+  // returning cruxes/claims with empty arrays even though the model was cut off mid-stream.
+  // A response that was complete will always end with '}'.
+  if (!rawText.trimEnd().endsWith('}')) {
+    getGlobalRecorder()?.record({
+      type: 'ai.error',
+      component: 'neutral-evaluator',
+      level: 'error',
+      message: `Neutral evaluation (${checkpoint}) response truncated — raw text does not end with '}', output is incomplete`,
+      data: {
+        checkpoint,
+        raw_response_length: rawText.length,
+        raw_response_tail: rawText.slice(-300),
+        parsed_crux_count: parsed.cruxes?.length ?? 0,
+        parsed_claim_count: parsed.claims?.length ?? 0,
+      },
+    });
+    throw new ActionableError({
+      goal: `Run neutral evaluation at checkpoint "${checkpoint}"`,
+      problem: `Evaluator response was truncated mid-stream (raw output does not close with '}'). The JSON was partially recovered but may have empty crux/claim arrays, silently corrupting calibration metrics.`,
+      location: 'runNeutralEvaluation (lib/debate/neutralEvaluator.ts)',
+      nextSteps: [
+        'The debate continues — the caller handles evaluation failures gracefully.',
+        'This is a max_tokens ceiling hit. Consider reducing transcript length or raising the budget further.',
+        'Check the flight recorder for raw response details.',
+      ],
+    });
   }
 
   // Ensure checkpoint and timestamp are set correctly regardless of AI output
