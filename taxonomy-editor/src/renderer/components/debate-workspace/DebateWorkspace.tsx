@@ -361,38 +361,524 @@ function DebateContextMenu({
   );
 }
 
-// ── Main component ───────────────────────────────────────
+// ── Extracted render regions (ADR-007 verbatim line-slice, t/1876) ───────
+// The blocks below were lifted verbatim out of DebateWorkspace's render tree to
+// drop its cyclomatic complexity; each guard is preserved exactly (moved inside
+// the region where that removes a parent decision point). No behavioral change.
 
-export function DebateWorkspace({ onExport, exportStatus }: {
-  onExport?: (format: string) => void;
+type DWStore = ReturnType<typeof useDebateStore.getState>;
+type CommentStoreState = ReturnType<typeof useCommentStore.getState>;
+type ActiveDebateSession = NonNullable<DWStore['activeDebate']>;
+type ActiveTranscriptEntry = ActiveDebateSession['transcript'][number];
+
+function DebateToolbar({
+  activeDebate, isExploration, isCrossCutting, onShowCCDetails,
+  commentSidebarOpen, toggleCommentSidebar, commentsFile,
+  exportStatus, onExport, diagnosticsEnabled, toggleDiagnostics,
+  defaultTier, setDefaultTier,
+}: {
+  activeDebate: ActiveDebateSession;
+  isExploration: boolean;
+  isCrossCutting: boolean;
+  onShowCCDetails: () => void;
+  commentSidebarOpen: boolean;
+  toggleCommentSidebar: () => void;
+  commentsFile: CommentStoreState['commentsFile'];
   exportStatus?: string | null;
-} = {}) {
-  const {
-    activeDebate, debateLoading, debateError, debateGenerating,
-    runClarification, runOpeningStatements, saveDebate, compressOldTranscript,
-    diagnosticsEnabled, toggleDiagnostics, selectedDiagEntry, selectDiagEntry,
-    diagPopoutOpen, setDiagPopoutOpen, defaultTier, setDefaultTier,
-    driverIsRemote,
-    selectedRef, setSelectedRef,
-    explorationSummary, extractExplorationSummary, extractAndSeedFromDebate,
-  } = useDebateStore(
-    useShallow(s => ({
-      activeDebate: s.activeDebate, debateLoading: s.debateLoading, debateError: s.debateError, debateGenerating: s.debateGenerating,
-      runClarification: s.runClarification, runOpeningStatements: s.runOpeningStatements, saveDebate: s.saveDebate, compressOldTranscript: s.compressOldTranscript,
-      diagnosticsEnabled: s.diagnosticsEnabled, toggleDiagnostics: s.toggleDiagnostics, selectedDiagEntry: s.selectedDiagEntry, selectDiagEntry: s.selectDiagEntry,
-      diagPopoutOpen: s.diagPopoutOpen, setDiagPopoutOpen: s.setDiagPopoutOpen,
-      defaultTier: s.responseLength, setDefaultTier: s.setResponseLength,
-      driverIsRemote: s.driverIsRemote,
-      selectedRef: s.selectedRef, setSelectedRef: s.setSelectedRef,
-      explorationSummary: s.explorationSummary,
-      extractExplorationSummary: s.extractExplorationSummary,
-      extractAndSeedFromDebate: s.extractAndSeedFromDebate,
-    }))
+  onExport?: (format: string) => void;
+  diagnosticsEnabled: boolean;
+  toggleDiagnostics: () => void;
+  defaultTier: DWStore['responseLength'];
+  setDefaultTier: DWStore['setResponseLength'];
+}) {
+  return (
+    <div className="debate-toolbar">
+      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', userSelect: 'all', marginRight: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 300 }} title={`${activeDebate.title} — ${activeDebate.id}`}>
+        {activeDebate.title || activeDebate.id.slice(0, 12)}
+      </span>
+      {isExploration && (
+        <span className="debate-exploration-badge" title="Exploration run — quick discovery with a cheap model">
+          Exploration
+        </span>
+      )}
+      {isCrossCutting && (
+        <button
+          className="btn btn-sm debate-cc-details-btn"
+          onClick={onShowCCDetails}
+          title="View situation context used for this debate"
+        >
+          Details
+        </button>
+      )}
+      <button
+        className={`btn btn-sm${commentSidebarOpen ? ' active' : ''}`}
+        onClick={toggleCommentSidebar}
+        title={commentSidebarOpen ? 'Hide comments sidebar' : 'Show comments sidebar'}
+      >
+        Comments ({commentsFile?.comments?.length ?? 0})
+      </button>
+      {exportStatus && (
+        <span className="debate-toolbar-status">{exportStatus}</span>
+      )}
+      {onExport && (
+        <ExportButtonInline onExport={onExport} />
+      )}
+      <ShareToCommunityButton debate={activeDebate as unknown as { id: string; topic: string; transcript: unknown[] }} />
+      <button
+        className={`btn btn-sm debate-diag-btn${diagnosticsEnabled ? ' active' : ''}`}
+        onClick={toggleDiagnostics}
+        title={diagnosticsEnabled ? 'Disable diagnostics mode' : 'Enable diagnostics mode — click entries to inspect'}
+      >
+        {diagnosticsEnabled ? 'Diagnostics ON' : 'Diagnostics'}
+      </button>
+      <span className="debate-tier-global" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 2 }}>
+        {(['brief', 'medium', 'detailed', 'reasoning', 'claims', 'convergence'] as const).map(tier => (
+          <button
+            key={tier}
+            className={`debate-tier-pill${defaultTier === tier ? ' debate-tier-pill-active' : ''}`}
+            onClick={() => setDefaultTier(tier)}
+            title={tier === 'brief' ? 'Set all turns to brief (2-3 sentences)' : tier === 'medium' ? 'Set all turns to medium (key points)' : tier === 'detailed' ? 'Set all turns to full content' : tier === 'reasoning' ? 'Show brief, plan & BDI (replaces text)' : tier === 'claims' ? 'Show argument network claims' : 'Show convergence diagnostics'}
+          >
+            {tier === 'brief' ? 'Brief' : tier === 'medium' ? 'Med' : tier === 'detailed' ? 'Detail' : tier === 'reasoning' ? 'Plan' : tier === 'claims' ? 'Claims' : 'Conv'}
+          </button>
+        ))}
+      </span>
+    </div>
   );
-  const { runSemanticSearch, setFindQuery: setStoreFindQuery, setFindMode: setStoreFindMode, setToolbarPanel } = useTaxonomyStore();
-  const transcriptEndRef = useRef<HTMLDivElement>(null);
-  const compressionCooldownRef = useRef<number>(0);
+}
 
+function CrossCuttingDialog({ activeDebate, show, onClose }: {
+  activeDebate: ActiveDebateSession;
+  show: boolean;
+  onClose: () => void;
+}) {
+  if (!show || !activeDebate.source_content) return null;
+  return (
+    <div className="dialog-overlay" onClick={onClose}>
+      <div className="dialog debate-cc-details-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="debate-cc-details-header">
+          <h3>Cross-Cutting Context</h3>
+          {activeDebate.source_ref && (
+            <span className="debate-source-ref">{activeDebate.source_ref}</span>
+          )}
+          <button className="debate-inspect-close" onClick={onClose} title="Close" aria-label="Close">&times;</button>
+        </div>
+        <div className="debate-cc-details-body">
+          <DebateSourceViewer
+            content={activeDebate.source_content}
+            sourceType="document"
+            sourceRef={activeDebate.source_ref}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RemoteDriverOverlay({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <div className="debate-remote-overlay" style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+      padding: '12px 16px', margin: '0 8px 8px',
+      background: 'var(--warning-bg, rgba(234,179,8,0.12))',
+      border: '1px solid var(--warning-border, rgba(234,179,8,0.3))',
+      borderRadius: 6, fontSize: '0.85rem', color: 'var(--text-primary)',
+    }}>
+      <span style={{ fontSize: '1.1rem' }}>&#8599;</span>
+      <span>Debate running in popout window. Controls are disabled here until the popout is closed.</span>
+    </div>
+  );
+}
+
+function DebateTopicInfo({ activeDebate, coverageMap, strengthWeighted }: {
+  activeDebate: ActiveDebateSession;
+  coverageMap: CoverageMap | null;
+  strengthWeighted: StrengthWeightedCoverage | null;
+}) {
+  return (
+    <div className="debate-topic-info" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <span className="debate-phase-indicator">
+          {PHASE_TITLES[activeDebate.phase] || activeDebate.phase}
+        </span>
+        <span className="debate-timestamp" title={activeDebate.created_at}>
+          {new Date(activeDebate.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}{' '}
+          {new Date(activeDebate.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+        </span>
+        {activeDebate.audience && (
+          <span className="debate-audience-badge">
+            {DEBATE_AUDIENCES.find(a => a.id === activeDebate.audience)?.label ?? activeDebate.audience}
+          </span>
+        )}
+        {activeDebate.debate_model && (
+          <span className="debate-model-badge">{activeDebate.debate_model}</span>
+        )}
+        <code style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', userSelect: 'all', cursor: 'text' }} title="Debate ID — click to select">{activeDebate.id}</code>
+        {coverageMap && <CoverageBadge coverageMap={coverageMap} strengthWeighted={strengthWeighted} />}
+      </div>
+      <span className="debate-topic-text">{activeDebate.topic.final}</span>
+    </div>
+  );
+}
+
+function DebatePhaseHeader({ activeDebate, isDebatePhase, isOpeningPhase }: {
+  activeDebate: ActiveDebateSession;
+  isDebatePhase: boolean;
+  isOpeningPhase: boolean;
+}) {
+  return (
+    <>
+      {/* Session phase stepper — always visible once debate has started */}
+      {activeDebate.phase !== 'setup' && activeDebate.phase !== 'closed' && (
+        <SessionPhaseStepper
+          phase={activeDebate.phase}
+          roundCount={activeDebate.transcript.filter(e => e.type === 'statement' || e.type === 'opening').length}
+        />
+      )}
+
+      {/* Adaptive phase progress bar — shown during debate phase when adaptive staging is enabled */}
+      {isDebatePhase && activeDebate.phase !== 'closed' && (activeDebate as any).adaptive_staging?.enabled && (() => {
+        const staging = (activeDebate as any).adaptive_staging as {
+          enabled: boolean;
+          current_phase: AdaptivePhase;
+          phase_progress: number;
+          rounds_in_phase: number;
+          approaching_transition: boolean;
+          rationale?: string;
+        };
+        return (
+          <PhaseProgressBar
+            currentPhase={staging.current_phase || 'confrontation'}
+            phaseProgress={staging.phase_progress || 0}
+            roundsInPhase={staging.rounds_in_phase || 0}
+            approachingTransition={staging.approaching_transition || false}
+            rationale={staging.rationale}
+          />
+        );
+      })()}
+
+      {/* Debater toggle pills */}
+      {(isDebatePhase || isOpeningPhase) && (
+        <DebaterToggles />
+      )}
+
+      {/* Refined topic editor + score comparison (hidden once debate has substantive entries) */}
+      {activeDebate.topic.refined && (activeDebate.phase === 'setup' || activeDebate.phase === 'clarification' || activeDebate.phase === 'edit-claims') && !activeDebate.transcript.some(e => e.type === 'opening' || e.type === 'statement') && (
+        <>
+          <RefinedTopicEditor />
+          <TopicScoreComparison />
+        </>
+      )}
+    </>
+  );
+}
+
+/** Phase-transition hairline for a transcript position, or null. Extracted verbatim (t/1876). */
+function computeTranscriptHairline(entry: ActiveTranscriptEntry, idx: number, transcript: ActiveTranscriptEntry[]): React.ReactNode {
+  let prevVisibleIdx = -1;
+  for (let i = idx - 1; i >= 0; i--) {
+    if (transcript[i].type !== 'clarification') { prevVisibleIdx = i; break; }
+  }
+  const prevType: string | null = prevVisibleIdx >= 0 ? transcript[prevVisibleIdx].type : null;
+  if (entry.type === 'opening' && prevType !== 'opening') {
+    return <PhaseHairline key={`hairline-opening-${idx}`} label="Opening Statements" />;
+  }
+  if (((entry.type as string) === 'statement' || (entry.type as string) === 'cross_respond') && prevType !== 'statement' && prevType !== 'cross_respond' && prevType !== 'probing' && prevType !== 'fact-check' && prevType !== 'system' && prevType !== 'question') {
+    return <PhaseHairline key={`hairline-debate-${idx}`} label="Cross-Examination" />;
+  }
+  if (((entry.type as string) === 'synthesis' || entry.type === 'concluding') && prevType !== 'synthesis' && prevType !== 'concluding') {
+    return <PhaseHairline key={`hairline-synthesis-${idx}`} label="Synthesis" />;
+  }
+  return null;
+}
+
+function TranscriptEntryRow({
+  entry, idx, activeDebate, findOffsets, findQuery, findCurrentIndex,
+  diagnosticsEnabled, selectedDiagEntry, selectDiagEntry,
+}: {
+  entry: ActiveTranscriptEntry;
+  idx: number;
+  activeDebate: ActiveDebateSession;
+  findOffsets: Map<string, number>;
+  findQuery: string;
+  findCurrentIndex: number;
+  diagnosticsEnabled: boolean;
+  selectedDiagEntry: DWStore['selectedDiagEntry'];
+  selectDiagEntry: DWStore['selectDiagEntry'];
+}) {
+  const matchOffset = findOffsets.get(entry.id) ?? 0;
+  // Statement ID — stable human-readable label for this transcript position.
+  // Matches ClaimExtractionTrace.round (transcript index + 1) so cross-panel
+  // references line up (e.g. Extraction Timeline "S12" == this card's "S12").
+  const statementId = `S${idx + 1}`;
+  // Skip the clarification transcript card — the interactive ClarificationActions panel
+  // below the transcript already shows the questions as clickable pills.
+  if (entry.type === 'clarification') return null;
+
+  const hairline = computeTranscriptHairline(entry, idx, activeDebate.transcript);
+
+  const isStatement = entry.type !== 'probing' && entry.type !== 'fact-check';
+  const card = entry.type === 'probing'
+    ? <ProbingCard key={entry.id} entry={entry} statementId={statementId} />
+    : entry.type === 'fact-check'
+    ? <FactCheckCard key={entry.id} entry={entry} statementId={statementId} findQuery={findQuery} matchOffset={matchOffset} findCurrentIndex={findCurrentIndex} />
+    : <StatementCard key={entry.id} entry={entry} statementId={statementId} findQuery={findQuery} matchOffset={matchOffset} findCurrentIndex={findCurrentIndex} entryIndex={idx} totalEntries={activeDebate.transcript.length} />;
+  return (
+    <Fragment>
+      {hairline}
+      <div
+        className={`debate-entry-wrapper${diagnosticsEnabled && selectedDiagEntry === entry.id ? ' diag-selected' : ''}`}
+        onClick={diagnosticsEnabled ? () => selectDiagEntry(entry.id) : undefined}
+      >
+        {card}
+        {!isStatement && <EntryDeleteControls entry={entry} totalEntries={activeDebate.transcript.length} entryIndex={idx} />}
+      </div>
+    </Fragment>
+  );
+}
+
+function DebateTranscriptColumn({
+  activeDebate, debateGenerating, findOffsets, findQuery, findCurrentIndex,
+  diagnosticsEnabled, selectedDiagEntry, selectDiagEntry, transcriptEndRef,
+}: {
+  activeDebate: ActiveDebateSession;
+  debateGenerating: DWStore['debateGenerating'];
+  findOffsets: Map<string, number>;
+  findQuery: string;
+  findCurrentIndex: number;
+  diagnosticsEnabled: boolean;
+  selectedDiagEntry: DWStore['selectedDiagEntry'];
+  selectDiagEntry: DWStore['selectDiagEntry'];
+  transcriptEndRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  return (
+    <>
+      {/* Transcript */}
+      <div className="debate-transcript-column">
+      {activeDebate.transcript.length === 0 && !debateGenerating && (
+        <EmptyState
+          headline="The debate is ready to begin"
+          direction="Clarification questions will appear here."
+        />
+      )}
+      {activeDebate.transcript.map((entry, idx) => (
+        <TranscriptEntryRow
+          key={entry.id}
+          entry={entry}
+          idx={idx}
+          activeDebate={activeDebate}
+          findOffsets={findOffsets}
+          findQuery={findQuery}
+          findCurrentIndex={findCurrentIndex}
+          diagnosticsEnabled={diagnosticsEnabled}
+          selectedDiagEntry={selectedDiagEntry}
+          selectDiagEntry={selectDiagEntry}
+        />
+      ))}
+      </div>
+      {debateGenerating && (
+        <div className="debate-statement debate-generating">
+          <div className="debate-statement-header">
+            <span className="debate-statement-speaker" style={{ color: speakerColor(debateGenerating) || undefined }}>
+              {speakerLabel(debateGenerating)}
+            </span>
+            <span className="debate-statement-type">thinking...</span>
+          </div>
+          <ProgressIndicator />
+          <div className="debate-generating-dots">
+            <span /><span /><span />
+          </div>
+        </div>
+      )}
+      <div ref={transcriptEndRef} />
+    </>
+  );
+}
+
+function DebateActionRegion({
+  activeDebate, isExploration, isExplorationClosed, explorationSummary, extractAndSeedFromDebate,
+  showRemoteOverlay, isClarificationPhase, isEditClaimsPhase, isOpeningPhase, isDebatePhase,
+  showParamHistory, setShowParamHistory, showEvaluation, setShowEvaluation,
+}: {
+  activeDebate: ActiveDebateSession;
+  isExploration: boolean;
+  isExplorationClosed: boolean;
+  explorationSummary: DWStore['explorationSummary'];
+  extractAndSeedFromDebate: DWStore['extractAndSeedFromDebate'];
+  showRemoteOverlay: boolean;
+  isClarificationPhase: boolean;
+  isEditClaimsPhase: boolean;
+  isOpeningPhase: boolean;
+  isDebatePhase: boolean;
+  showParamHistory: boolean;
+  setShowParamHistory: React.Dispatch<React.SetStateAction<boolean>>;
+  showEvaluation: boolean;
+  setShowEvaluation: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
+  return (
+    <>
+      {/* Exploration summary card — shown when exploration debate closes */}
+      {isExplorationClosed && explorationSummary && <ExplorationSummaryCard />}
+
+      {/* "Rerun with Insights" — on non-exploration closed debates */}
+      {!isExploration && activeDebate.phase === 'closed' && !explorationSummary && (
+        <div className="debate-rerun-insights">
+          <button
+            className="btn btn-explore"
+            onClick={() => void extractAndSeedFromDebate(activeDebate.id)}
+            title="Extract insights from this debate and use them to seed a new, better debate"
+          >
+            Rerun with Insights
+          </button>
+        </div>
+      )}
+
+      {/* Phase-aware action bar (fixed at bottom) — hidden when popout is driving */}
+      {!showRemoteOverlay && isClarificationPhase && !activeDebate.transcript.some(e => e.type === 'opening' || e.type === 'statement') && <ClarificationActions />}
+      {!showRemoteOverlay && isEditClaimsPhase && <ClaimsEditor />}
+      {!showRemoteOverlay && isOpeningPhase && <OpeningActions />}
+
+      {!showRemoteOverlay && isDebatePhase && !isExplorationClosed && <DebateActions showParamHistory={showParamHistory} setShowParamHistory={setShowParamHistory} showEvaluation={showEvaluation} setShowEvaluation={setShowEvaluation} />}
+
+      {/* Neutral evaluation panel — toggled via Evaluation button */}
+      {showEvaluation && activeDebate.neutral_evaluations && activeDebate.neutral_evaluations.length > 0 && (
+        <NeutralEvaluationPanel
+          evaluations={activeDebate.neutral_evaluations}
+          speakerMapping={activeDebate.neutral_speaker_mapping}
+        />
+      )}
+
+      {/* Parameter calibration history */}
+      {showParamHistory && (
+        <ParameterHistoryPanel onClose={() => setShowParamHistory(false)} />
+      )}
+    </>
+  );
+}
+
+function DebateModals({
+  contextMenu, setContextMenu, commentPopover, setCommentPopover,
+  onSimilarPovSearch, commentSidebarOpen, commentsFile,
+}: {
+  contextMenu: ContextMenuState | null;
+  setContextMenu: React.Dispatch<React.SetStateAction<ContextMenuState | null>>;
+  commentPopover: CommentPopoverState | null;
+  setCommentPopover: React.Dispatch<React.SetStateAction<CommentPopoverState | null>>;
+  onSimilarPovSearch: (query: string) => void;
+  commentSidebarOpen: boolean;
+  commentsFile: CommentStoreState['commentsFile'];
+}) {
+  return (
+    <>
+      {/* Phase 7: Context menu */}
+      {contextMenu && (
+        <DebateContextMenu
+          menu={contextMenu}
+          onClose={() => setContextMenu(null)}
+          onSimilarPovSearch={onSimilarPovSearch}
+          onComment={() => {
+            setCommentPopover({
+              x: contextMenu.x,
+              y: contextMenu.y,
+              selectedText: contextMenu.selectedText,
+              entryId: contextMenu.entryId,
+              tier: contextMenu.tier,
+              startOffset: contextMenu.startOffset,
+              endOffset: contextMenu.endOffset,
+            });
+            setContextMenu(null);
+          }}
+        />
+      )}
+
+      {/* Comment creation popover */}
+      {commentPopover && (
+        <CommentCreationPopover
+          popover={commentPopover}
+          onClose={() => setCommentPopover(null)}
+        />
+      )}
+
+      {/* Comment sidebar */}
+      {commentSidebarOpen && commentsFile && (
+        <CommentSidebar />
+      )}
+
+      {/* Username prompt dialog (mounted once for all comment flows) */}
+      <UsernamePromptDialog />
+    </>
+  );
+}
+
+function DebateSideRail({
+  debateChatOpen, setDebateChatOpen, activeDebate, onChatNavigate, selectedRef, setSelectedRef,
+}: {
+  debateChatOpen: boolean;
+  setDebateChatOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  activeDebate: ActiveDebateSession;
+  onChatNavigate: (cmd: NavigateCommand) => void;
+  selectedRef: DWStore['selectedRef'];
+  setSelectedRef: DWStore['setSelectedRef'];
+}) {
+  return (
+    <>
+      {/* Debate Chat FAB — bottom-right floating button */}
+      <button
+        className={`debate-chat-fab${debateChatOpen ? ' active' : ''}`}
+        onClick={() => setDebateChatOpen(v => !v)}
+        title={debateChatOpen ? 'Hide Debate Chat' : 'Open Debate Chat — ask questions about the debate'}
+        aria-label="Debate Chat"
+      >
+        {debateChatOpen ? '✕' : '💬'}
+      </button>
+      {/* Debate Chat sidebar — outside workspace column, inside row */}
+      {debateChatOpen && (
+        <DiagnosticsChatSidebar
+          debate={activeDebate}
+          selectedEntry={null}
+          currentTab="transcript"
+          onNavigate={onChatNavigate}
+          embedded
+          onClose={() => setDebateChatOpen(false)}
+        />
+      )}
+      {/* Reference detail pane — opens when a transcript ID-ref link is selected (t/1776) */}
+      {selectedRef && (
+        <DetailPane
+          className="debate-detail-pane"
+          selectedRef={selectedRef}
+          onSelectRef={setSelectedRef}
+          onClose={() => setSelectedRef(null)}
+        />
+      )}
+    </>
+  );
+}
+
+// ── Extracted effect / memo hooks (ADR-007, t/1876) ──────────────────────
+// Side-effect and derived-state logic lifted verbatim out of DebateWorkspace.
+// Purely a relocation — the effects, memos, and their dependency arrays are
+// unchanged, which is what drops the parent's cyclomatic count (each `?.` in a
+// dependency array is a decision point in whichever function owns it).
+
+function useDebateWorkspaceEffects({
+  activeDebate, setDiagPopoutOpen, extractExplorationSummary,
+  loadDebateComments, unloadComments, saveDebate, debateGenerating, compressOldTranscript,
+}: {
+  activeDebate: DWStore['activeDebate'];
+  setDiagPopoutOpen: DWStore['setDiagPopoutOpen'];
+  extractExplorationSummary: DWStore['extractExplorationSummary'];
+  loadDebateComments: CommentStoreState['loadComments'];
+  unloadComments: CommentStoreState['unloadComments'];
+  saveDebate: DWStore['saveDebate'];
+  debateGenerating: DWStore['debateGenerating'];
+  compressOldTranscript: DWStore['compressOldTranscript'];
+}) {
+  const explorationExtracted = useRef<string | null>(null);
+  const hasTriggeredOpening = useRef(false);
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const compressionCooldownRef = useRef<number>(0);
 
   // Listen for diagnostics popout window closing
   useEffect(() => {
@@ -414,8 +900,8 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     });
     return unsub;
   }, []);
+
   // Auto-extract exploration summary when an exploration debate closes
-  const explorationExtracted = useRef<string | null>(null);
   useEffect(() => {
     if (
       activeDebate?.protocol_id === 'exploration'
@@ -427,15 +913,6 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     }
   }, [activeDebate?.id, activeDebate?.phase, activeDebate?.protocol_id, extractExplorationSummary]);
 
-  const hasTriggeredOpening = useRef(false);
-  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
-  const [commentPopover, setCommentPopover] = useState<CommentPopoverState | null>(null);
-  const [showCCDetails, setShowCCDetails] = useState(false);
-  const [showParamHistory, setShowParamHistory] = useState(false);
-  const [showEvaluation, setShowEvaluation] = useState(false);
-  const [debateChatOpen, setDebateChatOpen] = useState(false);
-  const { commentsFile, loadComments: loadDebateComments, unloadComments, sidebarOpen: commentSidebarOpen, toggleSidebar: toggleCommentSidebar } = useCommentStore();
-
   // Load comments when debate changes
   useEffect(() => {
     if (activeDebate) {
@@ -443,23 +920,44 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     }
     return () => unloadComments();
   }, [activeDebate?.id, loadDebateComments, unloadComments]);
-  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleSimilarPovSearch = useCallback((query: string) => {
-    setStoreFindQuery(query);
-    setStoreFindMode('semantic');
-    setToolbarPanel('search');
-    void runSemanticSearch(query, new Set(), new Set());
-  }, [runSemanticSearch, setStoreFindQuery, setStoreFindMode, setToolbarPanel]);
+  // Phase 8: Auto-save debounced (2s after last change)
+  useEffect(() => {
+    if (!activeDebate) return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      void saveDebate();
+    }, 2000);
+    return () => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    };
+  }, [activeDebate?.transcript.length, activeDebate?.updated_at, saveDebate]);
 
-  const handleChatNavigate = useCallback((cmd: NavigateCommand) => {
-    if (cmd.entry) {
-      const el = document.getElementById(`debate-entry-${cmd.entry}`);
-      el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  // Phase 8: Auto-compress context when transcript grows large
+  useEffect(() => {
+    if (!activeDebate || debateGenerating) return;
+    if (Date.now() < compressionCooldownRef.current) return;
+    if (activeDebate.transcript.length >= 16) {
+      const lastSummaryIdx = activeDebate.context_summaries.length > 0
+        ? activeDebate.transcript.findIndex(
+            (e) => e.id === activeDebate.context_summaries[activeDebate.context_summaries.length - 1].up_to_entry_id,
+          )
+        : -1;
+      const uncompressed = activeDebate.transcript.length - (lastSummaryIdx + 1) - 8;
+      if (uncompressed >= 8) {
+        compressionCooldownRef.current = Date.now() + 60_000;
+        void compressOldTranscript();
+      }
     }
-  }, []);
+  }, [activeDebate?.transcript.length, debateGenerating]);
 
-  // ── Find state ────────────────────────────────────────
+  // Reset trigger flags when debate changes
+  useEffect(() => {
+    hasTriggeredOpening.current = false;
+  }, [activeDebate?.id]);
+}
+
+function useDebateFind(activeDebate: DWStore['activeDebate']) {
   const [findVisible, setFindVisible] = useState(false);
   const [findQuery, setFindQuery] = useState('');
   const [findCurrentIndex, setFindCurrentIndex] = useState(0);
@@ -477,7 +975,42 @@ export function DebateWorkspace({ onExport, exportStatus }: {
 
   useEffect(() => { setFindCurrentIndex(0); }, [findQuery, findTotal]);
 
-  // ── Coverage tracking (CT-2) ───────────────────────────
+  useEffect(() => {
+    if (!findVisible || findTotal === 0) return;
+    document.querySelector(`[data-find-index="${findCurrentIndex}"]`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [findCurrentIndex, findVisible, findQuery, findTotal]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        setFindVisible(true);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const findNext = useCallback(() => {
+    if (findTotal === 0) return;
+    setFindCurrentIndex(i => (i + 1) % findTotal);
+  }, [findTotal]);
+
+  const findPrev = useCallback(() => {
+    if (findTotal === 0) return;
+    setFindCurrentIndex(i => (i - 1 + findTotal) % findTotal);
+  }, [findTotal]);
+
+  const closeFind = useCallback(() => {
+    setFindVisible(false);
+    setFindQuery('');
+  }, []);
+
+  return { findVisible, findQuery, setFindQuery, findCurrentIndex, findTotal, findOffsets, findNext, findPrev, closeFind };
+}
+
+function useDebateCoverage(activeDebate: DWStore['activeDebate']) {
   const coverageMap = useMemo<CoverageMap | null>(() => {
     if (!activeDebate?.document_analysis?.i_nodes?.length) return null;
     const anNodes = activeDebate.argument_network?.nodes ?? [];
@@ -515,69 +1048,12 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     }
   }, [coverageMap, activeDebate?.argument_network]);
 
-  useEffect(() => {
-    if (!findVisible || findTotal === 0) return;
-    document.querySelector(`[data-find-index="${findCurrentIndex}"]`)
-      ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [findCurrentIndex, findVisible, findQuery, findTotal]);
+  return { coverageMap, strengthWeighted };
+}
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-        e.preventDefault();
-        setFindVisible(true);
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, []);
-
-  const findNext = useCallback(() => {
-    if (findTotal === 0) return;
-    setFindCurrentIndex(i => (i + 1) % findTotal);
-  }, [findTotal]);
-
-  const findPrev = useCallback(() => {
-    if (findTotal === 0) return;
-    setFindCurrentIndex(i => (i - 1 + findTotal) % findTotal);
-  }, [findTotal]);
-
-  const closeFind = useCallback(() => {
-    setFindVisible(false);
-    setFindQuery('');
-  }, []);
-
-  // Auto-scroll removed — disrupts reading during debate generation
-
-  // Phase 8: Auto-save debounced (2s after last change)
-  useEffect(() => {
-    if (!activeDebate) return;
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(() => {
-      void saveDebate();
-    }, 2000);
-    return () => {
-      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-    };
-  }, [activeDebate?.transcript.length, activeDebate?.updated_at, saveDebate]);
-
-  // Phase 8: Auto-compress context when transcript grows large
-  useEffect(() => {
-    if (!activeDebate || debateGenerating) return;
-    if (Date.now() < compressionCooldownRef.current) return;
-    if (activeDebate.transcript.length >= 16) {
-      const lastSummaryIdx = activeDebate.context_summaries.length > 0
-        ? activeDebate.transcript.findIndex(
-            (e) => e.id === activeDebate.context_summaries[activeDebate.context_summaries.length - 1].up_to_entry_id,
-          )
-        : -1;
-      const uncompressed = activeDebate.transcript.length - (lastSummaryIdx + 1) - 8;
-      if (uncompressed >= 8) {
-        compressionCooldownRef.current = Date.now() + 60_000;
-        void compressOldTranscript();
-      }
-    }
-  }, [activeDebate?.transcript.length, debateGenerating]);
+function useDebateSelectionMenu(activeDebate: DWStore['activeDebate'], defaultTier: DWStore['responseLength']) {
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [commentPopover, setCommentPopover] = useState<CommentPopoverState | null>(null);
 
   // Phase 7: Context menu handler
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -645,16 +1121,67 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     });
   }, [activeDebate?.transcript, defaultTier]);
 
-  // Clarification is now user-initiated — no auto-trigger.
-  // The ClarificationActions component presents the choice.
+  return { contextMenu, setContextMenu, commentPopover, setCommentPopover, handleContextMenu };
+}
 
-  // Opening statements are now manually triggered via the OpeningActions button
-  // (no auto-trigger — user picks depth first)
+// ── Main component ───────────────────────────────────────
 
-  // Reset trigger flags when debate changes
-  useEffect(() => {
-    hasTriggeredOpening.current = false;
-  }, [activeDebate?.id]);
+export function DebateWorkspace({ onExport, exportStatus }: {
+  onExport?: (format: string) => void;
+  exportStatus?: string | null;
+} = {}) {
+  const {
+    activeDebate, debateLoading, debateError, debateGenerating,
+    runClarification, runOpeningStatements, saveDebate, compressOldTranscript,
+    diagnosticsEnabled, toggleDiagnostics, selectedDiagEntry, selectDiagEntry,
+    diagPopoutOpen, setDiagPopoutOpen, defaultTier, setDefaultTier,
+    driverIsRemote,
+    selectedRef, setSelectedRef,
+    explorationSummary, extractExplorationSummary, extractAndSeedFromDebate,
+  } = useDebateStore(
+    useShallow(s => ({
+      activeDebate: s.activeDebate, debateLoading: s.debateLoading, debateError: s.debateError, debateGenerating: s.debateGenerating,
+      runClarification: s.runClarification, runOpeningStatements: s.runOpeningStatements, saveDebate: s.saveDebate, compressOldTranscript: s.compressOldTranscript,
+      diagnosticsEnabled: s.diagnosticsEnabled, toggleDiagnostics: s.toggleDiagnostics, selectedDiagEntry: s.selectedDiagEntry, selectDiagEntry: s.selectDiagEntry,
+      diagPopoutOpen: s.diagPopoutOpen, setDiagPopoutOpen: s.setDiagPopoutOpen,
+      defaultTier: s.responseLength, setDefaultTier: s.setResponseLength,
+      driverIsRemote: s.driverIsRemote,
+      selectedRef: s.selectedRef, setSelectedRef: s.setSelectedRef,
+      explorationSummary: s.explorationSummary,
+      extractExplorationSummary: s.extractExplorationSummary,
+      extractAndSeedFromDebate: s.extractAndSeedFromDebate,
+    }))
+  );
+  const { runSemanticSearch, setFindQuery: setStoreFindQuery, setFindMode: setStoreFindMode, setToolbarPanel } = useTaxonomyStore();
+  const transcriptEndRef = useRef<HTMLDivElement>(null);
+  const [showCCDetails, setShowCCDetails] = useState(false);
+  const [showParamHistory, setShowParamHistory] = useState(false);
+  const [showEvaluation, setShowEvaluation] = useState(false);
+  const [debateChatOpen, setDebateChatOpen] = useState(false);
+  const { commentsFile, loadComments: loadDebateComments, unloadComments, sidebarOpen: commentSidebarOpen, toggleSidebar: toggleCommentSidebar } = useCommentStore();
+
+  useDebateWorkspaceEffects({
+    activeDebate, setDiagPopoutOpen, extractExplorationSummary,
+    loadDebateComments, unloadComments, saveDebate, debateGenerating, compressOldTranscript,
+  });
+
+  const handleSimilarPovSearch = useCallback((query: string) => {
+    setStoreFindQuery(query);
+    setStoreFindMode('semantic');
+    setToolbarPanel('search');
+    void runSemanticSearch(query, new Set(), new Set());
+  }, [runSemanticSearch, setStoreFindQuery, setStoreFindMode, setToolbarPanel]);
+
+  const handleChatNavigate = useCallback((cmd: NavigateCommand) => {
+    if (cmd.entry) {
+      const el = document.getElementById(`debate-entry-${cmd.entry}`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, []);
+
+  const { findVisible, findQuery, setFindQuery, findCurrentIndex, findTotal, findOffsets, findNext, findPrev, closeFind } = useDebateFind(activeDebate);
+  const { coverageMap, strengthWeighted } = useDebateCoverage(activeDebate);
+  const { contextMenu, setContextMenu, commentPopover, setCommentPopover, handleContextMenu } = useDebateSelectionMenu(activeDebate, defaultTier);
 
   if (debateLoading) {
     return <div className="debate-workspace-loading">Loading debate...</div>;
@@ -679,80 +1206,24 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     <div className="debate-workspace-row" data-phase={isClarificationPhase ? 'setup' : undefined}>
     <div className="debate-workspace">
       {/* Fixed toolbar — always visible */}
-      <div className="debate-toolbar">
-        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', userSelect: 'all', marginRight: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 300 }} title={`${activeDebate.title} — ${activeDebate.id}`}>
-          {activeDebate.title || activeDebate.id.slice(0, 12)}
-        </span>
-        {isExploration && (
-          <span className="debate-exploration-badge" title="Exploration run — quick discovery with a cheap model">
-            Exploration
-          </span>
-        )}
-        {isCrossCutting && (
-          <button
-            className="btn btn-sm debate-cc-details-btn"
-            onClick={() => setShowCCDetails(true)}
-            title="View situation context used for this debate"
-          >
-            Details
-          </button>
-        )}
-        <button
-          className={`btn btn-sm${commentSidebarOpen ? ' active' : ''}`}
-          onClick={toggleCommentSidebar}
-          title={commentSidebarOpen ? 'Hide comments sidebar' : 'Show comments sidebar'}
-        >
-          Comments ({commentsFile?.comments?.length ?? 0})
-        </button>
-        {exportStatus && (
-          <span className="debate-toolbar-status">{exportStatus}</span>
-        )}
-        {onExport && (
-          <ExportButtonInline onExport={onExport} />
-        )}
-        <ShareToCommunityButton debate={activeDebate as unknown as { id: string; topic: string; transcript: unknown[] }} />
-        <button
-          className={`btn btn-sm debate-diag-btn${diagnosticsEnabled ? ' active' : ''}`}
-          onClick={toggleDiagnostics}
-          title={diagnosticsEnabled ? 'Disable diagnostics mode' : 'Enable diagnostics mode — click entries to inspect'}
-        >
-          {diagnosticsEnabled ? 'Diagnostics ON' : 'Diagnostics'}
-        </button>
-        <span className="debate-tier-global" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 2 }}>
-          {(['brief', 'medium', 'detailed', 'reasoning', 'claims', 'convergence'] as const).map(tier => (
-            <button
-              key={tier}
-              className={`debate-tier-pill${defaultTier === tier ? ' debate-tier-pill-active' : ''}`}
-              onClick={() => setDefaultTier(tier)}
-              title={tier === 'brief' ? 'Set all turns to brief (2-3 sentences)' : tier === 'medium' ? 'Set all turns to medium (key points)' : tier === 'detailed' ? 'Set all turns to full content' : tier === 'reasoning' ? 'Show brief, plan & BDI (replaces text)' : tier === 'claims' ? 'Show argument network claims' : 'Show convergence diagnostics'}
-            >
-              {tier === 'brief' ? 'Brief' : tier === 'medium' ? 'Med' : tier === 'detailed' ? 'Detail' : tier === 'reasoning' ? 'Plan' : tier === 'claims' ? 'Claims' : 'Conv'}
-            </button>
-          ))}
-        </span>
-      </div>
+      <DebateToolbar
+        activeDebate={activeDebate}
+        isExploration={isExploration}
+        isCrossCutting={isCrossCutting}
+        onShowCCDetails={() => setShowCCDetails(true)}
+        commentSidebarOpen={commentSidebarOpen}
+        toggleCommentSidebar={toggleCommentSidebar}
+        commentsFile={commentsFile}
+        exportStatus={exportStatus}
+        onExport={onExport}
+        diagnosticsEnabled={diagnosticsEnabled}
+        toggleDiagnostics={toggleDiagnostics}
+        defaultTier={defaultTier}
+        setDefaultTier={setDefaultTier}
+      />
 
       {/* Cross-cutting context dialog */}
-      {showCCDetails && activeDebate.source_content && (
-        <div className="dialog-overlay" onClick={() => setShowCCDetails(false)}>
-          <div className="dialog debate-cc-details-dialog" onClick={(e) => e.stopPropagation()}>
-            <div className="debate-cc-details-header">
-              <h3>Cross-Cutting Context</h3>
-              {activeDebate.source_ref && (
-                <span className="debate-source-ref">{activeDebate.source_ref}</span>
-              )}
-              <button className="debate-inspect-close" onClick={() => setShowCCDetails(false)} title="Close" aria-label="Close">&times;</button>
-            </div>
-            <div className="debate-cc-details-body">
-              <DebateSourceViewer
-                content={activeDebate.source_content}
-                sourceType="document"
-                sourceRef={activeDebate.source_ref}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      <CrossCuttingDialog activeDebate={activeDebate} show={showCCDetails} onClose={() => setShowCCDetails(false)} />
 
       {/* Find bar */}
       {findVisible && (
@@ -768,261 +1239,62 @@ export function DebateWorkspace({ onExport, exportStatus }: {
       )}
 
       {/* Remote driver overlay — popout window is driving this debate */}
-      {showRemoteOverlay && (
-        <div className="debate-remote-overlay" style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          padding: '12px 16px', margin: '0 8px 8px',
-          background: 'var(--warning-bg, rgba(234,179,8,0.12))',
-          border: '1px solid var(--warning-border, rgba(234,179,8,0.3))',
-          borderRadius: 6, fontSize: '0.85rem', color: 'var(--text-primary)',
-        }}>
-          <span style={{ fontSize: '1.1rem' }}>&#8599;</span>
-          <span>Debate running in popout window. Controls are disabled here until the popout is closed.</span>
-        </div>
-      )}
+      <RemoteDriverOverlay show={showRemoteOverlay} />
 
       {/* Scrollable content: topic, debaters, transcript */}
       <div className="debate-scroll-content" onContextMenu={handleContextMenu}>
-        {/* Topic info */}
-        <div className="debate-topic-info" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <span className="debate-phase-indicator">
-              {PHASE_TITLES[activeDebate.phase] || activeDebate.phase}
-            </span>
-            <span className="debate-timestamp" title={activeDebate.created_at}>
-              {new Date(activeDebate.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}{' '}
-              {new Date(activeDebate.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-            </span>
-            {activeDebate.audience && (
-              <span className="debate-audience-badge">
-                {DEBATE_AUDIENCES.find(a => a.id === activeDebate.audience)?.label ?? activeDebate.audience}
-              </span>
-            )}
-            {activeDebate.debate_model && (
-              <span className="debate-model-badge">{activeDebate.debate_model}</span>
-            )}
-            <code style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', userSelect: 'all', cursor: 'text' }} title="Debate ID — click to select">{activeDebate.id}</code>
-            {coverageMap && <CoverageBadge coverageMap={coverageMap} strengthWeighted={strengthWeighted} />}
-          </div>
-          <span className="debate-topic-text">{activeDebate.topic.final}</span>
-        </div>
-
-        {/* Session phase stepper — always visible once debate has started */}
-        {activeDebate.phase !== 'setup' && activeDebate.phase !== 'closed' && (
-          <SessionPhaseStepper
-            phase={activeDebate.phase}
-            roundCount={activeDebate.transcript.filter(e => e.type === 'statement' || e.type === 'opening').length}
-          />
-        )}
-
-        {/* Adaptive phase progress bar — shown during debate phase when adaptive staging is enabled */}
-        {isDebatePhase && activeDebate.phase !== 'closed' && (activeDebate as any).adaptive_staging?.enabled && (() => {
-          const staging = (activeDebate as any).adaptive_staging as {
-            enabled: boolean;
-            current_phase: AdaptivePhase;
-            phase_progress: number;
-            rounds_in_phase: number;
-            approaching_transition: boolean;
-            rationale?: string;
-          };
-          return (
-            <PhaseProgressBar
-              currentPhase={staging.current_phase || 'confrontation'}
-              phaseProgress={staging.phase_progress || 0}
-              roundsInPhase={staging.rounds_in_phase || 0}
-              approachingTransition={staging.approaching_transition || false}
-              rationale={staging.rationale}
-            />
-          );
-        })()}
-
-        {/* Debater toggle pills */}
-        {(isDebatePhase || isOpeningPhase) && (
-          <DebaterToggles />
-        )}
-
-        {/* Refined topic editor + score comparison (hidden once debate has substantive entries) */}
-        {activeDebate.topic.refined && (activeDebate.phase === 'setup' || activeDebate.phase === 'clarification' || activeDebate.phase === 'edit-claims') && !activeDebate.transcript.some(e => e.type === 'opening' || e.type === 'statement') && (
-          <>
-            <RefinedTopicEditor />
-            <TopicScoreComparison />
-          </>
-        )}
-
-        {/* Transcript */}
-        <div className="debate-transcript-column">
-        {activeDebate.transcript.length === 0 && !debateGenerating && (
-          <EmptyState
-            headline="The debate is ready to begin"
-            direction="Clarification questions will appear here."
-          />
-        )}
-        {activeDebate.transcript.map((entry, idx) => {
-          const matchOffset = findOffsets.get(entry.id) ?? 0;
-          // Statement ID — stable human-readable label for this transcript position.
-          // Matches ClaimExtractionTrace.round (transcript index + 1) so cross-panel
-          // references line up (e.g. Extraction Timeline "S12" == this card's "S12").
-          const statementId = `S${idx + 1}`;
-          // Skip the clarification transcript card — the interactive ClarificationActions panel
-          // below the transcript already shows the questions as clickable pills.
-          if (entry.type === 'clarification') return null;
-
-          // Phase transition hairlines — detect phase boundaries in the transcript
-          let prevVisibleIdx = -1;
-          for (let i = idx - 1; i >= 0; i--) {
-            if (activeDebate.transcript[i].type !== 'clarification') { prevVisibleIdx = i; break; }
-          }
-          const prevType: string | null = prevVisibleIdx >= 0 ? activeDebate.transcript[prevVisibleIdx].type : null;
-          let hairline: React.ReactNode = null;
-          if (entry.type === 'opening' && prevType !== 'opening') {
-            hairline = <PhaseHairline key={`hairline-opening-${idx}`} label="Opening Statements" />;
-          } else if (((entry.type as string) === 'statement' || (entry.type as string) === 'cross_respond') && prevType !== 'statement' && prevType !== 'cross_respond' && prevType !== 'probing' && prevType !== 'fact-check' && prevType !== 'system' && prevType !== 'question') {
-            hairline = <PhaseHairline key={`hairline-debate-${idx}`} label="Cross-Examination" />;
-          } else if (((entry.type as string) === 'synthesis' || entry.type === 'concluding') && prevType !== 'synthesis' && prevType !== 'concluding') {
-            hairline = <PhaseHairline key={`hairline-synthesis-${idx}`} label="Synthesis" />;
-          }
-
-          const isStatement = entry.type !== 'probing' && entry.type !== 'fact-check';
-          const card = entry.type === 'probing'
-            ? <ProbingCard key={entry.id} entry={entry} statementId={statementId} />
-            : entry.type === 'fact-check'
-            ? <FactCheckCard key={entry.id} entry={entry} statementId={statementId} findQuery={findQuery} matchOffset={matchOffset} findCurrentIndex={findCurrentIndex} />
-            : <StatementCard key={entry.id} entry={entry} statementId={statementId} findQuery={findQuery} matchOffset={matchOffset} findCurrentIndex={findCurrentIndex} entryIndex={idx} totalEntries={activeDebate.transcript.length} />;
-          return (
-            <Fragment key={entry.id}>
-              {hairline}
-              <div
-                className={`debate-entry-wrapper${diagnosticsEnabled && selectedDiagEntry === entry.id ? ' diag-selected' : ''}`}
-                onClick={diagnosticsEnabled ? () => selectDiagEntry(entry.id) : undefined}
-              >
-                {card}
-                {!isStatement && <EntryDeleteControls entry={entry} totalEntries={activeDebate.transcript.length} entryIndex={idx} />}
-              </div>
-            </Fragment>
-          );
-        })}
-        </div>
-        {debateGenerating && (
-          <div className="debate-statement debate-generating">
-            <div className="debate-statement-header">
-              <span className="debate-statement-speaker" style={{ color: speakerColor(debateGenerating) || undefined }}>
-                {speakerLabel(debateGenerating)}
-              </span>
-              <span className="debate-statement-type">thinking...</span>
-            </div>
-            <ProgressIndicator />
-            <div className="debate-generating-dots">
-              <span /><span /><span />
-            </div>
-          </div>
-        )}
-        <div ref={transcriptEndRef} />
+        <DebateTopicInfo activeDebate={activeDebate} coverageMap={coverageMap} strengthWeighted={strengthWeighted} />
+        <DebatePhaseHeader activeDebate={activeDebate} isDebatePhase={isDebatePhase} isOpeningPhase={isOpeningPhase} />
+        <DebateTranscriptColumn
+          activeDebate={activeDebate}
+          debateGenerating={debateGenerating}
+          findOffsets={findOffsets}
+          findQuery={findQuery}
+          findCurrentIndex={findCurrentIndex}
+          diagnosticsEnabled={diagnosticsEnabled}
+          selectedDiagEntry={selectedDiagEntry}
+          selectDiagEntry={selectDiagEntry}
+          transcriptEndRef={transcriptEndRef}
+        />
       </div>
 
-      {/* Exploration summary card — shown when exploration debate closes */}
-      {isExplorationClosed && explorationSummary && <ExplorationSummaryCard />}
-
-      {/* "Rerun with Insights" — on non-exploration closed debates */}
-      {!isExploration && activeDebate.phase === 'closed' && !explorationSummary && (
-        <div className="debate-rerun-insights">
-          <button
-            className="btn btn-explore"
-            onClick={() => void extractAndSeedFromDebate(activeDebate.id)}
-            title="Extract insights from this debate and use them to seed a new, better debate"
-          >
-            Rerun with Insights
-          </button>
-        </div>
-      )}
-
-      {/* Phase-aware action bar (fixed at bottom) — hidden when popout is driving */}
-      {!showRemoteOverlay && isClarificationPhase && !activeDebate.transcript.some(e => e.type === 'opening' || e.type === 'statement') && <ClarificationActions />}
-      {!showRemoteOverlay && isEditClaimsPhase && <ClaimsEditor />}
-      {!showRemoteOverlay && isOpeningPhase && <OpeningActions />}
-
-      {!showRemoteOverlay && isDebatePhase && !isExplorationClosed && <DebateActions showParamHistory={showParamHistory} setShowParamHistory={setShowParamHistory} showEvaluation={showEvaluation} setShowEvaluation={setShowEvaluation} />}
-
-      {/* Neutral evaluation panel — toggled via Evaluation button */}
-      {showEvaluation && activeDebate.neutral_evaluations && activeDebate.neutral_evaluations.length > 0 && (
-        <NeutralEvaluationPanel
-          evaluations={activeDebate.neutral_evaluations}
-          speakerMapping={activeDebate.neutral_speaker_mapping}
-        />
-      )}
-
-      {/* Parameter calibration history */}
-      {showParamHistory && (
-        <ParameterHistoryPanel onClose={() => setShowParamHistory(false)} />
-      )}
+      <DebateActionRegion
+        activeDebate={activeDebate}
+        isExploration={isExploration}
+        isExplorationClosed={isExplorationClosed}
+        explorationSummary={explorationSummary}
+        extractAndSeedFromDebate={extractAndSeedFromDebate}
+        showRemoteOverlay={showRemoteOverlay}
+        isClarificationPhase={isClarificationPhase}
+        isEditClaimsPhase={isEditClaimsPhase}
+        isOpeningPhase={isOpeningPhase}
+        isDebatePhase={isDebatePhase}
+        showParamHistory={showParamHistory}
+        setShowParamHistory={setShowParamHistory}
+        showEvaluation={showEvaluation}
+        setShowEvaluation={setShowEvaluation}
+      />
 
       {/* Diagnostics always uses popup window — no inline panel */}
 
-      {/* Phase 7: Context menu */}
-      {contextMenu && (
-        <DebateContextMenu
-          menu={contextMenu}
-          onClose={() => setContextMenu(null)}
-          onSimilarPovSearch={handleSimilarPovSearch}
-          onComment={() => {
-            setCommentPopover({
-              x: contextMenu.x,
-              y: contextMenu.y,
-              selectedText: contextMenu.selectedText,
-              entryId: contextMenu.entryId,
-              tier: contextMenu.tier,
-              startOffset: contextMenu.startOffset,
-              endOffset: contextMenu.endOffset,
-            });
-            setContextMenu(null);
-          }}
-        />
-      )}
-
-      {/* Comment creation popover */}
-      {commentPopover && (
-        <CommentCreationPopover
-          popover={commentPopover}
-          onClose={() => setCommentPopover(null)}
-        />
-      )}
-
-      {/* Comment sidebar */}
-      {commentSidebarOpen && commentsFile && (
-        <CommentSidebar />
-      )}
-
-      {/* Username prompt dialog (mounted once for all comment flows) */}
-      <UsernamePromptDialog />
+      <DebateModals
+        contextMenu={contextMenu}
+        setContextMenu={setContextMenu}
+        commentPopover={commentPopover}
+        setCommentPopover={setCommentPopover}
+        onSimilarPovSearch={handleSimilarPovSearch}
+        commentSidebarOpen={commentSidebarOpen}
+        commentsFile={commentsFile}
+      />
     </div>
-    {/* Debate Chat FAB — bottom-right floating button */}
-    <button
-      className={`debate-chat-fab${debateChatOpen ? ' active' : ''}`}
-      onClick={() => setDebateChatOpen(v => !v)}
-      title={debateChatOpen ? 'Hide Debate Chat' : 'Open Debate Chat — ask questions about the debate'}
-      aria-label="Debate Chat"
-    >
-      {debateChatOpen ? '✕' : '💬'}
-    </button>
-    {/* Debate Chat sidebar — outside workspace column, inside row */}
-    {debateChatOpen && (
-      <DiagnosticsChatSidebar
-        debate={activeDebate}
-        selectedEntry={null}
-        currentTab="transcript"
-        onNavigate={handleChatNavigate}
-        embedded
-        onClose={() => setDebateChatOpen(false)}
-      />
-    )}
-    {/* Reference detail pane — opens when a transcript ID-ref link is selected (t/1776) */}
-    {selectedRef && (
-      <DetailPane
-        className="debate-detail-pane"
-        selectedRef={selectedRef}
-        onSelectRef={setSelectedRef}
-        onClose={() => setSelectedRef(null)}
-      />
-    )}
+    <DebateSideRail
+      debateChatOpen={debateChatOpen}
+      setDebateChatOpen={setDebateChatOpen}
+      activeDebate={activeDebate}
+      onChatNavigate={handleChatNavigate}
+      selectedRef={selectedRef}
+      setSelectedRef={setSelectedRef}
+    />
     </div>
   );
 }
