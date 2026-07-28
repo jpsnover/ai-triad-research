@@ -97,7 +97,10 @@ Describe 'Invoke-AIApi truncation detection (gap 1.1)' -Tag 'enrichment' {
 
         Mock Invoke-RestMethod { $mockResponse } -ModuleName AIEnrich
 
-        $result = Invoke-AIApi -Prompt 'test' -Model 'gemini-2.5-flash' -ApiKey 'fake-key' 3>$null
+        # Model id must be a currently-registered gemini model (ai-models.json models[]).
+        # A de-registered id resolves to a $null backend and short-circuits before the
+        # gemini parser ever runs, silently masking parser coverage (t/1850).
+        $result = Invoke-AIApi -Prompt 'test' -Model 'gemini-3.5-flash-lite' -ApiKey 'fake-key' 3>$null
         $result.Truncated | Should -BeTrue
     }
 
@@ -171,7 +174,8 @@ Describe 'Invoke-AIApi token usage tracking (gap 1.2)' -Tag 'enrichment' {
 
         Mock Invoke-RestMethod { $mockResponse } -ModuleName AIEnrich
 
-        $result = Invoke-AIApi -Prompt 'test' -Model 'gemini-2.5-flash' -ApiKey 'fake-key' 3>$null
+        # Registered gemini model id — see the truncation test above (t/1850).
+        $result = Invoke-AIApi -Prompt 'test' -Model 'gemini-3.5-flash-lite' -ApiKey 'fake-key' 3>$null
         $result.Usage | Should -Not -BeNullOrEmpty
         $result.Usage.InputTokens  | Should -Be 15
         $result.Usage.OutputTokens | Should -Be 35
