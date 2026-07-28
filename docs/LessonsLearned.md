@@ -2,11 +2,21 @@
 
 Recurring failure patterns and how to prevent them. Maintained by the Sage agent. Read this before designing or implementing anything — past mistakes are the cheapest teacher.
 
----
+## Entry Format
 
-<!-- Entries added by the Sage as errors are reported and patterns emerge. -->
-<!-- Format: ## [Category] Pattern Title -->
-<!-- See roles/sage/AGENTS.md for full format specification. -->
+```markdown
+## [Category] Pattern Title
+
+**Pattern:** One-sentence description of the recurring failure mode.
+**Instances:** List of times this occurred (date, context, ticket/email ref).
+**Root Cause:** Why this keeps happening.
+**Prevention:** Specific rule, check, or practice that prevents recurrence.
+**Applies To:** Which profiles/areas this is relevant to.
+```
+
+Categories: `Build`, `Data`, `Migration`, `API`, `Type System`, `UI`, `PowerShell`, `Process`, `Design`
+
+---
 
 ## [PowerShell] `[PSCustomObject]` Type Constraint Fails on `ConvertFrom-Json` Output
 
