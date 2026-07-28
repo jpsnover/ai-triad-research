@@ -19,7 +19,7 @@ import {
 import type { AnchorHTMLAttributes, HTMLAttributes } from 'react';
 import { parseEntityRef } from '@lib/entities/types';
 import type { FactVerdict, FactDiscrepancy } from '@lib/debate/types';
-import { remarkLinkifyRefs, REF_LINK_CLASS } from './refLinkifyPlugin';
+import { remarkLinkifyRefs, REF_LINK_CLASS } from '../shared/refLinkifyPlugin';
 import { ClaimsView } from './ClaimsView';
 import { CampGlyph, povToCamp } from '../shared/CampGlyph';
 import './StatementCard.css';

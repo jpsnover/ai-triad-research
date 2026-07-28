@@ -15,7 +15,7 @@ import type { EntityRefKind } from '@lib/entities/types';
  */
 const LINKABLE_KINDS: ReadonlySet<EntityRefKind> = new Set(['node', 'situation', 'policy']);
 
-/** Marker class the StatementCard `span` md-component keys on to render a clickable ref. */
+/** Marker class the consuming surface's `span` md-component keys on to render a clickable ref. */
 export const REF_LINK_CLASS = 'ref-link';
 
 /**
@@ -24,6 +24,10 @@ export const REF_LINK_CLASS = 'ref-link';
  * `<span class="ref-link" data-ref-kind="…">` node — the display text is the raw
  * source token (no rewrite). A `span` md-component turns these into selectable
  * buttons that open the shared DetailPane.
+ *
+ * Surface-agnostic (t/1870): no store, handler, or debate coupling — each consuming
+ * surface (debate transcript, chat) supplies only its own `span` md-component that
+ * wires the marker's click to that surface's selection handler.
  *
  * Sibling to `utils/colorizePovPlugin`'s `remarkColorizePov`; composes into the same
  * `remarkPlugins` pipeline. Visits `text` nodes only, so code / inline-code (whose
