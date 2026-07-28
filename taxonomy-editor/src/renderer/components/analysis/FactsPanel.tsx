@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import './FactsPanel.css';
 
 export interface SourceFact {
   claim: string;
@@ -84,16 +85,16 @@ export function FactsPanel({ nodeId, onSelectFact }: {
   }, [nodeId]);
 
   if (loading) {
-    return <div style={{ padding: 12, color: 'var(--text-muted)', fontSize: '0.8rem' }}>Loading facts...</div>;
+    return <div className="facts-message">Loading facts...</div>;
   }
 
   if (!facts || facts.length === 0) {
-    return <div style={{ padding: 12, color: 'var(--text-muted)', fontSize: '0.8rem' }}>No source evidence linked to this node.</div>;
+    return <div className="facts-message">No source evidence linked to this node.</div>;
   }
 
   return (
-    <div style={{ padding: '8px 0', fontSize: '0.8rem' }}>
-      <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', marginBottom: 8, paddingLeft: 4 }}>
+    <div className="facts-root">
+      <div className="facts-count">
         {facts.length} fact{facts.length !== 1 ? 's' : ''} from source documents
       </div>
       {facts.map((f, i) => {
@@ -102,46 +103,39 @@ export function FactsPanel({ nodeId, onSelectFact }: {
         return (
           <div
             key={`${f.doc_id}-${i}`}
-            style={{
-              marginBottom: 6,
-              border: '1px solid var(--border)',
-              borderRadius: 6,
-              background: isExpanded ? 'var(--bg-secondary)' : 'transparent',
-              cursor: 'pointer',
-            }}
+            className="facts-card"
+            /* eslint-disable-next-line local/no-inline-style -- dynamic: expand-state background */
+            style={{ background: isExpanded ? 'var(--bg-secondary)' : 'transparent' }}
             onClick={() => {
               const next = isExpanded ? null : i;
               setExpanded(next);
               onSelectFact?.(next !== null ? f : null);
             }}
           >
-            <div style={{ padding: '6px 10px', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-              <span style={{ flexShrink: 0, color: 'var(--text-muted)', fontSize: 'var(--text-2xs)', marginTop: 2 }}>
+            <div className="facts-card-head">
+              <span className="facts-caret">
                 {isExpanded ? '\u25BC' : '\u25B6'}
               </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: '0.78rem', lineHeight: 1.3 }}>{f.label}</div>
+              <div className="facts-card-body">
+                <div className="facts-label">{f.label}</div>
                 {!isExpanded && (
-                  <div style={{
-                    color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: 2,
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>
+                  <div className="facts-claim-preview">
                     {f.claim}
                   </div>
                 )}
               </div>
-              <span style={{
-                flexShrink: 0, padding: '1px 6px', borderRadius: 10,
-                fontSize: 'var(--text-2xs)', fontWeight: 600,
-                background: spec.bg, color: spec.fg,
-              }}>
+              <span
+                className="facts-badge"
+                /* eslint-disable-next-line local/no-inline-style -- dynamic: data-driven specificity colors */
+                style={{ background: spec.bg, color: spec.fg }}
+              >
                 {f.specificity}
               </span>
             </div>
             {isExpanded && (
-              <div style={{ padding: '0 10px 8px 28px', lineHeight: 1.5 }}>
-                <div style={{ marginBottom: 6, color: 'var(--text-primary)' }}>{f.claim}</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
+              <div className="facts-expanded">
+                <div className="facts-claim-full">{f.claim}</div>
+                <div className="facts-meta">
                   <span title="Source document"><strong>Doc:</strong> {f.doc_id}</span>
                   {f.temporal_bound && (
                     <span title="Temporal bound"><strong>Period:</strong> {f.temporal_bound}</span>

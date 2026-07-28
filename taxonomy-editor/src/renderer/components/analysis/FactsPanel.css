@@ -1,0 +1,91 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Co-located styles for FactsPanel — migrated from inline (t/1865).
+   The card's expand-state background and the specificity badge's data-driven
+   colors stay inline (justified disable comments in the component). */
+
+.facts-message {
+  padding: 12px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.facts-root {
+  padding: 8px 0;
+  font-size: 0.8rem;
+}
+
+.facts-count {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+
+.facts-card {
+  margin-bottom: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.facts-card-head {
+  padding: 6px 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.facts-caret {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+  margin-top: 2px;
+}
+
+.facts-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.facts-label {
+  font-weight: 600;
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.facts-claim-preview {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.facts-badge {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+}
+
+.facts-expanded {
+  padding: 0 10px 8px 28px;
+  line-height: 1.5;
+}
+
+.facts-claim-full {
+  margin-bottom: 6px;
+  color: var(--text-primary);
+}
+
+.facts-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
