@@ -8,8 +8,6 @@ export type { DebateStore } from './types';
 export type {
   ReflectionEdit,
   ReflectionResult,
-  ConsensusProposal,
-  ConsensusCluster,
   NodeScoringSource,
   RelevanceSourceEntry,
 } from './types';

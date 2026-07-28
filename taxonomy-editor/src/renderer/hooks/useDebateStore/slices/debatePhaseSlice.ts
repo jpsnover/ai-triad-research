@@ -3,7 +3,7 @@
 
 import type { StateCreator } from 'zustand';
 import type { DebateStore } from '../types';
-import type { ReflectionEdit, ReflectionResult, ConsensusProposal, ConsensusCluster } from '../types';
+import type { ReflectionEdit, ReflectionResult } from '../types';
 import { formatGapHint } from '../shared/prompts';
 import type {
   DebateSession,

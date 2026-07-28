@@ -18,7 +18,7 @@ vi.mock('../../utils/regeneratePlainDescription', () => ({
 
 const debateStore: Record<string, any> = {
   reflections: [],
-  consensusClusters: [],
+  newItemProposalStatus: {},
   debateGenerating: null,
   activeDebate: null,
   enrichmentStatus: {},
@@ -26,6 +26,8 @@ const debateStore: Record<string, any> = {
   applyReflectionEdit: vi.fn(),
   retryReflectionEditAfterFix: vi.fn(),
   dismissReflectionEdit: vi.fn(),
+  applyReflectionProposal: vi.fn(),
+  dismissReflectionProposal: vi.fn(),
   retryEnrichment: vi.fn(),
   clearEnrichmentStatus: vi.fn(),
 };
@@ -97,5 +99,63 @@ describe('ReflectionsPanel — plain description for new (add) proposals', () =>
     generatePlainPreview.mockResolvedValue('Recovered plain text.');
     fireEvent.click(retry);
     expect(await screen.findByText('Recovered plain text.')).toBeInTheDocument();
+  });
+});
+
+// ── propose_new item proposals (t/1773 AC1) ───────────────────
+
+function addProposalReflection() {
+  debateStore.reflections = [{
+    pover: 'accelerationist',
+    label: 'Accelerationist',
+    reflection_summary: '',
+    edits: [],
+    new_item_proposals: [{
+      kind: 'propose_new',
+      source: 'reflection_new_item',
+      node_id: '',
+      reason: 'r',
+      debate_id: 'd1',
+      requires_human_review: true,
+      pov: 'accelerationist',
+      category: 'Beliefs',
+      label: 'Proposed New Belief',
+      description: 'A newly proposed belief description.',
+      rationale: 'It was surfaced repeatedly in the debate.',
+      proposed_edges: [
+        { target_node_id: 'acc-B-001', edge_type: 'SUPPORTS', new_node_role: 'source', rationale: 'supports the parent claim', confidence: 0.8 },
+      ],
+    }],
+  }];
+}
+
+describe('ReflectionsPanel — propose_new item proposals (t/1773 AC1)', () => {
+  beforeEach(() => {
+    addProposalReflection();
+    debateStore.newItemProposalStatus = {};
+  });
+
+  it('renders the new-item option with its label, proposed edges, and Approve/Dismiss actions', () => {
+    render(<ReflectionsPanel onClose={vi.fn()} />);
+    expect(screen.getByText('Proposed New Belief')).toBeInTheDocument();
+    expect(screen.getByText('New Item')).toBeInTheDocument();
+    expect(screen.getByText(/Proposed edges \(1\)/)).toBeInTheDocument();
+    expect(screen.getByText('acc-B-001')).toBeInTheDocument();
+    expect(screen.getByText(/SUPPORTS/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Approve & Apply' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Dismiss' })).toBeInTheDocument();
+  });
+
+  it('Approve & Apply calls applyReflectionProposal with the pov + proposal index', async () => {
+    debateStore.applyReflectionProposal.mockResolvedValue({ ok: true, createdNodeId: 'acc-B-042' });
+    render(<ReflectionsPanel onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Approve & Apply' }));
+    await waitFor(() => expect(debateStore.applyReflectionProposal).toHaveBeenCalledWith('accelerationist', 0));
+  });
+
+  it('Dismiss calls dismissReflectionProposal', () => {
+    render(<ReflectionsPanel onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(debateStore.dismissReflectionProposal).toHaveBeenCalledWith('accelerationist', 0);
   });
 });

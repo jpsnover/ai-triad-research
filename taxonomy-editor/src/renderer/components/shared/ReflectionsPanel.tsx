@@ -6,7 +6,8 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { useShallow } from 'zustand/react/shallow';
-import type { ReflectionEdit, ReflectionResult, ConsensusCluster } from '../../hooks/useDebateStore';
+import type { ReflectionEdit, ReflectionResult } from '../../hooks/useDebateStore';
+import type { NewPovItemProposal } from '@lib/debate/types/session';
 import { POVER_INFO } from '../../types/debate';
 import type { SpeakerId } from '../../types/debate';
 import { checkDolceCompliance, type ComplianceViolation } from '../../utils/dolceCompliance';
@@ -666,6 +667,7 @@ function PoverReflection({ result }: { result: ReflectionResult }) {
   const color = info?.color || '#888';
   const pending = result.edits.filter(e => e.status === 'pending').length;
   const approved = result.edits.filter(e => e.status === 'approved').length;
+  const proposals = result.new_item_proposals ?? [];
 
   return (
     <div style={{ marginBottom: 16 }}>
@@ -679,6 +681,7 @@ function PoverReflection({ result }: { result: ReflectionResult }) {
           {result.edits.length} edit{result.edits.length !== 1 ? 's' : ''}
           {approved > 0 && ` (${approved} applied)`}
           {pending > 0 && pending !== result.edits.length && ` (${pending} pending)`}
+          {proposals.length > 0 && ` · ${proposals.length} new item${proposals.length !== 1 ? 's' : ''}`}
         </span>
       </div>
 
@@ -693,7 +696,7 @@ function PoverReflection({ result }: { result: ReflectionResult }) {
         </div>
       )}
 
-      {result.edits.length === 0 && (
+      {result.edits.length === 0 && proposals.length === 0 && (
         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
           No taxonomy edits proposed.
         </div>
@@ -702,122 +705,188 @@ function PoverReflection({ result }: { result: ReflectionResult }) {
       {result.edits.map((edit, i) => (
         <EditCard key={i} edit={edit} pover={result.pover} editIndex={i} />
       ))}
+
+      {proposals.map((p, i) => (
+        <ProposalCard key={`prop-${i}`} proposal={p} pover={result.pover} proposalIndex={i} />
+      ))}
     </div>
   );
 }
 
-// ── Consensus cluster card ──────────────────────────────
+// ── Propose-new item card (t/1773) ──────────────────────
+// Renders a `NewPovItemProposal`: the new node's fields + its proposed edges, with
+// Approve/Dismiss. Exclusive vs edit_existing (this is the sole new-node path; add is
+// retired). Applying it creates the node AND persists its edges atomically (ruling B).
 
-function ConsensusCard({ cluster }: { cluster: ConsensusCluster }) {
-  const { acceptConsensus, rejectConsensus } = useDebateStore(
-    useShallow(s => ({ acceptConsensus: s.acceptConsensus, rejectConsensus: s.rejectConsensus }))
+const NEW_ITEM_COLOR = '#22c55e';
+
+function ProposalCard({ proposal, pover, proposalIndex }: {
+  proposal: NewPovItemProposal;
+  pover: string;
+  proposalIndex: number;
+}) {
+  const { applyReflectionProposal, dismissReflectionProposal, status } = useDebateStore(
+    useShallow(s => ({
+      applyReflectionProposal: s.applyReflectionProposal,
+      dismissReflectionProposal: s.dismissReflectionProposal,
+      status: s.newItemProposalStatus[`${pover}#${proposalIndex}`],
+    }))
   );
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleAccept = async () => {
-    setLoading(true);
-    setError(null);
-    const result = await acceptConsensus(cluster.id);
-    setLoading(false);
-    if (!result.ok) setError(result.error || 'Failed');
-  };
-
-  if (cluster.status !== 'pending') {
-    return (
-      <div style={{
-        padding: '12px 16px', marginBottom: 12, borderRadius: 8,
-        background: cluster.status === 'accepted' ? 'rgba(34,197,94,0.08)' : 'rgba(156,163,175,0.08)',
-        border: `1px solid ${cluster.status === 'accepted' ? '#22c55e' : '#9ca3af'}`,
-        fontSize: '0.75rem', color: 'var(--text-muted)',
-      }}>
-        Consensus {cluster.status === 'accepted' ? 'accepted — situation node created' : 'rejected — proposals shown individually'}
-      </div>
-    );
-  }
-
-  const scores = Object.entries(cluster.similarityScores)
-    .map(([k, v]) => `${k}: ${(v as number).toFixed(2)}`)
-    .join(', ');
+  const navigateToNode = useTaxonomyStore(s => s.navigateToNode);
+  const [applying, setApplying] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
+  const [createdNodeId, setCreatedNodeId] = useState<string | null>(null);
+  const resolved = status === 'approved' || status === 'dismissed';
+  const info = POVER_INFO[proposal.pov as Exclude<SpeakerId, 'user'>];
 
   return (
     <div style={{
-      padding: '14px 16px', marginBottom: 16, borderRadius: 10,
-      background: 'rgba(99,102,241,0.06)',
-      border: '1px solid rgba(99,102,241,0.3)',
+      padding: '10px 12px', borderRadius: 8,
+      border: `1px solid ${resolved ? 'var(--border-color)' : NEW_ITEM_COLOR}`,
+      background: resolved ? 'var(--bg-secondary)' : 'var(--bg-primary)',
+      opacity: resolved ? 0.6 : 1,
+      marginBottom: 8,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6366f1' }}>
-          Consensus Detected
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span style={{
+          padding: '1px 6px', borderRadius: 4,
+          fontSize: 'var(--text-2xs)', fontWeight: 700,
+          background: `${NEW_ITEM_COLOR}22`, color: NEW_ITEM_COLOR,
+        }}>New Item</span>
+        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{proposal.category}</span>
+        <span style={{ fontSize: 'var(--text-2xs)', color: info?.color || 'var(--text-muted)', fontWeight: 600 }}>
+          {info?.label || proposal.pov}
         </span>
-        <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4 }}>
-          {cluster.proposals.length} POVs converge
-        </span>
-        <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginLeft: 'auto' }}>
-          similarity: {scores}
-        </span>
+        {status === 'approved' && (
+          <span style={{ fontSize: 'var(--text-2xs)', color: '#22c55e', fontWeight: 600, marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+            Applied
+            {createdNodeId && (
+              <code
+                style={{ fontSize: 'var(--text-2xs)', padding: '1px 5px', borderRadius: 3, background: '#22c55e22', cursor: 'pointer' }}
+                title={`Navigate to ${createdNodeId}`}
+                onClick={() => {
+                  const tab = PREFIX_TO_POV[createdNodeId.split('-')[0]];
+                  if (tab) navigateToNode(tab, createdNodeId);
+                }}
+              >{createdNodeId}</code>
+            )}
+          </span>
+        )}
+        {status === 'dismissed' && (
+          <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginLeft: 'auto' }}>Dismissed</span>
+        )}
       </div>
 
-      {/* Side-by-side proposals */}
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cluster.proposals.length}, 1fr)`, gap: 10, marginBottom: 12 }}>
-        {cluster.proposals.map((p, i) => {
-          const info = POVER_INFO[p.pov as Exclude<SpeakerId, 'user'>];
-          return (
-            <div key={i} style={{
-              padding: '8px 10px', borderRadius: 6,
-              background: 'var(--bg-primary)',
-              border: `1px solid ${info?.color || '#888'}40`,
-            }}>
-              <div style={{ fontSize: '0.7rem', fontWeight: 600, color: info?.color || '#888', marginBottom: 4 }}>
-                {info?.label || p.pov}
-              </div>
-              <div style={{ fontSize: '0.7rem', fontWeight: 600, marginBottom: 3 }}>
-                {p.proposed_label}
-              </div>
-              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                {p.proposed_description.slice(0, 200)}{p.proposed_description.length > 200 ? '…' : ''}
-              </div>
+      {/* Label */}
+      <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>{proposal.label}</div>
+
+      {/* Description */}
+      <div style={{
+        fontSize: '0.7rem', padding: '4px 8px',
+        background: 'rgba(34,197,94,0.06)', borderRadius: 4,
+        whiteSpace: 'pre-wrap', marginBottom: 6,
+        borderLeft: '3px solid rgba(34,197,94,0.3)',
+      }}>{proposal.description}</div>
+
+      {/* Proposed edges — the new node is always connected (anti-orphan, t/1725) */}
+      <div style={{ marginBottom: 6 }}>
+        <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 3 }}>
+          Proposed edges ({proposal.proposed_edges.length})
+        </div>
+        {proposal.proposed_edges.map((e, i) => (
+          <div key={i} style={{
+            fontSize: 'var(--text-2xs)', padding: '3px 8px', marginBottom: 3,
+            background: 'var(--bg-secondary)', borderRadius: 4,
+            borderLeft: '3px solid var(--color-acc, #3b82f6)',
+          }}>
+            <div style={{ fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+              {e.new_node_role === 'source' ? (
+                <>
+                  <span style={{ fontWeight: 700 }}>[new item]</span>
+                  <span style={{ color: 'var(--color-acc, #3b82f6)' }}>—{e.edge_type}→</span>
+                  <code>{e.target_node_id}</code>
+                </>
+              ) : (
+                <>
+                  <code>{e.target_node_id}</code>
+                  <span style={{ color: 'var(--color-acc, #3b82f6)' }}>—{e.edge_type}→</span>
+                  <span style={{ fontWeight: 700 }}>[new item]</span>
+                </>
+              )}
             </div>
-          );
-        })}
+            {e.rationale && (
+              <div style={{ color: 'var(--text-muted)', marginTop: 2, fontStyle: 'italic' }}>{e.rationale}</div>
+            )}
+          </div>
+        ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <button
-          className="btn btn-primary"
-          style={{ fontSize: '0.7rem', padding: '4px 14px' }}
-          onClick={handleAccept}
-          disabled={loading}
-        >
-          {loading ? 'Creating...' : 'Create Situation Node'}
-        </button>
-        <button
-          className="btn"
-          style={{ fontSize: '0.7rem', padding: '4px 14px' }}
-          onClick={() => rejectConsensus(cluster.id)}
-          disabled={loading}
-        >
-          Keep Separate
-        </button>
-        {error && <span style={{ fontSize: 'var(--text-2xs)', color: '#ef4444' }}>{error}</span>}
+      {/* Rationale */}
+      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-primary)', fontStyle: 'italic', marginBottom: 6 }}>
+        {proposal.rationale}
       </div>
+
+      {/* Actions */}
+      {!resolved && (
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            className="btn btn-primary"
+            style={{ fontSize: '0.7rem', padding: '3px 12px' }}
+            disabled={applying}
+            onClick={async () => {
+              setApplying(true);
+              setApplyError(null);
+              try {
+                const result = await applyReflectionProposal(pover, proposalIndex);
+                if (!result.ok) setApplyError(result.error ?? 'Save failed — check SaveBar for details');
+                else if (result.createdNodeId) setCreatedNodeId(result.createdNodeId);
+              } catch (err) {
+                getGlobalRecorder()?.record({ type: 'system.error', component: 'reflections-panel', level: 'error', message: 'reflection proposal apply failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+                setApplyError(String(err));
+              } finally {
+                setApplying(false);
+              }
+            }}
+          >{applying ? 'Saving…' : 'Approve & Apply'}</button>
+          <button
+            className="btn"
+            style={{ fontSize: '0.7rem', padding: '3px 10px' }}
+            onClick={() => dismissReflectionProposal(pover, proposalIndex)}
+          >Dismiss</button>
+        </div>
+      )}
+      {applyError && (
+        <div style={{ color: '#ef4444', fontSize: '0.7rem', marginTop: 4, padding: '6px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 4, whiteSpace: 'pre-line' }}>
+          {applyError}
+        </div>
+      )}
     </div>
   );
 }
 
 export function ReflectionsPanel({ onClose }: { onClose: () => void }) {
-  const { reflections, consensusClusters, debateGenerating, requestReflections, applyReflectionEdit, dismissReflectionEdit } = useDebateStore(
-    useShallow(s => ({ reflections: s.reflections, consensusClusters: s.consensusClusters, debateGenerating: s.debateGenerating, requestReflections: s.requestReflections, applyReflectionEdit: s.applyReflectionEdit, dismissReflectionEdit: s.dismissReflectionEdit }))
+  const { reflections, newItemProposalStatus, debateGenerating, requestReflections, applyReflectionEdit, dismissReflectionEdit, applyReflectionProposal, dismissReflectionProposal } = useDebateStore(
+    useShallow(s => ({ reflections: s.reflections, newItemProposalStatus: s.newItemProposalStatus, debateGenerating: s.debateGenerating, requestReflections: s.requestReflections, applyReflectionEdit: s.applyReflectionEdit, dismissReflectionEdit: s.dismissReflectionEdit, applyReflectionProposal: s.applyReflectionProposal, dismissReflectionProposal: s.dismissReflectionProposal }))
   );
   const isGenerating = debateGenerating != null;
 
-  const totalPending = reflections.reduce((sum, r) => sum + r.edits.filter(e => e.status === 'pending').length, 0);
-  const totalApproved = reflections.reduce((sum, r) => sum + r.edits.filter(e => e.status === 'approved').length, 0);
+  // Pending/applied counts span both edit_existing edits and propose_new proposals (t/1773).
+  const proposalIsPending = (pover: string, i: number) => !newItemProposalStatus[`${pover}#${i}`];
+  const totalPending = reflections.reduce((sum, r) =>
+    sum + r.edits.filter(e => e.status === 'pending').length
+        + (r.new_item_proposals ?? []).filter((_, i) => proposalIsPending(r.pover, i)).length, 0);
+  const totalApproved = reflections.reduce((sum, r) =>
+    sum + r.edits.filter(e => e.status === 'approved').length
+        + (r.new_item_proposals ?? []).filter((_, i) => newItemProposalStatus[`${r.pover}#${i}`] === 'approved').length, 0);
 
   const approveAll = async () => {
     for (const r of reflections) {
       for (let i = 0; i < r.edits.length; i++) {
         if (r.edits[i].status === 'pending') await applyReflectionEdit(r.pover, i);
+      }
+      const proposals = r.new_item_proposals ?? [];
+      for (let i = 0; i < proposals.length; i++) {
+        if (proposalIsPending(r.pover, i)) await applyReflectionProposal(r.pover, i);
       }
     }
   };
@@ -826,6 +895,9 @@ export function ReflectionsPanel({ onClose }: { onClose: () => void }) {
     for (const r of reflections) {
       r.edits.forEach((e, i) => {
         if (e.status === 'pending') dismissReflectionEdit(r.pover, i);
+      });
+      (r.new_item_proposals ?? []).forEach((_, i) => {
+        if (proposalIsPending(r.pover, i)) dismissReflectionProposal(r.pover, i);
       });
     }
   };
@@ -927,14 +999,6 @@ export function ReflectionsPanel({ onClose }: { onClose: () => void }) {
           {isGenerating && reflections.length === 0 && (
             <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
               Waiting for reflections...
-            </div>
-          )}
-
-          {consensusClusters.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              {consensusClusters.map(c => (
-                <ConsensusCard key={c.id} cluster={c} />
-              ))}
             </div>
           )}
 

@@ -51,22 +51,6 @@ export interface ReflectionResult {
   new_item_proposals?: NewPovItemProposal[];
 }
 
-export interface ConsensusProposal {
-  pov: string;
-  editIndex: number;
-  proposed_label: string;
-  proposed_description: string;
-  rationale: string;
-  evidence_entries: string[];
-}
-
-export interface ConsensusCluster {
-  id: string;
-  proposals: ConsensusProposal[];
-  similarityScores: Record<string, number>;
-  status: 'pending' | 'accepted' | 'rejected';
-}
-
 export interface NodeScoringSource {
   source: 'an' | 'topic';
   anScore: number;

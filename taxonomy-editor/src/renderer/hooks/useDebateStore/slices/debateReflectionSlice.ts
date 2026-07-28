@@ -3,7 +3,7 @@
 
 import type { StateCreator } from 'zustand';
 import type { DebateStore } from '../types';
-import type { ReflectionEdit, ReflectionResult, ConsensusProposal, ConsensusCluster } from '../types';
+import type { ReflectionEdit, ReflectionResult } from '../types';
 import type {
   DebateSession,
   SpeakerId,
@@ -14,7 +14,7 @@ import type {
   CrossCuttingProposal,
 } from '../../../types/debate';
 import { POVER_INFO, AI_POVERS, POV_KEYS } from '../../../types/debate';
-import type { PovNode, CrossCuttingNode as SituationNode, GraphAttributes, Category, Pov } from '../../../types/taxonomy';
+import type { PovNode, CrossCuttingNode as SituationNode, GraphAttributes, Category, Pov, Edge } from '../../../types/taxonomy';
 import type { ModeratorState, SelectionResult, ModeratorIntervention, InterventionMetadata, DebatePhase } from '@lib/debate/types';
 import type { PoverResponseMeta, MoveAnnotation } from '@lib/debate/helpers';
 import type { PhaseState, PhaseTransitionConfig, SignalContext, Signal } from '@lib/debate/types';
@@ -83,7 +83,6 @@ import { computeOperationality } from '@lib/debate/intentionOperationality';
 import { useTaxonomyStore } from '../../useTaxonomyStore';
 import { usePromptConfigStore } from '../../usePromptConfigStore';
 import { mapErrorToUserMessage } from '../../../utils/errorMessages';
-import { cosineSimilarity, scoreNodesLexical } from '../../../utils/taxonomyRelevance';
 import { getConfiguredModel, getSpeakerModel } from '../shared/modelConfig';
 import { generateTextWithProgress, phaseGuardedSet, summarizeTranscriptEntry, makeStageGenerate, routeTurnValidatorHintsIntoSuggestions, getSourceEvidenceIndex, getDocTitles } from '../shared/generation';
 import { createDebateGuard, newAbortController, _abortController, claimDebateDriver, releaseDebateDriver, isDailyLimitError, DAILY_LIMIT_MESSAGE } from '../shared/guards';
@@ -97,9 +96,160 @@ export interface DebateReflectionSlice {
   applyReflectionEdit: (pover: string, editIndex: number, overrides?: { label?: string; description?: string }, options?: { regeneratePhrases?: boolean }) => Promise<{ ok: boolean; error?: string; enrichNodeId?: string }>;
   retryReflectionEditAfterFix: (pover: string, editIndex: number) => Promise<{ ok: boolean; error?: string }>;
   dismissReflectionEdit: (pover: string, editIndex: number) => void;
-  acceptConsensus: (clusterId: string) => Promise<{ ok: boolean; error?: string }>;
-  rejectConsensus: (clusterId: string) => void;
+  /** Apply a `propose_new` proposal (t/1773): create the new POV node AND persist its
+   *  proposed edges atomically (one save) — no orphaned node. Edge targets are
+   *  re-validated against live node ids at apply time. */
+  applyReflectionProposal: (pover: string, proposalIndex: number) => Promise<{ ok: boolean; error?: string; createdNodeId?: string }>;
+  dismissReflectionProposal: (pover: string, proposalIndex: number) => void;
   retryEnrichment: (nodeId: string, pov: 'accelerationist' | 'safetyist' | 'skeptic') => Promise<void>;
+}
+
+/** Key for `newItemProposalStatus` — a propose_new item's disposition (t/1773). */
+const proposalStatusKey = (pover: string, proposalIndex: number) => `${pover}#${proposalIndex}`;
+
+type ReflectionSet = Parameters<StateCreator<DebateStore, [], [], DebateReflectionSlice>>[0];
+type ReflectionGet = Parameters<StateCreator<DebateStore, [], [], DebateReflectionSlice>>[1];
+
+/**
+ * Provisional weight assignment (t/148) for a freshly-created reflection node — an
+ * initial confidence/priority/operationality with a history entry, by BDI category.
+ * Shared by the `add` edit path and the propose_new apply path (t/1773).
+ */
+function assignProvisionalWeight(povKey: Pov, nodeId: string, category: Category): void {
+  const taxStore = useTaxonomyStore.getState();
+  const createdNode = taxStore[povKey]?.nodes.find(n => n.id === nodeId);
+  if (!createdNode) return;
+  const today = new Date().toISOString().slice(0, 10);
+  if (category === 'Beliefs') {
+    const confidence = computeBeliefConfidence({
+      epistemic_type: createdNode.graph_attributes?.epistemic_type,
+      falsifiability: createdNode.graph_attributes?.falsifiability,
+      source_doc_count: 0,
+      debate_ref_count: createdNode.debate_refs?.length ?? 0,
+      supports_received: 0,
+      attacks_received: 0,
+      assumes_received: 0,
+    });
+    taxStore.updatePovNode(povKey, nodeId, {
+      confidence,
+      confidence_history: [{ date: today, value: confidence, delta: 0, reason: 'provisional — reflection' }],
+    });
+  } else if (category === 'Desires') {
+    const priority = computeTreePriority(createdNode);
+    taxStore.updatePovNode(povKey, nodeId, {
+      priority,
+      priority_history: [{ date: today, value: priority, delta: 0, reason: 'provisional — reflection' }],
+    });
+  } else if (category === 'Intentions') {
+    const operationality = computeOperationality(createdNode);
+    taxStore.updatePovNode(povKey, nodeId, {
+      operationality,
+      operationality_history: [{ date: today, value: operationality, delta: 0, reason: 'provisional — reflection' }],
+    });
+  }
+}
+
+/**
+ * Enrich a reflection-applied node with AI-generated graph attributes + synthetic
+ * embeddings. Shared by the `add`/`revise`/`qualify` edit path and the propose_new
+ * apply path (t/1773) so new nodes reach the taxonomy with the same fidelity. Awaits
+ * the dirty-flag pre-save, then runs the enrichment itself detached (fire-and-forget):
+ * a `_phrase_regen_pending` flag makes an incomplete enrichment detectable across
+ * sessions, and enrichmentStatus drives the in-session UI.
+ */
+async function startReflectionNodeEnrichment(
+  opts: { povKey: Pov; nodeId: string; label: string; description: string; category: Category; editType: string; regeneratePhrases: boolean },
+  set: ReflectionSet,
+  get: ReflectionGet,
+): Promise<void> {
+  const { povKey, nodeId, label, description, category, editType, regeneratePhrases } = opts;
+  // Set dirty flag before starting enrichment
+  const preNode = useTaxonomyStore.getState()[povKey]?.nodes.find(n => n.id === nodeId);
+  if (preNode) {
+    useTaxonomyStore.getState().updatePovNode(povKey, nodeId, {
+      graph_attributes: { ...preNode.graph_attributes, _phrase_regen_pending: true },
+    });
+    await useTaxonomyStore.getState().save();
+  }
+  set({ enrichmentStatus: { ...get().enrichmentStatus, [nodeId]: { status: 'pending' } } });
+  const enrichStartTime = performance.now();
+  getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-enrichment', level: 'info', message: 'enrichment.start', data: { node_id: nodeId, pov: povKey, edit_type: editType, regeneratePhrases } });
+
+  void (async () => {
+    try {
+      const { reflectionNodeEnrichmentPrompt } = await import('../../../prompts/analysis');
+      const enrichPrompt = reflectionNodeEnrichmentPrompt({
+        id: nodeId,
+        label,
+        description,
+        category,
+        pov: povKey,
+      });
+      const enrichModel = getConfiguredModel();
+      const { text } = await api.generateText(enrichPrompt, enrichModel);
+      const enriched = JSON.parse(stripCodeFences(text));
+      const currentTaxStore = useTaxonomyStore.getState();
+      const currentNode = currentTaxStore[povKey]?.nodes.find(n => n.id === nodeId);
+      if (!currentNode) return;
+      const mergedAttrs: GraphAttributes = {
+        ...currentNode.graph_attributes,
+        ...(enriched.epistemic_type && { epistemic_type: enriched.epistemic_type }),
+        ...(enriched.rhetorical_strategy && { rhetorical_strategy: enriched.rhetorical_strategy }),
+        ...(enriched.assumes?.length > 0 && { assumes: enriched.assumes }),
+        ...(enriched.falsifiability && { falsifiability: enriched.falsifiability }),
+        ...(enriched.audience && { audience: enriched.audience }),
+        ...(enriched.emotional_register && { emotional_register: enriched.emotional_register }),
+        ...(enriched.intellectual_lineage?.length > 0 && { intellectual_lineage: enriched.intellectual_lineage }),
+        ...(enriched.steelman_vulnerability && { steelman_vulnerability: enriched.steelman_vulnerability }),
+        ...(enriched.node_scope && { node_scope: enriched.node_scope }),
+        ...(enriched.attribution_text && { attribution_text: enriched.attribution_text }),
+      };
+      // Keep dirty flag until embeddings are also done
+      currentTaxStore.updatePovNode(povKey, nodeId, { graph_attributes: mergedAttrs });
+      await currentTaxStore.save();
+
+      if (regeneratePhrases) {
+        const phrasesToEmbed: string[] = [];
+        if (enriched.attribution_text) phrasesToEmbed.push(enriched.attribution_text);
+        if (Array.isArray(enriched.synthetic_phrases)) {
+          for (const p of enriched.synthetic_phrases) {
+            if (typeof p === 'string' && p.length > 0) phrasesToEmbed.push(p);
+          }
+        }
+        if (phrasesToEmbed.length > 0) {
+          const vectors: number[][] = [];
+          for (const phrase of phrasesToEmbed) {
+            try {
+              const { vector } = await api.computeQueryEmbedding(phrase.slice(0, 500));
+              if (vector?.length > 0) vectors.push(vector);
+            // eslint-disable-next-line local/require-flight-recorder-in-catch -- per-phrase resilience: individual embedding failures are expected; outer catch records if entire enrichment fails
+            } catch { /* per-phrase resilience */ }
+          }
+          if (vectors.length > 0) {
+            const povShort = povKey === 'accelerationist' ? 'acc' : povKey === 'safetyist' ? 'saf' : 'skp';
+            await api.updateSyntheticEmbeddings(nodeId, povShort, vectors);
+          }
+        }
+      }
+
+      // Clear dirty flag only after attributes + embeddings are fully done
+      const finalNode = useTaxonomyStore.getState()[povKey]?.nodes.find(n => n.id === nodeId);
+      if (finalNode?.graph_attributes?._phrase_regen_pending) {
+        const finalAttrs = { ...finalNode.graph_attributes };
+        delete finalAttrs._phrase_regen_pending;
+        useTaxonomyStore.getState().updatePovNode(povKey, nodeId, { graph_attributes: finalAttrs });
+        await useTaxonomyStore.getState().save();
+      }
+
+      const enrichDuration = Math.round(performance.now() - enrichStartTime);
+      getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-enrichment', level: 'info', message: 'enrichment.complete', duration_ms: enrichDuration, data: { node_id: nodeId, pov: povKey, fields: Object.keys(enriched), regeneratePhrases } });
+      set({ enrichmentStatus: { ...get().enrichmentStatus, [nodeId]: { status: 'success' } } });
+    } catch (err) {
+      const enrichDuration = Math.round(performance.now() - enrichStartTime);
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'reflection-enrichment', level: 'error', message: 'enrichment.failed', duration_ms: enrichDuration, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack }, data: { node_id: nodeId, pov: povKey, edit_type: editType } });
+      set({ enrichmentStatus: { ...get().enrichmentStatus, [nodeId]: { status: 'error', error: String(err) } } });
+    }
+  })();
 }
 
 export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], DebateReflectionSlice> = (set, get) => ({
@@ -108,7 +258,7 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
     if (!activeDebate) return;
 
     const isStillValid = createDebateGuard(get);
-    set({ debateError: null, debateWarnings: [], reflections: [], consensusClusters: [] });
+    set({ debateError: null, debateWarnings: [], reflections: [], newItemProposalStatus: {} });
 
     const model = getConfiguredModel();
     const fullTranscript = formatRecentTranscript(activeDebate.transcript, 50);
@@ -325,110 +475,22 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
       }
     }
 
-    // ── Consensus detection: find overlapping ADD proposals across POVs ──
-    const addProposals: ConsensusProposal[] = [];
-    for (const result of results) {
-      for (let i = 0; i < result.edits.length; i++) {
-        const edit = result.edits[i];
-        if (edit.edit_type === 'add') {
-          addProposals.push({
-            pov: result.pover,
-            editIndex: i,
-            proposed_label: edit.proposed_label,
-            proposed_description: edit.proposed_description,
-            rationale: edit.rationale,
-            evidence_entries: edit.evidence_entries,
-          });
-        }
-      }
-    }
-
-    const clusters: ConsensusCluster[] = [];
-    if (addProposals.length >= 2) {
-      try {
-        // Compute embeddings for all ADD proposals
-        const embeddings: { pov: string; editIndex: number; vector: number[] }[] = [];
-        for (const p of addProposals) {
-          const { vector } = await api.computeQueryEmbedding(p.proposed_description.slice(0, 500));
-          embeddings.push({ pov: p.pov, editIndex: p.editIndex, vector });
-        }
-
-        // Pairwise similarity (only across different POVs)
-        const pairs: { a: number; b: number; sim: number }[] = [];
-        for (let i = 0; i < embeddings.length; i++) {
-          for (let j = i + 1; j < embeddings.length; j++) {
-            if (embeddings[i].pov === embeddings[j].pov) continue;
-            const sim = cosineSimilarity(embeddings[i].vector, embeddings[j].vector);
-            if (sim > 0.70) pairs.push({ a: i, b: j, sim });
-          }
-        }
-
-        // Cluster overlapping pairs using union-find
-        if (pairs.length > 0) {
-          const parent = new Map<number, number>();
-          const find = (x: number): number => {
-            if (!parent.has(x)) parent.set(x, x);
-            if (parent.get(x) !== x) parent.set(x, find(parent.get(x)!));
-            return parent.get(x)!;
-          };
-          const union = (a: number, b: number) => { parent.set(find(a), find(b)); };
-
-          for (const { a, b } of pairs) { union(a, b); }
-
-          // Group by root
-          const groups = new Map<number, number[]>();
-          for (const idx of new Set([...pairs.map(p => p.a), ...pairs.map(p => p.b)])) {
-            const root = find(idx);
-            if (!groups.has(root)) groups.set(root, []);
-            groups.get(root)!.push(idx);
-          }
-
-          for (const members of groups.values()) {
-            // Only create cluster if at least 2 different POVs
-            const povSet = new Set(members.map(m => embeddings[m].pov));
-            if (povSet.size < 2) continue;
-
-            const clusterProposals = members.map(m => addProposals[m]);
-            const scores: Record<string, number> = {};
-            for (const { a, b, sim } of pairs) {
-              if (members.includes(a) && members.includes(b)) {
-                const key = [embeddings[a].pov.slice(0, 3), embeddings[b].pov.slice(0, 3)].sort().join('-');
-                scores[key] = Math.max(scores[key] || 0, sim);
-              }
-            }
-
-            clusters.push({
-              id: generateId(),
-              proposals: clusterProposals,
-              similarityScores: scores,
-              status: 'pending',
-            });
-          }
-        }
-      } catch (err) {
-        getGlobalRecorder()?.record({
-          type: 'system.error',
-          debate_id: activeDebate?.id,
-          component: 'debate-store',
-          level: 'warn',
-          message: 'Consensus detection failed',
-          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-        });
-        console.warn('[reflections] Consensus detection failed (non-fatal):', err);
-      }
-    }
-
-    if (clusters.length > 0) {
-      set({ consensusClusters: clusters });
-    }
+    // Cross-camp consensus clustering of new-node proposals was RETIRED here (t/1773,
+    // ruling B). It merged EDGELESS `add` proposals into one shared situation node — but
+    // `add` is retired (t/1820) and propose_new nodes carry their own camp-specific edges
+    // (t/1725), so merging camps' proposals into a situation would destroy exactly those
+    // edges. propose_new now applies per-camp, independently (applyReflectionProposal).
+    // Convergence detection, if re-homed, is a separate additive/edge-based feature
+    // (CONVERGES_WITH between persisted camp nodes) — DebateTool owns; not a t/1773 concern.
 
     // Add a transcript entry for the reflection
-    const summaryLines = results.map(r =>
-      `**${r.label}:** ${r.reflection_summary} (${r.edits.length} edit${r.edits.length !== 1 ? 's' : ''} proposed)`
-    );
-    if (clusters.length > 0) {
-      summaryLines.push(`\n**Consensus detected:** ${clusters.length} convergence cluster${clusters.length !== 1 ? 's' : ''} found across POV proposals.`);
-    }
+    const summaryLines = results.map(r => {
+      const proposalCount = r.new_item_proposals?.length ?? 0;
+      const proposalNote = proposalCount > 0
+        ? `, ${proposalCount} new item${proposalCount !== 1 ? 's' : ''} proposed`
+        : '';
+      return `**${r.label}:** ${r.reflection_summary} (${r.edits.length} edit${r.edits.length !== 1 ? 's' : ''} proposed${proposalNote})`;
+    });
     const reflEntry: TranscriptEntry = {
       id: generateId(),
       speaker: 'system',
@@ -436,7 +498,7 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
       content: `## Reflections\n\n${summaryLines.join('\n\n')}`,
       timestamp: nowISO(),
       taxonomy_refs: [],
-      metadata: { reflection_results: results, consensus_clusters: clusters.length > 0 ? clusters : undefined },
+      metadata: { reflection_results: results },
     };
     set({
       debateGenerating: null,
@@ -493,37 +555,7 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
           debate_refs: debateId ? [debateId] : [],
         }, { source: 'debate_reflection', debateId: debateId ?? undefined, reason: edit.rationale || undefined });
         // Provisional weight assignment (t/148) — new nodes get an initial weight immediately
-        const createdNode = useTaxonomyStore.getState()[povKey]?.nodes.find(n => n.id === newId);
-        if (createdNode) {
-          const today = new Date().toISOString().slice(0, 10);
-          if (edit.category === 'Beliefs') {
-            const confidence = computeBeliefConfidence({
-              epistemic_type: createdNode.graph_attributes?.epistemic_type,
-              falsifiability: createdNode.graph_attributes?.falsifiability,
-              source_doc_count: 0,
-              debate_ref_count: createdNode.debate_refs?.length ?? 0,
-              supports_received: 0,
-              attacks_received: 0,
-              assumes_received: 0,
-            });
-            taxStore.updatePovNode(povKey, newId, {
-              confidence,
-              confidence_history: [{ date: today, value: confidence, delta: 0, reason: 'provisional — reflection' }],
-            });
-          } else if (edit.category === 'Desires') {
-            const priority = computeTreePriority(createdNode);
-            taxStore.updatePovNode(povKey, newId, {
-              priority,
-              priority_history: [{ date: today, value: priority, delta: 0, reason: 'provisional — reflection' }],
-            });
-          } else if (edit.category === 'Intentions') {
-            const operationality = computeOperationality(createdNode);
-            taxStore.updatePovNode(povKey, newId, {
-              operationality,
-              operationality_history: [{ date: today, value: operationality, delta: 0, reason: 'provisional — reflection' }],
-            });
-          }
-        }
+        assignProvisionalWeight(povKey, newId, edit.category);
       }
     } else if (edit.node_id) {
       const reflectionSource = { source: 'debate_reflection' as const, debateId: get().activeDebateId ?? undefined, reason: edit.rationale || undefined };
@@ -565,93 +597,15 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
     const enrichNodeId = createdNodeId ?? (edit.node_id && edit.edit_type !== 'deprecate' ? edit.node_id : null);
     if (enrichNodeId) {
       const shouldRegeneratePhrases = edit.edit_type === 'add' || !!options?.regeneratePhrases;
-      // Set dirty flag before starting enrichment
-      const preNode = useTaxonomyStore.getState()[povKey]?.nodes.find(n => n.id === enrichNodeId);
-      if (preNode) {
-        useTaxonomyStore.getState().updatePovNode(povKey, enrichNodeId, {
-          graph_attributes: { ...preNode.graph_attributes, _phrase_regen_pending: true },
-        });
-        await useTaxonomyStore.getState().save();
-      }
-      set({ enrichmentStatus: { ...get().enrichmentStatus, [enrichNodeId]: { status: 'pending' } } });
-      const enrichStartTime = performance.now();
-      getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-enrichment', level: 'info', message: 'enrichment.start', data: { node_id: enrichNodeId, pov: povKey, edit_type: edit.edit_type, regeneratePhrases: shouldRegeneratePhrases } });
-
-      void (async () => {
-        try {
-          const { reflectionNodeEnrichmentPrompt } = await import('../../../prompts/analysis');
-          const enrichPrompt = reflectionNodeEnrichmentPrompt({
-            id: enrichNodeId,
-            label: finalLabel || edit.current_label || '',
-            description: finalDescription,
-            category: edit.category,
-            pov: povKey,
-          });
-          const enrichModel = getConfiguredModel();
-          const { text } = await api.generateText(enrichPrompt, enrichModel);
-          const enriched = JSON.parse(stripCodeFences(text));
-          const currentTaxStore = useTaxonomyStore.getState();
-          const currentNode = currentTaxStore[povKey]?.nodes.find(n => n.id === enrichNodeId);
-          if (!currentNode) return;
-          const mergedAttrs: GraphAttributes = {
-            ...currentNode.graph_attributes,
-            ...(enriched.epistemic_type && { epistemic_type: enriched.epistemic_type }),
-            ...(enriched.rhetorical_strategy && { rhetorical_strategy: enriched.rhetorical_strategy }),
-            ...(enriched.assumes?.length > 0 && { assumes: enriched.assumes }),
-            ...(enriched.falsifiability && { falsifiability: enriched.falsifiability }),
-            ...(enriched.audience && { audience: enriched.audience }),
-            ...(enriched.emotional_register && { emotional_register: enriched.emotional_register }),
-            ...(enriched.intellectual_lineage?.length > 0 && { intellectual_lineage: enriched.intellectual_lineage }),
-            ...(enriched.steelman_vulnerability && { steelman_vulnerability: enriched.steelman_vulnerability }),
-            ...(enriched.node_scope && { node_scope: enriched.node_scope }),
-            ...(enriched.attribution_text && { attribution_text: enriched.attribution_text }),
-          };
-          // Keep dirty flag until embeddings are also done
-          currentTaxStore.updatePovNode(povKey, enrichNodeId, { graph_attributes: mergedAttrs });
-          await currentTaxStore.save();
-
-          if (shouldRegeneratePhrases) {
-            const phrasesToEmbed: string[] = [];
-            if (enriched.attribution_text) phrasesToEmbed.push(enriched.attribution_text);
-            if (Array.isArray(enriched.synthetic_phrases)) {
-              for (const p of enriched.synthetic_phrases) {
-                if (typeof p === 'string' && p.length > 0) phrasesToEmbed.push(p);
-              }
-            }
-            if (phrasesToEmbed.length > 0) {
-              const vectors: number[][] = [];
-              for (const phrase of phrasesToEmbed) {
-                try {
-                  const { vector } = await api.computeQueryEmbedding(phrase.slice(0, 500));
-                  if (vector?.length > 0) vectors.push(vector);
-                // eslint-disable-next-line local/require-flight-recorder-in-catch -- per-phrase resilience: individual embedding failures are expected; outer catch records if entire enrichment fails
-                } catch { /* per-phrase resilience */ }
-              }
-              if (vectors.length > 0) {
-                const povShort = povKey === 'accelerationist' ? 'acc' : povKey === 'safetyist' ? 'saf' : 'skp';
-                await api.updateSyntheticEmbeddings(enrichNodeId, povShort, vectors);
-              }
-            }
-          }
-
-          // Clear dirty flag only after attributes + embeddings are fully done
-          const finalNode = useTaxonomyStore.getState()[povKey]?.nodes.find(n => n.id === enrichNodeId);
-          if (finalNode?.graph_attributes?._phrase_regen_pending) {
-            const finalAttrs = { ...finalNode.graph_attributes };
-            delete finalAttrs._phrase_regen_pending;
-            useTaxonomyStore.getState().updatePovNode(povKey, enrichNodeId, { graph_attributes: finalAttrs });
-            await useTaxonomyStore.getState().save();
-          }
-
-          const enrichDuration = Math.round(performance.now() - enrichStartTime);
-          getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-enrichment', level: 'info', message: 'enrichment.complete', duration_ms: enrichDuration, data: { node_id: enrichNodeId, pov: povKey, fields: Object.keys(enriched), regeneratePhrases: shouldRegeneratePhrases } });
-          set({ enrichmentStatus: { ...get().enrichmentStatus, [enrichNodeId]: { status: 'success' } } });
-        } catch (err) {
-          const enrichDuration = Math.round(performance.now() - enrichStartTime);
-          getGlobalRecorder()?.record({ type: 'system.error', component: 'reflection-enrichment', level: 'error', message: 'enrichment.failed', duration_ms: enrichDuration, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack }, data: { node_id: enrichNodeId, pov: povKey, edit_type: edit.edit_type } });
-          set({ enrichmentStatus: { ...get().enrichmentStatus, [enrichNodeId]: { status: 'error', error: String(err) } } });
-        }
-      })();
+      await startReflectionNodeEnrichment({
+        povKey,
+        nodeId: enrichNodeId,
+        label: finalLabel || edit.current_label || '',
+        description: finalDescription,
+        category: edit.category,
+        editType: edit.edit_type,
+        regeneratePhrases: shouldRegeneratePhrases,
+      }, set, get);
     }
 
     getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'applyReflectionEdit.result', data: { ok: true, pover, editIndex, edit_type: edit.edit_type, node_id: edit.node_id, enrichNodeId, duration_ms: duration } });
@@ -717,145 +671,131 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
     set({ reflections: updated });
   },
 
-  acceptConsensus: async (clusterId: string) => {
-    const { consensusClusters, activeDebateId } = get();
-    const cluster = consensusClusters.find(c => c.id === clusterId);
-    if (!cluster || cluster.status !== 'pending') return { ok: false, error: 'Cluster not found or already resolved' };
+  // Apply a propose_new proposal (t/1773, ruling B): create the new POV node AND persist
+  // its proposed edges atomically — per-camp, independent, no consensus integration.
+  applyReflectionProposal: async (pover: string, proposalIndex: number) => {
+    const startTime = performance.now();
+    const { reflections } = get();
+    const reflection = reflections.find(r => r.pover === pover);
+    const proposal = reflection?.new_item_proposals?.[proposalIndex];
+    getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-proposal', level: 'info', message: 'applyReflectionProposal.called', data: { pover, proposalIndex, category: proposal?.category, edgeCount: proposal?.proposed_edges.length } });
+    if (!reflection || !proposal) { getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-proposal', level: 'warn', message: 'applyReflectionProposal.result', data: { ok: false, error: 'Proposal not found', pover, proposalIndex } }); return { ok: false, error: 'Proposal not found' }; }
 
-    try {
-      // Build proposals for the prompt
-      const { consensusSituationPrompt } = await import('@lib/debate/prompts');
-      type CP = import('@lib/debate/prompts').ConvergenceProposal;
-      const promptProposals: CP[] = cluster.proposals.map(p => ({
-        pov: p.pov,
-        proposed_label: p.proposed_label,
-        proposed_description: p.proposed_description,
-        rationale: p.rationale,
-        evidence_entries: p.evidence_entries,
-      }));
+    const taxStore = useTaxonomyStore.getState();
+    const povKey: Pov = proposal.pov;
 
-      const prompt = consensusSituationPrompt(promptProposals, cluster.similarityScores, activeDebateId || '');
-      const model = getConfiguredModel();
-      const { text } = await api.generateText(prompt, model);
-
-      // Parse the situation node response
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) return { ok: false, error: 'Failed to parse situation node response' };
-      const parsed = JSON.parse(jsonMatch[0]) as {
-        label: string;
-        description: string;
-        interpretations: Record<string, string>;
-        convergence_type: 'full' | 'partial' | 'conditional';
-      };
-
-      // Create the situation node
-      const taxStore = useTaxonomyStore.getState();
-      const newId = taxStore.createSituationNode();
-      if (!newId) return { ok: false, error: 'Failed to create situation node' };
-
-      taxStore.updateSituationNode(newId, {
-        // Defense in depth (t/1708): the `as` cast gives no runtime guarantee, so an AI
-        // response omitting a required string field yields `undefined`. Guard at the parse
-        // boundary — an undefined `description` reaching the store throws in the post-save
-        // embedding batch (`stripExcludes`, the t/1707 crash); `label` is the same class.
-        label: parsed.label ?? '',
-        description: parsed.description ?? '',
-        interpretations: {
-          accelerationist: parsed.interpretations.accelerationist || '',
-          safetyist: parsed.interpretations.safetyist || '',
-          skeptic: parsed.interpretations.skeptic || '',
-        },
-        debate_refs: activeDebateId ? [activeDebateId] : [],
-        convergence_source: {
-          debate_id: activeDebateId || '',
-          convergence_type: parsed.convergence_type || 'partial',
-          original_proposals: Object.fromEntries(
-            cluster.proposals.map(p => [p.pov, { proposed_label: p.proposed_label, evidence_entries: p.evidence_entries }])
-          ),
-          similarity_scores: cluster.similarityScores,
-        },
-      });
-
-      // Create CONVERGES_WITH edges from each converging POV node to the situation node.
-      // The source must be a REAL node id, never a fabricated symbol — otherwise the edge
-      // is dangling and the taxonomy integrity check rejects every subsequent save.
-      // Source = the converging proposal's existing node (revise/qualify edits). ADD
-      // proposals have no node yet, so their convergence is captured only in the situation
-      // node's convergence_source metadata (no edge), avoiding dangling references.
-      const currentEdgesFile = useTaxonomyStore.getState().edgesFile;
-      if (currentEdgesFile) {
-        const { reflections: reflForEdges } = get();
-        const povNodeIds = new Set<string>();
-        for (const pov of POV_KEYS) {
-          const f = useTaxonomyStore.getState()[pov];
-          if (f) for (const n of f.nodes) povNodeIds.add(n.id);
-        }
-        const convergenceEdges = cluster.proposals
-          .map(p => reflForEdges.find(r => r.pover === p.pov)?.edits[p.editIndex]?.node_id ?? null)
-          .filter((srcId): srcId is string => srcId !== null && povNodeIds.has(srcId))
-          .map(srcId => ({
-            source: srcId,
-            target: newId,
-            type: 'CONVERGES_WITH' as const,
-            bidirectional: false,
-            confidence: 0.8,
-            weight: 0.8,
-            rationale: `Consensus detected via embedding similarity (debate: ${activeDebateId})`,
-            status: 'proposed' as const,
-            discovered_at: nowISO(),
-            model: 'consensus-detection',
-          }));
-        if (convergenceEdges.length > 0) {
-          const updatedEdgesFile = {
-            ...currentEdgesFile,
-            last_modified: nowISO(),
-            edges: [...currentEdgesFile.edges, ...convergenceEdges],
-          };
-          const dirty = new Set(useTaxonomyStore.getState().dirty);
-          dirty.add('edges');
-          useTaxonomyStore.setState({ edgesFile: updatedEdgesFile, dirty });
-        }
-      }
-
-      await taxStore.save();
-      const saveError = useTaxonomyStore.getState().saveError;
-      if (saveError) return { ok: false, error: saveError };
-
-      // Mark cluster as accepted and dismiss the individual edits
-      const updatedClusters = get().consensusClusters.map(c =>
-        c.id === clusterId ? { ...c, status: 'accepted' as const } : c
-      );
-      // Dismiss the per-POV ADD edits that are now covered by the situation node
-      const { reflections } = get();
-      const updatedReflections = reflections.map(r => {
-        const matchingProposal = cluster.proposals.find(p => p.pov === r.pover);
-        if (!matchingProposal) return r;
-        return {
-          ...r,
-          edits: r.edits.map((e, i) => i === matchingProposal.editIndex ? { ...e, status: 'dismissed' as const } : e),
-        };
-      });
-      set({ consensusClusters: updatedClusters, reflections: updatedReflections });
-      return { ok: true };
-    } catch (err) {
-      getGlobalRecorder()?.record({
-        type: 'system.error',
-        debate_id: activeDebateId ?? undefined,
-        component: 'debate-store',
-        level: 'error',
-        message: 'Accept consensus failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-      });
-      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    // Re-validate edge targets against LIVE node ids at apply time (t/1773 AC2, anti-orphan).
+    // The generator validated against a snapshot; a target could have been deleted/renamed
+    // since. Keep only edges whose target still resolves to a persisted node (pov/situation).
+    const knownNodeIds = new Set<string>();
+    for (const p of POV_KEYS) {
+      const f = useTaxonomyStore.getState()[p];
+      if (f) for (const n of f.nodes) knownNodeIds.add(n.id);
     }
+    const situations = useTaxonomyStore.getState().situations;
+    if (situations) for (const n of situations.nodes) knownNodeIds.add(n.id);
+    const liveEdges = proposal.proposed_edges.filter(e => knownNodeIds.has(e.target_node_id));
+    if (liveEdges.length < 1) {
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-proposal', level: 'warn', message: 'applyReflectionProposal.result', data: { ok: false, error: 'no live edge targets', pover, proposalIndex } });
+      return { ok: false, error: 'All proposed edge targets no longer exist — cannot create an unconnected node.' };
+    }
+
+    // Create the new POV node (mirrors the add path; t/1564 collision backstop).
+    const preExistingIds = new Set<string>();
+    for (const p of POV_KEYS) {
+      for (const n of (useTaxonomyStore.getState()[p]?.nodes ?? [])) preExistingIds.add(n.id);
+    }
+    let newId = taxStore.createPovNode(povKey, proposal.category);
+    if (!newId && !useTaxonomyStore.getState()[povKey]) {
+      await taxStore.loadAll(true);
+      newId = taxStore.createPovNode(povKey, proposal.category);
+    }
+    if (!newId) {
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-proposal', level: 'error', message: 'applyReflectionProposal.result', data: { ok: false, error: 'createPovNode returned empty', pover, proposalIndex } });
+      return { ok: false, error: 'Failed to create taxonomy node. Taxonomy data may not be loaded.' };
+    }
+    if (preExistingIds.has(newId)) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'reflection-proposal', level: 'error', message: 'createPovNode generated colliding ID', data: { newId, pover } });
+      return { ok: false, error: `Generated ID ${newId} already exists — refusing to overwrite. Please retry.` };
+    }
+
+    const debateId = get().activeDebateId;
+    taxStore.updatePovNode(povKey, newId, {
+      label: proposal.label,
+      description: proposal.description,
+      graph_attributes: defaultGraphAttributes(povKey, proposal.category),
+      debate_refs: debateId ? [debateId] : [],
+    }, { source: 'debate_reflection', debateId: debateId ?? undefined, reason: proposal.rationale || undefined });
+    assignProvisionalWeight(povKey, newId, proposal.category);
+
+    // Build the proposed edges, substituting the freshly-minted node id for the new-node
+    // endpoint (new_node_role). Persist them together with the node in ONE save() call — both
+    // the pov file (marked dirty by createPovNode/updatePovNode) and the edges file are
+    // written in the same save, so there is never an orphaned node on disk (t/1725 AC2).
+    const currentEdgesFile = useTaxonomyStore.getState().edgesFile;
+    if (!currentEdgesFile) {
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-proposal', level: 'error', message: 'applyReflectionProposal.result', data: { ok: false, error: 'edges file not loaded', pover, proposalIndex } });
+      return { ok: false, error: 'Edges file not loaded — cannot persist proposed edges.' };
+    }
+    const newEdges: Edge[] = liveEdges.map(pe => {
+      const confidence = typeof pe.confidence === 'number' ? pe.confidence : 0.7;
+      return {
+        source: pe.new_node_role === 'source' ? newId! : pe.target_node_id,
+        target: pe.new_node_role === 'target' ? newId! : pe.target_node_id,
+        type: pe.edge_type,
+        bidirectional: false,
+        confidence,
+        weight: confidence,
+        rationale: pe.rationale,
+        status: 'proposed',
+        discovered_at: nowISO(),
+        model: 'debate-reflection',
+      };
+    });
+    const updatedEdgesFile = {
+      ...currentEdgesFile,
+      last_modified: nowISO(),
+      edges: [...currentEdgesFile.edges, ...newEdges],
+    };
+    const dirty = new Set(useTaxonomyStore.getState().dirty);
+    dirty.add('edges');
+    useTaxonomyStore.setState({ edgesFile: updatedEdgesFile, dirty });
+
+    // Atomic persist — node + edges in one save().
+    await taxStore.save();
+    const { saveError, validationErrors } = useTaxonomyStore.getState();
+    const duration = Math.round(performance.now() - startTime);
+    if (saveError) {
+      const errorDetails = Object.entries(validationErrors ?? {});
+      const detailedError = errorDetails.length > 0
+        ? `${saveError}\n${errorDetails.map(([field, msg]) => `• ${field}: ${msg}`).join('\n')}`
+        : saveError;
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-proposal', level: 'error', message: 'applyReflectionProposal.result', data: { ok: false, error: saveError, validationErrors, pover, proposalIndex, duration_ms: duration } });
+      return { ok: false, error: detailedError };
+    }
+
+    // t/1567: force-reload so the accepting window is fully consistent for subsequent debates.
+    await useTaxonomyStore.getState().loadAll(true);
+
+    // Enrich the new node (attributes + synthetic embeddings) — same fidelity as an add edit.
+    await startReflectionNodeEnrichment({
+      povKey,
+      nodeId: newId,
+      label: proposal.label,
+      description: proposal.description,
+      category: proposal.category,
+      editType: 'propose_new',
+      regeneratePhrases: true,
+    }, set, get);
+
+    getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-proposal', level: 'info', message: 'applyReflectionProposal.result', data: { ok: true, pover, proposalIndex, createdNodeId: newId, edges: newEdges.length, duration_ms: duration } });
+    trackDebateExtraction(get().activeDebateId ?? undefined, 'propose_new', newId);
+    set({ newItemProposalStatus: { ...get().newItemProposalStatus, [proposalStatusKey(pover, proposalIndex)]: 'approved' } });
+    return { ok: true, createdNodeId: newId };
   },
 
-  rejectConsensus: (clusterId: string) => {
-    const { consensusClusters } = get();
-    const updated = consensusClusters.map(c =>
-      c.id === clusterId ? { ...c, status: 'rejected' as const } : c
-    );
-    set({ consensusClusters: updated });
+  dismissReflectionProposal: (pover: string, proposalIndex: number) => {
+    set({ newItemProposalStatus: { ...get().newItemProposalStatus, [proposalStatusKey(pover, proposalIndex)]: 'dismissed' } });
   },
 
   retryEnrichment: async (nodeId: string, pov: 'accelerationist' | 'safetyist' | 'skeptic') => {

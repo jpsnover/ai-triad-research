@@ -8,9 +8,12 @@
 // setup + fixtures + per-test reset) lives in ./storeTestHarness and is imported
 // FIRST so its hoisted mocks register before the store import below resolves.
 // Blocks moved verbatim — no coverage change.
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { mockApi, mockTaxonomyState, makeSession, localStorageMock } from './storeTestHarness';
 import { useDebateStore } from '../../useDebateStore';
+// Mocked by the harness — imported here so propose_new apply tests can assert on the
+// atomic edges `setState` (node + edges persisted together, t/1773 AC2).
+import { useTaxonomyStore } from '../../useTaxonomyStore';
 import { executeTurnWithRetry, runModeratorSelection } from '@lib/debate/orchestration';
 
 // ── 15. loadSessions ────────────────────────────────────────
@@ -884,22 +887,93 @@ describe('Synthesis slice: requestReflections', () => {
   });
 });
 
-describe('Synthesis slice: consensus management', () => {
-  describe('rejectConsensus', () => {
-    it('sets consensus cluster status to rejected', () => {
-      useDebateStore.setState({
-        consensusClusters: [
-          { id: 'cc-1', proposals: [], similarityScores: {}, status: 'pending' as const },
-          { id: 'cc-2', proposals: [], similarityScores: {}, status: 'pending' as const },
-        ],
-      });
+describe('Synthesis slice: propose_new apply (t/1773, ruling B)', () => {
+  const makeProposalReflections = (targetId = 'acc-B-001') => [
+    {
+      pover: 'accelerationist',
+      label: 'Accelerationist',
+      reflection_summary: 's',
+      edits: [],
+      new_item_proposals: [
+        {
+          kind: 'propose_new' as const,
+          source: 'reflection_new_item' as const,
+          node_id: '',
+          reason: 'r',
+          debate_id: 'debate-1',
+          requires_human_review: true,
+          pov: 'accelerationist' as const,
+          category: 'Beliefs' as const,
+          label: 'New Belief',
+          description: 'A brand-new belief',
+          rationale: 'edge-connected rationale',
+          proposed_edges: [
+            { target_node_id: targetId, edge_type: 'SUPPORTS' as const, new_node_role: 'source' as const, rationale: 'why the edge', confidence: 0.8 },
+          ],
+        },
+      ],
+    },
+  ];
 
-      useDebateStore.getState().rejectConsensus('cc-1');
+  afterEach(() => {
+    mockTaxonomyState.accelerationist.nodes = [];
+    mockTaxonomyState.edgesFile = { edges: [] };
+    mockTaxonomyState.saveError = null;
+  });
 
-      const clusters = useDebateStore.getState().consensusClusters;
-      expect(clusters.find((c: any) => c.id === 'cc-1')!.status).toBe('rejected');
-      expect(clusters.find((c: any) => c.id === 'cc-2')!.status).toBe('pending');
-    });
+  it('creates the node AND persists its edges atomically, marking the proposal approved (AC2)', async () => {
+    mockTaxonomyState.saveError = null;
+    mockTaxonomyState.accelerationist.nodes = [{ id: 'acc-B-001' }];
+    useDebateStore.setState({ reflections: makeProposalReflections() as any, newItemProposalStatus: {}, activeDebateId: 'debate-1' });
+
+    const result = await useDebateStore.getState().applyReflectionProposal('accelerationist', 0);
+
+    expect(result).toMatchObject({ ok: true, createdNodeId: 'new-node-id' });
+    expect(mockTaxonomyState.createPovNode).toHaveBeenCalledWith('accelerationist', 'Beliefs');
+    expect(mockTaxonomyState.save).toHaveBeenCalled();
+    // Edges + node persist in the SAME store update (atomic): the edges setState carries
+    // the new edge with the freshly-minted node id substituted for the new-node endpoint.
+    const edgeCall = vi.mocked(useTaxonomyStore.setState).mock.calls
+      .map(c => c[0] as { edgesFile?: { edges: unknown[] } })
+      .find(arg => arg && arg.edgesFile);
+    expect(edgeCall).toBeTruthy();
+    const persisted = edgeCall!.edgesFile!.edges as Array<Record<string, unknown>>;
+    expect(persisted).toHaveLength(1);
+    expect(persisted[0]).toMatchObject({ source: 'new-node-id', target: 'acc-B-001', type: 'SUPPORTS', status: 'proposed' });
+    expect(useDebateStore.getState().newItemProposalStatus['accelerationist#0']).toBe('approved');
+  });
+
+  it('refuses to create an orphan when no edge target resolves to a live node (AC2 anti-orphan)', async () => {
+    mockTaxonomyState.saveError = null;
+    mockTaxonomyState.accelerationist.nodes = []; // target 'acc-B-001' is NOT present
+    useDebateStore.setState({ reflections: makeProposalReflections() as any, newItemProposalStatus: {}, activeDebateId: 'debate-1' });
+
+    const result = await useDebateStore.getState().applyReflectionProposal('accelerationist', 0);
+
+    expect(result.ok).toBe(false);
+    expect(mockTaxonomyState.createPovNode).not.toHaveBeenCalled();
+    expect(useDebateStore.getState().newItemProposalStatus['accelerationist#0']).toBeUndefined();
+  });
+
+  it('does not mark approved and returns error when the atomic save fails', async () => {
+    mockTaxonomyState.accelerationist.nodes = [{ id: 'acc-B-001' }];
+    mockTaxonomyState.saveError = 'Integrity check failed';
+    useDebateStore.setState({ reflections: makeProposalReflections() as any, newItemProposalStatus: {}, activeDebateId: 'debate-1' });
+
+    const result = await useDebateStore.getState().applyReflectionProposal('accelerationist', 0);
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain('Integrity check failed');
+    expect(useDebateStore.getState().newItemProposalStatus['accelerationist#0']).toBeUndefined();
+  });
+
+  it('dismissReflectionProposal marks the proposal dismissed without touching the taxonomy', () => {
+    useDebateStore.setState({ reflections: makeProposalReflections() as any, newItemProposalStatus: {} });
+
+    useDebateStore.getState().dismissReflectionProposal('accelerationist', 0);
+
+    expect(useDebateStore.getState().newItemProposalStatus['accelerationist#0']).toBe('dismissed');
+    expect(mockTaxonomyState.createPovNode).not.toHaveBeenCalled();
   });
 });
 

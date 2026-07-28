@@ -389,7 +389,7 @@ function resetStore(): void {
     openingOrder: [],
     initialCrossRespondRounds: 3,
     topicCritiqueLoading: false,
-    consensusClusters: [],
+    newItemProposalStatus: {},
   });
 }
 

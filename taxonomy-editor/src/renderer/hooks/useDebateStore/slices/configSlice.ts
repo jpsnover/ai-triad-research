@@ -6,7 +6,7 @@ import type { DebateStore } from '../types';
 import type { DebateAudience, SpeakerId, GapInjection, CrossCuttingProposal, TaxonomyGapAnalysis } from '../../../types/debate';
 import type { StandardizedTerm, ColloquialTerm } from '@lib/dictionary/types';
 import type { EntityRef } from '@lib/entities/types';
-import type { ReflectionResult, ConsensusCluster } from '../types';
+import type { ReflectionResult } from '../types';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { trackDebateAbandon } from '../../../lib/analyticsEmitter';
@@ -49,7 +49,9 @@ export interface ConfigSlice {
 
   // Reflections
   reflections: ReflectionResult[];
-  consensusClusters: ConsensusCluster[];
+  // Per-proposal disposition for propose_new items, keyed `${pover}#${proposalIndex}`.
+  // Absent = pending (t/1773). Replaces the retired add-consensus clustering (ruling B).
+  newItemProposalStatus: Record<string, 'approved' | 'dismissed'>;
 
   // Enrichment tracking — real-time status for in-session UI feedback
   enrichmentStatus: Record<string, { status: 'pending' | 'success' | 'error'; error?: string }>;
@@ -109,7 +111,7 @@ export const createConfigSlice: StateCreator<DebateStore, [], [], ConfigSlice> =
   crossCuttingProposals: [],
   taxonomyGapAnalysis: null,
   reflections: [],
-  consensusClusters: [],
+  newItemProposalStatus: {},
   enrichmentStatus: {},
   communityReadOnly: false,
   dailyLimitPaused: false,
