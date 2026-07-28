@@ -149,6 +149,213 @@ function assignProvisionalWeight(povKey: Pov, nodeId: string, category: Category
   }
 }
 
+/** Map a full POV key to its 3-letter short form used by the embeddings API. */
+function povShort(povKey: Pov): 'acc' | 'saf' | 'skp' {
+  return povKey === 'accelerationist' ? 'acc' : povKey === 'safetyist' ? 'saf' : 'skp';
+}
+
+/**
+ * Merge an AI enrichment response into a node's existing graph attributes — each field
+ * copied only when present. Shared by the reflection-apply enrichment path and the
+ * retryEnrichment path so both reach identical attribute fidelity.
+ */
+function buildEnrichedGraphAttributes(currentAttrs: GraphAttributes | undefined, enriched: any): GraphAttributes {
+  return {
+    ...currentAttrs,
+    ...(enriched.epistemic_type && { epistemic_type: enriched.epistemic_type }),
+    ...(enriched.rhetorical_strategy && { rhetorical_strategy: enriched.rhetorical_strategy }),
+    ...(enriched.assumes?.length > 0 && { assumes: enriched.assumes }),
+    ...(enriched.falsifiability && { falsifiability: enriched.falsifiability }),
+    ...(enriched.audience && { audience: enriched.audience }),
+    ...(enriched.emotional_register && { emotional_register: enriched.emotional_register }),
+    ...(enriched.intellectual_lineage?.length > 0 && { intellectual_lineage: enriched.intellectual_lineage }),
+    ...(enriched.steelman_vulnerability && { steelman_vulnerability: enriched.steelman_vulnerability }),
+    ...(enriched.node_scope && { node_scope: enriched.node_scope }),
+    ...(enriched.attribution_text && { attribution_text: enriched.attribution_text }),
+  };
+}
+
+/**
+ * Compute synthetic embeddings for a node's attribution + synthetic phrases and persist
+ * them. Per-phrase failures are tolerated (resilience); the caller's outer catch records a
+ * whole-enrichment failure. Shared by the reflection-apply and retry enrichment paths.
+ */
+async function embedSyntheticPhrases(nodeId: string, povKey: Pov, enriched: any): Promise<void> {
+  const phrasesToEmbed: string[] = [];
+  if (enriched.attribution_text) phrasesToEmbed.push(enriched.attribution_text);
+  if (Array.isArray(enriched.synthetic_phrases)) {
+    for (const p of enriched.synthetic_phrases) {
+      if (typeof p === 'string' && p.length > 0) phrasesToEmbed.push(p);
+    }
+  }
+  if (phrasesToEmbed.length === 0) return;
+  const vectors: number[][] = [];
+  for (const phrase of phrasesToEmbed) {
+    try {
+      const { vector } = await api.computeQueryEmbedding(phrase.slice(0, 500));
+      if (vector?.length > 0) vectors.push(vector);
+    // eslint-disable-next-line local/require-flight-recorder-in-catch -- per-phrase resilience: individual embedding failures are expected; outer catch records if entire enrichment fails
+    } catch { /* per-phrase resilience */ }
+  }
+  if (vectors.length > 0) {
+    await api.updateSyntheticEmbeddings(nodeId, povShort(povKey), vectors);
+  }
+}
+
+/**
+ * Clear the `_phrase_regen_pending` dirty flag once attributes + embeddings are fully
+ * persisted, then save. No-op if the flag is already gone. Shared by both enrichment paths.
+ */
+async function clearPhraseRegenPending(povKey: Pov, nodeId: string): Promise<void> {
+  const finalNode = useTaxonomyStore.getState()[povKey]?.nodes.find(n => n.id === nodeId);
+  if (finalNode?.graph_attributes?._phrase_regen_pending) {
+    const finalAttrs = { ...finalNode.graph_attributes };
+    delete finalAttrs._phrase_regen_pending;
+    useTaxonomyStore.getState().updatePovNode(povKey, nodeId, { graph_attributes: finalAttrs });
+    await useTaxonomyStore.getState().save();
+  }
+}
+
+/** Format a taxonomy save error with its per-field validation details (shared by the three apply paths). */
+function formatSaveError(saveError: string, validationErrors: Record<string, string> | null | undefined): string {
+  const errorDetails = Object.entries(validationErrors ?? {});
+  return errorDetails.length > 0
+    ? `${saveError}\n${errorDetails.map(([field, msg]) => `• ${field}: ${msg}`).join('\n')}`
+    : saveError;
+}
+
+/** Mark one reflection edit `approved` in-place, re-reading the freshest reflections (shared by apply + retry-after-fix). */
+function markReflectionEditApproved(pover: string, editIndex: number, set: ReflectionSet, get: ReflectionGet): void {
+  const freshReflections = get().reflections;
+  const updated = freshReflections.map(r => {
+    if (r.pover !== pover) return r;
+    return {
+      ...r,
+      edits: r.edits.map((e, i) => i === editIndex ? { ...e, status: 'approved' as const } : e),
+    };
+  });
+  set({ reflections: updated });
+}
+
+type TaxStore = ReturnType<typeof useTaxonomyStore.getState>;
+type AddNodeResult = { ok: true; nodeId: string } | { ok: false; error: string };
+
+/**
+ * The `add` edit branch of applyReflectionEdit: create a fresh POV node (with the t/1564
+ * collision backstop and a loadAll retry when the pov file isn't resident), stamp its
+ * label/description/attrs, and assign a provisional weight (t/148). Returns the new node id
+ * or an actionable error the caller re-returns verbatim.
+ */
+async function createReflectionAddNode(
+  opts: { povKey: Pov; edit: ReflectionEdit; finalLabel: string; finalDescription: string; startTime: number; pover: string; editIndex: number },
+  taxStore: TaxStore,
+  get: ReflectionGet,
+): Promise<AddNodeResult> {
+  const { povKey, edit, finalLabel, finalDescription, startTime, pover, editIndex } = opts;
+  // t/1564 backstop: snapshot existing IDs before creation so we can detect collisions
+  const preExistingIds = new Set<string>();
+  for (const p of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const n of (useTaxonomyStore.getState()[p]?.nodes ?? []) as { id: string }[]) preExistingIds.add(n.id);
+  }
+  let newId = taxStore.createPovNode(povKey, edit.category);
+  if (!newId && !useTaxonomyStore.getState()[povKey]) {
+    await taxStore.loadAll(true);
+    newId = taxStore.createPovNode(povKey, edit.category);
+  }
+  if (!newId) {
+    const duration = Math.round(performance.now() - startTime);
+    getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-edit', level: 'error', message: 'applyReflectionEdit.result', data: { ok: false, error: 'createPovNode returned empty', pover, editIndex, pov_loaded: !!useTaxonomyStore.getState()[povKey], duration_ms: duration } });
+    return { ok: false, error: 'Failed to create taxonomy node. Taxonomy data may not be loaded.' };
+  }
+  if (preExistingIds.has(newId)) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'reflection-edit', level: 'error', message: 'createPovNode generated colliding ID', data: { newId, pover } });
+    return { ok: false, error: `Generated ID ${newId} already exists — refusing to overwrite. Please retry.` };
+  }
+  const debateId = get().activeDebateId;
+  taxStore.updatePovNode(povKey, newId, {
+    label: finalLabel,
+    description: finalDescription,
+    graph_attributes: defaultGraphAttributes(povKey, edit.category),
+    debate_refs: debateId ? [debateId] : [],
+  }, { source: 'debate_reflection', debateId: debateId ?? undefined, reason: edit.rationale || undefined });
+  // Provisional weight assignment (t/148) — new nodes get an initial weight immediately
+  assignProvisionalWeight(povKey, newId, edit.category);
+  return { ok: true, nodeId: newId };
+}
+
+/**
+ * The `edit_existing` branch of applyReflectionEdit: revise/qualify updates label+description;
+ * deprecate prefixes a `[DEPRECATED]` marker when no explicit description is supplied.
+ */
+function applyReflectionEditToExistingNode(
+  povKey: Pov, edit: ReflectionEdit, finalLabel: string, finalDescription: string,
+  taxStore: TaxStore, get: ReflectionGet,
+): void {
+  if (!edit.node_id) return;
+  const reflectionSource = { source: 'debate_reflection' as const, debateId: get().activeDebateId ?? undefined, reason: edit.rationale || undefined };
+  if (edit.edit_type === 'deprecate') {
+    const deprecatedDesc = finalDescription || `[DEPRECATED] ${edit.current_description || ''}`;
+    taxStore.updatePovNode(povKey, edit.node_id, {
+      label: finalLabel || edit.current_label || '',
+      description: deprecatedDesc,
+    }, reflectionSource);
+  } else {
+    taxStore.updatePovNode(povKey, edit.node_id, {
+      label: finalLabel || edit.current_label || '',
+      description: finalDescription,
+    }, reflectionSource);
+  }
+}
+
+/** Gather all live node ids (every POV file, plus situations when requested) for anti-orphan edge validation / collision detection. */
+function collectKnownNodeIds(includeSituations = true): Set<string> {
+  const ids = new Set<string>();
+  for (const p of POV_KEYS) {
+    const f = useTaxonomyStore.getState()[p];
+    if (f) for (const n of f.nodes) ids.add(n.id);
+  }
+  if (includeSituations) {
+    const situations = useTaxonomyStore.getState().situations;
+    if (situations) for (const n of situations.nodes) ids.add(n.id);
+  }
+  return ids;
+}
+
+/**
+ * Create the new POV node for an applied propose_new proposal (t/1773) — same collision
+ * backstop + loadAll retry as the add path, but proposal-scoped logging. Stamps
+ * label/description/attrs and assigns a provisional weight (t/148). Returns the new node id
+ * or an actionable error the caller re-returns verbatim.
+ */
+async function createProposalNode(
+  povKey: Pov, proposal: NewPovItemProposal, taxStore: TaxStore, get: ReflectionGet, pover: string, proposalIndex: number,
+): Promise<AddNodeResult> {
+  // Create the new POV node (mirrors the add path; t/1564 collision backstop).
+  const preExistingIds = collectKnownNodeIds(false);
+  let newId = taxStore.createPovNode(povKey, proposal.category);
+  if (!newId && !useTaxonomyStore.getState()[povKey]) {
+    await taxStore.loadAll(true);
+    newId = taxStore.createPovNode(povKey, proposal.category);
+  }
+  if (!newId) {
+    getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-proposal', level: 'error', message: 'applyReflectionProposal.result', data: { ok: false, error: 'createPovNode returned empty', pover, proposalIndex } });
+    return { ok: false, error: 'Failed to create taxonomy node. Taxonomy data may not be loaded.' };
+  }
+  if (preExistingIds.has(newId)) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'reflection-proposal', level: 'error', message: 'createPovNode generated colliding ID', data: { newId, pover } });
+    return { ok: false, error: `Generated ID ${newId} already exists — refusing to overwrite. Please retry.` };
+  }
+  const debateId = get().activeDebateId;
+  taxStore.updatePovNode(povKey, newId, {
+    label: proposal.label,
+    description: proposal.description,
+    graph_attributes: defaultGraphAttributes(povKey, proposal.category),
+    debate_refs: debateId ? [debateId] : [],
+  }, { source: 'debate_reflection', debateId: debateId ?? undefined, reason: proposal.rationale || undefined });
+  assignProvisionalWeight(povKey, newId, proposal.category);
+  return { ok: true, nodeId: newId };
+}
+
 /**
  * Enrich a reflection-applied node with AI-generated graph attributes + synthetic
  * embeddings. Shared by the `add`/`revise`/`qualify` edit path and the propose_new
@@ -191,55 +398,16 @@ async function startReflectionNodeEnrichment(
       const currentTaxStore = useTaxonomyStore.getState();
       const currentNode = currentTaxStore[povKey]?.nodes.find(n => n.id === nodeId);
       if (!currentNode) return;
-      const mergedAttrs: GraphAttributes = {
-        ...currentNode.graph_attributes,
-        ...(enriched.epistemic_type && { epistemic_type: enriched.epistemic_type }),
-        ...(enriched.rhetorical_strategy && { rhetorical_strategy: enriched.rhetorical_strategy }),
-        ...(enriched.assumes?.length > 0 && { assumes: enriched.assumes }),
-        ...(enriched.falsifiability && { falsifiability: enriched.falsifiability }),
-        ...(enriched.audience && { audience: enriched.audience }),
-        ...(enriched.emotional_register && { emotional_register: enriched.emotional_register }),
-        ...(enriched.intellectual_lineage?.length > 0 && { intellectual_lineage: enriched.intellectual_lineage }),
-        ...(enriched.steelman_vulnerability && { steelman_vulnerability: enriched.steelman_vulnerability }),
-        ...(enriched.node_scope && { node_scope: enriched.node_scope }),
-        ...(enriched.attribution_text && { attribution_text: enriched.attribution_text }),
-      };
       // Keep dirty flag until embeddings are also done
-      currentTaxStore.updatePovNode(povKey, nodeId, { graph_attributes: mergedAttrs });
+      currentTaxStore.updatePovNode(povKey, nodeId, { graph_attributes: buildEnrichedGraphAttributes(currentNode.graph_attributes, enriched) });
       await currentTaxStore.save();
 
       if (regeneratePhrases) {
-        const phrasesToEmbed: string[] = [];
-        if (enriched.attribution_text) phrasesToEmbed.push(enriched.attribution_text);
-        if (Array.isArray(enriched.synthetic_phrases)) {
-          for (const p of enriched.synthetic_phrases) {
-            if (typeof p === 'string' && p.length > 0) phrasesToEmbed.push(p);
-          }
-        }
-        if (phrasesToEmbed.length > 0) {
-          const vectors: number[][] = [];
-          for (const phrase of phrasesToEmbed) {
-            try {
-              const { vector } = await api.computeQueryEmbedding(phrase.slice(0, 500));
-              if (vector?.length > 0) vectors.push(vector);
-            // eslint-disable-next-line local/require-flight-recorder-in-catch -- per-phrase resilience: individual embedding failures are expected; outer catch records if entire enrichment fails
-            } catch { /* per-phrase resilience */ }
-          }
-          if (vectors.length > 0) {
-            const povShort = povKey === 'accelerationist' ? 'acc' : povKey === 'safetyist' ? 'saf' : 'skp';
-            await api.updateSyntheticEmbeddings(nodeId, povShort, vectors);
-          }
-        }
+        await embedSyntheticPhrases(nodeId, povKey, enriched);
       }
 
       // Clear dirty flag only after attributes + embeddings are fully done
-      const finalNode = useTaxonomyStore.getState()[povKey]?.nodes.find(n => n.id === nodeId);
-      if (finalNode?.graph_attributes?._phrase_regen_pending) {
-        const finalAttrs = { ...finalNode.graph_attributes };
-        delete finalAttrs._phrase_regen_pending;
-        useTaxonomyStore.getState().updatePovNode(povKey, nodeId, { graph_attributes: finalAttrs });
-        await useTaxonomyStore.getState().save();
-      }
+      await clearPhraseRegenPending(povKey, nodeId);
 
       const enrichDuration = Math.round(performance.now() - enrichStartTime);
       getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-enrichment', level: 'info', message: 'enrichment.complete', duration_ms: enrichDuration, data: { node_id: nodeId, pov: povKey, fields: Object.keys(enriched), regeneratePhrases } });
@@ -250,6 +418,187 @@ async function startReflectionNodeEnrichment(
       set({ enrichmentStatus: { ...get().enrichmentStatus, [nodeId]: { status: 'error', error: String(err) } } });
     }
   })();
+}
+
+/** Raw reflection edit as parsed from the model response (pre-grounding). */
+interface RawReflectionEdit {
+  disposition?: string;
+  edit_type: string;
+  node_id: string | null;
+  category: string;
+  current_label: string | null;
+  proposed_label: string;
+  current_description: string | null;
+  proposed_description: string;
+  rationale: string;
+  confidence?: string;
+  evidence_entries?: string[];
+}
+
+/**
+ * Assemble the per-camp prompt context blocks for a reflection: the argument-network summary,
+ * the camp's commitments, and the recent convergence-signal digest. Any block is `undefined`
+ * when its underlying data is absent.
+ */
+function buildReflectionContextBlocks(
+  activeDebate: DebateSession,
+  pover: Exclude<SpeakerId, 'user'>,
+): { anBlock: string | undefined; commitBlock: string; convBlock: string | undefined } {
+  const an = activeDebate.argument_network;
+  const anBlock = an
+    ? formatArgumentNetworkContext(
+        an.nodes.map(n => ({ id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label || n.speaker })),
+        an.edges,
+      )
+    : undefined;
+
+  const speakerClaims = (an?.nodes || []).filter(n => n.speaker === pover);
+  const commitBlock = formatCommitments(
+    activeDebate.commitments?.[pover] || { asserted: [], conceded: [], challenged: [] },
+    speakerClaims,
+  );
+
+  const convSignals = activeDebate.convergence_signals;
+  const convBlock = convSignals && convSignals.length > 0
+    ? convSignals.slice(-5).map(s =>
+        `Turn ${s.entry_id} (${POVER_INFO[s.speaker as Exclude<SpeakerId, 'user'>]?.label || s.speaker}): ` +
+        `move_polarity=${s.move_polarity?.ratio?.toFixed(2) ?? 'N/A'}, ` +
+        `dialectical_engagement=${s.dialectical_engagement?.ratio?.toFixed(2) ?? 'N/A'}, ` +
+        `argument_redundancy=${s.argument_redundancy?.max_self_overlap?.toFixed(2) ?? 'N/A'}`
+      ).join('\n')
+    : undefined;
+
+  return { anBlock, commitBlock, convBlock };
+}
+
+/**
+ * Map raw edit_existing reflection edits into ReflectionEdit records, grounding
+ * current_label/current_description against the live taxonomy to prevent hallucinated labels
+ * (t/1564). propose_new entries are excluded upstream; `add` node_ids are cleared (t/1564).
+ */
+function mapRawEditsToReflectionEdits(rawEdits: RawReflectionEdit[], taxState: TaxStore): ReflectionEdit[] {
+  return rawEdits.filter(e => e.disposition !== 'propose_new').map(e => {
+    // Ground-truth: override AI-provided current_label/current_description
+    // with actual taxonomy values to prevent hallucinated labels.
+    let currentLabel = e.current_label;
+    let currentDescription = e.current_description;
+    // t/1564: AI sometimes hallucinates existing node IDs for add edits
+    if (e.edit_type === 'add') e.node_id = null;
+    if (e.node_id) {
+      const realLabel = taxState.getLabelForId(e.node_id);
+      const realDesc = taxState.getDescriptionForId(e.node_id);
+      if (realLabel && realLabel !== e.node_id) currentLabel = realLabel;
+      if (realDesc) currentDescription = realDesc;
+    }
+    return {
+      edit_type: (e.edit_type || 'revise') as ReflectionEdit['edit_type'],
+      node_id: e.node_id ?? null,
+      category: (e.category || 'Beliefs') as ReflectionEdit['category'],
+      current_label: currentLabel,
+      proposed_label: e.proposed_label || '',
+      current_description: currentDescription,
+      proposed_description: e.proposed_description || '',
+      rationale: e.rationale || '',
+      confidence: (['high', 'medium', 'low'].includes(e.confidence || '') ? e.confidence : 'medium') as ReflectionEdit['confidence'],
+      evidence_entries: Array.isArray(e.evidence_entries) ? e.evidence_entries : [],
+      status: 'pending' as const,
+    };
+  });
+}
+
+/**
+ * Generate validated propose_new node proposals (t/1773). Edges are validated against real
+ * node ids; a proposal with no valid edge is dropped (anti-orphan, t/1725). NON-FATAL: this
+ * must never break the edit_existing flow — on any failure it returns no proposals.
+ */
+function generateNewItemProposals(rawEdits: RawReflectionEdit[], povKey: Pov, debateId: string): NewPovItemProposal[] {
+  try {
+    return newItemSuggestionsToProposals({
+      suggestions: rawEdits as unknown as RawNewItemSuggestion[],
+      pov: povKey,
+      debateId,
+      knownNodeIds: collectKnownNodeIds(true),
+    });
+  } catch (genErr) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'propose_new proposal generation failed (non-fatal)', error: { name: (genErr as Error).name ?? 'Error', message: String(genErr), stack: (genErr as Error).stack } });
+    return [];
+  }
+}
+
+/**
+ * DOLCE-compliance retry loop: for each edit with an error-severity violation, ask the model
+ * to fix the description up to 3 times (mutates edits in place). Returns `true` if the debate
+ * guard invalidated mid-flight (caller must abort the whole run).
+ */
+async function runDolceComplianceRetries(
+  edits: ReflectionEdit[],
+  model: string,
+  info: { label: string },
+  activeDebate: DebateSession,
+  set: ReflectionSet,
+  isStillValid: () => boolean,
+): Promise<boolean> {
+  for (let ei = 0; ei < edits.length; ei++) {
+    const edit = edits[ei];
+    const MAX_DOLCE_RETRIES = 3;
+    for (let attempt = 1; attempt <= MAX_DOLCE_RETRIES; attempt++) {
+      const violations = checkDolceCompliance(edit.proposed_description, edit.node_id || '');
+      const errors = violations.filter(v => v.severity === 'error');
+      if (errors.length === 0) break;
+      if (!isStillValid()) return true;
+
+      set({ debateActivity: `${info.label}: fixing DOLCE compliance (attempt ${attempt}/${MAX_DOLCE_RETRIES})…` });
+      try {
+        const retryPrompt = dolceComplianceRetryPrompt(edit, violations, attempt);
+        const { text: retryText } = await api.generateText(retryPrompt, model);
+        const fixed = parseAIJson<{
+          proposed_description?: string;
+          proposed_label?: string;
+        }>(retryText);
+        if (fixed?.proposed_description) {
+          edit.proposed_description = fixed.proposed_description;
+          if (fixed.proposed_label) edit.proposed_label = fixed.proposed_label;
+        }
+      } catch (retryErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          debate_id: activeDebate?.id,
+          component: 'debate-store',
+          level: 'warn',
+          message: `DOLCE compliance retry ${attempt} failed for edit ${ei}`,
+          error: { name: (retryErr as Error).name ?? 'Error', message: String(retryErr), stack: (retryErr as Error).stack },
+        });
+        console.warn(`[debate] DOLCE retry ${attempt} failed for edit ${ei}:`, retryErr);
+        break;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * After a successful applyReflectionEdit save, enrich the affected node (new node OR edited
+ * node; deprecations are skipped since they're being retired). Returns the enriched node id,
+ * or null when there is nothing to enrich.
+ */
+async function enrichAppliedEditNode(
+  povKey: Pov, edit: ReflectionEdit, createdNodeId: string | null,
+  finalLabel: string, finalDescription: string, regenerateOverride: boolean,
+  set: ReflectionSet, get: ReflectionGet,
+): Promise<string | null> {
+  const enrichNodeId = createdNodeId ?? (edit.node_id && edit.edit_type !== 'deprecate' ? edit.node_id : null);
+  if (!enrichNodeId) return null;
+  const shouldRegeneratePhrases = edit.edit_type === 'add' || regenerateOverride;
+  await startReflectionNodeEnrichment({
+    povKey,
+    nodeId: enrichNodeId,
+    label: finalLabel || edit.current_label || '',
+    description: finalDescription,
+    category: edit.category,
+    editType: edit.edit_type,
+    regeneratePhrases: shouldRegeneratePhrases,
+  }, set, get);
+  return enrichNodeId;
 }
 
 export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], DebateReflectionSlice> = (set, get) => ({
@@ -282,29 +631,7 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
         description: n.description,
       }));
 
-      const an = activeDebate.argument_network;
-      const anBlock = an
-        ? formatArgumentNetworkContext(
-            an.nodes.map(n => ({ id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label || n.speaker })),
-            an.edges,
-          )
-        : undefined;
-
-      const speakerClaims = (an?.nodes || []).filter(n => n.speaker === pover);
-      const commitBlock = formatCommitments(
-        activeDebate.commitments?.[pover] || { asserted: [], conceded: [], challenged: [] },
-        speakerClaims,
-      );
-
-      const convSignals = activeDebate.convergence_signals;
-      const convBlock = convSignals && convSignals.length > 0
-        ? convSignals.slice(-5).map(s =>
-            `Turn ${s.entry_id} (${POVER_INFO[s.speaker as Exclude<SpeakerId, 'user'>]?.label || s.speaker}): ` +
-            `move_polarity=${s.move_polarity?.ratio?.toFixed(2) ?? 'N/A'}, ` +
-            `dialectical_engagement=${s.dialectical_engagement?.ratio?.toFixed(2) ?? 'N/A'}, ` +
-            `argument_redundancy=${s.argument_redundancy?.max_self_overlap?.toFixed(2) ?? 'N/A'}`
-          ).join('\n')
-        : undefined;
+      const { anBlock, commitBlock, convBlock } = buildReflectionContextBlocks(activeDebate, pover);
 
       // Pass prior reflections so later camps don't duplicate earlier proposals
       const priorReflections = results.map(r => ({
@@ -336,116 +663,25 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
 
         const parsed = parseAIJson<{
           reflection_summary?: string;
-          edits?: Array<{
-            disposition?: string;
-            edit_type: string;
-            node_id: string | null;
-            category: string;
-            current_label: string | null;
-            proposed_label: string;
-            current_description: string | null;
-            proposed_description: string;
-            rationale: string;
-            confidence?: string;
-            evidence_entries?: string[];
-          }>;
+          edits?: RawReflectionEdit[];
         }>(text);
 
-        const taxState = useTaxonomyStore.getState();
         // Partition by disposition (t/1773): edit_existing entries flow through the
         // existing ReflectionEdit mapping unchanged (no-regression). propose_new entries
         // were silently mangled into 'revise' edits before — they are excluded here and
         // routed to newItemSuggestionsToProposals below. `add` is retired at the prompt
         // (t/1820), so edit_existing is revise/qualify/deprecate only.
         const rawEdits = parsed?.edits ?? [];
-        const edits: ReflectionEdit[] = rawEdits.filter(e => e.disposition !== 'propose_new').map(e => {
-          // Ground-truth: override AI-provided current_label/current_description
-          // with actual taxonomy values to prevent hallucinated labels.
-          let currentLabel = e.current_label;
-          let currentDescription = e.current_description;
-          // t/1564: AI sometimes hallucinates existing node IDs for add edits
-          if (e.edit_type === 'add') e.node_id = null;
-          if (e.node_id) {
-            const realLabel = taxState.getLabelForId(e.node_id);
-            const realDesc = taxState.getDescriptionForId(e.node_id);
-            if (realLabel && realLabel !== e.node_id) currentLabel = realLabel;
-            if (realDesc) currentDescription = realDesc;
-          }
-          return {
-            edit_type: (e.edit_type || 'revise') as ReflectionEdit['edit_type'],
-            node_id: e.node_id ?? null,
-            category: (e.category || 'Beliefs') as ReflectionEdit['category'],
-            current_label: currentLabel,
-            proposed_label: e.proposed_label || '',
-            current_description: currentDescription,
-            proposed_description: e.proposed_description || '',
-            rationale: e.rationale || '',
-            confidence: (['high', 'medium', 'low'].includes(e.confidence || '') ? e.confidence : 'medium') as ReflectionEdit['confidence'],
-            evidence_entries: Array.isArray(e.evidence_entries) ? e.evidence_entries : [],
-            status: 'pending' as const,
-          };
-        });
+        const edits: ReflectionEdit[] = mapRawEditsToReflectionEdits(rawEdits, useTaxonomyStore.getState());
 
         // Validated new-node proposals (t/1773 front-half): wire the shared generator
         // (previously zero production callers) so propose_new suggestions actually
         // materialize. Edges are validated against real node ids; a proposal with no valid
         // edge is dropped (anti-orphan, t/1725). Accept/apply + UI land in the follow-on.
-        // NON-FATAL: proposal generation must never break the edit_existing reflection
-        // flow (the load-bearing path) — on any failure, fall back to no new-item proposals.
-        let newItemProposals: NewPovItemProposal[] = [];
-        try {
-          const knownNodeIds = new Set<string>();
-          for (const p of POV_KEYS) {
-            const f = taxState[p];
-            if (f) for (const n of f.nodes) knownNodeIds.add(n.id);
-          }
-          if (taxState.situations) for (const n of taxState.situations.nodes) knownNodeIds.add(n.id);
-          newItemProposals = newItemSuggestionsToProposals({
-            suggestions: rawEdits as unknown as RawNewItemSuggestion[],
-            pov: povKey,
-            debateId: activeDebate.id,
-            knownNodeIds,
-          });
-        } catch (genErr) {
-          getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'propose_new proposal generation failed (non-fatal)', error: { name: (genErr as Error).name ?? 'Error', message: String(genErr), stack: (genErr as Error).stack } });
-        }
+        const newItemProposals = generateNewItemProposals(rawEdits, povKey, activeDebate.id);
 
         // DOLCE compliance retry — fix non-compliant descriptions up to 3 times
-        for (let ei = 0; ei < edits.length; ei++) {
-          const edit = edits[ei];
-          const MAX_DOLCE_RETRIES = 3;
-          for (let attempt = 1; attempt <= MAX_DOLCE_RETRIES; attempt++) {
-            const violations = checkDolceCompliance(edit.proposed_description, edit.node_id || '');
-            const errors = violations.filter(v => v.severity === 'error');
-            if (errors.length === 0) break;
-            if (!isStillValid()) return;
-
-            set({ debateActivity: `${info.label}: fixing DOLCE compliance (attempt ${attempt}/${MAX_DOLCE_RETRIES})…` });
-            try {
-              const retryPrompt = dolceComplianceRetryPrompt(edit, violations, attempt);
-              const { text: retryText } = await api.generateText(retryPrompt, model);
-              const fixed = parseAIJson<{
-                proposed_description?: string;
-                proposed_label?: string;
-              }>(retryText);
-              if (fixed?.proposed_description) {
-                edit.proposed_description = fixed.proposed_description;
-                if (fixed.proposed_label) edit.proposed_label = fixed.proposed_label;
-              }
-            } catch (retryErr) {
-              getGlobalRecorder()?.record({
-                type: 'system.error',
-                debate_id: activeDebate?.id,
-                component: 'debate-store',
-                level: 'warn',
-                message: `DOLCE compliance retry ${attempt} failed for edit ${ei}`,
-                error: { name: (retryErr as Error).name ?? 'Error', message: String(retryErr), stack: (retryErr as Error).stack },
-              });
-              console.warn(`[debate] DOLCE retry ${attempt} failed for edit ${ei}:`, retryErr);
-              break;
-            }
-          }
-        }
+        if (await runDolceComplianceRetries(edits, model, info, activeDebate, set, isStillValid)) return;
 
         results.push({
           pover: povKey,
@@ -526,51 +762,11 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
 
     let createdNodeId: string | null = null;
     if (edit.edit_type === 'add') {
-      // t/1564 backstop: snapshot existing IDs before creation so we can detect collisions
-      const preExistingIds = new Set<string>();
-      for (const p of ['accelerationist', 'safetyist', 'skeptic'] as const) {
-        for (const n of (useTaxonomyStore.getState()[p]?.nodes ?? []) as { id: string }[]) preExistingIds.add(n.id);
-      }
-      let newId = taxStore.createPovNode(povKey, edit.category);
-      if (!newId && !useTaxonomyStore.getState()[povKey]) {
-        await taxStore.loadAll(true);
-        newId = taxStore.createPovNode(povKey, edit.category);
-      }
-      if (!newId) {
-        const duration = Math.round(performance.now() - startTime);
-        getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-edit', level: 'error', message: 'applyReflectionEdit.result', data: { ok: false, error: 'createPovNode returned empty', pover, editIndex, pov_loaded: !!useTaxonomyStore.getState()[povKey], duration_ms: duration } });
-        return { ok: false, error: 'Failed to create taxonomy node. Taxonomy data may not be loaded.' };
-      }
-      createdNodeId = newId;
-      if (preExistingIds.has(newId)) {
-        getGlobalRecorder()?.record({ type: 'system.error', component: 'reflection-edit', level: 'error', message: 'createPovNode generated colliding ID', data: { newId, pover } });
-        return { ok: false, error: `Generated ID ${newId} already exists — refusing to overwrite. Please retry.` };
-      }
-      if (newId) {
-        const debateId = get().activeDebateId;
-        taxStore.updatePovNode(povKey, newId, {
-          label: finalLabel,
-          description: finalDescription,
-          graph_attributes: defaultGraphAttributes(povKey, edit.category),
-          debate_refs: debateId ? [debateId] : [],
-        }, { source: 'debate_reflection', debateId: debateId ?? undefined, reason: edit.rationale || undefined });
-        // Provisional weight assignment (t/148) — new nodes get an initial weight immediately
-        assignProvisionalWeight(povKey, newId, edit.category);
-      }
+      const addResult = await createReflectionAddNode({ povKey, edit, finalLabel, finalDescription, startTime, pover, editIndex }, taxStore, get);
+      if (!addResult.ok) return { ok: false, error: addResult.error };
+      createdNodeId = addResult.nodeId;
     } else if (edit.node_id) {
-      const reflectionSource = { source: 'debate_reflection' as const, debateId: get().activeDebateId ?? undefined, reason: edit.rationale || undefined };
-      if (edit.edit_type === 'deprecate') {
-        const deprecatedDesc = finalDescription || `[DEPRECATED] ${edit.current_description || ''}`;
-        taxStore.updatePovNode(povKey, edit.node_id, {
-          label: finalLabel || edit.current_label || '',
-          description: deprecatedDesc,
-        }, reflectionSource);
-      } else {
-        taxStore.updatePovNode(povKey, edit.node_id, {
-          label: finalLabel || edit.current_label || '',
-          description: finalDescription,
-        }, reflectionSource);
-      }
+      applyReflectionEditToExistingNode(povKey, edit, finalLabel, finalDescription, taxStore, get);
     }
 
     await taxStore.save();
@@ -579,10 +775,7 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
     const { saveError, validationErrors } = useTaxonomyStore.getState();
     const duration = Math.round(performance.now() - startTime);
     if (saveError) {
-      const errorDetails = Object.entries(validationErrors ?? {});
-      const detailedError = errorDetails.length > 0
-        ? `${saveError}\n${errorDetails.map(([field, msg]) => `• ${field}: ${msg}`).join('\n')}`
-        : saveError;
+      const detailedError = formatSaveError(saveError, validationErrors);
       getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-edit', level: 'error', message: 'applyReflectionEdit.result', data: { ok: false, error: saveError, validationErrors, pover, editIndex, duration_ms: duration } });
       return { ok: false, error: detailedError };
     }
@@ -594,31 +787,11 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
     // Enrich with AI-generated graph attributes + synthetic embeddings.
     // Runs for new nodes AND edited nodes (skip deprecations — those are being retired).
     // Uses a dirty flag (_phrase_regen_pending) so incomplete enrichments are detectable across sessions.
-    const enrichNodeId = createdNodeId ?? (edit.node_id && edit.edit_type !== 'deprecate' ? edit.node_id : null);
-    if (enrichNodeId) {
-      const shouldRegeneratePhrases = edit.edit_type === 'add' || !!options?.regeneratePhrases;
-      await startReflectionNodeEnrichment({
-        povKey,
-        nodeId: enrichNodeId,
-        label: finalLabel || edit.current_label || '',
-        description: finalDescription,
-        category: edit.category,
-        editType: edit.edit_type,
-        regeneratePhrases: shouldRegeneratePhrases,
-      }, set, get);
-    }
+    const enrichNodeId = await enrichAppliedEditNode(povKey, edit, createdNodeId, finalLabel, finalDescription, !!options?.regeneratePhrases, set, get);
 
     getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'applyReflectionEdit.result', data: { ok: true, pover, editIndex, edit_type: edit.edit_type, node_id: edit.node_id, enrichNodeId, duration_ms: duration } });
     trackDebateExtraction(get().activeDebateId ?? undefined, edit.edit_type, edit.node_id ?? '');
-    const freshReflections = get().reflections;
-    const updated = freshReflections.map(r => {
-      if (r.pover !== pover) return r;
-      return {
-        ...r,
-        edits: r.edits.map((e, i) => i === editIndex ? { ...e, status: 'approved' as const } : e),
-      };
-    });
-    set({ reflections: updated });
+    markReflectionEditApproved(pover, editIndex, set, get);
     return { ok: true, enrichNodeId: enrichNodeId ?? undefined };
   },
 
@@ -638,24 +811,13 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
 
     const { saveError, validationErrors } = useTaxonomyStore.getState();
     if (saveError) {
-      const errorDetails = Object.entries(validationErrors ?? {});
-      const detailedError = errorDetails.length > 0
-        ? `${saveError}\n${errorDetails.map(([field, msg]) => `• ${field}: ${msg}`).join('\n')}`
-        : saveError;
+      const detailedError = formatSaveError(saveError, validationErrors);
       getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-edit', level: 'error', message: 'retryReflectionEditAfterFix.result', data: { ok: false, error: saveError, pover, editIndex } });
       return { ok: false, error: detailedError };
     }
 
     getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'retryReflectionEditAfterFix.result', data: { ok: true, pover, editIndex, edit_type: edit.edit_type, node_id: edit.node_id } });
-    const freshReflections = get().reflections;
-    const updated = freshReflections.map(r => {
-      if (r.pover !== pover) return r;
-      return {
-        ...r,
-        edits: r.edits.map((e, i) => i === editIndex ? { ...e, status: 'approved' as const } : e),
-      };
-    });
-    set({ reflections: updated });
+    markReflectionEditApproved(pover, editIndex, set, get);
     return { ok: true };
   },
 
@@ -687,46 +849,16 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
     // Re-validate edge targets against LIVE node ids at apply time (t/1773 AC2, anti-orphan).
     // The generator validated against a snapshot; a target could have been deleted/renamed
     // since. Keep only edges whose target still resolves to a persisted node (pov/situation).
-    const knownNodeIds = new Set<string>();
-    for (const p of POV_KEYS) {
-      const f = useTaxonomyStore.getState()[p];
-      if (f) for (const n of f.nodes) knownNodeIds.add(n.id);
-    }
-    const situations = useTaxonomyStore.getState().situations;
-    if (situations) for (const n of situations.nodes) knownNodeIds.add(n.id);
+    const knownNodeIds = collectKnownNodeIds(true);
     const liveEdges = proposal.proposed_edges.filter(e => knownNodeIds.has(e.target_node_id));
     if (liveEdges.length < 1) {
       getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-proposal', level: 'warn', message: 'applyReflectionProposal.result', data: { ok: false, error: 'no live edge targets', pover, proposalIndex } });
       return { ok: false, error: 'All proposed edge targets no longer exist — cannot create an unconnected node.' };
     }
 
-    // Create the new POV node (mirrors the add path; t/1564 collision backstop).
-    const preExistingIds = new Set<string>();
-    for (const p of POV_KEYS) {
-      for (const n of (useTaxonomyStore.getState()[p]?.nodes ?? [])) preExistingIds.add(n.id);
-    }
-    let newId = taxStore.createPovNode(povKey, proposal.category);
-    if (!newId && !useTaxonomyStore.getState()[povKey]) {
-      await taxStore.loadAll(true);
-      newId = taxStore.createPovNode(povKey, proposal.category);
-    }
-    if (!newId) {
-      getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-proposal', level: 'error', message: 'applyReflectionProposal.result', data: { ok: false, error: 'createPovNode returned empty', pover, proposalIndex } });
-      return { ok: false, error: 'Failed to create taxonomy node. Taxonomy data may not be loaded.' };
-    }
-    if (preExistingIds.has(newId)) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'reflection-proposal', level: 'error', message: 'createPovNode generated colliding ID', data: { newId, pover } });
-      return { ok: false, error: `Generated ID ${newId} already exists — refusing to overwrite. Please retry.` };
-    }
-
-    const debateId = get().activeDebateId;
-    taxStore.updatePovNode(povKey, newId, {
-      label: proposal.label,
-      description: proposal.description,
-      graph_attributes: defaultGraphAttributes(povKey, proposal.category),
-      debate_refs: debateId ? [debateId] : [],
-    }, { source: 'debate_reflection', debateId: debateId ?? undefined, reason: proposal.rationale || undefined });
-    assignProvisionalWeight(povKey, newId, proposal.category);
+    const createResult = await createProposalNode(povKey, proposal, taxStore, get, pover, proposalIndex);
+    if (!createResult.ok) return { ok: false, error: createResult.error };
+    const newId = createResult.nodeId;
 
     // Build the proposed edges, substituting the freshly-minted node id for the new-node
     // endpoint (new_node_role). Persist them together with the node in ONE save() call — both
@@ -740,8 +872,8 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
     const newEdges: Edge[] = liveEdges.map(pe => {
       const confidence = typeof pe.confidence === 'number' ? pe.confidence : 0.7;
       return {
-        source: pe.new_node_role === 'source' ? newId! : pe.target_node_id,
-        target: pe.new_node_role === 'target' ? newId! : pe.target_node_id,
+        source: pe.new_node_role === 'source' ? newId : pe.target_node_id,
+        target: pe.new_node_role === 'target' ? newId : pe.target_node_id,
         type: pe.edge_type,
         bidirectional: false,
         confidence,
@@ -766,10 +898,7 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
     const { saveError, validationErrors } = useTaxonomyStore.getState();
     const duration = Math.round(performance.now() - startTime);
     if (saveError) {
-      const errorDetails = Object.entries(validationErrors ?? {});
-      const detailedError = errorDetails.length > 0
-        ? `${saveError}\n${errorDetails.map(([field, msg]) => `• ${field}: ${msg}`).join('\n')}`
-        : saveError;
+      const detailedError = formatSaveError(saveError, validationErrors);
       getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-proposal', level: 'error', message: 'applyReflectionProposal.result', data: { ok: false, error: saveError, validationErrors, pover, proposalIndex, duration_ms: duration } });
       return { ok: false, error: detailedError };
     }
@@ -827,53 +956,14 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
       const enriched = JSON.parse(stripCodeFences(text));
       const currentNode = useTaxonomyStore.getState()[pov]?.nodes.find(n => n.id === nodeId);
       if (!currentNode) return;
-      const mergedAttrs: GraphAttributes = {
-        ...currentNode.graph_attributes,
-        ...(enriched.epistemic_type && { epistemic_type: enriched.epistemic_type }),
-        ...(enriched.rhetorical_strategy && { rhetorical_strategy: enriched.rhetorical_strategy }),
-        ...(enriched.assumes?.length > 0 && { assumes: enriched.assumes }),
-        ...(enriched.falsifiability && { falsifiability: enriched.falsifiability }),
-        ...(enriched.audience && { audience: enriched.audience }),
-        ...(enriched.emotional_register && { emotional_register: enriched.emotional_register }),
-        ...(enriched.intellectual_lineage?.length > 0 && { intellectual_lineage: enriched.intellectual_lineage }),
-        ...(enriched.steelman_vulnerability && { steelman_vulnerability: enriched.steelman_vulnerability }),
-        ...(enriched.node_scope && { node_scope: enriched.node_scope }),
-        ...(enriched.attribution_text && { attribution_text: enriched.attribution_text }),
-      };
       // Keep dirty flag until embeddings are also done
-      useTaxonomyStore.getState().updatePovNode(pov, nodeId, { graph_attributes: mergedAttrs });
+      useTaxonomyStore.getState().updatePovNode(pov, nodeId, { graph_attributes: buildEnrichedGraphAttributes(currentNode.graph_attributes, enriched) });
       await useTaxonomyStore.getState().save();
 
-      const phrasesToEmbed: string[] = [];
-      if (enriched.attribution_text) phrasesToEmbed.push(enriched.attribution_text);
-      if (Array.isArray(enriched.synthetic_phrases)) {
-        for (const p of enriched.synthetic_phrases) {
-          if (typeof p === 'string' && p.length > 0) phrasesToEmbed.push(p);
-        }
-      }
-      if (phrasesToEmbed.length > 0) {
-        const vectors: number[][] = [];
-        for (const phrase of phrasesToEmbed) {
-          try {
-            const { vector } = await api.computeQueryEmbedding(phrase.slice(0, 500));
-            if (vector?.length > 0) vectors.push(vector);
-          // eslint-disable-next-line local/require-flight-recorder-in-catch -- per-phrase resilience: individual embedding failures are expected; outer catch records if entire enrichment fails
-          } catch { /* per-phrase resilience */ }
-        }
-        if (vectors.length > 0) {
-          const povShort = pov === 'accelerationist' ? 'acc' : pov === 'safetyist' ? 'saf' : 'skp';
-          await api.updateSyntheticEmbeddings(nodeId, povShort, vectors);
-        }
-      }
+      await embedSyntheticPhrases(nodeId, pov, enriched);
 
       // Clear dirty flag only after attributes + embeddings are fully done
-      const finalNode = useTaxonomyStore.getState()[pov]?.nodes.find(n => n.id === nodeId);
-      if (finalNode?.graph_attributes?._phrase_regen_pending) {
-        const finalAttrs = { ...finalNode.graph_attributes };
-        delete finalAttrs._phrase_regen_pending;
-        useTaxonomyStore.getState().updatePovNode(pov, nodeId, { graph_attributes: finalAttrs });
-        await useTaxonomyStore.getState().save();
-      }
+      await clearPhraseRegenPending(pov, nodeId);
 
       const duration = Math.round(performance.now() - startTime);
       getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-enrichment', level: 'info', message: 'enrichment.retry.complete', duration_ms: duration, data: { node_id: nodeId, pov, fields: Object.keys(enriched) } });
