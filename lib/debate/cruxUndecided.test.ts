@@ -10,10 +10,17 @@ import { describe, it, expect } from 'vitest';
 import {
   finalizeUndecidedCruxes,
   isTerminalCruxState,
+  wasCruxAdjudicated,
 } from './cruxResolution.js';
 import { extractExplorationSummary } from './explorationSummary.js';
 import { extractCalibrationData } from './calibrationLogger.js';
-import type { DebateSession, TrackedCrux, CruxResolutionState } from './types.js';
+import type {
+  DebateSession,
+  TrackedCrux,
+  CruxResolutionState,
+  ArgumentNetworkNode,
+  TranscriptEntry,
+} from './types.js';
 
 // ── Factories ────────────────────────────────────────────
 
@@ -53,11 +60,40 @@ function makeSession(overrides: Partial<DebateSession> = {}): DebateSession {
   } as unknown as DebateSession;
 }
 
+// AN node standing in for a crux proposition, anchored to `taxonomyRefs` (t/1818 signal A).
+function makeCruxNode(id: string, taxonomyRefs: string[]): ArgumentNetworkNode {
+  return {
+    id,
+    text: `crux proposition ${id}`,
+    speaker: 'accelerationist',
+    source_entry_id: 'e0',
+    taxonomy_refs: taxonomyRefs,
+    turn_number: 2,
+  };
+}
+
+// Transcript turn by `speaker` referencing taxonomy nodes `refNodeIds` (TaxonomyRef.node_id).
+function makeTurn(
+  speaker: TranscriptEntry['speaker'],
+  refNodeIds: string[],
+  id = `turn-${speaker}`,
+): TranscriptEntry {
+  return {
+    id,
+    timestamp: '2026-07-27T00:00:00Z',
+    type: 'statement',
+    speaker,
+    content: `content by ${speaker}`,
+    taxonomy_refs: refNodeIds.map((node_id) => ({ node_id, relevance: 'primary' })),
+  };
+}
+
 // ── AC1 + guard 1: the finalization sweep sets the literal terminal state ──
 
 describe('finalizeUndecidedCruxes (t/1676)', () => {
   it('transitions a surfaced-but-never-cross-engaged (identified) crux to terminal undecided', () => {
-    const out = finalizeUndecidedCruxes([makeCrux({ id: 'c1', state: 'identified' })], 7);
+    // No AN node / transcript ⇒ signal A has no engagement evidence ⇒ not adjudicated ⇒ undecided.
+    const out = finalizeUndecidedCruxes([makeCrux({ id: 'c1', state: 'identified' })], 7, [], [], []);
     expect(out[0].state).toBe('undecided');
     // Literal state carries an audit transition so consumers read it, not re-derive it.
     const last = out[0].history[out[0].history.length - 1];
@@ -69,22 +105,114 @@ describe('finalizeUndecidedCruxes (t/1676)', () => {
     // (both sides engaged the proposition), so none may become undecided.
     const adjudicated: CruxResolutionState[] = ['engaged', 'one_side_conceded', 'resolved', 'irreducible'];
     for (const state of adjudicated) {
-      const out = finalizeUndecidedCruxes([makeCrux({ id: `c-${state}`, state })], 9);
+      const out = finalizeUndecidedCruxes([makeCrux({ id: `c-${state}`, state })], 9, [], [], []);
       expect(out[0].state).toBe(state);
     }
   });
 
   it('guard 1 — idempotent: re-finalizing an already-undecided tracker is a no-op', () => {
-    const once = finalizeUndecidedCruxes([makeCrux({ id: 'c1', state: 'identified' })], 5);
-    const twice = finalizeUndecidedCruxes(once, 6);
+    const once = finalizeUndecidedCruxes([makeCrux({ id: 'c1', state: 'identified' })], 5, [], [], []);
+    const twice = finalizeUndecidedCruxes(once, 6, [], [], []);
     expect(twice[0].state).toBe('undecided');
     // No second transition appended — the crux was no longer `identified` on the re-run.
     expect(twice[0].history).toHaveLength(once[0].history.length);
   });
 
   it('handles empty / undefined trackers', () => {
-    expect(finalizeUndecidedCruxes(undefined, 1)).toEqual([]);
-    expect(finalizeUndecidedCruxes([], 1)).toEqual([]);
+    expect(finalizeUndecidedCruxes(undefined, 1, [], [], [])).toEqual([]);
+    expect(finalizeUndecidedCruxes([], 1, [], [], [])).toEqual([]);
+  });
+});
+
+// ── t/1818: engagement gate replaces the bare `identified` proxy ──
+
+describe('finalizeUndecidedCruxes engagement gate (t/1818, Option 1 / signal A)', () => {
+  const cruxId = 'crux-adj';
+  const nodes = [makeCruxNode(cruxId, ['tax-1'])];
+  const bothCamps = ['accelerationist', 'safetyist'];
+
+  it('leaves an adjudicated identified crux as identified (≥2 involved camps engaged the proposition)', () => {
+    const transcript = [makeTurn('accelerationist', ['tax-1']), makeTurn('safetyist', ['tax-1'])];
+    const crux = makeCrux({ id: cruxId, state: 'identified', speakers_involved: bothCamps });
+    const out = finalizeUndecidedCruxes([crux], 12, nodes, [], transcript);
+    expect(out[0].state).toBe('identified');
+    expect(out[0].history).toHaveLength(0); // no transition appended — status-quo-ante
+  });
+
+  it('marks undecided when only one involved camp engaged the proposition', () => {
+    // safetyist's turn shares no taxonomy_ref with the crux node → only acc engaged.
+    const transcript = [makeTurn('accelerationist', ['tax-1']), makeTurn('safetyist', ['tax-other'])];
+    const crux = makeCrux({ id: cruxId, state: 'identified', speakers_involved: bothCamps });
+    const out = finalizeUndecidedCruxes([crux], 12, nodes, [], transcript);
+    expect(out[0].state).toBe('undecided');
+  });
+
+  it('marks undecided when the crux node has no taxonomy anchor (signal A has no basis)', () => {
+    const bareNodes = [makeCruxNode(cruxId, [])];
+    const transcript = [makeTurn('accelerationist', ['tax-1']), makeTurn('safetyist', ['tax-1'])];
+    const crux = makeCrux({ id: cruxId, state: 'identified', speakers_involved: bothCamps });
+    const out = finalizeUndecidedCruxes([crux], 12, bareNodes, [], transcript);
+    expect(out[0].state).toBe('undecided');
+  });
+
+  it('counts only the crux own camps — a topically-adjacent third party does not adjudicate it', () => {
+    // acc (involved) + skeptic (NOT involved) both cite the ref; safetyist (involved) is silent.
+    const transcript = [makeTurn('accelerationist', ['tax-1']), makeTurn('skeptic', ['tax-1'])];
+    const crux = makeCrux({ id: cruxId, state: 'identified', speakers_involved: bothCamps });
+    const out = finalizeUndecidedCruxes([crux], 12, nodes, [], transcript);
+    expect(out[0].state).toBe('undecided'); // only 1 of the 2 involved camps engaged
+  });
+
+  it('honors the minTurnsPerCamp calibration knob', () => {
+    const transcript = [makeTurn('accelerationist', ['tax-1'], 'a1'), makeTurn('safetyist', ['tax-1'], 's1')];
+    const crux = makeCrux({ id: cruxId, state: 'identified', speakers_involved: bothCamps });
+    // Default (≥1 turn/camp): one turn each ⇒ adjudicated ⇒ stays identified.
+    expect(finalizeUndecidedCruxes([crux], 12, nodes, [], transcript)[0].state).toBe('identified');
+    // Knob raised to ≥2 turns/camp: a single turn each is insufficient ⇒ undecided.
+    expect(
+      finalizeUndecidedCruxes([crux], 12, nodes, [], transcript, { minTurnsPerCamp: 2 })[0].state,
+    ).toBe('undecided');
+  });
+
+  it('idempotent on an adjudicated (left-identified) crux — re-running is a no-op', () => {
+    const transcript = [makeTurn('accelerationist', ['tax-1']), makeTurn('safetyist', ['tax-1'])];
+    const crux = makeCrux({ id: cruxId, state: 'identified', speakers_involved: bothCamps });
+    const once = finalizeUndecidedCruxes([crux], 12, nodes, [], transcript);
+    const twice = finalizeUndecidedCruxes(once, 13, nodes, [], transcript);
+    expect(twice[0].state).toBe('identified');
+    expect(twice[0].history).toHaveLength(once[0].history.length);
+  });
+});
+
+describe('wasCruxAdjudicated (t/1818, pure predicate)', () => {
+  function deepFreeze<T>(obj: T): T {
+    if (obj && typeof obj === 'object') {
+      for (const v of Object.values(obj)) deepFreeze(v);
+      Object.freeze(obj);
+    }
+    return obj;
+  }
+
+  it('is true when ≥2 involved camps each share a taxonomy_ref with the crux node', () => {
+    const crux = makeCrux({ id: 'cx', state: 'identified', speakers_involved: ['accelerationist', 'safetyist'] });
+    const nodes = [makeCruxNode('cx', ['tax-1'])];
+    const transcript = [makeTurn('accelerationist', ['tax-1']), makeTurn('safetyist', ['tax-1', 'tax-2'])];
+    expect(wasCruxAdjudicated(crux, nodes, [], transcript)).toBe(true);
+  });
+
+  it('is false when the crux node is absent from nodes', () => {
+    const crux = makeCrux({ id: 'missing', state: 'identified' });
+    expect(wasCruxAdjudicated(crux, [], [], [])).toBe(false);
+  });
+
+  it('does not mutate its inputs (deep-frozen crux / nodes / transcript)', () => {
+    const crux = deepFreeze(
+      makeCrux({ id: 'cx', state: 'identified', speakers_involved: ['accelerationist', 'safetyist'] }),
+    );
+    const nodes = deepFreeze([makeCruxNode('cx', ['tax-1'])]);
+    const transcript = deepFreeze([makeTurn('accelerationist', ['tax-1']), makeTurn('safetyist', ['tax-1'])]);
+    expect(() => wasCruxAdjudicated(crux, nodes, [], transcript)).not.toThrow();
+    expect(wasCruxAdjudicated(crux, nodes, [], transcript)).toBe(true);
   });
 });
 

@@ -530,13 +530,19 @@ export class DebateEngine {
         await runFixedCrossRespond(this._internal);
       }
 
-      // Phase 3b: Finalize undecided cruxes (t/1676) — mark any crux surfaced but never
-      // cross-engaged (still `identified`) as terminal `undecided` BEFORE synthesis reads the
-      // tracker, so the synthesis prompt, calibration, and persistence all observe one
-      // consistent terminal state. Idempotent (guard 1) — safe if run again on resume().
+      // Phase 3b: Finalize undecided cruxes (t/1676; engagement gate t/1818) — mark any crux
+      // surfaced but never actually adjudicated (still `identified` AND not cross-engaged per
+      // wasCruxAdjudicated) as terminal `undecided` BEFORE synthesis reads the tracker, so the
+      // synthesis prompt, calibration, and persistence all observe one consistent terminal state.
+      // AN nodes/edges + transcript are passed by reference (read-only — the gate is pure).
+      // Idempotent (guard 1) — safe if run again on resume().
+      const finalizeAN = this.session.argument_network;
       this.session.crux_tracker = finalizeUndecidedCruxes(
         this.session.crux_tracker,
         this.session.transcript.length,
+        finalizeAN?.nodes ?? [],
+        finalizeAN?.edges ?? [],
+        this.session.transcript,
       );
 
       // Phase 4: Synthesis + final neutral evaluation in parallel

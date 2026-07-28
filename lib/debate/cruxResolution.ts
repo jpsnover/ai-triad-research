@@ -9,6 +9,7 @@ import type {
   CruxResolutionState,
   CruxStateTransition,
   ArgumentationScheme,
+  TranscriptEntry,
 } from './types.js';
 import { detectCruxNodes } from './phaseTransitions.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
@@ -304,38 +305,132 @@ export function updateCruxTracker(
 }
 
 /**
- * Debate-end finalization (t/1676). Transitions each crux still in the non-adjudicated
- * `identified` state to the terminal `undecided` verdict, writing the LITERAL state so every
- * downstream consumer (calibration, resolution_summary, cross-debate registry) reads it
- * directly rather than re-deriving "terminal + identified" — a persisted `undecided` is the
- * single source of truth (TL t/1676#4/#6).
+ * Calibration knobs for {@link wasCruxAdjudicated} (signal A). Passed in — not baked as module
+ * constants — so CL can iterate the threshold against the frozen golden set without changing the
+ * predicate's signature or the finalization call site (TL condition b, t/1818#4).
+ */
+export interface CruxAdjudicationOptions {
+  /**
+   * Minimum qualifying turns each opposing camp must contribute for the crux to count as
+   * adjudicated. The primary calibration knob (≥1 vs ≥2, CL t/1818#2). Default 1.
+   */
+  minTurnsPerCamp?: number;
+  /**
+   * Minimum taxonomy_refs a single turn must share with the crux node to count as engaging it.
+   * Held at 1 unless the frozen 30 says otherwise (CL t/1818#2). Default 1.
+   */
+  minSharedRefsPerTurn?: number;
+}
+
+const DEFAULT_CRUX_ADJUDICATION_OPTIONS: Required<CruxAdjudicationOptions> = {
+  minTurnsPerCamp: 1,
+  minSharedRefsPerTurn: 1,
+};
+
+/**
+ * Did the debate actually adjudicate this crux's proposition? (t/1818, Option 1, signal A — the
+ * transcript-level sufficiency gate the original CL spec called for, t/1669#2.)
  *
- * A crux reaches `identified` when it was surfaced (cross-POV attackers detected) but no
- * opposing turn ever engaged it — the debate never adjudicated it (cap reached, or the crux
- * was never surfaced as an explicit point of disagreement). Cruxes that advanced to
- * `engaged` / `one_side_conceded` / `resolved` / `irreducible` WERE adjudicated (both sides
- * engaged the proposition), so per the sufficiency gate (CL t/1669#2) they are NOT eligible
- * for `undecided`. This structural condition IS the sufficiency gate: `identified` == "no turn
- * pair where both debaters engaged the crux proposition."
+ * **Pure** (TL conditions b+c, t/1818#4): no I/O, no global reads; `nodes` / `edges` / `transcript`
+ * are read by reference and never mutated (they can be large — no copy).
  *
- * Idempotent and single-point (TL guard 1): safe to call once at debate end and again on
- * resume() — a crux already `undecided` is no longer `identified`, so re-running is a no-op.
+ * Replaces the shipped structural proxy `state === 'identified'` ⇒ "never adjudicated", which CL's
+ * golden-set calibration measured at ~0.20 precision (t/1669#7). Root cause: cruxes crystallize
+ * late (`identified_turn` = the turn cross-POV attackers cross the detection threshold), but the
+ * per-turn `identified→engaged` promotion in {@link evaluateCruxState} only counts an engaging edge
+ * whose *other endpoint's* `turn_number >= identified_turn`. A proposition argued *before*
+ * crystallization therefore never promotes and is stranded in `identified`, so the old finalize
+ * sweep mislabeled a genuinely-adjudicated crux `undecided`.
+ *
+ * Signal A (taxonomy_refs overlap): adjudicated iff ≥2 of the crux's OWN involved camps
+ * (`speakers_involved` = crux owner + its cross-POV attackers — opposing sides by construction)
+ * each contributed ≥`minTurnsPerCamp` transcript turns sharing ≥`minSharedRefsPerTurn` taxonomy_ref
+ * with the crux node. Whole-debate window, NO `identified_turn` floor (that floor is the bug). A
+ * topically-adjacent third camp does not adjudicate someone else's crux (CL t/1818#2), hence the
+ * restriction to `speakers_involved`.
+ *
+ * `edges` is unused by signal A but kept in the signature so CL can switch to an AN-edge (signal C)
+ * or hybrid predicate without re-widening the finalize call site (t/1818#2).
+ */
+export function wasCruxAdjudicated(
+  crux: TrackedCrux,
+  nodes: ReadonlyArray<ArgumentNetworkNode>,
+  edges: ReadonlyArray<ArgumentNetworkEdge>,
+  transcript: ReadonlyArray<TranscriptEntry>,
+  opts: CruxAdjudicationOptions = {},
+): boolean {
+  const { minTurnsPerCamp, minSharedRefsPerTurn } = { ...DEFAULT_CRUX_ADJUDICATION_OPTIONS, ...opts };
+
+  const cruxNode = nodes.find(n => n.id === crux.id);
+  const cruxRefs = new Set(cruxNode?.taxonomy_refs ?? []);
+  // No taxonomy anchor ⇒ signal A has no basis to assert engagement. Conservatively treat as NOT
+  // adjudicated so the crux stays eligible for `undecided`, rather than silently absolving it.
+  if (cruxRefs.size === 0) return false;
+
+  let campsThatEngaged = 0;
+  for (const camp of new Set(crux.speakers_involved)) {
+    let qualifyingTurns = 0;
+    for (const entry of transcript) {
+      if (entry.speaker !== camp) continue;
+      let shared = 0;
+      for (const ref of entry.taxonomy_refs) {
+        if (cruxRefs.has(ref.node_id)) shared++;
+      }
+      if (shared >= minSharedRefsPerTurn) qualifyingTurns++;
+    }
+    if (qualifyingTurns >= minTurnsPerCamp) campsThatEngaged++;
+  }
+
+  // ≥2 opposing camps engaged the proposition ⇒ it was adjudicated (CL sufficiency gate, t/1669#2).
+  return campsThatEngaged >= 2;
+}
+
+/**
+ * Debate-end finalization (t/1676, engagement gate t/1818). For every crux still in `identified`,
+ * decide its terminal disposition:
+ *  - **adjudicated** (per {@link wasCruxAdjudicated}) ⇒ leave as `identified` (no transition);
+ *  - **not adjudicated** ⇒ transition to the terminal `undecided` verdict, writing the LITERAL
+ *    state so every downstream consumer (calibration, resolution_summary, cross-debate registry)
+ *    reads it directly rather than re-deriving it — a persisted `undecided` is the single source
+ *    of truth (TL t/1676#4/#6).
+ *
+ * **Dual meaning of `identified` (TL condition a, t/1818#4):** mid-debate, `identified` means
+ * "surfaced but not yet engaged" — a *live* state the per-turn machine may still promote. At
+ * finalization it doubles as a *terminal residual*: "reached debate end having been adjudicated but
+ * never promoted to a verdict." Leaving these as `identified` is **status-quo-ante** — before
+ * t/1676 every un-verdicted crux ended `identified` and downstream already tolerated it; minting a
+ * new terminal label would be an Option-2 scope expansion no consumer needs (the debate is over —
+ * there is no live reader to disambiguate against). Do NOT "fix" terminal-`identified` as a bug.
+ *
+ * **Known limitation (t/1818):** the terminal-`identified` residual is heterogeneous — it absorbs
+ * both "adjudicated inconclusive" AND "adjudicated-to-verdict but the promotion state-machine
+ * missed it" (the recall gap Option 1 deliberately does not close; that is Option 2, future). A
+ * heterogeneous residual is acceptable here — it beats a false `undecided`.
+ *
+ * Idempotent (TL guard 1, t/1676): safe to call at debate end and again on resume(). A crux that is
+ * no longer `identified` (already `undecided`) is skipped; an adjudicated crux left as `identified`
+ * re-reads the same unchanged transcript/AN and stays `identified` — either way a no-op.
  */
 export function finalizeUndecidedCruxes(
   tracker: TrackedCrux[] | undefined,
   currentTurn: number,
+  nodes: ReadonlyArray<ArgumentNetworkNode>,
+  edges: ReadonlyArray<ArgumentNetworkEdge>,
+  transcript: ReadonlyArray<TranscriptEntry>,
+  opts?: CruxAdjudicationOptions,
 ): TrackedCrux[] {
   if (!tracker || tracker.length === 0) return tracker ?? [];
-  return tracker.map(crux =>
-    crux.state === 'identified'
-      ? transitionCrux(
-          crux,
-          'undecided',
-          currentTurn,
-          'Debate ended without cross-engagement — crux surfaced but never adjudicated',
-        )
-      : crux,
-  );
+  return tracker.map(crux => {
+    if (crux.state !== 'identified') return crux;
+    // Adjudicated-but-unverdicted ⇒ persist as terminal `identified` (status-quo-ante; see above).
+    if (wasCruxAdjudicated(crux, nodes, edges, transcript, opts)) return crux;
+    return transitionCrux(
+      crux,
+      'undecided',
+      currentTurn,
+      'Debate ended without cross-engagement — crux surfaced but never adjudicated',
+    );
+  });
 }
 
 /**
