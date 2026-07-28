@@ -1,0 +1,351 @@
+/* Co-located styles for ExtractionTimelinePanel. Migrated from inline styles (t/1865). */
+
+.etl-status-badge {
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.etl-chart-svg {
+  display: block;
+  margin-top: 4px;
+  width: 100%;
+  max-width: 720px;
+}
+
+.etl-td {
+  padding: 3px 6px;
+  font-size: 0.7rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.etl-td-num {
+  padding: 3px 6px;
+  font-size: 0.7rem;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.etl-td-stmt {
+  font-weight: 700;
+  color: #f97316;
+}
+
+.etl-td-delta {
+  font-weight: 700;
+}
+
+.etl-trace-row {
+  cursor: pointer;
+}
+
+.etl-th {
+  padding: 4px 6px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  text-align: left;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  cursor: default;
+}
+
+.etl-th-num {
+  padding: 4px 6px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  text-align: right;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  cursor: default;
+}
+
+.etl-mb4 {
+  margin-bottom: 4px;
+}
+
+.etl-mb8 {
+  margin-bottom: 8px;
+}
+
+.etl-mt4 {
+  margin-top: 4px;
+}
+
+.etl-mt6 {
+  margin-top: 6px;
+}
+
+.etl-mt10 {
+  margin-top: 10px;
+}
+
+.etl-summary {
+  cursor: pointer;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.etl-attr-body {
+  font-size: 0.7rem;
+  padding: 4px 0;
+}
+
+.etl-ratio-alert {
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.12);
+  border-left: 3px solid #ef4444;
+  font-size: 0.7rem;
+}
+
+.etl-red {
+  color: #ef4444;
+}
+
+.etl-green {
+  color: #22c55e;
+}
+
+.etl-orange {
+  color: #f97316;
+}
+
+.etl-muted {
+  color: var(--text-muted);
+}
+
+.etl-primary {
+  color: var(--text-primary);
+}
+
+.etl-fw600 {
+  font-weight: 600;
+}
+
+.etl-stats-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.etl-section-label {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+
+.etl-conf-bar {
+  display: flex;
+  gap: 2px;
+  height: 16px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.etl-conf-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-2xs);
+  color: #fff;
+  font-weight: 700;
+}
+
+.etl-bg-green {
+  background: #22c55e;
+}
+
+.etl-bg-blue {
+  background: #3b82f6;
+}
+
+.etl-bg-amber {
+  background: #f59e0b;
+}
+
+.etl-conf-legend {
+  display: flex;
+  gap: 12px;
+  margin-top: 2px;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.etl-legend-swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  margin-right: 3px;
+}
+
+.etl-col-gap2 {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.etl-row-center6 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.etl-node-id {
+  min-width: 100px;
+  font-weight: 600;
+  font-size: var(--text-2xs);
+}
+
+.etl-bar-track {
+  flex: 1;
+  height: 10px;
+  background: var(--bg-secondary, #222);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.etl-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #6366f1);
+  border-radius: 2px;
+}
+
+.etl-bar-count {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  min-width: 20px;
+  text-align: right;
+  color: #6366f1;
+}
+
+.etl-empty {
+  padding: 12px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.etl-panel {
+  padding: 4px 0 40px;
+  max-width: 820px;
+}
+
+.etl-plateau-alert {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.12);
+  border-left: 3px solid #ef4444;
+  font-size: 0.75rem;
+}
+
+.etl-summary-row {
+  display: flex;
+  gap: 16px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.etl-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.etl-detail-panel {
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 6px;
+  background: rgba(249, 115, 22, 0.05);
+  border: 1px solid rgba(249, 115, 22, 0.2);
+  font-size: 0.72rem;
+}
+
+.etl-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.etl-nav-count {
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+}
+
+.etl-stmt-label {
+  font-weight: 700;
+  margin-left: 4px;
+}
+
+.etl-error-line {
+  color: #ef4444;
+  margin-bottom: 6px;
+}
+
+.etl-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 16px;
+}
+
+.etl-reject-chip {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border-radius: 3px;
+  font-size: var(--text-2xs);
+}
+
+.etl-attr-section {
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+
+.etl-attr-head {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.etl-attr-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-2xs);
+  margin-bottom: 2px;
+}
+
+.etl-claim-id {
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 44px;
+}
+
+.etl-unattr-chip {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.etl-conf-chip {
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+}

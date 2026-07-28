@@ -17,6 +17,7 @@ import type {
 } from '../../types/debate';
 import { POVER_INFO } from '../../types/debate';
 import type { SpeakerId } from '../../types/debate';
+import './ExtractionTimelinePanel.css';
 
 interface Props {
   debate: DebateSession;
@@ -40,10 +41,11 @@ function speakerLabel(speaker: SpeakerId): string {
 function StatusBadge({ status }: { status: ClaimExtractionTrace['status'] }) {
   const c = STATUS_COLORS[status];
   return (
-    <span style={{
-      background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3,
-      fontSize: 'var(--text-2xs)', fontWeight: 700, whiteSpace: 'nowrap',
-    }}>{c.label}</span>
+    <span
+      className="etl-status-badge"
+      /* eslint-disable-next-line local/no-inline-style -- dynamic: status-driven bg/fg colors */
+      style={{ background: c.bg, color: c.fg }}
+    >{c.label}</span>
   );
 }
 
@@ -70,8 +72,13 @@ function GrowthChart({ summary, traces }: { summary: ExtractionSummary; traces: 
   }
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none"
-      style={{ display: 'block', marginTop: 4, width: '100%', height: H, maxWidth: 720 }}>
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      className="etl-chart-svg"
+      /* eslint-disable-next-line local/no-inline-style -- dynamic: computed chart height */
+      style={{ height: H }}
+    >
       {plateauRect}
       <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="var(--border)" strokeWidth={0.5} />
       <line x1={PAD} y1={PAD} x2={PAD} y2={H - PAD} stroke="var(--border)" strokeWidth={0.5} />
@@ -103,8 +110,13 @@ function RejectionSparkline({ traces }: { traces: ClaimExtractionTrace[] }) {
   const barW = Math.max(4, (W - 2 * PAD) / traces.length - 2);
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none"
-      style={{ display: 'block', marginTop: 4, width: '100%', height: H, maxWidth: 720 }}>
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      className="etl-chart-svg"
+      /* eslint-disable-next-line local/no-inline-style -- dynamic: computed chart height */
+      style={{ height: H }}
+    >
       <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="var(--border)" strokeWidth={0.5} />
       {traces.map((t, i) => {
         const x = PAD + i * (barW + 2);
@@ -139,8 +151,6 @@ function RejectionSparkline({ traces }: { traces: ClaimExtractionTrace[] }) {
   );
 }
 
-const td: React.CSSProperties = { padding: '3px 6px', fontSize: '0.7rem', borderBottom: '1px solid var(--border)' };
-const tdNum: React.CSSProperties = { ...td, textAlign: 'right' as const, fontVariantNumeric: 'tabular-nums' };
 function TraceRow({ trace, idx, onSelect, selected }: {
   trace: ClaimExtractionTrace;
   idx: number;
@@ -153,22 +163,27 @@ function TraceRow({ trace, idx, onSelect, selected }: {
   return (
     <tr
       onClick={onSelect}
+      className="etl-trace-row"
+      /* eslint-disable-next-line local/no-inline-style -- dynamic: selection + zebra-stripe background */
       style={{
-        cursor: 'pointer',
         background: selected ? 'rgba(249,115,22,0.08)' : (idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)'),
       }}
     >
-      <td style={{ ...td, fontWeight: 700, color: '#f97316' }}>S{trace.round}</td>
-      <td style={td}>{speakerLabel(trace.speaker)}</td>
-      <td style={td}><StatusBadge status={trace.status} /></td>
-      <td style={tdNum}>{(trace.prompt_chars / 1024).toFixed(1)}k</td>
-      <td style={tdNum}>{(trace.response_chars / 1024).toFixed(1)}k</td>
-      <td style={td}>{trace.response_truncated ? '✓' : ''}</td>
-      <td style={tdNum}>{trace.candidates_proposed}</td>
-      <td style={tdNum}>{trace.candidates_accepted}</td>
-      <td style={{ ...tdNum, color: deltaColor, fontWeight: 700 }}>{delta > 0 ? `+${delta}` : delta}</td>
-      <td style={td}>{topReason ? `${topReason[0]} (${topReason[1]})` : '—'}</td>
-      <td style={tdNum}>{Math.round(trace.max_overlap_vs_existing * 100)}%</td>
+      <td className="etl-td etl-td-stmt">S{trace.round}</td>
+      <td className="etl-td">{speakerLabel(trace.speaker)}</td>
+      <td className="etl-td"><StatusBadge status={trace.status} /></td>
+      <td className="etl-td-num">{(trace.prompt_chars / 1024).toFixed(1)}k</td>
+      <td className="etl-td-num">{(trace.response_chars / 1024).toFixed(1)}k</td>
+      <td className="etl-td">{trace.response_truncated ? '✓' : ''}</td>
+      <td className="etl-td-num">{trace.candidates_proposed}</td>
+      <td className="etl-td-num">{trace.candidates_accepted}</td>
+      <td
+        className="etl-td-num etl-td-delta"
+        /* eslint-disable-next-line local/no-inline-style -- dynamic: delta sign color */
+        style={{ color: deltaColor }}
+      >{delta > 0 ? `+${delta}` : delta}</td>
+      <td className="etl-td">{topReason ? `${topReason[0]} (${topReason[1]})` : '—'}</td>
+      <td className="etl-td-num">{Math.round(trace.max_overlap_vs_existing * 100)}%</td>
     </tr>
   );
 }
@@ -184,9 +199,6 @@ const navBtn = (disabled: boolean): React.CSSProperties => ({
   cursor: disabled ? 'not-allowed' : 'pointer',
   opacity: disabled ? 0.5 : 1,
 });
-const th: React.CSSProperties = { padding: '4px 6px', fontSize: 'var(--text-2xs)', fontWeight: 700, textAlign: 'left', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', cursor: 'default' };
-const thNum: React.CSSProperties = { ...th, textAlign: 'right' as const };
-
 function AttributionSummary({ traces, debate }: { traces: ClaimExtractionTrace[]; debate: DebateSession }) {
   const stats = useMemo(() => {
     const allDecisions = traces.flatMap(t => t.attribution_decisions ?? []);
@@ -222,19 +234,15 @@ function AttributionSummary({ traces, debate }: { traces: ClaimExtractionTrace[]
   const ratioColor = ratio != null && ratio > 0.5 ? '#ef4444' : ratio != null && ratio > 0.25 ? '#f59e0b' : '#22c55e';
 
   return (
-    <details style={{ marginBottom: 4 }}>
-      <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>
+    <details className="etl-mb4">
+      <summary className="etl-summary">
         Taxonomy Attribution ({stats.attributed}/{stats.total} attributed{ratio != null ? ` · ${(ratio * 100).toFixed(0)}% unattributed` : ''})
       </summary>
-      <div style={{ fontSize: '0.7rem', padding: '4px 0' }}>
+      <div className="etl-attr-body">
         {/* Ratio alert */}
         {ratio != null && ratio > 0.5 && (
-          <div style={{
-            margin: '0 0 8px', padding: '6px 10px', borderRadius: 6,
-            background: 'rgba(239,68,68,0.12)', borderLeft: '3px solid #ef4444',
-            fontSize: '0.7rem',
-          }}>
-            <strong style={{ color: '#ef4444' }}>High unattributed ratio ({(ratio * 100).toFixed(0)}%).</strong>{' '}
+          <div className="etl-ratio-alert">
+            <strong className="etl-red">High unattributed ratio ({(ratio * 100).toFixed(0)}%).</strong>{' '}
             Over half of AN claims could not be mapped to taxonomy Belief nodes. This may indicate
             the debate is producing novel arguments outside the taxonomy&apos;s coverage, or that embeddings
             are missing.
@@ -242,39 +250,48 @@ function AttributionSummary({ traces, debate }: { traces: ClaimExtractionTrace[]
         )}
 
         {/* Summary stats */}
-        <div style={{ display: 'flex', gap: 16, marginBottom: 8, flexWrap: 'wrap' }}>
-          <span>Attributed: <strong style={{ color: '#22c55e' }}>{stats.attributed}</strong></span>
-          <span>Unattributed: <strong style={{ color: stats.unattributed > 0 ? '#ef4444' : 'var(--text-primary)' }}>{stats.unattributed}</strong>
-            {stats.novelCount > 0 && <span style={{ color: 'var(--text-muted)' }}> ({stats.novelCount} novel)</span>}
-            {stats.noEmbCount > 0 && <span style={{ color: 'var(--text-muted)' }}> ({stats.noEmbCount} no emb)</span>}
+        <div className="etl-stats-row">
+          <span>Attributed: <strong className="etl-green">{stats.attributed}</strong></span>
+          <span>Unattributed: <strong
+            /* eslint-disable-next-line local/no-inline-style -- dynamic: conditional color on count */
+            style={{ color: stats.unattributed > 0 ? '#ef4444' : 'var(--text-primary)' }}
+          >{stats.unattributed}</strong>
+            {stats.novelCount > 0 && <span className="etl-muted"> ({stats.novelCount} novel)</span>}
+            {stats.noEmbCount > 0 && <span className="etl-muted"> ({stats.noEmbCount} no emb)</span>}
           </span>
         </div>
 
         {/* Confidence distribution */}
         {stats.attributed > 0 && (
-          <div style={{ marginBottom: 8 }}>
-            <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 3 }}>Confidence Distribution</div>
-            <div style={{ display: 'flex', gap: 2, height: 16, borderRadius: 3, overflow: 'hidden' }}>
+          <div className="etl-mb8">
+            <div className="etl-section-label">Confidence Distribution</div>
+            <div className="etl-conf-bar">
               {stats.confBuckets.high > 0 && (
-                <div style={{ flex: stats.confBuckets.high, background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-2xs)', color: '#fff', fontWeight: 700 }}
+                <div className="etl-conf-seg etl-bg-green"
+                  /* eslint-disable-next-line local/no-inline-style -- dynamic: flex weight from bucket count */
+                  style={{ flex: stats.confBuckets.high }}
                   title={`High confidence (≥0.70): ${stats.confBuckets.high} claims`}
                 >{stats.confBuckets.high}</div>
               )}
               {stats.confBuckets.medium > 0 && (
-                <div style={{ flex: stats.confBuckets.medium, background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-2xs)', color: '#fff', fontWeight: 700 }}
+                <div className="etl-conf-seg etl-bg-blue"
+                  /* eslint-disable-next-line local/no-inline-style -- dynamic: flex weight from bucket count */
+                  style={{ flex: stats.confBuckets.medium }}
                   title={`Medium confidence (0.50–0.69): ${stats.confBuckets.medium} claims`}
                 >{stats.confBuckets.medium}</div>
               )}
               {stats.confBuckets.low > 0 && (
-                <div style={{ flex: stats.confBuckets.low, background: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-2xs)', color: '#fff', fontWeight: 700 }}
+                <div className="etl-conf-seg etl-bg-amber"
+                  /* eslint-disable-next-line local/no-inline-style -- dynamic: flex weight from bucket count */
+                  style={{ flex: stats.confBuckets.low }}
                   title={`Low confidence (0.35–0.49): ${stats.confBuckets.low} claims`}
                 >{stats.confBuckets.low}</div>
               )}
             </div>
-            <div style={{ display: 'flex', gap: 12, marginTop: 2, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
-              <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#22c55e', borderRadius: 1, marginRight: 3 }} />High ≥0.70</span>
-              <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#3b82f6', borderRadius: 1, marginRight: 3 }} />Med 0.50–0.69</span>
-              <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#f59e0b', borderRadius: 1, marginRight: 3 }} />Low 0.35–0.49</span>
+            <div className="etl-conf-legend">
+              <span><span className="etl-legend-swatch etl-bg-green" />High ≥0.70</span>
+              <span><span className="etl-legend-swatch etl-bg-blue" />Med 0.50–0.69</span>
+              <span><span className="etl-legend-swatch etl-bg-amber" />Low 0.35–0.49</span>
             </div>
           </div>
         )}
@@ -282,22 +299,21 @@ function AttributionSummary({ traces, debate }: { traces: ClaimExtractionTrace[]
         {/* Most-attributed nodes */}
         {stats.topRefs.length > 0 && (
           <div>
-            <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 3 }}>Most-Attributed Taxonomy Nodes</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div className="etl-section-label">Most-Attributed Taxonomy Nodes</div>
+            <div className="etl-col-gap2">
               {stats.topRefs.map(([nodeId, count]) => {
                 const maxCount = stats.topRefs[0][1];
                 return (
-                  <div key={nodeId} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ minWidth: 100, fontWeight: 600, fontSize: 'var(--text-2xs)' }}>{nodeId}</span>
-                    <div style={{ flex: 1, height: 10, background: 'var(--bg-secondary, #222)', borderRadius: 2, overflow: 'hidden' }}>
-                      <div style={{
-                        width: `${(count / maxCount) * 100}%`,
-                        height: '100%',
-                        background: 'linear-gradient(90deg, #3b82f6, #6366f1)',
-                        borderRadius: 2,
-                      }} />
+                  <div key={nodeId} className="etl-row-center6">
+                    <span className="etl-node-id">{nodeId}</span>
+                    <div className="etl-bar-track">
+                      <div
+                        className="etl-bar-fill"
+                        /* eslint-disable-next-line local/no-inline-style -- dynamic: bar width from count ratio */
+                        style={{ width: `${(count / maxCount) * 100}%` }}
+                      />
                     </div>
-                    <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, minWidth: 20, textAlign: 'right', color: '#6366f1' }}>{count}</span>
+                    <span className="etl-bar-count">{count}</span>
                   </div>
                 );
               })}
@@ -349,21 +365,17 @@ export function ExtractionTimelinePanel({ debate }: Props) {
 
   if (traces.length === 0) {
     return (
-      <div style={{ padding: 12, color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+      <div className="etl-empty">
         No extraction traces yet. Start a debate to populate this panel.
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '4px 0 40px', maxWidth: 820 }}>
+    <div className="etl-panel">
       {summary?.plateau_detected && (
-        <div style={{
-          margin: '0 0 10px', padding: '8px 10px', borderRadius: 6,
-          background: 'rgba(239,68,68,0.12)', borderLeft: '3px solid #ef4444',
-          fontSize: '0.75rem',
-        }}>
-          <strong style={{ color: '#ef4444' }}>⚠ Extraction plateau detected.</strong>{' '}
+        <div className="etl-plateau-alert">
+          <strong className="etl-red">⚠ Extraction plateau detected.</strong>{' '}
           No new AN nodes have been added since {summary.plateau_last_an_id ?? 'early rounds'}
           {summary.plateau_started_at_turn != null && ` (starting at turn ${summary.plateau_started_at_turn})`}.
           Inspect recent turns below for the root cause — likely a context-bloat, truncated response,
@@ -372,23 +384,29 @@ export function ExtractionTimelinePanel({ debate }: Props) {
       )}
 
       {summary && (
-        <div style={{ display: 'flex', gap: 16, fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 6, flexWrap: 'wrap' }}>
-          <span>Turns: <strong style={{ color: 'var(--text-primary)' }}>{summary.total_turns}</strong></span>
-          <span>Proposed: <strong style={{ color: 'var(--text-primary)' }}>{summary.total_proposed}</strong></span>
-          <span>Accepted: <strong style={{ color: 'var(--text-primary)' }}>{summary.total_accepted}</strong></span>
-          <span>Acceptance: <strong style={{ color: summary.acceptance_rate >= 0.5 ? '#22c55e' : '#f59e0b' }}>
+        <div className="etl-summary-row">
+          <span>Turns: <strong className="etl-primary">{summary.total_turns}</strong></span>
+          <span>Proposed: <strong className="etl-primary">{summary.total_proposed}</strong></span>
+          <span>Accepted: <strong className="etl-primary">{summary.total_accepted}</strong></span>
+          <span>Acceptance: <strong
+            /* eslint-disable-next-line local/no-inline-style -- dynamic: threshold-based color */
+            style={{ color: summary.acceptance_rate >= 0.5 ? '#22c55e' : '#f59e0b' }}
+          >
             {(summary.acceptance_rate * 100).toFixed(0)}%
           </strong></span>
           {summary.unattributed_claim_ratio != null && (
-            <span>Unattributed: <strong style={{ color: summary.unattributed_claim_ratio > 0.5 ? '#ef4444' : summary.unattributed_claim_ratio > 0.25 ? '#f59e0b' : '#22c55e' }}>
+            <span>Unattributed: <strong
+              /* eslint-disable-next-line local/no-inline-style -- dynamic: threshold-based color */
+              style={{ color: summary.unattributed_claim_ratio > 0.5 ? '#ef4444' : summary.unattributed_claim_ratio > 0.25 ? '#f59e0b' : '#22c55e' }}
+            >
               {(summary.unattributed_claim_ratio * 100).toFixed(0)}%
             </strong></span>
           )}
         </div>
       )}
 
-      <details open style={{ marginBottom: 4 }}>
-        <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>Charts</summary>
+      <details open className="etl-mb4">
+        <summary className="etl-summary">Charts</summary>
         {summary && <GrowthChart summary={summary} traces={traces} />}
         <RejectionSparkline traces={traces} />
       </details>
@@ -396,21 +414,21 @@ export function ExtractionTimelinePanel({ debate }: Props) {
       {/* Taxonomy Attribution Summary */}
       <AttributionSummary traces={traces} debate={debate} />
 
-      <div style={{ marginTop: 10 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
+      <div className="etl-mt10">
+        <table className="etl-table">
           <thead>
             <tr>
-              <th style={thNum} data-tooltip={"Statement number — the position of this debate entry in the full transcript (e.g., S4 = 4th entry).\n\nClick a row to see detailed extraction diagnostics."}>Stmt</th>
-              <th style={th} data-tooltip={"The AI debater who made this statement.\n\nAccelerationist\nSafetyist\nSkeptic"}>Speaker</th>
-              <th style={th} data-tooltip={"Extraction status for this turn.\n\nOK = claims extracted successfully\nNo new nodes = no new AN nodes (duplicates or low overlap)\nEmpty = AI returned an empty response\nTruncated = response cut off (context too large)\nParse error = couldn't parse as valid JSON\nAdapter error = AI backend call failed"}>Status</th>
-              <th style={thNum} data-tooltip={"Prompt size in kilobytes — the extraction prompt sent to the AI.\n\nGrows each turn as transcript and AN context accumulate. Prompts over 15k may cause truncated responses."}>Prompt</th>
-              <th style={thNum} data-tooltip={"Response size in kilobytes — the AI's raw response.\n\nSmall responses (< 1k) may indicate the model failed to extract meaningful claims."}>Resp</th>
-              <th style={th} data-tooltip={"Response truncation flag.\n\n✓ = response was cut off mid-stream (usually max_tokens hit).\nTruncated responses often produce parse errors or missing claims."}>Trunc?</th>
-              <th style={thNum} data-tooltip={"Candidates proposed — claim candidates the AI proposed.\n\nEach candidate is a potential argument network node. Typically 2-4 per turn."}>Prop</th>
-              <th style={thNum} data-tooltip={"Candidates accepted — proposed claims that passed validation.\n\nClaims are rejected if:\n• Word overlap with statement < 10-15%\n• Duplicate of existing AN node (> 30% overlap)"}>Acc</th>
-              <th style={thNum} data-tooltip={"Argument Network delta — net change in AN node count.\n\n+3 = three new nodes added\n+0 = no growth (plateau indicator)\n\nConsecutive +0 deltas indicate an extraction plateau."}>AN Δ</th>
-              <th style={th} data-tooltip={"Top rejection reason with count in parentheses.\n\nduplicate_claim = too similar to existing AN node (> 30%)\nlow_overlap = not grounded in statement (< 10-15%)\ntoo_short = claim too brief\nmissing_scheme = no argumentation scheme\n\n'—' = no claims were rejected"}>Top reject</th>
-              <th style={thNum} data-tooltip={"Max word overlap vs. existing AN nodes.\n\nHigh values (> 60%) = debate covers well-trodden ground.\nNear 100% = near-duplicates of existing nodes.\n\nConsistently high = AN saturation (diminishing returns)."}>Max overlap</th>
+              <th className="etl-th-num" data-tooltip={"Statement number — the position of this debate entry in the full transcript (e.g., S4 = 4th entry).\n\nClick a row to see detailed extraction diagnostics."}>Stmt</th>
+              <th className="etl-th" data-tooltip={"The AI debater who made this statement.\n\nAccelerationist\nSafetyist\nSkeptic"}>Speaker</th>
+              <th className="etl-th" data-tooltip={"Extraction status for this turn.\n\nOK = claims extracted successfully\nNo new nodes = no new AN nodes (duplicates or low overlap)\nEmpty = AI returned an empty response\nTruncated = response cut off (context too large)\nParse error = couldn't parse as valid JSON\nAdapter error = AI backend call failed"}>Status</th>
+              <th className="etl-th-num" data-tooltip={"Prompt size in kilobytes — the extraction prompt sent to the AI.\n\nGrows each turn as transcript and AN context accumulate. Prompts over 15k may cause truncated responses."}>Prompt</th>
+              <th className="etl-th-num" data-tooltip={"Response size in kilobytes — the AI's raw response.\n\nSmall responses (< 1k) may indicate the model failed to extract meaningful claims."}>Resp</th>
+              <th className="etl-th" data-tooltip={"Response truncation flag.\n\n✓ = response was cut off mid-stream (usually max_tokens hit).\nTruncated responses often produce parse errors or missing claims."}>Trunc?</th>
+              <th className="etl-th-num" data-tooltip={"Candidates proposed — claim candidates the AI proposed.\n\nEach candidate is a potential argument network node. Typically 2-4 per turn."}>Prop</th>
+              <th className="etl-th-num" data-tooltip={"Candidates accepted — proposed claims that passed validation.\n\nClaims are rejected if:\n• Word overlap with statement < 10-15%\n• Duplicate of existing AN node (> 30% overlap)"}>Acc</th>
+              <th className="etl-th-num" data-tooltip={"Argument Network delta — net change in AN node count.\n\n+3 = three new nodes added\n+0 = no growth (plateau indicator)\n\nConsecutive +0 deltas indicate an extraction plateau."}>AN Δ</th>
+              <th className="etl-th" data-tooltip={"Top rejection reason with count in parentheses.\n\nduplicate_claim = too similar to existing AN node (> 30%)\nlow_overlap = not grounded in statement (< 10-15%)\ntoo_short = claim too brief\nmissing_scheme = no argumentation scheme\n\n'—' = no claims were rejected"}>Top reject</th>
+              <th className="etl-th-num" data-tooltip={"Max word overlap vs. existing AN nodes.\n\nHigh values (> 60%) = debate covers well-trodden ground.\nNear 100% = near-duplicates of existing nodes.\n\nConsistently high = AN saturation (diminishing returns)."}>Max overlap</th>
             </tr>
           </thead>
           <tbody>
@@ -428,46 +446,42 @@ export function ExtractionTimelinePanel({ debate }: Props) {
       </div>
 
       {selected && (
-        <div style={{
-          marginTop: 12, padding: 10, borderRadius: 6,
-          background: 'rgba(249,115,22,0.05)', border: '1px solid rgba(249,115,22,0.2)',
-          fontSize: '0.72rem',
-        }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6,
-            flexWrap: 'wrap',
-          }}>
+        <div className="etl-detail-panel">
+          <div className="etl-detail-header">
             <button
               onClick={() => goToIdx(selectedIdx - 1)}
               disabled={selectedIdx <= 0}
               title="Previous statement"
+              /* eslint-disable-next-line local/no-inline-style -- dynamic: disabled-state styling */
               style={navBtn(selectedIdx <= 0)}
             >◀ Prev</button>
             <button
               onClick={() => goToIdx(selectedIdx + 1)}
               disabled={selectedIdx >= traces.length - 1}
               title="Next statement"
+              /* eslint-disable-next-line local/no-inline-style -- dynamic: disabled-state styling */
               style={navBtn(selectedIdx >= traces.length - 1)}
             >Next ▶</button>
-            <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
+            <span className="etl-nav-count">
               {selectedIdx + 1} / {traces.length}
             </span>
-            <span style={{ fontWeight: 700, marginLeft: 4 }}>
-              <span style={{ color: '#f97316' }}>S{selected.round}</span>
+            <span className="etl-stmt-label">
+              <span className="etl-orange">S{selected.round}</span>
               {' — '}{speakerLabel(selected.speaker)} · <StatusBadge status={selected.status} />
             </span>
             <button
               onClick={() => jumpToTranscript(`S${selected.round}`)}
               title="Scroll to this statement in the main transcript"
+              /* eslint-disable-next-line local/no-inline-style -- dynamic: disabled-state styling + margin */
               style={{ ...navBtn(false), marginLeft: 'auto' }}
             >↗ Show in transcript</button>
           </div>
           {selected.error_message && (
-            <div style={{ color: '#ef4444', marginBottom: 6 }}>
+            <div className="etl-error-line">
               <strong>Error:</strong> {selected.error_message}
             </div>
           )}
-          <div className="extraction-detail" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 16px' }}>
+          <div className="extraction-detail etl-detail-grid">
             <span data-tooltip="AI model used for extraction. Different models have different extraction quality.">Model: {selected.model || '(default)'}</span>
             <span data-tooltip="Wall-clock response time (includes network + inference). Long times (> 10s) may indicate context overload.">Response time: {selected.response_time_ms} ms</span>
             <span data-tooltip={"Extraction prompt size in chars and estimated tokens (~4 chars/token).\nLarge prompts consume more context window and may cause truncation."}>Prompt: {selected.prompt_chars.toLocaleString()} chars (~{selected.prompt_token_estimate.toLocaleString()} tokens)</span>
@@ -480,35 +494,31 @@ export function ExtractionTimelinePanel({ debate }: Props) {
             <span data-tooltip="Extraction attempt number. Normally 1. Higher = retried due to parse errors, empty responses, or truncation.">Attempt: {selected.attempt_count}</span>
           </div>
           {Object.keys(selected.rejection_reasons).length > 0 && (
-            <div style={{ marginTop: 6 }}>
+            <div className="etl-mt6">
               <strong>Rejection reasons:</strong>{' '}
               {Object.entries(selected.rejection_reasons).map(([r, c]) => (
-                <span key={r} style={{
-                  display: 'inline-block', marginRight: 6, padding: '1px 6px',
-                  background: 'rgba(239,68,68,0.12)', color: '#ef4444', borderRadius: 3,
-                  fontSize: 'var(--text-2xs)',
-                }}>{r}×{c}</span>
+                <span key={r} className="etl-reject-chip">{r}×{c}</span>
               ))}
             </div>
           )}
           {selected.rejected_overlap_pcts.length > 0 && (
-            <div style={{ marginTop: 4 }}>
+            <div className="etl-mt4">
               <strong>Rejected overlap %:</strong> {selected.rejected_overlap_pcts.join(', ')}
             </div>
           )}
           {selected.an_nodes_added_ids.length > 0 && (
-            <div style={{ marginTop: 4 }}>
+            <div className="etl-mt4">
               <strong>Added:</strong> {selected.an_nodes_added_ids.join(', ')}
             </div>
           )}
           {/* Per-turn taxonomy attribution */}
           {selected.attribution_decisions && selected.attribution_decisions.length > 0 && (
-            <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 6 }}>
-              <div style={{ display: 'flex', gap: 12, marginBottom: 4 }}>
+            <div className="etl-attr-section">
+              <div className="etl-attr-head">
                 <strong>Taxonomy Attribution</strong>
-                <span style={{ color: '#22c55e' }}>{selected.attribution_attributed ?? 0} attributed</span>
+                <span className="etl-green">{selected.attribution_attributed ?? 0} attributed</span>
                 {(selected.attribution_unattributed ?? 0) > 0 && (
-                  <span style={{ color: '#ef4444' }}>{selected.attribution_unattributed} unattributed</span>
+                  <span className="etl-red">{selected.attribution_unattributed} unattributed</span>
                 )}
               </div>
               {selected.attribution_decisions.map(d => {
@@ -516,21 +526,25 @@ export function ExtractionTimelinePanel({ debate }: Props) {
                 const conf = d.attribution_confidence;
                 const confColor = conf >= 0.7 ? '#22c55e' : conf >= 0.5 ? '#3b82f6' : conf >= 0.35 ? '#f59e0b' : '#ef4444';
                 return (
-                  <div key={d.claim_id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-2xs)', marginBottom: 2 }}>
-                    <span style={{ fontWeight: 700, color: 'var(--accent)', minWidth: 44 }}>{d.claim_id}</span>
+                  <div key={d.claim_id} className="etl-attr-row">
+                    <span className="etl-claim-id">{d.claim_id}</span>
                     {isUnattributed ? (
-                      <span style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(239,68,68,0.12)', color: '#ef4444', fontWeight: 600 }}>
+                      <span className="etl-unattr-chip">
                         {d.unattributed_reason === 'novel_argument' ? 'novel argument' : 'no embedding'}
                       </span>
                     ) : (
                       <>
-                        <span style={{ color: 'var(--text-muted)' }}>&rarr;</span>
-                        <span style={{ fontWeight: 600 }}>{d.primary_ref}</span>
-                        <span style={{ padding: '1px 5px', borderRadius: 3, background: `${confColor}18`, color: confColor, fontWeight: 600 }}>
+                        <span className="etl-muted">&rarr;</span>
+                        <span className="etl-fw600">{d.primary_ref}</span>
+                        <span
+                          className="etl-conf-chip"
+                          /* eslint-disable-next-line local/no-inline-style -- dynamic: confidence-driven bg/fg color */
+                          style={{ background: `${confColor}18`, color: confColor }}
+                        >
                           {conf.toFixed(2)}
                         </span>
                         {d.secondary_refs_count > 0 && (
-                          <span style={{ color: 'var(--text-muted)' }}>+{d.secondary_refs_count} secondary</span>
+                          <span className="etl-muted">+{d.secondary_refs_count} secondary</span>
                         )}
                       </>
                     )}
