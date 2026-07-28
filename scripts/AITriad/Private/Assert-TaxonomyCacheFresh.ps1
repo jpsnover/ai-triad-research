@@ -62,7 +62,10 @@ function Assert-TaxonomyCacheFresh {
             if ($File.Length -gt 10MB) { continue }
             try {
                 $Json = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
-                if (-not ($Json -and $Json.PSObject.Properties['nodes'])) { continue }
+                # Shape-gate: only real POV node files (nodes[].id) register. Sidecar
+                # logs like entity_extraction_log.json (nodes keyed by 'node_id') are
+                # skipped so Get-Tax doesn't later crash on them (t/1834).
+                if (-not (Test-IsPovTaxonomyData $Json)) { continue }
                 $PovName = $File.BaseName.ToLower()
                 $script:TaxonomyData[$PovName] = $Json
                 Write-Verbose "  Reloaded '$PovName' ($($Json.nodes.Count) nodes)"

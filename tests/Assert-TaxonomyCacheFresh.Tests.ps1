@@ -98,4 +98,39 @@ Describe 'Assert-TaxonomyCacheFresh staleness detection' -Tag 'taxonomy' {
             Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
+
+    It 'Does not register a sidecar log (entity_extraction_log.json) as a POV — t/1834' {
+        InModuleScope AITriad {
+            $TempDir = Join-Path ([System.IO.Path]::GetTempPath()) "cache-test-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+            New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
+
+            # A real POV file (nodes[].id) — must register.
+            Set-Content -Path (Join-Path $TempDir 'accelerationist.json') `
+                -Value '{"nodes":[{"id":"acc-desires-001","label":"L","description":"D"}]}'
+            # The entity extraction idempotence sidecar (t/1806): a top-level nodes[]
+            # whose entries are keyed by 'node_id', not 'id'. It is NOT in the
+            # exclusion list, so only the shape gate keeps it out of TaxonomyData.
+            Set-Content -Path (Join-Path $TempDir 'entity_extraction_log.json') `
+                -Value '{"node_count":1,"nodes":[{"node_id":"acc-beliefs-003","model":"claude-sonnet-4-6"}]}'
+
+            Mock Get-TaxonomyDir { $TempDir }
+
+            $script:TaxonomyData = @{}
+            $script:TaxonomyFileTimestamps = @{}
+            $script:TaxonomyCacheLastCheck = $null
+
+            Assert-TaxonomyCacheFresh | Out-Null
+
+            $script:TaxonomyData.ContainsKey('accelerationist') |
+                Should -BeTrue -Because 'a real POV file must still register'
+            $script:TaxonomyData.ContainsKey('entity_extraction_log') |
+                Should -BeFalse -Because 'a sidecar log (node_id-keyed nodes[]) must not be treated as a POV'
+
+            # And Get-Tax must not crash with the log present in the dir.
+            { Get-Tax -Id 'acc-desires-001' } |
+                Should -Not -Throw -Because 't/1834: Get-Tax crashed on the id-less log nodes'
+
+            Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
 }

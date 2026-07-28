@@ -39,8 +39,13 @@ function ConvertTo-TaxonomyNode {
 
     $Obj = [TaxonomyNode]::new()
     $Obj.POV         = $PovKey
-    $Obj.Id          = $Node.id
-    $Obj.Label       = $Node.label
+    # Guard id/label under Set-StrictMode -Version Latest: a non-POV node (e.g. a
+    # sidecar-log entry keyed by 'node_id') has no 'id'/'label' property, and a bare
+    # $Node.id would throw PropertyNotFoundException (t/1834). The loaders shape-gate
+    # such files out of $script:TaxonomyData; this is defense-in-depth for any caller
+    # that hands us a raw node directly.
+    $Obj.Id          = if ($null -ne $Node.PSObject.Properties['id'])    { $Node.id }    else { '' }
+    $Obj.Label       = if ($null -ne $Node.PSObject.Properties['label']) { $Node.label } else { '' }
     $Obj.Description = if ($null -ne $Node.PSObject.Properties['description']) { $Node.description } else { '' }
     $Obj.Score       = $Score
 

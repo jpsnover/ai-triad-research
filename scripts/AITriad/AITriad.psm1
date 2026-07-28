@@ -639,11 +639,12 @@ if (Test-Path $TaxonomyDir) {
         }
         try {
             $Json    = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
-            # Only register POV files that follow the taxonomy shape (have a .nodes array).
-            # Auxiliary files (lineage_categories.json, etc.) live alongside POV files but
-            # don't belong in $script:TaxonomyData.
-            if (-not ($Json -and $Json.PSObject.Properties['nodes'])) {
-                Write-Verbose "Taxonomy: skipping $($File.Name) (no 'nodes' property — not a POV file)"
+            # Only register POV files that follow the taxonomy-node shape (a .nodes
+            # array whose entries carry an 'id'). Auxiliary files (lineage_categories.json)
+            # and sidecar logs (entity_extraction_log.json, whose nodes are keyed by
+            # 'node_id' — t/1834) live alongside POV files but must NOT be treated as POVs.
+            if (-not (Test-IsPovTaxonomyData $Json)) {
+                Write-Verbose "Taxonomy: skipping $($File.Name) (not a POV node file — no id-shaped nodes[])"
                 continue
             }
             $PovName = $File.BaseName.ToLower()
