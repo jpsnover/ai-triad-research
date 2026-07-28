@@ -1,11 +1,25 @@
 ﻿// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { DebateEngine, modelTierRank } from './debateEngine.js';
 import type { ExtendedAIAdapter } from './aiAdapter.js';
 import { createMockAdapter, createMinimalTaxonomy, createDefaultConfig } from './debateEngine.testHelpers.js';
 
+// ── Hermetic isolation (t/1825 / Sage #88) ───────────────
+// Block all network calls so this test is independent of shell API keys.
+// Any secondary path that bypasses the injected adapter and reaches a live
+// backend (embedding / fact-check / taxonomy-relevance) will throw here and be
+// swallowed by the engine's best-effort error handlers — tests still pass,
+// live calls cannot escape.
+beforeAll(() => {
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(
+    new Error('[test] network calls blocked — use injected adapter'),
+  ));
+});
+afterAll(() => {
+  vi.unstubAllGlobals();
+});
 
 // ── Per-speaker model routing (t/411) ────────────────────
 
