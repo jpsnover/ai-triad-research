@@ -292,6 +292,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-05-26 — Shared Lib: `embed_taxonomy.py` batch-encode passed bare string array but the function expects `[{id, text}]` objects. Fixed by matching the expected input format. Reference: `relinkVocabulary.ts` (p/5#7).
 - 2026-07-06 — Computational Linguist: inline Python formatting of `list_tickets` output threw TypeError joining `blocker_summaries` — assumed elements were strings but they're objects. Fixed by coercing each element before join (p/7#16).
 - 2026-07-06 — Computational Linguist: inline Python concatenated debate session `origin` field assuming string — it's a dict in some sessions (TypeError). Fixed with `str(d.get(k,''))` coercion at read site (p/7#18).
+- 2026-07-26 — Computational Linguist (p/7#36): inline Python inspector crashed calling `len()` on `policy_count` (an int) while probing `policy_actions.json` shape — **printed values before type-checking them**. Trivial + self-correcting: read the shape from the partial output and moved on. Shape learned: `policy_actions.json` keys the list under `policies`, name field is `action`. Same inspect-before-coding failure (operate-before-type-check); loud crash, no downstream cost.
+- 2026-07-26 — Computational Linguist (**8th instance, same-session recurrence**, p/7#38): scratch script threw `AttributeError: 'str' has no .get` walking `situations.json` interpretations — **1,236 nodes have `interpretations.{pov}` as a dict, 23 have it as a plain string**. Cause: assumed uniform shape instead of type-checking at the read site. `isinstance`-guarding fixed it AND *was* the diagnosis — the string form is pre-BDI-decomposition (t/1805). Recurred within hours of #7 → CL argues recording isn't preventing recurrence (hookable check > doc entry); reversed Sage's earlier not-in-#82 call (see #82 tracker).
+- 2026-07-28 — Computational Linguist (**+4, p/7#47/#49**, now 12): **3 probe errors** (t/1826 — extraction-log `nodes`=list not dict, `aliases` nullable, `policy_actions` keys under `policies`/name=`action`) = #82 offender #5 (inspect-before-coding not applied). **+1 PRODUCTION defect (t/1830):** the extraction cmdlet **char-explodes bare-string `aliases`** (13/37 records — model emits string where schema says array, iterated unguarded). **It shipped in POWERSHELL (`Invoke-EntityExtraction`), NOT TS** (CL correction p/7#49) — so `tsc`/a TS union can't catch it; the PS-side prevention is **coerce-at-read (`if ($x -is [string]) { @($x) }`) at each AI-JSON boundary as ONE shared helper (Shared Utility Rule) + a bare-string Pester fixture**. Offender #5's real defense splits by surface: TS→union types, PS→shared coerce helper.
 
 **Root Cause:** Code written based on assumed schema/interface rather than inspecting the actual structure or function signature. Applies across all project data: taxonomy JSON, debate sessions, and tool/API returns. Field types vary — never assume string without checking.
 
@@ -315,6 +318,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-05-23 — DevOps: `az` CLI not found in bash or PowerShell. Used `gh` CLI as fallback for workflow checks (p/26#1).
 - 2026-05-28 — Taxonomy Editor: `docker image ls` returned exit code 1 with no output because Docker Desktop daemon was not running. Fixed by starting Docker Desktop and waiting for daemon initialization (p/6#9).
 - 2026-07-17 — PowerShell (verifying t/1699 `check-quality-gates.sh`, p/20#21): `jq` is not on PATH in the dev Bash/pwsh shell, but the script hard-depends on it (CI runners DO have jq), so a local run of the real script failed. Resolved by running the script end-to-end behind a **minimal python `jq` shim** on PATH — verifying the actual script rather than skipping/mocking the jq calls.
+- 2026-07-28 — Taxonomy Editor (p/6#24): **`bc` is not installed** in this Windows git-bash — a `git grep -c … | paste -sd+ | bc` pipeline failed "bc: command not found". Resolved by summing with **`awk '{s+=$1} END{print s}'`** — `awk`/`python3` are present where `bc` isn't; use them for arithmetic in Bash-tool pipelines.
 
 **Root Cause:** Dev environment may lack CLI tools (Azure CLI not installed, `jq` not on PATH) or required background services (Docker Desktop daemon not running). CI runners often have tools the dev shell doesn't, so a script that passes in CI fails locally. Both fail silently or with unhelpful exit codes.
 
@@ -324,6 +328,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. When a tool is unavailable, prefer alternative tools already installed (`gh` instead of `az`) over blocking.
 4. When a command returns exit code 1 with no output, suspect a missing tool or stopped service before debugging the command itself.
 5. To verify a CI gate script locally when it depends on a CI-only tool (`jq`), **shim the tool** (e.g. a minimal python `jq` on PATH) and run the REAL script end-to-end — don't skip its calls or reimplement its logic, which defeats the verification.
+6. **For arithmetic in Bash-tool pipelines, use `awk`, not `bc`** — `bc` isn't installed in this Windows git-bash. Sum a column with `awk '{s+=$1} END{print s}'`.
 
 **Applies To:** All agents running CLI commands, especially DevOps, Docker, and CI-related work.
 
@@ -620,13 +625,16 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Instances:**
 - 2026-06-06 — Computational Linguist: ran `Get-ChildItem` in Bash tool, causing syntax error. Fixed by switching to PowerShell tool (p/7#13).
 - 2026-07-17 — Diagnostics (during triage, p/9#28; **re-hit same day, p/9#34** — identical `(Get-Item $file).Length` idiom): ran `$var = ...; (Get-Item $var).Length` (a PowerShell file-size check) in the Bash tool (POSIX sh); Bash rejected it immediately. Fixed by switching to the PowerShell tool. Tell: `$var = ...` assignment with no `export`, a `;`-chained statement, and `.Length` property access on a cmdlet result are all PowerShell, not sh. File-size/`Get-Item`/`Get-ChildItem` checks belong in the PowerShell tool. **Same agent hit the identical mistake twice in one day → the shared lesson isn't sticking during triage; a per-agent memory ("file ops = PowerShell tool") is the durable fix, not another archive entry.**
+- 2026-07-26 — PowerShell 2 (p/228#1): `node require('/c/Users/.../file.json')` (a **git-bash `/c/...` msys path**) threw MODULE_NOT_FOUND — `node`'s win32 runtime doesn't resolve msys paths. Fixed by reading the JSON via the PowerShell tool with a native `C:\...` path. Tell: the wrong-tool axis isn't just *syntax* — it's also **path format**; a native win32 program invoked from Bash needs a native `C:\...` (or repo-relative) path, not `/c/...`.
+- 2026-07-28 — Taxonomy Editor 2 (**`/tmp` mount variant**, p/195#5): `node -e "require('/tmp/x.json')"` failed MODULE_NOT_FOUND — Node's win32 runtime can't resolve git-bash's **`/tmp` mount** (virtual msys mount, not a real Windows path), and `> /tmp/…` redirects write where Node can't `require`. Fix: for any **Node-consumed temp file, use the session scratchpad's absolute Windows path**, not `/tmp`. Generalizes p/228#1: `/tmp` and `/c/...` are both git-bash-only paths native `node` can't see.
 
-**Root Cause:** Agents have access to both Bash and PowerShell tools. PowerShell cmdlets (`Get-ChildItem`, `Get-Item`, `Invoke-Pester`, `Select-Object`, etc.), `$var = ...` assignment, `.Property` access, and `;`-chained statements only work in the PowerShell tool. Unix commands (`ls`, `grep`, `cat`, `stat -c%s`) only work in Bash (on Windows/Git Bash).
+**Root Cause:** Agents have access to both Bash and PowerShell tools. PowerShell cmdlets (`Get-ChildItem`, `Get-Item`, `Invoke-Pester`, `Select-Object`, etc.), `$var = ...` assignment, `.Property` access, and `;`-chained statements only work in the PowerShell tool. Unix commands (`ls`, `grep`, `cat`, `stat -c%s`) only work in Bash (on Windows/Git Bash). **A second axis is path format:** git-bash presents `/c/Users/...` msys paths, but native win32 programs (`node`, and anything not msys-aware) resolve `C:\...` — an msys path handed to `node require`/`fs` fails as MODULE_NOT_FOUND / ENOENT.
 
 **Prevention:**
 1. Use PowerShell tool for: cmdlets (`Get-*`, `Set-*`, `Invoke-*`), `$env:` variables, `$var = ...` assignment, `.Property` access on results, pipeline operators with objects. File-size checks: `(Get-Item $p).Length`.
 2. Use Bash tool for: Unix commands, `git`, `npm`, `node`, `python3`, shell scripts. File-size in Bash: `stat -c%s <file>` or `wc -c < <file>`.
 3. When in doubt, check if the command uses a Verb-Noun cmdlet, `$var =` assignment, or `.Property` access — if yes, it's PowerShell.
+4. **Path format:** when a native win32 program (`node`, etc.) needs a filesystem path, give it a native `C:\...` or repo-relative path — NOT a git-bash `/c/...` msys path OR a mount like **`/tmp`** (both fail as MODULE_NOT_FOUND/ENOENT; `/tmp` is a virtual msys mount Node can't resolve, and `> /tmp/…` redirects land where Node can't `require`). **For any Node-consumed temp file, use the session scratchpad's absolute Windows path, not `/tmp`.** For reading a JSON/data file on win32, the PowerShell tool with a native path is the reliable route.
 
 **Applies To:** All agents on this Windows dev environment with dual shell access.
 
@@ -754,6 +762,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-06 — Technical Lead: `git commit -- <pathspec>` on a new file errored "pathspec did not match". Fixed by explicit `git add` then commit (369001bb, p/8#51).
 - 2026-07-06 — Computational Linguist: same error on a newly created file. Fixed by `git add` then pathspec commit (p/7#26).
 - 2026-07-13 — Taxonomy Editor 2 (t/1563): `git commit -- <existing.tsx> <new-test.tsx>` failed on the untracked test file. Fixed by `git add -- <both>` then commit. Compounding: concurrent broad commit on shared main swept the working-tree .tsx (p/195#1).
+- 2026-07-26 — ServerAPI (t/1788, landed 95348dc8, p/79#13): `git commit -- <paths>` skipped untracked NEW files. Fixed by `git add` then `git commit -m "msg" -- <paths>`. Self-resolved. (Same incident also hit the flag-order trap.) 5th instance / 5 agents — still self-correcting.
 
 **Root Cause:** `git commit -- <paths>` only commits changes to already-tracked files (modified or staged). Untracked (newly created) files are invisible to the pathspec — git doesn't auto-stage them. This is the expected git behavior but surprises agents accustomed to `git add -A` workflows.
 
@@ -821,6 +830,10 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-06-26 — DebateTool: `git commit -- lib/debate/prompts.ts -m "..."` — same issue on the main repo. Fixed by staging with `git add` first, then `git commit -m "..."` without `--` (p/70#3).
 - 2026-06-26 — Azure: `git commit -- .github/workflows/container.yml -m "message"` — same pattern on a CI workflow file. Fixed by reordering flags before `--` (p/105#3).
 - 2026-07-26 — Docker (p/217#1): overlay commit failed "pathspec '-m' did not match" — `-- <path>` placed before `-m "msg"`. Non-interactive Bash tool, **`ogit` expanded form** (`git --git-dir=.orca-git --work-tree=. commit …`). Fixed by reordering to `-m "msg" -- <path>`. **Recurred despite the `git-commit-pathspec-flag-order` hook being "live workspace-wide"** — likely a hook-coverage gap: the guard probably matches `git commit …` but not the overlay-prefixed `git --git-dir=… commit …` form, so overlay commits slip past. Flagged to Diagnostics to extend the matcher.
+- 2026-07-26 — ServerAPI (t/1788, landed 95348dc8, p/79#13): main-repo `git commit -- <paths> -m "msg"` — `-m` after `--` parsed as pathspec. Fixed by reordering. Self-resolved. Recurred even after the hook fix — consistent with the hook being **warn-only** (git rejects regardless; agent self-corrects) + manifest-lag (#68) / exit-1-suppress (#80) residuals. Same incident also hit the untracked-new-file trap.
+- 2026-07-28 — CL.Investigate1 (t/1767, landed aa319dd2, p/40#11): `git commit -- <paths> -m "msg"` again; fixed by moving `-m` before `--` (files already staged → committed the staged set). 6th instance / 6 agents. Still self-correcting — git rejects immediately, no cost beyond a retry; git's own rejection is the effective enforcement, the warn-only hook can't prevent it.
+- 2026-07-28 — Taxonomy Editor (p/6#22): same flag-order failure; resolved with `git commit -F msgfile -- <paths>`. **7th instance / 7 agents.** At 7× the improvement worth making is corrective GUIDANCE (git's `pathspec '-m' did not match` is cryptic) — the flag-order violation is a crisp syntactic signal, so the `git-commit-pathspec-flag-order` hook should emit the correct form on violation; blocked until the #80 Part-3 fix stops it exit-1-noising on every call. Still NOT a #82 escalation (git enforces).
+- 2026-07-28 — Taxonomy Editor 2 (p/195#7): `git commit -q -- <pathspec> -m "msg"` — same failure. **8th instance / 8 agents.** Fix queued (Diagnostics accepted p/9#47 — corrective-guidance emit folds into #80 Part-3); count reinforces the guidance fix.
 
 **Root Cause:** `--` signals end-of-options to git. Everything after `--` is treated as a literal filename/pathspec — including `-m`, `-F`, and any other flag. This is standard POSIX behavior but surprises agents who think of `--` as "here come the paths" without realizing it also disables all subsequent flag parsing.
 
@@ -829,7 +842,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. Alternative: stage files first with `git add <paths>`, then `git commit -m "msg"` (no `--` needed if the index is already correct).
 3. Same rule applies to all git commands: `git diff`, `git log`, `git checkout` — `--` always terminates option parsing.
 
-**Status:** Resolved for main-repo commits (AGENTS.md rule overlay 95e9c3b, p/8#30 + `git-commit-pathspec-flag-order` PreToolUse hook live workspace-wide, p/9#16) — **but recurred 2026-07-26 on an overlay `ogit` commit (Docker, p/217#1), a suspected hook-coverage gap** (guard likely matches `git commit …` but not the overlay-prefixed form). 4 instances / 4 agents. Flagged to Diagnostics to extend the matcher to the overlay expanded form; until then the AGENTS.md rule is the only defense for overlay commits.
+**Status:** Rule (AGENTS.md, overlay 95e9c3b, p/8#30) + `git-commit-pathspec-flag-order` PreToolUse hook (p/9#16); overlay-form matcher gap fixed via inlining (p/9#41). **5 instances / 5 agents.** The hook is **warn-only** — git rejects the malformed command regardless, so recurrences (Docker overlay p/217#1; ServerAPI main-repo t/1788 p/79#13) self-correct on git's own error, not on the hook. The hook's value is guidance, not prevention; durable fix is the rule + habit.
 
 **Applies To:** All agents using git commit with pathspec on any repo — including the overlay expanded form, which the hook may not yet cover.
 
@@ -939,20 +952,22 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ## [Process] Gate Blindness via Pre-Existing Noise (False-Green)
 
-**Pattern:** A verification gate already exits non-zero from tolerated warnings, so new genuine errors don't change the exit code — "verify green" claims pass with live failures undetected.
+**Pattern:** A verification gate fails to detect new genuine failures because it's compromised by tolerated noise. Two mechanisms: **(A) exit-code blend** — the gate already exits non-zero from tolerated warnings, so new errors don't change the exit code; **(B) skip-before-run** — an EARLIER step that hard-fails on tolerated noise (no `continue-on-error`) aborts the pipeline *before* the real gate runs, so the real gate is **skipped entirely** and its absence reads as pass.
 
 **Instances:**
-- 2026-07-03 — verify's eslint step was already failing from old warnings. New `RelatedEdgesPanel` errors (t/1304) survived a "green verify" claim because the exit code was already non-zero. Root cause analysis in t/1304#5, fix in c2f79267, gate repair tracked in t/1323 (p/8#37).
+- 2026-07-03 — verify's eslint step was already failing from old warnings. New `RelatedEdgesPanel` errors (t/1304) survived a "green verify" claim because the exit code was already non-zero (mechanism A). Root cause analysis in t/1304#5, fix in c2f79267, gate repair tracked in t/1323 (p/8#37).
+- 2026-07-26 — Technical Lead (t/1800, DevOps; p/8#101): the CI `Audit dependencies` step (`npm audit high`, **no `continue-on-error`**) hard-fails on lockfile dependabot vulns and sits **BEFORE Test**, so vitest+Pester are **skipped repo-wide** (mechanism B). Test gate was a **false-green for ~3 pushes** and **masked t/1788's Linux route-table check**. **FIXED (DevOps, 231e0f3e, p/26#17):** decoupled audit into its own job + `.github/scripts/ci-audit.mjs` with co-located per-app baselines — audit can never precede/skip Test. Durable rule: **two independent gates must be separate CI jobs.**
 
-**Root Cause:** When a gate is already failing for tolerated/ignored reasons, agents learn to treat its failure as normal. New genuine failures blend into existing noise. Same family as [Build] Deploy Preflight False-Red (AlertsManagement) but **inverted** — false-green instead of false-red.
+**Root Cause:** When a gate is already failing (A) or an upstream step hard-fails (B) for tolerated/ignored reasons, agents treat the red as normal. New failures either blend into the existing non-zero exit (A) or never execute because the pipeline short-circuits first (B). Same family as [Build] Deploy Preflight False-Red (AlertsManagement) but **inverted** — false-green. Mechanism B is especially insidious: the real gate produces NO signal (skipped ≠ failed ≠ passed), and "skipped" is easily misread as "fine."
 
 **Prevention:**
 1. Gates must be kept at **zero tolerated noise** — fix or suppress existing warnings before relying on the gate.
-2. Use **explicit baselines** (e.g., eslint `--max-warnings N`) so any new warning changes the exit code.
-3. Periodically **assert a deliberate failure actually fails the gate**.
-4. When claiming "verify green," check the actual exit code and output — not just "it ran without surprising me."
+2. If warnings/vulns are temporarily tolerated, use **explicit baselines co-located at the step** (eslint `--max-warnings N`; baseline the known dependabot advisory IDs in `npm audit`) so any *new* one changes the exit code — and set `continue-on-error` (or order the step AFTER the real gate) so a tolerated-noise step can NEVER short-circuit the real test gate.
+3. **Ordering rule (mechanism B):** never place a step that hard-fails on tolerated noise *before* the real quality gate.
+4. Periodically **assert a deliberate failure actually fails the gate** (Gate Verification) — catches both mechanisms.
+5. When claiming "gate green," check that the real gate **actually ran** (not skipped) and its exit code — not just "the job didn't surprise me."
 
-**Status:** Resolved — root AGENTS.md "Gate Verification" + "Gate Co-Location" rules (overlay 5732aa7, t/1589). Part of gate-signal-integrity genus (#20/#46/#48/#61/#64). Gate repair still tracked in t/1323.
+**Status:** Resolved-genus, recurred 2026-07-26 (skip-before-run mechanism, t/1800) — **now FIXED (DevOps, 231e0f3e, p/26#17):** audit decoupled into its own job + `ci-audit.mjs` with co-located per-app baselines. Root "Gate Verification" + "Gate Co-Location" rules (overlay 5732aa7, t/1589) applied; new durable rule: two independent gates = separate CI jobs. Part of gate-signal-integrity genus (#20/#46/#48/#61/#64).
 
 **Applies To:** All agents running verify gates, CI pipelines, or any pass/fail quality checks.
 
@@ -1108,8 +1123,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-06 — Technical Lead (t/1303 Phase C): deleted a module and fixed 2 importers but left the importer fixes uncommitted. Local verify green, committed state red for hours. TL then "verified main is green" using the dirty shared tree, contradicting a clean-worktree agent who was correctly seeing the breakage. Diagnostic standard established in t/1303#7 (p/8#49).
 - 2026-07-12 — Computational Linguist (t/1553): uncommitted enrichment UsageID in shared working tree read as "CL authored this." CL never authored it; authorship unestablishable. **Variant:** presence read as AUTHORSHIP, not build state (p/40#7).
 - 2026-07-16 — Technical Lead (t/1618 Z.AI outage, resolved c51018af): committed `ai-models.json` was clean, but an uncommitted 2026-07-16 "refresh" dropped 36 models; the user runs uncommitted local builds, so the local runtime hit a broken state CI never would. Settled by `git show origin/main:ai-models.json`. **Inverse variant:** dirty tree *introduced* breakage into the runtime instead of hiding committed breakage — mirror image, same forensic resolution (p/8#69).
+- 2026-07-26 — Technical Lead (t/1808, p/8#104): an ontology **referential-integrity check** *passed* against the **DIRTY worktree**, masking a break vs committed HEAD. **Check-layer variant:** the false witness is a *validator/check*, not `tsc`/`verify` — same flaw one layer up; any check reading the working tree inherits it. Same #44/#54/#55 class. Fix: check committed state (`git stash` / clean checkout / `git show HEAD:<path>`) and report which tree was validated.
 
-**Root Cause:** `tsc` and `npm run verify` read the working tree, not the git index. In a multi-agent environment, the shared working tree accumulates uncommitted changes from multiple agents — it's never a reliable proxy for committed state. **Authorship variant:** working-tree presence carries no provenance — treating "it exists" as "agent X approved it" is the attribution form of false witness. **Inverse variant:** the dirty tree cuts both ways — it can hide committed breakage OR inject breakage absent from committed state; when the user runs uncommitted local builds, their runtime is whatever is on disk, not what CI sees.
+**Root Cause:** `tsc`, `npm run verify`, **and any validator/integrity check** read the working tree, not the git index. In a multi-agent environment, the shared working tree accumulates uncommitted changes from multiple agents — it's never a reliable proxy for committed state. **Authorship variant:** working-tree presence carries no provenance — treating "it exists" as "agent X approved it" is the attribution form of false witness. **Inverse variant:** the dirty tree cuts both ways — it can hide committed breakage OR inject breakage absent from committed state. **Check-layer variant (t/1808):** a passing referential-integrity/validation check proves nothing about committed state if it ran against the dirty tree — "the check is green" must name *which tree* it checked.
 
 **Prevention:**
 1. **Commit ALL files in a refactor atomically** — deletions and their importer fixes in the same commit. Never commit a deletion without its dependents.
@@ -1121,6 +1137,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
    - `git stash && npm run verify && git stash pop` — build committed state only
 4. **Never attribute uncommitted shared-tree changes** — authorship requires a commit SHA or activity event.
 5. Pairs with the "Verify Before Pushing" rule in root AGENTS.md as its diagnostic complement.
+6. **Integrity/validation checks must state which tree they checked** (t/1808) — a referential-integrity/schema/lint check reading the working tree is a dirty-tree false witness just like `verify`. Run it against committed state when the claim is about committed HEAD, and report "checked committed HEAD" vs "checked working tree."
 
 **Status:** Resolved — root AGENTS.md "Git forensics" Common Traps rule (bf738f2, p/8#58).
 
@@ -1440,21 +1457,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ## #69 [Process] Post-Compaction Summary Framing Trusted Over Object State — Phantom Loose End
 
-**Pattern:** After a context compaction, a stale post-compaction summary frames already-completed, already-committed work as an outstanding "uncommitted deliverable" or "loose end." Acting on the summary's framing instead of the object-level truth (git refs + ticket status) produces wasted redo, a duplicate ticket against work that's already Done, or an attempted re-commit of already-committed content.
+**Pattern:** After a **session boundary** (context compaction OR a session interruption), the resumed state is stale: a summary frames already-committed work as an outstanding "loose end," OR a **peer instance has landed the work while you were paused**. Acting on the stale framing instead of the object-level truth (git refs + ticket status) produces wasted redo, a duplicate ticket against work that's already Done, or an attempted re-commit of content already in HEAD.
 
 **Instances:**
 - 2026-07-17 — Computational Linguist (p/7#37): a post-compaction summary framed a redundant essay copy (`analyses/bronder-…`) as "the uncommitted deliverable," when the canonical review (`docs/instrument-effects-review.md`) was **already committed + CLOSED** with follow-up tickets t/1668–1673 filed. Acting on the framing, CL filed a **duplicate PM ticket (t/1684) against the already-Done t/1673**, then a `git mv` of the essay into `docs/` aborted "destination exists" — the git error was what finally surfaced the true state. Resolved: cancelled t/1684, reverted the essay to committed state, verified via same-commit blob provenance.
+- 2026-07-26 — Computational Linguist (**peer-already-landed variant**, p/7#42): after a **session interruption**, CL re-drove a pending register-staging commit for the t/1676 provenance entries; the script exited 1 ("nothing to stage") because sibling **CL.Investigate1 had already committed the identical hunks (7f9b4c36)** during the pause, so the diff was empty. **Benign — "nothing to stage → abort" was correctly-designed fail-safe behavior** (a good gate: refused to act on an empty diff); object-level check confirmed all entries in HEAD; no data loss. Cousin of #83 (concurrent writers). Lesson: after any interruption, `git log -- <file>` before re-driving a pending commit — a peer may have landed it.
 
-**Root Cause:** A compaction summary is a lossy narrative reconstruction, not a source of truth. It can misrepresent *committed* state (a file it calls "uncommitted" is already in a commit) and *ticket* state (work it calls "unrouted" already has a Done ticket). Trusting the framing over the object state is the same failure as citing the working tree as evidence of committed state (Git Forensics #44/#54/#55) — extended to a second object domain: **ticket status**. The compaction boundary is the trigger; the summary is confident but stale.
+**Root Cause:** A resumed session's picture of "what's still to do" is a lossy reconstruction, not a source of truth — whether a **compaction summary** (stale narrative) or a **post-interruption assumption** that your pending work is still pending. It can misrepresent *committed* state (a file it calls "uncommitted" is already in a commit — possibly landed by a **peer instance** sharing the branch) and *ticket* state. Same failure as citing the working tree as evidence of committed state (Git Forensics #44/#54/#55) — extended to **ticket status** and **peer-landed commits**. The session boundary (compaction or interruption) is the trigger; the resumed assumption is confident but stale.
 
 **Prevention:**
-1. **After any compaction, treat "loose end" claims in the summary as unverified.** Before acting, confirm against object state: `git log/show <path>` and blob-SHA provenance for "uncommitted"; `list_tickets`/`get_ticket` for "unrouted"/"undone."
+1. **After any session boundary, treat "loose end" claims as unverified.** Before acting, confirm against object state: `git log/show <path>` and blob-SHA provenance for "uncommitted"; `list_tickets`/`get_ticket` for "unrouted"/"undone."
 2. **Before filing a follow-up ticket, `search_tickets` for the scope** — a summary that doesn't mention an existing Done ticket is not evidence one doesn't exist (same dup-prevention step as #57 Same-Role Instance Duplication).
-3. **A destination-exists / already-committed error is a signal, not just an obstacle** — when git or the tracker contradicts the summary's framing, the object state wins; stop and re-derive from it (root AGENTS.md "Git forensics — object level, never inference").
+3. **A destination-exists / already-committed / nothing-to-stage error is a signal, not an obstacle** — object state wins; a script that aborts on an empty diff is a correctly-designed fail-safe (treat its refusal as "already landed").
+4. **After a session interruption, `git log -- <file>` (+ check peer commits) before re-driving a pending commit** — on a shared branch a peer instance may have landed your work while you were paused.
 
-**Status:** Active
+**Status:** Active — genus broadened 2026-07-26 (p/7#42) from *compaction* to *any session boundary* (compaction OR interruption), and to the **peer-already-landed** variant on shared branches.
 
-**Applies To:** All agents resuming after a context compaction — especially before committing a "loose end," filing a follow-up ticket, or re-doing a deliverable a summary calls incomplete.
+**Applies To:** All agents resuming after a context compaction OR a session interruption — especially before committing a "loose end," filing a follow-up ticket, or re-driving a pending commit a peer may have already landed.
 
 ## #70 [Build] Vitest Mock Harness — Re-Exporting a Mocked Module Through the Harness Resolves to `undefined`
 
@@ -1504,6 +1523,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Instances:**
 - 2026-07-17 — Server Storage (p/206#3): after `npm run verify` in a landing worktree, `git rebase origin/main` failed "you have unstaged changes." Cause: verify regenerated `src/server/__tests__/__snapshots__/routeTable.test.ts.snap` with flipped LF↔CRLF — a tracked file dirtied as a side effect of verify, not the actual change. Resolved: `git checkout -- <that snap>` before the rebase, then rebase + push cleanly.
 - 2026-07-17 — DebateTool (t/1686, ADR-007 worktree land, resolved 2ef26698, p/70#7): the `git push` bash step exited 1 because the `&&`-chained FF-guard `git merge-base --is-ancestor origin/main HEAD` returned non-zero — origin/main had advanced. Compounding, `git diff HEAD..origin/main` false-flagged the agent's own unpushed split files as "overlap." Resolved: cleaned the verify-run snapshot artifact, confirmed via `git show --stat <origin-commit>` that origin's new commit didn't touch the agent's files, rebased, pushed.
+- 2026-07-26 — DevOps (t/1802, p/26#19): **confirming instance of facet B — discipline held, benign.** The pre-push FF-guard exited 1 because origin/main advanced between worktree-creation and push; resolved cleanly with `git rebase origin/main` on the 1 commit + push. Documents the recorded fix working in practice — a non-zero FF-guard is the *expected* "origin advanced, rebase now" signal, not an error. (Flagged only because the exit-1 tripped the route-to-Sage hook — #80 Part-3 residual.)
 
 **Root Cause:** (A) Verify is not read-only — vitest rewrites snapshot files, and on Windows a regenerated snapshot can come back with the opposite line endings (LF↔CRLF), leaving a tracked file modified. Git refuses to rebase with a dirty tree, so a side-effect artifact blocks the land. (B) The FF-guard and the `diff` comparison both assume origin/main is stationary, but the fleet's push cadence advances it constantly; the guard's non-zero exit is expected, not an error, and `git diff HEAD..origin/main` shows your own not-yet-pushed files as differences — mistaking either for a real conflict is the same false-witness failure as citing the working tree for committed state (Git Forensics #44/#54/#55).
 
@@ -1609,21 +1629,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Applies To:** All agents running `npm ci` in a fresh landing-worktree before verify — especially when `tsc` reports TS2307 for an installed package.
 
-## #78 [Build] `git worktree remove` Fails (exit 128) on Untracked node_modules — Needs `--force`
+## #78 [Build] `git worktree remove` vs In-Worktree node_modules — Refuses Without `--force`, Then TIMES OUT on the rm (Windows)
 
-**Pattern:** After a worktree land, `git worktree remove ../wt-X` fails with exit 128 ("contains modified or untracked files") whenever `npm ci` ran inside the worktree — the installed `node_modules` / `dist` are untracked, and `git worktree remove` refuses to delete a worktree with untracked content. This recurs on **every** worktree land that installs deps. `git worktree remove --force` cleans it (safe once the committed work is already pushed).
+**Pattern:** Cleaning up a worktree that ran an in-worktree `npm ci` fails **two** ways on Windows: **(A) refusal** — plain `git worktree remove` exits 128 ("contains modified or untracked files") because the installed `node_modules`/`dist` are untracked; **(B) timeout** — `--force` proceeds but `remove` then **synchronously `rm -rf`s the huge node_modules**, pathologically slow on Windows (AV/indexing per file), and **times out** (2min). The naive fixes chain: remove → add `--force` → `--force` hangs on the delete.
 
 **Instances:**
-- 2026-07-17 — Shared Lib (`/land-from-worktree` step 8, p/5#13): `git worktree remove ../wt-X` exited 128 because step-2's in-worktree `npm ci` left untracked `node_modules`. Resolved with `git worktree remove --force`; committed work was already pushed, so no loss. Flagged the playbook step-8 gap.
+- 2026-07-17 — Shared Lib (`/land-from-worktree` step 8, p/5#13): plain `git worktree remove` exited 128 on untracked `node_modules`; resolved with `--force` (work already pushed, no loss). (Facet A.)
+- 2026-07-28 — DebateDiagnostics (p/245#1): `git worktree remove <wt>` **timed out at 2min** synchronously `rm -rf`-ing the worktree's large `node_modules` (Windows/AV). Resolved by detaching git metadata fast, then backgrounding the delete: `git worktree prune` + `git branch -D <branch>`, then `rm -rf <wt-dir>` as a backgrounded task. (Facet B — supersedes the `--force` remedy for deps-installed worktrees.)
 
-**Root Cause:** `git worktree remove` is deliberately conservative — it aborts if the worktree has modified or untracked files, to avoid destroying unsaved work. But the `/land-from-worktree` flow *requires* an in-worktree `npm ci` (step 2, to verify against fresh deps), which by definition leaves a large untracked `node_modules` tree. So the safe-by-default refusal fires on every deps-installing land. `--force` is correct **here specifically** because the deliverable was already committed and pushed inside the worktree (step 3) before removal — the only thing `--force` discards is `node_modules`. Distinct cause from the Windows Junction pattern (there `--force` clears a *junction*; here it clears ordinary untracked install output), same remedy. Companion to #77 (the same in-worktree `npm ci`).
+**Root Cause:** (A) `git worktree remove` aborts on untracked files, and an in-worktree `npm ci` always leaves a large untracked `node_modules`. (B) `--force` clears the refusal but does the deletion **synchronously in the foreground**, and unlinking tens of thousands of small files is pathologically slow on Windows (each hits AV/indexing), blowing the 2-minute timeout. The git-metadata detach is instant; only the physical `rm -rf` is slow — coupling them in a foreground `remove` is what hangs. Companion to #77 and the Windows Junction pattern.
 
 **Prevention:**
-1. **`/land-from-worktree` step 8 should specify `git worktree remove --force`** — plain `remove` will always fail after an in-worktree `npm ci`. (Playbook wording gap; handed to TL's batch.)
-2. **`--force` is only safe after your commit is pushed** — confirm the worktree's work is on `origin/main` (step 3 done) before force-removing; then the sole casualty is `node_modules`. Never `--force` with uncommitted deliverable work in the worktree.
-3. `git worktree prune` afterward clears any stale administrative refs (same follow-up as the Junction pattern).
+1. **For a deps-installed worktree, don't `git worktree remove` — detach fast, delete in the background** (DebateDiagnostics, p/245#1): `git worktree prune` + `git branch -D <branch>` (instant), then `rm -rf <wt-dir>` **backgrounded**. Avoids BOTH the refusal (A) and the foreground-rm timeout (B).
+2. **`git worktree remove --force` is the fallback only for small/no-deps worktrees** — where the synchronous rm is fast. With a full `node_modules` on Windows it times out; use #1.
+3. **remove/rm only after your commit is pushed** — confirm the work is on `origin/main`; the sole casualty is `node_modules`. Never remove with uncommitted deliverable work.
+4. `git worktree prune` also clears stale administrative refs (same follow-up as the Junction pattern).
 
-**Status:** Active — 6th hazard in the worktree-land cluster; a concrete `/land-from-worktree` step-8 wording fix. Handed to TL for the owner-gated batch.
+**Status:** Active — worktree-land cluster; `/land-from-worktree` step-8 guidance updated from "`remove --force`" to "**prune + `branch -D` + background rm**" for deps-installed worktrees (supersedes the earlier `--force` wording; both refusal + timeout covered). Handed to TL for the owner-gated batch.
 
 **Applies To:** All agents using the worktree landing procedure with an in-worktree `npm ci` — i.e. every deps-installing land.
 
@@ -1651,6 +1673,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-07-26 — Diagnostics (p/9#39, found while extending `check-git-commit-order.cjs`, commit 039f9501): `{workspace_root}` expanded empty on Windows → node got `/operations/diagnostics/check-git-commit-order.cjs` → resolved to `c:\operations\...` → crash → exit 1 → suppressed with no guidance. The regex fix (overlay-form coverage) is committed but **dead until the path expansion is resolved**. Almost certainly affects **every** hook whose args use `{workspace_root}` — including the `staged-files-after-commit` hook (#76's supposed mechanical defense).
+- 2026-07-26 — **post-inlining regression: residual now LOUD noise, not silence** (Sage direct + PowerShell 2 p/228#1): after the p/9#41 re-inline, the guard logs `Feedback rule 'node' exited with code 1` on ~every matching call — PowerShell 2 read it as "a broken feedback rule." Implies the inlined `node -e` script **exits 1 unconditionally** (even with no violation) — an exit-logic/parse bug, not a real flag. Traded a *silent* dead hook for a *noisy* one; constant `exited code 1` trains the fleet to ignore the guard (violates zero-gate-noise, #20/#46).
 
 **Root Cause:** The hook-runner's `{workspace_root}` template variable does not expand on this Windows setup (empty string), so absolute-path construction in `run.args` silently produces a bogus root — the exact opposite of the standing Diagnostics rule "always use absolute paths via `{workspace_root}`", which assumed it resolves. Compounded by the runner's **exit-1 = suppress-silently** contract: a *crashing* hook is indistinguishable from a *passing* one, so the failure is invisible. Gate-signal-integrity failure (root #20/#46): a gate that can't run detects nothing and reports false-green. Sibling of #68 (feedback tooling lies about liveness) — there manifest-lag + false counters; here a crash masquerading as a pass.
 
@@ -1659,8 +1682,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. **Verify `{workspace_root}` actually expands** here before relying on it for hook script paths; if empty, resolve the script path inside the `.cjs` via `__dirname` rather than a template arg.
 3. **A crashing hook must not silently pass** — make hook failure visible (non-suppressing error surface); exit-1-as-suppress hides exactly the failure you most need to see.
 4. **Audit ALL `{workspace_root}` hooks for the same silent death** — not one hook's bug; every hook using that template on Windows is suspect (recommended a fleet-wide hook audit to Diagnostics).
+5. **A hook must exit 0 on the clean/no-violation path.** If the inlined script exits non-zero unconditionally, it emits `node exited code 1` on EVERY matching call — pure noise that trains the fleet to ignore the guard (violates zero-gate-noise, #20/#46). Test the clean path explicitly, not just the violation path.
 
-**Status:** Active (root cause split; one part fixed). **Part 1 — `{workspace_root}` path crash: FIXED via audit (Diagnostics, p/9#41).** The fleet audit found exactly two hooks using `{workspace_root}` external scripts (`git-commit-pathspec-flag-order`, `staged-files-after-commit`); both **re-inlined via `node -e`** (no external path → no empty-`{workspace_root}` crash) and updated to match the overlay commit form. No other `run.command` hooks exist, so the path-crash class is closed. **Part 2 — exit-1-suppresses-silently: OPEN, Orca Support's platform fix.** A hook exiting non-zero for any reason is still suppressed with no signal (observed live 2026-07-26: inlined guard fires on `git commit`, runner logs `node exited code 1` while suppressing). Prevention #1 (prove-it-fires) / #3 (make crashes visible) stand until Orca Support changes the exit-code contract.
+**Status:** Active — three-part root cause. **Part 1 — `{workspace_root}` path crash: FIXED (Diagnostics audit, p/9#41):** the two hooks using `{workspace_root}` external scripts were **re-inlined via `node -e`**; no other `run.command` hooks exist, so the path-crash class is closed. **Part 2 — exit-1-suppresses-silently: OPEN, Orca Support's platform contract** (a hook exiting non-zero for any reason is suppressed with no signal — crash indistinguishable from pass). **Part 3 — NEW, post-inlining (p/228#1): the inlined guard exits 1 on ~every matching call regardless of violation** → fleet-visible `node exited code 1` noise (2 observers: Sage + PowerShell 2). In-repo exit-logic bug (prevention #5), fixable by Diagnostics directly (exit 0 when clean), separate from the Orca contract. Until Parts 2+3 land, the guard gives neither reliable signal nor low noise — the behavioral rule remains the real defense. Both flagged to Diagnostics (p/9 thread).
 
 **Applies To:** All agents (esp. Diagnostics) authoring or relying on feedback hooks on Windows — and Sage/TL when recording a hook as a "mechanical defense," which must carry a "proven-to-fire-on-Windows" caveat.
 
@@ -1686,10 +1710,12 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Pattern:** A recurrence whose root cause is NOT a missing rule — the rule is written, correct, and in the right place (AGENTS.md / a skill step / a memory) — but it **doesn't fire at the moment of action**. The agent doesn't recall/apply it mid-task. Distinct triage class from "no rule exists": adding more prose won't fix it, because the failure is point-of-use, not coverage. The lever is a **point-of-use gate (PreToolUse hook)** where the signal is clean — converting the rule from something-to-remember into something-enforced.
 
-**Instances (running tally — tag every new one; track BOTH the class total AND the max-per-offender count, per TL p/8#95/#97). Current: CLASS TOTAL = 3 / ~6 trigger; MAX PER OFFENDER = 1 / 4 trigger.**
-- 2026-07-17 — object-level git-forensics, **2nd config-failure instance** (Diagnostics, p/9#30): the "run `git diff HEAD -- <configfile>` before blaming a commit for config" rule existed in memory + root AGENTS.md but wasn't invoked mid-triage. [offender: config-forensics recall — count 1 in this class]
+**Instances (running tally — tag every new one; track BOTH the class total AND the max-per-offender count, per TL p/8#95/#97). Current: CLASS TOTAL ≥ 12 / ~6 trigger → MET; MAX PER OFFENDER ≥ 5 / 4 trigger → MET. TWO offenders now trip the per-offender trigger (#4 and #5).**
+- 2026-07-17 — object-level git-forensics, **2nd config-failure instance** (Diagnostics, p/9#30): the "run `git diff HEAD -- <configfile>` before blaming a commit for config" rule existed in memory + root AGENTS.md but wasn't invoked mid-triage. [offender: config-forensics recall — count 1]
 - 2026-07-26 — strict-mode unguarded property access (TL, t/1726, p/8#88): the `PSObject.Properties` guard rule existed (scripts/AGENTS.md) but wasn't applied at 4 `.factual_claims` sites; a blanket property-access hook was ruled too noisy to scope. [offender: strict-mode property guard — count 1]
 - 2026-07-26 — `/land-from-worktree` #81 (ServerAPI, p/79#10 / p/8#93): step 7 mandates `git restore --worktree` and explicitly forbids `git checkout … -- <files>`; the agent used the forbidden form anyway. [offender: land-worktree step-7 form — count 1]
+- 2026-07-26 — **direct-commit-to-shared-main instead of worktree-landing** (TL, p/8#99; PM p/21#49): agents keep committing docs straight to LOCAL shared `main` rather than worktree-landing. Rule exists (`/land-from-worktree` skill + root AGENTS.md) but isn't applied at commit time. **Recurring since t/1714; PM flagged 5 re-stranded TODAY** → **≥5 instances**. [offender: worktree-landing-not-applied — count ≥5 → trips both triggers]
+- 2026-07-26 — **data-shape type-check-not-applied** (Computational Linguist, p/7#36 + p/7#38; **REVERSES Sage's earlier not-in-#82 call**): the root "Data File Convention" rule (inspect a sample + `type()`/`isinstance()` before operating) exists but keeps not being applied — inline code assumes uniform JSON shape and crashes on the variant (p/7#38: `interpretations.{pov}` dict for 1,236 / string for 23, same-session recurrence). Excluded earlier as "trivial/not-hookable" (p/7#36); CL's same-session-recurrence argument corrects that — **severity isn't the gating criterion; frequency + rule-not-applied is, and recording-isn't-preventing is this class's signature.** Post-rule misses: p/7#16, p/7#18, p/7#36, p/7#38 → [offender: data-shape type-check — count ≥4 → tripped per-offender trigger]. **DISPOSITION: RULE-ONLY, no hook (t/1810, TL p/8#109)** — false-red surface (`graph_attributes` 514 reads/132 files, `interpretations` 213/76) shows the correct normalize-at-fetch pattern leaves most reads guard-free, so a read-without-coercion detector false-reds on correct code (dead gate, #20/#46). Strengthened by TS union-types (tsc = real gate) + naming the variadic fields in the rule (t/1810#1).
 
 **Root Cause:** Rules delivered as prose (AGENTS.md, skill steps, memory) depend on recall at the exact moment of action; under task focus/triage pressure the relevant rule often doesn't surface. Coverage (the rule exists) and application (it fires when needed) are different problems, and only the latter is failing here. The reliable fix is to move enforcement to the point of use — a gate that fires mechanically — but only where the trigger is cheaply and unambiguously detectable (the `ps-strict-mode-count-guard` `.Count` guard is the model; a blanket property-access hook was rejected as too noisy — that tradeoff still holds).
 
@@ -1699,8 +1725,219 @@ Institutional memory for failure patterns across the AI Triad Research project.
    - **(a) per-offender:** any single offender hits its **4th** instance → TL specs a point-of-use hook *for that offender* (the `.Count` guard is the model).
    - **(b) class-total:** the class reaches **~6 total instances across offenders** → systemic (a long tail of distinct one/two-off offenders, not one bad actor), so the lever is a **broader point-of-use reinforcement** — a review-habit/checklist change or a meta-hook — NOT one rule.
    - Rationale for (b): a per-offender trigger alone never fires when the class grows via many distinct offenders each recurring once or twice — exactly the observed trend (3 instances / 3 offenders). Rank both counters in the tally header.
-3. **A candidate becomes a hook only if the trigger is cleanly detectable** — greppable command shape, specific API call — else the noise defeats it (property-access lesson). Where it isn't hookable, the honest record is "rule is the only defense; recall is the residual risk."
+3. **The hook lever converts an offender ONLY when its violation is a crisp, unambiguous SYNTACTIC signal** (TL general criterion, p/8#109). If the offender's *correct* pattern is **syntactically identical** to the violation, a detector false-reds on correct code = dead gate (#20/#46) → **rule-only**. Examples: #4 direct-commit (`branch == main` = crisp → HOOK, t/1780); #5 data-shape read-without-coercion (correct normalize-at-fetch leaves most reads guard-free → violation≈correct → RULE-ONLY, t/1810). *Detectable* means *distinguishable-from-correct*, not just *greppable*.
+4. **When rule-only, strengthen via other real gates, not a noisy hook** — e.g. TS union-types so `tsc` catches the shape mismatch + name the specific variadic fields in the rule (t/1810#1). The honest record where it stays rule-only: "rule is the only defense; recall is the residual risk."
 
-**Status:** Active — meta-pattern / tracker. Frame agreed with TL (p/8#94→#97). **Two triggers (whichever first): per-offender 4th, or class-total ~6.** Sage's standing action: tag new rule-not-applied instances above, keep both counters current in the tally header, and ping TL when either fires — (a) offender's 4th → single-offender hook; (b) class-total 6 → systemic review-habit/checklist/meta-hook. Current: class 3/~6, max-per-offender 1/4 — class-total is the nearer trigger given the many-distinct-offenders trend.
+**Status:** Active — **BOTH triggers fired; both offenders DISPOSITIONED (TL, p/8#104→#109):** #4 direct-commit-to-shared-main (≥5) → hook **spec'd as t/1780** (In Review, Gate-Verification + owner-go gated; crisp `branch==main` signal). #5 data-shape type-check (≥4, CL p/7#36/#38) → **RULE-ONLY (t/1810 decided)** — false-red surface too large (correct pattern ≈ violation), strengthened by TS union-types + naming variadic fields. **Net:** of the two per-offender-trigger offenders, one earned a hook and one stayed rule-only — exactly what the crisp-syntactic-signal criterion (prevention #3) predicts. Class-total ≥12. **Sage standing action:** keep tagging new distinct offenders + both counters; watch t/1780 (In Review). (Sibling: direct-commit drove the large-divergence push failure p/9#36.)
 
 **Applies To:** Sage (triage + tagging) and TL (hook-spec decision) — and anyone tempted to answer a recurrence with "add a rule" when the rule already exists.
+
+## #83 [Build] Commit-by-Pathspec Is File-Granular — In a Live Working Tree It Sweeps Foreign HUNKS Inside Your File (ADR-005 Insufficient)
+
+**Pattern:** `git commit -- <file>` (the ADR-005 defense against sweeping others' work) protects at **file granularity** — it commits *that file's entire working-tree state*, including any **foreign uncommitted hunks** other writers left INSIDE the same file. In a live working tree (`ai-triad-data`, continuously written by pipelines/sessions — often 10+ files dirty), the file you edit frequently already carries someone else's in-progress edit, so per-file staging is **not isolation**: your commit sweeps their hunk AND can split their multi-file change.
+
+**Instances:**
+- 2026-07-26 — Computational Linguist (ai-triad-data, commit 21781d25, disclosed t/1808, p/7#39): committed a one-line `sit-211` fix **by explicit pathspec** — correct per ADR-005 — but the target file also held **12 foreign lines from someone's `policy_id`→`pol-*` linking pass**, which rode into the commit; it also **split that foreign multi-file change** (their `policy_actions.json` stayed uncommitted). Root cause: pathspec is file-granular; the data repo is a live working tree (13 files dirty). Remediation options offered to the owner on t/1808.
+
+**Root Cause:** ADR-005 "commit by explicit pathspec" prevents the *bare-commit* hazard (sweeping other agents' STAGED files — see "Bare Git Commit Sweeps Shared Staging Index"), but its unit is the **file**, not the **hunk**. `git commit -- <file>` snapshots the whole working-tree file, so any unrelated modification sitting in that file — common when the repo is a live write target rather than a code repo touched only by deliberate edits — is committed too. The rule's isolation guarantee silently degrades from "only my changes" to "only my *files*", which in a shared large-JSON file is no guarantee at all. Sibling of the "Active Writers Corrupt Git Operations in Data Repo" pattern.
+
+**Prevention:**
+1. **In `ai-triad-data` (or any live-written tree), `git diff <file>` BEFORE staging/committing** — treat **any foreign hunk as a STOP**. Only commit if every hunk in the file is yours.
+2. If foreign hunks are present, **stage by hunk** (`git add -p`) to commit only your lines, or wait/coordinate — never `git commit -- <file>` a file carrying someone else's in-progress edit.
+3. **ADR-005 shared-branch pathspec rule is necessary but NOT sufficient for large shared JSON** — pathspec isolates files, not hunks.
+4. If you swept a foreign hunk, **disclose immediately** (ticket + owner) and offer remediation — a split multi-file change may need the owner to reconstruct it (t/1808).
+5. **Upstream fix — serialize data-repo-writing batches and announce before starting** (TL/CL, p/8#106): don't run concurrent writers to `../ai-triad-data`. Queue a data-repo-writing batch behind any in-flight one (CL queued t/1676 behind t/1670 after concurrent batches caused today's revert) and post a "starting a data-repo batch" note. Removes the foreign-hunk collision at the source.
+
+**Status:** Active — **defeats/qualifies ADR-005** (file-granular, not hunk-granular) in the live data repo. NOT a #82 rule-not-applied case: the agent correctly applied the pathspec rule; its granularity was insufficient for the context. Disclosed t/1808.
+
+**Applies To:** All agents committing to `ai-triad-data` or any working tree that is a live write target — where a file you edit may carry other writers' uncommitted hunks.
+
+## #84 [Process] Background-Task Gate Wrapper Swallows the Real Exit Code — False-Green from `&& echo PASS || echo FAIL`
+
+**Pattern:** Wrapping a gate as `cmd >log 2>&1 && echo PASS || echo FAIL` (common for background tasks) makes the **task's exit code ALWAYS 0** — the trailing `echo` succeeds whether `cmd` passed or failed, so `&&`/`||` swallows `cmd`'s real exit. The background-task "exit 0" notification is **meaningless for pass/fail**. Compounding: `>log 2>&1` captures only `cmd`, so the `PASS`/`FAIL` marker (echoed after the redirect) lands in the **task-output file, NOT the `log` you tail**.
+
+**Instances:**
+- 2026-07-26 — Taxonomy Editor 2 (t/1798, p/195#3): briefly misread a **failed `npm run verify` as green** — the `... && echo PASS || echo FAIL` wrapper exited 0 and the FAIL marker was in the task-output file, not the tailed log. Resolution: read the marker text (or the inner command's real exit), never the wrapper's exit.
+
+**Root Cause:** `A && echo PASS || echo FAIL`'s own exit status is the last `echo`'s, which always succeeds — it converts `cmd`'s pass/fail into stdout TEXT and drops it from the exit code; the harness reports the wrapper's exit (0), not `cmd`'s. Separately, `cmd >log 2>&1` redirects only `cmd`, so the post-`&&` echo writes elsewhere — verdict and log in different files. Same false-green genus as gate-blindness (#20/#46) but the mechanism is **exit-code laundering by the wrapper**, not tolerated noise.
+
+**Prevention:**
+1. **Never trust a background task's exit code when the command is `... && echo PASS || echo FAIL`** — that exit is the echo's (always 0). Trust the marker TEXT or the inner command's real exit.
+2. **Preserve the real exit:** run the gate without the echo wrapper, or capture it: `cmd >log 2>&1; ec=$?; echo "EXIT=$ec"` → read `EXIT=`.
+3. **Put the verdict where you look:** append the marker into the tailed `log` (`... ; echo RESULT=... >>log`), or `grep` the task-output file — don't tail the redirect log expecting a verdict that went to stdout.
+4. **"Verify green" from a background task = confirm the marker/exit, not the completion notification.**
+
+**Status:** Active — false-green (exit-code-laundering) variant of the gate-signal-integrity genus (#20/#46/#48/#61/#64); distinct from gate-blindness (tolerated noise) and skip-before-run.
+
+**Applies To:** All agents running gates as background Bash tasks, especially with a `&& echo PASS || echo FAIL` wrapper + tailed redirect log.
+
+## #85 [Process] Stale Barrel-Path Citations After ADR-007 Splits Fail SILENTLY (grep-empty, never a broken build)
+
+**Pattern:** The ADR-007 splits turned single files into **barrel DIRECTORIES** — `calibrationLogger.ts` → `calibrationLogger/`, plus `prompts/`, `types/`, `claimExtractionPipeline/`, `gapAndDrift/`. The import surface still works (barrel re-exports), so **builds/verify stay green** — but every prose reference to the old `<name>.ts` path (docs, register, tickets, emails) now points at a nonexistent file. The rot is **silent**: only ever caught by a **grep returning empty** or a human following a dead citation.
+
+**Instances:**
+- 2026-07-26 — Technical Lead / Computational Linguist (p/8#106/#107): **4 stale citations across 3 tickets, 1 offender class** — `prompts.ts` + `types.ts` (t/1701), `gapAndDrift.ts` (t/1782), `calibrationLogger.ts` (e/43). All 4 surfaced via grep-returning-empty, none via a broken build.
+
+**Root Cause:** Splitting `<name>.ts` → a `<name>/` barrel preserves the *import* surface (`import { x } from '.../<name>'` resolves via the barrel index), so `tsc`/verify never complain. But a **prose citation** of the concrete file path is not an import — nothing validates it — so it silently rots. No build gate catches it because the build was never wrong.
+
+**Prevention:**
+1. **Verify the cited path RESOLVES at citation time** — post-t/1686, a cited `<name>.ts` may now be a `<name>/` barrel; check for the dir + specific sub-module before citing. Don't rely on fix-on-break — it never breaks.
+2. **When splitting a file into a barrel, grep docs/register/tickets/emails for the old `<name>.ts`** and update (or leave a redirect note) as part of the split.
+3. **Silent-failure classes are verify-at-write-time, not fix-on-break** — anything caught only by grep-empty (never a red build) has no gate, so the discipline is at the moment of citation.
+
+**Status:** Active — NOT a #82 case (new hazard from ADR-007, not a pre-existing rule unapplied). **Unit note (TL p/8#107):** report units separately — 4 citations / 3 tickets / 1 offender / 2 reporters (TL owns the single report; DebateTool 2 is not a duplicate). Sage tallies (esp. #82 triggers) are unit-sensitive: citations ≠ tickets ≠ offenders ≠ agents.
+
+**Applies To:** All agents citing `lib/debate` file paths post-ADR-007 splits (docs, register, tickets, emails), and anyone splitting a file into a barrel directory.
+
+## #86 [Process] win32 "Task Stopped" Kills the Wrapper, Not Detached Child Trees — Relaunch Races a Surviving Writer
+
+**Pattern:** A background batch runs as a shell wrapper that spawns a **detached child tree** (python → node). When the session restarts or `TaskStop` fires, the task is marked **"stopped"** but the **detached child tree keeps running** on win32 — only the wrapper shell dies. Trusting the "stopped" bookkeeping and **relaunching** puts **two live writers racing on the same output slugs**. **Inverse of #69's peer-already-landed variant:** there a peer *finished* your work so the relaunch found nothing; here a supposedly-killed process *survived*, so the relaunch duplicates a live writer.
+
+**Instances:**
+- 2026-07-26 — Computational Linguist (p/7#44/#45, CLI-hang filed t/1824): after a session restart marked a debate-batch task "stopped," CL relaunched a filler — but the original runner's **python + node tree had survived** (a later `TaskStop` killed only the shell wrapper), so **two writers raced the same output slugs for ~40 min**. Found both trees via **CIM command-line match**, `taskkill /F /T` on all roots, object-audited every artifact set (**id-match + mtime spread + single-run flight recorder**) — no tears. **Benign only because both writers ran identical configs**; differing configs would have torn artifacts.
+
+**Root Cause:** On win32, killing a process (task-stop, session restart, `Stop-Process` on the wrapper) does **not** cascade to detached child processes — a shell wrapper's `python`/`node` children, once detached, outlive it. The task-runner's "stopped" status reflects the **wrapper's** state, not the child tree's; "stopped" is **bookkeeping, not a kill.** A relaunch guarded only by task status spawns a second writer alongside a surviving first — a concurrent-writer race (same family as #83), masked because the runner reports the batch as not running.
+
+**Prevention:**
+1. **Before relaunching ANY batch, verify at the PROCESS level that zero prior writers are alive** — don't trust "task stopped." win32: `Get-CimInstance Win32_Process | Where CommandLine -match '<runner/slug>'`.
+2. **Kill the whole tree, not the wrapper:** `taskkill /F /T /PID <root>` on every matching root — a bare wrapper kill leaves children running.
+3. **If a race may have occurred, object-audit the artifacts** (id-match, mtime-spread, single-run flight recorder) before trusting the results.
+4. **Serialize batch writers** (pairs with #83 prevention #5): a surviving writer + relaunch is exactly the concurrent-writer collision serialize-and-announce prevents.
+
+**Status:** Active — win32 process-tree semantics; inverse of #69's peer-already-landed variant. Underlying CLI-hang tracked t/1824 (CL).
+
+**Applies To:** All agents launching detached background batches on win32 (debate runners, enrichment pipelines) — especially before relaunching after a restart/TaskStop.
+
+## #87 [Build] `npm run build` Exits Non-Zero on an Interactive Prompt in a Non-Essential Trailing Step (No TTY)
+
+**Pattern:** `npm run build` is a composite chain; its trailing `licenses` step (`generate-license-file`) prompts **"overwrite? (y/N)"** before rewriting an existing license file. In a **non-interactive shell (no TTY)** — Bash tool, CI — the prompt can't be answered, so the step **exits 2 and fails the whole `npm run build`**, even though the essential build (`build:main` + vite renderer) already completed. A false-red on the real build, caused by a non-essential post-step assuming a TTY.
+
+**Instances:**
+- 2026-07-26 — DebateWorkspace (p/124#4): `npm run build` exited 2 in a non-interactive shell because the `licenses`/`generate-license-file` step hit an interactive overwrite prompt with no TTY. Resolved by treating it as non-blocking — `build:main` + vite renderer had already completed. Suggested adding a non-interactive/overwrite flag.
+
+**Root Cause:** `generate-license-file` (and similar codegen/docs tools) default to interactive confirmation before overwriting output — fine at a dev terminal, broken under automation with no TTY. Chained into the composite `build`, its non-zero exit propagates to `npm run build`'s exit code, so the aggregate reports "build failed" when only a cosmetic trailing step failed. Same shape as the gate-signal-integrity false-reds (#20/#46): a non-essential step's failure masking the essential gate's success.
+
+**Prevention:**
+1. **Add a non-interactive/overwrite flag to the `generate-license-file` invocation** in `package.json` so the licenses step never prompts.
+2. **When a composite `build` fails, check WHICH step failed** — a trailing `licenses`/docs step exiting non-zero doesn't mean `build:main`/renderer failed; read the step output, not the aggregate exit.
+3. **Keep non-essential steps out of the critical build path** for automation, or make them non-blocking, so a TTY-only prompt can't false-red the real build.
+4. **General:** any build/codegen tool that prompts before overwriting is a non-interactive-shell hazard — pass its yes/overwrite/no-input flag from the Bash tool or CI.
+
+**Status:** Active — false-red (non-essential-step) variant near the gate-signal-integrity genus (#20/#46). Fix is a package.json flag on the owning app (routed suggestion, p/124#4).
+
+**Applies To:** All agents running `npm run build` (or any composite build with a codegen/license/docs post-step) from a non-interactive shell — Bash tool, CI.
+
+## #88 [Build] Local `npm run verify` Hangs on a LIVE AI Backend When Keys Are Set — Keyless CI Never Hits It
+
+**Pattern:** A test has a secondary path that **falls through to a LIVE AI backend when API keys are present in the shell**. On a dev machine (BYOK — keys set) the test makes real Gemini/Claude/Groq calls; **keyless CI runners never do**, so the divergence is invisible in CI. When the live provider is quota-exhausted (a concurrent batch eating the same key's quota), the retry logic (120s backoffs on `RESOURCE_EXHAUSTED`) turns the leak into a **~10-minute local `npm run verify` HANG** — a local-only false-red CI can't explain.
+
+**Instances:**
+- 2026-07-26 — Debate Tool 2 (p/234#1, surfaced landing t/1824): local `npm run verify` killed after ~10 min hanging on `[retry] gemini/gemini-2.5-flash RESOURCE_EXHAUSTED` (120s backoffs). With AI keys set, `debateEngine.modelRouting.test.ts` fell through to a live Gemini backend on a secondary path; a concurrent t/1670 batch had exhausted quota → retries hung. CI (keyless) never hits it. Fix: run keyless — `GEMINI_API_KEY= ANTHROPIC_API_KEY= GROQ_API_KEY= npm run verify` → same test passes **28/28 in ~3s**.
+
+**Root Cause:** (1) **Test-isolation defect:** a routing test must not reach a live backend, but a secondary path falls through to one **when keys are present** — test behavior depends on shell env rather than being hermetic. (2) **Local ≠ CI on keys:** dev shells carry BYOK keys; CI is keyless, so the live-call path only fires locally and CI is blind. The 120s×`RESOURCE_EXHAUSTED` retry converts a silent leak into a long hang, and a **concurrent batch on the same key** makes exhaustion likely (ties to serialize-batches, #83 prevention #5 / #86).
+
+**Prevention:**
+1. **Run `verify` CI-faithfully — keyless:** `GEMINI_API_KEY= ANTHROPIC_API_KEY= GROQ_API_KEY= npm run verify` reproduces CI and sidesteps the live-call path. Good default whenever a local verify hangs but CI is green.
+2. **Real fix — test isolation:** the routing test must stub/mock the backend so keys-present ≠ live-calls; outcome must not depend on shell keys. (Routed.)
+3. **A test that HANGS (not fails) on a backend retry is a hygiene defect** — tests must never make real network calls to paid APIs; a live path reachable from a test is a bug regardless of keys.
+4. **When local verify hangs but CI is green, suspect a keys-present live-call leak** — check for `[retry] … RESOURCE_EXHAUSTED`/backoff lines.
+
+**Status:** Active — local-vs-CI (keys-present) divergence; test-isolation defect surfaced landing t/1824. Keyless-verify workaround documented; real fix is test isolation (routed).
+
+**Applies To:** All agents running `npm run verify`/tests locally with BYOK keys set — especially debate-engine/model-routing tests that can reach a live backend.
+
+## #89 [Process] Subagent "Completed" Is Process-Bookkeeping, Not Deliverable-Existence — Verify Artifacts Independently
+
+**Pattern:** A background subagent's task-completion notification ("completed") fires whenever the agent **stops with no live children** — NOT when its **deliverables exist**. A subagent can report "completed" (even repeatedly) while still mid-research with **zero files written and no commit**. Trusting it and "landing" lands **nothing** — the status describes the agent's process state, not the artifacts.
+
+**Instances:**
+- 2026-07-26 — PowerShell (t/1806, delegated a large PS build to a background subagent, p/20#27): the subagent reported **"completed" TWICE while still mid-research — zero files written, no commit**. Caught by grounding-truth (filesystem/git check); nothing lost. Trusting it would have shipped nothing.
+
+**Root Cause:** The "completed" signal is **bookkeeping about the process** (agent stopped, no live children), not **evidence about the outcome** (files written, commit landed, tests pass). Same genus as #86 ("task stopped" ≠ killed) and #69 (task status ≠ committed state): a lifecycle signal is not proof of the deliverable. Delegating does NOT delegate the Definition of Done — the caller still owns verifying committed artifacts and must not inherit the subagent's word.
+
+**Prevention:**
+1. **Never treat a subagent "completed" as done — verify every deliverable independently:** `Test-Path` each expected file, `git log`/`git show` the expected commit (SHA), and **re-run the tests yourself** before landing.
+2. **Give the subagent a HARD completion gate requiring pasted EVIDENCE** — Test-Path output, Pester/vitest results, commit SHA — self-cert with proof, not a bare "done."
+3. **Apply your own Definition of Done to delegated work** (committed by pathspec, verify green on committed state, SHA cited). Delegation moves the *doing*, not the *verifying*.
+4. **Part of the bookkeeping-≠-artifact genus** (#69/#80/#84/#86): when a status/exit/lifecycle signal stands in for an outcome, verify the artifact at the object level.
+
+**Status:** Active — bookkeeping-vs-artifact genus (see the consolidated Quick-Reference entry in the lessons INDEX). Caught by grounding-truth on t/1806; no loss.
+
+**Applies To:** All agents delegating work to background subagents/consultants — especially before landing a delegated deliverable.
+
+## #90 [Process] `verify | tail` (Any Pipe) Masks the Real Exit Code — Silent False-Green at the Primary Gate
+
+**Pattern:** Piping a gate's output through `tail`/`head`/`grep`/`less` — `npm run verify 2>&1 | tail -N` — makes the pipeline's exit code the **LAST command's** (`tail` = 0), NOT verify's. Gating a push/land on that exit (or eyeballing the tail) reads a **FAILING verify as green** — a silent false-green at the fleet's primary gate.
+
+**Instances:**
+- 2026-07-28 — ServerAPI (t/1829, p/79#15) + Technical Lead (t/1829#2, p/8#111): `npm run verify 2>&1 | tail -N` returned `tail`'s exit 0, masking verify's real result; a push gated on that eyeballed tail can push a RED verify. ServerAPI's t/1829 outcome was sound only because the failures were unrelated flake — the masked exit was the real footgun.
+
+**Root Cause:** A bash pipeline's exit status is the **last command's** (unless `set -o pipefail`). `verify | tail` → `tail` exits 0 → `$?` = 0 regardless of verify. Same **exit-code-laundering** family as #84 (`&& echo PASS || echo FAIL`) and the **bookkeeping-≠-artifact genus**: the exit you read is the pipe's/wrapper's, not the command's.
+
+**Prevention:**
+1. **Capture the real exit BEFORE piping:** `npm run verify > out.log 2>&1; rc=$?; tail -N out.log; [ $rc -eq 0 ] || exit 1` — decide on `$rc`, view the tail separately.
+2. **Or `set -o pipefail`** (pipeline returns first non-zero); `${PIPESTATUS[0]}` reads the first command's exit after a pipe.
+3. **Never gate a push/land on an eyeballed tail** — the tail shows output, not verdict.
+4. #84 sibling — whenever a wrapper/pipe sits between you and a command's exit, go to the source.
+
+**Status:** Active — exit-code-laundering (pipe) variant of the false-green genus (#20/#46) + bookkeeping-≠-artifact family (#84 sibling). Surfaced t/1829 (detail t/1829#2).
+
+**Applies To:** All agents gating a push/land on `verify`/test output that is piped (`| tail`/`| grep`/`| head`).
+
+## #91 [Process] Flaky Shared Gate (lib/debate Suite) Generates False-Reds — Triage WHICH Files Before Assuming a Regression
+
+**Pattern:** The `lib/debate` full test suite has **known-flaky tests** — `aiAdapter` withRetry (429/503), `persistenceFaults` (ENOSPC/EACCES), `cliPipeExit` — that fail **non-deterministically** (8 one run, 5 the next). A red `npm run verify` is **often NOT your change**. A flaky *shared* gate is a **false-red generator** that trains agents to dismiss ALL reds as "just flake" — a real regression blends into the tolerated noise (#20/#46).
+
+**Instances:**
+- 2026-07-28 — ServerAPI (t/1829, p/79#15) + Technical Lead (p/8#111): `npm run verify` failed non-deterministically (8→5 across runs) in `aiAdapter`/`persistenceFaults`/`cliPipeExit` — unrelated to the agent's change. TL routed a **HIGH triage to DebateTool** to stabilize the flaky suites.
+
+**Root Cause:** Fault-injection/retry/pipe-exit tests are timing- and env-sensitive → non-deterministic. A flaky gate destroys signal two ways: a red is ambiguous (your change or flake?), and habituation trains agents to dismiss a genuine regression as flake. Gate-signal-integrity genus, false-RED side.
+
+**Prevention:**
+1. **When verify is red, triage WHICH files failed before assuming a regression** — the known-flaky set is likely not your change. Read the failing test names.
+2. **Re-run to check determinism** — a failure that changes across runs is flake; a stable failure on the same test is real. (Workaround, not fix.)
+3. **Real fix = stabilize/quarantine the flaky tests** — a flaky shared gate must be repaired, not tolerated (routed HIGH to DebateTool, t/1829).
+4. **Don't push on a red verify assuming flake without checking the failing files** (pairs with "read which step, not the rollup").
+
+**Status:** Active — gate-signal-integrity (flaky-gate false-red, #20/#46); stabilization routed HIGH to DebateTool (t/1829). High-severity: a flaky primary gate degrades every agent's trust in verify.
+
+**Applies To:** All agents running `npm run verify` / the `lib/debate` suite — read the failing test names before attributing a red to your change.
+
+## #92 [Data] File-Type Discrimination by Presence-of-a-Key Admits Look-Alikes — Gate on the CONTRACT, Not the Key
+
+**Pattern:** A loader/registrar decides "what kind of file is this?" by testing only for **presence of a key** ("has a `nodes` property → it's a POV"). A **differently-shaped file that shares that key** silently passes, gets registered as a fake instance of the type, and crashes **downstream** when the real element contract is accessed — often as a strict-mode unguarded-property error far from the load site.
+
+**Instances:**
+- 2026-07-28 — PowerShell 2 (t/1834, landed 37598a6f, p/228#3): the POV loader tested only "has a `nodes` property," so the sidecar `entity_extraction_log.json` — `nodes[]` keyed by `node_id`, **not** `id` — registered as a fake POV. `Get-Tax` crashed on a bare `$Node.id` under strict mode. Fix: discriminate on the contract (`nodes[].id`), not key presence. **`entity_extraction_log.json` is a repeat shape-surprise source** (also t/1830 char-explode + p/7#47 probe errors).
+
+**Root Cause:** Presence-of-a-key is a **weak type discriminator** — common keys (`nodes`, `data`, `id`) are shared across unrelated files, so duck-typing on one key admits look-alikes. The loader validated the **container** key but not the **element** contract, so a container with the right key but wrong-shaped elements passed. Compounds with strict-mode unguarded property access — the mismatch surfaces as a downstream crash on `$Node.id`, not a clear rejection at load. Same data-shape-variance family, at the **file-classification** layer.
+
+**Prevention:**
+1. **Discriminate by the CONTRACT the consumer needs, not just key presence** — validate a representative element: "has `nodes` AND `nodes[0].id`" beats "has `nodes`."
+2. **Fail fast at LOAD with a clear error** ("has `nodes` but no `nodes[].id` — not a POV") rather than crashing downstream.
+3. **Exclude known sidecars explicitly** — `entity_extraction_log.json` and other non-POV files sharing `nodes` should be denylisted where auto-discovery is ambiguous; it's a recurring shape-surprise source.
+4. **Pairs with strict-mode guarding** — guard `$Node.PSObject.Properties['id']` so a misclassification degrades to a clear error, not a strict-mode crash.
+
+**Status:** Active — file-classification variant of the data-shape-variance family; compounds with strict-mode unguarded property access. `entity_extraction_log.json` flagged as a repeat offender.
+
+**Applies To:** All loaders/registrars that auto-discover and classify data files by shape — especially the taxonomy/POV loaders in the AITriad PS module.
+
+## #93 [Process] Shared Local-Main Reconcile (Hard-Reset to origin) Wipes ALL Agents' Local-Only Commits — Recover From reflog, Don't Trust the Reverted Tree
+
+**Pattern:** The shared local `main` accumulates local-only commits from many agents (most roles commit but don't push; TL/DevOps sync to origin). When the owner-gated **diverged-main reconcile** runs — `git reset` local `main` to `origin/main` — **every un-synced local commit is wiped off the branch at once, across all agents.** An agent's working tree abruptly shows an EARLIER state and their session's work looks "gone." It is **not lost** — every commit survives in the reflog — but HEAD/branch/working-tree no longer contain it, which looks exactly like a revert.
+
+**Instances:**
+- 2026-07-28 — Sage (this session): shared local `main` (at Sage's last commit `20c32334`) was hard-reset to `origin/main` (reflog `HEAD@{0}: reset: moving to origin/main`), wiping ~30 local-only Sage doc commits (`e6daccc7`..`20c32334`) plus other agents' local-only commits (te `t/1849`, debate fixes, CL `t/1826`). **Caught by object-level verification** — injected "your docs reverted" reminders showed a Total-83 working tree, but `git log`/`git status -sb`/`git reflog`/`git cat-file` proved HEAD had been reset and the commits were dangling-but-intact. **Recovered** with `git checkout 20c32334 -- <my scope>` → one recommit (`e8ddad72`, Total-83→93). No loss.
+
+**Root Cause:** The shared local `main` is a shared, un-pushed staging area; local-only commits live only there until synced. Hard-resetting it to origin (the correct owner-gated fix for a large divergence) atomically discards every un-synced commit. Git doesn't delete objects, so they persist in the reflog — but the working tree/HEAD stop showing them, reading as "reverted/lost." Same object-level-vs-inference discipline as #69 and Git Forensics (#44/#54/#55).
+
+**Prevention / Recovery:**
+1. **After any "my working tree changed / my work is gone" event, VERIFY at the object level before reacting** — `git log --oneline`, `git status -sb`, `git reflog`. Never re-apply edits onto the reverted tree until you know whether HEAD moved or the tree is merely dirty.
+2. **Recover from the reflog, then WORKTREE-LAND to ORIGIN — do NOT just recommit to local main** (DevOps p/26#22, PM t/1872): `git checkout <sha> -- <your-paths>` restores your final state, but recommitting only to local `main` leaves it local-only and the *next* reconcile RE-WIPES it. Land the recovered snapshot to origin via a worktree. Reflog window ~30d — act before objects age out.
+3. **Don't re-litigate the reconcile** — it's owner-gated and correct for a large divergence; recover and move on.
+4. **Systemic:** hold the push-cadence ceiling and sync approved work to origin promptly so a reset wipes less. Ties to the push-contention LARGE-divergence variant.
+5. **Fleet awareness:** a reconcile wipes EVERY agent's local-only commits — surface it so others recover theirs too.
+
+**Status:** Active — recovery playbook; validated the session's object-level discipline. Sage recovered to local main (`e8ddad72`/`697fc5a2`) then **worktree-landed to origin** (DevOps p/26#22 + PM t/1872 — a local-main recommit re-wipes on the next reconcile). Other agents' local-only commits (te/debate/CL) are also in the reflog (~30d window) and need the same reflog→checkout→worktree-land-to-origin recovery; DevOps/PM amplifying the fleet note (t/1872).
+
+**Applies To:** All agents whose work lives on the shared local `main` until synced — i.e. everyone who commits but doesn't push.
