@@ -199,6 +199,9 @@
         'Update-NodeTestingRecord'
         # t/1654 — pre-embedding TAXONOMY_DIR validation
         'Test-TaxonomyDirContents'
+        # t/1806 — Entity ontology Phase 1: extraction + maintenance reports
+        'Invoke-EntityExtraction'
+        'Get-EntityReport'
     )
 
     # Aliases exported from this module

@@ -72,6 +72,7 @@ function Show-AITriadHelp {
         'Edges'
         'Graph & Conflict'
         'Organizations'
+        'Entities'
         'Debate Engine'
         'Sources & Ingestion'
         'AI Enrichment'
@@ -113,6 +114,10 @@ function Show-AITriadHelp {
         'Get-OrganizationEdge' = 'Organizations'; 'Import-OrganizationEdge' = 'Organizations'
         'Invoke-OrgClaimMatching' = 'Organizations'; 'Invoke-OrgDerivedCampScores' = 'Organizations'
         'Invoke-OrgPublishedSeeding' = 'Organizations'; 'Invoke-OrgStanceExtraction' = 'Organizations'
+
+        # Entities (t/1804/t/1806)
+        'Get-Entity' = 'Entities'; 'Import-Entity' = 'Entities'
+        'Invoke-EntityExtraction' = 'Entities'; 'Get-EntityReport' = 'Entities'
 
         # Debate Engine
         'Show-TriadDialogue' = 'Debate Engine'; 'Invoke-AITDebate' = 'Debate Engine'
