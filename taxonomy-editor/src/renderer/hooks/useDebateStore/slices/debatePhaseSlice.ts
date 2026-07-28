@@ -139,202 +139,12 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
     const poverLabels = aiPovers.map((p) => POVER_INFO[p].label);
 
     // Bypass moderator when debate is already terminated/closed — pick missing debater directly
-    const isAlreadyTerminated = activeDebate.phase === 'closed'
-      || (activeDebate as unknown as Record<string, unknown>).adaptive_staging
-        && ((activeDebate as unknown as Record<string, unknown>).adaptive_staging as Record<string, unknown>)?.phase_state
-        && ((activeDebate as unknown as Record<string, unknown>).adaptive_staging as Record<string, unknown> & { phase_state: { current_phase: string } }).phase_state.current_phase === 'terminated';
-    if (isAlreadyTerminated) {
-      // Find debaters who haven't spoken in the last round
-      const lastRoundSpeakers = new Set<string>();
-      for (let j = activeDebate.transcript.length - 1; j >= 0; j--) {
-        const e = activeDebate.transcript[j];
-        if ((e.type as string) === 'statement') lastRoundSpeakers.add(e.speaker);
-        else if (e.type === 'system' && /\[Phase|Moderator|Round/.test(e.content)) break;
-        else if ((e.type as string) !== 'statement' && e.type !== 'system') break;
-      }
-      const missingPovers = aiPovers.filter(p => !lastRoundSpeakers.has(p));
-      if (missingPovers.length > 0) {
-        // Use the first missing pover and jump straight to step 2 (response generation)
-        const responderPover = missingPovers[0];
-        const crossRespondRound = activeDebate.transcript.filter(e => e.type === 'statement').length + 1;
-        const phase = 'concluding';
-        const focusPoint = 'Give your final statement on this debate.';
-        const addressingLabel = 'all';
-        set({ debateGenerating: responderPover, debateActivity: `${POVER_INFO[responderPover].label} is preparing...` });
-
-        // Jump to step 2 with these values — the rest of crossRespond handles it
-        // We need to skip to the pipeline section; use a goto-like pattern by setting these
-        // and falling through. Instead, extract a helper or inline the pipeline call.
-        // For simplicity: call the pipeline inline here.
-        const info = POVER_INFO[responderPover];
-        const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
-        const ctx = await getRelevantTaxonomyContext(info.pov, topic, currentTranscript);
-        const speakerClaims = (activeDebate.argument_network?.nodes || []).filter(n => n.speaker === responderPover);
-        const commitBlock = formatCommitments(
-          activeDebate.commitments?.[responderPover] || { asserted: [], conceded: [], challenged: [] },
-          speakerClaims,
-        );
-        const allANNodes = (activeDebate.argument_network?.nodes || []).map(n => ({
-          id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label || n.speaker,
-        }));
-        const establishedBlock = formatEstablishedPoints(allANNodes, info.label, 10);
-        const edgeBlock = formatDebaterEdgeContext(info.pov);
-        const concessionAN = activeDebate.argument_network;
-        const priorConceded = activeDebate.commitments?.[responderPover]?.conceded ?? [];
-        const concessionHint = concessionAN
-          ? formatConcessionCandidatesHint(concessionAN.nodes, concessionAN.edges, responderPover, priorConceded)
-          : '';
-        const crVocab = get().vocabularyTerms;
-        const crVocabBlock = crVocab
-          ? '\n' + formatVocabularyContext({ pov: info.pov, standardizedTerms: crVocab.standardized, colloquialTerms: crVocab.colloquial })
-          : '';
-        const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + crVocabBlock;
-        const crDocAnalysis = activeDebate.document_analysis;
-        const priorMoves = activeDebate.transcript
-          .filter(e => e.speaker === responderPover && e.metadata)
-          .flatMap(e => {
-            const mt = (e.metadata as Record<string, unknown>)?.move_types;
-            return Array.isArray(mt) ? mt.map(m => getMoveName(m)) : [];
-          })
-          .slice(-6);
-        const priorRefs = activeDebate.transcript
-          .filter(e => e.speaker === responderPover && e.type !== 'opening')
-          .slice(-2)
-          .flatMap(e => (e.taxonomy_refs ?? []).map(r => r.node_id));
-        const availablePovNodeIds = [...getAllKnownNodeIds()];
-        const debaterGapHint = formatGapHint(activeDebate.gap_injections);
-        const [evidenceIndex, docTitles] = await Promise.all([getSourceEvidenceIndex(), getDocTitles()]);
-
-        // Count turns since this debater last used a CONCEDE move
-        const ptDebaterTurns = activeDebate.transcript
-          .filter(e => e.speaker === responderPover && ((e.type as string) === 'statement' || e.type === 'opening'));
-        let ptTurnsSinceLastConcession = ptDebaterTurns.length;
-        for (let i = ptDebaterTurns.length - 1; i >= 0; i--) {
-          const moves = ((ptDebaterTurns[i].metadata as Record<string, unknown>)?.move_types as (string | MoveAnnotation)[]) ?? [];
-          if (moves.some(m => getMoveName(m).includes('CONCEDE'))) {
-            ptTurnsSinceLastConcession = ptDebaterTurns.length - 1 - i;
-            break;
-          }
-        }
-
-        const pipelineInput: TurnPipelineInput = {
-          label: info.label,
-          pov: info.pov,
-          personality: info.personality,
-          topic,
-          taxonomyContext: taxonomyBlock,
-          commitmentContext: commitBlock,
-          establishedPoints: establishedBlock,
-          edgeContext: edgeBlock,
-          concessionHint: concessionHint + debaterGapHint,
-          recentTranscript: currentTranscript,
-          focusPoint,
-          addressing: addressingLabel,
-          phase,
-          priorMoves,
-          priorRefs,
-          availablePovNodeIds,
-          turnsSinceLastConcession: ptTurnsSinceLastConcession,
-          pendingIntervention: undefined,
-          sourceContent: crDocAnalysis ? undefined : (activeDebate.source_content || undefined),
-          documentAnalysis: crDocAnalysis,
-          audience: activeDebate.audience,
-          model: getSpeakerModel(activeDebate, responderPover, model),
-          briefModel: activeDebate.stage_models?.brief || undefined,
-          planModel: activeDebate.stage_models?.plan || undefined,
-          citeModel: activeDebate.stage_models?.cite || undefined,
-          sourceEvidenceIndex: evidenceIndex as TurnPipelineInput['sourceEvidenceIndex'],
-          docTitles: docTitles as TurnPipelineInput['docTitles'],
-          doctrinalBoundaries: info.doctrinal_boundaries,
-          background: activeDebate.topic?.background || undefined,
-        };
-
-        const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, getSpeakerModel(activeDebate, responderPover, model));
-        const pipelineResult = await runTurnPipeline(pipelineInput, stageGenerate);
-        if (!isStillValid()) { releaseDebateDriver(); set({ debateGenerating: null }); getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'debate_switched' } }); return; }
-
-        const { statement, taxonomyRefs, meta } = parsePoverResponse(pipelineResult.final_text ?? '');
-        if (ctx.nodeScores) {
-          for (const ref of taxonomyRefs) {
-            const score = ctx.nodeScores.get(ref.node_id);
-            if (score != null) ref.relevance_score = score;
-          }
-        }
-        const relevanceSources = serializeNodeSourceMap(ctx.nodeSourceMap, taxonomyRefs);
-        addTranscriptEntry({
-          type: 'statement',
-          speaker: responderPover,
-          content: statement,
-          taxonomy_refs: taxonomyRefs,
-          policy_refs: meta.policy_refs,
-          addressing: addressingLabel,
-          metadata: { ...meta, round: crossRespondRound, moderator_trace: { selected: info.label, selection_reason: 'post_termination_final_statement' }, relevance_sources: relevanceSources, injection_manifest: ctx.injectionManifest },
-        });
-        const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
-        if (lastEntry) {
-
-          const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
-          const topicAlignDiagTerm = pipelineResult.topicAlignmentResult
-            ? {
-              topic_aligned: pipelineResult.topicAlignmentResult.topic_aligned,
-              repaired: pipelineResult.topicAlignmentResult.repaired || undefined,
-              draft_attempt: pipelineResult.topicAlignmentResult.draft_attempt,
-              scope_used: get().activeDebate?.topic?.scope ?? null,
-            }
-            : undefined;
-          recordDiagnostic(get, set, lastEntry.id, {
-            prompt: draftDiag?.raw_response ?? pipelineResult.final_text,
-            raw_response: pipelineResult.final_text,
-            model,
-            taxonomy_context: taxonomyBlock,
-            commitment_context: commitBlock || undefined,
-            stage_diagnostics: pipelineResult.stage_diagnostics,
-            topic_alignment: topicAlignDiagTerm,
-            quality_gate: pipelineResult.qualityGateResult,
-          });
-          void extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
-          await summarizeTranscriptEntry(lastEntry.id, statement, info.label, model, get, set);
-        }
-        releaseDebateDriver();
-        set({ debateGenerating: null });
-        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'post_termination_complete' } });
-        await saveDebate('crossRespond:postTermination');
-        return;
-      }
-    }
+    if (await runPostTerminationTurn(activeDebate, aiPovers, topic, model, get, set, isStillValid, addTranscriptEntry, saveDebate)) return;
 
     // Step 1: Active moderator — delegate to shared orchestration
     set({ debateGenerating: 'system' as SpeakerId, debateActivity: 'Moderator selection...' });
 
-    const crossRespondRound = activeDebate.transcript.filter(e => e.type === 'statement').length + 1;
-    const adaptiveStaging = activeDebate.adaptive_staging;
-    let totalRoundsForPhase: number;
-    let phase: DebatePhase;
-    if (adaptiveStaging?.enabled) {
-      const weights = loadProvisionalWeights();
-      const pacingPreset = weights.pacing_presets[adaptiveStaging.pacing] ?? weights.pacing_presets.moderate;
-      totalRoundsForPhase = pacingPreset.maxTotalRounds;
-      // Initialize phase state on first round if not present
-      if (!adaptiveStaging.phase_state) {
-        const config: PhaseTransitionConfig = {
-          useAdaptiveStaging: true,
-          maxTotalRounds: pacingPreset.maxTotalRounds,
-          pacing: adaptiveStaging.pacing,
-          dialecticalStyle: 'adversarial',
-          argumentationExitThreshold: pacingPreset.argumentationExit,
-          concludingExitThreshold: pacingPreset.concludingExit,
-          allowEarlyTermination: true,
-          phaseBoundsOverride: adaptiveStaging.phase_bounds_override,
-        };
-        adaptiveStaging.phase_state = initPhaseState(config);
-        set({ activeDebate: { ...activeDebate } });
-      }
-      phase = adaptiveStaging.phase_state.current_phase;
-    } else {
-      totalRoundsForPhase = get().initialCrossRespondRounds || 5;
-      phase = getDebatePhase(crossRespondRound, totalRoundsForPhase * 3);
-    }
-    getGlobalRecorder()?.record({ type: 'debate.round', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: `Cross-respond round ${crossRespondRound} start`, data: { round: crossRespondRound, phase, speakers: aiPovers } });
+    const { crossRespondRound, phase, totalRoundsForPhase } = computeRoundAndPhase(activeDebate, aiPovers, get, set);
 
     const sourceDocSummary = activeDebate.document_analysis?.claims_summary
       ?? (activeDebate.source_content ? activeDebate.source_content.slice(0, 2000) : undefined);
@@ -370,46 +180,8 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
       poverInfo: POVER_INFO as Record<string, { label: string; pov: string; personality?: string }>,
     };
 
-    let modResult: Awaited<ReturnType<typeof runModeratorSelection>>;
-    try {
-      modResult = await runModeratorSelection(selectionInput, selectionCallbacks);
-      if (!isStillValid()) {
-        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'crossRespond aborted post-moderator — debate no longer valid' });
-        releaseDebateDriver(); return;
-      }
-    } catch (err) {
-      getGlobalRecorder()?.record({
-        type: 'system.error',
-        debate_id: activeDebate?.id,
-        component: 'debate-store',
-        level: 'error',
-        message: 'Cross-respond moderator selection failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-      });
-      releaseDebateDriver();
-      if (isDailyLimitError(err)) {
-        set({ debateError: DAILY_LIMIT_MESSAGE, dailyLimitPaused: true, debateGenerating: null });
-        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.paused', data: { reason: 'daily_token_limit' } });
-      } else {
-        set({ debateError: `Cross-respond selection failed: ${mapErrorToUserMessage(err)}`, debateRetryAction: 'crossRespond', debateGenerating: null });
-        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'error', error: String(err) } });
-      }
-      return;
-    }
-
-    if (modResult.earlyReturn && modResult.agreementDetected) {
-      // Persist moderator state and stop — agreement detected
-      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Agreement detected — skipping debater turn', data: { round: crossRespondRound, phase, focus: modResult.focusPoint } });
-      const freshDebate = get().activeDebate;
-      if (freshDebate) {
-        set({ activeDebate: { ...freshDebate, moderator_state: modResult.modState } });
-      }
-      releaseDebateDriver();
-      set({ debateGenerating: null });
-      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'agreement_detected', round: crossRespondRound } });
-      await saveDebate('crossRespond:agreement');
-      return;
-    }
+    const modResult = await runModeratorStep(selectionInput, selectionCallbacks, activeDebate, crossRespondRound, phase, isStillValid, get, set, saveDebate);
+    if (!modResult) return;
 
     const responderPover = modResult.responder;
     const focusPoint = modResult.focusPoint;
@@ -436,200 +208,11 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
       }
     }
 
-    // Build moderator trace for diagnostics
-    const anNodes = activeDebate.argument_network?.nodes ?? [];
-    const lastSpeakerEntry = [...activeDebate.transcript].reverse().find(
-      (e) => (e.type === 'statement' || e.type === 'opening') && e.speaker !== 'user' && e.speaker !== 'system',
-    );
-    const lastSpeaker = lastSpeakerEntry?.speaker as Exclude<SpeakerId, 'user'> | undefined;
-    const moderatorTrace: Record<string, unknown> = {
-      selected: POVER_INFO[responderPover].label,
-      excluded_last_speaker: lastSpeaker ? POVER_INFO[lastSpeaker]?.label ?? lastSpeaker : null,
-      candidates: aiPovers
-        .filter(p => p !== lastSpeaker)
-        .map((p, i) => {
-          const poverClaims = anNodes.filter(n => n.speaker === p);
-          const scoredClaims = poverClaims.filter(n => n.computed_strength != null);
-          const avgStrength = scoredClaims.length > 0
-            ? scoredClaims.reduce((sum, n) => sum + n.computed_strength!, 0) / scoredClaims.length
-            : null;
-          return {
-            debater: POVER_INFO[p].label,
-            computed_strength: avgStrength,
-            claim_count: poverClaims.length,
-            scored_count: scoredClaims.length,
-            rank: i + 1,
-          };
-        }),
-      convergence_score: activeDebate.convergence_tracker?.issues?.[0]?.convergence ?? null,
-      convergence_triggered: false,
-      commitment_snapshot: Object.fromEntries(
-        aiPovers.map(p => [
-          POVER_INFO[p].label,
-          {
-            asserted: (activeDebate.commitments?.[p]?.asserted ?? []).length,
-            conceded: (activeDebate.commitments?.[p]?.conceded ?? []).length,
-            challenged: (activeDebate.commitments?.[p]?.challenged ?? []).length,
-          },
-        ])
-      ),
-      selection_reason: 'moderator_ai_selection',
-      focus_point: focusPoint,
-      selection_prompt: modResult.diagnostics.selectionPrompt,
-      selection_response: modResult.diagnostics.selectionResponse,
-      health_score: healthScore.value,
-      health_components: healthScore.components,
-      health_trend: healthScore.trend,
-      intervention_recommended: selectionResult?.intervene ?? false,
-      intervention_move: selectionResult?.suggested_move ?? null,
-      intervention_validated: engineValidation?.proceed ?? false,
-      intervention_suppressed_reason: engineValidation?.suppressed_reason ?? null,
-      intervention_suppression_explanation: engineValidation?.suppression_explanation ?? null,
-      intervention_target: selectionResult?.target_debater ?? null,
-      trigger_reasoning: selectionResult?.trigger_reasoning ?? null,
-      trigger_evidence: selectionResult?.trigger_evidence ?? null,
-      budget_remaining: modState.budget_remaining,
-      budget_total: modState.budget_total,
-      cooldown_rounds_left: Math.max(0, modState.required_gap - modState.rounds_since_last_intervention),
-      burden_per_debater: { ...modState.burden_per_debater },
-    };
+    const moderatorTrace = buildModeratorTrace(activeDebate, aiPovers, responderPover, focusPoint, modResult, modState, engineValidation, selectionResult, healthScore);
 
     // Step 2: Generate the cross-response
-    set({ debateGenerating: responderPover, debateActivity: `${POVER_INFO[responderPover].label} is preparing...` });
-
-    const info = POVER_INFO[responderPover];
-    const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
-    const ctx = await getRelevantTaxonomyContext(info.pov, topic, currentTranscript);
-    const speakerClaims = (activeDebate.argument_network?.nodes || []).filter(n => n.speaker === responderPover);
-    const commitBlock = formatCommitments(
-      activeDebate.commitments?.[responderPover] || { asserted: [], conceded: [], challenged: [] },
-      speakerClaims,
-    );
-    const allANNodes = (activeDebate.argument_network?.nodes || []).map(n => ({
-      id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label || n.speaker,
-    }));
-    const establishedBlock = formatEstablishedPoints(allANNodes, info.label, 10);
-    const edgeBlock = formatDebaterEdgeContext(info.pov);
-
-    // QBAF-grounded concession hint: surface strong opposing claims this debater
-    // hasn't attacked or already conceded. Counterbalances the rotation rule
-    // that blocks consecutive CONCEDE openings.
-    const concessionAN = activeDebate.argument_network;
-    const priorConceded = activeDebate.commitments?.[responderPover]?.conceded ?? [];
-    const concessionHint = concessionAN
-      ? formatConcessionCandidatesHint(concessionAN.nodes, concessionAN.edges, responderPover, priorConceded)
-      : '';
-    const concessionCandidateIds = concessionHint
-      ? concessionAN!.nodes
-          .filter(n => n.speaker !== responderPover)
-          .filter(n => (n.computed_strength ?? n.base_strength ?? 0) >= 0.65)
-          .filter(n => !concessionAN!.edges.some(e => e.type === 'attacks' && concessionAN!.nodes.find(x => x.id === e.source)?.speaker === responderPover && e.target === n.id))
-          .filter(n => !priorConceded.includes(n.id) && !priorConceded.includes(n.text))
-          .sort((a, b) => (b.computed_strength ?? 0) - (a.computed_strength ?? 0))
-          .slice(0, 2)
-          .map(n => n.id)
-      : [];
-
-    const crVocab = get().vocabularyTerms;
-    const crVocabBlock = crVocab
-      ? '\n' + formatVocabularyContext({ pov: info.pov, standardizedTerms: crVocab.standardized, colloquialTerms: crVocab.colloquial })
-      : '';
-    const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + crVocabBlock;
-    const crDocAnalysis = activeDebate.document_analysis;
-
-    // Collect prior move types for diversity enforcement
-    const priorMoves = activeDebate.transcript
-      .filter(e => e.speaker === responderPover && e.metadata)
-      .flatMap(e => {
-        const mt = (e.metadata as Record<string, unknown>)?.move_types;
-        return Array.isArray(mt) ? mt.map(m => getMoveName(m)) : [];
-      })
-      .slice(-6);
-
-    // Collect prior refs for citation rotation
-    const priorRefs = activeDebate.transcript
-      .filter(e => e.speaker === responderPover && e.type !== 'opening')
-      .slice(-2)
-      .flatMap(e => (e.taxonomy_refs ?? []).map(r => r.node_id));
-
-    const availablePovNodeIds = [...getAllKnownNodeIds()];
-
-    // ── 4-stage pipeline: BRIEF → PLAN → DRAFT → CITE ──
-    const debaterGapHint = formatGapHint(activeDebate.gap_injections);
-    // Build pendingIntervention for the Draft/Cite stages
-    const pendingInterventionData = intervention ? (() => {
-      const moveConfig = MOVE_RESPONSE_CONFIG[intervention.move as keyof typeof MOVE_RESPONSE_CONFIG];
-      const targetLabel = POVER_INFO[intervention.target_debater as Exclude<SpeakerId, 'user'>]?.label ?? intervention.target_debater;
-      const isTargeted = targetLabel.toLowerCase() === info.label.toLowerCase();
-      return {
-        move: intervention.move,
-        family: intervention.family,
-        targetDebater: targetLabel,
-        responseField: moveConfig?.field ?? undefined,
-        responseSchema: moveConfig?.schema ?? undefined,
-        directResponsePattern: DIRECT_RESPONSE_PATTERNS[intervention.move as keyof typeof DIRECT_RESPONSE_PATTERNS] ?? undefined,
-        isTargeted,
-      };
-    })() : undefined;
-
-    // Load source evidence index and document titles (cached after first call)
-    const [evidenceIndex, docTitles] = await Promise.all([getSourceEvidenceIndex(), getDocTitles()]);
-
-    const lastOpponentEntry = (activeDebate.transcript ?? [])
-      .filter(e => e.speaker !== responderPover && e.speaker !== 'system' && e.speaker !== 'user' && e.type !== 'opening')
-      .slice(-1)[0];
-    const lastOpponentStatement = lastOpponentEntry
-      ? (typeof lastOpponentEntry.content === 'string' ? lastOpponentEntry.content : JSON.stringify(lastOpponentEntry.content))
-      : undefined;
-
-    // Count turns since this debater last used a CONCEDE move
-    const crDebaterTurns = activeDebate.transcript
-      .filter(e => e.speaker === responderPover && ((e.type as string) === 'statement' || e.type === 'opening'));
-    let crTurnsSinceLastConcession = crDebaterTurns.length;
-    for (let i = crDebaterTurns.length - 1; i >= 0; i--) {
-      const moves = ((crDebaterTurns[i].metadata as Record<string, unknown>)?.move_types as (string | MoveAnnotation)[]) ?? [];
-      if (moves.some(m => getMoveName(m).includes('CONCEDE'))) {
-        crTurnsSinceLastConcession = crDebaterTurns.length - 1 - i;
-        break;
-      }
-    }
-
-    const pipelineInput: TurnPipelineInput = {
-      label: info.label,
-      pov: info.pov,
-      personality: info.personality,
-      topic,
-      taxonomyContext: taxonomyBlock,
-      commitmentContext: commitBlock,
-      establishedPoints: establishedBlock,
-      edgeContext: edgeBlock,
-      concessionHint: concessionHint + debaterGapHint + interventionBriefInjection,
-      recentTranscript: currentTranscript,
-      focusPoint,
-      addressing: addressingLabel,
-      phase,
-      priorMoves,
-      priorRefs,
-      availablePovNodeIds,
-      turnsSinceLastConcession: crTurnsSinceLastConcession,
-      pendingIntervention: pendingInterventionData,
-      sourceContent: crDocAnalysis ? undefined : (activeDebate.source_content || undefined),
-      documentAnalysis: crDocAnalysis,
-      audience: activeDebate.audience,
-      model: getSpeakerModel(activeDebate, responderPover, model),
-      briefModel: activeDebate.stage_models?.brief || undefined,
-      planModel: activeDebate.stage_models?.plan || undefined,
-      citeModel: activeDebate.stage_models?.cite || undefined,
-      sourceEvidenceIndex: evidenceIndex as TurnPipelineInput['sourceEvidenceIndex'],
-      docTitles: docTitles as TurnPipelineInput['docTitles'],
-      doctrinalBoundaries: info.doctrinal_boundaries,
-      background: activeDebate.topic?.background || undefined,
-      topicScope: activeDebate.topic?.scope ?? undefined,
-      preCheckModel: resolveTurnValidationConfig(undefined).preCheckModel,
-      lastOpponentStatement,
-    };
-
-    const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, getSpeakerModel(activeDebate, responderPover, model));
+    const { info, ctx, taxonomyBlock, commitBlock, concessionCandidateIds, pipelineInput, stageGenerate } =
+      await buildTurnPipelineContext(responderPover, activeDebate, topic, model, intervention, interventionBriefInjection, focusPoint, addressingLabel, phase, get, set);
 
     try {
 
@@ -798,49 +381,7 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
         // Post-turn summarization (DT-2)
         await summarizeTranscriptEntry(lastEntry.id, statement, info.label, model, get, set);
 
-        // Position drift detection (non-blocking)
-        try {
-          const currentD = get().activeDebate;
-          const openingEmbeds = currentD?.metadata?._openingEmbeddings as Record<string, number[]> | undefined;
-          if (openingEmbeds && openingEmbeds[responderPover]) {
-            const responseEmbed = await api.computeQueryEmbedding(statement.slice(0, 1000));
-            const selfSim = cosineSimilarity(responseEmbed.vector, openingEmbeds[responderPover]);
-            const opponentSims: Record<string, number> = {};
-            for (const [pov, embed] of Object.entries(openingEmbeds)) {
-              if (pov !== responderPover) opponentSims[pov] = cosineSimilarity(responseEmbed.vector, embed);
-            }
-            // Re-read fresh state — the await above yielded to the event loop,
-            // so concurrent commits (e.g., fire-and-forget extractClaimsAndUpdateAN)
-            // may have landed in between. Spreading the stale `currentD` would
-            // clobber their writes (notably argument_network).
-            const freshD = get().activeDebate;
-            const drift = freshD?.position_drift ?? [];
-            drift.push({ round: crossRespondRound, speaker: responderPover, self_similarity: selfSim, opponent_similarities: opponentSims });
-            if (freshD) {
-              set({ activeDebate: { ...freshD, position_drift: drift } });
-            }
-
-            // Sycophancy detection
-            const speakerDrift = drift.filter(d => d.speaker === responderPover);
-            if (speakerDrift.length >= 3) {
-              const recent = speakerDrift.slice(-3);
-              const selfDecreasing = recent.every((d, i) => i === 0 || d.self_similarity < recent[i - 1].self_similarity);
-              const opponents = Object.keys(recent[0].opponent_similarities);
-              const driftingToward = opponents.find(opp =>
-                recent.every((d, i) => i === 0 || (d.opponent_similarities[opp] ?? 0) > (recent[i - 1].opponent_similarities[opp] ?? 0)),
-              );
-              const concessions = currentD?.commitments?.[responderPover]?.conceded ?? [];
-              if (selfDecreasing && driftingToward && concessions.length === 0) {
-                const opLabel = POVER_INFO[driftingToward as Exclude<SpeakerId, 'user'>]?.label ?? driftingToward;
-                addTranscriptEntry({
-                  type: 'system', speaker: 'system',
-                  content: `[Sycophancy guard] ${info.label} appears to be drifting toward ${opLabel}'s position over the last 3 turns without explicit concession. Self-similarity: ${recent.map(d => d.self_similarity.toFixed(2)).join(' → ')}.`,
-                  taxonomy_refs: [],
-                });
-              }
-            }
-          }
-        } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Position drift detection failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
+        await detectPositionDrift(get, set, addTranscriptEntry, activeDebate, responderPover, info, crossRespondRound, statement);
       }
       // ── Neutral evaluation: midpoint checkpoint ──
       try {
@@ -855,123 +396,7 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
         }
       } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Neutral midpoint checkpoint failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
 
-      // ── Gap injection — scheduled at midpoint + responsive every 3 rounds after ──
-      try {
-        const gapDebate = get().activeDebate;
-        if (gapDebate) {
-          const totalRounds = get().initialCrossRespondRounds || 5;
-          const gapRound = Math.ceil(totalRounds / 2) + 1;
-          const currentRound = gapDebate.transcript.filter(e => e.type === 'statement').length;
-
-          let triggerType: 'scheduled' | 'responsive' | null = null;
-          let focusNodes: { id: string; label: string; description: string }[] | undefined;
-
-          if (currentRound === gapRound && _gapInjectionCount === 0) {
-            triggerType = 'scheduled';
-          } else if (shouldRunGapCheck(currentRound, gapRound, _gapInjectionCount)) {
-            // Responsive check: find unengaged high-relevance nodes (deterministic, no LLM)
-            const anNodes = gapDebate.argument_network?.nodes ?? [];
-            const engagedIds = collectEngagedNodeIds(
-              anNodes.map(n => ({ taxonomy_refs: (n.taxonomy_refs ?? []).map(id => ({ node_id: typeof id === 'string' ? id : (id as unknown as { node_id: string }).node_id })) })),
-              gapDebate.transcript.map(e => ({ taxonomy_refs: (e.taxonomy_refs ?? []).map(r => ({ node_id: r.node_id })) })),
-            );
-            const allTaxNodes: { id: string; label: string; description: string }[] = [];
-            for (const pov of POV_KEYS) {
-              const ctx = getTaxonomyContext(pov);
-              for (const n of ctx.povNodes) {
-                allTaxNodes.push({ id: n.id, label: n.label, description: n.description });
-              }
-            }
-            const recentText = formatRecentTranscript(gapDebate.transcript, 8, gapDebate.context_summaries);
-            const query = `${gapDebate.topic.final}\n\n${recentText}`.slice(0, 500);
-            const scores = scoreNodesLexical(query, allTaxNodes, []);
-            const unengaged = findUnengagedHighRelevanceNodes(allTaxNodes, engagedIds, scores);
-            if (unengaged.length > 0) {
-              triggerType = 'responsive';
-              focusNodes = unengaged.slice(0, 5);
-            }
-          }
-
-          if (triggerType) {
-            const gapModel = getConfiguredModel();
-            const gapTranscript = formatRecentTranscript(gapDebate.transcript, 20, gapDebate.context_summaries);
-            const gapSummaryLines: string[] = [];
-            for (const pov of POV_KEYS) {
-              const ctx = getTaxonomyContext(pov);
-              for (const n of ctx.povNodes) {
-                gapSummaryLines.push(`[${n.id}] ${n.label} (${n.category ?? 'unknown'}) — ${pov}`);
-              }
-            }
-            const anTexts = (gapDebate.argument_network?.nodes || []).map(n => n.text);
-            const gapPrompt = midDebateGapPrompt(
-              gapDebate.topic.final,
-              gapTranscript,
-              gapSummaryLines.slice(0, 80).join('\n'),
-              anTexts,
-              focusNodes,
-            );
-            const { text: gapText } = await api.generateText(gapPrompt, gapModel);
-            const gapParsed = parseAIJson<{ gap_arguments: GapArgument[] }>(gapText);
-            const gapArgs = gapParsed?.gap_arguments ?? [];
-
-            if (gapArgs.length > 0) {
-              const header = triggerType === 'scheduled' ? 'Mid-Debate Gap Analysis' : 'Responsive Gap Analysis';
-              const gapContent = gapArgs.map((g, i) =>
-                `**Gap ${i + 1} (${g.gap_type}):** ${g.argument}\n*Why missing:* ${g.why_missing}`
-              ).join('\n\n');
-
-              const gapEntryId = addTranscriptEntry({
-                type: 'system',
-                speaker: 'system',
-                content: `## ${header}\n\n${gapContent}`,
-                taxonomy_refs: [],
-                metadata: { gap_analysis: true, gap_arguments: gapArgs, trigger: triggerType, focus_nodes: focusNodes?.map(n => n.id) },
-              });
-
-              incrementGapInjectionCount();
-              const injection: GapInjection = {
-                round: currentRound,
-                arguments: gapArgs,
-                transcript_entry_id: gapEntryId,
-                responses: [],
-                trigger: triggerType,
-                ...(focusNodes && { focus_nodes: focusNodes.map(n => n.id) }),
-              };
-
-              const freshGapDebate = get().activeDebate;
-              if (freshGapDebate) {
-                const existing = freshGapDebate.gap_injections ?? [];
-                set({
-                  activeDebate: {
-                    ...freshGapDebate,
-                    gap_injections: [...existing, injection],
-                  },
-                  gapInjections: [...existing, injection],
-                });
-              }
-
-              recordDiagnostic(get, set, gapEntryId, {
-                prompt: gapPrompt,
-                raw_response: gapText,
-                model: gapModel,
-              });
-
-              getGlobalRecorder()?.record({ type: 'state.change', debate_id: activeDebate?.id, component: 'gap-injection', level: 'info', message: `gap.${triggerType}`, data: { round: currentRound, args: gapArgs.length, focus: focusNodes?.length ?? 0, total_injections: _gapInjectionCount } });
-            }
-          }
-        }
-      } catch (gapErr) {
-        getGlobalRecorder()?.record({
-          type: 'system.error',
-          debate_id: activeDebate?.id,
-          component: 'debate-store',
-          level: 'warn',
-          message: 'Gap injection analysis failed',
-          error: { name: (gapErr as Error).name ?? 'Error', message: String(gapErr), stack: (gapErr as Error).stack },
-        });
-        console.warn('[Gap Injection] Gap analysis failed (non-blocking):', gapErr);
-        pushWarning(get, set, 'Gap analysis skipped this turn');
-      }
+      await runGapInjectionCheck(get, set, addTranscriptEntry, activeDebate);
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: `Pipeline failed for ${responderPover} R${crossRespondRound}`, data: { round: crossRespondRound, speaker: responderPover, error: String(err), stack: (err as Error).stack?.slice(0, 500), transcript_length: get().activeDebate?.transcript.length } });
       if (isDailyLimitError(err)) {
@@ -992,6 +417,29 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
 
     getGlobalRecorder()?.record({ type: 'debate.round', component: 'debate-store', level: 'debug', debate_id: activeDebate.id, message: `Cross-respond turn complete, entering post-processing`, data: { round: crossRespondRound, speaker: responderPover, transcript_length: get().activeDebate?.transcript.length } });
 
+    runPostRoundProcessing(get, set, addTranscriptEntry, aiPovers, crossRespondRound);
+
+    // Auto-probing disabled — probing questions are available on demand via requestProbingQuestions()
+
+    releaseDebateDriver();
+    set({ debateGenerating: null });
+    getGlobalRecorder()?.record({ type: 'debate.round', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: `Cross-respond round ${crossRespondRound} end` , data: { round: crossRespondRound } });
+    await saveDebate('crossRespond:end');
+  },
+});
+
+
+
+// ── crossRespond decomposition helpers (t/1848): behavior-preserving extraction ──
+type _Set = Parameters<StateCreator<DebateStore, [], [], DebatePhaseSlice>>[0];
+type _Get = Parameters<StateCreator<DebateStore, [], [], DebatePhaseSlice>>[1];
+type _AiPover = typeof AI_POVERS[number];
+type _AddEntry = DebateStore['addTranscriptEntry'];
+type _SaveDebate = DebateStore['saveDebate'];
+type _PoverInfo = typeof POVER_INFO[_AiPover];
+type _ModResult = Awaited<ReturnType<typeof runModeratorSelection>>;
+
+function runPostRoundProcessing(get: _Get, set: _Set, addTranscriptEntry: _AddEntry, aiPovers: _AiPover[], crossRespondRound: number): void {
     const postDebate = get().activeDebate;
     if (postDebate) {
       try {
@@ -1234,13 +682,616 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
         getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'error', debate_id: postDebate.id, message: 'Cross-respond post-processing failed', data: { error: String(postErr), stack: (postErr as Error).stack?.slice(0, 500) } });
       }
     }
+}
 
-    // Auto-probing disabled — probing questions are available on demand via requestProbingQuestions()
+async function runGapInjectionCheck(get: _Get, set: _Set, addTranscriptEntry: _AddEntry, activeDebate: DebateSession): Promise<void> {
+      // ── Gap injection — scheduled at midpoint + responsive every 3 rounds after ──
+      try {
+        const gapDebate = get().activeDebate;
+        if (gapDebate) {
+          const totalRounds = get().initialCrossRespondRounds || 5;
+          const gapRound = Math.ceil(totalRounds / 2) + 1;
+          const currentRound = gapDebate.transcript.filter(e => e.type === 'statement').length;
 
-    releaseDebateDriver();
-    set({ debateGenerating: null });
-    getGlobalRecorder()?.record({ type: 'debate.round', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: `Cross-respond round ${crossRespondRound} end` , data: { round: crossRespondRound } });
-    await saveDebate('crossRespond:end');
-  },
-});
+          let triggerType: 'scheduled' | 'responsive' | null = null;
+          let focusNodes: { id: string; label: string; description: string }[] | undefined;
 
+          if (currentRound === gapRound && _gapInjectionCount === 0) {
+            triggerType = 'scheduled';
+          } else if (shouldRunGapCheck(currentRound, gapRound, _gapInjectionCount)) {
+            // Responsive check: find unengaged high-relevance nodes (deterministic, no LLM)
+            const anNodes = gapDebate.argument_network?.nodes ?? [];
+            const engagedIds = collectEngagedNodeIds(
+              anNodes.map(n => ({ taxonomy_refs: (n.taxonomy_refs ?? []).map(id => ({ node_id: typeof id === 'string' ? id : (id as unknown as { node_id: string }).node_id })) })),
+              gapDebate.transcript.map(e => ({ taxonomy_refs: (e.taxonomy_refs ?? []).map(r => ({ node_id: r.node_id })) })),
+            );
+            const allTaxNodes: { id: string; label: string; description: string }[] = [];
+            for (const pov of POV_KEYS) {
+              const ctx = getTaxonomyContext(pov);
+              for (const n of ctx.povNodes) {
+                allTaxNodes.push({ id: n.id, label: n.label, description: n.description });
+              }
+            }
+            const recentText = formatRecentTranscript(gapDebate.transcript, 8, gapDebate.context_summaries);
+            const query = `${gapDebate.topic.final}\n\n${recentText}`.slice(0, 500);
+            const scores = scoreNodesLexical(query, allTaxNodes, []);
+            const unengaged = findUnengagedHighRelevanceNodes(allTaxNodes, engagedIds, scores);
+            if (unengaged.length > 0) {
+              triggerType = 'responsive';
+              focusNodes = unengaged.slice(0, 5);
+            }
+          }
+
+          if (triggerType) {
+            const gapModel = getConfiguredModel();
+            const gapTranscript = formatRecentTranscript(gapDebate.transcript, 20, gapDebate.context_summaries);
+            const gapSummaryLines: string[] = [];
+            for (const pov of POV_KEYS) {
+              const ctx = getTaxonomyContext(pov);
+              for (const n of ctx.povNodes) {
+                gapSummaryLines.push(`[${n.id}] ${n.label} (${n.category ?? 'unknown'}) — ${pov}`);
+              }
+            }
+            const anTexts = (gapDebate.argument_network?.nodes || []).map(n => n.text);
+            const gapPrompt = midDebateGapPrompt(
+              gapDebate.topic.final,
+              gapTranscript,
+              gapSummaryLines.slice(0, 80).join('\n'),
+              anTexts,
+              focusNodes,
+            );
+            const { text: gapText } = await api.generateText(gapPrompt, gapModel);
+            const gapParsed = parseAIJson<{ gap_arguments: GapArgument[] }>(gapText);
+            const gapArgs = gapParsed?.gap_arguments ?? [];
+
+            if (gapArgs.length > 0) {
+              const header = triggerType === 'scheduled' ? 'Mid-Debate Gap Analysis' : 'Responsive Gap Analysis';
+              const gapContent = gapArgs.map((g, i) =>
+                `**Gap ${i + 1} (${g.gap_type}):** ${g.argument}\n*Why missing:* ${g.why_missing}`
+              ).join('\n\n');
+
+              const gapEntryId = addTranscriptEntry({
+                type: 'system',
+                speaker: 'system',
+                content: `## ${header}\n\n${gapContent}`,
+                taxonomy_refs: [],
+                metadata: { gap_analysis: true, gap_arguments: gapArgs, trigger: triggerType, focus_nodes: focusNodes?.map(n => n.id) },
+              });
+
+              incrementGapInjectionCount();
+              const injection: GapInjection = {
+                round: currentRound,
+                arguments: gapArgs,
+                transcript_entry_id: gapEntryId,
+                responses: [],
+                trigger: triggerType,
+                ...(focusNodes && { focus_nodes: focusNodes.map(n => n.id) }),
+              };
+
+              const freshGapDebate = get().activeDebate;
+              if (freshGapDebate) {
+                const existing = freshGapDebate.gap_injections ?? [];
+                set({
+                  activeDebate: {
+                    ...freshGapDebate,
+                    gap_injections: [...existing, injection],
+                  },
+                  gapInjections: [...existing, injection],
+                });
+              }
+
+              recordDiagnostic(get, set, gapEntryId, {
+                prompt: gapPrompt,
+                raw_response: gapText,
+                model: gapModel,
+              });
+
+              getGlobalRecorder()?.record({ type: 'state.change', debate_id: activeDebate?.id, component: 'gap-injection', level: 'info', message: `gap.${triggerType}`, data: { round: currentRound, args: gapArgs.length, focus: focusNodes?.length ?? 0, total_injections: _gapInjectionCount } });
+            }
+          }
+        }
+      } catch (gapErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          debate_id: activeDebate?.id,
+          component: 'debate-store',
+          level: 'warn',
+          message: 'Gap injection analysis failed',
+          error: { name: (gapErr as Error).name ?? 'Error', message: String(gapErr), stack: (gapErr as Error).stack },
+        });
+        console.warn('[Gap Injection] Gap analysis failed (non-blocking):', gapErr);
+        pushWarning(get, set, 'Gap analysis skipped this turn');
+      }
+}
+
+async function detectPositionDrift(get: _Get, set: _Set, addTranscriptEntry: _AddEntry, activeDebate: DebateSession, responderPover: _AiPover, info: _PoverInfo, crossRespondRound: number, statement: string): Promise<void> {
+        // Position drift detection (non-blocking)
+        try {
+          const currentD = get().activeDebate;
+          const openingEmbeds = currentD?.metadata?._openingEmbeddings as Record<string, number[]> | undefined;
+          if (openingEmbeds && openingEmbeds[responderPover]) {
+            const responseEmbed = await api.computeQueryEmbedding(statement.slice(0, 1000));
+            const selfSim = cosineSimilarity(responseEmbed.vector, openingEmbeds[responderPover]);
+            const opponentSims: Record<string, number> = {};
+            for (const [pov, embed] of Object.entries(openingEmbeds)) {
+              if (pov !== responderPover) opponentSims[pov] = cosineSimilarity(responseEmbed.vector, embed);
+            }
+            // Re-read fresh state — the await above yielded to the event loop,
+            // so concurrent commits (e.g., fire-and-forget extractClaimsAndUpdateAN)
+            // may have landed in between. Spreading the stale `currentD` would
+            // clobber their writes (notably argument_network).
+            const freshD = get().activeDebate;
+            const drift = freshD?.position_drift ?? [];
+            drift.push({ round: crossRespondRound, speaker: responderPover, self_similarity: selfSim, opponent_similarities: opponentSims });
+            if (freshD) {
+              set({ activeDebate: { ...freshD, position_drift: drift } });
+            }
+
+            // Sycophancy detection
+            const speakerDrift = drift.filter(d => d.speaker === responderPover);
+            if (speakerDrift.length >= 3) {
+              const recent = speakerDrift.slice(-3);
+              const selfDecreasing = recent.every((d, i) => i === 0 || d.self_similarity < recent[i - 1].self_similarity);
+              const opponents = Object.keys(recent[0].opponent_similarities);
+              const driftingToward = opponents.find(opp =>
+                recent.every((d, i) => i === 0 || (d.opponent_similarities[opp] ?? 0) > (recent[i - 1].opponent_similarities[opp] ?? 0)),
+              );
+              const concessions = currentD?.commitments?.[responderPover]?.conceded ?? [];
+              if (selfDecreasing && driftingToward && concessions.length === 0) {
+                const opLabel = POVER_INFO[driftingToward as Exclude<SpeakerId, 'user'>]?.label ?? driftingToward;
+                addTranscriptEntry({
+                  type: 'system', speaker: 'system',
+                  content: `[Sycophancy guard] ${info.label} appears to be drifting toward ${opLabel}'s position over the last 3 turns without explicit concession. Self-similarity: ${recent.map(d => d.self_similarity.toFixed(2)).join(' → ')}.`,
+                  taxonomy_refs: [],
+                });
+              }
+            }
+          }
+        } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Position drift detection failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
+}
+
+function computeRoundAndPhase(activeDebate: DebateSession, aiPovers: _AiPover[], get: _Get, set: _Set): { crossRespondRound: number; phase: DebatePhase; totalRoundsForPhase: number } {
+    const crossRespondRound = activeDebate.transcript.filter(e => e.type === 'statement').length + 1;
+    const adaptiveStaging = activeDebate.adaptive_staging;
+    let totalRoundsForPhase: number;
+    let phase: DebatePhase;
+    if (adaptiveStaging?.enabled) {
+      const weights = loadProvisionalWeights();
+      const pacingPreset = weights.pacing_presets[adaptiveStaging.pacing] ?? weights.pacing_presets.moderate;
+      totalRoundsForPhase = pacingPreset.maxTotalRounds;
+      // Initialize phase state on first round if not present
+      if (!adaptiveStaging.phase_state) {
+        const config: PhaseTransitionConfig = {
+          useAdaptiveStaging: true,
+          maxTotalRounds: pacingPreset.maxTotalRounds,
+          pacing: adaptiveStaging.pacing,
+          dialecticalStyle: 'adversarial',
+          argumentationExitThreshold: pacingPreset.argumentationExit,
+          concludingExitThreshold: pacingPreset.concludingExit,
+          allowEarlyTermination: true,
+          phaseBoundsOverride: adaptiveStaging.phase_bounds_override,
+        };
+        adaptiveStaging.phase_state = initPhaseState(config);
+        set({ activeDebate: { ...activeDebate } });
+      }
+      phase = adaptiveStaging.phase_state.current_phase;
+    } else {
+      totalRoundsForPhase = get().initialCrossRespondRounds || 5;
+      phase = getDebatePhase(crossRespondRound, totalRoundsForPhase * 3);
+    }
+    getGlobalRecorder()?.record({ type: 'debate.round', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: `Cross-respond round ${crossRespondRound} start`, data: { round: crossRespondRound, phase, speakers: aiPovers } });
+  return { crossRespondRound, phase, totalRoundsForPhase };
+}
+
+async function runPostTerminationTurn(activeDebate: DebateSession, aiPovers: _AiPover[], topic: string, model: string, get: _Get, set: _Set, isStillValid: () => boolean, addTranscriptEntry: _AddEntry, saveDebate: _SaveDebate): Promise<boolean> {
+    const isAlreadyTerminated = activeDebate.phase === 'closed'
+      || (activeDebate as unknown as Record<string, unknown>).adaptive_staging
+        && ((activeDebate as unknown as Record<string, unknown>).adaptive_staging as Record<string, unknown>)?.phase_state
+        && ((activeDebate as unknown as Record<string, unknown>).adaptive_staging as Record<string, unknown> & { phase_state: { current_phase: string } }).phase_state.current_phase === 'terminated';
+    if (isAlreadyTerminated) {
+      // Find debaters who haven't spoken in the last round
+      const lastRoundSpeakers = new Set<string>();
+      for (let j = activeDebate.transcript.length - 1; j >= 0; j--) {
+        const e = activeDebate.transcript[j];
+        if ((e.type as string) === 'statement') lastRoundSpeakers.add(e.speaker);
+        else if (e.type === 'system' && /\[Phase|Moderator|Round/.test(e.content)) break;
+        else if ((e.type as string) !== 'statement' && e.type !== 'system') break;
+      }
+      const missingPovers = aiPovers.filter(p => !lastRoundSpeakers.has(p));
+      if (missingPovers.length > 0) {
+        // Use the first missing pover and jump straight to step 2 (response generation)
+        const responderPover = missingPovers[0];
+        const crossRespondRound = activeDebate.transcript.filter(e => e.type === 'statement').length + 1;
+        const phase = 'concluding';
+        const focusPoint = 'Give your final statement on this debate.';
+        const addressingLabel = 'all';
+        set({ debateGenerating: responderPover, debateActivity: `${POVER_INFO[responderPover].label} is preparing...` });
+
+        // Jump to step 2 with these values — the rest of crossRespond handles it
+        // We need to skip to the pipeline section; use a goto-like pattern by setting these
+        // and falling through. Instead, extract a helper or inline the pipeline call.
+        // For simplicity: call the pipeline inline here.
+        const info = POVER_INFO[responderPover];
+        const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
+        const ctx = await getRelevantTaxonomyContext(info.pov, topic, currentTranscript);
+        const speakerClaims = (activeDebate.argument_network?.nodes || []).filter(n => n.speaker === responderPover);
+        const commitBlock = formatCommitments(
+          activeDebate.commitments?.[responderPover] || { asserted: [], conceded: [], challenged: [] },
+          speakerClaims,
+        );
+        const allANNodes = (activeDebate.argument_network?.nodes || []).map(n => ({
+          id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label || n.speaker,
+        }));
+        const establishedBlock = formatEstablishedPoints(allANNodes, info.label, 10);
+        const edgeBlock = formatDebaterEdgeContext(info.pov);
+        const concessionAN = activeDebate.argument_network;
+        const priorConceded = activeDebate.commitments?.[responderPover]?.conceded ?? [];
+        const concessionHint = concessionAN
+          ? formatConcessionCandidatesHint(concessionAN.nodes, concessionAN.edges, responderPover, priorConceded)
+          : '';
+        const crVocab = get().vocabularyTerms;
+        const crVocabBlock = crVocab
+          ? '\n' + formatVocabularyContext({ pov: info.pov, standardizedTerms: crVocab.standardized, colloquialTerms: crVocab.colloquial })
+          : '';
+        const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + crVocabBlock;
+        const crDocAnalysis = activeDebate.document_analysis;
+        const priorMoves = activeDebate.transcript
+          .filter(e => e.speaker === responderPover && e.metadata)
+          .flatMap(e => {
+            const mt = (e.metadata as Record<string, unknown>)?.move_types;
+            return Array.isArray(mt) ? mt.map(m => getMoveName(m)) : [];
+          })
+          .slice(-6);
+        const priorRefs = activeDebate.transcript
+          .filter(e => e.speaker === responderPover && e.type !== 'opening')
+          .slice(-2)
+          .flatMap(e => (e.taxonomy_refs ?? []).map(r => r.node_id));
+        const availablePovNodeIds = [...getAllKnownNodeIds()];
+        const debaterGapHint = formatGapHint(activeDebate.gap_injections);
+        const [evidenceIndex, docTitles] = await Promise.all([getSourceEvidenceIndex(), getDocTitles()]);
+
+        // Count turns since this debater last used a CONCEDE move
+        const ptDebaterTurns = activeDebate.transcript
+          .filter(e => e.speaker === responderPover && ((e.type as string) === 'statement' || e.type === 'opening'));
+        let ptTurnsSinceLastConcession = ptDebaterTurns.length;
+        for (let i = ptDebaterTurns.length - 1; i >= 0; i--) {
+          const moves = ((ptDebaterTurns[i].metadata as Record<string, unknown>)?.move_types as (string | MoveAnnotation)[]) ?? [];
+          if (moves.some(m => getMoveName(m).includes('CONCEDE'))) {
+            ptTurnsSinceLastConcession = ptDebaterTurns.length - 1 - i;
+            break;
+          }
+        }
+
+        const pipelineInput: TurnPipelineInput = {
+          label: info.label,
+          pov: info.pov,
+          personality: info.personality,
+          topic,
+          taxonomyContext: taxonomyBlock,
+          commitmentContext: commitBlock,
+          establishedPoints: establishedBlock,
+          edgeContext: edgeBlock,
+          concessionHint: concessionHint + debaterGapHint,
+          recentTranscript: currentTranscript,
+          focusPoint,
+          addressing: addressingLabel,
+          phase,
+          priorMoves,
+          priorRefs,
+          availablePovNodeIds,
+          turnsSinceLastConcession: ptTurnsSinceLastConcession,
+          pendingIntervention: undefined,
+          sourceContent: crDocAnalysis ? undefined : (activeDebate.source_content || undefined),
+          documentAnalysis: crDocAnalysis,
+          audience: activeDebate.audience,
+          model: getSpeakerModel(activeDebate, responderPover, model),
+          briefModel: activeDebate.stage_models?.brief || undefined,
+          planModel: activeDebate.stage_models?.plan || undefined,
+          citeModel: activeDebate.stage_models?.cite || undefined,
+          sourceEvidenceIndex: evidenceIndex as TurnPipelineInput['sourceEvidenceIndex'],
+          docTitles: docTitles as TurnPipelineInput['docTitles'],
+          doctrinalBoundaries: info.doctrinal_boundaries,
+          background: activeDebate.topic?.background || undefined,
+        };
+
+        const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, getSpeakerModel(activeDebate, responderPover, model));
+        const pipelineResult = await runTurnPipeline(pipelineInput, stageGenerate);
+        if (!isStillValid()) { releaseDebateDriver(); set({ debateGenerating: null }); getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'debate_switched' } }); return true; }
+
+        const { statement, taxonomyRefs, meta } = parsePoverResponse(pipelineResult.final_text ?? '');
+        if (ctx.nodeScores) {
+          for (const ref of taxonomyRefs) {
+            const score = ctx.nodeScores.get(ref.node_id);
+            if (score != null) ref.relevance_score = score;
+          }
+        }
+        const relevanceSources = serializeNodeSourceMap(ctx.nodeSourceMap, taxonomyRefs);
+        addTranscriptEntry({
+          type: 'statement',
+          speaker: responderPover,
+          content: statement,
+          taxonomy_refs: taxonomyRefs,
+          policy_refs: meta.policy_refs,
+          addressing: addressingLabel,
+          metadata: { ...meta, round: crossRespondRound, moderator_trace: { selected: info.label, selection_reason: 'post_termination_final_statement' }, relevance_sources: relevanceSources, injection_manifest: ctx.injectionManifest },
+        });
+        const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
+        if (lastEntry) {
+
+          const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
+          const topicAlignDiagTerm = pipelineResult.topicAlignmentResult
+            ? {
+              topic_aligned: pipelineResult.topicAlignmentResult.topic_aligned,
+              repaired: pipelineResult.topicAlignmentResult.repaired || undefined,
+              draft_attempt: pipelineResult.topicAlignmentResult.draft_attempt,
+              scope_used: get().activeDebate?.topic?.scope ?? null,
+            }
+            : undefined;
+          recordDiagnostic(get, set, lastEntry.id, {
+            prompt: draftDiag?.raw_response ?? pipelineResult.final_text,
+            raw_response: pipelineResult.final_text,
+            model,
+            taxonomy_context: taxonomyBlock,
+            commitment_context: commitBlock || undefined,
+            stage_diagnostics: pipelineResult.stage_diagnostics,
+            topic_alignment: topicAlignDiagTerm,
+            quality_gate: pipelineResult.qualityGateResult,
+          });
+          void extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
+          await summarizeTranscriptEntry(lastEntry.id, statement, info.label, model, get, set);
+        }
+        releaseDebateDriver();
+        set({ debateGenerating: null });
+        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'post_termination_complete' } });
+        await saveDebate('crossRespond:postTermination');
+        return true;
+      }
+    }
+  return false;
+}
+
+
+async function buildTurnPipelineContext(responderPover: _ModResult['responder'], activeDebate: DebateSession, topic: string, model: string, intervention: _ModResult['intervention'], interventionBriefInjection: _ModResult['interventionBriefInjection'], focusPoint: _ModResult['focusPoint'], addressingLabel: _ModResult['addressing'], phase: DebatePhase, get: _Get, set: _Set) {
+    // Step 2: Generate the cross-response
+    set({ debateGenerating: responderPover, debateActivity: `${POVER_INFO[responderPover].label} is preparing...` });
+
+    const info = POVER_INFO[responderPover];
+    const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
+    const ctx = await getRelevantTaxonomyContext(info.pov, topic, currentTranscript);
+    const speakerClaims = (activeDebate.argument_network?.nodes || []).filter(n => n.speaker === responderPover);
+    const commitBlock = formatCommitments(
+      activeDebate.commitments?.[responderPover] || { asserted: [], conceded: [], challenged: [] },
+      speakerClaims,
+    );
+    const allANNodes = (activeDebate.argument_network?.nodes || []).map(n => ({
+      id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label || n.speaker,
+    }));
+    const establishedBlock = formatEstablishedPoints(allANNodes, info.label, 10);
+    const edgeBlock = formatDebaterEdgeContext(info.pov);
+
+    // QBAF-grounded concession hint: surface strong opposing claims this debater
+    // hasn't attacked or already conceded. Counterbalances the rotation rule
+    // that blocks consecutive CONCEDE openings.
+    const concessionAN = activeDebate.argument_network;
+    const priorConceded = activeDebate.commitments?.[responderPover]?.conceded ?? [];
+    const concessionHint = concessionAN
+      ? formatConcessionCandidatesHint(concessionAN.nodes, concessionAN.edges, responderPover, priorConceded)
+      : '';
+    const concessionCandidateIds = concessionHint
+      ? concessionAN!.nodes
+          .filter(n => n.speaker !== responderPover)
+          .filter(n => (n.computed_strength ?? n.base_strength ?? 0) >= 0.65)
+          .filter(n => !concessionAN!.edges.some(e => e.type === 'attacks' && concessionAN!.nodes.find(x => x.id === e.source)?.speaker === responderPover && e.target === n.id))
+          .filter(n => !priorConceded.includes(n.id) && !priorConceded.includes(n.text))
+          .sort((a, b) => (b.computed_strength ?? 0) - (a.computed_strength ?? 0))
+          .slice(0, 2)
+          .map(n => n.id)
+      : [];
+
+    const crVocab = get().vocabularyTerms;
+    const crVocabBlock = crVocab
+      ? '\n' + formatVocabularyContext({ pov: info.pov, standardizedTerms: crVocab.standardized, colloquialTerms: crVocab.colloquial })
+      : '';
+    const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + crVocabBlock;
+    const crDocAnalysis = activeDebate.document_analysis;
+
+    // Collect prior move types for diversity enforcement
+    const priorMoves = activeDebate.transcript
+      .filter(e => e.speaker === responderPover && e.metadata)
+      .flatMap(e => {
+        const mt = (e.metadata as Record<string, unknown>)?.move_types;
+        return Array.isArray(mt) ? mt.map(m => getMoveName(m)) : [];
+      })
+      .slice(-6);
+
+    // Collect prior refs for citation rotation
+    const priorRefs = activeDebate.transcript
+      .filter(e => e.speaker === responderPover && e.type !== 'opening')
+      .slice(-2)
+      .flatMap(e => (e.taxonomy_refs ?? []).map(r => r.node_id));
+
+    const availablePovNodeIds = [...getAllKnownNodeIds()];
+
+    // ── 4-stage pipeline: BRIEF → PLAN → DRAFT → CITE ──
+    const debaterGapHint = formatGapHint(activeDebate.gap_injections);
+    // Build pendingIntervention for the Draft/Cite stages
+    const pendingInterventionData = intervention ? (() => {
+      const moveConfig = MOVE_RESPONSE_CONFIG[intervention.move as keyof typeof MOVE_RESPONSE_CONFIG];
+      const targetLabel = POVER_INFO[intervention.target_debater as Exclude<SpeakerId, 'user'>]?.label ?? intervention.target_debater;
+      const isTargeted = targetLabel.toLowerCase() === info.label.toLowerCase();
+      return {
+        move: intervention.move,
+        family: intervention.family,
+        targetDebater: targetLabel,
+        responseField: moveConfig?.field ?? undefined,
+        responseSchema: moveConfig?.schema ?? undefined,
+        directResponsePattern: DIRECT_RESPONSE_PATTERNS[intervention.move as keyof typeof DIRECT_RESPONSE_PATTERNS] ?? undefined,
+        isTargeted,
+      };
+    })() : undefined;
+
+    // Load source evidence index and document titles (cached after first call)
+    const [evidenceIndex, docTitles] = await Promise.all([getSourceEvidenceIndex(), getDocTitles()]);
+
+    const lastOpponentEntry = (activeDebate.transcript ?? [])
+      .filter(e => e.speaker !== responderPover && e.speaker !== 'system' && e.speaker !== 'user' && e.type !== 'opening')
+      .slice(-1)[0];
+    const lastOpponentStatement = lastOpponentEntry
+      ? (typeof lastOpponentEntry.content === 'string' ? lastOpponentEntry.content : JSON.stringify(lastOpponentEntry.content))
+      : undefined;
+
+    // Count turns since this debater last used a CONCEDE move
+    const crDebaterTurns = activeDebate.transcript
+      .filter(e => e.speaker === responderPover && ((e.type as string) === 'statement' || e.type === 'opening'));
+    let crTurnsSinceLastConcession = crDebaterTurns.length;
+    for (let i = crDebaterTurns.length - 1; i >= 0; i--) {
+      const moves = ((crDebaterTurns[i].metadata as Record<string, unknown>)?.move_types as (string | MoveAnnotation)[]) ?? [];
+      if (moves.some(m => getMoveName(m).includes('CONCEDE'))) {
+        crTurnsSinceLastConcession = crDebaterTurns.length - 1 - i;
+        break;
+      }
+    }
+
+    const pipelineInput: TurnPipelineInput = {
+      label: info.label,
+      pov: info.pov,
+      personality: info.personality,
+      topic,
+      taxonomyContext: taxonomyBlock,
+      commitmentContext: commitBlock,
+      establishedPoints: establishedBlock,
+      edgeContext: edgeBlock,
+      concessionHint: concessionHint + debaterGapHint + interventionBriefInjection,
+      recentTranscript: currentTranscript,
+      focusPoint,
+      addressing: addressingLabel,
+      phase,
+      priorMoves,
+      priorRefs,
+      availablePovNodeIds,
+      turnsSinceLastConcession: crTurnsSinceLastConcession,
+      pendingIntervention: pendingInterventionData,
+      sourceContent: crDocAnalysis ? undefined : (activeDebate.source_content || undefined),
+      documentAnalysis: crDocAnalysis,
+      audience: activeDebate.audience,
+      model: getSpeakerModel(activeDebate, responderPover, model),
+      briefModel: activeDebate.stage_models?.brief || undefined,
+      planModel: activeDebate.stage_models?.plan || undefined,
+      citeModel: activeDebate.stage_models?.cite || undefined,
+      sourceEvidenceIndex: evidenceIndex as TurnPipelineInput['sourceEvidenceIndex'],
+      docTitles: docTitles as TurnPipelineInput['docTitles'],
+      doctrinalBoundaries: info.doctrinal_boundaries,
+      background: activeDebate.topic?.background || undefined,
+      topicScope: activeDebate.topic?.scope ?? undefined,
+      preCheckModel: resolveTurnValidationConfig(undefined).preCheckModel,
+      lastOpponentStatement,
+    };
+
+    const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, getSpeakerModel(activeDebate, responderPover, model));
+  return { info, ctx, taxonomyBlock, commitBlock, concessionCandidateIds, pipelineInput, stageGenerate };
+}
+
+function buildModeratorTrace(activeDebate: DebateSession, aiPovers: _AiPover[], responderPover: _ModResult['responder'], focusPoint: _ModResult['focusPoint'], modResult: _ModResult, modState: ModeratorState, engineValidation: import('@lib/debate/types').EngineValidationResult, selectionResult: SelectionResult | null, healthScore: _ModResult['healthScore']): Record<string, unknown> {
+    // Build moderator trace for diagnostics
+    const anNodes = activeDebate.argument_network?.nodes ?? [];
+    const lastSpeakerEntry = [...activeDebate.transcript].reverse().find(
+      (e) => (e.type === 'statement' || e.type === 'opening') && e.speaker !== 'user' && e.speaker !== 'system',
+    );
+    const lastSpeaker = lastSpeakerEntry?.speaker as Exclude<SpeakerId, 'user'> | undefined;
+    const moderatorTrace: Record<string, unknown> = {
+      selected: POVER_INFO[responderPover].label,
+      excluded_last_speaker: lastSpeaker ? POVER_INFO[lastSpeaker]?.label ?? lastSpeaker : null,
+      candidates: aiPovers
+        .filter(p => p !== lastSpeaker)
+        .map((p, i) => {
+          const poverClaims = anNodes.filter(n => n.speaker === p);
+          const scoredClaims = poverClaims.filter(n => n.computed_strength != null);
+          const avgStrength = scoredClaims.length > 0
+            ? scoredClaims.reduce((sum, n) => sum + n.computed_strength!, 0) / scoredClaims.length
+            : null;
+          return {
+            debater: POVER_INFO[p].label,
+            computed_strength: avgStrength,
+            claim_count: poverClaims.length,
+            scored_count: scoredClaims.length,
+            rank: i + 1,
+          };
+        }),
+      convergence_score: activeDebate.convergence_tracker?.issues?.[0]?.convergence ?? null,
+      convergence_triggered: false,
+      commitment_snapshot: Object.fromEntries(
+        aiPovers.map(p => [
+          POVER_INFO[p].label,
+          {
+            asserted: (activeDebate.commitments?.[p]?.asserted ?? []).length,
+            conceded: (activeDebate.commitments?.[p]?.conceded ?? []).length,
+            challenged: (activeDebate.commitments?.[p]?.challenged ?? []).length,
+          },
+        ])
+      ),
+      selection_reason: 'moderator_ai_selection',
+      focus_point: focusPoint,
+      selection_prompt: modResult.diagnostics.selectionPrompt,
+      selection_response: modResult.diagnostics.selectionResponse,
+      health_score: healthScore.value,
+      health_components: healthScore.components,
+      health_trend: healthScore.trend,
+      intervention_recommended: selectionResult?.intervene ?? false,
+      intervention_move: selectionResult?.suggested_move ?? null,
+      intervention_validated: engineValidation?.proceed ?? false,
+      intervention_suppressed_reason: engineValidation?.suppressed_reason ?? null,
+      intervention_suppression_explanation: engineValidation?.suppression_explanation ?? null,
+      intervention_target: selectionResult?.target_debater ?? null,
+      trigger_reasoning: selectionResult?.trigger_reasoning ?? null,
+      trigger_evidence: selectionResult?.trigger_evidence ?? null,
+      budget_remaining: modState.budget_remaining,
+      budget_total: modState.budget_total,
+      cooldown_rounds_left: Math.max(0, modState.required_gap - modState.rounds_since_last_intervention),
+      burden_per_debater: { ...modState.burden_per_debater },
+    };
+  return moderatorTrace;
+}
+
+async function runModeratorStep(selectionInput: ModeratorSelectionInput, selectionCallbacks: ModeratorSelectionCallbacks, activeDebate: DebateSession, crossRespondRound: number, phase: DebatePhase, isStillValid: () => boolean, get: _Get, set: _Set, saveDebate: _SaveDebate): Promise<_ModResult | null> {
+    let modResult: Awaited<ReturnType<typeof runModeratorSelection>>;
+    try {
+      modResult = await runModeratorSelection(selectionInput, selectionCallbacks);
+      if (!isStillValid()) {
+        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'crossRespond aborted post-moderator — debate no longer valid' });
+        releaseDebateDriver(); return null;
+      }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        debate_id: activeDebate?.id,
+        component: 'debate-store',
+        level: 'error',
+        message: 'Cross-respond moderator selection failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      releaseDebateDriver();
+      if (isDailyLimitError(err)) {
+        set({ debateError: DAILY_LIMIT_MESSAGE, dailyLimitPaused: true, debateGenerating: null });
+        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.paused', data: { reason: 'daily_token_limit' } });
+      } else {
+        set({ debateError: `Cross-respond selection failed: ${mapErrorToUserMessage(err)}`, debateRetryAction: 'crossRespond', debateGenerating: null });
+        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'error', error: String(err) } });
+      }
+      return null;
+    }
+
+    if (modResult.earlyReturn && modResult.agreementDetected) {
+      // Persist moderator state and stop — agreement detected
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Agreement detected — skipping debater turn', data: { round: crossRespondRound, phase, focus: modResult.focusPoint } });
+      const freshDebate = get().activeDebate;
+      if (freshDebate) {
+        set({ activeDebate: { ...freshDebate, moderator_state: modResult.modState } });
+      }
+      releaseDebateDriver();
+      set({ debateGenerating: null });
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'agreement_detected', round: crossRespondRound } });
+      await saveDebate('crossRespond:agreement');
+      return null;
+    }
+  return modResult;
+}
