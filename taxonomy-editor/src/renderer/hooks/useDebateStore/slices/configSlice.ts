@@ -5,6 +5,7 @@ import type { StateCreator } from 'zustand';
 import type { DebateStore } from '../types';
 import type { DebateAudience, SpeakerId, GapInjection, CrossCuttingProposal, TaxonomyGapAnalysis } from '../../../types/debate';
 import type { StandardizedTerm, ColloquialTerm } from '@lib/dictionary/types';
+import type { EntityRef } from '@lib/entities/types';
 import type { ReflectionResult, ConsensusCluster } from '../types';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
@@ -37,6 +38,9 @@ export interface ConfigSlice {
 
   // Inspection
   inspectedNodeId: string | null;
+
+  // Selected reference → right-hand DetailPane (t/1776). null = pane closed.
+  selectedRef: EntityRef | null;
 
   // Gap analysis
   gapInjections: GapInjection[];
@@ -76,6 +80,7 @@ export interface ConfigSlice {
   selectDiagEntry: (entryId: string | null, force?: boolean) => void;
   setDiagPopoutOpen: (open: boolean) => void;
   inspectNode: (nodeId: string | null) => void;
+  setSelectedRef: (ref: EntityRef | null) => void;
   setGenerating: (pover: SpeakerId | null) => void;
   setError: (error: string | null) => void;
   debateRetryAction: string | null;
@@ -99,6 +104,7 @@ export const createConfigSlice: StateCreator<DebateStore, [], [], ConfigSlice> =
   diagPopoutOpen: false,
   debateWarnings: [],
   inspectedNodeId: null,
+  selectedRef: null,
   gapInjections: [],
   crossCuttingProposals: [],
   taxonomyGapAnalysis: null,
@@ -190,6 +196,7 @@ export const createConfigSlice: StateCreator<DebateStore, [], [], ConfigSlice> =
   },
   setDiagPopoutOpen: (open) => set({ diagPopoutOpen: open }),
   inspectNode: (nodeId) => set({ inspectedNodeId: nodeId }),
+  setSelectedRef: (ref) => set({ selectedRef: ref }),
   setGenerating: (pover) => set({ debateGenerating: pover }),
   setError: (error) => set({ debateError: error, debateRetryAction: error ? get().debateRetryAction : null, dailyLimitPaused: error ? get().dailyLimitPaused : false }),
   setErrorWithRetry: (error, retryAction) => set({ debateError: error, debateRetryAction: retryAction }),

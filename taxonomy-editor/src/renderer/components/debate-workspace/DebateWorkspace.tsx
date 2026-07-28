@@ -20,6 +20,7 @@ import type { AdaptivePhase } from './utils';
 import { CommentCreationPopover } from '../chat/CommentCreationPopover';
 import type { CommentPopoverState } from '../chat/CommentCreationPopover';
 import { CommentSidebar } from '../chat/CommentSidebar';
+import { DetailPane } from '../shared/DetailPane';
 import { useCommentStore } from '../../hooks/useCommentStore';
 import type { DetailTier } from '@lib/debate/comments';
 import { UsernamePromptDialog } from '../shared/UsernamePromptDialog';
@@ -372,6 +373,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     diagnosticsEnabled, toggleDiagnostics, selectedDiagEntry, selectDiagEntry,
     diagPopoutOpen, setDiagPopoutOpen, defaultTier, setDefaultTier,
     driverIsRemote,
+    selectedRef, setSelectedRef,
     explorationSummary, extractExplorationSummary, extractAndSeedFromDebate,
   } = useDebateStore(
     useShallow(s => ({
@@ -381,6 +383,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
       diagPopoutOpen: s.diagPopoutOpen, setDiagPopoutOpen: s.setDiagPopoutOpen,
       defaultTier: s.responseLength, setDefaultTier: s.setResponseLength,
       driverIsRemote: s.driverIsRemote,
+      selectedRef: s.selectedRef, setSelectedRef: s.setSelectedRef,
       explorationSummary: s.explorationSummary,
       extractExplorationSummary: s.extractExplorationSummary,
       extractAndSeedFromDebate: s.extractAndSeedFromDebate,
@@ -1009,6 +1012,15 @@ export function DebateWorkspace({ onExport, exportStatus }: {
         onNavigate={handleChatNavigate}
         embedded
         onClose={() => setDebateChatOpen(false)}
+      />
+    )}
+    {/* Reference detail pane — opens when a transcript ID-ref link is selected (t/1776) */}
+    {selectedRef && (
+      <DetailPane
+        className="debate-detail-pane"
+        selectedRef={selectedRef}
+        onSelectRef={setSelectedRef}
+        onClose={() => setSelectedRef(null)}
       />
     )}
     </div>

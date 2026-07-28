@@ -53,9 +53,11 @@ const mockTaxStore: Record<string, any> = {
   communityServerUrl: '',
 };
 
-// useTaxonomyStore is called both with and without a selector in this component
+// useTaxonomyStore is called both with and without a selector in this component.
+// MODELS_BY_BACKEND is pulled in transitively via DetailPane → NodeDetail → …/PromptInspector (t/1776).
 vi.mock('../../hooks/useTaxonomyStore', () => ({
   useTaxonomyStore: (selector?: any) => selector ? selector(mockTaxStore) : mockTaxStore,
+  MODELS_BY_BACKEND: {},
 }));
 
 const mockCommentStore: Record<string, any> = {
