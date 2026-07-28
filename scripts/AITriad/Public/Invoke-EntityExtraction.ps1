@@ -54,16 +54,20 @@ function Invoke-EntityExtraction {
           3. Within-run EXACT dedup: the proposal's normalized name OR any alias matches
              an already-minted within-run candidate's name OR alias (t/1880 bullet 1 —
              the pre-existing MatchIndex never sees freshly-minted siblings).
-          4. Within-run NEAR-VARIANT dedup: cosine >= -WithinRunSimilarityThreshold of the
-             proposal's probe vector against already-minted within-run candidates' probe
-             vectors (t/1880#3 Option A). Independent of step 2 — this stage fires with
-             ZERO approved entities, so it catches same-run near-variants (e.g. two
-             "OpenAI-NVIDIA partnership ..." phrasings) the approved-only cosine cannot.
-          A match (any step) records a `linked` disposition in the run report and mints
-          nothing — links are Phase 2. An unmatched proposal is queued for minting; every
-          later within-run occurrence is recorded as `linked` to the id just minted.
-          Probe vectors are batch-encoded once per node (not per proposal). Minting
-          happens in sub-batches of <= 20 (Import-Entity's ValidateCount ceiling).
+          4. Within-run NEAR-VARIANT surfacing (ADVISORY, t/1881): cosine >=
+             -WithinRunSimilarityThreshold of the proposal's probe vector against
+             already-minted within-run candidates. This stage does NOT link — name-only
+             cosine false-merges sibling entities (GPT-4/GPT-4o 0.90, Gemini 3.5/3.6 Flash
+             0.97) that score ABOVE true dups, so auto-linking would destroy a distinct
+             entity. On a hit the proposal MINTS normally and the pair is written to the
+             sidecar's possible_duplicates[] for a curator to review — a false positive
+             costs a human glance, not an entity. WITHIN-RUN ONLY (fires with zero approved
+             entities); cross-run near-variant surfacing is Phase 2.
+          Steps 1-3 record a `linked` disposition and mint nothing (links are Phase 2);
+          an unmatched proposal is queued for minting and every later within-run EXACT
+          occurrence is `linked` to the id just minted. Step 4 never links — it only
+          surfaces. Probe vectors are batch-encoded once per node (not per proposal).
+          Minting happens in sub-batches of <= 20 (Import-Entity's ValidateCount ceiling).
 
         IDEMPOTENCE: an entity_extraction_log.json sidecar (mirrors organization_stance_
         claims.json's role for Invoke-OrgStanceExtraction) records every successfully
@@ -93,11 +97,11 @@ function Invoke-EntityExtraction {
         of mint. Default 0.60.
     .PARAMETER WithinRunSimilarityThreshold
         Minimum cosine similarity between a proposal and an already-minted WITHIN-RUN
-        candidate (both freshly proposed this run) to link instead of mint — the
-        near-variant dedup stage (t/1880#3 Option A). A DISTINCT knob from
-        -LinkSimilarityThreshold with its own provenance; the default (0.60) is
-        provisional pending calibration and is NOT inherited from the existing-entity
-        threshold's justification.
+        candidate (both freshly proposed this run) at which the pair is SURFACED as a
+        possible duplicate in the sidecar — advisory only, never an auto-link (t/1881).
+        A DISTINCT knob from -LinkSimilarityThreshold. Because a hit only surfaces a pair
+        for curation (a false positive costs a human glance, not an entity), this is a
+        surfacing threshold and the default (0.60) needs no calibration sign-off.
     .PARAMETER EntitiesPath
         Override entities.json path (fixtures/tests). Defaults to Get-EntitiesFilePath.
     .PARAMETER EmbeddingsPath
@@ -568,11 +572,17 @@ function Invoke-EntityExtraction {
     # within-run mint's ALIAS — or vice-versa — slipped through. MatchIndex holds only
     # PRE-existing records, so freshly-minted siblings need their own index.)
     $MintIndexByKey = @{}
-    # Within-run candidate probe vectors for the near-variant cosine stage (t/1880#3
+    # Within-run candidate probe vectors for the near-variant surfacing stage (t/1880#3
     # Option A): candidate index -> probe vector. Compared candidate<->candidate, so it
     # fires with ZERO approved entities — unlike the existing-entity cosine (step 2),
     # which is inert until an approval writes the first vector into entity_embeddings.json.
     $CandidateVectors = @{}
+    # Advisory near-variant pairs (t/1881): within-run cosine hits do NOT link. Name-only
+    # cosine false-merges sibling entities (GPT-4/GPT-4o 0.90, Gemini 3.5/3.6 Flash 0.97)
+    # that score ABOVE true dups (AI Action Plan 0.75) — the classes interleave, so no
+    # threshold separates them, and a false merge DESTROYS a distinct entity. Hits are
+    # recorded here and surfaced in the sidecar's possible_duplicates[] for curation.
+    $PossibleDuplicates = [System.Collections.Generic.List[PSObject]]::new()
 
     foreach ($Node in $SortedResults) {
         # Batch-encode this node's above-gate proposal names in ONE embedding call
@@ -686,9 +696,14 @@ function Invoke-EntityExtraction {
                 continue
             }
 
-            # 4) Within-run NEAR-VARIANT dedup — cosine of this proposal's probe vector
-            #    against already-minted within-run candidates' vectors (t/1880#3 Option A).
-            #    Fires with ZERO approved entities (own threshold, own provenance).
+            # 4) Within-run NEAR-VARIANT surfacing (ADVISORY, t/1881) — cosine of this
+            #    proposal's probe vector against already-minted within-run candidates.
+            #    A hit does NOT link: name-only cosine false-merges siblings (GPT-4/GPT-4o
+            #    0.90, Gemini 3.5/3.6 Flash 0.97) that score ABOVE true dups, so auto-link
+            #    would destroy a distinct entity. Instead the proposal MINTS normally and
+            #    the pair is surfaced in the sidecar's possible_duplicates[] for curation.
+            #    (Recorded after minting below, once both candidate ids exist.)
+            $surfacedMatchIdx = $null; $surfacedSim = $null
             if ($null -ne $probeVec -and $CandidateVectors.Count -gt 0) {
                 $bestSim = -1.0; $bestIdx = $null
                 foreach ($ci in $CandidateVectors.Keys) {
@@ -696,14 +711,7 @@ function Invoke-EntityExtraction {
                     if ($sim -gt $bestSim) { $bestSim = $sim; $bestIdx = $ci }
                 }
                 if ($null -ne $bestIdx -and $bestSim -ge $WithinRunSimilarityThreshold) {
-                    $matchedCandidate = $MintCandidates[$bestIdx]
-                    $matchedCandidate.OtherOccurrences.Add([PSCustomObject]@{
-                        NodeId       = $Node.NodeId
-                        ProposalName = $p.name
-                        Reason       = "within-run-cosine>=$WithinRunSimilarityThreshold (sim=$([math]::Round($bestSim,4)))"
-                    })
-                    foreach ($d in $Node.DocIds) { [void]$matchedCandidate.DocIdSet.Add($d) }
-                    continue
+                    $surfacedMatchIdx = $bestIdx; $surfacedSim = $bestSim
                 }
             }
 
@@ -732,6 +740,19 @@ function Invoke-EntityExtraction {
                 if (-not [string]::IsNullOrEmpty($key) -and -not $MintIndexByKey.ContainsKey($key)) { $MintIndexByKey[$key] = $newIdx }
             }
             if ($null -ne $probeVec) { $CandidateVectors[$newIdx] = $probeVec }
+            # Advisory surfacing (t/1881): this proposal minted normally; if it resembled
+            # an earlier within-run candidate above the surfacing threshold, record the
+            # pair (resolved to minted ids after the mint pass below). NOT a link.
+            if ($null -ne $surfacedMatchIdx) {
+                $PossibleDuplicates.Add([PSCustomObject]@{
+                    NodeId       = $Node.NodeId
+                    NewIndex     = $newIdx
+                    MatchedIndex = $surfacedMatchIdx
+                    ProposalName = $p.name
+                    MatchedName  = $MintCandidates[$surfacedMatchIdx].Name
+                    Similarity   = [math]::Round($surfacedSim, 4)
+                })
+            }
             if ($nearGate) { $NearGateMinted++ }
         }
     }
@@ -802,6 +823,25 @@ function Invoke-EntityExtraction {
         if (-not $DroppedByNode.ContainsKey($d.node_id)) { $DroppedByNode[$d.node_id] = [System.Collections.Generic.List[PSObject]]::new() }
         $DroppedByNode[$d.node_id].Add($d)
     }
+    #   possible_duplicates[] — advisory near-variant pairs (t/1881): both entities minted;
+    #     curation reviews via the merge/redirect path. Resolved to minted ids post-mint and
+    #     grouped by the NEW proposal's node_id so they ride the same per-node sidecar path.
+    $PossibleDuplicateRows = [System.Collections.Generic.List[PSObject]]::new()
+    foreach ($pd in $PossibleDuplicates) {
+        $PossibleDuplicateRows.Add([PSCustomObject]@{
+            node_id       = $pd.NodeId
+            candidate_id  = $MintCandidates[$pd.NewIndex].MintedId
+            proposal_name = $pd.ProposalName
+            matched_id    = $MintCandidates[$pd.MatchedIndex].MintedId
+            matched_name  = $pd.MatchedName
+            similarity    = $pd.Similarity
+        })
+    }
+    $PossibleDupByNode = @{}
+    foreach ($pd in $PossibleDuplicateRows) {
+        if (-not $PossibleDupByNode.ContainsKey($pd.node_id)) { $PossibleDupByNode[$pd.node_id] = [System.Collections.Generic.List[PSObject]]::new() }
+        $PossibleDupByNode[$pd.node_id].Add($pd)
+    }
 
     # ── Persist the idempotence sidecar (only nodes whose AI call/parse succeeded are
     # marked processed — a failure is retried next run). ─────────────────────────────
@@ -810,14 +850,16 @@ function Invoke-EntityExtraction {
         if (-not $Node.ParseOk) { continue }
         $nodeEvidence = if ($EvidenceByNode.ContainsKey($Node.NodeId)) { @($EvidenceByNode[$Node.NodeId]) } else { @() }
         $nodeDropped  = if ($DroppedByNode.ContainsKey($Node.NodeId)) { @($DroppedByNode[$Node.NodeId]) } else { @() }
+        $nodePossibleDup = if ($PossibleDupByNode.ContainsKey($Node.NodeId)) { @($PossibleDupByNode[$Node.NodeId]) } else { @() }
         $NewlyProcessed.Add([PSCustomObject]@{
-            node_id         = $Node.NodeId
-            processed_at    = (Get-Date).ToString('o')
-            model           = $Node.Model
-            proposals_total = @($Node.Proposals).Count
-            org_mentions    = @($Node.OrgMentions)
-            evidence        = @($nodeEvidence)
-            dropped         = @($nodeDropped)
+            node_id             = $Node.NodeId
+            processed_at        = (Get-Date).ToString('o')
+            model               = $Node.Model
+            proposals_total     = @($Node.Proposals).Count
+            org_mentions        = @($Node.OrgMentions)
+            evidence            = @($nodeEvidence)
+            dropped             = @($nodeDropped)
+            possible_duplicates = @($nodePossibleDup)
         })
     }
 
@@ -832,8 +874,8 @@ function Invoke-EntityExtraction {
 
     if ($NewlyProcessed.Count -gt 0) {
         $LogStore = [PSCustomObject]@{
-            _schema_version = '1.1.0'
-            _doc            = 'Entity extraction idempotence log (t/1806 Phase 1). Feeds -Force replay decisions; not a data-of-record store (entities.json is). Each node also carries evidence[] (supporting quote per minted entity id, for curation) and dropped[] (below-gate proposals, for gate-recall audit) — added t/1830.'
+            _schema_version = '1.2.0'
+            _doc            = 'Entity extraction idempotence log (t/1806 Phase 1). Feeds -Force replay decisions; not a data-of-record store (entities.json is). Each node carries evidence[] (supporting quote per minted entity id, for curation) and dropped[] (below-gate proposals, for gate-recall audit) — added t/1830 — and possible_duplicates[] (advisory near-variant pairs {candidate_id, proposal_name, matched_id, matched_name, similarity}: both entities were minted, curation reviews via merge/redirect; name-only cosine cannot safely auto-link siblings) — added t/1881.'
             last_modified   = (Get-Date).ToString('yyyy-MM-dd')
             node_count      = @($ExistingLogNodes).Count
             nodes           = @($ExistingLogNodes)
@@ -848,9 +890,10 @@ function Invoke-EntityExtraction {
     $InvalidCount = @($Invalid).Count
     $MintedCount = @($MintCandidates).Count
     $LinkedCount = @($LinkedDispositions).Count
+    $PossibleDupCount = @($PossibleDuplicateRows).Count
 
     Write-Host ""
-    Write-Host "Done. Nodes processed: $Total | Proposals: $ProposalsTotal | Minted: $MintedCount | Linked: $LinkedCount | Dropped (below gate): $DroppedBelowGate | Near-gate minted: $NearGateMinted | Invalid: $InvalidCount | Failed: $FailCount"
+    Write-Host "Done. Nodes processed: $Total | Proposals: $ProposalsTotal | Minted: $MintedCount | Linked: $LinkedCount | Possible dups (advisory): $PossibleDupCount | Dropped (below gate): $DroppedBelowGate | Near-gate minted: $NearGateMinted | Invalid: $InvalidCount | Failed: $FailCount"
 
     [PSCustomObject]@{
         NodesProcessed     = $Total
@@ -868,6 +911,7 @@ function Invoke-EntityExtraction {
         SkippedAlreadyDone = $SkippedAlreadyDone
         MintedEntities     = $MintedEntities
         LinkedDispositions = @($LinkedDispositions)
+        PossibleDuplicates = @($PossibleDuplicateRows)
         OutputPath         = $OutputPath
     }
 }

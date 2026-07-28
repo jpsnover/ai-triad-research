@@ -446,24 +446,24 @@ Describe 'Invoke-EntityExtraction (t/1806 Phase 1)' -Tag 'unit' {
             }
         }
 
-        It 'Bullet 2 / Option A — links a NEAR-VARIANT with no name/alias overlap via within-run cosine (fires with ZERO approved entities)' {
+        It 'Bullet 2 / Option A (ADVISORY, t/1881) — a high-cosine SIBLING pair MINTS both and writes one possible_duplicates[] row (never links)' {
             InModuleScope AITriad -Parameters @{ TaxDir = $script:emptyTaxDir; DataRoot = $script:emptyDataRoot; EntPath = $script:entPath; EmbPath = $script:embPath; SeiPath = $script:seiPath; LogPath = $script:logPath } {
                 param($TaxDir, $DataRoot, $EntPath, $EmbPath, $SeiPath, $LogPath)
 
                 Mock Get-UsageRegistry -MockWith { [PSCustomObject]@{ 'enrichment.entity-extraction' = @{} } }
                 Mock Get-TaxonomyDir -MockWith ({ $TaxDir }.GetNewClosure())
                 Mock Get-DataRoot -MockWith ({ $DataRoot }.GetNewClosure())
-                # Controlled embeddings: the two partnership phrasings collapse to the same
-                # direction (~[1,0]); the unrelated entity is orthogonal (~[0,1]). No exact
-                # name/alias overlap between node-1 and node-2, so ONLY the within-run cosine
-                # stage can link them — this test FIRES that stage (t/1880#3 req 1).
+                # `Gemini 3.5 Flash` <-> `Gemini 3.6 Flash` score 0.97 on the real embedder
+                # (TL measurement, t/1881) — a SIBLING pair that must NOT merge: auto-linking
+                # would destroy a distinct entity. Controlled mock reproduces the high-cosine
+                # shape (both gemini names ~[1,0]; the unrelated entity orthogonal ~[0,1]).
                 Mock Get-TextEmbedding -MockWith {
                     param($Texts, $Ids)
                     $out = @{}
                     $t = @($Texts); $ids = @($Ids)
                     for ($k = 0; $k -lt $t.Count; $k++) {
                         $s = ([string]$t[$k]).ToLowerInvariant()
-                        $vec = if ($s -match 'openai' -or $s -match 'nvidia' -or $s -match 'partnership') { @(1.0, 0.02) } else { @(0.02, 1.0) }
+                        $vec = if ($s -match 'gemini') { @(1.0, 0.02) } else { @(0.02, 1.0) }
                         $out[[string]$ids[$k]] = $vec
                     }
                     $out
@@ -471,9 +471,9 @@ Describe 'Invoke-EntityExtraction (t/1806 Phase 1)' -Tag 'unit' {
                 Mock Invoke-AIByUsage -MockWith {
                     param($UsageId, $Values, $Override, $ApiKey, $FallbackModels)
                     switch ($Values.node_id) {
-                        'node-1' { [PSCustomObject]@{ Text = '{"proposals":[{"name":"OpenAI-NVIDIA $100 billion investment partnership","entity_type":"event","aliases":[],"quote":"q","confidence":0.9}],"org_mentions":[]}'; Model = 'stub' } }
-                        'node-2' { [PSCustomObject]@{ Text = '{"proposals":[{"name":"OpenAI-NVIDIA partnership announcement September 2025","entity_type":"event","aliases":[],"quote":"q","confidence":0.9}],"org_mentions":[]}'; Model = 'stub' } }
-                        'node-3' { [PSCustomObject]@{ Text = '{"proposals":[{"name":"Quantum Widget Initiative","entity_type":"artifact","aliases":[],"quote":"q","confidence":0.9}],"org_mentions":[]}'; Model = 'stub' } }
+                        'node-1' { [PSCustomObject]@{ Text = '{"proposals":[{"name":"Gemini 3.5 Flash","entity_type":"artifact","aliases":[],"quote":"q","confidence":0.9}],"org_mentions":[]}'; Model = 'stub' } }
+                        'node-2' { [PSCustomObject]@{ Text = '{"proposals":[{"name":"Gemini 3.6 Flash","entity_type":"artifact","aliases":[],"quote":"q","confidence":0.9}],"org_mentions":[]}'; Model = 'stub' } }
+                        'node-3' { [PSCustomObject]@{ Text = '{"proposals":[{"name":"Boeing 737 MAX","entity_type":"artifact","aliases":[],"quote":"q","confidence":0.9}],"org_mentions":[]}'; Model = 'stub' } }
                         default  { [PSCustomObject]@{ Text = '{"proposals":[],"org_mentions":[]}'; Model = 'stub' } }
                     }
                 }
@@ -481,20 +481,29 @@ Describe 'Invoke-EntityExtraction (t/1806 Phase 1)' -Tag 'unit' {
                 $r = Invoke-EntityExtraction -NodeId 'node-1', 'node-2', 'node-3' -Concurrency 1 `
                     -EntitiesPath $EntPath -EmbeddingsPath $EmbPath -SourceEvidenceIndexPath $SeiPath -OutputPath $LogPath -Confirm:$false
 
-                $r.Minted | Should -Be 2 -Because 'the partnership near-variant links; the partnership head and the unrelated entity mint'
-                $r.Linked | Should -Be 1
+                $r.Minted | Should -Be 3 -Because 'the sibling pair must NOT merge — both mint, plus the unrelated entity'
+                $r.Linked | Should -Be 0 -Because 'the near-variant cosine stage is advisory: it surfaces, it never links'
 
-                $linked = $r.LinkedDispositions | Where-Object { $_.proposal_name -eq 'OpenAI-NVIDIA partnership announcement September 2025' }
-                $linked        | Should -Not -BeNullOrEmpty
-                $linked.reason | Should -Match '^within-run-cosine' -Because 'the near-variant is caught by within-run cosine, NOT exact matching'
-                $partnership = $r.MintedEntities | Where-Object { $_.name -eq 'OpenAI-NVIDIA $100 billion investment partnership' }
-                $linked.matched_id | Should -Be $partnership.id
+                @($r.PossibleDuplicates).Count | Should -Be 1 -Because 'only the high-cosine sibling pair is surfaced; the orthogonal entity is not'
+                $pd = @($r.PossibleDuplicates)[0]
+                $pd.proposal_name | Should -Be 'Gemini 3.6 Flash'
+                $pd.matched_name  | Should -Be 'Gemini 3.5 Flash'
+                $pd.similarity    | Should -BeGreaterThan 0.9
+                $g35 = $r.MintedEntities | Where-Object { $_.name -eq 'Gemini 3.5 Flash' }
+                $g36 = $r.MintedEntities | Where-Object { $_.name -eq 'Gemini 3.6 Flash' }
+                $pd.matched_id   | Should -Be $g35.id -Because 'matched_id points at the earlier-minted sibling'
+                $pd.candidate_id | Should -Be $g36.id -Because 'candidate_id is the newly-minted proposal that triggered the surface'
 
-                $widget = $r.MintedEntities | Where-Object { $_.name -eq 'Quantum Widget Initiative' }
-                $widget | Should -Not -BeNullOrEmpty -Because 'an unrelated (orthogonal) entity must NOT be falsely linked'
+                # Persisted to the sidecar under the NEW proposal's node
+                $log = Get-Content -Raw -Path $LogPath | ConvertFrom-Json
+                $node2 = $log.nodes | Where-Object { $_.node_id -eq 'node-2' }
+                @($node2.possible_duplicates).Count | Should -Be 1
+                @($node2.possible_duplicates)[0].matched_name | Should -Be 'Gemini 3.5 Flash'
+                $log._schema_version | Should -Be '1.2.0' -Because 'the additive possible_duplicates[] field bumps the log schema'
 
+                # Both siblings persist as DISTINCT records — nothing was destroyed
                 $store = Get-Content -Raw -Path $EntPath | ConvertFrom-Json
-                @($store.entities).Count | Should -Be 2
+                @($store.entities).Count | Should -Be 3
             }
         }
     }
