@@ -1,0 +1,11 @@
+/* PromptsPanel — inline-style migration (t/1868). Values verbatim; no theme change. */
+
+.prompts-panel-search-wrap {
+  padding: 4px 8px 2px;
+}
+
+.prompts-panel-item-match {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-left: 4px;
+}

@@ -109,6 +109,7 @@ export function CommentHighlightedText({ text, entryId, activeTier }: CommentHig
                 key={i}
                 data-comment-highlight={topComment.id}
                 className={`comment-highlight${isResolved ? ' comment-highlight-resolved' : ''}${isFocused ? ' comment-highlight-focused' : ''}`}
+                // eslint-disable-next-line local/no-inline-style -- dynamic comment-type color + stack height
                 style={{
                   borderBottomColor: meta.color,
                   borderBottomWidth: stackHeight,
@@ -454,7 +455,11 @@ function CommentTooltip({ comments }: { comments: Comment[] }) {
         const meta = COMMENT_TYPE_META[c.type];
         return (
           <div key={c.id} className="comment-tooltip-item">
-            <span className="comment-tooltip-badge" style={{ background: meta.color }}>
+            <span
+              className="comment-tooltip-badge"
+              // eslint-disable-next-line local/no-inline-style -- dynamic comment-type color
+              style={{ background: meta.color }}
+            >
               {meta.icon} {meta.label}
             </span>
             <span className="comment-tooltip-author">{c.author}</span>

@@ -8,6 +8,7 @@ import { useChatStore } from '../../hooks/useChatStore';
 import { initDebateSessions } from '../../hooks/useDebateStore';
 import { parseHashParams } from '../../lib/parseHash';
 import { ChatTab } from './ChatTab';
+import './ChatWindow.css';
 
 export function ChatWindow() {
   const [ready, setReady] = useState(false);
@@ -47,14 +48,14 @@ export function ChatWindow() {
 
   if (!ready) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--text-muted, #888)' }}>
+      <div className="chat-window-loading">
         Loading...
       </div>
     );
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="chat-window-root">
       <ChatTab />
     </div>
   );

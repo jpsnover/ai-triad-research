@@ -24,6 +24,7 @@ import { api } from '@bridge';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { remarkColorizePov } from '../../utils/colorizePovPlugin';
+import './ChatTab.css';
 
 const MODE_LABELS: Record<ChatMode, string> = {
   brainstorm: 'Brainstorm',
@@ -87,6 +88,7 @@ export function ChatTab() {
       {/* Left pane: Session list OR toolbar panel */}
       {toolbarPanel ? (
         <div className={`list-panel${isFullWidthPanel(toolbarPanel, promptInspectorActive) ? ' list-panel-full' : ''}`}
+             // eslint-disable-next-line local/no-inline-style -- dynamic resizable panel width
              style={isFullWidthPanel(toolbarPanel, promptInspectorActive) ? undefined : { width }}>
           {isPhone && <PhoneToolClose />}
           <ToolbarPaneRenderer
@@ -102,7 +104,11 @@ export function ChatTab() {
           <span className="pane-collapsed-label">Chats</span>
         </div>
       ) : (
-        <div className="list-panel chat-session-list" style={{ width }}>
+        <div
+          className="list-panel chat-session-list"
+          // eslint-disable-next-line local/no-inline-style -- dynamic resizable panel width
+          style={{ width }}
+        >
           <div className="list-panel-header">
             <h2>Chats</h2>
             <div className="list-panel-header-actions">
@@ -119,7 +125,7 @@ export function ChatTab() {
             <button className={`list-view-tab${listView === 'community' ? ' active' : ''}`} onClick={() => setListView('community')}>Community ({communityChats.length})</button>
           </div>
           {chatError && isPhone && !activeChatId && (
-            <div className="chat-error" style={{ margin: '8px', fontSize: '0.8rem' }}>{chatError}</div>
+            <div className="chat-error chat-tab-error-inline">{chatError}</div>
           )}
           {listView === 'my' ? (
             <div className="list-panel-items">
@@ -175,7 +181,11 @@ export function ChatTab() {
                     <span className={`chat-mode-badge mode-${s.mode}`}>
                       {MODE_LABELS[s.mode] || s.mode}
                     </span>
-                    <span className="chat-session-pover" style={{ color: POVER_INFO[s.pover]?.color }}>
+                    <span
+                      className="chat-session-pover"
+                      // eslint-disable-next-line local/no-inline-style -- dynamic POVer camp color
+                      style={{ color: POVER_INFO[s.pover]?.color }}
+                    >
                       {POVER_INFO[s.pover]?.label || s.pover}
                     </span>
                     {s.id === activeChatId && chatGenerating ? (
@@ -194,7 +204,7 @@ export function ChatTab() {
                       <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}>No</button>
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 2 }} onClick={(e) => e.stopPropagation()}>
+                    <div className="chat-session-item-actions" onClick={(e) => e.stopPropagation()}>
                       <CopyLinkButton hash={`#chat-window?id=${s.id}`} title="Copy link to this chat" />
                       <button
                         className="chat-session-item-delete"
@@ -230,14 +240,13 @@ export function ChatTab() {
                       </span>
                     )}
                     {cc.community_metadata?.submitted_by_display && (
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{cc.community_metadata.submitted_by_display}</span>
+                      <span className="chat-community-submitter">{cc.community_metadata.submitted_by_display}</span>
                     )}
                     <span className="chat-session-item-date">{formatDate(cc.updated_at)}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 2 }}>
+                  <div className="chat-community-copy-row">
                     <button
-                      className="btn btn-sm"
-                      style={{ fontSize: '0.7rem', padding: '1px 6px' }}
+                      className="btn btn-sm chat-community-copy-btn"
                       disabled={copyingId === cc.id}
                       onClick={async (e) => {
                         e.stopPropagation();
@@ -380,7 +389,7 @@ function CommunityChatDetail({ chat }: { chat: CommunityChat }) {
       <div className="debate-detail-header">
         <div>
           <h2 className="debate-detail-title">{chat.title}</h2>
-          <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', userSelect: 'all' }}>{chat.id}</span>
+          <span className="community-chat-id">{chat.id}</span>
         </div>
         {chat.mode && (
           <span className={`chat-mode-badge mode-${chat.mode}`}>
@@ -389,15 +398,19 @@ function CommunityChatDetail({ chat }: { chat: CommunityChat }) {
         )}
       </div>
 
-      {loading && <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic', padding: '8px 0' }}>Loading chat...</p>}
-      {error && <p style={{ color: 'var(--danger, #ef4444)', fontSize: '0.85rem', padding: '8px 0' }}>{error}</p>}
+      {loading && <p className="community-chat-loading">Loading chat...</p>}
+      {error && <p className="community-chat-error">{error}</p>}
 
       {/* POVer + Topic */}
       {full && poverInfo && (
         <div className="debate-detail-debaters-row">
           <h3>Talking to</h3>
           <div className="debate-detail-povers">
-            <span className="debate-detail-pover" style={{ borderColor: poverInfo.color }}>
+            <span
+              className="debate-detail-pover"
+              // eslint-disable-next-line local/no-inline-style -- dynamic POVer camp color
+              style={{ borderColor: poverInfo.color }}
+            >
               {poverInfo.label}
             </span>
           </div>
@@ -414,8 +427,7 @@ function CommunityChatDetail({ chat }: { chat: CommunityChat }) {
 
       {/* Meta grid — collapsed by default */}
       <button
-        className="btn-xs btn-ghost"
-        style={{ alignSelf: 'flex-start', marginBottom: 4 }}
+        className="btn-xs btn-ghost community-meta-toggle"
         onClick={() => setMetadataExpanded(v => !v)}
       >
         {metadataExpanded ? 'Details ▾' : 'Details ▸'}
@@ -477,14 +489,18 @@ function CommunityChatDetail({ chat }: { chat: CommunityChat }) {
       {full?.transcript && full.transcript.length > 0 && (
         <div className="community-chat-transcript">
           <h3>Conversation</h3>
-          <div className="chat-transcript" style={{ maxHeight: 'none' }}>
+          <div className="chat-transcript community-chat-transcript-scroll">
             {full.transcript.map((entry) => {
               const color = speakerColor(entry.speaker);
               const isUser = entry.speaker === 'user';
               return (
                 <div key={entry.id} className={`chat-message chat-speaker-${entry.speaker}${isUser ? ' chat-message-user' : ''}`}>
                   <div className="chat-message-header">
-                    <span className="chat-message-speaker" style={color ? { color } : undefined}>
+                    <span
+                      className="chat-message-speaker"
+                      // eslint-disable-next-line local/no-inline-style -- dynamic speaker color
+                      style={color ? { color } : undefined}
+                    >
                       {speakerLabel(entry.speaker)}
                     </span>
                   </div>

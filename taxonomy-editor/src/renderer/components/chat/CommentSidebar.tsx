@@ -146,6 +146,7 @@ function CommentFilterBar({
                   <button
                     key={type}
                     className={`comment-filter-pill${active ? ' active' : ''}`}
+                    // eslint-disable-next-line local/no-inline-style -- dynamic comment-type color
                     style={active ? { background: meta.color, color: '#fff' } : {}}
                     onClick={() => onToggleType(type)}
                     title={meta.label}
@@ -251,7 +252,11 @@ function CommentCard({
       className={`comment-card${comment.resolved ? ' comment-card-resolved' : ''}${focused ? ' comment-card-focused' : ''}`}
     >
       <div className="comment-card-header">
-        <span className="comment-type-badge" style={{ background: meta.color }}>
+        <span
+          className="comment-type-badge"
+          // eslint-disable-next-line local/no-inline-style -- dynamic comment-type color
+          style={{ background: meta.color }}
+        >
           {meta.icon} {meta.label}
         </span>
         <span className="comment-card-meta">

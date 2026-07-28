@@ -1,0 +1,8 @@
+/* NewChatDialog — inline-style migration (t/1868). Values verbatim; no theme change. */
+
+.new-chat-model-fields {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}

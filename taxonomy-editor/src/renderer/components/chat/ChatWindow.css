@@ -1,0 +1,15 @@
+/* ChatWindow — inline-style migration (t/1868). Values verbatim; no theme change. */
+
+.chat-window-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  color: var(--text-muted, #888);
+}
+
+.chat-window-root {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}

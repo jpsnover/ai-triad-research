@@ -1,0 +1,67 @@
+/* ChatTab — inline-style migration (t/1868). Values verbatim from prior style props; no theme change. */
+
+/* L122 — phone error bar inline overrides */
+.chat-tab-error-inline {
+  margin: 8px;
+  font-size: 0.8rem;
+}
+
+/* L197 — session item action row */
+.chat-session-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* L233 — community submitter label */
+.chat-community-submitter {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* L237 — community copy-to-my row */
+.chat-community-copy-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+/* L240 — community copy-to-my button */
+.chat-community-copy-btn {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+}
+
+/* L383 — community chat id (selectable monospace) */
+.community-chat-id {
+  font-family: monospace;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  user-select: all;
+}
+
+/* L392 — community detail loading line */
+.community-chat-loading {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-style: italic;
+  padding: 8px 0;
+}
+
+/* L393 — community detail error line */
+.community-chat-error {
+  color: var(--danger, #ef4444);
+  font-size: 0.85rem;
+  padding: 8px 0;
+}
+
+/* L418 — community metadata toggle button */
+.community-meta-toggle {
+  align-self: flex-start;
+  margin-bottom: 4px;
+}
+
+/* L480 — community transcript scroll (uncap height) */
+.community-chat-transcript-scroll {
+  max-height: none;
+}

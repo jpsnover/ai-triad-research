@@ -522,7 +522,11 @@ export function ChatWorkspace() {
       {selectedNode && (
         <>
         <div className="resize-handle" onMouseDown={onDetailResize} onTouchStart={onDetailTouchStart} />
-        <div className="chat-detail-pane" style={{ width: detailWidth }}>
+        <div
+          className="chat-detail-pane"
+          // eslint-disable-next-line local/no-inline-style -- dynamic resizable panel width
+          style={{ width: detailWidth }}
+        >
           <button className="chat-detail-close" onClick={() => setSelectedRefNodeId(null)} title="Close detail pane" aria-label="Close">&times;</button>
           {selectedNode.type === 'pov' ? (
             <NodeDetail pov={selectedNode.pov} node={selectedNode.node} readOnly />

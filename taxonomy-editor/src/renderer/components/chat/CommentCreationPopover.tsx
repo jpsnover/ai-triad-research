@@ -133,7 +133,12 @@ export function CommentCreationPopover({ popover, onClose }: CommentCreationPopo
     : popover.selectedText;
 
   return (
-    <div ref={panelRef} className="comment-creation-popover" style={style}>
+    <div
+      ref={panelRef}
+      className="comment-creation-popover"
+      // eslint-disable-next-line local/no-inline-style -- dynamic computed popover position
+      style={style}
+    >
       <div className="comment-popover-header">
         <span className="comment-popover-title">Add Comment</span>
         <button className="comment-popover-close" onClick={onClose} title="Cancel (Esc)" aria-label="Cancel">&times;</button>
@@ -178,6 +183,7 @@ export function CommentCreationPopover({ popover, onClose }: CommentCreationPopo
             <button
               key={type}
               className={`comment-type-pill${selectedType === type ? ' comment-type-pill-active' : ''}`}
+              // eslint-disable-next-line local/no-inline-style -- dynamic comment-type color
               style={selectedType === type ? { borderColor: meta.color, background: meta.color + '18' } : undefined}
               onClick={() => setSelectedType(type)}
               title={meta.label}

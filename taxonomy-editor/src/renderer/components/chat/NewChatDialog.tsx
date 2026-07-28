@@ -13,6 +13,7 @@ import type { SpeakerId } from '../../types/debate';
 import type { ChatMode } from '../../types/chat';
 import { CHAT_MODE_INFO } from '../../types/chat';
 import { AI_POVERS } from '@lib/debate/types';
+import './NewChatDialog.css';
 
 interface NewChatDialogProps {
   onClose: () => void;
@@ -107,7 +108,11 @@ export function NewChatDialog({ onClose }: NewChatDialogProps) {
                   checked={pover === id}
                   onChange={() => setPover(id)}
                 />
-                <span className="new-chat-pover-name" style={{ color: info.color }}>
+                <span
+                  className="new-chat-pover-name"
+                  // eslint-disable-next-line local/no-inline-style -- dynamic POVer color
+                  style={{ color: info.color }}
+                >
                   {info.label}
                 </span>
                 <span className="new-chat-pover-desc">{info.personality}</span>
@@ -137,7 +142,7 @@ export function NewChatDialog({ onClose }: NewChatDialogProps) {
             Use a different model for this chat
           </label>
           {useCustomModel && (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+            <div className="new-chat-model-fields">
               <select
                 className="new-chat-model-select"
                 value={selectedBackend}

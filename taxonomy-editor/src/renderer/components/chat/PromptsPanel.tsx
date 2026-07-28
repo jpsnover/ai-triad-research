@@ -20,6 +20,7 @@ const GROUP_LABELS: Record<PromptGroup, string> = {
   'powershell': 'PowerShell Backend',
 };
 import { PromptInspector } from './PromptInspector';
+import './PromptsPanel.css';
 
 interface PromptsPanelProps {
   onSelectPrompt: (entry: PromptCatalogEntry | null) => void;
@@ -125,7 +126,7 @@ export function PromptsPanel({ onSelectPrompt, onInspectorToggle }: PromptsPanel
         <PromptInspector />
       ) : (
       <>
-      <div style={{ padding: '4px 8px 2px' }}>
+      <div className="prompts-panel-search-wrap">
         <SearchWithHistory
           area="prompts"
           inputRef={searchRef}
@@ -158,7 +159,7 @@ export function PromptsPanel({ onSelectPrompt, onInspectorToggle }: PromptsPanel
                   <span className="prompts-panel-item-title">{entry.title}</span>
                   <span className="prompts-panel-item-source">{entry.source}</span>
                   {matchFields.has(entry.id) && (
-                    <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginLeft: 4 }}>
+                    <span className="prompts-panel-item-match">
                       {matchFields.get(entry.id)!.join(', ')}
                     </span>
                   )}
