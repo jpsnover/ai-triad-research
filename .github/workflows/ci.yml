@@ -209,8 +209,7 @@ jobs:
           - app: taxonomy-editor
             baseline: ""
           - app: poviewer
-            # GHSA-mh99-v99m-4gvg  brace-expansion DoS, transitive via gaxios→rimraf→glob→minimatch. owner: project/TL → t/1802
-            baseline: "GHSA-mh99-v99m-4gvg"
+            baseline: ""
           - app: summary-viewer
             baseline: ""
           - app: workflow-app
