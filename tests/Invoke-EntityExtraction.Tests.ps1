@@ -33,6 +33,11 @@ Describe 'Invoke-EntityExtraction (t/1806 Phase 1)' -Tag 'unit' {
         $script:embPath = Join-Path $script:workDir 'entity_embeddings.json'
         $script:logPath = Join-Path $script:workDir 'entity_extraction_log.json'
         $script:seiPath = Join-Path $script:workDir 'source_evidence_index.json'
+
+        # Default: the embedder returns nothing, so the cosine stages no-op unless a test
+        # opts in with its own Get-TextEmbedding mock. Keeps the existing tests hermetic
+        # now that per-node batch encoding (t/1880#3 Option A) calls it for every node.
+        Mock Get-TextEmbedding -ModuleName AITriad -MockWith { @{} }
     }
 
     Context 'Runtime guard — UsageID not yet registered (t/1819 dependency)' {
@@ -387,6 +392,109 @@ Describe 'Invoke-EntityExtraction (t/1806 Phase 1)' -Tag 'unit' {
                 $r3 = Invoke-EntityExtraction -Concurrency 1 -Force -EntitiesPath $EntPath -EmbeddingsPath $EmbPath -SourceEvidenceIndexPath $SeiPath -OutputPath $LogPath -Confirm:$false
                 $r3.SkippedAlreadyDone | Should -Be 0
                 $r3.NodesProcessed     | Should -Be 1
+            }
+        }
+    }
+
+    Context 'Within-run dedup that exact-name matching missed (t/1880)' {
+
+        BeforeEach {
+            # Three fresh proposals minted in the SAME run — no pre-existing store, so
+            # nothing is approved and entity_embeddings.json is empty (the live Phase-1
+            # state). node-1 sorts first and mints first.
+            $seiContent = @{
+                'node-1' = @{ facts = @(@{ claim = 'The plan was announced.'; doc_id = 'doc-1' }) }
+                'node-2' = @{ facts = @(@{ claim = 'A related announcement.'; doc_id = 'doc-2' }) }
+                'node-3' = @{ facts = @(@{ claim = 'An unrelated thing.'; doc_id = 'doc-3' }) }
+            }
+            ($seiContent | ConvertTo-Json -Depth 8) | Set-Content -Path $script:seiPath -Encoding utf8NoBOM
+        }
+
+        It 'Bullet 1 — links a proposal whose NAME equals an earlier within-run mint''s ALIAS (exact, no embeddings)' {
+            InModuleScope AITriad -Parameters @{ TaxDir = $script:emptyTaxDir; DataRoot = $script:emptyDataRoot; EntPath = $script:entPath; EmbPath = $script:embPath; SeiPath = $script:seiPath; LogPath = $script:logPath } {
+                param($TaxDir, $DataRoot, $EntPath, $EmbPath, $SeiPath, $LogPath)
+
+                Mock Get-UsageRegistry -MockWith { [PSCustomObject]@{ 'enrichment.entity-extraction' = @{} } }
+                Mock Get-TaxonomyDir -MockWith ({ $TaxDir }.GetNewClosure())
+                Mock Get-DataRoot -MockWith ({ $DataRoot }.GetNewClosure())
+                # Embedder returns nothing (BeforeEach default) so the cosine stages CANNOT
+                # fire — the link must come from the name-vs-alias exact index (t/1880 bullet 1).
+                Mock Invoke-AIByUsage -MockWith {
+                    param($UsageId, $Values, $Override, $ApiKey, $FallbackModels)
+                    switch ($Values.node_id) {
+                        'node-1' { [PSCustomObject]@{ Text = '{"proposals":[{"name":"Trump Administration AI Action Plan (July 2025)","entity_type":"legislation","aliases":["AI Action Plan"],"quote":"q","confidence":0.9}],"org_mentions":[]}'; Model = 'stub' } }
+                        'node-2' { [PSCustomObject]@{ Text = '{"proposals":[{"name":"AI Action Plan","entity_type":"legislation","aliases":["Trump AI Action Plan"],"quote":"q","confidence":0.9}],"org_mentions":[]}'; Model = 'stub' } }
+                        default  { [PSCustomObject]@{ Text = '{"proposals":[],"org_mentions":[]}'; Model = 'stub' } }
+                    }
+                }
+
+                $r = Invoke-EntityExtraction -NodeId 'node-1', 'node-2' -Concurrency 1 `
+                    -EntitiesPath $EntPath -EmbeddingsPath $EmbPath -SourceEvidenceIndexPath $SeiPath -OutputPath $LogPath -Confirm:$false
+
+                $r.Minted | Should -Be 1 -Because '"AI Action Plan" (node-2 name) equals an alias of the node-1 mint and links instead of minting'
+                $r.Linked | Should -Be 1
+
+                $linked = $r.LinkedDispositions | Where-Object { $_.proposal_name -eq 'AI Action Plan' }
+                $linked           | Should -Not -BeNullOrEmpty
+                $linked.reason    | Should -Be 'within-run-dedup'
+                $linked.matched_kind | Should -Be 'entity'
+                $minted = $r.MintedEntities | Where-Object { $_.name -eq 'Trump Administration AI Action Plan (July 2025)' }
+                $linked.matched_id | Should -Be $minted.id
+
+                $store = Get-Content -Raw -Path $EntPath | ConvertFrom-Json
+                @($store.entities).Count | Should -Be 1 -Because 'the alias collision minted exactly one entity'
+            }
+        }
+
+        It 'Bullet 2 / Option A — links a NEAR-VARIANT with no name/alias overlap via within-run cosine (fires with ZERO approved entities)' {
+            InModuleScope AITriad -Parameters @{ TaxDir = $script:emptyTaxDir; DataRoot = $script:emptyDataRoot; EntPath = $script:entPath; EmbPath = $script:embPath; SeiPath = $script:seiPath; LogPath = $script:logPath } {
+                param($TaxDir, $DataRoot, $EntPath, $EmbPath, $SeiPath, $LogPath)
+
+                Mock Get-UsageRegistry -MockWith { [PSCustomObject]@{ 'enrichment.entity-extraction' = @{} } }
+                Mock Get-TaxonomyDir -MockWith ({ $TaxDir }.GetNewClosure())
+                Mock Get-DataRoot -MockWith ({ $DataRoot }.GetNewClosure())
+                # Controlled embeddings: the two partnership phrasings collapse to the same
+                # direction (~[1,0]); the unrelated entity is orthogonal (~[0,1]). No exact
+                # name/alias overlap between node-1 and node-2, so ONLY the within-run cosine
+                # stage can link them — this test FIRES that stage (t/1880#3 req 1).
+                Mock Get-TextEmbedding -MockWith {
+                    param($Texts, $Ids)
+                    $out = @{}
+                    $t = @($Texts); $ids = @($Ids)
+                    for ($k = 0; $k -lt $t.Count; $k++) {
+                        $s = ([string]$t[$k]).ToLowerInvariant()
+                        $vec = if ($s -match 'openai' -or $s -match 'nvidia' -or $s -match 'partnership') { @(1.0, 0.02) } else { @(0.02, 1.0) }
+                        $out[[string]$ids[$k]] = $vec
+                    }
+                    $out
+                }
+                Mock Invoke-AIByUsage -MockWith {
+                    param($UsageId, $Values, $Override, $ApiKey, $FallbackModels)
+                    switch ($Values.node_id) {
+                        'node-1' { [PSCustomObject]@{ Text = '{"proposals":[{"name":"OpenAI-NVIDIA $100 billion investment partnership","entity_type":"event","aliases":[],"quote":"q","confidence":0.9}],"org_mentions":[]}'; Model = 'stub' } }
+                        'node-2' { [PSCustomObject]@{ Text = '{"proposals":[{"name":"OpenAI-NVIDIA partnership announcement September 2025","entity_type":"event","aliases":[],"quote":"q","confidence":0.9}],"org_mentions":[]}'; Model = 'stub' } }
+                        'node-3' { [PSCustomObject]@{ Text = '{"proposals":[{"name":"Quantum Widget Initiative","entity_type":"artifact","aliases":[],"quote":"q","confidence":0.9}],"org_mentions":[]}'; Model = 'stub' } }
+                        default  { [PSCustomObject]@{ Text = '{"proposals":[],"org_mentions":[]}'; Model = 'stub' } }
+                    }
+                }
+
+                $r = Invoke-EntityExtraction -NodeId 'node-1', 'node-2', 'node-3' -Concurrency 1 `
+                    -EntitiesPath $EntPath -EmbeddingsPath $EmbPath -SourceEvidenceIndexPath $SeiPath -OutputPath $LogPath -Confirm:$false
+
+                $r.Minted | Should -Be 2 -Because 'the partnership near-variant links; the partnership head and the unrelated entity mint'
+                $r.Linked | Should -Be 1
+
+                $linked = $r.LinkedDispositions | Where-Object { $_.proposal_name -eq 'OpenAI-NVIDIA partnership announcement September 2025' }
+                $linked        | Should -Not -BeNullOrEmpty
+                $linked.reason | Should -Match '^within-run-cosine' -Because 'the near-variant is caught by within-run cosine, NOT exact matching'
+                $partnership = $r.MintedEntities | Where-Object { $_.name -eq 'OpenAI-NVIDIA $100 billion investment partnership' }
+                $linked.matched_id | Should -Be $partnership.id
+
+                $widget = $r.MintedEntities | Where-Object { $_.name -eq 'Quantum Widget Initiative' }
+                $widget | Should -Not -BeNullOrEmpty -Because 'an unrelated (orthogonal) entity must NOT be falsely linked'
+
+                $store = Get-Content -Raw -Path $EntPath | ConvertFrom-Json
+                @($store.entities).Count | Should -Be 2
             }
         }
     }

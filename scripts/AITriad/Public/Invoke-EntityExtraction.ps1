@@ -50,13 +50,20 @@ function Invoke-EntityExtraction {
              dictionary (colloquial_term + standardized canonical_form), and policy
              actions (action text).
           2. Cosine >= -LinkSimilarityThreshold (default 0.60) against EXISTING ENTITY
-             vectors only (entity_embeddings.json).
-          A match records a `linked` disposition in the run report and mints nothing —
-          links are Phase 2. An unmatched proposal is queued for minting; two proposals
-          (from the same or different nodes) that normalize to the same new name mint
-          ONCE per run (within-run dedup) and every later occurrence is recorded as
-          `linked` to the id just minted. Minting happens in sub-batches of <= 20
-          (Import-Entity's ValidateCount ceiling).
+             vectors only (entity_embeddings.json, approved-only per Import-Entity §3).
+          3. Within-run EXACT dedup: the proposal's normalized name OR any alias matches
+             an already-minted within-run candidate's name OR alias (t/1880 bullet 1 —
+             the pre-existing MatchIndex never sees freshly-minted siblings).
+          4. Within-run NEAR-VARIANT dedup: cosine >= -WithinRunSimilarityThreshold of the
+             proposal's probe vector against already-minted within-run candidates' probe
+             vectors (t/1880#3 Option A). Independent of step 2 — this stage fires with
+             ZERO approved entities, so it catches same-run near-variants (e.g. two
+             "OpenAI-NVIDIA partnership ..." phrasings) the approved-only cosine cannot.
+          A match (any step) records a `linked` disposition in the run report and mints
+          nothing — links are Phase 2. An unmatched proposal is queued for minting; every
+          later within-run occurrence is recorded as `linked` to the id just minted.
+          Probe vectors are batch-encoded once per node (not per proposal). Minting
+          happens in sub-batches of <= 20 (Import-Entity's ValidateCount ceiling).
 
         IDEMPOTENCE: an entity_extraction_log.json sidecar (mirrors organization_stance_
         claims.json's role for Invoke-OrgStanceExtraction) records every successfully
@@ -84,6 +91,13 @@ function Invoke-EntityExtraction {
     .PARAMETER LinkSimilarityThreshold
         Minimum cosine similarity against an existing entity vector to link instead
         of mint. Default 0.60.
+    .PARAMETER WithinRunSimilarityThreshold
+        Minimum cosine similarity between a proposal and an already-minted WITHIN-RUN
+        candidate (both freshly proposed this run) to link instead of mint — the
+        near-variant dedup stage (t/1880#3 Option A). A DISTINCT knob from
+        -LinkSimilarityThreshold with its own provenance; the default (0.60) is
+        provisional pending calibration and is NOT inherited from the existing-entity
+        threshold's justification.
     .PARAMETER EntitiesPath
         Override entities.json path (fixtures/tests). Defaults to Get-EntitiesFilePath.
     .PARAMETER EmbeddingsPath
@@ -141,6 +155,10 @@ function Invoke-EntityExtraction {
         [Parameter()]
         [ValidateRange(0.0, 1.0)]
         [double]$LinkSimilarityThreshold = 0.60,
+
+        [Parameter()]
+        [ValidateRange(0.0, 1.0)]
+        [double]$WithinRunSimilarityThreshold = 0.60,
 
         [Parameter()]
         [string]$EntitiesPath,
@@ -543,11 +561,51 @@ function Invoke-EntityExtraction {
     # gate drop anything good? Persisted to the sidecar log per node (t/1830 #3).
     $DroppedProposals = [System.Collections.Generic.List[PSObject]]::new()
 
-    # Mint candidates, deduped by normalized name WITHIN this run.
+    # Mint candidates, deduped WITHIN this run.
     $MintCandidates = [System.Collections.Generic.List[PSObject]]::new()
-    $MintIndexByName = @{}   # normalized name -> index into $MintCandidates
+    # Within-run dedup index: normalized name OR alias -> index into $MintCandidates.
+    # (t/1880 bullet 1: was name-only, so a proposal whose name equalled an earlier
+    # within-run mint's ALIAS — or vice-versa — slipped through. MatchIndex holds only
+    # PRE-existing records, so freshly-minted siblings need their own index.)
+    $MintIndexByKey = @{}
+    # Within-run candidate probe vectors for the near-variant cosine stage (t/1880#3
+    # Option A): candidate index -> probe vector. Compared candidate<->candidate, so it
+    # fires with ZERO approved entities — unlike the existing-entity cosine (step 2),
+    # which is inert until an approval writes the first vector into entity_embeddings.json.
+    $CandidateVectors = @{}
 
     foreach ($Node in $SortedResults) {
+        # Batch-encode this node's above-gate proposal names in ONE embedding call
+        # (t/1880#3 req: per-node batch encode, not per-proposal cold-starts). Feeds
+        # BOTH the existing-entity cosine (step 2) and the within-run cosine (step 4).
+        # Best-effort: if the embedder is unavailable the map stays empty and both
+        # cosine stages no-op (surfaced via Write-Warning, not silent) — exact/alias
+        # dedup still runs. Keyed by normalized name (intra-node same-name collapses).
+        $NodeProbeVecByNorm = @{}
+        $NodeEncodeNames = @{}
+        foreach ($pp in @($Node.Proposals)) {
+            if ($pp.confidence -ge $ConfidenceThreshold) {
+                $ppNorm = & $Normalize $pp.name
+                if (-not [string]::IsNullOrEmpty($ppNorm)) { $NodeEncodeNames[$ppNorm] = [string]$pp.name }
+            }
+        }
+        if ($NodeEncodeNames.Count -gt 0) {
+            try {
+                $encIds   = @($NodeEncodeNames.Keys)
+                $encTexts = @($encIds | ForEach-Object { $NodeEncodeNames[$_] })
+                $encMap = Get-TextEmbedding -Texts $encTexts -Ids $encIds
+                if ($encMap) {
+                    foreach ($k in $encIds) {
+                        if ($encMap.ContainsKey($k) -and @($encMap[$k]).Count -gt 0) {
+                            $NodeProbeVecByNorm[$k] = [double[]]@($encMap[$k])
+                        }
+                    }
+                }
+            } catch {
+                Write-Warning "Invoke-EntityExtraction: within-run embedding batch failed for node $($Node.NodeId) — cosine dedup skipped for its proposals ($($_.Exception.Message))"
+            }
+        }
+
         foreach ($p in @($Node.Proposals)) {
             $ProposalsTotal++
             if ($p.confidence -lt $ConfidenceThreshold) {
@@ -586,40 +644,67 @@ function Invoke-EntityExtraction {
                 continue
             }
 
-            # 2) Cosine against EXISTING ENTITY vectors only.
-            if ($EntityVectors.Count -gt 0) {
-                $probe = Get-TextEmbedding -Texts @($p.name) -Ids @('probe')
-                if ($probe -and $probe.ContainsKey('probe') -and @($probe['probe']).Count -gt 0) {
-                    $probeVec = [double[]]@($probe['probe'])
-                    $bestSim = -1.0; $bestId = $null
-                    foreach ($eid in $EntityVectors.Keys) {
-                        $sim = Get-CosineSimilarity -A $probeVec -B $EntityVectors[$eid]
-                        if ($sim -gt $bestSim) { $bestSim = $sim; $bestId = $eid }
-                    }
-                    if ($bestId -and $bestSim -ge $LinkSimilarityThreshold) {
-                        $LinkedDispositions.Add([PSCustomObject]@{
-                            node_id        = $Node.NodeId
-                            proposal_name  = $p.name
-                            matched_kind   = 'entity'
-                            matched_id     = $bestId
-                            matched_label  = $EntityNameById[$bestId]
-                            reason         = "cosine>=$LinkSimilarityThreshold (sim=$([math]::Round($bestSim,4)))"
-                        })
-                        continue
-                    }
-                } else {
-                    Write-Verbose "Invoke-EntityExtraction: embedding unavailable for '$($p.name)' — cosine link check skipped"
+            # Shared per-node probe vector (batch-encoded at the top of this node) —
+            # reused by BOTH cosine stages so a proposal is encoded at most once.
+            $probeVec = if ($NodeProbeVecByNorm.ContainsKey($normName)) { $NodeProbeVecByNorm[$normName] } else { $null }
+
+            # 2) Cosine against EXISTING ENTITY vectors only (approved-only store).
+            if ($EntityVectors.Count -gt 0 -and $null -ne $probeVec) {
+                $bestSim = -1.0; $bestId = $null
+                foreach ($eid in $EntityVectors.Keys) {
+                    $sim = Get-CosineSimilarity -A $probeVec -B $EntityVectors[$eid]
+                    if ($sim -gt $bestSim) { $bestSim = $sim; $bestId = $eid }
                 }
+                if ($bestId -and $bestSim -ge $LinkSimilarityThreshold) {
+                    $LinkedDispositions.Add([PSCustomObject]@{
+                        node_id        = $Node.NodeId
+                        proposal_name  = $p.name
+                        matched_kind   = 'entity'
+                        matched_id     = $bestId
+                        matched_label  = $EntityNameById[$bestId]
+                        reason         = "cosine>=$LinkSimilarityThreshold (sim=$([math]::Round($bestSim,4)))"
+                    })
+                    continue
+                }
+            } elseif ($EntityVectors.Count -gt 0 -and $null -eq $probeVec) {
+                Write-Verbose "Invoke-EntityExtraction: embedding unavailable for '$($p.name)' — existing-entity cosine check skipped"
             }
 
-            # 3) Within-run dedup — same normalized name proposed more than once mints ONCE.
-            if ($MintIndexByName.ContainsKey($normName)) {
-                $existingCandidate = $MintCandidates[$MintIndexByName[$normName]]
-                $existingCandidate.OtherOccurrences.Add([PSCustomObject]@{ NodeId = $Node.NodeId; ProposalName = $p.name })
+            # 3) Within-run EXACT dedup — the proposal's normalized name OR any alias
+            #    collides with an already-minted within-run candidate's name/alias
+            #    (t/1880 bullet 1). First matching key wins (name before aliases).
+            $wrIdx = $null
+            foreach ($key in (@($normName) + $normAliases)) {
+                if (-not [string]::IsNullOrEmpty($key) -and $MintIndexByKey.ContainsKey($key)) { $wrIdx = $MintIndexByKey[$key]; break }
+            }
+            if ($null -ne $wrIdx) {
+                $existingCandidate = $MintCandidates[$wrIdx]
+                $existingCandidate.OtherOccurrences.Add([PSCustomObject]@{ NodeId = $Node.NodeId; ProposalName = $p.name; Reason = 'within-run-dedup' })
                 foreach ($d in $Node.DocIds) { [void]$existingCandidate.DocIdSet.Add($d) }
                 # NearGateMinted counts distinct MINTED entities, not raw occurrences —
                 # a dedup'd duplicate is linked, not minted, so it is not counted again here.
                 continue
+            }
+
+            # 4) Within-run NEAR-VARIANT dedup — cosine of this proposal's probe vector
+            #    against already-minted within-run candidates' vectors (t/1880#3 Option A).
+            #    Fires with ZERO approved entities (own threshold, own provenance).
+            if ($null -ne $probeVec -and $CandidateVectors.Count -gt 0) {
+                $bestSim = -1.0; $bestIdx = $null
+                foreach ($ci in $CandidateVectors.Keys) {
+                    $sim = Get-CosineSimilarity -A $probeVec -B $CandidateVectors[$ci]
+                    if ($sim -gt $bestSim) { $bestSim = $sim; $bestIdx = $ci }
+                }
+                if ($null -ne $bestIdx -and $bestSim -ge $WithinRunSimilarityThreshold) {
+                    $matchedCandidate = $MintCandidates[$bestIdx]
+                    $matchedCandidate.OtherOccurrences.Add([PSCustomObject]@{
+                        NodeId       = $Node.NodeId
+                        ProposalName = $p.name
+                        Reason       = "within-run-cosine>=$WithinRunSimilarityThreshold (sim=$([math]::Round($bestSim,4)))"
+                    })
+                    foreach ($d in $Node.DocIds) { [void]$matchedCandidate.DocIdSet.Add($d) }
+                    continue
+                }
             }
 
             $docIdSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
@@ -639,8 +724,14 @@ function Invoke-EntityExtraction {
                 OtherOccurrences  = [System.Collections.Generic.List[object]]::new()
                 MintedId          = $null
             }
-            $MintIndexByName[$normName] = $MintCandidates.Count
+            $newIdx = $MintCandidates.Count
             $MintCandidates.Add($candidate)
+            # Register this candidate's name + aliases for within-run EXACT dedup
+            # (first-writer-wins), and its probe vector for within-run cosine dedup.
+            foreach ($key in (@($normName) + $normAliases)) {
+                if (-not [string]::IsNullOrEmpty($key) -and -not $MintIndexByKey.ContainsKey($key)) { $MintIndexByKey[$key] = $newIdx }
+            }
+            if ($null -ne $probeVec) { $CandidateVectors[$newIdx] = $probeVec }
             if ($nearGate) { $NearGateMinted++ }
         }
     }
@@ -672,13 +763,14 @@ function Invoke-EntityExtraction {
     # Occurrences beyond the first (within-run dedup) link to the freshly minted id.
     foreach ($candidate in $MintCandidates) {
         foreach ($occ in $candidate.OtherOccurrences) {
+            $occReason = if ($occ.PSObject.Properties['Reason'] -and $occ.Reason) { [string]$occ.Reason } else { 'within-run-dedup' }
             $LinkedDispositions.Add([PSCustomObject]@{
                 node_id        = $occ.NodeId
                 proposal_name  = $occ.ProposalName
                 matched_kind   = 'entity'
                 matched_id     = $candidate.MintedId
                 matched_label  = $candidate.Name
-                reason         = 'within-run-dedup'
+                reason         = $occReason
             })
         }
     }
