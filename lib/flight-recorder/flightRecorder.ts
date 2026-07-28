@@ -237,6 +237,11 @@ export class FlightRecorder {
     });
 
     server.listen(pipeName);
+    // Defense-in-depth (DebateTool p/64#21, follow-up to t/1824 b9c56b22): a diagnostic
+    // listener must never keep a process alive on its own. unref() makes this structurally
+    // true, so a future exit path that forgets stopPipeListener() can't reintroduce the
+    // debate-CLI hang (net.Server otherwise keeps the event loop alive until closed).
+    server.unref();
     this._pipeServer = server;
 
     const cleanup = () => {
