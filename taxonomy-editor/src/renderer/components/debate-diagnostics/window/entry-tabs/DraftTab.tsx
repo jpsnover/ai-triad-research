@@ -8,6 +8,7 @@ import { classifyOffScopeDrift, offScopeRepairHint } from '@lib/debate/prompts';
 import { Highlight, CopyButton } from '../helpers';
 import { classifyHintTarget, HINT_TARGET_STYLE, ArtifactBlock } from '../shared';
 import { TaxonomyRefDetail, type TaxRefNode, type TaxRefEdge } from '../../../taxonomy/TaxonomyRefDetail';
+import './DraftTab.css';
 
 interface ArgumentNetwork {
   nodes: ArgumentNetworkNode[];
@@ -82,21 +83,19 @@ export function DraftTab({
 
   if (!draftStage && !entry.content) return null;
 
-  const microFixPreStyle = { margin: '4px 0', padding: 6, background: 'rgba(0,0,0,0.15)', borderRadius: 4, whiteSpace: 'pre-wrap' as const, wordBreak: 'break-word' as const, fontSize: 'var(--text-2xs)', maxHeight: 200, overflow: 'auto' as const };
-
   return (
-    <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+    <div className="draft-root">
       {/* -- Top section: header + content from final draft -- */}
       {draftStage && (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-          <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--success) 20%, transparent)', color: 'var(--success)', fontWeight: 600 }}>DRAFT</span>
+        <div className="draft-header-row">
+          <span className="draft-chip-success">DRAFT</span>
           <span>{draftStage.model}</span>
           <span>temp={draftStage.temperature}</span>
           <span>{(draftStage.response_time_ms / 1000).toFixed(1)}s</span>
         </div>
       )}
       {draftStage?.parse_error && (
-        <div style={{ padding: '6px 8px', margin: '6px 0', background: 'color-mix(in srgb, var(--danger) 10%, transparent)', borderLeft: '3px solid var(--danger)', borderRadius: 4, fontSize: '0.72rem', color: 'var(--danger)' }}>
+        <div className="draft-parse-error">
           <strong>Parse error:</strong> {draftStage.parse_error}
         </div>
       )}
@@ -108,19 +107,21 @@ export function DraftTab({
         const dc = sv?.directive_compliance;
         if (!dc) return null;
         return (
+          // eslint-disable-next-line local/no-inline-style -- compliance-driven border/background
           <div style={{
             margin: '6px 0', padding: '5px 8px', borderRadius: 4, fontSize: '0.7rem',
             borderLeft: `3px solid ${dc.compliant ? 'var(--success)' : 'var(--danger)'}`,
             background: dc.compliant ? 'color-mix(in srgb, var(--success) 6%, transparent)' : 'color-mix(in srgb, var(--danger) 6%, transparent)',
           }}>
+            {/* eslint-disable-next-line local/no-inline-style -- compliance-driven color */}
             <div style={{ fontWeight: 600, color: dc.compliant ? 'var(--success)' : 'var(--danger)', marginBottom: 2 }}>
               {dc.compliant ? '✓ Directive addressed' : '✗ Directive not addressed'}
             </div>
-            {!dc.compliant && <div style={{ color: 'var(--text-secondary)' }}>{dc.repair_hint}</div>}
-            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
+            {!dc.compliant && <div className="draft-text-secondary">{dc.repair_hint}</div>}
+            <div className="draft-terms-note">
               {dc.matched_terms}/{dc.directive_terms.length} directive terms matched
               {dc.directive_terms.length > 0 && (
-                <span style={{ marginLeft: 4 }}>({dc.directive_terms.join(', ')})</span>
+                <span className="draft-ml4">({dc.directive_terms.join(', ')})</span>
               )}
             </div>
           </div>
@@ -128,8 +129,8 @@ export function DraftTab({
       })()}
       {/* Claim Sketches */}
       {draftStage && Array.isArray((draftStage.work_product as Record<string, unknown>).claim_sketches) && (
-        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Claim Sketches</summary>
-          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
+        <details open><summary className="draft-summary">Claim Sketches</summary>
+          <ul className="draft-ul-72">
             {((draftStage.work_product as Record<string, unknown>).claim_sketches as { claim: string; targets: string[] }[]).map((c, i) => (
               <li key={i}>{c.claim}{c.targets?.length > 0 ? ` → ${c.targets.join(', ')}` : ''}</li>
             ))}
@@ -140,11 +141,11 @@ export function DraftTab({
       {((): React.ReactNode => {
         if (!draftStage || !Array.isArray((draftStage.work_product as Record<string, unknown>).key_assumptions)) return null;
         return (
-          <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Key Assumptions</summary>
+          <details open><summary className="draft-summary">Key Assumptions</summary>
             {((draftStage.work_product as Record<string, unknown>).key_assumptions as { assumption: string; if_wrong: string }[]).map((a, i) => (
-              <div key={i} style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid color-mix(in srgb, var(--success) 30%, transparent)' }}>
+              <div key={i} className="draft-assumption">
                 <div><strong>Assumption:</strong> {a.assumption}</div>
-                <div style={{ color: 'var(--text-muted)' }}><strong>If wrong:</strong> {a.if_wrong}</div>
+                <div className="draft-text-muted"><strong>If wrong:</strong> {a.if_wrong}</div>
               </div>
             ))}
           </details>
@@ -152,29 +153,29 @@ export function DraftTab({
       })()}
       {/* Disagreement type */}
       {draftStage && !!(draftStage.work_product as Record<string, unknown>).disagreement_type && (
-        <div style={{ fontSize: '0.72rem', marginTop: 6 }}>
+        <div className="draft-disagreement">
           <strong>Disagreement type:</strong> <Highlight text={String((draftStage.work_product as Record<string, unknown>).disagreement_type)} />
         </div>
       )}
       {/* Statement (from final draft) */}
       {draftStage && !!(draftStage.work_product as Record<string, unknown>).statement && (
-        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Statement</summary>
-          <div style={{ fontSize: '0.75rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+        <details open><summary className="draft-summary">Statement</summary>
+          <div className="draft-statement-body">
             <Highlight text={String((draftStage.work_product as Record<string, unknown>).statement)} />
           </div>
         </details>
       )}
       {/* Fallback: non-pipeline statement (old debates without stage_diagnostics) */}
       {!draftStage && diag && (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-          <span style={{ padding: '1px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--success) 20%, transparent)', color: 'var(--success)', fontWeight: 600 }}>STATEMENT</span>
+        <div className="draft-header-row">
+          <span className="draft-chip-success">STATEMENT</span>
           <span>{diag.model}</span>
           {diag.response_time_ms && <span>{(diag.response_time_ms / 1000).toFixed(1)}s</span>}
         </div>
       )}
       {!draftStage && !!entry.content && (
-        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Statement</summary>
-          <div style={{ fontSize: '0.75rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+        <details open><summary className="draft-summary">Statement</summary>
+          <div className="draft-statement-body">
             {typeof entry.content === 'string'
               ? <Highlight text={entry.content} />
               : <Highlight text={Array.isArray(entry.content)
@@ -202,33 +203,36 @@ export function DraftTab({
             const recheck = wp?.recheck_result as { compliant?: boolean; repair_hint?: string } | undefined;
             const rejected = wp?.rejected_reason as string | undefined;
             return (
+              // eslint-disable-next-line local/no-inline-style -- success-driven border/background
               <div key={mi} style={{
                 margin: '6px 0', padding: '6px 8px',
                 background: success ? 'color-mix(in srgb, var(--success) 6%, transparent)' : 'color-mix(in srgb, var(--danger) 6%, transparent)',
                 borderLeft: `3px solid ${statusColor}`,
                 borderRadius: 4, fontSize: 'var(--text-2xs)',
               }}>
+                {/* eslint-disable-next-line local/no-inline-style -- statusColor-driven */}
                 <div style={{ fontWeight: 600, color: statusColor, marginBottom: 4 }}>
                   Micro-Fix: {move ?? 'Intervention'} Compliance ({elapsed}ms) — {success ? 'Applied' : rejected ? `Rejected (${rejected})` : recheck && !recheck.compliant ? 'Re-validation failed' : 'Failed'}
                 </div>
                 {field && (
-                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 4 }}>
-                    Field: <code style={{ background: 'color-mix(in srgb, var(--text-muted) 15%, transparent)', padding: '1px 4px', borderRadius: 3 }}>{field}</code>
-                    {!success && <span style={{ marginLeft: 6 }}>Before: <em>missing</em></span>}
+                  <div className="draft-field-note">
+                    Field: <code className="draft-code-chip">{field}</code>
+                    {!success && <span className="draft-ml6">Before: <em>missing</em></span>}
                   </div>
                 )}
                 {generated != null && (
-                  <details open={success} style={{ fontSize: 'var(--text-2xs)' }}>
+                  <details open={success} className="draft-2xs">
+                    {/* eslint-disable-next-line local/no-inline-style -- statusColor-driven */}
                     <summary style={{ cursor: 'pointer', color: statusColor }}>
                       {success ? 'After — Generated value' : 'Attempted value (rejected)'}
                     </summary>
-                    <pre style={microFixPreStyle}>
+                    <pre className="draft-mf-pre">
                       {typeof generated === 'string' ? generated : JSON.stringify(generated, null, 2)}
                     </pre>
                   </details>
                 )}
                 {recheck?.repair_hint && !recheck.compliant && (
-                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--danger)', marginTop: 4 }}>
+                  <div className="draft-danger-note-mt4">
                     {recheck.repair_hint}
                   </div>
                 )}
@@ -243,27 +247,30 @@ export function DraftTab({
             const recheckCompliant = wp?.recheck_compliant as boolean | undefined;
             const rejected = wp?.rejected_reason as string | undefined;
             return (
+              // eslint-disable-next-line local/no-inline-style -- success-driven border/background
               <div key={mi} style={{
                 margin: '6px 0', padding: '6px 8px',
                 background: success ? 'color-mix(in srgb, var(--success) 6%, transparent)' : 'color-mix(in srgb, var(--danger) 6%, transparent)',
                 borderLeft: `3px solid ${statusColor}`,
                 borderRadius: 4, fontSize: 'var(--text-2xs)',
               }}>
+                {/* eslint-disable-next-line local/no-inline-style -- statusColor-driven */}
                 <div style={{ fontWeight: 600, color: statusColor, marginBottom: 4 }}>
                   Micro-Fix: Directive Compliance — {move ?? '?'} ({elapsed}ms) — {success ? 'Applied' : rejected ? `Rejected (${rejected})` : recheckCompliant === false ? 'Re-validation failed' : 'Failed'}
                 </div>
                 {revisedPara && (
-                  <details open={success} style={{ fontSize: 'var(--text-2xs)' }}>
+                  <details open={success} className="draft-2xs">
+                    {/* eslint-disable-next-line local/no-inline-style -- statusColor-driven */}
                     <summary style={{ cursor: 'pointer', color: statusColor }}>
                       {success ? 'After — Revised first paragraph' : 'Attempted revision (rejected)'}
                     </summary>
-                    <pre style={microFixPreStyle}>{revisedPara}</pre>
+                    <pre className="draft-mf-pre">{revisedPara}</pre>
                   </details>
                 )}
                 {mf.prompt && (
-                  <details style={{ fontSize: 'var(--text-2xs)', marginTop: 4 }}>
-                    <summary style={{ cursor: 'pointer', color: 'var(--text-muted)' }}>Micro-fix prompt</summary>
-                    <pre style={microFixPreStyle}>{mf.prompt}</pre>
+                  <details className="draft-2xs-mt4">
+                    <summary className="draft-summary-muted">Micro-fix prompt</summary>
+                    <pre className="draft-mf-pre">{mf.prompt}</pre>
                   </details>
                 )}
               </div>
@@ -276,36 +283,38 @@ export function DraftTab({
           const rejected = wp?.rejected_reason as string | undefined;
           const revisedStatement = wp?.revised_statement as string | undefined;
           return (
+            // eslint-disable-next-line local/no-inline-style -- success-driven border/background
             <div key={mi} style={{
               margin: '6px 0', padding: '6px 8px',
               background: success ? 'color-mix(in srgb, var(--success) 6%, transparent)' : 'color-mix(in srgb, var(--danger) 6%, transparent)',
               borderLeft: `3px solid ${statusColor}`,
               borderRadius: 4, fontSize: 'var(--text-2xs)',
             }}>
+              {/* eslint-disable-next-line local/no-inline-style -- statusColor-driven */}
               <div style={{ fontWeight: 600, color: statusColor, marginBottom: 4 }}>
                 Micro-Fix: Abstract Claims ({elapsed}ms) — {success ? 'Applied' : diffPassed === false ? (rejected === 'hallucinated_changes' ? 'Rejected (hallucinated edits)' : 'Rejected (too many changes)') : 'Re-validation failed'}
-                {changes && <span style={{ fontWeight: 400, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginLeft: 6 }}>{changes.length} change{changes.length !== 1 ? 's' : ''}</span>}
+                {changes && <span className="draft-change-count">{changes.length} change{changes.length !== 1 ? 's' : ''}</span>}
               </div>
               {changes && changes.length > 0 && (
-                <div style={{ fontSize: 'var(--text-2xs)' }}>
+                <div className="draft-2xs">
                   {changes.map((c, ci) => (
-                    <div key={ci} style={{ marginBottom: 6, padding: '3px 0', borderBottom: '1px solid color-mix(in srgb, var(--text-muted) 10%, transparent)' }}>
-                      <div style={{ display: 'flex', gap: 4, alignItems: 'baseline' }}>
-                        <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--danger)', fontWeight: 600, flexShrink: 0 }}>BEFORE</span>
-                        <div style={{ color: 'var(--text-muted)', textDecoration: 'line-through', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    <div key={ci} className="draft-change-row">
+                      <div className="draft-flex-baseline">
+                        <span className="draft-before-label">BEFORE</span>
+                        <div className="draft-before-text">
                           {c.original ?? ''}
                         </div>
                       </div>
                       {c.revised && c.original !== c.revised && (
-                        <div style={{ display: 'flex', gap: 4, alignItems: 'baseline', marginTop: 2 }}>
-                          <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--success)', fontWeight: 600, flexShrink: 0 }}>AFTER</span>
-                          <div style={{ color: 'var(--text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                        <div className="draft-flex-baseline-mt2">
+                          <span className="draft-after-label">AFTER</span>
+                          <div className="draft-after-text">
                             {c.revised}
                           </div>
                         </div>
                       )}
                       {c.fact_source && (
-                        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2, marginLeft: 48 }}>
+                        <div className="draft-source-note">
                           source: {c.fact_source}
                         </div>
                       )}
@@ -314,17 +323,18 @@ export function DraftTab({
                 </div>
               )}
               {revisedStatement && (
-                <details style={{ fontSize: 'var(--text-2xs)', marginTop: 4 }}>
+                <details className="draft-2xs-mt4">
+                  {/* eslint-disable-next-line local/no-inline-style -- statusColor-driven */}
                   <summary style={{ cursor: 'pointer', color: statusColor }}>
                     {success ? 'After — Full revised statement' : 'Attempted revision (rejected)'}
                   </summary>
-                  <pre style={microFixPreStyle}>{revisedStatement}</pre>
+                  <pre className="draft-mf-pre">{revisedStatement}</pre>
                 </details>
               )}
               {mf.prompt && (
-                <details style={{ fontSize: 'var(--text-2xs)', marginTop: 4 }}>
-                  <summary style={{ cursor: 'pointer', color: 'var(--text-muted)' }}>Micro-fix prompt</summary>
-                  <pre style={microFixPreStyle}>{mf.prompt}</pre>
+                <details className="draft-2xs-mt4">
+                  <summary className="draft-summary-muted">Micro-fix prompt</summary>
+                  <pre className="draft-mf-pre">{mf.prompt}</pre>
                 </details>
               )}
             </div>
@@ -344,37 +354,37 @@ export function DraftTab({
         const hasAny = autoSplit || (scrubbed && scrubbed > 0) || (linked && linked > 0) || (citWarn && citWarn > 0);
         if (!hasAny) return null;
         return (
-          <div style={{ margin: '6px 0', padding: '6px 8px', background: 'var(--bg-hover)', borderLeft: '3px solid var(--text-secondary)', borderRadius: 4, fontSize: 'var(--text-2xs)' }}>
-            <div style={{ fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Post-Draft Fixups ({postDraftStage.response_time_ms}ms)</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {autoSplit && <div style={{ color: 'var(--warning)' }}>&#9998; Auto-split → {splitParas} paragraphs</div>}
+          <div className="draft-postdraft-box">
+            <div className="draft-postdraft-title">Post-Draft Fixups ({postDraftStage.response_time_ms}ms)</div>
+            <div className="draft-col-gap4">
+              {autoSplit && <div className="draft-warning">&#9998; Auto-split → {splitParas} paragraphs</div>}
               {scrubbed != null && scrubbed > 0 && (
                 <div>
-                  <div style={{ color: 'var(--danger)' }}>&times; {scrubbed} citation(s) scrubbed</div>
+                  <div className="draft-danger">&times; {scrubbed} citation(s) scrubbed</div>
                   {(() => {
                     const scrubbedList = wp.scrubbed_citations as string[] | undefined;
                     if (!scrubbedList || scrubbedList.length === 0) return null;
                     return (
-                      <div style={{ marginLeft: 12, marginTop: 2, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
+                      <div className="draft-sublist-muted">
                         {scrubbedList.map((cit, ci) => (
-                          <div key={ci} style={{ textDecoration: 'line-through', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{cit}</div>
+                          <div key={ci} className="draft-strike-wrap">{cit}</div>
                         ))}
                       </div>
                     );
                   })()}
                 </div>
               )}
-              {linked != null && linked > 0 && <div style={{ color: 'var(--success)' }}>&#128279; Links added</div>}
+              {linked != null && linked > 0 && <div className="draft-success">&#128279; Links added</div>}
               {citWarn != null && citWarn > 0 && (
                 <div>
-                  <div style={{ color: 'var(--warning)' }}>&#9888; {citWarn} citation warning(s)</div>
+                  <div className="draft-warning">&#9888; {citWarn} citation warning(s)</div>
                   {(() => {
                     const warnDetails = wp.citation_warning_details as string[] | undefined;
                     if (!warnDetails || warnDetails.length === 0) return null;
                     return (
-                      <div style={{ marginLeft: 12, marginTop: 2, fontSize: 'var(--text-2xs)', color: 'var(--warning)' }}>
+                      <div className="draft-sublist-warning">
                         {warnDetails.map((w, wi) => (
-                          <div key={wi} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{w}</div>
+                          <div key={wi} className="draft-wrap">{w}</div>
                         ))}
                       </div>
                     );
@@ -383,12 +393,12 @@ export function DraftTab({
               )}
               {ignored != null && ignored > 0 && (
                 <div>
-                  <div style={{ color: 'var(--text-muted)' }}>{ignored} evidence doc(s) not cited</div>
+                  <div className="draft-text-muted">{ignored} evidence doc(s) not cited</div>
                   {(() => {
                     const titles = wp.ignored_evidence_titles as string[] | undefined;
                     if (!titles || titles.length === 0) return null;
                     return (
-                      <div style={{ marginLeft: 12, marginTop: 2, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                      <div className="draft-sublist-muted-italic">
                         {titles.map((t, ti) => (
                           <div key={ti}>{t}</div>
                         ))}
@@ -409,10 +419,10 @@ export function DraftTab({
         if ((!vocabRes || vocabRes.length === 0) && (!vocabAmb || vocabAmb.length === 0)) return null;
         return (
           <details open>
-            <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>
+            <summary className="draft-summary">
               Disambiguated Terms ({(vocabRes?.length ?? 0) + (vocabAmb?.length ?? 0)})
               {vocabAmb && vocabAmb.length > 0 && (
-                <span style={{ marginLeft: 6, color: 'var(--warning)', fontWeight: 500 }}>
+                <span className="draft-ambiguous-count">
                   {new Set(vocabAmb.map(a => a.colloquial)).size} ambiguous
                 </span>
               )}
@@ -432,19 +442,20 @@ export function DraftTab({
                 a.colloquial.localeCompare(b.colloquial) || a.canonical.localeCompare(b.canonical)
               );
               return (
-              <table style={{ fontSize: 'var(--text-2xs)', borderCollapse: 'collapse', marginBottom: 6 }}>
+              <table className="draft-vocab-table">
                 <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    <th style={{ textAlign: 'left', padding: '1px 4px', color: 'var(--text-muted)' }}>Term</th>
-                    <th style={{ textAlign: 'left', padding: '1px 4px', color: 'var(--text-muted)' }}>Canonical</th>
-                    <th style={{ textAlign: 'center', padding: '1px 4px', color: 'var(--text-muted)' }}>Conf</th>
+                  <tr className="draft-tr-border">
+                    <th className="draft-th-left">Term</th>
+                    <th className="draft-th-left">Canonical</th>
+                    <th className="draft-th-center">Conf</th>
                   </tr>
                 </thead>
                 <tbody>
                   {deduped.map((r, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid color-mix(in srgb, var(--text-muted) 10%, transparent)' }}>
-                      <td style={{ padding: '1px 4px' }}>{r.colloquial}</td>
-                      <td style={{ padding: '1px 4px', color: 'var(--text-secondary)' }}>{r.canonical}</td>
+                    <tr key={i} className="draft-tr-border-soft">
+                      <td className="draft-td">{r.colloquial}</td>
+                      <td className="draft-td-secondary">{r.canonical}</td>
+                      {/* eslint-disable-next-line local/no-inline-style -- confidence-driven color */}
                       <td style={{
                         padding: '1px 4px', textAlign: 'center', fontWeight: 600,
                         color: r.confidence === 'high' ? 'var(--success)' : r.confidence === 'low' ? 'var(--danger)' : 'var(--warning)',
@@ -458,10 +469,10 @@ export function DraftTab({
             {vocabAmb && vocabAmb.length > 0 && (() => {
               const unique = [...new Set(vocabAmb.map(a => a.colloquial))].sort((a, b) => a.localeCompare(b));
               return (
-              <div style={{ padding: '4px 8px', background: 'color-mix(in srgb, var(--warning) 6%, transparent)', borderLeft: '3px solid var(--warning)', borderRadius: 4, fontSize: 'var(--text-2xs)', marginBottom: 4 }}>
-                <div style={{ fontWeight: 600, color: 'var(--warning)', marginBottom: 2 }}>Ambiguous terms:</div>
+              <div className="draft-ambiguous-box">
+                <div className="draft-ambiguous-title">Ambiguous terms:</div>
                 {unique.map((term, i) => (
-                  <div key={i} style={{ marginLeft: 8 }}>&ldquo;{term}&rdquo;</div>
+                  <div key={i} className="draft-ml8">&ldquo;{term}&rdquo;</div>
                 ))}
               </div>
               );
@@ -482,22 +493,23 @@ export function DraftTab({
         const targetAnId = fcMeta.target_an_id as string | undefined;
         const isAuto = !!targetAnId;
         return (<>
-          <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Verdict</summary>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, fontSize: '0.7rem' }}>
+          <details open><summary className="draft-summary">Verdict</summary>
+            <div className="draft-verdict-row">
+              {/* eslint-disable-next-line local/no-inline-style -- verdict-driven background */}
               <span style={{
                 padding: '1px 8px', borderRadius: 4, fontWeight: 600, color: 'var(--text-primary)',
                 background: verdict === 'supported' ? 'var(--success)' : verdict === 'disputed' || verdict === 'false' ? 'var(--danger)' : 'var(--text-muted)',
               }}>{verdict ?? 'unknown'}</span>
-              <span style={{ color: 'var(--text-muted)' }}>{isAuto ? 'auto-verified' : 'user-initiated'}</span>
-              {targetAnId && <span style={{ color: 'var(--text-muted)' }}>AN: {targetAnId}</span>}
+              <span className="draft-text-muted">{isAuto ? 'auto-verified' : 'user-initiated'}</span>
+              {targetAnId && <span className="draft-text-muted">AN: {targetAnId}</span>}
             </div>
             {checkedText && (
-              <div style={{ fontSize: '0.7rem', padding: '4px 8px', background: 'color-mix(in srgb, var(--color-acc) 8%, transparent)', borderRadius: 4, borderLeft: '3px solid var(--color-acc)', marginBottom: 6 }}>
+              <div className="draft-checked-text">
                 {checkedText}
               </div>
             )}
             {explanation && (
-              <div style={{ fontSize: '0.7rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{explanation}</div>
+              <div className="draft-explanation">{explanation}</div>
             )}
           </details>
           {webQueries.length > 0 && (() => {
@@ -505,15 +517,15 @@ export function DraftTab({
             const searchText = checkedText || '';
             const allSameQuery = !isDomains;
             return (
-              <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>
+              <details open><summary className="draft-summary">
                 {isDomains ? `Web Sources (${webQueries.length})` : `Search Queries (${webQueries.length})`}
               </summary>
                 {isDomains && searchText && (
-                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 4, fontStyle: 'italic' }}>
+                  <div className="draft-query-note">
                     Query: &quot;{searchText.length > 100 ? searchText.slice(0, 97) + '...' : searchText}&quot;
                   </div>
                 )}
-                <ul style={{ fontSize: 'var(--text-2xs)', margin: '4px 0', paddingLeft: 16, listStyle: 'none' }}>
+                <ul className="draft-ul-none">
                   {webQueries.map((q, qi) => {
                     const trimmed = q.trim();
                     const looksLikeDomain = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(trimmed);
@@ -521,18 +533,18 @@ export function DraftTab({
                       ? `https://www.google.com/search?q=${encodeURIComponent(searchText + ' site:' + trimmed)}`
                       : `https://www.google.com/search?q=${encodeURIComponent(trimmed)}`;
                     return (
-                      <li key={qi} style={{ marginBottom: 2 }}>
+                      <li key={qi} className="draft-mb2">
                         <a
                           href={searchUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          style={{ color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer' }}
+                          className="draft-link"
                           title={looksLikeDomain ? `Search "${searchText}" on ${trimmed}` : `Search Google for "${trimmed}"`}
                         >
                           {trimmed}
                         </a>
                         {!allSameQuery && !looksLikeDomain && (
-                          <span style={{ color: 'var(--text-muted)', marginLeft: 6, fontSize: 'var(--text-2xs)' }}>(query)</span>
+                          <span className="draft-query-tag">(query)</span>
                         )}
                       </li>
                     );
@@ -542,17 +554,17 @@ export function DraftTab({
             );
           })()}
           {webEvidence && (
-            <details><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Web Evidence</summary>
-              <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', background: 'var(--bg-secondary)', padding: 8, borderRadius: 4 }}>{webEvidence}</pre>
+            <details><summary className="draft-summary">Web Evidence</summary>
+              <pre className="draft-web-evidence">{webEvidence}</pre>
             </details>
           )}
           {webCitations.length > 0 && (
-            <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Citations ({webCitations.length})</summary>
-              <div style={{ fontSize: 'var(--text-2xs)' }}>
+            <details open><summary className="draft-summary">Citations ({webCitations.length})</summary>
+              <div className="draft-2xs">
                 {webCitations.map((c, ci) => (
-                  <div key={ci} style={{ margin: '2px 0', paddingLeft: 8, borderLeft: '2px solid color-mix(in srgb, var(--success) 30%, transparent)' }}>
-                    {c.title && <div style={{ fontWeight: 600 }}>{c.title}</div>}
-                    {c.url && <div style={{ color: 'var(--text-muted)', wordBreak: 'break-all' }}>{c.url}</div>}
+                  <div key={ci} className="draft-citation">
+                    {c.title && <div className="draft-bold">{c.title}</div>}
+                    {c.url && <div className="draft-url">{c.url}</div>}
                   </div>
                 ))}
               </div>
@@ -590,12 +602,15 @@ export function DraftTab({
             <div key={ai}>
               {/* Orchestration run header */}
               {showOrchHeader && (
+                // eslint-disable-next-line local/no-inline-style -- accepted-driven color
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 8, margin: '14px 0 4px',
                   fontSize: 'var(--text-2xs)', fontWeight: 700, color: orchAccepted ? 'var(--success)' : 'var(--danger)',
                 }}>
+                  {/* eslint-disable-next-line local/no-inline-style -- accepted-driven background */}
                   <div style={{ flex: 1, height: 2, background: orchAccepted ? 'color-mix(in srgb, var(--success) 30%, transparent)' : 'color-mix(in srgb, var(--danger) 30%, transparent)' }} />
                   <span>Orchestration Run {orchRun! + 1}{orchAccepted ? ' (accepted)' : ' (rejected by judge)'}</span>
+                  {/* eslint-disable-next-line local/no-inline-style -- accepted-driven background */}
                   <div style={{ flex: 1, height: 2, background: orchAccepted ? 'color-mix(in srgb, var(--success) 30%, transparent)' : 'color-mix(in srgb, var(--danger) 30%, transparent)' }} />
                 </div>
               )}
@@ -616,17 +631,20 @@ export function DraftTab({
                 const dimColor = (pass: boolean) => pass ? 'var(--success)' : 'var(--danger)';
                 const orchHints = ov.repairHints ?? [];
                 return (
+                  // eslint-disable-next-line local/no-inline-style -- accepted-driven background/border
                   <div style={{
                     margin: '4px 0 8px', borderRadius: 4, padding: '6px 8px', fontSize: '0.7rem',
                     background: orchAccepted ? 'color-mix(in srgb, var(--success) 6%, transparent)' : 'color-mix(in srgb, var(--danger) 6%, transparent)',
                     border: `1px solid ${orchAccepted ? 'color-mix(in srgb, var(--success) 20%, transparent)' : 'color-mix(in srgb, var(--danger) 20%, transparent)'}`,
                   }}>
-                    <div style={{ fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div className="draft-score-header">
                       <span>Orchestration Score:{' '}
+                        {/* eslint-disable-next-line local/no-inline-style -- score-driven color */}
                         <span style={{ ...mono, color: score >= 0.7 ? 'var(--success)' : score >= 0.5 ? 'var(--warning)' : 'var(--danger)' }}>
                           {score.toFixed(2)}
                         </span>
                       </span>
+                      {/* eslint-disable-next-line local/no-inline-style -- accepted-driven color/background */}
                       <span style={{
                         fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '1px 6px', borderRadius: 3,
                         color: orchAccepted ? 'var(--success)' : 'var(--danger)',
@@ -635,26 +653,32 @@ export function DraftTab({
                         {orchAccepted ? 'ACCEPTED' : 'REJECTED BY JUDGE'}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px', fontSize: 'var(--text-2xs)' }}>
-                      <span><span style={{ color: dimColor(dims.schema.pass) }}>●</span> schema ×0.4 = <strong style={mono}>{(0.4 * (dims.schema.pass ? 1 : 0)).toFixed(2)}</strong></span>
-                      <span><span style={{ color: dimColor(dims.grounding.pass) }}>●</span> grounding ×0.3 = <strong style={mono}>{(0.3 * (dims.grounding.pass ? 1 : 0)).toFixed(2)}</strong></span>
-                      <span><span style={{ color: dimColor(dims.advancement.pass) }}>●</span> advancement ×0.2 = <strong style={mono}>{(0.2 * (dims.advancement.pass ? 1 : 0)).toFixed(2)}</strong></span>
-                      <span><span style={{ color: dimColor(dims.clarifies.pass) }}>●</span> clarifies ×0.1 = <strong style={mono}>{(0.1 * (dims.clarifies.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                    <div className="draft-dims-row">
+                      {/* eslint-disable-next-line local/no-inline-style -- dimension-pass-driven color */}
+                      <span><span style={{ color: dimColor(dims.schema.pass) }}>●</span> schema ×0.4 = <strong className="draft-mono">{(0.4 * (dims.schema.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                      {/* eslint-disable-next-line local/no-inline-style -- dimension-pass-driven color */}
+                      <span><span style={{ color: dimColor(dims.grounding.pass) }}>●</span> grounding ×0.3 = <strong className="draft-mono">{(0.3 * (dims.grounding.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                      {/* eslint-disable-next-line local/no-inline-style -- dimension-pass-driven color */}
+                      <span><span style={{ color: dimColor(dims.advancement.pass) }}>●</span> advancement ×0.2 = <strong className="draft-mono">{(0.2 * (dims.advancement.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                      {/* eslint-disable-next-line local/no-inline-style -- dimension-pass-driven color */}
+                      <span><span style={{ color: dimColor(dims.clarifies.pass) }}>●</span> clarifies ×0.1 = <strong className="draft-mono">{(0.1 * (dims.clarifies.pass ? 1 : 0)).toFixed(2)}</strong></span>
                     </div>
-                    <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3, fontSize: 'var(--text-2xs)', display: 'flex', gap: 12 }}>
-                      <span>Stage A: <strong style={mono}>{stageA.toFixed(2)}</strong> <span style={{ color: 'var(--text-muted)' }}>×0.4 = {(0.4 * stageA).toFixed(2)}</span></span>
-                      <span>Judge: <strong style={mono}>{judgeQ.toFixed(2)}</strong>{!ov.judge_used && <span style={{ color: 'var(--text-muted)' }}> (default)</span>} <span style={{ color: 'var(--text-muted)' }}>×0.6 = {(0.6 * judgeQ).toFixed(2)}</span></span>
+                    <div className="draft-score-breakdown">
+                      <span>Stage A: <strong className="draft-mono">{stageA.toFixed(2)}</strong> <span className="draft-text-muted">×0.4 = {(0.4 * stageA).toFixed(2)}</span></span>
+                      <span>Judge: <strong className="draft-mono">{judgeQ.toFixed(2)}</strong>{!ov.judge_used && <span className="draft-text-muted"> (default)</span>} <span className="draft-text-muted">×0.6 = {(0.6 * judgeQ).toFixed(2)}</span></span>
+                      {/* eslint-disable-next-line local/no-inline-style -- score-driven color */}
                       <span>Total: <strong style={{ ...mono, color: score >= 0.7 ? 'var(--success)' : score >= 0.5 ? 'var(--warning)' : 'var(--danger)' }}>{score.toFixed(2)}</strong></span>
                     </div>
                     {orchHints.length > 0 && (
-                      <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3 }}>
-                        <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, marginBottom: 2 }}>Caveats</div>
-                        <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: 'var(--text-2xs)' }}>
+                      <div className="draft-caveats-box">
+                        <div className="draft-caveats-title">Caveats</div>
+                        <ul className="draft-hint-list">
                           {orchHints.map((h, hi) => {
                             const target = classifyHintTarget(h);
                             const ts = HINT_TARGET_STYLE[target];
                             return (
-                              <li key={hi} style={{ marginBottom: 2 }}>
+                              <li key={hi} className="draft-mb2">
+                                {/* eslint-disable-next-line local/no-inline-style -- hint-target-driven color/background */}
                                 <span style={{
                                   display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
                                   color: ts.color, background: ts.bg, padding: '1px 4px',
@@ -672,14 +696,12 @@ export function DraftTab({
               })()}
               {/* Draft attempt header */}
               {(hasStageRetries || hasMultipleOrchRuns || effectiveDraftAttempts.length > 1) && (
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0 6px',
-                  fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontWeight: 600,
-                }}>
-                  <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                <div className="draft-attempt-header">
+                  <div className="draft-hr-line" />
                   <span>
                     Draft Attempt {retryIdx + 1}
                     {hasStageRetries && (
+                      // eslint-disable-next-line local/no-inline-style -- last-in-run-driven color/background
                       <span style={{
                         marginLeft: 4, fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '1px 5px',
                         borderRadius: 3, verticalAlign: 'middle',
@@ -690,7 +712,7 @@ export function DraftTab({
                       </span>
                     )}
                   </span>
-                  <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                  <div className="draft-hr-line" />
                 </div>
               )}
               <ArtifactBlock label="Raw Prompt" text={attempt.prompt} />
@@ -711,25 +733,28 @@ export function DraftTab({
                   const mono = { fontFamily: 'monospace', fontSize: 'var(--text-2xs)' } as const;
                   const dimColor = (pass: boolean) => pass ? 'var(--success)' : 'var(--danger)';
                   return (
-                    <div style={{
-                      marginTop: 6, background: 'var(--bg-subtle)', borderRadius: 4,
-                      padding: '5px 8px', fontSize: '0.7rem',
-                    }}>
-                      <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                    <div className="draft-valscore-box">
+                      <div className="draft-valscore-title">
                         Validation Score:{' '}
+                        {/* eslint-disable-next-line local/no-inline-style -- score-driven color */}
                         <span style={{ ...mono, color: turnScore >= 0.7 ? 'var(--success)' : turnScore >= 0.5 ? 'var(--warning)' : 'var(--danger)' }}>
                           {turnScore.toFixed(2)}
                         </span>
                       </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px', fontSize: 'var(--text-2xs)' }}>
-                        <span><span style={{ color: dimColor(dims.schema.pass) }}>●</span> schema ×0.4 = <strong style={mono}>{(0.4 * (dims.schema.pass ? 1 : 0)).toFixed(2)}</strong></span>
-                        <span><span style={{ color: dimColor(dims.grounding.pass) }}>●</span> grounding ×0.3 = <strong style={mono}>{(0.3 * (dims.grounding.pass ? 1 : 0)).toFixed(2)}</strong></span>
-                        <span><span style={{ color: dimColor(dims.advancement.pass) }}>●</span> advancement ×0.2 = <strong style={mono}>{(0.2 * (dims.advancement.pass ? 1 : 0)).toFixed(2)}</strong></span>
-                        <span><span style={{ color: dimColor(dims.clarifies.pass) }}>●</span> clarifies ×0.1 = <strong style={mono}>{(0.1 * (dims.clarifies.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                      <div className="draft-dims-row">
+                        {/* eslint-disable-next-line local/no-inline-style -- dimension-pass-driven color */}
+                        <span><span style={{ color: dimColor(dims.schema.pass) }}>●</span> schema ×0.4 = <strong className="draft-mono">{(0.4 * (dims.schema.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                        {/* eslint-disable-next-line local/no-inline-style -- dimension-pass-driven color */}
+                        <span><span style={{ color: dimColor(dims.grounding.pass) }}>●</span> grounding ×0.3 = <strong className="draft-mono">{(0.3 * (dims.grounding.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                        {/* eslint-disable-next-line local/no-inline-style -- dimension-pass-driven color */}
+                        <span><span style={{ color: dimColor(dims.advancement.pass) }}>●</span> advancement ×0.2 = <strong className="draft-mono">{(0.2 * (dims.advancement.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                        {/* eslint-disable-next-line local/no-inline-style -- dimension-pass-driven color */}
+                        <span><span style={{ color: dimColor(dims.clarifies.pass) }}>●</span> clarifies ×0.1 = <strong className="draft-mono">{(0.1 * (dims.clarifies.pass ? 1 : 0)).toFixed(2)}</strong></span>
                       </div>
-                      <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3, fontSize: 'var(--text-2xs)', display: 'flex', gap: 12 }}>
-                        <span>Stage A: <strong style={mono}>{stageA.toFixed(2)}</strong> <span style={{ color: 'var(--text-muted)' }}>×0.4 = {(0.4 * stageA).toFixed(2)}</span></span>
-                        <span>Judge: <strong style={mono}>{judgeQ.toFixed(2)}</strong>{!judgeUsed && <span style={{ color: 'var(--text-muted)' }}> (default)</span>} <span style={{ color: 'var(--text-muted)' }}>×0.6 = {(0.6 * judgeQ).toFixed(2)}</span></span>
+                      <div className="draft-score-breakdown">
+                        <span>Stage A: <strong className="draft-mono">{stageA.toFixed(2)}</strong> <span className="draft-text-muted">×0.4 = {(0.4 * stageA).toFixed(2)}</span></span>
+                        <span>Judge: <strong className="draft-mono">{judgeQ.toFixed(2)}</strong>{!judgeUsed && <span className="draft-text-muted"> (default)</span>} <span className="draft-text-muted">×0.6 = {(0.6 * judgeQ).toFixed(2)}</span></span>
+                        {/* eslint-disable-next-line local/no-inline-style -- score-driven color */}
                         <span>Total: <strong style={{ ...mono, color: turnScore >= 0.7 ? 'var(--success)' : turnScore >= 0.5 ? 'var(--warning)' : 'var(--danger)' }}>{turnScore.toFixed(2)}</strong></span>
                       </div>
                     </div>
@@ -737,30 +762,32 @@ export function DraftTab({
                 }
                 // Fallback: no dimensions available
                 return (
-                  <div style={{ marginTop: 6, fontSize: '0.72rem' }}>
-                    <div style={{ fontWeight: 600 }}>
+                  <div className="draft-perstage-box">
+                    <div className="draft-bold">
                       Per-stage Validation:{' '}
                       {valData ? (
+                        // eslint-disable-next-line local/no-inline-style -- pass-driven color
                         <span style={{ color: valData.pass ? 'var(--success)' : 'var(--danger)' }}>
                           {valData.pass ? 'Pass' : 'Fail'}
                         </span>
                       ) : (
-                        <span style={{ color: 'var(--text-muted)' }}>—</span>
+                        <span className="draft-text-muted">—</span>
                       )}
                     </div>
                     {valData?.details && valData.details.length > 0 && (
-                      <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2, fontSize: 'var(--text-2xs)' }}>
+                      <div className="draft-details-list">
                         {valData.details.map((d, di) => (
                           <div key={di}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <div className="draft-flex-center-gap6">
+                              {/* eslint-disable-next-line local/no-inline-style -- pass-driven color */}
                               <span style={{ color: d.pass ? 'var(--success)' : 'var(--danger)', fontSize: '0.7rem' }}>{d.pass ? '✓' : '✗'}</span>
-                              <span style={{ color: 'var(--text-primary)' }}>{d.rule}</span>
-                              {d.value && <span style={{ color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: 'var(--text-2xs)' }}>{d.value}</span>}
+                              <span className="draft-text-primary">{d.rule}</span>
+                              {d.value && <span className="draft-mono-muted">{d.value}</span>}
                             </div>
                             {d.flagged_claims && d.flagged_claims.length > 0 && (
-                              <div style={{ marginLeft: 20, marginTop: 2, fontSize: 'var(--text-2xs)', color: 'var(--danger)' }}>
+                              <div className="draft-flagged-list">
                                 {d.flagged_claims.map((claim: string, ci: number) => (
-                                  <div key={ci} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 1 }}>• {claim}</div>
+                                  <div key={ci} className="draft-flagged-item">• {claim}</div>
                                 ))}
                               </div>
                             )}
@@ -773,14 +800,15 @@ export function DraftTab({
               })()}
               {/* Validation Feedback */}
               {combinedHints.length > 0 && (
-                <details open style={{ marginTop: 4, fontSize: '0.72rem' }}>
-                  <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Validation Feedback</summary>
-                  <ul style={{ margin: '4px 0 0 16px', padding: 0, fontSize: '0.7rem' }}>
+                <details open className="draft-feedback">
+                  <summary className="draft-summary-plain">Validation Feedback</summary>
+                  <ul className="draft-feedback-list">
                     {combinedHints.map((h, hi) => {
                       const target = classifyHintTarget(h);
                       const ts = HINT_TARGET_STYLE[target];
                       return (
-                        <li key={hi} style={{ marginBottom: 3 }}>
+                        <li key={hi} className="draft-mb3">
+                          {/* eslint-disable-next-line local/no-inline-style -- hint-target-driven color/background */}
                           <span style={{
                             display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
                             color: ts.color, background: ts.bg, padding: '1px 5px',
@@ -799,7 +827,6 @@ export function DraftTab({
                   (s: { stage: string }) => s.stage === 'micro-fix',
                 ) ?? [];
                 if (attemptMicroFixes.length === 0) return null;
-                const mfPreStyle = { margin: '4px 0', padding: 6, background: 'rgba(0,0,0,0.15)', borderRadius: 4, whiteSpace: 'pre-wrap' as const, wordBreak: 'break-word' as const, fontSize: 'var(--text-2xs)', maxHeight: 200, overflow: 'auto' as const };
                 return attemptMicroFixes.map((mf: { stage: string; prompt?: string; raw_response?: string; response_time_ms?: number; work_product?: Record<string, unknown> }, mi: number) => {
                   const wp = mf.work_product;
                   const success = wp?.success as boolean | undefined;
@@ -814,33 +841,36 @@ export function DraftTab({
                     const recheck = wp?.recheck_result as { compliant?: boolean; repair_hint?: string } | undefined;
                     const rejected = wp?.rejected_reason as string | undefined;
                     return (
+                      // eslint-disable-next-line local/no-inline-style -- success-driven border/background
                       <div key={`mf-${mi}`} style={{
                         margin: '6px 0', padding: '6px 8px',
                         background: success ? 'color-mix(in srgb, var(--success) 6%, transparent)' : 'color-mix(in srgb, var(--danger) 6%, transparent)',
                         borderLeft: `3px solid ${statusColor}`,
                         borderRadius: 4, fontSize: 'var(--text-2xs)',
                       }}>
+                        {/* eslint-disable-next-line local/no-inline-style -- statusColor-driven */}
                         <div style={{ fontWeight: 600, color: statusColor, marginBottom: 4 }}>
                           Micro-Fix: {move ?? 'Intervention'} Compliance ({elapsed}ms) — {success ? 'Applied' : rejected ? `Rejected (${rejected})` : recheck && !recheck.compliant ? 'Re-validation failed' : 'Failed'}
                         </div>
                         {field && (
-                          <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 4 }}>
-                            Field: <code style={{ background: 'color-mix(in srgb, var(--text-muted) 15%, transparent)', padding: '1px 4px', borderRadius: 3 }}>{field}</code>
-                            {!success && <span style={{ marginLeft: 6 }}>Before: <em>missing</em></span>}
+                          <div className="draft-field-note">
+                            Field: <code className="draft-code-chip">{field}</code>
+                            {!success && <span className="draft-ml6">Before: <em>missing</em></span>}
                           </div>
                         )}
                         {generated != null && (
-                          <details open={success} style={{ fontSize: 'var(--text-2xs)' }}>
+                          <details open={success} className="draft-2xs">
+                            {/* eslint-disable-next-line local/no-inline-style -- statusColor-driven */}
                             <summary style={{ cursor: 'pointer', color: statusColor }}>
                               {success ? 'After — Generated value' : 'Attempted value (rejected)'}
                             </summary>
-                            <pre style={mfPreStyle}>
+                            <pre className="draft-mf-pre">
                               {typeof generated === 'string' ? generated : JSON.stringify(generated, null, 2)}
                             </pre>
                           </details>
                         )}
                         {recheck?.repair_hint && !recheck.compliant && (
-                          <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--danger)', marginTop: 4 }}>
+                          <div className="draft-danger-note-mt4">
                             {recheck.repair_hint}
                           </div>
                         )}
@@ -854,21 +884,24 @@ export function DraftTab({
                     const recheckCompliant = wp?.recheck_compliant as boolean | undefined;
                     const rejected = wp?.rejected_reason as string | undefined;
                     return (
+                      // eslint-disable-next-line local/no-inline-style -- success-driven border/background
                       <div key={`mf-${mi}`} style={{
                         margin: '6px 0', padding: '6px 8px',
                         background: success ? 'color-mix(in srgb, var(--success) 6%, transparent)' : 'color-mix(in srgb, var(--danger) 6%, transparent)',
                         borderLeft: `3px solid ${statusColor}`,
                         borderRadius: 4, fontSize: 'var(--text-2xs)',
                       }}>
+                        {/* eslint-disable-next-line local/no-inline-style -- statusColor-driven */}
                         <div style={{ fontWeight: 600, color: statusColor, marginBottom: 4 }}>
                           Micro-Fix: Directive Compliance — {move ?? '?'} ({elapsed}ms) — {success ? 'Applied' : rejected ? `Rejected (${rejected})` : recheckCompliant === false ? 'Re-validation failed' : 'Failed'}
                         </div>
                         {revisedPara && (
-                          <details open={success} style={{ fontSize: 'var(--text-2xs)' }}>
+                          <details open={success} className="draft-2xs">
+                            {/* eslint-disable-next-line local/no-inline-style -- statusColor-driven */}
                             <summary style={{ cursor: 'pointer', color: statusColor }}>
                               {success ? 'After — Revised first paragraph' : 'Attempted revision (rejected)'}
                             </summary>
-                            <pre style={mfPreStyle}>{revisedPara}</pre>
+                            <pre className="draft-mf-pre">{revisedPara}</pre>
                           </details>
                         )}
                       </div>
@@ -880,43 +913,46 @@ export function DraftTab({
                   const rejected = wp?.rejected_reason as string | undefined;
                   const revisedStatement = wp?.revised_statement as string | undefined;
                   return (
+                    // eslint-disable-next-line local/no-inline-style -- success-driven border/background
                     <div key={`mf-${mi}`} style={{
                       margin: '6px 0', padding: '6px 8px',
                       background: success ? 'color-mix(in srgb, var(--success) 6%, transparent)' : 'color-mix(in srgb, var(--danger) 6%, transparent)',
                       borderLeft: `3px solid ${statusColor}`,
                       borderRadius: 4, fontSize: 'var(--text-2xs)',
                     }}>
+                      {/* eslint-disable-next-line local/no-inline-style -- statusColor-driven */}
                       <div style={{ fontWeight: 600, color: statusColor, marginBottom: 4 }}>
                         Micro-Fix: Abstract Claims ({elapsed}ms) — {success ? 'Applied' : diffPassed === false ? (rejected === 'hallucinated_changes' ? 'Rejected (hallucinated edits)' : 'Rejected (too many changes)') : 'Re-validation failed'}
-                        {changes && <span style={{ fontWeight: 400, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginLeft: 6 }}>{changes.length} change{changes.length !== 1 ? 's' : ''}</span>}
+                        {changes && <span className="draft-change-count">{changes.length} change{changes.length !== 1 ? 's' : ''}</span>}
                       </div>
                       {changes && changes.length > 0 && (
-                        <div style={{ fontSize: 'var(--text-2xs)' }}>
+                        <div className="draft-2xs">
                           {changes.map((c, ci) => (
-                            <div key={ci} style={{ marginBottom: 6, padding: '3px 0', borderBottom: '1px solid color-mix(in srgb, var(--text-muted) 10%, transparent)' }}>
-                              <div style={{ display: 'flex', gap: 4, alignItems: 'baseline' }}>
-                                <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--danger)', fontWeight: 600, flexShrink: 0 }}>BEFORE</span>
-                                <div style={{ color: 'var(--text-muted)', textDecoration: 'line-through', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{c.original ?? ''}</div>
+                            <div key={ci} className="draft-change-row">
+                              <div className="draft-flex-baseline">
+                                <span className="draft-before-label">BEFORE</span>
+                                <div className="draft-before-text">{c.original ?? ''}</div>
                               </div>
                               {c.revised && c.original !== c.revised && (
-                                <div style={{ display: 'flex', gap: 4, alignItems: 'baseline', marginTop: 2 }}>
-                                  <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--success)', fontWeight: 600, flexShrink: 0 }}>AFTER</span>
-                                  <div style={{ color: 'var(--text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{c.revised}</div>
+                                <div className="draft-flex-baseline-mt2">
+                                  <span className="draft-after-label">AFTER</span>
+                                  <div className="draft-after-text">{c.revised}</div>
                                 </div>
                               )}
                               {c.fact_source && (
-                                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2, marginLeft: 48 }}>source: {c.fact_source}</div>
+                                <div className="draft-source-note">source: {c.fact_source}</div>
                               )}
                             </div>
                           ))}
                         </div>
                       )}
                       {revisedStatement && (
-                        <details style={{ fontSize: 'var(--text-2xs)', marginTop: 4 }}>
+                        <details className="draft-2xs-mt4">
+                          {/* eslint-disable-next-line local/no-inline-style -- statusColor-driven */}
                           <summary style={{ cursor: 'pointer', color: statusColor }}>
                             {success ? 'After — Full revised statement' : 'Attempted revision (rejected)'}
                           </summary>
-                          <pre style={mfPreStyle}>{revisedStatement}</pre>
+                          <pre className="draft-mf-pre">{revisedStatement}</pre>
                         </details>
                       )}
                     </div>
@@ -942,54 +978,46 @@ export function DraftTab({
       // §3: if all indicators pass, collapse to a single summary line
       if (allPass && !draftQualityStage.parse_error) {
         return (
-          <div style={{
-            margin: '10px 0 4px', borderRadius: 4, padding: '5px 8px', fontSize: '0.7rem',
-            background: 'color-mix(in srgb, var(--success) 6%, transparent)',
-            border: '1px solid color-mix(in srgb, var(--success) 20%, transparent)',
-            display: 'flex', alignItems: 'center', gap: 8,
-          }}>
-            <span style={{ color: 'var(--success)', fontWeight: 700, fontSize: 'var(--text-2xs)' }}>✓</span>
-            <span style={{ fontWeight: 600, fontSize: 'var(--text-2xs)' }}>Quality Pre-Check — all pass</span>
-            <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{draftQualityStage.model}</span>
-            <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{(draftQualityStage.response_time_ms / 1000).toFixed(1)}s</span>
+          <div className="draft-qcheck-pass">
+            <span className="draft-qcheck-icon">✓</span>
+            <span className="draft-qcheck-label">Quality Pre-Check — all pass</span>
+            <span className="draft-meta-muted">{draftQualityStage.model}</span>
+            <span className="draft-meta-muted">{(draftQualityStage.response_time_ms / 1000).toFixed(1)}s</span>
           </div>
         );
       }
       return (
-        <div style={{
-          margin: '10px 0 4px', borderRadius: 4, padding: '6px 8px', fontSize: '0.7rem',
-          background: 'color-mix(in srgb, var(--warning) 6%, transparent)',
-          border: '1px solid color-mix(in srgb, var(--warning) 20%, transparent)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 700, fontSize: 'var(--text-2xs)' }}>Quality Pre-Check</span>
-            <span style={{ fontSize: 'var(--text-2xs)', padding: '1px 5px', borderRadius: 3, background: 'color-mix(in srgb, var(--text-secondary) 12%, transparent)', color: 'var(--text-secondary)', fontWeight: 600 }}>Draft Attempt 1</span>
+        <div className="draft-qcheck-warn">
+          <div className="draft-qcheck-head">
+            <span className="draft-qcheck-title">Quality Pre-Check</span>
+            <span className="draft-qcheck-badge">Draft Attempt 1</span>
             {diag?.topic_alignment?.repaired && (
-              <span style={{ fontSize: 'var(--text-2xs)', padding: '1px 5px', borderRadius: 3, background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)', fontWeight: 600 }}>triggered regen</span>
+              <span className="draft-qcheck-regen">triggered regen</span>
             )}
-            <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{draftQualityStage.model}</span>
-            <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{(draftQualityStage.response_time_ms / 1000).toFixed(1)}s</span>
+            <span className="draft-meta-muted">{draftQualityStage.model}</span>
+            <span className="draft-meta-muted">{(draftQualityStage.response_time_ms / 1000).toFixed(1)}s</span>
           </div>
-          <div style={{ display: 'flex', gap: 12, fontSize: 'var(--text-2xs)' }}>
+          <div className="draft-indicators-row">
             {indicators.map(([label, pass]) => (
-              <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              <span key={label} className="draft-indicator">
+                {/* eslint-disable-next-line local/no-inline-style -- pass-driven color */}
                 <span style={{ color: pass ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>{pass ? '✓' : '✗'}</span>
                 <span>{label}</span>
               </span>
             ))}
           </div>
           {wp.weaknesses && wp.weaknesses.length > 0 && (
-            <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3 }}>
-              <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, marginBottom: 2, color: 'var(--warning)' }}>Weaknesses</div>
-              <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: 'var(--text-2xs)' }}>
+            <div className="draft-caveats-box">
+              <div className="draft-weakness-title">Weaknesses</div>
+              <ul className="draft-hint-list">
                 {wp.weaknesses.map((w, wi) => (
-                  <li key={wi} style={{ marginBottom: 2 }}>{humanizeSpeakerIds(w)}</li>
+                  <li key={wi} className="draft-mb2">{humanizeSpeakerIds(w)}</li>
                 ))}
               </ul>
             </div>
           )}
           {draftQualityStage.parse_error && (
-            <div style={{ padding: '4px 6px', marginTop: 4, background: 'color-mix(in srgb, var(--danger) 10%, transparent)', borderLeft: '3px solid var(--danger)', borderRadius: 3, fontSize: 'var(--text-2xs)', color: 'var(--danger)' }}>
+            <div className="draft-qcheck-parse-error">
               <strong>Parse error:</strong> {draftQualityStage.parse_error}
             </div>
           )}
@@ -1016,12 +1044,13 @@ export function DraftTab({
       }
       const finalAligned = ta.topic_aligned;
       return (
+        // eslint-disable-next-line local/no-inline-style -- aligned-driven background/border
         <div style={{
           margin: '10px 0 4px', borderRadius: 4, padding: '6px 8px', fontSize: '0.7rem',
           background: finalAligned ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)',
           border: `1px solid ${finalAligned ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`,
         }}>
-          <div style={{ fontWeight: 700, fontSize: 'var(--text-2xs)', marginBottom: 6 }}>Topic Alignment</div>
+          <div className="draft-ta-title">Topic Alignment</div>
           {attempts.map((att, ai) => {
             const topicWeaknesses = att.weaknesses.filter(w =>
               /\b(off.?scope|off.?topic|drift|outside.*scope|beyond.*scope|scope|domain|severity|magnitude|escalat|disproportionate|catastroph|existential|extinction|civiliz)\b/i.test(w)
@@ -1031,20 +1060,23 @@ export function DraftTab({
               : null;
             const repairHint = driftType && scope ? offScopeRepairHint(driftType, scope) : null;
             return (
+              // eslint-disable-next-line local/no-inline-style -- data-driven margin
               <div key={ai} style={{ marginBottom: ai < attempts.length - 1 ? 8 : 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 600 }}>{att.label}</span>
+                <div className="draft-ta-row">
+                  <span className="draft-ta-label">{att.label}</span>
+                  {/* eslint-disable-next-line local/no-inline-style -- aligned-driven color/background */}
                   <span style={{
                     padding: '1px 6px', borderRadius: 3, fontWeight: 600, fontSize: 'var(--text-2xs)',
                     background: att.aligned ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)',
                     color: att.aligned ? 'var(--success)' : 'var(--danger)',
                   }}>{att.aligned ? 'ON-SCOPE' : 'OFF-SCOPE'}</span>
                   {driftType && (
-                    <span style={{ padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: 'rgba(220,38,38,0.1)', color: 'var(--danger)' }}>
+                    <span className="draft-drift-badge">
                       {driftType} drift
                     </span>
                   )}
                   {ai === attempts.length - 1 && qg?.repair_outcome && (
+                    // eslint-disable-next-line local/no-inline-style -- repair-outcome-driven color/background
                     <span style={{
                       padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600,
                       background: qg.repair_outcome === 'fixed' ? 'rgba(22,163,74,0.15)' : qg.repair_outcome === 'partial' ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : 'rgba(220,38,38,0.1)',
@@ -1053,23 +1085,23 @@ export function DraftTab({
                   )}
                 </div>
                 {!att.aligned && topicWeaknesses.length > 0 && (
-                  <div style={{ marginTop: 3, paddingLeft: 8, borderLeft: '2px solid var(--danger)44' }}>
-                    <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, color: 'var(--danger)', marginBottom: 2 }}>Why off-scope:</div>
-                    <ul style={{ margin: '2px 0 0 12px', padding: 0, fontSize: 'var(--text-2xs)' }}>
-                      {topicWeaknesses.map((w, wi) => <li key={wi} style={{ marginBottom: 1 }}>{humanizeSpeakerIds(w)}</li>)}
+                  <div className="draft-offscope-box">
+                    <div className="draft-offscope-title">Why off-scope:</div>
+                    <ul className="draft-offscope-list">
+                      {topicWeaknesses.map((w, wi) => <li key={wi} className="draft-mb1">{humanizeSpeakerIds(w)}</li>)}
                     </ul>
                     {repairHint && (
-                      <div style={{ marginTop: 3, fontSize: 'var(--text-2xs)', color: 'var(--warning)', fontStyle: 'italic', paddingLeft: 4 }}>
+                      <div className="draft-repair-hint">
                         <strong>Repair instruction:</strong> {repairHint}
                       </div>
                     )}
                   </div>
                 )}
                 {!att.aligned && topicWeaknesses.length === 0 && att.weaknesses.length > 0 && (
-                  <div style={{ marginTop: 3, paddingLeft: 8, borderLeft: '2px solid var(--danger)44' }}>
-                    <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, color: 'var(--danger)', marginBottom: 2 }}>Why off-scope:</div>
-                    <ul style={{ margin: '2px 0 0 12px', padding: 0, fontSize: 'var(--text-2xs)' }}>
-                      {att.weaknesses.map((w, wi) => <li key={wi} style={{ marginBottom: 1 }}>{humanizeSpeakerIds(w)}</li>)}
+                  <div className="draft-offscope-box">
+                    <div className="draft-offscope-title">Why off-scope:</div>
+                    <ul className="draft-offscope-list">
+                      {att.weaknesses.map((w, wi) => <li key={wi} className="draft-mb1">{humanizeSpeakerIds(w)}</li>)}
                     </ul>
                   </div>
                 )}
@@ -1077,22 +1109,22 @@ export function DraftTab({
             );
           })}
           {scope && (
-            <details style={{ marginTop: 6, fontSize: 'var(--text-2xs)' }}>
-              <summary style={{ cursor: 'pointer', color: 'var(--text-muted)', fontWeight: 600 }}>Scope Definition</summary>
-              <div style={{ marginTop: 3, paddingLeft: 8 }}>
+            <details className="draft-scope-details">
+              <summary className="draft-scope-summary">Scope Definition</summary>
+              <div className="draft-scope-body">
                 {scope.core_proposition && (
-                  <div style={{ marginBottom: 3 }}><strong>Core proposition:</strong> {scope.core_proposition}</div>
+                  <div className="draft-mb3"><strong>Core proposition:</strong> {scope.core_proposition}</div>
                 )}
                 {scope.domain && (
-                  <div style={{ marginBottom: 3 }}><strong>Domain:</strong> {scope.domain}</div>
+                  <div className="draft-mb3"><strong>Domain:</strong> {scope.domain}</div>
                 )}
                 {scope.example_ceiling && (
-                  <div style={{ marginBottom: 3 }}><strong>Example ceiling:</strong> {scope.example_ceiling}</div>
+                  <div className="draft-mb3"><strong>Example ceiling:</strong> {scope.example_ceiling}</div>
                 )}
                 {scope.off_scope_topics && scope.off_scope_topics.length > 0 && (
-                  <div style={{ marginBottom: 3 }}>
+                  <div className="draft-mb3">
                     <strong>Off-scope topics:</strong>
-                    <ul style={{ margin: '2px 0 0 12px', padding: 0 }}>
+                    <ul className="draft-scope-list">
                       {scope.off_scope_topics.map((t: string, i: number) => <li key={i}>{t}</li>)}
                     </ul>
                   </div>
@@ -1100,7 +1132,7 @@ export function DraftTab({
                 {scope.drift_signatures && scope.drift_signatures.length > 0 && (
                   <div>
                     <strong>Drift signatures:</strong>
-                    <ul style={{ margin: '2px 0 0 12px', padding: 0 }}>
+                    <ul className="draft-scope-list">
                       {scope.drift_signatures.map((s: string, i: number) => <li key={i}>{s}</li>)}
                     </ul>
                   </div>

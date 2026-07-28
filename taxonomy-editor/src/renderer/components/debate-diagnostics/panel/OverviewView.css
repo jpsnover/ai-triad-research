@@ -1,0 +1,74 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Co-located styles for OverviewView — migrated from inline style props (t/1849). */
+
+.ovw-line { cursor: pointer; transition: opacity 0.2s; }
+.ovw-clickable { cursor: pointer; }
+.ovw-2xs { font-size: var(--text-2xs); }
+.ovw-legend-swatch { display: inline-block; width: 10px; height: 3px; margin-right: 4px; }
+.ovw-2xs-ml4 { font-size: var(--text-2xs); margin-left: 4px; }
+.ovw-gap6 { gap: 6px; }
+.ovw-mt4 { margin-top: 4px; }
+.ovw-mt6 { margin-top: 6px; }
+.ovw-ol { margin: 2px 0 0 16px; padding: 0; font-size: var(--text-2xs); }
+.ovw-ul-disc { margin: 2px 0 0 16px; padding: 0; font-size: var(--text-2xs); list-style: disc; }
+.ovw-warning { color: var(--warning); }
+.ovw-success { color: var(--success); }
+.ovw-muted-color { color: var(--text-muted); }
+.ovw-badge-danger { font-size: var(--text-2xs); background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
+.ovw-badge-danger-default { font-size: var(--text-2xs); background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); cursor: default; }
+.ovw-badge-danger-ml4 { font-size: var(--text-2xs); background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); margin-left: 4px; }
+.ovw-badge-success-default { font-size: var(--text-2xs); background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); cursor: default; }
+.ovw-badge-success-ml4 { font-size: var(--text-2xs); background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); margin-left: 4px; }
+.ovw-badge-secondary { font-size: var(--text-2xs); background: color-mix(in srgb, var(--text-secondary) 15%, transparent); color: var(--text-secondary); }
+.ovw-badge-secondary-ml4 { font-size: var(--text-2xs); background: color-mix(in srgb, var(--text-secondary) 15%, transparent); color: var(--text-secondary); margin-left: 4px; }
+.ovw-toolbar-mb4 { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+.ovw-toolbar-mb6 { display: flex; justify-content: flex-end; margin-bottom: 6px; }
+.ovw-toggle-btn { font-size: var(--text-2xs); padding: 2px 6px; border-radius: 3px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; }
+.ovw-caret { font-size: var(--text-2xs); margin-right: 2px; user-select: none; }
+.ovw-2xs-default { font-size: var(--text-2xs); cursor: default; }
+.ovw-warning-2xs { color: var(--warning); font-size: var(--text-2xs); }
+.ovw-claim-text { padding-left: 8px; font-size: 0.7rem; }
+.ovw-evidence { color: var(--danger); font-size: var(--text-2xs); margin-top: 2px; }
+.ovw-warrant { padding-left: 16px; color: var(--text-muted); font-style: italic; font-size: var(--text-2xs); }
+.ovw-gauge-track { height: 6px; background: var(--bg-secondary); border-radius: 3px; overflow: hidden; margin: 2px 0 6px; }
+.ovw-gauge-fill { height: 100%; transition: width 0.2s; }
+.ovw-health-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin: 4px 0 8px; font-size: var(--text-2xs); }
+.ovw-center { text-align: center; }
+.ovw-fw600 { font-weight: 600; }
+.ovw-fw600-danger { font-weight: 600; color: var(--danger); }
+.ovw-fw600-warning { font-weight: 600; color: var(--warning); }
+.ovw-mb6 { margin-bottom: 6px; }
+.ovw-burden-row { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+.ovw-burden-label { font-size: var(--text-2xs); width: 60px; text-align: right; }
+.ovw-burden-track { flex: 1; height: 4px; background: var(--bg-secondary); border-radius: 2px; overflow: hidden; }
+.ovw-burden-val { font-size: var(--text-2xs); width: 30px; }
+.ovw-cooldown-row { display: flex; gap: 12px; font-size: var(--text-2xs); margin-bottom: 6px; }
+.ovw-intervention-row { display: flex; gap: 6px; align-items: center; margin: 2px 0; font-size: var(--text-2xs); }
+.ovw-w24 { width: 24px; }
+.ovw-mt6-2xs { margin-top: 6px; font-size: var(--text-2xs); }
+.ovw-2xs-mt6 { font-size: var(--text-2xs); margin-top: 6px; }
+.ovw-mod-round-row { display: flex; gap: 6px; align-items: baseline; margin-bottom: 2px; }
+.ovw-2xs-minw50 { font-size: var(--text-2xs); min-width: 50px; }
+.ovw-flex1 { flex: 1; }
+.ovw-mb6-2xs { margin-bottom: 6px; font-size: var(--text-2xs); }
+.ovw-flex-baseline { display: flex; gap: 6px; align-items: baseline; }
+.ovw-drift-reason { margin-left: 8px; color: var(--text-muted); font-style: italic; }
+.ovw-pl8-2xs { padding-left: 8px; font-size: var(--text-2xs); }
+.ovw-arg-text { font-size: 0.7rem; margin-top: 2px; }
+.ovw-2xs-muted-italic { font-size: var(--text-2xs); color: var(--text-muted); font-style: italic; }
+.ovw-opp-sims { display: flex; gap: 8px; font-size: var(--text-2xs); padding-left: 8px; }
+.ovw-empty-note { font-size: 0.72rem; color: var(--text-muted); font-style: italic; padding: 4px 0; }
+.ovw-all-clear { padding: 6px 8px; border-radius: 4px; background: color-mix(in srgb, var(--success) 8%, transparent); border-left: 3px solid var(--success); font-size: 0.72rem; color: var(--success); font-weight: 600; }
+.ovw-sm { font-size: 0.72rem; }
+.ovw-summary-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.ovw-summary-chip { padding: 3px 6px; border-radius: 3px; font-weight: 600; font-size: var(--text-2xs); }
+.ovw-viol-header { font-size: var(--text-2xs); color: var(--danger); margin-bottom: 3px; }
+.ovw-viol-row { display: flex; gap: 6px; font-size: var(--text-2xs); margin-left: 8px; margin-bottom: 2px; }
+.ovw-2xs-ml8 { font-size: var(--text-2xs); margin-left: 8px; }
+.ovw-drift-header { font-size: var(--text-2xs); color: var(--warning); margin-bottom: 3px; }
+.ovw-suggestion-head { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.ovw-07rem { font-size: 0.7rem; }
+.ovw-rationale { font-size: var(--text-2xs); color: var(--text-muted); font-style: italic; margin-top: 4px; }
+.ovw-evidence-list { font-size: var(--text-2xs); color: var(--text-muted); margin-top: 2px; }

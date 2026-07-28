@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useCallback, useMemo } from 'react';
+import './EntryView.css';
 import { useDebateStore } from '../../../hooks/useDebateStore';
 import { useTaxonomyStore } from '../../../hooks/useTaxonomyStore';
 import { useFlag } from '../../../hooks/useFeatureFlags';
@@ -73,9 +74,9 @@ function QbafClaimStrengthSection({ entryId, activeDebate }: { entryId: string; 
                     <div key={i} className={`diag-qbaf-edge ${e.type === 'attacks' ? 'diag-qbaf-attack' : 'diag-qbaf-support'}`}>
                       <span>{e.type === 'attacks' ? '⚔' : '✓'} {e.source}</span>
                       {e.attack_type && <span className="diag-badge diag-badge-move">{e.attack_type}</span>}
-                      {e.argumentation_scheme && <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'var(--bg-hover)', color: 'var(--text-secondary)', marginLeft: 2 }}>{e.argumentation_scheme}</span>}
+                      {e.argumentation_scheme && <span className="diag-badge ev-badge-hover ev-ml-2">{e.argumentation_scheme}</span>}
                       {e.weight != null && <QbafEdgeIndicator edge={e} />}
-                      {srcNode && <span className="diag-muted" style={{ marginLeft: 4 }}>{srcNode.text.slice(0, 60)}{srcNode.text.length > 60 ? '…' : ''}</span>}
+                      {srcNode && <span className="diag-muted ev-ml-4">{srcNode.text.slice(0, 60)}{srcNode.text.length > 60 ? '…' : ''}</span>}
                     </div>
                   );
                 })}
@@ -133,7 +134,7 @@ export function EntryView({ entryId }: { entryId: string }) {
         <span className="diag-entry-type">{entry.type}</span>
         <button
           onClick={() => { void api.clipboardWriteText(entryId); }}
-          style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontFamily: 'monospace', background: 'none', border: 'none', padding: '0 2px', cursor: 'pointer', opacity: 0.6 }}
+          className="ev-copy-id-btn"
           title={`Copy turn_id for flight recorder correlation: ${entryId}`}
         >…{entryId.slice(-6)} ⧉</button>
         {diag?.topic_alignment && (() => {
@@ -208,7 +209,8 @@ export function EntryView({ entryId }: { entryId: string }) {
         const familyFallback = 'var(--text-muted)';
         return (
           <CollapsibleSection title={`Intervention — ${im.move} [${im.family}]`} defaultOpen>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+            <div className="ev-badge-row">
+              {/* eslint-disable-next-line local/no-inline-style -- data-driven family color */}
               <span className="diag-badge" style={{ background: `color-mix(in srgb, ${familyColors[im.family] ?? familyFallback} 19%, transparent)`, color: familyColors[im.family] ?? familyFallback }}>{im.family}</span>
               <span className="diag-badge diag-badge-move">{im.move}</span>
               <span className="diag-badge diag-badge-type">{im.force}</span>
@@ -224,7 +226,7 @@ export function EntryView({ entryId }: { entryId: string }) {
             </div>
             {im.prerequisite_applied && (
               <div className="diag-kv">
-                <span className="diag-k">Prerequisite:</span> <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)' }}>{im.prerequisite_applied}</span>
+                <span className="diag-k">Prerequisite:</span> <span className="diag-badge ev-badge-warning">{im.prerequisite_applied}</span>
               </div>
             )}
             {im.source_evidence?.claim && (
@@ -233,7 +235,7 @@ export function EntryView({ entryId }: { entryId: string }) {
               </div>
             )}
             {im.original_claim_text && (
-              <div style={{ marginTop: 4, padding: '4px 8px', background: 'var(--bg-secondary)', borderRadius: 4, fontSize: '0.7rem', fontStyle: 'italic' }}>
+              <div className="ev-original-claim">
                 {im.original_claim_text}
               </div>
             )}
@@ -299,33 +301,33 @@ export function EntryView({ entryId }: { entryId: string }) {
             {trace.recent_scheme && (
               <div className="diag-kv">
                 <span className="diag-k">Recent Scheme:</span>
-                <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>{trace.recent_scheme}</span>
+                <span className="diag-badge ev-badge-hover">{trace.recent_scheme}</span>
               </div>
             )}
             {trace.metaphor_reframe_offered && (
-              <div className="diag-kv" style={{ marginTop: 4 }}>
+              <div className="diag-kv ev-mt-4">
                 <span className="diag-k">Metaphor Reframe:</span>
-                <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)' }}>
+                <span className="diag-badge ev-badge-warning">
                   {trace.metaphor_reframe_offered} {trace.metaphor_reframe_used ? '(USED)' : '(offered, not used)'}
                 </span>
               </div>
             )}
             {trace.critical_questions && (
-              <div style={{ fontSize: '0.7rem', marginTop: 4, padding: '4px 8px', background: 'var(--bg-secondary)', borderRadius: 4 }}>
-                <div className="diag-k" style={{ marginBottom: 2 }}>Critical Questions for Moderator:</div>
-                <div className="diag-muted" style={{ whiteSpace: 'pre-wrap' }}>{trace.critical_questions}</div>
+              <div className="ev-cq-box">
+                <div className="diag-k ev-mb-2">Critical Questions for Moderator:</div>
+                <div className="diag-muted ev-pre-wrap">{trace.critical_questions}</div>
               </div>
             )}
             {/* Implementation Challenge move (policymaker debates, t/251) */}
             {trace.selection_reason === 'implementation_challenge' && (
-              <div className="diag-kv" style={{ marginTop: 4 }}>
-                <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, background: 'color-mix(in srgb, var(--danger) 15%, transparent)', color: 'var(--danger)', padding: '2px 6px', borderRadius: 3 }}>
+              <div className="diag-kv ev-mt-4">
+                <span className="diag-badge ev-impl-challenge-badge">
                   IMPLEMENTATION CHALLENGE
                 </span>
                 {(trace as Record<string, unknown>).implementation_challenge_trigger ? (() => {
                   const trigger = (trace as Record<string, unknown>).implementation_challenge_trigger as { round?: number; operationality_score?: number; convergence_score?: number };
                   return (
-                    <span className="diag-muted" style={{ marginLeft: 6 }}>
+                    <span className="diag-muted ev-ml-6">
                       round {trigger.round ?? '?'} · operationality {trigger.operationality_score?.toFixed(2) ?? '?'} · convergence {trigger.convergence_score?.toFixed(2) ?? '?'}
                     </span>
                   );
@@ -333,16 +335,16 @@ export function EntryView({ entryId }: { entryId: string }) {
               </div>
             )}
             {trace.argument_network_snapshot && (
-              <div style={{ fontSize: '0.7rem', marginTop: 4 }}>
+              <div className="ev-fs-sm ev-mt-4">
                 <div className="diag-k">Argument Network at Decision:</div>
                 <div className="diag-muted">
                   {trace.argument_network_snapshot.total_claims} claims, {trace.argument_network_snapshot.total_edges} edges, {trace.argument_network_snapshot.unaddressed_claims} unaddressed
                 </div>
                 {(trace.argument_network_snapshot.strongest_unaddressed?.length ?? 0) > 0 && (
-                  <div style={{ marginTop: 2 }}>
+                  <div className="ev-mt-2">
                     <span className="diag-k">Strongest unaddressed:</span>
                     {trace.argument_network_snapshot.strongest_unaddressed!.map((n, i) => (
-                      <div key={i} className="diag-muted" style={{ paddingLeft: 8 }}>
+                      <div key={i} className="diag-muted ev-pl-8">
                         {n.id} ({n.speaker}, strength {n.strength?.toFixed(2)}): {n.text}
                       </div>
                     ))}
@@ -374,35 +376,39 @@ export function EntryView({ entryId }: { entryId: string }) {
             {stages.map(s => (
               <CollapsibleSection key={s.stage} title={`${s.stage.toUpperCase()} — ${s.model} (temp=${s.temperature}, ${((s.response_time_ms ?? 0) / 1000).toFixed(1)}s${s.input_tokens != null || s.output_tokens != null ? `, ${(s.input_tokens ?? 0).toLocaleString()}/${(s.output_tokens ?? 0).toLocaleString()} tok` : ''})`}>
                 {s.stage === 'brief' && !!(s.work_product as Record<string, unknown>).situation_assessment && (
-                  <div style={{ padding: 6, marginBottom: 6, borderLeft: `3px solid color-mix(in srgb, ${stageColors[s.stage]} 25%, transparent)`, fontSize: '0.75rem' }}>
+                  // eslint-disable-next-line local/no-inline-style -- data-driven stage border color
+                  <div className="ev-stage-assessment" style={{ borderLeft: `3px solid color-mix(in srgb, ${stageColors[s.stage]} 25%, transparent)` }}>
                     {String((s.work_product as Record<string, unknown>).situation_assessment)}
                   </div>
                 )}
                 {s.stage === 'brief' && Array.isArray((s.work_product as Record<string, unknown>).strongest_angles) && (
-                  <div style={{ marginBottom: 6 }}>
+                  <div className="ev-mb-6">
                     {((s.work_product as Record<string, unknown>).strongest_angles as { angle: string; why: string; grounding?: { node_id: string; why: string }[] }[]).map((a, i) => {
                       const sitGrounding = (a.grounding ?? []).filter(g => g.node_id.startsWith('sit-'));
                       const sitNodes = useTaxonomyStore.getState().situations?.nodes;
                       return (
-                        <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid color-mix(in srgb, ${stageColors[s.stage]} 25%, transparent)` }}>
-                          <div style={{ fontSize: '0.7rem', fontWeight: 600 }}>{a.angle}</div>
-                          <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{a.why}</div>
+                        // eslint-disable-next-line local/no-inline-style -- data-driven stage border color
+                        <div key={i} className="ev-plan-item" style={{ borderLeft: `2px solid color-mix(in srgb, ${stageColors[s.stage]} 25%, transparent)` }}>
+                          <div className="ev-angle-title">{a.angle}</div>
+                          <div className="ev-muted-2xs">{a.why}</div>
                           {sitGrounding.length > 0 && sitNodes && (
-                            <div style={{ marginTop: 2 }}>
+                            <div className="ev-mt-2">
                               {sitGrounding.map(g => {
                                 const sit = sitNodes.find(n => n.id === g.node_id);
                                 const div = sit?.interpretation_divergence;
                                 if (div == null) return (
-                                  <span key={g.node_id} style={{ display: 'inline-block', fontSize: 'var(--text-2xs)', marginRight: 6, padding: '1px 5px', borderRadius: 3, background: 'var(--bg-secondary)', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                                  <span key={g.node_id} className="ev-sit-chip">
                                     {g.node_id}
                                   </span>
                                 );
                                 const color = div > 0.40 ? 'var(--success)' : div >= 0.20 ? 'var(--warning)' : 'var(--danger)';
                                 const isLow = div < 0.20;
                                 return (
-                                  <span key={g.node_id} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 'var(--text-2xs)', marginRight: 6, padding: '1px 5px', borderRadius: 3, background: isLow ? 'color-mix(in srgb, var(--danger) 9%, transparent)' : 'var(--bg-secondary)', fontFamily: 'monospace' }}>
-                                    <span style={{ color: 'var(--text-muted)' }}>{g.node_id}</span>
-                                    <span style={{ color, fontWeight: 600 }}>div:{div.toFixed(2)}</span>
+                                  // eslint-disable-next-line local/no-inline-style -- data-driven low-divergence background
+                                  <span key={g.node_id} className="ev-sit-chip-div" style={{ background: isLow ? 'color-mix(in srgb, var(--danger) 9%, transparent)' : 'var(--bg-secondary)' }}>
+                                    <span className="ev-text-muted">{g.node_id}</span>
+                                    {/* eslint-disable-next-line local/no-inline-style -- data-driven divergence color */}
+                                    <span className="ev-fw-600" style={{ color }}>div:{div.toFixed(2)}</span>
                                     {isLow && <span title="Low divergence — may not generate disagreement">⚠</span>}
                                   </span>
                                 );
@@ -415,50 +421,55 @@ export function EntryView({ entryId }: { entryId: string }) {
                   </div>
                 )}
                 {s.stage === 'plan' && !!(s.work_product as Record<string, unknown>).strategic_goal && (
-                  <div style={{ padding: 6, marginBottom: 6, borderLeft: `3px solid color-mix(in srgb, ${stageColors[s.stage]} 25%, transparent)`, fontSize: '0.75rem', fontWeight: 600 }}>
+                  // eslint-disable-next-line local/no-inline-style -- data-driven stage border color
+                  <div className="ev-stage-goal" style={{ borderLeft: `3px solid color-mix(in srgb, ${stageColors[s.stage]} 25%, transparent)` }}>
                     {String((s.work_product as Record<string, unknown>).strategic_goal)}
                   </div>
                 )}
                 {s.stage === 'plan' && !!(s.work_product as Record<string, unknown>).core_thesis && (
-                  <div style={{ padding: 6, marginBottom: 6, borderLeft: `3px solid color-mix(in srgb, ${stageColors[s.stage]} 25%, transparent)`, fontSize: '0.7rem', fontStyle: 'italic' }}>
+                  // eslint-disable-next-line local/no-inline-style -- data-driven stage border color
+                  <div className="ev-stage-thesis" style={{ borderLeft: `3px solid color-mix(in srgb, ${stageColors[s.stage]} 25%, transparent)` }}>
                     {String((s.work_product as Record<string, unknown>).core_thesis)}
                   </div>
                 )}
                 {s.stage === 'plan' && Array.isArray((s.work_product as Record<string, unknown>).planned_moves) && (
-                  <div style={{ marginBottom: 6 }}>
+                  <div className="ev-mb-6">
                     {((s.work_product as Record<string, unknown>).planned_moves as { move: string; target?: string; detail: string }[]).map((m, i) => (
-                      <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid color-mix(in srgb, ${stageColors[s.stage]} 25%, transparent)` }}>
+                      // eslint-disable-next-line local/no-inline-style -- data-driven stage border color
+                      <div key={i} className="ev-plan-item" style={{ borderLeft: `2px solid color-mix(in srgb, ${stageColors[s.stage]} 25%, transparent)` }}>
                         <span className="diag-badge diag-badge-move">{m.move}</span>
-                        {m.target && <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{'→'} {m.target}</span>}
-                        {m.detail && <div style={{ fontSize: '0.7rem', marginTop: 1 }}>{m.detail}</div>}
+                        {m.target && <span className="ev-ml-6 ev-muted-2xs">{'→'} {m.target}</span>}
+                        {m.detail && <div className="ev-fs-sm ev-mt-1">{m.detail}</div>}
                       </div>
                     ))}
                   </div>
                 )}
                 {s.stage === 'plan' && Array.isArray((s.work_product as Record<string, unknown>).argument_structure) && (
-                  <div style={{ marginBottom: 6 }}>
+                  <div className="ev-mb-6">
                     {((s.work_product as Record<string, unknown>).argument_structure as { point: string; evidence: string; taxonomy_anchor: string }[]).map((a, i) => (
-                      <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid color-mix(in srgb, ${stageColors[s.stage]} 25%, transparent)` }}>
-                        <div style={{ fontSize: '0.7rem', fontWeight: 600 }}>{a.point}</div>
-                        {a.evidence && <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Evidence: {a.evidence}</div>}
-                        {a.taxonomy_anchor && <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Anchor: {a.taxonomy_anchor}</div>}
+                      // eslint-disable-next-line local/no-inline-style -- data-driven stage border color
+                      <div key={i} className="ev-plan-item" style={{ borderLeft: `2px solid color-mix(in srgb, ${stageColors[s.stage]} 25%, transparent)` }}>
+                        <div className="ev-angle-title">{a.point}</div>
+                        {a.evidence && <div className="ev-muted-2xs">Evidence: {a.evidence}</div>}
+                        {a.taxonomy_anchor && <div className="ev-muted-2xs">Anchor: {a.taxonomy_anchor}</div>}
                       </div>
                     ))}
                   </div>
                 )}
                 {s.stage === 'draft' && !!(s.work_product as Record<string, unknown>).disagreement_type && (
-                  <div className="diag-kv" style={{ marginBottom: 4 }}>
+                  <div className="diag-kv ev-mb-4">
                     <span className="diag-k">Disagreement:</span>
                     <span className="diag-badge diag-badge-type">{String((s.work_product as Record<string, unknown>).disagreement_type)}</span>
                   </div>
                 )}
                 {s.stage === 'draft' && diag?.topic_alignment && (
-                  <div style={{ marginBottom: 6, padding: '4px 8px', borderLeft: `3px solid color-mix(in srgb, ${diag.topic_alignment.topic_aligned ? 'var(--success)' : 'var(--danger)'} 25%, transparent)`, fontSize: 'var(--text-2xs)' }}>
-                    <div className="diag-kv" style={{ marginBottom: 2 }}>
+                  // eslint-disable-next-line local/no-inline-style -- data-driven topic-alignment border color
+                  <div className="ev-topic-align-box" style={{ borderLeft: `3px solid color-mix(in srgb, ${diag.topic_alignment.topic_aligned ? 'var(--success)' : 'var(--danger)'} 25%, transparent)` }}>
+                    <div className="diag-kv ev-mb-2">
                       <span className="diag-k">Topic aligned</span>
-                      <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>Attempt {String((diag.topic_alignment as Record<string, unknown>).draft_attempt ?? 1)}</span>
+                      <span className="diag-badge ev-badge-hover">Attempt {String((diag.topic_alignment as Record<string, unknown>).draft_attempt ?? 1)}</span>
                       {diag.topic_alignment.repaired && (
-                        <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)' }}>triggered regen</span>
+                        <span className="diag-badge ev-badge-warning">triggered regen</span>
                       )}
                     </div>
                     <div className="diag-kv">
@@ -469,21 +480,21 @@ export function EntryView({ entryId }: { entryId: string }) {
                       />
                     </div>
                     {(diag.topic_alignment.scope_used?.off_scope_topics?.length ?? 0) > 0 && (
-                      <div style={{ marginTop: 2 }}>
+                      <div className="ev-mt-2">
                         <span className="diag-k">Off-scope topics (static):</span>
-                        <ul style={{ margin: '2px 0 0 16px', padding: 0, listStyle: 'disc' }}>
+                        <ul className="ev-scope-list">
                           {diag.topic_alignment.scope_used!.off_scope_topics!.map((item: string, i: number) => (
-                            <li key={i} style={{ color: 'var(--danger)' }}>{item}</li>
+                            <li key={i} className="ev-text-danger">{item}</li>
                           ))}
                         </ul>
                       </div>
                     )}
                     {(diag.topic_alignment.scope_used?.drift_signatures?.length ?? 0) > 0 && (
-                      <div style={{ marginTop: 2 }}>
+                      <div className="ev-mt-2">
                         <span className="diag-k">Drift signatures (static):</span>
-                        <ul style={{ margin: '2px 0 0 16px', padding: 0, listStyle: 'disc' }}>
+                        <ul className="ev-scope-list">
                           {diag.topic_alignment.scope_used!.drift_signatures!.map((sig: string, i: number) => (
-                            <li key={i} style={{ color: 'var(--warning)' }}>{sig}</li>
+                            <li key={i} className="ev-text-warning">{sig}</li>
                           ))}
                         </ul>
                       </div>
@@ -491,14 +502,14 @@ export function EntryView({ entryId }: { entryId: string }) {
                   </div>
                 )}
                 {s.stage === 'cite' && typeof (s.work_product as Record<string, unknown>).grounding_confidence === 'number' && (
-                  <div className="diag-kv" style={{ marginBottom: 4 }}>
+                  <div className="diag-kv ev-mb-4">
                     <span className="diag-k">Grounding confidence:</span>
                     <span className="diag-v">{((s.work_product as Record<string, unknown>).grounding_confidence as number).toFixed(2)}</span>
                   </div>
                 )}
-                <details style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
-                  <summary style={{ cursor: 'pointer' }}>Full work product</summary>
-                  <pre style={{ whiteSpace: 'pre-wrap', maxHeight: 150, overflow: 'auto', fontSize: 'var(--text-2xs)' }}>{JSON.stringify(s.work_product, null, 2)}</pre>
+                <details className="ev-muted-2xs">
+                  <summary className="ev-cursor-pointer">Full work product</summary>
+                  <pre className="ev-work-product-pre">{JSON.stringify(s.work_product, null, 2)}</pre>
                 </details>
               </CollapsibleSection>
             ))}
@@ -513,15 +524,15 @@ export function EntryView({ entryId }: { entryId: string }) {
             const name = getMoveName(m);
             const ann = typeof m === 'object' ? m as MoveAnnotation : null;
             return (
-              <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid var(--border-color)' }}>
+              <div key={i} className="ev-move-item">
                 <span className="diag-badge diag-badge-move">{name}</span>
-                {ann?.target && <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>→ {ann.target}</span>}
-                {ann?.detail && <div style={{ fontSize: '0.7rem', marginTop: 2 }}>{ann.detail}</div>}
+                {ann?.target && <span className="ev-ml-6 ev-muted-2xs">→ {ann.target}</span>}
+                {ann?.detail && <div className="ev-fs-sm ev-mt-2">{ann.detail}</div>}
               </div>
             );
           })}
           {!!meta.disagreement_type && (
-            <div className="diag-kv" style={{ marginTop: 4 }}>
+            <div className="diag-kv ev-mt-4">
               <span className="diag-k">Disagreement type:</span>
               <span className="diag-badge diag-badge-type">{String(meta.disagreement_type)}</span>
             </div>
@@ -564,29 +575,30 @@ export function EntryView({ entryId }: { entryId: string }) {
                   />
                 )}
                 {!repair && hasEntailmentData && (
-                  <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', opacity: 0.5 }}>ns</span>
+                  <span className="ev-ns-badge">ns</span>
                 )}
                 {anNode?.bdi_category && (
-                  <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: anNode.bdi_category === 'belief' ? 'color-mix(in srgb, var(--color-saf) 15%, transparent)' : anNode.bdi_category === 'desire' ? 'color-mix(in srgb, var(--color-skp) 15%, transparent)' : 'color-mix(in srgb, var(--color-acc) 15%, transparent)', color: anNode.bdi_category === 'belief' ? 'var(--color-saf)' : anNode.bdi_category === 'desire' ? 'var(--color-skp)' : 'var(--color-acc)' }}>
+                  // eslint-disable-next-line local/no-inline-style -- data-driven BDI category color
+                  <span className="ev-mini-badge" style={{ background: anNode.bdi_category === 'belief' ? 'color-mix(in srgb, var(--color-saf) 15%, transparent)' : anNode.bdi_category === 'desire' ? 'color-mix(in srgb, var(--color-skp) 15%, transparent)' : 'color-mix(in srgb, var(--color-acc) 15%, transparent)', color: anNode.bdi_category === 'belief' ? 'var(--color-saf)' : anNode.bdi_category === 'desire' ? 'var(--color-skp)' : 'var(--color-acc)' }}>
                     {anNode.bdi_category[0].toUpperCase()}
                   </span>
                 )}
                 {anNode?.specificity && (
-                  <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: 'color-mix(in srgb, var(--text-muted) 12%, transparent)', color: 'var(--text-muted)' }}>
+                  <span className="ev-mini-badge ev-badge-muted12">
                     {anNode.specificity}
                   </span>
                 )}
                 {anNode?.steelman_of && (
-                  <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: 'color-mix(in srgb, var(--text-secondary) 15%, transparent)', color: 'var(--text-secondary)' }}>
+                  <span className="ev-mini-badge ev-badge-secondary">
                     ⬆
                   </span>
                 )}
                 <span className="diag-claim-text">{c.text}</span>
                 {repair && repair.verdict !== 'entailed' && repair.repaired_text && (
-                  <div style={{ fontSize: 'var(--text-2xs)', marginTop: 2, paddingLeft: 12 }}>
-                    <span style={{ textDecoration: 'line-through', color: 'var(--danger)', opacity: 0.6 }}>{repair.original_text.slice(0, 80)}{repair.original_text.length > 80 ? '…' : ''}</span>
+                  <div className="ev-repair-diff">
+                    <span className="ev-repair-old">{repair.original_text.slice(0, 80)}{repair.original_text.length > 80 ? '…' : ''}</span>
                     {' → '}
-                    <span style={{ color: 'var(--success)' }}>{repair.repaired_text.slice(0, 80)}{repair.repaired_text.length > 80 ? '…' : ''}</span>
+                    <span className="ev-text-success">{repair.repaired_text.slice(0, 80)}{repair.repaired_text.length > 80 ? '…' : ''}</span>
                   </div>
                 )}
               </div>
@@ -609,11 +621,11 @@ export function EntryView({ entryId }: { entryId: string }) {
         return (
           <CollapsibleSection title={`Claim Extraction — ${ce.claims_parsed} claims, ${ce.schemes_classified.length} schemes (${ce.response_time_ms}ms)`} defaultOpen>
             {ce.schemes_classified.length > 0 && (
-              <div style={{ marginBottom: 6 }}>
+              <div className="ev-mb-6">
                 <span className="diag-k">Argumentation Schemes Classified:</span>
-                <div className="diag-badges" style={{ marginTop: 2 }}>
+                <div className="diag-badges ev-mt-2">
                   {ce.schemes_classified.map((s, i) => (
-                    <span key={i} className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>{s}</span>
+                    <span key={i} className="diag-badge ev-badge-hover">{s}</span>
                   ))}
                 </div>
               </div>
@@ -656,50 +668,50 @@ export function EntryView({ entryId }: { entryId: string }) {
         return (
           <CollapsibleSection title={`Exclusion Guard${totalIssues > 0 ? ` — ${totalIssues} issue${totalIssues !== 1 ? 's' : ''}` : ''}`}>
             {/* Claim Extraction Guard */}
-            <div style={{ marginBottom: 8 }}>
-              <div className="diag-k" style={{ marginBottom: 3 }}>Claim Extraction Guard</div>
+            <div className="ev-mb-8">
+              <div className="diag-k ev-mb-3">Claim Extraction Guard</div>
               {exclusionGuard ? (
                 <>
-                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 3 }}>
+                  <div className="ev-muted-2xs ev-mb-3">
                     Checked {exclusionGuard.checked} claims against {exclusionGuard.refs_with_exclusion_vector} exclusion vectors (threshold: {exclusionGuard.threshold.toFixed(2)})
                   </div>
                   {violations.length > 0 ? violations.map((v, i) => (
-                    <div key={i} style={{ fontSize: 'var(--text-2xs)', marginLeft: 8, marginBottom: 2, padding: '2px 4px', borderLeft: '2px solid var(--danger)', background: 'color-mix(in srgb, var(--danger) 6%, transparent)' }}>
-                      <span style={{ fontWeight: 600, color: 'var(--danger)' }}>{v.claim_id}</span> → {v.node_id}
+                    <div key={i} className="ev-violation-row">
+                      <span className="ev-fw-600 ev-text-danger">{v.claim_id}</span> → {v.node_id}
                       <span className="diag-muted"> (main: {v.similarity_main.toFixed(2)}, excl: {v.similarity_exclusion.toFixed(2)})</span>
                     </div>
                   )) : (
-                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--success)', fontWeight: 600 }}>All {exclusionGuard.checked} claims within scope — 0 exclusion violations</div>
+                    <div className="ev-scope-ok">All {exclusionGuard.checked} claims within scope — 0 exclusion violations</div>
                   )}
                 </>
               ) : hasExtTrace ? (
-                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--success)', fontWeight: 600 }}>All claims within scope — 0 exclusion violations</div>
+                <div className="ev-scope-ok">All claims within scope — 0 exclusion violations</div>
               ) : (
-                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>No exclusion guard data — extraction trace not available</div>
+                <div className="ev-no-data">No exclusion guard data — extraction trace not available</div>
               )}
             </div>
 
             {/* Draft Scope Check */}
-            <div style={{ marginBottom: 8 }}>
-              <div className="diag-k" style={{ marginBottom: 3 }}>Draft Scope Check</div>
+            <div className="ev-mb-8">
+              <div className="diag-k ev-mb-3">Draft Scope Check</div>
               {scopeDriftCheck ? (
                 <>
-                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 3 }}>
+                  <div className="ev-muted-2xs ev-mb-3">
                     Checked {scopeDriftCheck.refs_checked} refs, {scopeDriftCheck.refs_with_exclusion_vector} with exclusion vectors (threshold: {scopeDriftCheck.threshold.toFixed(2)})
                   </div>
                   {warnings.length > 0 ? warnings.map((w, i) => (
-                    <div key={i} style={{ fontSize: 'var(--text-2xs)', marginLeft: 8, marginBottom: 2, padding: '2px 4px', borderLeft: '2px solid var(--warning)', background: 'color-mix(in srgb, var(--warning) 6%, transparent)' }}>
-                      <span style={{ fontWeight: 600, color: 'var(--warning)' }}>{w.debater}</span> → {w.node_id}
+                    <div key={i} className="ev-warning-row">
+                      <span className="ev-fw-600 ev-text-warning">{w.debater}</span> → {w.node_id}
                       <span className="diag-muted"> (sim: {w.similarity.toFixed(2)})</span>
                     </div>
                   )) : (
-                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--success)', fontWeight: 600 }}>All {scopeDriftCheck.refs_checked} refs within scope — 0 drift warnings</div>
+                    <div className="ev-scope-ok">All {scopeDriftCheck.refs_checked} refs within scope — 0 drift warnings</div>
                   )}
                 </>
               ) : diag ? (
-                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--success)', fontWeight: 600 }}>No scope drift detected — 0 warnings</div>
+                <div className="ev-scope-ok">No scope drift detected — 0 warnings</div>
               ) : (
-                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>No scope drift data — diagnostics not available</div>
+                <div className="ev-no-data">No scope drift data — diagnostics not available</div>
               )}
             </div>
 
@@ -707,14 +719,14 @@ export function EntryView({ entryId }: { entryId: string }) {
             {(diag as Record<string, unknown> | undefined)?.taxonomy_injection_trace ? (() => {
               const tit = (diag as Record<string, unknown>).taxonomy_injection_trace as { considered: number; demoted: number; demoted_nodes?: { node_id: string; exclusion_similarity: number }[] };
               return (
-                <div style={{ marginBottom: 8 }}>
-                  <div className="diag-k" style={{ marginBottom: 3 }}>Taxonomy Context Injection</div>
-                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 3 }}>
+                <div className="ev-mb-8">
+                  <div className="diag-k ev-mb-3">Taxonomy Context Injection</div>
+                  <div className="ev-muted-2xs ev-mb-3">
                     {tit.considered} nodes considered, {tit.demoted} demoted by exclusion filter
                   </div>
                   {tit.demoted_nodes?.map((n, i) => (
-                    <div key={i} style={{ fontSize: 'var(--text-2xs)', marginLeft: 8, marginBottom: 2 }}>
-                      <span style={{ fontWeight: 600 }}>{n.node_id}</span>
+                    <div key={i} className="ev-inject-row">
+                      <span className="ev-fw-600">{n.node_id}</span>
                       <span className="diag-muted"> (excl: {n.exclusion_similarity.toFixed(2)})</span>
                     </div>
                   ))}
@@ -727,13 +739,13 @@ export function EntryView({ entryId }: { entryId: string }) {
               const sit = (diag as Record<string, unknown>).situation_injection_trace as { considered: number; excluded: number; excluded_situations?: { situation_id: string; exclusion_similarity: number }[] };
               return (
                 <div>
-                  <div className="diag-k" style={{ marginBottom: 3 }}>Situation Injection</div>
-                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 3 }}>
+                  <div className="diag-k ev-mb-3">Situation Injection</div>
+                  <div className="ev-muted-2xs ev-mb-3">
                     {sit.considered} situations considered, {sit.excluded} excluded
                   </div>
                   {sit.excluded_situations?.map((s, i) => (
-                    <div key={i} style={{ fontSize: 'var(--text-2xs)', marginLeft: 8, marginBottom: 2 }}>
-                      <span style={{ fontWeight: 600 }}>{s.situation_id}</span>
+                    <div key={i} className="ev-inject-row">
+                      <span className="ev-fw-600">{s.situation_id}</span>
                       <span className="diag-muted"> (excl: {s.exclusion_similarity.toFixed(2)})</span>
                     </div>
                   ))}
@@ -761,8 +773,8 @@ export function EntryView({ entryId }: { entryId: string }) {
             const unusedRefs = [...referencedIds].filter(id => !injectedPov.includes(id) && !injectedSit.includes(id));
 
             return (
-              <div style={{ fontSize: '0.75rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+              <div className="ev-fs-md">
+                <div className="ev-grid-3">
                   <div>
                     <div className="diag-k">Perspective Nodes</div>
                     <div className="diag-v">{usedPov.length} / {injectedPov.length} used ({injectedPov.length > 0 ? Math.round(100 * usedPov.length / injectedPov.length) : 0}%)</div>
@@ -776,7 +788,7 @@ export function EntryView({ entryId }: { entryId: string }) {
                     <div className="diag-v">{usedSit.length} / {injectedSit.length} used ({injectedSit.length > 0 ? Math.round(100 * usedSit.length / injectedSit.length) : 0}%)</div>
                   </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                <div className="ev-grid-3">
                   <div>
                     <div className="diag-k">Vulnerabilities</div>
                     <div className="diag-v">{manifest.vulnerabilityCount} injected</div>
@@ -794,13 +806,13 @@ export function EntryView({ entryId }: { entryId: string }) {
                 {(manifest as Record<string, unknown>).policymaker_situation_boost ? (() => {
                   const psb = (manifest as Record<string, unknown>).policymaker_situation_boost as { boosted: number; keywords_matched?: string[] };
                   return (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                    <div className="ev-grid-3">
                       <div>
                         <div className="diag-k">Policymaker Boost</div>
                         <div className="diag-v">{psb.boosted} situation{psb.boosted !== 1 ? 's' : ''} boosted</div>
                       </div>
                       {psb.keywords_matched && psb.keywords_matched.length > 0 && (
-                        <div style={{ gridColumn: 'span 2' }}>
+                        <div className="ev-grid-span-2">
                           <div className="diag-k">Keywords Matched</div>
                           <div className="diag-v">{psb.keywords_matched.join(', ')}</div>
                         </div>
@@ -816,20 +828,21 @@ export function EntryView({ entryId }: { entryId: string }) {
                   };
                   const restoredSet = new Set(sft.restorations);
                   return (
-                    <div style={{ marginBottom: 8 }}>
-                      <div className="diag-k" style={{ marginBottom: 4 }}>
+                    <div className="ev-mb-8">
+                      <div className="diag-k ev-mb-4">
                         Scope Filter — {sft.demoted.length} demoted, {sft.restorations.length} restored
                       </div>
                       {sft.demoted.map(d => {
                         const restored = restoredSet.has(d.nodeId);
                         return (
-                          <div key={d.nodeId} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, fontSize: 'var(--text-2xs)' }}>
-                            <span style={{ fontFamily: 'monospace', minWidth: 52, color: restored ? 'var(--warning)' : 'var(--danger)' }}>{d.nodeId}</span>
-                            <span style={{ flex: 1, color: 'var(--text-muted)' }}>{d.reason}</span>
-                            <span style={{ minWidth: 60, textAlign: 'right', color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
+                          <div key={d.nodeId} className="ev-flex-row-2xs">
+                            {/* eslint-disable-next-line local/no-inline-style -- data-driven restored/demoted color */}
+                            <span className="ev-mono-52" style={{ color: restored ? 'var(--warning)' : 'var(--danger)' }}>{d.nodeId}</span>
+                            <span className="ev-flex-1 ev-text-muted">{d.reason}</span>
+                            <span className="ev-score-col">
                               {d.originalScore.toFixed(2)} → {d.newScore.toFixed(2)}
                             </span>
-                            {restored && <span className="diag-badge" style={{ fontSize: 'var(--text-2xs)', background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)' }}>restored</span>}
+                            {restored && <span className="diag-badge ev-badge-warning">restored</span>}
                           </div>
                         );
                       })}
@@ -845,8 +858,8 @@ export function EntryView({ entryId }: { entryId: string }) {
                     .filter((n): n is NonNullable<typeof n> => !!n && n.interpretation_divergence != null);
                   if (sitWithDiv.length === 0) return null;
                   return (
-                    <div style={{ marginBottom: 8 }}>
-                      <div className="diag-k" style={{ marginBottom: 4 }}>Situation Divergence</div>
+                    <div className="ev-mb-8">
+                      <div className="diag-k ev-mb-4">Situation Divergence</div>
                       {sitWithDiv.map(sit => {
                         const div = sit.interpretation_divergence!;
                         const color = div > 0.40 ? 'var(--success)' : div >= 0.20 ? 'var(--warning)' : 'var(--danger)';
@@ -854,14 +867,17 @@ export function EntryView({ entryId }: { entryId: string }) {
                         const cited = referencedIds.has(sit.id);
                         const barWidth = Math.round(div * 100);
                         return (
-                          <div key={sit.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, fontSize: '0.7rem' }}>
-                            <span style={{ fontFamily: 'monospace', minWidth: 52, color: cited ? 'var(--accent)' : 'var(--text-muted)' }}>{sit.id}</span>
-                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>{sit.label}</span>
-                            <span style={{ minWidth: 36, textAlign: 'right', color: 'var(--text-muted)' }}>{div.toFixed(2)}</span>
-                            <div style={{ width: 50, height: 8, background: 'var(--bg-secondary)', borderRadius: 2, overflow: 'hidden' }}>
+                          <div key={sit.id} className="ev-flex-row-sm">
+                            {/* eslint-disable-next-line local/no-inline-style -- data-driven cited color */}
+                            <span className="ev-mono-52" style={{ color: cited ? 'var(--accent)' : 'var(--text-muted)' }}>{sit.id}</span>
+                            <span className="ev-sit-label">{sit.label}</span>
+                            <span className="ev-div-score">{div.toFixed(2)}</span>
+                            <div className="ev-div-bar-track">
+                              {/* eslint-disable-next-line local/no-inline-style -- data-driven bar width and color */}
                               <div style={{ width: `${barWidth}%`, height: '100%', background: color, borderRadius: 2 }} />
                             </div>
-                            <span style={{ fontSize: 'var(--text-2xs)', color, fontWeight: 600, minWidth: 28 }}>{label}</span>
+                            {/* eslint-disable-next-line local/no-inline-style -- data-driven divergence color */}
+                            <span className="ev-fs-2xs ev-fw-600 ev-minw-28" style={{ color }}>{label}</span>
                           </div>
                         );
                       })}
@@ -869,7 +885,7 @@ export function EntryView({ entryId }: { entryId: string }) {
                   );
                 })()}
                 {unusedRefs.length > 0 && (
-                  <div style={{ color: 'var(--warning)', marginTop: 4 }}>
+                  <div className="ev-text-warning ev-mt-4">
                     {unusedRefs.length} referenced node(s) not in injected context — hallucinated refs?
                   </div>
                 )}
@@ -887,23 +903,23 @@ export function EntryView({ entryId }: { entryId: string }) {
         if (prefs.length === 0) return null;
         return (
           <CollapsibleSection title={`Synthesis Preferences (${prefs.length})${hasPolicymaker ? ' — policymaker criteria active' : ''}`}>
-            <div style={{ fontSize: '0.72rem' }}>
+            <div className="ev-fs-072">
               {prefs.map((p, i) => {
                 const isPolicyCriterion = policymakerCriteria.includes(p.criterion);
                 return (
-                  <div key={i} style={{ marginBottom: 6, padding: '4px 6px', background: 'var(--bg-secondary)', borderRadius: 4 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                      <span className="diag-badge" style={{
-                        fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '1px 5px', borderRadius: 3,
+                  <div key={i} className="ev-pref-card">
+                    <div className="ev-flex-row-mb2">
+                      {/* eslint-disable-next-line local/no-inline-style -- data-driven policymaker-criterion colors */}
+                      <span className="diag-badge ev-pref-crit-badge" style={{
                         background: isPolicyCriterion ? 'color-mix(in srgb, var(--danger) 15%, transparent)' : 'color-mix(in srgb, var(--text-secondary) 15%, transparent)',
                         color: isPolicyCriterion ? 'var(--danger)' : 'var(--text-secondary)',
                       }}>
                         {p.criterion.replace(/_/g, ' ')}
                       </span>
-                      <span style={{ fontWeight: 600 }}>→ {p.prevails}</span>
+                      <span className="ev-fw-600">→ {p.prevails}</span>
                     </div>
                     <div className="diag-muted">{p.conflict}</div>
-                    <div style={{ color: 'var(--text-secondary)', marginTop: 2 }}>{p.rationale}</div>
+                    <div className="ev-text-secondary ev-mt-2">{p.rationale}</div>
                   </div>
                 );
               })}
@@ -956,9 +972,9 @@ export function EntryView({ entryId }: { entryId: string }) {
       {meta?.my_claims && (meta.my_claims as { claim: string; targets: string[] }[]).length > 0 ? (
         <CollapsibleSection title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`} defaultOpen>
           {(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => (
-            <div key={i} style={{ margin: '2px 0', fontSize: '0.7rem' }}>
-              <span style={{ color: 'var(--color-saf)' }}>{i + 1}.</span> {c.claim}
-              {c.targets?.length > 0 && <span className="diag-muted" style={{ marginLeft: 6 }}>→ {c.targets.join(', ')}</span>}
+            <div key={i} className="ev-claim-sketch">
+              <span className="ev-text-saf">{i + 1}.</span> {c.claim}
+              {c.targets?.length > 0 && <span className="diag-muted ev-ml-6">→ {c.targets.join(', ')}</span>}
             </div>
           ))}
         </CollapsibleSection>
@@ -973,7 +989,7 @@ export function EntryView({ entryId }: { entryId: string }) {
           <CollapsibleSection title={`Policy Refs (${polIds.length})`}>
             <div className="diag-badges">
               {polIds.map((id, i) => (
-                <span key={i} className="diag-badge" style={{ background: 'color-mix(in srgb, var(--text-secondary) 15%, transparent)', color: 'var(--text-secondary)' }}>{id}</span>
+                <span key={i} className="diag-badge ev-badge-secondary">{id}</span>
               ))}
             </div>
           </CollapsibleSection>
@@ -987,8 +1003,8 @@ export function EntryView({ entryId }: { entryId: string }) {
             const match = diag.prompt.match(/Scope reminder:[^\n]*/);
             if (!match) return null;
             return (
-              <div style={{ marginBottom: 6, padding: '4px 8px', background: 'color-mix(in srgb, var(--text-secondary) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--text-secondary) 30%, transparent)', borderRadius: 4, fontSize: 'var(--text-2xs)', color: 'var(--text-secondary)' }}>
-                <span className="diag-k" style={{ fontSize: 'var(--text-2xs)' }}>Scope block:</span> {match[0]}
+              <div className="ev-scope-block">
+                <span className="diag-k ev-fs-2xs">Scope block:</span> {match[0]}
               </div>
             );
           })()}

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import './OverviewTabRouter.css';
 import React from 'react';
 import type { DebateSession, ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore } from '../../../types/debate';
 import type { TopicScope, TopicScopeRiskLevel } from '@lib/debate/types';
@@ -84,95 +85,103 @@ export function OverviewTabRouter({
           low: 'var(--success)', medium: 'var(--warning)', high: 'var(--danger)', catastrophic: 'var(--danger)', unspecified: 'var(--text-muted)',
         };
         return (
-          <div style={{ padding: 16, overflowY: 'auto', flex: 1, fontSize: '0.75rem' }}>
-            <h4 style={{ margin: '0 0 8px', fontSize: '0.85rem' }}>Topic Scope</h4>
-            <div style={{ marginBottom: 8 }}>
-              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{scope.core_proposition}</span>
+          <div className="ovr-topic-scope">
+            <h4 className="ovr-h4">Topic Scope</h4>
+            <div className="ovr-mb-8">
+              <span className="ovr-scope-prop">{scope.core_proposition}</span>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-              {scope.domain && <span style={{ padding: '2px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontSize: '0.7rem' }}>{scope.domain}</span>}
-              {scope.product_type && <span style={{ padding: '2px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontSize: '0.7rem' }}>{scope.product_type}</span>}
-              {scope.time_horizon && <span style={{ padding: '2px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontSize: '0.7rem' }}>{scope.time_horizon}</span>}
-              <span style={{ padding: '2px 8px', borderRadius: 4, background: `color-mix(in srgb, ${RISK_COLORS[scope.risk_level]} 20%, transparent)`, color: RISK_COLORS[scope.risk_level], fontWeight: 600, fontSize: '0.7rem' }}>
+            <div className="ovr-badge-row">
+              {scope.domain && <span className="ovr-chip">{scope.domain}</span>}
+              {scope.product_type && <span className="ovr-chip">{scope.product_type}</span>}
+              {scope.time_horizon && <span className="ovr-chip">{scope.time_horizon}</span>}
+              <span
+                className="ovr-chip-bold"
+                // eslint-disable-next-line local/no-inline-style -- risk-level-driven background/color
+                style={{ background: `color-mix(in srgb, ${RISK_COLORS[scope.risk_level]} 20%, transparent)`, color: RISK_COLORS[scope.risk_level] }}
+              >
                 risk: {scope.risk_level}
               </span>
-              <span style={{ padding: '2px 8px', borderRadius: 4, background: scope.constraint_confidence === 'explicit' ? 'color-mix(in srgb, var(--success) 15%, transparent)' : 'color-mix(in srgb, var(--warning) 15%, transparent)', color: scope.constraint_confidence === 'explicit' ? 'var(--success)' : 'var(--warning)', fontSize: '0.7rem' }}>
+              <span
+                className="ovr-chip-base"
+                // eslint-disable-next-line local/no-inline-style -- constraint-confidence-driven background/color
+                style={{ background: scope.constraint_confidence === 'explicit' ? 'color-mix(in srgb, var(--success) 15%, transparent)' : 'color-mix(in srgb, var(--warning) 15%, transparent)', color: scope.constraint_confidence === 'explicit' ? 'var(--success)' : 'var(--warning)' }}
+              >
                 {scope.constraint_confidence}
               </span>
             </div>
 
             {scope.relevant_disciplines.length > 0 && (
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4 }}>Relevant Disciplines</div>
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              <div className="ovr-mb-10">
+                <div className="ovr-label">Relevant Disciplines</div>
+                <div className="ovr-tag-row">
                   {scope.relevant_disciplines.map(d => (
-                    <span key={d} style={{ padding: '2px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)', fontSize: 'var(--text-2xs)' }}>{d}</span>
+                    <span key={d} className="ovr-tag-warning">{d}</span>
                   ))}
                 </div>
               </div>
             )}
 
             {scope.key_tensions.length > 0 && (
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4 }}>Key Tensions</div>
-                <ol style={{ margin: 0, paddingLeft: 20, fontSize: '0.7rem' }}>
-                  {scope.key_tensions.map((t, i) => <li key={i} style={{ marginBottom: 2 }}>{t}</li>)}
+              <div className="ovr-mb-10">
+                <div className="ovr-label">Key Tensions</div>
+                <ol className="ovr-ol">
+                  {scope.key_tensions.map((t, i) => <li key={i} className="ovr-mb-2">{t}</li>)}
                 </ol>
               </div>
             )}
 
             {scope.off_scope_topics.length > 0 && (
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4, color: 'var(--danger)' }}>Off-Scope Topics</div>
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              <div className="ovr-mb-10">
+                <div className="ovr-label-danger">Off-Scope Topics</div>
+                <div className="ovr-tag-row">
                   {scope.off_scope_topics.map(t => (
-                    <span key={t} style={{ padding: '2px 6px', borderRadius: 3, background: 'color-mix(in srgb, var(--danger) 15%, transparent)', color: 'var(--danger)', fontSize: 'var(--text-2xs)' }}>{t}</span>
+                    <span key={t} className="ovr-tag-danger">{t}</span>
                   ))}
                 </div>
               </div>
             )}
 
             {scope.drift_signatures.length > 0 && (
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4, color: 'var(--warning)' }}>Drift Signatures</div>
-                <ul style={{ margin: 0, paddingLeft: 20, fontSize: '0.7rem', listStyle: 'disc' }}>
-                  {scope.drift_signatures.map((d, i) => <li key={i} style={{ color: 'var(--warning)', marginBottom: 2 }}>{d}</li>)}
+              <div className="ovr-mb-10">
+                <div className="ovr-label-warning">Drift Signatures</div>
+                <ul className="ovr-ul">
+                  {scope.drift_signatures.map((d, i) => <li key={i} className="ovr-li-warning">{d}</li>)}
                 </ul>
               </div>
             )}
 
             {scope.example_ceiling && (
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 2 }}>Example Ceiling</div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{scope.example_ceiling}</div>
+              <div className="ovr-mb-10">
+                <div className="ovr-label-tight">Example Ceiling</div>
+                <div className="ovr-example-ceiling">{scope.example_ceiling}</div>
               </div>
             )}
 
             {scope.explicit_qualifiers.length > 0 && (
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4 }}>Qualifiers</div>
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              <div className="ovr-mb-10">
+                <div className="ovr-label">Qualifiers</div>
+                <div className="ovr-tag-row">
                   {scope.explicit_qualifiers.map(q => (
-                    <span key={q} style={{ padding: '2px 6px', borderRadius: 3, background: 'var(--bg-hover)', color: 'var(--text-secondary)', fontSize: 'var(--text-2xs)' }}>{q}</span>
+                    <span key={q} className="ovr-tag-neutral">{q}</span>
                   ))}
                 </div>
               </div>
             )}
 
             {scope.excluded_scenarios.length > 0 && (
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4 }}>Excluded Scenarios</div>
-                <ul style={{ margin: 0, paddingLeft: 20, fontSize: '0.7rem', listStyle: 'disc' }}>
-                  {scope.excluded_scenarios.map((s, i) => <li key={i} style={{ marginBottom: 2 }}>{s}</li>)}
+              <div className="ovr-mb-10">
+                <div className="ovr-label">Excluded Scenarios</div>
+                <ul className="ovr-ul">
+                  {scope.excluded_scenarios.map((s, i) => <li key={i} className="ovr-mb-2">{s}</li>)}
                 </ul>
               </div>
             )}
 
             {scope.on_scope_evidence.length > 0 && (
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4 }}>On-Scope Evidence</div>
-                <ul style={{ margin: 0, paddingLeft: 20, fontSize: '0.7rem', listStyle: 'disc' }}>
-                  {scope.on_scope_evidence.map((e, i) => <li key={i} style={{ marginBottom: 2 }}>{e}</li>)}
+              <div className="ovr-mb-10">
+                <div className="ovr-label">On-Scope Evidence</div>
+                <ul className="ovr-ul">
+                  {scope.on_scope_evidence.map((e, i) => <li key={i} className="ovr-mb-2">{e}</li>)}
                 </ul>
               </div>
             )}
@@ -203,7 +212,7 @@ export function OverviewTabRouter({
       {/* Lineage Frame — intellectual tradition distribution from topic critique */}
       {effectiveOverviewTab === 'lineage' && (() => {
         const frame = debate.topic.critique?.lineage_frame;
-        if (!frame || frame.length === 0) return <div style={{ padding: 16, color: 'var(--text-muted)' }}>No lineage data for this debate.</div>;
+        if (!frame || frame.length === 0) return <div className="ovr-empty">No lineage data for this debate.</div>;
         const maxPct = Math.max(...frame.map(f => f.percentage));
         // Check if any transcript entry had lineage boost data
         const boostActive = debate.transcript.some(e => {
@@ -225,52 +234,52 @@ export function OverviewTabRouter({
           }
         }
         return (
-          <div style={{ padding: 16, overflowY: 'auto', flex: 1 }}>
-            <h4 style={{ margin: '0 0 8px', fontSize: '0.85rem' }}>Intellectual Lineage Frame</h4>
-            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0 0 12px' }}>
+          <div className="ovr-panel">
+            <h4 className="ovr-h4">Intellectual Lineage Frame</h4>
+            <p className="ovr-intro">
               Dominant intellectual traditions detected from activated taxonomy nodes. These traditions shape which nodes receive relevance boosts during context injection.
             </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+            <div className="ovr-lineage-list">
               {frame.map(f => (
                 <div key={f.cluster_id}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 600, minWidth: 160, textAlign: 'right' }}>{f.label}</span>
-                    <div style={{ flex: 1, height: 14, background: 'var(--bg-secondary, #222)', borderRadius: 3, overflow: 'hidden', position: 'relative' }}>
-                      <div style={{
-                        width: `${maxPct > 0 ? (f.percentage / maxPct) * 100 : 0}%`,
-                        height: '100%',
-                        background: 'linear-gradient(90deg, var(--warning), var(--color-acc))',
-                        borderRadius: 3,
-                        transition: 'width 0.3s ease',
-                      }} />
+                  <div className="ovr-lineage-row">
+                    <span className="ovr-lineage-label">{f.label}</span>
+                    <div className="ovr-lineage-track">
+                      <div
+                        className="ovr-lineage-bar"
+                        // eslint-disable-next-line local/no-inline-style -- data-driven bar width
+                        style={{ width: `${maxPct > 0 ? (f.percentage / maxPct) * 100 : 0}%` }}
+                      />
                     </div>
-                    <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, minWidth: 40, textAlign: 'right', color: 'var(--warning)' }}>
+                    <span className="ovr-lineage-pct">
                       {(f.percentage * 100).toFixed(0)}%
                     </span>
                   </div>
                   {f.traditions && f.traditions.length > 0 && (
-                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2, paddingLeft: 168 }}>
+                    <div className="ovr-lineage-traditions">
                       {f.traditions.join(', ')}
                     </div>
                   )}
                 </div>
               ))}
             </div>
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: '0.7rem' }}>
-              <div style={{
-                padding: '6px 12px', borderRadius: 6,
-                background: boostActive ? 'color-mix(in srgb, var(--success) 12%, transparent)' : 'color-mix(in srgb, var(--danger) 8%, transparent)',
-                color: boostActive ? 'var(--success)' : 'var(--text-muted)',
-                fontWeight: 600,
-              }}>
+            <div className="ovr-boost-row">
+              <div
+                className="ovr-boost-stat-base"
+                // eslint-disable-next-line local/no-inline-style -- boostActive-driven background/color
+                style={{
+                  background: boostActive ? 'color-mix(in srgb, var(--success) 12%, transparent)' : 'color-mix(in srgb, var(--danger) 8%, transparent)',
+                  color: boostActive ? 'var(--success)' : 'var(--text-muted)',
+                }}
+              >
                 Lineage Boost: {boostActive ? 'Active' : 'Inactive'}
               </div>
               {boostActive && turnsWithBoost > 0 && (
                 <>
-                  <div style={{ padding: '6px 12px', borderRadius: 6, background: 'var(--bg-hover)', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  <div className="ovr-boost-stat">
                     Turns with boost: {turnsWithBoost}
                   </div>
-                  <div style={{ padding: '6px 12px', borderRadius: 6, background: 'var(--bg-hover)', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  <div className="ovr-boost-stat">
                     Nodes boosted: {totalBoosted} · Promoted: {totalPromoted}
                   </div>
                 </>
@@ -306,36 +315,41 @@ export function OverviewTabRouter({
               const verdictColor = verdict === 'high_impact' ? 'var(--success)' : verdict === 'moderate_impact' ? 'var(--warning)' : 'var(--danger)';
               const promotedCitedSet = new Set(promotedCitedIds);
               return (
-                <div style={{
-                  marginTop: 12, padding: '8px 12px', borderRadius: 6,
-                  background: 'color-mix(in srgb, var(--color-acc) 6%, transparent)', border: '1px solid color-mix(in srgb, var(--color-acc) 15%, transparent)',
-                  fontSize: '0.7rem', lineHeight: 1.6,
-                }}>
-                  <div style={{ fontWeight: 700, color: 'var(--warning)', marginBottom: 4 }}>Lineage Effectiveness</div>
+                <div className="ovr-effectiveness">
+                  <div className="ovr-effectiveness-title">Lineage Effectiveness</div>
                   <div>
                     Lineage boost promoted <strong>{allPromoted.size}</strong> node{allPromoted.size !== 1 ? 's' : ''};{' '}
-                    <strong style={{ color: 'var(--success)' }}>{promotedCited}</strong> cited ({(promotedRate * 100).toFixed(0)}%)
+                    <strong className="ovr-success-text">{promotedCited}</strong> cited ({(promotedRate * 100).toFixed(0)}%)
                     {' vs. '}<strong>{(baselineRate * 100).toFixed(0)}%</strong> baseline
                   </div>
-                  <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
+                  <div className="ovr-muted-mt-2">
                     {promotedRate > baselineRate
                       ? `Promoted nodes cited ${ratio.toFixed(1)}× more than baseline — boost is helping`
                       : promotedRate === baselineRate
                         ? 'Promoted node citation rate matches baseline'
                         : 'Promoted nodes cited less than baseline — boost had limited effect'}
                   </div>
-                  <div style={{ marginTop: 6, fontWeight: 700, color: verdictColor }}>
+                  <div
+                    className="ovr-verdict"
+                    // eslint-disable-next-line local/no-inline-style -- verdict-driven color
+                    style={{ color: verdictColor }}
+                  >
                     Lineage boost: {verdictLabel}
                   </div>
                   {allPromoted.size <= 30 && (
-                    <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    <div className="ovr-promoted-list">
                       {[...allPromoted].map(id => (
-                        <span key={id} style={{
-                          padding: '1px 6px', borderRadius: 4, fontSize: 'var(--text-2xs)', fontFamily: 'monospace',
-                          background: promotedCitedSet.has(id) ? 'color-mix(in srgb, var(--success) 15%, transparent)' : 'color-mix(in srgb, var(--text-muted) 15%, transparent)',
-                          color: promotedCitedSet.has(id) ? 'var(--success)' : 'var(--text-muted)',
-                          border: `1px solid ${promotedCitedSet.has(id) ? 'color-mix(in srgb, var(--success) 30%, transparent)' : 'color-mix(in srgb, var(--text-muted) 20%, transparent)'}`,
-                        }} title={promotedCitedSet.has(id) ? 'Cited by debaters' : 'Not cited'}>
+                        <span
+                          key={id}
+                          className="ovr-promoted-chip"
+                          // eslint-disable-next-line local/no-inline-style -- citation-state-driven background/color/border
+                          style={{
+                            background: promotedCitedSet.has(id) ? 'color-mix(in srgb, var(--success) 15%, transparent)' : 'color-mix(in srgb, var(--text-muted) 15%, transparent)',
+                            color: promotedCitedSet.has(id) ? 'var(--success)' : 'var(--text-muted)',
+                            border: `1px solid ${promotedCitedSet.has(id) ? 'color-mix(in srgb, var(--success) 30%, transparent)' : 'color-mix(in srgb, var(--text-muted) 20%, transparent)'}`,
+                          }}
+                          title={promotedCitedSet.has(id) ? 'Cited by debaters' : 'Not cited'}
+                        >
                           {id}
                         </span>
                       ))}
@@ -370,39 +384,40 @@ export function OverviewTabRouter({
                 }
               }
               return (
-                <div style={{ marginTop: 20 }}>
-                  <h4 style={{ margin: '0 0 8px', fontSize: '0.85rem' }}>Vocabulary Disambiguation</h4>
-                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0 0 8px' }}>
+                <div className="ovr-mt-20">
+                  <h4 className="ovr-h4">Vocabulary Disambiguation</h4>
+                  <p className="ovr-intro-8">
                     Colloquial terms resolved to canonical forms based on speaker POV.
                     {allResolved.length > 0 && <> <strong>{allResolved.length}</strong> resolved across {grouped.size} unique mappings.</>}
-                    {allAmbiguous.length > 0 && <> <span style={{ color: 'var(--warning)' }}><strong>{allAmbiguous.length}</strong> ambiguous.</span></>}
+                    {allAmbiguous.length > 0 && <> <span className="ovr-warning-text"><strong>{allAmbiguous.length}</strong> ambiguous.</span></>}
                   </p>
                   {grouped.size > 0 && (
-                    <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse', marginBottom: 8 }}>
+                    <table className="ovr-vocab-table">
                       <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                          <th style={{ textAlign: 'left', padding: '3px 8px', color: 'var(--text-muted)' }}>Colloquial</th>
-                          <th style={{ textAlign: 'left', padding: '3px 8px', color: 'var(--text-muted)' }}>Canonical Form</th>
-                          <th style={{ textAlign: 'center', padding: '3px 8px', color: 'var(--text-muted)' }}>Conf.</th>
-                          <th style={{ textAlign: 'left', padding: '3px 8px', color: 'var(--text-muted)' }}>Speakers</th>
-                          <th style={{ textAlign: 'center', padding: '3px 8px', color: 'var(--text-muted)' }}>Hits</th>
+                        <tr className="ovr-vocab-head-row">
+                          <th className="ovr-th-left">Colloquial</th>
+                          <th className="ovr-th-left">Canonical Form</th>
+                          <th className="ovr-th-center">Conf.</th>
+                          <th className="ovr-th-left">Speakers</th>
+                          <th className="ovr-th-center">Hits</th>
                         </tr>
                       </thead>
                       <tbody>
                         {[...grouped.entries()].sort((a, b) => b[1].count - a[1].count).map(([key, v]) => {
                           const colloquial = key.split('→')[0];
                           return (
-                            <tr key={key} style={{ borderBottom: '1px solid color-mix(in srgb, var(--text-muted) 10%, transparent)' }}>
-                              <td style={{ padding: '3px 8px' }}>
-                                <span className="vocab-term" style={{ textDecoration: 'none', cursor: 'default' }}>{colloquial}</span>
+                            <tr key={key} className="ovr-vocab-row">
+                              <td className="ovr-td">
+                                <span className="vocab-term ovr-vocab-term">{colloquial}</span>
                               </td>
-                              <td style={{ padding: '3px 8px', color: 'var(--text-secondary)' }}>{v.canonical}</td>
-                              <td style={{
-                                padding: '3px 8px', textAlign: 'center', fontWeight: 600,
-                                color: v.confidence === 'high' ? 'var(--success)' : v.confidence === 'low' ? 'var(--danger)' : 'var(--warning)',
-                              }}>{v.confidence}</td>
-                              <td style={{ padding: '3px 8px', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{[...v.speakers].join(', ')}</td>
-                              <td style={{ padding: '3px 8px', textAlign: 'center' }}>{v.count}</td>
+                              <td className="ovr-td-secondary">{v.canonical}</td>
+                              <td
+                                className="ovr-td-conf"
+                                // eslint-disable-next-line local/no-inline-style -- confidence-driven color
+                                style={{ color: v.confidence === 'high' ? 'var(--success)' : v.confidence === 'low' ? 'var(--danger)' : 'var(--warning)' }}
+                              >{v.confidence}</td>
+                              <td className="ovr-td-muted">{[...v.speakers].join(', ')}</td>
+                              <td className="ovr-td-center">{v.count}</td>
                             </tr>
                           );
                         })}
@@ -410,13 +425,13 @@ export function OverviewTabRouter({
                     </table>
                   )}
                   {allAmbiguous.length > 0 && (
-                    <div style={{ padding: '6px 10px', background: 'color-mix(in srgb, var(--warning) 6%, transparent)', borderLeft: '3px solid var(--warning)', borderRadius: 4, fontSize: 'var(--text-2xs)' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--warning)', marginBottom: 4 }}>Ambiguous terms (needs review):</div>
+                    <div className="ovr-ambiguous">
+                      <div className="ovr-ambiguous-title">Ambiguous terms (needs review):</div>
                       {[...new Set(allAmbiguous.map(a => a.colloquial))].map((term, i) => {
                         const speakers = [...new Set(allAmbiguous.filter(a => a.colloquial === term).map(a => a.speaker))];
                         return (
-                          <div key={i} style={{ marginLeft: 8, marginBottom: 2 }}>
-                            &ldquo;{term}&rdquo; <span style={{ color: 'var(--text-muted)' }}>&mdash; {speakers.join(', ')}</span>
+                          <div key={i} className="ovr-ambiguous-item">
+                            &ldquo;{term}&rdquo; <span className="ovr-muted">&mdash; {speakers.join(', ')}</span>
                           </div>
                         );
                       })}
@@ -469,7 +484,7 @@ export function OverviewTabRouter({
 
       {/* POV Progression — inline view (replaces separate popout) */}
       {effectiveOverviewTab === 'pov-progression' && (
-        <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <div className="ovr-pov-progression">
           <PovProgressionView session={debate} nodeLabels={nodeLabels} />
         </div>
       )}
@@ -556,24 +571,28 @@ export function OverviewTabRouter({
           return s === '' || s === '0' || s === '(none)' || s === 'N/A';
         };
         return (
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '8px 12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <span style={{ fontSize: 'var(--text-md)', fontWeight: 600 }}>Flight Recorder Context Snapshot</span>
+          <div className="ovr-fr-context">
+            <div className="ovr-fr-header">
+              <span className="ovr-fr-title">Flight Recorder Context Snapshot</span>
               <button
                 onClick={() => { void triggerManualDump(); }}
-                style={{ fontSize: 'var(--text-2xs)', padding: '2px 8px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}
+                className="ovr-dump-btn"
               >Dump Now</button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+            <div className="ovr-fr-grid">
               {sections.map(s => (
-                <div key={s.title} style={{ borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', padding: 'var(--sp-4)' }}>
-                  <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.title}</div>
+                <div key={s.title} className="ovr-fr-card">
+                  <div className="ovr-fr-card-title">{s.title}</div>
                   {s.rows.map(([label, value]) => {
                     const empty = isEmptyValue(value);
                     return (
-                      <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '2px 0' }}>
-                        <span style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-2xs)' }}>{label}</span>
-                        <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: empty ? 'var(--text-muted)' : 'var(--text-primary)', marginLeft: 8, textAlign: 'right' }}>{String(value ?? '')}</span>
+                      <div key={label} className="ovr-fr-row">
+                        <span className="ovr-fr-label">{label}</span>
+                        <span
+                          className="ovr-fr-value"
+                          // eslint-disable-next-line local/no-inline-style -- empty-state-driven color
+                          style={{ color: empty ? 'var(--text-muted)' : 'var(--text-primary)' }}
+                        >{String(value ?? '')}</span>
                       </div>
                     );
                   })}
@@ -591,13 +610,13 @@ export function OverviewTabRouter({
           ? debate.transcript.map((e, i) => ({ e, i })).filter(({ e }) => e.speaker === transcriptSpeakerFilter)
           : debate.transcript.map((e, i) => ({ e, i }));
         return (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', gap: 4, padding: '4px 6px', flexWrap: 'wrap', alignItems: 'center', flexShrink: 0 }}>
+        <div className="ovr-transcript">
+          <div className="ovr-transcript-filters">
             <button
               onClick={() => setTranscriptSpeakerFilter(null)}
+              className="ovr-filter-btn"
+              // eslint-disable-next-line local/no-inline-style -- active-filter-driven background/color
               style={{
-                padding: '2px 8px', fontSize: 'var(--text-2xs)', fontWeight: 600, borderRadius: 4, cursor: 'pointer',
-                border: '1px solid var(--border)',
                 background: !transcriptSpeakerFilter ? 'var(--warning)' : 'transparent',
                 color: !transcriptSpeakerFilter ? 'var(--text-primary)' : 'var(--text-secondary)',
               }}
@@ -609,9 +628,9 @@ export function OverviewTabRouter({
                 <button
                   key={s}
                   onClick={() => setTranscriptSpeakerFilter(active ? null : s)}
+                  className="ovr-filter-btn"
+                  // eslint-disable-next-line local/no-inline-style -- active-filter-driven background/color
                   style={{
-                    padding: '2px 8px', fontSize: 'var(--text-2xs)', fontWeight: 600, borderRadius: 4, cursor: 'pointer',
-                    border: '1px solid var(--border)',
                     background: active ? 'var(--warning)' : 'transparent',
                     color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
                   }}
@@ -619,7 +638,7 @@ export function OverviewTabRouter({
               );
             })}
           </div>
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+          <div className="ovr-transcript-list">
           {filteredTranscript.map(({ e, i }) => {
           const stmtId = `S${i + 1}`;
           const eMeta = e.metadata as Record<string, unknown> | undefined;
@@ -636,36 +655,41 @@ export function OverviewTabRouter({
             <div
               key={e.id}
               onClick={() => { setSelectedEntry(e.id); setLocalOverride(true); }}
-              style={{ padding: '4px 6px', cursor: 'pointer', borderRadius: 4, margin: '2px 0', background: selectedEntry === e.id ? 'color-mix(in srgb, var(--color-acc) 8%, transparent)' : 'var(--bg-primary)', borderLeft: selectedEntry === e.id ? '3px solid var(--color-acc)' : '3px solid transparent', fontSize: '0.7rem' }}
+              className="ovr-transcript-entry"
+              // eslint-disable-next-line local/no-inline-style -- selection-driven background/border
+              style={{ background: selectedEntry === e.id ? 'color-mix(in srgb, var(--color-acc) 8%, transparent)' : 'var(--bg-primary)', borderLeft: selectedEntry === e.id ? '3px solid var(--color-acc)' : '3px solid transparent' }}
             >
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <div className="ovr-stmt-head">
                 <span
                   title={pipelineError ? `Statement ${stmtId} — pipeline error` : `Statement ${stmtId}`}
+                  className="ovr-stmt-badge"
+                  // eslint-disable-next-line local/no-inline-style -- pipeline-error-driven background/color
                   style={{
-                    padding: '1px 6px', borderRadius: 8,
                     background: pipelineError ? 'color-mix(in srgb, var(--danger) 15%, transparent)' : 'color-mix(in srgb, var(--color-acc) 12%, transparent)',
                     color: pipelineError ? 'var(--danger)' : 'var(--color-acc)',
-                    fontSize: 'var(--text-2xs)', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
-                    flexShrink: 0,
                   }}
-                >{pipelineError && <span style={{ marginRight: 3 }}>●</span>}{stmtId}</span>
-                <span style={{ flex: 1, minWidth: 0 }}>
+                >{pipelineError && <span className="ovr-mr-3">●</span>}{stmtId}</span>
+                <span className="ovr-stmt-content">
                   <strong>{speakerLabel(e.speaker)}</strong> [{e.type}] <Highlight text={e.content.slice(0, 80)} />...
                 </span>
-                {hasStages && <span title="4-stage pipeline" style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-secondary)', opacity: 0.7 }}>B/P/D/C</span>}
+                {hasStages && <span title="4-stage pipeline" className="ovr-pipeline-badge">B/P/D/C</span>}
               </div>
               {modT && (
-                <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 2, paddingLeft: 36, flexWrap: 'wrap' }}>
-                  <span style={{ padding: '0 4px', borderRadius: 3, background: 'var(--bg-hover)', color: 'var(--text-secondary)', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>MOD</span>
-                  {modT.focus_point && <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={modT.focus_point}>{modT.focus_point}</span>}
+                <div className="ovr-mod-row">
+                  <span className="ovr-mod-tag">MOD</span>
+                  {modT.focus_point && <span className="ovr-mod-focus" title={modT.focus_point}>{modT.focus_point}</span>}
                   {modT.selection_reason && modT.selection_reason !== 'moderator_ai_selection' && (
-                    <span style={{ padding: '0 3px', borderRadius: 2, background: 'color-mix(in srgb, var(--danger) 10%, transparent)', color: 'var(--danger)', fontSize: 'var(--text-2xs)' }}>{modT.selection_reason === 'turn_alternation_override' ? 'override' : modT.selection_reason}</span>
+                    <span className="ovr-mod-reason">{modT.selection_reason === 'turn_alternation_override' ? 'override' : modT.selection_reason}</span>
                   )}
                   {modT.intervention_move && (
-                    <span style={{ padding: '0 4px', borderRadius: 3, background: modT.intervention_validated ? 'var(--bg-hover)' : 'color-mix(in srgb, var(--danger) 15%, transparent)', color: modT.intervention_validated ? 'var(--text-secondary)' : 'var(--danger)', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>{modT.intervention_move}{modT.intervention_validated ? '' : ' (suppressed)'}</span>
+                    <span
+                      className="ovr-mod-tag-base"
+                      // eslint-disable-next-line local/no-inline-style -- validation-driven background/color
+                      style={{ background: modT.intervention_validated ? 'var(--bg-hover)' : 'color-mix(in srgb, var(--danger) 15%, transparent)', color: modT.intervention_validated ? 'var(--text-secondary)' : 'var(--danger)' }}
+                    >{modT.intervention_move}{modT.intervention_validated ? '' : ' (suppressed)'}</span>
                   )}
-                  {modT.convergence_score != null && <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>conv:{(modT.convergence_score * 100).toFixed(0)}%</span>}
-                  {modT.health_score != null && <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>H:{modT.health_score.toFixed(2)}</span>}
+                  {modT.convergence_score != null && <span className="ovr-mod-metric">conv:{(modT.convergence_score * 100).toFixed(0)}%</span>}
+                  {modT.health_score != null && <span className="ovr-mod-metric">H:{modT.health_score.toFixed(2)}</span>}
                 </div>
               )}
             </div>
@@ -679,7 +703,7 @@ export function OverviewTabRouter({
 
       {/* Prompt Diff — rendered outside the selectedEntry guard so it works from transcript inline buttons too */}
       {effectiveOverviewTab === 'prompt-diff' && (
-        <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden', display: 'flex' }}>
+        <div className="ovr-prompt-diff">
           <PromptDiffContent
             debate={debate}
             focusedEntryId={selectedEntry ?? debate.transcript[0]?.id ?? ''}
@@ -712,9 +736,9 @@ export function OverviewTabRouter({
         const entries = debate.diagnostics?.entries;
         if (!entries || Object.keys(entries).length === 0) {
           return (
-            <div style={{ padding: 16 }}>
-              <h4 style={{ fontSize: '0.85rem', marginBottom: 8 }}>Exclusion Guard</h4>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+            <div className="ovr-p-16">
+              <h4 className="ovr-h4-8">Exclusion Guard</h4>
+              <div className="ovr-italic-muted">
                 No diagnostics data available for this debate.
               </div>
             </div>
@@ -753,60 +777,59 @@ export function OverviewTabRouter({
         const allClear = claimViolations.length === 0 && driftWarnings.length === 0;
 
         return (
-          <div style={{ padding: 16, overflowY: 'auto', flex: 1 }}>
-            <h4 style={{ fontSize: '0.85rem', marginBottom: 10 }}>Exclusion Guard Summary</h4>
+          <div className="ovr-panel">
+            <h4 className="ovr-h4-10">Exclusion Guard Summary</h4>
 
             {!hasAnyData ? (
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              <div className="ovr-italic-muted">
                 Exclusion guard data not available — no extraction traces found in this debate.
               </div>
             ) : (
               <>
                 {/* Aggregate badges */}
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-                  <span style={{
-                    padding: '4px 8px', borderRadius: 4, fontWeight: 600, fontSize: '0.72rem',
-                    background: claimViolations.length > 0 ? 'color-mix(in srgb, var(--danger) 10%, transparent)' : 'color-mix(in srgb, var(--success) 8%, transparent)',
-                    color: claimViolations.length > 0 ? 'var(--danger)' : 'var(--success)',
-                  }}>
+                <div className="ovr-badge-row">
+                  <span
+                    className="ovr-guard-badge"
+                    // eslint-disable-next-line local/no-inline-style -- violation-count-driven background/color
+                    style={{
+                      background: claimViolations.length > 0 ? 'color-mix(in srgb, var(--danger) 10%, transparent)' : 'color-mix(in srgb, var(--success) 8%, transparent)',
+                      color: claimViolations.length > 0 ? 'var(--danger)' : 'var(--success)',
+                    }}
+                  >
                     {claimsChecked} claims checked — {claimViolations.length} violation{claimViolations.length !== 1 ? 's' : ''}
                   </span>
-                  <span style={{
-                    padding: '4px 8px', borderRadius: 4, fontWeight: 600, fontSize: '0.72rem',
-                    background: driftWarnings.length > 0 ? 'color-mix(in srgb, var(--warning) 10%, transparent)' : 'color-mix(in srgb, var(--success) 8%, transparent)',
-                    color: driftWarnings.length > 0 ? 'var(--warning)' : 'var(--success)',
-                  }}>
+                  <span
+                    className="ovr-guard-badge"
+                    // eslint-disable-next-line local/no-inline-style -- warning-count-driven background/color
+                    style={{
+                      background: driftWarnings.length > 0 ? 'color-mix(in srgb, var(--warning) 10%, transparent)' : 'color-mix(in srgb, var(--success) 8%, transparent)',
+                      color: driftWarnings.length > 0 ? 'var(--warning)' : 'var(--success)',
+                    }}
+                  >
                     {draftsChecked} refs checked — {driftWarnings.length} drift warning{driftWarnings.length !== 1 ? 's' : ''}
                   </span>
                 </div>
 
                 {allClear ? (
-                  <div style={{
-                    padding: '8px 10px', borderRadius: 4, fontSize: '0.75rem',
-                    background: 'color-mix(in srgb, var(--success) 8%, transparent)', borderLeft: '3px solid var(--success)',
-                    color: 'var(--success)', fontWeight: 600,
-                  }}>
+                  <div className="ovr-clear-banner">
                     All statements within scope — no exclusion violations or drift warnings
                   </div>
                 ) : (
                   <>
                     {claimViolations.length > 0 && (
-                      <div style={{ marginBottom: 12 }}>
-                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--danger)', marginBottom: 6 }}>
+                      <div className="ovr-mb-12">
+                        <div className="ovr-section-title-danger">
                           Exclusion Violations ({claimViolations.length})
                         </div>
                         {claimViolations.map((v, i) => (
-                          <div key={i} style={{
-                            padding: '6px 8px', marginBottom: 4, borderRadius: 4, fontSize: '0.7rem',
-                            background: 'color-mix(in srgb, var(--danger) 6%, transparent)', borderLeft: '3px solid var(--danger)',
-                          }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                              <span style={{ fontWeight: 700, color: 'var(--danger)' }}>{v.claim_id}</span>
-                              <span style={{ color: 'var(--text-muted)' }}>→</span>
-                              <span style={{ fontWeight: 600 }}>{v.node_id}</span>
+                          <div key={i} className="ovr-violation-card">
+                            <div className="ovr-violation-head">
+                              <span className="ovr-danger-bold">{v.claim_id}</span>
+                              <span className="ovr-muted">→</span>
+                              <span className="ovr-bold">{v.node_id}</span>
                             </div>
-                            <div style={{ color: 'var(--text-primary)', fontSize: 'var(--text-2xs)' }}>{v.claim_text}</div>
-                            <div style={{ display: 'flex', gap: 12, fontSize: 'var(--text-2xs)', marginTop: 2, color: 'var(--text-muted)' }}>
+                            <div className="ovr-violation-claim">{v.claim_text}</div>
+                            <div className="ovr-violation-sims">
                               <span>main: <strong>{v.similarity_main.toFixed(3)}</strong></span>
                               <span>exclusion: <strong>{v.similarity_exclusion.toFixed(3)}</strong></span>
                             </div>
@@ -816,26 +839,20 @@ export function OverviewTabRouter({
                     )}
                     {driftWarnings.length > 0 && (
                       <div>
-                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--warning)', marginBottom: 6 }}>
+                        <div className="ovr-section-title-warning">
                           Scope Drift Warnings ({driftWarnings.length})
                         </div>
                         {driftWarnings.map((w, i) => (
-                          <div key={i} style={{
-                            padding: '6px 8px', marginBottom: 4, borderRadius: 4, fontSize: '0.7rem',
-                            background: 'color-mix(in srgb, var(--warning) 6%, transparent)', borderLeft: '3px solid var(--warning)',
-                          }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                              <span style={{ fontWeight: 700, color: 'var(--warning)' }}>{w.debater}</span>
-                              <span style={{ color: 'var(--text-muted)' }}>→</span>
-                              <span style={{ fontWeight: 600 }}>{w.node_id}</span>
-                              <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontWeight: 600 }}>
+                          <div key={i} className="ovr-drift-card">
+                            <div className="ovr-violation-head">
+                              <span className="ovr-warning-bold">{w.debater}</span>
+                              <span className="ovr-muted">→</span>
+                              <span className="ovr-bold">{w.node_id}</span>
+                              <span className="ovr-drift-sim">
                                 {w.similarity.toFixed(3)}
                               </span>
                             </div>
-                            <div style={{
-                              color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 'var(--text-2xs)',
-                              padding: '3px 6px', borderLeft: '1px solid var(--border)', marginTop: 2,
-                            }}>
+                            <div className="ovr-drift-excerpt">
                               {w.draft_excerpt.length > 200 ? w.draft_excerpt.slice(0, 200) + '…' : w.draft_excerpt}
                             </div>
                           </div>

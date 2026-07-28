@@ -1,0 +1,103 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Co-located styles for EntryView.tsx — migrated from inline style props
+   (t/1849). Values copied verbatim from the original inline styles to
+   guarantee no visual/theme change. */
+
+/* --- spacing utilities --- */
+.ev-ml-2 { margin-left: 2px; }
+.ev-ml-4 { margin-left: 4px; }
+.ev-ml-6 { margin-left: 6px; }
+.ev-mt-1 { margin-top: 1px; }
+.ev-mt-2 { margin-top: 2px; }
+.ev-mt-4 { margin-top: 4px; }
+.ev-mb-2 { margin-bottom: 2px; }
+.ev-mb-3 { margin-bottom: 3px; }
+.ev-mb-4 { margin-bottom: 4px; }
+.ev-mb-6 { margin-bottom: 6px; }
+.ev-mb-8 { margin-bottom: 8px; }
+.ev-pl-8 { padding-left: 8px; }
+.ev-minw-28 { min-width: 28px; }
+
+/* --- text utilities --- */
+.ev-fw-600 { font-weight: 600; }
+.ev-flex-1 { flex: 1; }
+.ev-fs-sm { font-size: 0.7rem; }
+.ev-fs-md { font-size: 0.75rem; }
+.ev-fs-072 { font-size: 0.72rem; }
+.ev-fs-2xs { font-size: var(--text-2xs); }
+.ev-pre-wrap { white-space: pre-wrap; }
+.ev-cursor-pointer { cursor: pointer; }
+.ev-text-muted { color: var(--text-muted); }
+.ev-text-secondary { color: var(--text-secondary); }
+.ev-text-danger { color: var(--danger); }
+.ev-text-warning { color: var(--warning); }
+.ev-text-success { color: var(--success); }
+.ev-text-saf { color: var(--color-saf); }
+.ev-muted-2xs { font-size: var(--text-2xs); color: var(--text-muted); }
+.ev-angle-title { font-size: 0.7rem; font-weight: 600; }
+
+/* --- badges --- */
+.ev-badge-hover { font-size: var(--text-2xs); background: var(--bg-hover); color: var(--text-secondary); }
+.ev-badge-warning { font-size: var(--text-2xs); background: color-mix(in srgb, var(--warning) 15%, transparent); color: var(--warning); }
+.ev-badge-secondary { background: color-mix(in srgb, var(--text-secondary) 15%, transparent); color: var(--text-secondary); }
+.ev-impl-challenge-badge { font-size: var(--text-2xs); font-weight: 700; background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); padding: 2px 6px; border-radius: 3px; }
+.ev-mini-badge { padding: 0 3px; border-radius: 3px; font-size: var(--text-2xs); font-weight: 600; }
+.ev-badge-muted12 { background: color-mix(in srgb, var(--text-muted) 12%, transparent); color: var(--text-muted); }
+.ev-pref-crit-badge { font-size: var(--text-2xs); font-weight: 700; padding: 1px 5px; border-radius: 3px; }
+.ev-ns-badge { font-size: var(--text-2xs); color: var(--text-muted); opacity: 0.5; }
+
+/* --- copy id button (header) --- */
+.ev-copy-id-btn { font-size: var(--text-2xs); color: var(--text-muted); font-family: monospace; background: none; border: none; padding: 0 2px; cursor: pointer; opacity: 0.6; }
+
+/* --- intervention / moderator --- */
+.ev-badge-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.ev-original-claim { margin-top: 4px; padding: 4px 8px; background: var(--bg-secondary); border-radius: 4px; font-size: 0.7rem; font-style: italic; }
+.ev-cq-box { font-size: 0.7rem; margin-top: 4px; padding: 4px 8px; background: var(--bg-secondary); border-radius: 4px; }
+
+/* --- pipeline stage work products --- */
+.ev-stage-assessment { padding: 6px; margin-bottom: 6px; font-size: 0.75rem; }
+.ev-stage-goal { padding: 6px; margin-bottom: 6px; font-size: 0.75rem; font-weight: 600; }
+.ev-stage-thesis { padding: 6px; margin-bottom: 6px; font-size: 0.7rem; font-style: italic; }
+.ev-plan-item { margin: 3px 0; padding-left: 8px; }
+.ev-sit-chip { display: inline-block; font-size: var(--text-2xs); margin-right: 6px; padding: 1px 5px; border-radius: 3px; background: var(--bg-secondary); color: var(--text-muted); font-family: monospace; }
+.ev-sit-chip-div { display: inline-flex; align-items: center; gap: 3px; font-size: var(--text-2xs); margin-right: 6px; padding: 1px 5px; border-radius: 3px; font-family: monospace; }
+.ev-topic-align-box { margin-bottom: 6px; padding: 4px 8px; font-size: var(--text-2xs); }
+.ev-scope-list { margin: 2px 0 0 16px; padding: 0; list-style: disc; }
+.ev-work-product-pre { white-space: pre-wrap; max-height: 150px; overflow: auto; font-size: var(--text-2xs); }
+
+/* --- dialectical moves --- */
+.ev-move-item { margin: 4px 0; padding-left: 8px; border-left: 2px solid var(--border-color); }
+
+/* --- extracted claims --- */
+.ev-repair-diff { font-size: var(--text-2xs); margin-top: 2px; padding-left: 12px; }
+.ev-repair-old { text-decoration: line-through; color: var(--danger); opacity: 0.6; }
+
+/* --- exclusion guard --- */
+.ev-violation-row { font-size: var(--text-2xs); margin-left: 8px; margin-bottom: 2px; padding: 2px 4px; border-left: 2px solid var(--danger); background: color-mix(in srgb, var(--danger) 6%, transparent); }
+.ev-warning-row { font-size: var(--text-2xs); margin-left: 8px; margin-bottom: 2px; padding: 2px 4px; border-left: 2px solid var(--warning); background: color-mix(in srgb, var(--warning) 6%, transparent); }
+.ev-scope-ok { font-size: var(--text-2xs); color: var(--success); font-weight: 600; }
+.ev-no-data { font-size: var(--text-2xs); color: var(--text-muted); font-style: italic; }
+.ev-inject-row { font-size: var(--text-2xs); margin-left: 8px; margin-bottom: 2px; }
+
+/* --- context usage analysis --- */
+.ev-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.ev-grid-span-2 { grid-column: span 2; }
+.ev-flex-row-2xs { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; font-size: var(--text-2xs); }
+.ev-flex-row-sm { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; font-size: 0.7rem; }
+.ev-flex-row-mb2 { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+.ev-mono-52 { font-family: monospace; min-width: 52px; }
+.ev-score-col { min-width: 60px; text-align: right; color: var(--text-muted); font-size: var(--text-2xs); }
+.ev-sit-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); }
+.ev-div-score { min-width: 36px; text-align: right; color: var(--text-muted); }
+.ev-div-bar-track { width: 50px; height: 8px; background: var(--bg-secondary); border-radius: 2px; overflow: hidden; }
+
+/* --- synthesis preferences --- */
+.ev-pref-card { margin-bottom: 6px; padding: 4px 6px; background: var(--bg-secondary); border-radius: 4px; }
+
+/* --- claim sketches --- */
+.ev-claim-sketch { margin: 2px 0; font-size: 0.7rem; }
+
+/* --- full prompt / scope block --- */
+.ev-scope-block { margin-bottom: 6px; padding: 4px 8px; background: color-mix(in srgb, var(--text-secondary) 10%, transparent); border: 1px solid color-mix(in srgb, var(--text-secondary) 30%, transparent); border-radius: 4px; font-size: var(--text-2xs); color: var(--text-secondary); }

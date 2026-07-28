@@ -1,0 +1,128 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Co-located styles for OverviewTabRouter — migrated from inline style props (t/1849). */
+/* Values copied verbatim from the previous inline styles; no visual/theme change. */
+
+/* --- Topic Scope --- */
+.ovr-topic-scope { padding: 16px; overflow-y: auto; flex: 1; font-size: 0.75rem; }
+.ovr-h4 { margin: 0 0 8px; font-size: 0.85rem; }
+.ovr-scope-prop { font-weight: 600; color: var(--text-primary); }
+.ovr-badge-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.ovr-chip { padding: 2px 8px; border-radius: 4px; background: var(--bg-secondary); font-size: 0.7rem; }
+.ovr-chip-base { padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; }
+.ovr-chip-bold { padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 0.7rem; }
+.ovr-mb-8 { margin-bottom: 8px; }
+.ovr-mb-10 { margin-bottom: 10px; }
+.ovr-label { font-weight: 600; font-size: 0.7rem; margin-bottom: 4px; }
+.ovr-label-danger { font-weight: 600; font-size: 0.7rem; margin-bottom: 4px; color: var(--danger); }
+.ovr-label-warning { font-weight: 600; font-size: 0.7rem; margin-bottom: 4px; color: var(--warning); }
+.ovr-label-tight { font-weight: 600; font-size: 0.7rem; margin-bottom: 2px; }
+.ovr-tag-row { display: flex; gap: 4px; flex-wrap: wrap; }
+.ovr-tag-warning { padding: 2px 6px; border-radius: 3px; background: color-mix(in srgb, var(--warning) 15%, transparent); color: var(--warning); font-size: var(--text-2xs); }
+.ovr-tag-danger { padding: 2px 6px; border-radius: 3px; background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); font-size: var(--text-2xs); }
+.ovr-tag-neutral { padding: 2px 6px; border-radius: 3px; background: var(--bg-hover); color: var(--text-secondary); font-size: var(--text-2xs); }
+.ovr-ol { margin: 0; padding-left: 20px; font-size: 0.7rem; }
+.ovr-ul { margin: 0; padding-left: 20px; font-size: 0.7rem; list-style: disc; }
+.ovr-mb-2 { margin-bottom: 2px; }
+.ovr-li-warning { color: var(--warning); margin-bottom: 2px; }
+.ovr-example-ceiling { font-size: 0.7rem; color: var(--text-secondary); }
+
+/* --- Lineage Frame --- */
+.ovr-empty { padding: 16px; color: var(--text-muted); }
+.ovr-panel { padding: 16px; overflow-y: auto; flex: 1; }
+.ovr-intro { font-size: 0.7rem; color: var(--text-muted); margin: 0 0 12px; }
+.ovr-intro-8 { font-size: 0.7rem; color: var(--text-muted); margin: 0 0 8px; }
+.ovr-lineage-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.ovr-lineage-row { display: flex; align-items: center; gap: 8px; }
+.ovr-lineage-label { font-size: 0.7rem; font-weight: 600; min-width: 160px; text-align: right; }
+.ovr-lineage-track { flex: 1; height: 14px; background: var(--bg-secondary, #222); border-radius: 3px; overflow: hidden; position: relative; }
+.ovr-lineage-bar { height: 100%; background: linear-gradient(90deg, var(--warning), var(--color-acc)); border-radius: 3px; transition: width 0.3s ease; }
+.ovr-lineage-pct { font-size: var(--text-2xs); font-weight: 700; min-width: 40px; text-align: right; color: var(--warning); }
+.ovr-lineage-traditions { font-size: var(--text-2xs); color: var(--text-muted); margin-top: 2px; padding-left: 168px; }
+.ovr-boost-row { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.7rem; }
+.ovr-boost-stat { padding: 6px 12px; border-radius: 6px; background: var(--bg-hover); color: var(--text-secondary); font-weight: 600; }
+.ovr-boost-stat-base { padding: 6px 12px; border-radius: 6px; font-weight: 600; }
+.ovr-effectiveness { margin-top: 12px; padding: 8px 12px; border-radius: 6px; background: color-mix(in srgb, var(--color-acc) 6%, transparent); border: 1px solid color-mix(in srgb, var(--color-acc) 15%, transparent); font-size: 0.7rem; line-height: 1.6; }
+.ovr-effectiveness-title { font-weight: 700; color: var(--warning); margin-bottom: 4px; }
+.ovr-success-text { color: var(--success); }
+.ovr-warning-text { color: var(--warning); }
+.ovr-muted-mt-2 { color: var(--text-muted); margin-top: 2px; }
+.ovr-verdict { margin-top: 6px; font-weight: 700; }
+.ovr-promoted-list { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
+.ovr-promoted-chip { padding: 1px 6px; border-radius: 4px; font-size: var(--text-2xs); font-family: monospace; }
+
+/* --- Vocabulary Disambiguation --- */
+.ovr-mt-20 { margin-top: 20px; }
+.ovr-vocab-table { width: 100%; font-size: 0.7rem; border-collapse: collapse; margin-bottom: 8px; }
+.ovr-vocab-head-row { border-bottom: 1px solid var(--border); }
+.ovr-th-left { text-align: left; padding: 3px 8px; color: var(--text-muted); }
+.ovr-th-center { text-align: center; padding: 3px 8px; color: var(--text-muted); }
+.ovr-vocab-row { border-bottom: 1px solid color-mix(in srgb, var(--text-muted) 10%, transparent); }
+.ovr-td { padding: 3px 8px; }
+.ovr-td-secondary { padding: 3px 8px; color: var(--text-secondary); }
+.ovr-td-muted { padding: 3px 8px; font-size: var(--text-2xs); color: var(--text-muted); }
+.ovr-td-center { padding: 3px 8px; text-align: center; }
+.ovr-td-conf { padding: 3px 8px; text-align: center; font-weight: 600; }
+.ovr-vocab-term { text-decoration: none; cursor: default; }
+.ovr-ambiguous { padding: 6px 10px; background: color-mix(in srgb, var(--warning) 6%, transparent); border-left: 3px solid var(--warning); border-radius: 4px; font-size: var(--text-2xs); }
+.ovr-ambiguous-title { font-weight: 600; color: var(--warning); margin-bottom: 4px; }
+.ovr-ambiguous-item { margin-left: 8px; margin-bottom: 2px; }
+.ovr-muted { color: var(--text-muted); }
+
+/* --- POV Progression --- */
+.ovr-pov-progression { flex: 1; min-height: 0; overflow: hidden; }
+
+/* --- Flight Recorder Context --- */
+.ovr-fr-context { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 12px; }
+.ovr-fr-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.ovr-fr-title { font-size: var(--text-md); font-weight: 600; }
+.ovr-dump-btn { font-size: var(--text-2xs); padding: 2px 8px; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; font-weight: 600; }
+.ovr-fr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.ovr-fr-card { border-radius: var(--radius-md); border: 1px solid var(--border-color); padding: var(--sp-4); }
+.ovr-fr-card-title { font-size: var(--text-2xs); font-weight: 600; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em; }
+.ovr-fr-row { display: flex; justify-content: space-between; align-items: baseline; padding: 2px 0; }
+.ovr-fr-label { color: var(--text-secondary); font-size: var(--text-2xs); }
+.ovr-fr-value { font-family: monospace; font-size: var(--text-2xs); margin-left: 8px; text-align: right; }
+
+/* --- Transcript --- */
+.ovr-transcript { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.ovr-transcript-filters { display: flex; gap: 4px; padding: 4px 6px; flex-wrap: wrap; align-items: center; flex-shrink: 0; }
+.ovr-filter-btn { padding: 2px 8px; font-size: var(--text-2xs); font-weight: 600; border-radius: 4px; cursor: pointer; border: 1px solid var(--border); }
+.ovr-transcript-list { flex: 1; min-height: 0; overflow-y: auto; }
+.ovr-transcript-entry { padding: 4px 6px; cursor: pointer; border-radius: 4px; margin: 2px 0; font-size: 0.7rem; }
+.ovr-stmt-head { display: flex; align-items: baseline; gap: 6px; }
+.ovr-stmt-badge { padding: 1px 6px; border-radius: 8px; font-size: var(--text-2xs); font-weight: 700; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.ovr-mr-3 { margin-right: 3px; }
+.ovr-stmt-content { flex: 1; min-width: 0; }
+.ovr-pipeline-badge { font-size: var(--text-2xs); color: var(--text-secondary); opacity: 0.7; }
+.ovr-mod-row { display: flex; gap: 4px; align-items: center; margin-top: 2px; padding-left: 36px; flex-wrap: wrap; }
+.ovr-mod-tag { padding: 0 4px; border-radius: 3px; background: var(--bg-hover); color: var(--text-secondary); font-size: var(--text-2xs); font-weight: 600; }
+.ovr-mod-tag-base { padding: 0 4px; border-radius: 3px; font-size: var(--text-2xs); font-weight: 600; }
+.ovr-mod-focus { font-size: var(--text-2xs); color: var(--text-muted); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ovr-mod-reason { padding: 0 3px; border-radius: 2px; background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); font-size: var(--text-2xs); }
+.ovr-mod-metric { font-size: var(--text-2xs); color: var(--text-muted); }
+
+/* --- Prompt Diff --- */
+.ovr-prompt-diff { flex: 1; min-height: 0; min-width: 0; overflow: hidden; display: flex; }
+
+/* --- Exclusion Guard --- */
+.ovr-p-16 { padding: 16px; }
+.ovr-h4-8 { font-size: 0.85rem; margin-bottom: 8px; }
+.ovr-h4-10 { font-size: 0.85rem; margin-bottom: 10px; }
+.ovr-italic-muted { font-size: 0.72rem; color: var(--text-muted); font-style: italic; }
+.ovr-guard-badge { padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.72rem; }
+.ovr-clear-banner { padding: 8px 10px; border-radius: 4px; font-size: 0.75rem; background: color-mix(in srgb, var(--success) 8%, transparent); border-left: 3px solid var(--success); color: var(--success); font-weight: 600; }
+.ovr-mb-12 { margin-bottom: 12px; }
+.ovr-section-title-danger { font-size: 0.72rem; font-weight: 700; color: var(--danger); margin-bottom: 6px; }
+.ovr-section-title-warning { font-size: 0.72rem; font-weight: 700; color: var(--warning); margin-bottom: 6px; }
+.ovr-violation-card { padding: 6px 8px; margin-bottom: 4px; border-radius: 4px; font-size: 0.7rem; background: color-mix(in srgb, var(--danger) 6%, transparent); border-left: 3px solid var(--danger); }
+.ovr-drift-card { padding: 6px 8px; margin-bottom: 4px; border-radius: 4px; font-size: 0.7rem; background: color-mix(in srgb, var(--warning) 6%, transparent); border-left: 3px solid var(--warning); }
+.ovr-violation-head { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+.ovr-danger-bold { font-weight: 700; color: var(--danger); }
+.ovr-warning-bold { font-weight: 700; color: var(--warning); }
+.ovr-bold { font-weight: 600; }
+.ovr-violation-claim { color: var(--text-primary); font-size: var(--text-2xs); }
+.ovr-violation-sims { display: flex; gap: 12px; font-size: var(--text-2xs); margin-top: 2px; color: var(--text-muted); }
+.ovr-drift-sim { margin-left: auto; font-family: monospace; font-weight: 600; }
+.ovr-drift-excerpt { color: var(--text-muted); font-style: italic; font-size: var(--text-2xs); padding: 3px 6px; border-left: 1px solid var(--border); margin-top: 2px; }
