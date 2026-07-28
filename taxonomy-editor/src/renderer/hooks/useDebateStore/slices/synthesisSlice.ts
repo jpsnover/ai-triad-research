@@ -23,6 +23,7 @@ import { concludingPrompt, entrySummarizationPrompt, missingArgumentsPrompt, tax
 import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import { factCheckToBaseStrength } from '@lib/debate/argumentNetwork';
+import { validateFactCheckResult } from '@lib/debate/factCheckValidator';
 import { updateConvergenceTracker } from '../../../utils/convergenceScoring';
 import { computeConvergenceSignals } from '@lib/debate/convergenceSignals';
 import { computeProcessReward } from '@lib/debate/processReward';
@@ -815,13 +816,20 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
       const { text } = await generateTextWithProgress(prompt, model, `Fact-checking claim (${model})`, set);
       if (!isStillValid()) return;
 
-      let result = parseAIJson<{ verdict?: string; explanation?: string; sources?: unknown[]; points?: unknown[] }>(text);
+      let result = parseAIJson<{ verdict?: string; explanation?: string; sources?: unknown[]; points?: unknown[]; discrepancy?: unknown }>(text);
       if (!result) {
         result = { verdict: 'unverifiable', explanation: text.trim(), sources: [], points: [] };
       }
 
+      // Structural anti-escape-hatch gate + verdict normalization (t/1701 AC#3, t/1828):
+      // an unsourced `partially_accurate` is downgraded to `unverifiable`, legacy `verified`
+      // → `supported`, and a complete `discrepancy` is surfaced for display. Raw `result`
+      // (esp. `points`) is still used below for the argument-network synthesis.
+      const validated = validateFactCheckResult(result, get().activeDebate?.id);
+
       const verdictLabels: Record<string, string> = {
         supported: 'Supported',
+        partially_accurate: 'Partially Accurate',
         disputed: 'Disputed',
         unverifiable: 'Unverifiable',
         false: 'False',
@@ -844,12 +852,13 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
       addTranscriptEntry({
         type: 'fact-check',
         speaker: 'system',
-        content: `**Fact Check: ${verdictLabels[result.verdict ?? ''] || result.verdict || 'Unknown'}**\n\n"${selectedText}"\n\n${result.explanation}${webNote}`,
+        content: `**Fact Check: ${verdictLabels[validated.verdict] || validated.verdict}**\n\n"${selectedText}"\n\n${validated.explanation}${webNote}`,
         taxonomy_refs: sourceRefs,
         metadata: {
           fact_check: {
-            verdict: result.verdict,
-            explanation: result.explanation,
+            verdict: validated.verdict,
+            explanation: validated.explanation,
+            ...(validated.discrepancy ? { discrepancy: validated.discrepancy } : {}),
             sources: result.sources,
             checked_text: selectedText,
             web_search_used: !!webContext && webContext !== '(Web search unavailable)',
@@ -913,8 +922,8 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
         // If the LLM returned no usable points, synthesize one from the verdict + explanation
         // so the fact-check still appears in the argument network.
         const pointsToAdd = points.length > 0 ? points : [{
-          text: result.explanation || `Fact-check verdict: ${result.verdict}`,
-          type: (result.verdict === 'disputed' || result.verdict === 'false') ? 'attacks' as const : 'supports' as const,
+          text: validated.explanation || `Fact-check verdict: ${validated.verdict}`,
+          type: (validated.verdict === 'disputed' || validated.verdict === 'false') ? 'attacks' as const : 'supports' as const,
           evidence_basis: 'mixed',
         }];
 

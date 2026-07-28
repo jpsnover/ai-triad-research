@@ -18,6 +18,7 @@ import {
 } from './utils';
 import type { AnchorHTMLAttributes, HTMLAttributes } from 'react';
 import { parseEntityRef } from '@lib/entities/types';
+import type { FactVerdict, FactDiscrepancy } from '@lib/debate/types';
 import { remarkLinkifyRefs, REF_LINK_CLASS } from './refLinkifyPlugin';
 import { ClaimsView } from './ClaimsView';
 import { CampGlyph, povToCamp } from '../shared/CampGlyph';
@@ -34,6 +35,19 @@ import { TaxonomyRefsSection } from './TaxonomyRefs';
 
 /** Remark pipeline for debate transcript text: GFM + POV colorization + ID-token ref links (t/1776). */
 const DEBATE_REMARK_PLUGINS = [remarkGfm, remarkColorizePov, remarkLinkifyRefs];
+
+/** Human-readable labels for the fact-check verdict taxonomy (t/1701 / t/1716). */
+const FACT_VERDICT_LABEL: Record<FactVerdict, string> = {
+  supported: 'Supported',
+  partially_accurate: 'Partially Accurate',
+  disputed: 'Disputed',
+  false: 'False',
+  unverifiable: 'Unverifiable',
+};
+
+const DISCREPANCY_DIMENSION_LABEL: Record<FactDiscrepancy['dimension'], string> = {
+  magnitude: 'Magnitude', temporal: 'Timing', attribution: 'Attribution', scope: 'Scope', existence: 'Existence',
+};
 
 /**
  * `span` md-component: renders a `scanRefs`-detected ID token (marked `ref-link` by
@@ -808,7 +822,8 @@ export function FactCheckCard({ entry, statementId, findQuery = '', matchOffset 
   const activeDebate = useDebateStore(s => s.activeDebate);
   const [showWebEvidence, setShowWebEvidence] = useState(false);
   const factCheck = entry.metadata?.fact_check as {
-    verdict: string;
+    verdict: FactVerdict;
+    discrepancy?: FactDiscrepancy;
     explanation: string;
     checked_text: string;
     web_search_used?: boolean;
@@ -838,7 +853,7 @@ export function FactCheckCard({ entry, statementId, findQuery = '', matchOffset 
         )}
         <span className="debate-statement-speaker">Fact Check</span>
         <span className={`debate-fact-check-verdict ${verdictClass}`}>
-          {factCheck?.verdict || 'unknown'}
+          {factCheck ? FACT_VERDICT_LABEL[factCheck.verdict] ?? factCheck.verdict : 'unknown'}
         </span>
         {citations.length > 0 && (
           <span className="debate-fact-check-sources-inline" aria-label="External sources">
@@ -877,6 +892,24 @@ export function FactCheckCard({ entry, statementId, findQuery = '', matchOffset 
           </button>
         )}
       </div>
+      {factCheck?.verdict === 'partially_accurate' && factCheck.discrepancy && (
+        <div
+          className={`debate-fact-check-discrepancy debate-fact-check-severity-${factCheck.discrepancy.severity}`}
+          title={factCheck.discrepancy.source ? `Source: ${factCheck.discrepancy.source}` : undefined}
+        >
+          <span className="debate-fact-check-discrepancy-severity">
+            {factCheck.discrepancy.severity === 'major' ? '⚠ Major discrepancy' : 'Minor discrepancy'}
+          </span>
+          <span className="debate-fact-check-discrepancy-dimension">
+            {DISCREPANCY_DIMENSION_LABEL[factCheck.discrepancy.dimension] ?? factCheck.discrepancy.dimension}
+          </span>
+          <span className="debate-fact-check-discrepancy-delta">
+            <span className="debate-fact-check-discrepancy-claimed">{factCheck.discrepancy.claimed}</span>
+            <span className="debate-fact-check-discrepancy-arrow"> → </span>
+            <span className="debate-fact-check-discrepancy-actual">{factCheck.discrepancy.actual}</span>
+          </span>
+        </div>
+      )}
       <div className="debate-statement-content markdown-body">
         {(() => {
           // Retroactive fix: older auto fact-checks truncated the claim in entry.content.

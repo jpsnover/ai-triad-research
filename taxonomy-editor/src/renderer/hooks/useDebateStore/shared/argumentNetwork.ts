@@ -27,6 +27,7 @@ import { updateConvergenceTracker } from '../../../utils/convergenceScoring';
 import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import { factCheckToBaseStrength } from '@lib/debate/argumentNetwork';
+import { validateFactCheckResult } from '@lib/debate/factCheckValidator';
 import { needsGc, pruneArgumentNetwork, GC_TRIGGER, GC_TARGET } from '@lib/debate/networkGc';
 import { computeConvergenceSignals } from '@lib/debate/convergenceSignals';
 import { computeProcessReward } from '@lib/debate/processReward';
@@ -1148,15 +1149,19 @@ export async function extractClaimsAndUpdateAN(
           get().activeDebate?.audience,
         );
         const { text: vText } = await api.generateText(verdictPrompt, fcModel);
-        let vParsed = parseAIJson<{ verdict?: string; explanation?: string; evidence?: string; confidence?: string }>(vText);
+        let vParsed = parseAIJson<{ verdict?: string; explanation?: string; evidence?: string; confidence?: string; discrepancy?: unknown }>(vText);
         if (!vParsed) {
           vParsed = { verdict: 'unverifiable', evidence: vText.trim() };
         }
-        const verdict = vParsed.verdict;
         const explanation = vParsed.explanation || vParsed.evidence || '';
+        // Gate + normalize the auto-verification verdict (t/1828): unsourced
+        // `partially_accurate` → `unverifiable`, legacy `verified` → `supported`, so the
+        // verdict that reaches factCheckToBaseStrength (and verification_status) is correct.
+        const validated = validateFactCheckResult({ ...vParsed, explanation }, get().activeDebate?.id);
+        const verdict = validated.verdict;
 
-        if (verdict) {
-          pNode.verification_status = verdict as ArgumentNetworkNode['verification_status'];
+        if (vParsed.verdict) {
+          pNode.verification_status = verdict;
           pNode.verification_evidence = explanation;
 
           // Update base_strength from fact-check verdict (theory-of-success §4.4)
@@ -1186,6 +1191,7 @@ export async function extractClaimsAndUpdateAN(
                   fact_check: {
                     verdict,
                     explanation,
+                    ...(validated.discrepancy ? { discrepancy: validated.discrepancy } : {}),
                     checked_text: pNode.text,
                     web_search_used: hasWeb,
                     web_search_queries: webQueries.length ? webQueries : undefined,
