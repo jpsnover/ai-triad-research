@@ -1777,3 +1777,22 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — NOT a #82 case (new hazard from ADR-007, not a pre-existing rule unapplied). **Unit note (TL p/8#107):** report units separately — 4 citations / 3 tickets / 1 offender / 2 reporters (TL owns the single report; DebateTool 2 is not a duplicate). Sage tallies (esp. #82 triggers) are unit-sensitive: citations ≠ tickets ≠ offenders ≠ agents.
 
 **Applies To:** All agents citing `lib/debate` file paths post-ADR-007 splits (docs, register, tickets, emails), and anyone splitting a file into a barrel directory.
+
+## #86 [Process] win32 "Task Stopped" Kills the Wrapper, Not Detached Child Trees — Relaunch Races a Surviving Writer
+
+**Pattern:** A background batch runs as a shell wrapper that spawns a **detached child tree** (python → node). When the session restarts or `TaskStop` fires, the task is marked **"stopped"** but the **detached child tree keeps running** on win32 — only the wrapper shell dies. Trusting the "stopped" bookkeeping and **relaunching** puts **two live writers racing on the same output slugs**. **Inverse of #69's peer-already-landed variant:** there a peer *finished* your work so the relaunch found nothing; here a supposedly-killed process *survived*, so the relaunch duplicates a live writer.
+
+**Instances:**
+- 2026-07-26 — Computational Linguist (p/7#44/#45, CLI-hang filed t/1824): after a session restart marked a debate-batch task "stopped," CL relaunched a filler — but the original runner's **python + node tree had survived** (a later `TaskStop` killed only the shell wrapper), so **two writers raced the same output slugs for ~40 min**. Found both trees via **CIM command-line match**, `taskkill /F /T` on all roots, object-audited every artifact set (**id-match + mtime spread + single-run flight recorder**) — no tears. **Benign only because both writers ran identical configs**; differing configs would have torn artifacts.
+
+**Root Cause:** On win32, killing a process (task-stop, session restart, `Stop-Process` on the wrapper) does **not** cascade to detached child processes — a shell wrapper's `python`/`node` children, once detached, outlive it. The task-runner's "stopped" status reflects the **wrapper's** state, not the child tree's; "stopped" is **bookkeeping, not a kill.** A relaunch guarded only by task status spawns a second writer alongside a surviving first — a concurrent-writer race (same family as #83), masked because the runner reports the batch as not running.
+
+**Prevention:**
+1. **Before relaunching ANY batch, verify at the PROCESS level that zero prior writers are alive** — don't trust "task stopped." win32: `Get-CimInstance Win32_Process | Where CommandLine -match '<runner/slug>'`.
+2. **Kill the whole tree, not the wrapper:** `taskkill /F /T /PID <root>` on every matching root — a bare wrapper kill leaves children running.
+3. **If a race may have occurred, object-audit the artifacts** (id-match, mtime-spread, single-run flight recorder) before trusting the results.
+4. **Serialize batch writers** (pairs with #83 prevention #5): a surviving writer + relaunch is exactly the concurrent-writer collision serialize-and-announce prevents.
+
+**Status:** Active — win32 process-tree semantics; inverse of #69's peer-already-landed variant. Underlying CLI-hang tracked t/1824 (CL).
+
+**Applies To:** All agents launching detached background batches on win32 (debate runners, enrichment pipelines) — especially before relaunching after a restart/TaskStop.
