@@ -53,6 +53,21 @@ export function registerEdgesRoutes(r: Router, _ctx: ServerCtx): void {
     json(res, data.edges[index]);
   });
 
+  // t/1816/t/1821: whole-file atomic save of the full EdgesFile (saveEdges bridge →
+  // PUT /api/edges). Persists via the existing fileIO.writeEdgesFile (atomic
+  // temp→rename; not reinvented), then refreshes the module cache. Session'd write,
+  // same gating as the sibling /api/edges/* writes (not public). Mirrors swap below.
+  put('/api/edges', async (_req, res, body) => {
+    const data = body as EdgesData | null;
+    if (!data || typeof data !== 'object' || !Array.isArray(data.edges)) {
+      error(res, 'edges file must be an object with an edges array', 400);
+      return;
+    }
+    await fileIO.writeEdgesFile(data);
+    edgesCache = data;
+    json(res, stripEdgeRationale(edgesCache));
+  });
+
   put('/api/edges/status', async (_req, res, body) => {
     const { index, status: s } = body as { index: number; status: string };
     if (!edgesCache) edgesCache = await fileIO.readEdgesFile();
