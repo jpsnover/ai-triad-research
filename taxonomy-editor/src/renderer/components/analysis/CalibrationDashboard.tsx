@@ -99,6 +99,7 @@ function MetricChart({ entries, metricKey, label, color }: {
   return (
     <div className="cal-dash-chart">
       <div className="cal-dash-chart-header">
+        {/* eslint-disable-next-line local/no-inline-style -- dynamic: metric color */}
         <span className="cal-dash-chart-label" style={{ color }}>{label}</span>
         <span className="cal-dash-chart-value">{latest.toFixed(3)} <span className="cal-dash-chart-mean">(avg {mean.toFixed(3)})</span></span>
       </div>
@@ -115,7 +116,7 @@ function MetricChart({ entries, metricKey, label, color }: {
           const when = ts ? new Date(ts).toLocaleDateString() + ': ' : '';
           return (
             <circle
-              key={i} cx={p.x} cy={p.y} r={6} fill="transparent" style={{ cursor: 'pointer' }}
+              key={i} cx={p.x} cy={p.y} r={6} fill="transparent" className="cdash-hover-target"
               onMouseEnter={e => showTip(e, <><strong>{label}</strong><br />{when}{p.value.toFixed(3)}</>)}
               onMouseMove={e => showTip(e, <><strong>{label}</strong><br />{when}{p.value.toFixed(3)}</>)}
               onMouseLeave={hideTip}
@@ -141,6 +142,7 @@ function ValidationBadge({ report }: { report: ValidationReport }) {
   return (
     <div className="cal-dash-validation">
       <div className="cal-dash-validation-header">
+        {/* eslint-disable-next-line local/no-inline-style -- dynamic: verdict color */}
         <span className="cal-dash-validation-badge" style={{ background: color }}>
           {report.verdict}
         </span>
@@ -307,7 +309,7 @@ export function CalibrationDashboard({ onClose }: CalibrationDashboardProps) {
         <div className="cal-dash-charts-grid">
           {METRIC_CONFIG.map(mc => (
             <React.Fragment key={mc.key}>
-              {mc.section && <h4 style={{ gridColumn: '1 / -1', margin: '12px 0 4px', fontSize: '0.8rem', borderTop: '1px solid var(--border)', paddingTop: 8 }}>{mc.section}</h4>}
+              {mc.section && <h4 className="cdash-section-header">{mc.section}</h4>}
               <MetricChart
                 entries={filtered}
                 metricKey={mc.key}
@@ -364,13 +366,19 @@ function TopicHealthScore({ entries }: { entries: CalibrationEntry[] }) {
   const color = latest >= 0.8 ? '#22c55e' : latest >= 0.6 ? '#f59e0b' : '#ef4444';
 
   return (
-    <div style={{ marginTop: 12, padding: '8px 10px', borderRadius: 6, background: `${color}08`, border: `1px solid ${color}30` }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-        <span style={{ fontWeight: 700, fontSize: '0.75rem', color }}>Topic Health Score</span>
-        <span style={{ fontSize: '0.7rem' }}>{latest.toFixed(3)} <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>(avg {mean.toFixed(3)})</span></span>
-        <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>40% alignment + 20% (1-repair) + 20% (1-drift) + 20% scope</span>
+    <div
+      className="cdash-health-box"
+      /* eslint-disable-next-line local/no-inline-style -- dynamic: score-based tint background/border */
+      style={{ background: `${color}08`, border: `1px solid ${color}30` }}
+    >
+      <div className="cdash-health-row">
+        {/* eslint-disable-next-line local/no-inline-style -- dynamic: score-based color */}
+        <span className="cdash-health-title" style={{ color }}>Topic Health Score</span>
+        <span className="cdash-health-value">{latest.toFixed(3)} <span className="cdash-health-muted">(avg {mean.toFixed(3)})</span></span>
+        <span className="cdash-health-muted">40% alignment + 20% (1-repair) + 20% (1-drift) + 20% scope</span>
       </div>
-      <svg width={w} height={h} style={{ display: 'block', width: '100%', height: h }}>
+      {/* eslint-disable-next-line local/no-inline-style -- dynamic: chart height */}
+      <svg width={w} height={h} className="cdash-health-svg" style={{ height: h }}>
         <path d={pathD} fill="none" stroke={color} strokeWidth="2" />
         <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="3" fill={color} />
       </svg>
@@ -404,6 +412,7 @@ function RoundsHistogram({ entries }: { entries: CalibrationEntry[] }) {
           <div key={r} className="cal-dash-hist-bar-wrapper">
             <div
               className="cal-dash-hist-bar"
+              /* eslint-disable-next-line local/no-inline-style -- dynamic: bar height from count */
               style={{ height: `${Math.max(pct, 2)}%` }}
               title={`${r} rounds: ${count} debates`}
             />

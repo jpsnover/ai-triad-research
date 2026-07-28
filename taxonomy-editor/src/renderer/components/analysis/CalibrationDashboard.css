@@ -203,3 +203,41 @@
   color: var(--text-secondary);
   margin-top: 2px;
 }
+
+/* ── Inline-style migration (t/1865) ─────────────────────── */
+.cdash-hover-target {
+  cursor: pointer;
+}
+.cdash-section-header {
+  grid-column: 1 / -1;
+  margin: 12px 0 4px;
+  font-size: 0.8rem;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.cdash-health-box {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+}
+.cdash-health-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.cdash-health-title {
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+.cdash-health-value {
+  font-size: 0.7rem;
+}
+.cdash-health-muted {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+.cdash-health-svg {
+  display: block;
+  width: 100%;
+}
