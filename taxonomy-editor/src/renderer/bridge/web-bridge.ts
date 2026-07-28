@@ -125,13 +125,20 @@ async function isNoSessionResponse(res: Response): Promise<boolean> {
 
 let _authAnonymous: boolean | null = null;
 
+// An auth-wall failure can surface two ways: a 401 { reason: 'no_session' }
+// (JSON) or an HTTP 200 whose body is the login page (Content-Type: text/html).
+// isNoSessionResponse only sees the former; isHtmlLoginPage covers the latter.
+function isHtmlLoginPage(res: Response): boolean {
+  return (res.headers.get('content-type') ?? '').includes('text/html');
+}
+
 async function fetchWithSessionRecovery(
   path: string,
   init: RequestInit,
   opts: import('./resilience').ResilientFetchOptions,
 ): Promise<Response> {
   let res = await resilientFetch(path, init, opts);
-  if (await isNoSessionResponse(res)) {
+  if (await isNoSessionResponse(res) || isHtmlLoginPage(res)) {
     const recovered = await recoverAnonymousSession();
     if (recovered) {
       _authAnonymous = true;

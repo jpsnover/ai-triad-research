@@ -147,3 +147,50 @@ describe('session recovery (t/1476)', () => {
     expect(mockResilientFetch).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('auth-wall recovery — HTTP 200 + text/html login page (t/1840)', () => {
+  const htmlLoginPage = () =>
+    mockResponse(200, '<!doctype html><html><body>Login</body></html>', { 'content-type': 'text/html; charset=utf-8' });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGlobalFetch.mockResolvedValue(mockResponse(200));
+  });
+
+  it('detects 200+text/html login page, recovers, and retries once (AC#1)', async () => {
+    const okResponse = mockResponse(200, { status: 'ok' }, { 'content-type': 'application/json' });
+    mockResilientFetch
+      .mockResolvedValueOnce(htmlLoginPage())
+      .mockResolvedValueOnce(okResponse);
+
+    const { bridgeGet } = await import('../web-bridge');
+    const result = await bridgeGet('/api/health');
+
+    expect(result).toEqual({ status: 'ok' });
+    expect(mockResilientFetch).toHaveBeenCalledTimes(2);
+    expect(mockGlobalFetch).toHaveBeenCalledWith(
+      '/api/auth/anonymous',
+      expect.objectContaining({ method: 'POST', credentials: 'include', cache: 'no-store' }),
+    );
+  });
+
+  it('surfaces ActionableError when retry is still HTML — no loop (AC#2)', async () => {
+    mockResilientFetch.mockResolvedValue(htmlLoginPage());
+
+    const { bridgeGet } = await import('../web-bridge');
+    await expect(bridgeGet('/api/taxonomy/accelerationist')).rejects.toThrow();
+    expect(mockResilientFetch).toHaveBeenCalledTimes(2);
+    expect(mockGlobalFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('surfaces ActionableError when recovery itself fails (HTML, no retry)', async () => {
+    mockResilientFetch.mockResolvedValue(htmlLoginPage());
+    mockGlobalFetch.mockResolvedValue(mockResponse(500, { error: 'recovery unavailable' }));
+
+    const { bridgeGet } = await import('../web-bridge');
+    await expect(bridgeGet('/api/health')).rejects.toThrow();
+    // recovery returned !ok, so no retry — only the initial resilientFetch call
+    expect(mockResilientFetch).toHaveBeenCalledTimes(1);
+    expect(mockGlobalFetch).toHaveBeenCalledTimes(1);
+  });
+});
