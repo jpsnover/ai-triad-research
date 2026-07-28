@@ -336,7 +336,9 @@ renderer-only change.
 ## Reevaluation Without Re-Harvesting
 
 Owner requirement (2026-07-13): `WELL_TESTED_MIN_CHALLENGES` starts at 2, and will
-likely be raised once there is a larger corpus of tested nodes. Every stipulated
+likely be raised once there is a larger corpus of tested nodes. (This happened:
+raised to 5 on 2026-07-28, owner decision q/30, applied via exactly the recount
+path this section guarantees — t/1838.) Every stipulated
 threshold in this design should be reevaluable the same way — as a cheap recompute
 over already-persisted evidence, not a re-run of debates or a re-parse of raw session
 files. This section makes that guarantee explicit and names the one gap it required
@@ -607,7 +609,7 @@ Per the register's no-grade-inflation rule, every judgment-bearing parameter her
 | Parameter | Value | Class |
 |---|---|---|
 | `SEVERE_ATTACK_THRESHOLD` | 0.5 | stipulated |
-| `WELL_TESTED_MIN_CHALLENGES` | 2 across ≥2 debates | stipulated |
+| `WELL_TESTED_MIN_CHALLENGES` | 5 across ≥2 debates (design-time 2; raised by owner decision q/30, 2026-07-28) | stipulated |
 | Verdict weights | held 1.0 / refined-held 1.0 / refined-pending 0.6 / refined-rejected 0.0 / open 0.25 / weakened −0.5 | stipulated |
 | `EVIDENCE_SATURATION` | 5 | stipulated |
 | Deficit ladder | 1.0 / 0.7 / 0.6 / 0.4 / 0.1 | stipulated |

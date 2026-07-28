@@ -95,8 +95,9 @@ Describe 'computeTierAndSortKey — cross-language consistency (t/1579 AC #10)' 
 
         It 'Overriding WELL_TESTED_MIN_CHALLENGES demotes a formerly-well_tested case to contested' {
             InModuleScope AITriad {
-                # Two challenges, two distinct debates, most recent held → well_tested at default (2).
-                # Raise the threshold to 3 → same input becomes contested.
+                # Two challenges, two distinct debates, most recent held → well_tested
+                # at an explicit threshold of 2; the same input stays contested at the
+                # production default (5, owner decision q/30) and at an explicit 3.
                 $record = @(
                     [PSCustomObject]@{ debate_id='d1'; date='2026-07-01'; pipeline_version='v'; verdict='held';
                         strongest_attack_encountered=[PSCustomObject]@{ claim_id='c1'; strength=0.7; scheme='rebut'; challenger_camp='a' };
@@ -105,11 +106,13 @@ Describe 'computeTierAndSortKey — cross-language consistency (t/1579 AC #10)' 
                         strongest_attack_encountered=[PSCustomObject]@{ claim_id='c2'; strength=0.7; scheme='rebut'; challenger_camp='b' };
                         claim_outcomes=[PSCustomObject]@{ thrived=2; survived=1; died=0 }; concession=$null }
                 )
-                $defaultResult  = Get-DebateTestedTier -Record $record -Revisions @()
+                $baselineResult = Get-DebateTestedTier -Record $record -Revisions @() -Constants @{ WELL_TESTED_MIN_CHALLENGES = 2 }
                 $raisedResult   = Get-DebateTestedTier -Record $record -Revisions @() -Constants @{ WELL_TESTED_MIN_CHALLENGES = 3 }
+                $defaultResult  = Get-DebateTestedTier -Record $record -Revisions @()
 
-                $defaultResult.tier | Should -Be 'well_tested'
+                $baselineResult.tier | Should -Be 'well_tested'
                 $raisedResult.tier  | Should -Be 'contested' -Because 'raised threshold flips the tier — the whole point of Update-NodeTestingRecord -RecomputeOnly'
+                $defaultResult.tier | Should -Be 'contested' -Because 'production default is 5 (owner decision q/30, 2026-07-28)'
             }
         }
     }

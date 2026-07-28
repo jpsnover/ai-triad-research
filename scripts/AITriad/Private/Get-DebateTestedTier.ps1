@@ -18,7 +18,7 @@
 
 $script:DebateTestedDefaults = @{
     SEVERE_ATTACK_THRESHOLD             = 0.5
-    WELL_TESTED_MIN_CHALLENGES          = 2
+    WELL_TESTED_MIN_CHALLENGES          = 5
     WELL_TESTED_MIN_DEBATES             = 2
     EVIDENCE_SATURATION                 = 5
     COSMETIC_EDIT_SIMILARITY_THRESHOLD  = 0.98

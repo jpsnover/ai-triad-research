@@ -90,11 +90,14 @@ describe('computeTierAndSortKey', () => {
     expect(r.sort_key).toBeLessThan(3);
   });
 
-  it('returns well_tested with >=2 challenges across >=2 debates, most recent held', () => {
+  // Threshold-dependent cases pass WELL_TESTED_MIN_CHALLENGES explicitly so they
+  // exercise the boundary logic regardless of the production default (owner-set,
+  // see metric-provenance-register).
+  it('returns well_tested at the challenge threshold across >=2 debates, most recent held', () => {
     const r = computeTierAndSortKey([
       entry({ debate_id: 'debate-001', verdict: 'held', strongest_attack_encountered: { claim_id: 'c1', strength: 0.7, scheme: 'rebut', challenger_camp: 'acc' } }),
       entry({ debate_id: 'debate-002', verdict: 'held', strongest_attack_encountered: { claim_id: 'c2', strength: 0.6, scheme: 'undercut', challenger_camp: 'saf' } }),
-    ], []);
+    ], [], { WELL_TESTED_MIN_CHALLENGES: 2 });
     expect(r.tier).toBe('well_tested');
     expect(r.sort_key).toBeGreaterThanOrEqual(3);
     expect(r.sort_key).toBeLessThan(4);
@@ -104,7 +107,7 @@ describe('computeTierAndSortKey', () => {
     const r = computeTierAndSortKey([
       entry({ debate_id: 'debate-001', verdict: 'held' }),
       entry({ debate_id: 'debate-001', verdict: 'held' }),
-    ], []);
+    ], [], { WELL_TESTED_MIN_CHALLENGES: 2 });
     expect(r.tier).toBe('contested');
   });
 
@@ -113,7 +116,7 @@ describe('computeTierAndSortKey', () => {
       entry({ debate_id: 'debate-001', verdict: 'held' }),
       entry({ debate_id: 'debate-002', verdict: 'held' }),
       entry({ debate_id: 'debate-003', verdict: 'weakened' }),
-    ], []);
+    ], [], { WELL_TESTED_MIN_CHALLENGES: 2 });
     expect(r.tier).toBe('contested');
   });
 
@@ -121,8 +124,21 @@ describe('computeTierAndSortKey', () => {
     const r = computeTierAndSortKey([
       entry({ debate_id: 'debate-001', verdict: 'held' }),
       entry({ debate_id: 'debate-002', verdict: 'refined' }),
-    ], [revision({ held_since: true })]);
+    ], [revision({ held_since: true })], { WELL_TESTED_MIN_CHALLENGES: 2 });
     expect(r.tier).toBe('well_tested');
+  });
+
+  it('default threshold requires 5 challenges (owner decision q/30)', () => {
+    const twoDebates = computeTierAndSortKey([
+      entry({ debate_id: 'debate-001', verdict: 'held' }),
+      entry({ debate_id: 'debate-002', verdict: 'held' }),
+    ], []);
+    expect(twoDebates.tier).toBe('contested');
+    const fiveDebates = computeTierAndSortKey(
+      Array.from({ length: 5 }, (_, i) => entry({ debate_id: `debate-00${i + 1}`, verdict: 'held' })),
+      [],
+    );
+    expect(fiveDebates.tier).toBe('well_tested');
   });
 
   it('sort_key increases with stronger attacks survived', () => {
