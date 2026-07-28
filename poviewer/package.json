@@ -30,5 +30,8 @@
     "typescript": "^6.0.3",
     "vite": "^8.1.4",
     "wait-on": "^9.0.10"
+  },
+  "overrides": {
+    "brace-expansion": "^5.0.8"
   }
 }
