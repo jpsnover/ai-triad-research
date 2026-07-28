@@ -1,4 +1,4 @@
-# LLM Agents Debate Paper Review — Ramifications for QBAF & Debate Architecture
+﻿# LLM Agents Debate Paper Review — Ramifications for QBAF & Debate Architecture
 
 **Paper:** Can LLM Agents Really Debate? A Controlled Study of Multi-Agent Debate in Logical Reasoning
 **Venue:** arXiv, November 2025
@@ -24,7 +24,7 @@ Our situation injection mechanism reinforces this design: by presenting all thre
 
 ### A3. Performance Bounded by Strongest Reasoner
 
-The paper reports that debate performance is bounded by the strongest reasoner in the group — weaker agents show only 3.6% self-correction rate versus 30-34% for stronger models. This finding explains our empirical observation from t/351, where model choice significantly affected debate quality: debates using gemini-2.5-flash produced different convergence patterns than those using gemini-3.1-flash-lite. The stronger model generated more substantive engagement, better claim extraction, and more meaningful concessions.
+The paper reports that debate performance is bounded by the strongest reasoner in the group — weaker agents show only 3.6% self-correction rate versus 30-34% for stronger models. This finding explains our empirical observation from t/351, where model choice significantly affected debate quality: debates using gemini-2.5-flash produced different convergence patterns than those using gemini-3.5-flash-lite. The stronger model generated more substantive engagement, better claim extraction, and more meaningful concessions.
 
 However, our system mitigates this limitation in a way the paper does not: our taxonomy-grounded context injection gives all agents access to curated domain knowledge regardless of their intrinsic reasoning ability. A weaker model with access to a well-structured BDI taxonomy containing relevant beliefs, precedents, and policy mechanisms can produce better arguments than a stronger model reasoning from scratch. The taxonomy acts as an equalizer — not eliminating the gap entirely, but reducing the degree to which performance is bounded by the weakest agent.
 

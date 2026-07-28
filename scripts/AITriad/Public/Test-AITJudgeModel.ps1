@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -14,7 +14,7 @@
     This is a one-off experiment tool — it does not modify any debate files.
 .EXAMPLE
     Test-AITJudgeModel -DebateCount 3
-    # Audits the 3 debates with the most validated turns using haiku + gemini-3.1-flash-lite
+    # Audits the 3 debates with the most validated turns using haiku + gemini-3.5-flash-lite
 .EXAMPLE
     Test-AITJudgeModel -DebatePath ../ai-triad-data/debates/debate-4bc8ae8a-1459-4d33-b306-4bdb2308d423.json -Models haiku,sonnet,gemini
 .EXAMPLE

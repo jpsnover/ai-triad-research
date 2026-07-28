@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-TaxonomyProposal {
@@ -12,7 +12,7 @@ function Invoke-TaxonomyProposal {
 
         Proposals are written to taxonomy/proposals/proposal-{timestamp}.json.
     .PARAMETER Model
-        AI model to use. Defaults to env default or 'gemini-3.1-flash-lite'.
+        AI model to use. Defaults to env default or 'gemini-3.5-flash-lite'.
     .PARAMETER ApiKey
         AI API key. If omitted, resolved via backend-specific env var or AI_API_KEY.
     .PARAMETER Temperature
@@ -29,7 +29,7 @@ function Invoke-TaxonomyProposal {
     .EXAMPLE
         Invoke-TaxonomyProposal -DryRun
     .EXAMPLE
-        Invoke-TaxonomyProposal -Model 'gemini-3.1-flash-lite'
+        Invoke-TaxonomyProposal -Model 'gemini-3.5-flash-lite'
     .EXAMPLE
         $h = Get-TaxonomyHealth -PassThru
         Invoke-TaxonomyProposal -HealthData $h
@@ -46,7 +46,7 @@ function Invoke-TaxonomyProposal {
     param(
         [ValidateScript({ Test-AIModelId $_ })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
-        [string]$Model       = 'gemini-3.1-flash-lite',
+        [string]$Model       = 'gemini-3.5-flash-lite',
 
         [string]$ApiKey      = '',
 

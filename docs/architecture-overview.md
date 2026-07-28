@@ -1,4 +1,4 @@
-# AI Triad Research — System Architecture
+﻿# AI Triad Research — System Architecture
 
 ## Purpose
 
@@ -167,7 +167,7 @@ All AI calls route through a unified abstraction layer. The PowerShell side uses
 
 | Backend | API | Key Env Var | Default Model |
 |---|---|---|---|
-| Google Gemini | generativelanguage.googleapis.com | `GEMINI_API_KEY` | gemini-3.1-flash-lite-preview |
+| Google Gemini | generativelanguage.googleapis.com | `GEMINI_API_KEY` | gemini-3.5-flash-lite-preview |
 | Anthropic Claude | api.anthropic.com | `ANTHROPIC_API_KEY` | claude-sonnet-4-5 |
 | Groq | api.groq.com | `GROQ_API_KEY` | groq-openai-gpt-oss-120b |
 | OpenAI | api.openai.com | `OPENAI_API_KEY` | (future) |

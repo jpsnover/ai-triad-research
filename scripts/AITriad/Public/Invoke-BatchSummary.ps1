@@ -13,7 +13,7 @@ function Invoke-BatchSummary {
     .PARAMETER DocId
         One or more document IDs to reprocess. Accepts pipeline input by value.
     .PARAMETER Model
-        AI model to use. Defaults to AI_MODEL env var, then "gemini-3.1-flash-lite".
+        AI model to use. Defaults to AI_MODEL env var, then "gemini-3.5-flash-lite".
         Supports Gemini, Claude, and Groq backends.
     .PARAMETER Temperature
         Sampling temperature (0.0-1.0). Default: 0.1
@@ -71,7 +71,7 @@ function Invoke-BatchSummary {
 
         [ValidateScript({ Test-AIModelId $_ })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
-        [string]$Model = $(if ($env:AI_MODEL) { $env:AI_MODEL } else { 'gemini-3.1-flash-lite' }),
+        [string]$Model = $(if ($env:AI_MODEL) { $env:AI_MODEL } else { 'gemini-3.5-flash-lite' }),
 
         [ValidateRange(0.0, 1.0)]
         [double]$Temperature = 0.1,

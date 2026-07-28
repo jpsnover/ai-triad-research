@@ -1,4 +1,4 @@
-# Tag: debate (t/1186)
+﻿# Tag: debate (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -40,7 +40,7 @@ BeforeAll {
 
     @{
         title              = 'Low quality debate'
-        debate_model       = 'gemini-3.1-flash-lite'
+        debate_model       = 'gemini-3.5-flash-lite'
         debate_temperature = 0.7
         protocol_id        = 'deliberation'
         app_version        = 'test'

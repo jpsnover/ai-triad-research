@@ -1,4 +1,4 @@
-# Phase 1 — brief+cite flash-lite experiment (single topic, infrastructure validation)
+﻿# Phase 1 — brief+cite flash-lite experiment (single topic, infrastructure validation)
 # Run: pwsh -File scripts/exp-brief-cite-flash-phase1.ps1
 
 Set-StrictMode -Version Latest
@@ -54,13 +54,13 @@ Write-Host "Expensive debate complete: $($ResultExpensive.SessionPath)" -Foregro
 
 # ── Run 2: Cheap (brief+cite = flash-lite, rest = Opus) ───────────────────
 Write-Host ""
-Write-Host "[2/2] Running CHEAP (brief+cite=gemini-3.1-flash-lite, rest=claude-opus-4-8)..." -ForegroundColor Yellow
+Write-Host "[2/2] Running CHEAP (brief+cite=gemini-3.5-flash-lite, rest=claude-opus-4-8)..." -ForegroundColor Yellow
 $ResultCheap = Invoke-AITDebate @CommonParams `
     -Name "$ExpSlug-cheap-phase1" `
     -ProgressDebateName "$ExpSlug-cheap-phase1" `
     -StageModels @{
-        brief = 'gemini-3.1-flash-lite'
-        cite  = 'gemini-3.1-flash-lite'
+        brief = 'gemini-3.5-flash-lite'
+        cite  = 'gemini-3.5-flash-lite'
     }
 
 if (-not $ResultCheap -or -not $ResultCheap.SessionPath) {

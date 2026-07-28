@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -13,7 +13,7 @@
     Path to the taxonomy directory containing POV JSON files.
     Defaults to Get-TaxonomyDir.
 .PARAMETER Model
-    AI model to use. Default: gemini-3.1-flash-lite.
+    AI model to use. Default: gemini-3.5-flash-lite.
 .PARAMETER Version
     Version tag written to plain_description_version for staleness detection.
     Default: flash-lite:v1.
@@ -44,7 +44,7 @@ function Invoke-VernacularBatch {
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter()][string]$TaxonomyPath,
-        [Parameter()][string]$Model = 'gemini-3.1-flash-lite',
+        [Parameter()][string]$Model = 'gemini-3.5-flash-lite',
         [Parameter()][string]$Version = 'flash-lite:v1',
         [Parameter()][ValidateRange(1, 50)][int]$Concurrency = 10,
         [switch]$Force,

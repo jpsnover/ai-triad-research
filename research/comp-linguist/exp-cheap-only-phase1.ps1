@@ -1,4 +1,4 @@
-# Cheap-only run for exp-brief-cite-flash Phase 1.
+﻿# Cheap-only run for exp-brief-cite-flash Phase 1.
 # The expensive run already completed and is saved; we only need the cheap arm,
 # then compare against the saved expensive session.
 # Run: pwsh -File research/comp-linguist/exp-cheap-only-phase1.ps1
@@ -23,7 +23,7 @@ $ProgressFile = Join-Path $PSScriptRoot "$ExpSlug-cheaponly-progress.json"
 # Saved expensive session (recovered 2026-06-30)
 $ExpensivePath = "C:\Users\jsnov\repos\ai-triad-data\debates\debate-0826455a-7a71-4d2d-90b2-b4ca597f1c3b.json"
 
-Write-Host "[1/1] Running CHEAP (brief+cite=gemini-3.1-flash-lite, rest=claude-opus-4-8)..." -ForegroundColor Yellow
+Write-Host "[1/1] Running CHEAP (brief+cite=gemini-3.5-flash-lite, rest=claude-opus-4-8)..." -ForegroundColor Yellow
 $ResultCheap = Invoke-AITDebate `
     -Topic               $Topic `
     -Model               'claude-opus-4' `
@@ -34,7 +34,7 @@ $ResultCheap = Invoke-AITDebate `
     -ProgressBatchName   $ExpSlug `
     -Name                "$ExpSlug-cheap-phase1" `
     -ProgressDebateName  "$ExpSlug-cheap-phase1" `
-    -StageModels         @{ brief = 'gemini-3.1-flash-lite'; cite = 'gemini-3.1-flash-lite' }
+    -StageModels         @{ brief = 'gemini-3.5-flash-lite'; cite = 'gemini-3.5-flash-lite' }
 
 if (-not $ResultCheap -or -not $ResultCheap.SessionPath) {
     Write-Host "FAILED: Cheap debate did not produce a session path." -ForegroundColor Red

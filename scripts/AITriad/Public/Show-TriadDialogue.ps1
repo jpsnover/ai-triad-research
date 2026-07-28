@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Show-TriadDialogue {
@@ -17,7 +17,7 @@ function Show-TriadDialogue {
     .PARAMETER OutputFile
         Optional path to write the debate JSON. If omitted, writes to debates/debate-<guid>.json.
     .PARAMETER Model
-        AI model override. Defaults to 'gemini-3.1-flash-lite'.
+        AI model override. Defaults to 'gemini-3.5-flash-lite'.
     .PARAMETER ApiKey
         AI API key override.
     .PARAMETER RepoRoot
@@ -65,7 +65,7 @@ function Show-TriadDialogue {
 
         [ValidateScript({ Test-AIModelId $_ })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
-        [string]$Model = 'gemini-3.1-flash-lite',
+        [string]$Model = 'gemini-3.5-flash-lite',
 
         [string]$ApiKey,
 

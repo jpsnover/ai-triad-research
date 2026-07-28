@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Repair-PovDescriptions {
@@ -20,7 +20,7 @@ function Repair-PovDescriptions {
     .PARAMETER Category
         Filter to a specific BDI category.
     .PARAMETER Model
-        AI model for description repair. Default: gemini-3.1-flash-lite.
+        AI model for description repair. Default: gemini-3.5-flash-lite.
     .PARAMETER ApiKey
         AI API key. Resolved from env if omitted.
     .EXAMPLE
@@ -28,7 +28,7 @@ function Repair-PovDescriptions {
     .EXAMPLE
         Repair-PovDescriptions -POV safetyist
     .EXAMPLE
-        Repair-PovDescriptions -Category Beliefs -Model gemini-3.1-flash-lite
+        Repair-PovDescriptions -Category Beliefs -Model gemini-3.5-flash-lite
     .LINK
         Show-AITriadHelp
     .LINK
@@ -50,7 +50,7 @@ function Repair-PovDescriptions {
 
         [ValidateScript({ Test-AIModelId $_ })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
-        [string]$Model = 'gemini-3.1-flash-lite',
+        [string]$Model = 'gemini-3.5-flash-lite',
 
         [string]$ApiKey
     )

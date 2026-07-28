@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-OrgStanceExtraction {
@@ -309,7 +309,7 @@ function Invoke-OrgStanceExtraction {
                             polarity              = [string]$c.polarity
                             extraction_confidence = [double]$c.extraction_confidence
                             extracted_at          = (Get-Date).ToString('o')
-                            extraction_model      = if ($ai.PSObject.Properties['Model']) { $ai.Model } else { 'gemini-3.1-flash-lite' }
+                            extraction_model      = if ($ai.PSObject.Properties['Model']) { $ai.Model } else { 'gemini-3.5-flash-lite' }
                         })
                     }
                 } else {
@@ -395,7 +395,7 @@ function Invoke-OrgStanceExtraction {
                             polarity              = [string]$c.polarity
                             extraction_confidence = [double]$c.extraction_confidence
                             extracted_at          = (Get-Date).ToString('o')
-                            extraction_model      = if ($ai.PSObject.Properties['Model']) { $ai.Model } else { 'gemini-3.1-flash-lite' }
+                            extraction_model      = if ($ai.PSObject.Properties['Model']) { $ai.Model } else { 'gemini-3.5-flash-lite' }
                         })
                     }
                 } else {

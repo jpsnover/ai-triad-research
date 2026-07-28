@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+﻿import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -43,7 +43,7 @@ vi.mock('../../hooks/useTaxonomyStore', () => ({
     setPaneSpacing: mockSetPaneSpacing,
     aiBackend: 'gemini' as const,
     setAIBackend: mockSetAIBackend,
-    geminiModel: 'gemini-3.1-flash-lite-preview' as const,
+    geminiModel: 'gemini-3.5-flash-lite-preview' as const,
     setGeminiModel: mockSetGeminiModel,
   }),
   AI_BACKENDS: [
@@ -56,7 +56,7 @@ vi.mock('../../hooks/useTaxonomyStore', () => ({
   ],
   MODELS_BY_BACKEND: {
     gemini: [
-      { value: 'gemini-3.1-flash-lite-preview', label: '3.1 Flash Lite Preview' },
+      { value: 'gemini-3.5-flash-lite-preview', label: '3.1 Flash Lite Preview' },
       { value: 'gemini-3-flash-preview', label: '3 Flash Preview' },
     ],
     claude: [{ value: 'claude-sonnet-4-6', label: 'Sonnet 4.6' }],

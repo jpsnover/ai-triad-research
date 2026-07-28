@@ -1,4 +1,4 @@
-// Delta debate save — client dirty-tracking + delta save path (t/1637, parent t/1470).
+﻿// Delta debate save — client dirty-tracking + delta save path (t/1637, parent t/1470).
 //
 // Exercises the save-path fork in sessionSlice.saveDebate(): Electron and
 // first-save always full-PUT; web 2nd+ saves ship a minimal DebateDelta via
@@ -44,7 +44,7 @@ vi.mock('../../usePromptConfigStore', () => ({
 }));
 
 vi.mock('../../useTaxonomyStore', () => ({
-  useTaxonomyStore: { getState: () => ({ aiBackend: 'gemini', geminiModel: 'gemini-3.1-flash-lite-preview' }) },
+  useTaxonomyStore: { getState: () => ({ aiBackend: 'gemini', geminiModel: 'gemini-3.5-flash-lite-preview' }) },
 }));
 
 vi.mock('../shared/taxonomyContext', () => ({ resetDoctrinalAnchoringCache: vi.fn() }));

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -169,7 +169,7 @@ const TEST_MODEL_REGISTRY: ModelRegistry = {
   backends: [{ id: 'gemini', label: 'Gemini' }],
   models: [
     { id: 'gemini-2.5-flash', apiModelId: 'gemini-2.5-flash', label: 'Flash', backend: 'gemini' },
-    { id: 'gemini-3.1-flash-lite', apiModelId: 'gemini-3.1-flash-lite', label: 'Flash Lite', backend: 'gemini' },
+    { id: 'gemini-3.5-flash-lite', apiModelId: 'gemini-3.5-flash-lite', label: 'Flash Lite', backend: 'gemini' },
   ],
 };
 

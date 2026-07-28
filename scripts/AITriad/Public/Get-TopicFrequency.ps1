@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-TopicFrequency {
@@ -23,7 +23,7 @@ function Get-TopicFrequency {
     .PARAMETER ClusterThreshold
         Cosine similarity threshold for agglomerative clustering (0.3-0.9, default 0.55).
     .PARAMETER Model
-        AI model override (default from $env:AI_MODEL or gemini-3.1-flash-lite).
+        AI model override (default from $env:AI_MODEL or gemini-3.5-flash-lite).
     .PARAMETER RepoRoot
         Path to the repository root.
     .EXAMPLE
@@ -78,7 +78,7 @@ function Get-TopicFrequency {
     $ErrorActionPreference = 'Stop'
 
     if (-not $Model) {
-        if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-3.1-flash-lite' }
+        if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-3.5-flash-lite' }
     }
 
     # ── Validate environment ─────────────────────────────────────────────────

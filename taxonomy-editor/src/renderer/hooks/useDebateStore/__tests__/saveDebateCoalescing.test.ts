@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
+﻿import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { create } from 'zustand';
 import type { DebateStore } from '../types';
 import { createSessionSlice } from '../slices/sessionSlice';
@@ -38,7 +38,7 @@ vi.mock('../../usePromptConfigStore', () => ({
 }));
 
 vi.mock('../../useTaxonomyStore', () => ({
-  useTaxonomyStore: { getState: () => ({ aiBackend: 'gemini', geminiModel: 'gemini-3.1-flash-lite-preview' }) },
+  useTaxonomyStore: { getState: () => ({ aiBackend: 'gemini', geminiModel: 'gemini-3.5-flash-lite-preview' }) },
 }));
 
 vi.mock('../shared/taxonomyContext', () => ({ resetDoctrinalAnchoringCache: vi.fn() }));

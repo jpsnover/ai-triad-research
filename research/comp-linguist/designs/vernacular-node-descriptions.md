@@ -1,4 +1,4 @@
-# Design: Vernacular (Plain-Language) Node Descriptions
+﻿# Design: Vernacular (Plain-Language) Node Descriptions
 
 **Ticket:** t/969  
 **Author:** Computational Linguist  
@@ -61,7 +61,7 @@ User prompt: `Rewrite this node description:\n\n{description}`
 
 ### 3.2 Model Selection
 
-**`gemini-3.1-flash-lite`** — validated in prompt test (7/7 accurate, readable, within word limits). Cost for full corpus:
+**`gemini-3.5-flash-lite`** — validated in prompt test (7/7 accurate, readable, within word limits). Cost for full corpus:
 
 | Metric | Value |
 |--------|-------|
@@ -86,7 +86,7 @@ Set `-MaxTokens 400` for generation calls. The longest validated output (skp-bel
 
 ### 3.4 Golden Test Set (validated against revised prompt)
 
-7 samples covering simple, complex, multi-part, and nuanced nodes. All tested with `gemini-3.1-flash-lite`, temp 0.2, max_tokens 400.
+7 samples covering simple, complex, multi-part, and nuanced nodes. All tested with `gemini-3.5-flash-lite`, temp 0.2, max_tokens 400.
 
 | Node | Complexity | Word count | CL verdict | Notes |
 |------|-----------|------------|------------|-------|
@@ -317,7 +317,7 @@ For initial population and version upgrades:
 ```powershell
 # Regenerate all nodes missing or stale plain_description
 Invoke-VernacularBatch -TaxonomyPath $dataRoot/taxonomy/Origin `
-    -Model 'gemini-3.1-flash-lite' -Version 'flash-lite:v1' `
+    -Model 'gemini-3.5-flash-lite' -Version 'flash-lite:v1' `
     -Concurrency 10 -Force:$false
 ```
 

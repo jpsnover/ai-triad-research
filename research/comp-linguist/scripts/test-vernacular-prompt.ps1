@@ -1,4 +1,4 @@
-# Test vernacular generation prompt against sample DOLCE descriptions
+﻿# Test vernacular generation prompt against sample DOLCE descriptions
 # Uses Gemini flash-lite via the project's AI backend
 
 param(
@@ -62,7 +62,7 @@ foreach ($node in $samples[0..([Math]::Min($SampleCount - 1, $samples.Count - 1)
     $userPrompt = "Rewrite this node description:`n`n$($node.description)"
 
     $result = Invoke-AIApi -Prompt $userPrompt -SystemInstruction $systemPrompt `
-        -Model 'gemini-3.1-flash-lite' -Temperature 0.2 -MaxTokens 400
+        -Model 'gemini-3.5-flash-lite' -Temperature 0.2 -MaxTokens 400
 
     Write-Host "PLAIN:" -ForegroundColor Green
     Write-Host $result.Text

@@ -1,4 +1,4 @@
-# AI/NLP Usage Audit — AI Triad Research
+﻿# AI/NLP Usage Audit — AI Triad Research
 
 **Scope:** every LLM call site and computational-linguistics technique in the codebase, audited on three questions: (1) is an LLM the right tool at all, (2) if yes, is the specific technique/model best practice, (3) where should we migrate to a different technique. Research-backed via current literature (sources at end). Written 2026-07-08 by Fable 5, commissioned by Jeffrey Snover.
 
@@ -32,7 +32,7 @@
 
 ### 3. Document ingestion / POV summary pipeline — `Invoke-POVSummary` → `Invoke-DocumentSummary` → `Merge-ChunkSummaries` ✅ right tool, minor upgrades
 
-**What it does** (per `docs/document-processing-pipeline.md`, verified against code): heading-aware greedy chunking with runt merge, no overlap (chars/4 token estimate); CHESS pre-classification (`Get-DocumentPovClassification.ps1` — ~600-token flash-lite call to pick POV branches); RAG node injection via `Get-RelevantTaxonomyNodes` (replaced full-taxonomy injection — 15k → 3-5k tokens); single-shot vs FIRE iterative extraction gated by a **deterministic 2-signal sniff** (`Test-FireRequired.ps1`); density-scaled extraction targets with counted validation and one retry-with-nudge; `Repair-TruncatedJson` salvage; chunk merge dedup by exact 80-char-prefix keys, first-occurrence-wins (`Merge-ChunkSummaries.ps1`). Model: gemini-3.1-flash-lite, temp 0.1, JSON mode.
+**What it does** (per `docs/document-processing-pipeline.md`, verified against code): heading-aware greedy chunking with runt merge, no overlap (chars/4 token estimate); CHESS pre-classification (`Get-DocumentPovClassification.ps1` — ~600-token flash-lite call to pick POV branches); RAG node injection via `Get-RelevantTaxonomyNodes` (replaced full-taxonomy injection — 15k → 3-5k tokens); single-shot vs FIRE iterative extraction gated by a **deterministic 2-signal sniff** (`Test-FireRequired.ps1`); density-scaled extraction targets with counted validation and one retry-with-nudge; `Repair-TruncatedJson` salvage; chunk merge dedup by exact 80-char-prefix keys, first-occurrence-wins (`Merge-ChunkSummaries.ps1`). Model: gemini-3.5-flash-lite, temp 0.1, JSON mode.
 
 **Assessment:** LLM extraction is correct — no classical technique extracts POV-framed key points with stance and taxonomy mapping. The scaffolding (deterministic gates around LLM calls, density validation, cheap-model default) matches current best practice; the CHESS+RAG+FIRE staging is genuinely better than what most published ingestion pipelines do. Three upgrades:
 

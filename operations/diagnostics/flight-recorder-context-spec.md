@@ -1,4 +1,4 @@
-# Flight Recorder Context Record — Design Spec
+﻿# Flight Recorder Context Record — Design Spec
 
 ## Goal
 
@@ -31,7 +31,7 @@ Every flight recorder dump should include a `_type: "context"` record (after the
     "adaptive_phase": "argumentation",
     "transcript_length": 25,
     "an_nodes": 41,
-    "model": "gemini-3.1-flash-lite-preview",
+    "model": "gemini-3.5-flash-lite-preview",
     "temperature": 0.7,
     "is_generating": false,
     "convergence_signals_count": 14,
@@ -47,7 +47,7 @@ Every flight recorder dump should include a `_type: "context"` record (after the
   },
   "ai": {
     "backend": "gemini",
-    "model": "gemini-3.1-flash-lite-preview",
+    "model": "gemini-3.5-flash-lite-preview",
     "has_keys": { "gemini": true, "claude": false, "groq": false, "openai": false }
   },
   "performance": {

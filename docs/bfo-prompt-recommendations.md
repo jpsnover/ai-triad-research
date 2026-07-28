@@ -1,4 +1,4 @@
-# Prompt Improvements Through the Lens of Basic Formal Ontology
+﻿# Prompt Improvements Through the Lens of Basic Formal Ontology
 
 > **Superseded by [`dolce-aif-bdi-implementation-plan.md`](dolce-aif-bdi-implementation-plan.md).** This document's problem analysis and baseline measurements remain valid reference material, but its BFO-framed implementation plan has been replaced by the DOLCE+AIF+BDI migration plan.
 
@@ -786,7 +786,7 @@ Execution order:
 
 ### Batch AI Processing Strategy
 
-- Use `gemini-3.1-flash-lite-preview` for classification tasks (ontological_level, disagreement_type, temporal_scope, fallacy_type) — cheap, fast, sufficient
+- Use `gemini-3.5-flash-lite-preview` for classification tasks (ontological_level, disagreement_type, temporal_scope, fallacy_type) — cheap, fast, sufficient
 - Use `gemini-2.5-flash` or `claude-sonnet-4-6` for generative tasks (description rewrites, steelman generation, edge reclassification) — quality matters
 - All batch outputs go through diff review before committing to `ai-triad-data`
 

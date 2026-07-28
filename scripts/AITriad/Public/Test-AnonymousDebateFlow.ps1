@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Test-AnonymousDebateFlow {
@@ -87,7 +87,7 @@ function Test-AnonymousDebateFlow {
            BugTags = 't/1060'
            PostHook = $null }
         @{ Step = 2; Method = 'POST'; Path = '/api/ai/generate';
-           Body = @{ prompt = 'Reply with the word OK.'; model = 'gemini-3.1-flash-lite'; maxTokens = 8 };
+           Body = @{ prompt = 'Reply with the word OK.'; model = 'gemini-3.5-flash-lite'; maxTokens = 8 };
            OkCodes = @(200);
            Desc = 'AI generate (free tier)';
            BugTags = 't/1061 t/1062'

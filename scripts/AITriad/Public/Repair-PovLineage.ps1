@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Repair-PovLineage {
@@ -21,7 +21,7 @@ function Repair-PovLineage {
     .PARAMETER POV
         Filter to a specific POV file.
     .PARAMETER Model
-        AI model for enrichment. Default: gemini-3.1-flash-lite.
+        AI model for enrichment. Default: gemini-3.5-flash-lite.
     .PARAMETER ApiKey
         AI API key. Resolved from env if omitted.
     .PARAMETER BatchSize
@@ -68,7 +68,7 @@ function Repair-PovLineage {
 
         [ValidateScript({ Test-AIModelId $_ })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
-        [string]$Model = 'gemini-3.1-flash-lite',
+        [string]$Model = 'gemini-3.5-flash-lite',
 
         [string]$ApiKey,
 

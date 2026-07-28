@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -30,7 +30,7 @@
 .EXAMPLE
     Invoke-AITDebate -Topic "Should the US impose AI licensing?" -Rounds 3
 .EXAMPLE
-    Invoke-AITDebate -Topic "Scaling limits" -Name "Scaling Debate" -Rounds 4 -Model gemini-3.1-flash-lite
+    Invoke-AITDebate -Topic "Scaling limits" -Name "Scaling Debate" -Rounds 4 -Model gemini-3.5-flash-lite
 .EXAMPLE
     Invoke-AITDebate -DocPath ../ai-triad-data/sources/my-doc/snapshot.md -Name "My Doc Debate"
 .EXAMPLE
@@ -236,7 +236,7 @@ Install Node.js from https://nodejs.org (v18+), then verify: npx --version
     # Resolve model
     if ($Model) { $ResolvedModel = $Model }
     elseif ($env:AI_MODEL) { $ResolvedModel = $env:AI_MODEL }
-    else { $ResolvedModel = 'gemini-3.1-flash-lite' }
+    else { $ResolvedModel = 'gemini-3.5-flash-lite' }
     Write-Verbose "Model resolved: $ResolvedModel (source: $(if ($Model) {'parameter'} elseif ($env:AI_MODEL) {'env:AI_MODEL'} else {'default'}))"
 
     # ── Resolve output directory ──────────────────────────

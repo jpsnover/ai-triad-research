@@ -1,4 +1,4 @@
-# Tag: taxonomy (t/1449)
+﻿# Tag: taxonomy (t/1449)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -103,7 +103,7 @@ Describe 'Invoke-GraphQuery per-hop edge validation (t/1449)' -Tag 'taxonomy' {
             }
             Mock Invoke-AIApi -MockWith { return $canned }
 
-            $r = Invoke-GraphQuery -Question 'What supports B?' -Model 'gemini-3.1-flash-lite' -Raw 3>$null 6>$null
+            $r = Invoke-GraphQuery -Question 'What supports B?' -Model 'gemini-3.5-flash-lite' -Raw 3>$null 6>$null
 
             $r                    | Should -Not -BeNullOrEmpty
             $r.paths_traced       | Should -Not -BeNullOrEmpty
@@ -150,7 +150,7 @@ Describe 'Invoke-GraphQuery per-hop edge validation (t/1449)' -Tag 'taxonomy' {
             Mock Invoke-AIApi -MockWith { return $canned }
 
             $warnings = $null
-            $r = Invoke-GraphQuery -Question 'q' -Model 'gemini-3.1-flash-lite' -Raw -WarningVariable warnings -WarningAction SilentlyContinue 3>$null 6>$null
+            $r = Invoke-GraphQuery -Question 'q' -Model 'gemini-3.5-flash-lite' -Raw -WarningVariable warnings -WarningAction SilentlyContinue 3>$null 6>$null
 
             @($r.paths_traced).Count | Should -Be 1
             $r.paths_traced[0].fully_verified | Should -Be $true
@@ -181,7 +181,7 @@ Describe 'Invoke-GraphQuery per-hop edge validation (t/1449)' -Tag 'taxonomy' {
             Mock Invoke-AIApi -MockWith { return $canned }
 
             $warnings = $null
-            $null = Invoke-GraphQuery -Question 'q' -Model 'gemini-3.1-flash-lite' -Raw -WarningVariable warnings -WarningAction SilentlyContinue 3>$null 6>$null
+            $null = Invoke-GraphQuery -Question 'q' -Model 'gemini-3.5-flash-lite' -Raw -WarningVariable warnings -WarningAction SilentlyContinue 3>$null 6>$null
 
             ($warnings -join '|') | Should -Match 'traced hop\(s\) reference edges that do not exist'
         }

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-EdgeDiscovery {
@@ -34,7 +34,7 @@ function Invoke-EdgeDiscovery {
     .PARAMETER StaleOnly
         Only process nodes marked as STALE (edited since last edge discovery).
     .PARAMETER Model
-        AI model to use. Defaults to 'gemini-3.1-flash-lite'.
+        AI model to use. Defaults to 'gemini-3.5-flash-lite'.
     .PARAMETER ApiKey
         AI API key. If omitted, resolved via backend-specific env var or AI_API_KEY.
     .PARAMETER Temperature
@@ -129,7 +129,7 @@ function Invoke-EdgeDiscovery {
 
         [ValidateScript({ Test-AIModelId $_ })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
-        [string]$Model = 'gemini-3.1-flash-lite',
+        [string]$Model = 'gemini-3.5-flash-lite',
 
         [string]$ApiKey = '',
 

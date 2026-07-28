@@ -1,7 +1,7 @@
-// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-export const APHORISM_MODEL = 'gemini-3.1-flash-lite';
+export const APHORISM_MODEL = 'gemini-3.5-flash-lite';
 export const APHORISM_TEMPERATURE = 0.7;
 export const APHORISM_TIMEOUT = 30_000;
 

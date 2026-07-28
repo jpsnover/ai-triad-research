@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -132,10 +132,10 @@ describe('runExploreFirstPipeline', () => {
   it('sets exploration model to the provided exploreModel', async () => {
     await runExploreFirstPipeline(
       makeBaseConfig(), mockAdapter as any, mockTaxonomy as any,
-      'gemini-3.1-flash-lite', () => {},
+      'gemini-3.5-flash-lite', () => {},
     );
 
-    expect(capturedConfigs[0].model).toBe('gemini-3.1-flash-lite');
+    expect(capturedConfigs[0].model).toBe('gemini-3.5-flash-lite');
   });
 
   it('applies EXPLORATION_PRESET fields to exploration config', async () => {

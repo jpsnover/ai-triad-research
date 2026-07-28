@@ -1,4 +1,4 @@
-# AI Triad Taxonomy Editor — Multi-User Cloud Deployment Specification
+﻿# AI Triad Taxonomy Editor — Multi-User Cloud Deployment Specification
 
 ## Document Structure
 
@@ -427,7 +427,7 @@ The `PUT /api/taxonomy-dir/active` endpoint updates only the calling user's sess
 POST /api/ai/generate
 {
   "prompt": "...",
-  "model": "gemini-3.1-flash-lite-preview",
+  "model": "gemini-3.5-flash-lite-preview",
   "temperature": 0.7
 }
 ```

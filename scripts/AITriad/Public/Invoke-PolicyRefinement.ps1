@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-PolicyRefinement {
@@ -15,7 +15,7 @@ function Invoke-PolicyRefinement {
         calling the API. In normal mode, calls the API, updates policy_actions.json,
         and cascades the refined action text to all referencing nodes.
     .PARAMETER Model
-        AI model to use. Defaults to AI_MODEL env var, then "gemini-3.1-flash-lite".
+        AI model to use. Defaults to AI_MODEL env var, then "gemini-3.5-flash-lite".
     .PARAMETER ApiKey
         AI API key. If omitted, resolved via backend-specific env var or AI_API_KEY.
     .PARAMETER DryRun
@@ -56,7 +56,7 @@ function Invoke-PolicyRefinement {
     $ErrorActionPreference = 'Stop'
 
     if (-not $Model) {
-        if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-3.1-flash-lite' }
+        if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-3.5-flash-lite' }
     }
 
     # -- Validate environment --------------------------------------------------

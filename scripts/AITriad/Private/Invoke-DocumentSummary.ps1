@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -24,7 +24,7 @@
 .PARAMETER ApiKey
     AI API key for the configured backend.
 .PARAMETER Model
-    AI model identifier (e.g., 'gemini-3.1-flash-lite').  Must be registered in
+    AI model identifier (e.g., 'gemini-3.5-flash-lite').  Must be registered in
     ai-models.json.
 .PARAMETER Temperature
     Sampling temperature for the AI call.  Lower values produce more deterministic
@@ -48,7 +48,7 @@
     ISO timestamp for the generated_at field.
 .EXAMPLE
     # Typically called internally by Invoke-POVSummary:
-    $Result = Invoke-DocumentSummary -Doc $DocContext -ApiKey $Key -Model 'gemini-3.1-flash-lite' `
+    $Result = Invoke-DocumentSummary -Doc $DocContext -ApiKey $Key -Model 'gemini-3.5-flash-lite' `
         -Temperature 0.1 -TaxonomyVersion '4.2' -TaxonomyJson $TaxJson `
         -SystemPromptTemplate $Prompt -OutputSchema $Schema -SummariesDir $OutDir -Now (Get-Date -Format 'o')
     if ($Result.Success) { Write-Host "Generated $($Result.TotalPoints) key points" }

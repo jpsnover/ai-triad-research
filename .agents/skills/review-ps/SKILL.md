@@ -34,7 +34,7 @@ Run this checklist against all changed `.ps1` / `.psm1` files before reporting w
 - [ ] Prompt text in `Prompts/*.prompt`, loaded via `Get-Prompt` — not inline
 - [ ] Model validation uses `[ValidateScript({ Test-AIModelId $_ })]`
 - [ ] `Resolve-AIApiKey` uses `-ExplicitKey` and `-Backend` (not `-ApiKey`/`-Model`)
-- [ ] Default model is `gemini-3.1-flash-lite`
+- [ ] Default model is `gemini-3.5-flash-lite`
 
 ## 6. Data Paths
 - [ ] Uses `Get-TaxonomyDir`, `Get-SourcesDir`, etc. — no hardcoded `Join-Path`

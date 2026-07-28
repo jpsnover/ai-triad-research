@@ -1,4 +1,4 @@
-# Tag: enrichment (t/1186, t/1261)
+﻿# Tag: enrichment (t/1186, t/1261)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -40,7 +40,7 @@ Describe 'UsageRegistry loader (t/1261)' -Tag 'enrichment' {
                     '_schema_version' = '1.0.0'
                     'unit.test' = @{
                         description = 'x'
-                        model = 'gemini-3.1-flash-lite'
+                        model = 'gemini-3.5-flash-lite'
                         messageTemplate = '{{p}}'
                     }
                 } | ConvertTo-Json -Depth 6
@@ -99,8 +99,8 @@ Describe 'Get-UsageConfig (_extends resolution) (t/1261)' -Tag 'enrichment' {
             try {
                 $payload = @{
                     '_schema_version' = '1.0.0'
-                    'a' = @{ '_extends' = 'b'; model = 'gemini-3.1-flash-lite'; messageTemplate = '{{p}}' }
-                    'b' = @{ '_extends' = 'a'; model = 'gemini-3.1-flash-lite'; messageTemplate = '{{p}}' }
+                    'a' = @{ '_extends' = 'b'; model = 'gemini-3.5-flash-lite'; messageTemplate = '{{p}}' }
+                    'b' = @{ '_extends' = 'a'; model = 'gemini-3.5-flash-lite'; messageTemplate = '{{p}}' }
                 } | ConvertTo-Json -Depth 6
                 Set-Content -Path $tmp -Value $payload -Encoding utf8NoBOM
                 $reg = Get-UsageRegistry -Path $tmp
@@ -175,14 +175,14 @@ Describe 'Invoke-AIByUsage (t/1261)' -Tag 'enrichment' {
                 -Override @{
                     messageTemplate = '{{prompt}}'
                     systemMessage   = ''
-                    model           = 'gemini-3.1-flash-lite'
+                    model           = 'gemini-3.5-flash-lite'
                     maxTokens       = 1024
                     temperature     = 0.1
                     jsonMode        = $true
                 }
             $r.Text | Should -Be 'ok'
             $script:capturedPrompt      | Should -Be 'BODY'
-            $script:capturedModel       | Should -Be 'gemini-3.1-flash-lite'
+            $script:capturedModel       | Should -Be 'gemini-3.5-flash-lite'
             $script:capturedTemperature | Should -Be 0.1
             $script:capturedMaxTokens   | Should -Be 1024
             $script:capturedJsonMode    | Should -Be $true
@@ -366,11 +366,11 @@ $ScreenCandJson
                     source_json     = $ScreenSourceJson
                     candidates_json = $ScreenCandJson
                 } `
-                -Override @{ model = 'gemini-3.1-flash-lite'; responseSchema = $ScreenSchema } | Out-Null
+                -Override @{ model = 'gemini-3.5-flash-lite'; responseSchema = $ScreenSchema } | Out-Null
 
             # t/1287: line-ending-insensitive comparison (see classify test above).
             ($script:captured.Prompt -replace "`r`n", "`n") | Should -Be ($legacyPrompt -replace "`r`n", "`n")
-            $script:captured.Model       | Should -Be 'gemini-3.1-flash-lite'
+            $script:captured.Model       | Should -Be 'gemini-3.5-flash-lite'
             $script:captured.Temperature | Should -Be 0.1
             $script:captured.MaxTokens   | Should -Be 4096
             $script:captured.TimeoutSec  | Should -Be 30
@@ -400,7 +400,7 @@ Describe 'Invoke-AIByUsage placeholder lint (t/1552)' -Tag 'enrichment' {
         InModuleScope AITriad {
             Mock Get-UsageConfig -MockWith {
                 @{
-                    model           = 'gemini-3.1-flash-lite'
+                    model           = 'gemini-3.5-flash-lite'
                     systemMessage   = '{{prompt}}'   # WRONG — should be systemMessageTemplate
                     messageTemplate = 'go'
                 }
@@ -421,7 +421,7 @@ Describe 'Invoke-AIByUsage placeholder lint (t/1552)' -Tag 'enrichment' {
         InModuleScope AITriad {
             Mock Get-UsageConfig -MockWith {
                 @{
-                    model   = 'gemini-3.1-flash-lite'
+                    model   = 'gemini-3.5-flash-lite'
                     message = 'Do X with {{input}}'   # WRONG — should be messageTemplate
                 }
             }
@@ -441,7 +441,7 @@ Describe 'Invoke-AIByUsage placeholder lint (t/1552)' -Tag 'enrichment' {
         InModuleScope AITriad {
             Mock Get-UsageConfig -MockWith {
                 @{
-                    model                 = 'gemini-3.1-flash-lite'
+                    model                 = 'gemini-3.5-flash-lite'
                     systemMessageTemplate = '{{prompt}}'
                     messageTemplate       = 'Node: {{id}}'
                 }
@@ -463,7 +463,7 @@ Describe 'Invoke-AIByUsage placeholder lint (t/1552)' -Tag 'enrichment' {
         InModuleScope AITriad {
             Mock Get-UsageConfig -MockWith {
                 @{
-                    model         = 'gemini-3.1-flash-lite'
+                    model         = 'gemini-3.5-flash-lite'
                     systemMessage = 'Static system instruction — no substitution intended.'
                     message       = 'Static user message.'
                 }

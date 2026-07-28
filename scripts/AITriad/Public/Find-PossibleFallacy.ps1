@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Find-PossibleFallacy {
@@ -22,7 +22,7 @@ function Find-PossibleFallacy {
     .PARAMETER BatchSize
         Number of nodes to process per API call. Default: 8.
     .PARAMETER Model
-        AI model to use. Defaults to 'gemini-3.1-flash-lite'.
+        AI model to use. Defaults to 'gemini-3.5-flash-lite'.
     .PARAMETER ApiKey
         AI API key. If omitted, resolved via backend-specific env var or AI_API_KEY.
     .PARAMETER Temperature
@@ -90,7 +90,7 @@ function Find-PossibleFallacy {
     $ErrorActionPreference = 'Stop'
 
     if (-not $Model) {
-        if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-3.1-flash-lite' }
+        if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-3.5-flash-lite' }
     }
 
     # ── Validate environment ──

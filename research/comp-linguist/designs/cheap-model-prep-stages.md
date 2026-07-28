@@ -1,4 +1,4 @@
-# Design Review: Cheap-Model Prep Stages for Debate Pipeline
+﻿# Design Review: Cheap-Model Prep Stages for Debate Pipeline
 
 **Ticket:** t/841  
 **Author:** Computational Linguist  
@@ -351,7 +351,7 @@ interface DebateSession {
 
 **Name:** `cheap-brief-cite-v1`
 
-**Rationale:** Not all users have Claude API keys. Users without registered keys only have access to `gemini-3.1-flash-lite` (free Gemini tier). Flash-lite is therefore the baseline cheap model for the majority of users — haiku is an optional upgrade for BYOK Claude users. The experiment must answer two questions in order:
+**Rationale:** Not all users have Claude API keys. Users without registered keys only have access to `gemini-3.5-flash-lite` (free Gemini tier). Flash-lite is therefore the baseline cheap model for the majority of users — haiku is an optional upgrade for BYOK Claude users. The experiment must answer two questions in order:
 
 1. **Primary:** Does flash-lite produce acceptable Brief/Cite quality? (Ships the feature for everyone.)
 2. **Secondary:** For Claude BYOK users, does haiku improve on flash-lite enough to justify ~3x cost? (Determines whether to auto-upgrade when a Claude key is present.)
@@ -364,7 +364,7 @@ interface DebateSession {
 
 **A/B/C Test:**
 - **Control (A):** All-opus — baseline (debate-72a6e0a2 exists; 2 more needed for n=3)
-- **Treatment B (flash-lite):** Brief+Cite on `gemini-3.1-flash-lite` — answers the primary question
+- **Treatment B (flash-lite):** Brief+Cite on `gemini-3.5-flash-lite` — answers the primary question
 - **Treatment C (haiku):** Brief+Cite on `claude-haiku-4-5` — answers the secondary question
 - **Sample size:** 3 runs per arm (9 total; 8 new + 1 existing control)
 - **Run order:** Treatment B first (flash-lite), then Treatment C (haiku) — primary question takes priority; if flash-lite is unacceptable, haiku results still inform a BYOK-only feature

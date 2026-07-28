@@ -1,4 +1,4 @@
-# Document Processing Pipeline — Technical Specification
+﻿# Document Processing Pipeline — Technical Specification
 
 This document describes the exact mechanisms that `Import-AITriadDocument` and its downstream functions use to ingest a document, chunk it, extract claims, map those claims to existing taxonomy nodes, and detect unmapped concepts. All parameter values, thresholds, and algorithm details are drawn from the implementation.
 
@@ -148,7 +148,7 @@ The entire document is sent to the AI model in a single call, along with the ful
 
 | Parameter | Value |
 |-----------|-------|
-| Model | `gemini-3.1-flash-lite-preview` (default, configurable via `-Model`) |
+| Model | `gemini-3.5-flash-lite-preview` (default, configurable via `-Model`) |
 | Temperature | 0.1 (highly deterministic) |
 | MaxTokens | 32,768 |
 | JsonMode | Enabled (forces valid JSON response) |
@@ -351,10 +351,10 @@ After a summary is written, the system examines its `factual_claims` for cross-P
 
 | Context | Model | Temp | MaxTokens | Timeout | Retries | JsonMode |
 |---------|-------|------|-----------|---------|---------|----------|
-| Single-call summary | gemini-3.1-flash-lite-preview | 0.1 | 32,768 | 120s | 0 | Yes |
-| Chunk summary | gemini-3.1-flash-lite-preview | 0.1 | 65,536 | 300s | 3 (5/15/45s) | Yes |
-| Metadata extraction | gemini-3.1-flash-lite-preview | 0.1 | 4,096 | 60s | 0 | Yes |
-| Taxonomy proposal | gemini-3.1-flash-lite-preview | 0.3 | 16,384 | 120s | 0 | Yes |
+| Single-call summary | gemini-3.5-flash-lite-preview | 0.1 | 32,768 | 120s | 0 | Yes |
+| Chunk summary | gemini-3.5-flash-lite-preview | 0.1 | 65,536 | 300s | 3 (5/15/45s) | Yes |
+| Metadata extraction | gemini-3.5-flash-lite-preview | 0.1 | 4,096 | 60s | 0 | Yes |
+| Taxonomy proposal | gemini-3.5-flash-lite-preview | 0.3 | 16,384 | 120s | 0 | Yes |
 
 ### Chunking Parameters
 

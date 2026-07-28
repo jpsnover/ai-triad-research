@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
@@ -10,7 +10,7 @@ const TEST_REGISTRY: ModelRegistry = {
   models: [],
   debateTiers: {
     basic: {
-      gemini: 'gemini-3.1-flash-lite',
+      gemini: 'gemini-3.5-flash-lite',
       claude: 'claude-haiku-4-5',
       groq: 'groq-llama-3.1-8b-instant',
     },
@@ -71,7 +71,7 @@ describe('resolveMultiProviderModels', () => {
 
   it('uses correct tier models (basic vs advanced)', () => {
     const basic = resolveMultiProviderModels('basic', ['gemini'], SPEAKERS, TEST_REGISTRY);
-    expect(Object.values(basic).every(m => m === 'gemini-3.1-flash-lite')).toBe(true);
+    expect(Object.values(basic).every(m => m === 'gemini-3.5-flash-lite')).toBe(true);
 
     const advanced = resolveMultiProviderModels('advanced', ['gemini'], SPEAKERS, TEST_REGISTRY);
     expect(Object.values(advanced).every(m => m === 'gemini-2.5-pro')).toBe(true);

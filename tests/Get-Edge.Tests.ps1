@@ -1,4 +1,4 @@
-# Tag: taxonomy (t/1186)
+﻿# Tag: taxonomy (t/1186)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -24,7 +24,7 @@ Describe 'Get-Edge (t/1197: optional-field strict-mode guards)' -Tag 'taxonomy' 
                         # Modern edge — has every field
                         @{ source = 'acc-beliefs-001'; target = 'saf-beliefs-001'; type = 'SUPPORTS'
                            bidirectional = $false; confidence = 0.85; status = 'approved'
-                           rationale = 'modern edge'; discovered_at = '2026-06-30'; model = 'gemini-3.1-flash-lite' }
+                           rationale = 'modern edge'; discovered_at = '2026-06-30'; model = 'gemini-3.5-flash-lite' }
                         # Legacy edge — predates model tracking
                         @{ source = 'acc-beliefs-002'; target = 'saf-beliefs-002'; type = 'SUPPORTS'
                            bidirectional = $false; confidence = 0.7; status = 'approved'
@@ -40,7 +40,7 @@ Describe 'Get-Edge (t/1197: optional-field strict-mode guards)' -Tag 'taxonomy' 
                 @($r).Count | Should -Be 3
 
                 $modern = $r | Where-Object { $_.Source -eq 'acc-beliefs-001' }
-                $modern.Model | Should -Be 'gemini-3.1-flash-lite'
+                $modern.Model | Should -Be 'gemini-3.5-flash-lite'
 
                 $legacy = $r | Where-Object { $_.Source -eq 'acc-beliefs-002' }
                 $legacy.Model | Should -BeNullOrEmpty
@@ -68,7 +68,7 @@ Describe 'Get-Edge (t/1197: optional-field strict-mode guards)' -Tag 'taxonomy' 
                 @{
                     _schema_version = '1.0.0'
                     edges = @(
-                        @{ source = 'a'; target = 'b'; type = 'SUPPORTS'; confidence = 0.8; model = 'gemini-3.1-flash-lite' }
+                        @{ source = 'a'; target = 'b'; type = 'SUPPORTS'; confidence = 0.8; model = 'gemini-3.5-flash-lite' }
                         @{ source = 'b'; target = 'c'; type = 'SUPPORTS'; confidence = 0.8 }                       # legacy, no model
                         @{ source = 'c'; target = 'd'; type = 'SUPPORTS'; confidence = 0.8; model = 'claude-opus-4' }
                     )
@@ -79,8 +79,8 @@ Describe 'Get-Edge (t/1197: optional-field strict-mode guards)' -Tag 'taxonomy' 
                 # no wildcards). The guard still matters defensively — without it
                 # the filter loop would crash on legacy edges before reaching the
                 # match check. Use a valid canonical ID.
-                { Get-Edge -Model 'gemini-3.1-flash-lite' } | Should -Not -Throw
-                $hits = @(Get-Edge -Model 'gemini-3.1-flash-lite')
+                { Get-Edge -Model 'gemini-3.5-flash-lite' } | Should -Not -Throw
+                $hits = @(Get-Edge -Model 'gemini-3.5-flash-lite')
                 $hits.Count | Should -Be 1
                 $hits[0].Source | Should -Be 'a'
             } finally {
@@ -125,7 +125,7 @@ Describe 'Get-Edge (t/1197: optional-field strict-mode guards)' -Tag 'taxonomy' 
                     $edge = @{ source = "n-$i"; target = "n-$($i+1)"; type = 'SUPPORTS'
                                bidirectional = $false; confidence = 0.8; status = 'approved'
                                rationale = 'test'; discovered_at = '2026-06-30' }
-                    if ($i % 8 -ne 0) { $edge.model = 'gemini-3.1-flash-lite' }   # 12 of 100 missing model
+                    if ($i % 8 -ne 0) { $edge.model = 'gemini-3.5-flash-lite' }   # 12 of 100 missing model
                     $edges += $edge
                 }
                 @{ _schema_version = '1.0.0'; last_modified = '2026-06-30'; edge_types = @(); edges = $edges } |
