@@ -365,3 +365,27 @@ CL rejected it in t/1818#2 as near-true-by-construction — it fails for the mir
 On a construct decision: (a) → I calibrate the cap-terminated definition on the frozen 30 (should pass by
 construction) then confirm on a holdout; (b) → register records the ceiling and closes AC#4 as
 *not-promotable*; (c) → new design ticket. Until then t/1669 AC#4 stays open, metric stipulated.
+
+---
+
+## FINAL DISPOSITION — (b), t/1669 AC#4 closed not-promotable-by-measurement (e/45, 2026-07-28)
+
+Resolved by the metric-design owner (Main-CL) with TL concurrence, on a checkable fact rather than
+preference: **`docs/academic-paper-draft.md` at origin/main has zero occurrences of "undecided"** — the rate
+is never cited, so the `undecided` *verdict category* alone carries R-2/F-2 and no promotable *rate* is
+required. Decision **(b): `crux_undecided_rate` is permanently stipulated, reported directional-only, never
+derived.** The cap-terminated recall sweep (the (a) path) was therefore **not run** — it would only decide
+between two promotable forms, and the paper needs neither.
+
+- **(c) LLM-judge — rejected** on evaluator-sensitivity (t/1835 MAD 0.625; t/1843/t/1846: judge-derived ⇒
+  evaluator-relative by construction). Shelved under the t/1860#7 protocol if the wide construct is ever needed.
+- **(a) cap-terminated — shelved, rename-gated:** may only ever ship as `crux_cap_terminated_rate` (or with
+  its operational definition stated verbatim at every citation site), never silently under the current name —
+  it measures "still open at cap," a narrower construct than "adversarially unadjudicated." Not scheduled.
+- **Standing scientific finding (independent of the above):** across three operationalizations
+  (structural 0.20 / signal A 0.20 / signal B ≈0.44) the wide construct "was this crux adversarially
+  adjudicated" is **not separable by available topical-co-presence instruments.** A documented negative
+  result, closed honestly — not a failure.
+
+Register finalized accordingly; t/1669 AC#4 closed. DebateTool wrote zero code (t/1860 closed). No further
+work on this metric unless the paper's needs change.
