@@ -76,3 +76,45 @@ A config-time warning when `stage_model_overrides` is enabled with a debater mod
 ## 9. Reporting
 
 On completion: a Results addendum to this file (arm-A/arm-B per-metric table, the four summary statistics, exclusions, and the §6 verdict), the raw per-debate evaluation pairs under `raw/`, and a report back to t/1832 (and t/1611 if the AC#3 disposition changes). Provenance of `crux_undecided`-style caution applies: the verdict is whatever the numbers say, not what is convenient; a within-band result is only reported as "derived" if the band is actually met.
+
+---
+
+## Results (2026-07-28)
+
+**Run:** `run_probe.ts`, 5 archived exp-1438 debates × 2 arms = 10 evaluations. Raw evaluations in `raw/`, machine summary in `results.json`, both committed with this doc.
+
+**Deviations from the frozen protocol (§5), disclosed:**
+- Arm A is `gemini-3.5-flash-lite`, not `gemini-2.5-flash` (the archived evaluator model is no longer in `ai-models.json`). The probe tests model-family sensitivity with both arms re-run fresh, so the archived model identity never enters the comparison; a current Gemini-family model is the faithful primary. Arm B is `claude-haiku-4-5`.
+- N = 5. Only the 5 exp-1438 `*-debate.json` files carried a substantive (≥6-turn) transcript; the fleet-8 estimate in §4 counted sidecars. This is within the preregistered "N ≤ 8, screening power" envelope.
+- One Arm-B run (debate `6eaa3c75`) hit the model's 8192 completion-token ceiling and returned truncated output, so 0 cruxes parsed. It is excluded from all three continuous metrics (values null), just as the "undefined in either arm" rule prescribes; its engaging boolean is retained. This is a token-budget artifact of the harness, not an evaluator disagreement.
+
+**Per-debate (A = gemini-3.5-flash-lite, B = claude-haiku-4-5):**
+
+| debate | A car | B car | A cdr | B cdr | A sca | B sca | A/B eng | A nCruxes | B nCruxes |
+|---|---|---|---|---|---|---|---|---|---|
+| 6eaa3c75 | 0.25 | (capped) | 0.25 | (capped) | 1.0 | (capped) | true/true | 4 | 0 |
+| add43b5e | 1.00 | 0.20 | 1.00 | 0.20 | 1.0 | 1.0 | true/true | 3 | 5 |
+| e63ad484 | 1.00 | 0.40 | 1.00 | 0.40 | 1.0 | 1.0 | true/true | 3 | 5 |
+| f67680e6 | 1.00 | 0.20 | 1.00 | 0.20 | 0.0 | 1.0 | true/true | 2 | 5 |
+| a0db5a32 | 0.50 | 0.20 | 0.50 | 0.20 | 1.0 | 1.0 | true/true | 2 | 5 |
+
+**Summary statistics (§6):**
+
+| Metric | n | Statistic | Band | Result |
+|---|---|---|---|---|
+| `crux_addressed_ratio` | 4 | MAD = 0.625 | ≤ 0.10 | OUT (6.25×) |
+| `crux_resolution_divergence_rate` | 4 | MAD = 0.625 | ≤ 0.10 | OUT |
+| `situation_crux_alignment` | 4 | MAD = 0.25 | ≤ 0.10 | OUT |
+| `engaging_real_disagreement` | 5 | DR = 0.00 | ≤ 0.20 | within |
+
+**Verdict per the frozen §6 rule: OUT OF BAND.** Three of the four metrics exceed the 0.20 escalation threshold, two of them by more than 3×. The effect is systematic and single-direction on every debate: the Gemini arm extracts few cruxes (2 to 4) and labels most "addressed" (0.5 to 1.0), while the Claude arm extracts more cruxes (5) and labels few "addressed" (0.2 to 0.4). `crux_resolution_divergence_rate` tracks `crux_addressed_ratio` almost one-to-one because the engine cruxes are seldom in a resolved/addressed state, so divergence reduces to the evaluator's addressed fraction.
+
+**Interpretation (careful).** This measures that the calibration-feeding crux metrics are strongly *evaluator-model-dependent*, which was the preregistered necessary condition. It does not isolate *same-family favoritism*, the sharper bias RA framed: the gap is driven by two models of differing capability disagreeing on how many cruxes exist and when one is "addressed", not by a debater sharing the evaluator's family. The consequence for the optimizer is the same and is now measured rather than stipulated. `crux_addressed_ratio` and `situation_crux_alignment` feed `computeQualityScore`, so the optimizer's objective on the crux axis moves by roughly 0.6 purely as a function of which evaluator model is configured, well past what the bounded auto-tuner's 5-debate averaging and value bounds absorb. The `engaging_real_disagreement` boolean was stable (DR = 0), but both arms returned `true` on all 5 debates, so it is an uninformative signal here, not evidence of stability.
+
+**Escalation (updates the t/1832 disposition):**
+1. The three crux-based evaluator metrics are **evaluator-model-relative**. Any change of the evaluator model is a hard cutover for these fields, the same treatment `crux_addressed_ratio` already carries for evaluator-*prompt* changes (t/1670). This belongs in `metric-provenance-register.md`.
+2. Pin and version the evaluator model as a fixed instrument parameter, record it on every calibration run (already logged via `stage_models`), and never compare these metrics across evaluator-model revisions.
+3. "Anonymization suffices" does NOT promote to derived. The probe did not clear the band; it failed it decisively. The metric stays **stipulated** with a measured evaluator-model-sensitivity defect pointer to this file.
+4. RA's guard (a), pinning the evaluator disjoint from debater backends, is necessary but insufficient: the issue is not only same-family favoritism but that the metric's absolute level depends on the evaluator model. Pinning fixes cross-run comparability without making the metric a model-invariant measurement. A stronger fix (calibration against a fixed reference evaluator, or ensembling the evaluator) is the real path off stipulated.
+
+**Confidence.** N = 5 is small, but the effect is 3 to 6× the band and single-direction on every debate, so the out-of-band conclusion holds despite the sample size: a within-band result at N = 5 would have needed caution, an out-of-band result of this magnitude does not. A confirmatory run at larger N and a third family would sharpen the effect size but is not needed to act. Follow-up worth filing: raise the evaluator's completion-token ceiling so the `6eaa3c75` truncation does not recur, and add the register cutover note from escalation item 1.

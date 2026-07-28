@@ -1,0 +1,118 @@
+{
+  "arms": {
+    "A": {
+      "label": "gemini",
+      "model": "gemini-3.5-flash-lite"
+    },
+    "B": {
+      "label": "claude",
+      "model": "claude-haiku-4-5"
+    }
+  },
+  "generated_note": "stamp added post-run",
+  "rows": [
+    {
+      "id": "6eaa3c75-819f-4710-87bc-29d3d97a3edd",
+      "A": {
+        "crux_addressed_ratio": 0.25,
+        "situation_crux_alignment": 1,
+        "crux_resolution_divergence_rate": 0.25,
+        "engaging": true,
+        "n_cruxes": 4
+      },
+      "B": {
+        "crux_addressed_ratio": null,
+        "situation_crux_alignment": null,
+        "crux_resolution_divergence_rate": null,
+        "engaging": true,
+        "n_cruxes": 0
+      }
+    },
+    {
+      "id": "add43b5e-a1eb-4036-b83e-f5003e72aaf8",
+      "A": {
+        "crux_addressed_ratio": 1,
+        "situation_crux_alignment": 1,
+        "crux_resolution_divergence_rate": 1,
+        "engaging": true,
+        "n_cruxes": 3
+      },
+      "B": {
+        "crux_addressed_ratio": 0.2,
+        "situation_crux_alignment": 1,
+        "crux_resolution_divergence_rate": 0.2,
+        "engaging": true,
+        "n_cruxes": 5
+      }
+    },
+    {
+      "id": "e63ad484-bbd5-4326-ac97-b92a117b3940",
+      "A": {
+        "crux_addressed_ratio": 1,
+        "situation_crux_alignment": 1,
+        "crux_resolution_divergence_rate": 1,
+        "engaging": true,
+        "n_cruxes": 3
+      },
+      "B": {
+        "crux_addressed_ratio": 0.4,
+        "situation_crux_alignment": 1,
+        "crux_resolution_divergence_rate": 0.4,
+        "engaging": true,
+        "n_cruxes": 5
+      }
+    },
+    {
+      "id": "f67680e6-3da9-4b44-8243-803e708ca04c",
+      "A": {
+        "crux_addressed_ratio": 1,
+        "situation_crux_alignment": 0,
+        "crux_resolution_divergence_rate": 1,
+        "engaging": true,
+        "n_cruxes": 2
+      },
+      "B": {
+        "crux_addressed_ratio": 0.2,
+        "situation_crux_alignment": 1,
+        "crux_resolution_divergence_rate": 0.2,
+        "engaging": true,
+        "n_cruxes": 5
+      }
+    },
+    {
+      "id": "a0db5a32-600b-48dc-a328-ac4dcb4f4c9b",
+      "A": {
+        "crux_addressed_ratio": 0.5,
+        "situation_crux_alignment": 1,
+        "crux_resolution_divergence_rate": 0.5,
+        "engaging": true,
+        "n_cruxes": 2
+      },
+      "B": {
+        "crux_addressed_ratio": 0.2,
+        "situation_crux_alignment": 1,
+        "crux_resolution_divergence_rate": 0.2,
+        "engaging": true,
+        "n_cruxes": 5
+      }
+    }
+  ],
+  "summary": {
+    "crux_addressed_ratio": {
+      "n": 4,
+      "MAD": 0.625
+    },
+    "situation_crux_alignment": {
+      "n": 4,
+      "MAD": 0.25
+    },
+    "crux_resolution_divergence_rate": {
+      "n": 4,
+      "MAD": 0.625
+    },
+    "engaging_real_disagreement": {
+      "n": 5,
+      "DR": 0
+    }
+  }
+}
