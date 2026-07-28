@@ -1,0 +1,5 @@
+/* t/1869 inline-style migration — DebateSourceViewer */
+
+.debate-source-flex-fill {
+  flex: 1;
+}

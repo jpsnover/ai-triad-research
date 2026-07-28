@@ -23,6 +23,7 @@ import { api } from '@bridge';
 import { triggerSituationNodeRegeneration } from '../../utils/regeneratePlainDescription';
 import { useDescriptionMode, DescriptionToggle } from '../shared/DescriptionToggle';
 import { StakeholderSection } from '../organizations/StakeholderSection';
+import './SituationDetail.css';
 
 interface SituationDetailProps {
   node: SituationNode;
@@ -173,13 +174,14 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
       )}
 
       {!readOnly && err('label') && (
-        <div className="error-text" style={{ padding: '0 14px 4px' }}>{err('label')}</div>
+        <div className="error-text situation-detail-label-error-text">{err('label')}</div>
       )}
 
       {node.disagreement_type && (
-        <div className="sit-detail-disagreement-type" style={{ marginTop: '4px' }}>
+        <div className="sit-detail-disagreement-type situation-detail-disagreement-mt">
           <span
             className="ga-badge"
+            // eslint-disable-next-line local/no-inline-style -- dynamic: backgroundColor derived from node.disagreement_type
             style={{
               backgroundColor: {
                 definitional: '#0891b2',
@@ -205,6 +207,7 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
             key={tab.id}
             className={`sit-detail-tab ${activeTab === tab.id ? 'sit-detail-tab-active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
+            // eslint-disable-next-line local/no-inline-style -- dynamic: active tab color from tab.color
             style={activeTab === tab.id ? { color: tab.color, borderBottomColor: tab.color } : undefined}
           >
             {tab.label}
@@ -262,14 +265,17 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
               return (
                 <div className="form-group">
                   <label>Interpretation Divergence</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
+                  <div className="situation-detail-divergence-row">
+                    {/* eslint-disable-next-line local/no-inline-style -- dynamic: divergence threshold color */}
                     <span style={{ fontWeight: 600, fontSize: '1.05rem', fontFamily: 'monospace', color }}>{div.toFixed(2)}</span>
-                    <div style={{ flex: 1, height: 8, background: 'var(--bg-tertiary, var(--border))', borderRadius: 4, overflow: 'hidden', maxWidth: 160 }}>
+                    <div className="situation-detail-divergence-bar">
+                      {/* eslint-disable-next-line local/no-inline-style -- dynamic: computed width and threshold color */}
                       <div style={{ width: `${Math.round(div * 100)}%`, height: '100%', background: color, borderRadius: 4 }} />
                     </div>
+                    {/* eslint-disable-next-line local/no-inline-style -- dynamic: divergence threshold color */}
                     <span style={{ fontSize: '0.72rem', fontWeight: 600, color, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                  <div className="situation-detail-divergence-desc">
                     Mean pairwise cosine distance across the three POV interpretation embeddings.
                     {div > 0.40 ? ' Perspectives disagree strongly on this situation.'
                       : div >= 0.20 ? ' Perspectives partially overlap on this situation.'
@@ -287,13 +293,13 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
                 ) : (
                   <div className="ga-promoted-text">
                     {node.graph_attributes.steelman_vulnerability.from_accelerationist && (
-                      <div><strong style={{ color: 'var(--color-acc)' }}>Accelerationist:</strong> {node.graph_attributes.steelman_vulnerability.from_accelerationist}</div>
+                      <div><strong className="situation-detail-steelman-acc">Accelerationist:</strong> {node.graph_attributes.steelman_vulnerability.from_accelerationist}</div>
                     )}
                     {node.graph_attributes.steelman_vulnerability.from_safetyist && (
-                      <div><strong style={{ color: 'var(--color-saf)' }}>Safetyist:</strong> {node.graph_attributes.steelman_vulnerability.from_safetyist}</div>
+                      <div><strong className="situation-detail-steelman-saf">Safetyist:</strong> {node.graph_attributes.steelman_vulnerability.from_safetyist}</div>
                     )}
                     {node.graph_attributes.steelman_vulnerability.from_skeptic && (
-                      <div><strong style={{ color: 'var(--color-skp)' }}>Skeptic:</strong> {node.graph_attributes.steelman_vulnerability.from_skeptic}</div>
+                      <div><strong className="situation-detail-steelman-skp">Skeptic:</strong> {node.graph_attributes.steelman_vulnerability.from_skeptic}</div>
                     )}
                   </div>
                 )}
@@ -459,21 +465,21 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
                   return (
                     <>
                       {!editing && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <div className="situation-detail-bdi-view">
                           {bdiFields.map(({ key, label }) => (
                             <div key={key}>
-                              <div style={{ fontSize: 'var(--text-xs)', letterSpacing: '0.06em', textTransform: 'uppercase' as const, color: 'var(--text-muted)', marginBottom: 4 }}>
+                              <div className="situation-detail-bdi-field-label">
                                 {label}
                               </div>
                               <div
-                                style={{ fontSize: 'var(--text-md)', lineHeight: 1.5, color: 'var(--text-primary)', cursor: 'pointer' }}
+                                className="situation-detail-bdi-field-value"
                                 onClick={() => setEditing(true)}
                                 onKeyDown={(e) => { if (e.key === 'Enter') setEditing(true); }}
                                 tabIndex={0}
                                 role="button"
                                 aria-label={`Edit ${label}`}
                               >
-                                {bdi[key] || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No {label.toLowerCase()} recorded</span>}
+                                {bdi[key] || <span className="situation-detail-bdi-empty">No {label.toLowerCase()} recorded</span>}
                               </div>
                             </div>
                           ))}
@@ -507,7 +513,7 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
                               <HighlightedTextarea value={bdi.intention} onChange={(v) => updateBdiField('intention', v)} rows={2} />
                             </div>
                           </div>
-                          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                          <div className="situation-detail-bdi-edit-actions">
                             <button className="btn btn-sm btn-primary" onClick={() => setEditing(false)}>Done</button>
                             <button className="btn btn-sm" onClick={() => setEditing(false)}>Cancel</button>
                           </div>
@@ -537,6 +543,7 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
             <div className="sit-pov-evidence">
               <h3
                 className="sit-pov-evidence-heading"
+                // eslint-disable-next-line local/no-inline-style -- dynamic: border color from active POV tab
                 style={{ borderBottomColor: SIT_TABS.find(t => t.id === activeTab)?.color }}
               >Supporting Evidence</h3>
               <div className="sit-pov-evidence-list">

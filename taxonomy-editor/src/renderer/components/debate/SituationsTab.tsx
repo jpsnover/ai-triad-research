@@ -25,6 +25,7 @@ import { PROMPT_CATALOG } from '../../data/promptCatalog';
 import { api } from '@bridge';
 import { sortSituationNodes, type SitSortMode } from './situationSort';
 import { SituationListItem } from './SituationListItem';
+import './SituationsTab.css';
 
 export function SituationsTab() {
   const {
@@ -298,7 +299,7 @@ export function SituationsTab() {
         <h2 className="lineage-detail-title">{lineagePreviewValue}</h2>
         <div className="lineage-category-badge">{getCategoryLabel(lineagePreviewValue)}</div>
         <div className="lineage-detail-section">
-          <p className="lineage-detail-text" style={{ color: 'var(--text-muted)' }}>No detailed information available for this lineage value.</p>
+          <p className="lineage-detail-text situations-lineage-empty-text">No detailed information available for this lineage value.</p>
         </div>
         {renderReferencedBy()}
       </div>
@@ -356,7 +357,11 @@ export function SituationsTab() {
           />
         </div>
       ) : hasToolbarPane ? (
-        <div className="list-panel" style={{ width }}>
+        <div
+          className="list-panel"
+          // eslint-disable-next-line local/no-inline-style -- dynamic: resizable panel width from useResizablePanel
+          style={{ width }}
+        >
             {isPhone && <PhoneToolClose />}
           <ToolbarPaneRenderer
             panel={toolbarPanel}
@@ -372,7 +377,11 @@ export function SituationsTab() {
           <span className="pane-collapsed-label">Situations</span>
         </div>
       ) : (
-        <div className="list-panel" style={{ width }}>
+        <div
+          className="list-panel"
+          // eslint-disable-next-line local/no-inline-style -- dynamic: resizable panel width from useResizablePanel
+          style={{ width }}
+        >
           <div className="list-panel-header">
             <h2>Situations</h2>
             <div className="list-panel-header-actions">
@@ -434,7 +443,7 @@ export function SituationsTab() {
                   );
                 })}
                 {standalones.length > 0 && roots.length > 0 && (
-                  <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 4 }} />
+                  <div className="situations-standalone-divider" />
                 )}
                 {standalones.map((node) => (
                   <SituationListItem
@@ -520,7 +529,7 @@ export function SituationsTab() {
                   </button>
                 </div>
               ) : (
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+                <div className="situations-detail-collapse-row">
                   <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
                 </div>
               )}

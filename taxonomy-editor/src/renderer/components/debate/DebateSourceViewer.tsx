@@ -6,6 +6,7 @@ import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { ExternalEmbed } from '../shared/ExternalEmbed';
 import { splitSentences, wildcardToRegex } from './sourceSearch';
+import './DebateSourceViewer.css';
 
 type SearchMode = 'raw' | 'wildcard' | 'similar';
 
@@ -226,7 +227,7 @@ export function DebateSourceViewer({ content, sourceType, sourceRef }: DebateSou
       {/* View toggle bar for web mode */}
       {viewMode === 'web' && (
         <div className="debate-source-search">
-          <span className="debate-source-search-count" style={{ flex: 1 }}>Showing rendered web page</span>
+          <span className="debate-source-search-count debate-source-flex-fill">Showing rendered web page</span>
           <button className="btn btn-sm" onClick={() => setViewMode('text')} title="Show searchable text">Text + Search</button>
         </div>
       )}

@@ -1,0 +1,75 @@
+/* t/1869 inline-style migration — SituationDetail */
+
+.situation-detail-label-error-text {
+  padding: 0 14px 4px;
+}
+
+.situation-detail-disagreement-mt {
+  margin-top: 4px;
+}
+
+.situation-detail-divergence-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.situation-detail-divergence-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-tertiary, var(--border));
+  border-radius: 4px;
+  overflow: hidden;
+  max-width: 160px;
+}
+
+.situation-detail-divergence-desc {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.situation-detail-steelman-acc {
+  color: var(--color-acc);
+}
+
+.situation-detail-steelman-saf {
+  color: var(--color-saf);
+}
+
+.situation-detail-steelman-skp {
+  color: var(--color-skp);
+}
+
+.situation-detail-bdi-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.situation-detail-bdi-field-label {
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.situation-detail-bdi-field-value {
+  font-size: var(--text-md);
+  line-height: 1.5;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.situation-detail-bdi-empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.situation-detail-bdi-edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}

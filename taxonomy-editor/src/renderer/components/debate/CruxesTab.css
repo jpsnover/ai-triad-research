@@ -65,3 +65,170 @@
 .crux-evidence-form {
   margin-top: var(--sp-2);
 }
+
+/* --- t/1869 inline-style migration --- */
+
+.crux-count-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.crux-filter-bar {
+  padding: 4px 8px;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.crux-filter-btn {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+}
+
+.crux-resolution-filter-bar {
+  padding: 4px 8px;
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.crux-resolution-filter-btn {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  text-transform: capitalize;
+}
+
+.crux-search-bar {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.crux-empty {
+  padding: 12px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.crux-detail-collapse-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+}
+
+.crux-list-item-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.crux-list-item-statement {
+  flex: 1;
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.crux-list-item-meta {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.crux-frequency-badge {
+  color: var(--color-acc);
+  font-weight: 600;
+}
+
+.crux-detail {
+  padding: 0 4px;
+  overflow: auto;
+}
+
+.crux-detail-header {
+  margin-bottom: 12px;
+}
+
+.crux-detail-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.crux-detail-frequency {
+  font-size: 0.75rem;
+  color: var(--color-acc);
+  font-weight: 600;
+}
+
+.crux-statement {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.crux-section {
+  margin-bottom: 16px;
+}
+
+.crux-resolution-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.crux-resolution-track {
+  display: flex;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background-color: var(--bg-tertiary, #333);
+}
+
+.crux-resolution-legend {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  font-size: 0.7rem;
+}
+
+.crux-legend-resolved {
+  color: var(--color-saf);
+}
+
+.crux-legend-active {
+  color: var(--text-muted);
+}
+
+.crux-legend-irreducible {
+  color: var(--color-skp);
+}
+
+.crux-section-heading {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.crux-source-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  margin-bottom: 2px;
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.crux-source-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.crux-source-topic {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

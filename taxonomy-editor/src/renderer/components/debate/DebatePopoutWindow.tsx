@@ -14,6 +14,7 @@ import { markAsPopout } from '../../hooks/useDebateStore/shared/guards';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { DebateWorkspace } from '../debate-workspace';
 import { parseDebateHash, shouldShowLoadError, type DebateLoadTarget } from './popoutLoad';
+import './DebatePopoutWindow.css';
 
 export function DebatePopoutWindow() {
   useEffect(() => { markAsPopout(); }, []);
@@ -120,14 +121,11 @@ export function DebatePopoutWindow() {
   const displayError = error || debateError;
   if (shouldShowLoadError(displayError, activeDebateId)) {
     return (
-      <div style={{
-        height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'var(--bg)', color: 'var(--text)', fontFamily: 'system-ui, sans-serif',
-      }}>
-        <div style={{ textAlign: 'center', maxWidth: 400 }}>
-          <h3 style={{ color: 'var(--danger, #ef4444)' }}>Error</h3>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{displayError}</p>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12 }}>
+      <div className="debate-popout-fullscreen">
+        <div className="debate-popout-error-box">
+          <h3 className="debate-popout-error-title">Error</h3>
+          <p className="debate-popout-hint">{displayError}</p>
+          <div className="debate-popout-error-actions">
             {loadTarget && (
               <button
                 type="button"
@@ -154,20 +152,14 @@ export function DebatePopoutWindow() {
 
   if (!ready || !activeDebateId) {
     return (
-      <div style={{
-        height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'var(--bg)', color: 'var(--text)', fontFamily: 'system-ui, sans-serif',
-      }}>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Loading debate...</p>
+      <div className="debate-popout-fullscreen">
+        <p className="debate-popout-hint">Loading debate...</p>
       </div>
     );
   }
 
   return (
-    <div style={{
-      height: '100vh', display: 'flex', flexDirection: 'column',
-      background: 'var(--bg)', color: 'var(--text)', fontFamily: 'system-ui, sans-serif',
-    }}>
+    <div className="debate-popout-shell">
       <DebateWorkspace />
     </div>
   );

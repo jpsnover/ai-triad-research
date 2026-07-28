@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useRef, useEffect } from 'react';
+import './ExportDropdown.css';
 
 const EXPORT_OPTIONS: { format: string; label: string }[] = [
   { format: 'pdf', label: 'PDF' },
@@ -34,7 +35,7 @@ export function ExportDropdown({ onExport }: { onExport: (format: string) => voi
   const pick = (format: string) => { setOpen(false); onExport(format); };
 
   return (
-    <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
+    <div ref={ref} className="export-dropdown">
       <button
         type="button"
         className="btn"
@@ -47,21 +48,14 @@ export function ExportDropdown({ onExport }: { onExport: (format: string) => voi
       {open && (
         <div
           role="menu"
-          style={{
-            position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 100,
-            background: 'var(--bg-secondary, #1e1e1e)',
-            border: '1px solid var(--border-color, rgba(255,255,255,0.15))',
-            borderRadius: 4, minWidth: 140, overflow: 'hidden',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          }}
+          className="export-dropdown-menu"
         >
           {EXPORT_OPTIONS.map(({ format, label }) => (
             <button
               key={format}
               type="button"
               role="menuitem"
-              className="btn"
-              style={{ display: 'block', width: '100%', textAlign: 'left', border: 'none', borderRadius: 0, background: 'transparent' }}
+              className="btn export-dropdown-item"
               onClick={() => pick(format)}
             >
               {label}

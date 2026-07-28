@@ -28,6 +28,7 @@ import { POVER_INFO } from '@lib/debate/types';
 import { ParameterHistoryPanel } from '../analysis/ParameterHistoryPanel';
 import { api, isElectronMode } from '@bridge';
 import { trackExport } from '../../lib/analyticsEmitter';
+import './DebateTab.css';
 
 const PHASE_LABELS: Record<string, string> = {
   setup: 'Setup',
@@ -253,6 +254,7 @@ export function DebateTab() {
       {/* Left pane: Session list OR toolbar panel (Search, Prompts, etc.) */}
       {toolbarPanel ? (
         <div className={`list-panel${isFullWidthPanel(toolbarPanel, promptInspectorActive) ? ' list-panel-full' : ''}`}
+             // eslint-disable-next-line local/no-inline-style -- dynamic: resizable panel width, conditional undefined
              style={isFullWidthPanel(toolbarPanel, promptInspectorActive) ? undefined : { width }}>
           {isPhone && <PhoneToolClose />}
           <ToolbarPaneRenderer
@@ -268,6 +270,7 @@ export function DebateTab() {
           <span className="pane-collapsed-label">Debates</span>
         </div>
       ) : (
+        // eslint-disable-next-line local/no-inline-style -- dynamic: resizable panel width
         <div className="list-panel debate-session-list" style={{ width }}>
           <div className="list-panel-header">
             <h2>Debates</h2>
@@ -312,25 +315,19 @@ export function DebateTab() {
           {listView === 'my' ? (
             <>
               {sessions.length > 0 && !editMode && (
-                <div style={{ padding: '4px 10px 2px' }}>
+                <div className="debate-tab-search-wrap">
                   <input
                     type="text"
                     placeholder="Search debates..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    style={{
-                      width: '100%', padding: '4px 8px', fontSize: '0.8rem',
-                      border: '1px solid var(--border-color)', borderRadius: 4,
-                      background: 'var(--bg-secondary)', color: 'var(--text-primary)',
-                      outline: 'none',
-                    }}
+                    className="debate-tab-search-input"
                   />
                 </div>
               )}
               <div
-                className="list-panel-items"
+                className="list-panel-items debate-tab-list-items"
                 tabIndex={0}
-                style={{ outline: 'none' }}
                 onKeyDown={(e) => {
                   if (editMode || filteredSessions.length === 0) return;
                   if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
@@ -466,18 +463,13 @@ export function DebateTab() {
           ) : (
             <>
             {communityDebates.length > 0 && (
-              <div style={{ padding: '4px 10px 2px' }}>
+              <div className="debate-tab-search-wrap">
                 <input
                   type="text"
                   placeholder="Search community debates..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{
-                    width: '100%', padding: '4px 8px', fontSize: '0.8rem',
-                    border: '1px solid var(--border-color)', borderRadius: 4,
-                    background: 'var(--bg-secondary)', color: 'var(--text-primary)',
-                    outline: 'none',
-                  }}
+                  className="debate-tab-search-input"
                 />
               </div>
             )}
@@ -516,8 +508,7 @@ export function DebateTab() {
                     <span className="debate-session-item-date">{formatDate(cd.updated_at)}</span>
                     {!auth?.anonymous && (
                     <button
-                      className="btn btn-sm"
-                      style={{ marginLeft: 'auto', fontSize: '0.7rem', padding: '1px 6px' }}
+                      className="btn btn-sm debate-tab-copy-btn"
                       disabled={copyingId === cd.id}
                       onClick={async (e) => {
                         e.stopPropagation();
@@ -626,9 +617,9 @@ export function DebateTab() {
       )}
 
       {quotaError && (
-        <div className="debate-error" style={{ margin: '8px 12px', padding: '8px 12px', borderRadius: 6, background: 'var(--error-bg, #fef2f2)', color: 'var(--error-text, #991b1b)', border: '1px solid var(--error-border, #fca5a5)' }}>
+        <div className="debate-error debate-tab-quota-error">
           <span>{quotaError}</span>
-          <button style={{ marginLeft: 8, cursor: 'pointer', background: 'none', border: 'none', color: 'inherit', fontWeight: 'bold' }} onClick={() => setQuotaError(null)}>&times;</button>
+          <button className="debate-tab-quota-dismiss" onClick={() => setQuotaError(null)}>&times;</button>
         </div>
       )}
       {showNewDialog && (
@@ -731,7 +722,7 @@ function DebateDetailSummary({
       <div className="debate-detail-header">
         <div>
           <h2 className="debate-detail-title">{debate.title}</h2>
-          <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', userSelect: 'all' }}>{debate.id}</span>
+          <span className="debate-tab-detail-id">{debate.id}</span>
         </div>
         <span className={`debate-phase-badge phase-${debate.phase}`}>
           {PHASE_LABELS[debate.phase] || debate.phase}
@@ -746,13 +737,14 @@ function DebateDetailSummary({
           {debate.active_povers.map(p => {
             const info = POVER_LABELS[p] ?? { label: p, color: 'var(--text-muted)' };
             return (
+              // eslint-disable-next-line local/no-inline-style -- dynamic: pover accent border color
               <span key={p} className="debate-detail-pover" style={{ borderColor: info.color }}>
                 {info.label}
               </span>
             );
           })}
         </div>
-        <div style={{ flex: 1 }} />
+        <div className="debate-tab-spacer" />
         <ExportDropdown onExport={onExport} />
         {showAdminControls && (
           <button className="btn" onClick={() => setShowCalibration(!showCalibration)}>
@@ -851,14 +843,9 @@ function DebateDetailSummary({
               </div>
             )}
             {debate.origin?.command && (
-              <div className="debate-detail-meta-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+              <div className="debate-detail-meta-row debate-tab-command-row">
                 <span className="debate-detail-label">Command:</span>
-                <code style={{
-                  fontSize: '0.72rem', padding: '6px 10px', borderRadius: 4,
-                  background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-                  wordBreak: 'break-all', whiteSpace: 'pre-wrap', display: 'block', width: '100%',
-                  fontFamily: 'monospace',
-                }}>{debate.origin.command}</code>
+                <code className="debate-tab-command-code">{debate.origin.command}</code>
               </div>
             )}
             {debate.audience && (
@@ -886,20 +873,20 @@ function DebateDetailSummary({
               </div>
             )}
             {debate.speaker_models && Object.keys(debate.speaker_models).length > 0 && (
-              <div style={{ marginTop: 8 }}>
-                <span className="debate-detail-label" style={{ display: 'block', marginBottom: 4 }}>Speaker Models:</span>
-                <table style={{ width: '100%', fontSize: '0.78rem', borderCollapse: 'collapse' }}>
+              <div className="debate-tab-speaker-models">
+                <span className="debate-detail-label debate-tab-speaker-models-label">Speaker Models:</span>
+                <table className="debate-tab-speaker-table">
                   <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                      <th style={{ textAlign: 'left', padding: '3px 6px', fontWeight: 500 }}>Speaker</th>
-                      <th style={{ textAlign: 'left', padding: '3px 6px', fontWeight: 500 }}>Model</th>
+                    <tr className="debate-tab-speaker-thead-row">
+                      <th className="debate-tab-speaker-th">Speaker</th>
+                      <th className="debate-tab-speaker-th">Model</th>
                     </tr>
                   </thead>
                   <tbody>
                     {Object.entries(debate.speaker_models).map(([speaker, model]) => (
-                      <tr key={speaker} style={{ borderBottom: '1px solid var(--border-light, var(--border))' }}>
-                        <td style={{ padding: '3px 6px', textTransform: 'capitalize' }}>{speaker}</td>
-                        <td style={{ padding: '3px 6px', fontFamily: 'monospace', fontSize: '0.72rem' }}>{model}</td>
+                      <tr key={speaker} className="debate-tab-speaker-tbody-row">
+                        <td className="debate-tab-speaker-td">{speaker}</td>
+                        <td className="debate-tab-speaker-td-model">{model}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -972,7 +959,7 @@ function CommunityDebateDetail({ debate }: { debate: CommunityDebate }) {
       <div className="debate-detail-header">
         <div>
           <h2 className="debate-detail-title">{debate.title}</h2>
-          <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', userSelect: 'all' }}>{debate.id}</span>
+          <span className="debate-tab-detail-id">{debate.id}</span>
         </div>
         {debate.phase && (
           <span className={`debate-phase-badge phase-${debate.phase}`}>
@@ -990,6 +977,7 @@ function CommunityDebateDetail({ debate }: { debate: CommunityDebate }) {
             {full.active_povers.map(p => {
               const info = POVER_LABELS[p] ?? { label: p, color: 'var(--text-muted)' };
               return (
+                // eslint-disable-next-line local/no-inline-style -- dynamic: pover accent border color
                 <span key={p} className="debate-detail-pover" style={{ borderColor: info.color }}>
                   {info.label}
                 </span>
@@ -999,8 +987,8 @@ function CommunityDebateDetail({ debate }: { debate: CommunityDebate }) {
         )}
       </div>
 
-      {loading && <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic', padding: '8px 0' }}>Loading debate details...</p>}
-      {error && <p style={{ color: 'var(--danger, #ef4444)', fontSize: '0.85rem', padding: '8px 0' }}>{error}</p>}
+      {loading && <p className="debate-tab-loading-text">Loading debate details...</p>}
+      {error && <p className="debate-tab-error-text">{error}</p>}
 
       {/* Topic */}
       {topic && (
@@ -1165,8 +1153,8 @@ function ExportOptionsDialog({
     <div className="dialog-overlay" onClick={onCancel}>
       <div className="dialog" onClick={(e) => e.stopPropagation()}>
         <h3>Export {formatLabel} Options</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '12px 0' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+        <div className="debate-tab-export-options">
+          <label className="debate-tab-export-option-label">
             <input
               type="checkbox"
               checked={options.includeTaxonomyRefs}
@@ -1174,6 +1162,7 @@ function ExportOptionsDialog({
             />
             <span>Include taxonomy references</span>
           </label>
+          {/* eslint-disable-next-line local/no-inline-style -- dynamic: disabled-state cursor/opacity */}
           <label style={{
             display: 'flex', alignItems: 'center', gap: 8,
             cursor: options.includeTaxonomyRefs ? 'pointer' : 'not-allowed',

@@ -1,0 +1,17 @@
+/* t/1869 inline-style migration — SituationsTab */
+
+.situations-lineage-empty-text {
+  color: var(--text-muted);
+}
+
+.situations-standalone-divider {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
+.situations-detail-collapse-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+}

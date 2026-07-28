@@ -1,0 +1,41 @@
+/* t/1869 inline-style migration — DebatePopoutWindow */
+
+.debate-popout-fullscreen {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, sans-serif;
+}
+
+.debate-popout-shell {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, sans-serif;
+}
+
+.debate-popout-error-box {
+  text-align: center;
+  max-width: 400px;
+}
+
+.debate-popout-error-title {
+  color: var(--danger, #ef4444);
+}
+
+.debate-popout-error-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.debate-popout-hint {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}

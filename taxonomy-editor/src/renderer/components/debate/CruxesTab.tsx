@@ -119,7 +119,11 @@ export function CruxesTab() {
           />
         </div>
       ) : toolbarPanel ? (
-        <div className="list-panel" style={{ width }}>
+        <div
+          className="list-panel"
+          // eslint-disable-next-line local/no-inline-style -- dynamic: width from useResizablePanel
+          style={{ width }}
+        >
             {isPhone && <PhoneToolClose />}
           <ToolbarPaneRenderer
             panel={toolbarPanel}
@@ -133,35 +137,37 @@ export function CruxesTab() {
           <span className="pane-collapsed-label">Cruxes</span>
         </div>
       ) : (
-        <div className="list-panel" style={{ width }}>
+        <div
+          className="list-panel"
+          // eslint-disable-next-line local/no-inline-style -- dynamic: width from useResizablePanel
+          style={{ width }}
+        >
           <div className="list-panel-header">
             <h2>Cruxes</h2>
             <div className="list-panel-header-actions">
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{filteredCruxes.length} of {cruxes.length}</span>
+              <span className="crux-count-label">{filteredCruxes.length} of {cruxes.length}</span>
               <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
             </div>
           </div>
 
           {/* Filter bar */}
-          <div style={{ padding: '4px 8px', display: 'flex', gap: 4, flexWrap: 'wrap', borderBottom: '1px solid var(--border-color)' }}>
+          <div className="crux-filter-bar">
             {(['all', 'empirical', 'values', 'definitional'] as const).map(t => (
               <button
                 key={t}
-                className={`btn btn-sm${typeFilter === t ? ' btn-primary' : ''}`}
+                className={`btn btn-sm crux-filter-btn${typeFilter === t ? ' btn-primary' : ''}`}
                 onClick={() => setTypeFilter(t)}
-                style={{ fontSize: '0.7rem', padding: '2px 6px' }}
               >
                 {t === 'all' ? 'All' : TYPE_LABELS[t]} ({typeCounts[t]})
               </button>
             ))}
           </div>
-          <div style={{ padding: '4px 8px', display: 'flex', gap: 4, borderBottom: '1px solid var(--border-color)' }}>
+          <div className="crux-resolution-filter-bar">
             {(['all', 'active', 'resolved', 'irreducible'] as const).map(r => (
               <button
                 key={r}
-                className={`btn btn-sm${resolutionFilter === r ? ' btn-primary' : ''}`}
+                className={`btn btn-sm crux-resolution-filter-btn${resolutionFilter === r ? ' btn-primary' : ''}`}
                 onClick={() => setResolutionFilter(r)}
-                style={{ fontSize: '0.7rem', padding: '2px 6px', textTransform: 'capitalize' }}
               >
                 {r}
               </button>
@@ -169,7 +175,7 @@ export function CruxesTab() {
           </div>
 
           {/* Search */}
-          <div style={{ padding: '4px 8px', borderBottom: '1px solid var(--border-color)' }}>
+          <div className="crux-search-bar">
             <SearchWithHistory
               area="cruxes"
               placeholder="Search cruxes..."
@@ -182,7 +188,7 @@ export function CruxesTab() {
           {/* Crux list */}
           <div className="list-panel-items">
             {filteredCruxes.length === 0 ? (
-              <div style={{ padding: 12, color: 'var(--text-muted)', fontSize: '0.8rem' }}>No cruxes match filters</div>
+              <div className="crux-empty">No cruxes match filters</div>
             ) : (
               filteredCruxes.map(crux => (
                 <CruxListItem
@@ -220,7 +226,7 @@ export function CruxesTab() {
               </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+            <div className="crux-detail-collapse-row">
               <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
             </div>
           )}
@@ -258,8 +264,9 @@ function CruxListItem({ crux, isSelected, onSelect }: {
       className={`node-item ${isSelected ? 'selected' : ''}`}
       onClick={() => onSelect(crux.id)}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+      <div className="crux-list-item-row">
         <span
+          // eslint-disable-next-line local/no-inline-style -- dynamic: backgroundColor from TYPE_COLORS
           style={{
             display: 'inline-block',
             width: 8, height: 8, borderRadius: '50%',
@@ -268,18 +275,21 @@ function CruxListItem({ crux, isSelected, onSelect }: {
           }}
           title={TYPE_LABELS[crux.type]}
         />
-        <span style={{ flex: 1, fontSize: '0.8rem', lineHeight: 1.3 }}>
+        <span className="crux-list-item-statement">
           {crux.statement.length > 120 ? crux.statement.slice(0, 120) + '...' : crux.statement}
         </span>
       </div>
-      <div className="node-item-id" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+      <div className="node-item-id crux-list-item-meta">
         <span>{crux.id}</span>
         {crux.frequency > 1 && (
-          <span style={{ color: 'var(--color-acc)', fontWeight: 600 }}>×{crux.frequency}</span>
+          <span className="crux-frequency-badge">×{crux.frequency}</span>
         )}
-        <span style={{
-          color: dominantState === 'resolved' ? 'var(--color-saf)' : dominantState === 'irreducible' ? 'var(--color-skp)' : 'var(--text-muted)',
-        }}>
+        <span
+          // eslint-disable-next-line local/no-inline-style -- dynamic: color depends on dominantState
+          style={{
+            color: dominantState === 'resolved' ? 'var(--color-saf)' : dominantState === 'irreducible' ? 'var(--color-skp)' : 'var(--text-muted)',
+          }}
+        >
           [{dominantState}]
         </span>
       </div>
@@ -304,47 +314,53 @@ export function CruxDetail({ crux, onDebateClick }: {
   });
 
   return (
-    <div style={{ padding: '0 4px', overflow: 'auto' }}>
+    <div className="crux-detail">
       {/* Header */}
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          <span style={{
-            padding: '2px 8px', borderRadius: 4, fontSize: '0.7rem', fontWeight: 600,
-            backgroundColor: TYPE_COLORS[crux.type], color: '#fff',
-          }}>
+      <div className="crux-detail-header">
+        <div className="crux-detail-header-row">
+          <span
+            // eslint-disable-next-line local/no-inline-style -- dynamic: backgroundColor from TYPE_COLORS
+            style={{
+              padding: '2px 8px', borderRadius: 4, fontSize: '0.7rem', fontWeight: 600,
+              backgroundColor: TYPE_COLORS[crux.type], color: '#fff',
+            }}
+          >
             {TYPE_LABELS[crux.type]}
           </span>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{crux.id}</span>
+          <span className="crux-count-label">{crux.id}</span>
           {crux.frequency > 1 && (
-            <span style={{ fontSize: '0.75rem', color: 'var(--color-acc)', fontWeight: 600 }}>
+            <span className="crux-detail-frequency">
               {crux.frequency} debates
             </span>
           )}
         </div>
-        <p style={{ fontSize: '0.9rem', lineHeight: 1.5, margin: 0 }}>{crux.statement}</p>
+        <p className="crux-statement">{crux.statement}</p>
       </div>
 
       {/* Resolution summary bar */}
       {total > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4 }}>Resolution Status</div>
-          <div style={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: 'var(--bg-tertiary, #333)' }}>
+        <div className="crux-section">
+          <div className="crux-resolution-label">Resolution Status</div>
+          <div className="crux-resolution-track">
+            {/* eslint-disable-next-line local/no-inline-style -- dynamic: width is a computed percentage */}
             {rs.resolved > 0 && <div style={{ width: `${(rs.resolved / total) * 100}%`, backgroundColor: 'var(--color-saf, #22c55e)' }} title={`Resolved: ${rs.resolved}`} />}
+            {/* eslint-disable-next-line local/no-inline-style -- dynamic: width is a computed percentage */}
             {rs.active > 0 && <div style={{ width: `${(rs.active / total) * 100}%`, backgroundColor: 'var(--text-muted, #888)' }} title={`Active: ${rs.active}`} />}
+            {/* eslint-disable-next-line local/no-inline-style -- dynamic: width is a computed percentage */}
             {rs.irreducible > 0 && <div style={{ width: `${(rs.irreducible / total) * 100}%`, backgroundColor: 'var(--color-skp, #f59e0b)' }} title={`Irreducible: ${rs.irreducible}`} />}
           </div>
-          <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: '0.7rem' }}>
-            {rs.resolved > 0 && <span style={{ color: 'var(--color-saf)' }}>Resolved: {rs.resolved}</span>}
-            {rs.active > 0 && <span style={{ color: 'var(--text-muted)' }}>Active: {rs.active}</span>}
-            {rs.irreducible > 0 && <span style={{ color: 'var(--color-skp)' }}>Irreducible: {rs.irreducible}</span>}
+          <div className="crux-resolution-legend">
+            {rs.resolved > 0 && <span className="crux-legend-resolved">Resolved: {rs.resolved}</span>}
+            {rs.active > 0 && <span className="crux-legend-active">Active: {rs.active}</span>}
+            {rs.irreducible > 0 && <span className="crux-legend-irreducible">Irreducible: {rs.irreducible}</span>}
           </div>
         </div>
       )}
 
       {/* Source debates */}
       {crux.sources.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+        <div className="crux-section">
+          <div className="crux-section-heading">
             Source Debates ({crux.sources.length})
           </div>
           {crux.sources.map((src, i) => (
@@ -519,8 +535,8 @@ function ExpandableLinkList({ label, ids, expanded, onToggle }: {
 }) {
   if (ids.length === 0) return null;
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+    <div className="crux-section">
+      <div className="crux-section-heading">
         {label} ({ids.length})
       </div>
       <div className="chip-list">
@@ -558,20 +574,18 @@ function SourceDebateItem({ source, onClick }: {
 
   return (
     <button
-      className="btn btn-sm btn-ghost"
+      className="btn btn-sm btn-ghost crux-source-btn"
       onClick={() => onClick(source.debate_id)}
-      style={{
-        display: 'block', width: '100%', textAlign: 'left',
-        padding: '6px 8px', marginBottom: 2, fontSize: '0.8rem',
-        lineHeight: 1.3,
-      }}
       title={`Debate: ${source.debate_topic}\nState: ${source.final_state}`}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <div className="crux-source-row">
+        <span className="crux-source-topic">
           {source.debate_topic}
         </span>
-        <span style={{ color: stateColor, fontSize: '0.7rem', marginLeft: 8, flexShrink: 0 }}>
+        <span
+          // eslint-disable-next-line local/no-inline-style -- dynamic: color from stateColor
+          style={{ color: stateColor, fontSize: '0.7rem', marginLeft: 8, flexShrink: 0 }}
+        >
           {source.final_state}
         </span>
       </div>
