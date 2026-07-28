@@ -5,6 +5,7 @@
 **Ticket:** t/1611
 **Paper:** Tian Liang, Zhiwei He, Wenxiang Jiao, Xing Wang, Yan Wang, Rui Wang, Yujiu Yang, Shuming Shi, Zhaopeng Tu, *Encouraging Divergent Thinking in Large Language Models through Multi-Agent Debate*, EMNLP 2024 (main), https://aclanthology.org/2024.emnlp-main.992/
 **Requested by:** owner (jsnover13), 2026-07-17 (t/1611)
+**Revision:** 2026-07-28. AC#3 corrected after Risk Assessor's independent code verification (t/1832#1). Two errors were fixed: the per-turn quality axes were misattributed to the neutral evaluator (they are `PROCESS_REWARD_WEIGHTS`, computed from convergence signals, not evaluator-scored), and a subset of evaluator metrics feeds the calibration optimizer, so the original "diagnostic, not verdict" framing understated the coupling. RA verdict: LOW, borderline low-medium; sensitivity probe filed as t/1835.
 
 ## Summary of the paper
 
@@ -64,34 +65,33 @@ There is an honest limit on how far their optimum transfers. MAD measures it on 
 
 ## AC#3: Does the LLM-judge-bias caution apply to our AI-computed calibration metrics?
 
-**Assessment: the caution applies to a condition we can be in, but our architecture already carries two structural defenses that the paper's judge lacks. Residual risk is real but bounded. Route a scoped consult to Risk Assessor with two candidate guards. Not a blocker.**
+**Assessment: the caution applies to a condition we can be in, but our architecture carries two structural defenses the paper's judge lacks, and the heterogeneous-debater precondition is off by default. Residual risk is real but bounded. Risk Assessor has since ruled it LOW (borderline low-medium) and recommended the sensitivity probe (t/1835) over pinning alone. Not a blocker.**
 
 ### Why the condition can arise here
 
 MAD's caveat names a specific setup. Heterogeneous agent models plus an LLM judge yields unfair judging. Both halves can hold in our system.
 
-- Heterogeneous agents: cross-vendor model mixing per persona is supported and used (`stage_model_overrides` in `calibration-config.json:84`, plus multi-backend routing).
-- An AI evaluator: `runNeutralEvaluation` (`neutralEvaluator.ts:260`) calls a single `model` (`:251`) to produce the calibration inputs, including crux status, engagement, and the per-turn quality that feeds `convergence_score`, `crux_addressed_rate`, and `situation_crux_alignment`.
+- Heterogeneous agents: cross-vendor model mixing per persona is *supported* via `stage_model_overrides`, but the committed default is `stage_model_overrides.enabled: false` (`calibration-config.json:84-89`). So the heterogeneous-debater half of MAD's precondition is opt-in and currently off in standard runs (a point RA added, t/1832#1).
+- An AI evaluator: `runNeutralEvaluation` (`neutralEvaluator.ts:260`) calls a single `model` (`:251`). Its calibration-feeding outputs are `crux_addressed_ratio`, `situation_crux_alignment`, `crux_resolution_divergence_rate`, and the `engaging_real_disagreement` boolean. (It does *not* score the per-turn quality axes; see the residual-risk correction below.)
 
-So the structural precondition MAD flags, one LLM scoring outputs from differently-modeled agents, can occur in our pipeline.
+So the structural precondition MAD flags, one LLM scoring outputs from differently-modeled agents, can occur in our pipeline, but only when the opt-in overrides are enabled.
 
 ### Why the risk is materially lower than MAD's
 
-We have no truth-judge. MAD's judge decides who is right and extracts the winning answer, which is where bias most distorts the outcome. Our evaluator emits descriptive metrics and never renders a verdict of correctness or a winner. A biased score nudges a diagnostic; it does not crown a debater. The load-bearing harm in MAD, picking the wrong winner because the judge shares a model with one agent, has no analogue in our terminal output.
+We have no truth-judge. MAD's judge decides who is right and extracts the winning answer, which is where bias most distorts the outcome. Our evaluator never renders a verdict of correctness or a winner, so the load-bearing harm in MAD (picking the wrong winner because the judge shares a model with one agent) has no analogue in our terminal output. Note the important qualifier RA supplied: our evaluator metrics are not purely diagnostic either. `crux_addressed_ratio` and `situation_crux_alignment` feed `computeQualityScore` (`qualityScore.ts:31,33`), the optimizer's objective, and `calibrationOptimizer.recalibrateParameters` can write `calibration-config.json` (`calibrationOptimizer.ts:231`). So a biased evaluator score does not crown a debater, but it can nudge a bounded auto-tuner. The bounds are real (explicit `--apply`, a 5-debates-since-adjustment gate, value bounds, and the t/1668 replication gate), which caps blast radius without neutralizing systematic bias.
 
 The evaluator is also persona-free and identity-randomized. `neutralEvaluator.ts:5-7` is explicitly a "Persona-Free Evaluator" that reads the transcript "with persona labels stripped (Speaker A/B/C), no POV taxonomy, no persona descriptions," and `buildSpeakerMapping` (`:75,84-93`) assigns those labels by a Fisher-Yates shuffle randomized per debate to prevent positional bias. MAD's judge sees which agent is which; ours structurally cannot. It cannot preferentially favor a same-family agent it is unable to identify, and it cannot exhibit a positional (Speaker-A-wins) bias.
 
 ### Residual risk (do not assume anonymization is sufficient)
 
-Anonymization removes labels, not fingerprints. A single evaluator model may still rate text whose style resembles its own family's output as more engaging, novel, or coherent. The per-turn quality weights (`TURN_QUALITY_WEIGHTS`: engagement, novelty, consistency, grounding, move_quality, crux_relevance, `convergenceSignals.ts:393-398`) are the axes where latent stylistic affinity would leak, and MAD's finding is about cross-model unfairness in the first place. Two facts sharpen this into a real if bounded risk.
+Anonymization removes labels, not fingerprints. A single evaluator model may still rate text whose style resembles its own family's output more favorably. **Correction (RA, t/1832#1):** the original draft located this leak on the per-turn quality axes (`engagement/novelty/consistency/grounding/move_quality/crux_relevance`). That was wrong. Those axes are `PROCESS_REWARD_WEIGHTS` (`convergenceSignals.ts:392-399`), computed from convergence signals plus turn validation, and the LLM evaluator never touches them. The real stylistic-affinity surface is narrower: the evaluator's crux-status judgments and the `engaging_real_disagreement` boolean, which flow into `crux_addressed_ratio`, `situation_crux_alignment`, and `crux_resolution_divergence_rate`. The last is sharpest, because it treats the evaluator's crux status as the *reference* the engine's own crux tracker is scored against (`calibrationLogger.ts:587-596`), so a biased evaluator mis-measures the engine, not only itself.
 
-- The evaluator model is CL-owned config and is not currently pinned to be disjoint from the debater models, nor rotated or ensembled. If the configured evaluator happens to share a family with one persona's backend, a systematic per-turn scoring tilt toward that persona is possible, and it would be invisible: it moves diagnostics, not verdicts, so nothing alarms.
-- We have no measurement of evaluator-model sensitivity. We have never re-scored one transcript under two evaluator models to see whether the metrics move. Without that measurement, "anonymization is sufficient" is a stipulation rather than a finding, which is the same trap t/1669 just fell into with `crux_undecided_rate`.
+Two facts sharpen this into a real if bounded risk.
 
-**Disposition:** route a scoped consult to Risk Assessor. The question for them: does single-model AI evaluation of heterogeneous-model debate transcripts introduce a stylistic-affinity bias into our quality metrics, and is it material given the metrics are diagnostic rather than verdict? Two candidate CL guards for them to weigh:
+- The evaluator model is CL-owned config, not pinned disjoint from the debater backends, nor rotated or ensembled. If it shares a family with one persona's backend, a systematic tilt on the crux/engaging judgments is possible, and it would be quiet, because those metrics feed the bounded optimizer rather than an alarm.
+- We have no measurement of evaluator-model sensitivity. We have never re-scored one transcript under two evaluator models to see whether the metrics move. Averaging over the optimizer's 5-debate window dilutes *random* evaluator noise but preserves *systematic* same-family bias, which is the mechanism in question (RA, t/1832#1). Without the measurement, "anonymization is sufficient" is a stipulation rather than a finding, the same trap t/1669 fell into with `crux_undecided_rate`.
 
-- Pin the evaluator model to a family disjoint from all debater backends. This is cheap and removes the same-family case entirely.
-- Run an evaluator-sensitivity probe. Re-score N archived transcripts under a second evaluator model, and if metric deltas exceed a preregistered band, escalate to rotation or ensembling. This is the missing measurement that would turn "anonymization suffices" from stipulated into derived.
+**Disposition (resolved):** the scoped consult ran as t/1832. RA verified the code independently and ruled the risk **LOW, borderline low-medium**, materially below MAD's, and recommended guard (b), the sensitivity probe, over pinning alone. Pinning mitigates only the same-family case, measures nothing, and adds a coupling constraint to re-validate on every debater-backend change, for a risk that is latent while overrides are off. The probe is the measurement that would move "anonymization suffices" from stipulated to derived: re-score N archived transcripts under a disjoint-family second evaluator, preregister a delta band on the four calibration-feeding metrics, and escalate to a pin or ensemble only if deltas exceed the band. Filed as **t/1835** (CL.Investigate1). RA also suggested a near-zero-cost defense-in-depth: a config-time warning when `stage_model_overrides` is enabled with a family overlapping the evaluator model.
 
 This becomes a Risk-Assessor consult ticket (MEDIUM).
 
