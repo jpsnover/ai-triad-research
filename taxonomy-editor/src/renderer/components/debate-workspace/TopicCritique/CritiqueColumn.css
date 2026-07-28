@@ -1,0 +1,102 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+.critique-col {
+  flex: 1;
+  min-width: 260px;
+}
+
+.critique-col-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.critique-col-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.critique-col-rating-badge {
+  color: #fff;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.critique-col-score {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.critique-col-topic {
+  font-size: 0.78rem;
+  font-style: italic;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  line-height: 1.5;
+}
+
+.critique-col-action {
+  margin-bottom: 8px;
+}
+
+.critique-col-section-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 8px;
+  margin-bottom: 4px;
+  color: var(--text-secondary);
+}
+
+.critique-col-section-label--political {
+  color: #ef4444;
+}
+
+.critique-col-dim-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+  font-size: 0.78rem;
+}
+
+.critique-col-dim-label {
+  width: 90px;
+  color: var(--text-secondary);
+  cursor: help;
+  border-bottom: 1px dotted var(--text-muted, #999);
+}
+
+.critique-col-dim-val {
+  font-weight: 600;
+  width: 16px;
+}
+
+.critique-col-dim-max {
+  color: var(--text-tertiary, #777);
+  font-size: 0.7rem;
+}
+
+.critique-col-issues {
+  margin-top: 8px;
+  font-size: 0.75rem;
+}
+
+.critique-col-issues-high {
+  color: #dc2626;
+  margin-bottom: 2px;
+}
+
+.critique-col-issues-medium {
+  color: #d97706;
+}

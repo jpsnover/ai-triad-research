@@ -1,0 +1,96 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+.topic-critique-card {
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+}
+
+.critique-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.critique-card-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.critique-card-score-badge {
+  color: #fff;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.critique-card-arrow {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.critique-card-delta {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.critique-card-delta--pos {
+  color: #16a34a;
+}
+
+.critique-card-delta--neg {
+  color: #dc2626;
+}
+
+.critique-card-toggle-btn {
+  margin-left: auto;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+}
+
+.critique-card-details {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.critique-card-action-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.critique-card-textarea {
+  width: 100%;
+  min-height: 80px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: inherit;
+  resize: vertical;
+}
+
+.critique-card-btn-row {
+  display: flex;
+  gap: 6px;
+}
+
+.critique-card-btn-sm {
+  font-size: 0.75rem;
+  padding: 3px 10px;
+}
