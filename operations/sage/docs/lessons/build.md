@@ -1135,3 +1135,24 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — sibling of #67 (Git-Bash-transforms-your-command family). **Facet A now has 3 instances (DevOps + ServerAPI + Taxonomy Editor, all 2026-07-17) — crosses the escalation threshold.** Universal grep behavior (`grep`/`grep -c` exit 1 on zero match), recurring across agents and across chain positions (final OR upstream command). **Escalation — ACCEPTED (p/8#86):** TL folded facet A into the AGENTS.md batch as an extension to the existing root "Search Tooling Rule" section — *never put `grep`/`grep -c` in a `&&` chain (or as a Bash-tool command's last exit) where zero matches is a valid result; use `|| true` or capture-and-test.* Agreed not hookable (a guard would fire on every legitimate `grep && `), so the documented root rule is the durable fix. Overlay/owner-gated, in TL's 4-item batch being surfaced to the owner. Facet B is **MSYS-config-dependent** (reproduced for DevOps, NOT for TL — p/8#79). TL will propose a root Git-Forensics Common-Trap line framed as the failure-**signature** ("valid ref → `unknown revision` = MSYS conversion; retry `MSYS_NO_PATHCONV=1`"), batched with the pending worktree-landing-rule proposal to the overlay owner for approval (it's overlay-tracked).
 
 **Applies To:** All agents running git or grep through the Bash tool on Windows/Git Bash — especially object-level git forensics (`git show <ref>:<path>`) and count-guarded command chains.
+
+---
+
+## [Build] `npm run build` Exits Non-Zero on an Interactive Prompt in a Non-Essential Trailing Step (No TTY)
+
+**Pattern:** `npm run build` is a composite chain; its **trailing `licenses` step** (`generate-license-file`) prompts **"overwrite? (y/N)"** before rewriting an existing license file. In a **non-interactive shell (no TTY)** — the Bash tool, CI — the prompt can't be answered, so the step **exits 2 and fails the whole `npm run build`** — even though the essential build (`build:main` + the vite renderer) already completed successfully. A false-red on the real build, caused by a non-essential post-step assuming a TTY.
+
+**Instances:**
+- 2026-07-26 — DebateWorkspace (p/124#4): `npm run build` exited 2 in a non-interactive shell because the `licenses` / `generate-license-file` step hit an interactive overwrite prompt with no TTY. Resolved by treating it as non-blocking — `build:main` + vite renderer had already completed. Suggested adding a non-interactive/overwrite flag to that script.
+
+**Root Cause:** `generate-license-file` (and similar codegen/docs tools) default to **interactive confirmation** before overwriting an existing output — fine at a dev terminal, broken under automation where there's no TTY to answer. Chained into the composite `build` script, its non-zero exit propagates to `npm run build`'s exit code, so the aggregate reports "build failed" when only a cosmetic trailing step failed. Same shape as the gate-signal-integrity false-reds (#20/#46): a non-essential step's failure masking the essential gate's success — here the essential build passed but the composite exit says otherwise.
+
+**Prevention:**
+1. **Add a non-interactive/overwrite flag to the `generate-license-file` invocation** in `package.json` (its `--overwrite` / no-input option), so the licenses step never prompts. (Suggested fix — needs the owning app's package.json change.)
+2. **When a composite `build` fails, check WHICH step failed** — a trailing `licenses`/docs step exiting non-zero does NOT mean `build:main` or the renderer failed; read the step output, not just the aggregate exit code (same "read which step, not the rollup" discipline as the CI gate-blindness pattern).
+3. **Keep non-essential steps out of the critical build path** for automation — run license/docs generation as a separate script, or make it non-blocking, so a TTY-only prompt can't false-red the real build.
+4. **General:** any build/codegen tool that prompts before overwriting is a non-interactive-shell hazard — pass its yes/overwrite/no-input flag when invoking from the Bash tool or CI.
+
+**Status:** Active — false-red (non-essential-step) variant near the gate-signal-integrity genus (#20/#46). Fix is a package.json flag on the owning app (routed suggestion, p/124#4).
+
+**Applies To:** All agents running `npm run build` (or any composite build with a codegen/license/docs post-step) from a non-interactive shell — Bash tool, CI.

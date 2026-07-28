@@ -1797,3 +1797,22 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — win32 process-tree semantics; inverse of #69's peer-already-landed variant. Underlying CLI-hang tracked t/1824 (CL).
 
 **Applies To:** All agents launching detached background batches on win32 (debate runners, enrichment pipelines) — especially before relaunching after a restart/TaskStop.
+
+## #87 [Build] `npm run build` Exits Non-Zero on an Interactive Prompt in a Non-Essential Trailing Step (No TTY)
+
+**Pattern:** `npm run build` is a composite chain; its trailing `licenses` step (`generate-license-file`) prompts **"overwrite? (y/N)"** before rewriting an existing license file. In a **non-interactive shell (no TTY)** — Bash tool, CI — the prompt can't be answered, so the step **exits 2 and fails the whole `npm run build`**, even though the essential build (`build:main` + vite renderer) already completed. A false-red on the real build, caused by a non-essential post-step assuming a TTY.
+
+**Instances:**
+- 2026-07-26 — DebateWorkspace (p/124#4): `npm run build` exited 2 in a non-interactive shell because the `licenses`/`generate-license-file` step hit an interactive overwrite prompt with no TTY. Resolved by treating it as non-blocking — `build:main` + vite renderer had already completed. Suggested adding a non-interactive/overwrite flag.
+
+**Root Cause:** `generate-license-file` (and similar codegen/docs tools) default to interactive confirmation before overwriting output — fine at a dev terminal, broken under automation with no TTY. Chained into the composite `build`, its non-zero exit propagates to `npm run build`'s exit code, so the aggregate reports "build failed" when only a cosmetic trailing step failed. Same shape as the gate-signal-integrity false-reds (#20/#46): a non-essential step's failure masking the essential gate's success.
+
+**Prevention:**
+1. **Add a non-interactive/overwrite flag to the `generate-license-file` invocation** in `package.json` so the licenses step never prompts.
+2. **When a composite `build` fails, check WHICH step failed** — a trailing `licenses`/docs step exiting non-zero doesn't mean `build:main`/renderer failed; read the step output, not the aggregate exit.
+3. **Keep non-essential steps out of the critical build path** for automation, or make them non-blocking, so a TTY-only prompt can't false-red the real build.
+4. **General:** any build/codegen tool that prompts before overwriting is a non-interactive-shell hazard — pass its yes/overwrite/no-input flag from the Bash tool or CI.
+
+**Status:** Active — false-red (non-essential-step) variant near the gate-signal-integrity genus (#20/#46). Fix is a package.json flag on the owning app (routed suggestion, p/124#4).
+
+**Applies To:** All agents running `npm run build` (or any composite build with a codegen/license/docs post-step) from a non-interactive shell — Bash tool, CI.
