@@ -107,6 +107,16 @@ const POV_LABELS: Record<Pov, string> = {
 
 type NodeDetailTabId = 'content' | 'related' | 'attributes' | 'conflicts' | 'phrases' | 'sources' | 'facts' | 'cruxes' | 'research' | 'history';
 
+/** Edit-history entry count for the History tab badge (extracted so the optional-chain access doesn't add to NodeDetail's own complexity count). */
+function getEditHistoryLength(node: PovNode): number | undefined {
+  return node._edit_history?.length;
+}
+
+/** Current aphorism value, if any (extracted so the optional-chain access doesn't add to NodeDetail's own complexity count). */
+function getNodeAphorism(node: PovNode): string | undefined {
+  return node.graph_attributes?.aphorism;
+}
+
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, chipDepth = 0, conflict, resolveUrl }: NodeDetailProps) {
   const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile, setSelectedNodeId, getLabelForId, aggregatedCruxes, showCruxDetail, conflicts } = useTaxonomyStore();
   const [descMode, setDescMode] = useDescriptionMode();
@@ -243,7 +253,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
     aphorismBaseLabel.current = node.label;
     aphorismBaseDesc.current = node.description;
     handleAphorismRegenerate();
-  }, [readOnly, node.graph_attributes?.aphorism, node.label, node.description, handleAphorismRegenerate]);
+  }, [readOnly, getNodeAphorism(node), node.label, node.description, handleAphorismRegenerate]);
 
   // Generate research prompt when tab is selected or node changes
   useEffect(() => {
@@ -338,46 +348,18 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
   return (
     <div ref={formRef} className="node-detail-tabbed">
       <div className="nd-header">
-        <div className="nd-header-top">
-          <div className="nd-header-title">
-            {readOnly ? (
-              <span className="nd-header-label" title={node.label}>{node.label}</span>
-            ) : (
-              <input
-                className={`nd-header-label nd-header-label-editable ${err('label') ? 'has-error' : ''}`}
-                value={node.label}
-                onChange={(e) => update({ label: e.target.value })}
-                onBlur={maybeRegenAphorism}
-                placeholder="Label"
-                aria-label="Label"
-                title={node.label}
-              />
-            )}
-          </div>
-          <div className="nd-header-actions">
-            {nodeTypeFromId(node.id) === 'pov' && (
-              <CopyLinkButton hash={publicPovSharePath(node.id)} title="Copy public link" />
-            )}
-            {onSimilarSearch && (
-              <button className="nd-header-btn" onClick={onSimilarSearch} title="Find similar taxonomy elements">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              </button>
-            )}
-            {!readOnly && (
-              <OverflowMenu entries={buildOverflowEntries(
-                moveTargets,
-                () => setShowDelete(true),
-                () => void useTaxonomyStore.getState().runNodeCritique(pov, node),
-                onPin,
-              )} />
-            )}
-            {readOnly && onPin && (
-              <button className="nd-header-btn" onClick={onPin} title="Pin for comparison">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
-              </button>
-            )}
-          </div>
-        </div>
+        <NodeDetailHeaderTop
+          pov={pov}
+          node={node}
+          readOnly={readOnly}
+          err={err}
+          update={update}
+          maybeRegenAphorism={maybeRegenAphorism}
+          onSimilarSearch={onSimilarSearch}
+          onPin={onPin}
+          moveTargets={moveTargets}
+          setShowDelete={setShowDelete}
+        />
         <div className="nd-header-meta">
           <span className="nd-header-cat" data-cat={node.category}>
             {node.category.toUpperCase()}
@@ -387,69 +369,19 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           <EditConflictBadge conflict={conflict} resolveUrl={resolveUrl} />
         </div>
 
-        {/* Aphorism display */}
-        {aphorismEditing && !readOnly ? (
-          <>
-            <input
-              className="nd-aphorism-input"
-              value={aphorismDraft}
-              onChange={(e) => setAphorismDraft(e.target.value)}
-              placeholder="Enter aphorism…"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  update({ graph_attributes: { ...node.graph_attributes!, aphorism: aphorismDraft || undefined } });
-                  setAphorismEditing(false);
-                } else if (e.key === 'Escape') {
-                  setAphorismEditing(false);
-                }
-              }}
-            />
-            <div className="nd-aphorism-actions">
-              <button onClick={() => {
-                update({ graph_attributes: { ...node.graph_attributes!, aphorism: aphorismDraft || undefined } });
-                setAphorismEditing(false);
-              }}>Save</button>
-              <button onClick={() => setAphorismEditing(false)}>Cancel</button>
-            </div>
-          </>
-        ) : node.graph_attributes?.aphorism ? (
-          <div className="nd-aphorism">
-            <span className="nd-aphorism-text">&ldquo;{node.graph_attributes.aphorism}&rdquo;</span>
-            {!readOnly && (
-              <button
-                className="nd-aphorism-edit-btn"
-                onClick={() => { setAphorismDraft(node.graph_attributes?.aphorism ?? ''); setAphorismEditing(true); }}
-                title="Edit aphorism"
-              >&#9998;</button>
-            )}
-          </div>
-        ) : !readOnly ? (
-          <div className="nd-aphorism-empty">
-            <button
-              className="nd-aphorism-edit-btn nd-aphorism-edit-btn-visible"
-              onClick={handleAphorismRegenerate}
-              disabled={aphorismGenerating}
-            >{aphorismGenerating ? 'Generating…' : '+ Generate aphorism'}</button>
-          </div>
-        ) : null}
-
-        {/* Aphorism regeneration proposal */}
-        {aphorismProposal && !readOnly && (
-          <div className="nd-aphorism-regen">
-            <span className="nd-aphorism-regen-text">&ldquo;{aphorismProposal}&rdquo;</span>
-            <button onClick={() => {
-              update({ graph_attributes: { ...node.graph_attributes!, aphorism: aphorismProposal } });
-              setAphorismProposal(null);
-            }}>Accept</button>
-            <button onClick={() => {
-              setAphorismDraft(aphorismProposal);
-              setAphorismProposal(null);
-              setAphorismEditing(true);
-            }}>Edit</button>
-            <button onClick={() => setAphorismProposal(null)}>Reject</button>
-          </div>
-        )}
+        <NodeDetailAphorismSection
+          node={node}
+          readOnly={readOnly}
+          update={update}
+          aphorismEditing={aphorismEditing}
+          setAphorismEditing={setAphorismEditing}
+          aphorismDraft={aphorismDraft}
+          setAphorismDraft={setAphorismDraft}
+          aphorismProposal={aphorismProposal}
+          setAphorismProposal={setAphorismProposal}
+          aphorismGenerating={aphorismGenerating}
+          handleAphorismRegenerate={handleAphorismRegenerate}
+        />
       </div>
 
       {hasErrors && (
@@ -459,279 +391,44 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
         </div>
       )}
 
-      {/* Tab bar */}
-      <div className="node-detail-tabs">
-        <button
-          className={`node-detail-tab ${activeTab === 'content' ? 'node-detail-tab-active' : ''}`}
-          onClick={() => setActiveTab('content')}
-        >
-          Content
-        </button>
-        <button
-          className={`node-detail-tab ${activeTab === 'attributes' ? 'node-detail-tab-active' : ''}`}
-          onClick={() => setActiveTab('attributes')}
-        >
-          Attributes
-        </button>
-        <button
-          className={`node-detail-tab ${activeTab === 'related' ? 'node-detail-tab-active' : ''}`}
-          onClick={() => setActiveTab('related')}
-        >
-          Related
-        </button>
-        <button
-          className={`node-detail-tab ${activeTab === 'conflicts' ? 'node-detail-tab-active' : ''}`}
-          onClick={() => setActiveTab('conflicts')}
-        >
-          Conflicts{conflictCount > 0 ? ` (${conflictCount})` : ''}
-        </button>
-        <button
-          className={`node-detail-tab ${activeTab === 'cruxes' ? 'node-detail-tab-active' : ''}`}
-          onClick={() => setActiveTab('cruxes')}
-        >
-          Cruxes{cruxCount > 0 ? ` (${cruxCount})` : ''}
-        </button>
-        <button
-          className={`node-detail-tab ${activeTab === 'phrases' ? 'node-detail-tab-active' : ''}`}
-          onClick={() => setActiveTab('phrases')}
-        >
-          Phrases
-        </button>
-        <button
-          className={`node-detail-tab ${activeTab === 'sources' ? 'node-detail-tab-active' : ''}`}
-          onClick={() => setActiveTab('sources')}
-        >
-          Sources
-        </button>
-        <button
-          className={`node-detail-tab ${activeTab === 'facts' ? 'node-detail-tab-active' : ''}`}
-          onClick={() => setActiveTab('facts')}
-        >
-          Facts{factCount > 0 ? ` (${factCount})` : ''}
-        </button>
-        <button
-          className={`node-detail-tab ${activeTab === 'research' ? 'node-detail-tab-active' : ''}`}
-          onClick={() => setActiveTab('research')}
-        >
-          Research
-        </button>
-        <button
-          className={`node-detail-tab ${activeTab === 'history' ? 'node-detail-tab-active' : ''}`}
-          onClick={() => setActiveTab('history')}
-        >
-          History{node._edit_history?.length ? ` (${node._edit_history.length})` : ''}
-        </button>
-      </div>
+      <NodeDetailTabBar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        conflictCount={conflictCount}
+        cruxCount={cruxCount}
+        factCount={factCount}
+        editHistoryLength={getEditHistoryLength(node)}
+      />
 
       {/* Tab content */}
       <div className="node-detail-tab-content">
         {activeTab === 'content' && (
-          <>
-            {node.category === 'Beliefs' && (
-              <div className="nd-metrics-row">
-                {node.confidence != null && (
-                  <span className="nd-metric" title="Confidence score">
-                    Confidence: <strong>{node.confidence.toFixed(2)}</strong>
-                  </span>
-                )}
-                <DebateTestedChip
-                  record={node.graph_attributes?.debate_tested}
-                  description={node.description}
-                  onClick={() => node.graph_attributes?.debate_tested && setShowDtDrilldown(v => !v)}
-                />
-              </div>
-            )}
-            {showDtDrilldown && node.graph_attributes?.debate_tested && (
-              <DebateTestedDrilldown
-                record={node.graph_attributes.debate_tested}
-                description={node.description}
-                onClose={() => setShowDtDrilldown(false)}
-              />
-            )}
-
-            {!readOnly && err('label') && (
-              <div className="error-text">{err('label')}</div>
-            )}
-
-            <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
-              <div className="description-header">
-                <label>
-                  Description
-                  <FieldHelp text={`Genus-differentia format:\n"${CATEGORY_SINGULAR[node.category]} within [POV] discourse that [differentia].\nEncompasses: ...\nExcludes: ..."\nEncompasses and Excludes must each start on a new line.`} />
-                </label>
-                <DescriptionToggle mode={descMode} onToggle={setDescMode} hasPlainDescription={!!node.plain_description} />
-              </div>
-              {descMode === 'formal' ? (
-                <div className="prose" onBlur={maybeRegenAphorism}>
-                  <HighlightedTextarea
-                    value={node.description}
-                    onChange={(v) => update({ description: v })}
-                    rows={6}
-                    readOnly={readOnly}
-                  />
-                  {err('description') && <div className="error-text">{err('description')}</div>}
-                </div>
-              ) : (
-                <>
-                  {node.plain_description === null ? (
-                    <div className="plain-description-box plain-description-generating">Regenerating…</div>
-                  ) : (
-                    <div className="plain-description-box">{node.plain_description ?? node.description}</div>
-                  )}
-                  {!readOnly && (
-                    <button
-                      type="button"
-                      className="plain-description-regen"
-                      disabled={node.plain_description === null}
-                      onClick={() => triggerPovNodeRegeneration(pov, node.id, node.description, updatePovNode)}
-                    >
-                      ↻ Regenerate
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-
-            {hasGraphAttrs && (
-              <div className="form-group">
-                <label>Steelman Vulnerability</label>
-                {typeof node.graph_attributes!.steelman_vulnerability === 'string' ? (
-                  readOnly ? (
-                    <div className="ga-promoted-text">{node.graph_attributes!.steelman_vulnerability}</div>
-                  ) : (
-                    <textarea
-                      className="nd-vulnerability-input"
-                      value={node.graph_attributes!.steelman_vulnerability}
-                      rows={3}
-                      onChange={(e) => {
-                        update({ graph_attributes: { ...node.graph_attributes!, steelman_vulnerability: e.target.value } });
-                      }}
-                    />
-                  )
-                ) : typeof node.graph_attributes!.steelman_vulnerability === 'object' && node.graph_attributes!.steelman_vulnerability ? (
-                  <div className="ga-promoted-text">
-                    {(['from_accelerationist', 'from_safetyist', 'from_skeptic'] as const).map(key => {
-                      const vuln = node.graph_attributes!.steelman_vulnerability as Record<string, string | undefined>;
-                      const povKey = key.replace('from_', '') as 'accelerationist' | 'safetyist' | 'skeptic';
-                      const meta = POV_META[povKey];
-                      if (!vuln[key] && readOnly) return null;
-                      return (
-                        <div key={key} className="vulnerability-subsection">
-                          {/* eslint-disable-next-line local/no-inline-style -- color is per-POV, computed from meta.cssVar */}
-                          <strong style={{ color: `var(${meta.cssVar})` }}>{meta.label}:</strong>
-                          {readOnly ? (
-                            <span> {vuln[key]}</span>
-                          ) : (
-                            <textarea
-                              className="nd-vulnerability-input"
-                              value={vuln[key] ?? ''}
-                              rows={2}
-                              onChange={(e) => {
-                                update({ graph_attributes: { ...node.graph_attributes!, steelman_vulnerability: { ...vuln, [key]: e.target.value } } });
-                              }}
-                            />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : !readOnly ? (
-                  <button
-                    className="btn btn-sm nd-add-btn"
-                    onClick={() => {
-                      update({ graph_attributes: { ...node.graph_attributes!, steelman_vulnerability: '' } });
-                    }}
-                  >+ Add Vulnerability</button>
-                ) : (
-                  <div className="ga-empty">&mdash;</div>
-                )}
-              </div>
-            )}
-
-            {node.graph_attributes?.intellectual_lineage && node.graph_attributes.intellectual_lineage.length > 0 && (
-              <div className="form-group">
-                <label>Intellectual Lineage</label>
-                <div className="ga-promoted-list">
-                  {[...node.graph_attributes.intellectual_lineage].map(v => typeof v === 'string' ? v : (v as { name?: string })?.name).filter((v): v is string => typeof v === 'string' && v.length > 0).sort((a, b) => a.localeCompare(b)).map((l, i) => (
-                    <span
-                      key={i}
-                      className={`ga-promoted-chip ga-promoted-chip-interactive${expandedLineage === l ? ' ga-promoted-chip-selected' : ''}`}
-                      onClick={(e) => { e.stopPropagation(); setExpandedLineage(expandedLineage === l ? null : l); }}
-                      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); showAttributeInfo('intellectual_lineage', l); }}
-                      title={`Click to view lineage info: "${l}"`}
-                    >
-                      {l}
-                    </span>
-                  ))}
-                </div>
-                {expandedLineage && (() => {
-                  const info = getLineageInfo(expandedLineage);
-                  if (!info) return (
-                    <div className="lineage-inline-detail">
-                      <div className="lineage-inline-header">
-                        <span className="lineage-inline-label">{expandedLineage}</span>
-                        <button className="lineage-inline-close" onClick={() => setExpandedLineage(null)} title="Close">×</button>
-                      </div>
-                      <div className="lineage-inline-empty">No detailed information available for this lineage.</div>
-                    </div>
-                  );
-                  return (
-                    <div className="lineage-inline-detail">
-                      <div className="lineage-inline-header">
-                        <span className="lineage-inline-label">{info.label}</span>
-                        <button className="lineage-inline-close" onClick={() => setExpandedLineage(null)} title="Close">×</button>
-                      </div>
-                      <div className="lineage-inline-summary">{info.summary}</div>
-                      {info.example && (
-                        <div className="lineage-inline-example">
-                          <span className="lineage-inline-example-label">Example:</span> {info.example}
-                        </div>
-                      )}
-                      {info.links && info.links.length > 0 && (
-                        <div className="lineage-inline-links">
-                          {info.links.map((link, li) => (
-                            <a
-                              key={li}
-                              className="lineage-inline-link"
-                              href="#"
-                              onClick={(e) => { e.preventDefault(); void api.openExternal(link.url); }}
-                              title={link.url}
-                            >
-                              {link.label}
-                            </a>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-          </>
+          <NodeDetailContentTab
+            pov={pov}
+            node={node}
+            readOnly={readOnly}
+            err={err}
+            descMode={descMode}
+            setDescMode={setDescMode}
+            maybeRegenAphorism={maybeRegenAphorism}
+            update={update}
+            updatePovNode={updatePovNode}
+            showDtDrilldown={showDtDrilldown}
+            setShowDtDrilldown={setShowDtDrilldown}
+            expandedLineage={expandedLineage}
+            setExpandedLineage={setExpandedLineage}
+            showAttributeInfo={showAttributeInfo}
+            hasGraphAttrs={hasGraphAttrs}
+          />
         )}
 
         {activeTab === 'related' && (
-          <div className="node-detail-related-split" ref={splitContainerRef}>
-            <div
-              className="node-detail-related-list nd-split-width"
-              /* eslint-disable-next-line local/no-inline-style -- width is a user-dragged split percentage, passed as a CSS custom property */
-              style={{ '--nd-split-width': `${relatedSplitPct}%` } as React.CSSProperties}
-            >
-              <RelatedEdgesPanel />
-            </div>
-            <div className="resize-handle" onMouseDown={handleSplitMouseDown} />
-            <div
-              className="node-detail-related-detail nd-split-width"
-              /* eslint-disable-next-line local/no-inline-style -- width is a user-dragged split percentage, passed as a CSS custom property */
-              style={{ '--nd-split-width': `${100 - relatedSplitPct}%` } as React.CSSProperties}
-            >
-              {selectedEdge ? (
-                <EdgeDetailPanel width={0} />
-              ) : (
-                <EmptyState headline="No edge selected" direction="Select an edge to view details" />
-              )}
-            </div>
-          </div>
+          <NodeDetailRelatedTab
+            selectedEdge={selectedEdge}
+            relatedSplitPct={relatedSplitPct}
+            handleSplitMouseDown={handleSplitMouseDown}
+            splitContainerRef={splitContainerRef}
+          />
         )}
 
         {activeTab === 'conflicts' && (
@@ -742,25 +439,15 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           <RelatedCruxes nodeId={node.id} mode="full" />
         )}
 
-        {activeTab === 'attributes' && hasGraphAttrs && (
-          <GraphAttributesPanel
-            attrs={node.graph_attributes!}
-            onBadgeClick={runAttributeFilter}
-            onShowAttributeInfo={showAttributeInfo}
-            onUpdatePolicyActions={readOnly ? undefined : (actions) => updatePovNode(pov, node.id, { graph_attributes: { ...node.graph_attributes!, policy_actions: actions } })}
-            onUpdateAssumptions={readOnly ? undefined : (assumes) => updatePovNode(pov, node.id, { graph_attributes: { ...node.graph_attributes!, assumes } })}
+        {activeTab === 'attributes' && (
+          <NodeDetailAttributesTab
+            node={node}
             readOnly={readOnly}
-            defaultOpen
-            nodeCategory={node.category}
-            confidence={node.confidence}
-            priority={node.priority}
-            operationality={node.operationality}
-            doctrinallyAnchored={node.doctrinally_anchored}
-            evidentialConfidence={node.evidential_confidence}
-            confidenceHistory={node.confidence_history}
-            priorityHistory={node.priority_history}
-            operationalityHistory={node.operationality_history}
-            onUpdateWeightedBdi={readOnly ? undefined : (updates) => update(updates)}
+            pov={pov}
+            updatePovNode={updatePovNode}
+            update={update}
+            runAttributeFilter={runAttributeFilter}
+            showAttributeInfo={showAttributeInfo}
           />
         )}
 
@@ -773,64 +460,27 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
         )}
 
         {activeTab === 'facts' && (
-          <div className="facts-split-container" ref={factSplitRef}>
-            <div
-              className="facts-split-list nd-split-height"
-              /* eslint-disable-next-line local/no-inline-style -- height is a user-dragged split percentage, passed as a CSS custom property */
-              style={sourceDoc?.available ? { '--nd-split-height': `${factSplitPct}%` } as React.CSSProperties : undefined}
-            >
-              <FactsPanel nodeId={node.id} onSelectFact={setSelectedFact} />
-            </div>
-            {sourceDocLoading && (
-              <div className="facts-doc-loading">
-                <span className="facts-doc-spinner" />
-                Resolving source document...
-              </div>
-            )}
-            {sourceDoc?.available && (
-              <>
-                <div className="resize-handle resize-handle-horizontal" onMouseDown={handleFactSplitMouseDown} />
-                <div
-                  className="facts-doc-pane nd-split-height"
-                  /* eslint-disable-next-line local/no-inline-style -- height is a user-dragged split percentage, passed as a CSS custom property */
-                  style={{ '--nd-split-height': `${100 - factSplitPct}%` } as React.CSSProperties}
-                >
-                  <div className="facts-doc-header">
-                    <span className="facts-doc-title">{selectedFact?.doc_id}</span>
-                    <span className="facts-doc-type">{sourceDoc.type?.toUpperCase()}</span>
-                    <button className="facts-doc-close" onClick={() => setSelectedFact(null)} title="Close document viewer">&times;</button>
-                  </div>
-                  <SourceDocumentViewer doc={sourceDoc} claimText={selectedFact?.claim} />
-                </div>
-              </>
-            )}
-            {sourceDoc && !sourceDoc.available && !sourceDocLoading && (
-              <div className="facts-doc-unavailable">Source document not available for this fact.</div>
-            )}
-          </div>
+          <NodeDetailFactsTab
+            node={node}
+            selectedFact={selectedFact}
+            setSelectedFact={setSelectedFact}
+            sourceDoc={sourceDoc}
+            sourceDocLoading={sourceDocLoading}
+            factSplitPct={factSplitPct}
+            handleFactSplitMouseDown={handleFactSplitMouseDown}
+            factSplitRef={factSplitRef}
+          />
         )}
 
         {activeTab === 'research' && (
-          <div className="node-detail-research">
-            <EvidenceGraphSection nodeId={node.id} />
-            <RelatedCruxes nodeId={node.id} mode="compact" />
-            <div className="node-detail-research-header">
-              <span className="node-detail-research-desc">Research prompt for this position. Edit as needed, then copy to clipboard.</span>
-              <button
-                className={`btn btn-sm${researchCopied ? '' : ' btn-ghost'}`}
-                onClick={handleResearchCopy}
-              >
-                {researchCopied ? '\u2713 Copied' : 'Copy'}
-              </button>
-            </div>
-            <textarea
-              ref={researchTextareaRef}
-              className="node-detail-research-textarea"
-              value={researchText}
-              onChange={(e) => setResearchText(e.target.value)}
-              spellCheck={false}
-            />
-          </div>
+          <NodeDetailResearchTab
+            node={node}
+            researchText={researchText}
+            setResearchText={setResearchText}
+            researchCopied={researchCopied}
+            handleResearchCopy={handleResearchCopy}
+            researchTextareaRef={researchTextareaRef}
+          />
         )}
 
         {activeTab === 'history' && (
@@ -853,6 +503,678 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           onCancel={() => setShowDelete(false)}
         />
       )}
+    </div>
+  );
+}
+
+// ── Node header: title + actions (extracted from NodeDetail for complexity) ──
+
+interface NodeDetailHeaderTopProps {
+  pov: Pov;
+  node: PovNode;
+  readOnly?: boolean;
+  err: (field: string) => string | undefined;
+  update: (updates: Partial<PovNode>) => void;
+  maybeRegenAphorism: () => void;
+  onSimilarSearch?: () => void;
+  onPin?: () => void;
+  moveTargets: MoveTarget[];
+  setShowDelete: (v: boolean) => void;
+}
+
+function NodeDetailHeaderTop({ pov, node, readOnly, err, update, maybeRegenAphorism, onSimilarSearch, onPin, moveTargets, setShowDelete }: NodeDetailHeaderTopProps) {
+  return (
+    <div className="nd-header-top">
+      <div className="nd-header-title">
+        {readOnly ? (
+          <span className="nd-header-label" title={node.label}>{node.label}</span>
+        ) : (
+          <input
+            className={`nd-header-label nd-header-label-editable ${err('label') ? 'has-error' : ''}`}
+            value={node.label}
+            onChange={(e) => update({ label: e.target.value })}
+            onBlur={maybeRegenAphorism}
+            placeholder="Label"
+            aria-label="Label"
+            title={node.label}
+          />
+        )}
+      </div>
+      <div className="nd-header-actions">
+        {nodeTypeFromId(node.id) === 'pov' && (
+          <CopyLinkButton hash={publicPovSharePath(node.id)} title="Copy public link" />
+        )}
+        {onSimilarSearch && (
+          <button className="nd-header-btn" onClick={onSimilarSearch} title="Find similar taxonomy elements">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </button>
+        )}
+        {!readOnly && (
+          <OverflowMenu entries={buildOverflowEntries(
+            moveTargets,
+            () => setShowDelete(true),
+            () => void useTaxonomyStore.getState().runNodeCritique(pov, node),
+            onPin,
+          )} />
+        )}
+        {readOnly && onPin && (
+          <button className="nd-header-btn" onClick={onPin} title="Pin for comparison">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Aphorism display / editing / regeneration proposal (extracted from NodeDetail for complexity) ──
+
+interface NodeDetailAphorismSectionProps {
+  node: PovNode;
+  readOnly?: boolean;
+  update: (updates: Partial<PovNode>) => void;
+  aphorismEditing: boolean;
+  setAphorismEditing: (v: boolean) => void;
+  aphorismDraft: string;
+  setAphorismDraft: (v: string) => void;
+  aphorismProposal: string | null;
+  setAphorismProposal: (v: string | null) => void;
+  aphorismGenerating: boolean;
+  handleAphorismRegenerate: () => void;
+}
+
+function NodeDetailAphorismSection({ node, readOnly, update, aphorismEditing, setAphorismEditing, aphorismDraft, setAphorismDraft, aphorismProposal, setAphorismProposal, aphorismGenerating, handleAphorismRegenerate }: NodeDetailAphorismSectionProps) {
+  return (
+    <>
+      {/* Aphorism display */}
+      {aphorismEditing && !readOnly ? (
+        <>
+          <input
+            className="nd-aphorism-input"
+            value={aphorismDraft}
+            onChange={(e) => setAphorismDraft(e.target.value)}
+            placeholder="Enter aphorism…"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                update({ graph_attributes: { ...node.graph_attributes!, aphorism: aphorismDraft || undefined } });
+                setAphorismEditing(false);
+              } else if (e.key === 'Escape') {
+                setAphorismEditing(false);
+              }
+            }}
+          />
+          <div className="nd-aphorism-actions">
+            <button onClick={() => {
+              update({ graph_attributes: { ...node.graph_attributes!, aphorism: aphorismDraft || undefined } });
+              setAphorismEditing(false);
+            }}>Save</button>
+            <button onClick={() => setAphorismEditing(false)}>Cancel</button>
+          </div>
+        </>
+      ) : node.graph_attributes?.aphorism ? (
+        <div className="nd-aphorism">
+          <span className="nd-aphorism-text">&ldquo;{node.graph_attributes.aphorism}&rdquo;</span>
+          {!readOnly && (
+            <button
+              className="nd-aphorism-edit-btn"
+              onClick={() => { setAphorismDraft(node.graph_attributes?.aphorism ?? ''); setAphorismEditing(true); }}
+              title="Edit aphorism"
+            >&#9998;</button>
+          )}
+        </div>
+      ) : !readOnly ? (
+        <div className="nd-aphorism-empty">
+          <button
+            className="nd-aphorism-edit-btn nd-aphorism-edit-btn-visible"
+            onClick={handleAphorismRegenerate}
+            disabled={aphorismGenerating}
+          >{aphorismGenerating ? 'Generating…' : '+ Generate aphorism'}</button>
+        </div>
+      ) : null}
+
+      {/* Aphorism regeneration proposal */}
+      {aphorismProposal && !readOnly && (
+        <div className="nd-aphorism-regen">
+          <span className="nd-aphorism-regen-text">&ldquo;{aphorismProposal}&rdquo;</span>
+          <button onClick={() => {
+            update({ graph_attributes: { ...node.graph_attributes!, aphorism: aphorismProposal } });
+            setAphorismProposal(null);
+          }}>Accept</button>
+          <button onClick={() => {
+            setAphorismDraft(aphorismProposal);
+            setAphorismProposal(null);
+            setAphorismEditing(true);
+          }}>Edit</button>
+          <button onClick={() => setAphorismProposal(null)}>Reject</button>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── Tab bar (extracted from NodeDetail for complexity) ──
+
+interface NodeDetailTabBarProps {
+  activeTab: NodeDetailTabId;
+  setActiveTab: (tab: NodeDetailTabId) => void;
+  conflictCount: number;
+  cruxCount: number;
+  factCount: number;
+  editHistoryLength: number | undefined;
+}
+
+function NodeDetailTabBar({ activeTab, setActiveTab, conflictCount, cruxCount, factCount, editHistoryLength }: NodeDetailTabBarProps) {
+  return (
+    <div className="node-detail-tabs">
+      <button
+        className={`node-detail-tab ${activeTab === 'content' ? 'node-detail-tab-active' : ''}`}
+        onClick={() => setActiveTab('content')}
+      >
+        Content
+      </button>
+      <button
+        className={`node-detail-tab ${activeTab === 'attributes' ? 'node-detail-tab-active' : ''}`}
+        onClick={() => setActiveTab('attributes')}
+      >
+        Attributes
+      </button>
+      <button
+        className={`node-detail-tab ${activeTab === 'related' ? 'node-detail-tab-active' : ''}`}
+        onClick={() => setActiveTab('related')}
+      >
+        Related
+      </button>
+      <button
+        className={`node-detail-tab ${activeTab === 'conflicts' ? 'node-detail-tab-active' : ''}`}
+        onClick={() => setActiveTab('conflicts')}
+      >
+        Conflicts{conflictCount > 0 ? ` (${conflictCount})` : ''}
+      </button>
+      <button
+        className={`node-detail-tab ${activeTab === 'cruxes' ? 'node-detail-tab-active' : ''}`}
+        onClick={() => setActiveTab('cruxes')}
+      >
+        Cruxes{cruxCount > 0 ? ` (${cruxCount})` : ''}
+      </button>
+      <button
+        className={`node-detail-tab ${activeTab === 'phrases' ? 'node-detail-tab-active' : ''}`}
+        onClick={() => setActiveTab('phrases')}
+      >
+        Phrases
+      </button>
+      <button
+        className={`node-detail-tab ${activeTab === 'sources' ? 'node-detail-tab-active' : ''}`}
+        onClick={() => setActiveTab('sources')}
+      >
+        Sources
+      </button>
+      <button
+        className={`node-detail-tab ${activeTab === 'facts' ? 'node-detail-tab-active' : ''}`}
+        onClick={() => setActiveTab('facts')}
+      >
+        Facts{factCount > 0 ? ` (${factCount})` : ''}
+      </button>
+      <button
+        className={`node-detail-tab ${activeTab === 'research' ? 'node-detail-tab-active' : ''}`}
+        onClick={() => setActiveTab('research')}
+      >
+        Research
+      </button>
+      <button
+        className={`node-detail-tab ${activeTab === 'history' ? 'node-detail-tab-active' : ''}`}
+        onClick={() => setActiveTab('history')}
+      >
+        History{editHistoryLength ? ` (${editHistoryLength})` : ''}
+      </button>
+    </div>
+  );
+}
+
+// ── Content tab: Beliefs metrics row (extracted from NodeDetail for complexity) ──
+
+interface BeliefsMetricsRowProps {
+  node: PovNode;
+  showDtDrilldown: boolean;
+  setShowDtDrilldown: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+function BeliefsMetricsRow({ node, showDtDrilldown, setShowDtDrilldown }: BeliefsMetricsRowProps) {
+  return (
+    <>
+      <div className="nd-metrics-row">
+        {node.confidence != null && (
+          <span className="nd-metric" title="Confidence score">
+            Confidence: <strong>{node.confidence.toFixed(2)}</strong>
+          </span>
+        )}
+        <DebateTestedChip
+          record={node.graph_attributes?.debate_tested}
+          description={node.description}
+          onClick={() => node.graph_attributes?.debate_tested && setShowDtDrilldown(v => !v)}
+        />
+      </div>
+      {showDtDrilldown && node.graph_attributes?.debate_tested && (
+        <DebateTestedDrilldown
+          record={node.graph_attributes.debate_tested}
+          description={node.description}
+          onClose={() => setShowDtDrilldown(false)}
+        />
+      )}
+    </>
+  );
+}
+
+// ── Content tab: Description section (extracted from NodeDetail for complexity) ──
+
+interface DescriptionSectionProps {
+  pov: Pov;
+  node: PovNode;
+  readOnly?: boolean;
+  err: (field: string) => string | undefined;
+  descMode: 'formal' | 'plain';
+  setDescMode: (mode: 'formal' | 'plain') => void;
+  maybeRegenAphorism: () => void;
+  update: (updates: Partial<PovNode>) => void;
+  updatePovNode: (pov: Pov, id: string, updates: Partial<PovNode>) => void;
+}
+
+function DescriptionSection({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode }: DescriptionSectionProps) {
+  return (
+    <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
+      <div className="description-header">
+        <label>
+          Description
+          <FieldHelp text={`Genus-differentia format:\n"${CATEGORY_SINGULAR[node.category]} within [POV] discourse that [differentia].\nEncompasses: ...\nExcludes: ..."\nEncompasses and Excludes must each start on a new line.`} />
+        </label>
+        <DescriptionToggle mode={descMode} onToggle={setDescMode} hasPlainDescription={!!node.plain_description} />
+      </div>
+      {descMode === 'formal' ? (
+        <div className="prose" onBlur={maybeRegenAphorism}>
+          <HighlightedTextarea
+            value={node.description}
+            onChange={(v) => update({ description: v })}
+            rows={6}
+            readOnly={readOnly}
+          />
+          {err('description') && <div className="error-text">{err('description')}</div>}
+        </div>
+      ) : (
+        <>
+          {node.plain_description === null ? (
+            <div className="plain-description-box plain-description-generating">Regenerating…</div>
+          ) : (
+            <div className="plain-description-box">{node.plain_description ?? node.description}</div>
+          )}
+          {!readOnly && (
+            <button
+              type="button"
+              className="plain-description-regen"
+              disabled={node.plain_description === null}
+              onClick={() => triggerPovNodeRegeneration(pov, node.id, node.description, updatePovNode)}
+            >
+              ↻ Regenerate
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Content tab: Steelman Vulnerability section (extracted from NodeDetail for complexity) ──
+
+interface SteelmanVulnerabilitySectionProps {
+  node: PovNode;
+  readOnly?: boolean;
+  update: (updates: Partial<PovNode>) => void;
+}
+
+function SteelmanVulnerabilitySection({ node, readOnly, update }: SteelmanVulnerabilitySectionProps) {
+  return (
+    <div className="form-group">
+      <label>Steelman Vulnerability</label>
+      {typeof node.graph_attributes!.steelman_vulnerability === 'string' ? (
+        readOnly ? (
+          <div className="ga-promoted-text">{node.graph_attributes!.steelman_vulnerability}</div>
+        ) : (
+          <textarea
+            className="nd-vulnerability-input"
+            value={node.graph_attributes!.steelman_vulnerability}
+            rows={3}
+            onChange={(e) => {
+              update({ graph_attributes: { ...node.graph_attributes!, steelman_vulnerability: e.target.value } });
+            }}
+          />
+        )
+      ) : typeof node.graph_attributes!.steelman_vulnerability === 'object' && node.graph_attributes!.steelman_vulnerability ? (
+        <div className="ga-promoted-text">
+          {(['from_accelerationist', 'from_safetyist', 'from_skeptic'] as const).map(key => {
+            const vuln = node.graph_attributes!.steelman_vulnerability as Record<string, string | undefined>;
+            const povKey = key.replace('from_', '') as 'accelerationist' | 'safetyist' | 'skeptic';
+            const meta = POV_META[povKey];
+            if (!vuln[key] && readOnly) return null;
+            return (
+              <div key={key} className="vulnerability-subsection">
+                {/* eslint-disable-next-line local/no-inline-style -- color is per-POV, computed from meta.cssVar */}
+                <strong style={{ color: `var(${meta.cssVar})` }}>{meta.label}:</strong>
+                {readOnly ? (
+                  <span> {vuln[key]}</span>
+                ) : (
+                  <textarea
+                    className="nd-vulnerability-input"
+                    value={vuln[key] ?? ''}
+                    rows={2}
+                    onChange={(e) => {
+                      update({ graph_attributes: { ...node.graph_attributes!, steelman_vulnerability: { ...vuln, [key]: e.target.value } } });
+                    }}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : !readOnly ? (
+        <button
+          className="btn btn-sm nd-add-btn"
+          onClick={() => {
+            update({ graph_attributes: { ...node.graph_attributes!, steelman_vulnerability: '' } });
+          }}
+        >+ Add Vulnerability</button>
+      ) : (
+        <div className="ga-empty">&mdash;</div>
+      )}
+    </div>
+  );
+}
+
+// ── Content tab: Intellectual Lineage section (extracted from NodeDetail for complexity) ──
+
+interface IntellectualLineageSectionProps {
+  node: PovNode;
+  expandedLineage: string | null;
+  setExpandedLineage: (v: string | null) => void;
+  showAttributeInfo: (field: string, value: string) => void;
+}
+
+function IntellectualLineageSection({ node, expandedLineage, setExpandedLineage, showAttributeInfo }: IntellectualLineageSectionProps) {
+  return (
+    <div className="form-group">
+      <label>Intellectual Lineage</label>
+      <div className="ga-promoted-list">
+        {[...node.graph_attributes!.intellectual_lineage!].map(v => typeof v === 'string' ? v : (v as { name?: string })?.name).filter((v): v is string => typeof v === 'string' && v.length > 0).sort((a, b) => a.localeCompare(b)).map((l, i) => (
+          <span
+            key={i}
+            className={`ga-promoted-chip ga-promoted-chip-interactive${expandedLineage === l ? ' ga-promoted-chip-selected' : ''}`}
+            onClick={(e) => { e.stopPropagation(); setExpandedLineage(expandedLineage === l ? null : l); }}
+            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); showAttributeInfo('intellectual_lineage', l); }}
+            title={`Click to view lineage info: "${l}"`}
+          >
+            {l}
+          </span>
+        ))}
+      </div>
+      {expandedLineage && (() => {
+        const info = getLineageInfo(expandedLineage);
+        if (!info) return (
+          <div className="lineage-inline-detail">
+            <div className="lineage-inline-header">
+              <span className="lineage-inline-label">{expandedLineage}</span>
+              <button className="lineage-inline-close" onClick={() => setExpandedLineage(null)} title="Close">×</button>
+            </div>
+            <div className="lineage-inline-empty">No detailed information available for this lineage.</div>
+          </div>
+        );
+        return (
+          <div className="lineage-inline-detail">
+            <div className="lineage-inline-header">
+              <span className="lineage-inline-label">{info.label}</span>
+              <button className="lineage-inline-close" onClick={() => setExpandedLineage(null)} title="Close">×</button>
+            </div>
+            <div className="lineage-inline-summary">{info.summary}</div>
+            {info.example && (
+              <div className="lineage-inline-example">
+                <span className="lineage-inline-example-label">Example:</span> {info.example}
+              </div>
+            )}
+            {info.links && info.links.length > 0 && (
+              <div className="lineage-inline-links">
+                {info.links.map((link, li) => (
+                  <a
+                    key={li}
+                    className="lineage-inline-link"
+                    href="#"
+                    onClick={(e) => { e.preventDefault(); void api.openExternal(link.url); }}
+                    title={link.url}
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+// ── Content tab composition (extracted from NodeDetail for complexity) ──
+
+interface NodeDetailContentTabProps {
+  pov: Pov;
+  node: PovNode;
+  readOnly?: boolean;
+  err: (field: string) => string | undefined;
+  descMode: 'formal' | 'plain';
+  setDescMode: (mode: 'formal' | 'plain') => void;
+  maybeRegenAphorism: () => void;
+  update: (updates: Partial<PovNode>) => void;
+  updatePovNode: (pov: Pov, id: string, updates: Partial<PovNode>) => void;
+  showDtDrilldown: boolean;
+  setShowDtDrilldown: React.Dispatch<React.SetStateAction<boolean>>;
+  expandedLineage: string | null;
+  setExpandedLineage: (v: string | null) => void;
+  showAttributeInfo: (field: string, value: string) => void;
+  hasGraphAttrs: boolean;
+}
+
+function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, showDtDrilldown, setShowDtDrilldown, expandedLineage, setExpandedLineage, showAttributeInfo, hasGraphAttrs }: NodeDetailContentTabProps) {
+  return (
+    <>
+      {node.category === 'Beliefs' && (
+        <BeliefsMetricsRow node={node} showDtDrilldown={showDtDrilldown} setShowDtDrilldown={setShowDtDrilldown} />
+      )}
+
+      {!readOnly && err('label') && (
+        <div className="error-text">{err('label')}</div>
+      )}
+
+      <DescriptionSection
+        pov={pov}
+        node={node}
+        readOnly={readOnly}
+        err={err}
+        descMode={descMode}
+        setDescMode={setDescMode}
+        maybeRegenAphorism={maybeRegenAphorism}
+        update={update}
+        updatePovNode={updatePovNode}
+      />
+
+      {hasGraphAttrs && (
+        <SteelmanVulnerabilitySection node={node} readOnly={readOnly} update={update} />
+      )}
+
+      {node.graph_attributes?.intellectual_lineage && node.graph_attributes.intellectual_lineage.length > 0 && (
+        <IntellectualLineageSection
+          node={node}
+          expandedLineage={expandedLineage}
+          setExpandedLineage={setExpandedLineage}
+          showAttributeInfo={showAttributeInfo}
+        />
+      )}
+    </>
+  );
+}
+
+// ── Related tab (extracted from NodeDetail for complexity) ──
+
+interface NodeDetailRelatedTabProps {
+  selectedEdge: unknown;
+  relatedSplitPct: number;
+  handleSplitMouseDown: (e: React.MouseEvent) => void;
+  splitContainerRef: React.RefObject<HTMLDivElement | null>;
+}
+
+function NodeDetailRelatedTab({ selectedEdge, relatedSplitPct, handleSplitMouseDown, splitContainerRef }: NodeDetailRelatedTabProps) {
+  return (
+    <div className="node-detail-related-split" ref={splitContainerRef}>
+      <div
+        className="node-detail-related-list nd-split-width"
+        /* eslint-disable-next-line local/no-inline-style -- width is a user-dragged split percentage, passed as a CSS custom property */
+        style={{ '--nd-split-width': `${relatedSplitPct}%` } as React.CSSProperties}
+      >
+        <RelatedEdgesPanel />
+      </div>
+      <div className="resize-handle" onMouseDown={handleSplitMouseDown} />
+      <div
+        className="node-detail-related-detail nd-split-width"
+        /* eslint-disable-next-line local/no-inline-style -- width is a user-dragged split percentage, passed as a CSS custom property */
+        style={{ '--nd-split-width': `${100 - relatedSplitPct}%` } as React.CSSProperties}
+      >
+        {selectedEdge ? (
+          <EdgeDetailPanel width={0} />
+        ) : (
+          <EmptyState headline="No edge selected" direction="Select an edge to view details" />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Attributes tab (extracted from NodeDetail for complexity) ──
+
+interface NodeDetailAttributesTabProps {
+  node: PovNode;
+  readOnly?: boolean;
+  pov: Pov;
+  updatePovNode: (pov: Pov, id: string, updates: Partial<PovNode>) => void;
+  update: (updates: Partial<PovNode>) => void;
+  runAttributeFilter: (field: string, value: string) => void;
+  showAttributeInfo: (field: string, value: string) => void;
+}
+
+function NodeDetailAttributesTab({ node, readOnly, pov, updatePovNode, update, runAttributeFilter, showAttributeInfo }: NodeDetailAttributesTabProps) {
+  if (!node.graph_attributes) return null;
+  return (
+    <GraphAttributesPanel
+      attrs={node.graph_attributes}
+      onBadgeClick={runAttributeFilter}
+      onShowAttributeInfo={showAttributeInfo}
+      onUpdatePolicyActions={readOnly ? undefined : (actions) => updatePovNode(pov, node.id, { graph_attributes: { ...node.graph_attributes!, policy_actions: actions } })}
+      onUpdateAssumptions={readOnly ? undefined : (assumes) => updatePovNode(pov, node.id, { graph_attributes: { ...node.graph_attributes!, assumes } })}
+      readOnly={readOnly}
+      defaultOpen
+      nodeCategory={node.category}
+      confidence={node.confidence}
+      priority={node.priority}
+      operationality={node.operationality}
+      doctrinallyAnchored={node.doctrinally_anchored}
+      evidentialConfidence={node.evidential_confidence}
+      confidenceHistory={node.confidence_history}
+      priorityHistory={node.priority_history}
+      operationalityHistory={node.operationality_history}
+      onUpdateWeightedBdi={readOnly ? undefined : (updates) => update(updates)}
+    />
+  );
+}
+
+// ── Facts tab (extracted from NodeDetail for complexity) ──
+
+interface NodeDetailFactsTabProps {
+  node: PovNode;
+  selectedFact: SourceFact | null;
+  setSelectedFact: (f: SourceFact | null) => void;
+  sourceDoc: SourceDocumentResolution | null;
+  sourceDocLoading: boolean;
+  factSplitPct: number;
+  handleFactSplitMouseDown: (e: React.MouseEvent) => void;
+  factSplitRef: React.RefObject<HTMLDivElement | null>;
+}
+
+function NodeDetailFactsTab({ node, selectedFact, setSelectedFact, sourceDoc, sourceDocLoading, factSplitPct, handleFactSplitMouseDown, factSplitRef }: NodeDetailFactsTabProps) {
+  return (
+    <div className="facts-split-container" ref={factSplitRef}>
+      <div
+        className="facts-split-list nd-split-height"
+        /* eslint-disable-next-line local/no-inline-style -- height is a user-dragged split percentage, passed as a CSS custom property */
+        style={sourceDoc?.available ? { '--nd-split-height': `${factSplitPct}%` } as React.CSSProperties : undefined}
+      >
+        <FactsPanel nodeId={node.id} onSelectFact={setSelectedFact} />
+      </div>
+      {sourceDocLoading && (
+        <div className="facts-doc-loading">
+          <span className="facts-doc-spinner" />
+          Resolving source document...
+        </div>
+      )}
+      {sourceDoc?.available && (
+        <>
+          <div className="resize-handle resize-handle-horizontal" onMouseDown={handleFactSplitMouseDown} />
+          <div
+            className="facts-doc-pane nd-split-height"
+            /* eslint-disable-next-line local/no-inline-style -- height is a user-dragged split percentage, passed as a CSS custom property */
+            style={{ '--nd-split-height': `${100 - factSplitPct}%` } as React.CSSProperties}
+          >
+            <div className="facts-doc-header">
+              <span className="facts-doc-title">{selectedFact?.doc_id}</span>
+              <span className="facts-doc-type">{sourceDoc.type?.toUpperCase()}</span>
+              <button className="facts-doc-close" onClick={() => setSelectedFact(null)} title="Close document viewer">&times;</button>
+            </div>
+            <SourceDocumentViewer doc={sourceDoc} claimText={selectedFact?.claim} />
+          </div>
+        </>
+      )}
+      {sourceDoc && !sourceDoc.available && !sourceDocLoading && (
+        <div className="facts-doc-unavailable">Source document not available for this fact.</div>
+      )}
+    </div>
+  );
+}
+
+// ── Research tab (extracted from NodeDetail for complexity) ──
+
+interface NodeDetailResearchTabProps {
+  node: PovNode;
+  researchText: string;
+  setResearchText: (v: string) => void;
+  researchCopied: boolean;
+  handleResearchCopy: () => void;
+  researchTextareaRef: React.RefObject<HTMLTextAreaElement | null>;
+}
+
+function NodeDetailResearchTab({ node, researchText, setResearchText, researchCopied, handleResearchCopy, researchTextareaRef }: NodeDetailResearchTabProps) {
+  return (
+    <div className="node-detail-research">
+      <EvidenceGraphSection nodeId={node.id} />
+      <RelatedCruxes nodeId={node.id} mode="compact" />
+      <div className="node-detail-research-header">
+        <span className="node-detail-research-desc">Research prompt for this position. Edit as needed, then copy to clipboard.</span>
+        <button
+          className={`btn btn-sm${researchCopied ? '' : ' btn-ghost'}`}
+          onClick={handleResearchCopy}
+        >
+          {researchCopied ? '✓ Copied' : 'Copy'}
+        </button>
+      </div>
+      <textarea
+        ref={researchTextareaRef}
+        className="node-detail-research-textarea"
+        value={researchText}
+        onChange={(e) => setResearchText(e.target.value)}
+        spellCheck={false}
+      />
     </div>
   );
 }
