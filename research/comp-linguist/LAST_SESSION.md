@@ -1,5 +1,24 @@
-**Date:** 2026-07-20
-**Working on:** t/1612 — relevance assessment of ChatEval (Chan et al. 2023, arXiv:2308.07201) vs our calibration/judge layer (`analyses/chan-2023-chateval-relevance.md`)
-**Status:** Complete. Committed 05ee2965 (85 insertions, explicit pathspec). Passes /review-prose (em_dashes 2→0, colon_hinge 9.8%→4.7%, emphasis_tics 3→1). Completion comment t/1612#1; ticket Done. Two follow-ups created BEFORE close: t/1648 (PM, paper integration), t/1649 (CL, panel-evaluator prototype).
-**Key context:** Disposition is MIXED — citation-only positioning → PM (t/1648), plus one CL prototype ticket (t/1649). Reconciliation with t/1611 (Liang unreliable-judge): split "diversity" into persona/lens (ChatEval's gain, keep) vs model/vendor (Liang's bias, avoid). Reliable+cheap config = lens-diverse + model-homogeneous panel on one shared flash-lite backbone, stance-neutral judge lenses. Best metric candidates = crux_addressed_rate + situation_crux_alignment; weak = repetition_rate + claims_forgotten (deterministic backbones); middle = convergence_score. Provenance register NOT triggered (doc-only); prototype's PR re-declares stipulated→human-validated + names pinned backbone.
-**Next:** LOOSE END — t/1610 (Du et al. multi-agent debate) deliverable `analyses/du-2023-multiagent-debate-relevance.md` is written and prose-clean but UNCOMMITTED and still In Progress; needs its own commit + 2 follow-up tickets + completion comment + Done. Also queued: t/1586, t/1342, q/30 (human, CL rec=4), t/1069, t/1587, t/1438.
+# Computational Linguist — Last Session
+
+**Closed:** 2026-07-28 ~02:15 local. Long session spanning a context compaction and one full session restart (API-error recovery).
+
+## Completed this session
+
+- **t/1670 criterion-disclosure A/B — Done.** Verdict: **evaluator relabeling** (preregistered Amendment 2 matrix, row 2). Labeling channel moved `addressed` 73.3% → 100% (+26.7pp) while the unpatched convergence layer stayed flat; transcript hand-checks found both arms near-ceiling and no debater gaming. The disclosure sentence is NOT adopted; the arm-B patch died with its worktree. Bronder F-3 unsupported for our harness. Key commits: scorer `24b18ee3` (blind, pre-data), Amendment 2 `8cb3d03d`, incident log `2248c818`, results `c1529174`. The production `crux_addressed_ratio` would have reported a +0.267 false positive (t/1796 demonstrated).
+- **t/1803 entity Phase-1 — Done** (SHA list in t/1803#2). **t/1819 landing — Done:** `enrichment.entity-extraction` + register union + owned-files are on origin/main as `907b214f`, object-verified. t/1806 live runs unblocked (PowerShell pinged, p/23#85).
+- **t/1818 (undecided-crux engagement gate):** design reviewed (approve-with-notes, t/1818#2), register row text supplied (t/1818#3), post-land code review of `c070c980` clean (t/1818#6). **My calibration against the frozen 30 is the open follow-up** — precision ≥0.90 AND recall ≥4/6, then fresh holdout N≥10 before the stipulated→derived flip.
+- **Register:** affect cutover note (`5692e283`, t/1785 fix landed `b1d39780`, pre/post non-comparable), t/1670 wording-sensitivity row + t/1818 gate row merged (`2b152147`). Register stomp hazard structurally closed by the `907b214f` landing.
+- **t/1824 filed** (CLI never exits post-finalization; fixed same night by Debate Tool 2, `b9c56b22`). Sage logged patterns #86 (win32 task-stop kills wrapper, not child trees) and the barrel-path citation lesson.
+
+## Queue (data-repo batches stay serialized, e/43#4)
+
+1. **t/1811** — enrich sit-448..470 (expand-existing, not regenerate); coordinate with PowerShell. Then **t/1805 step 3** (baseline 412→435).
+2. **t/1669 AC#2** — absorption batch, N≥30 archived sessions vs recorded terminal `crux.state` (not re-runs); PREREG doc first. Ticket state note at t/1669#8.
+3. **t/1818 calibration** — LLM-free, can interleave (no data-repo writes); harness needs a coerce-at-read shim for `taxonomy_refs` on archived sessions.
+4. **t/1770 backfill** — eyeball the 18 rounds==3 real rows before 14k rows move.
+
+## Traps hit this session (verify before repeating)
+
+- Batch runners: judge success by **harvest-artifact presence**, never returncode alone (three failure modes misreported by exit codes in one night). After any interruption, process-level check (`Get-CimInstance` command-line grep) for surviving writers before relaunching — "task stopped" is bookkeeping.
+- The `q/30` blocking question (WELL_TESTED_MIN_CHALLENGES 2→4/5) is still pending with the human since 07-15.
+- Local main remains diverged from origin (owner-gated gemini WIP); land via worktrees only, build worktree files from `git show HEAD:<path>` blobs, never the shared working tree.
