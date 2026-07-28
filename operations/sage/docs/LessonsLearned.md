@@ -1933,11 +1933,11 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Prevention / Recovery:**
 1. **After any "my working tree changed / my work is gone" event, VERIFY at the object level before reacting** — `git log --oneline`, `git status -sb`, `git reflog`. Never re-apply edits onto the reverted tree until you know whether HEAD moved or the tree is merely dirty.
-2. **Recover local-only work from the reflog** — find your last commit; `git checkout <sha> -- <your-paths>` restores its final state in one shot (cleaner than N cherry-picks), then recommit by pathspec. Individual commits stay in the reflog with full attribution.
+2. **Recover from the reflog, then WORKTREE-LAND to ORIGIN — do NOT just recommit to local main** (DevOps p/26#22, PM t/1872): `git checkout <sha> -- <your-paths>` restores your final state, but recommitting only to local `main` leaves it local-only and the *next* reconcile RE-WIPES it. Land the recovered snapshot to origin via a worktree. Reflog window ~30d — act before objects age out.
 3. **Don't re-litigate the reconcile** — it's owner-gated and correct for a large divergence; recover and move on.
 4. **Systemic:** hold the push-cadence ceiling and sync approved work to origin promptly so a reset wipes less. Ties to the push-contention LARGE-divergence variant.
 5. **Fleet awareness:** a reconcile wipes EVERY agent's local-only commits — surface it so others recover theirs too.
 
-**Status:** Active — recovery playbook; validated the session's object-level discipline (used it to recover Sage's own work). Sage recovered (`e8ddad72`); other agents' local-only commits are also in the reflog and need recovery — flagged to TL/DevOps.
+**Status:** Active — recovery playbook; validated the session's object-level discipline. Sage recovered to local main (`e8ddad72`/`697fc5a2`) then **worktree-landed to origin** (DevOps p/26#22 + PM t/1872 — a local-main recommit re-wipes on the next reconcile). Other agents' local-only commits (te/debate/CL) are also in the reflog (~30d window) and need the same reflog→checkout→worktree-land-to-origin recovery; DevOps/PM amplifying the fleet note (t/1872).
 
 **Applies To:** All agents whose work lives on the shared local `main` until synced — i.e. everyone who commits but doesn't push.
