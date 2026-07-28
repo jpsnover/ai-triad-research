@@ -49,76 +49,10 @@ export interface SynthesisSlice {
   compressOldTranscript: () => Promise<void>;
 }
 
-export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSlice> = (set, get) => ({
-  requestSynthesis: async () => {
-    const { activeDebate, addTranscriptEntry, saveDebate } = get();
-    if (!activeDebate) return;
-
-    newAbortController();
-    const isStillValid = createDebateGuard(get);
-    set({ debateError: null, debateWarnings: [], debateGenerating: 'system' as SpeakerId });
-    getGlobalRecorder()?.record({ type: 'debate.phase', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Phase: concluding', data: { phase: 'concluding' } });
-
-    const model = getConfiguredModel();
-    const fullTranscript = formatRecentTranscript(activeDebate.transcript, 50);
-    const hasSourceDoc = activeDebate.source_type === 'document' || activeDebate.source_type === 'url';
-
-    const policyRegistry = useTaxonomyStore.getState().policyRegistry ?? [];
-    const policyLines = policyRegistry.length > 0
-      ? policyRegistry.slice(0, 10).map(p => `${p.id}: ${p.action}`)
-      : undefined;
-
-    const synthInput: SynthesisInput = {
-      topic: activeDebate.topic.final,
-      transcript: fullTranscript,
-      audience: activeDebate.audience,
-      cruxTracker: activeDebate.crux_tracker,
-      policyLines,
-      hasSourceDoc,
-    };
-
-    try {
-      const result = await runSynthesisPhases(
-        synthInput,
-        async (prompt, label) => {
-          const { text } = await generateTextWithProgress(prompt, model, `${label} (${model})`, set, 180_000);
-          if (!isStillValid()) throw new Error('Debate changed during synthesis');
-          return text;
-        },
-        (_phase, label) => set({ debateActivity: label }),
-        (context, problem, nextStep) => {
-          getGlobalRecorder()?.record({
-            type: 'system.error',
-            component: 'debate-store',
-            level: 'warn',
-            debate_id: activeDebate.id,
-            message: `Synthesis warning: ${context} — ${problem}`,
-            data: { nextStep },
-          });
-          pushWarning(get, set, `${context}: ${problem}`);
-        },
-        () => { if (!isStillValid()) throw new Error('Debate changed during synthesis'); },
-      );
-
-      const synthesis: any = result.data;
-      const synthElapsedMs = result.elapsed_ms;
-
-      getGlobalRecorder()?.record({
-        type: 'ai.response',
-        component: 'debate-store',
-        level: 'info',
-        debate_id: activeDebate.id,
-        message: 'Synthesis parsed (3-phase pipeline)',
-        data: {
-          model,
-          parse_method: '3-phase',
-          schema: Object.fromEntries(
-            Object.entries(synthesis).map(([k, v]) => [k,
-              v === null ? 'null' : Array.isArray(v) ? `array(${(v as unknown[]).length})` : typeof v]),
-          ),
-        },
-      });
-
+// ── requestSynthesis sub-steps (t/1848 batch 4) ──────────────────────
+// Behavior-preserving decomposition: each post-synthesis pass is escape-free
+// (its own try/catch, no method-exiting return). Bodies moved verbatim.
+function buildSynthesisContent(synthesis: any): { lines: string[]; taxonomyCoverage: TaxonomyRef[] } {
       // Build readable content
       // Strip inline node IDs from text fields — they belong in taxonomy_refs, not prose
       const stripNodeIds = (text: unknown): string => {
@@ -242,22 +176,10 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
       const taxonomyCoverage: TaxonomyRef[] = (synthesis.taxonomy_coverage || [])
         .filter((t: Record<string, unknown>) => t.node_id)
         .map((t: Record<string, unknown>) => ({ node_id: t.node_id as string, relevance: (t.how_used as string) || '' }));
+  return { lines, taxonomyCoverage };
+}
 
-      const synthEntryId = addTranscriptEntry({
-        type: 'concluding',
-        speaker: 'system',
-        content: lines.join('\n'),
-        taxonomy_refs: taxonomyCoverage,
-        metadata: { synthesis },
-      });
-
-      recordDiagnostic(get, set, synthEntryId, {
-        prompt: '(3-phase synthesis pipeline — see raw_response for per-phase output)',
-        raw_response: JSON.stringify(result.rawResponses),
-        model,
-        response_time_ms: synthElapsedMs,
-      });
-
+async function runMissingArgumentsPass(get: () => DebateStore, set: (partial: any) => void, activeDebate: DebateSession, model: string, lines: string[]): Promise<void> {
       // Missing arguments pass — fire after synthesis, non-blocking
       try {
         const synthText = lines.join('\n').slice(0, 4000);
@@ -294,7 +216,9 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
         console.warn('[Missing Args] Pass failed (non-blocking):', maErr);
         pushWarning(get, set, 'Missing argument detection skipped');
       }
+}
 
+async function runTaxonomyRefinementPass(get: () => DebateStore, set: (partial: any) => void, activeDebate: DebateSession, model: string, lines: string[]): Promise<void> {
       // Taxonomy refinement pass — suggest node revisions based on debate evidence
       try {
         const currentD = get().activeDebate;
@@ -373,7 +297,9 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
         console.warn('[Taxonomy Refinement] Pass failed (non-blocking):', trErr);
         pushWarning(get, set, 'Taxonomy refinement suggestions skipped');
       }
+}
 
+async function runCrossCuttingPromotion(get: () => DebateStore, set: (partial: any) => void, activeDebate: DebateSession, model: string): Promise<void> {
       // Cross-cutting node promotion — propose situation nodes from 3-way agreements
       try {
         const ccDebate = get().activeDebate;
@@ -418,7 +344,9 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
         console.warn('[Cross-Cutting Proposals] Pass failed (non-blocking):', ccErr);
         pushWarning(get, set, 'Cross-cutting proposal detection skipped');
       }
+}
 
+function runTaxonomyGapAnalysis(get: () => DebateStore, set: (partial: any) => void, activeDebate: DebateSession): void {
       // Taxonomy gap analysis (deterministic — no LLM calls)
       try {
         const gapDebate = get().activeDebate;
@@ -461,7 +389,9 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
         console.warn('[Taxonomy Gap Analysis] Pass failed (non-blocking):', tgaErr);
         pushWarning(get, set, 'Taxonomy gap analysis skipped');
       }
+}
 
+async function runEvidenceQbafPass(get: () => DebateStore, set: (partial: any) => void, activeDebate: DebateSession, model: string, isStillValid: () => boolean): Promise<void> {
       // Evidence QBAF — score Belief nodes against source corpus (t/241)
       try {
         const eqDebate = get().activeDebate;
@@ -529,22 +459,9 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
         });
         pushWarning(get, set, 'Evidence QBAF scoring skipped');
       }
+}
 
-      // Neutral evaluation: final checkpoint (after synthesis) — awaited to prevent
-      // phase regression race (t/301): void-ing this allowed updatePhase('closed')
-      // to run before the checkpoint's set() call, which then clobbered 'closed' back to 'debate'.
-      await runNeutralCheckpoint('final', get, set as any, addTranscriptEntry as any);
-
-      // Transition phase to closed now that synthesis and all post-synthesis passes are done
-      get().updatePhase('closed');
-      // Immediate save bypassing auto-save debounce — a hard crash within the debounce
-      // window after synthesis would lose the entire synthesis result (t/1140 AC3).
-      await saveDebate('synthesis-complete');
-      const turnCount = activeDebate?.transcript.filter(e => e.type === 'statement').length ?? 0;
-      const durationMs = activeDebate?.created_at ? Date.now() - new Date(activeDebate.created_at).getTime() : 0;
-      api.trackEvent('debate_complete', 'debate', { debateId: activeDebate?.id, rounds: turnCount });
-      trackDebateComplete(activeDebate?.id, turnCount, durationMs);
-
+function runLineageDebateSummary(get: () => DebateStore, activeDebate: DebateSession): void {
       // Emit lineage.debate-summary — aggregates per-turn lineage boost data for quick impact assessment
       try {
         const closedDebate = get().activeDebate;
@@ -612,6 +529,121 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
           error: { name: (summaryErr as Error).name ?? 'Error', message: String(summaryErr), stack: (summaryErr as Error).stack },
         });
       }
+}
+
+export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSlice> = (set, get) => ({
+  requestSynthesis: async () => {
+    const { activeDebate, addTranscriptEntry, saveDebate } = get();
+    if (!activeDebate) return;
+
+    newAbortController();
+    const isStillValid = createDebateGuard(get);
+    set({ debateError: null, debateWarnings: [], debateGenerating: 'system' as SpeakerId });
+    getGlobalRecorder()?.record({ type: 'debate.phase', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Phase: concluding', data: { phase: 'concluding' } });
+
+    const model = getConfiguredModel();
+    const fullTranscript = formatRecentTranscript(activeDebate.transcript, 50);
+    const hasSourceDoc = activeDebate.source_type === 'document' || activeDebate.source_type === 'url';
+
+    const policyRegistry = useTaxonomyStore.getState().policyRegistry ?? [];
+    const policyLines = policyRegistry.length > 0
+      ? policyRegistry.slice(0, 10).map(p => `${p.id}: ${p.action}`)
+      : undefined;
+
+    const synthInput: SynthesisInput = {
+      topic: activeDebate.topic.final,
+      transcript: fullTranscript,
+      audience: activeDebate.audience,
+      cruxTracker: activeDebate.crux_tracker,
+      policyLines,
+      hasSourceDoc,
+    };
+
+    try {
+      const result = await runSynthesisPhases(
+        synthInput,
+        async (prompt, label) => {
+          const { text } = await generateTextWithProgress(prompt, model, `${label} (${model})`, set, 180_000);
+          if (!isStillValid()) throw new Error('Debate changed during synthesis');
+          return text;
+        },
+        (_phase, label) => set({ debateActivity: label }),
+        (context, problem, nextStep) => {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'debate-store',
+            level: 'warn',
+            debate_id: activeDebate.id,
+            message: `Synthesis warning: ${context} — ${problem}`,
+            data: { nextStep },
+          });
+          pushWarning(get, set, `${context}: ${problem}`);
+        },
+        () => { if (!isStillValid()) throw new Error('Debate changed during synthesis'); },
+      );
+
+      const synthesis: any = result.data;
+      const synthElapsedMs = result.elapsed_ms;
+
+      getGlobalRecorder()?.record({
+        type: 'ai.response',
+        component: 'debate-store',
+        level: 'info',
+        debate_id: activeDebate.id,
+        message: 'Synthesis parsed (3-phase pipeline)',
+        data: {
+          model,
+          parse_method: '3-phase',
+          schema: Object.fromEntries(
+            Object.entries(synthesis).map(([k, v]) => [k,
+              v === null ? 'null' : Array.isArray(v) ? `array(${(v as unknown[]).length})` : typeof v]),
+          ),
+        },
+      });
+
+      const { lines, taxonomyCoverage } = buildSynthesisContent(synthesis);
+
+      const synthEntryId = addTranscriptEntry({
+        type: 'concluding',
+        speaker: 'system',
+        content: lines.join('\n'),
+        taxonomy_refs: taxonomyCoverage,
+        metadata: { synthesis },
+      });
+
+      recordDiagnostic(get, set, synthEntryId, {
+        prompt: '(3-phase synthesis pipeline — see raw_response for per-phase output)',
+        raw_response: JSON.stringify(result.rawResponses),
+        model,
+        response_time_ms: synthElapsedMs,
+      });
+
+      await runMissingArgumentsPass(get, set, activeDebate, model, lines);
+
+      await runTaxonomyRefinementPass(get, set, activeDebate, model, lines);
+
+      await runCrossCuttingPromotion(get, set, activeDebate, model);
+
+      runTaxonomyGapAnalysis(get, set, activeDebate);
+
+      await runEvidenceQbafPass(get, set, activeDebate, model, isStillValid);
+
+      // Neutral evaluation: final checkpoint (after synthesis) — awaited to prevent
+      // phase regression race (t/301): void-ing this allowed updatePhase('closed')
+      // to run before the checkpoint's set() call, which then clobbered 'closed' back to 'debate'.
+      await runNeutralCheckpoint('final', get, set as any, addTranscriptEntry as any);
+
+      // Transition phase to closed now that synthesis and all post-synthesis passes are done
+      get().updatePhase('closed');
+      // Immediate save bypassing auto-save debounce — a hard crash within the debounce
+      // window after synthesis would lose the entire synthesis result (t/1140 AC3).
+      await saveDebate('synthesis-complete');
+      const turnCount = activeDebate?.transcript.filter(e => e.type === 'statement').length ?? 0;
+      const durationMs = activeDebate?.created_at ? Date.now() - new Date(activeDebate.created_at).getTime() : 0;
+      api.trackEvent('debate_complete', 'debate', { debateId: activeDebate?.id, rounds: turnCount });
+      trackDebateComplete(activeDebate?.id, turnCount, durationMs);
+
+      runLineageDebateSummary(get, activeDebate);
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error',
