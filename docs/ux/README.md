@@ -19,6 +19,6 @@ Active UX specs in `docs/ux/`. Design owns these; coding agents reference them d
 | `conflict-detail-redesign.md` | Conflict page read-mode redesign; supersedes de-engineering-pass §2 |
 | `org-detail-redesign.md` | Organization detail readability pass: key-figure rows, link/source rows, no raw JSON/URLs |
 | `aitriad-help-redesign.md` | Show-AITriadHelp auto-gen page: sidebar nav + search for 158 cmdlets (t/1570) |
-| `entity-mentions-detail.md` | Inline entity mentions + entity/term detail renderers (rendering half of the entity ontology; t/1766/t/1767) |
+| `entity-mentions-detail.md` | Inline entity mentions + entity/term detail renderers + entity browser tool (rendering half of the entity ontology; t/1766/t/1767) |
 | `regenerate-phrases-toggle.md` | Opt-in phrase regeneration on reflection edits (t/611, done) |
 | `design-system.md` | Design system reference (living document) |

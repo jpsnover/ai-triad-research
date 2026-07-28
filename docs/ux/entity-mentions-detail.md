@@ -45,8 +45,9 @@ Container presentation is fixed by `DetailPane.css`: resizable right pane, `min-
 1. **Entity detail view** — replace the `case 'entity'` placeholder (§5).
 2. **Term detail view** — replace the `case 'term'` placeholder (§6).
 3. **Widen ID-token linkification** — add `entity`, `organization`, `term` to `LINKABLE_KINDS` so literal ID tokens (`ent-042`, `org-openai`, `term:p-doom`) in prose become clickable (§4.1). This is a one-line filter change; the renderers above give it a destination.
+4. **Entity browser** (§7) — a left-toolbar tool to display / search / sort entities, driving the shared DetailPane. This one carries a data dependency: the list/query endpoint (§7.4). It ships in Phase 1 if that endpoint lands with the DetailPane work, else Phase 1.5.
 
-Phase 1 is complete against landed data. Its real-world yield is modest — literal ID tokens are rare in natural prose — but it finishes the reference surface and makes every resolvable ref clickable everywhere `refLinkifyPlugin` runs.
+Items 1–3 are complete against landed data. Its real-world yield is modest — literal ID tokens are rare in natural prose — but it finishes the reference surface and makes every resolvable ref clickable everywhere `refLinkifyPlugin` runs.
 
 ### Phase 2 — Name / alias mention rendering *(depends on a CL data deliverable)*
 
@@ -65,7 +66,7 @@ Phase 2 needs the annotation format + emission from CL and a store/bridge path f
 
 No visual change from today's node/situation/policy links — same `.ref-link` treatment, extended to the three new kinds by the filter flip. Display text stays the **raw source token, verbatim** (fidelity rule in `refLinkifyPlugin`).
 
-- **Kind is not color-coded.** All ref-links keep the single `var(--accent)` dotted-underline treatment. This is deliberate: dense academic prose with six colors of link becomes a ransom note. Kind is communicated by (a) the `data-ref-kind` attribute for tooling/tests, (b) an `aria-label` prefix (§7), and (c) the DetailPane header badge once opened — never by prose color.
+- **Kind is not color-coded.** All ref-links keep the single `var(--accent)` dotted-underline treatment. This is deliberate: dense academic prose with six colors of link becomes a ransom note. Kind is communicated by (a) the `data-ref-kind` attribute for tooling/tests, (b) an `aria-label` prefix (§8), and (c) the DetailPane header badge once opened — never by prose color.
 
 ### 4.2 Name / alias mentions (Phase 2 — rendering contract)
 
@@ -154,7 +155,76 @@ Note: `EntityDetail['term'].record` is `ColloquialTerm`. If a future change poin
 
 ---
 
-## 7. Interaction & accessibility
+## 7. Entity browser (left-toolbar tool)
+
+A dedicated left-toolbar tool to **display, search, and sort** the full entity set — the counterpart to the existing **Organizations** tab and **Vocabulary** panel. Where inline mentions and the DetailPane answer *"tell me about this entity I'm reading,"* the browser answers *"show me all entities / find one / scan them by type."*
+
+### 7.1 Toolbar registration
+
+Register in `data/navConfig.ts` as a new `NavItem`, mirroring the existing entries:
+
+```
+{ id: 'entities', label: 'Entities', icon: Boxes, tier: 'secondary', group: 'browse',
+  action: { type: 'togglePanel', target: 'entities' } }
+```
+
+- **Icon:** `Boxes` (lucide) — reads as "a collection of things," distinct from Organizations' `Building2`. (Alternatives: `Network` for the ontology/graph connotation, or `Shapes`. Recommend `Boxes`.)
+- **Tier/group:** `secondary`, `group: 'browse'` — it is a browse surface; it sits with Situations/Conflicts/Summaries in the browse group of the "more" menu.
+- **Panel wiring:** add `'entities'` to the `ToolbarPanel` union in `Toolbar.tsx` and render the panel when `toolbarPanel === 'entities'` — exactly the Edge Browser / Vocabulary `togglePanel` pattern.
+
+### 7.2 Side panel, not a full tab (recommendation)
+
+**Recommended: a `togglePanel` side panel** (like Edge Browser and Vocabulary), where selecting an entity opens the **shared DetailPane** (§5) on the right.
+
+- **One detail view, not two.** The entity detail renderer already lives in the DetailPane (§5). A side panel that drives `setSelectedRef` reuses it verbatim — the browser is the *list*, the DetailPane is the *detail*. A full tab would have to re-render entity detail, duplicating §5.
+- **Browse while reading.** Open the entity list beside the transcript/POV/facts without leaving your place — the same ergonomics as Edge Browser.
+- **Established pattern.** Edge Browser is exactly list-panel + shared detail; this reuses it.
+
+**Alternative considered — a full "Entities" tab** (`switchTab`, `group: 'tools'`, next to Organizations). It is the closer parallel to Organizations (its sibling entity kind) and gives room for a multi-column sortable table. Rejected as primary only because it duplicates detail rendering and forces a context switch. If the team prefers tab-consistency with Organizations over panel-reuse, this is the fallback — **flag for TL/PM**.
+
+### 7.3 Panel layout & controls
+
+```
+┌ Entities ───────────────── [✕] ┐
+│ 🔍 Search name, alias, type…    │  ← instant filter
+│ Sort: [ Name A–Z ▾ ]            │  ← Name / Type / Status / Confidence / Recently modified
+│ Type: ◉all ▫person ▫org …       │  ← facet chips w/ counts (multi-select, collapsible)
+│ Status: ▫proposed ▫approved …   │
+│ ───────────────────────────    │
+│ 142 entities                    │  ← count ("N of M" when filtered)
+│ ▸ OpenAI            [Inst]  ●   │  ← row: name · type badge · status dot
+│     also: OpenAI Inc.           │      muted second line (alias / description start)
+│ ▸ EU AI Act         [Legis] ●   │
+│ ▸ p(doom)           [Artf]  ○   │  ← deprecated row de-emphasized
+│ …                               │
+└─────────────────────────────────┘
+```
+
+- **Search** — one box; instant filter over `name` + `aliases` + `id` + `entity_type`. Escape clears.
+- **Sort** — a labeled `<select>`: **Name A–Z** (default), Type, Status, Confidence (desc), Recently modified. Applies within the filtered set.
+- **Facets** — optional type + status filter chips with live counts (person / artifact / event / legislation / institution; proposed / approved / deprecated). Multi-select, additive, collapsible so the list dominates.
+- **Rows** — compact and dense (academic tool): name + type badge + status dot; a muted second line (first alias or start of description). `deprecated` rows de-emphasized. No raw IDs in the row (id available on hover / in the DetailPane).
+- **Result count** — "N entities", or "N of M" when filtered.
+- **Selection** — clicking a row calls `setSelectedRef({ kind: 'entity', id })`, opening the shared DetailPane (§5). Selected row shows a persistent active state.
+- **States** — loading ("Loading…"/skeleton), empty ("No entities match"), error (`EmptyState`).
+
+### 7.4 Data dependency — entity list/query endpoint (does not exist yet)
+
+The single-record path exists (`GET /api/entity/:ref` → `api.getEntity`, t/1786), but **there is no list/search endpoint**. The browser needs one:
+
+- **Server:** `GET /api/entities?search=&sort=&type=&status=` → summary records (id, name, aliases, entity_type, status, confidence, last_modified — enough for rows without shipping every field). Parallels the `getEntity` route.
+- **Bridge:** add `listEntities(query)` to `bridge/types.ts` + `web-bridge.ts`, plus the electron IPC handler (parallels the `getEntity` IPC gap, t/1809).
+- **Scale:** if `entities.json` is small, load-all-then-filter-client-side is fine (mirrors how the store already holds orgs/policy); if it grows large, move search/sort server-side — the panel contract above is identical either way. **Confirm approach with TL** based on expected entity count.
+
+This is a **server/bridge dependency** — route to TL (endpoint + IPC) alongside the DetailPane consumer work. The browser UI (this spec) builds against `listEntities`.
+
+### 7.5 Accessibility
+
+The list is a keyboard-navigable listbox: `role="listbox"`, rows `role="option"` with `aria-selected`; ↑/↓ move, Enter/Space opens (drives the DetailPane), type-to-search focuses the search box. Search box and sort `<select>` are labeled. Focus returns to the active row when the DetailPane closes. Badges, status dots, and the muted second line meet AA contrast in all four themes (see §8, §9).
+
+---
+
+## 8. Interaction & accessibility
 
 - **Ref-links / mentions are buttons.** Each is a `<button class="ref-link">` (already so for ID tokens). `role=button` is implicit; keyboard activation via Enter/Space is native. Do **not** use a bare `<span>` with an onClick.
 - **`aria-label` per link.** `"{Kind}: {display text} — open details"`, e.g. `"Entity: OpenAI — open details"`, so screen-reader users get the kind that sighted users get from context. Kind comes from `data-ref-kind`.
@@ -166,7 +236,7 @@ Note: `EntityDetail['term'].record` is `ColloquialTerm`. If a future change poin
 
 ---
 
-## 8. Visual tokens
+## 9. Visual tokens
 
 Use existing design-system tokens (`docs/ux/design-system.md`). No new palette required for Phase 1.
 
@@ -178,7 +248,7 @@ Use existing design-system tokens (`docs/ux/design-system.md`). No new palette r
 
 ---
 
-## 9. Acceptance criteria (Design sign-off)
+## 10. Acceptance criteria (Design sign-off)
 
 Verified visually via electron-mcp (per `/design-review-workflow`) before the design ticket is marked Done:
 
@@ -190,24 +260,28 @@ Verified visually via electron-mcp (per `/design-review-workflow`) before the de
 6. All link treatments, badges, pills, and text clear WCAG AA contrast in **all four themes**.
 7. Keyboard: Tab reaches every ref-link; Enter/Space opens; Escape closes; focus returns to the originating link.
 8. No raw JSON and no bare entity IDs appear in the reading flow (IDs only in the muted provenance/usage context).
+9. The **Entities** toolbar tool opens a panel that lists entities, filters them via the search box, and re-sorts via the sort control; selecting a row opens the entity DetailPane (§5) with a persistent active state; keyboard listbox navigation works (↑/↓/Enter).
 
 ---
 
-## 10. What NOT to do
+## 11. What NOT to do
 
 - **No client-side NER / live name matching.** Name mentions come from precomputed annotations only (§4.2). The renderer never scans prose for entity names.
 - **No per-kind color-coding of prose links** (§4.1) — one link treatment, kind via label/badge.
 - **No new DetailPane container / modal / popover.** The right-hand pane exists; render body content into it.
+- **No duplicate entity-detail rendering in the browser** (§7). The browser lists and filters; selecting a row drives the shared DetailPane (§5). Do not fork a second entity detail view into the panel.
 - **No editing.** These are read-only views (`readOnly` like `NodeDetail`/`SituationDetail`). Curation/disposition of entities is a separate admin surface, not this pane.
 - **Do not restate the data model.** Consume `Entity` / `ColloquialTerm` from `lib/entities/types.ts` and `lib/dictionary/types.ts`; a fork of the contract is a bug.
 - **Do not surface `created_at` / `last_modified` / `merged_into` / raw `dolce_category`** in the primary reading flow.
 
 ---
 
-## 11. Open questions (for CL / TL / Requirements)
+## 12. Open questions (for CL / TL / Requirements)
 
 1. **Mention annotation format & transport (Phase 2)** — CL to confirm the emitted span shape (`{start, end, ref, confidence, ambiguous?}`) and which corpora carry it first (facts → POV → debate → chat, per t/1767). TL to confirm store/bridge path. Blocks Phase 2.
 2. **Confidence threshold** for linking name mentions — proposed `≥ 0.75`; CL owns the number.
 3. **`source_refs` navigation** — is there a doc/source viewer a source chip can open to? If not, chips are labeled-only in v1 (Requirements/TL).
 4. **Term layer priority** — ship the term view in Phase 1 or defer to 1.5? (PM/Requirements.)
 5. **Ticket attachment** — this UX half is cross-referenced by both t/1766 (rendering) and t/1767 (data, Done). Confirm the implementation ticket it lands under before TL decomposition.
+6. **Entity list endpoint** — `GET /api/entities` (search / sort / filter) does not exist yet (§7.4). TL: client-side-filter vs. server-side query, and the summary row shape. Blocks the entity browser (§7), not the detail renderers.
+7. **Browser: panel vs. tab** — recommend a `togglePanel` side panel that reuses the DetailPane; the Organizations-style full `switchTab` tab is the alternative (§7.2). TL/PM to confirm.
