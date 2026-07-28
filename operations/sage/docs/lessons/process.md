@@ -440,3 +440,25 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 **Status:** Active — gate-signal-integrity (flaky-gate false-red, #20/#46); flaky-suite stabilization routed HIGH to DebateTool (t/1829). A flaky primary gate is high-severity because it degrades every agent's ability to trust verify.
 
 **Applies To:** All agents running `npm run verify` / the `lib/debate` suite — read the failing test names before attributing a red to your change.
+
+---
+
+## [Process] Shared Local-Main Reconcile (Hard-Reset to origin) Wipes ALL Agents' Local-Only Commits — Recover From reflog, Don't Trust the Reverted Tree
+
+**Pattern:** The shared local `main` accumulates local-only commits from many agents (Sage/most roles commit but don't push; TL/DevOps sync to origin). When the owner-gated **diverged-main reconcile** runs — `git reset` local `main` to `origin/main` — **every un-synced local commit is wiped off the branch at once, across all agents simultaneously.** An agent's working tree abruptly shows an EARLIER state and their session's work looks "gone." It is **not lost** — every commit survives in the reflog — but HEAD/branch/working-tree no longer contain it, which looks exactly like a revert.
+
+**Instances:**
+- 2026-07-28 — Sage (this session): shared local `main` (at Sage's last commit `20c32334`) was hard-reset to `origin/main` (reflog `HEAD@{0}: reset: moving to origin/main`), wiping ~30 local-only Sage doc commits (`e6daccc7`..`20c32334`: #82 dispositions + the PS-not-TS correction, #87–#92, #78 timeout, flag-order 6th/7th, /tmp, bc/awk) **plus other agents' local-only commits** interleaved in the reflog (te `t/1849` refactors, debate fixes, CL `t/1826`). **Caught by object-level verification** — the injected "your docs reverted" reminders showed a Total-83 working tree, but `git log`/`git status -sb`/`git reflog`/`git cat-file` proved HEAD had been reset and the commits were dangling-but-intact. **Recovered** with `git checkout 20c32334 -- operations/sage/docs/ operations/sage/LAST_SESSION.md` (restore my exclusive scope's final state) → one recommit (`e8ddad72`, Total-83→93). No loss.
+
+**Root Cause:** The shared local `main` is a shared, un-pushed staging area; local-only commits live *only* there until TL/DevOps sync them to origin. Hard-resetting it to origin (the correct owner-gated fix for a large divergence) atomically discards every un-synced commit. Git doesn't delete objects, so they persist in the reflog — but the working tree/HEAD stop showing them, which reads as "my work was reverted/lost." Same object-level-vs-inference discipline as #69 and Git Forensics (#44/#54/#55): a changed working tree is not evidence of what's committed or recoverable.
+
+**Prevention / Recovery:**
+1. **After any "my working tree changed / my work is gone" event, VERIFY at the object level before reacting** — `git log --oneline`, `git status -sb`, `git reflog`. Never re-apply edits onto the reverted tree until you know whether HEAD moved (reset) or the tree is merely dirty. (This is the whole session's bookkeeping-≠-artifact / object-level rule, applied to your own repo state.)
+2. **Recover local-only work from the reflog** — find your last commit in `git reflog`; for a whole scope, `git checkout <sha> -- <your-paths>` restores its final state in one shot (cleaner than cherry-picking N commits), then recommit by pathspec. The individual commits stay in the reflog with full attribution.
+3. **Don't re-litigate the reconcile** — it's owner-gated and the correct fix for a large divergence ([memory: local-main reconcile is owner-gated]). Recover your work and move on; don't propose/flag another reset.
+4. **Systemic:** hold the push-cadence ceiling (fewer local-only commits → a reconcile wipes less) and sync approved work to origin promptly (TL/DevOps), so it survives a reset. Ties to the push-contention LARGE-divergence variant.
+5. **Fleet awareness:** a reconcile wipes EVERY agent's local-only commits — surface it so others recover theirs from reflog too.
+
+**Status:** Active — recovery playbook; **validated the session's object-level discipline** (used it to recover Sage's own work). Sage recovered (`e8ddad72`); other agents' local-only commits (te/debate/CL) are also in the reflog and need recovery — flagged to TL/DevOps.
+
+**Applies To:** All agents whose work lives on the shared local `main` until synced — i.e. everyone who commits but doesn't push.
