@@ -7,6 +7,7 @@
     "version": 1,
     "_doc": "Pinned neutral-evaluator model — a recorded calibration invariant (t/1843 ruling, t/1846). Crux metrics are evaluator-model-relative (t/1835: MAD 0.625 across evaluator families), so the optimizer only compares calibration rows scored by this exact model. Changing it is a hard cutover: bump version, which resets the parameter-history baseline; never mix evaluators inside one comparison window. Pin choice must survive config migrations (TL t/1843#1)."
   },
+  "argumentative_saturation_provenance": "PROVISIONAL / policy-untrusted (TL t/1843#4). These values are the live product of the single optimizer --apply run (2026-05-03, 290 data points, optimizeSaturationWeights — objective consumes crux_addressed_ratio, which is not yet reference-anchored). Single-evaluator per RA forensics (t/1843#3) — NOT the mixed-evaluator defect — but not validated either: grandfathered-as-labeled, never to be read as calibrated truth. Superseded by the first reference-calibrated re-derivation (t/1847); all future crux-axis writes are blocked by CRUX_AXIS_PARAMS (t/1846).",
   "argumentative_saturation": {
     "recycling_pressure": 0.01,
     "crux_maturity": 0.28,
