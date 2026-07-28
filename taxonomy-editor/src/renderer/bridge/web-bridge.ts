@@ -1175,6 +1175,18 @@ const rawApi: AppAPI = {
   // Entity / ref resolution (t/1775)
   getEntity: (ref) => get(`/api/entity/${encodeURIComponent(ref)}`),
 
+  // Entity list/browser (t/1883). v1 sends search/sort/type/status as query params
+  // (URL-encoded, undefined keys omitted); the server currently returns the full list.
+  listEntities: (query) => {
+    const params = new URLSearchParams();
+    if (query?.search) params.set('search', query.search);
+    if (query?.sort) params.set('sort', query.sort);
+    if (query?.type) params.set('type', query.type);
+    if (query?.status) params.set('status', query.status);
+    const qs = params.toString();
+    return get(`/api/entities${qs ? `?${qs}` : ''}`);
+  },
+
   // Calibration
   getCalibrationHistory: () => get<{ current: unknown; history: unknown[] }>('/api/calibration/history').catch(bridgeWarn('getCalibrationHistory failed', { current: null, history: [] })),
   getCalibrationLog: () => get<{ entries: unknown[]; validationReport: unknown }>('/api/calibration/log').catch(bridgeWarn('getCalibrationLog failed', { entries: [], validationReport: null })),

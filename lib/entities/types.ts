@@ -85,6 +85,11 @@ export interface Entity {
   last_modified: string;
 }
 
+/** Summary row for the entity list/browser (t/1883). Derived from Entity — never forked. */
+export type EntitySummary = Pick<Entity, 'id' | 'name' | 'aliases' | 'entity_type' | 'status' | 'confidence' | 'last_modified'>;
+/** Query params for GET /api/entities / listEntities (v1: accepted, client-side-filtered — TL t/1766#7 Q6). */
+export interface EntityListQuery { search?: string; sort?: string; type?: string; status?: string }
+
 /** Common envelope. `redirected_from` is set when a merged_into tombstone was followed. */
 export interface EntityDetailBase { ref: EntityRef; redirected_from?: string }
 

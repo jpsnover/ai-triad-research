@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import type { Organization, OrganizationEdge } from '@lib/organizations/types';
-import type { EntityDetail } from '@lib/entities/types';
+import type { EntityDetail, EntitySummary, EntityListQuery } from '@lib/entities/types';
 import type { EdgesFile } from '@lib/debate/taxonomyTypes';
 
 export interface ElectronAPI {
@@ -246,6 +246,10 @@ export interface ElectronAPI {
   // handler in t/1809 (ElectronMain). Until then window.electronAPI.getEntity is
   // undefined and the bridge degrades gracefully.
   getEntity?: (ref: string) => Promise<EntityDetail>;
+
+  // Entity list/browser (t/1883). Optional — wired by the list-entities IPC handler
+  // (ElectronMain, later). Until then undefined and the bridge degrades to [].
+  listEntities?: (query?: EntityListQuery) => Promise<EntitySummary[]>;
 
   // Deep-link URL
   getWebAppUrl?: () => Promise<string | null>;

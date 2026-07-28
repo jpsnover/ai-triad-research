@@ -88,9 +88,11 @@ export type EdgesFile = _EdgesFile;
 // Canonical ref-kind contract (t/1767 §5). Re-exported so renderer consumers
 // (resolveRef / DetailPane, t/1775) have a single import site alongside `api`,
 // without forking the shared union. Never redeclared here — pure re-export.
-import type { EntityRef as _EntityRef, EntityDetail as _EntityDetail } from '@lib/entities/types';
+import type { EntityRef as _EntityRef, EntityDetail as _EntityDetail, EntitySummary as _EntitySummary, EntityListQuery as _EntityListQuery } from '@lib/entities/types';
 export type EntityRef = _EntityRef;
 export type EntityDetail = _EntityDetail;
+export type EntitySummary = _EntitySummary;
+export type EntityListQuery = _EntityListQuery;
 
 export interface OrgFilters { type?: string; pov?: string }
 
@@ -318,6 +320,13 @@ export interface AppAPI {
    * server-side, stamping `redirected_from` on the result.
    */
   getEntity: (ref: string) => Promise<EntityDetail>;
+
+  /**
+   * List entity summary rows for the entity browser (`GET /api/entities`, t/1883).
+   * v1 accepts search/sort/type/status query params for forward-compat but the
+   * server returns the full list (client-side filtered — TL t/1766#7 Q6).
+   */
+  listEntities: (query?: EntityListQuery) => Promise<EntitySummary[]>;
 
   // --- Calibration ---
   getCalibrationHistory: () => Promise<{ current: unknown; history: unknown[] }>;

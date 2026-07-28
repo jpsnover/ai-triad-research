@@ -14,7 +14,7 @@ import type { ServerCtx } from './context.js';
 import type { PovNode, SituationNode } from '../../../../lib/debate/taxonomyTypes.js';
 import type { PolicyAction } from '../../../../lib/policy/types.js';
 import type { ColloquialTerm } from '../../../../lib/dictionary/types.js';
-import type { Entity, EntityDetail, EntityRef } from '../../../../lib/entities/types.js';
+import type { Entity, EntityDetail, EntityRef, EntitySummary } from '../../../../lib/entities/types.js';
 import { json, error, param } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
@@ -137,6 +137,31 @@ async function loadEntityRegistry(): Promise<Map<string, Entity> | null> {
 
 export function registerEntityRoutes(r: Router, _ctx: ServerCtx): void {
   const { get } = r;
+
+  // GET /api/entities — session-gated list of entity summary rows for the browser.
+  get('/api/entities', async (req, res) => {
+    try {
+      // v1: client-side filter (TL t/1766#7 Q6) — accept search/sort/type/status query
+      // params for forward-compat but return the full summary list. readEntityRegistry
+      // (t/1807) returns null when entities.json is absent → [] (never crash, ADR-001).
+      const reg = await fileIO.readEntityRegistry();
+      const rows: EntitySummary[] = reg
+        ? [...reg.values()].map(e => ({
+            id: e.id, name: e.name, aliases: e.aliases,
+            entity_type: e.entity_type, status: e.status,
+            confidence: e.confidence, last_modified: e.last_modified,
+          }))
+        : [];
+      json(res, rows);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'server', level: 'error',
+        message: 'Failed to list entities',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      error(res, String(err), 500, err);
+    }
+  });
 
   // GET /api/entity/:ref — public read: resolve any entity-ref token to its record.
   get('/api/entity/:ref', async (req, res) => {

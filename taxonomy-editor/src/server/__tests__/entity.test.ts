@@ -175,6 +175,81 @@ describe('GET /api/entity/:ref (t/1786)', () => {
   });
 });
 
+// ── list-route harness (GET /api/entities, t/1883) ──
+async function invokeList(): Promise<{ status: number; body: unknown }> {
+  const routes: { method: string; path: string; handler: Handler }[] = [];
+  registerEntityRoutes(createRouter(routes), {} as ServerCtx);
+  const route = routes.find(r => r.path === '/api/entities');
+  if (!route) throw new Error('entities list route not registered');
+
+  const req = { url: '/api/entities', method: 'GET', headers: {} } as unknown as IncomingMessage;
+  let status = 200;
+  let body: unknown;
+  const res = {
+    writableEnded: false,
+    headersSent: false,
+    req,
+    writeHead(s: number) { status = s; this.headersSent = true; },
+    end(b?: string) { body = b ? JSON.parse(b) : undefined; this.writableEnded = true; },
+  } as unknown as ServerResponse;
+
+  await route.handler(req, res, undefined);
+  return { status, body };
+}
+
+describe('GET /api/entities (t/1883)', () => {
+  beforeEach(() => {
+    readEntityRegistryMock.mockReset();
+    recordMock.mockReset();
+  });
+
+  it('returns summary rows from a populated registry — exactly the 7 summary keys, no Entity leak', async () => {
+    // Fuller Entity records (extra fields dolce_category/description/created_at/etc.)
+    // must NOT appear in the summary rows — the handler picks 7 fields explicitly.
+    readEntityRegistryMock.mockResolvedValue(new Map([
+      ['ent-001', {
+        id: 'ent-001', name: 'OpenAI', aliases: ['OAI'], entity_type: 'institution',
+        dolce_category: 'agentive-physical-object', description: 'A company that...',
+        status: 'approved', confidence: 0.9, created_at: '2026-01-01', last_modified: '2026-02-02',
+        source_refs: ['doc-1'], discovered_by: { model: 'x' },
+      } as unknown as Entity],
+    ]));
+    const { status, body } = await invokeList();
+    expect(status).toBe(200);
+    expect(Array.isArray(body)).toBe(true);
+    const rows = body as Record<string, unknown>[];
+    expect(rows).toHaveLength(1);
+    expect(Object.keys(rows[0]).sort()).toEqual(
+      ['aliases', 'confidence', 'entity_type', 'id', 'last_modified', 'name', 'status'],
+    );
+    expect(rows[0]).toEqual({
+      id: 'ent-001', name: 'OpenAI', aliases: ['OAI'], entity_type: 'institution',
+      status: 'approved', confidence: 0.9, last_modified: '2026-02-02',
+    });
+  });
+
+  it('returns [] when the entity store is absent (readEntityRegistry → null)', async () => {
+    readEntityRegistryMock.mockResolvedValue(null);
+    const { status, body } = await invokeList();
+    expect(status).toBe(200);
+    expect(body).toEqual([]);
+  });
+
+  it('returns [] for an empty registry', async () => {
+    readEntityRegistryMock.mockResolvedValue(new Map());
+    const { status, body } = await invokeList();
+    expect(status).toBe(200);
+    expect(body).toEqual([]);
+  });
+
+  it('records to the flight recorder and returns 500 when the read throws', async () => {
+    readEntityRegistryMock.mockRejectedValue(new Error('blob unreachable'));
+    const { status } = await invokeList();
+    expect(status).toBe(500);
+    expect(recordMock).toHaveBeenCalledWith(expect.objectContaining({ level: 'error', type: 'system.error' }));
+  });
+});
+
 describe('resolveMergedInto (merged_into tombstone chase, t/1786)', () => {
   const ent = (id: string, mergedInto?: string): Entity =>
     ({ id, merged_into: mergedInto } as unknown as Entity);

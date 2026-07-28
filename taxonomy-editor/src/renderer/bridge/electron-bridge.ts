@@ -258,6 +258,12 @@ export const api: AppAPI = {
   // unhandled throw. Once the handler ships it delegates automatically — no change here.
   getEntity: (ref) => window.electronAPI.getEntity?.(ref) ?? Promise.reject(new Error('Entity resolution is not available in desktop mode yet (pending the entity-resolve IPC handler, t/1809)')),
 
+  // Entity list/browser (t/1883). FAIL LOUD until the list-entities IPC handler lands
+  // (ElectronMain, t/1889): a silent [] would make the desktop browser look
+  // working-but-empty (false-green — TL p/259#6). Once preload exposes listEntities it
+  // delegates automatically; same fail-loud pattern as getEntity (t/1809) / saveEdges (t/1816).
+  listEntities: (query) => window.electronAPI.listEntities?.(query) ?? Promise.reject(new Error('Entity listing is not available in desktop mode yet (pending the list-entities IPC handler, t/1889)')),
+
   // Calibration
   getCalibrationHistory: () => window.electronAPI.getCalibrationHistory(),
   getCalibrationLog: () => window.electronAPI.getCalibrationLog(),
