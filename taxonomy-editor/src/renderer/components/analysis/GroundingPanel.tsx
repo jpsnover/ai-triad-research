@@ -6,6 +6,7 @@ import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { POVER_INFO } from '../../types/debate';
 import type { SpeakerId, DebateSession } from '../../types/debate';
+import './GroundingPanel.css';
 
 function speakerLabel(speaker: string): string {
   if (speaker === 'system') return 'Moderator';
@@ -112,7 +113,7 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
   const selectedDetails = selectedNodeId ? detailMap.get(selectedNodeId) ?? [] : [];
 
   if (rows.length === 0) {
-    return <div style={{ color: 'var(--text-secondary)', padding: 16 }}>No taxonomy references found in this debate.</div>;
+    return <div className="grounding-empty">No taxonomy references found in this debate.</div>;
   }
 
   const sortArrow = (col: typeof sortCol) => sortCol === col ? (sortAsc ? ' ▲' : ' ▼') : '';
@@ -159,20 +160,16 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
   }, [debate.transcript]);
 
   return (
-    <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+    <div className="grounding-root">
       {lineageEffectiveness && (
-        <div style={{
-          padding: '8px 12px', marginBottom: 8, borderRadius: 6,
-          background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.15)',
-          fontSize: '0.7rem', lineHeight: 1.6,
-        }}>
-          <div style={{ fontWeight: 700, color: '#f59e0b', marginBottom: 4 }}>Lineage Boost Effectiveness</div>
+        <div className="grounding-lineage-box">
+          <div className="grounding-lineage-title">Lineage Boost Effectiveness</div>
           <div>
             Lineage boost promoted <strong>{lineageEffectiveness.promoted}</strong> node{lineageEffectiveness.promoted !== 1 ? 's' : ''};{' '}
-            <strong style={{ color: '#22c55e' }}>{lineageEffectiveness.promotedReferenced}</strong> cited ({(lineageEffectiveness.promotedRefRate * 100).toFixed(0)}%)
+            <strong className="grounding-lineage-cited">{lineageEffectiveness.promotedReferenced}</strong> cited ({(lineageEffectiveness.promotedRefRate * 100).toFixed(0)}%)
             {' vs. '}<strong>{(lineageEffectiveness.baselineRefRate * 100).toFixed(0)}%</strong> baseline reference rate
           </div>
-          <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
+          <div className="grounding-lineage-note">
             {lineageEffectiveness.promotedRefRate > lineageEffectiveness.baselineRefRate
               ? `Promoted nodes cited ${(lineageEffectiveness.promotedRefRate / Math.max(lineageEffectiveness.baselineRefRate, 0.001)).toFixed(1)}× more than baseline — boost is effective`
               : lineageEffectiveness.promotedRefRate === lineageEffectiveness.baselineRefRate
@@ -181,7 +178,7 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
           </div>
         </div>
       )}
-      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
+      <div className="grounding-summary">
         {rows.length} taxonomy nodes referenced across {statementsWithRefs} statement{statementsWithRefs !== 1 ? 's' : ''}
       </div>
       <input
@@ -235,7 +232,7 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
                 <tr key={i}>
                   <td className="grounding-detail-entry">{d.stmtId}</td>
                   <td className="grounding-detail-speaker">{d.speaker}</td>
-                  <td className="grounding-detail-relevance">{d.relevance || <span style={{ color: 'var(--text-muted)' }}>(none)</span>}</td>
+                  <td className="grounding-detail-relevance">{d.relevance || <span className="grounding-none">(none)</span>}</td>
                 </tr>
               ))}
             </tbody>

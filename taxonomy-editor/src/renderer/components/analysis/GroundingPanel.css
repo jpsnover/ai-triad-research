@@ -1,0 +1,50 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Co-located styles for GroundingPanel — migrated from inline (t/1865). */
+
+.grounding-root {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.grounding-empty {
+  color: var(--text-secondary);
+  padding: 16px;
+}
+
+.grounding-lineage-box {
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  background: rgba(249, 115, 22, 0.06);
+  border: 1px solid rgba(249, 115, 22, 0.15);
+  font-size: 0.7rem;
+  line-height: 1.6;
+}
+
+.grounding-lineage-title {
+  font-weight: 700;
+  color: #f59e0b;
+  margin-bottom: 4px;
+}
+
+.grounding-lineage-cited {
+  color: #22c55e;
+}
+
+.grounding-lineage-note {
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.grounding-summary {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.grounding-none {
+  color: var(--text-muted);
+}
