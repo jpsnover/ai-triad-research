@@ -862,23 +862,25 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 
 ---
 
-## [Build] `git worktree remove` Fails (exit 128) on Untracked node_modules — Needs `--force`
+## [Build] `git worktree remove` vs In-Worktree node_modules — Refuses Without `--force`, Then TIMES OUT on the rm (Windows)
 
-**Pattern:** After a worktree land, `git worktree remove ../wt-X` fails with exit 128 ("contains modified or untracked files") whenever `npm ci` ran inside the worktree — the installed `node_modules` / `dist` are untracked, and `git worktree remove` refuses to delete a worktree with untracked content. This recurs on **every** worktree land that installs deps. `git worktree remove --force` cleans it (safe once the committed work is already pushed).
+**Pattern:** Cleaning up a worktree that ran an in-worktree `npm ci` fails **two** ways on Windows: **(A) refusal** — plain `git worktree remove ../wt-X` exits 128 ("contains modified or untracked files") because the installed `node_modules`/`dist` are untracked; **(B) timeout** — adding `--force` makes it proceed, but `remove` then **synchronously `rm -rf`s the huge node_modules**, which is slow on Windows (AV/indexing scanning every file) and **times out** (2min). So the naive fixes chain into each other: remove → add `--force` → `--force` hangs on the delete.
 
 **Instances:**
-- 2026-07-17 — Shared Lib (`/land-from-worktree` step 8, p/5#13): `git worktree remove ../wt-X` exited 128 because step-2's in-worktree `npm ci` left untracked `node_modules`. Resolved with `git worktree remove --force`; committed work was already pushed, so no loss. Flagged the playbook step-8 gap.
+- 2026-07-17 — Shared Lib (`/land-from-worktree` step 8, p/5#13): plain `git worktree remove` exited 128 on untracked `node_modules`; resolved with `--force` (work already pushed, so no loss). (Facet A.)
+- 2026-07-28 — DebateDiagnostics (p/245#1): `git worktree remove <wt>` **timed out at 2min** — it synchronously `rm -rf`s the worktree's large `node_modules` (slow on Windows/AV). Resolved by **detaching git metadata fast, then backgrounding the physical delete**: `git worktree prune` + `git branch -D <branch>`, then `rm -rf <wt-dir>` as a backgrounded task. (Facet B — supersedes the `--force` remedy for deps-installed worktrees.)
 
-**Root Cause:** `git worktree remove` is deliberately conservative — it aborts if the worktree has modified or untracked files, to avoid destroying unsaved work. But the `/land-from-worktree` flow *requires* an in-worktree `npm ci` (step 2, to verify against fresh deps), which by definition leaves a large untracked `node_modules` tree. So the safe-by-default refusal fires on every deps-installing land. `--force` is correct **here specifically** because the deliverable was already committed and pushed inside the worktree (step 3) before removal — the only thing `--force` discards is `node_modules`. Distinct cause from the Windows Junction pattern (there `--force` clears a *junction*; here it clears ordinary untracked install output), same remedy. Companion to #77 (the same in-worktree `npm ci`).
+**Root Cause:** `git worktree remove` (A) is conservative — it aborts on untracked files, and an in-worktree `npm ci` (required by `/land-from-worktree` step 2) always leaves a large untracked `node_modules`. Adding `--force` clears the refusal but (B) `remove` does the `node_modules` deletion **synchronously in the foreground**, and deleting tens of thousands of small files is pathologically slow on Windows (each unlink hits AV/indexing), so it blows the 2-minute tool timeout. The git-metadata detach is instant; only the physical `rm -rf` is slow — so coupling them in a foreground `remove` is what causes the hang. Companion to #77 (same in-worktree `npm ci`) and the Windows Junction pattern.
 
 **Prevention:**
-1. **`/land-from-worktree` step 8 should specify `git worktree remove --force`** — plain `remove` will always fail after an in-worktree `npm ci`. (Playbook wording gap; handed to TL's batch.)
-2. **`--force` is only safe after your commit is pushed** — confirm the worktree's work is on `origin/main` (step 3 done) before force-removing; then the sole casualty is `node_modules`. Never `--force` with uncommitted deliverable work in the worktree.
-3. `git worktree prune` afterward clears any stale administrative refs (same follow-up as the Junction pattern).
+1. **For a deps-installed worktree, don't `git worktree remove` at all — detach fast, delete in the background** (DebateDiagnostics, p/245#1): `git worktree prune` + `git branch -D <branch>` (instant, frees the git metadata + branch), then `rm -rf <wt-dir>` as a **backgrounded** task. This avoids BOTH the refusal (A) and the foreground-rm timeout (B).
+2. **`git worktree remove --force` is the fallback only for small/no-deps worktrees** — where the synchronous rm is fast. With a full `node_modules` on Windows it will time out; use #1 instead.
+3. **`--force`/rm is only safe after your commit is pushed** — confirm the worktree's work is on `origin/main` before removing; the sole casualty is `node_modules`. Never remove with uncommitted deliverable work in the worktree.
+4. `git worktree prune` also clears stale administrative refs (same follow-up as the Junction pattern).
 
-**Status:** Active — 6th hazard in the worktree-land cluster; a concrete `/land-from-worktree` step-8 wording fix. Handed to TL for the owner-gated batch.
+**Status:** Active — worktree-land cluster; the `/land-from-worktree` step-8 guidance updated from "`remove --force`" to "**prune + `branch -D` + background rm**" for deps-installed worktrees (supersedes the earlier `--force` wording; both refusal and timeout now covered). Handed to TL for the owner-gated batch.
 
-**Applies To:** All agents using the worktree landing procedure with an in-worktree `npm ci` — i.e. every deps-installing land.
+**Applies To:** All agents cleaning up a worktree that ran an in-worktree `npm ci` on Windows — i.e. every deps-installing land.
 
 ---
 
