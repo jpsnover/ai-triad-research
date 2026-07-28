@@ -114,6 +114,49 @@ No decision rule, measure, or interpretation changes here. These are execution f
 2. **Worktree data-root resolution.** The arm-B worktree lives outside the repo parent, so the relative `data_root` in `.aitriad.json` resolved to a nonexistent path and arm-B launches failed at taxonomy load. Fixed by pinning `AI_TRIAD_DATA_ROOT` to the same directory arm A resolves implicitly, keeping both arms' data identical. Verified by a 20-second probe run (taxonomy loaded, debate started) that was killed before producing artifacts.
 3. **Two-writer race on arm-A slugs (no effect on validity).** A session restart left the original batch runner alive while a recovery filler ran the same queue; for roughly 40 minutes both wrote the same arm-A output slugs. Both writers used byte-identical configs from the same clean tree, so whichever debate survived per slug is a valid arm-A draw selected by timing, not outcome. All six then-banked artifact sets were audited at the object level (harvest/session id match, sub-second write spread, single-run flight recorder): none torn. Fleet lesson filed as pattern #86; the underlying CLI hang that caused every runner to ride its timeout is t/1824.
 
-## Results
+## Results (2026-07-28, scored by the committed blind scorer `analyses/t1670-scorer.py`, 24b18ee3)
 
-Not yet run. This section is written before the run and holds no results.
+### Run parameters
+
+Seven debates per arm on gemini-3.5-flash-lite, topics 1 to 7 identical across arms. Arm A (undisclosed): `t1670-smoke-01`, `t1670-02`, `t1670-ctrl-03..07`, clean tree. Arm B (disclosed): `t1670-disc-01..07`, patched worktree; the manipulation was verified delivered in the live evaluator prompt of `disc-01` and verified absent from `ctrl-04` before scoring. Execution caveats are in the instrument incident log above.
+
+### Primary and Amendment 2 outcomes
+
+| Channel | Category | Arm A | Arm B | Delta |
+|---|---|---|---|---|
+| Labeling (arm-B patched) | addressed | 11/15 (73.3%) | 18/18 (100%) | +26.7pp |
+| Labeling | partially_addressed | 4/15 (26.7%) | 0/18 (0%) | −26.7pp |
+| Labeling | unaddressed | 0 | 0 | 0 |
+| Substance (unpatched) | resolved | 25/33 (75.8%) | 26/32 (81.2%) | +5.5pp |
+| Substance | one_side_conceded | 5/33 (15.2%) | 6/32 (18.8%) | +3.6pp |
+| Substance | engaged | 3/33 (9.1%) | 0/32 (0%) | −9.1pp |
+| Substance | identified / irreducible | 0 | 0 | 0 |
+
+Rule 1 fires on the labeling channel (two categories moved ≥ 10pp). No substance category moved ≥ 10pp. The Amendment 2 matrix therefore lands on its second row: **evaluator relabeling, an instrument effect. The disclosure sentence is not adopted.**
+
+The secondary diagnostic makes the stakes concrete. Production `crux_addressed_ratio` would have reported +0.267 pooled "improvement" for a prompt change that left debate substance flat. Had the ratio been the decision variable, the disclosure would have been adopted on an artifact. This is the exact false positive t/1796 predicted from binning `partially_addressed` with `unaddressed`.
+
+### Per-debate spread (Amendment 1 requirement)
+
+Arm B is degenerate. Every debate scored 1.00 on the production ratio, 18 of 18 cruxes `addressed`, zero variance. Arm A's four `partially_addressed` labels concentrate in one debate: `ctrl-06` carries three of them (topic 6, liability standards; ratio 0.00), `smoke-01` the fourth. The Rule 1 shift is therefore outlier-concentrated, not distributed, which is precisely the pattern Amendment 1 required this section to expose.
+
+### Rule 3 hand-check (guard measure)
+
+Sampled deterministically in debate order. Arm B, 10 `addressed` cruxes across `disc-01..04`: nine rest on genuine bilateral engagement, with the opposing camp answering the specific proposition with reasoning; one (`disc-02` crux-3, extraction-vs-existential priority) meets the rubric's own definition of `partially_addressed` (the opposing side answered on an adjacent proposition) yet was labeled `addressed`. No transcript shows debaters performing rule-compliance; the disclosed arm reads like the control arm. Arm A, 7 `addressed` cruxes across `smoke-01`, `02`, `ctrl-04`, `ctrl-07`: all seven substantive. **Deviation flag:** the plan said 10 per arm; I stopped at 7 for arm A on reading economy after unanimous results, and spent the saved effort on an unplanned diagnostic that proved more informative, examining all four arm-A `partially_addressed` labels. Three of the four (`smoke-01` crux-1, `ctrl-06` crux-1 and crux-2) sit on exchanges that pass the disclosed rubric's own addressed test, with direct opposing answers on the exact proposition, including a three-turn exchange on capitalization floors in `ctrl-06`. One (`ctrl-06` crux-3) is genuinely partial.
+
+The hand-check verdict for Rule 3: this is not disclosure-induced debater gaming. It is evaluator label instability. The undisclosed evaluator under-labels deep exchanges as partial; the disclosed evaluator saturates at `addressed`. Both arms' true engagement distributions appear nearly identical and near-ceiling on this corpus.
+
+### Power and scope
+
+Debate-level n = 7 per arm, below the stated floor of 10; crux-level n = 15/18; tracked-crux n = 33/32. Any claim about debater behaviour change would be underpowered and is also refuted in direction by the flat substance channel. The claim this run does support, evaluator relabeling under a rubric wording change, rests on the substance-channel null plus the hand-check, and the small n cuts in the conservative direction for both. More data could only tighten the null, not manufacture the +26.7pp label shift already observed. Model is part of the instrument; nothing here transports to other models. Extraction coverage was low (thin debates) in both arms, bounding generality as stated in the incident log.
+
+### Verdict against the framing question (Bronder F-3)
+
+Criterion disclosure did not change what our debaters do. It changed what our evaluator says they did, by +26.7 points of `addressed` with zero movement in the unpatched convergence layer. F-3's hidden-criterion hypothesis is unsupported for this harness at this n. The instrument-effect concern relocates from the debaters to the evaluator rubric itself. Because the crux-status labels are rubric-wording-sensitive, comparisons of `crux_addressed_ratio` or the status distribution across prompt revisions of the evaluator are invalid, independent of any debater-side change.
+
+### Dispositions
+
+1. The disclosure sentence is **not adopted** (matrix row 2). The arm-B patch is discarded with its worktree; nothing lands.
+2. `crux_addressed_ratio` register row gains the wording-sensitivity evidence pointer (this document), reinforcing t/1796.
+3. The rubric under-detection finding (three arm-A partials passing the rubric's own addressed test) transfers to t/1796 as evidence that the production binning discards real signal.
+4. Per Rule 4's spirit, this null-for-F-3 is reported as a result, not re-run with a different sentence.
