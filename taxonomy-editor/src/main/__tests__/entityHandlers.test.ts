@@ -20,6 +20,7 @@ const h = vi.hoisted(() => ({
   org: null as { id: string; name?: string } | null,
   policy: null as unknown,
   taxonomy: {} as Record<string, unknown>,
+  entities: [] as unknown[],
 }));
 
 vi.mock('electron', () => ({
@@ -32,6 +33,7 @@ vi.mock('../fileIO.js', () => ({
   // Point the colloquial-dictionary dir at a nonexistent path so term lookups
   // resolve to [] deterministically (term resolution is covered by the server suite).
   getDataRootPath: () => '/no-such-data-root-for-entity-test',
+  readEntities: () => h.entities,
 }));
 
 vi.mock('../organizations.js', () => ({
@@ -48,11 +50,18 @@ function resolve(raw: string): unknown {
   return fn({}, raw);
 }
 
+function listEntities(query?: unknown): unknown {
+  const fn = h.handlers.get('list-entities');
+  if (!fn) throw new Error('list-entities not registered');
+  return fn({}, query);
+}
+
 beforeEach(() => {
   h.handlers.clear();
   h.org = null;
   h.policy = null;
   h.taxonomy = {};
+  h.entities = [];
   registerEntityHandlers();
 });
 
@@ -96,5 +105,33 @@ describe('entity-resolve IPC handler (t/1809)', () => {
 
   it('defers the entity kind to not_found (entities.json not shipped)', () => {
     expect(resolve('ent-001')).toMatchObject({ ref: { kind: 'entity', id: 'ent-001' }, kind: 'not_found' });
+  });
+});
+
+describe('list-entities IPC handler (t/1889)', () => {
+  it('returns [] when the entity registry is empty (entities.json absent)', () => {
+    expect(listEntities()).toEqual([]);
+  });
+
+  it('maps each entity to the 7-field EntitySummary, dropping non-summary fields', () => {
+    h.entities = [{
+      id: 'ent-001', name: 'Ada Lovelace', aliases: ['Ada'],
+      entity_type: 'person', status: 'approved', confidence: 0.9, last_modified: '2026-07-28',
+      // extra Entity fields that must NOT leak into the summary row:
+      description: 'should be dropped', dolce_category: 'should be dropped', created_at: 'should be dropped',
+    }];
+    expect(listEntities()).toEqual([{
+      id: 'ent-001', name: 'Ada Lovelace', aliases: ['Ada'],
+      entity_type: 'person', status: 'approved', confidence: 0.9, last_modified: '2026-07-28',
+    }]);
+  });
+
+  it('returns one row per entity and ignores the v1 query (client-side filtering — TL t/1766#7)', () => {
+    h.entities = [
+      { id: 'ent-001', name: 'A', aliases: [], entity_type: 'person', status: 'approved', confidence: 1, last_modified: 'x' },
+      { id: 'ent-002', name: 'B', aliases: [], entity_type: 'artifact', status: 'proposed', confidence: 1, last_modified: 'y' },
+    ];
+    const rows = listEntities({ search: 'A', type: 'person' }) as unknown[];
+    expect(rows).toHaveLength(2);   // v1 returns the full list; query accepted for forward-compat, not applied
   });
 });

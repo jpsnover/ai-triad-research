@@ -11,6 +11,7 @@ import { renameSyncWithRetry } from '../../../lib/debate/persistence.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { parseNpy, extractNodeVectors } from '../../../lib/npy.js';
 import { resolveRepoRootForApp } from '../../../lib/electron-shared/resolveRepoRootForApp.js';
+import type { Entity } from '../../../lib/entities/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -694,6 +695,35 @@ export function readEdgesFile(): unknown | null {
   const edgesPath = path.join(activeTaxonomyDir, 'edges.json');
   if (!fs.existsSync(edgesPath)) return null;
   return parseJsonFile(edgesPath);
+}
+
+/**
+ * Read the entity registry (ent-* records) from entities.json in the active
+ * taxonomy dir — the desktop mirror of the server's readEntities (t/1807). The
+ * file wraps its records under `{ entities: [...] }`; entities.json is static,
+ * pipeline-curated data (no desktop write path). Returns [] when the file is
+ * absent OR malformed — never throws — so the list-entities path (t/1889) degrades
+ * to an empty browser instead of crashing.
+ */
+export function readEntities(): Entity[] {
+  const entitiesPath = path.join(activeTaxonomyDir, 'entities.json');
+  if (!fs.existsSync(entitiesPath)) return [];
+  try {
+    const data = parseJsonFile(entitiesPath) as { entities?: Entity[] } | null;
+    return data?.entities ?? [];
+  } catch (err) {
+    // parseJsonFile already logged the parse failure; this records the recovery
+    // decision (list-entities degrades to an empty browser) so the swallow is
+    // visible in a flight-recorder dump (ADR-003).
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'main-file-io',
+      level: 'warn',
+      message: 'readEntities: entities.json could not be parsed; returning empty entity list',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return [];
+  }
 }
 
 export function writeEdgesFile(data: unknown): void {

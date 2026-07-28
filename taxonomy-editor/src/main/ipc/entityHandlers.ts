@@ -13,10 +13,10 @@
 import { ipcMain } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { readTaxonomyFile, readPolicyRegistry, getDataRootPath } from '../fileIO.js';
+import { readTaxonomyFile, readPolicyRegistry, getDataRootPath, readEntities } from '../fileIO.js';
 import { getOrganizationById } from '../organizations.js';
 import { parseEntityRef } from '../../../../lib/entities/types.js';
-import type { EntityDetail, EntityRef } from '../../../../lib/entities/types.js';
+import type { EntityDetail, EntityRef, EntitySummary, EntityListQuery } from '../../../../lib/entities/types.js';
 import type { PovNode, SituationNode } from '../../../../lib/debate/taxonomyTypes.js';
 import type { PolicyAction } from '../../../../lib/policy/types.js';
 import type { ColloquialTerm } from '../../../../lib/dictionary/types.js';
@@ -159,5 +159,24 @@ export function registerEntityHandlers(): void {
       });
       throw err;
     }
+  });
+
+  // list-entities — desktop mirror of GET /api/entities (t/1889). Returns the full
+  // list of entity summary rows (the 7-field EntitySummary pick) for the entity
+  // browser. v1 is client-side filtering (TL t/1766#7 Q6): the query is accepted for
+  // forward-compat but the full list is returned unchanged; moving filtering here
+  // later is a same-contract change. readEntities returns [] when entities.json is
+  // absent or malformed, so this never crashes (ADR-001 graceful-degrade). Keep the
+  // row shape identical to the server route's map so web and desktop agree.
+  ipcMain.handle('list-entities', (_event, _query?: EntityListQuery): EntitySummary[] => {
+    return readEntities().map((e): EntitySummary => ({
+      id: e.id,
+      name: e.name,
+      aliases: e.aliases,
+      entity_type: e.entity_type,
+      status: e.status,
+      confidence: e.confidence,
+      last_modified: e.last_modified,
+    }));
   });
 }

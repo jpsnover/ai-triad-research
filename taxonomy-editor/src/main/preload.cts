@@ -431,6 +431,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getEntity: (ref: string): Promise<unknown> =>
     ipcRenderer.invoke('entity-resolve', ref),
 
+  // Entity list (t/1889) — desktop transport for listEntities (entity browser).
+  // Returns EntitySummary[]; strongly typed on the renderer side (electron.d.ts).
+  listEntities: (query?: unknown): Promise<unknown[]> =>
+    ipcRenderer.invoke('list-entities', query),
+
   loadDebateComments: (debateId: string): Promise<unknown> =>
     ipcRenderer.invoke('load-debate-comments', debateId),
 
