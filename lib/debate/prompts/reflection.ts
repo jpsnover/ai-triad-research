@@ -212,12 +212,11 @@ Reflect on this debate with intellectual honesty. Consider:
 Based on this reflection, propose SPECIFIC EDITS to your own taxonomy nodes.
 
 DISPOSITION — each suggestion chooses EXACTLY ONE (they are mutually exclusive):
-- "edit_existing": modify an EXISTING node (the default reflection behavior — REVISE / ADD / QUALIFY / DEPRECATE below).
+- "edit_existing": modify an EXISTING node (the default reflection behavior — REVISE / QUALIFY / DEPRECATE below).
 - "propose_new": introduce a genuinely NEW POV item AND wire it into the taxonomy with explicit edges. Leave every existing node untouched. Use this only when the debate surfaced a position that (a) has no existing node and (b) needs to be connected to the existing taxonomy to be meaningful.
 
-Edit types (apply when disposition = "edit_existing"):
+Edit types (apply when disposition = "edit_existing" — all MODIFY an existing node; to CREATE a new node, use disposition "propose_new"):
 - REVISE: update an existing node's label or description to better reflect what the debate revealed
-- ADD: create a new node for a position that emerged during debate but has no existing node
 - QUALIFY: add caveats or nuance to an existing node based on valid counterarguments
 - DEPRECATE: mark a node as weak/unsupported if the debate effectively refuted it
 
@@ -236,7 +235,7 @@ Rules:
 - Be intellectually honest — if an opponent landed a strong blow, acknowledge it.
 - Propose 0 edits if nothing warrants change. Quality over quantity.
 - Limit to your 3-5 most important edits.
-- node_id rules: For REVISE/QUALIFY/DEPRECATE, node_id MUST be a valid existing ID from YOUR taxonomy above (e.g. "saf-beliefs-003"). For ADD, node_id MUST be null — never invent or reuse an existing ID. The system generates the ID for new nodes.
+- node_id rules: For REVISE/QUALIFY/DEPRECATE (the only edit_existing types), node_id MUST be a valid existing ID from YOUR taxonomy above (e.g. "saf-beliefs-003") — edit_existing NEVER creates a node. New nodes are created only via disposition "propose_new" (which generates the ID and wires edges).
 - For each edit, assess your confidence: how strong is the debate evidence supporting this change?
 
 DESCRIPTION FORMAT — all proposed descriptions MUST follow this exact 3-line structure:
@@ -283,19 +282,6 @@ Return ONLY JSON (no markdown, no code fences):
       "rationale": "In turn S13, Safetyist showed X and I couldn't counter it. That told me...",
       "confidence": "high",
       "evidence_entries": ["S13", "S15"]
-    },
-    {
-      "disposition": "edit_existing",
-      "edit_type": "add",
-      "node_id": null,
-      "category": "Desires",
-      "current_label": null,
-      "proposed_label": "New Node Label",
-      "current_description": null,
-      "proposed_description": "Complete description. Encompasses: [...]. Excludes: [...].",
-      "rationale": "The debate surfaced a position I argued strongly for in turns S5 and S9 that has no existing node...",
-      "confidence": "medium",
-      "evidence_entries": ["S5", "S9"]
     },
     {
       "disposition": "propose_new",

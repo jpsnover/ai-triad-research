@@ -381,6 +381,26 @@ describe('newItemSuggestionsToProposals', () => {
     expect(edge.rationale).toBeTruthy();
   });
 
+  it('emits nothing for a stray edit_existing/"add" suggestion — no edgeless new-node path (t/1820 Gate-Verification)', () => {
+    // ADD was retired in t/1820 (TL ruling t/1773#9): the reflection prompt no longer offers it.
+    // But even if a model hallucinates a `disposition:'edit_existing', edit_type:'add'` suggestion,
+    // it must NEVER become an edgeless new node here — newItemSuggestionsToProposals only emits
+    // `propose_new` (always edged). This locks the buggy door shut rather than assuming it.
+    const stray = {
+      disposition: 'edit_existing',
+      edit_type: 'add',
+      category: 'Beliefs',
+      proposed_label: 'Phantom Orphan',
+      proposed_description: 'A Belief within safetyist discourse that should never be created edgeless.',
+      rationale: 'Model hallucinated an add despite the prompt no longer offering it.',
+    } as unknown as RawNewItemSuggestion;
+    const proposals = newItemSuggestionsToProposals({
+      suggestions: [stray],
+      pov: 'safetyist', debateId: 'd-stray-add', knownNodeIds,
+    });
+    expect(proposals).toHaveLength(0);
+  });
+
   it('resolves a situation-node target (sit-*/cc-*) and accepts lowercase edge_type', () => {
     const proposals = newItemSuggestionsToProposals({
       suggestions: [proposeNew({

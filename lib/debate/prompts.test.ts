@@ -1192,14 +1192,22 @@ describe('reflectionPrompt', () => {
     expectContains(result, 'CONVERGENCE SIGNALS', 'High convergence at 0.85');
   });
 
-  it('explicitly requires node_id null for ADD edits (t/1564)', () => {
+  it('does NOT offer edit_type "add" — new nodes go only through propose_new (t/1820, retires t/1564 ADD)', () => {
+    // ADD was an edgeless new-node CREATE mis-homed under edit_existing; it reproduced the
+    // t/1725 orphan bug. t/1820 RETIRED it (TL ruling t/1773#9): new-node creation is now
+    // exclusively `disposition: "propose_new"` (always edged). edit_existing = revise/qualify/
+    // deprecate only. Do NOT "restore" an ADD edit_type here — that reopens the orphan class
+    // (this test exists precisely so such a restore reads as a deliberate regression, not a fix).
     const result = reflectionPrompt(
       DEBATER.label, DEBATER.pov, DEBATER.personality,
       TOPIC,
       [{ id: 'acc-beliefs-001', category: 'Beliefs', label: 'Innovation', description: 'desc' }],
       TRANSCRIPT,
     );
-    expectContains(result, 'For ADD, node_id MUST be null');
+    expect(result).not.toContain('For ADD, node_id MUST be null'); // old t/1564 rule retired
+    expect(result).not.toContain('ADD: create a new node');        // old edit-type line retired
+    expect(result).not.toContain('"edit_type": "add"');            // no add example in the schema
+    expectContains(result, 'REVISE', 'QUALIFY', 'DEPRECATE', 'propose_new'); // the surviving paths
   });
 });
 
