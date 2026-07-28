@@ -1,0 +1,15 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Co-located styles for ParameterHistoryPanel — migrated from inline (t/1865).
+   Row cursor (conditional) and confidence-badge color (data-driven) stay inline. */
+
+.phist-sparkline-svg {
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+.phist-sample-note {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}

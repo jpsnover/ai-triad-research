@@ -9,6 +9,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import './ParameterHistoryPanel.css';
 
 // ── Types (mirrored from calibrationLogger) ──
 
@@ -106,7 +107,7 @@ function Sparkline({ values }: { values: number[] }) {
   }).join(' ');
 
   return (
-    <svg width={w} height={h} style={{ verticalAlign: 'middle', marginLeft: 6 }}>
+    <svg width={w} height={h} className="phist-sparkline-svg">
       <polyline points={points} fill="none" stroke="var(--accent)" strokeWidth="1.5" />
       <circle cx={(values.length - 1) / (values.length - 1) * w} cy={h - ((values[values.length - 1] - min) / range) * (h - 4) - 2} r="2" fill="var(--accent)" />
     </svg>
@@ -219,9 +220,9 @@ export function ParameterHistoryPanel({ onClose }: ParameterHistoryPanelProps) {
                   {sparklines[key] && sparklines[key].length >= 2 ? (
                     <Sparkline values={sparklines[key]} />
                   ) : sparklines[key] && sparklines[key].length === 1 ? (
-                    <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>1 sample</span>
+                    <span className="phist-sample-note">1 sample</span>
                   ) : (
-                    <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>—</span>
+                    <span className="phist-sample-note">—</span>
                   )}
                 </td>
               </tr>
@@ -243,6 +244,7 @@ export function ParameterHistoryPanel({ onClose }: ParameterHistoryPanelProps) {
                   <div
                     className="param-history-entry-header"
                     onClick={() => setExpandedEntry(expanded ? null : realIdx)}
+                    /* eslint-disable-next-line local/no-inline-style -- dynamic: cursor depends on whether entry has changes */
                     style={{ cursor: entry.changes.length > 0 ? 'pointer' : 'default' }}
                   >
                     <span className={`param-source-badge param-source-${entry.source}`}>
@@ -269,6 +271,7 @@ export function ParameterHistoryPanel({ onClose }: ParameterHistoryPanelProps) {
                             {change.confidence && (
                               <span
                                 className="param-confidence-badge"
+                                /* eslint-disable-next-line local/no-inline-style -- dynamic: data-driven confidence color */
                                 style={{ color: CONFIDENCE_COLORS[change.confidence] }}
                               >
                                 {change.confidence}

@@ -171,3 +171,22 @@
 .badge-severity-high { background: #f44336; }
 .badge-severity-medium { background: #ff9800; }
 .badge-severity-low { background: #9e9e9e; }
+
+/* Diagnostics section static styles — migrated from inline (t/1865).
+   Crux/claim badge background + opacity stay inline (data-driven). */
+.neval-diag-time {
+  font-weight: normal;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-left: 8px;
+}
+
+.neval-diag-buttons {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.neval-diag-btn {
+  font-size: var(--text-2xs);
+}

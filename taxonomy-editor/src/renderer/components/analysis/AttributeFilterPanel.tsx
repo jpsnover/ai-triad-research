@@ -9,6 +9,7 @@ import { NodeDetail } from '../taxonomy/NodeDetail';
 import { SituationDetail } from '../debate/SituationDetail';
 import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
 import { POV_KEYS } from '@lib/debate/types';
+import './AttributeFilterPanel.css';
 
 const LABEL_MAP: Record<string, string> = {
   epistemic_type: 'Epistemic Type',
@@ -146,7 +147,14 @@ export function AttributeFilterPanel({ width }: AttributeFilterPanelProps) {
   };
 
   return (
-    <div className="attr-filter-panel" style={width ? { width, minWidth: 320 } : undefined} tabIndex={0} ref={panelRef} onKeyDown={handleKeyDown}>
+    <div
+      className="attr-filter-panel"
+      /* eslint-disable-next-line local/no-inline-style -- dynamic: panel width driven by `width` prop */
+      style={width ? { width, minWidth: 320 } : undefined}
+      tabIndex={0}
+      ref={panelRef}
+      onKeyDown={handleKeyDown}
+    >
       <div className="attr-filter-header">
         <div className="attr-filter-title">
           <select
@@ -178,7 +186,7 @@ export function AttributeFilterPanel({ width }: AttributeFilterPanelProps) {
           )}
           <span className="attr-filter-count">{results.length}</span>
         </div>
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <div className="attrfil-header-actions">
           <button className="pane-collapse-btn" onClick={() => setCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
           <button className="btn btn-ghost btn-sm" onClick={clearAttributeFilter}>
             Close
@@ -188,7 +196,12 @@ export function AttributeFilterPanel({ width }: AttributeFilterPanelProps) {
 
       <div className="attr-filter-split">
         {/* Top: list with resizable height */}
-        <div className="attr-filter-list" ref={listRef} style={{ height: listHeight, flex: 'none' }}>
+        <div
+          className="attr-filter-list attrfil-list-fixed"
+          ref={listRef}
+          /* eslint-disable-next-line local/no-inline-style -- dynamic: resizable split height */
+          style={{ height: listHeight }}
+        >
           {results.length === 0 ? (
             <div className="attr-filter-empty">No matching nodes</div>
           ) : (
@@ -200,7 +213,11 @@ export function AttributeFilterPanel({ width }: AttributeFilterPanelProps) {
                 onDoubleClick={() => handleDoubleClick(r.id, r.pov)}
                 title="Double-click to navigate"
               >
-                <span className="attr-filter-row-pov" style={{ color: povColor(r.pov) }}>
+                <span
+                  className="attr-filter-row-pov"
+                  /* eslint-disable-next-line local/no-inline-style -- dynamic: data-driven POV color */
+                  style={{ color: povColor(r.pov) }}
+                >
                   {r.pov.slice(0, 3)}
                 </span>
                 <span className="attr-filter-row-id">{r.id}</span>

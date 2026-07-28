@@ -1,0 +1,15 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Co-located styles for AttributeFilterPanel — migrated from inline (t/1865).
+   Panel width and the resizable list height stay inline (prop/state-driven). */
+
+.attrfil-header-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.attrfil-list-fixed {
+  flex: none;
+}

@@ -116,23 +116,21 @@ function DiagnosticsSection({ eval: ev }: { eval: NeutralEvaluation }) {
       <h4>
         Diagnostics
         {ev.diagnostics_response_time_ms != null && (
-          <span style={{ fontWeight: 'normal', fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: 8 }}>
+          <span className="neval-diag-time">
             {(ev.diagnostics_response_time_ms / 1000).toFixed(1)}s
           </span>
         )}
       </h4>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+      <div className="neval-diag-buttons">
         <button
-          className={`btn btn-sm ${showPrompt ? 'btn-active' : ''}`}
+          className={`btn btn-sm neval-diag-btn ${showPrompt ? 'btn-active' : ''}`}
           onClick={() => { setShowPrompt(!showPrompt); setShowRaw(false); }}
-          style={{ fontSize: 'var(--text-2xs)' }}
         >
           {showPrompt ? 'Hide Prompt' : 'Show Prompt'}
         </button>
         <button
-          className={`btn btn-sm ${showRaw ? 'btn-active' : ''}`}
+          className={`btn btn-sm neval-diag-btn ${showRaw ? 'btn-active' : ''}`}
           onClick={() => { setShowRaw(!showRaw); setShowPrompt(false); }}
-          style={{ fontSize: 'var(--text-2xs)' }}
         >
           {showRaw ? 'Hide Raw Response' : 'Show Raw Response'}
         </button>
@@ -270,6 +268,7 @@ export function NeutralEvaluationPanel({
                     <div className="neutral-eval-crux-header">
                       <span
                         className="badge"
+                        /* eslint-disable-next-line local/no-inline-style -- dynamic: data-driven status color + confidence opacity */
                         style={{
                           backgroundColor: STATUS_BADGE_COLORS[crux.status] ?? '#999',
                           opacity: CONFIDENCE_OPACITY[crux.confidence] ?? 1,
@@ -323,6 +322,7 @@ export function NeutralEvaluationPanel({
                       </span>
                       <span
                         className="badge"
+                        /* eslint-disable-next-line local/no-inline-style -- dynamic: data-driven assessment color + confidence opacity */
                         style={{
                           backgroundColor: ASSESSMENT_BADGE_COLORS[claim.neutral_assessment] ?? '#999',
                           opacity: CONFIDENCE_OPACITY[claim.confidence] ?? 1,
