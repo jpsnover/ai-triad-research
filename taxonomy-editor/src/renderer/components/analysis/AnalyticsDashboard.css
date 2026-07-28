@@ -1,0 +1,401 @@
+/* Co-located styles for AnalyticsDashboard.tsx (migrated from inline styles, t/1865). */
+
+.adash-delta-neutral {
+  font-size: 0.7rem;
+  margin-top: 4px;
+  color: var(--text-muted);
+}
+
+.adash-delta {
+  font-size: 0.7rem;
+  margin-top: 4px;
+}
+
+.adash-cards-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.adash-summary-card {
+  flex: 1 1 140px;
+  padding: 16px 20px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.adash-summary-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.adash-summary-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.adash-activity-panel {
+  margin-bottom: 20px;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.adash-panel-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.adash-activity-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 100px;
+}
+
+.adash-activity-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  cursor: pointer;
+}
+
+.adash-activity-bar {
+  width: 100%;
+  max-width: 24px;
+  border-radius: 3px 3px 0 0;
+  background: #3b82f6;
+  opacity: 0.7;
+}
+
+.adash-activity-svg {
+  width: 100%;
+  height: 40px;
+  margin-top: -40px;
+  pointer-events: none;
+}
+
+.adash-activity-legend {
+  display: flex;
+  gap: 16px;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.adash-legend-swatch-events {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background: #3b82f6;
+  opacity: 0.7;
+  border-radius: 2px;
+  margin-right: 4px;
+}
+
+.adash-legend-swatch-users {
+  display: inline-block;
+  width: 10px;
+  height: 2px;
+  background: #f59e0b;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.adash-feature-panel {
+  flex: 1 1 300px;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.adash-feature-row {
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+
+.adash-feature-row-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  margin-bottom: 2px;
+}
+
+.adash-cat-name {
+  color: var(--text-primary);
+}
+
+.adash-cat-count {
+  color: var(--text-muted);
+}
+
+.adash-feature-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-primary);
+}
+
+.adash-feature-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.adash-th {
+  padding: 6px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.adash-users-panel {
+  flex: 1 1 400px;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  overflow-x: auto;
+}
+
+.adash-users-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.adash-clickable {
+  cursor: pointer;
+}
+
+.adash-td-user {
+  padding: 4px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+.adash-td-num-nowrap {
+  padding: 4px 8px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.adash-td-num {
+  padding: 4px 8px;
+  text-align: right;
+}
+
+.adash-td {
+  padding: 4px 8px;
+}
+
+.adash-cat-badge {
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: var(--text-2xs);
+}
+
+.adash-session-panel {
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.adash-session-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.adash-session-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.adash-session-user-pill {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-muted);
+}
+
+.adash-session-select {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.adash-cat-badge-2xs {
+  font-size: var(--text-2xs);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.adash-session-empty {
+  padding: 24px 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.adash-session-loading {
+  padding: 12px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.adash-session-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.adash-event-row {
+  display: flex;
+  gap: 12px;
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  border-radius: 2px;
+}
+
+.adash-event-time {
+  color: var(--text-muted);
+  font-family: monospace;
+  flex-shrink: 0;
+  width: 60px;
+}
+
+.adash-event-type {
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  flex-shrink: 0;
+  min-width: 80px;
+  text-align: center;
+}
+
+.adash-event-detail {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.adash-event-duration {
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+  flex-shrink: 0;
+}
+
+.adash-session-more {
+  padding: 8px;
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.adash-root {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px 24px;
+  color: var(--text-primary);
+  height: 100dvh;
+  overflow-y: auto;
+}
+
+.adash-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.adash-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.adash-back-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.adash-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.adash-preset-group {
+  display: flex;
+  gap: 4px;
+}
+
+.adash-preset-btn {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.adash-compare-btn {
+  margin-left: 8px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.adash-loading {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.adash-error {
+  padding: 20px;
+  color: #ef4444;
+}
+
+.adash-empty {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.adash-empty-title {
+  font-size: 1rem;
+  margin-bottom: 8px;
+}
+
+.adash-empty-sub {
+  font-size: 0.8rem;
+}
+
+.adash-panels-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}

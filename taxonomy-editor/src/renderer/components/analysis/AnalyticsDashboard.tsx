@@ -14,6 +14,7 @@ import { useChartTooltip, ChartTooltipLayer } from './chartTooltip';
 import { DebateHealthCard } from './DebateHealthCard';
 import { AICostCard } from './AICostCard';
 import { DebateFunnelChart } from './DebateFunnelChart';
+import './AnalyticsDashboard.css';
 
 // ── Types ──
 
@@ -102,7 +103,7 @@ function fmtNumber(n: number): string {
 function Delta({ current, previous, goodWhenUp }: { current: number; previous: number; goodWhenUp: boolean | null }) {
   // No baseline to compare against — avoid divide-by-zero.
   if (previous === 0) {
-    return <div style={{ fontSize: '0.7rem', marginTop: 4, color: 'var(--text-muted)' }}>{current > 0 ? 'new' : '—'}</div>;
+    return <div className="adash-delta-neutral">{current > 0 ? 'new' : '—'}</div>;
   }
   const delta = ((current - previous) / previous) * 100;
   const flat = Math.abs(delta) < 0.05;
@@ -114,7 +115,12 @@ function Delta({ current, previous, goodWhenUp }: { current: number; previous: n
     color = good ? 'var(--success, #22c55e)' : 'var(--danger, #ef4444)';
   }
   return (
-    <div style={{ fontSize: '0.7rem', marginTop: 4, color }} title={`vs. previous period`}>
+    <div
+      className="adash-delta"
+      /* eslint-disable-next-line local/no-inline-style -- dynamic: color depends on delta direction/goodWhenUp */
+      style={{ color }}
+      title={`vs. previous period`}
+    >
       {arrow} {Math.abs(delta).toFixed(1)}%
     </div>
   );
@@ -129,15 +135,11 @@ function SummaryCards({ data, previous }: { data: QueryResult['summary']; previo
     { label: 'Avg Session', value: data.avgSessionDurationMs, display: fmtDuration(data.avgSessionDurationMs), prev: previous?.avgSessionDurationMs, goodWhenUp: null },
   ];
   return (
-    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+    <div className="adash-cards-row">
       {cards.map(c => (
-        <div key={c.label} style={{
-          flex: '1 1 140px', padding: '16px 20px', borderRadius: 8,
-          background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
-          textAlign: 'center',
-        }}>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>{c.display}</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>{c.label}</div>
+        <div key={c.label} className="adash-summary-card">
+          <div className="adash-summary-value">{c.display}</div>
+          <div className="adash-summary-label">{c.label}</div>
           {previous != null && c.prev !== undefined && (
             <Delta current={c.value} previous={c.prev} goodWhenUp={c.goodWhenUp} />
           )}
@@ -154,36 +156,33 @@ function ActivityChart({ daily }: { daily: DailySummary[] }) {
   const maxUsers = Math.max(...daily.map(d => d.users), 1);
 
   return (
-    <div style={{
-      marginBottom: 20, padding: 16, borderRadius: 8,
-      background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
-    }}>
-      <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 12 }}>Activity Over Time</div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 100 }}>
+    <div className="adash-activity-panel">
+      <div className="adash-panel-title">Activity Over Time</div>
+      <div className="adash-activity-bars">
         {daily.map(d => (
-          <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', cursor: 'pointer' }}
+          <div key={d.date} className="adash-activity-bar-col"
             onMouseEnter={e => showTip(e, <><strong>{d.date}</strong><br />{d.events} events · {d.users} users · {d.sessions} sessions</>)}
             onMouseMove={e => showTip(e, <><strong>{d.date}</strong><br />{d.events} events · {d.users} users · {d.sessions} sessions</>)}
             onMouseLeave={hideTip}
           >
-            <div style={{
-              width: '100%', maxWidth: 24, borderRadius: '3px 3px 0 0',
-              background: '#3b82f6', opacity: 0.7,
-              height: `${Math.max((d.events / maxEvents) * 100, 2)}%`,
-            }} />
+            <div
+              className="adash-activity-bar"
+              /* eslint-disable-next-line local/no-inline-style -- dynamic: bar height from events/maxEvents */
+              style={{ height: `${Math.max((d.events / maxEvents) * 100, 2)}%` }}
+            />
           </div>
         ))}
       </div>
       {/* User line overlay */}
-      <svg viewBox={`0 0 ${daily.length * 10} 100`} style={{ width: '100%', height: 40, marginTop: -40, pointerEvents: 'none' }} preserveAspectRatio="none">
+      <svg viewBox={`0 0 ${daily.length * 10} 100`} className="adash-activity-svg" preserveAspectRatio="none">
         <polyline
           fill="none" stroke="#f59e0b" strokeWidth="2"
           points={daily.map((d, i) => `${i * 10 + 5},${100 - (d.users / maxUsers) * 90}`).join(' ')}
         />
       </svg>
-      <div style={{ display: 'flex', gap: 16, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4 }}>
-        <span><span style={{ display: 'inline-block', width: 10, height: 10, background: '#3b82f6', opacity: 0.7, borderRadius: 2, marginRight: 4 }} />Events</span>
-        <span><span style={{ display: 'inline-block', width: 10, height: 2, background: '#f59e0b', marginRight: 4, verticalAlign: 'middle' }} />Users</span>
+      <div className="adash-activity-legend">
+        <span><span className="adash-legend-swatch-events" />Events</span>
+        <span><span className="adash-legend-swatch-users" />Users</span>
       </div>
       <ChartTooltipLayer tip={tip} />
     </div>
@@ -197,22 +196,20 @@ function FeatureUsage({ usage, onFilter }: { usage: Record<string, number>; onFi
   const max = sorted[0]?.[1] || 1;
 
   return (
-    <div style={{
-      flex: '1 1 300px', padding: 16, borderRadius: 8,
-      background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
-    }}>
-      <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 12 }}>Feature Usage</div>
+    <div className="adash-feature-panel">
+      <div className="adash-panel-title">Feature Usage</div>
       {sorted.map(([cat, count]) => (
-        <div key={cat} style={{ marginBottom: 6, cursor: 'pointer' }} onClick={() => onFilter(cat)}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', marginBottom: 2 }}>
-            <span style={{ color: 'var(--text-primary)' }}>{cat}</span>
-            <span style={{ color: 'var(--text-muted)' }}>{count}</span>
+        <div key={cat} className="adash-feature-row" onClick={() => onFilter(cat)}>
+          <div className="adash-feature-row-head">
+            <span className="adash-cat-name">{cat}</span>
+            <span className="adash-cat-count">{count}</span>
           </div>
-          <div style={{ height: 6, borderRadius: 3, background: 'var(--bg-primary)' }}>
-            <div style={{
-              height: '100%', borderRadius: 3, width: `${(count / max) * 100}%`,
-              background: CATEGORY_COLORS[cat] || '#6b7280',
-            }} />
+          <div className="adash-feature-track">
+            <div
+              className="adash-feature-fill"
+              /* eslint-disable-next-line local/no-inline-style -- dynamic: bar width from count/max, color from category */
+              style={{ width: `${(count / max) * 100}%`, background: CATEGORY_COLORS[cat] || '#6b7280' }}
+            />
           </div>
         </div>
       ))}
@@ -235,24 +232,24 @@ function ActiveUsers({ users, sortCol, sortDir, onSort, onSelectUser }: {
   }, [users, sortCol, sortDir]);
 
   const header = (col: SortCol, label: string) => (
-    <th key={col} onClick={() => onSort(col)} style={{
-      padding: '6px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer',
-      textAlign: col === 'user' || col === 'topCategory' ? 'left' : 'right',
-      borderBottom: '1px solid var(--border-color)',
-      color: sortCol === col ? 'var(--text-primary)' : 'var(--text-muted)',
-    }}>
+    <th
+      key={col}
+      onClick={() => onSort(col)}
+      className="adash-th"
+      /* eslint-disable-next-line local/no-inline-style -- dynamic: textAlign per column, color from active sort */
+      style={{
+        textAlign: col === 'user' || col === 'topCategory' ? 'left' : 'right',
+        color: sortCol === col ? 'var(--text-primary)' : 'var(--text-muted)',
+      }}
+    >
       {label} {sortCol === col ? (sortDir === 'asc' ? '↑' : '↓') : ''}
     </th>
   );
 
   return (
-    <div style={{
-      flex: '1 1 400px', padding: 16, borderRadius: 8,
-      background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
-      overflowX: 'auto',
-    }}>
-      <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 12 }}>Active Users</div>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+    <div className="adash-users-panel">
+      <div className="adash-panel-title">Active Users</div>
+      <table className="adash-users-table">
         <thead><tr>
           {header('user', 'User')}
           {header('lastActive', 'Last Active')}
@@ -262,15 +259,19 @@ function ActiveUsers({ users, sortCol, sortDir, onSort, onSelectUser }: {
         </tr></thead>
         <tbody>
           {sorted.map(u => (
-            <tr key={u.user} onClick={() => onSelectUser(u.user)} style={{ cursor: 'pointer' }}
+            <tr key={u.user} onClick={() => onSelectUser(u.user)} className="adash-clickable"
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-primary)')}
               onMouseLeave={e => (e.currentTarget.style.background = '')}>
-              <td style={{ padding: '4px 8px', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 150 }} title={u.user}>{u.user}</td>
-              <td style={{ padding: '4px 8px', textAlign: 'right', whiteSpace: 'nowrap' }} title={u.lastActive}>{relativeTime(u.lastActive)}</td>
-              <td style={{ padding: '4px 8px', textAlign: 'right' }}>{u.sessions}</td>
-              <td style={{ padding: '4px 8px', textAlign: 'right' }}>{u.events}</td>
-              <td style={{ padding: '4px 8px' }}>
-                <span style={{ padding: '1px 6px', borderRadius: 3, fontSize: 'var(--text-2xs)', background: `${CATEGORY_COLORS[u.topCategory] || '#6b7280'}22`, color: CATEGORY_COLORS[u.topCategory] || '#6b7280' }}>
+              <td className="adash-td-user" title={u.user}>{u.user}</td>
+              <td className="adash-td-num-nowrap" title={u.lastActive}>{relativeTime(u.lastActive)}</td>
+              <td className="adash-td-num">{u.sessions}</td>
+              <td className="adash-td-num">{u.events}</td>
+              <td className="adash-td">
+                <span
+                  className="adash-cat-badge"
+                  /* eslint-disable-next-line local/no-inline-style -- dynamic: badge colors from category */
+                  style={{ background: `${CATEGORY_COLORS[u.topCategory] || '#6b7280'}22`, color: CATEGORY_COLORS[u.topCategory] || '#6b7280' }}
+                >
                   {u.topCategory}
                 </span>
               </td>
@@ -322,14 +323,11 @@ function SessionExplorer({ from, to, selectedUser, categoryFilter }: {
   }, [events, selectedSession, categoryFilter]);
 
   return (
-    <div style={{
-      marginTop: 20, padding: 16, borderRadius: 8,
-      background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-        <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>Session Explorer</div>
+    <div className="adash-session-panel">
+      <div className="adash-session-head">
+        <div className="adash-session-title">Session Explorer</div>
         {selectedUser && (
-          <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: 4, background: 'var(--bg-primary)', color: 'var(--text-muted)' }}>
+          <span className="adash-session-user-pill">
             {selectedUser}
           </span>
         )}
@@ -337,32 +335,36 @@ function SessionExplorer({ from, to, selectedUser, categoryFilter }: {
           <select
             value={selectedSession || ''}
             onChange={e => setSelectedSession(e.target.value || null)}
-            style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: 4, background: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+            className="adash-session-select"
           >
             {sessions.map(s => <option key={s} value={s}>{s.slice(0, 8)}...</option>)}
           </select>
         )}
         {categoryFilter && (
-          <span style={{ fontSize: 'var(--text-2xs)', padding: '1px 6px', borderRadius: 3, background: `${CATEGORY_COLORS[categoryFilter] || '#6b7280'}22`, color: CATEGORY_COLORS[categoryFilter] || '#6b7280' }}>
+          <span
+            className="adash-cat-badge-2xs"
+            /* eslint-disable-next-line local/no-inline-style -- dynamic: badge colors from category */
+            style={{ background: `${CATEGORY_COLORS[categoryFilter] || '#6b7280'}22`, color: CATEGORY_COLORS[categoryFilter] || '#6b7280' }}
+          >
             {categoryFilter}
           </span>
         )}
       </div>
 
       {!selectedUser && (
-        <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+        <div className="adash-session-empty">
           Click a user in the Active Users table to explore their sessions.
         </div>
       )}
 
-      {loading && <div style={{ padding: 12, color: 'var(--text-muted)', fontSize: '0.75rem' }}>Loading...</div>}
+      {loading && <div className="adash-session-loading">Loading...</div>}
 
       {selectedUser && !loading && filtered.length === 0 && (
-        <div style={{ padding: 12, color: 'var(--text-muted)', fontSize: '0.75rem' }}>No events found.</div>
+        <div className="adash-session-loading">No events found.</div>
       )}
 
       {filtered.length > 0 && (
-        <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+        <div className="adash-session-list">
           {filtered.map((evt, i) => {
             const time = new Date(evt.timestamp).toLocaleTimeString('en-US', { hour12: false });
             const detailStr = Object.entries(evt.detail)
@@ -370,31 +372,31 @@ function SessionExplorer({ from, to, selectedUser, categoryFilter }: {
               .map(([k, v]) => `${k}: ${String(v)}`)
               .join(', ');
             return (
-              <div key={i} style={{
-                display: 'flex', gap: 12, padding: '4px 8px', fontSize: '0.72rem',
-                background: i % 2 === 0 ? 'transparent' : 'var(--bg-primary)',
-                borderRadius: 2,
-              }}>
-                <span style={{ color: 'var(--text-muted)', fontFamily: 'monospace', flexShrink: 0, width: 60 }}>{time}</span>
-                <span style={{
-                  padding: '1px 6px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600,
-                  background: `${CATEGORY_COLORS[evt.category] || '#6b7280'}22`,
-                  color: CATEGORY_COLORS[evt.category] || '#6b7280',
-                  flexShrink: 0, minWidth: 80, textAlign: 'center',
-                }}>
+              <div
+                key={i}
+                className="adash-event-row"
+                /* eslint-disable-next-line local/no-inline-style -- dynamic: zebra striping by row index */
+                style={{ background: i % 2 === 0 ? 'transparent' : 'var(--bg-primary)' }}
+              >
+                <span className="adash-event-time">{time}</span>
+                <span
+                  className="adash-event-type"
+                  /* eslint-disable-next-line local/no-inline-style -- dynamic: badge colors from category */
+                  style={{ background: `${CATEGORY_COLORS[evt.category] || '#6b7280'}22`, color: CATEGORY_COLORS[evt.category] || '#6b7280' }}
+                >
                   {evt.event_type}
                 </span>
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>
+                <span className="adash-event-detail">
                   {detailStr}
                 </span>
                 {evt.duration_ms != null && (
-                  <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)', flexShrink: 0 }}>({evt.duration_ms}ms)</span>
+                  <span className="adash-event-duration">({evt.duration_ms}ms)</span>
                 )}
               </div>
             );
           })}
           {events.length > 500 && (
-            <div style={{ padding: 8, textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+            <div className="adash-session-more">
               Showing first 500 of {events.length} events
             </div>
           )}
@@ -469,22 +471,21 @@ export function AnalyticsDashboard() {
   const handleBack = () => { window.location.hash = ''; window.location.reload(); };
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '20px 24px', color: 'var(--text-primary)', height: '100dvh', overflowY: 'auto' }}>
+    <div className="adash-root">
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <button onClick={handleBack} style={{
-            background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem',
-          }}>
+      <div className="adash-header">
+        <div className="adash-header-left">
+          <button onClick={handleBack} className="adash-back-btn">
             ← Back to Editor
           </button>
-          <h1 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>Usage Analytics</h1>
+          <h1 className="adash-title">Usage Analytics</h1>
         </div>
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div className="adash-preset-group">
           {(['1d', '7d', '30d', '90d'] as DatePreset[]).map(p => (
             <button key={p} onClick={() => { setPreset(p); setSelectedUser(null); setCategoryFilter(null); }}
+              className="adash-preset-btn"
+              /* eslint-disable-next-line local/no-inline-style -- dynamic: active-preset colors/border */
               style={{
-                padding: '4px 12px', borderRadius: 4, fontSize: '0.75rem', cursor: 'pointer',
                 background: preset === p ? 'var(--color-acc, #3b82f6)' : 'var(--bg-secondary)',
                 color: preset === p ? '#fff' : 'var(--text-muted)',
                 border: `1px solid ${preset === p ? 'transparent' : 'var(--border-color)'}`,
@@ -494,8 +495,9 @@ export function AnalyticsDashboard() {
           ))}
           <button onClick={() => setCompare(c => !c)}
             title="Compare each metric with the previous period of equal length"
+            className="adash-compare-btn"
+            /* eslint-disable-next-line local/no-inline-style -- dynamic: active-compare colors/border */
             style={{
-              marginLeft: 8, padding: '4px 12px', borderRadius: 4, fontSize: '0.75rem', cursor: 'pointer',
               background: compare ? 'var(--color-acc, #3b82f6)' : 'var(--bg-secondary)',
               color: compare ? '#fff' : 'var(--text-muted)',
               border: `1px solid ${compare ? 'transparent' : 'var(--border-color)'}`,
@@ -505,15 +507,15 @@ export function AnalyticsDashboard() {
         </div>
       </div>
 
-      {loading && <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Loading analytics...</div>}
-      {error && <div style={{ padding: 20, color: '#ef4444' }}>Failed to load analytics: {error}</div>}
+      {loading && <div className="adash-loading">Loading analytics...</div>}
+      {error && <div className="adash-error">Failed to load analytics: {error}</div>}
 
       {data && !loading && (
         <>
           {data.summary.totalEvents === 0 ? (
-            <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-              <div style={{ fontSize: '1rem', marginBottom: 8 }}>No analytics data available</div>
-              <div style={{ fontSize: '0.8rem' }}>Events will appear as users interact with the app.</div>
+            <div className="adash-empty">
+              <div className="adash-empty-title">No analytics data available</div>
+              <div className="adash-empty-sub">Events will appear as users interact with the app.</div>
             </div>
           ) : (
             <>
@@ -524,13 +526,13 @@ export function AnalyticsDashboard() {
                   : null,
               }} />
               <SummaryCards data={data.summary} previous={compare ? prevData : null} />
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+              <div className="adash-cards-row">
                 <DebateHealthCard eventTypes={data.eventTypes} />
                 <AICostCard aiCost={data.aiCost} debateCount={data.eventTypes?.['debate.complete']} />
               </div>
               <ActivityChart daily={data.daily} />
               <DebateFunnelChart eventTypes={data.eventTypes} />
-              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              <div className="adash-panels-row">
                 <FeatureUsage usage={data.featureUsage} onFilter={cat => setCategoryFilter(cat === categoryFilter ? null : cat)} />
                 <ActiveUsers
                   users={data.users} sortCol={sortCol} sortDir={sortDir}
