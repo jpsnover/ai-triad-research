@@ -106,6 +106,14 @@ Both channels report the same way as the primary, showing per-debate spread alon
 
 The banked arm-A run `t1670-02` logged `an.extraction_coverage_low` at 29% against a 70% threshold. Low extraction coverage is a property of the model and pacing, held identical across arms, so it does not bias the comparison. It does bound what the run can claim. These are thin debates, and a criterion effect measured on thin debates may not appear on richer ones.
 
+## Instrument incident log (recorded and committed before any arm-B data existed)
+
+No decision rule, measure, or interpretation changes here. These are execution facts a reader needs to weigh the run, written down while arm B still had zero artifacts.
+
+1. **Arm-B patch never compiled until tonight.** The patched evaluator rubric quoted the three status words with backticks inside a template literal, which terminated the string, so every arm-B launch died in the TypeScript transform before reaching any model call. Consequence for validity: zero arm-B debates ran under the broken instrument, so nothing was measured with it, and the fix (backticks to double quotes in `neutralEvaluator.ts:192`, no wording change) alters quoting, not semantics. Both patched files were then parse-verified with the same transformer the CLI uses. The defect also exposes a gap in my own verification: I had confirmed the patch *text* was present in the worktree but never that it *parsed* — text-presence checks are not instrument checks.
+2. **Worktree data-root resolution.** The arm-B worktree lives outside the repo parent, so the relative `data_root` in `.aitriad.json` resolved to a nonexistent path and arm-B launches failed at taxonomy load. Fixed by pinning `AI_TRIAD_DATA_ROOT` to the same directory arm A resolves implicitly, keeping both arms' data identical. Verified by a 20-second probe run (taxonomy loaded, debate started) that was killed before producing artifacts.
+3. **Two-writer race on arm-A slugs (no effect on validity).** A session restart left the original batch runner alive while a recovery filler ran the same queue; for roughly 40 minutes both wrote the same arm-A output slugs. Both writers used byte-identical configs from the same clean tree, so whichever debate survived per slug is a valid arm-A draw selected by timing, not outcome. All six then-banked artifact sets were audited at the object level (harvest/session id match, sub-second write spread, single-run flight recorder): none torn. Fleet lesson filed as pattern #86; the underlying CLI hang that caused every runner to ride its timeout is t/1824.
+
 ## Results
 
 Not yet run. This section is written before the run and holds no results.
