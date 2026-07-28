@@ -206,6 +206,107 @@ Describe 'Invoke-EntityExtraction (t/1806 Phase 1)' -Tag 'unit' {
         }
     }
 
+    Context 'Pipeline defect regressions (t/1830, from t/1826 hand-scoring)' {
+
+        BeforeEach {
+            $seiContent = @{
+                'node-ppo'   = @{ facts = @(@{ claim = 'PPO is a training method.'; doc_id = 'doc-1' }) }
+                'node-quote' = @{ facts = @(@{ claim = 'Jane Analyst authored the report.'; doc_id = 'doc-2' }) }
+                'node-gate'  = @{ facts = @(@{ claim = 'A low-confidence mention.'; doc_id = 'doc-3' }) }
+            }
+            ($seiContent | ConvertTo-Json -Depth 8) | Set-Content -Path $script:seiPath -Encoding utf8NoBOM
+        }
+
+        It 'Coerces a bare-string aliases value to a single-element array (no char-explosion)' {
+            InModuleScope AITriad -Parameters @{ TaxDir = $script:emptyTaxDir; DataRoot = $script:emptyDataRoot; EntPath = $script:entPath; EmbPath = $script:embPath; SeiPath = $script:seiPath; LogPath = $script:logPath } {
+                param($TaxDir, $DataRoot, $EntPath, $EmbPath, $SeiPath, $LogPath)
+
+                Mock Get-UsageRegistry -MockWith { [PSCustomObject]@{ 'enrichment.entity-extraction' = @{} } }
+                Mock Get-TaxonomyDir -MockWith ({ $TaxDir }.GetNewClosure())
+                Mock Get-DataRoot -MockWith ({ $DataRoot }.GetNewClosure())
+                # The model emits `aliases` as a BARE STRING (its single-alias habit — 13/37 in the
+                # first live batch, t/1826). It must persist as ONE alias, never N single chars.
+                Mock Invoke-AIByUsage -MockWith {
+                    param($UsageId, $Values, $Override, $ApiKey, $FallbackModels)
+                    if ($Values.node_id -eq 'node-ppo') {
+                        [PSCustomObject]@{ Text = '{"proposals":[{"name":"PPO","entity_type":"artifact","aliases":"Proximal Policy Optimization","quote":"q","confidence":0.9}],"org_mentions":[]}'; Model = 'stub' }
+                    } else { [PSCustomObject]@{ Text = '{"proposals":[],"org_mentions":[]}'; Model = 'stub' } }
+                }
+
+                $r = Invoke-EntityExtraction -NodeId 'node-ppo' -Concurrency 1 `
+                    -EntitiesPath $EntPath -EmbeddingsPath $EmbPath -SourceEvidenceIndexPath $SeiPath -OutputPath $LogPath -Confirm:$false
+
+                $r.Minted | Should -Be 1
+                $store = Get-Content -Raw -Path $EntPath | ConvertFrom-Json
+                $rec = $store.entities | Where-Object { $_.name -eq 'PPO' }
+                @($rec.aliases).Count | Should -Be 1 -Because 'a bare-string alias is ONE alias, not one element per character'
+                @($rec.aliases)[0]    | Should -Be 'Proximal Policy Optimization'
+            }
+        }
+
+        It 'Persists the supporting quote per minted entity in the sidecar log (keyed by id)' {
+            InModuleScope AITriad -Parameters @{ TaxDir = $script:emptyTaxDir; DataRoot = $script:emptyDataRoot; EntPath = $script:entPath; EmbPath = $script:embPath; SeiPath = $script:seiPath; LogPath = $script:logPath } {
+                param($TaxDir, $DataRoot, $EntPath, $EmbPath, $SeiPath, $LogPath)
+
+                Mock Get-UsageRegistry -MockWith { [PSCustomObject]@{ 'enrichment.entity-extraction' = @{} } }
+                Mock Get-TaxonomyDir -MockWith ({ $TaxDir }.GetNewClosure())
+                Mock Get-DataRoot -MockWith ({ $DataRoot }.GetNewClosure())
+                Mock Invoke-AIByUsage -MockWith {
+                    param($UsageId, $Values, $Override, $ApiKey, $FallbackModels)
+                    if ($Values.node_id -eq 'node-quote') {
+                        [PSCustomObject]@{ Text = '{"proposals":[{"name":"Jane Analyst","entity_type":"person","aliases":[],"quote":"Jane Analyst authored the report","confidence":0.9}],"org_mentions":[]}'; Model = 'stub' }
+                    } else { [PSCustomObject]@{ Text = '{"proposals":[],"org_mentions":[]}'; Model = 'stub' } }
+                }
+
+                $r = Invoke-EntityExtraction -NodeId 'node-quote' -Concurrency 1 `
+                    -EntitiesPath $EntPath -EmbeddingsPath $EmbPath -SourceEvidenceIndexPath $SeiPath -OutputPath $LogPath -Confirm:$false
+
+                $r.Minted | Should -Be 1
+                $mintedId = ($r.MintedEntities | Where-Object { $_.name -eq 'Jane Analyst' }).id
+
+                $log = Get-Content -Raw -Path $LogPath | ConvertFrom-Json
+                $node = $log.nodes | Where-Object { $_.node_id -eq 'node-quote' }
+                $node.evidence | Should -Not -BeNullOrEmpty -Because 'curation reads the supporting quote from the sidecar'
+                $ev = @($node.evidence) | Where-Object { $_.id -eq $mintedId }
+                $ev.quote | Should -Be 'Jane Analyst authored the report'
+                $ev.name  | Should -Be 'Jane Analyst'
+            }
+        }
+
+        It 'Records below-gate drops in the sidecar log with name/type/confidence/node_id' {
+            InModuleScope AITriad -Parameters @{ TaxDir = $script:emptyTaxDir; DataRoot = $script:emptyDataRoot; EntPath = $script:entPath; EmbPath = $script:embPath; SeiPath = $script:seiPath; LogPath = $script:logPath } {
+                param($TaxDir, $DataRoot, $EntPath, $EmbPath, $SeiPath, $LogPath)
+
+                Mock Get-UsageRegistry -MockWith { [PSCustomObject]@{ 'enrichment.entity-extraction' = @{} } }
+                Mock Get-TaxonomyDir -MockWith ({ $TaxDir }.GetNewClosure())
+                Mock Get-DataRoot -MockWith ({ $DataRoot }.GetNewClosure())
+                Mock Invoke-AIByUsage -MockWith {
+                    param($UsageId, $Values, $Override, $ApiKey, $FallbackModels)
+                    if ($Values.node_id -eq 'node-gate') {
+                        [PSCustomObject]@{ Text = '{"proposals":[{"name":"Faint Signal","entity_type":"artifact","aliases":[],"quote":"q","confidence":0.4}],"org_mentions":[]}'; Model = 'stub' }
+                    } else { [PSCustomObject]@{ Text = '{"proposals":[],"org_mentions":[]}'; Model = 'stub' } }
+                }
+
+                $r = Invoke-EntityExtraction -NodeId 'node-gate' -Concurrency 1 `
+                    -EntitiesPath $EntPath -EmbeddingsPath $EmbPath -SourceEvidenceIndexPath $SeiPath -OutputPath $LogPath -Confirm:$false
+
+                $r.DroppedBelowGate | Should -Be 1
+                $r.Minted           | Should -Be 0
+                # On the run object
+                $dropItem = @($r.DroppedItems) | Where-Object { $_.name -eq 'Faint Signal' }
+                $dropItem.entity_type | Should -Be 'artifact'
+                $dropItem.confidence  | Should -Be 0.4
+                $dropItem.node_id     | Should -Be 'node-gate'
+                # And persisted to the sidecar for gate-recall audit
+                $log = Get-Content -Raw -Path $LogPath | ConvertFrom-Json
+                $node = $log.nodes | Where-Object { $_.node_id -eq 'node-gate' }
+                @($node.dropped).Count | Should -Be 1
+                @($node.dropped)[0].name       | Should -Be 'Faint Signal'
+                @($node.dropped)[0].confidence | Should -Be 0.4
+            }
+        }
+    }
+
     Context 'Idempotence' {
         BeforeEach {
             $seiContent = @{ 'node-idem' = @{ facts = @(@{ claim = 'A repeatable claim.'; doc_id = 'doc-9' }) } }

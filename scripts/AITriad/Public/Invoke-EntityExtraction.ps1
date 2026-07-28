@@ -528,6 +528,9 @@ function Invoke-EntityExtraction {
     $DroppedBelowGate = 0
     $NearGateMinted   = 0
     $LinkedDispositions = [System.Collections.Generic.List[PSObject]]::new()
+    # Below-gate drops captured (not just counted) so gate recall is auditable — did the
+    # gate drop anything good? Persisted to the sidecar log per node (t/1830 #3).
+    $DroppedProposals = [System.Collections.Generic.List[PSObject]]::new()
 
     # Mint candidates, deduped by normalized name WITHIN this run.
     $MintCandidates = [System.Collections.Generic.List[PSObject]]::new()
@@ -538,6 +541,12 @@ function Invoke-EntityExtraction {
             $ProposalsTotal++
             if ($p.confidence -lt $ConfidenceThreshold) {
                 $DroppedBelowGate++
+                $DroppedProposals.Add([PSCustomObject]@{
+                    node_id     = $Node.NodeId
+                    name        = $p.name
+                    entity_type = $p.entity_type
+                    confidence  = $p.confidence
+                })
                 continue
             }
             $nearGate = ($p.confidence -lt ($ConfidenceThreshold + $NearGateBand))
@@ -675,17 +684,37 @@ function Invoke-EntityExtraction {
         }
     })
 
+    # Group the per-node audit rows the sidecar carries, keyed by node_id so they ride the
+    # existing -Force remove/re-add path (below) and stay consistent with nodes[]:
+    #   evidence[] — supporting quote per MINTED entity (id/name/quote), the artifact
+    #                curation reads for the person-exception review (t/1830 #2).
+    #   dropped[]  — below-gate proposals so gate recall is auditable (t/1830 #3).
+    $EvidenceByNode = @{}
+    foreach ($c in $MintCandidates) {
+        if (-not $EvidenceByNode.ContainsKey($c.NodeId)) { $EvidenceByNode[$c.NodeId] = [System.Collections.Generic.List[PSObject]]::new() }
+        $EvidenceByNode[$c.NodeId].Add([PSCustomObject]@{ id = $c.MintedId; name = $c.Name; quote = $c.Quote })
+    }
+    $DroppedByNode = @{}
+    foreach ($d in $DroppedProposals) {
+        if (-not $DroppedByNode.ContainsKey($d.node_id)) { $DroppedByNode[$d.node_id] = [System.Collections.Generic.List[PSObject]]::new() }
+        $DroppedByNode[$d.node_id].Add($d)
+    }
+
     # ── Persist the idempotence sidecar (only nodes whose AI call/parse succeeded are
     # marked processed — a failure is retried next run). ─────────────────────────────
     $NewlyProcessed = [System.Collections.Generic.List[PSObject]]::new()
     foreach ($Node in $SortedResults) {
         if (-not $Node.ParseOk) { continue }
+        $nodeEvidence = if ($EvidenceByNode.ContainsKey($Node.NodeId)) { @($EvidenceByNode[$Node.NodeId]) } else { @() }
+        $nodeDropped  = if ($DroppedByNode.ContainsKey($Node.NodeId)) { @($DroppedByNode[$Node.NodeId]) } else { @() }
         $NewlyProcessed.Add([PSCustomObject]@{
             node_id         = $Node.NodeId
             processed_at    = (Get-Date).ToString('o')
             model           = $Node.Model
             proposals_total = @($Node.Proposals).Count
             org_mentions    = @($Node.OrgMentions)
+            evidence        = @($nodeEvidence)
+            dropped         = @($nodeDropped)
         })
     }
 
@@ -700,8 +729,8 @@ function Invoke-EntityExtraction {
 
     if ($NewlyProcessed.Count -gt 0) {
         $LogStore = [PSCustomObject]@{
-            _schema_version = '1.0.0'
-            _doc            = 'Entity extraction idempotence log (t/1806 Phase 1). Feeds -Force replay decisions; not a data-of-record store (entities.json is).'
+            _schema_version = '1.1.0'
+            _doc            = 'Entity extraction idempotence log (t/1806 Phase 1). Feeds -Force replay decisions; not a data-of-record store (entities.json is). Each node also carries evidence[] (supporting quote per minted entity id, for curation) and dropped[] (below-gate proposals, for gate-recall audit) — added t/1830.'
             last_modified   = (Get-Date).ToString('yyyy-MM-dd')
             node_count      = @($ExistingLogNodes).Count
             nodes           = @($ExistingLogNodes)
@@ -726,6 +755,7 @@ function Invoke-EntityExtraction {
         Minted             = $MintedCount
         Linked             = $LinkedCount
         DroppedBelowGate   = $DroppedBelowGate
+        DroppedItems       = @($DroppedProposals)
         NearGateMinted     = $NearGateMinted
         InvalidDropped     = $InvalidCount
         InvalidItems       = @($Invalid)
