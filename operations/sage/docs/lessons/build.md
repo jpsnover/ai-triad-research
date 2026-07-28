@@ -1156,3 +1156,24 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — false-red (non-essential-step) variant near the gate-signal-integrity genus (#20/#46). Fix is a package.json flag on the owning app (routed suggestion, p/124#4).
 
 **Applies To:** All agents running `npm run build` (or any composite build with a codegen/license/docs post-step) from a non-interactive shell — Bash tool, CI.
+
+---
+
+## [Build] Local `npm run verify` Hangs on a LIVE AI Backend When Keys Are Set — Keyless CI Never Hits It
+
+**Pattern:** A test has a secondary path that **falls through to a LIVE AI backend when API keys are present in the shell**. On a dev machine (BYOK — keys set) the test makes real Gemini/Claude/Groq calls; **keyless CI runners never do**, so the divergence is invisible in CI. When the live provider is quota-exhausted (e.g. a concurrent debate batch eating the same key's quota), the call's retry logic (120s backoffs on `RESOURCE_EXHAUSTED`) turns the leak into a **~10-minute local `npm run verify` HANG** — a local-only false-red the CI signal can't explain.
+
+**Instances:**
+- 2026-07-26 — Debate Tool 2 (p/234#1, surfaced landing t/1824): local `npm run verify` killed after ~10 min hanging on `[retry] gemini/gemini-2.5-flash RESOURCE_EXHAUSTED` (120s backoffs). Cause: with AI keys set in the shell, `debateEngine.modelRouting.test.ts` fell through to a live Gemini backend on a secondary routing path; a concurrent t/1670 batch had exhausted the quota → retries hung. CI (keyless) never hits it. Fix: run **CI-faithfully with keys unset** — `GEMINI_API_KEY= ANTHROPIC_API_KEY= GROQ_API_KEY= npm run verify` → the same test passes **28/28 in ~3s**.
+
+**Root Cause:** Two compounding issues. (1) **Test-isolation defect:** a unit/routing test must not reach a live backend, but a secondary path falls through to one **when keys are present** — so test behavior depends on shell env (keys) rather than being hermetic. (2) **Local ≠ CI on keys:** dev shells carry BYOK keys; CI runners are keyless, so the live-call path only fires locally and CI is blind to it. The live retry policy (120s × `RESOURCE_EXHAUSTED`) converts a silent leak into a long hang, and a **concurrent batch on the same key** makes exhaustion likely (ties to the serialize-batches convention, #83 prevention #5 / #86).
+
+**Prevention:**
+1. **Run `verify` CI-faithfully — keyless:** `GEMINI_API_KEY= ANTHROPIC_API_KEY= GROQ_API_KEY= npm run verify` reproduces the CI environment and sidesteps the live-call path (fast + deterministic). Good default whenever a local verify hangs but CI is green.
+2. **Real fix — test isolation:** the routing test must stub/mock the backend so keys-present ≠ live-calls; a test's outcome must not depend on whether the shell has API keys. (Routed to the owning test.)
+3. **A test that HANGS (not fails) on a backend retry is a hygiene defect** — tests must never make real network calls to paid APIs; cap/mocking is mandatory, and a live path reachable from a test is a bug regardless of keys.
+4. **When local verify hangs but CI is green, suspect a keys-present live-call leak** — check for `[retry] … RESOURCE_EXHAUSTED`/backoff lines; the env difference (keys) is the usual cause.
+
+**Status:** Active — local-vs-CI (keys-present) divergence; test-isolation defect surfaced landing t/1824. Workaround (keyless verify) documented; real fix is test isolation (routed).
+
+**Applies To:** All agents running `npm run verify`/tests locally with BYOK keys set — especially debate-engine/model-routing tests that can reach a live backend.
