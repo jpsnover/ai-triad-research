@@ -25,6 +25,7 @@ function EntryRow({ entry }: { entry: DebateTestedEntry }) {
   return (
     <div className="dt-drilldown-entry">
       <div className="dt-drilldown-entry-header">
+        {/* eslint-disable-next-line local/no-inline-style -- verdictColor computed from entry.verdict, not static */}
         <span className="dt-drilldown-verdict" style={{ color: verdictColor }}>
           {entry.verdict}
         </span>

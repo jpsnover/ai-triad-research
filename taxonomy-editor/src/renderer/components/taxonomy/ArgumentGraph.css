@@ -1,0 +1,30 @@
+/* ArgumentGraph — static styles extracted from inline style props (t/1849). */
+/* Dynamic (computed positions/sizes/data-driven colors) remain inline with eslint-disable comments. */
+
+.ag-node-clickable {
+  cursor: pointer;
+}
+
+.ag-legend-dot-round {
+  border-radius: 50%;
+}
+
+.ag-legend-dot-acc {
+  background: #27AE60;
+}
+
+.ag-legend-dot-saf {
+  background: #E74C3C;
+}
+
+.ag-legend-dot-skp {
+  background: #F1C40F;
+}
+
+.ag-legend-item-supports {
+  color: #16a34a;
+}
+
+.ag-legend-item-attacks {
+  color: #dc2626;
+}

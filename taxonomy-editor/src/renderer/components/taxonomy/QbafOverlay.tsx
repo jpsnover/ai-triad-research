@@ -58,6 +58,7 @@ export function QbafClaimBadge({ node }: QbafClaimBadgeProps) {
   return (
     <span
       className={`qbaf-badge ${band.className}`}
+      // eslint-disable-next-line local/no-inline-style -- opacity scales with computed strength score
       style={{ opacity: 0.3 + computed * 0.7 }}
       title={`Argument strength: ${band.label} (${computed.toFixed(2)})${showDelta ? ` — ${delta > 0 ? 'gained' : 'lost'} ${Math.abs(delta).toFixed(2)} from attacks/supports` : ''}${subScoreLine}${confLine}`}
     >
@@ -152,6 +153,7 @@ export function QbafEdgeIndicator({ edge }: QbafEdgeIndicatorProps) {
   return (
     <span
       className={`qbaf-edge-indicator ${isAttack ? 'qbaf-edge-attack' : 'qbaf-edge-support'}`}
+      // eslint-disable-next-line local/no-inline-style -- border thickness scales with edge weight
       style={{ borderBottomWidth: `${thickness}px` }}
       title={`${isAttack ? 'Attack' : 'Support'} weight: ${(edge.weight ?? 0).toFixed(2)}${edge.attack_type ? ` (${edge.attack_type})` : ''}`}
     >
