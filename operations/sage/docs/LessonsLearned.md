@@ -1895,3 +1895,22 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — gate-signal-integrity (flaky-gate false-red, #20/#46); stabilization routed HIGH to DebateTool (t/1829). High-severity: a flaky primary gate degrades every agent's trust in verify.
 
 **Applies To:** All agents running `npm run verify` / the `lib/debate` suite — read the failing test names before attributing a red to your change.
+
+## #92 [Data] File-Type Discrimination by Presence-of-a-Key Admits Look-Alikes — Gate on the CONTRACT, Not the Key
+
+**Pattern:** A loader/registrar decides "what kind of file is this?" by testing only for **presence of a key** ("has a `nodes` property → it's a POV"). A **differently-shaped file that shares that key** silently passes, gets registered as a fake instance of the type, and crashes **downstream** when the real element contract is accessed — often as a strict-mode unguarded-property error far from the load site.
+
+**Instances:**
+- 2026-07-28 — PowerShell 2 (t/1834, landed 37598a6f, p/228#3): the POV loader tested only "has a `nodes` property," so the sidecar `entity_extraction_log.json` — `nodes[]` keyed by `node_id`, **not** `id` — registered as a fake POV. `Get-Tax` crashed on a bare `$Node.id` under strict mode. Fix: discriminate on the contract (`nodes[].id`), not key presence. **`entity_extraction_log.json` is a repeat shape-surprise source** (also t/1830 char-explode + p/7#47 probe errors).
+
+**Root Cause:** Presence-of-a-key is a **weak type discriminator** — common keys (`nodes`, `data`, `id`) are shared across unrelated files, so duck-typing on one key admits look-alikes. The loader validated the **container** key but not the **element** contract, so a container with the right key but wrong-shaped elements passed. Compounds with strict-mode unguarded property access — the mismatch surfaces as a downstream crash on `$Node.id`, not a clear rejection at load. Same data-shape-variance family, at the **file-classification** layer.
+
+**Prevention:**
+1. **Discriminate by the CONTRACT the consumer needs, not just key presence** — validate a representative element: "has `nodes` AND `nodes[0].id`" beats "has `nodes`."
+2. **Fail fast at LOAD with a clear error** ("has `nodes` but no `nodes[].id` — not a POV") rather than crashing downstream.
+3. **Exclude known sidecars explicitly** — `entity_extraction_log.json` and other non-POV files sharing `nodes` should be denylisted where auto-discovery is ambiguous; it's a recurring shape-surprise source.
+4. **Pairs with strict-mode guarding** — guard `$Node.PSObject.Properties['id']` so a misclassification degrades to a clear error, not a strict-mode crash.
+
+**Status:** Active — file-classification variant of the data-shape-variance family; compounds with strict-mode unguarded property access. `entity_extraction_log.json` flagged as a repeat offender.
+
+**Applies To:** All loaders/registrars that auto-discover and classify data files by shape — especially the taxonomy/POV loaders in the AITriad PS module.
