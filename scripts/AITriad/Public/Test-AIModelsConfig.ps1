@@ -181,6 +181,32 @@ function Test-AIModelsConfig {
         }
     }
 
+    # ── Check 6: ai-usages.json model references (Warning — same rationale as Check 5) ──
+    # UsageID entries (ai-usages.json, the ADR-006 registry) each pin a `model`.
+    # A gemini-migration incident (t/1850) left usage entries pointing at removed
+    # model ids while Test-AIModelsConfig still passed, because it never looked past
+    # ai-models.json. ai-usages.json is the sibling of ai-models.json at the repo
+    # root, so resolve it relative to $Path; skip silently if absent (a custom -Path
+    # with no sibling registry is not a defect this cmdlet owns). Only entries with a
+    # DIRECT `model` are checked — _extends children inherit `model` from a parent
+    # entry that is itself checked at its own definition site, so every distinct model
+    # string in the file is covered without re-implementing extends resolution.
+    $UsagesPath = Join-Path (Split-Path -Parent $Path) 'ai-usages.json'
+    if (Test-Path -Path $UsagesPath) {
+        try {
+            $Usages = Get-Content -Path $UsagesPath -Raw | ConvertFrom-Json
+            foreach ($U in $Usages.PSObject.Properties) {
+                if ($U.Name.StartsWith('_') -or $null -eq $U.Value -or $U.Value -isnot [PSCustomObject]) { continue }
+                if ($U.Value.PSObject.Properties['model']) {
+                    Test-Reference ([string]$U.Value.model) "ai-usages.json ($($U.Name)).model"
+                }
+            }
+        }
+        catch {
+            Add-Issue 'Warning' 'UsagesUnreadable' $UsagesPath "Could not parse ai-usages.json for model-reference validation: $($_.Exception.Message). Its model refs were not checked."
+        }
+    }
+
     [PSCustomObject]@{
         Path   = $Path
         Pass   = (@($Issues | Where-Object { $_.Severity -eq 'Error' }).Count -eq 0)

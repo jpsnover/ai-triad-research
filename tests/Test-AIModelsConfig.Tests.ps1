@@ -108,4 +108,55 @@ Describe 'Test-AIModelsConfig' -Tag 'config' {
         @($result.Issues | Where-Object { $_.Check -eq 'UnresolvedReference' }).Count |
             Should -Be 0 -Because '"gemini-flash-latest" must resolve to the highest-version gemini-*-flash member (mirrors registry.ts buildModelIdMap)'
     }
+
+    It 'warns on a sibling ai-usages.json model that resolves to no models[] entry, and not on one that does (t/1856)' {
+        # Isolated dir so the sibling ai-usages.json is scoped to THIS models file only
+        # (other tests point -Path at bare $TestDrive files and must not see this registry).
+        $dir = Join-Path $TestDrive 'usages-case'
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+
+        $models = @'
+{
+  "models": [
+    { "id": "gemini-3.5-flash", "apiModelId": "gemini-3.5-flash", "backend": "gemini" }
+  ]
+}
+'@
+        [System.IO.File]::WriteAllBytes((Join-Path $dir 'ai-models.json'), [System.Text.Encoding]::UTF8.GetBytes($models))
+
+        $usages = @'
+{
+  "_schema_version": "1.0.0",
+  "enrichment.good": { "model": "gemini-3.5-flash", "temperature": 0.1 },
+  "enrichment.dangling": { "model": "gemini-3.1-removed", "temperature": 0.1 }
+}
+'@
+        [System.IO.File]::WriteAllBytes((Join-Path $dir 'ai-usages.json'), [System.Text.Encoding]::UTF8.GetBytes($usages))
+
+        $modelsPath = Join-Path $dir 'ai-models.json'
+        $result = Test-AIModelsConfig -Path $modelsPath -WarningAction SilentlyContinue
+
+        $result.Pass | Should -BeTrue -Because 'unresolved usage refs are Warnings, not Errors (TL ruling t/1856#1 — verbatim passthrough is load-bearing)'
+
+        $usageWarnings = @($result.Issues | Where-Object { $_.Check -eq 'UnresolvedReference' -and $_.Site -like 'ai-usages.json*' })
+        @($usageWarnings).Count | Should -Be 1 -Because 'exactly the dangling usage model must warn'
+        $usageWarnings[0].Severity | Should -Be 'Warning'
+        $usageWarnings[0].Site     | Should -Be 'ai-usages.json (enrichment.dangling).model'
+        $usageWarnings[0].Detail   | Should -Match 'gemini-3\.1-removed'
+        ($usageWarnings.Detail -join ' ') | Should -Not -Match 'gemini-3\.5-flash' -Because 'the valid usage model resolves and must not warn'
+    }
+
+    It 'does not check usages when no sibling ai-usages.json exists (skip-if-absent)' {
+        $json = @'
+{ "models": [ { "id": "gemini-3.5-flash", "apiModelId": "gemini-3.5-flash", "backend": "gemini" } ] }
+'@
+        $dir = Join-Path $TestDrive 'no-usages-case'
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+        $path = Join-Path $dir 'ai-models.json'
+        [System.IO.File]::WriteAllBytes($path, [System.Text.Encoding]::UTF8.GetBytes($json))
+        $result = Test-AIModelsConfig -Path $path -WarningAction SilentlyContinue
+
+        @($result.Issues | Where-Object { $_.Site -like 'ai-usages.json*' }).Count |
+            Should -Be 0 -Because 'no sibling ai-usages.json — usage validation must be skipped silently, not error'
+    }
 }
