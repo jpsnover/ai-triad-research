@@ -9,6 +9,7 @@ import { getLineageInfo, getAllLineages } from '../../data/lineageLookup';
 import { api } from '@bridge';
 import type { VocabResolution } from '../../utils/vocabularyAnnotations';
 import { POV_COLOR_VAR } from './utils';
+import './VocabularyPanel.css';
 
 function extractSentence(text: string, term: string, offset?: number): string | undefined {
   const sentences = text.split(/(?<=[.!?])\s+/);
@@ -57,36 +58,36 @@ export function LineageTermsView({ content }: { content: string }) {
     const upgraded = upgradeLineageNames(rawNames);
     return [...new Set(upgraded)];
   }, [rawNames]);
-  if (names.length === 0) return <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '4px 0' }}>No lineage references found</div>;
+  if (names.length === 0) return <div className="vocab-lineage-empty">No lineage references found</div>;
   return (
-    <div style={{ fontSize: '0.8rem', padding: '4px 0' }}>
-      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+    <div className="vocab-view">
+      <div className="vocab-count">
         {names.length} lineage reference{names.length !== 1 ? 's' : ''}
       </div>
       {names.map((name, i) => {
         const info = getLineageInfo(name);
         return (
-          <div key={i} style={{ marginBottom: 10, padding: '4px 8px' }}>
-            <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{name}</div>
+          <div key={i} className="vocab-lineage-item">
+            <div className="vocab-term-name">{name}</div>
             {info?.summary && (
-              <div style={{ marginLeft: 16, marginTop: 2, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+              <div className="vocab-lineage-summary">
                 {info.summary}
               </div>
             )}
             {info?.example && (
-              <div style={{ marginLeft: 16, marginTop: 4, fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                <span style={{ fontWeight: 600, fontStyle: 'normal' }}>Example:</span> {info.example}
+              <div className="vocab-lineage-example">
+                <span className="vocab-lineage-example-label">Example:</span> {info.example}
               </div>
             )}
             {info?.links && info.links.length > 0 && (
-              <div style={{ marginLeft: 16, marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div className="vocab-lineage-links">
                 {info.links.map((link, li) => (
                   <a
                     key={li}
                     href="#"
                     onClick={(e) => { e.preventDefault(); void api.openExternal(link.url); }}
                     title={link.url}
-                    style={{ fontSize: '0.72rem', color: 'var(--link-color, #3b82f6)', textDecoration: 'underline', textUnderlineOffset: '2px' }}
+                    className="vocab-lineage-link"
                   >
                     {link.label}
                   </a>
@@ -109,10 +110,10 @@ export function VocabTermCard({ bare, dict, resolved, defLookup, navigateToLinea
   sourceSentence?: string;
 }) {
   return (
-    <div style={{ marginBottom: 10, padding: '4px 8px' }}>
-      <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{bare}</div>
+    <div className="vocab-term-card">
+      <div className="vocab-term-name">{bare}</div>
       {sourceSentence && (
-        <div style={{ marginLeft: 12, marginTop: 2, fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.4 }}>
+        <div className="vocab-source-sentence">
           &ldquo;{sourceSentence}&rdquo;
         </div>
       )}
@@ -120,42 +121,34 @@ export function VocabTermCard({ bare, dict, resolved, defLookup, navigateToLinea
         const isHighlighted = resolved != null && rt.standardized_term === resolved;
         const def = defLookup?.get(rt.standardized_term);
         return (
-          <div key={j} style={{
-            marginLeft: 12, marginTop: 4, padding: '4px 8px', borderRadius: 4,
-            borderLeft: isHighlighted ? '3px solid var(--accent-color, #3b82f6)' : '3px solid transparent',
-            background: isHighlighted ? 'var(--active-definition-bg, rgba(59,130,246,0.08))' : 'transparent',
-            opacity: isHighlighted ? 1 : 0.7,
-          }}>
-            <div style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+          <div key={j} className={isHighlighted ? 'vocab-def vocab-def-active' : 'vocab-def'}>
+            <div className="vocab-def-header">
               {isHighlighted && (
-                <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--accent-color, #3b82f6)', flexShrink: 0 }}>
+                <span className="vocab-active-badge">
                   active
                 </span>
               )}
               <a
                 href="#"
-                style={{
-                  fontWeight: isHighlighted ? 700 : 500,
-                  textDecoration: 'underline',
-                  textUnderlineOffset: '2px',
-                  color: isHighlighted ? 'var(--text-primary)' : 'var(--text-muted)',
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                }}
+                className={isHighlighted ? 'vocab-def-link vocab-def-link-active' : 'vocab-def-link'}
                 title={`Go to "${def?.display ?? rt.standardized_term}" in Lineage Panel`}
                 onClick={(ev) => { ev.preventDefault(); navigateToLineage(rt.standardized_term); }}
               >
                 {def?.display ?? rt.standardized_term}
               </a>
-              {rt.when && <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>{rt.when}</span>}
+              {rt.when && <span className="vocab-def-when">{rt.when}</span>}
               {rt.default_for_camp && (
-                <span style={{ color: POV_COLOR_VAR[rt.default_for_camp] ?? 'var(--text-muted)', fontWeight: 600, fontSize: '0.72rem', flexShrink: 0 }}>
+                <span
+                  className="vocab-def-camp"
+                  // eslint-disable-next-line local/no-inline-style -- color pulled from POV_COLOR_VAR lookup at runtime
+                  style={{ color: POV_COLOR_VAR[rt.default_for_camp] ?? 'var(--text-muted)' }}
+                >
                   {rt.default_for_camp}
                 </span>
               )}
             </div>
             {def?.definition && (
-              <div style={{ fontSize: '0.72rem', color: isHighlighted ? 'var(--text-secondary)' : 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>
+              <div className={isHighlighted ? 'vocab-def-text vocab-def-text-active' : 'vocab-def-text'}>
                 {def.definition}
               </div>
             )}
@@ -165,18 +158,14 @@ export function VocabTermCard({ bare, dict, resolved, defLookup, navigateToLinea
       {!dict && resolved && (() => {
         const def = defLookup?.get(resolved);
         return (
-          <div style={{
-            marginLeft: 12, marginTop: 4, padding: '4px 8px', borderRadius: 4,
-            borderLeft: '3px solid var(--accent-color, #3b82f6)',
-            background: 'var(--active-definition-bg, rgba(59,130,246,0.08))',
-          }}>
-            <div style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--accent-color, #3b82f6)', flexShrink: 0 }}>
+          <div className="vocab-def vocab-def-active">
+            <div className="vocab-def-header">
+              <span className="vocab-active-badge">
                 active
               </span>
               <a
                 href="#"
-                style={{ fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: '2px', color: 'var(--text-primary)', cursor: 'pointer' }}
+                className="vocab-def-link-solo"
                 title={`Go to "${def?.display ?? resolved}" in Lineage Panel`}
                 onClick={(ev) => { ev.preventDefault(); navigateToLineage(resolved); }}
               >
@@ -184,7 +173,7 @@ export function VocabTermCard({ bare, dict, resolved, defLookup, navigateToLinea
               </a>
             </div>
             {def?.definition && (
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 2, lineHeight: 1.4 }}>
+              <div className="vocab-def-text vocab-def-text-active">
                 {def.definition}
               </div>
             )}
@@ -192,7 +181,7 @@ export function VocabTermCard({ bare, dict, resolved, defLookup, navigateToLinea
         );
       })()}
       {dict?.ambiguous_when && dict.ambiguous_when.length > 0 && (
-        <div style={{ marginLeft: 16, marginTop: 3, fontSize: '0.72rem', fontStyle: 'italic', color: 'var(--text-muted)' }}>
+        <div className="vocab-ambiguous-when">
           Ambiguous when: {dict.ambiguous_when.join('; ')}
         </div>
       )}
@@ -257,11 +246,11 @@ export function VocabTermsView({ resolutions, ambiguities, statementText }: {
   }, [resolutions, dictLookup, statementText]);
 
   return (
-    <div style={{ fontSize: '0.8rem', padding: '4px 0' }}>
-      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+    <div className="vocab-view">
+      <div className="vocab-count">
         {entries.length} term{entries.length !== 1 ? 's' : ''} resolved
         {ambiguities && ambiguities.length > 0 && (
-          <span style={{ color: '#d97706', marginLeft: 6 }}> · {new Set(ambiguities.map(a => a.colloquial)).size} ambiguous</span>
+          <span className="vocab-ambiguous-count"> · {new Set(ambiguities.map(a => a.colloquial)).size} ambiguous</span>
         )}
       </div>
       {entries.map((e, i) => (
@@ -270,8 +259,8 @@ export function VocabTermsView({ resolutions, ambiguities, statementText }: {
       {ambiguities && ambiguities.length > 0 && (() => {
         const uniqueTerms = [...new Set(ambiguities.map(a => a.colloquial))].sort((a, b) => a.localeCompare(b));
         return (
-          <div style={{ marginTop: 8, padding: '4px 8px', background: 'rgba(217,119,6,0.06)', borderLeft: '3px solid #d97706', borderRadius: 4 }}>
-            <div style={{ fontWeight: 600, color: '#d97706', marginBottom: 4, fontSize: '0.72rem' }}>Ambiguous meaning — could be any of these:</div>
+          <div className="vocab-ambiguous-block">
+            <div className="vocab-ambiguous-header">Ambiguous meaning — could be any of these:</div>
             {uniqueTerms.map((term, i) => (
               <VocabTermCard key={i} bare={term} dict={dictLookup.get(term.toLowerCase())} defLookup={defLookup} navigateToLineage={navigateToLineage} />
             ))}

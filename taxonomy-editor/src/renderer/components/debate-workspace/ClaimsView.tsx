@@ -6,6 +6,7 @@ import type { ArgumentNetworkNode, ArgumentNetworkEdge, TranscriptEntry } from '
 import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import { speakerLabel, STRENGTH_BAND, getNodeLabel } from './utils';
+import './ClaimsView.css';
 
 const ATTACK_TYPE_WEIGHTS: Record<string, number> = { rebut: 1.0, undercut: 1.05, undermine: 1.1 };
 
@@ -30,18 +31,18 @@ export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap, s
   const truncText = node.text.length > 80 ? node.text.slice(0, 80) + '…' : node.text;
 
   return (
-    <div style={{ margin: '4px 0', paddingBottom: 4, borderBottom: '1px solid var(--border)', fontSize: '0.85rem' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
+    <div className="claims-node-row">
+      <div className="claims-node-header">
         {hasEdges ? (
           <button
             onClick={() => setExpanded(!expanded)}
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, lineHeight: 1, marginTop: 2, flexShrink: 0 }}
+            className="claims-toggle-btn"
           >{expanded ? '▼' : '▶'}</button>
-        ) : <span style={{ width: 10, flexShrink: 0 }} />}
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: node.political_salience ? '84px 72px 180px 200px 60px 80px' : '84px 72px 180px 200px 60px 1fr', gap: '4px', alignItems: 'center' }}>
+        ) : <span className="claims-toggle-spacer" />}
+        <div className={node.political_salience ? 'claims-grid claims-grid-salience' : 'claims-grid claims-grid-default'}>
           {/* Col 1: AN ID */}
           <strong
-            style={{ color: 'var(--accent)' }}
+            className="claims-id"
             title={`Argument Network node ${node.id}\nSpeaker: ${speakerLabel(node.speaker)}\n${bdiLabel ? `Category: ${bdiLabel}` : ''}${node.bdi_confidence != null ? ` (confidence: ${node.bdi_confidence.toFixed(2)})` : ''}\nStrength: ${computed.toFixed(2)} (base: ${base.toFixed(2)}, delta: ${delta >= 0 ? '+' : ''}${delta.toFixed(2)})\n${attacks.length} attack${attacks.length !== 1 ? 's' : ''}, ${supports.length} support${supports.length !== 1 ? 's' : ''}\n\n${truncText}`}
           >{node.id}</strong>
           {/* Col 2: BDI category */}
@@ -54,28 +55,34 @@ export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap, s
                 const reasonTip = attr.unattributed_reason === 'novel_argument'
                   ? 'Unattributed: claim is a novel argument not closely matching any taxonomy node (best similarity < 0.35)'
                   : 'Unattributed: missing embedding — cannot compute similarity';
-                return <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)' }} title={reasonTip}><span style={{ color: '#ef4444', fontSize: '0.9rem', marginRight: 3 }}>●</span>{reasonLabel}</span>;
+                return <span className="claims-badge" title={reasonTip}><span className="claims-dot claims-dot-red">●</span>{reasonLabel}</span>;
               }
               const conf = attr.attribution_confidence;
               const confColor = conf >= 0.7 ? '#22c55e' : conf >= 0.5 ? '#3b82f6' : '#f59e0b';
               const secCount = attr.secondary_refs?.length ?? 0;
               const attrTip = `Attributed to ${attr.primary_ref} (confidence: ${conf.toFixed(2)})\n${getNodeLabel(attr.primary_ref)}${secCount > 0 ? `\n\n${secCount} secondary ref${secCount !== 1 ? 's' : ''}: ${attr.secondary_refs!.map((s: { node_id: string; similarity: number }) => `${s.node_id} (${s.similarity.toFixed(2)})`).join(', ')}` : ''}`;
-              return <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)' }} title={attrTip}><span style={{ color: confColor, fontSize: '0.9rem', marginRight: 3 }}>●</span>{attr.primary_ref} {conf.toFixed(2)}</span>;
+              return (
+                <span className="claims-badge" title={attrTip}>
+                  {/* eslint-disable-next-line local/no-inline-style -- dynamic confidence color */}
+                  <span className="claims-dot" style={{ color: confColor }}>●</span>{attr.primary_ref} {conf.toFixed(2)}
+                </span>
+              );
             })()}
           </span>
           {/* Col 4: Strength */}
-          <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }} title={`Strength: ${computed.toFixed(2)} (base: ${base.toFixed(2)}, delta: ${delta >= 0 ? '+' : ''}${delta.toFixed(2)})`}>
-            <span style={{ color: bandColor, fontSize: '0.9rem', marginRight: 3 }}>●</span>{band.label} {computed.toFixed(2)}
-            {Math.abs(delta) > 0.01 && <span style={{ color: 'var(--text-muted)', marginLeft: 3 }}>{delta > 0 ? '+' : ''}{delta.toFixed(2)}</span>}
+          <span className="claims-badge claims-badge-nowrap" title={`Strength: ${computed.toFixed(2)} (base: ${base.toFixed(2)}, delta: ${delta >= 0 ? '+' : ''}${delta.toFixed(2)})`}>
+            {/* eslint-disable-next-line local/no-inline-style -- dynamic strength band color */}
+            <span className="claims-dot" style={{ color: bandColor }}>●</span>{band.label} {computed.toFixed(2)}
+            {Math.abs(delta) > 0.01 && <span className="claims-delta">{delta > 0 ? '+' : ''}{delta.toFixed(2)}</span>}
           </span>
           {/* Col 5: Edge count */}
-          <span style={{ color: 'var(--text-muted)' }} title={hasEdges ? `${attacks.length} attack${attacks.length !== 1 ? 's' : ''} and ${supports.length} support${supports.length !== 1 ? 's' : ''} connected to this claim` : undefined}>
+          <span className="claims-edge-count" title={hasEdges ? `${attacks.length} attack${attacks.length !== 1 ? 's' : ''} and ${supports.length} support${supports.length !== 1 ? 's' : ''} connected to this claim` : undefined}>
             {hasEdges ? `${attacks.length + supports.length} edge${attacks.length + supports.length !== 1 ? 's' : ''}` : ''}
           </span>
           {/* Col 6: Political salience (policymaker debates only) */}
           {node.political_salience && (
-            <span style={{ fontWeight: 700, fontSize: '0.75rem', padding: '1px 6px', borderRadius: 3 }}>
-              <span style={{ marginRight: 3 }}>
+            <span className="claims-salience-badge">
+              <span className="claims-salience-icon">
                 {node.political_salience === 'high' ? '🔴' : node.political_salience === 'medium' ? '🟡' : '⚪'}
               </span>
               {node.political_salience}
@@ -83,9 +90,9 @@ export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap, s
           )}
         </div>
       </div>
-      <div style={{ paddingLeft: 18, marginTop: 2 }}>{showFormal && node.attribution_text_genus ? node.attribution_text_genus : node.text}</div>
+      <div className="claims-node-text">{showFormal && node.attribution_text_genus ? node.attribution_text_genus : node.text}</div>
       {expanded && (
-        <div style={{ paddingLeft: 18, marginTop: 4 }}>
+        <div className="claims-edges">
           {attacks.map(e => {
             const src = allNodes.find(n => n.id === e.source);
             const srcStr = strengthMap.get(e.source);
@@ -94,7 +101,7 @@ export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap, s
             const hasWeight = e.weight != null;
             const contribution = srcStr != null ? srcStr * edgeWeight * atkMult : undefined;
             return (
-              <div key={`a-${e.source}`} style={{ color: '#ef4444', marginBottom: 2 }}>
+              <div key={`a-${e.source}`} className="claims-attack">
                 ← <strong title={src ? `${src.id} by ${speakerLabel(src.speaker)}\n${src.text}` : e.source}>{e.source}</strong>{' '}
                 <span title={`Attack type: ${e.attack_type ?? 'rebut'} (multiplier: ${atkMult.toFixed(1)})\nEdge weight: ${edgeWeight.toFixed(2)}${hasWeight ? '' : ' (default — no AI weight)'}${contribution != null ? `\nContribution: −${contribution.toFixed(2)} (${(srcStr ?? 0).toFixed(2)} × ${edgeWeight.toFixed(1)} × ${atkMult.toFixed(1)})` : ''}`}>
                   {e.attack_type ?? 'rebut'}
@@ -110,7 +117,7 @@ export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap, s
             const hasWeight = e.weight != null;
             const contribution = srcStr != null ? srcStr * edgeWeight : undefined;
             return (
-              <div key={`s-${e.source}`} style={{ color: '#22c55e', marginBottom: 2 }}>
+              <div key={`s-${e.source}`} className="claims-support">
                 ← <strong title={src ? `${src.id} by ${speakerLabel(src.speaker)}\n${src.text}` : e.source}>{e.source}</strong>{' '}
                 <span title={`Support\nEdge weight: ${edgeWeight.toFixed(2)}${hasWeight ? '' : ' (default — no AI weight)'}${contribution != null ? `\nContribution: +${contribution.toFixed(2)} (${(srcStr ?? 0).toFixed(2)} × ${edgeWeight.toFixed(1)})` : ''}`}>
                   support
@@ -138,10 +145,10 @@ export function ClaimsView({ entryId, debate }: { entryId?: string; debate: { ar
   };
 
   const an = debate.argument_network;
-  if (!an || an.nodes.length === 0) return <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '4px 0' }}>No argument network yet</div>;
+  if (!an || an.nodes.length === 0) return <div className="claims-empty">No argument network yet</div>;
 
   const entryNodes = entryId ? an.nodes.filter(n => n.source_entry_id === entryId) : an.nodes;
-  if (entryNodes.length === 0) return <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '4px 0' }}>No claims extracted for this statement</div>;
+  if (entryNodes.length === 0) return <div className="claims-empty">No claims extracted for this statement</div>;
   const hasFormalText = entryNodes.some(n => !!n.attribution_text_genus);
 
   const qbafNodes: QbafNode[] = an.nodes.map(n => ({ id: n.id, base_strength: n.base_strength ?? 0.5 }));
@@ -165,20 +172,20 @@ export function ClaimsView({ entryId, debate }: { entryId?: string; debate: { ar
   })();
 
   return (
-    <div className="claims-view" style={{ fontSize: '0.8rem' }}>
-      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div className="claims-view claims-view-root">
+      <div className="claims-summary">
         <span>{entryNodes.length} claim{entryNodes.length !== 1 ? 's' : ''} · {caCount} attack{caCount !== 1 ? 's' : ''} · {raCount} support{raCount !== 1 ? 's' : ''}</span>
         {hasFormalText && (
           <button
             onClick={toggleStyle}
-            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '1px 6px', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', cursor: 'pointer' }}
+            className="claims-style-toggle"
             title={showFormal ? 'Show plain text' : 'Show formal/DOLCE text'}
           >{showFormal ? 'Formal' : 'Plain'}</button>
         )}
       </div>
       {salienceCounts && (
-        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 6, display: 'flex', gap: 10, alignItems: 'center' }}>
-          <span style={{ fontWeight: 600 }}>Salience:</span>
+        <div className="claims-salience-row">
+          <span className="claims-salience-label">Salience:</span>
           <span>🔴 {salienceCounts.high} high</span>
           <span>🟡 {salienceCounts.medium} med</span>
           <span>⚪ {salienceCounts.low} low</span>

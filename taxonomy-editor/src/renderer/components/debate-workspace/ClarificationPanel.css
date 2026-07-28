@@ -194,3 +194,229 @@
   align-items: center;
   gap: 8px;
 }
+
+/* ── Migrated inline styles (t/1866) ─────────────────────────── */
+
+/* ClaimsEditor */
+
+.cp-claims-editor-desc {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 4px 0 0;
+}
+
+.cp-claims-editor-type {
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.cp-claims-editor-id {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  margin-left: auto;
+}
+
+.cp-claims-editor-textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.cp-claims-edit-buttons {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.cp-claims-editor-text {
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.cp-claims-empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.cp-tensions-heading {
+  font-size: 0.85rem;
+  margin: 12px 0 6px;
+}
+
+.cp-tension-item {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.cp-tension-count {
+  margin-left: 8px;
+  font-size: 0.7rem;
+}
+
+/* ClarificationActions options popover */
+
+.cp-step-toggle-btn {
+  font-size: 0.75rem;
+  padding: 2px 10px;
+}
+
+.cp-cross-respond-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+/* TopicScoreComparison */
+
+.cp-score-comparison {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  background: var(--bg-secondary);
+}
+
+.cp-score-summary-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cp-score-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.cp-score-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cp-score-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.cp-score-arrow {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.cp-score-delta {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.cp-score-compare-btn {
+  margin-left: auto;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+}
+
+.cp-score-details {
+  margin-top: 10px;
+}
+
+.cp-score-table {
+  width: 100%;
+  font-size: 0.75rem;
+  border-collapse: collapse;
+}
+
+.cp-row-border-bottom {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.cp-th-left {
+  text-align: left;
+  padding: 4px 8px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.cp-th-center {
+  text-align: center;
+  padding: 4px 8px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.cp-section-header {
+  padding: 6px 8px 2px;
+  font-weight: 700;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.cp-section-header-lg {
+  padding: 8px 8px 2px;
+  font-weight: 700;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.cp-section-header-danger {
+  padding: 8px 8px 2px;
+  font-weight: 700;
+  font-size: 0.7rem;
+  color: #ef4444;
+}
+
+.cp-td-label {
+  padding: 2px 8px;
+  color: var(--text-secondary);
+}
+
+.cp-td-center {
+  text-align: center;
+  padding: 2px 8px;
+}
+
+.cp-subtotal-row {
+  border-top: 1px solid var(--border-color);
+  font-weight: 600;
+}
+
+.cp-td-subtotal {
+  padding: 2px 8px;
+}
+
+.cp-composite-row {
+  border-top: 2px solid var(--border-color);
+  font-weight: 700;
+}
+
+.cp-td-composite-label {
+  padding: 4px 8px;
+}
+
+.cp-td-composite-center {
+  text-align: center;
+  padding: 4px 8px;
+}
+
+.cp-score-cell {
+  font-weight: 600;
+}
+
+.cp-delta-neutral {
+  color: var(--text-muted);
+}

@@ -1,0 +1,152 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+.claims-node-row {
+  margin: 4px 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.claims-node-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.claims-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.claims-toggle-spacer {
+  width: 10px;
+  flex-shrink: 0;
+}
+
+.claims-grid {
+  flex: 1;
+  display: grid;
+  gap: 4px;
+  align-items: center;
+}
+
+.claims-grid-salience {
+  grid-template-columns: 84px 72px 180px 200px 60px 80px;
+}
+
+.claims-grid-default {
+  grid-template-columns: 84px 72px 180px 200px 60px 1fr;
+}
+
+.claims-id {
+  color: var(--accent);
+}
+
+.claims-badge {
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--text-secondary);
+}
+
+.claims-badge-nowrap {
+  white-space: nowrap;
+}
+
+.claims-dot {
+  font-size: 0.9rem;
+  margin-right: 3px;
+}
+
+.claims-dot-red {
+  color: #ef4444;
+}
+
+.claims-delta {
+  color: var(--text-muted);
+  margin-left: 3px;
+}
+
+.claims-edge-count {
+  color: var(--text-muted);
+}
+
+.claims-salience-badge {
+  font-weight: 700;
+  font-size: 0.75rem;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.claims-salience-icon {
+  margin-right: 3px;
+}
+
+.claims-node-text {
+  padding-left: 18px;
+  margin-top: 2px;
+}
+
+.claims-edges {
+  padding-left: 18px;
+  margin-top: 4px;
+}
+
+.claims-attack {
+  color: #ef4444;
+  margin-bottom: 2px;
+}
+
+.claims-support {
+  color: #22c55e;
+  margin-bottom: 2px;
+}
+
+.claims-empty {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  padding: 4px 0;
+}
+
+.claims-view-root {
+  font-size: 0.8rem;
+}
+
+.claims-summary {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.claims-style-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.claims-salience-row {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.claims-salience-label {
+  font-weight: 600;
+}

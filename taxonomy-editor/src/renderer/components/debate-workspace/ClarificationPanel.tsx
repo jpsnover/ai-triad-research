@@ -93,7 +93,7 @@ export function ClaimsEditor() {
     <div className="debate-claims-editor">
       <div className="claims-editor-header">
         <h3>Review Extracted Claims</h3>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '4px 0 0' }}>
+        <p className="cp-claims-editor-desc">
           {claims.length} claim{claims.length !== 1 ? 's' : ''} extracted from the source document.
           Edit or remove claims to focus the debate. Deleted claims won't be used in opening statements or moderator analysis.
         </p>
@@ -105,12 +105,13 @@ export function ClaimsEditor() {
             <div className="claims-editor-item-header">
               <span className="claims-editor-number">{i + 1}</span>
               <span
-                className="claims-editor-type"
-                style={{ background: typeColors[claim.type] ?? '#666', color: '#fff', padding: '1px 6px', borderRadius: 3, fontSize: '0.7rem', textTransform: 'uppercase' }}
+                className="claims-editor-type cp-claims-editor-type"
+                // eslint-disable-next-line local/no-inline-style -- dynamic background keyed on claim.type
+                style={{ background: typeColors[claim.type] ?? '#666' }}
               >
                 {claim.type}
               </span>
-              <span className="claims-editor-id" style={{ color: 'var(--text-muted)', fontSize: '0.7rem', marginLeft: 'auto' }}>
+              <span className="claims-editor-id cp-claims-editor-id">
                 {claim.id}
               </span>
             </div>
@@ -121,20 +122,20 @@ export function ClaimsEditor() {
                   value={editText}
                   onChange={e => setEditText(e.target.value)}
                   rows={3}
-                  style={{ width: '100%', resize: 'vertical', padding: 8, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text)', fontFamily: 'inherit', fontSize: '0.85rem' }}
+                  className="cp-claims-editor-textarea"
                   autoFocus
                   onKeyDown={e => {
                     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveEdit();
                     if (e.key === 'Escape') cancelEdit();
                   }}
                 />
-                <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                <div className="cp-claims-edit-buttons">
                   <button className="btn btn-sm btn-primary" onClick={saveEdit}>Save</button>
                   <button className="btn btn-sm" onClick={cancelEdit}>Cancel</button>
                 </div>
               </div>
             ) : (
-              <div className="claims-editor-text" style={{ fontSize: '0.85rem', lineHeight: 1.5 }}>
+              <div className="claims-editor-text cp-claims-editor-text">
                 {claim.text}
               </div>
             )}
@@ -157,7 +158,7 @@ export function ClaimsEditor() {
         ))}
 
         {claims.length === 0 && (
-          <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>
+          <div className="cp-claims-empty">
             All claims have been removed. The debate will proceed without document-grounded claims.
           </div>
         )}
@@ -165,11 +166,11 @@ export function ClaimsEditor() {
 
       {tensions.length > 0 && (
         <div className="claims-editor-tensions">
-          <h4 style={{ fontSize: '0.85rem', margin: '12px 0 6px' }}>Tension Points</h4>
+          <h4 className="cp-tensions-heading">Tension Points</h4>
           {tensions.map((t, i) => (
-            <div key={i} style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '4px 0', borderBottom: '1px solid var(--border)' }}>
+            <div key={i} className="cp-tension-item">
               {t.description}
-              <span style={{ marginLeft: 8, fontSize: '0.7rem' }}>
+              <span className="cp-tension-count">
                 ({t.i_node_ids.filter(id => claims.some(c => c.id === id)).length}/{t.i_node_ids.length} claims active)
               </span>
             </div>
@@ -475,16 +476,15 @@ export function ClarificationActions() {
                         </span>
                         <div className="step-toggle-row">
                           <button
-                            className={`btn btn-sm${activeDebate.adaptive_staging.step_mode ? ' active' : ''}`}
+                            className={`btn btn-sm cp-step-toggle-btn${activeDebate.adaptive_staging.step_mode ? ' active' : ''}`}
                             onClick={() => void toggleStepMode()}
-                            style={{ fontSize: '0.75rem', padding: '2px 10px' }}
                           >
                             {activeDebate.adaptive_staging.step_mode ? 'Step Mode' : 'Auto Mode'}
                           </button>
                         </div>
                       </>
                     ) : (
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8rem' }}>
+                      <label className="cp-cross-respond-label">
                         Cross-respond rounds:
                         <select
                           value={initialCrossRespondRounds}
@@ -507,6 +507,7 @@ export function ClarificationActions() {
                             const info = POVER_INFO[poverId];
                             return (
                               <li key={poverId} className="debate-opening-order-item">
+                                {/* eslint-disable-next-line local/no-inline-style -- dynamic per-pover color */}
                                 <span className="debate-opening-order-name" style={{ color: info.color }}>{info.label}</span>
                                 <span className="debate-opening-order-btns">
                                   <button className="debate-opening-order-btn" onClick={() => moveUp(idx)} disabled={idx === 0} title="Move left">&#9664;</button>
@@ -803,109 +804,105 @@ export function TopicScoreComparison() {
   const frameKeys = ['conditionality', 'mechanism', 'stakeholder', 'tension', 'scope'] as const;
 
   const scoreCell = (val: number, max: number) => (
-    <span style={{ color: val === 0 ? '#dc2626' : val === max ? '#16a34a' : '#d97706', fontWeight: 600 }}>{val}/{max}</span>
+    // eslint-disable-next-line local/no-inline-style -- dynamic color keyed on score value
+    <span className="cp-score-cell" style={{ color: val === 0 ? '#dc2626' : val === max ? '#16a34a' : '#d97706' }}>{val}/{max}</span>
   );
 
   const deltaCell = (oldVal: number, newVal: number) => {
     const d = newVal - oldVal;
-    if (d === 0) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
-    return <span style={{ color: d > 0 ? '#16a34a' : '#dc2626', fontWeight: 600 }}>{d > 0 ? '+' : ''}{d}</span>;
+    if (d === 0) return <span className="cp-delta-neutral">—</span>;
+    // eslint-disable-next-line local/no-inline-style -- dynamic color keyed on delta sign
+    return <span className="cp-score-cell" style={{ color: d > 0 ? '#16a34a' : '#dc2626' }}>{d > 0 ? '+' : ''}{d}</span>;
   };
 
   return (
-    <div style={{
-      border: '1px solid var(--border-color)',
-      borderRadius: 8,
-      padding: '10px 14px',
-      marginBottom: 12,
-      background: 'var(--bg-secondary)',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Topic Score</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{
-            padding: '2px 8px', borderRadius: 4, fontSize: '0.75rem', fontWeight: 600,
+    <div className="cp-score-comparison">
+      <div className="cp-score-summary-row">
+        <span className="cp-score-label">Topic Score</span>
+        <div className="cp-score-badges">
+          {/* eslint-disable-next-line local/no-inline-style -- dynamic rating-derived background/color */}
+          <span className="cp-score-badge" style={{
             background: `${RATING_COLORS[old.rating]}18`, color: RATING_COLORS[old.rating],
           }}>
             Original: {old.composite_score}/20
           </span>
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>→</span>
-          <span style={{
-            padding: '2px 8px', borderRadius: 4, fontSize: '0.75rem', fontWeight: 600,
+          <span className="cp-score-arrow">→</span>
+          {/* eslint-disable-next-line local/no-inline-style -- dynamic rating-derived background/color */}
+          <span className="cp-score-badge" style={{
             background: `${RATING_COLORS[neu.rating]}18`, color: RATING_COLORS[neu.rating],
           }}>
             Refined: {neu.composite_score}/20
           </span>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: deltaColor }}>
+          {/* eslint-disable-next-line local/no-inline-style -- dynamic delta color */}
+          <span className="cp-score-delta" style={{ color: deltaColor }}>
             ({delta > 0 ? '+' : ''}{delta})
           </span>
         </div>
         <button
-          className="btn btn-sm"
+          className="btn btn-sm cp-score-compare-btn"
           onClick={() => setShowDetails(d => !d)}
-          style={{ marginLeft: 'auto', fontSize: '0.7rem', padding: '2px 8px' }}
         >
           {showDetails ? 'Hide' : 'Compare'}
         </button>
       </div>
 
       {showDetails && (
-        <div style={{ marginTop: 10 }}>
-          <table style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
+        <div className="cp-score-details">
+          <table className="cp-score-table">
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <th style={{ textAlign: 'left', padding: '4px 8px', color: 'var(--text-secondary)', fontWeight: 600 }}>Dimension</th>
-                <th style={{ textAlign: 'center', padding: '4px 8px', color: 'var(--text-secondary)', fontWeight: 600 }}>Original</th>
-                <th style={{ textAlign: 'center', padding: '4px 8px', color: 'var(--text-secondary)', fontWeight: 600 }}>Refined</th>
-                <th style={{ textAlign: 'center', padding: '4px 8px', color: 'var(--text-secondary)', fontWeight: 600 }}>Δ</th>
+              <tr className="cp-row-border-bottom">
+                <th className="cp-th-left">Dimension</th>
+                <th className="cp-th-center">Original</th>
+                <th className="cp-th-center">Refined</th>
+                <th className="cp-th-center">Δ</th>
               </tr>
             </thead>
             <tbody>
-              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td colSpan={4} style={{ padding: '6px 8px 2px', fontWeight: 700, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+              <tr className="cp-row-border-bottom">
+                <td colSpan={4} className="cp-section-header">
                   Structural (taxonomy alignment)
                 </td>
               </tr>
               {structuralKeys.map(key => (
                 <tr key={key}>
-                  <td style={{ padding: '2px 8px', color: 'var(--text-secondary)' }}>{DIMENSION_LABELS[key]}</td>
-                  <td style={{ textAlign: 'center', padding: '2px 8px' }}>{scoreCell(old.structural_score[key] as number, 2)}</td>
-                  <td style={{ textAlign: 'center', padding: '2px 8px' }}>{scoreCell(neu.structural_score[key] as number, 2)}</td>
-                  <td style={{ textAlign: 'center', padding: '2px 8px' }}>{deltaCell(old.structural_score[key] as number, neu.structural_score[key] as number)}</td>
+                  <td className="cp-td-label">{DIMENSION_LABELS[key]}</td>
+                  <td className="cp-td-center">{scoreCell(old.structural_score[key] as number, 2)}</td>
+                  <td className="cp-td-center">{scoreCell(neu.structural_score[key] as number, 2)}</td>
+                  <td className="cp-td-center">{deltaCell(old.structural_score[key] as number, neu.structural_score[key] as number)}</td>
                 </tr>
               ))}
-              <tr style={{ borderTop: '1px solid var(--border-color)', fontWeight: 600 }}>
-                <td style={{ padding: '2px 8px' }}>Subtotal</td>
-                <td style={{ textAlign: 'center', padding: '2px 8px' }}>{old.structural_score.total}/10</td>
-                <td style={{ textAlign: 'center', padding: '2px 8px' }}>{neu.structural_score.total}/10</td>
-                <td style={{ textAlign: 'center', padding: '2px 8px' }}>{deltaCell(old.structural_score.total, neu.structural_score.total)}</td>
+              <tr className="cp-subtotal-row">
+                <td className="cp-td-subtotal">Subtotal</td>
+                <td className="cp-td-center">{old.structural_score.total}/10</td>
+                <td className="cp-td-center">{neu.structural_score.total}/10</td>
+                <td className="cp-td-center">{deltaCell(old.structural_score.total, neu.structural_score.total)}</td>
               </tr>
 
               {old.frame_score && neu.frame_score && (
                 <>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td colSpan={4} style={{ padding: '8px 8px 2px', fontWeight: 700, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                  <tr className="cp-row-border-bottom">
+                    <td colSpan={4} className="cp-section-header-lg">
                       Frame (linguistic quality)
                     </td>
                   </tr>
                   {frameKeys.map(key => (
                     <tr key={key}>
-                      <td style={{ padding: '2px 8px', color: 'var(--text-secondary)' }}>{DIMENSION_LABELS[key]}</td>
-                      <td style={{ textAlign: 'center', padding: '2px 8px' }}>{scoreCell(old.frame_score![key] as number, 2)}</td>
-                      <td style={{ textAlign: 'center', padding: '2px 8px' }}>{scoreCell(neu.frame_score![key] as number, 2)}</td>
-                      <td style={{ textAlign: 'center', padding: '2px 8px' }}>{deltaCell(old.frame_score![key] as number, neu.frame_score![key] as number)}</td>
+                      <td className="cp-td-label">{DIMENSION_LABELS[key]}</td>
+                      <td className="cp-td-center">{scoreCell(old.frame_score![key] as number, 2)}</td>
+                      <td className="cp-td-center">{scoreCell(neu.frame_score![key] as number, 2)}</td>
+                      <td className="cp-td-center">{deltaCell(old.frame_score![key] as number, neu.frame_score![key] as number)}</td>
                     </tr>
                   ))}
-                  <tr style={{ borderTop: '1px solid var(--border-color)', fontWeight: 600 }}>
-                    <td style={{ padding: '2px 8px' }}>Subtotal</td>
-                    <td style={{ textAlign: 'center', padding: '2px 8px' }}>{old.frame_score.total}/10</td>
-                    <td style={{ textAlign: 'center', padding: '2px 8px' }}>{neu.frame_score.total}/10</td>
-                    <td style={{ textAlign: 'center', padding: '2px 8px' }}>{deltaCell(old.frame_score.total, neu.frame_score.total)}</td>
+                  <tr className="cp-subtotal-row">
+                    <td className="cp-td-subtotal">Subtotal</td>
+                    <td className="cp-td-center">{old.frame_score.total}/10</td>
+                    <td className="cp-td-center">{neu.frame_score.total}/10</td>
+                    <td className="cp-td-center">{deltaCell(old.frame_score.total, neu.frame_score.total)}</td>
                   </tr>
                   {old.frame_score.actor_specificity != null && neu.frame_score.actor_specificity != null && (
                     <>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td colSpan={4} style={{ padding: '8px 8px 2px', fontWeight: 700, fontSize: '0.7rem', color: '#ef4444' }}>
+                      <tr className="cp-row-border-bottom">
+                        <td colSpan={4} className="cp-section-header-danger">
                           Political Operationality
                         </td>
                       </tr>
@@ -915,10 +912,10 @@ export function TopicScoreComparison() {
                         if (ov == null || nv == null) return null;
                         return (
                           <tr key={key}>
-                            <td style={{ padding: '2px 8px', color: 'var(--text-secondary)' }}>{DIMENSION_LABELS[key]}</td>
-                            <td style={{ textAlign: 'center', padding: '2px 8px' }}>{scoreCell(ov, 2)}</td>
-                            <td style={{ textAlign: 'center', padding: '2px 8px' }}>{scoreCell(nv, 2)}</td>
-                            <td style={{ textAlign: 'center', padding: '2px 8px' }}>{deltaCell(ov, nv)}</td>
+                            <td className="cp-td-label">{DIMENSION_LABELS[key]}</td>
+                            <td className="cp-td-center">{scoreCell(ov, 2)}</td>
+                            <td className="cp-td-center">{scoreCell(nv, 2)}</td>
+                            <td className="cp-td-center">{deltaCell(ov, nv)}</td>
                           </tr>
                         );
                       })}
@@ -927,11 +924,12 @@ export function TopicScoreComparison() {
                 </>
               )}
 
-              <tr style={{ borderTop: '2px solid var(--border-color)', fontWeight: 700 }}>
-                <td style={{ padding: '4px 8px' }}>Composite</td>
-                <td style={{ textAlign: 'center', padding: '4px 8px' }}>{old.composite_score}/20</td>
-                <td style={{ textAlign: 'center', padding: '4px 8px' }}>{neu.composite_score}/20</td>
-                <td style={{ textAlign: 'center', padding: '4px 8px', color: deltaColor }}>{delta > 0 ? '+' : ''}{delta}</td>
+              <tr className="cp-composite-row">
+                <td className="cp-td-composite-label">Composite</td>
+                <td className="cp-td-composite-center">{old.composite_score}/20</td>
+                <td className="cp-td-composite-center">{neu.composite_score}/20</td>
+                {/* eslint-disable-next-line local/no-inline-style -- dynamic delta color */}
+                <td className="cp-td-composite-center" style={{ color: deltaColor }}>{delta > 0 ? '+' : ''}{delta}</td>
               </tr>
             </tbody>
           </table>

@@ -15,6 +15,7 @@ import {
 import type { PolicyRefEntry } from './utils';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { TaxonomyRefDetail, type TaxRefNode } from '../taxonomy/TaxonomyRefDetail';
+import './TaxonomyRefs.css';
 
 export function CoverageBadge({ coverageMap, strengthWeighted }: { coverageMap: CoverageMap; strengthWeighted?: StrengthWeightedCoverage | null }) {
   const { stats } = coverageMap;
@@ -65,6 +66,7 @@ export function TaxonomyPill({ taxRef }: { taxRef: TaxonomyRef }) {
   return (
     <span
       className={`debate-taxonomy-pill debate-taxonomy-pill-clickable${taxRef.primary ? ' debate-taxonomy-pill-primary' : ''}`}
+      // eslint-disable-next-line local/no-inline-style -- dynamic POV color from nodeIdToTab
       style={{ borderColor: colorVar, color: colorVar }}
       title={`${primaryMarker}${label}${scoreLabel}\n${taxRef.relevance}`}
       onClick={handleClick}
@@ -109,15 +111,14 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
       <div className="debate-taxonomy-refs">
         {entry && entry.speaker !== 'system' && entry.type !== 'fact-check' && (
           explainCopied
-            ? <span className="debate-reasoning-toggle" style={{ color: '#22c55e', cursor: 'default' }}>✓ Explain prompt copied to clipboard</span>
+            ? <span className="debate-reasoning-toggle taxrefs-explain-copied">✓ Explain prompt copied to clipboard</span>
             : <button className="debate-reasoning-toggle" onClick={handleExplain} title="Copy an explain prompt to clipboard and open Gemini">Explain</button>
         )}
         {entry?.caveats && entry.caveats.length > 0 && (
           <button
-            className="debate-reasoning-toggle"
+            className="debate-reasoning-toggle taxrefs-caveats-btn"
             onClick={() => setCaveatsExpanded(e => !e)}
             title="Unresolved argument limitations identified by the judge"
-            style={{ color: '#d97706' }}
           >
             Caveats ({entry.caveats.length})
           </button>
@@ -127,31 +128,27 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
         const qualityCaveats = entry.caveats.filter(c => !c.startsWith('[Ungrounded]'));
         const ungroundedCaveats = entry.caveats.filter(c => c.startsWith('[Ungrounded]'));
         return (
-          <div style={{
-            margin: '4px 0 8px', padding: '8px 12px', borderRadius: 6,
-            background: 'rgba(217,119,6,0.08)', borderLeft: '3px solid #d97706',
-            fontSize: '0.75rem', lineHeight: 1.5,
-          }}>
+          <div className="taxrefs-caveats-box">
             {qualityCaveats.length > 0 && (
               <>
-                <div style={{ fontWeight: 600, color: '#d97706', marginBottom: 4, fontSize: '0.7rem' }}>
+                <div className="taxrefs-caveat-heading-amber">
                   Argument Caveats — limitations a critical reader would challenge:
                 </div>
-                <ul style={{ margin: '0 0 8px', paddingLeft: 18 }}>
+                <ul className="taxrefs-caveat-list">
                   {qualityCaveats.map((c, i) => (
-                    <li key={i} style={{ marginBottom: 3 }}>{humanizeSpeakerIds(c)}</li>
+                    <li key={i} className="taxrefs-caveat-li">{humanizeSpeakerIds(c)}</li>
                   ))}
                 </ul>
               </>
             )}
             {ungroundedCaveats.length > 0 && (
               <>
-                <div style={{ fontWeight: 600, color: '#6366f1', marginBottom: 4, fontSize: '0.7rem' }}>
+                <div className="taxrefs-caveat-heading-indigo">
                   Ungrounded Claims — from model knowledge, not the source corpus:
                 </div>
-                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                <ul className="taxrefs-caveat-list-last">
                   {ungroundedCaveats.map((c, i) => (
-                    <li key={i} style={{ marginBottom: 3, color: '#6366f1' }}>
+                    <li key={i} className="taxrefs-caveat-li-indigo">
                       {humanizeSpeakerIds(c.replace('[Ungrounded] ', ''))}
                     </li>
                   ))}
@@ -165,17 +162,17 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
         <div className="debate-reasoning-list">
           {briefStage && (
             <details open className="debate-reasoning-section">
-              <summary className="debate-reasoning-section-title" style={{ color: '#3b82f6' }}>BRIEF</summary>
+              <summary className="debate-reasoning-section-title taxrefs-section-brief">BRIEF</summary>
               <div className="debate-reasoning-section-body">
                 {(briefStage.work_product as Record<string, unknown>).situation_assessment
-                  ? <p style={{ margin: '4px 0', fontSize: '0.78rem' }}>{String((briefStage.work_product as Record<string, unknown>).situation_assessment)}</p>
-                  : <p style={{ margin: '4px 0', fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>No situation assessment captured.</p>}
+                  ? <p className="taxrefs-brief-text">{String((briefStage.work_product as Record<string, unknown>).situation_assessment)}</p>
+                  : <p className="taxrefs-brief-empty">No situation assessment captured.</p>}
               </div>
             </details>
           )}
           {planStage && (
             <details open className="debate-reasoning-section">
-              <summary className="debate-reasoning-section-title" style={{ color: '#a855f7' }}>PLAN</summary>
+              <summary className="debate-reasoning-section-title taxrefs-section-plan">PLAN</summary>
               <div className="debate-reasoning-section-body">
                 {(() => {
                   const wp = planStage.work_product as Record<string, unknown>;
@@ -189,37 +186,37 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
                         const dr = wp.directive_response as { directive: string; how_addressed: string } | undefined;
                         if (!drp && !dr) return null;
                         return (
-                          <div style={{ padding: 6, margin: '4px 0', borderLeft: '3px solid rgba(245,158,11,0.6)', background: 'rgba(245,158,11,0.08)', borderRadius: 4, fontSize: '0.72rem' }}>
-                            <span style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: 'var(--text-2xs)' }}>MODERATOR DIRECTIVE</span>
+                          <div className="taxrefs-directive-box">
+                            <span className="taxrefs-directive-badge">MODERATOR DIRECTIVE</span>
                             {dr && (
                               <>
-                                <div style={{ marginTop: 4 }}><strong>Directive:</strong> {dr.directive}</div>
+                                <div className="taxrefs-mt-4"><strong>Directive:</strong> {dr.directive}</div>
                                 <div><strong>How addressed:</strong> {dr.how_addressed}</div>
                               </>
                             )}
-                            {drp && !dr && <div style={{ marginTop: 4 }}>{String(drp)}</div>}
+                            {drp && !dr && <div className="taxrefs-mt-4">{String(drp)}</div>}
                           </div>
                         );
                       })()}
                       {!!wp.strategic_goal && (
-                        <div style={{ padding: 6, margin: '4px 0', borderLeft: '3px solid rgba(168,85,247,0.4)', background: 'rgba(168,85,247,0.05)', fontSize: '0.75rem', fontWeight: 600 }}>
+                        <div className="taxrefs-goal-box">
                           {String(wp.strategic_goal)}
                         </div>
                       )}
                       {!!wp.core_thesis && (
-                        <div style={{ padding: 6, margin: '4px 0', borderLeft: '3px solid rgba(168,85,247,0.4)', background: 'rgba(168,85,247,0.05)', fontSize: '0.72rem' }}>
-                          <span style={{ fontWeight: 600, fontSize: 'var(--text-2xs)' }}>Core Thesis: </span>
+                        <div className="taxrefs-thesis-box">
+                          <span className="taxrefs-inline-label">Core Thesis: </span>
                           {String(wp.core_thesis)}
                         </div>
                       )}
                       {!!wp.framing_choices && (
-                        <div style={{ padding: 6, margin: '4px 0', borderLeft: '3px solid rgba(168,85,247,0.3)', fontSize: '0.7rem' }}>
-                          <span style={{ fontWeight: 600, fontSize: 'var(--text-2xs)' }}>Framing: </span>
+                        <div className="taxrefs-framing-box">
+                          <span className="taxrefs-inline-label">Framing: </span>
                           {Array.isArray(wp.framing_choices)
                             ? (wp.framing_choices as { frame: string; why: string }[]).map((fc, i) => (
-                              <div key={i} style={{ marginTop: i > 0 ? 4 : 2 }}>
+                              <div key={i} className={i > 0 ? 'taxrefs-mt-4' : 'taxrefs-mt-2'}>
                                 <strong>{fc.frame}</strong>
-                                {fc.why && <span style={{ opacity: 0.7 }}> — {fc.why}</span>}
+                                {fc.why && <span className="taxrefs-framing-why"> — {fc.why}</span>}
                               </div>
                             ))
                             : <span>{String(wp.framing_choices)}</span>
@@ -227,30 +224,30 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
                         </div>
                       )}
                       {Array.isArray(wp.planned_moves) && (wp.planned_moves as unknown[]).length > 0 && (
-                        <details open style={{ margin: '4px 0' }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }}>Planned Moves</summary>
+                        <details open className="taxrefs-details"><summary className="taxrefs-summary">Planned Moves</summary>
                           {(wp.planned_moves as { move: string; target?: string; detail: string }[]).map((m, i) => (
-                            <div key={i} style={{ margin: '3px 0', paddingLeft: 6, borderLeft: '2px solid rgba(168,85,247,0.3)' }}>
-                              <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: 3, background: 'rgba(168,85,247,0.2)', color: '#a855f7', fontSize: 'var(--text-2xs)', fontWeight: 600 }}>{m.move}</span>
-                              {m.target && <span style={{ marginLeft: 4, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{'→'} {m.target}</span>}
-                              {m.detail && <div style={{ fontSize: 'var(--text-2xs)', marginTop: 1 }}>{m.detail}</div>}
+                            <div key={i} className="taxrefs-move-item">
+                              <span className="taxrefs-move-badge">{m.move}</span>
+                              {m.target && <span className="taxrefs-move-target">{'→'} {m.target}</span>}
+                              {m.detail && <div className="taxrefs-detail-2xs">{m.detail}</div>}
                             </div>
                           ))}
                         </details>
                       )}
                       {Array.isArray(wp.argument_structure) && (wp.argument_structure as unknown[]).length > 0 && (
-                        <details open style={{ margin: '4px 0' }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }}>Argumentation Structure</summary>
+                        <details open className="taxrefs-details"><summary className="taxrefs-summary">Argumentation Structure</summary>
                           {(wp.argument_structure as { point: string; evidence: string; taxonomy_anchor: string }[]).map((s, i) => (
-                            <div key={i} style={{ margin: '3px 0', padding: '4px 6px', borderLeft: '2px solid rgba(168,85,247,0.3)', background: 'rgba(168,85,247,0.03)', borderRadius: '0 4px 4px 0' }}>
-                              <div style={{ fontSize: '0.7rem', fontWeight: 600 }}>{s.point}</div>
-                              {s.evidence && <div style={{ fontSize: 'var(--text-2xs)', marginTop: 1 }}>{s.evidence}</div>}
+                            <div key={i} className="taxrefs-arg-item">
+                              <div className="taxrefs-arg-point">{s.point}</div>
+                              {s.evidence && <div className="taxrefs-detail-2xs">{s.evidence}</div>}
                               {s.taxonomy_anchor && (
-                                <div style={{ marginTop: 2 }}>
-                                  <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Anchor: </span>
+                                <div className="taxrefs-mt-2">
+                                  <span className="taxrefs-anchor-label">Anchor: </span>
                                   <button
                                     onClick={() => setSelectedPlanNodeId(prev => prev === s.taxonomy_anchor ? null : s.taxonomy_anchor)}
                                     aria-expanded={selectedPlanNodeId === s.taxonomy_anchor}
                                     title="Show this POV node's details"
-                                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'var(--text-2xs)' }}
+                                    className="taxrefs-anchor-btn"
                                   >{s.taxonomy_anchor}</button>
                                 </div>
                               )}
@@ -259,15 +256,15 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
                         </details>
                       )}
                       {!!wp.argument_sketch && (
-                        <details open style={{ margin: '4px 0' }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }}>Argument Sketch</summary>
-                          <div style={{ fontSize: '0.7rem', padding: 4, background: 'rgba(128,128,128,0.05)', borderRadius: 4 }}>
+                        <details open className="taxrefs-details"><summary className="taxrefs-summary">Argument Sketch</summary>
+                          <div className="taxrefs-sketch-box">
                             {String(wp.argument_sketch)}
                           </div>
                         </details>
                       )}
                       {Array.isArray(wp.anticipated_responses) && (wp.anticipated_responses as string[]).length > 0 && (
-                        <details style={{ margin: '4px 0' }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }}>Anticipated Responses</summary>
-                          <ul style={{ fontSize: '0.7rem', margin: '2px 0', paddingLeft: 14 }}>
+                        <details className="taxrefs-details"><summary className="taxrefs-summary">Anticipated Responses</summary>
+                          <ul className="taxrefs-anticipated-list">
                             {(wp.anticipated_responses as string[]).map((r, i) => (
                               <li key={i}>{r}</li>
                             ))}
@@ -275,8 +272,8 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
                         </details>
                       )}
                       {Array.isArray(wp.anticipated_challenges) && (wp.anticipated_challenges as string[]).length > 0 && (
-                        <details style={{ margin: '4px 0' }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }}>Anticipated Challenges</summary>
-                          <ul style={{ fontSize: '0.7rem', margin: '2px 0', paddingLeft: 14 }}>
+                        <details className="taxrefs-details"><summary className="taxrefs-summary">Anticipated Challenges</summary>
+                          <ul className="taxrefs-anticipated-list">
                             {(wp.anticipated_challenges as string[]).map((r, i) => (
                               <li key={i}>{r}</li>
                             ))}
@@ -313,9 +310,9 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
           )}
           {(refs.length > 0 || polRefs.length > 0) && (
             <details className="debate-reasoning-section">
-              <summary className="debate-reasoning-section-title" style={{ color: '#f59e0b' }}>BDI</summary>
+              <summary className="debate-reasoning-section-title taxrefs-section-bdi">BDI</summary>
               <div className="debate-reasoning-section-body">
-                <div className="debate-taxonomy-refs" style={{ marginBottom: 6 }}>
+                <div className="debate-taxonomy-refs taxrefs-refs-mb">
                   {[...refs].sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0)).map((taxRef) => (
                     <TaxonomyPill key={taxRef.node_id} taxRef={taxRef} />
                   ))}
@@ -324,8 +321,7 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
                     return (
                       <span
                         key={`${id}-${i}`}
-                        className="debate-taxonomy-pill debate-taxonomy-pill-clickable"
-                        style={{ borderColor: 'var(--color-sit)', color: 'var(--color-sit)' }}
+                        className="debate-taxonomy-pill debate-taxonomy-pill-clickable taxrefs-pol-pill"
                         title={getPolicyAction(id)}
                         onClick={(e) => { e.stopPropagation(); focusMainWindowNode(id); }}
                       >
@@ -348,13 +344,14 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
                     <div key={taxRef.node_id} className="debate-reasoning-item">
                       <button
                         className="debate-reasoning-node"
+                        // eslint-disable-next-line local/no-inline-style -- dynamic POV color from nodeIdToTab
                         style={{ color: colorVar }}
                         onClick={() => focusMainWindowNode(taxRef.node_id)}
                       >
                         {taxRef.node_id}
                       </button>
                       <span className="debate-reasoning-label">{label}</span>
-                      <span className="debate-reasoning-weight" style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
+                      <span className="debate-reasoning-weight taxrefs-anchor-label">
                         ({taxRef.relevance_score != null && <>Relevance {taxRef.relevance_score.toFixed(2)}</>}
                         {taxRef.relevance_score != null && weightLabel && weightValue != null && ' ; '}
                         {weightLabel && weightValue != null && <>{weightLabel} {weightLabel === 'Confidence' ? weightValue.toFixed(2) : `${weightValue}/5`}</>})
@@ -368,8 +365,7 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
                   return (
                     <div key={`${id}-${i}`} className="debate-reasoning-item">
                       <button
-                        className="debate-reasoning-node"
-                        style={{ color: 'var(--color-sit)' }}
+                        className="debate-reasoning-node taxrefs-node-sit"
                         onClick={() => focusMainWindowNode(id)}
                       >
                         {id}
