@@ -1,0 +1,500 @@
+{
+  "anchor_diagnostic": [
+    {
+      "file": "debate-04167ebc",
+      "crux": "AN-12",
+      "n_refs": 4,
+      "ref_camp_prefixes": {
+        "other": 1,
+        "saf": 3
+      },
+      "distinct_owner_camps_in_refs": [
+        "saf"
+      ],
+      "crux_speakers_involved": [
+        "safetyist",
+        "skeptic"
+      ],
+      "truth": "undecided"
+    },
+    {
+      "file": "debate-0b5dee92",
+      "crux": "AN-24",
+      "n_refs": 14,
+      "ref_camp_prefixes": {
+        "skp": 14
+      },
+      "distinct_owner_camps_in_refs": [
+        "skp"
+      ],
+      "crux_speakers_involved": [
+        "Skeptic",
+        "Accelerationist"
+      ],
+      "truth": "undecided"
+    },
+    {
+      "file": "debate-1418ee11",
+      "crux": "AN-29",
+      "n_refs": 8,
+      "ref_camp_prefixes": {
+        "saf": 5,
+        "other": 3
+      },
+      "distinct_owner_camps_in_refs": [
+        "saf"
+      ],
+      "crux_speakers_involved": [
+        "safetyist",
+        "system"
+      ],
+      "truth": "undecided"
+    },
+    {
+      "file": "debate-1685da89",
+      "crux": "AN-35",
+      "n_refs": 6,
+      "ref_camp_prefixes": {
+        "acc": 6
+      },
+      "distinct_owner_camps_in_refs": [
+        "acc"
+      ],
+      "crux_speakers_involved": [
+        "Accelerationist",
+        "Safetyist"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-1be82941",
+      "crux": "AN-13",
+      "n_refs": 5,
+      "ref_camp_prefixes": {
+        "skp": 4,
+        "other": 1
+      },
+      "distinct_owner_camps_in_refs": [
+        "skp"
+      ],
+      "crux_speakers_involved": [
+        "Skeptic",
+        "Accelerationist"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-1ffff43a",
+      "crux": "AN-29",
+      "n_refs": 5,
+      "ref_camp_prefixes": {
+        "saf": 4,
+        "other": 1
+      },
+      "distinct_owner_camps_in_refs": [
+        "saf"
+      ],
+      "crux_speakers_involved": [
+        "Safetyist",
+        "system"
+      ],
+      "truth": "undecided"
+    },
+    {
+      "file": "debate-3210eb8a",
+      "crux": "AN-14",
+      "n_refs": 6,
+      "ref_camp_prefixes": {
+        "saf": 6
+      },
+      "distinct_owner_camps_in_refs": [
+        "saf"
+      ],
+      "crux_speakers_involved": [
+        "Safetyist",
+        "system"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-396208e0",
+      "crux": "AN-66",
+      "n_refs": 7,
+      "ref_camp_prefixes": {
+        "saf": 7
+      },
+      "distinct_owner_camps_in_refs": [
+        "saf"
+      ],
+      "crux_speakers_involved": [
+        "safetyist",
+        "skeptic"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-39d97d44",
+      "crux": "AN-51",
+      "n_refs": 5,
+      "ref_camp_prefixes": {
+        "acc": 5
+      },
+      "distinct_owner_camps_in_refs": [
+        "acc"
+      ],
+      "crux_speakers_involved": [
+        "Accelerationist",
+        "Skeptic"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-400f834d",
+      "crux": "AN-13",
+      "n_refs": 5,
+      "ref_camp_prefixes": {
+        "acc": 5
+      },
+      "distinct_owner_camps_in_refs": [
+        "acc"
+      ],
+      "crux_speakers_involved": [
+        "Accelerationist",
+        "Skeptic"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-4c766822",
+      "crux": "D-1",
+      "n_refs": 2,
+      "ref_camp_prefixes": {
+        "saf": 1,
+        "other": 1
+      },
+      "distinct_owner_camps_in_refs": [
+        "saf"
+      ],
+      "crux_speakers_involved": [
+        "document",
+        "Skeptic",
+        "Accelerationist"
+      ],
+      "truth": "undecided"
+    },
+    {
+      "file": "debate-57c14a81",
+      "crux": "AN-18",
+      "n_refs": 5,
+      "ref_camp_prefixes": {
+        "saf": 5
+      },
+      "distinct_owner_camps_in_refs": [
+        "saf"
+      ],
+      "crux_speakers_involved": [
+        "Safetyist",
+        "Accelerationist"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-5c33db20",
+      "crux": "AN-15",
+      "n_refs": 5,
+      "ref_camp_prefixes": {
+        "skp": 5
+      },
+      "distinct_owner_camps_in_refs": [
+        "skp"
+      ],
+      "crux_speakers_involved": [
+        "Skeptic",
+        "Accelerationist"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-5ff58b8b",
+      "crux": "AN-10",
+      "n_refs": 5,
+      "ref_camp_prefixes": {
+        "other": 1,
+        "saf": 4
+      },
+      "distinct_owner_camps_in_refs": [
+        "saf"
+      ],
+      "crux_speakers_involved": [
+        "safetyist",
+        "skeptic"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-6502276d",
+      "crux": "AN-11",
+      "n_refs": 4,
+      "ref_camp_prefixes": {
+        "saf": 4
+      },
+      "distinct_owner_camps_in_refs": [
+        "saf"
+      ],
+      "crux_speakers_involved": [
+        "Safetyist",
+        "Accelerationist"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-7490d9c2",
+      "crux": "AN-11",
+      "n_refs": 4,
+      "ref_camp_prefixes": {
+        "skp": 4
+      },
+      "distinct_owner_camps_in_refs": [
+        "skp"
+      ],
+      "crux_speakers_involved": [
+        "skeptic",
+        "safetyist"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-835bff57",
+      "crux": "AN-8",
+      "n_refs": 4,
+      "ref_camp_prefixes": {
+        "acc": 4
+      },
+      "distinct_owner_camps_in_refs": [
+        "acc"
+      ],
+      "crux_speakers_involved": [
+        "Accelerationist",
+        "Safetyist"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-9152a7fd",
+      "crux": "AN-44",
+      "n_refs": 4,
+      "ref_camp_prefixes": {
+        "acc": 4
+      },
+      "distinct_owner_camps_in_refs": [
+        "acc"
+      ],
+      "crux_speakers_involved": [
+        "accelerationist",
+        "system"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-9dccfcbe",
+      "crux": "AN-2",
+      "n_refs": 5,
+      "ref_camp_prefixes": {
+        "acc": 4,
+        "other": 1
+      },
+      "distinct_owner_camps_in_refs": [
+        "acc"
+      ],
+      "crux_speakers_involved": [
+        "Accelerationist",
+        "Skeptic"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-a0eaaca9",
+      "crux": "AN-62",
+      "n_refs": 6,
+      "ref_camp_prefixes": {
+        "acc": 6
+      },
+      "distinct_owner_camps_in_refs": [
+        "acc"
+      ],
+      "crux_speakers_involved": [
+        "accelerationist",
+        "system"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-aa493447",
+      "crux": "AN-1",
+      "n_refs": 4,
+      "ref_camp_prefixes": {
+        "acc": 4
+      },
+      "distinct_owner_camps_in_refs": [
+        "acc"
+      ],
+      "crux_speakers_involved": [
+        "Accelerationist",
+        "Skeptic"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-ad01203f",
+      "crux": "AN-5",
+      "n_refs": 4,
+      "ref_camp_prefixes": {
+        "saf": 4
+      },
+      "distinct_owner_camps_in_refs": [
+        "saf"
+      ],
+      "crux_speakers_involved": [
+        "Safetyist",
+        "Skeptic"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-bd1d6c61",
+      "crux": "AN-22",
+      "n_refs": 4,
+      "ref_camp_prefixes": {
+        "saf": 2,
+        "other": 2
+      },
+      "distinct_owner_camps_in_refs": [
+        "saf"
+      ],
+      "crux_speakers_involved": [
+        "Safetyist",
+        "system"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-c4fe24f0",
+      "crux": "AN-8",
+      "n_refs": 6,
+      "ref_camp_prefixes": {
+        "acc": 4,
+        "other": 2
+      },
+      "distinct_owner_camps_in_refs": [
+        "acc"
+      ],
+      "crux_speakers_involved": [
+        "accelerationist",
+        "system",
+        "skeptic"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-cbf5bb79",
+      "crux": "AN-1",
+      "n_refs": 5,
+      "ref_camp_prefixes": {
+        "acc": 5
+      },
+      "distinct_owner_camps_in_refs": [
+        "acc"
+      ],
+      "crux_speakers_involved": [
+        "accelerationist",
+        "skeptic"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-cff6b797",
+      "crux": "AN-26",
+      "n_refs": 7,
+      "ref_camp_prefixes": {
+        "acc": 6,
+        "other": 1
+      },
+      "distinct_owner_camps_in_refs": [
+        "acc"
+      ],
+      "crux_speakers_involved": [
+        "accelerationist",
+        "skeptic"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-d6a1b446",
+      "crux": "AN-25",
+      "n_refs": 5,
+      "ref_camp_prefixes": {
+        "acc": 5
+      },
+      "distinct_owner_camps_in_refs": [
+        "acc"
+      ],
+      "crux_speakers_involved": [
+        "accelerationist",
+        "skeptic"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-eb21ef39",
+      "crux": "AN-23",
+      "n_refs": 5,
+      "ref_camp_prefixes": {
+        "saf": 5
+      },
+      "distinct_owner_camps_in_refs": [
+        "saf"
+      ],
+      "crux_speakers_involved": [
+        "safetyist",
+        "system"
+      ],
+      "truth": "undecided"
+    },
+    {
+      "file": "debate-f2a29ea0",
+      "crux": "AN-22",
+      "n_refs": 9,
+      "ref_camp_prefixes": {
+        "acc": 6,
+        "other": 3
+      },
+      "distinct_owner_camps_in_refs": [
+        "acc"
+      ],
+      "crux_speakers_involved": [
+        "accelerationist",
+        "skeptic",
+        "safetyist"
+      ],
+      "truth": "adjudicated"
+    },
+    {
+      "file": "debate-f9c54c70",
+      "crux": "AN-9",
+      "n_refs": 5,
+      "ref_camp_prefixes": {
+        "acc": 5
+      },
+      "distinct_owner_camps_in_refs": [
+        "acc"
+      ],
+      "crux_speakers_involved": [
+        "accelerationist",
+        "system"
+      ],
+      "truth": "adjudicated"
+    }
+  ],
+  "single_camp_anchor_count": 30,
+  "n_sample": 30
+}

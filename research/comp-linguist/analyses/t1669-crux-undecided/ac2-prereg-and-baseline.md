@@ -224,3 +224,69 @@ post-landing procedure over the frozen sample below, (2) apply the decision rule
 | 28 | debate-eb21ef39-614d-43f9-91c0-be2ed00a5df8 | AN-23 |
 | 29 | debate-f2a29ea0-b7a3-4b93-8ece-85b8ae8e9ad4 | AN-22 |
 | 30 | debate-f9c54c70-dfc3-4255-b125-0c49da39c519 | AN-9 |
+
+---
+
+## RESULTS v2 — post-engagement-gate calibration (t/1818 `c070c980`, 2026-07-28)
+
+The v1 RESULTS above measured the **structural** proxy (`state==='identified'` ⇒ `undecided`) and found
+precision ≈0.20. t/1818 replaced that proxy with the transcript-level engagement gate
+`wasCruxAdjudicated` (signal A: ≥2 of the crux's own `speakers_involved` camps each contribute
+≥`minTurnsPerCamp` turns sharing ≥`minSharedRefsPerTurn` `taxonomy_ref` with the crux node). This is
+the pre-registered post-landing pass (the "re-run the frozen 30-sample when the gate lands" resume
+trigger, t/1669#7 / t/1818#2). Harnesses (committed): `_ac2_gate_calibration.py` (faithful port of the
+shipped predicate + scoring) and `_ac2_anchor_diagnostic.py` (root-cause). Machine-readable output:
+`ac2-gate-results.json`. **LLM-free** — pure predicate over recorded sessions + the frozen v1 hand-labels
+(6 genuinely-undecided, 24 adjudicated-in-prose); no data-repo writes.
+
+### Result: signal A does NOT fix the defect. Precision stays ≈0.20.
+
+| knob | undecided-labeled | precision | recall | TP | FP | FN | TN |
+|---|---|---|---|---|---|---|---|
+| `minTurnsPerCamp=1` (shipped default) | 25/30 | **0.200** | 0.833 (5/6) | 5 | 20 | 1 | 4 |
+| `minTurnsPerCamp=2` | 29/30 | **0.207** | 1.000 (6/6) | 6 | 23 | 0 | 1 |
+
+Promotion rule (t/1818#2 note 1): precision ≥0.90 **and** recall ≥4/6. **Precision fails by ~0.70 at
+both knob settings.** Raising `minTurnsPerCamp` moves precision the *wrong* way (more cruxes fall to
+`undecided`). For comparison the old structural proxy was precision 6/30 = 0.20, recall 6/6 — so signal A
+lost one true-undecided (AN-12) for **no precision gain**. It is a null result, not an improvement.
+
+### Root cause (decisive): crux nodes are 100% single-camp-anchored.
+
+`_ac2_anchor_diagnostic.py` over the frozen 30: **30/30 crux nodes carry `taxonomy_refs` from exactly
+one camp** (the owner — `acc-*` / `saf-*` / `skp-*`, never a mix). Signal A asks whether ≥2 *opposing*
+camps each share a ref with the crux node, but the opposing camp's turns tag **their own** counter-position
+nodes, which are never in the crux node's (owner-only) ref set. So the opposing camp scores 0 shared refs
+**by construction**, and signal A collapses to "did the owner camp re-touch its own node" — which is
+near-universally true, hence ~most cruxes read as *not* two-camp-engaged ⇒ `undecided`.
+
+The FP per-camp counts make the mechanism visible — nearly every false `undecided` is `{OwnerCamp: N,
+OpposingCamp: 0}`, e.g. `400f834d/AN-13 {Accelerationist: 2, Skeptic: 0}` although t/1669#7 recorded the
+Skeptic's verbatim rebuttal ("mistakes the commodification of harm for the resolution of it"). The only 4
+true-negatives (correctly kept `identified`) got their 2nd camp from coincidental overlap — and 2 of those
+4 came from the **`system`/`document` pseudo-camp** appearing in `speakers_involved`, not a real opposing
+debater. So even the apparent successes are partly degenerate.
+
+**This is upstream of the gate's threshold, not tunable by it.** Neither knob nor the "opposing-sides"
+refinement (CL's t/1818#6 first-candidate) can rescue signal A: the opposing camp contributes **zero**
+shared refs, so no re-weighting of a zero changes the outcome. The signal itself is wrong.
+
+### Decision (per pre-registered rules)
+
+- **AC#2 (this ticket): complete.** The post-gate calibration is measured, not assumed — precision 0.20,
+  fails the 0.75/0.90 floors. The pre-registered confirmatory holdout (note 2) is **not run**: it exists
+  only to *confirm a promotion*, and promotion is off the table on the tuning set alone.
+- **AC#4: NOT met.** `crux_undecided_rate` stays **stipulated with defect pointer**; no stipulated→derived
+  flip. Register updated with this v2 result.
+- **Escalation to DebateTool (t/1818 follow-up):** signal A is refuted by the single-camp-anchor fact;
+  the fix is **signal B** (CL's pre-registered fallback, t/1818#2) — semantic/embedding similarity of each
+  camp's turn *content* against the crux *proposition*, ≥2 opposing camps, since prose engagement does not
+  co-tag the owner's taxonomy node. (Secondary: strip `system`/`document` from `speakers_involved` before
+  the ≥2-camp test — they are not debaters.) Recall floor ≥4/6 must ride alongside precision so signal B
+  isn't tuned into an empty bucket.
+
+### Resume trigger (v3)
+
+When DebateTool lands a signal-B (or redefined) engagement gate: re-run `_ac2_gate_calibration.py` (swap
+the predicate), apply precision ≥0.90 **and** recall ≥4/6, then the confirmatory fresh-holdout draw (N≥10)
+before any stipulated→derived flip.
