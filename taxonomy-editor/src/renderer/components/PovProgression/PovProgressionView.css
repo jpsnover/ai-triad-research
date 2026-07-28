@@ -1,0 +1,353 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Co-located styles for PovProgressionView.tsx — migrated off inline `style` */
+/* props per t/1849. Classes are namespaced with `pov-prog` prefix. */
+
+/* ── Root / layout ───────────────────────────────────────── */
+
+.pov-prog-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.pov-prog-empty {
+  padding: 20px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.pov-prog-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pov-prog-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.pov-prog-mode-toggle {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.pov-prog-toggle-btn {
+  font-size: var(--text-2xs);
+  background: var(--btn-bg);
+  color: var(--btn-color);
+}
+
+.pov-prog-turn-bar {
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.pov-prog-body {
+  overflow: auto;
+  flex: 1;
+  padding: 8px 14px;
+}
+
+.pov-prog-stream-label {
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.pov-prog-an-label {
+  margin-top: 12px;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* ── Shared text helpers ─────────────────────────────────── */
+
+.pov-prog-meta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.pov-prog-mb8 {
+  margin-bottom: 8px;
+}
+
+.pov-prog-section-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.pov-prog-section-label-mb4 {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.pov-prog-section-label-mb6 {
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text-muted);
+}
+
+.pov-prog-hidden-note {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-left: 6px;
+}
+
+/* ── NodeChip ────────────────────────────────────────────── */
+
+.pov-prog-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: var(--text-2xs);
+  margin: 2px;
+  white-space: nowrap;
+}
+
+.pov-prog-chip-tag {
+  font-size: var(--text-2xs);
+  margin-right: 4px;
+  background: rgba(0,0,0,0.12);
+  padding: 0 3px;
+  border-radius: 2px;
+}
+
+.pov-prog-chip-label {
+  margin-left: 4px;
+  opacity: 0.75;
+  font-weight: 400;
+}
+
+/* ── PovLane ─────────────────────────────────────────────── */
+
+.pov-prog-lane {
+  border-left: 3px solid var(--pov-color);
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  background: var(--bg-subtle);
+  border-radius: 4px;
+}
+
+.pov-prog-lane-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.pov-prog-lane-title {
+  color: var(--pov-color);
+}
+
+/* ── AN substrate lane ───────────────────────────────────── */
+
+.pov-prog-an-empty {
+  padding: 8px 10px;
+  background: var(--bg-subtle);
+  border-radius: 4px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.pov-prog-an-panel {
+  padding: 8px 10px;
+  background: var(--bg-subtle);
+  border-radius: 4px;
+}
+
+.pov-prog-an-claim {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 3px;
+  padding: 3px 7px;
+  border-radius: 12px;
+  font-size: var(--text-2xs);
+  background: rgba(255,255,255,0.04);
+  border: 2px solid var(--an-outline);
+}
+
+.pov-prog-an-dot {
+  width: var(--dot-size);
+  height: var(--dot-size);
+  border-radius: 50%;
+  background: var(--dot-color);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.pov-prog-an-id {
+  color: var(--text-muted);
+}
+
+.pov-prog-an-text {
+  opacity: 0.85;
+}
+
+.pov-prog-an-bdi-tag {
+  font-size: var(--text-2xs);
+  padding: 0 3px;
+  border-radius: 2px;
+  background: rgba(0,0,0,0.15);
+}
+
+.pov-prog-an-table {
+  font-size: var(--text-2xs);
+  border-collapse: collapse;
+}
+
+.pov-prog-an-edge-cell {
+  padding: 1px 6px;
+}
+
+.pov-prog-an-edge-cell-bold {
+  padding: 1px 6px;
+  font-weight: 600;
+}
+
+.pov-prog-an-edge-cell-muted {
+  padding: 1px 6px;
+  color: var(--text-muted);
+}
+
+/* ── Mini-map ────────────────────────────────────────────── */
+
+.pov-prog-mini {
+  border-bottom: 1px solid var(--border);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+
+.pov-prog-mini-table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+}
+
+.pov-prog-mini-row-label-th {
+  width: 80px;
+  font-size: var(--text-2xs);
+  text-align: right;
+  padding-right: 6px;
+}
+
+.pov-prog-mini-turn-th {
+  font-size: var(--text-2xs);
+  text-align: center;
+  padding: 2px 1px;
+  cursor: pointer;
+  border-radius: 3px;
+  background: var(--th-bg);
+}
+
+.pov-prog-mini-row-label {
+  font-size: var(--text-2xs);
+  text-align: right;
+  padding-right: 6px;
+  font-weight: 600;
+  color: var(--pov-color);
+}
+
+.pov-prog-mini-cell {
+  cursor: pointer;
+  padding: 1px;
+  background: var(--cell-bg);
+}
+
+.pov-prog-mini-bars {
+  display: flex;
+  align-items: flex-end;
+  height: 22px;
+  gap: 1px;
+  justify-content: center;
+}
+
+.pov-prog-mini-bar {
+  width: 6px;
+  opacity: 0.6;
+  border-radius: 1px;
+  height: var(--bar-h);
+  background: var(--pov-color);
+}
+
+.pov-prog-mini-bar-cite {
+  width: 6px;
+  border-radius: 1px;
+  background-image: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.2) 2px, rgba(0,0,0,0.2) 3px);
+  height: var(--bar-h);
+  background: var(--pov-color);
+}
+
+.pov-prog-mini-pinned-label {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  margin-top: 8px;
+  color: var(--text-muted);
+}
+
+.pov-prog-mini-pinned-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.pov-prog-mini-pinned-id {
+  width: 80px;
+  font-size: var(--text-2xs);
+  text-align: right;
+  color: var(--text-muted);
+}
+
+.pov-prog-mini-pinned-track {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0;
+}
+
+.pov-prog-mini-presence-cell {
+  flex: 1;
+  height: 8px;
+  position: relative;
+  cursor: pointer;
+  background: var(--cell-bg);
+}
+
+.pov-prog-mini-presence-line {
+  position: absolute;
+  top: 3px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #94a3b8;
+}
+
+.pov-prog-mini-presence-dot {
+  position: absolute;
+  top: 1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #8b5cf6;
+}

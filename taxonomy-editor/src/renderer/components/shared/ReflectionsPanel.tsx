@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import './ReflectionsPanel.css';
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../../hooks/useDebateStore';
@@ -204,44 +205,48 @@ function EditCard({ edit, pover, editIndex }: {
   );
 
   return (
-    <div style={{
-      padding: '10px 12px', borderRadius: 8,
-      border: `1px solid ${resolved ? 'var(--border-color)' : typeInfo.color}`,
-      background: resolved ? 'var(--bg-secondary)' : 'var(--bg-primary)',
-      opacity: resolved ? 0.6 : 1,
-      marginBottom: 8,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span style={{
-          padding: '1px 6px', borderRadius: 4,
-          fontSize: 'var(--text-2xs)', fontWeight: 700,
-          background: `${typeInfo.color}22`, color: typeInfo.color,
-        }}>
+    <div
+      className="rp-edit-card"
+      /* eslint-disable-next-line local/no-inline-style -- CSS custom properties carry per-edit-type/resolved-state colors computed from typeInfo/resolved (data-driven, not enumerable as static classes) */
+      style={{
+        '--rp-card-border': resolved ? 'var(--border-color)' : typeInfo.color,
+        '--rp-card-bg': resolved ? 'var(--bg-secondary)' : 'var(--bg-primary)',
+        '--rp-card-opacity': resolved ? 0.6 : 1,
+      } as React.CSSProperties}
+    >
+      <div className="rp-edit-card-header-row">
+        <span
+          className="rp-type-badge"
+          // eslint-disable-next-line local/no-inline-style -- badge color derives from EDIT_TYPE_LABELS[edit.edit_type], a data-driven value
+          style={{ '--rp-badge-bg': `${typeInfo.color}22`, '--rp-badge-fg': typeInfo.color } as React.CSSProperties}
+        >
           {typeInfo.label}
         </span>
-        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+        <span className="rp-text-muted-xs">
           {edit.category}
         </span>
         {edit.node_id && edit.edit_type !== 'add' && (
-          <code style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{edit.node_id}</code>
+          <code className="rp-text-muted-2xs">{edit.node_id}</code>
         )}
         {edit.confidence && CONFIDENCE_STYLES[edit.confidence] && (
-          <span style={{
-            padding: '1px 5px', borderRadius: 4,
-            fontSize: 'var(--text-2xs)', fontWeight: 700,
-            background: CONFIDENCE_STYLES[edit.confidence].bg,
-            color: CONFIDENCE_STYLES[edit.confidence].color,
-            border: `1px solid ${CONFIDENCE_STYLES[edit.confidence].color}44`,
-          }}>
+          <span
+            className="rp-confidence-badge"
+            // eslint-disable-next-line local/no-inline-style -- badge colors derive from CONFIDENCE_STYLES[edit.confidence], a data-driven value
+            style={{
+              '--rp-conf-bg': CONFIDENCE_STYLES[edit.confidence].bg,
+              '--rp-conf-fg': CONFIDENCE_STYLES[edit.confidence].color,
+              '--rp-conf-border': `${CONFIDENCE_STYLES[edit.confidence].color}44`,
+            } as React.CSSProperties}
+          >
             {CONFIDENCE_STYLES[edit.confidence].label}
           </span>
         )}
         {edit.status === 'approved' && (
-          <span style={{ fontSize: 'var(--text-2xs)', color: '#22c55e', fontWeight: 600, marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span className="rp-applied-badge">
             Applied
             {edit.edit_type === 'add' && trackedEnrichNodeId && (
               <code
-                style={{ fontSize: 'var(--text-2xs)', padding: '1px 5px', borderRadius: 3, background: '#22c55e22', cursor: 'pointer' }}
+                className="rp-node-chip"
                 title={`Navigate to ${trackedEnrichNodeId}`}
                 onClick={() => {
                   const prefix = trackedEnrichNodeId.split('-')[0];
@@ -253,43 +258,37 @@ function EditCard({ edit, pover, editIndex }: {
           </span>
         )}
         {edit.status === 'dismissed' && (
-          <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginLeft: 'auto' }}>Dismissed</span>
+          <span className="rp-dismissed-badge">Dismissed</span>
         )}
       </div>
 
       {/* Label change */}
-      <div style={{ fontSize: '0.75rem', marginBottom: 4 }}>
+      <div className="rp-label-row">
         {editing ? (
           <>
             {edit.current_label && (
-              <span style={{ color: 'var(--text-muted)', textDecoration: 'line-through' }}>{edit.current_label}{' → '}</span>
+              <span className="rp-strike-muted">{edit.current_label}{' → '}</span>
             )}
             <input
               type="text"
               value={editedLabel}
               onChange={e => setEditedLabel(e.target.value)}
-              style={{
-                fontSize: '0.75rem', fontWeight: 600,
-                padding: '2px 6px', borderRadius: 4,
-                border: '1px solid var(--border-color)',
-                background: 'var(--bg-primary)', color: 'var(--text-primary)',
-                width: '60%',
-              }}
+              className="rp-label-input"
             />
           </>
         ) : edit.current_label && edit.current_label !== edit.proposed_label ? (
           <>
-            <span style={{ color: 'var(--text-muted)', textDecoration: 'line-through' }}>{edit.current_label}</span>
+            <span className="rp-strike-muted">{edit.current_label}</span>
             {' → '}
             <span
-              style={{ fontWeight: 600, cursor: resolved ? undefined : 'pointer', borderBottom: resolved ? undefined : '1px dashed var(--text-muted)' }}
+              className={`rp-editable-label${resolved ? '' : ' rp-editable-label--clickable'}`}
               title={resolved ? undefined : 'Click to edit label'}
               onClick={resolved ? undefined : () => setEditing(true)}
             >{editedLabel}</span>
           </>
         ) : (
           <span
-            style={{ fontWeight: 600, cursor: resolved ? undefined : 'pointer', borderBottom: resolved ? undefined : '1px dashed var(--text-muted)' }}
+            className={`rp-editable-label${resolved ? '' : ' rp-editable-label--clickable'}`}
             title={resolved ? undefined : 'Click to edit label'}
             onClick={resolved ? undefined : () => setEditing(true)}
           >{editedLabel}</span>
@@ -303,13 +302,9 @@ function EditCard({ edit, pover, editIndex }: {
           descMode,
         );
         return (
-          <div style={{
-            fontSize: '0.7rem', padding: '4px 8px', marginBottom: 4,
-            background: 'rgba(239,68,68,0.06)', borderRadius: 4,
-            whiteSpace: 'pre-wrap', borderLeft: '3px solid rgba(239,68,68,0.3)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-              <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: '#ef4444' }}>CURRENT</span>
+          <div className="rp-current-desc-box">
+            <div className="rp-flexrow-6-2">
+              <span className="rp-section-label rp-section-label--current">CURRENT</span>
               <DescriptionToggle
                 mode={descMode}
                 onToggle={setDescMode}
@@ -317,7 +312,7 @@ function EditCard({ edit, pover, editIndex }: {
               />
             </div>
             {resolved_desc.isGenerating && (
-              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 2 }}>
+              <div className="rp-generating-note">
                 Plain description generating…
               </div>
             )}
@@ -328,65 +323,43 @@ function EditCard({ edit, pover, editIndex }: {
 
       {editing ? (
         /* Edit mode — editable textarea with blue EDITED styling */
-        <div style={{
-          fontSize: '0.7rem', padding: '4px 8px',
-          background: 'rgba(59,130,246,0.06)', borderRadius: 4,
-          marginBottom: 6,
-          borderLeft: '3px solid rgba(59,130,246,0.3)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-            <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: '#3b82f6' }}>EDITED</span>
+        <div className="rp-edited-desc-box">
+          <div className="rp-flexrow-6-2">
+            <span className="rp-section-label rp-section-label--edited">EDITED</span>
             {isModified && (
-              <span style={{
-                padding: '0 4px', borderRadius: 4,
-                fontSize: 'var(--text-2xs)', fontWeight: 600,
-                background: '#3b82f6', color: '#fff',
-              }}>Modified</span>
+              <span className="rp-modified-badge">Modified</span>
             )}
           </div>
           <textarea
             value={editedDescription}
             onChange={e => setEditedDescription(e.target.value)}
-            style={{
-              width: '100%', minHeight: 60, maxHeight: 300,
-              fontSize: '0.7rem', padding: '4px 6px',
-              border: '1px solid var(--border-color)', borderRadius: 4,
-              background: 'var(--bg-primary)', color: 'var(--text-primary)',
-              resize: 'vertical', fontFamily: 'inherit',
-              lineHeight: 1.5,
-            }}
+            className="rp-edit-textarea"
           />
         </div>
       ) : (
         /* Review mode — diff-highlighted PROPOSED */
-        <div style={{
-          fontSize: '0.7rem', padding: '4px 8px',
-          background: 'rgba(34,197,94,0.06)', borderRadius: 4,
-          whiteSpace: 'pre-wrap', marginBottom: 6,
-          borderLeft: edit.current_description && edit.edit_type !== 'add' ? '3px solid rgba(34,197,94,0.3)' : undefined,
-        }}>
+        <div className={`rp-proposed-desc-box${edit.current_description && edit.edit_type !== 'add' ? ' rp-proposed-desc-box--bordered' : ''}`}>
           {edit.current_description && edit.edit_type !== 'add' && edit.current_description !== edit.proposed_description ? (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: '#22c55e' }}>PROPOSED</span>
+              <div className="rp-flexrow-6-2">
+                <span className="rp-section-label rp-section-label--proposed">PROPOSED</span>
                 {!resolved && (
                   <button
-                    className="btn btn-sm btn-ghost"
-                    style={{ fontSize: 'var(--text-2xs)', padding: '0 4px', marginLeft: 'auto' }}
+                    className="btn btn-sm btn-ghost rp-edit-btn"
                     onClick={() => setEditing(true)}
                   >&#9998; Edit</button>
                 )}
               </div>
               {descMode === 'formal' ? diffWords(edit.current_description, edit.proposed_description).map((seg, i) =>
                 seg.type === 'added'
-                  ? <mark key={i} style={{ background: 'rgba(34,197,94,0.25)', color: 'inherit', borderRadius: 2, padding: '0 1px' }}>{seg.text}</mark>
+                  ? <mark key={i} className="rp-diff-added">{seg.text}</mark>
                   : <span key={i}>{seg.text}</span>
               ) : edit.proposed_description}
             </>
           ) : (
             <>
               {!resolved && edit.proposed_description && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                <div className="rp-flexrow-6-2">
                   {edit.edit_type === 'add' && (
                     <DescriptionToggle
                       mode={descMode}
@@ -394,25 +367,23 @@ function EditCard({ edit, pover, editIndex }: {
                       hasPlainDescription={!!plainPreview}
                     />
                   )}
-                  <span style={{ flex: 1 }} />
+                  <span className="rp-spacer" />
                   <button
-                    className="btn btn-sm btn-ghost"
-                    style={{ fontSize: 'var(--text-2xs)', padding: '0 4px' }}
+                    className="btn btn-sm btn-ghost rp-edit-btn-inline"
                     onClick={() => setEditing(true)}
                   >&#9998; Edit</button>
                 </div>
               )}
               {descMode === 'plain' && edit.edit_type === 'add' ? (
                 plainLoading
-                  ? <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Generating plain description…</span>
+                  ? <span className="rp-muted-italic">Generating plain description…</span>
                   : plainError
                     ? (
                       <>
-                        <div style={{ color: '#ef4444', fontSize: 'var(--text-2xs)', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div className="rp-plain-error-row">
                           <span>{'⚠'} Couldn&apos;t generate a plain description. Showing formal:</span>
                           <button
-                            className="btn btn-sm"
-                            style={{ fontSize: 'var(--text-2xs)', padding: '0 8px' }}
+                            className="btn btn-sm rp-retry-btn"
                             onClick={() => { void runPlainPreview(); }}
                           >Retry</button>
                         </div>
@@ -428,21 +399,16 @@ function EditCard({ edit, pover, editIndex }: {
 
       {/* DOLCE compliance */}
       {complianceViolations.length > 0 && (
-        <div style={{
-          fontSize: 'var(--text-2xs)', padding: '4px 8px', marginBottom: 6,
-          background: complianceErrors.length > 0 ? 'rgba(239,68,68,0.06)' : 'rgba(245,158,11,0.06)',
-          borderRadius: 4,
-          borderLeft: `3px solid ${complianceErrors.length > 0 ? 'rgba(239,68,68,0.4)' : 'rgba(245,158,11,0.4)'}`,
-        }}>
-          <div style={{ fontWeight: 700, fontSize: 'var(--text-2xs)', color: complianceErrors.length > 0 ? '#ef4444' : '#f59e0b', marginBottom: 3 }}>
+        <div className={`rp-compliance-box ${complianceErrors.length > 0 ? 'rp-compliance-box--error' : 'rp-compliance-box--warning'}`}>
+          <div className={`rp-compliance-header ${complianceErrors.length > 0 ? 'rp-compliance-header--error' : 'rp-compliance-header--warning'}`}>
             DOLCE Compliance ({complianceErrors.length} error{complianceErrors.length !== 1 ? 's' : ''}, {complianceWarnings.length} warning{complianceWarnings.length !== 1 ? 's' : ''})
           </div>
           {complianceViolations.map((v, i) => (
-            <div key={i} style={{ display: 'flex', gap: 4, alignItems: 'baseline', marginBottom: 1 }}>
-              <span style={{ color: v.severity === 'error' ? '#ef4444' : '#f59e0b', fontWeight: 700, flexShrink: 0 }}>
-                {v.severity === 'error' ? '\u2717' : '\u26A0'}
+            <div key={i} className="rp-violation-row">
+              <span className={`rp-severity-icon ${v.severity === 'error' ? 'rp-severity-icon--error' : 'rp-severity-icon--warning'}`}>
+                {v.severity === 'error' ? '✗' : '⚠'}
               </span>
-              <span style={{ color: 'var(--text-muted)' }}>
+              <span className="rp-violation-message">
                 <strong>{v.rule}</strong>: {v.message}
               </span>
             </div>
@@ -450,34 +416,23 @@ function EditCard({ edit, pover, editIndex }: {
         </div>
       )}
       {complianceViolations.length === 0 && (
-        <div style={{
-          fontSize: 'var(--text-2xs)', padding: '3px 8px', marginBottom: 6,
-          color: '#22c55e', fontWeight: 600,
-        }}>
-          {'\u2713'} DOLCE compliant
+        <div className="rp-compliant-ok">
+          {'✓'} DOLCE compliant
         </div>
       )}
 
       {/* Rationale */}
-      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-primary)', fontStyle: 'italic', marginBottom: 4 }}>
+      <div className="rp-rationale">
         {edit.rationale}
       </div>
 
       {/* Evidence entries */}
       {edit.evidence_entries && edit.evidence_entries.length > 0 && (
-        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 8 }}>
+        <div className="rp-evidence-container">
           <div>Evidence: {edit.evidence_entries.map((e, i) => (
             <button
               key={i}
-              className="btn btn-sm btn-ghost"
-              style={{
-                padding: '0 4px', marginRight: 3, borderRadius: 3,
-                background: expandedEvidence.has(e) ? 'var(--color-acc, #3b82f6)' : 'var(--bg-secondary)',
-                color: expandedEvidence.has(e) ? '#fff' : 'var(--color-acc, #3b82f6)',
-                fontSize: 'var(--text-2xs)',
-                fontFamily: 'monospace', cursor: 'pointer',
-                textDecoration: expandedEvidence.has(e) ? 'none' : 'underline',
-              }}
+              className={`btn btn-sm btn-ghost rp-evidence-btn${expandedEvidence.has(e) ? ' rp-evidence-btn--active' : ''}`}
               title={expandedEvidence.has(e) ? `Hide ${e} text` : `Show ${e} text (Shift+click to scroll)`}
               onClick={(ev) => {
                 if (ev.shiftKey) { scrollToEvidence(e); return; }
@@ -493,13 +448,9 @@ function EditCard({ edit, pover, editIndex }: {
             const node = anNodes.find(n => n.id === e);
             if (!node) return null;
             return (
-              <div key={e} style={{
-                marginTop: 4, padding: '4px 8px', borderRadius: 4,
-                background: 'var(--bg-secondary)', borderLeft: '3px solid var(--color-acc, #3b82f6)',
-                fontSize: 'var(--text-2xs)', lineHeight: 1.4, color: 'var(--text-primary)',
-              }}>
-                <span style={{ fontWeight: 700, fontFamily: 'monospace', marginRight: 4 }}>{e}</span>
-                <span style={{ color: 'var(--text-muted)', marginRight: 4 }}>({node.speaker})</span>
+              <div key={e} className="rp-evidence-detail">
+                <span className="rp-evidence-id">{e}</span>
+                <span className="rp-evidence-speaker">({node.speaker})</span>
                 {node.text}
                 {node.attribution_text_genus && <div className="claim-attribution-text"><span className="claim-attribution-label">Attribution:</span>{node.attribution_text_genus}</div>}
               </div>
@@ -510,12 +461,12 @@ function EditCard({ edit, pover, editIndex }: {
 
       {/* Regenerate phrases toggle — revise/qualify only */}
       {showRegenerateToggle && (
-        <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 4, cursor: 'pointer' }}>
+        <label className="rp-regenerate-label">
           <input
             type="checkbox"
             checked={regeneratePhrases}
             onChange={e => setRegeneratePhrases(e.target.checked)}
-            style={{ margin: 0 }}
+            className="rp-checkbox-flush"
           />
           Regenerate phrases & embeddings
         </label>
@@ -523,10 +474,9 @@ function EditCard({ edit, pover, editIndex }: {
 
       {/* Actions */}
       {!resolved && (
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div className="rp-actions-row">
           <button
-            className="btn btn-primary"
-            style={{ fontSize: '0.7rem', padding: '3px 12px' }}
+            className="btn btn-primary rp-approve-btn"
             disabled={isEmpty || applying}
             onClick={async () => {
               setApplying(true);
@@ -553,8 +503,7 @@ function EditCard({ edit, pover, editIndex }: {
           </button>
           {editing && isModified && (
             <button
-              className="btn"
-              style={{ fontSize: '0.7rem', padding: '3px 10px' }}
+              className="btn rp-secondary-btn"
               onClick={handleReset}
             >
               Reset
@@ -562,16 +511,14 @@ function EditCard({ edit, pover, editIndex }: {
           )}
           {editing && (
             <button
-              className="btn"
-              style={{ fontSize: '0.7rem', padding: '3px 10px' }}
+              className="btn rp-secondary-btn"
               onClick={handleCancel}
             >
               Cancel
             </button>
           )}
           <button
-            className="btn"
-            style={{ fontSize: '0.7rem', padding: '3px 10px' }}
+            className="btn rp-secondary-btn"
             onClick={() => dismissReflectionEdit(pover, editIndex)}
           >
             Dismiss
@@ -580,18 +527,18 @@ function EditCard({ edit, pover, editIndex }: {
       )}
       {/* Enrichment status indicator */}
       {enrichStatus?.status === 'pending' && (
-        <div style={{ fontSize: 'var(--text-2xs)', color: '#3b82f6', marginTop: 4, padding: '4px 8px', background: 'rgba(59,130,246,0.06)', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ animation: 'pulse 1.5s infinite', display: 'inline-block' }}>{'⧗'}</span>
+        <div className="rp-enrich-pending">
+          <span className="rp-pulse-icon">{'⧗'}</span>
           Enriching node — generating attributes & phrases…
         </div>
       )}
       {enrichStatus?.status === 'success' && (
-        <div style={{ fontSize: 'var(--text-2xs)', color: '#22c55e', marginTop: 4, padding: '4px 8px', background: 'rgba(34,197,94,0.06)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div className="rp-enrich-success">
+          <span className="rp-flex-gap6">
             {'✓'} Phrases regenerated successfully
             {edit.edit_type === 'add' && trackedEnrichNodeId && (
               <code
-                style={{ fontSize: 'var(--text-2xs)', padding: '1px 6px', borderRadius: 4, background: '#22c55e22', color: '#22c55e', cursor: 'pointer', fontWeight: 600 }}
+                className="rp-node-chip-success"
                 title={`Navigate to ${trackedEnrichNodeId}`}
                 onClick={() => {
                   const prefix = trackedEnrichNodeId.split('-')[0];
@@ -602,19 +549,17 @@ function EditCard({ edit, pover, editIndex }: {
             )}
           </span>
           <button
-            className="btn btn-sm btn-ghost"
-            style={{ fontSize: 'var(--text-2xs)', padding: '0 4px', color: 'var(--text-muted)' }}
+            className="btn btn-sm btn-ghost rp-clear-btn"
             onClick={() => enrichNodeId && clearEnrichmentStatus(enrichNodeId)}
           >{'✕'}</button>
         </div>
       )}
       {enrichStatus?.status === 'error' && (
-        <div style={{ fontSize: 'var(--text-2xs)', color: '#ef4444', marginTop: 4, padding: '4px 8px', background: 'rgba(239,68,68,0.06)', borderRadius: 4 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="rp-enrich-error">
+          <div className="rp-row-between">
             <span>{'✗'} Enrichment failed: {enrichStatus.error}</span>
             <button
-              className="btn btn-sm"
-              style={{ fontSize: 'var(--text-2xs)', padding: '1px 8px', marginLeft: 8 }}
+              className="btn btn-sm rp-retry-btn-ml"
               onClick={() => {
                 if (!enrichNodeId) return;
                 const povKey = pover as 'accelerationist' | 'safetyist' | 'skeptic';
@@ -625,13 +570,12 @@ function EditCard({ edit, pover, editIndex }: {
         </div>
       )}
       {applyError && (
-        <div style={{ color: '#ef4444', fontSize: '0.7rem', marginTop: 4, padding: '6px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 4, whiteSpace: 'pre-line' }}>
+        <div className="rp-apply-error-box">
           <div>{applyError}</div>
           {isIntegrityError && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+            <div className="rp-fixit-row">
               <button
-                className="btn btn-sm"
-                style={{ fontSize: 'var(--text-2xs)', padding: '2px 10px' }}
+                className="btn btn-sm rp-fixit-btn"
                 disabled={fixing}
                 title="Remove the dangling references blocking this save, then retry"
                 onClick={async () => {
@@ -650,7 +594,7 @@ function EditCard({ edit, pover, editIndex }: {
               >
                 {fixing ? 'Fixing…' : 'Fix it'}
               </button>
-              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
+              <span className="rp-text-muted-2xs">
                 Removes edges that point to nonexistent nodes, then saves.
               </span>
             </div>
@@ -668,14 +612,14 @@ function PoverReflection({ result }: { result: ReflectionResult }) {
   const approved = result.edits.filter(e => e.status === 'approved').length;
 
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        marginBottom: 8, paddingBottom: 6,
-        borderBottom: `2px solid ${color}`,
-      }}>
-        <span style={{ fontWeight: 700, color, fontSize: '0.85rem' }}>{result.label}</span>
-        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+    <div
+      className="rp-mb-16"
+      // eslint-disable-next-line local/no-inline-style -- header/summary accent color comes from POVER_INFO[pover], a data-driven value
+      style={{ '--rp-pov-color': color, '--rp-pov-bg': `${color}10` } as React.CSSProperties}
+    >
+      <div className="rp-pov-header">
+        <span className="rp-pov-label">{result.label}</span>
+        <span className="rp-text-muted-xs">
           {result.edits.length} edit{result.edits.length !== 1 ? 's' : ''}
           {approved > 0 && ` (${approved} applied)`}
           {pending > 0 && pending !== result.edits.length && ` (${pending} pending)`}
@@ -683,18 +627,13 @@ function PoverReflection({ result }: { result: ReflectionResult }) {
       </div>
 
       {result.reflection_summary && (
-        <div style={{
-          fontSize: '0.75rem', lineHeight: 1.5,
-          padding: '8px 12px', marginBottom: 10,
-          background: `${color}10`, borderLeft: `3px solid ${color}`,
-          borderRadius: '0 6px 6px 0',
-        }}>
+        <div className="rp-summary-box">
           {result.reflection_summary}
         </div>
       )}
 
       {result.edits.length === 0 && (
-        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+        <div className="rp-no-edits">
           No taxonomy edits proposed.
         </div>
       )}
@@ -725,12 +664,7 @@ function ConsensusCard({ cluster }: { cluster: ConsensusCluster }) {
 
   if (cluster.status !== 'pending') {
     return (
-      <div style={{
-        padding: '12px 16px', marginBottom: 12, borderRadius: 8,
-        background: cluster.status === 'accepted' ? 'rgba(34,197,94,0.08)' : 'rgba(156,163,175,0.08)',
-        border: `1px solid ${cluster.status === 'accepted' ? '#22c55e' : '#9ca3af'}`,
-        fontSize: '0.75rem', color: 'var(--text-muted)',
-      }}>
+      <div className={`rp-consensus-resolved ${cluster.status === 'accepted' ? 'rp-consensus-resolved--accepted' : 'rp-consensus-resolved--rejected'}`}>
         Consensus {cluster.status === 'accepted' ? 'accepted — situation node created' : 'rejected — proposals shown individually'}
       </div>
     );
@@ -741,40 +675,41 @@ function ConsensusCard({ cluster }: { cluster: ConsensusCluster }) {
     .join(', ');
 
   return (
-    <div style={{
-      padding: '14px 16px', marginBottom: 16, borderRadius: 10,
-      background: 'rgba(99,102,241,0.06)',
-      border: '1px solid rgba(99,102,241,0.3)',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6366f1' }}>
+    <div className="rp-consensus-card">
+      <div className="rp-consensus-header">
+        <span className="rp-consensus-title">
           Consensus Detected
         </span>
-        <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4 }}>
+        <span className="rp-pov-count-badge">
           {cluster.proposals.length} POVs converge
         </span>
-        <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+        <span className="rp-text-muted-2xs rp-ml-auto">
           similarity: {scores}
         </span>
       </div>
 
       {/* Side-by-side proposals */}
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cluster.proposals.length}, 1fr)`, gap: 10, marginBottom: 12 }}>
+      <div
+        className="rp-consensus-grid"
+        /* eslint-disable-next-line local/no-inline-style -- grid-template-columns count derives from cluster.proposals.length at render time */
+        style={{ '--rp-grid-cols': `repeat(${cluster.proposals.length}, 1fr)` } as React.CSSProperties}
+      >
         {cluster.proposals.map((p, i) => {
           const info = POVER_INFO[p.pov as Exclude<SpeakerId, 'user'>];
           return (
-            <div key={i} style={{
-              padding: '8px 10px', borderRadius: 6,
-              background: 'var(--bg-primary)',
-              border: `1px solid ${info?.color || '#888'}40`,
-            }}>
-              <div style={{ fontSize: '0.7rem', fontWeight: 600, color: info?.color || '#888', marginBottom: 4 }}>
+            <div
+              key={i}
+              className="rp-proposal-card"
+              // eslint-disable-next-line local/no-inline-style -- border/label color derives from POVER_INFO[p.pov], a data-driven value
+              style={{ '--rp-proposal-border': `${info?.color || '#888'}40`, '--rp-proposal-color': info?.color || '#888' } as React.CSSProperties}
+            >
+              <div className="rp-proposal-pov-label">
                 {info?.label || p.pov}
               </div>
-              <div style={{ fontSize: '0.7rem', fontWeight: 600, marginBottom: 3 }}>
+              <div className="rp-proposal-text-label">
                 {p.proposed_label}
               </div>
-              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+              <div className="rp-proposal-desc">
                 {p.proposed_description.slice(0, 200)}{p.proposed_description.length > 200 ? '…' : ''}
               </div>
             </div>
@@ -782,24 +717,22 @@ function ConsensusCard({ cluster }: { cluster: ConsensusCluster }) {
         })}
       </div>
 
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <div className="rp-consensus-actions">
         <button
-          className="btn btn-primary"
-          style={{ fontSize: '0.7rem', padding: '4px 14px' }}
+          className="btn btn-primary rp-consensus-btn"
           onClick={handleAccept}
           disabled={loading}
         >
           {loading ? 'Creating...' : 'Create Situation Node'}
         </button>
         <button
-          className="btn"
-          style={{ fontSize: '0.7rem', padding: '4px 14px' }}
+          className="btn rp-consensus-btn"
           onClick={() => rejectConsensus(cluster.id)}
           disabled={loading}
         >
           Keep Separate
         </button>
-        {error && <span style={{ fontSize: 'var(--text-2xs)', color: '#ef4444' }}>{error}</span>}
+        {error && <span className="rp-consensus-error">{error}</span>}
       </div>
     </div>
   );
@@ -859,65 +792,47 @@ export function ReflectionsPanel({ onClose }: { onClose: () => void }) {
   }, []);
 
   return (
-    <div className="reflections-panel" style={{
-      position: 'fixed', inset: 0, zIndex: 1100,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      pointerEvents: 'none',
-    }}>
-      <div style={{
-        width: 800, height: '85vh',
-        minWidth: 400, minHeight: 300,
-        maxWidth: '95vw', maxHeight: '95vh',
-        resize: 'both', overflow: 'hidden',
-        background: 'var(--bg-primary)', borderRadius: 12,
-        border: '1px solid var(--border-color)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-        display: 'flex', flexDirection: 'column',
-        pointerEvents: 'auto',
-        transform: `translate(${pos.x}px, ${pos.y}px)`,
-      }}>
+    <div className="reflections-panel">
+      <div
+        className="rp-modal"
+        // eslint-disable-next-line local/no-inline-style -- translate offset comes from live drag position state (pos.x/pos.y)
+        style={{ '--rp-modal-transform': `translate(${pos.x}px, ${pos.y}px)` } as React.CSSProperties}
+      >
         {/* Header — drag handle */}
         <div
           onMouseDown={onMouseDown}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            padding: '12px 16px',
-            borderBottom: '1px solid var(--border-color)',
-            cursor: dragRef.current ? 'grabbing' : 'grab',
-            userSelect: 'none',
-          }}
+          className={`rp-drag-header${dragRef.current ? ' rp-drag-header--dragging' : ''}`}
         >
-          <h3 style={{ margin: 0, fontSize: '1rem', flex: 1 }}>Post-Debate Reflections</h3>
+          <h3 className="rp-panel-title">Post-Debate Reflections</h3>
           {reflections.length > 0 && totalPending > 0 && (
             <>
-              <button className="btn btn-primary" style={{ fontSize: '0.7rem', padding: '3px 10px' }} onClick={approveAll}>
+              <button className="btn btn-primary rp-secondary-btn" onClick={approveAll}>
                 Approve All ({totalPending})
               </button>
-              <button className="btn" style={{ fontSize: '0.7rem', padding: '3px 10px' }} onClick={dismissAll}>
+              <button className="btn rp-secondary-btn" onClick={dismissAll}>
                 Dismiss All
               </button>
             </>
           )}
           {totalApproved > 0 && (
-            <span style={{ fontSize: '0.7rem', color: '#22c55e' }}>{totalApproved} applied</span>
+            <span className="rp-applied-count">{totalApproved} applied</span>
           )}
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}
+            className="rp-close-btn"
           >&times;</button>
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+        <div className="rp-panel-content">
           {reflections.length === 0 && !isGenerating && (
-            <div style={{ textAlign: 'center', padding: '32px 0' }}>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 16 }}>
+            <div className="rp-empty-state">
+              <p className="rp-empty-text">
                 Ask each debater to reflect on the conversation and propose specific edits to their Beliefs, Desires, and Intentions taxonomy.
               </p>
               <button
-                className="btn btn-primary"
+                className="btn btn-primary rp-start-btn"
                 onClick={() => requestReflections()}
-                style={{ fontSize: '0.8rem', padding: '8px 24px' }}
               >
                 Start Post-Debate Reflections
               </button>
@@ -925,13 +840,13 @@ export function ReflectionsPanel({ onClose }: { onClose: () => void }) {
           )}
 
           {isGenerating && reflections.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+            <div className="rp-waiting-state">
               Waiting for reflections...
             </div>
           )}
 
           {consensusClusters.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
+            <div className="rp-mb-16">
               {consensusClusters.map(c => (
                 <ConsensusCard key={c.id} cluster={c} />
               ))}
@@ -939,7 +854,7 @@ export function ReflectionsPanel({ onClose }: { onClose: () => void }) {
           )}
 
           {reflections.length > 1 && (
-            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginBottom: 8, padding: '4px 8px', background: 'var(--bg-subtle)', borderRadius: 4 }}>
+            <div className="rp-reflection-order">
               Reflection order: {reflections.map((r, i) => r.label).join(' → ')}. Each camp sees prior camps&apos; proposals to avoid duplicating the same concept.
             </div>
           )}

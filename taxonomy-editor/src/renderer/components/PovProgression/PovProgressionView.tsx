@@ -10,9 +10,11 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 import type { DebateSession, TranscriptEntry, ArgumentNetworkNode, ArgumentNetworkEdge, SpeakerId } from '../../types/debate';
 import { POVER_INFO } from '../../types/debate';
 import { AI_POVERS } from '@lib/debate/types';
+import './PovProgressionView.css';
 
 // ── Local view types ──────────────────────────────────────
 
@@ -267,23 +269,18 @@ function NodeChip({ id, label, primary, diff, cited, pinned, onClick }: NodeChip
     <span
       onClick={onClick}
       title={`${id}${label ? ' — ' + label : ''}${primary ? ' (primary)' : ''}${cited ? ' [cited]' : ''}`}
+      className="pov-prog-chip"
+      // eslint-disable-next-line local/no-inline-style -- background/color/fontWeight/cursor/border/textDecoration/opacity vary per BDI palette + diff/pinned/cited state
       style={{
-        display: 'inline-flex', alignItems: 'center',
         background: palette.bg, color: palette.fg,
-        padding: '2px 6px', borderRadius: 4,
-        fontSize: 'var(--text-2xs)',
         fontWeight: cited ? 700 : 500,
-        margin: 2, cursor: onClick ? 'pointer' : 'default',
+        cursor: onClick ? 'pointer' : 'default',
         border, textDecoration, opacity,
-        whiteSpace: 'nowrap',
       }}
     >
-      <span style={{
-        fontSize: 'var(--text-2xs)', marginRight: 4,
-        background: 'rgba(0,0,0,0.12)', padding: '0 3px', borderRadius: 2,
-      }}>{palette.tag}</span>
+      <span className="pov-prog-chip-tag">{palette.tag}</span>
       {prefix}{star}{id}
-      {label && <span style={{ marginLeft: 4, opacity: 0.75, fontWeight: 400 }}>{truncate(label, 30)}</span>}
+      {label && <span className="pov-prog-chip-label">{truncate(label, 30)}</span>}
     </span>
   );
 }
@@ -359,27 +356,27 @@ function PovLane({ pov, curr, prev, mode, pinnedNodes, togglePin, nodeLabels }: 
   const visibleCtx = showAll ? sortedCtx : sortedCtx.filter(i => i.primary || i.diff !== 'unchanged');
 
   return (
-    <div style={{
-      borderLeft: `3px solid ${info.color}`,
-      padding: '8px 10px', marginBottom: 10,
-      background: 'var(--bg-subtle)', borderRadius: 4,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-        <strong style={{ color: info.color }}>{info.label}</strong>
-        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+    <div
+      className="pov-prog-lane"
+      // eslint-disable-next-line local/no-inline-style -- --pov-color varies per POV, set as a custom property consumed by the class
+      style={{ '--pov-color': info.color } as CSSProperties}
+    >
+      <div className="pov-prog-lane-header">
+        <strong className="pov-prog-lane-title">{info.label}</strong>
+        <span className="pov-prog-meta">
           ({info.pov}) — context: {curr.contextIds.size} • cited: {curr.citedIds.size}
         </span>
         {!curr.entry && (
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>— did not speak this turn</span>
+          <span className="pov-prog-meta">— did not speak this turn</span>
         )}
       </div>
 
       {curr.entry && (
         <>
-          <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2 }}>
+          <div className="pov-prog-section-label">
             Context {mode === 'diff' && prev ? '(diff vs prior turn)' : ''}
           </div>
-          <div style={{ marginBottom: 8 }}>
+          <div className="pov-prog-mb8">
             {visibleCtx.map(item => (
               <NodeChip
                 key={`ctx-${item.id}-${item.diff}`}
@@ -393,18 +390,18 @@ function PovLane({ pov, curr, prev, mode, pinnedNodes, togglePin, nodeLabels }: 
               />
             ))}
             {!showAll && (
-              <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginLeft: 6 }}>
+              <span className="pov-prog-hidden-note">
                 +{supportingCount} unchanged supporting nodes hidden
               </span>
             )}
           </div>
 
-          <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2 }}>
+          <div className="pov-prog-section-label">
             Citations in this turn
           </div>
           <div>
             {citeItems.length === 0 && (
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>none</span>
+              <span className="pov-prog-meta">none</span>
             )}
             {citeItems.map(item => (
               <NodeChip
@@ -439,23 +436,20 @@ function AnSubstrateLane({ snapshot }: { snapshot: TurnSnapshot }) {
 
   if (introduced.length === 0 && targeted.length === 0) {
     return (
-      <div style={{
-        padding: '8px 10px', background: 'var(--bg-subtle)', borderRadius: 4,
-        fontSize: '0.7rem', color: 'var(--text-muted)',
-      }}>
+      <div className="pov-prog-an-empty">
         AN substrate: no new claims or response edges this turn.
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '8px 10px', background: 'var(--bg-subtle)', borderRadius: 4 }}>
-      <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>
+    <div className="pov-prog-an-panel">
+      <div className="pov-prog-section-label-mb4">
         AN claims introduced this turn
       </div>
-      <div style={{ marginBottom: 8 }}>
+      <div className="pov-prog-mb8">
         {introduced.length === 0 && (
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>none</span>
+          <span className="pov-prog-meta">none</span>
         )}
         {introduced.map(n => {
           const speakerInfo = (n.speaker === 'accelerationist' || n.speaker === 'safetyist' || n.speaker === 'skeptic')
@@ -468,38 +462,32 @@ function AnSubstrateLane({ snapshot }: { snapshot: TurnSnapshot }) {
             <span
               key={n.id}
               title={`${n.id}\n${n.text}\nspeaker: ${n.speaker}\nstrength: ${strength.toFixed(2)}\nverification: ${n.verification_status ?? 'pending'}`}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                margin: 3, padding: '3px 7px', borderRadius: 12,
-                fontSize: 'var(--text-2xs)',
-                background: 'rgba(255,255,255,0.04)',
-                border: `2px solid ${outline}`,
-              }}
+              className="pov-prog-an-claim"
+              // eslint-disable-next-line local/no-inline-style -- --an-outline reflects per-claim verification status
+              style={{ '--an-outline': outline } as CSSProperties}
             >
-              <span style={{
-                width: size, height: size, borderRadius: '50%', background: color,
-                display: 'inline-block', flexShrink: 0,
-              }} />
-              <span style={{ color: 'var(--text-muted)' }}>{n.id}</span>
-              <span style={{ opacity: 0.85 }}>{truncate(n.text, 60)}</span>
+              <span
+                className="pov-prog-an-dot"
+                // eslint-disable-next-line local/no-inline-style -- --dot-size/--dot-color derived from per-node strength + speaker
+                style={{ '--dot-size': `${size}px`, '--dot-color': color } as CSSProperties}
+              />
+              <span className="pov-prog-an-id">{n.id}</span>
+              <span className="pov-prog-an-text">{truncate(n.text, 60)}</span>
               {n.bdi_category && (
-                <span style={{
-                  fontSize: 'var(--text-2xs)', padding: '0 3px', borderRadius: 2,
-                  background: 'rgba(0,0,0,0.15)',
-                }}>{n.bdi_category[0].toUpperCase()}</span>
+                <span className="pov-prog-an-bdi-tag">{n.bdi_category[0].toUpperCase()}</span>
               )}
             </span>
           );
         })}
       </div>
 
-      <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>
+      <div className="pov-prog-section-label-mb4">
         Response edges (who responded to what)
       </div>
       {targeted.length === 0 && (
-        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>none</span>
+        <span className="pov-prog-meta">none</span>
       )}
-      <table style={{ fontSize: 'var(--text-2xs)', borderCollapse: 'collapse' }}>
+      <table className="pov-prog-an-table">
         <tbody>
           {targeted.map((t, i) => {
             const fromInfo = (t.fromSpeaker === 'accelerationist' || t.fromSpeaker === 'safetyist' || t.fromSpeaker === 'skeptic')
@@ -509,12 +497,24 @@ function AnSubstrateLane({ snapshot }: { snapshot: TurnSnapshot }) {
             const isAttack = t.edgeType === 'attacks';
             return (
               <tr key={i}>
-                <td style={{ color: fromInfo?.color, fontWeight: 600, padding: '1px 6px' }}>{fromInfo?.label ?? t.fromSpeaker}</td>
-                <td style={{ padding: '1px 6px', color: isAttack ? '#dc2626' : '#16a34a', fontWeight: 600 }}>
+                <td
+                  className="pov-prog-an-edge-cell-bold"
+                  // eslint-disable-next-line local/no-inline-style -- color varies per originating POV speaker
+                  style={{ color: fromInfo?.color }}
+                >{fromInfo?.label ?? t.fromSpeaker}</td>
+                <td
+                  className="pov-prog-an-edge-cell-bold"
+                  // eslint-disable-next-line local/no-inline-style -- color varies per attack/support edge type
+                  style={{ color: isAttack ? '#dc2626' : '#16a34a' }}
+                >
                   {isAttack ? `⚔ ${t.attackType ?? 'attack'}` : '⊕ supports'}
                 </td>
-                <td style={{ color: toInfo?.color, padding: '1px 6px' }}>{toInfo?.label ?? t.targetSpeaker}'s</td>
-                <td style={{ color: 'var(--text-muted)', padding: '1px 6px' }}>{t.targetNodeId}</td>
+                <td
+                  className="pov-prog-an-edge-cell"
+                  // eslint-disable-next-line local/no-inline-style -- color varies per target POV speaker
+                  style={{ color: toInfo?.color }}
+                >{toInfo?.label ?? t.targetSpeaker}'s</td>
+                <td className="pov-prog-an-edge-cell-muted">{t.targetNodeId}</td>
               </tr>
             );
           })}
@@ -566,27 +566,21 @@ function MiniMap({ turns, selectedTurn, setSelectedTurn, pinnedNodes }: MiniMapP
   }, [turns, pinnedNodes]);
 
   return (
-    <div style={{
-      borderBottom: '1px solid var(--border)',
-      padding: '8px 10px', marginBottom: 8,
-    }}>
-      <div style={{ fontSize: '0.7rem', fontWeight: 600, marginBottom: 6, color: 'var(--text-muted)' }}>
+    <div className="pov-prog-mini">
+      <div className="pov-prog-section-label-mb6">
         Change magnitude per turn (click to select)
       </div>
-      <table style={{ borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed' }}>
+      <table className="pov-prog-mini-table">
         <thead>
           <tr>
-            <th style={{ width: 80, fontSize: 'var(--text-2xs)', textAlign: 'right', paddingRight: 6 }}></th>
+            <th className="pov-prog-mini-row-label-th"></th>
             {turns.map(t => (
               <th
                 key={t.turnIndex}
                 onClick={() => setSelectedTurn(t.turnIndex)}
-                style={{
-                  fontSize: 'var(--text-2xs)', textAlign: 'center', padding: '2px 1px',
-                  cursor: 'pointer',
-                  background: t.turnIndex === selectedTurn ? 'rgba(139,92,246,0.2)' : 'transparent',
-                  borderRadius: 3,
-                }}
+                className="pov-prog-mini-turn-th"
+                // eslint-disable-next-line local/no-inline-style -- --th-bg toggles per selected-turn state
+                style={{ '--th-bg': t.turnIndex === selectedTurn ? 'rgba(139,92,246,0.2)' : 'transparent' } as CSSProperties}
               >{t.label}</th>
             ))}
           </tr>
@@ -596,7 +590,11 @@ function MiniMap({ turns, selectedTurn, setSelectedTurn, pinnedNodes }: MiniMapP
             const info = POVER_INFO[pov];
             return (
               <tr key={pov}>
-                <td style={{ fontSize: 'var(--text-2xs)', textAlign: 'right', paddingRight: 6, color: info.color, fontWeight: 600 }}>
+                <td
+                  className="pov-prog-mini-row-label"
+                  // eslint-disable-next-line local/no-inline-style -- --pov-color varies per POV row
+                  style={{ '--pov-color': info.color } as CSSProperties}
+                >
                   {info.label}
                 </td>
                 {cells.map((c, i) => {
@@ -608,22 +606,21 @@ function MiniMap({ turns, selectedTurn, setSelectedTurn, pinnedNodes }: MiniMapP
                       key={i}
                       onClick={() => setSelectedTurn(i)}
                       title={`${turns[i].label}\ncontext Δ: ${c.ctx}\ncitation Δ: ${c.cite}`}
-                      style={{
-                        cursor: 'pointer', padding: 1,
-                        background: sel ? 'rgba(139,92,246,0.12)' : 'transparent',
-                      }}
+                      className="pov-prog-mini-cell"
+                      // eslint-disable-next-line local/no-inline-style -- --cell-bg toggles per selected-turn state
+                      style={{ '--cell-bg': sel ? 'rgba(139,92,246,0.12)' : 'transparent' } as CSSProperties}
                     >
-                      <div style={{
-                        display: 'flex', alignItems: 'flex-end',
-                        height: 22, gap: 1, justifyContent: 'center',
-                      }}>
-                        <div style={{
-                          width: 6, height: ctxH, background: info.color, opacity: 0.6, borderRadius: 1,
-                        }} />
-                        <div style={{
-                          width: 6, height: citeH, background: info.color, borderRadius: 1,
-                          backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.2) 2px, rgba(0,0,0,0.2) 3px)',
-                        }} />
+                      <div className="pov-prog-mini-bars">
+                        <div
+                          className="pov-prog-mini-bar"
+                          // eslint-disable-next-line local/no-inline-style -- --bar-h/--pov-color computed per turn's context-change magnitude
+                          style={{ '--bar-h': `${ctxH}px`, '--pov-color': info.color } as CSSProperties}
+                        />
+                        <div
+                          className="pov-prog-mini-bar-cite"
+                          // eslint-disable-next-line local/no-inline-style -- --bar-h/--pov-color computed per turn's citation-change magnitude
+                          style={{ '--bar-h': `${citeH}px`, '--pov-color': info.color } as CSSProperties}
+                        />
                       </div>
                     </td>
                   );
@@ -636,35 +633,28 @@ function MiniMap({ turns, selectedTurn, setSelectedTurn, pinnedNodes }: MiniMapP
 
       {pinnedTrack.length > 0 && (
         <>
-          <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, marginTop: 8, color: 'var(--text-muted)' }}>
+          <div className="pov-prog-mini-pinned-label">
             Pinned nodes — presence across turns (line = in context, dot = cited)
           </div>
           {pinnedTrack.map(({ nodeId, presence }) => (
-            <div key={nodeId} style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-              <span style={{ width: 80, fontSize: 'var(--text-2xs)', textAlign: 'right', color: 'var(--text-muted)' }}>
+            <div key={nodeId} className="pov-prog-mini-pinned-row">
+              <span className="pov-prog-mini-pinned-id">
                 {nodeId}
               </span>
-              <div style={{ display: 'flex', flex: 1, alignItems: 'center', gap: 0 }}>
+              <div className="pov-prog-mini-pinned-track">
                 {presence.map((p, i) => (
                   <div
                     key={i}
                     onClick={() => setSelectedTurn(i)}
-                    style={{
-                      flex: 1, height: 8, position: 'relative', cursor: 'pointer',
-                      background: i === selectedTurn ? 'rgba(139,92,246,0.12)' : 'transparent',
-                    }}
+                    className="pov-prog-mini-presence-cell"
+                    // eslint-disable-next-line local/no-inline-style -- --cell-bg toggles per selected-turn state
+                    style={{ '--cell-bg': i === selectedTurn ? 'rgba(139,92,246,0.12)' : 'transparent' } as CSSProperties}
                   >
                     {p.inContext && (
-                      <div style={{
-                        position: 'absolute', top: 3, left: 0, right: 0, height: 2,
-                        background: '#94a3b8',
-                      }} />
+                      <div className="pov-prog-mini-presence-line" />
                     )}
                     {p.cited && (
-                      <div style={{
-                        position: 'absolute', top: 1, left: '50%', transform: 'translateX(-50%)',
-                        width: 6, height: 6, borderRadius: '50%', background: '#8b5cf6',
-                      }} />
+                      <div className="pov-prog-mini-presence-dot" />
                     )}
                   </div>
                 ))}
@@ -710,7 +700,7 @@ export function PovProgressionView({ session, nodeLabels }: PovProgressionViewPr
 
   if (!session) {
     return (
-      <div style={{ padding: 20, color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+      <div className="pov-prog-empty">
         No active debate. Open a debate in the main window to populate this view.
       </div>
     );
@@ -718,7 +708,7 @@ export function PovProgressionView({ session, nodeLabels }: PovProgressionViewPr
 
   if (turns.length === 0) {
     return (
-      <div style={{ padding: 20, color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+      <div className="pov-prog-empty">
         Debate has no turns yet. Once openings begin, the timeline will populate.
       </div>
     );
@@ -740,55 +730,47 @@ export function PovProgressionView({ session, nodeLabels }: PovProgressionViewPr
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div className="pov-prog-root">
       {/* Header / scrubber */}
-      <div style={{
-        padding: '10px 14px', borderBottom: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
-      }}>
+      <div className="pov-prog-header">
         <div>
-          <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>Perspective Progression</div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+          <div className="pov-prog-title">Perspective Progression</div>
+          <div className="pov-prog-meta">
             {session.title} — {turns.length} turn{turns.length === 1 ? '' : 's'}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
+        <div className="pov-prog-mode-toggle">
           {(['diff', 'snapshot', 'since-opening'] as Mode[]).map(m => (
             <button
               key={m}
               onClick={() => setMode(m)}
-              className="btn btn-sm"
+              className="btn btn-sm pov-prog-toggle-btn"
               style={{
-                fontSize: 'var(--text-2xs)',
-                background: mode === m ? 'var(--accent-color, #3b82f6)' : 'var(--bg-subtle)',
-                color: mode === m ? '#fff' : 'var(--text)',
-              }}
+                '--btn-bg': mode === m ? 'var(--accent-color, #3b82f6)' : 'var(--bg-subtle)',
+                '--btn-color': mode === m ? '#fff' : 'var(--text)',
+              } as CSSProperties}
             >{m === 'since-opening' ? 'vs Opening' : m}</button>
           ))}
         </div>
       </div>
 
       {/* Turn buttons */}
-      <div style={{
-        padding: '6px 14px', borderBottom: '1px solid var(--border)',
-        display: 'flex', gap: 4, flexWrap: 'wrap',
-      }}>
+      <div className="pov-prog-turn-bar">
         {turns.map(t => (
           <button
             key={t.turnIndex}
             onClick={() => setSelectedTurn(t.turnIndex)}
-            className="btn btn-sm"
+            className="btn btn-sm pov-prog-toggle-btn"
             style={{
-              fontSize: 'var(--text-2xs)',
-              background: t.turnIndex === safeSelected ? 'var(--accent-color, #3b82f6)' : 'var(--bg-subtle)',
-              color: t.turnIndex === safeSelected ? '#fff' : 'var(--text)',
-            }}
+              '--btn-bg': t.turnIndex === safeSelected ? 'var(--accent-color, #3b82f6)' : 'var(--bg-subtle)',
+              '--btn-color': t.turnIndex === safeSelected ? '#fff' : 'var(--text)',
+            } as CSSProperties}
           >{t.label}</button>
         ))}
       </div>
 
       {/* Body: scrollable */}
-      <div style={{ overflow: 'auto', flex: 1, padding: '8px 14px' }}>
+      <div className="pov-prog-body">
         <MiniMap
           turns={turns}
           selectedTurn={safeSelected}
@@ -796,7 +778,7 @@ export function PovProgressionView({ session, nodeLabels }: PovProgressionViewPr
           pinnedNodes={pinnedNodes}
         />
 
-        <div style={{ marginBottom: 6, fontSize: '0.85rem', fontWeight: 600 }}>
+        <div className="pov-prog-stream-label">
           {curr.label} — Perspective streams
         </div>
         {POVS.map(p => (
@@ -812,7 +794,7 @@ export function PovProgressionView({ session, nodeLabels }: PovProgressionViewPr
           />
         ))}
 
-        <div style={{ marginTop: 12, marginBottom: 6, fontSize: '0.85rem', fontWeight: 600 }}>
+        <div className="pov-prog-an-label">
           AN substrate
         </div>
         <AnSubstrateLane snapshot={curr} />

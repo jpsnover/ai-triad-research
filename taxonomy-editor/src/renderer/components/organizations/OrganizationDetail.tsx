@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Organization, OrganizationEdge, OrganizationEdgeType, PovStance, PovAlignmentTier } from '../../bridge/types';
 import type { KeyFigure, ExternalLink } from '@lib/organizations/types';
+import './OrganizationDetail.css';
 
 const TIER_TO_SCORE: Record<PovAlignmentTier, number> = {
   opposes: -1.0, leans_against: -0.5, mixed_or_silent: 0, leans_toward: 0.5, champions: 1.0,
@@ -74,7 +75,7 @@ export function OrgLogo({ name, url, size = 24 }: { name: string; url?: string; 
         alt=""
         width={size}
         height={size}
-        style={{ borderRadius: 4, flexShrink: 0 }}
+        className="org-logo-img"
         onError={() => setImgFailed(true)}
       />
     );
@@ -88,12 +89,11 @@ export function OrgLogo({ name, url, size = 24 }: { name: string; url?: string; 
   const bg = INITIALS_PALETTE[hashName(name) % INITIALS_PALETTE.length];
 
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      width: size, height: size, borderRadius: 4, flexShrink: 0,
-      background: bg, color: '#fff', fontSize: size * 0.4, fontWeight: 700,
-      lineHeight: 1,
-    }}>
+    <span
+      className="org-logo-initials"
+      /* eslint-disable-next-line local/no-inline-style -- size/bg are per-instance dynamic values passed as CSS custom properties */
+      style={{ '--size': `${size}px`, '--font-size': `${size * 0.4}px`, '--bg': bg } as React.CSSProperties}
+    >
       {initials}
     </span>
   );
@@ -107,11 +107,11 @@ function PersonAvatar({ name, size = 24 }: { name: string; size?: number }) {
     .join('');
   const bg = INITIALS_PALETTE[hashName(name) % INITIALS_PALETTE.length];
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      width: size, height: size, borderRadius: '50%', flexShrink: 0,
-      background: bg, color: '#fff', fontSize: size * 0.4, fontWeight: 700, lineHeight: 1,
-    }}>
+    <span
+      className="person-avatar"
+      /* eslint-disable-next-line local/no-inline-style -- size/bg are per-instance dynamic values passed as CSS custom properties */
+      style={{ '--size': `${size}px`, '--font-size': `${size * 0.4}px`, '--bg': bg } as React.CSSProperties}
+    >
       {initials}
     </span>
   );
@@ -132,20 +132,17 @@ const POV_LABELS: Record<string, string> = {
 function TypeBadge({ type }: { type?: string }) {
   if (!type) return null;
   return (
-    <span style={{
-      padding: '2px 8px', borderRadius: 10, fontSize: 'var(--text-2xs)', fontWeight: 600,
-      background: 'var(--bg-hover)', color: 'var(--text-secondary)',
-    }}>
+    <span className="od-type-badge">
       {type.replace(/_/g, ' ')}
     </span>
   );
 }
 
 function PovAlignmentBar({ alignment }: { alignment?: Organization['pov_alignment'] }) {
-  if (!alignment) return <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>No alignment data</span>;
+  if (!alignment) return <span className="od-muted-075">No alignment data</span>;
   const povs = ['accelerationist', 'safetyist', 'skeptic'] as const;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div className="od-flex-col-6">
       {povs.map((pov) => {
         const stance = alignment[pov];
         if (!stance) return null;
@@ -154,35 +151,34 @@ function PovAlignmentBar({ alignment }: { alignment?: Organization['pov_alignmen
         const color = POV_COLORS[pov] ?? 'var(--text-muted)';
         const chipColors = TIER_CHIP_COLORS[stance.tier] ?? TIER_CHIP_COLORS.mixed_or_silent;
         return (
-          <div key={pov} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem' }}>
-              <span style={{ width: 28, fontWeight: 600, color, flexShrink: 0 }}>{POV_LABELS[pov]}</span>
-              <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', flexShrink: 0 }}>−1</span>
-              <div style={{ flex: 1, height: 10, background: 'var(--bg-tertiary, #1e293b)', borderRadius: 5, position: 'relative' }}>
-                <div style={{
-                  position: 'absolute',
-                  left: score < 0 ? `${50 - absScore * 50}%` : '50%',
-                  width: `${absScore * 50}%`,
-                  height: '100%',
-                  background: color,
-                  borderRadius: 5,
-                  opacity: 0.85,
-                }} />
-                <div style={{
-                  position: 'absolute', left: '50%', top: -1, bottom: -1, width: 2,
-                  background: 'var(--text-muted)', transform: 'translateX(-1px)', zIndex: 1,
-                }} />
+          <div key={pov} className="od-flex-col-2">
+            <div className="od-pov-row-header">
+              {/* eslint-disable-next-line local/no-inline-style -- per-POV color computed from POV_COLORS, passed as CSS custom property */}
+              <span className="od-pov-label" style={{ '--pov-color': color } as React.CSSProperties}>{POV_LABELS[pov]}</span>
+              <span className="od-pov-scale-label">−1</span>
+              <div className="od-pov-track">
+                <div
+                  className="od-pov-fill"
+                  /* eslint-disable-next-line local/no-inline-style -- fill position/width/color computed from stance score, passed as CSS custom properties */
+                  style={{
+                    '--left': score < 0 ? `${50 - absScore * 50}%` : '50%',
+                    '--width': `${absScore * 50}%`,
+                    '--fill-color': color,
+                  } as React.CSSProperties}
+                />
+                <div className="od-pov-center-line" />
               </div>
-              <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', flexShrink: 0 }}>+1</span>
-              <span style={{
-                padding: '1px 7px', borderRadius: 10, fontSize: '0.65rem', fontWeight: 600,
-                background: chipColors.bg, color: chipColors.fg, flexShrink: 0, whiteSpace: 'nowrap',
-              }}>
+              <span className="od-pov-scale-label">+1</span>
+              <span
+                className="od-pov-tier-chip"
+                /* eslint-disable-next-line local/no-inline-style -- tier chip colors computed from TIER_CHIP_COLORS, passed as CSS custom properties */
+                style={{ '--chip-bg': chipColors.bg, '--chip-fg': chipColors.fg } as React.CSSProperties}
+              >
                 {TIER_LABELS[stance.tier] ?? stance.tier}
               </span>
             </div>
             {stance.behavioral_notes && (
-              <div style={{ marginLeft: 34, fontSize: '0.7rem', fontStyle: 'italic', color: 'var(--text-muted)' }}>
+              <div className="od-pov-notes">
                 {stance.behavioral_notes}
               </div>
             )}
@@ -209,13 +205,9 @@ function ExternalLinkRow({ url, title, type, orgUrl }: { url: string; title?: st
 
   return (
     <button
-      className="btn-ghost"
-      style={{
-        display: 'flex', alignItems: 'center', gap: 6, width: '100%',
-        padding: '4px 6px', textAlign: 'left', fontSize: '0.78rem',
-        borderRadius: 4, border: 'none', cursor: isValid ? 'pointer' : 'default',
-        opacity: isValid ? 1 : 0.6,
-      }}
+      className="btn-ghost od-ext-link-btn"
+      /* eslint-disable-next-line local/no-inline-style -- cursor/opacity depend on isValid, passed as CSS custom properties */
+      style={{ '--cursor': isValid ? 'pointer' : 'default', '--opacity': isValid ? 1 : 0.6 } as React.CSSProperties}
       title={url}
       aria-label={`${label}, opens ${hostClean ?? 'link'} in browser`}
       disabled={!isValid}
@@ -231,28 +223,25 @@ function ExternalLinkRow({ url, title, type, orgUrl }: { url: string; title?: st
       }}
     >
       {faviconSrc ? (
-        <img src={faviconSrc} alt="" width={16} height={16} style={{ flexShrink: 0, borderRadius: 2 }} onError={() => setFaviconFailed(true)} />
+        <img src={faviconSrc} alt="" width={16} height={16} className="od-ext-favicon-img" onError={() => setFaviconFailed(true)} />
       ) : (
-        <span style={{ width: 16, height: 16, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', color: 'var(--text-muted)' }}>{'○'}</span>
+        <span className="od-ext-favicon-placeholder">{'○'}</span>
       )}
-      <span style={{
-        flex: 1, fontWeight: 500, color: isValid ? 'var(--color-info, #3b82f6)' : 'var(--text-muted)',
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-      }}>
+      <span
+        className="od-ext-label"
+        style={{ '--label-color': isValid ? 'var(--color-info, #3b82f6)' : 'var(--text-muted)' } as React.CSSProperties}
+      >
         {label}
       </span>
       {showType && (
-        <span style={{
-          padding: '1px 6px', borderRadius: 8, fontSize: 'var(--text-2xs)', fontWeight: 600,
-          background: 'var(--bg-hover)', color: 'var(--text-secondary)', flexShrink: 0,
-        }}>
+        <span className="od-ext-type-badge">
           {type!.replace(/_/g, ' ')}
         </span>
       )}
       {showDomain ? (
-        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0 }}>{hostClean} {'↗'}</span>
+        <span className="od-ext-domain">{hostClean} {'↗'}</span>
       ) : isValid ? (
-        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0 }}>{'↗'}</span>
+        <span className="od-ext-domain">{'↗'}</span>
       ) : null}
     </button>
   );
@@ -296,7 +285,7 @@ function RelationshipSection({ orgId, onSelectOrg }: { orgId: string; onSelectOr
       .finally(() => setLoading(false));
   }, [orgId]);
 
-  if (loading) return <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Loading relationships...</span>;
+  if (loading) return <span className="od-muted-075">Loading relationships...</span>;
   if (edges.length === 0) return null;
 
   const grouped = new Map<OrganizationEdgeType, { id: string; rationale?: string }[]>();
@@ -308,19 +297,19 @@ function RelationshipSection({ orgId, onSelectOrg }: { orgId: string; onSelectOr
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div className="od-flex-col-8">
       {[...grouped.entries()].map(([type, peers]) => (
         <div key={type}>
-          <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2 }}>
+          <div className="od-rel-group-header">
             {EDGE_GROUP_LABELS[type] ?? type} ({peers.length})
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div className="od-flex-col-4">
             {peers.map((peer) => (
-              <div key={peer.id} style={{ fontSize: '0.78rem' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <div key={peer.id} className="od-text-078">
+                <div className="od-row-baseline-6">
                   <button
-                    className="btn-xs btn-ghost"
-                    style={{ color: 'var(--color-info, #3b82f6)', padding: 0, textDecoration: 'underline', cursor: onSelectOrg ? 'pointer' : 'default', fontWeight: 500 }}
+                    className="btn-xs btn-ghost od-rel-link-btn"
+                    style={{ '--cursor': onSelectOrg ? 'pointer' : 'default' } as React.CSSProperties}
                     onClick={() => onSelectOrg?.(peer.id)}
                     disabled={!onSelectOrg}
                     title={peer.id}
@@ -329,7 +318,7 @@ function RelationshipSection({ orgId, onSelectOrg }: { orgId: string; onSelectOr
                   </button>
                 </div>
                 {peer.rationale && (
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: 1, paddingLeft: 2 }}>{peer.rationale}</div>
+                  <div className="od-note-072">{peer.rationale}</div>
                 )}
               </div>
             ))}
@@ -371,27 +360,26 @@ export function OrganizationDetail({ org, onSelectOrg }: { org: Organization; on
   }, [org.external_links]);
 
   return (
-    <div style={{ padding: 16, overflowY: 'auto', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="org-detail">
       {/* Header */}
       <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div className="od-header-row">
           <OrgLogo name={org.name} url={org.url} size={32} />
-          <h2 style={{ margin: 0, fontSize: '1.1rem' }}>{org.name}</h2>
+          <h2 className="od-title">{org.name}</h2>
           <TypeBadge type={org.type} />
           {org.status && org.status !== 'active' && (
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{org.status}</span>
+            <span className="od-status">{org.status}</span>
           )}
         </div>
         {org.short_name && org.short_name !== org.name && (
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: 2 }}>{org.short_name}</div>
+          <div className="od-short-name">{org.short_name}</div>
         )}
-        <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: '0.75rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+        <div className="od-meta-row">
           {org.headquarters && <span>{org.headquarters}</span>}
           {org.founded && <span>Founded {org.founded}</span>}
           {org.url && (
             <button
-              className="btn-xs btn-ghost"
-              style={{ color: 'var(--color-info, #3b82f6)', textDecoration: 'underline', padding: 0 }}
+              className="btn-xs btn-ghost od-website-link"
               onClick={() => { void api.openExternal(org.url!).catch((err: unknown) => {
                 getGlobalRecorder()?.record({
                   type: 'system.error', component: 'org-detail', level: 'error',
@@ -409,40 +397,37 @@ export function OrganizationDetail({ org, onSelectOrg }: { org: Organization; on
       {/* Description */}
       {org.description && (
         <div>
-          <h3 style={{ margin: '0 0 4px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>About</h3>
-          <p style={{ margin: 0, lineHeight: 1.5 }}>{org.description}</p>
+          <h3 className="od-section-h3">About</h3>
+          <p className="od-description">{org.description}</p>
         </div>
       )}
 
       {/* POV Alignment */}
       <div>
-        <h3 style={{ margin: '0 0 6px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>POV Alignment</h3>
+        <h3 className="od-section-h3-md">POV Alignment</h3>
         <PovAlignmentBar alignment={org.pov_alignment} />
       </div>
 
       {/* Topic Engagement */}
       {org.topic_engagement && org.topic_engagement.length > 0 && (
         <div>
-          <h3 style={{ margin: '0 0 4px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Topic Engagement</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <h3 className="od-section-h3">Topic Engagement</h3>
+          <div className="od-flex-col-6">
             {org.topic_engagement.map((te, i) => {
               const label = situationNameMap.get(te.topic_ref);
               return (
-                <div key={i} style={{ fontSize: '0.78rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                    <span style={{ fontWeight: 500 }}>{label ?? te.topic_ref}</span>
+                <div key={i} className="od-text-078">
+                  <div className="od-row-baseline-6">
+                    <span className="od-item-label">{label ?? te.topic_ref}</span>
                     {te.stance && (
-                      <span style={{
-                        padding: '1px 6px', borderRadius: 8, fontSize: 'var(--text-2xs)', fontWeight: 600,
-                        background: 'var(--bg-hover)', color: 'var(--text-secondary)',
-                      }}>
+                      <span className="od-stance-badge">
                         {te.stance}
                       </span>
                     )}
-                    <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{te.topic_ref}</span>
+                    <span className="od-ref-mono">{te.topic_ref}</span>
                   </div>
                   {te.description && (
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: 1, paddingLeft: 2 }}>{te.description}</div>
+                    <div className="od-note-072">{te.description}</div>
                   )}
                 </div>
               );
@@ -454,22 +439,24 @@ export function OrganizationDetail({ org, onSelectOrg }: { org: Organization; on
       {/* Policy Engagement */}
       {org.policy_engagement && org.policy_engagement.length > 0 && (
         <div>
-          <h3 style={{ margin: '0 0 4px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Policy Engagement</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <h3 className="od-section-h3">Policy Engagement</h3>
+          <div className="od-flex-col-6">
             {org.policy_engagement.map((pe, i) => {
               const label = policyNameMap.get(pe.policy_ref);
               return (
-                <div key={i} style={{ fontSize: '0.78rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                    <span style={{ fontWeight: 500 }}>{label ?? pe.policy_ref}</span>
-                    <span style={{
-                      padding: '1px 6px', borderRadius: 8, fontSize: 'var(--text-2xs)', fontWeight: 600,
-                      background: pe.stance === 'supports' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
-                      color: pe.stance === 'supports' ? '#22c55e' : '#ef4444',
-                    }}>
+                <div key={i} className="od-text-078">
+                  <div className="od-row-baseline-6">
+                    <span className="od-item-label">{label ?? pe.policy_ref}</span>
+                    <span
+                      className="od-policy-stance-badge"
+                      style={{
+                        '--stance-bg': pe.stance === 'supports' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                        '--stance-fg': pe.stance === 'supports' ? '#22c55e' : '#ef4444',
+                      } as React.CSSProperties}
+                    >
                       {pe.stance}
                     </span>
-                    <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{pe.policy_ref}</span>
+                    <span className="od-ref-mono">{pe.policy_ref}</span>
                   </div>
                 </div>
               );
@@ -480,41 +467,38 @@ export function OrganizationDetail({ org, onSelectOrg }: { org: Organization; on
 
       {/* Relationships */}
       <div>
-        <h3 style={{ margin: '0 0 6px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Relationships</h3>
+        <h3 className="od-section-h3-md">Relationships</h3>
         <RelationshipSection orgId={org.id} onSelectOrg={onSelectOrg} />
       </div>
 
       {/* Key Figures */}
       {org.key_figures && org.key_figures.length > 0 && (
         <div>
-          <h3 style={{ margin: '0 0 6px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Key Figures</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 8 }}>
+          <h3 className="od-section-h3-md">Key Figures</h3>
+          <div className="od-figures-grid">
             {org.key_figures.map((kf, i) => {
               if (typeof kf === 'string') {
                 return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div key={i} className="od-figure-row">
                     <PersonAvatar name={kf} />
-                    <span style={{ fontSize: '0.78rem', fontWeight: 500 }}>{kf}</span>
+                    <span className="od-figure-name">{kf}</span>
                   </div>
                 );
               }
               const fig = kf as KeyFigure;
               if (!fig.name) return null;
               return (
-                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <div key={i} className="od-figure-row-start">
                   <PersonAvatar name={fig.name} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '0.78rem', fontWeight: 500 }}>
+                  <div className="od-figure-body">
+                    <div className="od-figure-name">
                       {fig.name}
-                      {fig.role && <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>{' · '}{fig.role}</span>}
+                      {fig.role && <span className="od-figure-role">{' · '}{fig.role}</span>}
                     </div>
                     {fig.relevance && (
                       <div
                         title={fig.relevance}
-                        style={{
-                          fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4, marginTop: 1,
-                          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
-                        }}
+                        className="od-figure-relevance"
                       >
                         {fig.relevance}
                       </div>
@@ -530,8 +514,8 @@ export function OrganizationDetail({ org, onSelectOrg }: { org: Organization; on
       {/* External Links */}
       {org.external_links && org.external_links.length > 0 && (
         <div>
-          <h3 style={{ margin: '0 0 4px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>External Links</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <h3 className="od-section-h3">External Links</h3>
+          <div className="od-flex-col-2">
             {org.external_links.map((link, i) => {
               const url = typeof link === 'string' ? link : link.url;
               const title = typeof link === 'string' ? undefined : link.title;
@@ -546,17 +530,14 @@ export function OrganizationDetail({ org, onSelectOrg }: { org: Organization; on
       {/* Sources */}
       {org.source_refs && org.source_refs.length > 0 && (
         <div>
-          <h3 style={{ margin: '0 0 4px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Sources</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <h3 className="od-section-h3">Sources</h3>
+          <div className="od-flex-col-2">
             {org.source_refs.map((ref, i) => {
               if (isUrl(ref)) {
                 return <ExternalLinkRow key={i} url={ref} title={linkTitleByUrl.get(ref)} orgUrl={org.url} />;
               }
               return (
-                <span key={i} title={ref} style={{
-                  fontFamily: 'monospace', fontSize: '0.7rem', padding: '1px 6px', borderRadius: 4,
-                  background: 'var(--bg-tertiary, #1e293b)', userSelect: 'all', alignSelf: 'flex-start',
-                }}>
+                <span key={i} title={ref} className="od-ref-chip">
                   {ref}
                 </span>
               );
@@ -567,9 +548,9 @@ export function OrganizationDetail({ org, onSelectOrg }: { org: Organization; on
 
       {/* Tags */}
       {org.tags && org.tags.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+        <div className="od-tags-row">
           {org.tags.map((tag, i) => (
-            <span key={i} style={{ padding: '1px 8px', borderRadius: 10, fontSize: 'var(--text-2xs)', background: 'var(--bg-tertiary, #1e293b)', color: 'var(--text-muted)' }}>
+            <span key={i} className="od-tag-chip">
               {tag}
             </span>
           ))}
@@ -577,10 +558,10 @@ export function OrganizationDetail({ org, onSelectOrg }: { org: Organization; on
       )}
 
       {/* ID + timestamps */}
-      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-        <span style={{ fontFamily: 'monospace', userSelect: 'all' }}>{org.id}</span>
-        {org.created_at && <span style={{ marginLeft: 12 }}>Created: {new Date(org.created_at).toLocaleDateString()}</span>}
-        {org.last_modified && <span style={{ marginLeft: 12 }}>Modified: {new Date(org.last_modified).toLocaleDateString()}</span>}
+      <div className="od-footer">
+        <span className="od-footer-id">{org.id}</span>
+        {org.created_at && <span className="od-footer-spaced">Created: {new Date(org.created_at).toLocaleDateString()}</span>}
+        {org.last_modified && <span className="od-footer-spaced">Modified: {new Date(org.last_modified).toLocaleDateString()}</span>}
       </div>
     </div>
   );

@@ -1,0 +1,530 @@
+/* Co-located styles for TaxonomyRefDetail.tsx (t/1849 inline-style migration). */
+
+.taxref-detail {
+  margin-top: 12px;
+  padding: 12px 16px 16px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.taxref-header-pad {
+  padding: 0 0 10px;
+}
+
+.taxref-title {
+  font-size: 1.4rem;
+}
+
+.taxref-pov-pill {
+  font-size: var(--text-2xs);
+  padding: 2px 10px;
+  border-radius: 20px;
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+}
+
+.taxref-node-id {
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.taxref-close-btn {
+  font-size: var(--text-2xs);
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  margin-left: 8px;
+}
+
+.taxref-not-found {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  padding: 8px 0;
+}
+
+/* Tab disabled/enabled modifier (base .node-detail-tab already has cursor: pointer). */
+.taxref-tab-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.taxref-tab-acc {
+  color: var(--color-acc, #f59e0b);
+}
+
+.taxref-tab-saf {
+  color: var(--color-saf, #3b82f6);
+}
+
+.taxref-tab-skp {
+  color: var(--color-skp, #a855f7);
+}
+
+.taxref-tab-content {
+  padding-top: 12px;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+/* Section headers (formerly the module-level `sectionHeader` style object). */
+.taxref-section-header {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-top: 14px;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+}
+
+.taxref-section-header-mt0 {
+  margin-top: 0;
+}
+
+.taxref-section-header-flex {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Chips (formerly the module-level `chipStyle` style object). */
+.taxref-chip {
+  display: inline-block;
+  font-size: 0.72rem;
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  margin-right: 6px;
+  margin-bottom: 4px;
+}
+
+.taxref-chip-strong {
+  background: var(--bg-primary);
+  font-weight: 600;
+}
+
+.taxref-desc-box {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  white-space: pre-wrap;
+  font-size: 0.82rem;
+}
+
+.taxref-info-box {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  font-size: 0.82rem;
+}
+
+.taxref-divergence-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+/* color is dynamic (computed from divergence value) — kept inline. */
+.taxref-divergence-value {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+/* color + background are dynamic (computed from divergence value) — kept inline. */
+.taxref-divergence-badge {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.taxref-divergence-track {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-tertiary, var(--border));
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* width + background are dynamic (computed from divergence value) — kept inline. */
+.taxref-divergence-fill {
+  height: 100%;
+  border-radius: 4px;
+}
+
+.taxref-divergence-note {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.taxref-hierarchy-note {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  margin-top: 4px;
+}
+
+.taxref-steelman-quote {
+  border-left: 3px solid #dc2626;
+  padding-left: 12px;
+  font-style: italic;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.taxref-steelman-block {
+  border-left: 3px solid #dc2626;
+  padding-left: 12px;
+}
+
+.taxref-steelman-item {
+  margin-bottom: 6px;
+}
+
+.taxref-steelman-label {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.taxref-italic {
+  font-style: italic;
+}
+
+.taxref-empty-msg {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+/* borderLeft color is dynamic (per-POV color prop) — kept inline. */
+.taxref-pov-item {
+  margin: 8px 0;
+  padding-left: 12px;
+}
+
+.taxref-pov-item-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+
+.taxref-pov-item-text {
+  font-size: 0.82rem;
+}
+
+/* borderLeft color is dynamic (per-POV color prop) — kept inline. */
+.taxref-pov-summary-box {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  font-size: 0.82rem;
+  margin-bottom: 10px;
+}
+
+/* Edge group rows */
+.taxref-edge-row {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.78rem;
+  cursor: pointer;
+  background: transparent;
+  border-left: 3px solid transparent;
+}
+
+.taxref-edge-row-selected {
+  background: rgba(249, 115, 22, 0.08);
+  border-left: 3px solid #f97316;
+}
+
+.taxref-edge-row-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.taxref-edge-direction {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.taxref-edge-other-label {
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.taxref-edge-strength {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.taxref-edge-confidence {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.taxref-edge-other-id {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  font-family: monospace;
+  margin-top: 1px;
+}
+
+/* Edge detail panel */
+.taxref-edge-panel {
+  margin-top: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+.taxref-edge-banner {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* background is dynamic (edge-type color) — kept inline. */
+.taxref-edge-banner-bar {
+  width: 3px;
+  height: 20px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* color is dynamic (edge-type color) — kept inline. */
+.taxref-edge-banner-type {
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* color is dynamic (edge-type color) — kept inline. */
+.taxref-edge-banner-arrow {
+  font-size: 0.85rem;
+}
+
+.taxref-edge-banner-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+
+.taxref-edge-endpoints {
+  display: flex;
+  align-items: center;
+  padding: 12px 12px 8px;
+  gap: 8px;
+}
+
+.taxref-edge-endpoint {
+  flex: 1;
+}
+
+.taxref-edge-endpoint-label {
+  font-size: var(--text-2xs);
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+/* color is dynamic (per-side POV color) — kept inline. */
+.taxref-edge-endpoint-name {
+  font-weight: 600;
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.taxref-edge-endpoint-id {
+  font-family: monospace;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* color is dynamic (edge-type color) — kept inline. */
+.taxref-edge-arrow-mid {
+  font-size: 1rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  padding: 0 4px;
+}
+
+.taxref-edge-rationale-wrap {
+  padding: 8px 12px 12px;
+}
+
+.taxref-edge-rationale-label {
+  font-size: var(--text-2xs);
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.taxref-edge-rationale-text {
+  border-left: 3px solid #3b82f6;
+  padding-left: 10px;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  line-height: 1.55;
+  background: var(--bg-secondary);
+  border-radius: 0 4px 4px 0;
+  padding: 8px 10px 8px 12px;
+}
+
+.taxref-edge-rationale-toggle {
+  font-size: var(--text-2xs);
+  color: #3b82f6;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.taxref-edge-meta {
+  padding: 4px 12px 10px;
+  display: flex;
+  gap: 16px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.taxref-strong-primary {
+  color: var(--text-primary);
+}
+
+.taxref-edge-status-rejected {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.taxref-edge-status-pending {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.taxref-edge-status-approved {
+  color: #22c55e;
+  font-weight: 600;
+}
+
+/* Related tab */
+.taxref-related-count-badge {
+  font-size: 0.72rem;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+}
+
+.taxref-pov-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.taxref-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 0.75rem;
+}
+
+.taxref-confidence-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+
+.taxref-no-match-note {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  padding: 8px;
+}
+
+.taxref-interp-item {
+  margin-top: 6px;
+}
+
+.taxref-interp-label {
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
+.taxref-interp-block {
+  margin-top: 8px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+}
+
+.taxref-interp-block-line {
+  margin-top: 3px;
+}
+
+/* Attributes tab */
+.taxref-kv-row {
+  margin-bottom: 4px;
+}
+
+.taxref-kv-label {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.taxref-attr-list {
+  margin: 4px 0;
+  padding-left: 20px;
+  line-height: 1.6;
+}
+
+.taxref-attr-block {
+  margin-top: 6px;
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+  font-size: 0.78rem;
+}
+
+.taxref-attr-label {
+  color: var(--text-muted);
+}
+
+.taxref-fallacy-explanation {
+  color: var(--text-muted);
+  margin-top: 2px;
+}
