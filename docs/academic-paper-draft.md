@@ -18,7 +18,11 @@ Consider a claim like "AI regulation should be based on demonstrated harm, not h
 
 This projection problem (Küçük and Can, 2021) is not a labeling error — it is a structural limitation of binary stance representations applied to multi-dimensional policy opinions. When LLMs are used for stance classification, they inherit the same compression artifact, producing systematically unreliable labels on exactly the claims where nuance matters most.
 
-### 1.2 Contributions
+### 1.2 The Degeneration-of-Thought Problem
+
+Our three-persona architecture is motivated by the Degeneration-of-Thought problem (Liang et al., 2024). A single model that has committed to a stance cannot reliably generate novel counter-thoughts through self-reflection. We therefore instantiate disagreement as standing adversarial personas rather than as reflective self-critique, and, departing from consensus-seeking multi-agent debate, treat superficial convergence as a measured failure signal (see collapse detection) rather than a success criterion.
+
+### 1.3 Contributions
 
 I present a system that addresses the projection problem through three integrated layers:
 
@@ -48,7 +52,7 @@ I present a system that addresses the projection problem through three integrate
 
 The system is deployed and actively used for AI policy research, operating on 173 source documents, 1,182 taxonomy nodes with validated graph attributes (11 metadata fields per node, 0 errors after quality pass), ~1,900 conflict instances across 1,242 claims, and 100+ structured debate sessions.
 
-### 1.3 Research Contributions and Scope of This Paper
+### 1.4 Research Contributions and Scope of This Paper
 
 The twelve items above describe the system as engineered. Not all are advanced here as validated research claims. This paper's central research contribution is a single, evidenced claim; the remaining novel elements are either supporting or deferred to future work, and I mark that boundary explicitly so the empirical burden of this paper is not overstated.
 
