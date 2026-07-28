@@ -7,7 +7,7 @@
 
 ## Fix confirmations (ACs 2–4, 7) — all three t/1830 fixes confirmed live
 
-- **Alias coercion (AC 2):** post-run `entities.json` has 78 records; **0 exploded-alias records** (≥5 single-char aliases); **67 single-alias records, none of them a 1-character alias** — the exact 13/37 failure class from batch #1 is clean.
+- **Alias coercion (AC 2):** post-run `entities.json` has 78 records; **0 exploded-alias records** (≥5 single-char aliases); **35 single-alias records (22 from this batch), none of them a 1-character alias** — the exact 13/37 failure class from batch #1 is clean. *(Correction, TL ratification t/1878#3: originally stated as 67 — that count coerced 32 zero-alias records into the single-alias bucket via `@($null).Count -eq 1`; those are vacuous for this check. Recounted null-safe: 32 zero / 35 single / 22 this batch. Verdict unchanged.)*
 - **Quote persistence (AC 3):** log `_schema_version` **1.1.0**; `nodes[]` (note: **now an array**, was a dict at 1.0.0) carries `evidence[]` with `{id, name, quote}` — 41 entries across 14 nodes, one per minted entity, **zero empty quotes**.
 - **Below-gate drops (AC 4):** `dropped[]` persisted with `{node_id, name, entity_type, confidence}` — 1 entry (`acc-intentions-004` / "Self-correcting search" / artifact / 0.45).
 - **Get-Tax regression (AC 7):** clean after the batch wrote the 1.1.0 log — 1322 nodes listed, single-id lookup fine, no exception.
