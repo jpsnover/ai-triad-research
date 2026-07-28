@@ -3,14 +3,14 @@
 Institutional memory for failure patterns across the AI Triad Research project.
 Organized by category. Each file contains the full pattern details.
 
-**Last updated:** 2026-07-28 | **Total patterns:** 94 | **Resolved:** 21 | **Active:** 73
+**Last updated:** 2026-07-28 | **Total patterns:** 95 | **Resolved:** 21 | **Active:** 74
 
 ## Summary
 
 | Category | File | Patterns | Resolved | Active |
 |----------|------|----------|----------|--------|
 | Build | [build.md](build.md) | 54 | 10 | 44 |
-| PowerShell | [powershell.md](powershell.md) | 7 | 3 | 4 |
+| PowerShell | [powershell.md](powershell.md) | 8 | 3 | 5 |
 | Data | [data.md](data.md) | 4 | 1 | 3 |
 | Type System | [type-system.md](type-system.md) | 4 | 0 | 4 |
 | Process | [process.md](process.md) | 21 | 7 | 14 |
@@ -40,6 +40,7 @@ Seven patterns crossed the 3-instance threshold (or were high-severity) and beca
 - **Push contention (multi-agent)** — 6 instances, 5 agents → [build.md](build.md) (**split by scale:** small commit-to-push contention is self-correcting/not escalating; the LARGE-divergence variant — p/9#36, local 46 ahead/origin 52 ahead — is a push-cadence-ceiling breach that hits out-of-scope conflicts and needs TL/DevOps)
 - **JSON schema assumptions / inspect-before-coding** — 12 instances, 3 agents → [data.md](data.md) (recurring; #82 rule-not-applied offender #5 — RULE-ONLY per t/1810, recording/rule alone isn't preventing it. The PRODUCTION manifestation shipped: extraction cmdlet char-explodes bare-string `aliases` 13/37 records, t/1830 — **in PowerShell** (`Invoke-EntityExtraction`), so the fix is PS-side coerce-at-read (shared helper + Pester fixture), NOT the TS-union strengthening which only covers TS surfaces; p/7#47/#49)
 - **PS strict mode + JSON** — 3 instances → [powershell.md](powershell.md)
+- **`@().Count` over-counts null in METRIC code** — [powershell.md](powershell.md) (mirror of the strict-mode `.Count` guard: `@($null).Count == 1`, not 0. Safe as a crash guard, WRONG as a cited figure — inflated 67 vs true 35, t/1878/p/253#1. Same syntax whether null-safe or not → not cheaply hookable, rule-only; recount cited metrics from the artifact — "bookkeeping ≠ artifact")
 - **Pathspec skips untracked** — 5 instances, 5 agents → [build.md](build.md) (not escalating — self-correcting; +ServerAPI t/1788 p/79#13)
 - **Commit-by-pathspec is file-granular, not hunk-granular** — [build.md](build.md) (**qualifies ADR-005**: in a live-written tree like `ai-triad-data`, `git commit -- <file>` sweeps foreign uncommitted HUNKS inside your file; CL 21781d25 swept a 12-line policy-linking pass + split a multi-file change, t/1808/p/7#39. Fix: `git diff <file>` before staging, foreign hunk = STOP; `git add -p` to isolate)
 - **Bash dollar-sign substitution** — 2 instances → [build.md](build.md)

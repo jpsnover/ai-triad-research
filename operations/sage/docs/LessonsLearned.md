@@ -165,6 +165,26 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
+## [PowerShell] `@().Count` Over-Counts Null in Measurement Code — the Mirror of the Strict-Mode Guard
+
+**Pattern:** The workspace-standard `@(...)` `.Count` idiom (wrap a pipeline in an array subexpression so `.Count` is always defined under strict mode) has a mirror-image failure when the number is a **reported metric** rather than a loop/guard: `@($null).Count` is **1, not 0**. Wrapping a possibly-null value inflates every null into a phantom count of 1.
+
+**Instances:**
+- 2026-07-28 — Tech Lead 2 (t/1878, p/253#1): a metric reported "67 single-alias records" when the true figure was **35** — 32 zero-alias records were each coerced to `@($null).Count == 1` and swept into the single-alias bucket. The `ps-strict-mode-count-guard` hook covers only the crash case, not this metric-inflation case. Caught only by recounting from the artifact; CL fixed it (53c6981d, t/1878#3).
+
+**Root Cause:** `@(...)` guarantees an array so `.Count` is always defined — exactly what makes it a safe *crash* guard. But `@($null)` is a one-element array whose element is `$null`, so its `.Count` is 1. The same idiom that prevents a strict-mode crash silently over-counts when the wrapped value can be `$null` (or any single scalar) and the count is then cited as a figure. Two consumption modes, opposite failure: **as a guard** (branch on `>0`) the spurious 1 is harmless; **as a metric** it is a wrong number nobody questions, precisely because `.Count` "can't fail."
+
+**Prevention:**
+1. Distinguish the two uses of `@(x).Count`. As a *guard* (test emptiness / branch on `>0`) it is correct as-is. As a *metric someone will cite*, handle the null/empty case explicitly.
+2. For a cited count, filter first — `@($x | Where-Object { $null -ne $_ }).Count` — or guard: `if ($null -eq $x) { 0 } else { @($x).Count }`. Never `@($x).Count` on a value that can be `$null` when the result is a reported figure.
+3. Recount any reported figure from the underlying artifact before publishing it. A `.Count`-derived metric is a bookkeeping signal, not the artifact — the over-count is invisible except by object-level recount ("bookkeeping ≠ artifact" genus).
+
+**Status:** Active — sibling of the strict-mode `.Count` pattern above (crash case, hooked as `ps-strict-mode-count-guard`); this **measurement** facet is NOT covered by that hook. Not cheaply hookable: `@($x).Count` is identical syntax whether the wrapped value is null-safe or not, so a linter cannot separate the correct guard use from the buggy metric use — same "distinguishable-from-correct" bar as the #82 hookability criterion. Rule-only.
+
+**Applies To:** All agents writing PowerShell that reports counts/metrics derived from pipelines or possibly-null values.
+
+---
+
 ## [PowerShell] Private Module Functions Not Available in Standalone Scripts
 
 **Pattern:** Calling a `Private/` module function (e.g., `Get-DataRoot`) from a standalone `.ps1` script fails with "not recognized" because private functions are only available within the module scope.
