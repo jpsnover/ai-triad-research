@@ -10,6 +10,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import type { Pov, Category } from '../../types/taxonomy';
 import { SearchWithHistory } from '../shared/SearchWithHistory';
+import './SummariesTab.css';
 
 // ── Types ──
 
@@ -260,11 +261,15 @@ export function SummariesTab() {
   return (
     <div className={`two-column${isPhone ? ' phone-mode' : ''}${isPhone && selectedSourceId ? ' has-selection' : ''}`}>
       {/* ── Pane 1: Source List ── */}
-      <div className="list-panel" style={{ width: listWidth, minWidth: 200 }}>
+      <div
+        className="list-panel sumt-min-w"
+        /* eslint-disable-next-line local/no-inline-style -- dynamic: width from resizable panel */
+        style={{ width: listWidth }}
+      >
         <div className="panel-header">
           <h3>Sources ({filteredSources.length})</h3>
         </div>
-        <div style={{ padding: '4px 8px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div className="sumt-filter-bar">
           <SearchWithHistory
             area="summaries"
             className="search-input"
@@ -272,17 +277,18 @@ export function SummariesTab() {
             value={filter}
             onChange={setFilter}
           />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-2xs)' }}>
-            <span style={{ color: 'var(--text-muted)' }}>Sort:</span>
+          <div className="sumt-sort-row">
+            <span className="sumt-muted">Sort:</span>
             {([['dateIngested', 'Imported'], ['datePublished', 'Published'], ['title', 'Title']] as const).map(([field, label]) => (
               <button
                 key={field}
+                className="sumt-sort-btn"
                 onClick={() => {
                   if (sortField === field) setSortDesc(d => !d);
                   else { setSortField(field); setSortDesc(field !== 'title'); }
                 }}
+                /* eslint-disable-next-line local/no-inline-style -- dynamic: active-tab background/color */
                 style={{
-                  padding: '1px 5px', fontSize: 'var(--text-2xs)', border: 'none', borderRadius: 3, cursor: 'pointer',
                   background: sortField === field ? 'var(--accent-color, #3b82f6)' : 'var(--bg-secondary)',
                   color: sortField === field ? '#fff' : 'var(--text-muted)',
                 }}
@@ -290,29 +296,27 @@ export function SummariesTab() {
             ))}
           </div>
         </div>
-        <div className="panel-body" style={{ overflow: 'auto', flex: 1 }}>
+        <div className="panel-body sumt-list-body">
           {sourcesLoading ? (
             <div className="panel-empty">Loading sources...</div>
           ) : filteredSources.length === 0 ? (
             <div className="panel-empty">No sources with summaries found.</div>
           ) : (
-            <ul className="node-list" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+            <ul className="node-list sumt-node-list">
               {filteredSources.map(s => (
                 <li
                   key={s.id}
-                  className={`node-item${s.id === selectedSourceId ? ' node-item-selected' : ''}`}
+                  className={`node-item sumt-node-item${s.id === selectedSourceId ? ' node-item-selected' : ''}`}
                   onClick={() => setSelectedSourceId(s.id)}
-                  style={{ cursor: 'pointer', padding: '6px 8px', borderBottom: '1px solid var(--border-color)' }}
                 >
-                  <div style={{ fontSize: '0.8rem', fontWeight: 500 }}>{s.title}</div>
-                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
+                  <div className="sumt-node-title">{s.title}</div>
+                  <div className="sumt-date-meta">
                     {s.tags.map(t => (
-                      <span key={t} style={{
-                        display: 'inline-block',
-                        padding: '0 4px',
-                        marginRight: 3,
-                        borderRadius: 3,
-                        fontSize: 'var(--text-2xs)',
+                      <span
+                        key={t}
+                        className="sumt-tag"
+                        /* eslint-disable-next-line local/no-inline-style -- dynamic: tag color keyed on tag value */
+                        style={{
                         backgroundColor: t === 'accelerationist' ? 'rgba(34,197,94,0.15)' :
                           t === 'safetyist' ? 'rgba(239,68,68,0.15)' :
                           t === 'skeptic' ? 'rgba(245,158,11,0.15)' :
@@ -324,8 +328,8 @@ export function SummariesTab() {
                       }}>{t.slice(0, 3)}</span>
                     ))}
                     {sortField === 'dateIngested' && s.dateIngested
-                      ? <span style={{ marginLeft: 4 }}>{s.dateIngested.slice(0, 10)}</span>
-                      : s.datePublished && <span style={{ marginLeft: 4 }}>{s.datePublished.slice(0, 10)}</span>}
+                      ? <span className="sumt-ml4">{s.dateIngested.slice(0, 10)}</span>
+                      : s.datePublished && <span className="sumt-ml4">{s.datePublished.slice(0, 10)}</span>}
                   </div>
                 </li>
               ))}
@@ -338,7 +342,7 @@ export function SummariesTab() {
       <div className="resize-handle" onMouseDown={onMouseDown} />
 
       {/* ── Pane 2: Summary Detail ── */}
-      <div className="detail-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className="detail-panel sumt-detail-panel">
         {isPhone && selectedSourceId && (
           <div className="phone-detail-header">
             <button className="phone-detail-back" onClick={() => setSelectedSourceId(null)}>
@@ -347,37 +351,34 @@ export function SummariesTab() {
           </div>
         )}
         {!selectedSourceId ? (
-          <div className="panel-empty" style={{ padding: 20 }}>Select a source document to view its summary.</div>
+          <div className="panel-empty sumt-empty-pad">Select a source document to view its summary.</div>
         ) : summaryLoading ? (
-          <div className="panel-empty" style={{ padding: 20 }}>Loading summary...</div>
+          <div className="panel-empty sumt-empty-pad">Loading summary...</div>
         ) : !summary ? (
-          <div className="panel-empty" style={{ padding: 20 }}>No summary found for this source.</div>
+          <div className="panel-empty sumt-empty-pad">No summary found for this source.</div>
         ) : (
           <>
             {/* Header */}
-            <div className="panel-header" style={{ flexShrink: 0 }}>
-              <h3 style={{ fontSize: '0.85rem', margin: 0 }}>{selectedSource?.title}</h3>
-              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
+            <div className="panel-header sumt-flex-shrink0">
+              <h3 className="sumt-detail-title">{selectedSource?.title}</h3>
+              <div className="sumt-date-meta">
                 {summary.model_info?.model && <span>Model: {summary.model_info.model}</span>}
-                {summary.generated_at && <span style={{ marginLeft: 8 }}>Generated: {summary.generated_at.slice(0, 10)}</span>}
-                {summary.model_info?.chunk_count && <span style={{ marginLeft: 8 }}>Chunks: {summary.model_info.chunk_count}</span>}
+                {summary.generated_at && <span className="sumt-ml8">Generated: {summary.generated_at.slice(0, 10)}</span>}
+                {summary.model_info?.chunk_count && <span className="sumt-ml8">Chunks: {summary.model_info.chunk_count}</span>}
               </div>
             </div>
 
             {/* View mode tabs */}
-            <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border-color)', flexShrink: 0, padding: '0 8px' }}>
+            <div className="sumt-tab-bar">
               {(['key-points', 'claims', 'unmapped', 'document'] as ViewMode[]).map(mode => (
                 <button
                   key={mode}
+                  className="sumt-viewmode-btn"
                   onClick={() => setViewMode(mode)}
+                  /* eslint-disable-next-line local/no-inline-style -- dynamic: active-tab underline/color/weight */
                   style={{
-                    padding: '6px 12px',
-                    fontSize: '0.7rem',
-                    border: 'none',
                     borderBottom: viewMode === mode ? '2px solid var(--accent-color, #3b82f6)' : '2px solid transparent',
-                    background: 'none',
                     color: viewMode === mode ? 'var(--text-primary)' : 'var(--text-muted)',
-                    cursor: 'pointer',
                     fontWeight: viewMode === mode ? 600 : 400,
                   }}
                 >
@@ -390,11 +391,12 @@ export function SummariesTab() {
 
               {/* POV filter */}
               {viewMode === 'key-points' && (
-                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div className="sumt-pov-filter">
                   <button
+                    className="sumt-pov-btn"
                     onClick={() => setPovFilter(null)}
+                    /* eslint-disable-next-line local/no-inline-style -- dynamic: active-filter background/color */
                     style={{
-                      padding: '2px 6px', fontSize: 'var(--text-2xs)', border: 'none', borderRadius: 3, cursor: 'pointer',
                       background: !povFilter ? 'var(--accent-color, #3b82f6)' : 'var(--bg-secondary)',
                       color: !povFilter ? '#fff' : 'var(--text-muted)',
                     }}
@@ -402,9 +404,10 @@ export function SummariesTab() {
                   {Object.keys(summary.pov_summaries).map(pov => (
                     <button
                       key={pov}
+                      className="sumt-pov-btn"
                       onClick={() => setPovFilter(pov)}
+                      /* eslint-disable-next-line local/no-inline-style -- dynamic: active-filter POV color */
                       style={{
-                        padding: '2px 6px', fontSize: 'var(--text-2xs)', border: 'none', borderRadius: 3, cursor: 'pointer',
                         background: povFilter === pov ? (POV_COLORS[pov] || '#666') : 'var(--bg-secondary)',
                         color: povFilter === pov ? '#fff' : 'var(--text-muted)',
                       }}
@@ -415,60 +418,43 @@ export function SummariesTab() {
             </div>
 
             {/* Content */}
-            <div style={{ flex: 1, overflow: 'auto', padding: '8px 12px' }}>
+            <div className="sumt-content">
               {viewMode === 'key-points' && (
                 <div>
                   {keyPoints.length === 0 ? (
                     <div className="panel-empty">No key points found.</div>
                   ) : keyPoints.map((kp, i) => (
-                    <div key={i} style={{
-                      padding: '8px 10px',
-                      marginBottom: 6,
-                      borderRadius: 4,
-                      border: '1px solid var(--border-color)',
-                      backgroundColor: 'var(--bg-secondary)',
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                        <span style={{
-                          display: 'inline-block',
-                          padding: '1px 5px',
-                          borderRadius: 3,
-                          fontSize: 'var(--text-2xs)',
-                          fontWeight: 600,
+                    <div key={i} className="sumt-card">
+                      <div className="sumt-kp-header">
+                        <span
+                          className="sumt-pov-badge"
+                          /* eslint-disable-next-line local/no-inline-style -- dynamic: POV-keyed badge color */
+                          style={{
                           backgroundColor: POV_COLORS[kp.pov] ? `${POV_COLORS[kp.pov]}22` : 'var(--bg-tertiary)',
                           color: POV_COLORS[kp.pov] || 'var(--text-muted)',
                         }}>{kp.pov.slice(0, 3)}</span>
-                        <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{kp.category}</span>
-                        <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 600 }} className={stanceClass(kp.stance)}>
+                        <span className="sumt-category">{kp.category}</span>
+                        <span className={`sumt-stance ${stanceClass(kp.stance)}`}>
                           {STANCE_EMOJI[kp.stance] || '~'} {kp.stance.replace(/_/g, ' ')}
                         </span>
                         {kp.taxonomy_node_id && (
                           <button
+                            className="sumt-node-btn"
                             onClick={() => handleNodeClick(kp.taxonomy_node_id!)}
-                            style={{
-                              marginLeft: 'auto', padding: '1px 6px', fontSize: 'var(--text-2xs)',
-                              border: '1px solid var(--border-color)', borderRadius: 3,
-                              background: 'var(--bg-primary)', color: 'var(--accent-color, #3b82f6)',
-                              cursor: 'pointer',
-                            }}
                             title={kp.taxonomy_node_id}
                           >
                             {getLabelForId(kp.taxonomy_node_id) || kp.taxonomy_node_id}
                           </button>
                         )}
                       </div>
-                      <div style={{ fontSize: '0.75rem', lineHeight: 1.5 }}>{kp.point}</div>
+                      <div className="sumt-kp-point">{kp.point}</div>
                       {kp.verbatim && (
-                        <div style={{
-                          fontSize: '0.7rem', marginTop: 4, padding: '4px 8px',
-                          borderLeft: '2px solid var(--border-color)',
-                          color: 'var(--text-muted)', fontStyle: 'italic',
-                        }}>
+                        <div className="sumt-verbatim">
                           "{kp.verbatim}"
                         </div>
                       )}
                       {kp.excerpt_context && (
-                        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
+                        <div className="sumt-date-meta">
                           {kp.excerpt_context}
                         </div>
                       )}
@@ -482,20 +468,14 @@ export function SummariesTab() {
                   {!summary.factual_claims?.length ? (
                     <div className="panel-empty">No factual claims extracted.</div>
                   ) : summary.factual_claims.map((claim, i) => (
-                    <div key={i} style={{
-                      padding: '6px 10px', marginBottom: 4, borderRadius: 4,
-                      border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)',
-                    }}>
-                      <div style={{ fontSize: '0.75rem' }}>{claim.claim}</div>
-                      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2, display: 'flex', gap: 8 }}>
+                    <div key={i} className="sumt-claim-card">
+                      <div className="sumt-claim-text">{claim.claim}</div>
+                      <div className="sumt-claim-meta">
                         {claim.doc_position && <span>{claim.doc_position}</span>}
                         {claim.potential_conflict_id && (
                           <button
+                            className="sumt-conflict-btn"
                             onClick={() => handleNodeClick(claim.potential_conflict_id!)}
-                            style={{
-                              padding: '0 4px', fontSize: 'var(--text-2xs)', border: 'none', background: 'none',
-                              color: 'var(--accent-color, #3b82f6)', cursor: 'pointer', textDecoration: 'underline',
-                            }}
                           >
                             {claim.potential_conflict_id}
                           </button>
@@ -511,54 +491,38 @@ export function SummariesTab() {
                   {!summary.unmapped_concepts?.length ? (
                     <div className="panel-empty">No unmapped concepts.</div>
                   ) : summary.unmapped_concepts.map((uc, i) => (
-                    <div key={i} style={{
-                      padding: '8px 10px', marginBottom: 6, borderRadius: 4,
-                      border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)',
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{uc.suggested_label || uc.concept}</span>
+                    <div key={i} className="sumt-card">
+                      <div className="sumt-uc-header">
+                        <span className="sumt-uc-label">{uc.suggested_label || uc.concept}</span>
                         {uc.resolved_node_id && (
-                          <span style={{
-                            padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)',
-                            backgroundColor: 'rgba(34,197,94,0.15)', color: '#22c55e',
-                          }}>mapped</span>
+                          <span className="sumt-mapped-badge">mapped</span>
                         )}
                       </div>
                       {uc.suggested_description && (
-                        <div style={{ fontSize: '0.7rem', marginTop: 4, color: 'var(--text-secondary)' }}>{uc.suggested_description}</div>
+                        <div className="sumt-uc-desc">{uc.suggested_description}</div>
                       )}
-                      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4, display: 'flex', gap: 8 }}>
+                      <div className="sumt-uc-meta">
                         {uc.suggested_pov && <span>Perspective: {uc.suggested_pov}</span>}
                         {uc.suggested_category && <span>Category: {uc.suggested_category}</span>}
                       </div>
                       {uc.reason && (
-                        <div style={{ fontSize: 'var(--text-2xs)', marginTop: 4, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                        <div className="sumt-uc-reason">
                           {uc.reason}
                         </div>
                       )}
-                      <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                      <div className="sumt-uc-actions">
                         {uc.resolved_node_id && (
                           <button
+                            className="sumt-goto-btn"
                             onClick={() => handleNodeClick(uc.resolved_node_id!)}
-                            style={{
-                              padding: '2px 8px', fontSize: 'var(--text-2xs)',
-                              border: '1px solid var(--border-color)', borderRadius: 3,
-                              background: 'var(--bg-primary)', color: 'var(--accent-color, #3b82f6)',
-                              cursor: 'pointer',
-                            }}
                           >
                             Go to {getLabelForId(uc.resolved_node_id) || uc.resolved_node_id}
                           </button>
                         )}
                         {!uc.resolved_node_id && uc.suggested_pov && POV_MAP[uc.suggested_pov] && uc.suggested_category && CATEGORY_MAP[uc.suggested_category] && (
                           <button
+                            className="sumt-add-btn"
                             onClick={() => addUnmappedToTaxonomy(uc)}
-                            style={{
-                              padding: '2px 8px', fontSize: 'var(--text-2xs)',
-                              border: '1px solid var(--border-color)', borderRadius: 3,
-                              background: 'var(--bg-primary)', color: '#22c55e',
-                              cursor: 'pointer', fontWeight: 500,
-                            }}
                             title={`Add as ${uc.suggested_pov} ${uc.suggested_category} node`}
                           >
                             + Add to Taxonomy
@@ -576,9 +540,9 @@ export function SummariesTab() {
                     <div className="panel-empty">Loading document...</div>
                   ) : !snapshot ? (
                     !summariesFlag ? (
-                      <div className="panel-empty" style={{ maxWidth: 480, margin: '2rem auto', textAlign: 'center' }}>
+                      <div className="panel-empty sumt-doc-fallback">
                         <strong>Document snapshots are available in the desktop app.</strong>
-                        <p style={{ marginTop: '0.5rem', opacity: 0.8 }}>
+                        <p className="sumt-doc-fallback-p">
                           Key points and claims from this source are shown in the other tabs.
                         </p>
                       </div>
@@ -586,12 +550,7 @@ export function SummariesTab() {
                       <div className="panel-empty">No document snapshot available.</div>
                     )
                   ) : (
-                    <pre style={{
-                      whiteSpace: 'pre-wrap', wordWrap: 'break-word',
-                      fontSize: '0.75rem', lineHeight: 1.6,
-                      fontFamily: 'var(--font-mono, monospace)',
-                      margin: 0,
-                    }}>{snapshot}</pre>
+                    <pre className="sumt-doc-pre">{snapshot}</pre>
                   )}
                 </div>
               )}

@@ -1,0 +1,307 @@
+/* Co-located styles for SummariesTab — migrated from inline styles (t/1865). */
+
+.sumt-min-w {
+  min-width: 200px;
+}
+
+.sumt-filter-bar {
+  padding: 4px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sumt-sort-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-2xs);
+}
+
+.sumt-muted {
+  color: var(--text-muted);
+}
+
+.sumt-sort-btn {
+  padding: 1px 5px;
+  font-size: var(--text-2xs);
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.sumt-list-body {
+  overflow: auto;
+  flex: 1;
+}
+
+.sumt-node-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sumt-node-item {
+  cursor: pointer;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sumt-node-title {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.sumt-date-meta {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.sumt-tag {
+  display: inline-block;
+  padding: 0 4px;
+  margin-right: 3px;
+  border-radius: 3px;
+  font-size: var(--text-2xs);
+}
+
+.sumt-ml4 {
+  margin-left: 4px;
+}
+
+.sumt-detail-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sumt-empty-pad {
+  padding: 20px;
+}
+
+.sumt-flex-shrink0 {
+  flex-shrink: 0;
+}
+
+.sumt-detail-title {
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.sumt-ml8 {
+  margin-left: 8px;
+}
+
+.sumt-tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  padding: 0 8px;
+}
+
+.sumt-viewmode-btn {
+  padding: 6px 12px;
+  font-size: 0.7rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.sumt-pov-filter {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sumt-pov-btn {
+  padding: 2px 6px;
+  font-size: var(--text-2xs);
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.sumt-content {
+  flex: 1;
+  overflow: auto;
+  padding: 8px 12px;
+}
+
+.sumt-card {
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+}
+
+.sumt-kp-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.sumt-pov-badge {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+}
+
+.sumt-category {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.sumt-stance {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+}
+
+.sumt-node-btn {
+  margin-left: auto;
+  padding: 1px 6px;
+  font-size: var(--text-2xs);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: var(--bg-primary);
+  color: var(--accent-color, #3b82f6);
+  cursor: pointer;
+}
+
+.sumt-kp-point {
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.sumt-verbatim {
+  font-size: 0.7rem;
+  margin-top: 4px;
+  padding: 4px 8px;
+  border-left: 2px solid var(--border-color);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.sumt-claim-card {
+  padding: 6px 10px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+}
+
+.sumt-claim-text {
+  font-size: 0.75rem;
+}
+
+.sumt-claim-meta {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+  display: flex;
+  gap: 8px;
+}
+
+.sumt-conflict-btn {
+  padding: 0 4px;
+  font-size: var(--text-2xs);
+  border: none;
+  background: none;
+  color: var(--accent-color, #3b82f6);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.sumt-uc-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sumt-uc-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.sumt-mapped-badge {
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: var(--text-2xs);
+  background-color: rgba(34,197,94,0.15);
+  color: #22c55e;
+}
+
+.sumt-uc-desc {
+  font-size: 0.7rem;
+  margin-top: 4px;
+  color: var(--text-secondary);
+}
+
+.sumt-uc-meta {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-top: 4px;
+  display: flex;
+  gap: 8px;
+}
+
+.sumt-uc-reason {
+  font-size: var(--text-2xs);
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.sumt-uc-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.sumt-goto-btn {
+  padding: 2px 8px;
+  font-size: var(--text-2xs);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: var(--bg-primary);
+  color: var(--accent-color, #3b82f6);
+  cursor: pointer;
+}
+
+.sumt-add-btn {
+  padding: 2px 8px;
+  font-size: var(--text-2xs);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: var(--bg-primary);
+  color: #22c55e;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.sumt-doc-fallback {
+  max-width: 480px;
+  margin: 2rem auto;
+  text-align: center;
+}
+
+.sumt-doc-fallback-p {
+  margin-top: 0.5rem;
+  opacity: 0.8;
+}
+
+.sumt-doc-pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  font-family: var(--font-mono, monospace);
+  margin: 0;
+}
