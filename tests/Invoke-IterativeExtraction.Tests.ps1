@@ -36,7 +36,7 @@ Describe 'Invoke-IterativeExtraction drift detection (gap 4.1)' -Tag 'ingestion'
             Mock Invoke-AIApi -ParameterFilter { $MaxTokens -eq 32768 } {
                 [PSCustomObject]@{
                     Text = '{"factual_claims":[{"claim_label":"claim-0","claim":"Rapid AI development benefits humanity through economic growth","taxonomy_node_id":"acc-beliefs-001","evidence_criteria":{"specificity":"vague","has_warrant":false,"internally_consistent":true}}],"pov_summaries":{},"unmapped_concepts":[]}'
-                    Backend = 'gemini'; Model = 'gemini-2.5-flash'; Truncated = $false; Usage = $null; RawResponse = @{}
+                    Backend = 'gemini'; Model = 'gemini-3.5-flash-lite'; Truncated = $false; Usage = $null; RawResponse = @{}
                 }
             }
 
@@ -44,12 +44,12 @@ Describe 'Invoke-IterativeExtraction drift detection (gap 4.1)' -Tag 'ingestion'
             Mock Invoke-AIApi -ParameterFilter { $MaxTokens -eq 2048 } {
                 [PSCustomObject]@{
                     Text = '{"claim_label":"claim-0","verified":true,"refined_claim":"International trade tariffs reduce consumer purchasing power across all sectors","evidence_criteria":{"specificity":"precise","has_warrant":true,"internally_consistent":true},"confidence":0.85}'
-                    Backend = 'gemini'; Model = 'gemini-2.5-flash'; Truncated = $false; Usage = $null; RawResponse = @{}
+                    Backend = 'gemini'; Model = 'gemini-3.5-flash-lite'; Truncated = $false; Usage = $null; RawResponse = @{}
                 }
             }
 
             $result = Invoke-IterativeExtraction `
-                -Prompt 'test' -Model 'gemini-2.5-flash' -ApiKey 'fake' `
+                -Prompt 'test' -Model 'gemini-3.5-flash-lite' -ApiKey 'fake' `
                 -ConfidenceThreshold 0.7 -MaxIterPerClaim 1 -WallClockSeconds 30 3>$null
 
             $result.Summary.factual_claims[0].drift_warning | Should -BeTrue
@@ -76,7 +76,7 @@ Describe 'Invoke-IterativeExtraction drift detection (gap 4.1)' -Tag 'ingestion'
             Mock Invoke-AIApi -ParameterFilter { $MaxTokens -eq 32768 } {
                 [PSCustomObject]@{
                     Text = '{"factual_claims":[{"claim_label":"claim-0","claim":"Fast AI development helps people","taxonomy_node_id":"acc-beliefs-001","evidence_criteria":{"specificity":"vague","has_warrant":false,"internally_consistent":true}}],"pov_summaries":{},"unmapped_concepts":[]}'
-                    Backend = 'gemini'; Model = 'gemini-2.5-flash'; Truncated = $false; Usage = $null; RawResponse = @{}
+                    Backend = 'gemini'; Model = 'gemini-3.5-flash-lite'; Truncated = $false; Usage = $null; RawResponse = @{}
                 }
             }
 
@@ -84,12 +84,12 @@ Describe 'Invoke-IterativeExtraction drift detection (gap 4.1)' -Tag 'ingestion'
             Mock Invoke-AIApi -ParameterFilter { $MaxTokens -eq 2048 } {
                 [PSCustomObject]@{
                     Text = '{"claim_label":"claim-0","verified":true,"refined_claim":"Rapid AI development yields significant economic benefits and social gains for humanity","evidence_criteria":{"specificity":"precise","has_warrant":true,"internally_consistent":true},"confidence":0.85}'
-                    Backend = 'gemini'; Model = 'gemini-2.5-flash'; Truncated = $false; Usage = $null; RawResponse = @{}
+                    Backend = 'gemini'; Model = 'gemini-3.5-flash-lite'; Truncated = $false; Usage = $null; RawResponse = @{}
                 }
             }
 
             $result = Invoke-IterativeExtraction `
-                -Prompt 'test' -Model 'gemini-2.5-flash' -ApiKey 'fake' `
+                -Prompt 'test' -Model 'gemini-3.5-flash-lite' -ApiKey 'fake' `
                 -ConfidenceThreshold 0.7 -MaxIterPerClaim 1 -WallClockSeconds 30 3>$null
 
             $result.Summary.factual_claims[0].PSObject.Properties['drift_warning'] | Should -BeNullOrEmpty
@@ -109,19 +109,19 @@ Describe 'Invoke-IterativeExtraction drift detection (gap 4.1)' -Tag 'ingestion'
             Mock Invoke-AIApi -ParameterFilter { $MaxTokens -eq 32768 } {
                 [PSCustomObject]@{
                     Text = '{"factual_claims":[{"claim_label":"claim-0","claim":"Some observation","evidence_criteria":{"specificity":"vague","has_warrant":false,"internally_consistent":true}}],"pov_summaries":{},"unmapped_concepts":[]}'
-                    Backend = 'gemini'; Model = 'gemini-2.5-flash'; Truncated = $false; Usage = $null; RawResponse = @{}
+                    Backend = 'gemini'; Model = 'gemini-3.5-flash-lite'; Truncated = $false; Usage = $null; RawResponse = @{}
                 }
             }
 
             Mock Invoke-AIApi -ParameterFilter { $MaxTokens -eq 2048 } {
                 [PSCustomObject]@{
                     Text = '{"claim_label":"claim-0","verified":true,"refined_claim":"Completely different marine biology topic","evidence_criteria":{"specificity":"precise","has_warrant":true,"internally_consistent":true},"confidence":0.85}'
-                    Backend = 'gemini'; Model = 'gemini-2.5-flash'; Truncated = $false; Usage = $null; RawResponse = @{}
+                    Backend = 'gemini'; Model = 'gemini-3.5-flash-lite'; Truncated = $false; Usage = $null; RawResponse = @{}
                 }
             }
 
             $result = Invoke-IterativeExtraction `
-                -Prompt 'test' -Model 'gemini-2.5-flash' -ApiKey 'fake' `
+                -Prompt 'test' -Model 'gemini-3.5-flash-lite' -ApiKey 'fake' `
                 -ConfidenceThreshold 0.7 -MaxIterPerClaim 1 -WallClockSeconds 30 3>$null
 
             $result.FireStats.claims_drifted | Should -Be 0
@@ -137,12 +137,12 @@ Describe 'Invoke-IterativeExtraction drift detection (gap 4.1)' -Tag 'ingestion'
             Mock Invoke-AIApi -ParameterFilter { $MaxTokens -eq 32768 } {
                 [PSCustomObject]@{
                     Text = '{"factual_claims":[{"claim_label":"claim-0","claim":"A claim","evidence_criteria":{"specificity":"precise","has_warrant":true,"internally_consistent":true}}],"pov_summaries":{},"unmapped_concepts":[]}'
-                    Backend = 'gemini'; Model = 'gemini-2.5-flash'; Truncated = $false; Usage = $null; RawResponse = @{}
+                    Backend = 'gemini'; Model = 'gemini-3.5-flash-lite'; Truncated = $false; Usage = $null; RawResponse = @{}
                 }
             }
 
             $result = Invoke-IterativeExtraction `
-                -Prompt 'test' -Model 'gemini-2.5-flash' -ApiKey 'fake' `
+                -Prompt 'test' -Model 'gemini-3.5-flash-lite' -ApiKey 'fake' `
                 -ConfidenceThreshold 0.7 -MaxIterPerClaim 1 -WallClockSeconds 30 3>$null
 
             $result.FireStats.ContainsKey('claims_drifted') | Should -BeTrue

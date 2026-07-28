@@ -119,7 +119,7 @@ Describe 'AI Model Configuration' {
     }
 
     It 'Model validation should reject invalid models' {
-        { Find-PolicyAction -Model 'totally-fake-model' -DryRun -POV accelerationist -ErrorAction Stop } | Should -Throw
+        { Find-PolicyAction -Model 'totally-fake-model' -DryRun -POV accelerationist -ErrorAction Stop } | Should -Throw  # model-lint:allow (negative test — id is deliberately invalid)
     }
 }
 

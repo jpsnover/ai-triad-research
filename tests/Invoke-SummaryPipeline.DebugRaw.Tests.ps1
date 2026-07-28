@@ -45,12 +45,12 @@ Describe 'Invoke-SummaryPipeline single-shot debug-raw persistence' -Tag 'ingest
                     -DocId 'debug-raw-test-doc' `
                     -Metadata ([pscustomobject]@{ title = 'Debug Raw Test' }) `
                     -ApiKey 'test-key' `
-                    -Model 'gemini-test' `
                     -TaxonomyVersion 'test' `
                     -SystemPromptTemplate 'System prompt.' `
                     -OutputSchema '{}' `
                     -TaxonomyJsonOverride 'x' `
-                    -WarningAction SilentlyContinue
+                    -WarningAction SilentlyContinue `
+                    -Model 'gemini-test'  # model-lint:allow (mock-only backend id — deliberately not registered)
 
                 $Result.Success | Should -BeFalse
                 $Result.Error | Should -Be 'InvalidJson'
@@ -76,13 +76,13 @@ Describe 'Invoke-SummaryPipeline single-shot debug-raw persistence' -Tag 'ingest
                 -DocId 'null-api-test-doc' `
                 -Metadata ([pscustomobject]@{ title = 'Null API Test' }) `
                 -ApiKey 'test-key' `
-                -Model 'gemini-test' `
                 -TaxonomyVersion 'test' `
                 -SystemPromptTemplate 'System prompt.' `
                 -OutputSchema '{}' `
                 -TaxonomyJsonOverride 'x' `
                 -WarningVariable WarningsSeen `
-                -WarningAction SilentlyContinue
+                -WarningAction SilentlyContinue `
+                -Model 'gemini-test'  # model-lint:allow (mock-only backend id — deliberately not registered)
 
             $Result.Success | Should -BeFalse
             $Result.Error | Should -Be 'API call returned null'
