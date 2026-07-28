@@ -69,6 +69,11 @@ function Invoke-EntityExtraction {
         Safety cap on nodes processed per run. Default: no cap.
     .PARAMETER Concurrency
         Parallel AI calls. Default 3 (same conservative default as Invoke-OrgStanceExtraction).
+    .PARAMETER Model
+        AI model id used for every extraction call, overriding the model the
+        enrichment.entity-extraction UsageID resolves from ai-usages.json. Default
+        gemini-3.5-flash-lite. Tab-completes against registered ids; validated by
+        Test-AIModelId.
     .PARAMETER Force
         Re-extract for node ids that already have a log entry.
     .PARAMETER ConfidenceThreshold
@@ -116,6 +121,11 @@ function Invoke-EntityExtraction {
         [Parameter()]
         [ValidateRange(1, 20)]
         [int]$Concurrency = 3,
+
+        [Parameter()]
+        [ValidateScript({ Test-AIModelId $_ })]
+        [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
+        [string]$Model = 'gemini-3.5-flash-lite',
 
         [Parameter()]
         [switch]$Force,
@@ -387,16 +397,16 @@ function Invoke-EntityExtraction {
     Write-Progress -Id $ProgressId -Activity 'Extracting entity proposals' -Status "0 / $Total" -PercentComplete 0
 
     $ProcessOne = {
-        param($Item, $UsageId, $KnownTypes, $InvBag, $FailBag)
+        param($Item, $UsageId, $KnownTypes, $InvBag, $FailBag, $Model)
         $Node = [PSCustomObject]@{ NodeId = $Item.NodeId; DocIds = $Item.DocIds; Proposals = @(); OrgMentions = @(); Model = $null; ParseOk = $false }
         try {
-            $ai = Invoke-AIByUsage -UsageId $UsageId -Values @{ node_id = $Item.NodeId; facts = $Item.FactsText }
+            $ai = Invoke-AIByUsage -UsageId $UsageId -Values @{ node_id = $Item.NodeId; facts = $Item.FactsText } -Override @{ model = $Model }
             if ($null -ne $ai -and $ai.Text) {
                 $body = [string]$ai.Text
                 $body = $body -replace '^\s*```(json)?\s*', ''
                 $body = $body -replace '\s*```\s*$', ''
                 $parsed = $body.Trim() | ConvertFrom-Json -ErrorAction Stop
-                $Node.Model = if ($ai.PSObject.Properties['Model']) { $ai.Model } else { 'gemini-3.1-flash-lite' }
+                $Node.Model = if ($ai.PSObject.Properties['Model']) { $ai.Model } else { $Model }
                 $Node.ParseOk = $true
 
                 $validProps = [System.Collections.Generic.List[object]]::new()
@@ -442,7 +452,7 @@ function Invoke-EntityExtraction {
 
     if ($Concurrency -eq 1) {
         foreach ($Item in $WorkItems) {
-            $Node = & $ProcessOne $Item $UsageId $KnownTypes $Invalid $Failed
+            $Node = & $ProcessOne $Item $UsageId $KnownTypes $Invalid $Failed $Model
             $RawResults.Add($Node)
             $Done = [System.Threading.Interlocked]::Increment($Completed)
             $Pct  = [math]::Min(100, [math]::Round(($Done / $Total) * 100))
@@ -454,6 +464,7 @@ function Invoke-EntityExtraction {
             Import-Module $using:EnrichPath -Force -WarningAction SilentlyContinue
             $Item       = $_
             $UsageIdVal = $using:UsageId
+            $ModelVal   = $using:Model
             $KnownTypesVal = $using:KnownTypes
             $RawBag     = $using:RawResults
             $FailBag    = $using:Failed
@@ -464,13 +475,13 @@ function Invoke-EntityExtraction {
 
             $Node = [PSCustomObject]@{ NodeId = $Item.NodeId; DocIds = $Item.DocIds; Proposals = @(); OrgMentions = @(); Model = $null; ParseOk = $false }
             try {
-                $ai = Invoke-AIByUsage -UsageId $UsageIdVal -Values @{ node_id = $Item.NodeId; facts = $Item.FactsText }
+                $ai = Invoke-AIByUsage -UsageId $UsageIdVal -Values @{ node_id = $Item.NodeId; facts = $Item.FactsText } -Override @{ model = $ModelVal }
                 if ($null -ne $ai -and $ai.Text) {
                     $body = [string]$ai.Text
                     $body = $body -replace '^\s*```(json)?\s*', ''
                     $body = $body -replace '\s*```\s*$', ''
                     $parsed = $body.Trim() | ConvertFrom-Json -ErrorAction Stop
-                    $Node.Model = if ($ai.PSObject.Properties['Model']) { $ai.Model } else { 'gemini-3.1-flash-lite' }
+                    $Node.Model = if ($ai.PSObject.Properties['Model']) { $ai.Model } else { $ModelVal }
                     $Node.ParseOk = $true
 
                     $validProps = [System.Collections.Generic.List[object]]::new()

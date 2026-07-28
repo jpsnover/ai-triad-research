@@ -44,6 +44,59 @@ Describe 'Invoke-EntityExtraction (t/1806 Phase 1)' -Tag 'unit' {
         }
     }
 
+    Context 'Model selection (-Model)' {
+
+        BeforeEach {
+            $seiContent = @{ 'node-a' = @{ facts = @(@{ claim = 'A claim.'; doc_id = 'doc-1' }) } }
+            ($seiContent | ConvertTo-Json -Depth 8) | Set-Content -Path $script:seiPath -Encoding utf8NoBOM
+        }
+
+        It 'Passes the default gemini-3.5-flash-lite to Invoke-AIByUsage when -Model is omitted' {
+            InModuleScope AITriad -Parameters @{ TaxDir = $script:emptyTaxDir; DataRoot = $script:emptyDataRoot; EntPath = $script:entPath; EmbPath = $script:embPath; SeiPath = $script:seiPath; LogPath = $script:logPath } {
+                param($TaxDir, $DataRoot, $EntPath, $EmbPath, $SeiPath, $LogPath)
+
+                Mock Get-UsageRegistry -MockWith { [PSCustomObject]@{ 'enrichment.entity-extraction' = @{} } }
+                Mock Get-TaxonomyDir -MockWith ({ $TaxDir }.GetNewClosure())
+                Mock Get-DataRoot -MockWith ({ $DataRoot }.GetNewClosure())
+                Mock Invoke-AIByUsage -MockWith {
+                    param($UsageId, $Values, $Override, $ApiKey, $FallbackModels)
+                    $script:capturedModel = $Override.model
+                    [PSCustomObject]@{ Text = '{"proposals":[],"org_mentions":[]}'; Model = 'stub' }
+                }
+
+                Invoke-EntityExtraction -NodeId 'node-a' -Concurrency 1 `
+                    -EntitiesPath $EntPath -EmbeddingsPath $EmbPath -SourceEvidenceIndexPath $SeiPath -OutputPath $LogPath -Confirm:$false | Out-Null
+
+                $script:capturedModel | Should -Be 'gemini-3.5-flash-lite'
+            }
+        }
+
+        It 'Passes an explicit -Model through as the per-call override' {
+            InModuleScope AITriad -Parameters @{ TaxDir = $script:emptyTaxDir; DataRoot = $script:emptyDataRoot; EntPath = $script:entPath; EmbPath = $script:embPath; SeiPath = $script:seiPath; LogPath = $script:logPath } {
+                param($TaxDir, $DataRoot, $EntPath, $EmbPath, $SeiPath, $LogPath)
+
+                Mock Get-UsageRegistry -MockWith { [PSCustomObject]@{ 'enrichment.entity-extraction' = @{} } }
+                Mock Get-TaxonomyDir -MockWith ({ $TaxDir }.GetNewClosure())
+                Mock Get-DataRoot -MockWith ({ $DataRoot }.GetNewClosure())
+                Mock Invoke-AIByUsage -MockWith {
+                    param($UsageId, $Values, $Override, $ApiKey, $FallbackModels)
+                    $script:capturedModel = $Override.model
+                    [PSCustomObject]@{ Text = '{"proposals":[],"org_mentions":[]}'; Model = 'stub' }
+                }
+
+                Invoke-EntityExtraction -NodeId 'node-a' -Model 'gemini-3.6-flash' -Concurrency 1 `
+                    -EntitiesPath $EntPath -EmbeddingsPath $EmbPath -SourceEvidenceIndexPath $SeiPath -OutputPath $LogPath -Confirm:$false | Out-Null
+
+                $script:capturedModel | Should -Be 'gemini-3.6-flash'
+            }
+        }
+
+        It 'Rejects an unregistered -Model at parameter binding (Test-AIModelId validation)' {
+            { Invoke-EntityExtraction -Model 'totally-unregistered-model-zzz' -Confirm:$false } |
+                Should -Throw -ExpectedMessage '*totally-unregistered-model-zzz*'
+        }
+    }
+
     Context 'Resolution before minting + confidence gate + person exception' {
 
         BeforeEach {
