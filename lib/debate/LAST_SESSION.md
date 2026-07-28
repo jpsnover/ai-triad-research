@@ -1,5 +1,11 @@
-**Date:** 2026-07-20
-**Working on:** t/1627 — durable debate-save under sustained Windows rename-EPERM: copy-then-atomic-replace fallback + loud ActionableError/`io.data-loss` on total failure (TL-approved design t/1627#2).
-**Status:** Done. Landed 7815d030 on origin/main via /land-from-worktree; verify green on committed state (21/21 persistenceFaults; lone failure = network-bound debateEngine cross-respond flake, passes isolated). 3 files, +211/−11.
-**Key context:** On EPERM/EACCES rename exhaustion, `atomicWriteSync` (persistence.ts:111) copies tmp→target in place (io.recovered/warn); if copy ALSO fails it PRESERVES the .tmp (sole durable copy) + throws ActionableError naming tmpPath + records io.data-loss/error. .tmp invisible to loader (`*.json` glob) — gated by test. Retry budget bounded by attempt-count not wall-clock (Atomics.wait blocks Electron main). Non-lock rename codes keep original unlink+rethrow contract. types.ts +2-line union widening self-managed in same SHA (Cross-Scope Dep rule). Step 7b ff-only aborted on pre-existing local-main divergence (t/1513/1519 class, now also t/1650/1651/1644) — pinged TL for batch rebase, NOT force-resolved.
-**Next:** Pick up next unblocked ticket. TL to file+unblock two downstream tickets (ElectronMain debateIO.saveDebateSession enrichment; Taxonomy Editor degraded-save UX in useDebateStore) — impl review routes to Main (TL).
+**Date:** 2026-07-28
+**Working on:** t/1837/t/1839 — aiAdapter hermetic fix + cliPipeExit CI timing.
+
+**Session work (t/1837, t/1839 — Done, `d508d22f`):**
+- `aiAdapter.test.ts`: added `@vitest-environment node` + mocked `onnxEmbedding` — escapes jsdom environment, prevents onnxruntime-node load in CI
+- `cliPipeExit.test.ts`: bumped WITH-fix spawn timeout 20s→60s, test timeout 30s→90s (tsx cold-start on loaded CI runners was killing the child); changed counterfactual from `it.runIf(win32)` to `it.skip` (hang is environment-sensitive within Windows, t/1839)
+- Gate integrity confirmed: WITH-fix case exits 0 in 435ms — deterministic event-loop drain, not timeout tolerance
+- Landed via fresh worktree (`wt-land-1837`) cut from `origin/main`; verify: 64 passed, 1 skipped (expected); pushed `37598a6f..d508d22f`
+- Azure gating on CI green + gemini migration both present before deploy dispatch
+
+**NEXT:** Run `list_tickets(all:false, limit:500, sort:"priority")` at next session start.
