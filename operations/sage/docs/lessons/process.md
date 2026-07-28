@@ -397,3 +397,45 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 **Status:** Active — bookkeeping-vs-artifact genus (see the consolidated Quick-Reference entry in INDEX.md). Caught by grounding-truth on t/1806; no loss.
 
 **Applies To:** All agents delegating work to background subagents/consultants — especially before landing a delegated deliverable.
+
+---
+
+## [Process] `verify | tail` (Any Pipe) Masks the Real Exit Code — Silent False-Green at the Primary Gate
+
+**Pattern:** Piping a gate's output through `tail`/`head`/`grep`/`less` — `npm run verify 2>&1 | tail -N` — makes the pipeline's exit code the **LAST command's** (`tail` = 0), NOT verify's. Gating a push/land on that exit (or eyeballing the tail) reads a **FAILING verify as green** — a silent false-green at the fleet's primary gate. Bash pipelines return the rightmost command's status by default.
+
+**Instances:**
+- 2026-07-28 — ServerAPI (t/1829, p/79#15) + Technical Lead (t/1829#2, p/8#111): `npm run verify 2>&1 | tail -N` returned `tail`'s exit 0, masking verify's real result; a push gated on that eyeballed tail can push a RED verify. ServerAPI's t/1829 outcome was sound only because the failures were unrelated flake — the masked exit was the real footgun.
+
+**Root Cause:** A bash pipeline's exit status is the **last command's** exit (unless `set -o pipefail`). `verify | tail` → `tail` exits 0 → `$?` = 0 regardless of whether verify passed. Same **exit-code-laundering** family as #84 (the `&& echo PASS || echo FAIL` wrapper) and part of the **bookkeeping-≠-artifact genus** (see the consolidated Quick-Ref): the exit code you read is the pipe's/wrapper's, not the command's — verify the real result, not the laundered signal.
+
+**Prevention:**
+1. **Capture the real exit BEFORE piping and gate on it:** `npm run verify > out.log 2>&1; rc=$?; tail -N out.log; [ $rc -eq 0 ] || exit 1` — decide on `$rc`, view the tail separately.
+2. **Or `set -o pipefail`** so the pipeline returns the first non-zero exit; in bash, `${PIPESTATUS[0]}` reads the first command's exit after a pipe.
+3. **Never gate a push/land on an eyeballed tail** — the tail shows output, not verdict; check the actual exit code.
+4. Same family as #84 — whenever a wrapper/pipe sits between you and a command's exit, the exit you see is the wrapper's; go to the source.
+
+**Status:** Active — exit-code-laundering (pipe) variant of the false-green genus (#20/#46) and the bookkeeping-≠-artifact family (#84 sibling). Surfaced t/1829 (detail t/1829#2).
+
+**Applies To:** All agents gating a push/land on `verify`/test output that is piped (`| tail`/`| grep`/`| head`).
+
+---
+
+## [Process] Flaky Shared Gate (lib/debate Suite) Generates False-Reds — Triage WHICH Files Before Assuming a Regression
+
+**Pattern:** The `lib/debate` full test suite has **known-flaky tests** — `aiAdapter` withRetry (429/503), `persistenceFaults` (ENOSPC/EACCES), `cliPipeExit` — that fail **non-deterministically** (e.g. 8 failures one run, 5 the next). So a red `npm run verify` is **often NOT your change**. Worse, a flaky *shared* gate is a **false-red generator** that trains agents to dismiss ALL reds as "just flake" — the inverse of gate-blindness: when a gate cries wolf, a real regression blends into the tolerated noise (#20/#46).
+
+**Instances:**
+- 2026-07-28 — ServerAPI (t/1829, p/79#15) + Technical Lead (p/8#111): `npm run verify` failed non-deterministically (8→5 fails across runs) in the `aiAdapter`/`persistenceFaults`/`cliPipeExit` suites — unrelated to the agent's change. TL routed a **HIGH triage to DebateTool** to stabilize the flaky suites.
+
+**Root Cause:** Fault-injection / retry / pipe-exit tests are timing- and environment-sensitive, so they fail non-deterministically. A flaky gate destroys the gate's signal two ways: (1) a red is ambiguous (your change, or flake?), and (2) habituation — agents learn "verify is always a bit red" and dismiss a genuine regression as flake. Same gate-signal-integrity genus as the false-green gate-blindness pattern, on the false-RED side.
+
+**Prevention:**
+1. **When verify is red, triage WHICH files failed before assuming a regression** — the known-flaky set (`aiAdapter` withRetry, `persistenceFaults`, `cliPipeExit`) is very likely not your change. Read the failing test names, not just "verify red."
+2. **Re-run to check determinism** — a failure that changes across runs (8→5) is flake; a stable failure on the same test is real. (But re-running is a workaround, not a fix.)
+3. **The real fix is to stabilize or quarantine the flaky tests** — a flaky shared gate must be repaired, not tolerated (routed HIGH to DebateTool, t/1829); Gate Verification/Co-Location apply. Tolerating flake is how a gate goes false-red-blind.
+4. **Don't push on a red verify assuming flake without checking the failing files** — pairs with the "read which step, not the rollup" discipline from the gate-blindness pattern.
+
+**Status:** Active — gate-signal-integrity (flaky-gate false-red, #20/#46); flaky-suite stabilization routed HIGH to DebateTool (t/1829). A flaky primary gate is high-severity because it degrades every agent's ability to trust verify.
+
+**Applies To:** All agents running `npm run verify` / the `lib/debate` suite — read the failing test names before attributing a red to your change.
