@@ -617,6 +617,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
                       if (!vuln[key] && readOnly) return null;
                       return (
                         <div key={key} className="vulnerability-subsection">
+                          {/* eslint-disable-next-line local/no-inline-style -- color is per-POV, computed from meta.cssVar */}
                           <strong style={{ color: `var(${meta.cssVar})` }}>{meta.label}:</strong>
                           {readOnly ? (
                             <span> {vuln[key]}</span>
@@ -711,11 +712,19 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
 
         {activeTab === 'related' && (
           <div className="node-detail-related-split" ref={splitContainerRef}>
-            <div className="node-detail-related-list" style={{ width: `${relatedSplitPct}%` }}>
+            <div
+              className="node-detail-related-list nd-split-width"
+              /* eslint-disable-next-line local/no-inline-style -- width is a user-dragged split percentage, passed as a CSS custom property */
+              style={{ '--nd-split-width': `${relatedSplitPct}%` } as React.CSSProperties}
+            >
               <RelatedEdgesPanel />
             </div>
             <div className="resize-handle" onMouseDown={handleSplitMouseDown} />
-            <div className="node-detail-related-detail" style={{ width: `${100 - relatedSplitPct}%` }}>
+            <div
+              className="node-detail-related-detail nd-split-width"
+              /* eslint-disable-next-line local/no-inline-style -- width is a user-dragged split percentage, passed as a CSS custom property */
+              style={{ '--nd-split-width': `${100 - relatedSplitPct}%` } as React.CSSProperties}
+            >
               {selectedEdge ? (
                 <EdgeDetailPanel width={0} />
               ) : (
@@ -765,7 +774,11 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
 
         {activeTab === 'facts' && (
           <div className="facts-split-container" ref={factSplitRef}>
-            <div className="facts-split-list" style={sourceDoc?.available ? { height: `${factSplitPct}%` } : undefined}>
+            <div
+              className="facts-split-list nd-split-height"
+              /* eslint-disable-next-line local/no-inline-style -- height is a user-dragged split percentage, passed as a CSS custom property */
+              style={sourceDoc?.available ? { '--nd-split-height': `${factSplitPct}%` } as React.CSSProperties : undefined}
+            >
               <FactsPanel nodeId={node.id} onSelectFact={setSelectedFact} />
             </div>
             {sourceDocLoading && (
@@ -777,7 +790,11 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             {sourceDoc?.available && (
               <>
                 <div className="resize-handle resize-handle-horizontal" onMouseDown={handleFactSplitMouseDown} />
-                <div className="facts-doc-pane" style={{ height: `${100 - factSplitPct}%` }}>
+                <div
+                  className="facts-doc-pane nd-split-height"
+                  /* eslint-disable-next-line local/no-inline-style -- height is a user-dragged split percentage, passed as a CSS custom property */
+                  style={{ '--nd-split-height': `${100 - factSplitPct}%` } as React.CSSProperties}
+                >
                   <div className="facts-doc-header">
                     <span className="facts-doc-title">{selectedFact?.doc_id}</span>
                     <span className="facts-doc-type">{sourceDoc.type?.toUpperCase()}</span>
@@ -921,6 +938,7 @@ function CruxChip({ crux, onClick, showDetail }: { crux: AggregatedCrux; onClick
     >
       <span
         className="crux-chip-dot"
+        /* eslint-disable-next-line local/no-inline-style -- dot color is per crux-type, computed from CRUX_TYPE_COLORS */
         style={{ backgroundColor: CRUX_TYPE_COLORS[crux.type] ?? 'var(--text-muted)' }}
       />
       <span className="crux-chip-label">
@@ -1053,8 +1071,10 @@ function EvidenceGraphSection({ nodeId }: { nodeId: string }) {
             </div>
             <div className="evidence-strength-row">
               <div className="evidence-strength-track">
+                {/* eslint-disable-next-line local/no-inline-style -- width/background computed from this claim's evidence strength */}
                 <div className="evidence-strength-fill" style={{ width: `${barPct}%`, background: barColor }} />
               </div>
+              {/* eslint-disable-next-line local/no-inline-style -- color computed from this claim's evidence strength */}
               <span className="evidence-strength-value" style={{ color: barColor }}>
                 {(eg.computed_strength ?? 0).toFixed(2)}
               </span>

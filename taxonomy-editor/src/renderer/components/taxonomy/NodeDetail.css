@@ -371,3 +371,13 @@
 .nd-metric {
   font-size: 0.78rem;
 }
+
+/* ── Resizable split panes (Related / Facts tabs) — dynamic percentage via CSS custom property ── */
+
+.nd-split-width {
+  width: var(--nd-split-width, auto);
+}
+
+.nd-split-height {
+  height: var(--nd-split-height, auto);
+}
