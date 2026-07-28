@@ -723,27 +723,27 @@
       "groq-llama-3.3-70b-versatile"
     ],
     "gemini-3.5-flash": [
-      "gemini-2.5-flash",
+      "gemini-3.6-flash",
       "groq-llama-3.3-70b-versatile"
     ],
     "gemini-3.1-pro-preview": [
-      "gemini-2.5-pro",
-      "gemini-2.5-flash"
+      "gemini-3.1-pro-preview",
+      "gemini-3.6-flash"
     ],
     "gemini-3.1-flash-lite": [
-      "gemini-2.5-flash-lite",
+      "gemini-3.5-flash-lite",
       "groq-llama-3.1-8b-instant"
     ],
     "gemini-2.5-pro": [
-      "gemini-2.5-flash",
+      "gemini-3.6-flash",
       "groq-llama-3.3-70b-versatile"
     ],
     "gemini-2.5-flash": [
-      "gemini-2.5-flash-lite",
+      "gemini-3.5-flash-lite",
       "groq-llama-3.3-70b-versatile"
     ],
     "gemini-flash-lite-latest": [
-      "gemini-2.5-flash-lite",
+      "gemini-3.5-flash-lite",
       "groq-llama-3.1-8b-instant"
     ],
     "gemini-2.5-flash-lite": [
@@ -751,62 +751,62 @@
     ],
     "claude-opus-4-8": [
       "claude-sonnet-4-6",
-      "gemini-2.5-pro"
+      "gemini-3.1-pro-preview"
     ],
     "claude-sonnet-4-6": [
       "claude-haiku-4-5",
-      "gemini-2.5-flash"
+      "gemini-3.6-flash"
     ],
     "claude-haiku-4-5": [
-      "gemini-2.5-flash-lite",
+      "gemini-3.5-flash-lite",
       "groq-llama-3.1-8b-instant"
     ],
     "groq-llama-3.3-70b-versatile": [
       "groq-llama-3.1-8b-instant",
-      "gemini-2.5-flash"
+      "gemini-3.6-flash"
     ],
     "groq-llama-4-scout-17b-16e": [
       "groq-llama-3.3-70b-versatile",
-      "gemini-2.5-flash"
+      "gemini-3.6-flash"
     ],
     "groq-openai-gpt-oss-120b": [
       "groq-llama-3.3-70b-versatile",
-      "gemini-2.5-flash"
+      "gemini-3.6-flash"
     ],
     "openai-gpt-5.5": [
-      "gemini-2.5-flash",
+      "gemini-3.6-flash",
       "groq-llama-3.3-70b-versatile"
     ],
     "azure-gpt-4o": [
       "azure-gpt-4o-mini",
-      "gemini-2.5-flash"
+      "gemini-3.6-flash"
     ],
     "azure-gpt-4o-mini": [
-      "gemini-2.5-flash-lite",
+      "gemini-3.5-flash-lite",
       "groq-llama-3.1-8b-instant"
     ],
     "azure-gpt-4.1": [
       "azure-gpt-4.1-mini",
-      "gemini-2.5-flash"
+      "gemini-3.6-flash"
     ],
     "azure-gpt-4.1-mini": [
-      "gemini-2.5-flash-lite",
+      "gemini-3.5-flash-lite",
       "groq-llama-3.1-8b-instant"
     ],
     "deepseek-chat": [
       "groq-llama-3.3-70b-versatile",
-      "gemini-2.5-flash"
+      "gemini-3.6-flash"
     ],
     "deepseek-reasoner": [
       "deepseek-chat",
-      "gemini-2.5-pro"
+      "gemini-3.1-pro-preview"
     ],
     "deepseek-deepseek-v4-flash": [
       "deepseek-chat",
-      "gemini-2.5-flash"
+      "gemini-3.6-flash"
     ],
     "zai-glm-5-2": [
-      "gemini-2.5-flash",
+      "gemini-3.6-flash",
       "groq-llama-3.3-70b-versatile"
     ]
   },
@@ -970,7 +970,7 @@
   "debateTiers": {
     "_comment": "Preferred model per backend for multi-provider debate mode. Basic = fast/cheap, Advanced = frontier.",
     "basic": {
-      "gemini": "gemini-3.1-flash-lite",
+      "gemini": "gemini-3.5-flash-lite",
       "claude": "claude-haiku-4-5",
       "groq": "groq-llama-3.1-8b-instant",
       "openai": "openai-gpt-4.1-mini",
@@ -980,7 +980,7 @@
       "zai": "zai-glm-5-2"
     },
     "advanced": {
-      "gemini": "gemini-2.5-pro",
+      "gemini": "gemini-3.1-pro-preview",
       "claude": "claude-sonnet-4-6",
       "groq": "groq-llama-3.3-70b-versatile",
       "openai": "openai-gpt-4.1",
