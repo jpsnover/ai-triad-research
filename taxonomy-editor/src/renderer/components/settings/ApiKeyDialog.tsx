@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState } from 'react';
+import './ApiKeyDialog.css';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
@@ -53,7 +54,7 @@ export function ApiKeyDialog({ onClose }: ApiKeyDialogProps) {
             autoFocus
           />
         </div>
-        {error && <div className="error-text" style={{ marginBottom: 12 }}>{error}</div>}
+        {error && <div className="error-text api-key-dialog-error">{error}</div>}
         <div className="dialog-actions">
           <button className="btn" onClick={onClose}>Cancel</button>
           <button

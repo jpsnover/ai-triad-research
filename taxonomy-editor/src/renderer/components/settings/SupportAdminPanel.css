@@ -1,0 +1,320 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+.support-admin-centered-message {
+  padding: 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.support-admin-panel {
+  padding: 0 12px 12px;
+  font-size: 0.85rem;
+}
+
+.support-admin-error {
+  padding: 6px 12px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-error, #ef4444);
+  font-size: 0.8rem;
+}
+
+.support-admin-dismiss {
+  margin-left: 8px;
+}
+
+.support-admin-toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.support-admin-filter-group {
+  display: flex;
+  gap: 4px;
+}
+
+.support-admin-filter-btn {
+  font-size: 0.73rem;
+  text-transform: capitalize;
+}
+
+.support-admin-search {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  width: 180px;
+}
+
+.support-admin-sort {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+}
+
+.support-admin-refresh {
+  font-size: 0.75rem;
+}
+
+.support-admin-table-wrap {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.support-admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.support-admin-header-row {
+  background: var(--bg-secondary);
+}
+
+.support-admin-th {
+  text-align: left;
+  padding: 6px 8px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.support-admin-th-status {
+  width: 80px;
+}
+
+.support-admin-th-priority {
+  width: 70px;
+}
+
+.support-admin-th-updated {
+  width: 90px;
+}
+
+.support-admin-th-icon {
+  width: 30px;
+  text-align: center;
+}
+
+.support-admin-td {
+  padding: 6px 8px;
+  vertical-align: middle;
+}
+
+.support-admin-td-priority {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.support-admin-td-updated {
+  font-size: 0.73rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.support-admin-td-count {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.support-admin-subject {
+  font-weight: 500;
+}
+
+.support-admin-status-badge {
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.support-admin-expanded-cell {
+  padding: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.support-admin-detail-loading {
+  padding: 16px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.support-admin-detail {
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  font-size: 0.82rem;
+}
+
+.support-admin-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.support-admin-user-name {
+  font-weight: 600;
+  margin-right: 12px;
+}
+
+.support-admin-created {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.support-admin-status-control {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.support-admin-status-label {
+  font-size: 0.73rem;
+  color: var(--text-muted);
+}
+
+.support-admin-status-select {
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+}
+
+.support-admin-description {
+  margin-bottom: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.support-admin-section {
+  margin-bottom: 12px;
+}
+
+.support-admin-sysinfo-toggle {
+  font-size: 0.73rem;
+}
+
+.support-admin-sysinfo {
+  margin-top: 4px;
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--bg-primary);
+  font-size: 0.73rem;
+  font-family: monospace;
+}
+
+.support-admin-subheading {
+  font-weight: 600;
+  margin-bottom: 4px;
+  font-size: 0.8rem;
+}
+
+.support-admin-attach-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.support-admin-attach-item {
+  padding: 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+}
+
+.support-admin-attach-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.support-admin-attach-name {
+  font-weight: 500;
+  font-size: 0.78rem;
+}
+
+.support-admin-attach-size {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.support-admin-preview-btn {
+  margin-top: 3px;
+  font-size: 0.7rem;
+}
+
+.support-admin-preview-img {
+  margin-top: 4px;
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 4px;
+}
+
+.support-admin-response-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.support-admin-response-item {
+  padding: 8px;
+  border-radius: 4px;
+  background: var(--bg-primary);
+  border-left: 3px solid var(--accent, #3b82f6);
+}
+
+.support-admin-response-meta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+
+.support-admin-response-body {
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.support-admin-composer {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.support-admin-composer-input {
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.support-admin-send-btn {
+  white-space: nowrap;
+}
+
+.support-admin-response-status {
+  margin-top: 4px;
+  font-size: 0.73rem;
+}

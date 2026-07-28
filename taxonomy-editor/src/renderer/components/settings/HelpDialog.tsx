@@ -9,6 +9,7 @@ import ossData from '../../data/oss-licenses.json';
 import { SupportCaseForm } from '../support/SupportCaseForm';
 import { MyCases } from '../support/MyCases';
 import { useSupportStore } from '../../hooks/useSupportStore';
+import './HelpDialog.css';
 
 declare const __APP_VERSION__: string;
 declare const __BUILD_DATE__: string;
@@ -184,8 +185,8 @@ function SbomPanel() {
   const sortArrow = (col: SortCol) => sortCol === col ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
 
   return (
-    <div className="help-section" style={{ fontSize: '0.85rem' }}>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: 8 }}>
+    <div className="help-section helpdialog-panel">
+      <p className="helpdialog-panel-count">
         {filter
           ? `${filtered.length} of ${sbomSummary.length} packages`
           : `${sbomSummary.length} packages`
@@ -196,27 +197,23 @@ function SbomPanel() {
         placeholder="Filter packages..."
         value={filter}
         onChange={e => setFilter(e.target.value)}
-        style={{
-          width: '100%', padding: '6px 10px', marginBottom: 10, borderRadius: 6,
-          border: '1px solid var(--border)', background: 'var(--bg-secondary)',
-          color: 'var(--text-primary)', fontSize: '0.85rem', boxSizing: 'border-box',
-        }}
+        className="helpdialog-filter-input"
       />
-      <div style={{ overflowY: 'auto', maxHeight: 320, border: '1px solid var(--border)', borderRadius: 6 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+      <div className="helpdialog-table-wrap">
+        <table className="helpdialog-sbom-table">
           <thead>
-            <tr style={{ position: 'sticky', top: 0, background: 'var(--bg-secondary)', zIndex: 1 }}>
+            <tr className="helpdialog-sbom-thead-row">
               <th
                 onClick={() => handleSort('name')}
-                style={{ textAlign: 'left', padding: '6px 8px', cursor: 'pointer', userSelect: 'none', borderBottom: '1px solid var(--border)', fontWeight: 700 }}
+                className="helpdialog-sbom-th"
               >Package{sortArrow('name')}</th>
               <th
                 onClick={() => handleSort('version')}
-                style={{ textAlign: 'left', padding: '6px 8px', cursor: 'pointer', userSelect: 'none', borderBottom: '1px solid var(--border)', fontWeight: 700, whiteSpace: 'nowrap' }}
+                className="helpdialog-sbom-th helpdialog-sbom-th-nowrap"
               >Version{sortArrow('version')}</th>
               <th
                 onClick={() => handleSort('license')}
-                style={{ textAlign: 'left', padding: '6px 8px', cursor: 'pointer', userSelect: 'none', borderBottom: '1px solid var(--border)', fontWeight: 700 }}
+                className="helpdialog-sbom-th"
               >License{sortArrow('license')}</th>
             </tr>
           </thead>
@@ -225,30 +222,31 @@ function SbomPanel() {
               <tr
                 key={row.originalIndex}
                 onClick={(e) => handleRowClick(i, e)}
+                className="helpdialog-sbom-row"
+                // eslint-disable-next-line local/no-inline-style -- row background computed from selection + row parity
                 style={{
-                  cursor: 'pointer',
                   background: selectedRows.has(i) ? 'rgba(var(--accent-rgb, 59,130,246), 0.15)' : i % 2 === 0 ? 'transparent' : 'rgba(128,128,128,0.04)',
                 }}
               >
-                <td style={{ padding: '3px 8px', fontFamily: 'monospace', fontSize: '0.78rem', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{row.name}</td>
-                <td style={{ padding: '3px 8px', fontFamily: 'monospace', fontSize: '0.78rem', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{row.version}</td>
+                <td className="helpdialog-sbom-td">{row.name}</td>
+                <td className="helpdialog-sbom-td">{row.version}</td>
                 <td
-                  style={{ padding: '3px 8px', borderBottom: '1px solid var(--border)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  className="helpdialog-sbom-td-license"
                   title={row.license}
                 >{row.license}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={3} style={{ padding: 12, textAlign: 'center', color: 'var(--text-muted)' }}>No packages match &ldquo;{filter}&rdquo;</td></tr>
+              <tr><td colSpan={3} className="helpdialog-sbom-empty">No packages match &ldquo;{filter}&rdquo;</td></tr>
             )}
           </tbody>
         </table>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+      <div className="helpdialog-toolbar">
         <button className="btn btn-sm btn-ghost" onClick={handleCopyAll} title="Copy filtered rows as tab-separated text">
           Copy All as TSV
         </button>
-        {copyFeedback && <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{copyFeedback}</span>}
+        {copyFeedback && <span className="helpdialog-note-muted">{copyFeedback}</span>}
       </div>
     </div>
   );
@@ -277,8 +275,8 @@ function LicensesPanel() {
   const totalPackages = licenseGroups.reduce((s, g) => s + g.packages.length, 0);
 
   return (
-    <div className="help-section" style={{ fontSize: '0.85rem' }}>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: 8 }}>
+    <div className="help-section helpdialog-panel">
+      <p className="helpdialog-panel-count">
         {totalPackages} open-source packages used in this application.
       </p>
       <input
@@ -286,53 +284,42 @@ function LicensesPanel() {
         placeholder="Filter packages..."
         value={filter}
         onChange={e => { setFilter(e.target.value); setExpandedIdx(null); }}
-        style={{
-          width: '100%', padding: '6px 10px', marginBottom: 10, borderRadius: 6,
-          border: '1px solid var(--border)', background: 'var(--bg-secondary)',
-          color: 'var(--text-primary)', fontSize: '0.85rem', boxSizing: 'border-box',
-        }}
+        className="helpdialog-filter-input"
       />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div className="helpdialog-license-list">
         {filtered.map((group, idx) => (
           <div key={idx}>
             <div
               onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)}
+              className="helpdialog-license-group"
+              // eslint-disable-next-line local/no-inline-style -- background computed from expanded state
               style={{
-                padding: '5px 8px', borderRadius: 4, cursor: 'pointer',
                 background: expandedIdx === idx ? 'rgba(var(--accent-rgb, 59,130,246), 0.08)' : 'transparent',
               }}
             >
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginRight: 6 }}>
+              <span className="helpdialog-license-caret">
                 {expandedIdx === idx ? '\u25BC' : '\u25B6'}
               </span>
-              <span style={{ fontWeight: 600 }}>
+              <span className="helpdialog-license-names">
                 {group.packages.map(p => p.name).join(', ')}
               </span>
-              <span style={{ color: 'var(--text-muted)', marginLeft: 8, fontSize: '0.8rem' }}>
+              <span className="helpdialog-license-type">
                 {group.licenseType}
               </span>
             </div>
             {expandedIdx === idx && (
-              <div style={{
-                margin: '4px 0 8px 20px', padding: 10, borderRadius: 6,
-                background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-              }}>
-                <table style={{ fontSize: '0.8rem', marginBottom: 8, borderCollapse: 'collapse' }}>
+              <div className="helpdialog-license-detail">
+                <table className="helpdialog-license-table">
                   <tbody>
                     {group.packages.map(p => (
                       <tr key={p.name}>
-                        <td style={{ paddingRight: 12, fontWeight: 600 }}>{p.name}</td>
-                        <td style={{ color: 'var(--text-muted)' }}>{p.version}</td>
+                        <td className="helpdialog-license-pkg-name">{p.name}</td>
+                        <td className="helpdialog-license-pkg-version">{p.version}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                <pre style={{
-                  fontSize: '0.72rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                  maxHeight: 300, overflowY: 'auto', margin: 0, padding: 8, borderRadius: 4,
-                  background: 'var(--bg-primary)', border: '1px solid var(--border)',
-                  color: 'var(--text-secondary)',
-                }}>
+                <pre className="helpdialog-license-text">
                   {group.licenseText}
                 </pre>
               </div>
@@ -340,7 +327,7 @@ function LicensesPanel() {
           </div>
         ))}
         {filtered.length === 0 && (
-          <p style={{ color: 'var(--text-muted)', padding: 8 }}>No packages match "{filter}"</p>
+          <p className="helpdialog-empty-note">No packages match "{filter}"</p>
         )}
       </div>
     </div>
@@ -350,11 +337,11 @@ function LicensesPanel() {
 function ChangelogPanel() {
   return (
     <div className="help-section help-changelog">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <span style={{ fontSize: '0.8rem', padding: '2px 8px', borderRadius: 4, background: 'var(--accent)', color: '#fff' }}>
+      <div className="helpdialog-changelog-header">
+        <span className="helpdialog-version-badge">
           v{__APP_VERSION__}
         </span>
-        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Current version</span>
+        <span className="helpdialog-note-muted">Current version</span>
       </div>
       <ReactMarkdown remarkPlugins={[remarkGfm]}>{__CHANGELOG_MD__}</ReactMarkdown>
     </div>
@@ -434,53 +421,47 @@ export function HelpDialog({ onClose, initialTab }: HelpDialogProps) {
     <div className="dialog-overlay" onMouseDown={onClose}>
       <div
         ref={dialogRef}
-        className="dialog help-dialog"
+        className="dialog help-dialog helpdialog-dialog"
         onMouseDown={(e) => e.stopPropagation()}
+        // eslint-disable-next-line local/no-inline-style -- width/height/left/top computed from drag + resize state
         style={{
-          width: size.w, height: size.h, maxWidth: 'none', maxHeight: 'none',
-          display: 'flex', flexDirection: 'column', overflow: 'visible',
-          position: 'fixed', left: pos.x, top: pos.y, margin: 0,
+          width: size.w, height: size.h, left: pos.x, top: pos.y,
         }}
       >
-        <h3 style={{ margin: '0 0 12px', cursor: 'move', userSelect: 'none' }} onMouseDown={onDragStart}>AI Rosetta Stone Help</h3>
+        <h3 className="helpdialog-title" onMouseDown={onDragStart}>AI Rosetta Stone Help</h3>
 
-        <div style={{ display: 'flex', gap: 0, flex: 1, minHeight: 0, overflow: 'hidden' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, borderRight: '1px solid var(--border)', paddingRight: 12, marginRight: 12 }}>
+        <div className="helpdialog-body">
+          <div className="helpdialog-tabs">
             {TABS.map(t => (
               <button
                 key={t.id}
                 onClick={() => setActiveTab(t.id)}
+                className="helpdialog-tab"
+                // eslint-disable-next-line local/no-inline-style -- borderLeft/background/color computed from active tab
                 style={{
-                  padding: '6px 14px', fontSize: '0.8rem', fontWeight: 600,
-                  cursor: 'pointer', border: 'none', borderLeft: t.id === activeTab ? '2px solid var(--accent)' : '2px solid transparent',
+                  borderLeft: t.id === activeTab ? '2px solid var(--accent)' : '2px solid transparent',
                   background: t.id === activeTab ? 'rgba(var(--accent-rgb, 59,130,246), 0.08)' : 'transparent',
                   color: t.id === activeTab ? 'var(--accent)' : 'var(--text-secondary)',
-                  textAlign: 'left', borderRadius: 4, whiteSpace: 'nowrap',
                 }}
               >
                 {t.label}
                 {t.id === 'my-cases' && unreadCount > 0 && (
-                  <span style={{
-                    marginLeft: 6, padding: '0 5px', borderRadius: 8, fontSize: 'var(--text-2xs)',
-                    fontWeight: 700, background: 'var(--color-error, #ef4444)', color: '#fff',
-                    lineHeight: '16px', display: 'inline-block', minWidth: 16, textAlign: 'center',
-                  }}>
+                  <span className="helpdialog-tab-badge">
                     {unreadCount}
                   </span>
                 )}
               </button>
             ))}
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          <div className="helpdialog-content">
 
         {activeTab === 'tour' && (
-          <div className="help-section" style={{ fontSize: '0.85em', lineHeight: 1.6 }}>
+          <div className="help-section helpdialog-prose">
             <p>
               New to AI Rosetta Stone? The Welcome Tour walks you through the main features — browsing the taxonomy, running AI debates, chatting with perspectives, and setting up your API key.
             </p>
             <button
-              className="btn btn-primary"
-              style={{ marginTop: 12 }}
+              className="btn btn-primary helpdialog-launch-tour-btn"
               onClick={() => {
                 try { localStorage.removeItem('taxonomy-editor-onboarding-dismissed'); } catch { /* telemetry — silent by design */ }
                 window.dispatchEvent(new Event('show-onboarding-tour'));
@@ -501,11 +482,11 @@ export function HelpDialog({ onClose, initialTab }: HelpDialogProps) {
                 <tr><td className="help-key">Runtime</td><td>{getRuntime()}</td></tr>
               </tbody>
             </table>
-            <p style={{ marginTop: 12, fontSize: '0.85em', color: 'var(--text-secondary)' }}>
+            <p className="helpdialog-about-desc">
               AI Triad Research — multi-perspective research platform for AI policy/safety literature.
               Berkman Klein Center, 2026.
             </p>
-            <p style={{ marginTop: 8, fontSize: '0.8em', color: 'var(--text-muted)' }}>
+            <p className="helpdialog-about-stack">
               Built with Electron 35, React 19, TypeScript, Vite, and Zustand.
               AI backends: Google Gemini, Anthropic Claude, Groq, OpenAI, DeepSeek, Ollama.
             </p>
@@ -513,7 +494,7 @@ export function HelpDialog({ onClose, initialTab }: HelpDialogProps) {
         )}
 
         {activeTab === 'overview' && (
-          <div className="help-section" style={{ fontSize: '0.85em', lineHeight: 1.6 }}>
+          <div className="help-section helpdialog-prose">
             <p>
               AI Rosetta Stone manages the AI Triad taxonomy across three perspectives
               (Accelerationist, Safetyist, Skeptic), situations shared
@@ -568,11 +549,11 @@ export function HelpDialog({ onClose, initialTab }: HelpDialogProps) {
         {activeTab === 'documentation' && (
           <div className="help-section">
             {DOCS.map((doc) => (
-              <p key={doc.path} style={{ margin: '6px 0' }}>
+              <p key={doc.path} className="helpdialog-doc-item">
                 <a
                   href="#"
                   onClick={(e) => { e.preventDefault(); void api.openExternal(`${REPO_URL}/blob/main/${doc.path}`); }}
-                  style={{ color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer' }}
+                  className="helpdialog-doc-link"
                 >
                   <strong>{doc.title}</strong>
                 </a>
@@ -588,35 +569,35 @@ export function HelpDialog({ onClose, initialTab }: HelpDialogProps) {
               The system uses a <strong>neural-symbolic architecture</strong>: LLMs generate
               content while symbolic components provide structure, verification, and explanation.
             </p>
-            <ul style={{ fontSize: '0.85em', lineHeight: 1.6 }}>
+            <ul className="helpdialog-prose">
               <li><strong>QBAF</strong> — Quantitative Bipolar Argumentation Frameworks with DF-QuAD gradual semantics and BDI-aware base score calibration.
-                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://aaai.org/papers/8-12874-discontinuity-free-decision-support-with-quantitative-argumentation-debates/'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Rago et al. (2016)</a>
-                {' '}Built on: <a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://www.sciencedirect.com/science/article/pii/000437029400041X'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Dung (1995)</a>
+                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://aaai.org/papers/8-12874-discontinuity-free-decision-support-with-quantitative-argumentation-debates/'); }} className="helpdialog-ref-link">Rago et al. (2016)</a>
+                {' '}Built on: <a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://www.sciencedirect.com/science/article/pii/000437029400041X'); }} className="helpdialog-ref-link">Dung (1995)</a>
               </li>
               <li><strong>BDI Framework</strong> — Belief-Desire-Intention agent characterization separating empirical claims, normative commitments, and strategic reasoning.
-                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://cdn.aaai.org/ICMAS/1995/ICMAS95-042.pdf'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Rao & Georgeff (1995)</a>;
-                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://press.uchicago.edu/ucp/books/book/distributed/I/bo3629095.html'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Bratman (1987)</a>
+                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://cdn.aaai.org/ICMAS/1995/ICMAS95-042.pdf'); }} className="helpdialog-ref-link">Rao & Georgeff (1995)</a>;
+                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://press.uchicago.edu/ucp/books/book/distributed/I/bo3629095.html'); }} className="helpdialog-ref-link">Bratman (1987)</a>
               </li>
               <li><strong>AIF</strong> — Argument Interchange Format vocabulary for typed attack/support relationships and scheme classification.
-                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://dl.acm.org/doi/10.1017/S0269888906001044'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Chesñevar et al. (2006)</a>
+                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://dl.acm.org/doi/10.1017/S0269888906001044'); }} className="helpdialog-ref-link">Chesñevar et al. (2006)</a>
               </li>
               <li><strong>FIRE</strong> — Confidence-gated Iterative Extraction replacing single-shot claim extraction with per-claim verification.
-                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://arxiv.org/abs/2411.00784'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>arXiv:2411.00784</a>
+                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://arxiv.org/abs/2411.00784'); }} className="helpdialog-ref-link">arXiv:2411.00784</a>
               </li>
               <li><strong>4-Stage Pipeline</strong> — Each debate turn: BRIEF → PLAN → DRAFT → CITE with per-stage temperatures</li>
               <li><strong>Adaptive Staging</strong> — Seven convergence diagnostics trigger phase transitions (confrontation → argumentation → concluding)</li>
               <li><strong>13-Scheme Taxonomy</strong> — Derived from Walton's argumentation schemes with scheme-specific critical questions.
-                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://www.cambridge.org/core/books/argumentation-schemes/9AE7E4E6ABDE690565442B2BD516A8B6'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Walton, Reed & Macagno (2008)</a>
+                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://www.cambridge.org/core/books/argumentation-schemes/9AE7E4E6ABDE690565442B2BD516A8B6'); }} className="helpdialog-ref-link">Walton, Reed & Macagno (2008)</a>
               </li>
               <li><strong>14-Move Moderator</strong> — Six intervention families governed by pragma-dialectical theory; LLM recommends, engine validates against deterministic constraints.
-                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://www.cambridge.org/us/catalogue/catalogue.asp?isbn=9780521537728'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>van Eemeren & Grootendorst (2004)</a>
+                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://www.cambridge.org/us/catalogue/catalogue.asp?isbn=9780521537728'); }} className="helpdialog-ref-link">van Eemeren & Grootendorst (2004)</a>
               </li>
               <li><strong>Dialectic Traces</strong> — BFS traversal of the argument network producing human-readable narrative chains</li>
               <li><strong>DOLCE</strong> — Descriptive Ontology for Linguistic and Cognitive Engineering; foundational ontology informing the taxonomy's upper-level categories and cross-cutting situation semantics.
-                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://arxiv.org/pdf/2308.01597'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Borgo et al. (2023)</a>
+                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://arxiv.org/pdf/2308.01597'); }} className="helpdialog-ref-link">Borgo et al. (2023)</a>
               </li>
               <li><strong>Emotional Register</strong> — Lexicon-based per-statement affect detection (urgency, fear, hope, outrage, empathy) with phase-appropriateness scoring, operationalizing the &ldquo;Emotional Appeal&rdquo; dimension of computational argument-quality assessment.
-                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://aclanthology.org/E17-1017/'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Wachsmuth et al. (2017)</a>
+                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://aclanthology.org/E17-1017/'); }} className="helpdialog-ref-link">Wachsmuth et al. (2017)</a>
               </li>
             </ul>
           </div>
@@ -624,7 +605,7 @@ export function HelpDialog({ onClose, initialTab }: HelpDialogProps) {
 
         {activeTab === 'shortcuts' && (
           <div className="help-section">
-            <h4 style={{ marginTop: 0 }}>General</h4>
+            <h4 className="helpdialog-shortcuts-h4">General</h4>
             <table className="help-shortcuts">
               <tbody>
                 <tr><td className="help-key">Ctrl + F</td><td>Open / close search</td></tr>
@@ -684,21 +665,18 @@ export function HelpDialog({ onClose, initialTab }: HelpDialogProps) {
           const onMove = (ev: MouseEvent) => setSize(s => ({ ...s, w: Math.max(400, start.w + (ev.clientX - start.x)) }));
           const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
           window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp);
-        }} style={{ position: 'absolute', right: -4, top: 0, width: 14, height: '100%', cursor: 'ew-resize', zIndex: 10 }} />
+        }} className="helpdialog-resize-e" />
         <div onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setCentered(false);
           const start = { y: e.clientY, h: size.h };
           const onMove = (ev: MouseEvent) => setSize(s => ({ ...s, h: Math.max(300, start.h + (ev.clientY - start.y)) }));
           const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
           window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp);
-        }} style={{ position: 'absolute', bottom: -4, left: 0, width: '100%', height: 14, cursor: 'ns-resize', zIndex: 10 }} />
+        }} className="helpdialog-resize-s" />
         <div
           onMouseDown={onResizeStart}
-          style={{
-            position: 'absolute', right: -4, bottom: -4, width: 20, height: 20,
-            cursor: 'nwse-resize', opacity: 0.4, zIndex: 11,
-          }}
+          className="helpdialog-resize-se"
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" style={{ display: 'block' }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" className="helpdialog-resize-icon">
             <path d="M14 14L8 14M14 14L14 8M14 14L5 5" stroke="currentColor" strokeWidth="1.5" fill="none" />
           </svg>
         </div>

@@ -90,6 +90,7 @@ function TranscriptPreview({ entries }: { entries: TranscriptEntry[] }) {
         <div key={i} className="crv-transcript-entry">
           <span
             className="crv-transcript-speaker"
+            // eslint-disable-next-line local/no-inline-style -- color keyed to debate speaker
             style={{ color: SPEAKER_COLORS[entry.speaker] ?? 'var(--text-secondary)' }}
           >
             {SPEAKER_LABELS[entry.speaker] ?? entry.speaker}

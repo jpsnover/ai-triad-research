@@ -1,0 +1,43 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+.gemini-onboarding-dialog {
+  max-width: 480px;
+}
+
+.gemini-onboarding-intro {
+  margin-bottom: 16px;
+}
+
+.gemini-onboarding-intro-text {
+  margin-bottom: 12px;
+}
+
+.gemini-onboarding-steps {
+  padding-left: 20px;
+  margin: 0;
+  line-height: 1.8;
+}
+
+.gemini-onboarding-studio-btn {
+  margin-left: 4px;
+}
+
+.gemini-onboarding-error {
+  margin-bottom: 12px;
+}
+
+.gemini-onboarding-success {
+  color: var(--color-success, #22c55e);
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.gemini-onboarding-actions {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gemini-onboarding-dismiss-btn {
+  font-size: 0.85em;
+}

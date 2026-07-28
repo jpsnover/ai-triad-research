@@ -1,0 +1,77 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+.admin-panel-repair-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.admin-panel-repair-heading {
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.admin-panel-repair-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.admin-panel-all-enriched {
+  font-size: 0.75rem;
+  color: #22c55e;
+}
+
+.admin-panel-pending-list {
+  max-height: 200px;
+  overflow: auto;
+  margin-bottom: 8px;
+}
+
+.admin-panel-pending-row {
+  font-size: 0.7rem;
+  padding: 3px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-panel-pending-id {
+  color: var(--text-muted);
+}
+
+.admin-panel-pending-label {
+  flex: 1;
+}
+
+.admin-panel-status-pending {
+  color: #3b82f6;
+}
+
+.admin-panel-status-success {
+  color: #22c55e;
+}
+
+.admin-panel-status-error {
+  color: #ef4444;
+}
+
+.admin-panel-retry-btn {
+  font-size: var(--text-2xs);
+  padding: 1px 6px;
+}
+
+.admin-panel-repair-all-btn {
+  font-size: 0.75rem;
+}
+
+.admin-panel-repair-msg {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.admin-panel-filter-bar {
+  padding: 8px 16px;
+}

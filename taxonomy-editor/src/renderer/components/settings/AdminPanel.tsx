@@ -10,6 +10,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useShallow } from 'zustand/react/shallow';
 import { AdminErrorsTab } from './AdminErrorsTab';
 import { UsageBrowserTab } from './UsageBrowserTab';
+import './AdminPanel.css';
 
 type AdminTab = 'submissions' | 'enrichment' | 'errors' | 'usages';
 
@@ -115,28 +116,27 @@ function EnrichmentRepairSection() {
   }, [retryEnrichment]);
 
   return (
-    <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--border-color)' }}>
-      <h3 style={{ fontSize: '0.9rem', marginBottom: 8 }}>Enrichment Repair</h3>
-      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8 }}>
+    <div className="admin-panel-repair-section">
+      <h3 className="admin-panel-repair-heading">Enrichment Repair</h3>
+      <p className="admin-panel-repair-desc">
         Nodes with incomplete phrase regeneration ({pendingNodes.length} found):
       </p>
       {pendingNodes.length === 0 ? (
-        <div style={{ fontSize: '0.75rem', color: '#22c55e' }}>All nodes are fully enriched.</div>
+        <div className="admin-panel-all-enriched">All nodes are fully enriched.</div>
       ) : (
         <>
-          <div style={{ maxHeight: 200, overflow: 'auto', marginBottom: 8 }}>
+          <div className="admin-panel-pending-list">
             {pendingNodes.map(n => {
               const st = enrichmentStatus[n.id];
               return (
-                <div key={n.id} style={{ fontSize: '0.7rem', padding: '3px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <code style={{ color: 'var(--text-muted)' }}>{n.id}</code>
-                  <span style={{ flex: 1 }}>{n.label}</span>
-                  {st?.status === 'pending' && <span style={{ color: '#3b82f6' }}>{'⧗'}</span>}
-                  {st?.status === 'success' && <span style={{ color: '#22c55e' }}>{'✓'}</span>}
-                  {st?.status === 'error' && <span style={{ color: '#ef4444' }} title={st.error}>{'✗'}</span>}
+                <div key={n.id} className="admin-panel-pending-row">
+                  <code className="admin-panel-pending-id">{n.id}</code>
+                  <span className="admin-panel-pending-label">{n.label}</span>
+                  {st?.status === 'pending' && <span className="admin-panel-status-pending">{'⧗'}</span>}
+                  {st?.status === 'success' && <span className="admin-panel-status-success">{'✓'}</span>}
+                  {st?.status === 'error' && <span className="admin-panel-status-error" title={st.error}>{'✗'}</span>}
                   <button
-                    className="btn btn-sm"
-                    style={{ fontSize: 'var(--text-2xs)', padding: '1px 6px' }}
+                    className="btn btn-sm admin-panel-retry-btn"
                     disabled={repairing || st?.status === 'pending'}
                     onClick={() => void retryEnrichment(n.id, n.pov)}
                   >Retry</button>
@@ -145,8 +145,7 @@ function EnrichmentRepairSection() {
             })}
           </div>
           <button
-            className="btn btn-primary"
-            style={{ fontSize: '0.75rem' }}
+            className="btn btn-primary admin-panel-repair-all-btn"
             disabled={repairing}
             onClick={() => void handleRepairAll()}
           >
@@ -154,7 +153,7 @@ function EnrichmentRepairSection() {
           </button>
         </>
       )}
-      {repairMsg && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 6 }}>{repairMsg}</div>}
+      {repairMsg && <div className="admin-panel-repair-msg">{repairMsg}</div>}
     </div>
   );
 }
@@ -224,7 +223,7 @@ export function AdminPanel() {
 
       {activeTab === 'submissions' && (
         <>
-          <div style={{ padding: '8px 16px' }}>
+          <div className="admin-panel-filter-bar">
             <select
               className="admin-filter"
               value={filter}

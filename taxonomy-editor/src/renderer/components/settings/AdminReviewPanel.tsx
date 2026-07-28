@@ -172,13 +172,13 @@ function ViewerRouter({ selected, onActionComplete }: {
         <line x1="3" y1="9" x2="21" y2="9" />
         <line x1="9" y1="21" x2="9" y2="9" />
       </svg>
-      <div style={{ marginTop: 8 }}>
+      <div className="admin-review-placeholder-title">
         <strong>{DOMAIN_LABELS[selected.domain] ?? selected.domain}</strong> viewer
       </div>
-      <div style={{ fontSize: '0.75rem', marginTop: 4 }}>
+      <div className="admin-review-placeholder-summary">
         {selected.summary} from {selected.submitterDisplay}
       </div>
-      <div style={{ fontSize: '0.7rem', marginTop: 8, fontStyle: 'italic' }}>
+      <div className="admin-review-placeholder-note">
         Domain-specific viewer coming soon.
       </div>
     </div>
@@ -268,6 +268,7 @@ function FeedbackSection() {
         </div>
         {Object.entries(catCounts).map(([cat, count]) => (
           <div key={cat} className="admin-feedback-stat">
+            {/* eslint-disable-next-line local/no-inline-style -- color keyed to feedback category */}
             <span className="admin-feedback-stat-value" style={{ color: CATEGORY_COLORS[cat] }}>{count}</span>
             <span className="admin-feedback-stat-label">{CATEGORY_LABELS[cat] ?? cat}</span>
           </div>
@@ -327,10 +328,14 @@ function FeedbackSection() {
                     {item.rating === 'up' ? '👍' : '👎'}
                   </span>
                   <span className="admin-feedback-col-cat">
-                    <span className="admin-feedback-cat-badge" style={{
-                      background: `color-mix(in srgb, ${CATEGORY_COLORS[item.category] ?? '#6b7280'} 15%, transparent)`,
-                      color: CATEGORY_COLORS[item.category] ?? '#6b7280',
-                    }}>
+                    <span
+                      className="admin-feedback-cat-badge"
+                      // eslint-disable-next-line local/no-inline-style -- badge colors derived from feedback category
+                      style={{
+                        background: `color-mix(in srgb, ${CATEGORY_COLORS[item.category] ?? '#6b7280'} 15%, transparent)`,
+                        color: CATEGORY_COLORS[item.category] ?? '#6b7280',
+                      }}
+                    >
                       {CATEGORY_LABELS[item.category] ?? item.category}
                     </span>
                   </span>
@@ -597,7 +602,7 @@ export function AdminReviewPanel() {
         </button>
         <h2>Admin Review</h2>
         {stats && stats.total > 0 && (
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          <span className="admin-review-pending-count">
             {stats.total} pending
           </span>
         )}

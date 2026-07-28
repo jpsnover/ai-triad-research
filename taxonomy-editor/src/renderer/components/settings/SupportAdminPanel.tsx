@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@bridge';
 import type { SupportCaseSummary, SupportCaseDetail } from '../../bridge/types';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import './SupportAdminPanel.css';
 
 const STATUS_OPTIONS = ['all', 'open', 'in-progress', 'resolved', 'closed'] as const;
 const STATUS_COLORS: Record<string, string> = {
@@ -31,15 +32,6 @@ function formatBytes(bytes: number): string {
 }
 
 type SortKey = 'date' | 'priority';
-
-const thStyle: React.CSSProperties = {
-  textAlign: 'left',
-  padding: '6px 8px',
-  fontWeight: 600,
-  borderBottom: '1px solid var(--border)',
-  fontSize: '0.75rem',
-  whiteSpace: 'nowrap',
-};
 
 export function SupportAdminPanel() {
   const [cases, setCases] = useState<SupportCaseSummary[]>([]);
@@ -222,38 +214,28 @@ export function SupportAdminPanel() {
     });
 
   if (loading && cases.length === 0) {
-    return <div style={{ padding: 20, color: 'var(--text-muted)', textAlign: 'center' }}>Loading cases…</div>;
+    return <div className="support-admin-centered-message">Loading cases…</div>;
   }
 
   return (
-    <div style={{ padding: '0 12px 12px', fontSize: '0.85rem' }}>
+    <div className="support-admin-panel">
       {error && (
-        <div
-          style={{
-            padding: '6px 12px',
-            marginBottom: 8,
-            borderRadius: 6,
-            background: 'rgba(239, 68, 68, 0.1)',
-            color: 'var(--color-error, #ef4444)',
-            fontSize: '0.8rem',
-          }}
-        >
+        <div className="support-admin-error">
           {error}
-          <button className="btn btn-sm btn-ghost" onClick={() => setError(null)} style={{ marginLeft: 8 }}>
+          <button className="btn btn-sm btn-ghost support-admin-dismiss" onClick={() => setError(null)}>
             Dismiss
           </button>
         </div>
       )}
 
       {/* Toolbar */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
-        <div style={{ display: 'flex', gap: 4 }}>
+      <div className="support-admin-toolbar">
+        <div className="support-admin-filter-group">
           {STATUS_OPTIONS.map((s) => (
             <button
               key={s}
-              className={`btn btn-sm${statusFilter === s ? ' btn-primary' : ' btn-ghost'}`}
+              className={`btn btn-sm support-admin-filter-btn${statusFilter === s ? ' btn-primary' : ' btn-ghost'}`}
               onClick={() => setStatusFilter(s)}
-              style={{ fontSize: '0.73rem', textTransform: 'capitalize' }}
             >
               {s === 'all' ? `All (${cases.length})` : s}
             </button>
@@ -264,54 +246,39 @@ export function SupportAdminPanel() {
           placeholder="Search subject…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{
-            padding: '4px 8px',
-            borderRadius: 4,
-            border: '1px solid var(--border)',
-            background: 'var(--bg-secondary)',
-            color: 'var(--text-primary)',
-            fontSize: '0.8rem',
-            width: 180,
-          }}
+          className="support-admin-search"
         />
         <select
           value={sortKey}
           onChange={(e) => setSortKey(e.target.value as SortKey)}
-          style={{
-            padding: '4px 8px',
-            borderRadius: 4,
-            border: '1px solid var(--border)',
-            background: 'var(--bg-secondary)',
-            color: 'var(--text-primary)',
-            fontSize: '0.78rem',
-          }}
+          className="support-admin-sort"
         >
           <option value="date">Sort: Date</option>
           <option value="priority">Sort: Priority</option>
         </select>
-        <button className="btn btn-sm btn-ghost" onClick={() => void fetchCases()} style={{ fontSize: '0.75rem' }}>
+        <button className="btn btn-sm btn-ghost support-admin-refresh" onClick={() => void fetchCases()}>
           Refresh
         </button>
       </div>
 
       {/* Case table */}
       {filtered.length === 0 ? (
-        <div style={{ padding: 20, color: 'var(--text-muted)', textAlign: 'center' }}>
+        <div className="support-admin-centered-message">
           {cases.length === 0 ? 'No support cases.' : 'No cases match filters.'}
         </div>
       ) : (
-        <div style={{ border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+        <div className="support-admin-table-wrap">
+          <table className="support-admin-table">
             <thead>
-              <tr style={{ background: 'var(--bg-secondary)' }}>
-                <th style={thStyle}>Subject</th>
-                <th style={{ ...thStyle, width: 80 }}>Status</th>
-                <th style={{ ...thStyle, width: 70 }}>Priority</th>
-                <th style={{ ...thStyle, width: 90 }}>Updated</th>
-                <th style={{ ...thStyle, width: 30, textAlign: 'center' }} title="Attachments">
+              <tr className="support-admin-header-row">
+                <th className="support-admin-th">Subject</th>
+                <th className="support-admin-th support-admin-th-status">Status</th>
+                <th className="support-admin-th support-admin-th-priority">Priority</th>
+                <th className="support-admin-th support-admin-th-updated">Updated</th>
+                <th className="support-admin-th support-admin-th-icon" title="Attachments">
                   📎
                 </th>
-                <th style={{ ...thStyle, width: 30, textAlign: 'center' }} title="Responses">
+                <th className="support-admin-th support-admin-th-icon" title="Responses">
                   💬
                 </th>
               </tr>
@@ -384,55 +351,73 @@ function TableRow({
   onStatusChange,
   statusChanging,
 }: TableRowProps) {
-  const tdStyle: React.CSSProperties = {
-    padding: '6px 8px',
+  const tdBorderStyle: React.CSSProperties = {
     borderBottom: isExpanded ? 'none' : '1px solid var(--border)',
-    verticalAlign: 'middle',
   };
 
   return (
     <>
       <tr
         onClick={onToggle}
-        style={{
-          cursor: 'pointer',
-          background: isExpanded ? 'rgba(var(--accent-rgb, 59,130,246), 0.06)' : undefined,
-        }}
+        className="support-admin-row"
+        // eslint-disable-next-line local/no-inline-style -- background depends on row expansion state
+        style={{ background: isExpanded ? 'rgba(var(--accent-rgb, 59,130,246), 0.06)' : undefined }}
       >
-        <td style={tdStyle}>
-          <span style={{ fontWeight: 500 }}>{c.subject}</span>
+        <td
+          className="support-admin-td"
+          // eslint-disable-next-line local/no-inline-style -- bottom border depends on row expansion state
+          style={tdBorderStyle}
+        >
+          <span className="support-admin-subject">{c.subject}</span>
         </td>
-        <td style={tdStyle}>
+        <td
+          className="support-admin-td"
+          // eslint-disable-next-line local/no-inline-style -- bottom border depends on row expansion state
+          style={tdBorderStyle}
+        >
           <span
-            style={{
-              padding: '1px 8px',
-              borderRadius: 10,
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              background: statusColor,
-              color: '#fff',
-            }}
+            className="support-admin-status-badge"
+            // eslint-disable-next-line local/no-inline-style -- badge background color derived from case status
+            style={{ background: statusColor }}
           >
             {c.status}
           </span>
         </td>
-        <td style={{ ...tdStyle, fontSize: '0.76rem', color: 'var(--text-muted)' }}>{c.priority}</td>
-        <td style={{ ...tdStyle, fontSize: '0.73rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+        <td
+          className="support-admin-td support-admin-td-priority"
+          // eslint-disable-next-line local/no-inline-style -- bottom border depends on row expansion state
+          style={tdBorderStyle}
+        >
+          {c.priority}
+        </td>
+        <td
+          className="support-admin-td support-admin-td-updated"
+          // eslint-disable-next-line local/no-inline-style -- bottom border depends on row expansion state
+          style={tdBorderStyle}
+        >
           {formatDate(c.updatedAt)}
         </td>
-        <td style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.76rem' }}>
+        <td
+          className="support-admin-td support-admin-td-count"
+          // eslint-disable-next-line local/no-inline-style -- bottom border depends on row expansion state
+          style={tdBorderStyle}
+        >
           {c.attachmentCount || ''}
         </td>
-        <td style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.76rem' }}>
+        <td
+          className="support-admin-td support-admin-td-count"
+          // eslint-disable-next-line local/no-inline-style -- bottom border depends on row expansion state
+          style={tdBorderStyle}
+        >
           {c.responseCount || ''}
         </td>
       </tr>
 
       {isExpanded && (
         <tr>
-          <td colSpan={6} style={{ padding: 0, borderBottom: '1px solid var(--border)' }}>
+          <td colSpan={6} className="support-admin-expanded-cell">
             {detailLoading ? (
-              <div style={{ padding: 16, color: 'var(--text-muted)', textAlign: 'center' }}>Loading…</div>
+              <div className="support-admin-detail-loading">Loading…</div>
             ) : detail ? (
               <ExpandedDetail
                 detail={detail}
@@ -482,29 +467,22 @@ function ExpandedDetail({
   const [showSystemInfo, setShowSystemInfo] = useState(false);
 
   return (
-    <div style={{ padding: '12px 16px', background: 'var(--bg-secondary)', fontSize: '0.82rem' }}>
+    <div className="support-admin-detail">
       {/* Header with user + controls */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+      <div className="support-admin-detail-header">
         <div>
           {detail.userDisplayName && (
-            <span style={{ fontWeight: 600, marginRight: 12 }}>{detail.userDisplayName}</span>
+            <span className="support-admin-user-name">{detail.userDisplayName}</span>
           )}
-          <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Created {formatDate(detail.createdAt)}</span>
+          <span className="support-admin-created">Created {formatDate(detail.createdAt)}</span>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <label style={{ fontSize: '0.73rem', color: 'var(--text-muted)' }}>Status:</label>
+        <div className="support-admin-status-control">
+          <label className="support-admin-status-label">Status:</label>
           <select
             value={detail.status}
             onChange={(e) => void onStatusChange(detail.id, e.target.value)}
             disabled={statusChanging}
-            style={{
-              padding: '3px 6px',
-              borderRadius: 4,
-              border: '1px solid var(--border)',
-              background: 'var(--bg-primary)',
-              color: 'var(--text-primary)',
-              fontSize: '0.78rem',
-            }}
+            className="support-admin-status-select"
           >
             <option value="open">Open</option>
             <option value="in-progress">In Progress</option>
@@ -515,28 +493,18 @@ function ExpandedDetail({
       </div>
 
       {/* Description */}
-      <div style={{ marginBottom: 12, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{detail.description}</div>
+      <div className="support-admin-description">{detail.description}</div>
 
       {/* System Info */}
-      <div style={{ marginBottom: 12 }}>
+      <div className="support-admin-section">
         <button
-          className="btn btn-sm btn-ghost"
+          className="btn btn-sm btn-ghost support-admin-sysinfo-toggle"
           onClick={() => setShowSystemInfo(!showSystemInfo)}
-          style={{ fontSize: '0.73rem' }}
         >
           {showSystemInfo ? '▼' : '▶'} System Info
         </button>
         {showSystemInfo && detail.systemInfo && (
-          <div
-            style={{
-              marginTop: 4,
-              padding: 8,
-              borderRadius: 6,
-              background: 'var(--bg-primary)',
-              fontSize: '0.73rem',
-              fontFamily: 'monospace',
-            }}
-          >
+          <div className="support-admin-sysinfo">
             <div>App: {detail.systemInfo.appVersion}</div>
             <div>Mode: {detail.systemInfo.deploymentMode}</div>
             <div>Browser: {detail.systemInfo.browser}</div>
@@ -547,42 +515,33 @@ function ExpandedDetail({
 
       {/* Attachments */}
       {detail.attachments.length > 0 && (
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontWeight: 600, marginBottom: 4, fontSize: '0.8rem' }}>
+        <div className="support-admin-section">
+          <div className="support-admin-subheading">
             Attachments ({detail.attachments.length})
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div className="support-admin-attach-list">
             {detail.attachments.map((att) => {
               const isImage = att.mimeType.startsWith('image/');
               const url = previewUrls.get(att.id);
               return (
-                <div
-                  key={att.id}
-                  style={{
-                    padding: 6,
-                    borderRadius: 4,
-                    border: '1px solid var(--border)',
-                    background: 'var(--bg-primary)',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 500, fontSize: '0.78rem' }}>{att.filename}</span>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{formatBytes(att.sizeBytes)}</span>
+                <div key={att.id} className="support-admin-attach-item">
+                  <div className="support-admin-attach-row">
+                    <span className="support-admin-attach-name">{att.filename}</span>
+                    <span className="support-admin-attach-size">{formatBytes(att.sizeBytes)}</span>
                   </div>
                   {isImage && !url && (
                     <button
-                      className="btn btn-sm btn-ghost"
+                      className="btn btn-sm btn-ghost support-admin-preview-btn"
                       onClick={(e) => {
                         e.stopPropagation();
                         void onLoadPreview(detail.id, att.id);
                       }}
-                      style={{ marginTop: 3, fontSize: '0.7rem' }}
                     >
                       Preview
                     </button>
                   )}
                   {isImage && url && (
-                    <img src={url} alt={att.filename} style={{ marginTop: 4, maxWidth: '100%', maxHeight: 200, borderRadius: 4 }} />
+                    <img src={url} alt={att.filename} className="support-admin-preview-img" />
                   )}
                 </div>
               );
@@ -593,25 +552,17 @@ function ExpandedDetail({
 
       {/* Response thread */}
       {detail.responses.length > 0 && (
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontWeight: 600, marginBottom: 4, fontSize: '0.8rem' }}>
+        <div className="support-admin-section">
+          <div className="support-admin-subheading">
             Responses ({detail.responses.length})
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="support-admin-response-list">
             {detail.responses.map((resp) => (
-              <div
-                key={resp.id}
-                style={{
-                  padding: 8,
-                  borderRadius: 4,
-                  background: 'var(--bg-primary)',
-                  borderLeft: '3px solid var(--accent, #3b82f6)',
-                }}
-              >
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 3 }}>
+              <div key={resp.id} className="support-admin-response-item">
+                <div className="support-admin-response-meta">
                   {resp.authorId} &mdash; {formatDate(resp.createdAt)}
                 </div>
-                <div style={{ lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{resp.body}</div>
+                <div className="support-admin-response-body">{resp.body}</div>
               </div>
             ))}
           </div>
@@ -619,40 +570,27 @@ function ExpandedDetail({
       )}
 
       {/* Response composer */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+      <div className="support-admin-composer">
         <textarea
           value={responseText}
           onChange={(e) => onResponseTextChange(e.target.value)}
           placeholder="Type a response…"
           rows={2}
-          style={{
-            flex: 1,
-            padding: '6px 8px',
-            borderRadius: 4,
-            border: '1px solid var(--border)',
-            background: 'var(--bg-primary)',
-            color: 'var(--text-primary)',
-            fontSize: '0.8rem',
-            resize: 'vertical',
-            fontFamily: 'inherit',
-          }}
+          className="support-admin-composer-input"
         />
         <button
-          className="btn btn-sm btn-primary"
+          className="btn btn-sm btn-primary support-admin-send-btn"
           onClick={() => void onSendResponse()}
           disabled={!responseText.trim() || responseSending}
-          style={{ whiteSpace: 'nowrap' }}
         >
           {responseSending ? 'Sending…' : 'Send'}
         </button>
       </div>
       {responseSuccess && (
         <div
-          style={{
-            marginTop: 4,
-            fontSize: '0.73rem',
-            color: responseSuccess.startsWith('Failed') ? 'var(--color-error, #ef4444)' : 'var(--color-success, #22c55e)',
-          }}
+          className="support-admin-response-status"
+          // eslint-disable-next-line local/no-inline-style -- text color reflects success vs failure state
+          style={{ color: responseSuccess.startsWith('Failed') ? 'var(--color-error, #ef4444)' : 'var(--color-success, #22c55e)' }}
         >
           {responseSuccess}
         </div>

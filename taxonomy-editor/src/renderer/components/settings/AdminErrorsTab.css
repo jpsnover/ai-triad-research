@@ -247,6 +247,12 @@
   margin-top: 8px;
 }
 
+.admin-errors-stale-badge { margin-left: 6px; }
+.admin-errors-instances-padded { padding: 8px 16px; }
+.admin-errors-instance-msg { flex: 1; }
+.admin-errors-instance-meta { color: var(--text-muted); font-size: var(--text-2xs); }
+.admin-errors-instance-empty { font-size: 0.75rem; color: var(--text-muted); padding: 8px 0; }
+
 .admin-errors-instance {
   display: flex;
   align-items: center;

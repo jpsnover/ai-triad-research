@@ -511,3 +511,8 @@
 .admin-fallback-key-input:focus-visible {
   border-color: var(--accent);
 }
+
+.admin-review-placeholder-title { margin-top: 8px; }
+.admin-review-placeholder-summary { font-size: 0.75rem; margin-top: 4px; }
+.admin-review-placeholder-note { font-size: 0.7rem; margin-top: 8px; font-style: italic; }
+.admin-review-pending-count { font-size: 0.75rem; color: var(--text-muted); }

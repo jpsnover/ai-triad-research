@@ -1,0 +1,78 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+.helpdialog-panel { font-size: 0.85rem; }
+.helpdialog-panel-count { color: var(--text-secondary); margin-bottom: 8px; }
+.helpdialog-filter-input {
+  width: 100%; padding: 6px 10px; margin-bottom: 10px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg-secondary);
+  color: var(--text-primary); font-size: 0.85rem; box-sizing: border-box;
+}
+
+.helpdialog-table-wrap { overflow-y: auto; max-height: 320px; border: 1px solid var(--border); border-radius: 6px; }
+.helpdialog-sbom-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.helpdialog-sbom-thead-row { position: sticky; top: 0; background: var(--bg-secondary); z-index: 1; }
+.helpdialog-sbom-th { text-align: left; padding: 6px 8px; cursor: pointer; user-select: none; border-bottom: 1px solid var(--border); font-weight: 700; }
+.helpdialog-sbom-th-nowrap { white-space: nowrap; }
+.helpdialog-sbom-row { cursor: pointer; }
+.helpdialog-sbom-td { padding: 3px 8px; font-family: monospace; font-size: 0.78rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.helpdialog-sbom-td-license { padding: 3px 8px; border-bottom: 1px solid var(--border); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.helpdialog-sbom-empty { padding: 12px; text-align: center; color: var(--text-muted); }
+.helpdialog-toolbar { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.helpdialog-note-muted { font-size: 0.78rem; color: var(--text-muted); }
+
+.helpdialog-license-list { display: flex; flex-direction: column; gap: 2px; }
+.helpdialog-license-group { padding: 5px 8px; border-radius: 4px; cursor: pointer; }
+.helpdialog-license-caret { color: var(--text-muted); font-size: 0.75rem; margin-right: 6px; }
+.helpdialog-license-names { font-weight: 600; }
+.helpdialog-license-type { color: var(--text-muted); margin-left: 8px; font-size: 0.8rem; }
+.helpdialog-license-detail {
+  margin: 4px 0 8px 20px; padding: 10px; border-radius: 6px;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+}
+.helpdialog-license-table { font-size: 0.8rem; margin-bottom: 8px; border-collapse: collapse; }
+.helpdialog-license-pkg-name { padding-right: 12px; font-weight: 600; }
+.helpdialog-license-pkg-version { color: var(--text-muted); }
+.helpdialog-license-text {
+  font-size: 0.72rem; white-space: pre-wrap; word-break: break-word;
+  max-height: 300px; overflow-y: auto; margin: 0; padding: 8px; border-radius: 4px;
+  background: var(--bg-primary); border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.helpdialog-empty-note { color: var(--text-muted); padding: 8px; }
+
+.helpdialog-changelog-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.helpdialog-version-badge { font-size: 0.8rem; padding: 2px 8px; border-radius: 4px; background: var(--accent); color: #fff; }
+
+.helpdialog-dialog {
+  max-width: none; max-height: none;
+  display: flex; flex-direction: column; overflow: visible;
+  position: fixed; margin: 0;
+}
+.helpdialog-title { margin: 0 0 12px; cursor: move; user-select: none; }
+.helpdialog-body { display: flex; gap: 0; flex: 1; min-height: 0; overflow: hidden; }
+.helpdialog-tabs { display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--border); padding-right: 12px; margin-right: 12px; }
+.helpdialog-tab {
+  padding: 6px 14px; font-size: 0.8rem; font-weight: 600;
+  cursor: pointer; border: none;
+  text-align: left; border-radius: 4px; white-space: nowrap;
+}
+.helpdialog-tab-badge {
+  margin-left: 6px; padding: 0 5px; border-radius: 8px; font-size: var(--text-2xs);
+  font-weight: 700; background: var(--color-error, #ef4444); color: #fff;
+  line-height: 16px; display: inline-block; min-width: 16px; text-align: center;
+}
+.helpdialog-content { flex: 1; overflow-y: auto; min-height: 0; }
+.helpdialog-prose { font-size: 0.85em; line-height: 1.6; }
+.helpdialog-launch-tour-btn { margin-top: 12px; }
+.helpdialog-about-desc { margin-top: 12px; font-size: 0.85em; color: var(--text-secondary); }
+.helpdialog-about-stack { margin-top: 8px; font-size: 0.8em; color: var(--text-muted); }
+.helpdialog-doc-item { margin: 6px 0; }
+.helpdialog-doc-link { color: var(--accent); text-decoration: underline; cursor: pointer; }
+.helpdialog-ref-link { color: var(--accent); font-size: 0.85em; }
+.helpdialog-shortcuts-h4 { margin-top: 0; }
+
+.helpdialog-resize-e { position: absolute; right: -4px; top: 0; width: 14px; height: 100%; cursor: ew-resize; z-index: 10; }
+.helpdialog-resize-s { position: absolute; bottom: -4px; left: 0; width: 100%; height: 14px; cursor: ns-resize; z-index: 10; }
+.helpdialog-resize-se { position: absolute; right: -4px; bottom: -4px; width: 20px; height: 20px; cursor: nwse-resize; opacity: 0.4; z-index: 11; }
+.helpdialog-resize-icon { display: block; }

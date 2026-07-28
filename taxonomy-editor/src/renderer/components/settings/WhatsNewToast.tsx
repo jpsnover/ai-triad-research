@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useCallback } from 'react';
+import './WhatsNewToast.css';
 
 declare const __APP_VERSION__: string;
 
@@ -45,26 +46,16 @@ export function WhatsNewToast({ onOpenChangelog }: WhatsNewToastProps) {
     <div
       role="status"
       aria-live="polite"
-      style={{
-        position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
-        background: 'var(--bg-elevated, #333)', color: 'var(--text-primary, #fff)',
-        padding: '10px 16px', borderRadius: 8, fontSize: '0.82rem',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-        display: 'flex', alignItems: 'center', gap: 12,
-        cursor: 'pointer', maxWidth: 360,
-      }}
+      className="whats-new-toast"
       onClick={handleClick}
     >
-      <span style={{ flex: 1 }}>
+      <span className="whats-new-toast-text">
         Updated to <strong>v{__APP_VERSION__}</strong> — see What&apos;s New
       </span>
       <button
         onClick={(e) => { e.stopPropagation(); dismiss(); }}
         aria-label="Dismiss"
-        style={{
-          background: 'none', border: 'none', color: 'inherit',
-          cursor: 'pointer', padding: '2px 4px', fontSize: '1rem', opacity: 0.6,
-        }}
+        className="whats-new-toast-dismiss"
       >
         &times;
       </button>

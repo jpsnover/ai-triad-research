@@ -55,7 +55,7 @@ function ErrorDetail({ detail }: { detail: NonNullable<ErrorDetailResult> }) {
             <dd>
               {ctx.buildVersion}
               {buildMismatch && (
-                <span className="admin-errors-stale-badge" style={{ marginLeft: 6 }}>stale build</span>
+                <span className="admin-errors-stale-badge">stale build</span>
               )}
             </dd>
           </>
@@ -253,7 +253,7 @@ export function AdminErrorsTab() {
                     ) : selectedId && detail ? (
                       <ErrorDetail detail={detail} />
                     ) : (
-                      <div className="admin-errors-instances" style={{ padding: '8px 16px' }}>
+                      <div className="admin-errors-instances admin-errors-instances-padded">
                         {instances?.items.map(inst => (
                           <div
                             key={inst.id}
@@ -261,19 +261,19 @@ export function AdminErrorsTab() {
                             onClick={e => { e.stopPropagation(); void handleSelectInstance(inst.id); }}
                           >
                             <span className="admin-errors-instance-id">{inst.id.slice(0, 8)}</span>
-                            <span style={{ flex: 1 }}>{inst.message}</span>
-                            <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
+                            <span className="admin-errors-instance-msg">{inst.message}</span>
+                            <span className="admin-errors-instance-meta">
                               {timeAgo(inst.timestamp)}
                             </span>
                             {inst.userId && (
-                              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
+                              <span className="admin-errors-instance-meta">
                                 {inst.userId}
                               </span>
                             )}
                           </div>
                         ))}
                         {instances?.items.length === 0 && (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '8px 0' }}>
+                          <div className="admin-errors-instance-empty">
                             No matching instances in this time window.
                           </div>
                         )}

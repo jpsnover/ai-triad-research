@@ -1,0 +1,32 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+.whats-new-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  background: var(--bg-elevated, #333);
+  color: var(--text-primary, #fff);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  max-width: 360px;
+}
+
+.whats-new-toast-text { flex: 1; }
+
+.whats-new-toast-dismiss {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 1rem;
+  opacity: 0.6;
+}

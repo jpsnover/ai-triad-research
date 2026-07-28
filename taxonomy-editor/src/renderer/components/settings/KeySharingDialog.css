@@ -1,0 +1,84 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+.key-sharing-dialog {
+  max-width: 480px;
+}
+
+.key-sharing-intro {
+  margin: 8px 0 16px;
+  opacity: 0.8;
+  font-size: 13px;
+}
+
+.key-sharing-choice-row {
+  display: flex;
+  gap: 8px;
+}
+
+.key-sharing-choice-btn {
+  flex: 1;
+}
+
+.key-sharing-hint {
+  margin: 4px 0 8px;
+  opacity: 0.7;
+  font-size: 12px;
+}
+
+.key-sharing-warning {
+  background: var(--settings-warn-bg, #fef3cd);
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin: 8px 0;
+  font-size: 12px;
+}
+
+.key-sharing-qr-wrap {
+  text-align: center;
+  padding: 12px 0;
+}
+
+.key-sharing-qr-img {
+  max-width: 100%;
+  image-rendering: pixelated;
+}
+
+.key-sharing-full-btn {
+  width: 100%;
+}
+
+.key-sharing-video-wrap {
+  position: relative;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.key-sharing-video {
+  width: 100%;
+  display: block;
+}
+
+.key-sharing-canvas {
+  display: none;
+}
+
+.key-sharing-payload-textarea {
+  resize: vertical;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.key-sharing-section-spaced {
+  margin-top: 8px;
+}
+
+.key-sharing-message {
+  margin-top: 8px;
+}
+
+.key-sharing-actions {
+  margin-top: 12px;
+}

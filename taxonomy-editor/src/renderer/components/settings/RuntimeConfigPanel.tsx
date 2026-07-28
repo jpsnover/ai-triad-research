@@ -335,7 +335,7 @@ function TierSection({ draft, serverState, modifiedOnly, onSet, onReset }: {
               field={f} draft={draft} serverState={serverState} onSet={onSet} onReset={onReset} />
           ))}
           {modifiedOnly && visibleFields.length === 0 && (
-            <div className="rc-empty" style={{ padding: '12px 0' }}>No modified fields in this tier.</div>
+            <div className="rc-empty rc-empty-padded">No modified fields in this tier.</div>
           )}
         </div>
       )}

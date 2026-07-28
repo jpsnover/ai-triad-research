@@ -86,10 +86,14 @@ function FlagCard({ flag, onToggle, onEdit, onDelete }: {
       </div>
       {flag.description && <div className="ff-card-desc">{flag.description}</div>}
       <div className="ff-card-meta">
-        <span className="ff-scope-badge" style={{
-          background: `color-mix(in srgb, ${scopeColor(flag.scope)} 15%, transparent)`,
-          color: scopeColor(flag.scope),
-        }}>
+        <span
+          className="ff-scope-badge"
+          // eslint-disable-next-line local/no-inline-style -- badge colors derived from flag scope
+          style={{
+            background: `color-mix(in srgb, ${scopeColor(flag.scope)} 15%, transparent)`,
+            color: scopeColor(flag.scope),
+          }}
+        >
           {scopeLabel(flag.scope)}
         </span>
         {flag.created_by && <span className="ff-card-owner">Owner: {flag.created_by}</span>}

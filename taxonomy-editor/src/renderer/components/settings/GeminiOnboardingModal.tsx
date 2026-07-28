@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import './GeminiOnboardingModal.css';
 
 const isWeb = import.meta.env.VITE_TARGET === 'web';
 const AI_STUDIO_URL = 'https://aistudio.google.com/apikey';
@@ -115,26 +116,24 @@ export function GeminiOnboardingModal({ open, onClose }: GeminiOnboardingModalPr
       onKeyDown={handleKeyDown}
     >
       <div
-        className="dialog"
+        className="dialog gemini-onboarding-dialog"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="gemini-onboarding-title"
-        style={{ maxWidth: 480 }}
       >
         <h3 id="gemini-onboarding-title">{headline}</h3>
 
-        <div style={{ marginBottom: 16 }}>
-          <p style={{ marginBottom: 12 }}>
+        <div className="gemini-onboarding-intro">
+          <p className="gemini-onboarding-intro-text">
             Gemini offers a generous free tier for AI features like debate, chat, and fact-checking.
             Get your API key in three steps:
           </p>
-          <ol style={{ paddingLeft: 20, margin: 0, lineHeight: 1.8 }}>
+          <ol className="gemini-onboarding-steps">
             <li>
               <button
-                className="btn btn-sm"
+                className="btn btn-sm gemini-onboarding-studio-btn"
                 onClick={handleOpenStudio}
-                style={{ marginLeft: 4 }}
               >
                 Open Google AI Studio
               </button>
@@ -159,23 +158,22 @@ export function GeminiOnboardingModal({ open, onClose }: GeminiOnboardingModalPr
         </div>
 
         {state === 'error' && (
-          <div className="error-text" style={{ marginBottom: 12 }}>
+          <div className="error-text gemini-onboarding-error">
             {errorMsg}
           </div>
         )}
 
         {state === 'success' && (
-          <div style={{ color: 'var(--color-success, #22c55e)', marginBottom: 12, fontWeight: 500 }}>
+          <div className="gemini-onboarding-success">
             &#10003; Key saved!
           </div>
         )}
 
-        <div className="dialog-actions" style={{ flexWrap: 'wrap', gap: 8 }}>
+        <div className="dialog-actions gemini-onboarding-actions">
           <button
-            className="btn"
+            className="btn gemini-onboarding-dismiss-btn"
             onClick={() => handleDismiss('permanent-dismiss')}
             disabled={state === 'validating' || state === 'success'}
-            style={{ fontSize: '0.85em' }}
           >
             I use a different AI
           </button>

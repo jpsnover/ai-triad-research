@@ -10,6 +10,7 @@ import type { ColorScheme, AIBackend, AIModel } from '../../hooks/useTaxonomySto
 import { AI_BACKENDS, MODELS_BY_BACKEND, initAIModels } from '../../hooks/useTaxonomyStore';
 import { KeySharingDialog } from './KeySharingDialog';
 import { useDescriptionMode, type DescriptionMode } from '../shared/DescriptionToggle';
+import './SettingsDialog.css';
 
 interface SettingsDialogProps {
   onClose: () => void;
@@ -166,8 +167,7 @@ function ShowKeysSection({ onKeysChanged }: { onKeysChanged?: () => void }) {
                   </span>
                   {keys.length > 0 && (
                     <button
-                      className="btn btn-sm"
-                      style={{ marginLeft: 'auto', fontSize: '0.72rem', padding: '2px 8px' }}
+                      className="btn btn-sm settings-dialog-verify-btn"
                       onClick={() => void handleVerifyKeys(b.value)}
                       disabled={verifying === b.value}
                       title="Verify keys against provider"
@@ -180,15 +180,14 @@ function ShowKeysSection({ onKeysChanged }: { onKeysChanged?: () => void }) {
                   const isConfirming = confirmingRemove?.backend === b.value && confirmingRemove?.index === k.index;
                   if (isConfirming) {
                     return (
-                      <div key={k.index} className="settings-key-summary-row" style={{ justifyContent: 'space-between', paddingLeft: 16 }}>
-                        <span style={{ fontSize: '0.78rem' }}>Remove this key?</span>
-                        <span style={{ display: 'flex', gap: 6 }}>
+                      <div key={k.index} className="settings-key-summary-row settings-dialog-confirm-row">
+                        <span className="settings-dialog-confirm-text">Remove this key?</span>
+                        <span className="settings-dialog-confirm-actions">
                           <button className="btn btn-sm" onClick={() => setConfirmingRemove(null)} disabled={deleting} autoFocus>
                             Cancel
                           </button>
                           <button
-                            className="btn btn-sm"
-                            style={{ background: '#ef4444', color: '#fff' }}
+                            className="btn btn-sm settings-dialog-danger-btn"
                             onClick={() => void handleRemoveKey(b.value, k.index)}
                             disabled={deleting}
                           >
@@ -200,31 +199,28 @@ function ShowKeysSection({ onKeysChanged }: { onKeysChanged?: () => void }) {
                   }
                   const keyResult = verifyStatus[b.value]?.find(r => r.index === k.index);
                   return (
-                    <div key={k.index} className="settings-key-summary-row" style={{ paddingLeft: 16 }}>
-                      <span className="settings-key-summary-masked" style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>
+                    <div key={k.index} className="settings-key-summary-row settings-dialog-key-row-indent">
+                      <span className="settings-key-summary-masked settings-dialog-masked-mono">
                         {k.masked}
                       </span>
                       {keyResult && (
                         <span
+                          className="settings-dialog-verify-status"
                           title={keyResult.valid ? 'Key is valid' : keyResult.error ?? 'Invalid key'}
-                          style={{ fontSize: '0.75rem', marginLeft: 4, color: keyResult.valid ? 'var(--success-text, #16a34a)' : 'var(--error-text, #dc2626)' }}
+                          // eslint-disable-next-line local/no-inline-style -- color reflects key valid/invalid state
+                          style={{ color: keyResult.valid ? 'var(--success-text, #16a34a)' : 'var(--error-text, #dc2626)' }}
                         >
                           {keyResult.valid ? '✓' : '✗'}
                           {!keyResult.valid && keyResult.error && (
-                            <span style={{ marginLeft: 4, fontSize: '0.7rem', opacity: 0.8 }}>{keyResult.error}</span>
+                            <span className="settings-dialog-verify-error">{keyResult.error}</span>
                           )}
                         </span>
                       )}
                       <button
-                        className="settings-key-delete-btn"
+                        className="settings-key-delete-btn settings-dialog-delete-btn"
                         onClick={() => setConfirmingRemove({ backend: b.value, index: k.index })}
                         aria-label={`Remove key ${k.masked}`}
                         title="Remove key"
-                        style={{
-                          background: 'none', border: 'none', cursor: 'pointer', padding: '4px 7px',
-                          color: 'var(--text-muted)', opacity: 0.5, transition: 'color 0.15s, opacity 0.15s',
-                          display: 'flex', alignItems: 'center', flexShrink: 0,
-                        }}
                         onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.opacity = '1'; }}
                         onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.opacity = '0.5'; }}
                       >
@@ -238,9 +234,9 @@ function ShowKeysSection({ onKeysChanged }: { onKeysChanged?: () => void }) {
           })}
 
           {totalKeys >= 2 && (
-            <div style={{ borderTop: '1px solid var(--border-color)', marginTop: 6, paddingTop: 6, display: 'flex', justifyContent: 'flex-end' }}>
+            <div className="settings-dialog-delete-all-footer">
               {confirmingDeleteAll ? (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.78rem' }}>
+                <span className="settings-dialog-delete-all-confirm">
                   <span>Delete all API keys? This cannot be undone.</span>
                   <button
                     className="btn btn-sm"
@@ -251,8 +247,7 @@ function ShowKeysSection({ onKeysChanged }: { onKeysChanged?: () => void }) {
                     Cancel
                   </button>
                   <button
-                    className="btn btn-sm"
-                    style={{ background: '#ef4444', color: '#fff' }}
+                    className="btn btn-sm settings-dialog-danger-btn"
                     onClick={() => void handleDeleteAll()}
                     disabled={deleting}
                   >
@@ -261,8 +256,7 @@ function ShowKeysSection({ onKeysChanged }: { onKeysChanged?: () => void }) {
                 </span>
               ) : (
                 <button
-                  className="btn btn-sm"
-                  style={{ color: '#ef4444', background: 'none', border: 'none' }}
+                  className="btn btn-sm settings-dialog-delete-all-btn"
                   onClick={() => setConfirmingDeleteAll(true)}
                   aria-label="Delete all stored API keys"
                 >
@@ -323,18 +317,19 @@ function TestKeysButton({ hasKey }: { hasKey: Record<string, boolean> }) {
         {testing ? 'Testing...' : 'Test Keys'}
       </button>
       {tested && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 12px', fontSize: '0.78rem', marginTop: 4 }}>
+        <div className="settings-dialog-test-results">
           {backendsWithKeys.map(b => {
             const r = results[b.value];
             if (!r) return null;
             return (
-              <span key={b.value} style={{ whiteSpace: 'nowrap' }} title={r.valid ? 'Key is valid' : r.error ?? 'Invalid key'}>
+              <span key={b.value} className="settings-dialog-test-result" title={r.valid ? 'Key is valid' : r.error ?? 'Invalid key'}>
+                {/* eslint-disable-next-line local/no-inline-style -- color reflects key valid/invalid state */}
                 <span style={{ color: r.valid ? 'var(--success-text, #16a34a)' : 'var(--error-text, #dc2626)' }}>
                   {r.valid ? '✓' : '✗'}
                 </span>
                 {' '}{backendLabel[b.value] ?? b.value}
                 {!r.valid && r.error && (
-                  <span style={{ fontSize: '0.68rem', color: 'var(--error-text, #dc2626)', marginLeft: 4, opacity: 0.8 }}>{r.error}</span>
+                  <span className="settings-dialog-test-result-error">{r.error}</span>
                 )}
               </span>
             );
@@ -541,7 +536,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
 
         {isLocalBackend ? (
           <div className="settings-key-section">
-            <span className="settings-label" style={{ fontStyle: 'italic', opacity: 0.7 }}>
+            <span className="settings-label settings-dialog-local-note">
               {AI_BACKENDS.find(b => b.value === aiBackend)?.label} runs locally — no API key needed
             </span>
           </div>
@@ -550,7 +545,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             {aiBackend === 'azure' && (
               <>
                 <label className="settings-label">Endpoint URL</label>
-                <div className="settings-key-row" style={{ marginBottom: 8 }}>
+                <div className="settings-key-row settings-dialog-endpoint-row">
                   <input
                     type="text"
                     className="settings-key-input"
@@ -584,11 +579,11 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             {keyError && <div className="settings-key-error">{keyError}</div>}
             {keySuccess && <div className="settings-key-success">{keySuccess}</div>}
             {keyProvisionUrl[aiBackend] && (
-              <div style={{ marginTop: 4 }}>
+              <div className="settings-dialog-provision-link-wrap">
                 <a
                   href="#"
                   onClick={(e) => { e.preventDefault(); void api.openExternal(keyProvisionUrl[aiBackend]!.url); }}
-                  style={{ fontSize: '0.8rem', color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer' }}
+                  className="settings-dialog-provision-link"
                 >
                   Get a {AI_BACKENDS.find(b => b.value === aiBackend)?.label} API key &#8594; {keyProvisionUrl[aiBackend]!.label}
                 </a>

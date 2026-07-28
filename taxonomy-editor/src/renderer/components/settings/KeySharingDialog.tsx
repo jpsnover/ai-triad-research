@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import './KeySharingDialog.css';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
@@ -171,22 +172,22 @@ export function KeySharingDialog({ onClose, onKeysImported }: KeySharingDialogPr
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
-      <div className="dialog settings-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+      <div className="dialog settings-dialog key-sharing-dialog" onClick={(e) => e.stopPropagation()}>
         <h3>Key Sharing</h3>
 
         {mode === 'choose' && (
           <>
-            <p style={{ margin: '8px 0 16px', opacity: 0.8, fontSize: 13 }}>
+            <p className="key-sharing-intro">
               Transfer API keys between devices using an encrypted QR code.
             </p>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => setMode('export')}>
+            <div className="key-sharing-choice-row">
+              <button className="btn btn-primary key-sharing-choice-btn" onClick={() => setMode('export')}>
                 Share Keys (QR)
               </button>
-              <button className="btn" style={{ flex: 1 }} onClick={() => { setMode('import-scan'); void startCamera(); }}>
+              <button className="btn key-sharing-choice-btn" onClick={() => { setMode('import-scan'); void startCamera(); }}>
                 Scan QR
               </button>
-              <button className="btn" style={{ flex: 1 }} onClick={() => setMode('import-paste')}>
+              <button className="btn key-sharing-choice-btn" onClick={() => setMode('import-paste')}>
                 Paste Payload
               </button>
             </div>
@@ -197,7 +198,7 @@ export function KeySharingDialog({ onClose, onKeysImported }: KeySharingDialogPr
           <>
             <div className="settings-key-section">
               <label className="settings-label">Encryption Passphrase</label>
-              <p style={{ margin: '4px 0 8px', opacity: 0.7, fontSize: 12 }}>
+              <p className="key-sharing-hint">
                 Choose a passphrase to encrypt your keys. You will need this same passphrase on the target device.
               </p>
               <div className="settings-key-row">
@@ -219,13 +220,13 @@ export function KeySharingDialog({ onClose, onKeysImported }: KeySharingDialogPr
 
         {mode === 'export' && qrDataUrl && (
           <>
-            <div style={{ background: 'var(--settings-warn-bg, #fef3cd)', padding: '8px 12px', borderRadius: 6, margin: '8px 0', fontSize: 12 }}>
+            <div className="key-sharing-warning">
               Anyone who photographs this QR code can extract your API keys (with the passphrase). Do not share it publicly.
             </div>
-            <div style={{ textAlign: 'center', padding: '12px 0' }}>
-              <img src={qrDataUrl} alt="API keys QR code" style={{ maxWidth: '100%', imageRendering: 'pixelated' }} />
+            <div className="key-sharing-qr-wrap">
+              <img src={qrDataUrl} alt="API keys QR code" className="key-sharing-qr-img" />
             </div>
-            <button className="btn btn-sm" onClick={handleCopyPayload} style={{ width: '100%' }}>
+            <button className="btn btn-sm key-sharing-full-btn" onClick={handleCopyPayload}>
               Copy Encrypted Payload (for paste import)
             </button>
           </>
@@ -233,16 +234,16 @@ export function KeySharingDialog({ onClose, onKeysImported }: KeySharingDialogPr
 
         {mode === 'import-scan' && (
           <>
-            <p style={{ margin: '4px 0 8px', opacity: 0.7, fontSize: 12 }}>
+            <p className="key-sharing-hint">
               Point your camera at the QR code displayed on the source device.
             </p>
             {scanning && (
-              <div style={{ position: 'relative', width: '100%', borderRadius: 8, overflow: 'hidden', marginBottom: 8 }}>
-                <video ref={videoRef} style={{ width: '100%', display: 'block' }} muted playsInline />
-                <canvas ref={canvasRef} style={{ display: 'none' }} />
+              <div className="key-sharing-video-wrap">
+                <video ref={videoRef} className="key-sharing-video" muted playsInline />
+                <canvas ref={canvasRef} className="key-sharing-canvas" />
               </div>
             )}
-            <button className="btn btn-sm" onClick={() => { stopCamera(); setMode('import-paste'); }} style={{ width: '100%' }}>
+            <button className="btn btn-sm key-sharing-full-btn" onClick={() => { stopCamera(); setMode('import-paste'); }}>
               Switch to Paste Payload
             </button>
           </>
@@ -253,15 +254,14 @@ export function KeySharingDialog({ onClose, onKeysImported }: KeySharingDialogPr
             <div className="settings-key-section">
               <label className="settings-label">Encrypted Payload</label>
               <textarea
-                className="settings-key-input"
+                className="settings-key-input key-sharing-payload-textarea"
                 value={pasteInput}
                 onChange={(e) => setPasteInput(e.target.value)}
                 placeholder='Paste the encrypted payload JSON here...'
                 rows={3}
-                style={{ resize: 'vertical', fontFamily: 'monospace', fontSize: 11 }}
               />
             </div>
-            <div className="settings-key-section" style={{ marginTop: 8 }}>
+            <div className="settings-key-section key-sharing-section-spaced">
               <label className="settings-label">Passphrase</label>
               <div className="settings-key-row">
                 <input
@@ -284,10 +284,10 @@ export function KeySharingDialog({ onClose, onKeysImported }: KeySharingDialogPr
           </>
         )}
 
-        {error && <div className="settings-key-error" style={{ marginTop: 8 }}>{error}</div>}
-        {success && <div className="settings-key-success" style={{ marginTop: 8 }}>{success}</div>}
+        {error && <div className="settings-key-error key-sharing-message">{error}</div>}
+        {success && <div className="settings-key-success key-sharing-message">{success}</div>}
 
-        <div className="dialog-actions" style={{ marginTop: 12 }}>
+        <div className="dialog-actions key-sharing-actions">
           {mode !== 'choose' && !success && (
             <button className="btn btn-sm" onClick={() => { stopCamera(); setMode('choose'); setQrDataUrl(null); setError(null); setPassphrase(''); setPasteInput(''); }}>
               Back

@@ -274,3 +274,5 @@
 }
 
 .rc-error { color: #ef4444; }
+
+.rc-empty-padded { padding: 12px 0; }
