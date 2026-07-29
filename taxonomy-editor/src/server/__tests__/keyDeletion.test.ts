@@ -53,4 +53,22 @@ describe('API key deletion', () => {
     expect(await store().get('gemini', U)).toBeNull();
     expect(await store().get('groq', U)).toBeNull();
   });
+
+  // Drift tripwire (t/1954): ALL_AI_BACKENDS was a hand-maintained literal that
+  // excluded these three BYOK backends, so delete-all silently left their keys
+  // behind. Deriving it from ENV_KEY_NAMES fixes that; this asserts the behavior
+  // so a future revert to a literal goes red.
+  it('deleteAllApiKeys clears the previously-drifted backends (moonshot, azure, zai)', async () => {
+    const u2 = 'carol';
+    const ctx2 = { principalName: u2, idp: 'github', storageUserId: u2, isAnonymous: false };
+    await store().set('moonshot', u2, 'k-moon');
+    await store().set('azure', u2, 'k-azure');
+    await store().set('zai', u2, 'k-zai');
+
+    await userContext.runWithUser(ctx2, () => deleteAllApiKeys());
+
+    expect(await store().get('moonshot', u2)).toBeNull();
+    expect(await store().get('azure', u2)).toBeNull();
+    expect(await store().get('zai', u2)).toBeNull();
+  });
 });

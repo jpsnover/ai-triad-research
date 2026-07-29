@@ -262,8 +262,12 @@ export async function deletePaidGeminiFallbackKey(): Promise<void> {
   await getKeyStore(getDataRoot).delete('gemini', PAID_FALLBACK_PARTITION);
 }
 
-/** All user-configurable AI backends — iterated by deleteAllApiKeys(). */
-const ALL_AI_BACKENDS: AIBackend[] = ['gemini', 'claude', 'groq', 'openai', 'tavily', 'ollama', 'deepseek'];
+/** All user-configurable AI backends — iterated by deleteAllApiKeys().
+ *  Derived from ENV_KEY_NAMES (the exhaustive Record<AIBackend, string> tsc
+ *  enforces) rather than hand-maintained, so a newly added backend can never be
+ *  silently missed by delete-all. A hardcoded literal had drifted — it excluded
+ *  azure/zai/moonshot, leaving their stored keys behind (t/1954). */
+const ALL_AI_BACKENDS = Object.keys(ENV_KEY_NAMES) as AIBackend[];
 
 export async function deleteApiKey(backend: AIBackend = 'gemini'): Promise<void> {
   await getKeyStore(getDataRoot).delete(backend, getCurrentUserId());
