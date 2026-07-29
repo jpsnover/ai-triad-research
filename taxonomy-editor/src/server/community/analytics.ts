@@ -190,6 +190,66 @@ async function readEvents(from: string, to: string): Promise<AnalyticsEvent[]> {
   return events;
 }
 
+// ── Aggregation accumulators ──
+
+type DailyEntry = { events: number; users: Set<string>; sessions: Set<string> };
+type UserEntry = { lastActive: string; sessions: Set<string>; events: number; categories: Record<string, number> };
+type SessionEntry = { first: number; last: number };
+
+/** t/892: sum AI usage/cost from an `ai.call` event's detail (additive, one pass). */
+function accumulateAiCost(aiCost: AiCostSummary, evt: AnalyticsEvent): void {
+  if (evt.event_type !== 'ai.call') return;
+  const d = evt.detail || {};
+  const tokensIn = Number(d.tokens_in) || 0;
+  const tokensOut = Number(d.tokens_out) || 0;
+  const costUsd = Number(d.estimated_cost_usd) || 0;
+  const model = typeof d.model === 'string' && d.model ? d.model : 'unknown';
+  aiCost.calls++; aiCost.tokensIn += tokensIn; aiCost.tokensOut += tokensOut; aiCost.costUsd += costUsd;
+  let m = aiCost.byModel[model];
+  if (!m) { m = { calls: 0, tokensIn: 0, tokensOut: 0, costUsd: 0 }; aiCost.byModel[model] = m; }
+  m.calls++; m.tokensIn += tokensIn; m.tokensOut += tokensOut; m.costUsd += costUsd;
+}
+
+/** Roll one event into the per-day totals (events + distinct users/sessions). */
+function accumulateDaily(dailyMap: Map<string, DailyEntry>, evt: AnalyticsEvent): void {
+  const date = evt.timestamp.slice(0, 10);
+  let daily = dailyMap.get(date);
+  if (!daily) { daily = { events: 0, users: new Set(), sessions: new Set() }; dailyMap.set(date, daily); }
+  daily.events++;
+  daily.users.add(evt.user);
+  daily.sessions.add(evt.session_id);
+}
+
+/** Roll one event into the per-user summary (last-active, sessions, categories). */
+function accumulateUser(userMap: Map<string, UserEntry>, evt: AnalyticsEvent): void {
+  let u = userMap.get(evt.user);
+  if (!u) { u = { lastActive: evt.timestamp, sessions: new Set(), events: 0, categories: {} }; userMap.set(evt.user, u); }
+  if (evt.timestamp > u.lastActive) u.lastActive = evt.timestamp;
+  u.sessions.add(evt.session_id);
+  u.events++;
+  u.categories[evt.category] = (u.categories[evt.category] || 0) + 1;
+}
+
+/** Track first/last event timestamps for one session (for duration averaging). */
+function accumulateSession(sessionTimes: Map<string, SessionEntry>, evt: AnalyticsEvent): void {
+  const ts = new Date(evt.timestamp).getTime();
+  let sess = sessionTimes.get(evt.session_id);
+  if (!sess) { sess = { first: ts, last: ts }; sessionTimes.set(evt.session_id, sess); }
+  if (ts < sess.first) sess.first = ts;
+  if (ts > sess.last) sess.last = ts;
+}
+
+/** Mean session duration in ms across sessions with a positive span (0 if none). */
+function meanSessionDurationMs(sessionTimes: Map<string, SessionEntry>): number {
+  let totalDuration = 0;
+  let sessionCount = 0;
+  for (const sess of sessionTimes.values()) {
+    const dur = sess.last - sess.first;
+    if (dur > 0) { totalDuration += dur; sessionCount++; }
+  }
+  return sessionCount > 0 ? Math.round(totalDuration / sessionCount) : 0;
+}
+
 /** Query aggregated analytics for a date range. */
 export async function queryAggregated(from: string, to: string): Promise<QueryResult> {
   const events = await readEvents(from, to);
@@ -199,9 +259,9 @@ export async function queryAggregated(from: string, to: string): Promise<QueryRe
   const featureUsage: Record<string, number> = {};
   const eventTypes: Record<string, number> = {};
   const aiCost: AiCostSummary = { calls: 0, tokensIn: 0, tokensOut: 0, costUsd: 0, byModel: {} };
-  const dailyMap = new Map<string, { events: number; users: Set<string>; sessions: Set<string> }>();
-  const userMap = new Map<string, { lastActive: string; sessions: Set<string>; events: number; categories: Record<string, number> }>();
-  const sessionTimes = new Map<string, { first: number; last: number }>();
+  const dailyMap = new Map<string, DailyEntry>();
+  const userMap = new Map<string, UserEntry>();
+  const sessionTimes = new Map<string, SessionEntry>();
 
   for (const evt of events) {
     userSet.add(evt.user);
@@ -210,47 +270,13 @@ export async function queryAggregated(from: string, to: string): Promise<QueryRe
     featureUsage[evt.category] = (featureUsage[evt.category] || 0) + 1;
     eventTypes[evt.event_type] = (eventTypes[evt.event_type] || 0) + 1;
 
-    // t/892: sum AI usage/cost from ai.call detail (one pass, additive).
-    if (evt.event_type === 'ai.call') {
-      const d = evt.detail || {};
-      const tokensIn = Number(d.tokens_in) || 0;
-      const tokensOut = Number(d.tokens_out) || 0;
-      const costUsd = Number(d.estimated_cost_usd) || 0;
-      const model = typeof d.model === 'string' && d.model ? d.model : 'unknown';
-      aiCost.calls++; aiCost.tokensIn += tokensIn; aiCost.tokensOut += tokensOut; aiCost.costUsd += costUsd;
-      let m = aiCost.byModel[model];
-      if (!m) { m = { calls: 0, tokensIn: 0, tokensOut: 0, costUsd: 0 }; aiCost.byModel[model] = m; }
-      m.calls++; m.tokensIn += tokensIn; m.tokensOut += tokensOut; m.costUsd += costUsd;
-    }
-
-    const date = evt.timestamp.slice(0, 10);
-    let daily = dailyMap.get(date);
-    if (!daily) { daily = { events: 0, users: new Set(), sessions: new Set() }; dailyMap.set(date, daily); }
-    daily.events++;
-    daily.users.add(evt.user);
-    daily.sessions.add(evt.session_id);
-
-    let u = userMap.get(evt.user);
-    if (!u) { u = { lastActive: evt.timestamp, sessions: new Set(), events: 0, categories: {} }; userMap.set(evt.user, u); }
-    if (evt.timestamp > u.lastActive) u.lastActive = evt.timestamp;
-    u.sessions.add(evt.session_id);
-    u.events++;
-    u.categories[evt.category] = (u.categories[evt.category] || 0) + 1;
-
-    const ts = new Date(evt.timestamp).getTime();
-    let sess = sessionTimes.get(evt.session_id);
-    if (!sess) { sess = { first: ts, last: ts }; sessionTimes.set(evt.session_id, sess); }
-    if (ts < sess.first) sess.first = ts;
-    if (ts > sess.last) sess.last = ts;
+    accumulateAiCost(aiCost, evt);
+    accumulateDaily(dailyMap, evt);
+    accumulateUser(userMap, evt);
+    accumulateSession(sessionTimes, evt);
   }
 
-  let totalDuration = 0;
-  let sessionCount = 0;
-  for (const sess of sessionTimes.values()) {
-    const dur = sess.last - sess.first;
-    if (dur > 0) { totalDuration += dur; sessionCount++; }
-  }
-  const avgSessionDurationMs = sessionCount > 0 ? Math.round(totalDuration / sessionCount) : 0;
+  const avgSessionDurationMs = meanSessionDurationMs(sessionTimes);
 
   const daily: DailySummary[] = Array.from(dailyMap.entries())
     .sort(([a], [b]) => a.localeCompare(b))
