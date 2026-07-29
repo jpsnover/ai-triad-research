@@ -1984,3 +1984,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — local-vs-CI divergence by *test scope* (changed-file run ≠ full suite), sibling of #88 (keys-present live-backend divergence); ~5h fleet-wide red main. Reinforces "verify before push" with a concrete failure mode: repo-wide lints live outside the files they govern, and a deliberately-invalid fixture must carry the gate's inline suppression marker.
 
 **Applies To:** All agents adding or modifying tests/fixtures in a repo with cross-file or repo-wide lint tests (`ModelLiteralLint`, manifest/invariant guards).
+
+---
+
+## #95 [Build] Foreground `git push` of a Large Data-Repo File Set Exceeds the 120s Bash Timeout — Background It, Then Verify the Ref
+
+**Pattern:** A plain foreground `git push` of many/large files (e.g. 70 debate JSONL + flight-recorder dumps to `ai-triad-data` over SSH) routinely exceeds the **Bash tool's 120s default timeout** and gets **killed mid-upload (exit 143 / SIGTERM)**. The local **commit has already landed**, but the **push has not completed** — the SHA is on local `HEAD` but NOT on origin. A dependent action taken on "push succeeded" (a prune, a downstream job, telling a peer the data is available) then operates on a ref that was never published.
+
+**Instances:**
+- 2026-07-28 — Technical Lead (p/8#113): foreground `git push` of **70 large data-repo files** (debate JSONL / flight-recorders) to `ai-triad-data` over SSH was **killed at 2 min (exit 143)** mid-upload — commit landed, push hadn't. Resolved via **`run_in_background`** (push is idempotent — a partial upload corrupts nothing; retry completed **exit 0**) and **`git ls-remote` verification of the ref on origin before any dependent prune/action**. No data lost; a timeout-kill ≠ a broken push (ties to the "data-repo push works, HTTP-408 era ended" correction).
+
+**Root Cause:** The Bash tool's default 120s timeout is shorter than a large multi-file SSH push. SIGTERM at the boundary kills the client mid-transfer, but `git commit` already completed locally — leaving a **split state**: local commit present, origin ref absent. The kill looks like a hard error, so it's easy to (a) misdiagnose the remote as broken or (b) assume nothing landed and redo work — when the commit is fine and only the push needs re-running. Same **"foreground long git/fs op exceeds 120s → gets killed → background it"** genus as #78 (worktree-remove rm timeout); the push-side sibling.
+
+**Prevention:**
+1. **Push large data-repo file sets in the background** (`run_in_background`) or with an extended Bash `timeout` — never a plain foreground push. `git push` is idempotent, so a backgrounded retry after a killed foreground attempt is safe.
+2. **Verify the ref is on origin before any dependent action** — `git ls-remote origin <branch>` and confirm the pushed SHA is published BEFORE a prune / downstream job / announcing availability. "The push command returned (or was killed)" is bookkeeping; the ref on origin is the artifact (**bookkeeping ≠ artifact**).
+3. **A killed push (exit 143) is NOT a broken remote** — check `git ls-remote` first; don't file "data-repo push broken." The SSH data-repo push works, it's just slow for large sets.
+
+**Status:** Active — push-side sibling of #78 in the **"foreground long git/fs op > 120s Bash default → background it"** genus, plus a bookkeeping≠artifact verify step (the killed push left a commit-landed / ref-absent split state).
+
+**Applies To:** All agents pushing large or many-file changes — especially data-repo (`ai-triad-data`) debate JSONL / flight-recorder / embeddings batches over SSH.

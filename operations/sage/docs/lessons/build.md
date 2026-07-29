@@ -889,6 +889,26 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 
 ---
 
+## [Build] Foreground `git push` of a Large Data-Repo File Set Exceeds the 120s Bash Timeout — Background It, Then Verify the Ref on origin
+
+**Pattern:** A plain foreground `git push` of many/large files (e.g. 70 debate JSONL + flight-recorder dumps to `ai-triad-data` over SSH) routinely takes longer than the **Bash tool's 120s default timeout** and gets **killed mid-upload (exit 143 / SIGTERM)**. The local **commit has already landed**, but the **push has not completed** — so the SHA is on local `HEAD` but NOT on origin. Any dependent action taken on the assumption "push succeeded" (a prune, a downstream job, telling a peer the data is available) then operates on a ref that was never published.
+
+**Instances:**
+- 2026-07-28 — Technical Lead (p/8#113): foreground `git push` of **70 large data-repo files** (debate JSONL / flight-recorders) to `ai-triad-data` over SSH was **killed at 2 min (exit 143)** mid-upload — the commit had landed but the push hadn't. Resolved by **re-running via `run_in_background`** (push is idempotent — a partial upload corrupts nothing; the retry completed **exit 0**) and **verifying the ref on origin (`git ls-remote`) before any dependent prune/action**. No data lost, and not a broken remote — a timeout-kill ≠ a broken push (ties to the "data-repo push works, HTTP-408 era ended" correction).
+
+**Root Cause:** The Bash tool's default 120s timeout is shorter than a large multi-file SSH push. SIGTERM at the boundary kills the client mid-transfer, but `git commit` already completed locally — so the failure leaves a **split state**: local commit present, origin ref absent. Because the kill looks like a hard error, it's easy to either (a) misdiagnose the remote as broken, or (b) assume nothing landed and redo the work — when in fact the commit is fine and only the push needs re-running. Same **"foreground long git/fs op exceeds 120s → gets killed → background it"** genus as #78 (worktree-remove rm timeout on Windows); this is the push-side sibling.
+
+**Prevention:**
+1. **Push large data-repo file sets in the background** (`run_in_background`) or with an extended Bash `timeout` — never a plain foreground push. `git push` is idempotent, so a backgrounded retry after a killed foreground attempt is safe.
+2. **Verify the ref is actually on origin before any dependent action** — `git ls-remote origin <branch>` and confirm the pushed SHA is published BEFORE a prune, a downstream job, or announcing availability. "The push command returned (or was killed)" is bookkeeping; the ref on origin is the artifact (**bookkeeping ≠ artifact** genus).
+3. **A killed push (exit 143) is NOT a broken remote** — check `git ls-remote` first; don't file "data-repo push broken." The SSH data-repo push works, it's just slow for large sets.
+
+**Status:** Active — push-side sibling of #78 in the **"foreground long git/fs op > 120s Bash default → background it"** genus, combined with a bookkeeping≠artifact verify step (the killed push left a commit-landed / ref-absent split state).
+
+**Applies To:** All agents pushing large or many-file changes — especially data-repo (`ai-triad-data`) debate JSONL / flight-recorder / embeddings batches over SSH.
+
+---
+
 ## [Build] Uncommitted Fixes Mask Committed Breakage — Dirty Working Tree as False Witness
 
 **Pattern:** A multi-step refactor deletes a module and fixes its importers, but only the deletion is committed — the importer fixes remain uncommitted in the shared working tree. Local verify passes (reads dirty tree), committed state is broken. Compounding: diagnosing "is main green?" by building the dirty shared tree produces a false-green that overrules a clean-worktree agent who was correct.
