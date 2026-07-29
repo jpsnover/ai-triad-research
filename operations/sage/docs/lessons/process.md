@@ -504,3 +504,25 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 **Status:** Active — convention effective 2026-07-29 (e/49, owner-approved, DevOps flipped live). Owner deciding `enforce_admins` true vs. convention. Companion mechanical fix (detached-HEAD feature-branch push needs `HEAD:refs/heads/<branch>`) recorded separately in build.md (ServerAPI p/79#19); both folded into the revised `/land-from-worktree`.
 
 **Applies To:** Every role that lands work to `main` — i.e. the whole fleet.
+
+---
+
+## [Process] Docs-Only PRs Can't Self-Merge Under the Checks-Only Gate — Path-Filtered CI Leaves Required Contexts Unreported (BLOCKED)
+
+**Pattern:** Under the checks-only PR-flow (see the `enforce_admins=false` convention lesson above), a **docs-only or CI-config-only PR is un-mergeable by self-merge**. CI uses path-filtering (`dorny/paths-filter`) so code jobs are skipped on a docs diff — `test-powershell` + `test-electron` report `skipped`, and the 4 required `test-electron (variant)` contexts **never report at all**. A required status context only satisfies the gate if it actually runs and reports `success`; a skipped/never-reported context counts as *pending*, not passing. So 5 of 6 required checks can't be satisfied → `mergeStateStatus=BLOCKED` regardless of discipline. A docs change lands only via (a) TL `--admin`-merge (the "PR path itself blocked" exception) or (b) a flagged routine direct-push.
+
+**Instances (3 roles in one hour — a systemic gap, not an edge case):**
+- 2026-07-29 — PowerShell PR #134 (branch-protection doc-block correction, t/1938#6): `mergeStateStatus=BLOCKED`, path-filter skipped all code checks; parked for a TL admin-merge rather than bypassing (e/49#8).
+- 2026-07-29 — Computational Linguist (e/49#10): docs-only is the **MAJORITY** of CL lands (provenance registers, analyses, review docs are pure markdown; the CL checklist *requires* the register update in the same PR). One pure-docs commit today (`ecb137e7`, t/1853) would have parked BLOCKED. Flags two second-order harms: (1) TL becomes a **synchronous dependency of every docs land** (a steady trickle, not a rare exception); (2) mixed PRs dodge the gap → **perverse incentive to bundle docs with unrelated code** to get mergeable checks, against atomic lands.
+- 2026-07-29 — Sage (this session): the session's lessons-doc commits (`deca6ffc`, `2cff7439`, `08750e3f`, `8d3c40f2`, `7d0da850` + earlier) are all **docs-only** — same wall. Not direct-pushed; parked on local main for a TL admin-merge or the flow-fix.
+
+**Root Cause:** Required status checks and path-filtered CI are in tension. Strict branch protection waits for *every* required context to report `success`; path-filtering (correct for speed on code PRs) makes those contexts **unreportable** on a docs diff — skipped jobs don't emit the required context, and "never reported" is treated as pending forever. The gate is simultaneously too weak for admins (bypassable, #100 sibling) and too strong for docs (un-satisfiable) — two failure modes of the same rollout.
+
+**Prevention / Fix:**
+1. **Landing a docs/CI-config-only change under the convention: route via TL `--admin`-merge** (the sanctioned "PR path itself blocked" exception) — reference the authorization; do NOT routine-direct-push.
+2. **Durable flow-fix (owner/DevOps):** the canonical GitHub-Actions pattern for "required checks + path filters" is an **always-run aggregate gate** (PowerShell, e/49#11): add one `ci-gate` job with `if: always()` that `needs:` the 6 real jobs and passes iff none **failed** (skipped = OK, `!contains(needs.*.result, 'failure')`), then make **`ci-gate` the single required context**, replacing the 6 individual `test-*` contexts. A docs-only PR then has the code jobs skip → `ci-gate` passes → self-merges; a red code job → `ci-gate` fails → blocked. No `enforce_admins` change; keeps docs+register PRs atomic; removes the bundle-with-code incentive. (Leans on path-filter correctness — already true today.) DevOps owns the `ci.yml` + branch-protection-contexts swap. Until it lands, docs PRs need admin-merge.
+3. **If `enforce_admins` goes true, this becomes a HARD wall** for every docs/CI-config change — must be fixed *first*. (Decision landed on keeping `enforce_admins=false` + a tool-layer push guard t/1926, so the admin-merge valve stays available — e/49#7/#9.)
+
+**Status:** Active / OPEN — live gap (PR #134 stuck 2026-07-29); flow-fix not yet built. Directly affects Sage (docs-only lessons commits share the wall). Sibling to the `enforce_admins=false` convention lesson.
+
+**Applies To:** Any role landing docs-only or CI-config-only changes to `main` — Sage (lessons/docs), Documentation, DevOps (CI config), anyone editing `AGENTS.md`-adjacent docs.

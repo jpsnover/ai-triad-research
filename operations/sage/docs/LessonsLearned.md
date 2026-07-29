@@ -2030,6 +2030,28 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
+## [Process] Docs-Only PRs Can't Self-Merge Under the Checks-Only Gate — Path-Filtered CI Leaves Required Contexts Unreported (BLOCKED)
+
+**Pattern:** Under the checks-only PR-flow, a **docs-only / CI-config-only PR is un-mergeable by self-merge**. Path-filtering (`dorny/paths-filter`) skips code jobs on a docs diff — `test-powershell`+`test-electron` report `skipped`, the 4 required `test-electron (variant)` contexts **never report at all**. A required context satisfies the gate only if it runs and reports `success`; never-reported = pending forever. 5/6 required checks can't be satisfied → `mergeStateStatus=BLOCKED` regardless of discipline. Docs lands only via (a) TL `--admin`-merge (the "PR path itself blocked" exception) or (b) a flagged direct-push.
+
+**Instances (3 roles in one hour — systemic, not edge case):**
+- 2026-07-29 — PowerShell PR #134 (t/1938#6): BLOCKED; parked for TL admin-merge (e/49#8).
+- 2026-07-29 — Computational Linguist (e/49#10): docs-only is the MAJORITY of CL lands (registers, analyses, reviews); `ecb137e7` (t/1853) would have parked. Names two harms: TL becomes a synchronous dependency of every docs land; mixed PRs dodge the gap → perverse incentive to bundle docs with code.
+- 2026-07-29 — Sage (this session): lessons-doc commits are all docs-only → same wall; parked on local main, not direct-pushed.
+
+**Root Cause:** Required status checks vs. path-filtered CI are in tension. Strict protection waits for every required context to report `success`; path-filtering makes those contexts unreportable on a docs diff, and "never reported" ≠ "passed." The gate is simultaneously too weak for admins (bypassable) and too strong for docs (un-satisfiable) — two failure modes of the same rollout.
+
+**Prevention / Fix:**
+1. Docs/CI-config-only land under the convention: route via TL `--admin`-merge (sanctioned "PR path blocked" exception) — reference the authorization; don't routine-direct-push.
+2. Durable flow-fix (owner/DevOps): the canonical "required checks + path filters" pattern is an **always-run aggregate gate** (PowerShell e/49#11) — one `ci-gate` job, `if: always()`, `needs:` the 6 real jobs, passes iff none **failed** (skipped=OK), made the **single required context** replacing the 6 `test-*`. Docs-only PR → code jobs skip → `ci-gate` passes → self-merges; red code job → `ci-gate` fails → blocked. No `enforce_admins` change; keeps docs atomic; removes the bundle-with-code incentive. DevOps owns the `ci.yml` + contexts swap. Until it lands, docs PRs need admin-merge.
+3. If `enforce_admins` goes true this is a HARD wall for every docs/CI-config change — fix first. (Decision: keep `enforce_admins=false` + tool-layer push-guard t/1926, so the admin-merge valve stays.)
+
+**Status:** Active / OPEN — live gap (PR #134 stuck 2026-07-29); flow-fix unowned. 3 affected roles (PowerShell, CL, Sage). Sibling to the `enforce_admins=false` convention entry.
+
+**Applies To:** Any role landing docs-only / CI-config-only changes — Sage, Computational Linguist, Documentation, DevOps (CI config), anyone editing docs.
+
+---
+
 ## [Build] Building a Sibling-Worktree Path With `..` Collapses to the Wrong Base
 
 **Pattern:** Constructing a sibling worktree's path as `<repo>/../<sibling>` mis-resolves when `..` is anchored on the wrong segment. `C:/Users/jsnov/repos/../wt-1938b` collapses `repos/..` → `C:/Users/jsnov` → `C:/Users/jsnov/wt-1938b`, but the worktree lives at `C:/Users/jsnov/repos/wt-1938b`, so `cd` fails "No such file or directory" mid-land. The repo dir is `…/repos/ai-triad-research`; a sibling at `…/repos/wt-1938b` is `<repo>/../wt-1938b` (`ai-triad-research/..`), NOT `repos/../wt-1938b`.
