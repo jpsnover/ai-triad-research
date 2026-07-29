@@ -25,6 +25,17 @@ interface ExtractionTrace {
   an_nodes_added_ids: string[];
 }
 
+type ExtractedClaimsData = NonNullable<EntryDiagnostics['extracted_claims']>;
+type AcceptedClaim = ExtractedClaimsData['accepted'][number];
+type RejectedClaim = ExtractedClaimsData['rejected'][number];
+type EntailmentRepair = NonNullable<EntryDiagnostics['entailment_repairs']>[number];
+
+interface SharedBadges {
+  sharedBdiCategory: string | null;
+  sharedSpecificity: string | null;
+  sharedSteelmanOf: string | null;
+}
+
 export interface ClaimsTabProps {
   entry: { id: string; type: string; content?: unknown; metadata?: unknown; taxonomy_refs?: unknown[]; policy_refs?: unknown[]; speaker: string };
   diag: EntryDiagnostics | undefined;
@@ -33,6 +44,398 @@ export interface ClaimsTabProps {
   an: ArgumentNetwork | undefined;
   nodeWeights: Map<string, number>;
   searchQuery?: string;
+}
+
+// --- Extraction status (t/226) -------------------------------------------
+
+function computeExtractionStatus(diag: EntryDiagnostics | undefined, meta: Record<string, unknown> | undefined) {
+  const status = (diag as Record<string, unknown> | undefined)?.extraction_status as string | undefined;
+  const sketchCount = (meta?.my_claims as unknown[] | undefined)?.length ?? 0;
+  const acceptedCount = diag?.extracted_claims?.accepted?.length ?? 0;
+  const showReExtract = sketchCount > 0 && acceptedCount === 0 && status !== 'pending';
+  return { status, showReExtract };
+}
+
+// --- Extracted Claims: shared per-section header badges -------------------
+
+function computeSharedBadges(accepted: AcceptedClaim[], an: ArgumentNetwork | undefined): SharedBadges {
+  // Compute shared per-section metadata badges (§3 de-engineering: move repeated labels to section header)
+  const acceptedAnNodes = accepted.map(c => an?.nodes.find(n => n.id === c.id));
+  const uniqueBdiCategories = new Set(acceptedAnNodes.map(n => n?.bdi_category).filter(Boolean));
+  const uniqueSpecificities = new Set(acceptedAnNodes.map(n => n?.specificity).filter(Boolean));
+  const uniqueSteelmanOfs = new Set(acceptedAnNodes.map(n => n?.steelman_of).filter(Boolean));
+  // Only hoist to header when all rows share the exact same non-null value
+  const sharedBdiCategory = uniqueBdiCategories.size === 1 && accepted.length > 1
+    ? [...uniqueBdiCategories][0] as string : null;
+  const sharedSpecificity = uniqueSpecificities.size === 1 && accepted.length > 1
+    ? [...uniqueSpecificities][0] as string : null;
+  const sharedSteelmanOf = uniqueSteelmanOfs.size === 1 && accepted.length > 1
+    ? [...uniqueSteelmanOfs][0] as string : null;
+  return { sharedBdiCategory, sharedSpecificity, sharedSteelmanOf };
+}
+
+function buildSectionSuffix({ sharedBdiCategory, sharedSpecificity, sharedSteelmanOf }: SharedBadges): React.ReactNode {
+  const bdiHeaderBadge = sharedBdiCategory ? (
+    // eslint-disable-next-line local/no-inline-style -- background/color computed from sharedBdiCategory
+    <span style={{ padding: '0 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, marginLeft: 6,
+      background: sharedBdiCategory === 'belief' ? 'color-mix(in srgb, var(--color-saf) 15%, transparent)' : sharedBdiCategory === 'desire' ? 'color-mix(in srgb, var(--color-skp) 15%, transparent)' : 'color-mix(in srgb, var(--color-acc) 15%, transparent)',
+      color: sharedBdiCategory === 'belief' ? 'var(--color-saf)' : sharedBdiCategory === 'desire' ? 'var(--color-skp)' : 'var(--color-acc)' }}>
+      {sharedBdiCategory}
+    </span>
+  ) : null;
+  const specificityHeaderBadge = sharedSpecificity ? (
+    <span className="clm-hdr-specificity">
+      {sharedSpecificity}
+    </span>
+  ) : null;
+  const steelmanHeaderBadge = sharedSteelmanOf ? (
+    <span className="clm-hdr-steelman">
+      steelman of {POVER_INFO[sharedSteelmanOf as keyof typeof POVER_INFO]?.label ?? sharedSteelmanOf}
+    </span>
+  ) : null;
+
+  return (bdiHeaderBadge || specificityHeaderBadge || steelmanHeaderBadge) ? (
+    <span className="clm-section-suffix">
+      {bdiHeaderBadge}{specificityHeaderBadge}{steelmanHeaderBadge}
+    </span>
+  ) : null;
+}
+
+// --- Accepted claim: per-row derived metadata ----------------------------
+
+function computeEntailmentMeta(c: AcceptedClaim, diag: EntryDiagnostics) {
+  const repair = diag.entailment_repairs?.find(r => r.node_id === c.id);
+  const hasEntailmentData = (diag.entailment_repairs?.length ?? 0) > 0;
+  // §3: only show chip for non-pass verdicts (flag/fail); pass/entailed shows nothing
+  const entailmentVerdict: Verdict | null = repair
+    ? (repair.verdict === 'entailed' ? 'pass' : repair.verdict === 'partial' ? 'flag' : 'fail')
+    : null;
+  const showEntailmentChip = entailmentVerdict != null && entailmentVerdict !== 'pass';
+  const verdictColor = repair ? (repair.verdict === 'entailed' ? 'var(--success)' : repair.verdict === 'partial' ? 'var(--warning)' : 'var(--danger)') : null;
+  return { repair, hasEntailmentData, entailmentVerdict, showEntailmentChip, verdictColor };
+}
+
+function computeClaimRowMeta(c: AcceptedClaim, an: ArgumentNetwork | undefined, diag: EntryDiagnostics) {
+  const outEdges = an?.edges.filter(e => e.source === c.id) ?? [];
+  const edgeSummary = outEdges.map(edge => {
+    const label = edge.type === 'attacks'
+      ? (edge.attack_type ? `attacks(${edge.attack_type})` : 'attacks')
+      : 'supports';
+    return `${label} ${edge.target}`;
+  }).join(', ');
+  const anNode = an?.nodes.find(n => n.id === c.id);
+  const ec = anNode?.extraction_confidence;
+  const ecBand = ec != null ? (ec >= 1.0 ? 'near-verbatim' : ec >= 0.8 ? 'faithful compression' : ec >= 0.6 ? 'implicit premise' : 'minimum') : null;
+  return { outEdges, edgeSummary, anNode, ec, ecBand, ...computeEntailmentMeta(c, diag) };
+}
+
+type ClaimRowMeta = ReturnType<typeof computeClaimRowMeta>;
+
+// --- Accepted claim: leaf sub-components ----------------------------------
+
+function RowBdiBadge({ anNode, sharedBdiCategory }: { anNode: ArgumentNetworkNode | undefined; sharedBdiCategory: string | null }) {
+  // §3: per-row badge only when not hoisted to section header
+  if (!anNode?.bdi_category || sharedBdiCategory) return null;
+  return (
+    // eslint-disable-next-line local/no-inline-style -- background/color computed from anNode.bdi_category
+    <span style={{ padding: '0 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, marginRight: 3, background: anNode.bdi_category === 'belief' ? 'color-mix(in srgb, var(--color-saf) 15%, transparent)' : anNode.bdi_category === 'desire' ? 'color-mix(in srgb, var(--color-skp) 15%, transparent)' : 'color-mix(in srgb, var(--color-acc) 15%, transparent)', color: anNode.bdi_category === 'belief' ? 'var(--color-saf)' : anNode.bdi_category === 'desire' ? 'var(--color-skp)' : 'var(--color-acc)' }}>
+      {anNode.bdi_category}
+    </span>
+  );
+}
+
+function ClaimRowBadges({ anNode, sharedBdiCategory, sharedSpecificity, sharedSteelmanOf }: { anNode: ArgumentNetworkNode | undefined } & SharedBadges) {
+  return (
+    <>
+      <RowBdiBadge anNode={anNode} sharedBdiCategory={sharedBdiCategory} />
+      {anNode?.specificity && !sharedSpecificity && (
+        <span className="clm-row-specificity">
+          {anNode.specificity}
+        </span>
+      )}
+      {anNode?.steelman_of && !sharedSteelmanOf && (
+        <span className="clm-row-steelman">
+          steelman of {POVER_INFO[anNode.steelman_of as keyof typeof POVER_INFO]?.label ?? anNode.steelman_of}
+        </span>
+      )}
+    </>
+  );
+}
+
+function ClaimSummary({ c, meta, sharedBdiCategory, sharedSpecificity, sharedSteelmanOf }: { c: AcceptedClaim; meta: ClaimRowMeta } & SharedBadges) {
+  const { outEdges, edgeSummary, anNode, ec, ecBand, repair, hasEntailmentData, entailmentVerdict, showEntailmentChip } = meta;
+  return (
+    <summary className="clm-summary">
+      <span className="clm-c-success">✓ {c.id}</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nThreshold: < 10-15% = rejected as not grounded.\n${c.overlap_pct}% = ${c.overlap_pct < 50 ? 'moderate' : 'strong'} lexical grounding.`} className="clm-overlap-pct">{c.overlap_pct}%</span>{' '}
+      {ec != null && (
+        <ScoreBadge
+          value={ec}
+          label="FIRE"
+          tooltip={`Extraction Confidence: ${ec.toFixed(2)}\nBand: ${ecBand}\n\nFIRE metric — how faithfully this claim was extracted from the speaker's statement.\n1.0 = near-verbatim (overlap ≥70%)\n0.8 = faithful compression (≥50%)\n0.6 = implicit premise (≥30%)\n0.5 = minimum (below 30%)`}
+        />
+      )}
+      {/* §3: chip only for non-pass entailment outcomes */}
+      {showEntailmentChip && repair && (
+        <VerdictChip
+          verdict={entailmentVerdict!}
+          label={`${repair.verdict === 'partial' ? '~' : '✗'} ${repair.verdict}`}
+          tooltip={`Entailment: ${repair.verdict}\n${repair.explanation}`}
+        />
+      )}
+      {!repair && hasEntailmentData && (
+        <span className="clm-not-sampled">not sampled</span>
+      )}
+      <ClaimRowBadges
+        anNode={anNode}
+        sharedBdiCategory={sharedBdiCategory}
+        sharedSpecificity={sharedSpecificity}
+        sharedSteelmanOf={sharedSteelmanOf}
+      />
+      <Highlight text={c.text} />
+      {anNode?.attribution_text_genus && <div className="claim-attribution-text"><span className="claim-attribution-label">Attribution:</span>{anNode.attribution_text_genus}</div>}
+      {outEdges.length > 0 && (
+        <span className="clm-edge-summary">
+          [{edgeSummary}]
+        </span>
+      )}
+    </summary>
+  );
+}
+
+function ClaimEdges({ outEdges, an }: { outEdges: ArgumentNetworkEdge[]; an: ArgumentNetwork | undefined }) {
+  const hasSupports = outEdges.some(e => e.type === 'supports');
+  const hasAttacks = outEdges.some(e => e.type === 'attacks');
+  const concedeAndPivot = hasSupports && hasAttacks;
+  const strengthColors = { decisive: 'var(--success)', substantial: 'var(--color-saf)', tangential: 'var(--text-muted)' } as Record<string, string>;
+  return (
+  <div className="clm-edges-wrap">
+    {concedeAndPivot && (
+      <div className="clm-concede-pivot">
+        Concede-and-pivot: supports + attacks edges from the same claim
+      </div>
+    )}
+    {outEdges.map((edge, ei) => {
+      const targetNode = an?.nodes.find(n => n.id === edge.target);
+      const edgeLabel = edge.type === 'attacks'
+        ? (edge.attack_type ? `attacks (${edge.attack_type})` : 'attacks')
+        : 'supports';
+      return (
+        // eslint-disable-next-line local/no-inline-style -- borderLeft computed from edge.type
+        <div key={ei} style={{ fontSize: 'var(--text-2xs)', margin: '3px 0', paddingLeft: 10, borderLeft: edge.type === 'attacks' ? '2px solid var(--danger)' : '2px solid var(--success)' }}>
+          <div className="clm-edge-head">
+            {/* eslint-disable-next-line local/no-inline-style -- color computed from edge.type */}
+            <span style={{ color: edge.type === 'attacks' ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>{edgeLabel}</span>
+            {edge.strength && (
+              // eslint-disable-next-line local/no-inline-style -- color computed from strengthColors[edge.strength]
+              <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: 'var(--bg-hover)', color: strengthColors[edge.strength] ?? 'var(--text-muted)' }}>
+                {edge.strength}
+              </span>
+            )}
+            {edge.argumentation_scheme && <span className="clm-scheme-badge">{edge.argumentation_scheme}</span>}
+          </div>
+          {targetNode && (
+            <div className="clm-target-node">
+              <span className="clm-fw600">{targetNode.id}</span> ({POVER_INFO[targetNode.speaker as keyof typeof POVER_INFO]?.label ?? targetNode.speaker}): {targetNode.text}
+            </div>
+          )}
+          {edge.warrant && (
+            <div className="clm-warrant">
+              {edge.warrant}
+            </div>
+          )}
+        </div>
+      );
+    })}
+  </div>
+  );
+}
+
+function ClaimRepairBlock({ repair, verdictColor }: { repair: EntailmentRepair | undefined; verdictColor: string | null }) {
+  if (!(repair && repair.verdict !== 'entailed' && repair.repaired_text)) return null;
+  return (
+    // eslint-disable-next-line local/no-inline-style -- background/border computed from repair.verdict
+    <div style={{ paddingLeft: 20, marginTop: 6, marginBottom: 4, padding: '6px 8px', borderRadius: 4, background: (repair.verdict as string) === 'entailed' ? 'color-mix(in srgb, var(--success) 8%, transparent)' : repair.verdict === 'partial' ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'color-mix(in srgb, var(--danger) 8%, transparent)', border: (repair.verdict as string) === 'entailed' ? '1px solid color-mix(in srgb, var(--success) 20%, transparent)' : repair.verdict === 'partial' ? '1px solid color-mix(in srgb, var(--warning) 20%, transparent)' : '1px solid color-mix(in srgb, var(--danger) 20%, transparent)' }}>
+      {/* eslint-disable-next-line local/no-inline-style -- color from computed verdictColor */}
+      <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: verdictColor!, marginBottom: 4 }}>
+        Entailment Repair ({repair.verdict})
+      </div>
+      <div className="clm-repair-line">
+        <span className="clm-repair-orig">{repair.original_text}</span>
+      </div>
+      <div className="clm-repair-fixed">
+        {repair.repaired_text}
+      </div>
+      <div className="clm-repair-explain">
+        {repair.explanation}
+      </div>
+    </div>
+  );
+}
+
+function ClaimScores({ anNode }: { anNode: ArgumentNetworkNode | undefined }) {
+  if (!(anNode && (anNode.base_strength != null || anNode.bdi_sub_scores))) return null;
+  return (
+    <details className="clm-indent-block">
+      <summary className="clm-scores-summary">
+        Scores{anNode.base_strength != null ? ` — base: ${anNode.base_strength.toFixed(2)}` : ''}{anNode.computed_strength != null ? ` → computed: ${anNode.computed_strength.toFixed(2)}` : ''}{anNode.scoring_method ? ` (${anNode.scoring_method.replace(/_/g, ' ')})` : ''}
+      </summary>
+      <div className="clm-scores-body">
+        {anNode.base_strength != null && (
+          <div className="clm-scores-row">
+            <span><strong>Base:</strong> {anNode.base_strength.toFixed(2)}</span>
+            {anNode.computed_strength != null && <span><strong>Computed:</strong> {anNode.computed_strength.toFixed(2)}</span>}
+            {anNode.scoring_method && <span className="clm-muted">via {anNode.scoring_method.replace(/_/g, ' ')}</span>}
+          </div>
+        )}
+        {anNode.bdi_sub_scores && (
+          <div className="clm-subscores">
+            {Object.entries(anNode.bdi_sub_scores).filter(([, v]) => v != null).map(([k, v]) => {
+              const label = k.replace(/_/g, ' ');
+              const strVal = typeof v === 'number' ? (v >= 0.7 ? 'yes' : v >= 0.4 ? 'partial' : 'no') : String(v);
+              const color = strVal === 'yes' ? 'var(--success)' : strVal === 'partial' ? 'var(--warning)' : 'var(--danger)';
+              return (
+                // eslint-disable-next-line local/no-inline-style -- background/color computed from strVal
+                <span key={k} style={{ padding: '1px 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', background: strVal === 'yes' ? 'color-mix(in srgb, var(--success) 15%, transparent)' : strVal === 'partial' ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : 'color-mix(in srgb, var(--danger) 15%, transparent)', color }}>
+                  {label}: {strVal}
+                </span>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </details>
+  );
+}
+
+function ClaimEvidenceGraph({ anNode }: { anNode: ArgumentNetworkNode | undefined }) {
+  // Evidence graph inline (t/495)
+  const eg = anNode?.evidence_graph as { evidence_items: { id: string; source_doc_id: string; text: string; relation: 'support' | 'contradict'; similarity: number }[]; computed_strength: number; qbaf_iterations: number } | undefined;
+  if (!eg || eg.evidence_items.length === 0) return null;
+  const barPct = Math.round(eg.computed_strength * 100);
+  const barColor = eg.computed_strength >= 0.7 ? 'var(--success)' : eg.computed_strength >= 0.4 ? 'var(--warning)' : 'var(--danger)';
+  const supports = eg.evidence_items.filter(e => e.relation === 'support');
+  const contradicts = eg.evidence_items.filter(e => e.relation === 'contradict');
+  return (
+    <div className="clm-indent-block">
+      <div className="clm-evidence-header">
+        Evidence ({supports.length} support, {contradicts.length} contradict)
+      </div>
+      <div className="clm-evidence-bar-row">
+        <div className="clm-bar-track">
+          {/* eslint-disable-next-line local/no-inline-style -- width/background computed from barPct/barColor */}
+          <div style={{ width: `${barPct}%`, height: '100%', borderRadius: 3, background: barColor }} />
+        </div>
+        {/* eslint-disable-next-line local/no-inline-style -- color from computed barColor */}
+        <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: barColor, minWidth: 36 }}>
+          {eg.computed_strength.toFixed(2)}
+        </span>
+        <span className="clm-2xs-muted">
+          {eg.qbaf_iterations} iter
+        </span>
+      </div>
+      {eg.evidence_items
+        .sort((a, b) => a.relation !== b.relation ? (a.relation === 'contradict' ? -1 : 1) : b.similarity - a.similarity)
+        .map(item => (
+        // eslint-disable-next-line local/no-inline-style -- borderLeft/background computed from item.relation
+        <div key={item.id} style={{
+          marginBottom: 3, padding: '3px 6px', borderRadius: 4, fontSize: 'var(--text-2xs)',
+          borderLeft: item.relation === 'support' ? '2px solid var(--success)' : '2px solid var(--danger)',
+          background: item.relation === 'support' ? 'color-mix(in srgb, var(--success) 6%, transparent)' : 'color-mix(in srgb, var(--danger) 6%, transparent)',
+        }}>
+          <div className="clm-evidence-item-head">
+            {/* eslint-disable-next-line local/no-inline-style -- background/color computed from item.relation */}
+            <span style={{
+              fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 4px', borderRadius: 3,
+              background: item.relation === 'support' ? 'color-mix(in srgb, var(--success) 15%, transparent)' : 'color-mix(in srgb, var(--danger) 15%, transparent)',
+              color: item.relation === 'support' ? 'var(--success)' : 'var(--danger)',
+            }}>
+              {item.relation === 'support' ? 'SUP' : 'CON'}
+            </span>
+            <span className="clm-muted">{(item.similarity * 100).toFixed(0)}%</span>
+            <span className="clm-evidence-src">
+              {item.source_doc_id}
+            </span>
+          </div>
+          <div className="clm-evidence-text">
+            {item.text.length > 120 ? item.text.slice(0, 120) + '…' : item.text}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AcceptedClaimRow({ c, an, diag, sharedBdiCategory, sharedSpecificity, sharedSteelmanOf }: { c: AcceptedClaim; an: ArgumentNetwork | undefined; diag: EntryDiagnostics } & SharedBadges) {
+  const meta = computeClaimRowMeta(c, an, diag);
+  return (
+    <details open className="clm-claim-details">
+      <ClaimSummary
+        c={c}
+        meta={meta}
+        sharedBdiCategory={sharedBdiCategory}
+        sharedSpecificity={sharedSpecificity}
+        sharedSteelmanOf={sharedSteelmanOf}
+      />
+      {meta.outEdges.length > 0 && <ClaimEdges outEdges={meta.outEdges} an={an} />}
+      <ClaimRepairBlock repair={meta.repair} verdictColor={meta.verdictColor} />
+      <ClaimScores anNode={meta.anNode} />
+      <ClaimEvidenceGraph anNode={meta.anNode} />
+    </details>
+  );
+}
+
+function RejectedClaimRow({ c }: { c: RejectedClaim }) {
+  const isDup = c.reason === 'duplicate_claim';
+  const dupOf = isDup ? c.duplicate_of : undefined;
+  const dupText = isDup ? c.duplicate_of_text : undefined;
+  const rejectedNote = c.reason === 'low_overlap'
+    ? 'overlap too low (not grounded)'
+    : isDup
+      ? `duplicate of existing AN node${dupOf ? ` ${dupOf}` : ''}${dupText ? `: "${dupText}"` : ''}`
+      : c.reason;
+  return (
+    <div className="clm-m3">
+      <span className="clm-c-danger">✗</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nRejected: ${rejectedNote}.`} className="clm-overlap-pct">{c.overlap_pct}%</span> <Highlight text={c.text} />
+      <div className="clm-reject-reason">
+        {c.reason}
+        {isDup && dupOf && (
+          <span className="clm-muted">
+            {' → duplicates '}
+            <span className="clm-fw600">{dupOf}</span>
+            {dupText && <span title={dupText}>{`: "${dupText.length > 80 ? dupText.slice(0, 80) + '…' : dupText}"`}</span>}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ExtractedClaimsSection({ diag, an }: { diag: EntryDiagnostics & { extracted_claims: ExtractedClaimsData }; an: ArgumentNetwork | undefined }) {
+  const { sharedBdiCategory, sharedSpecificity, sharedSteelmanOf } = computeSharedBadges(diag.extracted_claims.accepted, an);
+  const sectionSuffix = buildSectionSuffix({ sharedBdiCategory, sharedSpecificity, sharedSteelmanOf });
+  return (
+    <Section
+      title={`Extracted Claims (${diag.extracted_claims.accepted.length} accepted, ${diag.extracted_claims.rejected.length} rejected)`}
+      defaultOpen
+      titleSuffix={sectionSuffix}
+      copyText={[...diag.extracted_claims.accepted.map(c => { const anN = an?.nodes.find(n => n.id === c.id); return `✓ ${c.id} (${c.overlap_pct}%): ${c.text}${anN?.attribution_text_genus ? `\n  [Attribution: ${anN.attribution_text_genus}]` : ''}`; }), ...diag.extracted_claims.rejected.map(c => `✗ (${c.overlap_pct}%): ${c.text} — ${c.reason}`)].join('\n')}
+    >
+      {diag.extracted_claims.accepted.map((c, i) => (
+        <AcceptedClaimRow
+          key={i}
+          c={c}
+          an={an}
+          diag={diag}
+          sharedBdiCategory={sharedBdiCategory}
+          sharedSpecificity={sharedSpecificity}
+          sharedSteelmanOf={sharedSteelmanOf}
+        />
+      ))}
+      {diag.extracted_claims.rejected.map((c, i) => (
+        <RejectedClaimRow key={i} c={c} />
+      ))}
+    </Section>
+  );
 }
 
 export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQuery }: ClaimsTabProps) {
@@ -92,10 +495,7 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
 
       {/* Extraction status + re-extract button (t/226) */}
       {(() => {
-        const status = (diag as Record<string, unknown> | undefined)?.extraction_status as string | undefined;
-        const sketchCount = (meta?.my_claims as unknown[] | undefined)?.length ?? 0;
-        const acceptedCount = diag?.extracted_claims?.accepted?.length ?? 0;
-        const showReExtract = sketchCount > 0 && acceptedCount === 0 && status !== 'pending';
+        const { status, showReExtract } = computeExtractionStatus(diag, meta);
         if (!status && !showReExtract) return null;
         return (
           <div className="clm-ext-status">
@@ -118,302 +518,9 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
         );
       })()}
 
-      {diag?.extracted_claims && (() => {
-        // Compute shared per-section metadata badges (§3 de-engineering: move repeated labels to section header)
-        const acceptedAnNodes = diag.extracted_claims.accepted.map(c => an?.nodes.find(n => n.id === c.id));
-        const uniqueBdiCategories = new Set(acceptedAnNodes.map(n => n?.bdi_category).filter(Boolean));
-        const uniqueSpecificities = new Set(acceptedAnNodes.map(n => n?.specificity).filter(Boolean));
-        const uniqueSteelmanOfs = new Set(acceptedAnNodes.map(n => n?.steelman_of).filter(Boolean));
-        // Only hoist to header when all rows share the exact same non-null value
-        const sharedBdiCategory = uniqueBdiCategories.size === 1 && diag.extracted_claims.accepted.length > 1
-          ? [...uniqueBdiCategories][0] as string : null;
-        const sharedSpecificity = uniqueSpecificities.size === 1 && diag.extracted_claims.accepted.length > 1
-          ? [...uniqueSpecificities][0] as string : null;
-        const sharedSteelmanOf = uniqueSteelmanOfs.size === 1 && diag.extracted_claims.accepted.length > 1
-          ? [...uniqueSteelmanOfs][0] as string : null;
-
-        const bdiHeaderBadge = sharedBdiCategory ? (
-          // eslint-disable-next-line local/no-inline-style -- background/color computed from sharedBdiCategory
-          <span style={{ padding: '0 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, marginLeft: 6,
-            background: sharedBdiCategory === 'belief' ? 'color-mix(in srgb, var(--color-saf) 15%, transparent)' : sharedBdiCategory === 'desire' ? 'color-mix(in srgb, var(--color-skp) 15%, transparent)' : 'color-mix(in srgb, var(--color-acc) 15%, transparent)',
-            color: sharedBdiCategory === 'belief' ? 'var(--color-saf)' : sharedBdiCategory === 'desire' ? 'var(--color-skp)' : 'var(--color-acc)' }}>
-            {sharedBdiCategory}
-          </span>
-        ) : null;
-        const specificityHeaderBadge = sharedSpecificity ? (
-          <span className="clm-hdr-specificity">
-            {sharedSpecificity}
-          </span>
-        ) : null;
-        const steelmanHeaderBadge = sharedSteelmanOf ? (
-          <span className="clm-hdr-steelman">
-            steelman of {POVER_INFO[sharedSteelmanOf as keyof typeof POVER_INFO]?.label ?? sharedSteelmanOf}
-          </span>
-        ) : null;
-
-        const sectionSuffix = (bdiHeaderBadge || specificityHeaderBadge || steelmanHeaderBadge) ? (
-          <span className="clm-section-suffix">
-            {bdiHeaderBadge}{specificityHeaderBadge}{steelmanHeaderBadge}
-          </span>
-        ) : null;
-
-        return (
-        <Section
-          title={`Extracted Claims (${diag.extracted_claims.accepted.length} accepted, ${diag.extracted_claims.rejected.length} rejected)`}
-          defaultOpen
-          titleSuffix={sectionSuffix}
-          copyText={[...diag.extracted_claims.accepted.map(c => { const anN = an?.nodes.find(n => n.id === c.id); return `✓ ${c.id} (${c.overlap_pct}%): ${c.text}${anN?.attribution_text_genus ? `\n  [Attribution: ${anN.attribution_text_genus}]` : ''}`; }), ...diag.extracted_claims.rejected.map(c => `✗ (${c.overlap_pct}%): ${c.text} — ${c.reason}`)].join('\n')}
-        >
-          {diag.extracted_claims.accepted.map((c, i) => {
-            const outEdges = an?.edges.filter(e => e.source === c.id) ?? [];
-            const edgeSummary = outEdges.map(edge => {
-              const label = edge.type === 'attacks'
-                ? (edge.attack_type ? `attacks(${edge.attack_type})` : 'attacks')
-                : 'supports';
-              return `${label} ${edge.target}`;
-            }).join(', ');
-            const anNode = an?.nodes.find(n => n.id === c.id);
-            const ec = anNode?.extraction_confidence;
-            const ecBand = ec != null ? (ec >= 1.0 ? 'near-verbatim' : ec >= 0.8 ? 'faithful compression' : ec >= 0.6 ? 'implicit premise' : 'minimum') : null;
-            const repair = diag.entailment_repairs?.find(r => r.node_id === c.id);
-            const hasEntailmentData = (diag.entailment_repairs?.length ?? 0) > 0;
-            // §3: only show chip for non-pass verdicts (flag/fail); pass/entailed shows nothing
-            const entailmentVerdict: Verdict | null = repair
-              ? (repair.verdict === 'entailed' ? 'pass' : repair.verdict === 'partial' ? 'flag' : 'fail')
-              : null;
-            const showEntailmentChip = entailmentVerdict != null && entailmentVerdict !== 'pass';
-            const verdictColor = repair ? (repair.verdict === 'entailed' ? 'var(--success)' : repair.verdict === 'partial' ? 'var(--warning)' : 'var(--danger)') : null;
-            return (
-              <details key={i} open className="clm-claim-details">
-                <summary className="clm-summary">
-                  <span className="clm-c-success">✓ {c.id}</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nThreshold: < 10-15% = rejected as not grounded.\n${c.overlap_pct}% = ${c.overlap_pct < 50 ? 'moderate' : 'strong'} lexical grounding.`} className="clm-overlap-pct">{c.overlap_pct}%</span>{' '}
-                  {ec != null && (
-                    <ScoreBadge
-                      value={ec}
-                      label="FIRE"
-                      tooltip={`Extraction Confidence: ${ec.toFixed(2)}\nBand: ${ecBand}\n\nFIRE metric — how faithfully this claim was extracted from the speaker's statement.\n1.0 = near-verbatim (overlap ≥70%)\n0.8 = faithful compression (≥50%)\n0.6 = implicit premise (≥30%)\n0.5 = minimum (below 30%)`}
-                    />
-                  )}
-                  {/* §3: chip only for non-pass entailment outcomes */}
-                  {showEntailmentChip && repair && (
-                    <VerdictChip
-                      verdict={entailmentVerdict!}
-                      label={`${repair.verdict === 'partial' ? '~' : '✗'} ${repair.verdict}`}
-                      tooltip={`Entailment: ${repair.verdict}\n${repair.explanation}`}
-                    />
-                  )}
-                  {!repair && hasEntailmentData && (
-                    <span className="clm-not-sampled">not sampled</span>
-                  )}
-                  {/* §3: per-row badge only when not hoisted to section header */}
-                  {anNode?.bdi_category && !sharedBdiCategory && (
-                    // eslint-disable-next-line local/no-inline-style -- background/color computed from anNode.bdi_category
-                    <span style={{ padding: '0 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, marginRight: 3, background: anNode.bdi_category === 'belief' ? 'color-mix(in srgb, var(--color-saf) 15%, transparent)' : anNode.bdi_category === 'desire' ? 'color-mix(in srgb, var(--color-skp) 15%, transparent)' : 'color-mix(in srgb, var(--color-acc) 15%, transparent)', color: anNode.bdi_category === 'belief' ? 'var(--color-saf)' : anNode.bdi_category === 'desire' ? 'var(--color-skp)' : 'var(--color-acc)' }}>
-                      {anNode.bdi_category}
-                    </span>
-                  )}
-                  {anNode?.specificity && !sharedSpecificity && (
-                    <span className="clm-row-specificity">
-                      {anNode.specificity}
-                    </span>
-                  )}
-                  {anNode?.steelman_of && !sharedSteelmanOf && (
-                    <span className="clm-row-steelman">
-                      steelman of {POVER_INFO[anNode.steelman_of as keyof typeof POVER_INFO]?.label ?? anNode.steelman_of}
-                    </span>
-                  )}
-                  <Highlight text={c.text} />
-                  {anNode?.attribution_text_genus && <div className="claim-attribution-text"><span className="claim-attribution-label">Attribution:</span>{anNode.attribution_text_genus}</div>}
-                  {outEdges.length > 0 && (
-                    <span className="clm-edge-summary">
-                      [{edgeSummary}]
-                    </span>
-                  )}
-                </summary>
-                {outEdges.length > 0 && (() => {
-                  const hasSupports = outEdges.some(e => e.type === 'supports');
-                  const hasAttacks = outEdges.some(e => e.type === 'attacks');
-                  const concedeAndPivot = hasSupports && hasAttacks;
-                  const strengthColors = { decisive: 'var(--success)', substantial: 'var(--color-saf)', tangential: 'var(--text-muted)' } as Record<string, string>;
-                  return (
-                  <div className="clm-edges-wrap">
-                    {concedeAndPivot && (
-                      <div className="clm-concede-pivot">
-                        Concede-and-pivot: supports + attacks edges from the same claim
-                      </div>
-                    )}
-                    {outEdges.map((edge, ei) => {
-                      const targetNode = an?.nodes.find(n => n.id === edge.target);
-                      const edgeLabel = edge.type === 'attacks'
-                        ? (edge.attack_type ? `attacks (${edge.attack_type})` : 'attacks')
-                        : 'supports';
-                      return (
-                        // eslint-disable-next-line local/no-inline-style -- borderLeft computed from edge.type
-                        <div key={ei} style={{ fontSize: 'var(--text-2xs)', margin: '3px 0', paddingLeft: 10, borderLeft: edge.type === 'attacks' ? '2px solid var(--danger)' : '2px solid var(--success)' }}>
-                          <div className="clm-edge-head">
-                            {/* eslint-disable-next-line local/no-inline-style -- color computed from edge.type */}
-                            <span style={{ color: edge.type === 'attacks' ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>{edgeLabel}</span>
-                            {edge.strength && (
-                              // eslint-disable-next-line local/no-inline-style -- color computed from strengthColors[edge.strength]
-                              <span style={{ padding: '0 3px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600, background: 'var(--bg-hover)', color: strengthColors[edge.strength] ?? 'var(--text-muted)' }}>
-                                {edge.strength}
-                              </span>
-                            )}
-                            {edge.argumentation_scheme && <span className="clm-scheme-badge">{edge.argumentation_scheme}</span>}
-                          </div>
-                          {targetNode && (
-                            <div className="clm-target-node">
-                              <span className="clm-fw600">{targetNode.id}</span> ({POVER_INFO[targetNode.speaker as keyof typeof POVER_INFO]?.label ?? targetNode.speaker}): {targetNode.text}
-                            </div>
-                          )}
-                          {edge.warrant && (
-                            <div className="clm-warrant">
-                              {edge.warrant}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  );
-                })()}
-                {repair && repair.verdict !== 'entailed' && repair.repaired_text && (
-                  // eslint-disable-next-line local/no-inline-style -- background/border computed from repair.verdict
-                  <div style={{ paddingLeft: 20, marginTop: 6, marginBottom: 4, padding: '6px 8px', borderRadius: 4, background: (repair.verdict as string) === 'entailed' ? 'color-mix(in srgb, var(--success) 8%, transparent)' : repair.verdict === 'partial' ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'color-mix(in srgb, var(--danger) 8%, transparent)', border: (repair.verdict as string) === 'entailed' ? '1px solid color-mix(in srgb, var(--success) 20%, transparent)' : repair.verdict === 'partial' ? '1px solid color-mix(in srgb, var(--warning) 20%, transparent)' : '1px solid color-mix(in srgb, var(--danger) 20%, transparent)' }}>
-                    {/* eslint-disable-next-line local/no-inline-style -- color from computed verdictColor */}
-                    <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: verdictColor!, marginBottom: 4 }}>
-                      Entailment Repair ({repair.verdict})
-                    </div>
-                    <div className="clm-repair-line">
-                      <span className="clm-repair-orig">{repair.original_text}</span>
-                    </div>
-                    <div className="clm-repair-fixed">
-                      {repair.repaired_text}
-                    </div>
-                    <div className="clm-repair-explain">
-                      {repair.explanation}
-                    </div>
-                  </div>
-                )}
-                {anNode && (anNode.base_strength != null || anNode.bdi_sub_scores) && (
-                  <details className="clm-indent-block">
-                    <summary className="clm-scores-summary">
-                      Scores{anNode.base_strength != null ? ` — base: ${anNode.base_strength.toFixed(2)}` : ''}{anNode.computed_strength != null ? ` → computed: ${anNode.computed_strength.toFixed(2)}` : ''}{anNode.scoring_method ? ` (${anNode.scoring_method.replace(/_/g, ' ')})` : ''}
-                    </summary>
-                    <div className="clm-scores-body">
-                      {anNode.base_strength != null && (
-                        <div className="clm-scores-row">
-                          <span><strong>Base:</strong> {anNode.base_strength.toFixed(2)}</span>
-                          {anNode.computed_strength != null && <span><strong>Computed:</strong> {anNode.computed_strength.toFixed(2)}</span>}
-                          {anNode.scoring_method && <span className="clm-muted">via {anNode.scoring_method.replace(/_/g, ' ')}</span>}
-                        </div>
-                      )}
-                      {anNode.bdi_sub_scores && (
-                        <div className="clm-subscores">
-                          {Object.entries(anNode.bdi_sub_scores).filter(([, v]) => v != null).map(([k, v]) => {
-                            const label = k.replace(/_/g, ' ');
-                            const strVal = typeof v === 'number' ? (v >= 0.7 ? 'yes' : v >= 0.4 ? 'partial' : 'no') : String(v);
-                            const color = strVal === 'yes' ? 'var(--success)' : strVal === 'partial' ? 'var(--warning)' : 'var(--danger)';
-                            return (
-                              // eslint-disable-next-line local/no-inline-style -- background/color computed from strVal
-                              <span key={k} style={{ padding: '1px 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', background: strVal === 'yes' ? 'color-mix(in srgb, var(--success) 15%, transparent)' : strVal === 'partial' ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : 'color-mix(in srgb, var(--danger) 15%, transparent)', color }}>
-                                {label}: {strVal}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </details>
-                )}
-                {/* Evidence graph inline (t/495) */}
-                {(() => {
-                  const eg = anNode?.evidence_graph as { evidence_items: { id: string; source_doc_id: string; text: string; relation: 'support' | 'contradict'; similarity: number }[]; computed_strength: number; qbaf_iterations: number } | undefined;
-                  if (!eg || eg.evidence_items.length === 0) return null;
-                  const barPct = Math.round(eg.computed_strength * 100);
-                  const barColor = eg.computed_strength >= 0.7 ? 'var(--success)' : eg.computed_strength >= 0.4 ? 'var(--warning)' : 'var(--danger)';
-                  const supports = eg.evidence_items.filter(e => e.relation === 'support');
-                  const contradicts = eg.evidence_items.filter(e => e.relation === 'contradict');
-                  return (
-                    <div className="clm-indent-block">
-                      <div className="clm-evidence-header">
-                        Evidence ({supports.length} support, {contradicts.length} contradict)
-                      </div>
-                      <div className="clm-evidence-bar-row">
-                        <div className="clm-bar-track">
-                          {/* eslint-disable-next-line local/no-inline-style -- width/background computed from barPct/barColor */}
-                          <div style={{ width: `${barPct}%`, height: '100%', borderRadius: 3, background: barColor }} />
-                        </div>
-                        {/* eslint-disable-next-line local/no-inline-style -- color from computed barColor */}
-                        <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: barColor, minWidth: 36 }}>
-                          {eg.computed_strength.toFixed(2)}
-                        </span>
-                        <span className="clm-2xs-muted">
-                          {eg.qbaf_iterations} iter
-                        </span>
-                      </div>
-                      {eg.evidence_items
-                        .sort((a, b) => a.relation !== b.relation ? (a.relation === 'contradict' ? -1 : 1) : b.similarity - a.similarity)
-                        .map(item => (
-                        // eslint-disable-next-line local/no-inline-style -- borderLeft/background computed from item.relation
-                        <div key={item.id} style={{
-                          marginBottom: 3, padding: '3px 6px', borderRadius: 4, fontSize: 'var(--text-2xs)',
-                          borderLeft: item.relation === 'support' ? '2px solid var(--success)' : '2px solid var(--danger)',
-                          background: item.relation === 'support' ? 'color-mix(in srgb, var(--success) 6%, transparent)' : 'color-mix(in srgb, var(--danger) 6%, transparent)',
-                        }}>
-                          <div className="clm-evidence-item-head">
-                            {/* eslint-disable-next-line local/no-inline-style -- background/color computed from item.relation */}
-                            <span style={{
-                              fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 4px', borderRadius: 3,
-                              background: item.relation === 'support' ? 'color-mix(in srgb, var(--success) 15%, transparent)' : 'color-mix(in srgb, var(--danger) 15%, transparent)',
-                              color: item.relation === 'support' ? 'var(--success)' : 'var(--danger)',
-                            }}>
-                              {item.relation === 'support' ? 'SUP' : 'CON'}
-                            </span>
-                            <span className="clm-muted">{(item.similarity * 100).toFixed(0)}%</span>
-                            <span className="clm-evidence-src">
-                              {item.source_doc_id}
-                            </span>
-                          </div>
-                          <div className="clm-evidence-text">
-                            {item.text.length > 120 ? item.text.slice(0, 120) + '…' : item.text}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
-              </details>
-            );
-          })}
-          {diag.extracted_claims.rejected.map((c, i) => {
-            const isDup = c.reason === 'duplicate_claim';
-            const dupOf = isDup ? c.duplicate_of : undefined;
-            const dupText = isDup ? c.duplicate_of_text : undefined;
-            const rejectedNote = c.reason === 'low_overlap'
-              ? 'overlap too low (not grounded)'
-              : isDup
-                ? `duplicate of existing AN node${dupOf ? ` ${dupOf}` : ''}${dupText ? `: "${dupText}"` : ''}`
-                : c.reason;
-            return (
-              <div key={i} className="clm-m3">
-                <span className="clm-c-danger">✗</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nRejected: ${rejectedNote}.`} className="clm-overlap-pct">{c.overlap_pct}%</span> <Highlight text={c.text} />
-                <div className="clm-reject-reason">
-                  {c.reason}
-                  {isDup && dupOf && (
-                    <span className="clm-muted">
-                      {' → duplicates '}
-                      <span className="clm-fw600">{dupOf}</span>
-                      {dupText && <span title={dupText}>{`: "${dupText.length > 80 ? dupText.slice(0, 80) + '…' : dupText}"`}</span>}
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </Section>
-        );
-      })()}
+      {diag?.extracted_claims && (
+        <ExtractedClaimsSection diag={diag as EntryDiagnostics & { extracted_claims: ExtractedClaimsData }} an={an} />
+      )}
 
       {/* Extraction Trace */}
       {extTrace && (
