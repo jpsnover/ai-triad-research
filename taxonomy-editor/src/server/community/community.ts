@@ -4,6 +4,7 @@
 import crypto from 'crypto';
 import { resolveDataPath } from '../config.js';
 import { getUserContentBackend, assertSafeId } from '../storage/fileIO.js';
+import type { StorageBackend } from '../storage/storageBackend.js';
 import { sanitizeUserText } from '../security/contentSanitizer.js';
 import { getStorageUserId, isAnonymousUser } from '../security/userContext.js';
 import { log } from '../logger.js';
@@ -417,6 +418,58 @@ export async function copyFromCommunity(type: 'chats' | 'debates', communityId: 
   return { newId: copy.id as string };
 }
 
+/** Parse a community item's stored JSON, tolerating a malformed file — a removal
+ *  must still succeed, so an unparseable body is recorded and treated as empty. */
+function parseRemovalItem(raw: string): Record<string, unknown> {
+  try { return JSON.parse(raw) as Record<string, unknown>; }
+  catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'community', level: 'warn',
+      message: 'Removing community item with unparseable JSON',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return {};
+  }
+}
+
+/** Build the audit record captured before a community item is hard-deleted (t/748). */
+function buildRemovalAudit(
+  id: string,
+  type: 'chats' | 'debates',
+  item: Record<string, unknown>,
+  removedBy: string,
+  reason?: string,
+): Record<string, unknown> {
+  const meta = (item.community_metadata && typeof item.community_metadata === 'object')
+    ? item.community_metadata as Record<string, unknown> : {};
+  const topic = item.topic as { final?: string; original?: string } | string | undefined;
+  return {
+    id,
+    type: type === 'chats' ? 'chat' : 'debate',
+    title: (item.title as string)
+      || (typeof topic === 'object' ? (topic.final || topic.original) : topic)
+      || 'Untitled',
+    submitted_by: (meta.submitted_by_display as string) ?? null,
+    removed_by: removedBy,
+    removed_at: new Date().toISOString(),
+    reason: reason ?? null,
+  };
+}
+
+/** Drop the cached listing index so a removed item disappears immediately;
+ *  best-effort (the count-staleness check self-heals it on the next list). */
+async function invalidateListingIndex(backend: StorageBackend, dir: string): Promise<void> {
+  try {
+    await backend.deleteFile(path.join(dir, COMMUNITY_INDEX_FILE));
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'community', level: 'warn',
+      message: 'Failed to clear community listing index after removal (self-heals on next list)',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+  }
+}
+
 /**
  * Admin hard-delete of a published community item (t/748). Captures an audit
  * record (community/_removals/rem-{uuid}.json), removes the published file, and
@@ -440,50 +493,20 @@ export async function removeCommunityItem(
 
   // Capture metadata for the audit record before deleting. Tolerate a malformed
   // file — removal must still succeed.
-  let item: Record<string, unknown> = {};
-  try { item = JSON.parse(raw) as Record<string, unknown>; }
-  catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error', component: 'community', level: 'warn',
-      message: 'Removing community item with unparseable JSON',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-  }
-  const meta = (item.community_metadata && typeof item.community_metadata === 'object')
-    ? item.community_metadata as Record<string, unknown> : {};
-  const topic = item.topic as { final?: string; original?: string } | string | undefined;
+  const item = parseRemovalItem(raw);
   const removedBy = getStorageUserId();
 
   // Hard delete the published file, then write the audit record (so the trail
   // reflects a completed removal), then invalidate the cached listing index.
   await backend.deleteFile(filePath);
 
-  const audit = {
-    id,
-    type: type === 'chats' ? 'chat' : 'debate',
-    title: (item.title as string)
-      || (typeof topic === 'object' ? (topic.final || topic.original) : topic)
-      || 'Untitled',
-    submitted_by: (meta.submitted_by_display as string) ?? null,
-    removed_by: removedBy,
-    removed_at: new Date().toISOString(),
-    reason: reason ?? null,
-  };
   await backend.writeFile(
     path.join(removalsDir(), `rem-${crypto.randomUUID()}.json`),
-    JSON.stringify(audit, null, 2),
+    JSON.stringify(buildRemovalAudit(id, type, item, removedBy, reason), null, 2),
   );
 
   // Invalidate the listing index so the removed item drops out immediately.
-  try {
-    await backend.deleteFile(path.join(dir, COMMUNITY_INDEX_FILE));
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error', component: 'community', level: 'warn',
-      message: 'Failed to clear community listing index after removal (self-heals on next list)',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-  }
+  await invalidateListingIndex(backend, dir);
 
   log.server.info({ id, type, removedBy }, 'Community item removed');
 }
