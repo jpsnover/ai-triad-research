@@ -34,6 +34,7 @@ import {
   computeCampInsularity,
   computePeerReferencing,
   computeLocalSufficiency,
+  computeCruxSemanticDivergence,
 } from './extract-metrics.js';
 
 // ── Extraction logic ────────────────────────────────────────
@@ -144,23 +145,18 @@ export function extractCalibrationData(
   const gcEvents = (session as any).adaptive_staging_diagnostics?.gc_events;
   const gcRuns = typeof gcEvents === 'number' ? gcEvents : (Array.isArray(gcEvents) ? gcEvents.length : 0);
 
-  // ── Parameter 8: Crux resolution divergence ──
-  // crux_tracker on the session is an array of crux entries (not an object with .cruxes)
-  let cruxDivergenceRate: number | null = null;
+  // ── Parameter 8: Crux resolution divergence (semantic matching, t/1853) ──
+  // crux_tracker on the session is an array of crux entries (not an object with .cruxes).
+  // Engine and evaluator cruxes are matched by embedding similarity, never by list
+  // position (the positional walk confounded status disagreement with list-order
+  // disagreement — t/1846 §E defect 2). Symmetric diagnostic; neither side privileged.
   const rawCruxTracker = (session as any).crux_tracker;
-  const engineCruxes = Array.isArray(rawCruxTracker) ? rawCruxTracker as { id?: string; status?: string; description?: string }[] : [];
-  if (finalEval && engineCruxes.length > 0 && finalEval.cruxes.length > 0) {
-    // Compare: how often does engine crux status disagree with evaluator crux status?
-    // Since cruxes aren't ID-matched across the two, compare by position (both ordered by importance)
-    let divergences = 0;
-    const minLen = Math.min(engineCruxes.length, finalEval.cruxes.length);
-    for (let i = 0; i < minLen; i++) {
-      const engineResolved = engineCruxes[i].status === 'resolved' || engineCruxes[i].status === 'addressed';
-      const evalAddressed = finalEval.cruxes[i].status === 'addressed';
-      if (engineResolved !== evalAddressed) divergences++;
-    }
-    cruxDivergenceRate = minLen > 0 ? divergences / minLen : null;
-  }
+  const engineCruxes = Array.isArray(rawCruxTracker) ? rawCruxTracker as { id?: string; state?: string; status?: string; description?: string }[] : [];
+  const { cruxDivergenceRate, cruxMatchStats } = computeCruxSemanticDivergence(
+    engineCruxes,
+    finalEval?.cruxes ?? [],
+    an,
+  );
 
   // ── Crux undecided rate (t/1676) ──
   // Share of tracked cruxes that terminated in the `undecided` verdict — surfaced but never
@@ -422,6 +418,7 @@ export function extractCalibrationData(
     gc_trigger: config.gcTrigger ?? 175,
 
     crux_resolution_divergence_rate: cruxDivergenceRate,
+    crux_match_stats: cruxMatchStats,
     crux_undecided_rate: cruxUndecidedRate,
     counterfactual_type_distribution: cfTypeDist,
     polarity_resolved_threshold: config.polarityResolvedThreshold ?? 0.85,

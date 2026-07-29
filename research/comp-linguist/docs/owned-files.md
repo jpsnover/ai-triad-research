@@ -20,7 +20,7 @@ Files the Computational Linguist holds **mandatory review authority** over. Chan
 | `taxonomy-editor/src/renderer/prompts/vernacular.ts` | Vernacular rewriting prompt | Mandatory |
 | `taxonomy-editor/src/renderer/data/promptCatalog.ts` | Prompt catalog | Mandatory |
 | **Metric definitions & calibration** | | |
-| `lib/debate/calibrationLogger.ts` | Metric extraction logic | Mandatory |
+| `lib/debate/calibrationLogger.ts` + `lib/debate/calibrationLogger/**` (barrel + sub-modules post-t/1686: `schema.ts`, `extract.ts`, `extract-metrics.ts` — incl. semantic crux matching t/1853 — `coverage.ts`, `history.ts`, `io.ts`, `replicationGate.ts`) | Metric extraction logic | Mandatory |
 | `lib/debate/beliefConfidence.ts` | Belief confidence formula | Mandatory |
 | `lib/debate/desirePriority.ts` | Desire priority assignment | Mandatory |
 | `lib/debate/intentionOperationality.ts` | Intention operationality | Mandatory |

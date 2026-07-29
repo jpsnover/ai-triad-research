@@ -560,3 +560,121 @@ export function computeLocalSufficiency(
   }
   return { localSufficiencyMean, unsupportedClaimRate, localSufficiencyBySpeaker };
 }
+
+// ── Semantic crux matching (Parameter 8, t/1853) ─────────────────────────────
+
+/**
+ * Minimum cosine similarity for an engine crux and an evaluator crux to count as
+ * descriptions of the SAME crux. Provenance: STIPULATED at introduction (t/1853;
+ * register row in research/comp-linguist/docs/metric-provenance-register.md).
+ * Matched-divergence readings are not trusted until the threshold is validated
+ * against a hand-matched golden set of engine↔evaluator crux pairs (t/1853 AC).
+ */
+export const CRUX_MATCH_SIMILARITY_THRESHOLD = 0.5;
+
+/** Coverage/match accounting for the semantic crux comparison — see schema.ts `crux_match_stats`. */
+export interface CruxMatchStats {
+  engine_total: number;
+  evaluator_total: number;
+  engine_embeddable: number;
+  evaluator_embeddable: number;
+  matched: number;
+  engine_unmatched: number;
+  evaluator_unmatched: number;
+  mean_match_similarity: number | null;
+  match_threshold: number;
+}
+
+function cosineSim(a: number[], b: number[]): number | null {
+  // Different dims = different embedding spaces (e.g. MiniLM 384 vs Gemini 768) —
+  // cosine across spaces is meaningless, so the pair is simply not comparable.
+  if (a.length !== b.length || a.length === 0) return null;
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  const denom = Math.sqrt(na) * Math.sqrt(nb);
+  return denom > 0 ? dot / denom : null;
+}
+
+/**
+ * Parameter 8 (redefined, t/1846 §E + t/1853): symmetric engine↔evaluator crux
+ * disagreement diagnostic over SEMANTICALLY MATCHED crux pairs.
+ *
+ * Replaces the original positional walk, which confounded status disagreement with
+ * list-order disagreement (a mere permutation of identical cruxes read as divergence
+ * — t/1846 §E defect 2). Matching: greedy 1:1 by descending cosine similarity between
+ * the engine crux's AN-node embedding and the evaluator crux's description embedding,
+ * gated by CRUX_MATCH_SIMILARITY_THRESHOLD. Unmatched cruxes on either side are
+ * reported separately in the stats — coverage asymmetry is itself a signal, not noise.
+ *
+ * Returns nulls when either side has no embedding-bearing cruxes (legacy sessions,
+ * no embedding backend): "instrument absent" is never conflated with non-coverage.
+ * The rate stays a DIAGNOSTIC — permanently excluded from config-writing objectives
+ * (CRUX_AXIS_PARAMS, t/1846); neither side is privileged as ground truth.
+ */
+export function computeCruxSemanticDivergence(
+  engineCruxes: { id?: string; state?: string; status?: string; description?: string }[],
+  evalCruxes: { status: string; embedding?: number[] }[],
+  an: ArgNetwork,
+): { cruxDivergenceRate: number | null; cruxMatchStats: CruxMatchStats | null } {
+  // Engine crux embeddings live on the AN node with the same id (as in computeTopicCoherence).
+  const engineSide = engineCruxes
+    .map((c) => {
+      const vec = c.id ? an?.nodes.find((n: ArgumentNetworkNode) => n.id === c.id)?.embedding : undefined;
+      const st = c.state ?? c.status;
+      return vec ? { resolved: st === 'resolved' || st === 'addressed', vec } : null;
+    })
+    .filter((e): e is { resolved: boolean; vec: number[] } => e !== null);
+  const evalSide = evalCruxes
+    .filter((c): c is { status: string; embedding: number[] } => Array.isArray(c.embedding) && c.embedding.length > 0)
+    .map((c) => ({ addressed: c.status === 'addressed', vec: c.embedding }));
+
+  if (engineSide.length === 0 || evalSide.length === 0) {
+    return { cruxDivergenceRate: null, cruxMatchStats: null };
+  }
+
+  // All comparable pairs above threshold, then greedy 1:1 from the most similar down.
+  const candidates: { e: number; v: number; sim: number }[] = [];
+  for (let e = 0; e < engineSide.length; e++) {
+    for (let v = 0; v < evalSide.length; v++) {
+      const sim = cosineSim(engineSide[e].vec, evalSide[v].vec);
+      if (sim !== null && sim >= CRUX_MATCH_SIMILARITY_THRESHOLD) {
+        candidates.push({ e, v, sim });
+      }
+    }
+  }
+  candidates.sort((a, b) => b.sim - a.sim);
+
+  const usedEngine = new Set<number>();
+  const usedEval = new Set<number>();
+  let divergences = 0;
+  let simSum = 0;
+  for (const { e, v, sim } of candidates) {
+    if (usedEngine.has(e) || usedEval.has(v)) continue;
+    usedEngine.add(e);
+    usedEval.add(v);
+    simSum += sim;
+    if (engineSide[e].resolved !== evalSide[v].addressed) divergences++;
+  }
+
+  const matched = usedEngine.size;
+  const cruxMatchStats: CruxMatchStats = {
+    engine_total: engineCruxes.length,
+    evaluator_total: evalCruxes.length,
+    engine_embeddable: engineSide.length,
+    evaluator_embeddable: evalSide.length,
+    matched,
+    engine_unmatched: engineSide.length - matched,
+    evaluator_unmatched: evalSide.length - matched,
+    mean_match_similarity: matched > 0 ? Math.round((simSum / matched) * 1000) / 1000 : null,
+    match_threshold: CRUX_MATCH_SIMILARITY_THRESHOLD,
+  };
+
+  return {
+    cruxDivergenceRate: matched > 0 ? divergences / matched : null,
+    cruxMatchStats,
+  };
+}

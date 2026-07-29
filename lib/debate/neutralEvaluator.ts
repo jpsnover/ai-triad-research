@@ -66,6 +66,13 @@ export interface Crux {
   speakers_involved: string[]; // ['A', 'B'] etc., never persona names
   status: 'addressed' | 'partially_addressed' | 'unaddressed';
   confidence: 'high' | 'medium' | 'low';
+  /**
+   * Embedding of `description`, computed at evaluation time when the adapter supports
+   * embeddings (same backend/space as AN node embeddings). Enables semantic crux
+   * matching in calibration extraction (t/1853). Absent on legacy sessions and when
+   * no embedding backend is available.
+   */
+  embedding?: number[];
 }
 
 export interface EvaluatedClaim {
@@ -417,6 +424,29 @@ export async function runNeutralEvaluation(
   parsed.diagnostics_prompt = prompt;
   parsed.diagnostics_raw_response = rawText;
   parsed.diagnostics_response_time_ms = elapsedMs;
+
+  // Crux description embeddings (t/1853): computed here — the one async context that
+  // has the adapter — so calibration extraction can stay pure and match engine↔evaluator
+  // cruxes semantically instead of by list position. Valid evaluations only (an invalid
+  // eval is treated as absent by calibration, so embedding its cruxes is wasted calls).
+  // Best-effort: on the first failure, stop rather than hammer a failing backend —
+  // extraction treats missing embeddings as "instrument absent" (null), never as data.
+  if (!parsed.evaluation_invalid && config.adapter.computeQueryEmbedding && Array.isArray(parsed.cruxes)) {
+    for (const crux of parsed.cruxes) {
+      if (typeof crux?.description !== 'string' || crux.description.length === 0) continue;
+      try {
+        const { vector } = await config.adapter.computeQueryEmbedding(crux.description.slice(0, 300));
+        crux.embedding = vector;
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'neutral-evaluator', level: 'warn',
+          message: `Crux embedding computation failed (${checkpoint}) — remaining cruxes left unembedded; semantic crux matching will read null for this evaluation`,
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
+        break;
+      }
+    }
+  }
 
   return parsed;
 }

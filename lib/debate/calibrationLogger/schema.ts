@@ -11,6 +11,8 @@
 
 import type { AgentUtility } from '../agentUtility.js';
 export type { AgentUtility } from '../agentUtility.js';
+import type { CruxMatchStats } from './extract-metrics.js';
+export type { CruxMatchStats } from './extract-metrics.js';
 
 // ── Calibration data point schema ──────────────────────────
 
@@ -122,8 +124,24 @@ export interface CalibrationDataPoint {
   gc_trigger: number;
 
   // ── Parameter 8: Crux resolution thresholds ──
-  /** How often engine crux status agrees with neutral evaluator crux status */
+  /**
+   * Symmetric engine↔evaluator crux disagreement DIAGNOSTIC (redefined, t/1846 §E):
+   * share of semantically matched crux pairs (t/1853) whose resolution status
+   * disagrees. Neither side is privileged — high values mean "the two crux views
+   * differ; look at both", never "the engine is wrong". Permanently excluded from
+   * config-writing objectives (CRUX_AXIS_PARAMS). Null when either side has no
+   * embedding-bearing cruxes (legacy rows: positional comparison; not comparable
+   * with matched-pair rows).
+   */
   crux_resolution_divergence_rate: number | null;
+  /**
+   * Match/coverage accounting behind crux_resolution_divergence_rate (t/1853).
+   * Unmatched cruxes on either side are a coverage-asymmetry signal, not noise:
+   * `engine_unmatched`/`evaluator_unmatched` count embedding-bearing cruxes with no
+   * semantic partner ≥ `match_threshold`. Null when semantic matching was impossible
+   * (no embeddings on one side). Optional: rows written before t/1853 omit it.
+   */
+  crux_match_stats?: CruxMatchStats | null;
   /**
    * Share of tracked cruxes that terminated `undecided` — surfaced but never adjudicated
    * (t/1676). STIPULATED provenance until CL's AC#2 golden-set absorption (t/1669) promotes
