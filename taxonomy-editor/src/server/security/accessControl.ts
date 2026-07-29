@@ -258,6 +258,42 @@ const AI_ROUTE_PREFIXES = ['/api/keys', '/api/ai/', '/api/embeddings/', '/api/nl
 // before the blanket AI block so chat/debates can set temperature pre-generation.
 const ANON_SAFE_AI_ROUTES = ['/api/ai/temperature'];
 
+// Routes blocked for anonymous callers regardless of HTTP method: the blanket AI
+// block plus specific non-AI routes with cost/abuse potential. The ANON_SAFE_AI_ROUTES
+// exemption is checked by the caller BEFORE this, so a temperature-style local-config
+// route escapes the AI-prefix block. Fail-closed: any listed match blocks the request.
+function isAnonBlockedRoute(urlPath: string): boolean {
+  // Block all AI-related routes regardless of method
+  if (AI_ROUTE_PREFIXES.some(p => urlPath.startsWith(p))) return true;
+  if (urlPath === '/api/evidence-qbaf') return true;
+  if (urlPath === '/api/models/refresh') return true;
+  if (urlPath.startsWith('/api/harvest/')) return true;
+  return /^\/api\/debates\/[^/]+\/news-report$/.test(urlPath);
+}
+
+// Anonymous users can save/delete their own ephemeral chats and debates.
+// Matches both '/api/debates' (create/save) and '/api/debates/{id}' (update/delete).
+function isAnonUserContentRoute(urlPath: string): boolean {
+  return urlPath === '/api/chats' || urlPath.startsWith('/api/chats/')
+    || urlPath === '/api/debates' || urlPath.startsWith('/api/debates/');
+}
+
+// POST routes anonymous callers may reach: read-like operations only, everything
+// else blocked. Exact-match allowlist (no prefixes).
+const ANON_SAFE_POST_PATHS = [
+  '/api/flight-recorder/dump',
+  '/api/flight-recorder/server-dump',
+  '/api/debates/export',
+  '/api/source-evidence',
+  '/api/analytics/event',
+  '/api/admin/telemetry',
+  '/api/admin/errors',
+  '/api/data/check-updates',
+  '/api/community/submit',
+  '/focus-node',
+  '/debug/events',
+];
+
 /**
  * Whether an anonymous (signed-out) user may call `method urlPath` in
  * AUTH_OPTIONAL mode. Anonymous users get read-only, non-AI access plus
@@ -268,36 +304,15 @@ export function isAnonAllowedRoute(method: string, urlPath: string): boolean {
   // Local-config AI routes (e.g. temperature) are exempt from the blanket AI
   // block — no key, no cost, no abuse vector (t/811). Must precede the block.
   if (ANON_SAFE_AI_ROUTES.includes(urlPath)) return true;
-  // Block all AI-related routes regardless of method
-  if (AI_ROUTE_PREFIXES.some(p => urlPath.startsWith(p))) return false;
-  if (urlPath === '/api/evidence-qbaf') return false;
-  if (urlPath === '/api/models/refresh') return false;
-  if (urlPath.startsWith('/api/harvest/')) return false;
-  if (/^\/api\/debates\/[^/]+\/news-report$/.test(urlPath)) return false;
+  if (isAnonBlockedRoute(urlPath)) return false;
 
   if (method === 'GET') return true;
 
-  // Anonymous users can save/delete their own ephemeral chats and debates.
-  // Matches both '/api/debates' (create/save) and '/api/debates/{id}' (update/delete).
-  const isUserContent = urlPath === '/api/chats' || urlPath.startsWith('/api/chats/')
-    || urlPath === '/api/debates' || urlPath.startsWith('/api/debates/');
-  if ((method === 'POST' || method === 'PUT' || method === 'DELETE') && isUserContent) return true;
+  const isMutation = method === 'POST' || method === 'PUT' || method === 'DELETE';
+  if (isMutation && isAnonUserContentRoute(urlPath)) return true;
 
   if (method === 'PUT' || method === 'DELETE') return false;
 
   // POST: allowlist read-like operations, block everything else
-  const safePostPaths = [
-    '/api/flight-recorder/dump',
-    '/api/flight-recorder/server-dump',
-    '/api/debates/export',
-    '/api/source-evidence',
-    '/api/analytics/event',
-    '/api/admin/telemetry',
-    '/api/admin/errors',
-    '/api/data/check-updates',
-    '/api/community/submit',
-    '/focus-node',
-    '/debug/events',
-  ];
-  return safePostPaths.some(p => urlPath === p);
+  return ANON_SAFE_POST_PATHS.some(p => urlPath === p);
 }
