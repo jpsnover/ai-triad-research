@@ -780,75 +780,92 @@ export type NodeSourceIndex = Record<string, SourceReference[]>;
  * nodeId → list of source references that mapped to it.
  * Also loads source metadata for titles/URLs.
  */
+// Shape of a source's metadata.json (only the fields the index builders read).
+type SourceMetaJson = {
+  title?: string; url?: string; source_type?: string;
+  date_published?: string; source_time?: string; date_ingested?: string;
+};
+
+/**
+ * Scan the sources dir once, mapping each source's parsed `metadata.json` via `mapMeta`
+ * to a value keyed by source name. Missing dir / missing / malformed metadata are
+ * skipped. Shared by the node- and policy-source index builders (t/1914 complexity split).
+ */
+function loadSourceMetadata<T>(mapMeta: (meta: SourceMetaJson, name: string) => T): Record<string, T> {
+  const out: Record<string, T> = {};
+  const srcDir = getSourcesDir();
+  if (!srcDir) return out;
+  for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const metaPath = path.join(srcDir, entry.name, 'metadata.json');
+    try {
+      if (fs.existsSync(metaPath)) {
+        out[entry.name] = mapMeta(JSON.parse(fs.readFileSync(metaPath, 'utf-8')) as SourceMetaJson, entry.name);
+      }
+    } catch { /* telemetry — silent by design;  skip */ }
+  }
+  return out;
+}
+
+type NodeSourceMeta = { title: string; url: string | null; sourceType: string; datePublished: string };
+type SummaryFile = {
+  pov_summaries?: Record<string, {
+    key_points?: Array<{
+      taxonomy_node_id?: string | null;
+      point?: string; stance?: string; verbatim?: string; excerpt_context?: string;
+    }>;
+  }>;
+};
+
+/** Index one summary file's key-points into the node→source index (mutates `index`).
+ *  Extracted verbatim from buildNodeSourceIndex's inner pov/key-point loops (t/1914). */
+function indexSummaryKeyPoints(index: NodeSourceIndex, docId: string, meta: NodeSourceMeta, summary: SummaryFile): void {
+  for (const [pov, povData] of Object.entries(summary.pov_summaries || {})) {
+    for (const kp of povData.key_points || []) {
+      const nodeId = kp.taxonomy_node_id;
+      if (!nodeId) continue;
+      if (!index[nodeId]) index[nodeId] = [];
+      index[nodeId].push({
+        docId,
+        title: meta.title,
+        pov,
+        stance: kp.stance || 'neutral',
+        point: kp.point || '',
+        verbatim: kp.verbatim || '',
+        excerptContext: kp.excerpt_context || '',
+        url: meta.url,
+        sourceType: meta.sourceType,
+        datePublished: meta.datePublished,
+      });
+    }
+  }
+}
+
 export function buildNodeSourceIndex(): NodeSourceIndex {
   const index: NodeSourceIndex = {};
 
   if (!fs.existsSync(SUMMARIES_DIR)) return index;
 
   // Pre-load source metadata for titles/URLs
-  const metaCache: Record<string, { title: string; url: string | null; sourceType: string; datePublished: string }> = {};
-  const srcDir = getSourcesDir();
-  if (srcDir) {
-    for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue;
-      const metaPath = path.join(srcDir, entry.name, 'metadata.json');
-      try {
-        if (fs.existsSync(metaPath)) {
-          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-          metaCache[entry.name] = {
-            title: meta.title || entry.name,
-            url: meta.url || null,
-            sourceType: meta.source_type || 'unknown',
-            datePublished: meta.date_published || meta.source_time || '',
-          };
-        }
-      } catch { /* telemetry — silent by design;  skip */ }
-    }
-  }
+  const metaCache = loadSourceMetadata((meta, name): NodeSourceMeta => ({
+    title: meta.title || name,
+    url: meta.url || null,
+    sourceType: meta.source_type || 'unknown',
+    datePublished: meta.date_published || meta.source_time || '',
+  }));
 
   // Scan all summary files
   for (const file of fs.readdirSync(SUMMARIES_DIR)) {
     if (!file.endsWith('.json')) continue;
     const docId = file.replace(/\.json$/, '');
 
-    let summary: {
-      pov_summaries?: Record<string, {
-        key_points?: Array<{
-          taxonomy_node_id?: string | null;
-          point?: string;
-          stance?: string;
-          verbatim?: string;
-          excerpt_context?: string;
-        }>;
-      }>;
-    };
-
+    let summary: SummaryFile;
     try {
       summary = JSON.parse(fs.readFileSync(path.join(SUMMARIES_DIR, file), 'utf-8'));
     } catch { /* telemetry — silent by design */ continue; }
 
     const meta = metaCache[docId] || { title: docId, url: null, sourceType: 'unknown', datePublished: '' };
-
-    for (const [pov, povData] of Object.entries(summary.pov_summaries || {})) {
-      for (const kp of povData.key_points || []) {
-        const nodeId = kp.taxonomy_node_id;
-        if (!nodeId) continue;
-
-        if (!index[nodeId]) index[nodeId] = [];
-        index[nodeId].push({
-          docId,
-          title: meta.title,
-          pov,
-          stance: kp.stance || 'neutral',
-          point: kp.point || '',
-          verbatim: kp.verbatim || '',
-          excerptContext: kp.excerpt_context || '',
-          url: meta.url,
-          sourceType: meta.sourceType,
-          datePublished: meta.datePublished,
-        });
-      }
-    }
+    indexSummaryKeyPoints(index, docId, meta, summary);
   }
 
   return index;
@@ -874,17 +891,9 @@ export type PolicySourceIndex = Record<string, PolicySourceReference[]>;
  * to find which sources reference those nodes.
  * Returns policyId → list of source references.
  */
-export function buildPolicySourceIndex(): PolicySourceIndex {
-  const result: PolicySourceIndex = {};
-
-  // 1. Load policy registry to get all policy IDs
-  const regRaw = readPolicyRegistry() as { policies?: { id: string }[] } | null;
-  if (!regRaw?.policies) return result;
-  for (const pol of regRaw.policies) {
-    result[pol.id] = [];
-  }
-
-  // 2. Build node → policy mapping by scanning all POV files
+/** Scan all non-situation POV files for node→policy_id references. Extracted verbatim
+ *  from buildPolicySourceIndex step 2 (t/1914 complexity split). */
+function buildNodePolicyMap(): Map<string, string[]> {
   const nodeToPolicies = new Map<string, string[]>();
   for (const pov of Object.keys(POV_FILE_MAP)) {
     if (pov === 'situations') continue;
@@ -902,28 +911,30 @@ export function buildPolicySourceIndex(): PolicySourceIndex {
       }
     } catch { /* telemetry — silent by design;  skip unavailable POV files */ }
   }
+  return nodeToPolicies;
+}
+
+export function buildPolicySourceIndex(): PolicySourceIndex {
+  const result: PolicySourceIndex = {};
+
+  // 1. Load policy registry to get all policy IDs
+  const regRaw = readPolicyRegistry() as { policies?: { id: string }[] } | null;
+  if (!regRaw?.policies) return result;
+  for (const pol of regRaw.policies) {
+    result[pol.id] = [];
+  }
+
+  // 2. Build node → policy mapping by scanning all POV files
+  const nodeToPolicies = buildNodePolicyMap();
 
   // 3. Build or reuse the node-source index
   const nodeSourceIdx = buildNodeSourceIndex();
 
   // 4. Pre-load source metadata for dateIngested / sourceTime
-  const metaCache: Record<string, { dateIngested: string; sourceTime: string }> = {};
-  const srcDir2 = getSourcesDir();
-  if (srcDir2) {
-    for (const entry of fs.readdirSync(srcDir2, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue;
-      const metaPath = path.join(srcDir2, entry.name, 'metadata.json');
-      try {
-        if (fs.existsSync(metaPath)) {
-          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-          metaCache[entry.name] = {
-            dateIngested: meta.date_ingested || meta.date_published || '',
-            sourceTime: meta.source_time || '',
-          };
-        }
-      } catch { /* telemetry — silent by design;  skip */ }
-    }
-  }
+  const metaCache = loadSourceMetadata((meta) => ({
+    dateIngested: meta.date_ingested || meta.date_published || '',
+    sourceTime: meta.source_time || '',
+  }));
 
   // 5. For each node that has sources, map those sources to the node's policies
   for (const [nodeId, policyIds] of nodeToPolicies) {
