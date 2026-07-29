@@ -18,6 +18,7 @@ interface SyncDiagnosticsDialogProps {
 }
 
 type ActionState = { running: boolean; label: string; error: string | null; success: string | null };
+type SetAction = React.Dispatch<React.SetStateAction<ActionState>>;
 
 function StatusDot({ ok }: { ok: boolean }) {
   return <span className={`sync-diag-dot ${ok ? 'sync-diag-dot--ok' : 'sync-diag-dot--err'}`} />;
@@ -75,7 +76,7 @@ function Section({ title, children, defaultOpen = true }: { title: string; child
   return (
     <div className="sync-diag-section">
       <button className="sync-diag-section-header" onClick={() => setOpen(!open)}>
-        <span className="sync-diag-section-arrow">{open ? '\u25BC' : '\u25B6'}</span>
+        <span className="sync-diag-section-arrow">{open ? '▼' : '▶'}</span>
         {title}
       </button>
       {open && <div className="sync-diag-section-body">{children}</div>}
@@ -180,305 +181,389 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
 
         {diag && (
           <div className="sync-diag-body">
-            {/* Connection Status */}
-            <Section title="Connection Status">
-              <KV label="Storage Mode">{diag.mode === 'github-api' ? 'GitHub API' : 'Filesystem (Git)'}</KV>
-              <KV label="Git Sync Enabled"><StatusDot ok={diag.git_sync_enabled} /> {diag.git_sync_enabled ? 'Yes' : 'No'}</KV>
-              <KV label="Data Root">{diag.data_root}</KV>
-              {diag.mode !== 'github-api' && (
-                <>
-                  <KV label="Git Initialized"><StatusDot ok={diag.data_root_has_git} /> {diag.data_root_has_git ? 'Yes' : 'No'}</KV>
-                  <KV label="GitHub Repo">{diag.github_repo ?? <span className="sync-diag-muted">Not configured</span>}</KV>
-                </>
-              )}
-              <KV label="Credentials">
-                <StatusDot ok={diag.github_credentials_valid} />{' '}
-                {diag.github_credentials_valid ? (
-                  <>
-                    Valid
-                    {diag.mode !== 'github-api' && (
-                      <button
-                        className="btn btn-ghost btn-xs"
-                        style={{ marginLeft: 8, fontSize: 'var(--text-2xs)' }}
-                        onClick={async () => {
-                          await clearGithubCredentials();
-                          void refresh();
-                        }}
-                        title="Clear stored credentials"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    Not configured
-                    <button
-                      className="btn btn-ghost btn-xs"
-                      style={{ marginLeft: 8, fontSize: 'var(--text-2xs)' }}
-                      onClick={() => setCredFormOpen(!credFormOpen)}
-                    >
-                      {credFormOpen ? 'Cancel' : 'Configure'}
-                    </button>
-                  </>
-                )}
-              </KV>
-              {diag.mode === 'github-api' && (
-                <>
-                  <KV label="Cache Hit Rate">{diag.cache_hit_rate != null ? `${(diag.cache_hit_rate * 100).toFixed(1)}%` : '--'}</KV>
-                  <KV label="Cached Files">{diag.cache_file_count ?? '--'}</KV>
-                  <KV label="Circuit Breaker">
-                    <StatusDot ok={diag.circuit_state === 'closed'} />{' '}
-                    {diag.circuit_state ?? '--'}
-                  </KV>
-                  <KV label="API Rate Limit">{diag.rate_limit_remaining != null ? `${diag.rate_limit_remaining} remaining` : '--'}</KV>
-                </>
-              )}
-              {credFormOpen && !diag.github_credentials_valid && (
-                <GitHubCredentialsForm
-                  defaultRepo={diag.github_repo ?? ''}
-                  running={action.running && action.label === 'Set credentials'}
-                  onSubmit={async (repo, token) => {
-                    setAction({ running: true, label: 'Set credentials', error: null, success: null });
-                    try {
-                      const result = await setGithubCredentials(repo, token);
-                      if (result.configured) {
-                        setAction({ running: false, label: '', error: null, success: 'GitHub credentials configured.' });
-                        setCredFormOpen(false);
-                        void refresh();
-                      } else {
-                        setAction({ running: false, label: '', error: 'Credentials were saved but could not be validated. Check your token.', success: null });
-                      }
-                    } catch (err) {
-                      getGlobalRecorder()?.record({
-                        type: 'system.error',
-                        component: 'sync-diagnostics-dialog',
-                        level: 'error',
-                        message: 'Set GitHub credentials failed',
-                        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-                      });
-                      setAction({ running: false, label: '', error: `Set credentials failed: ${err instanceof Error ? err.message : String(err)}`, success: null });
-                    }
-                  }}
-                  onCancel={() => setCredFormOpen(false)}
-                />
-              )}
-            </Section>
-
-            {/* Repository State */}
-            <Section title="Repository State">
-              <KV label="Branch"><code>{diag.current_branch ?? '--'}</code></KV>
-              <KV label="HEAD"><code>{diag.head_sha ?? '--'}</code></KV>
-              <KV label="origin/main"><code>{diag.origin_main_sha ?? '--'}</code></KV>
-              <KV label="Ahead / Behind">
-                <span className={diag.ahead_of_main > 0 ? 'sync-diag-ahead' : ''}>+{diag.ahead_of_main}</span>
-                {' / '}
-                <span className={diag.behind_main > 0 ? 'sync-diag-behind' : ''}>-{diag.behind_main}</span>
-              </KV>
-              <KV label="Active Taxonomy Dir"><code>{diag.active_taxonomy_dir}</code></KV>
-              {syncStatus && syncStatus.pr_number != null && (
-                <KV label="Pull Request">
-                  <span className="sync-diag-pr-info">
-                    <a
-                      className="sync-diag-pr-link"
-                      href={syncStatus.pr_url ?? '#'}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      #{syncStatus.pr_number}
-                    </a>
-                    <span className="sync-diag-pr-status sync-diag-pr-open">Open</span>
-                    {syncStatus.push_pending && (
-                      <span className="sync-diag-pr-push-pending" title="Local commits not yet pushed to this PR">
-                        Push pending
-                      </span>
-                    )}
-                  </span>
-                </KV>
-              )}
-            </Section>
-
-            {/* Active Sessions (API mode only) */}
-            {diag.mode === 'github-api' && diag.active_sessions && diag.active_sessions.length > 0 && (
-              <Section title={`Active Sessions (${diag.active_sessions.length})`}>
-                <div className="sync-diag-commits">
-                  {diag.active_sessions.map((s, i) => (
-                    <div key={i} className="sync-diag-commit">
-                      <span className="sync-diag-commit-msg">{s.userId}</span>
-                      <code className="sync-diag-commit-sha">{s.branch}</code>
-                      {s.prNumber && <span className="sync-diag-pr-status sync-diag-pr-open">PR #{s.prNumber}</span>}
-                    </div>
-                  ))}
-                </div>
-              </Section>
-            )}
-
-            {/* Data File Inventory */}
-            <Section title={`Data Files${missingCount > 0 ? ` (${missingCount} missing)` : ''}`}>
-              {diag.mode === 'github-api' && diag.files.length === 0 && (
-                <div className="sync-diag-muted" style={{ padding: '8px 0' }}>
-                  File inventory not available in API mode — data is served from GitHub.
-                </div>
-              )}
-              <table className="sync-diag-file-table">
-                <thead>
-                  <tr>
-                    <th></th>
-                    <th>File</th>
-                    <th>Size</th>
-                    <th>Local Edits</th>
-                    <th>Modified</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {taxonomyFiles.map((f: DiagnosticsFile) => (
-                    <tr key={f.relative_path} className={f.exists ? '' : 'sync-diag-file-missing'}>
-                      <td><FileStatusIcon file={f} /></td>
-                      <td><code>{f.relative_path}</code></td>
-                      <td>{formatBytes(f.size_bytes)}</td>
-                      <td><EditCountsCell counts={f.edit_counts} /></td>
-                      <td>{formatDate(f.modified_iso)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {conflictFiles.length > 0 && (
-                <details className="sync-diag-conflicts-detail">
-                  <summary>{conflictFiles.length} conflict file{conflictFiles.length !== 1 ? 's' : ''}</summary>
-                  <table className="sync-diag-file-table">
-                    <tbody>
-                      {conflictFiles.map((f: DiagnosticsFile) => (
-                        <tr key={f.relative_path}>
-                          <td><FileStatusIcon file={f} /></td>
-                          <td><code>{f.relative_path}</code></td>
-                          <td>{formatBytes(f.size_bytes)}</td>
-                          <td><EditCountsCell counts={f.edit_counts} /></td>
-                          <td>{formatDate(f.modified_iso)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </details>
-              )}
-            </Section>
-
-            {/* Recent Commits */}
-            <Section title="Recent Commits" defaultOpen={false}>
-              {diag.recent_commits.length === 0 ? (
-                <div className="sync-diag-muted">No commits found</div>
-              ) : (
-                <div className="sync-diag-commits">
-                  {diag.recent_commits.map((c, i) => (
-                    <div key={i} className="sync-diag-commit">
-                      <code className="sync-diag-commit-sha">{c.sha}</code>
-                      <span className="sync-diag-commit-date">{formatDate(c.date_iso)}</span>
-                      <span className="sync-diag-commit-msg">{c.message}</span>
-                      <span className="sync-diag-commit-author">{c.author}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Section>
-
-            {/* Actions */}
-            <Section title="Actions">
-              {action.error && <div className="sync-diag-action-error">{action.error}</div>}
-              {action.success && <div className="sync-diag-action-success">{action.success}</div>}
-
-              <div className="sync-diag-actions">
-                <button
-                  className="btn btn-primary btn-sm"
-                  disabled={action.running || !diag.data_root_has_git || diag.ahead_of_main === 0 || !diag.github_credentials_valid}
-                  onClick={() => setPrFormOpen(!prFormOpen)}
-                  title={
-                    !diag.github_credentials_valid ? 'GitHub credentials required'
-                    : diag.ahead_of_main === 0 ? 'No local changes to submit'
-                    : 'Create a pull request from your local changes'
-                  }
-                >
-                  Create Pull Request
-                </button>
-
-                {diag.mode !== 'github-api' && (
-                  <button
-                    className="btn btn-sm"
-                    disabled={action.running || !diag.data_root_has_git}
-                    onClick={() => runAction('Fetch from origin', () => fetchOriginTracked())}
-                    title="Fetch latest commits from origin without changing local files"
-                  >
-                    {action.running && action.label === 'Fetch from origin' ? 'Fetching...' : 'Fetch from Origin'}
-                  </button>
-                )}
-
-                {!confirmReset ? (
-                  <button
-                    className="btn btn-sm sync-diag-btn-danger"
-                    disabled={action.running || (!diag.data_root_has_git && diag.mode !== 'github-api')}
-                    onClick={() => setConfirmReset(true)}
-                    title={diag.mode === 'github-api'
-                      ? 'Delete your session branch and reset to main'
-                      : 'Reset local data to match origin/main — discards all local changes'}
-                  >
-                    {diag.mode === 'github-api' ? 'Reset session' : 'Reset to origin/main'}
-                  </button>
-                ) : (
-                  <div className="sync-diag-confirm">
-                    <span className="sync-diag-confirm-text">
-                      {diag.mode === 'github-api'
-                        ? 'This will delete your session branch. Continue?'
-                        : 'This will discard all local changes. Continue?'}
-                    </span>
-                    <button
-                      className="btn btn-sm sync-diag-btn-danger"
-                      disabled={action.running}
-                      onClick={() => { setConfirmReset(false); void runAction('Reset to origin/main', () => resetMainTracked()); }}
-                    >
-                      {action.running && action.label === 'Reset to origin/main' ? 'Resetting...' : 'Confirm Reset'}
-                    </button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => setConfirmReset(false)}>Cancel</button>
-                  </div>
-                )}
-
-
-              </div>
-
-              {prFormOpen && (
-                <CreatePrForm
-                  files={taxonomyFiles.filter(f => !!f.git_status)}
-                  running={action.running && action.label === 'Create Pull Request'}
-                  onSubmit={async (title, body) => {
-                    setAction({ running: true, label: 'Create Pull Request', error: null, success: null });
-                    try {
-                      const result = await createPullRequestTracked({ title, body });
-                      setAction({
-                        running: false, label: '', error: null,
-                        success: `PR #${result.number} ${result.created ? 'created' : 'updated'}: ${result.url}`,
-                      });
-                      setPrFormOpen(false);
-                      void refresh();
-                    } catch (err) {
-                      getGlobalRecorder()?.record({
-                        type: 'system.error',
-                        component: 'sync-diagnostics-dialog',
-                        level: 'error',
-                        message: 'Create pull request failed',
-                        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-                      });
-                      setAction({
-                        running: false, label: '',
-                        error: `Create Pull Request failed: ${err instanceof Error ? err.message : String(err)}`,
-                        success: null,
-                      });
-                    }
-                  }}
-                  onCancel={() => setPrFormOpen(false)}
-                />
-              )}
-            </Section>
+            <ConnectionStatusSection
+              diag={diag}
+              action={action}
+              credFormOpen={credFormOpen}
+              setCredFormOpen={setCredFormOpen}
+              setAction={setAction}
+              refresh={refresh}
+            />
+            <RepositoryStateSection diag={diag} syncStatus={syncStatus} />
+            <ActiveSessionsSection diag={diag} />
+            <DataFilesSection
+              diag={diag}
+              taxonomyFiles={taxonomyFiles}
+              conflictFiles={conflictFiles}
+              missingCount={missingCount}
+            />
+            <RecentCommitsSection diag={diag} />
+            <ActionsSection
+              diag={diag}
+              action={action}
+              runAction={runAction}
+              setAction={setAction}
+              refresh={refresh}
+              confirmReset={confirmReset}
+              setConfirmReset={setConfirmReset}
+              prFormOpen={prFormOpen}
+              setPrFormOpen={setPrFormOpen}
+              taxonomyFiles={taxonomyFiles}
+            />
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+// ── Connection Status section ──
+
+function ConnectionStatusSection({
+  diag, action, credFormOpen, setCredFormOpen, setAction, refresh,
+}: {
+  diag: SyncDiagnostics;
+  action: ActionState;
+  credFormOpen: boolean;
+  setCredFormOpen: (v: boolean) => void;
+  setAction: SetAction;
+  refresh: () => void;
+}) {
+  return (
+    <Section title="Connection Status">
+      <KV label="Storage Mode">{diag.mode === 'github-api' ? 'GitHub API' : 'Filesystem (Git)'}</KV>
+      <KV label="Git Sync Enabled"><StatusDot ok={diag.git_sync_enabled} /> {diag.git_sync_enabled ? 'Yes' : 'No'}</KV>
+      <KV label="Data Root">{diag.data_root}</KV>
+      {diag.mode !== 'github-api' && (
+        <>
+          <KV label="Git Initialized"><StatusDot ok={diag.data_root_has_git} /> {diag.data_root_has_git ? 'Yes' : 'No'}</KV>
+          <KV label="GitHub Repo">{diag.github_repo ?? <span className="sync-diag-muted">Not configured</span>}</KV>
+        </>
+      )}
+      <KV label="Credentials">
+        <StatusDot ok={diag.github_credentials_valid} />{' '}
+        {diag.github_credentials_valid ? (
+          <>
+            Valid
+            {diag.mode !== 'github-api' && (
+              <button
+                className="btn btn-ghost btn-xs"
+                style={{ marginLeft: 8, fontSize: 'var(--text-2xs)' }}
+                onClick={async () => {
+                  await clearGithubCredentials();
+                  void refresh();
+                }}
+                title="Clear stored credentials"
+              >
+                Clear
+              </button>
+            )}
+          </>
+        ) : (
+          <>
+            Not configured
+            <button
+              className="btn btn-ghost btn-xs"
+              style={{ marginLeft: 8, fontSize: 'var(--text-2xs)' }}
+              onClick={() => setCredFormOpen(!credFormOpen)}
+            >
+              {credFormOpen ? 'Cancel' : 'Configure'}
+            </button>
+          </>
+        )}
+      </KV>
+      {diag.mode === 'github-api' && (
+        <>
+          <KV label="Cache Hit Rate">{diag.cache_hit_rate != null ? `${(diag.cache_hit_rate * 100).toFixed(1)}%` : '--'}</KV>
+          <KV label="Cached Files">{diag.cache_file_count ?? '--'}</KV>
+          <KV label="Circuit Breaker">
+            <StatusDot ok={diag.circuit_state === 'closed'} />{' '}
+            {diag.circuit_state ?? '--'}
+          </KV>
+          <KV label="API Rate Limit">{diag.rate_limit_remaining != null ? `${diag.rate_limit_remaining} remaining` : '--'}</KV>
+        </>
+      )}
+      {credFormOpen && !diag.github_credentials_valid && (
+        <GitHubCredentialsForm
+          defaultRepo={diag.github_repo ?? ''}
+          running={action.running && action.label === 'Set credentials'}
+          onSubmit={async (repo, token) => {
+            setAction({ running: true, label: 'Set credentials', error: null, success: null });
+            try {
+              const result = await setGithubCredentials(repo, token);
+              if (result.configured) {
+                setAction({ running: false, label: '', error: null, success: 'GitHub credentials configured.' });
+                setCredFormOpen(false);
+                void refresh();
+              } else {
+                setAction({ running: false, label: '', error: 'Credentials were saved but could not be validated. Check your token.', success: null });
+              }
+            } catch (err) {
+              getGlobalRecorder()?.record({
+                type: 'system.error',
+                component: 'sync-diagnostics-dialog',
+                level: 'error',
+                message: 'Set GitHub credentials failed',
+                error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+              });
+              setAction({ running: false, label: '', error: `Set credentials failed: ${err instanceof Error ? err.message : String(err)}`, success: null });
+            }
+          }}
+          onCancel={() => setCredFormOpen(false)}
+        />
+      )}
+    </Section>
+  );
+}
+
+// ── Repository State section ──
+
+function RepositoryStateSection({ diag, syncStatus }: { diag: SyncDiagnostics; syncStatus: SyncStatus | null }) {
+  return (
+    <Section title="Repository State">
+      <KV label="Branch"><code>{diag.current_branch ?? '--'}</code></KV>
+      <KV label="HEAD"><code>{diag.head_sha ?? '--'}</code></KV>
+      <KV label="origin/main"><code>{diag.origin_main_sha ?? '--'}</code></KV>
+      <KV label="Ahead / Behind">
+        <span className={diag.ahead_of_main > 0 ? 'sync-diag-ahead' : ''}>+{diag.ahead_of_main}</span>
+        {' / '}
+        <span className={diag.behind_main > 0 ? 'sync-diag-behind' : ''}>-{diag.behind_main}</span>
+      </KV>
+      <KV label="Active Taxonomy Dir"><code>{diag.active_taxonomy_dir}</code></KV>
+      {syncStatus && syncStatus.pr_number != null && (
+        <KV label="Pull Request">
+          <span className="sync-diag-pr-info">
+            <a
+              className="sync-diag-pr-link"
+              href={syncStatus.pr_url ?? '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              #{syncStatus.pr_number}
+            </a>
+            <span className="sync-diag-pr-status sync-diag-pr-open">Open</span>
+            {syncStatus.push_pending && (
+              <span className="sync-diag-pr-push-pending" title="Local commits not yet pushed to this PR">
+                Push pending
+              </span>
+            )}
+          </span>
+        </KV>
+      )}
+    </Section>
+  );
+}
+
+// ── Active Sessions section (API mode only) ──
+
+function ActiveSessionsSection({ diag }: { diag: SyncDiagnostics }) {
+  if (!(diag.mode === 'github-api' && diag.active_sessions && diag.active_sessions.length > 0)) return null;
+  return (
+    <Section title={`Active Sessions (${diag.active_sessions.length})`}>
+      <div className="sync-diag-commits">
+        {diag.active_sessions.map((s, i) => (
+          <div key={i} className="sync-diag-commit">
+            <span className="sync-diag-commit-msg">{s.userId}</span>
+            <code className="sync-diag-commit-sha">{s.branch}</code>
+            {s.prNumber && <span className="sync-diag-pr-status sync-diag-pr-open">PR #{s.prNumber}</span>}
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+// ── Data File Inventory section ──
+
+function DataFileRow({ f }: { f: DiagnosticsFile }) {
+  return (
+    <tr key={f.relative_path} className={f.exists ? '' : 'sync-diag-file-missing'}>
+      <td><FileStatusIcon file={f} /></td>
+      <td><code>{f.relative_path}</code></td>
+      <td>{formatBytes(f.size_bytes)}</td>
+      <td><EditCountsCell counts={f.edit_counts} /></td>
+      <td>{formatDate(f.modified_iso)}</td>
+    </tr>
+  );
+}
+
+function DataFilesSection({
+  diag, taxonomyFiles, conflictFiles, missingCount,
+}: {
+  diag: SyncDiagnostics;
+  taxonomyFiles: DiagnosticsFile[];
+  conflictFiles: DiagnosticsFile[];
+  missingCount: number;
+}) {
+  return (
+    <Section title={`Data Files${missingCount > 0 ? ` (${missingCount} missing)` : ''}`}>
+      {diag.mode === 'github-api' && diag.files.length === 0 && (
+        <div className="sync-diag-muted" style={{ padding: '8px 0' }}>
+          File inventory not available in API mode — data is served from GitHub.
+        </div>
+      )}
+      <table className="sync-diag-file-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>File</th>
+            <th>Size</th>
+            <th>Local Edits</th>
+            <th>Modified</th>
+          </tr>
+        </thead>
+        <tbody>
+          {taxonomyFiles.map((f: DiagnosticsFile) => <DataFileRow key={f.relative_path} f={f} />)}
+        </tbody>
+      </table>
+      {conflictFiles.length > 0 && (
+        <details className="sync-diag-conflicts-detail">
+          <summary>{conflictFiles.length} conflict file{conflictFiles.length !== 1 ? 's' : ''}</summary>
+          <table className="sync-diag-file-table">
+            <tbody>
+              {conflictFiles.map((f: DiagnosticsFile) => <DataFileRow key={f.relative_path} f={f} />)}
+            </tbody>
+          </table>
+        </details>
+      )}
+    </Section>
+  );
+}
+
+// ── Recent Commits section ──
+
+function RecentCommitsSection({ diag }: { diag: SyncDiagnostics }) {
+  return (
+    <Section title="Recent Commits" defaultOpen={false}>
+      {diag.recent_commits.length === 0 ? (
+        <div className="sync-diag-muted">No commits found</div>
+      ) : (
+        <div className="sync-diag-commits">
+          {diag.recent_commits.map((c, i) => (
+            <div key={i} className="sync-diag-commit">
+              <code className="sync-diag-commit-sha">{c.sha}</code>
+              <span className="sync-diag-commit-date">{formatDate(c.date_iso)}</span>
+              <span className="sync-diag-commit-msg">{c.message}</span>
+              <span className="sync-diag-commit-author">{c.author}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Section>
+  );
+}
+
+// ── Actions section ──
+
+function ActionsSection({
+  diag, action, runAction, setAction, refresh, confirmReset, setConfirmReset, prFormOpen, setPrFormOpen, taxonomyFiles,
+}: {
+  diag: SyncDiagnostics;
+  action: ActionState;
+  runAction: (label: string, fn: () => Promise<unknown>) => Promise<void>;
+  setAction: SetAction;
+  refresh: () => void;
+  confirmReset: boolean;
+  setConfirmReset: (v: boolean) => void;
+  prFormOpen: boolean;
+  setPrFormOpen: (v: boolean) => void;
+  taxonomyFiles: DiagnosticsFile[];
+}) {
+  return (
+    <Section title="Actions">
+      {action.error && <div className="sync-diag-action-error">{action.error}</div>}
+      {action.success && <div className="sync-diag-action-success">{action.success}</div>}
+
+      <div className="sync-diag-actions">
+        <button
+          className="btn btn-primary btn-sm"
+          disabled={action.running || !diag.data_root_has_git || diag.ahead_of_main === 0 || !diag.github_credentials_valid}
+          onClick={() => setPrFormOpen(!prFormOpen)}
+          title={
+            !diag.github_credentials_valid ? 'GitHub credentials required'
+            : diag.ahead_of_main === 0 ? 'No local changes to submit'
+            : 'Create a pull request from your local changes'
+          }
+        >
+          Create Pull Request
+        </button>
+
+        {diag.mode !== 'github-api' && (
+          <button
+            className="btn btn-sm"
+            disabled={action.running || !diag.data_root_has_git}
+            onClick={() => runAction('Fetch from origin', () => fetchOriginTracked())}
+            title="Fetch latest commits from origin without changing local files"
+          >
+            {action.running && action.label === 'Fetch from origin' ? 'Fetching...' : 'Fetch from Origin'}
+          </button>
+        )}
+
+        {!confirmReset ? (
+          <button
+            className="btn btn-sm sync-diag-btn-danger"
+            disabled={action.running || (!diag.data_root_has_git && diag.mode !== 'github-api')}
+            onClick={() => setConfirmReset(true)}
+            title={diag.mode === 'github-api'
+              ? 'Delete your session branch and reset to main'
+              : 'Reset local data to match origin/main — discards all local changes'}
+          >
+            {diag.mode === 'github-api' ? 'Reset session' : 'Reset to origin/main'}
+          </button>
+        ) : (
+          <div className="sync-diag-confirm">
+            <span className="sync-diag-confirm-text">
+              {diag.mode === 'github-api'
+                ? 'This will delete your session branch. Continue?'
+                : 'This will discard all local changes. Continue?'}
+            </span>
+            <button
+              className="btn btn-sm sync-diag-btn-danger"
+              disabled={action.running}
+              onClick={() => { setConfirmReset(false); void runAction('Reset to origin/main', () => resetMainTracked()); }}
+            >
+              {action.running && action.label === 'Reset to origin/main' ? 'Resetting...' : 'Confirm Reset'}
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setConfirmReset(false)}>Cancel</button>
+          </div>
+        )}
+
+
+      </div>
+
+      {prFormOpen && (
+        <CreatePrForm
+          files={taxonomyFiles.filter(f => !!f.git_status)}
+          running={action.running && action.label === 'Create Pull Request'}
+          onSubmit={async (title, body) => {
+            setAction({ running: true, label: 'Create Pull Request', error: null, success: null });
+            try {
+              const result = await createPullRequestTracked({ title, body });
+              setAction({
+                running: false, label: '', error: null,
+                success: `PR #${result.number} ${result.created ? 'created' : 'updated'}: ${result.url}`,
+              });
+              setPrFormOpen(false);
+              void refresh();
+            } catch (err) {
+              getGlobalRecorder()?.record({
+                type: 'system.error',
+                component: 'sync-diagnostics-dialog',
+                level: 'error',
+                message: 'Create pull request failed',
+                error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+              });
+              setAction({
+                running: false, label: '',
+                error: `Create Pull Request failed: ${err instanceof Error ? err.message : String(err)}`,
+                success: null,
+              });
+            }
+          }}
+          onCancel={() => setPrFormOpen(false)}
+        />
+      )}
+    </Section>
   );
 }
 
