@@ -164,6 +164,333 @@ export function serializeNodeSourceMap(
   return result.length > 0 ? result : undefined;
 }
 
+// ── getRelevantTaxonomyContext phase helpers (t/1848) ────────────────
+// getRelevantTaxonomyContext was a single 80-complexity async pipeline.
+// Its cohesive phases are extracted here as helpers (bodies moved verbatim;
+// see ADR-007 split pattern) so the orchestrator stays readable and each
+// phase is independently testable.
+type NodeEmbeddingMap = Record<string, { pov: string; vector: number[]; vectors?: number[][] }>;
+
+/** Embed all POV+CC nodes into a combined map, merging synthetic multi-vectors when available. */
+async function buildNodeEmbeddingMap(pov: string, allPovNodes: PovNode[], allCCNodes: SituationNode[]): Promise<{ nodeEmbeddings: NodeEmbeddingMap; allNodeIds: string[] }> {
+  const allNodeTexts = [
+    ...allPovNodes.map(n => `${n.label}: ${n.description}`),
+    ...allCCNodes.map(n => `${n.label}: ${n.description}`),
+  ];
+  const allNodeIds = [
+    ...allPovNodes.map(n => n.id),
+    ...allCCNodes.map(n => n.id),
+  ];
+  const { vectors: allVectors } = await api.computeEmbeddings(allNodeTexts, allNodeIds);
+  const baseNodeEmbeddings: Record<string, { pov: string; vector: number[] }> = {};
+  for (let i = 0; i < allNodeIds.length; i++) {
+    baseNodeEmbeddings[allNodeIds[i]] = { pov, vector: allVectors[i] };
+  }
+
+  // Merge synthetic multi-vector embeddings when available
+  const synVecs = await loadSyntheticVectors();
+  const nodeEmbeddings = synVecs
+    ? mergeSyntheticVectors(baseNodeEmbeddings, synVecs)
+    : baseNodeEmbeddings;
+  return { nodeEmbeddings, allNodeIds };
+}
+
+/** Doctrinal anchoring: embed boundary strings once, then apply confidence floors to Beliefs (once per POV). */
+/** Embed doctrinal boundary strings into the shared cache once (across POVs). */
+async function ensureBoundaryEmbeddingsCache(): Promise<void> {
+  if (_boundaryEmbeddingsCache) return;
+  const boundaries: Record<string, string[]> = {};
+  for (const p of AI_POVERS) {
+    const info = POVER_INFO[p];
+    if ((info?.doctrinal_boundaries?.length ?? 0) > 0) {
+      boundaries[info.pov] = info.doctrinal_boundaries ?? [];
+    }
+  }
+  if (Object.keys(boundaries).length > 0) {
+    _boundaryEmbeddingsCache = await embedDoctrinalBoundaries(
+      boundaries,
+      async (text: string) => {
+        const { vector } = await api.computeQueryEmbedding(text);
+        return vector;
+      },
+    );
+  }
+}
+
+async function applyDoctrinalAnchoring(pov: string, allPovNodes: PovNode[], nodeEmbeddings: NodeEmbeddingMap): Promise<void> {
+  if (_doctrinalAnchoringApplied.has(pov)) return;
+  try {
+    // Embed boundary strings (cached across POVs)
+    await ensureBoundaryEmbeddingsCache();
+
+    const boundaryVectors = _boundaryEmbeddingsCache?.[pov] ?? [];
+    if (boundaryVectors.length > 0) {
+      const beliefs = allPovNodes.filter(n => n.category === 'Beliefs');
+      const results = computeDoctrinalAnchoring(beliefs, boundaryVectors, nodeEmbeddings);
+      const anomaly = checkThresholdAnomalies(results, beliefs.length);
+      if (anomaly) console.warn(anomaly.warning);
+      const anchoredCount = results.filter(r => r.anchored).length;
+      const floorCount = results.filter(r => r.floorApplied).length;
+      if (anchoredCount > 0) {
+        console.log(`[doctrinal] ${pov}: ${anchoredCount}/${beliefs.length} Beliefs anchored, ${floorCount} floor-applied`);
+      }
+    }
+    _doctrinalAnchoringApplied.add(pov);
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'debate-store',
+      level: 'warn',
+      message: 'Doctrinal anchoring failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    console.warn('[doctrinal] Anchoring failed (non-blocking):', err);
+    _doctrinalAnchoringApplied.add(pov); // don't retry on failure
+  }
+}
+
+/** Per-node source attribution: best-matching AN claim + AN-vs-topic comparison for each node. */
+function buildNodeSourceMap(
+  allNodeIds: string[],
+  scores: Map<string, number>,
+  topicScores: Map<string, number>,
+  nodeEmbeddings: NodeEmbeddingMap,
+  claimEmbeddings: ANClaimEmbedding[],
+  anNodes: { id: string; text?: string }[],
+): Map<string, NodeScoringSource> {
+  const nodeSourceMap = new Map<string, NodeScoringSource>();
+  for (const nodeId of allNodeIds) {
+    const anScore = scores.get(nodeId) ?? 0;
+    const topicScore = topicScores.get(nodeId) ?? 0;
+    const entry = nodeEmbeddings[nodeId];
+    if (!entry?.vector) continue;
+
+    // Find best matching AN claim for this node
+    let bestSim = 0;
+    let bestClaim: typeof claimEmbeddings[0] | null = null;
+    for (const claim of claimEmbeddings) {
+      const sim = cosineSimilarity(entry.vector, claim.vector);
+      if (sim > bestSim) { bestSim = sim; bestClaim = claim; }
+    }
+
+    const anNode = bestClaim ? anNodes.find(n => n.id === bestClaim!.id) : null;
+    nodeSourceMap.set(nodeId, {
+      source: anScore >= topicScore * 0.5 ? 'an' : 'topic',
+      anScore,
+      topicScore,
+      bestClaimId: bestClaim?.id,
+      bestClaimText: anNode?.text,
+      bestClaimSim: bestSim,
+    });
+  }
+  return nodeSourceMap;
+}
+
+/** Score nodes by relevance: AN-claim similarity when embeddings exist (with per-node source tracking), else topic query. */
+async function computeRelevanceScores(
+  topic: string,
+  recentTranscript: string,
+  nodeEmbeddings: NodeEmbeddingMap,
+  allNodeIds: string[],
+): Promise<{ scores: Map<string, number>; nodeSourceMap?: Map<string, NodeScoringSource> }> {
+  const debate = useDebateStore.getState().activeDebate;
+  const anNodes = debate?.argument_network?.nodes ?? [];
+  let scores: Map<string, number>;
+  let nodeSourceMap: Map<string, NodeScoringSource> | undefined;
+
+  // Use pre-computed embeddings from AN nodes (set by t/442 on extraction)
+  const embeddedAnNodes = anNodes.filter(n => n.embedding && n.embedding.length > 0);
+
+  if (embeddedAnNodes.length > 0) {
+    // AN-based scoring: use cached embeddings from extraction, score nodes by max similarity
+    const claimEmbeddings: ANClaimEmbedding[] = embeddedAnNodes.map(n => ({
+      id: n.id,
+      vector: n.embedding!,
+      strength: n.computed_strength,
+    }));
+
+    scores = scoreNodesViaAN(claimEmbeddings, nodeEmbeddings, undefined, true);
+    console.log(`[taxonomy] AN-based scoring: ${claimEmbeddings.length}/${anNodes.length} claims (with embeddings) against ${allNodeIds.length} nodes`);
+
+    // Also compute topic-only scores for hybrid source tracking
+    const query = buildRelevanceQuery(topic, recentTranscript);
+    const { vector: queryVector } = await api.computeQueryEmbedding(query);
+    const topicScores = scoreNodeRelevanceMeanTopN(queryVector, nodeEmbeddings);
+
+    // Build per-node source tracking: which AN claim matched best, AN vs topic comparison
+    nodeSourceMap = buildNodeSourceMap(allNodeIds, scores, topicScores, nodeEmbeddings, claimEmbeddings, anNodes);
+  } else {
+    // No AN yet (pre-opening) — fall back to single topic query
+    const query = buildRelevanceQuery(topic, recentTranscript);
+    const { vector: queryVector } = await api.computeQueryEmbedding(query);
+    scores = scoreNodeRelevanceMeanTopN(queryVector, nodeEmbeddings);
+    console.log(`[taxonomy] Topic-query scoring (no AN claims yet): ${allNodeIds.length} nodes`);
+  }
+  return { scores, nodeSourceMap };
+}
+
+/** Build the lineage→node map (intellectual_lineage graph attribute) for the given nodes. */
+function buildLineageByNode(nodes: PovNode[]): Record<string, string[]> {
+  const lineageByNode: Record<string, string[]> = {};
+  for (const node of nodes) {
+    const ga = (node as { graph_attributes?: { intellectual_lineage?: (string | { name: string })[] } }).graph_attributes;
+    const lineage = ga?.intellectual_lineage;
+    if (lineage && lineage.length > 0) {
+      lineageByNode[node.id] = lineage.map(v => typeof v === 'string' ? v : v.name);
+    }
+  }
+  return lineageByNode;
+}
+
+/** Build the name→L2-cluster map from the lineage mapping. */
+function buildNameToCluster(mapping: ReturnType<typeof getLineageMapping>): Record<string, string> {
+  const nameToCluster: Record<string, string> = {};
+  for (const [name, val] of Object.entries(mapping)) {
+    nameToCluster[name] = val.l2;
+  }
+  return nameToCluster;
+}
+
+/** Build relevance-selection options, applying a lineage-tradition boost when a frame + lineage data are available. */
+function buildRelevanceOptions(threshold: number, debate: ReturnType<typeof useDebateStore.getState>['activeDebate'], allPovNodes: PovNode[]): RelevanceOptions {
+  const relevanceOpts: RelevanceOptions = { threshold, minPerCategory: 3, maxTotal: 35 };
+  const lineageFrame = debate?.topic?.critique?.lineage_frame;
+  getGlobalRecorder()?.record({
+    type: 'lineage.boost-check',
+    component: 'debate-store',
+    level: 'debug',
+    message: 'Lineage boost check',
+    data: {
+      has_lineage_frame: !!lineageFrame,
+      frame_count: lineageFrame?.length ?? 0,
+      lineage_data_loaded: isLineageDataLoaded(),
+    },
+  });
+  if (lineageFrame && lineageFrame.length > 0 && isLineageDataLoaded()) {
+    const mapping = getLineageMapping();
+    const lineageByNode = buildLineageByNode(allPovNodes);
+    const nameToCluster = buildNameToCluster(mapping);
+    relevanceOpts.lineageBoost = {
+      traditions: lineageFrame.map(f => f.cluster_id),
+      boost: 0.08,
+      lineageByNode,
+      nameToCluster,
+    };
+    getGlobalRecorder()?.record({
+      type: 'lineage.boost-applied',
+      component: 'debate-store',
+      level: 'info',
+      message: 'Lineage boost applied',
+      data: {
+        traditions: lineageFrame.map((f: { cluster_id: string; label?: string }) => f.label ?? f.cluster_id),
+        node_count_with_lineage: Object.keys(lineageByNode).length,
+        cluster_count: Object.keys(nameToCluster).length,
+        boost_value: 0.08,
+      },
+    });
+  } else if (lineageFrame) {
+    getGlobalRecorder()?.record({
+      type: 'lineage.boost-skipped',
+      component: 'debate-store',
+      level: 'warn',
+      message: 'Lineage boost skipped',
+      data: {
+        reason: lineageFrame.length === 0 ? 'empty_frame' : 'data_not_loaded',
+        frame_count: lineageFrame.length,
+        lineage_data_loaded: isLineageDataLoaded(),
+      },
+    });
+  }
+  return relevanceOpts;
+}
+
+/** Build the diagnostics injection manifest and log the lineage-boost promotion outcome. */
+function buildInjectionManifest(
+  scoredPov: ReturnType<typeof selectRelevantNodes>,
+  scoredCC: ReturnType<typeof selectRelevantSituationNodes>,
+  threshold: number,
+  allPovNodes: PovNode[],
+): Record<string, unknown> {
+  // Log lineage boost outcome — confirms how many nodes were actually promoted
+  const _lb = (scoredPov as unknown as { _lineageBoost?: { boostedNodeIds: string[]; promotedNodeIds: string[]; promotedCount: number } })._lineageBoost;
+  if (_lb) {
+    getGlobalRecorder()?.record({
+      type: 'lineage.boost-result',
+      component: 'debate-store',
+      level: _lb.promotedCount > 0 ? 'info' : 'debug',
+      message: _lb.promotedCount > 0
+        ? `Lineage boost promoted ${_lb.promotedCount} nodes`
+        : 'Lineage boost applied but promoted 0 nodes',
+      data: { boosted_count: _lb.boostedNodeIds.length, promoted_count: _lb.promotedCount, promoted_node_ids: _lb.promotedNodeIds?.slice(0, 10), total_selected: scoredPov.length, total_candidates: allPovNodes.length },
+    });
+  }
+
+  // Build injection manifest for diagnostics (mirrors debateEngine's _lastInjectionManifest)
+  const injectionManifest: Record<string, unknown> = {
+    povNodeIds: scoredPov.map(s => s.node.id),
+    povPrimaryIds: scoredPov.filter(s => s.score >= threshold + 0.1).map(s => s.node.id).slice(0, 5),
+    situationNodeIds: scoredCC.map(s => s.node.id),
+  };
+  if (_lb && _lb.boostedNodeIds.length > 0) {
+    injectionManifest.lineage_boost = {
+      boosted: _lb.boostedNodeIds.length,
+      promoted: _lb.promotedCount,
+      boostedNodeIds: _lb.boostedNodeIds.slice(0, 20),
+      promotedNodeIds: _lb.promotedNodeIds.slice(0, 20),
+    };
+  }
+  return injectionManifest;
+}
+
+/** Emit the situation interpretation-divergence summary — surfaces interpretation alignment at debate setup. */
+function recordSituationDivergence(filteredCC: SituationNode[], allCCNodes: SituationNode[]): void {
+  const withDiv = filteredCC.filter(n => n.interpretation_divergence != null);
+  if (withDiv.length > 0) {
+    const high = withDiv.filter(n => n.interpretation_divergence! > 0.40).length;
+    const medium = withDiv.filter(n => n.interpretation_divergence! >= 0.20 && n.interpretation_divergence! <= 0.40).length;
+    const low = withDiv.filter(n => n.interpretation_divergence! < 0.20).length;
+    const mean = withDiv.reduce((s, n) => s + n.interpretation_divergence!, 0) / withDiv.length;
+    const deprioritized = allCCNodes.filter(n => n.interpretation_divergence != null && n.interpretation_divergence < 0.20).length - low;
+    getGlobalRecorder()?.record({
+      type: 'situation.divergence-summary',
+      component: 'debate-store',
+      level: low > 0 ? 'warn' : 'info',
+      message: `Situation divergence: ${high} high, ${medium} moderate, ${low} low (mean ${mean.toFixed(2)})`,
+      data: {
+        activated_count: withDiv.length,
+        high_divergence: high,
+        medium_divergence: medium,
+        low_divergence: low,
+        mean_divergence: Math.round(mean * 100) / 100,
+        deprioritized_count: deprioritized > 0 ? deprioritized : 0,
+      },
+    });
+  }
+}
+
+/** Unfiltered fallback context when relevance scoring fails — first 21 POV + 10 CC nodes, no scores. */
+function buildUnfilteredFallback(
+  state: ReturnType<typeof useTaxonomyStore.getState>,
+  allPovNodes: PovNode[],
+  allCCNodes: SituationNode[],
+  err: unknown,
+): TaxonomyContextWithSources {
+  console.warn('[taxonomy] Relevance scoring failed, using unfiltered:', err);
+  try {
+    const s = useDebateStore.getState();
+    if (s.debateWarnings.length < 50) {
+      useDebateStore.setState({ debateWarnings: [...s.debateWarnings, 'Taxonomy relevance scoring unavailable'] });
+    }
+  } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Store not ready during relevance scoring fallback', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
+  const policyRegistry = (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
+  // Fallback: first 21 POV nodes + first 10 CC nodes
+  return {
+    povNodes: allPovNodes.slice(0, 21),
+    situationNodes: allCCNodes.slice(0, 10),
+    policyRegistry,
+  };
+}
+
 /**
  * Get taxonomy context filtered by relevance to the debate topic.
  * Falls back to unfiltered if embeddings unavailable.
@@ -180,226 +507,22 @@ export async function getRelevantTaxonomyContext(
   const allCCNodes: SituationNode[] = state.situations?.nodes ?? [];
 
   try {
-    // Build a combined node embedding map for scoring (POV + CC nodes)
-    const allNodeTexts = [
-      ...allPovNodes.map(n => `${n.label}: ${n.description}`),
-      ...allCCNodes.map(n => `${n.label}: ${n.description}`),
-    ];
-    const allNodeIds = [
-      ...allPovNodes.map(n => n.id),
-      ...allCCNodes.map(n => n.id),
-    ];
-    const { vectors: allVectors } = await api.computeEmbeddings(allNodeTexts, allNodeIds);
-    const baseNodeEmbeddings: Record<string, { pov: string; vector: number[] }> = {};
-    for (let i = 0; i < allNodeIds.length; i++) {
-      baseNodeEmbeddings[allNodeIds[i]] = { pov, vector: allVectors[i] };
-    }
-
-    // Merge synthetic multi-vector embeddings when available
-    const synVecs = await loadSyntheticVectors();
-    const nodeEmbeddings = synVecs
-      ? mergeSyntheticVectors(baseNodeEmbeddings, synVecs)
-      : baseNodeEmbeddings;
+    const { nodeEmbeddings, allNodeIds } = await buildNodeEmbeddingMap(pov, allPovNodes, allCCNodes);
 
     // Doctrinal anchoring: embed boundary strings once, then apply confidence floors to Beliefs
-    if (!_doctrinalAnchoringApplied.has(pov)) {
-      try {
-        // Embed boundary strings (cached across POVs)
-        if (!_boundaryEmbeddingsCache) {
-          const boundaries: Record<string, string[]> = {};
-          for (const p of AI_POVERS) {
-            const info = POVER_INFO[p];
-            if ((info?.doctrinal_boundaries?.length ?? 0) > 0) {
-              boundaries[info.pov] = info.doctrinal_boundaries ?? [];
-            }
-          }
-          if (Object.keys(boundaries).length > 0) {
-            _boundaryEmbeddingsCache = await embedDoctrinalBoundaries(
-              boundaries,
-              async (text: string) => {
-                const { vector } = await api.computeQueryEmbedding(text);
-                return vector;
-              },
-            );
-          }
-        }
+    await applyDoctrinalAnchoring(pov, allPovNodes, nodeEmbeddings);
 
-        const boundaryVectors = _boundaryEmbeddingsCache?.[pov] ?? [];
-        if (boundaryVectors.length > 0) {
-          const beliefs = allPovNodes.filter(n => n.category === 'Beliefs');
-          const results = computeDoctrinalAnchoring(beliefs, boundaryVectors, nodeEmbeddings);
-          const anomaly = checkThresholdAnomalies(results, beliefs.length);
-          if (anomaly) console.warn(anomaly.warning);
-          const anchoredCount = results.filter(r => r.anchored).length;
-          const floorCount = results.filter(r => r.floorApplied).length;
-          if (anchoredCount > 0) {
-            console.log(`[doctrinal] ${pov}: ${anchoredCount}/${beliefs.length} Beliefs anchored, ${floorCount} floor-applied`);
-          }
-        }
-        _doctrinalAnchoringApplied.add(pov);
-      } catch (err) {
-        getGlobalRecorder()?.record({
-          type: 'system.error',
-          component: 'debate-store',
-          level: 'warn',
-          message: 'Doctrinal anchoring failed',
-          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-        });
-        console.warn('[doctrinal] Anchoring failed (non-blocking):', err);
-        _doctrinalAnchoringApplied.add(pov); // don't retry on failure
-      }
-    }
-
-    // Collect AN claims and embed them for multi-claim relevance scoring
-      const debate = useDebateStore.getState().activeDebate;
-    const anNodes = debate?.argument_network?.nodes ?? [];
-    let scores: Map<string, number>;
-    let nodeSourceMap: Map<string, NodeScoringSource> | undefined;
-
-    // Use pre-computed embeddings from AN nodes (set by t/442 on extraction)
-    const embeddedAnNodes = anNodes.filter(n => n.embedding && n.embedding.length > 0);
-
-    if (embeddedAnNodes.length > 0) {
-      // AN-based scoring: use cached embeddings from extraction, score nodes by max similarity
-      const claimEmbeddings: ANClaimEmbedding[] = embeddedAnNodes.map(n => ({
-        id: n.id,
-        vector: n.embedding!,
-        strength: n.computed_strength,
-      }));
-
-      scores = scoreNodesViaAN(claimEmbeddings, nodeEmbeddings, undefined, true);
-      console.log(`[taxonomy] AN-based scoring: ${claimEmbeddings.length}/${anNodes.length} claims (with embeddings) against ${allNodeIds.length} nodes`);
-
-      // Also compute topic-only scores for hybrid source tracking
-      const query = buildRelevanceQuery(topic, recentTranscript);
-      const { vector: queryVector } = await api.computeQueryEmbedding(query);
-      const topicScores = scoreNodeRelevanceMeanTopN(queryVector, nodeEmbeddings);
-
-      // Build per-node source tracking: which AN claim matched best, AN vs topic comparison
-      nodeSourceMap = new Map<string, NodeScoringSource>();
-      for (const nodeId of allNodeIds) {
-        const anScore = scores.get(nodeId) ?? 0;
-        const topicScore = topicScores.get(nodeId) ?? 0;
-        const entry = nodeEmbeddings[nodeId];
-        if (!entry?.vector) continue;
-
-        // Find best matching AN claim for this node
-        let bestSim = 0;
-        let bestClaim: typeof claimEmbeddings[0] | null = null;
-        for (const claim of claimEmbeddings) {
-          const sim = cosineSimilarity(entry.vector, claim.vector);
-          if (sim > bestSim) { bestSim = sim; bestClaim = claim; }
-        }
-
-        const anNode = bestClaim ? anNodes.find(n => n.id === bestClaim!.id) : null;
-        nodeSourceMap.set(nodeId, {
-          source: anScore >= topicScore * 0.5 ? 'an' : 'topic',
-          anScore,
-          topicScore,
-          bestClaimId: bestClaim?.id,
-          bestClaimText: anNode?.text,
-          bestClaimSim: bestSim,
-        });
-      }
-    } else {
-      // No AN yet (pre-opening) — fall back to single topic query
-      const query = buildRelevanceQuery(topic, recentTranscript);
-      const { vector: queryVector } = await api.computeQueryEmbedding(query);
-      scores = scoreNodeRelevanceMeanTopN(queryVector, nodeEmbeddings);
-      console.log(`[taxonomy] Topic-query scoring (no AN claims yet): ${allNodeIds.length} nodes`);
-    }
+    // Score nodes by relevance (AN-claim-based when embeddings exist, else topic-query fallback)
+    const { scores, nodeSourceMap } = await computeRelevanceScores(topic, recentTranscript, nodeEmbeddings, allNodeIds);
 
     // Build relevance options with optional lineage boost
-    const relevanceOpts: RelevanceOptions = { threshold, minPerCategory: 3, maxTotal: 35 };
-    const lineageFrame = debate?.topic?.critique?.lineage_frame;
-    getGlobalRecorder()?.record({
-      type: 'lineage.boost-check',
-      component: 'debate-store',
-      level: 'debug',
-      message: 'Lineage boost check',
-      data: {
-        has_lineage_frame: !!lineageFrame,
-        frame_count: lineageFrame?.length ?? 0,
-        lineage_data_loaded: isLineageDataLoaded(),
-      },
-    });
-    if (lineageFrame && lineageFrame.length > 0 && isLineageDataLoaded()) {
-      const mapping = getLineageMapping();
-      const lineageByNode: Record<string, string[]> = {};
-      for (const node of allPovNodes) {
-        const ga = (node as { graph_attributes?: { intellectual_lineage?: (string | { name: string })[] } }).graph_attributes;
-        const lineage = ga?.intellectual_lineage;
-        if (lineage && lineage.length > 0) {
-          lineageByNode[node.id] = lineage.map(v => typeof v === 'string' ? v : v.name);
-        }
-      }
-      const nameToCluster: Record<string, string> = {};
-      for (const [name, val] of Object.entries(mapping)) {
-        nameToCluster[name] = val.l2;
-      }
-      relevanceOpts.lineageBoost = {
-        traditions: lineageFrame.map(f => f.cluster_id),
-        boost: 0.08,
-        lineageByNode,
-        nameToCluster,
-      };
-      getGlobalRecorder()?.record({
-        type: 'lineage.boost-applied',
-        component: 'debate-store',
-        level: 'info',
-        message: 'Lineage boost applied',
-        data: {
-          traditions: lineageFrame.map((f: { cluster_id: string; label?: string }) => f.label ?? f.cluster_id),
-          node_count_with_lineage: Object.keys(lineageByNode).length,
-          cluster_count: Object.keys(nameToCluster).length,
-          boost_value: 0.08,
-        },
-      });
-    } else if (lineageFrame) {
-      getGlobalRecorder()?.record({
-        type: 'lineage.boost-skipped',
-        component: 'debate-store',
-        level: 'warn',
-        message: 'Lineage boost skipped',
-        data: {
-          reason: lineageFrame.length === 0 ? 'empty_frame' : 'data_not_loaded',
-          frame_count: lineageFrame.length,
-          lineage_data_loaded: isLineageDataLoaded(),
-        },
-      });
-    }
+    const debate = useDebateStore.getState().activeDebate;
+    const relevanceOpts = buildRelevanceOptions(threshold, debate, allPovNodes);
 
     const scoredPov = selectRelevantNodes(allPovNodes, scores, relevanceOpts);
     const scoredCC = selectRelevantSituationNodes(allCCNodes, scores, threshold, 3, 15);
 
-    // Log lineage boost outcome — confirms how many nodes were actually promoted
-    const _lb = (scoredPov as unknown as { _lineageBoost?: { boostedNodeIds: string[]; promotedNodeIds: string[]; promotedCount: number } })._lineageBoost;
-    if (_lb) {
-      getGlobalRecorder()?.record({
-        type: 'lineage.boost-result',
-        component: 'debate-store',
-        level: _lb.promotedCount > 0 ? 'info' : 'debug',
-        message: _lb.promotedCount > 0
-          ? `Lineage boost promoted ${_lb.promotedCount} nodes`
-          : 'Lineage boost applied but promoted 0 nodes',
-        data: { boosted_count: _lb.boostedNodeIds.length, promoted_count: _lb.promotedCount, promoted_node_ids: _lb.promotedNodeIds?.slice(0, 10), total_selected: scoredPov.length, total_candidates: allPovNodes.length },
-      });
-    }
-
-    // Build injection manifest for diagnostics (mirrors debateEngine's _lastInjectionManifest)
-    const injectionManifest: Record<string, unknown> = {
-      povNodeIds: scoredPov.map(s => s.node.id),
-      povPrimaryIds: scoredPov.filter(s => s.score >= threshold + 0.1).map(s => s.node.id).slice(0, 5),
-      situationNodeIds: scoredCC.map(s => s.node.id),
-    };
-    if (_lb && _lb.boostedNodeIds.length > 0) {
-      injectionManifest.lineage_boost = {
-        boosted: _lb.boostedNodeIds.length,
-        promoted: _lb.promotedCount,
-        boostedNodeIds: _lb.boostedNodeIds.slice(0, 20),
-        promotedNodeIds: _lb.promotedNodeIds.slice(0, 20),
-      };
-    }
+    const injectionManifest = buildInjectionManifest(scoredPov, scoredCC, threshold, allPovNodes);
 
     // Unwrap ScoredPovNode → PovNode and build nodeScores map
     const filteredPov = scoredPov.map(s => s.node);
@@ -410,31 +533,7 @@ export async function getRelevantTaxonomyContext(
 
     console.log(`[taxonomy] Relevance-filtered: ${filteredPov.length} POV nodes (from ${allPovNodes.length}), ${filteredCC.length} CC nodes (from ${allCCNodes.length})`);
 
-    // Situation divergence summary — surfaces interpretation alignment at debate setup
-    {
-      const withDiv = filteredCC.filter(n => n.interpretation_divergence != null);
-      if (withDiv.length > 0) {
-        const high = withDiv.filter(n => n.interpretation_divergence! > 0.40).length;
-        const medium = withDiv.filter(n => n.interpretation_divergence! >= 0.20 && n.interpretation_divergence! <= 0.40).length;
-        const low = withDiv.filter(n => n.interpretation_divergence! < 0.20).length;
-        const mean = withDiv.reduce((s, n) => s + n.interpretation_divergence!, 0) / withDiv.length;
-        const deprioritized = allCCNodes.filter(n => n.interpretation_divergence != null && n.interpretation_divergence < 0.20).length - low;
-        getGlobalRecorder()?.record({
-          type: 'situation.divergence-summary',
-          component: 'debate-store',
-          level: low > 0 ? 'warn' : 'info',
-          message: `Situation divergence: ${high} high, ${medium} moderate, ${low} low (mean ${mean.toFixed(2)})`,
-          data: {
-            activated_count: withDiv.length,
-            high_divergence: high,
-            medium_divergence: medium,
-            low_divergence: low,
-            mean_divergence: Math.round(mean * 100) / 100,
-            deprioritized_count: deprioritized > 0 ? deprioritized : 0,
-          },
-        });
-      }
-    }
+    recordSituationDivergence(filteredCC, allCCNodes);
 
     const policyRegistry = (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
     return { povNodes: filteredPov, situationNodes: filteredCC, policyRegistry, nodeScores, nodeSourceMap, injectionManifest };
@@ -446,20 +545,7 @@ export async function getRelevantTaxonomyContext(
       message: 'Taxonomy relevance scoring failed, using unfiltered fallback',
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
-    console.warn('[taxonomy] Relevance scoring failed, using unfiltered:', err);
-    try {
-      const s = useDebateStore.getState();
-      if (s.debateWarnings.length < 50) {
-        useDebateStore.setState({ debateWarnings: [...s.debateWarnings, 'Taxonomy relevance scoring unavailable'] });
-      }
-    } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Store not ready during relevance scoring fallback', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
-    const policyRegistry = (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
-    // Fallback: first 21 POV nodes + first 10 CC nodes
-    return {
-      povNodes: allPovNodes.slice(0, 21),
-      situationNodes: allCCNodes.slice(0, 10),
-      policyRegistry,
-    };
+    return buildUnfilteredFallback(state, allPovNodes, allCCNodes, err);
   }
 }
 
@@ -568,39 +654,26 @@ export function formatEdgeContext(activePovers: string[]): string {
   return lines.join('\n');
 }
 
-/** Build lineage context string from pre-computed critique or fallback from all taxonomy nodes. */
-export function buildLineageContext(): string | undefined {
-  const debate = useDebateStore.getState().activeDebate;
-  const lineageFrame = debate?.topic?.critique?.lineage_frame;
-  if (lineageFrame && lineageFrame.length > 0) {
-    return formatLineageContext(lineageFrame);
-  }
-
-  // Fallback: compute from all taxonomy nodes (document/situation debates without topic critique)
+/** Fallback lineage frame computed from all taxonomy nodes (document/situation debates without a topic critique). */
+function computeFallbackLineageContext(): string | undefined {
   if (!isLineageDataLoaded()) return undefined;
   const taxState = useTaxonomyStore.getState();
   const mapping = getLineageMapping();
   const l2Cats = getL2Categories();
 
   const allNodeIds: string[] = [];
-  const lineageByNode: Record<string, string[]> = {};
+  const allNodes: PovNode[] = [];
   for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
     const file = taxState[pov];
     if (!file?.nodes) continue;
     for (const node of file.nodes) {
       allNodeIds.push(node.id);
-      const ga = (node as { graph_attributes?: { intellectual_lineage?: (string | { name: string })[] } }).graph_attributes;
-      const lineage = ga?.intellectual_lineage;
-      if (lineage && lineage.length > 0) {
-        lineageByNode[node.id] = lineage.map(v => typeof v === 'string' ? v : v.name);
-      }
+      allNodes.push(node);
     }
   }
 
-  const nameToCluster: Record<string, string> = {};
-  for (const [name, val] of Object.entries(mapping)) {
-    nameToCluster[name] = val.l2;
-  }
+  const lineageByNode = buildLineageByNode(allNodes);
+  const nameToCluster = buildNameToCluster(mapping);
   const clusterLabels: Record<string, string> = {};
   for (const cat of l2Cats) {
     clusterLabels[cat.id] = cat.label;
@@ -609,6 +682,16 @@ export function buildLineageContext(): string | undefined {
   const frame = computeLineageDistribution({ activatedNodeIds: allNodeIds, lineageByNode, nameToCluster, clusterLabels });
   if (frame.length === 0) return undefined;
   return formatLineageContext(frame);
+}
+
+/** Build lineage context string from pre-computed critique or fallback from all taxonomy nodes. */
+export function buildLineageContext(): string | undefined {
+  const debate = useDebateStore.getState().activeDebate;
+  const lineageFrame = debate?.topic?.critique?.lineage_frame;
+  if (lineageFrame && lineageFrame.length > 0) {
+    return formatLineageContext(lineageFrame);
+  }
+  return computeFallbackLineageContext();
 }
 
 /** Helper to get node label for fact check (standalone, no React hooks) */
