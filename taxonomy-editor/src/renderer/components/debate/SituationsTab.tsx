@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, type ReactNode } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { SituationNode } from '../../types/taxonomy';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
@@ -26,6 +26,297 @@ import { api } from '@bridge';
 import { sortSituationNodes, type SitSortMode } from './situationSort';
 import { SituationListItem } from './SituationListItem';
 import './SituationsTab.css';
+
+// --- Presentational sub-components (props in → JSX out, NO hooks) ---------
+// Extracted from SituationsTab's render to keep each function's cyclomatic
+// complexity within bounds (ADR-007). Behavior-preserving: JSX is verbatim.
+
+interface SituationsListPaneProps {
+  toolbarPanel: string | null;
+  promptInspectorActive: boolean;
+  isPhone: boolean;
+  width: number;
+  hasToolbarPane: boolean;
+  listCollapsed: boolean;
+  setListCollapsed: (v: boolean) => void;
+  setSearchPreviewId: (id: string | null) => void;
+  setLineagePreviewValue: (value: string | null) => void;
+  setSelectedFallacyKey: (key: string | null) => void;
+  setSelectedPromptEntry: (entry: PromptCatalogEntry | null) => void;
+  setPromptInspectorActive: (active: boolean) => void;
+  sitSortMode: SitSortMode;
+  setSitSortMode: (mode: SitSortMode) => void;
+  hierarchyView: boolean;
+  toggleHierarchy: () => void;
+  createSituationNode: () => string;
+  roots: SituationNode[];
+  childMap: Map<string, SituationNode[]>;
+  standalones: SituationNode[];
+  sortedFlatNodes: SituationNode[];
+  collapsedGroups: Set<string>;
+  toggleGroup: (key: string) => void;
+  selectedNodeId: string | null;
+  setSelectedNodeId: (id: string | null) => void;
+}
+
+// Pane 1: node list OR promoted toolbar panel.
+function SituationsListPane({
+  toolbarPanel, promptInspectorActive, isPhone, width, hasToolbarPane,
+  listCollapsed, setListCollapsed,
+  setSearchPreviewId, setLineagePreviewValue, setSelectedFallacyKey,
+  setSelectedPromptEntry, setPromptInspectorActive,
+  sitSortMode, setSitSortMode, hierarchyView, toggleHierarchy, createSituationNode,
+  roots, childMap, standalones, sortedFlatNodes, collapsedGroups, toggleGroup,
+  selectedNodeId, setSelectedNodeId,
+}: SituationsListPaneProps) {
+  return (
+    isFullWidthPanel(toolbarPanel, promptInspectorActive) ? (
+      <div className="list-panel list-panel-full">
+          {isPhone && <PhoneToolClose />}
+        <ToolbarPaneRenderer
+          panel={toolbarPanel}
+          onSelectResult={setSearchPreviewId}
+          onSelectLineageValue={setLineagePreviewValue}
+          onSelectFallacy={setSelectedFallacyKey}
+          onSelectPrompt={setSelectedPromptEntry}
+          onInspectorToggle={setPromptInspectorActive}
+        />
+      </div>
+    ) : hasToolbarPane ? (
+      <div
+        className="list-panel"
+        // eslint-disable-next-line local/no-inline-style -- dynamic: resizable panel width from useResizablePanel
+        style={{ width }}
+      >
+          {isPhone && <PhoneToolClose />}
+        <ToolbarPaneRenderer
+          panel={toolbarPanel}
+          onSelectResult={setSearchPreviewId}
+          onSelectLineageValue={setLineagePreviewValue}
+          onSelectFallacy={setSelectedFallacyKey}
+          onSelectPrompt={setSelectedPromptEntry}
+          onInspectorToggle={setPromptInspectorActive}
+        />
+      </div>
+    ) : listCollapsed ? (
+      <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
+        <span className="pane-collapsed-label">Situations</span>
+      </div>
+    ) : (
+      <div
+        className="list-panel"
+        // eslint-disable-next-line local/no-inline-style -- dynamic: resizable panel width from useResizablePanel
+        style={{ width }}
+      >
+        <div className="list-panel-header">
+          <h2>Situations</h2>
+          <div className="list-panel-header-actions">
+            <select
+              className="sort-select"
+              value={sitSortMode}
+              onChange={(e) => setSitSortMode(e.target.value as SitSortMode)}
+              title="Sort situations"
+            >
+              <option value="label">Sort: Name</option>
+              <option value="id">Sort: ID</option>
+              <option value="divergence">Sort: Divergence</option>
+            </select>
+            <button
+              className={`btn btn-sm${hierarchyView ? '' : ' btn-ghost'}`}
+              onClick={toggleHierarchy}
+              title={hierarchyView ? 'Switch to flat list' : 'Switch to hierarchy view'}
+            >
+              {hierarchyView ? 'Tree' : 'Flat'}
+            </button>
+            <button className="btn btn-sm" onClick={createSituationNode}>
+              + New
+            </button>
+            <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
+          </div>
+        </div>
+        <div className="list-panel-items">
+          {hierarchyView ? (
+            <>
+              {roots.map((root) => {
+                const children = childMap.get(root.id) || [];
+                const isGroupCollapsed = collapsedGroups.has(root.id);
+                return (
+                  <div key={root.id} className="node-tree-parent-group">
+                    <div
+                      className={`node-tree-parent-header ${selectedNodeId === root.id ? 'selected' : ''}`}
+                      onClick={() => setSelectedNodeId(root.id)}
+                    >
+                      <span
+                        className={`category-toggle ${isGroupCollapsed ? 'collapsed' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); toggleGroup(root.id); }}
+                      >&#9660;</span>
+                      <span className="node-tree-parent-label">{root.label || '(untitled)'}</span>
+                      <span className="node-tree-parent-count">{children.length}</span>
+                    </div>
+                    {!isGroupCollapsed && children.map((child) => (
+                      <SituationListItem
+                        key={child.id}
+                        id={child.id}
+                        label={child.label}
+                        isSelected={selectedNodeId === child.id}
+                        onSelect={setSelectedNodeId}
+                        indent
+                        relationship={child.parent_relationship}
+                        divergence={sitSortMode === 'divergence' ? child.interpretation_divergence : undefined}
+                      />
+                    ))}
+                  </div>
+                );
+              })}
+              {standalones.length > 0 && roots.length > 0 && (
+                <div className="situations-standalone-divider" />
+              )}
+              {standalones.map((node) => (
+                <SituationListItem
+                  key={node.id}
+                  id={node.id}
+                  label={node.label}
+                  isSelected={selectedNodeId === node.id}
+                  onSelect={setSelectedNodeId}
+                  divergence={sitSortMode === 'divergence' ? node.interpretation_divergence : undefined}
+                />
+              ))}
+            </>
+          ) : (
+            sortedFlatNodes.map((node) => (
+              <SituationListItem
+                key={node.id}
+                id={node.id}
+                label={node.label}
+                isSelected={selectedNodeId === node.id}
+                onSelect={setSelectedNodeId}
+                divergence={sitSortMode === 'divergence' ? node.interpretation_divergence : undefined}
+              />
+            ))
+          )}
+        </div>
+      </div>
+    )
+  );
+}
+
+interface SituationsNormalDetailProps {
+  detailCollapsed: boolean;
+  setDetailCollapsed: (v: boolean) => void;
+  isPhone: boolean;
+  selectedNodeId: string | null;
+  setSelectedNodeId: (id: string | null) => void;
+  selectedNode: SituationNode | null;
+  handlePin: () => void;
+  handleRelated: () => void;
+  handleDebate: () => void;
+  pinnedStack: readonly unknown[];
+  hasToolbarPane: boolean;
+}
+
+// Pane 2, final branch: the normal detail panel (+ pinned stack).
+function SituationsNormalDetail({
+  detailCollapsed, setDetailCollapsed, isPhone, selectedNodeId, setSelectedNodeId,
+  selectedNode, handlePin, handleRelated, handleDebate, pinnedStack, hasToolbarPane,
+}: SituationsNormalDetailProps) {
+  return (
+    <>
+      {detailCollapsed ? (
+        <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand detail">
+          <span className="pane-collapsed-label">Detail</span>
+        </div>
+      ) : (
+        <div className="detail-panel">
+          {isPhone && selectedNodeId ? (
+            <div className="phone-detail-header">
+              <button className="phone-detail-back" onClick={() => setSelectedNodeId('')}>
+                &larr; Situations
+              </button>
+            </div>
+          ) : (
+            <div className="situations-detail-collapse-row">
+              <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
+            </div>
+          )}
+          {selectedNode ? (
+            <SituationDetail node={selectedNode} onPin={handlePin} onRelated={handleRelated} onDebate={handleDebate} />
+          ) : (
+            <div className="detail-panel-empty">Select a situation node to edit</div>
+          )}
+        </div>
+      )}
+      {pinnedStack.length > 0 && !hasToolbarPane && <PinnedPanel />}
+    </>
+  );
+}
+
+interface SituationsDetailPaneProps {
+  toolbarPanel: string | null;
+  promptInspectorActive: boolean;
+  searchPreviewId: string | null;
+  setSearchPreviewId: (id: string | null) => void;
+  showEdgeDetail: boolean;
+  selectedPromptEntry: PromptCatalogEntry | null;
+  selectedFallacyKey: string | null;
+  handleFallacyNodeSelect: (nodeId: string, pov: string) => void;
+  renderLineagePreview: () => ReactNode;
+  lineageLinkUrl: string | null;
+  setLineageLinkUrl: (url: string | null) => void;
+  normalDetail: ReactNode;
+}
+
+// Pane 2: detail region (search preview, related edges, prompts, fallacy,
+// lineage preview, or normal detail).
+function SituationsDetailPane({
+  toolbarPanel, promptInspectorActive, searchPreviewId, setSearchPreviewId,
+  showEdgeDetail, selectedPromptEntry, selectedFallacyKey, handleFallacyNodeSelect,
+  renderLineagePreview, lineageLinkUrl, setLineageLinkUrl, normalDetail,
+}: SituationsDetailPaneProps) {
+  return (
+    toolbarPanel === 'search' ? (
+      <div className="detail-panel">
+        <SearchPreview searchPreviewId={searchPreviewId} onClear={() => setSearchPreviewId(null)} />
+      </div>
+    ) : toolbarPanel === 'related' ? (
+      <div className="detail-panel">
+        {showEdgeDetail ? (
+          <EdgeDetailPanel />
+        ) : (
+          <div className="detail-panel-empty">Select an edge to view details</div>
+        )}
+      </div>
+    ) : isFullWidthPanel(toolbarPanel, promptInspectorActive) ? null
+    : (toolbarPanel === 'prompts' && !promptInspectorActive) ? (
+      <div className="detail-panel">
+        <PromptDetailPanel entry={selectedPromptEntry} />
+      </div>
+    ) : toolbarPanel === 'fallacy' ? (
+      <div className="detail-panel">
+        <FallacyDetailPanel fallacyKey={selectedFallacyKey} onSelectNode={handleFallacyNodeSelect} />
+      </div>
+    ) : toolbarPanel === 'lineage' ? (
+      <>
+        <div className="detail-panel">
+          {renderLineagePreview()}
+        </div>
+        {lineageLinkUrl && (
+          <>
+            <div className="resize-handle" />
+            <div className="webview-pane">
+              <div className="webview-pane-header">
+                <span className="webview-pane-url">{lineageLinkUrl}</span>
+                <button className="btn btn-ghost btn-sm" onClick={() => setLineageLinkUrl(null)} aria-label="Close">&times;</button>
+              </div>
+              <ExternalEmbed src={lineageLinkUrl} title="Lineage source" />
+            </div>
+          </>
+        )}
+      </>
+    ) : (
+      normalDetail
+    )
+  );
+}
 
 export function SituationsTab() {
   const {
@@ -344,205 +635,65 @@ export function SituationsTab() {
   return (
     <div className={`two-column${isPhone ? ' phone-mode' : ''}${isPhone && selectedNodeId && !toolbarPanel ? ' has-selection' : ''}`}>
       {/* Pane 1: Node list OR promoted toolbar panel */}
-      {isFullWidthPanel(toolbarPanel, promptInspectorActive) ? (
-        <div className="list-panel list-panel-full">
-            {isPhone && <PhoneToolClose />}
-          <ToolbarPaneRenderer
-            panel={toolbarPanel}
-            onSelectResult={setSearchPreviewId}
-            onSelectLineageValue={setLineagePreviewValue}
-            onSelectFallacy={setSelectedFallacyKey}
-            onSelectPrompt={setSelectedPromptEntry}
-            onInspectorToggle={setPromptInspectorActive}
-          />
-        </div>
-      ) : hasToolbarPane ? (
-        <div
-          className="list-panel"
-          // eslint-disable-next-line local/no-inline-style -- dynamic: resizable panel width from useResizablePanel
-          style={{ width }}
-        >
-            {isPhone && <PhoneToolClose />}
-          <ToolbarPaneRenderer
-            panel={toolbarPanel}
-            onSelectResult={setSearchPreviewId}
-            onSelectLineageValue={setLineagePreviewValue}
-            onSelectFallacy={setSelectedFallacyKey}
-            onSelectPrompt={setSelectedPromptEntry}
-            onInspectorToggle={setPromptInspectorActive}
-          />
-        </div>
-      ) : listCollapsed ? (
-        <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
-          <span className="pane-collapsed-label">Situations</span>
-        </div>
-      ) : (
-        <div
-          className="list-panel"
-          // eslint-disable-next-line local/no-inline-style -- dynamic: resizable panel width from useResizablePanel
-          style={{ width }}
-        >
-          <div className="list-panel-header">
-            <h2>Situations</h2>
-            <div className="list-panel-header-actions">
-              <select
-                className="sort-select"
-                value={sitSortMode}
-                onChange={(e) => setSitSortMode(e.target.value as SitSortMode)}
-                title="Sort situations"
-              >
-                <option value="label">Sort: Name</option>
-                <option value="id">Sort: ID</option>
-                <option value="divergence">Sort: Divergence</option>
-              </select>
-              <button
-                className={`btn btn-sm${hierarchyView ? '' : ' btn-ghost'}`}
-                onClick={toggleHierarchy}
-                title={hierarchyView ? 'Switch to flat list' : 'Switch to hierarchy view'}
-              >
-                {hierarchyView ? 'Tree' : 'Flat'}
-              </button>
-              <button className="btn btn-sm" onClick={createSituationNode}>
-                + New
-              </button>
-              <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
-            </div>
-          </div>
-          <div className="list-panel-items">
-            {hierarchyView ? (
-              <>
-                {roots.map((root) => {
-                  const children = childMap.get(root.id) || [];
-                  const isGroupCollapsed = collapsedGroups.has(root.id);
-                  return (
-                    <div key={root.id} className="node-tree-parent-group">
-                      <div
-                        className={`node-tree-parent-header ${selectedNodeId === root.id ? 'selected' : ''}`}
-                        onClick={() => setSelectedNodeId(root.id)}
-                      >
-                        <span
-                          className={`category-toggle ${isGroupCollapsed ? 'collapsed' : ''}`}
-                          onClick={(e) => { e.stopPropagation(); toggleGroup(root.id); }}
-                        >&#9660;</span>
-                        <span className="node-tree-parent-label">{root.label || '(untitled)'}</span>
-                        <span className="node-tree-parent-count">{children.length}</span>
-                      </div>
-                      {!isGroupCollapsed && children.map((child) => (
-                        <SituationListItem
-                          key={child.id}
-                          id={child.id}
-                          label={child.label}
-                          isSelected={selectedNodeId === child.id}
-                          onSelect={setSelectedNodeId}
-                          indent
-                          relationship={child.parent_relationship}
-                          divergence={sitSortMode === 'divergence' ? child.interpretation_divergence : undefined}
-                        />
-                      ))}
-                    </div>
-                  );
-                })}
-                {standalones.length > 0 && roots.length > 0 && (
-                  <div className="situations-standalone-divider" />
-                )}
-                {standalones.map((node) => (
-                  <SituationListItem
-                    key={node.id}
-                    id={node.id}
-                    label={node.label}
-                    isSelected={selectedNodeId === node.id}
-                    onSelect={setSelectedNodeId}
-                    divergence={sitSortMode === 'divergence' ? node.interpretation_divergence : undefined}
-                  />
-                ))}
-              </>
-            ) : (
-              sortedFlatNodes.map((node) => (
-                <SituationListItem
-                  key={node.id}
-                  id={node.id}
-                  label={node.label}
-                  isSelected={selectedNodeId === node.id}
-                  onSelect={setSelectedNodeId}
-                  divergence={sitSortMode === 'divergence' ? node.interpretation_divergence : undefined}
-                />
-              ))
-            )}
-          </div>
-        </div>
-      )}
+      <SituationsListPane
+        toolbarPanel={toolbarPanel}
+        promptInspectorActive={promptInspectorActive}
+        isPhone={isPhone}
+        width={width}
+        hasToolbarPane={hasToolbarPane}
+        listCollapsed={listCollapsed}
+        setListCollapsed={setListCollapsed}
+        setSearchPreviewId={setSearchPreviewId}
+        setLineagePreviewValue={setLineagePreviewValue}
+        setSelectedFallacyKey={setSelectedFallacyKey}
+        setSelectedPromptEntry={setSelectedPromptEntry}
+        setPromptInspectorActive={setPromptInspectorActive}
+        sitSortMode={sitSortMode}
+        setSitSortMode={setSitSortMode}
+        hierarchyView={hierarchyView}
+        toggleHierarchy={toggleHierarchy}
+        createSituationNode={createSituationNode}
+        roots={roots}
+        childMap={childMap}
+        standalones={standalones}
+        sortedFlatNodes={sortedFlatNodes}
+        collapsedGroups={collapsedGroups}
+        toggleGroup={toggleGroup}
+        selectedNodeId={selectedNodeId}
+        setSelectedNodeId={setSelectedNodeId}
+      />
       {!isFullWidthPanel(toolbarPanel, promptInspectorActive) && (
         <div className="resize-handle" onMouseDown={onMouseDown} />
       )}
       {/* Pane 2: Detail (search preview, lineage preview, or normal detail) */}
-      {toolbarPanel === 'search' ? (
-        <div className="detail-panel">
-          <SearchPreview searchPreviewId={searchPreviewId} onClear={() => setSearchPreviewId(null)} />
-        </div>
-      ) : toolbarPanel === 'related' ? (
-        <div className="detail-panel">
-          {showEdgeDetail ? (
-            <EdgeDetailPanel />
-          ) : (
-            <div className="detail-panel-empty">Select an edge to view details</div>
-          )}
-        </div>
-      ) : isFullWidthPanel(toolbarPanel, promptInspectorActive) ? null
-      : (toolbarPanel === 'prompts' && !promptInspectorActive) ? (
-        <div className="detail-panel">
-          <PromptDetailPanel entry={selectedPromptEntry} />
-        </div>
-      ) : toolbarPanel === 'fallacy' ? (
-        <div className="detail-panel">
-          <FallacyDetailPanel fallacyKey={selectedFallacyKey} onSelectNode={handleFallacyNodeSelect} />
-        </div>
-      ) : toolbarPanel === 'lineage' ? (
-        <>
-          <div className="detail-panel">
-            {renderLineagePreview()}
-          </div>
-          {lineageLinkUrl && (
-            <>
-              <div className="resize-handle" />
-              <div className="webview-pane">
-                <div className="webview-pane-header">
-                  <span className="webview-pane-url">{lineageLinkUrl}</span>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setLineageLinkUrl(null)} aria-label="Close">&times;</button>
-                </div>
-                <ExternalEmbed src={lineageLinkUrl} title="Lineage source" />
-              </div>
-            </>
-          )}
-        </>
-      ) : (
-        <>
-          {detailCollapsed ? (
-            <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand detail">
-              <span className="pane-collapsed-label">Detail</span>
-            </div>
-          ) : (
-            <div className="detail-panel">
-              {isPhone && selectedNodeId ? (
-                <div className="phone-detail-header">
-                  <button className="phone-detail-back" onClick={() => setSelectedNodeId('')}>
-                    &larr; Situations
-                  </button>
-                </div>
-              ) : (
-                <div className="situations-detail-collapse-row">
-                  <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
-                </div>
-              )}
-              {selectedNode ? (
-                <SituationDetail node={selectedNode} onPin={handlePin} onRelated={handleRelated} onDebate={handleDebate} />
-              ) : (
-                <div className="detail-panel-empty">Select a situation node to edit</div>
-              )}
-            </div>
-          )}
-          {pinnedStack.length > 0 && !hasToolbarPane && <PinnedPanel />}
-        </>
-      )}
+      <SituationsDetailPane
+        toolbarPanel={toolbarPanel}
+        promptInspectorActive={promptInspectorActive}
+        searchPreviewId={searchPreviewId}
+        setSearchPreviewId={setSearchPreviewId}
+        showEdgeDetail={showEdgeDetail}
+        selectedPromptEntry={selectedPromptEntry}
+        selectedFallacyKey={selectedFallacyKey}
+        handleFallacyNodeSelect={handleFallacyNodeSelect}
+        renderLineagePreview={renderLineagePreview}
+        lineageLinkUrl={lineageLinkUrl}
+        setLineageLinkUrl={setLineageLinkUrl}
+        normalDetail={
+          <SituationsNormalDetail
+            detailCollapsed={detailCollapsed}
+            setDetailCollapsed={setDetailCollapsed}
+            isPhone={isPhone}
+            selectedNodeId={selectedNodeId}
+            setSelectedNodeId={setSelectedNodeId}
+            selectedNode={selectedNode}
+            handlePin={handlePin}
+            handleRelated={handleRelated}
+            handleDebate={handleDebate}
+            pinnedStack={pinnedStack}
+            hasToolbarPane={hasToolbarPane}
+          />
+        }
+      />
     </div>
   );
 }
