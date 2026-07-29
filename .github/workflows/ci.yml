@@ -53,6 +53,12 @@ jobs:
       schema: ${{ steps.filter.outputs.schema }}
       lib: ${{ steps.filter.outputs.lib }}
     steps:
+      - name: force-fail BEFORE filter (verify t/1962 case c2 skip-path) — DO NOT MERGE
+        run: |
+          echo "Failing the changes job BEFORE paths-filter runs → NO outputs are set,"
+          echo "so code jobs skip (their if sees empty outputs). Proves ci-gate must FAIL"
+          echo "on changes.result=failure and NOT pass-on-all-skipped."
+          exit 1
       - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d  # v4.0.1
         id: filter
         with:
