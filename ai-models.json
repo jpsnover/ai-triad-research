@@ -29,6 +29,10 @@
       "label": "Z.AI (GLM)"
     },
     {
+      "id": "moonshot",
+      "label": "Moonshot (Kimi)"
+    },
+    {
       "id": "ollama",
       "label": "Ollama (Local)",
       "local": true
@@ -64,6 +68,12 @@
       "apiModelId": "glm-5.2",
       "label": "GLM 5.2",
       "backend": "zai"
+    },
+    {
+      "id": "moonshot-kimi-k3",
+      "apiModelId": "kimi-k3",
+      "label": "Kimi K3",
+      "backend": "moonshot"
     },
     {
       "id": "gemini-3.6-flash",
@@ -715,7 +725,8 @@
     "deepseek": "deepseek-deepseek-v4-flash",
     "azure": "azure-gpt-4o",
     "ollama": "ollama-gemma4-e4b-it-q4-k-m",
-    "zai": "zai-glm-5-2"
+    "zai": "zai-glm-5-2",
+    "moonshot": "moonshot-kimi-k3"
   },
   "fallbackChains": {
     "gemini-3.6-flash": [
@@ -793,6 +804,10 @@
     "zai-glm-5-2": [
       "gemini-3.6-flash",
       "groq-llama-3.3-70b-versatile"
+    ],
+    "moonshot-kimi-k3": [
+      "gemini-3.6-flash",
+      "groq-llama-3.3-70b-versatile"
     ]
   },
   "contextWindows": {
@@ -803,7 +818,8 @@
     "azure": 128000,
     "deepseek": 65536,
     "ollama": 131072,
-    "zai": 1000000
+    "zai": 1000000,
+    "moonshot": 1000000
   },
   "capabilityDefaults": {
     "gemini": {
@@ -849,6 +865,12 @@
       "maxContextTokens": 131072
     },
     "zai": {
+      "supportsTools": true,
+      "supportsVision": false,
+      "supportsStreaming": true,
+      "maxContextTokens": 1000000
+    },
+    "moonshot": {
       "supportsTools": true,
       "supportsVision": false,
       "supportsStreaming": true,
@@ -1065,6 +1087,11 @@
       "inputPer1M": 1.4,
       "outputPer1M": 4.4,
       "cachedInputPer1M": 0.26
+    },
+    "moonshot-kimi-k3": {
+      "inputPer1M": 3.0,
+      "outputPer1M": 15.0,
+      "cachedInputPer1M": 0.3
     }
   },
   "lastRefreshed": "2026-07-26T12:23:03.226Z"
