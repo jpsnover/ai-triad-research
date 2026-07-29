@@ -78,6 +78,61 @@ function loadColloquialTerms(): ColloquialTerm[] {
   return terms;
 }
 
+/** Resolve a parsed EntityRef to its record, returning the EntityDetail union (a miss →
+ *  not_found). Extracted verbatim from the entity-resolve handler's switch (t/1914). */
+function resolveEntityRef(ref: EntityRef): EntityDetail {
+  switch (ref.kind) {
+    case 'organization': {
+      const org = getOrganizationById(ref.id);
+      // Organization has NO merged_into — no tombstone chase here.
+      return org ? { ref, kind: 'organization', record: org } : notFound(ref);
+    }
+
+    case 'policy': {
+      const found = policiesOf(readPolicyRegistry()).find(p => p.id === ref.id);
+      return found ? { ref, kind: 'policy', record: found as unknown as PolicyAction } : notFound(ref);
+    }
+
+    case 'node': {
+      const povFile = povFileForNodeId(ref.id);
+      if (!povFile) return notFound(ref);
+      const found = nodesOf(readTaxonomyFile(povFile)).find(n => n.id === ref.id);
+      return found ? { ref, kind: 'node', record: found as unknown as PovNode } : notFound(ref);
+    }
+
+    case 'situation': {
+      // sit-* and cc-* both live in the situations file (readTaxonomyFile
+      // resolves situations.json → cross-cutting.json, whichever exists).
+      const found = nodesOf(readTaxonomyFile('situations')).find(n => n.id === ref.id);
+      return found ? { ref, kind: 'situation', record: found as unknown as SituationNode } : notFound(ref);
+    }
+
+    case 'term': {
+      // Wire form is `term:<slug>`; slug maps to a ColloquialTerm by slugifying
+      // its colloquial_term. Ambiguous slug (≥2 matches) → not_found (never guess).
+      const slug = ref.id.slice('term:'.length);
+      const matches = loadColloquialTerms().filter(t => slugifyTerm(t.colloquial_term ?? '') === slug);
+      return matches.length === 1 ? { ref, kind: 'term', record: matches[0] } : notFound(ref);
+    }
+
+    case 'entity': {
+      // DEFERRED (mirrors entity.ts): entities.json is not shipped yet, so the
+      // registry is empty and every ent-* resolves to not_found. When it ships,
+      // read the registry here and follow the merged_into tombstone to the
+      // canonical record — see resolveMergedInto in server/routes/entity.ts.
+      return notFound(ref);
+    }
+
+    default: {
+      // Exhaustiveness guard (mirrors entity.ts): if EntityRefKind grows, `ref`
+      // stops being `never` and this fails to COMPILE, forcing the new kind to be
+      // handled. Unreachable today; if ever hit, routes through the handler's catch.
+      const _exhaustive: never = ref;
+      throw new Error(`Unhandled entity ref kind: ${JSON.stringify(_exhaustive)}`);
+    }
+  }
+}
+
 export function registerEntityHandlers(): void {
   // entity-resolve — desktop mirror of GET /api/entity/:ref. Resolves a raw ref
   // token to its record, returning the EntityDetail union (miss → not_found).
@@ -98,57 +153,7 @@ export function registerEntityHandlers(): void {
     }
 
     try {
-      switch (ref.kind) {
-        case 'organization': {
-          const org = getOrganizationById(ref.id);
-          // Organization has NO merged_into — no tombstone chase here.
-          return org ? { ref, kind: 'organization', record: org } : notFound(ref);
-        }
-
-        case 'policy': {
-          const found = policiesOf(readPolicyRegistry()).find(p => p.id === ref.id);
-          return found ? { ref, kind: 'policy', record: found as unknown as PolicyAction } : notFound(ref);
-        }
-
-        case 'node': {
-          const povFile = povFileForNodeId(ref.id);
-          if (!povFile) return notFound(ref);
-          const found = nodesOf(readTaxonomyFile(povFile)).find(n => n.id === ref.id);
-          return found ? { ref, kind: 'node', record: found as unknown as PovNode } : notFound(ref);
-        }
-
-        case 'situation': {
-          // sit-* and cc-* both live in the situations file (readTaxonomyFile
-          // resolves situations.json → cross-cutting.json, whichever exists).
-          const found = nodesOf(readTaxonomyFile('situations')).find(n => n.id === ref.id);
-          return found ? { ref, kind: 'situation', record: found as unknown as SituationNode } : notFound(ref);
-        }
-
-        case 'term': {
-          // Wire form is `term:<slug>`; slug maps to a ColloquialTerm by slugifying
-          // its colloquial_term. Ambiguous slug (≥2 matches) → not_found (never guess).
-          const slug = ref.id.slice('term:'.length);
-          const matches = loadColloquialTerms().filter(t => slugifyTerm(t.colloquial_term ?? '') === slug);
-          return matches.length === 1 ? { ref, kind: 'term', record: matches[0] } : notFound(ref);
-        }
-
-        case 'entity': {
-          // DEFERRED (mirrors entity.ts): entities.json is not shipped yet, so the
-          // registry is empty and every ent-* resolves to not_found. When it ships,
-          // read the registry here and follow the merged_into tombstone to the
-          // canonical record — see resolveMergedInto in server/routes/entity.ts.
-          return notFound(ref);
-        }
-
-        default: {
-          // Exhaustiveness guard (mirrors entity.ts): if EntityRefKind grows, `ref`
-          // stops being `never` and this fails to COMPILE, forcing the new kind to
-          // be handled. Unreachable today; if ever hit, routes through the catch
-          // below (flight-recorder + rethrow).
-          const _exhaustive: never = ref;
-          throw new Error(`Unhandled entity ref kind: ${JSON.stringify(_exhaustive)}`);
-        }
-      }
+      return resolveEntityRef(ref);
     } catch (err) {
       // 500-equivalent: a genuine resolution fault (corrupt data / unexpected). The
       // web route's 500 catch records here too; the malformed 400 above does not.

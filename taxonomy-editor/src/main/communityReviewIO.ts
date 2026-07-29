@@ -349,21 +349,27 @@ class CommunityReviewClient {
 
       if (action.action === 'promote') {
         const edits = action.edits?.[rawId] ?? action.edits?.[id];
-        const dataToPublish = (edits && typeof edits === 'object' && submission.data && typeof submission.data === 'object')
-          ? { ...(submission.data as Record<string, unknown>), ...edits }
-          : submission.data;
-        const sanitized = sanitizeForCommunity(dataToPublish, submission.submittedBy);
-        const dir = submission.type === 'chat' ? 'community/chats' : 'community/debates';
-        const prefix = submission.type === 'chat' ? 'chat-' : 'debate-';
-        await this.writeBlob(`${dir}/${prefix}${sanitized.id}.json`, JSON.stringify(sanitized, null, 2));
-        submission.status = 'approved';
-        await this.writeBlob(subPath, JSON.stringify(submission, null, 2));
+        await this.promoteSubmission(submission, subPath, edits);
       } else {
         submission.status = 'rejected';
         if (action.reason) submission.rejectionReason = action.reason;
         await this.writeBlob(subPath, JSON.stringify(submission, null, 2));
       }
     }
+  }
+
+  /** Promote one pending submission: merge admin edits, sanitize, publish to the public
+   *  community blob, and mark the submission approved. Extracted from executeAction (t/1914). */
+  private async promoteSubmission(submission: Submission, subPath: string, edits: Record<string, unknown> | undefined): Promise<void> {
+    const dataToPublish = (edits && typeof edits === 'object' && submission.data && typeof submission.data === 'object')
+      ? { ...(submission.data as Record<string, unknown>), ...edits }
+      : submission.data;
+    const sanitized = sanitizeForCommunity(dataToPublish, submission.submittedBy);
+    const dir = submission.type === 'chat' ? 'community/chats' : 'community/debates';
+    const prefix = submission.type === 'chat' ? 'chat-' : 'debate-';
+    await this.writeBlob(`${dir}/${prefix}${sanitized.id}.json`, JSON.stringify(sanitized, null, 2));
+    submission.status = 'approved';
+    await this.writeBlob(subPath, JSON.stringify(submission, null, 2));
   }
 }
 

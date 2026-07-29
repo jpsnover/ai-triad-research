@@ -21,6 +21,20 @@ import {
 } from '../fileIO.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
+/** Build a doc-title map entry from one source's parsed metadata.json, or null when it
+ *  has no title. Extracted verbatim from loadDocTitles (t/1914 complexity split). */
+function buildDocMeta(meta: { title?: string; resolved_url?: string; url?: string; provenance?: { id?: string }[] }): { title: string; resolved_url?: string; provenance_label?: string } | null {
+  if (!meta.title) return null;
+  const docMeta: { title: string; resolved_url?: string; provenance_label?: string } = { title: meta.title };
+  if (meta.resolved_url) docMeta.resolved_url = meta.resolved_url;
+  if (meta.provenance?.length && meta.provenance[0].id) {
+    docMeta.provenance_label = meta.provenance[0].id;
+  }
+  // Fallback: if no resolved_url yet but url field exists, use it
+  if (!docMeta.resolved_url && meta.url) docMeta.resolved_url = meta.url;
+  return docMeta;
+}
+
 export function registerSourceHandlers(): void {
   // Summaries & Sources
   ipcMain.handle('discover-sources', () => discoverSources());
@@ -66,17 +80,8 @@ export function registerSourceHandlers(): void {
         const metaPath = path.join(sourcesRoot, entry.name, 'metadata.json');
         if (!fs.existsSync(metaPath)) continue;
         try {
-          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-          if (meta.title) {
-            const docMeta: { title: string; resolved_url?: string; provenance_label?: string } = { title: meta.title };
-            if (meta.resolved_url) docMeta.resolved_url = meta.resolved_url;
-            if (meta.provenance?.length > 0 && meta.provenance[0].id) {
-              docMeta.provenance_label = meta.provenance[0].id;
-            }
-            // Fallback: if no resolved_url yet but url field exists, use it
-            if (!docMeta.resolved_url && meta.url) docMeta.resolved_url = meta.url;
-            metaMap[entry.name] = docMeta;
-          }
+          const docMeta = buildDocMeta(JSON.parse(fs.readFileSync(metaPath, 'utf-8')));
+          if (docMeta) metaMap[entry.name] = docMeta;
         } catch { /* telemetry — silent by design;  skip malformed metadata */ }
       }
       _docTitles = Object.keys(metaMap).length > 0 ? metaMap as unknown as DocTitleMap : undefined;
