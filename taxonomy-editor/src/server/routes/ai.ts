@@ -54,9 +54,13 @@ function callerIdentity(): { principalName: string; idp: string } {
 }
 
 // t/896: user-facing provider names for the missing_api_key fast-fail message.
-const BACKEND_DISPLAY: Record<string, string> = {
+// t/1959: keyed off the ApiKeyBackend union (AIBackend re-export) so omitting a
+// backend is a COMPILE error, not a runtime fall-through to the raw backend id.
+// Labels mirror ai-models.json (the single source of truth for provider names).
+const BACKEND_DISPLAY: Record<AIBackend, string> = {
   gemini: 'Gemini', claude: 'Claude (Anthropic)', groq: 'Groq',
   openai: 'OpenAI', deepseek: 'DeepSeek', tavily: 'Tavily', ollama: 'Ollama',
+  azure: 'Azure OpenAI', zai: 'Z.AI (GLM)', moonshot: 'Moonshot (Kimi)',
 };
 
 export function registerAiRoutes(r: Router, _ctx: ServerCtx): void {
