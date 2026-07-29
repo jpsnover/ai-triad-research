@@ -408,7 +408,7 @@ function Test-TaxonomyIntegrity {
             $EdgesData.edges = @($EdgesData.edges | Where-Object { $ValidIds.Contains($_.source) -and $ValidIds.Contains($_.target) })
             $Removed = $OrigCount - $EdgesData.edges.Count
             if ($Removed -gt 0) {
-                ($EdgesData | ConvertTo-Json -Depth 20) -replace "`r`n", "`n" | Set-Content -Path $EdgesPath -Encoding UTF8 -NoNewline
+                Write-EdgesFile -EdgesData $EdgesData -Path $EdgesPath
                 $Repaired += $Removed
                 Write-Host "    Removed $Removed dangling edges" -ForegroundColor Yellow
             }
