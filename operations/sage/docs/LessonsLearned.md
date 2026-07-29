@@ -875,6 +875,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-28 — Taxonomy Editor (p/6#22): same flag-order failure; resolved with `git commit -F msgfile -- <paths>`. **7th instance / 7 agents.** At 7× the improvement worth making is corrective GUIDANCE (git's `pathspec '-m' did not match` is cryptic) — the flag-order violation is a crisp syntactic signal, so the `git-commit-pathspec-flag-order` hook should emit the correct form on violation; blocked until the #80 Part-3 fix stops it exit-1-noising on every call. Still NOT a #82 escalation (git enforces).
 - 2026-07-28 — Taxonomy Editor 2 (p/195#7): `git commit -q -- <pathspec> -m "msg"` — same failure. **8th instance / 8 agents.** Fix queued (Diagnostics accepted p/9#47 — corrective-guidance emit folds into #80 Part-3); count reinforces the guidance fix.
 - 2026-07-28 — ServerAPI (t/1883, landed d9c3207e, p/79#17): `git commit -q -- <files> -m "msg"` → "pathspec '-m' did not match"; reordered to `-m "msg" -- <files>`. **9th instance / 8 agents — ServerAPI's 2nd (first REPEAT offender; earlier t/1788).** Self-corrected on git's rejection. A repeat by an already-bitten agent is the evidence that the queued corrective-guidance emit (#80 Part-3) is the right lever — prevention isn't (git rejects harmlessly), faster recognition of the cryptic error is.
+- 2026-07-29 — DebateUI (t/1915, p/83#4): `git commit -- <paths> -m "msg"` — flags after `--`; reordered to `-m "msg" -- <paths>`. **10th instance / 9 agents** (DebateUI joins the roster; self-corrected on git's rejection). No new per-instance action — corrective-guidance emit rides on the #80 Part-3 fix.
 
 **Root Cause:** `--` signals end-of-options to git. Everything after `--` is treated as a literal filename/pathspec — including `-m`, `-F`, and any other flag. This is standard POSIX behavior but surprises agents who think of `--` as "here come the paths" without realizing it also disables all subsequent flag parsing.
 
@@ -883,7 +884,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. Alternative: stage files first with `git add <paths>`, then `git commit -m "msg"` (no `--` needed if the index is already correct).
 3. Same rule applies to all git commands: `git diff`, `git log`, `git checkout` — `--` always terminates option parsing.
 
-**Status:** Rule (AGENTS.md, overlay 95e9c3b, p/8#30) + `git-commit-pathspec-flag-order` PreToolUse hook (p/9#16); overlay-form matcher gap fixed via inlining (p/9#41). **5 instances / 5 agents.** The hook is **warn-only** — git rejects the malformed command regardless, so recurrences (Docker overlay p/217#1; ServerAPI main-repo t/1788 p/79#13) self-correct on git's own error, not on the hook. The hook's value is guidance, not prevention; durable fix is the rule + habit.
+**Status:** Rule (AGENTS.md, overlay 95e9c3b, p/8#30) + `git-commit-pathspec-flag-order` PreToolUse hook (p/9#16); overlay-form matcher gap fixed via inlining (p/9#41). **10 instances / 9 agents** (+DebateUI t/1915, +ServerAPI ×2, +CL.Investigate1, +TaxEditor ×1, +TaxEditor2). The hook is **warn-only** — git rejects the malformed command regardless, so recurrences (Docker overlay p/217#1; ServerAPI main-repo t/1788 p/79#13) self-correct on git's own error, not on the hook. The hook's value is guidance, not prevention; durable fix is the rule + habit.
 
 **Applies To:** All agents using git commit with pathspec on any repo — including the overlay expanded form, which the hook may not yet cover.
 
@@ -1679,8 +1680,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-17 — Shared Lib (`/land-from-worktree` step 8, p/5#13): plain `git worktree remove` exited 128 on untracked `node_modules`; resolved with `--force` (work already pushed, no loss). (Facet A.)
 - 2026-07-28 — DebateDiagnostics (p/245#1): `git worktree remove <wt>` **timed out at 2min** synchronously `rm -rf`-ing the worktree's large `node_modules` (Windows/AV). Resolved by detaching git metadata fast, then backgrounding the delete: `git worktree prune` + `git branch -D <branch>`, then `rm -rf <wt-dir>` as a backgrounded task. (Facet B — supersedes the `--force` remedy for deps-installed worktrees.)
 - 2026-07-29 — Chat (p/270#1): `git worktree remove` **timed out at 2min** on a **double-`npm ci`'d** worktree (root **and** `taxonomy-editor/` → tens of thousands of node_modules files). git had already marked it **`prunable`**, so a backgrounded `rm -rf` + `git worktree prune` finished cleanup with **no `branch -D` needed**. 3rd instance — Facet B; the double-`npm ci` is the amplifier.
+- 2026-07-29 — Server Storage (t/1921 Batch B/C, p/206#5): `git worktree remove --force` failed **"`.git` does not exist"** — the OS/AV had already deleted the physical worktree dir, leaving only a stale administrative ref. Resolved with **`git worktree prune`**. (Facet C — the delete already happened out-of-band; `prune` is the whole fix, `remove` is the wrong verb.)
 
-**Root Cause:** (A) `git worktree remove` aborts on untracked files, and an in-worktree `npm ci` always leaves a large untracked `node_modules`. (B) `--force` clears the refusal but does the deletion **synchronously in the foreground**, and unlinking tens of thousands of small files is pathologically slow on Windows (each hits AV/indexing), blowing the 2-minute timeout. The git-metadata detach is instant; only the physical `rm -rf` is slow — coupling them in a foreground `remove` is what hangs. Companion to #77 and the Windows Junction pattern.
+**Root Cause:** (A) `git worktree remove` aborts on untracked files, and an in-worktree `npm ci` always leaves a large untracked `node_modules`. (B) `--force` clears the refusal but does the deletion **synchronously in the foreground**, and unlinking tens of thousands of small files is pathologically slow on Windows (each hits AV/indexing), blowing the 2-minute timeout. (C) Once the physical dir is already gone, `remove` fails ("`.git` does not exist") — only the stale ref remains, which `prune` clears. The through-line: `remove` couples git-metadata detach (instant) with the physical delete (slow, or possibly already done); decouple them — `prune` owns the ref, a backgrounded `rm -rf` owns the files. Companion to #77 and the Windows Junction pattern.
 
 **Prevention:**
 1. **For a deps-installed worktree, don't `git worktree remove` — detach fast, delete in the background** (DebateDiagnostics, p/245#1): `git worktree prune` + `git branch -D <branch>` (instant), then `rm -rf <wt-dir>` **backgrounded**. Avoids BOTH the refusal (A) and the foreground-rm timeout (B). If git already reports the worktree **`prunable`**, backgrounded `rm -rf` + `git worktree prune` alone suffices (skip `branch -D`, Chat p/270#1). A land that builds **both** root and `taxonomy-editor/` leaves **two** node_modules trees — double the delete.
@@ -1915,16 +1917,18 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-07-28 — ServerAPI (t/1829, p/79#15) + Technical Lead (t/1829#2, p/8#111): `npm run verify 2>&1 | tail -N` returned `tail`'s exit 0, masking verify's real result; a push gated on that eyeballed tail can push a RED verify. ServerAPI's t/1829 outcome was sound only because the failures were unrelated flake — the masked exit was the real footgun.
+- 2026-07-29 — Technical Lead (t/1932, p/8#117): **`git push | tail` inside a `&&` cleanup chain** swallowed a **non-fast-forward rejection** — the pipe returned `tail`'s 0, so the `&&` teardown (worktree remove) ran anyway on an unpushed commit. Same exit-code-laundering, but the masked exit is `git push`'s, and the downstream damage is a **skipped push + teardown that strands the commit** rather than a false-green verify. (This is the "never pipe git push" facet — Sage memory `feedback_never_pipe_git_push.md`, originally Sage #96.)
 
-**Root Cause:** A bash pipeline's exit status is the **last command's** (unless `set -o pipefail`). `verify | tail` → `tail` exits 0 → `$?` = 0 regardless of verify. Same **exit-code-laundering** family as #84 (`&& echo PASS || echo FAIL`) and the **bookkeeping-≠-artifact genus**: the exit you read is the pipe's/wrapper's, not the command's.
+**Root Cause:** A bash pipeline's exit status is the **last command's** (unless `set -o pipefail`). `verify | tail` → `tail` exits 0 → `$?` = 0 regardless of verify; **`git push | tail`** → `tail` exits 0 regardless of a non-ff reject. Same **exit-code-laundering** family as #84 (`&& echo PASS || echo FAIL`) and the **bookkeeping-≠-artifact genus**: the exit you read is the pipe's/wrapper's, not the command's. Especially dangerous when a `&&` cleanup/teardown chains after the piped push — the teardown reads the pipe's 0 and runs on an unpushed HEAD.
 
 **Prevention:**
 1. **Capture the real exit BEFORE piping:** `npm run verify > out.log 2>&1; rc=$?; tail -N out.log; [ $rc -eq 0 ] || exit 1` — decide on `$rc`, view the tail separately.
 2. **Or `set -o pipefail`** (pipeline returns first non-zero); `${PIPESTATUS[0]}` reads the first command's exit after a pipe.
 3. **Never gate a push/land on an eyeballed tail** — the tail shows output, not verdict.
-4. #84 sibling — whenever a wrapper/pipe sits between you and a command's exit, go to the source.
+4. **Never pipe `git push`** — run it bare, branch on its real exit, and **confirm `origin/<branch>` == local HEAD before any worktree teardown** (`git rev-parse origin/main` == `HEAD`). If a push was skipped and the commit stranded, recover via `git cat-file`/`cherry-pick` (see `feedback_never_pipe_git_push.md`).
+5. #84 sibling — whenever a wrapper/pipe sits between you and a command's exit, go to the source.
 
-**Status:** Active — exit-code-laundering (pipe) variant of the false-green genus (#20/#46) + bookkeeping-≠-artifact family (#84 sibling). Surfaced t/1829 (detail t/1829#2).
+**Status:** Active — exit-code-laundering (pipe) variant of the false-green genus (#20/#46) + bookkeeping-≠-artifact family (#84 sibling). Surfaced t/1829 (detail t/1829#2); **+git-push facet t/1932 (p/8#117) — teardown-after-swallowed-non-ff-reject.**
 
 **Applies To:** All agents gating a push/land on `verify`/test output that is piped (`| tail`/`| grep`/`| head`).
 
@@ -2046,3 +2050,206 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — chain-cut sibling of #95 under the "a push in a compound command may not have actually run → verify the ref on origin" theme; bookkeeping≠artifact genus; chain-break mechanism overlaps #73 facet A.
 
 **Applies To:** All agents landing via Bash-tool command chains that include a `git push` — especially long `tsc && push && … && grep` one-liners on Windows/Git Bash.
+
+---
+
+## #97 [Build] `git stash show` Rejects a Pathspec ("Too many revisions specified")
+
+**Pattern:** `git stash show -p 'stash@{N}' -- <path>` fails with "Too many revisions specified" — `git stash show` takes a single stash ref and has no `-- <pathspec>` scoping mode.
+
+**Instances:**
+- 2026-07-29 — DevOps (t/1768, p/26#24): `git stash show -p 'stash@{1}' -- <path>` errored while inspecting a stash for one file. Fixed with `git diff 'stash@{1}^' 'stash@{1}' -- <path>`. Self-resolved, no impact.
+
+**Root Cause:** `git stash show` only diffs a whole stash entry against its base and parses trailing `-- <path>` tokens as extra revisions. A stash is an ordinary commit (`stash@{N}`) whose first parent (`stash@{N}^`) is its capture point, so the underlying `git diff` accepts a normal `<rev> <rev> -- <path>` form.
+
+**Prevention:**
+1. One file from a stash's own change set: `git diff 'stash@{N}^' 'stash@{N}' -- <path>` (note the `^` — the stash's first parent is its base).
+2. Stashed file vs another ref (e.g. origin, the t/1768 supersession check): `git diff 'stash@{N}:<path>' 'origin/main:<path>'` (blob-vs-blob, no `--`).
+3. Whole-stash overview still works: `git stash show -p 'stash@{N}'` — just drop the pathspec.
+
+**Status:** Resolved — self-correcting (git rejects it immediately). Single instance; recorded because stash inspection recurs during worktree/realign cleanups.
+
+**Applies To:** Any agent inspecting a specific file inside a git stash.
+
+---
+
+## #98 [Build] Extracting a `catch` Body Into a Helper Trips the AST-Enforced Flight-Recorder Rule (ADR-003)
+
+**Pattern:** The custom ESLint rule `local/require-flight-recorder-in-catch` (ADR-003) is **position-based** — `getGlobalRecorder()?.record(...)` must be *literally inside* the `catch` AST node. A behavior-preserving refactor that lifts the `catch` body into a helper relocates the `record()` call and fails lint. Complexity-reduction / function-extraction passes are the classic trigger.
+
+**Instances:**
+- 2026-07-29 — Taxonomy Editor 2 (t/1848 batch 7): extracting a `catch` body into a helper tripped the rule. Fixed by keeping `record(...)` inline, extracting only the non-recording tail (p/195#9, t/1848#11).
+- 2026-07-29 — ElectronMain (t/1914): independently hit the same rule in the same fan-out. Same fix.
+
+**Root Cause:** ADR-003 enforces "every `catch` records" *structurally* — the `record()` call must be a direct statement of the `catch` block, not merely reachable. A recording helper is behavior-equivalent but AST-invisible, so the rule holds the line on literal position rather than proving reachability.
+
+**Prevention:**
+1. Decomposing a `catch`-heavy function: keep `getGlobalRecorder()?.record(...)` inline in the `catch`; extract only the non-recording tail (fallback construction, retry orchestration).
+2. Don't wrap the helper to "also record" — the guarantee is literal-position, not reachability. Inline is the sanctioned form.
+3. General: position-based AST rules survive behavior-preserving refactors only if the guarded call stays where the rule expects it — check before extracting any block guarded by a `local/*` rule.
+
+**Status:** Active — self-correcting at point-of-use (lint rejects immediately). **2 instances / 2 roles, both in the t/1848 complexity-decomposition fan-out; 6+ more roles still decomposing catch-heavy code** → likely further rediscovery. Point-of-use prevention broadcast by TE2 on the parent ticket (t/1848#11). **Durable lever TAKEN (TL p/8#116):** fix idiom being embedded in the rule's lint-time message, filed low-pri as **t/1927 (Shared Lib) + t/1928 (Taxonomy Editor)**. **Related drift smell:** the rule is two byte-identical copies (`lib/eslint-rules` + `taxonomy-editor/eslint-rules`) referenced by 3 `eslint.config.mjs` — hence two tickets; update-in-N-places tax + silent-divergence risk. TL noted a single-shared-rule dedup as a separate low-pri follow-up. No divergence yet; if the copies ever drift, that realized failure lands here.
+
+**Applies To:** Any role running function-extraction / complexity-reduction on flight-recorder-guarded `catch` blocks under ADR-003.
+
+---
+
+## #99 [Process] Adding an Nth Variant to a Shared Enum/Config Touches More Than the Obvious Files — Enumerate Coupling Sites + Run ALL Referencing Tests
+
+**Pattern:** Adding a member to a shared enumeration (a new AI backend id, POV camp, node category) has a surface far larger than the "obvious" files. Non-obvious **coupling sites** — exhaustiveness-checked `Record<Enum,…>` maps (TS `TS2741` at compile time), validation-probe tables, id-resolvers — each break independently, often in *different roles' scopes*. A ticket DAG scoped to the obvious files ships a partial change that reddens main across sites the decomposition never listed. Compounded when verify runs a **hand-picked subset** of the referencing tests instead of ALL of them.
+
+**Instances:**
+- 2026-07-29 — Technical Lead (t/1932 Moonshot backend; detail t/1932#1): the DAG covered the 3 adapters (aiAdapter/aiBackends/AIEnrich) but missed 3 non-adapter coupling sites — `routes/keys.ts` `KEY_VALIDATION_PROBES` (keysValidation.test.ts red), `config.ts` `ENV_KEY_NAMES`/`AIBackend` exhaustiveness (server tsc TS2741, blocks everyone), `registry.ts` `resolveBackend` (silent misroute moonshot→gemini). Compounded: config-land verify grepped `keysValidation.test.ts` but ran only `configInvariant`+`modelDiscovery` — a subset skipping the broken test. Green via t/1944+probe `66325245`; routing t/1945.
+
+**Root Cause:** A shared enum/config is a fan-out coupling point — every exhaustiveness-checked map, probe table, and resolver keyed on it is an implicit dependency, enforced only if that check is compiled/run. The author reasons from the *feature* ("add an adapter") not the *coupling graph* ("what is keyed on this id?"), so coupling sites in other scopes fall outside the DAG; a hand-picked test subset then hides the breaks pre-land.
+
+**Prevention:**
+1. Before decomposing a shared-enum addition, **enumerate the coupling graph, not the feature files** — grep the enum/type name + existing members repo-wide; every `Record<Enum,…>`, probe table, and resolver keyed on it needs a ticket (often cross-scope).
+2. **A shared-config change must run ALL referencing tests — never a hand-picked subset.** If you grep for referencing tests, *run the ones you find*; prefer full `npm run verify` for any shared-surface change.
+3. Make coupling maps **exhaustive at compile time** (`Record<Enum,T>` not `Partial<…>`; `switch` + `never` default) so `tsc` becomes the coupling detector.
+4. Durable fix for a recurring multi-site addition: a **checklist playbook**. TL is authoring `/add-ai-backend` (7 config sections + keys.ts probe + config.ts ENV_KEY_NAMES/type + registry resolveBackend + 3 adapters) — the concrete instance of this rule.
+
+**Status:** Active — decomposition-completeness (coupling graph vs feature files) + verify-scope (all referencing tests vs subset). TL self-reported (t/1932#1); durable fix = `/add-ai-backend` playbook (being filed). Watch the same shape on other shared enums (POV camps `acc/saf/skp/cc`, BDI categories, `pol-*` registry).
+
+**Applies To:** Any role decomposing/landing a change that adds a member to a shared enumeration/config consumed across multiple files or scopes.
+
+---
+
+## #100 [Process] Branch Protection With `enforce_admins=false` Is Not a Hard Block for Admin Identities — "PR-flow" Is a Convention
+
+**Pattern:** A repo can have branch protection + required checks on `main`, yet a direct `git push origin HEAD:main` from an **admin identity SUCCEEDS and bypasses the checks** ("Bypassed rule violations, accepted") when `enforce_admins=false`. With the whole fleet pushing as one repo-owner admin identity, the "checks-only PR-flow" gate is a **CONVENTION enforced by review + discipline, not a platform hard-block.** "protection is on" ⇒ "direct push impossible" is a false-enforcement assumption.
+
+**Instances:**
+- 2026-07-29 — main → PR-flow rollout (e/49): initial broadcast said "**direct push to main is BLOCKED**"; corrected ~12 min later (e/49#3/#4, prompted by TL2 p/276#3 + Sage p/8#119) once admin-bypass was confirmed. Routine direct-push-to-main is now a flagged process violation; pre-broadcast bypass lands (DebateTool t/1955/t/1949) grandfathered. Owner deciding `enforce_admins=true` vs. convention.
+
+**Root Cause:** GitHub's `enforce_admins` governs whether protection applies to admins. False + everyone authenticating as the repo-owner admin = rules are advisory for the fleet. "branch-protected" is *configuration*, not the achieved *guarantee* for admin pushers — same signal-vs-reality gap as the gate-integrity / bookkeeping-≠-artifact family.
+
+**Prevention:**
+1. Land via green-PR self-merge (`/land-from-worktree` PR-flow: feature branch → `gh pr create` → 6 checks → `gh pr merge --rebase --delete-branch`, no `--admin`/reviewer). Routine direct-push-to-main = process violation.
+2. Never equate "protection enabled" with "bypass impossible" — check `enforce_admins` + admin status. A gate admins can bypass is convention, not enforcement.
+3. Admin/hotfix bypass reserved for a red/broken main when the PR path is blocked, a true prod emergency, or an explicit owner-directed land — reference the authorization; never routine.
+4. To make it binding: `enforce_admins=true` (owner call, pending). Until then discipline is the enforcement (#82 rule-exists-but-not-applied: convention with no point-of-use hard-block relies on review).
+
+**Status:** Active — convention effective 2026-07-29 (e/49). Companion fix (detached-HEAD push needs `HEAD:refs/heads/<branch>`) in build.md (ServerAPI p/79#19); both folded into revised `/land-from-worktree`.
+
+**Applies To:** Every role that lands work to `main` — the whole fleet.
+
+---
+
+## #101 [Process] Docs-Only PRs Can't Self-Merge Under the Checks-Only Gate — Path-Filtered CI Leaves Required Contexts Unreported (BLOCKED)
+
+**Pattern:** Under the checks-only PR-flow, a **docs-only / CI-config-only PR is un-mergeable by self-merge**. Path-filtering (`dorny/paths-filter`) skips code jobs on a docs diff — `test-powershell`+`test-electron` report `skipped`, the 4 required `test-electron (variant)` contexts **never report at all**. A required context satisfies the gate only if it runs and reports `success`; never-reported = pending forever. 5/6 required checks can't be satisfied → `mergeStateStatus=BLOCKED` regardless of discipline. Docs lands only via (a) TL `--admin`-merge (the "PR path itself blocked" exception) or (b) a flagged direct-push.
+
+**Instances (3 roles in one hour — systemic, not edge case):**
+- 2026-07-29 — PowerShell PR #134 (t/1938#6): BLOCKED; parked for TL admin-merge (e/49#8).
+- 2026-07-29 — Computational Linguist (e/49#10): docs-only is the MAJORITY of CL lands (registers, analyses, reviews); `ecb137e7` (t/1853) would have parked. Names two harms: TL becomes a synchronous dependency of every docs land; mixed PRs dodge the gap → perverse incentive to bundle docs with code.
+- 2026-07-29 — Sage (this session): lessons-doc commits are all docs-only → same wall; parked on local main, not direct-pushed.
+
+**Root Cause:** Required status checks vs. path-filtered CI are in tension. Strict protection waits for every required context to report `success`; path-filtering makes those contexts unreportable on a docs diff, and "never reported" ≠ "passed." The gate is simultaneously too weak for admins (bypassable) and too strong for docs (un-satisfiable) — two failure modes of the same rollout.
+
+**Prevention / Fix:**
+1. Docs/CI-config-only land under the convention: route via TL `--admin`-merge (sanctioned "PR path blocked" exception) — reference the authorization; don't routine-direct-push.
+2. Durable flow-fix (owner/DevOps): the canonical "required checks + path filters" pattern is an **always-run aggregate gate** (PowerShell e/49#11) — one `ci-gate` job, `if: always()`, `needs:` the 6 real jobs, passes iff none **failed** (skipped=OK), made the **single required context** replacing the 6 `test-*`. Docs-only PR → code jobs skip → `ci-gate` passes → self-merges; red code job → `ci-gate` fails → blocked. No `enforce_admins` change; keeps docs atomic; removes the bundle-with-code incentive. DevOps owns the `ci.yml` + contexts swap. Until it lands, docs PRs need admin-merge.
+3. If `enforce_admins` goes true this is a HARD wall for every docs/CI-config change — fix first. (Decision: keep `enforce_admins=false` + tool-layer push-guard t/1926, so the admin-merge valve stays.)
+
+**Status:** Active — **OWNED + fix APPROVED** (TL e/49#12, ~30 min after surfaced). `ci-gate` aggregate-gate approved, tracked **t/1962 (DevOps, high)**: PowerShell drafts the job, DevOps lands `ci.yml` + swaps branch-protection to the single `ci-gate` context. Interim: parked PRs (PS2 #128, PowerShell #134) authorized for `--admin`-merge as the sanctioned "PR-path-blocked-by-config-defect" exception (NOT routine bypass); same extends to docs lands parked until t/1962 — ping TL, don't bundle. 3 affected roles (PowerShell, CL, Sage); Sage's authorization CONFIRMED (e/49#16). Interim PRs clearing (#134 admin-merged `c23de7f6`). Note: t/1961/t/1962 may be dups — DevOps/TL to dedup (e/49#13). Sibling to the `enforce_admins=false` convention entry.
+
+**Applies To:** Any role landing docs-only / CI-config-only changes — Sage, Computational Linguist, Documentation, DevOps (CI config), anyone editing docs.
+
+---
+
+## #102 [Process] Validate a Fleet-Standard Procedure Change End-to-End Before Mandating It (Dry-Run One Real PR Through Every Step)
+
+**Pattern:** A change to a fleet-standard procedure (land flow, CI gate, commit convention) broadcast + mandated *before* being run end-to-end ships latent defects every adopter then hits. Writing the intended steps ≠ having *executed* them once against the live infra — the gaps live in the interaction between the steps and the real repo config (branch protection, path filters, worktree constraints, `gh` behavior), invisible on paper, obvious on the first real run.
+
+**Instances:**
+- 2026-07-29 — main → PR-flow rollout (e/49): the revised `/land-from-worktree` was mandated before an end-to-end validation land. **3 defects surfaced within the hour**, each caught by a different role mid-land: (1) detached-HEAD push needs `HEAD:refs/heads/<branch>` (ServerAPI p/79#19); (2) docs-only PRs can't self-merge — path-filtered required checks never report (PowerShell/CL/Sage, t/1962); (3) `gh pr merge --delete-branch` from a worktree aborts post-merge, masking a landed merge (ElectronMain p/98#12). All three would have surfaced in one real PR through every step. TL owned the root cause (p/8#121).
+
+**Root Cause:** A procedure authored from reasoning vs. executed once against the actual repo. Each defect lived in a step's collision with live infra (refspec under detached HEAD; required-checks vs. path-filtering; `gh`'s local checkout under one-branch-per-worktree) — invisible reading the steps, unmissable on a real run. Same verify-the-artifact-not-the-plan discipline the fleet applies to code, applied to process rollout.
+
+**Prevention:**
+1. Before mandating a fleet-standard procedure change, **dry-run it end-to-end** — one real change through EVERY step on the actual repo (real worktree → push → PR → checks → merge → cleanup).
+2. Broadcast AFTER the validation land, citing the validating PR.
+3. If urgency forces broadcasting first, label it PROVISIONAL / pending-validation; don't treat "written" as "validated." (e/49 self-corrected 4× in the hour.)
+4. Genus: a documented procedure is bookkeeping; the validating land is the artifact.
+
+**Status:** Active — TL-owned root cause of the 3 PR-flow defects (self-reported p/8#121). **BEING PROMOTED to a rule (TL p/8#123):** target = TL AGENTS.md (engineering/tech-lead), pending owner wording sign-off before the `ogit` overlay commit, citing `1ded61d4` + the 3-defect rollout; graduates to root AGENTS.md if the owner wants it fleet-binding. Add to the INDEX "AGENTS.md Rules (Escalated from Sage)" list once it lands. The three defects are recorded individually (refs/heads + `--delete-branch` in build.md; docs-only gate above); this is their common cause.
+
+**Applies To:** Anyone — esp. TL / DevOps — mandating a change to a fleet-standard procedure.
+
+---
+
+## #103 [Build] Building a Sibling-Worktree Path With `..` Collapses to the Wrong Base
+
+**Pattern:** Constructing a sibling worktree's path as `<repo>/../<sibling>` mis-resolves when `..` is anchored on the wrong segment. `C:/Users/jsnov/repos/../wt-1938b` collapses `repos/..` → `C:/Users/jsnov` → `C:/Users/jsnov/wt-1938b`, but the worktree lives at `C:/Users/jsnov/repos/wt-1938b`, so `cd` fails "No such file or directory" mid-land. The repo dir is `…/repos/ai-triad-research`; a sibling at `…/repos/wt-1938b` is `<repo>/../wt-1938b` (`ai-triad-research/..`), NOT `repos/../wt-1938b`.
+
+**Instances:**
+- 2026-07-29 — PowerShell 2 (p/228#8, t/1938 land): `cd "C:/Users/jsnov/repos/../wt-1938b"` failed — `..` cancelled `repos` (wrong base). Resolved with the full absolute sibling path, no `..`.
+
+**Root Cause:** `..` resolves lexically against the immediately preceding segment, not "the repo." A base assembled to a different depth than intended lets one stray `..` silently retarget to a valid-looking wrong directory. Worktree lands are exposed because the sibling sits one level up from the repo dir but two up from `repos/`.
+
+**Prevention:**
+1. For sibling worktrees, write the absolute path directly — no `..` segments.
+2. If building relative, anchor `..` on the repo dir (`ai-triad-research/..`) and verify with `realpath`/`Resolve-Path` before `cd`.
+
+**Status:** Resolved — self-correcting (bad `cd` errors immediately). Single instance; recorded because worktree lands routinely reference sibling paths and the `..`-collapse is a silent retarget.
+
+**Applies To:** Any agent building sibling-worktree paths during `/land-from-worktree` or manual worktree ops.
+
+---
+
+## #104 [Build] Pushing From a Detached-HEAD Worktree Needs a Fully-Qualified Destination Ref
+
+**Pattern:** `git push origin HEAD:<branch>` fails from a detached-HEAD worktree with "not a full refname" — HEAD points at a bare commit, so git can't expand the short destination into a full ref. Fix: `git push origin HEAD:refs/heads/<branch>`.
+
+**Instances:**
+- 2026-07-29 — ServerAPI (p/79#19): pushing a feature branch from a detached worktree via `git push origin HEAD:<branch>` failed "not a full refname"; resolved with `HEAD:refs/heads/<branch>`. Surfaced by the revised `/land-from-worktree` (branch-protected PR-flow, owner-approved 2026-07-29), which pushes feature branches from detached worktrees.
+
+**Root Cause:** With a detached HEAD as the refspec source, git has no current-branch context to disambiguate an unqualified destination (`feature-x` could be a branch, tag, …), so it refuses rather than guess. A checked-out branch would let git infer `refs/heads/`; a detached HEAD does not.
+
+**Prevention:**
+1. From a detached-HEAD worktree, always fully-qualify: `git push origin HEAD:refs/heads/<branch>`, not `HEAD:<branch>`.
+2. Sanctioned form for the revised `/land-from-worktree` PR-flow — the playbook / land script should use `refs/heads/` so it works whether the worktree is on a branch or detached.
+
+**Status:** Resolved — self-correcting (git rejects it immediately). Single instance, but **load-bearing for the revised `/land-from-worktree`** — flagged to the skill owner (TL) so the playbook uses the fully-qualified refspec.
+
+**Applies To:** Any agent pushing a feature branch from a detached-HEAD worktree — i.e. every `/land-from-worktree` PR-flow land.
+
+---
+
+## #105 [Build] `gh pr merge --auto` Fails — Auto-Merge Is Disabled in This Repo
+
+**Pattern:** `gh pr merge <n> --auto ...` fails because auto-merge is not enabled on this repo (`allowAutoMerge` is off). Under the checks-only PR-flow the intuitive "queue an auto-merge and walk away" isn't available; the merge must be issued directly once checks are green.
+
+**Instances:**
+- 2026-07-29 — Server Storage (t/1921 Batch B/C, p/206#5): `gh pr merge --auto` failed (auto-merge disabled). Resolved by polling the PR checks (Monitor tool, ~30s cadence) until green, then a direct `gh pr merge <n> --rebase --delete-branch` (no `--auto`).
+
+**Root Cause:** Auto-merge is a per-repo GitHub feature currently OFF here; `--auto` asks GitHub to merge *when* checks pass, but with the feature disabled the flag is invalid, not a no-op. The agent must own the wait: watch checks, then merge.
+
+**Prevention:**
+1. **Don't use `--auto`.** Wait for green, then merge directly: `gh pr checks <n> --watch` (or a ~30s Monitor poll) → `gh pr merge <n> --rebase --delete-branch`. This is the `/land-from-worktree` step-4→5 sequence.
+2. A fleet-wide "queue and walk away" would be a repo-setting change (enable auto-merge) — owner/DevOps call, not a per-land workaround.
+
+**Status:** Resolved — self-correcting (the flag errors immediately). Single instance; recorded because the new PR-flow makes `gh pr merge` routine and `--auto` is a natural but wrong reach.
+
+**Applies To:** Any agent self-merging a PR under the checks-only PR-flow.
+
+---
+
+## #106 [Build] `gh pr merge --delete-branch` From a Worktree Aborts AFTER the Merge Succeeds — the "fatal" Masks a Landed Merge
+
+**Pattern:** `gh pr merge <n> --rebase --delete-branch` from a **linked git worktree** aborts "fatal: 'main' is already used by worktree" — but the remote merge **already succeeded**. `--delete-branch` does a local `git checkout main` to clean up the merged branch, which git forbids while the primary worktree holds `main`. The command exits non-zero on local cleanup *after* the PR is MERGED — a **false-failure signal**. This is the exact command `/land-from-worktree` step 5 prescribes, so every worktree lander hits it.
+
+**Instances:**
+- 2026-07-29 — ElectronMain (p/98#12): `gh pr merge <n> --rebase --delete-branch` from a worktree aborted "fatal: 'main' is already used by worktree" **after** the merge completed. Verified `state=MERGED` (`b2e370ff`), deleted branches + removed the worktree by hand. No loss.
+
+**Root Cause:** `--delete-branch` cleans up the merged head branch locally too, and gh switches the working copy to the base branch (`git checkout main`) to do so. Git's one-branch-per-worktree rule blocks checking out `main` while the primary worktree has it → `fatal`. The remote merge + branch delete already happened via the API; only the local checkout/cleanup fails. Bookkeeping-≠-artifact family — the exit code describes post-success cleanup, not the merge.
+
+**Prevention:**
+1. From a worktree, merge WITHOUT `--delete-branch`: `gh pr merge <n> --rebase`, then delete branches manually (remote `git push origin --delete <branch>`, local `git branch -D` from the primary tree).
+2. Treat the "fatal" as post-merge — verify `gh pr view <n> --json state` == `MERGED` (or the SHA on `origin/main`) before reacting; do NOT retry the merge, it landed.
+3. `/land-from-worktree` step 5 should drop `--delete-branch` (or gate it to non-worktree runs) — the skill runs from a worktree by definition. Flagged to TL.
+
+**Status:** **Resolved** — TL fixed step 5 (p/8#121): drops `--delete-branch`, verifies `gh pr view <n> --json state` == `MERGED` (not the exit code), deletes the remote branch by push, + failure-mode note in the skill. Was the dangerous PR-flow variant (fatal → panic-retry → double-land). Root cause folded into the "validate a fleet-standard procedure end-to-end before mandating" process lesson.
+
+**Applies To:** Every worktree PR-flow lander — i.e. everyone using `/land-from-worktree` step 5.

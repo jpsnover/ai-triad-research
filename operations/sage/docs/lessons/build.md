@@ -645,6 +645,7 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 - 2026-07-28 — Taxonomy Editor (p/6#22): same `git commit -- <paths> -m "msg"` flag-order failure; resolved with `git commit -F msgfile -- <paths>` (flags before `--`). **7th instance / 7 agents.** At this recurrence the useful lever isn't blocking (git already rejects it harmlessly) but **corrective GUIDANCE at the moment of failure** — git's error (`pathspec '-m' did not match`) is cryptic; the `git-commit-pathspec-flag-order` hook should emit the corrective form (`git commit -m "msg" -- <paths>`). The flag-order violation IS a crisp syntactic signal (a `git commit` with `-m`/`-F` after `--`) — it passes TL's #82 hookability criterion — but the hook can't deliver that guidance while it's exit-1-noisy on every call (#80 Part 3). So the real fix for this recurrence rides on the #80 Part-3 fix (guard exits 0 on clean, emits targeted guidance on violation).
 - 2026-07-28 — Taxonomy Editor 2 (p/195#7): `git commit -q -- <pathspec> -m "msg"` — same flag-order failure. **8th instance / 8 agents.** Fix already queued (Diagnostics accepted p/9#47 — corrective-guidance emit folds into the #80 Part-3 fix); no further per-instance action, the count just reinforces the guidance fix is warranted.
 - 2026-07-28 — ServerAPI (t/1883, landed d9c3207e, p/79#17): `git commit -q -- <files> -m "msg"` — same `-m`-after-`--` failure ("pathspec '-m' did not match"). Reordered to `-m "msg" -- <files>`. **9th instance / 8 agents — ServerAPI's 2nd (first REPEAT offender on this pattern; earlier t/1788).** Self-corrected on git's rejection, as designed. No new action: recurrence continuing under the warn-only hook — including a repeat by an agent who already hit it — is exactly the evidence that the queued corrective-guidance emit (#80 Part-3) is the warranted improvement, since prevention isn't the lever (git already rejects harmlessly) but faster recognition of the cryptic error is.
+- 2026-07-29 — DebateUI (t/1915, p/83#4): `git commit -- <paths> -m "msg"` — flags after `--`; reordered to `-m "msg" -- <paths>`. **10th instance / 9 agents** (DebateUI joins the flag-order roster; self-corrected on git's rejection). No new per-instance action — corrective-guidance emit still rides on the #80 Part-3 fix.
 
 **Root Cause:** `--` signals end-of-options to git. Everything after `--` is treated as a literal filename/pathspec — including `-m`, `-F`, and any other flag. This is standard POSIX behavior but surprises agents who think of `--` as "here come the paths" without realizing it also disables all subsequent flag parsing.
 
@@ -653,7 +654,7 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 2. Alternative: stage files first with `git add <paths>`, then `git commit -m "msg"` (no `--` needed if the index is already correct).
 3. Same rule applies to all git commands: `git diff`, `git log`, `git checkout` — `--` always terminates option parsing.
 
-**Status:** Resolved for main-repo commits (AGENTS.md rule overlay 95e9c3b, p/8#30 + `git-commit-pathspec-flag-order` PreToolUse hook live workspace-wide, p/9#16) — **but recurred 2026-07-26 on an overlay `ogit` commit (Docker, p/217#1), a suspected hook-coverage gap:** the guard likely matches `git commit …` but not the overlay-prefixed `git --git-dir=.orca-git --work-tree=. commit …` form. 4 instances / 4 agents. Diagnostics extended the matcher to the overlay form (`/\bgit\b.*\bcommit\b/`, commit 039f9501, p/9#39) and, in the p/9#41 audit, **re-inlined the hook via `node -e`** so it no longer depends on `{workspace_root}` (Windows path-crash resolved — see "Feedback Hook Silently Dead on Windows" in process.md). Caveat: the runner still treats a non-zero exit as silent-suppress (Orca Support's platform fix), so verify the guard actually emits guidance, not just that it's installed. **9 instances / 8 agents** (+ServerAPI ×2, +CL.Investigate1, +Taxonomy Editor, +Taxonomy Editor 2 p/195#7; ServerAPI is the first repeat offender, t/1788 then t/1883) — the hook is **warn-only**: it can't prevent the mistake (git rejects the command regardless), so recurrences self-correct on git's own error rather than being blocked. Zero-cost/self-correcting, so NOT a #82 escalation — git IS the point-of-use enforcement. **But at 7×, the improvement worth making is corrective GUIDANCE:** the violation is a crisp syntactic signal, so the flag-order hook should emit the correct form (`-m "msg" -- <paths>`) on a violation. **Diagnostics ACCEPTED this (p/9#47)** — folding into the #80 Part-3 fix: on a real flag-order violation, emit "flags before --: git commit -m 'msg' -- <paths>" alongside the exit. Turns git's cryptic pathspec error into a one-line fix; rides on the Part-3 work. The hook's value is the *guidance*, not prevention; the durable fix remains the rule + habit.
+**Status:** Resolved for main-repo commits (AGENTS.md rule overlay 95e9c3b, p/8#30 + `git-commit-pathspec-flag-order` PreToolUse hook live workspace-wide, p/9#16) — **but recurred 2026-07-26 on an overlay `ogit` commit (Docker, p/217#1), a suspected hook-coverage gap:** the guard likely matches `git commit …` but not the overlay-prefixed `git --git-dir=.orca-git --work-tree=. commit …` form. 4 instances / 4 agents. Diagnostics extended the matcher to the overlay form (`/\bgit\b.*\bcommit\b/`, commit 039f9501, p/9#39) and, in the p/9#41 audit, **re-inlined the hook via `node -e`** so it no longer depends on `{workspace_root}` (Windows path-crash resolved — see "Feedback Hook Silently Dead on Windows" in process.md). Caveat: the runner still treats a non-zero exit as silent-suppress (Orca Support's platform fix), so verify the guard actually emits guidance, not just that it's installed. **10 instances / 9 agents** (+DebateUI t/1915, +ServerAPI ×2 [first repeat offender, t/1788 then t/1883], +CL.Investigate1, +Taxonomy Editor, +Taxonomy Editor 2 p/195#7) — the hook is **warn-only**: it can't prevent the mistake (git rejects the command regardless), so recurrences self-correct on git's own error rather than being blocked. Zero-cost/self-correcting, so NOT a #82 escalation — git IS the point-of-use enforcement. **But at 7×, the improvement worth making is corrective GUIDANCE:** the violation is a crisp syntactic signal, so the flag-order hook should emit the correct form (`-m "msg" -- <paths>`) on a violation. **Diagnostics ACCEPTED this (p/9#47)** — folding into the #80 Part-3 fix: on a real flag-order violation, emit "flags before --: git commit -m 'msg' -- <paths>" alongside the exit. Turns git's cryptic pathspec error into a one-line fix; rides on the Part-3 work. The hook's value is the *guidance*, not prevention; the durable fix remains the rule + habit.
 
 **Applies To:** All agents using git commit with pathspec on any repo — including the overlay expanded form, which the hook may not yet cover.
 
@@ -875,8 +876,9 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 - 2026-07-17 — Shared Lib (`/land-from-worktree` step 8, p/5#13): plain `git worktree remove` exited 128 on untracked `node_modules`; resolved with `--force` (work already pushed, so no loss). (Facet A.)
 - 2026-07-28 — DebateDiagnostics (p/245#1): `git worktree remove <wt>` **timed out at 2min** — it synchronously `rm -rf`s the worktree's large `node_modules` (slow on Windows/AV). Resolved by **detaching git metadata fast, then backgrounding the physical delete**: `git worktree prune` + `git branch -D <branch>`, then `rm -rf <wt-dir>` as a backgrounded task. (Facet B — supersedes the `--force` remedy for deps-installed worktrees.)
 - 2026-07-29 — Chat (p/270#1): `git worktree remove` **timed out at 2min** on a **double-`npm ci`'d** worktree (root **and** `taxonomy-editor/` → *tens of thousands* of node_modules files — the Windows worst case). git had already marked the worktree **`prunable`**, so a **backgrounded `rm -rf` + `git worktree prune`** finished cleanup with **no `branch -D` needed**. 3rd instance — Facet B recurrence; the **double-`npm ci` is the amplifier** (two `node_modules` trees to delete). Confirms the prevention: never foreground-`remove` a deps-installed worktree.
+- 2026-07-29 — Server Storage (t/1921 Batch B/C, p/206#5): `git worktree remove --force` failed **"`.git` does not exist"** — the OS/AV had **already deleted the physical worktree dir**, leaving only a stale administrative ref. Resolved with **`git worktree prune`**. (**Facet C** — the delete already happened out-of-band; `prune` is the whole fix, `remove` is the wrong verb.)
 
-**Root Cause:** `git worktree remove` (A) is conservative — it aborts on untracked files, and an in-worktree `npm ci` (required by `/land-from-worktree` step 2) always leaves a large untracked `node_modules`. Adding `--force` clears the refusal but (B) `remove` does the `node_modules` deletion **synchronously in the foreground**, and deleting tens of thousands of small files is pathologically slow on Windows (each unlink hits AV/indexing), so it blows the 2-minute tool timeout. The git-metadata detach is instant; only the physical `rm -rf` is slow — so coupling them in a foreground `remove` is what causes the hang. Companion to #77 (same in-worktree `npm ci`) and the Windows Junction pattern.
+**Root Cause:** `git worktree remove` (A) is conservative — it aborts on untracked files, and an in-worktree `npm ci` (required by `/land-from-worktree` step 2) always leaves a large untracked `node_modules`. Adding `--force` clears the refusal but (B) `remove` does the `node_modules` deletion **synchronously in the foreground**, and deleting tens of thousands of small files is pathologically slow on Windows (each unlink hits AV/indexing), so it blows the 2-minute tool timeout. (C) Once the physical dir is **already gone** (OS/AV deleted it), `remove` fails "`.git` does not exist" — only the stale ref remains, which `prune` clears. The through-line: `remove` couples git-metadata detach (instant) with the physical delete (slow, or possibly already done); decouple them — `prune` owns the ref, a backgrounded `rm -rf` owns the files. Companion to #77 (same in-worktree `npm ci`) and the Windows Junction pattern.
 
 **Prevention:**
 1. **For a deps-installed worktree, don't `git worktree remove` at all — detach fast, delete in the background** (DebateDiagnostics, p/245#1): `git worktree prune` + `git branch -D <branch>` (instant, frees the git metadata + branch), then `rm -rf <wt-dir>` as a **backgrounded** task. This avoids BOTH the refusal (A) and the foreground-rm timeout (B). **If git already reports the worktree `prunable`** (its branch is gone/detached — check `git worktree list`), a backgrounded `rm -rf <wt-dir>` + `git worktree prune` alone suffices; skip `branch -D` (Chat, p/270#1). Note a `/land-from-worktree` that builds **both** root and `taxonomy-editor/` leaves **two** `node_modules` trees — double the delete, so foreground `remove` is doubly certain to time out.
@@ -1249,3 +1251,123 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — local-vs-CI divergence by *test scope* (changed-file run ≠ full suite), sibling of the keys-present live-backend divergence above; ~5h fleet-wide red main. Reinforces the standing "verify before push" rule with a concrete failure mode: repo-wide lints live outside the files they govern, and a deliberately-invalid fixture must carry the gate's inline suppression marker.
 
 **Applies To:** All agents adding or modifying tests/fixtures in a repo that has cross-file or repo-wide lint tests (`ModelLiteralLint`, manifest/invariant guards).
+
+---
+
+## [Build] `git stash show` Rejects a Pathspec ("Too many revisions specified")
+
+**Pattern:** `git stash show -p 'stash@{N}' -- <path>` fails with "Too many revisions specified" — `git stash show` accepts a single stash ref and does NOT take a `-- <pathspec>` to scope the diff to one file.
+
+**Instances:**
+- 2026-07-29 — DevOps (t/1768, p/26#24): `git stash show -p 'stash@{1}' -- <path>` errored while inspecting a stash for a single file. Fixed with `git diff 'stash@{1}^' 'stash@{1}' -- <path>`. Self-resolved, no impact.
+
+**Root Cause:** `git stash show` is a thin wrapper that only diffs a whole stash entry against its base; it has no pathspec-filtering mode, so it parses the `-- <path>` tokens as additional revisions and bails. A stash is an ordinary commit (`stash@{N}`) whose first parent (`stash@{N}^`) is the base it was taken from, so the underlying `git diff` accepts a normal `<rev> <rev> -- <path>` form.
+
+**Prevention:**
+1. **To diff ONE file from a stash's own change set:** `git diff 'stash@{N}^' 'stash@{N}' -- <path>` (the stash vs its base). Note the `^` — a stash's first parent is its capture point.
+2. **To compare a stashed file against another ref** (e.g. origin, as in the t/1768 supersession check): `git diff 'stash@{N}:<path>' 'origin/main:<path>'` (blob-vs-blob, no `--` needed).
+3. Whole-stash overview (all files) still works with `git stash show -p 'stash@{N}'` — just drop the pathspec.
+
+**Status:** Resolved — self-correcting (git rejects the malformed form immediately). Single instance; a reusable git idiom worth recording since stash inspection recurs during worktree/realign cleanups.
+
+**Applies To:** Any agent inspecting a specific file inside a git stash.
+
+---
+
+## [Build] Extracting a `catch` Body Into a Helper Trips the AST-Enforced Flight-Recorder Rule (ADR-003)
+
+**Pattern:** The custom ESLint rule `local/require-flight-recorder-in-catch` (ADR-003) is **position-based** — it requires `getGlobalRecorder()?.record(...)` to be *literally inside* the `catch` block's AST. Refactoring that moves the `record(...)` call into an extracted helper fails lint even though runtime behavior is identical. Complexity-reduction / function-extraction passes are the classic trigger: the natural move is to lift the whole `catch` body into a named function, which relocates the `record()` call out of the `catch` node.
+
+**Instances:**
+- 2026-07-29 — Taxonomy Editor 2 (t/1848 batch 7): extracting a `catch` body into a helper during complexity decomposition tripped the rule. Fixed by keeping `record(...)` inline in the `catch`, extracting only the non-recording tail (p/195#9, t/1848#11).
+- 2026-07-29 — ElectronMain (t/1914): independently hit the same rule during the same t/1848 fan-out. Same fix.
+
+**Root Cause:** ADR-003's guarantee is that *every* `catch` records to the flight recorder, and the rule enforces it structurally by requiring the `record()` call as a direct statement of the `catch` block — not merely reachable from it. A helper that records is behavior-equivalent but AST-invisible to the rule, so extraction is a false-positive-shaped-but-intended rejection: the rule can't prove the helper always runs and always records, so it holds the line on literal position.
+
+**Prevention:**
+1. **When decomposing a `catch`-heavy function, keep `getGlobalRecorder()?.record(...)` inline in the `catch`; extract only the non-recording tail** (e.g. fallback-value construction, retry orchestration). The record call stays put; everything after it can move.
+2. Don't try to satisfy the rule by wrapping the helper to "also record" — the guarantee is literal-position, not reachability. Inline is the sanctioned form.
+3. This is one of a class: **position-based AST rules survive behavior-preserving refactors only if the guarded call stays structurally where the rule expects it.** Before extracting a block guarded by a `local/*` rule, check whether the guarded call must stay put.
+
+**Status:** Active — self-correcting at point-of-use (the lint rule rejects it immediately, zero cost beyond a retry), so NOT a #82-style escalation; the AST rule IS the enforcement. **2 instances / 2 roles, both in the t/1848 complexity-decomposition fan-out, with 6+ more roles (DebateDiagnostics, Chat, ServerAPI, …) still decomposing catch-heavy code** — high likelihood of further independent rediscovery. Point-of-use prevention broadcast by TE2 on the shared parent ticket (t/1848#11). **Durable systemic lever TAKEN (TL, p/8#116):** the fix idiom is being embedded in the rule's own lint-time message ("record()/log must stay LITERALLY in the catch — extract only the non-recording tail (ADR-003)"), filed low-pri/self-cert as **t/1927 (Shared Lib, `lib/eslint-rules` copy) + t/1928 (Taxonomy Editor, `taxonomy-editor/eslint-rules` copy)** — turns a structural rejection into a one-line self-service fix, immunizing the remaining fan-out and future decomposition.
+
+**Related latent risk (drift smell), surfaced by this pattern (TL p/8#116):** the `require-flight-recorder-in-catch` rule is **two byte-identical copies** (`lib/eslint-rules` + `taxonomy-editor/eslint-rules`) referenced by **3 `eslint.config.mjs`** — hence the message-embed had to be filed as *two* tickets. A single duplicated source-of-truth carries an update-in-N-places tax: any future edit (like this one) must touch every copy, and the copies can silently diverge (a real failure the day one copy is updated and the others aren't). No divergence observed yet — TL noted a **single-shared-rule dedup** as a separate low-pri follow-up (not blocking the message fix). If the copies ever drift, that realized failure lands here.
+
+**Applies To:** Any role running function-extraction / complexity-reduction on code with flight-recorder-guarded `catch` blocks (the t/1848 fan-out, and future refactors under ADR-003).
+
+---
+
+## [Build] Building a Sibling-Worktree Path With `..` Collapses to the Wrong Base
+
+**Pattern:** Constructing a sibling worktree's path as `<repo>/../<sibling>` mis-resolves when the `..` is anchored on the wrong segment. `C:/Users/jsnov/repos/../wt-1938b` collapses `repos/..` → `C:/Users/jsnov`, yielding `C:/Users/jsnov/wt-1938b` — but the worktree lives at `C:/Users/jsnov/repos/wt-1938b`, so `cd` fails "No such file or directory" mid-land. The repo dir is `…/repos/ai-triad-research`; a sibling worktree at `…/repos/wt-1938b` is `<repo>/../wt-1938b` (i.e. `ai-triad-research/..`), NOT `repos/../wt-1938b`.
+
+**Instances:**
+- 2026-07-29 — PowerShell 2 (p/228#8, t/1938 land): `cd "C:/Users/jsnov/repos/../wt-1938b"` failed — the `..` cancelled `repos` (wrong base) instead of the repo dir. Resolved by using the full absolute sibling path with no `..` segments.
+
+**Root Cause:** `..` is resolved lexically against the *immediately preceding* path segment, not against "the repo." When the path is assembled by string-concatenating a base that ends at a different depth than intended, one stray `..` silently retargets to a valid-looking but wrong directory. Worktree lands are especially exposed because the sibling sits one level up from the repo dir but two levels up from `repos/`.
+
+**Prevention:**
+1. **For sibling worktrees, write the absolute path directly — no `..` segments:** `C:/Users/jsnov/repos/wt-1938b`, not `<repo>/../wt-1938b`.
+2. If you must build it relative, anchor `..` on the **repo dir** (`ai-triad-research/..`), and verify the resolved path (`realpath` / `Resolve-Path`) before `cd`.
+
+**Status:** Resolved — self-correcting (the bad `cd` errors immediately). Single instance; recorded because worktree lands routinely reference sibling paths and the `..`-collapse is a silent retarget, not an obvious typo.
+
+**Applies To:** Any agent building sibling-worktree paths during a `/land-from-worktree` or manual worktree operation.
+
+---
+
+## [Build] Pushing From a Detached-HEAD Worktree Needs a Fully-Qualified Destination Ref
+
+**Pattern:** `git push origin HEAD:<branch>` fails from a **detached-HEAD worktree** with "not a full refname" — with HEAD pointing at a bare commit (no current branch), git can't expand the short destination `<branch>` into a full ref, so the push is rejected. Fix: fully-qualify the destination — `git push origin HEAD:refs/heads/<branch>`.
+
+**Instances:**
+- 2026-07-29 — ServerAPI (p/79#19): pushing a feature branch from a detached worktree via `git push origin HEAD:<branch>` failed "not a full refname"; resolved with `git push origin HEAD:refs/heads/<branch>`. Surfaced by the **revised `/land-from-worktree`** (branch-protected PR-flow, owner-approved 2026-07-29), which pushes feature branches from detached worktrees.
+
+**Root Cause:** When the source side of a refspec is `HEAD` and HEAD is detached, git has no current-branch context to disambiguate an unqualified destination like `feature-x` (could be `refs/heads/feature-x`, a tag, etc.), so it refuses rather than guess. A checked-out branch would let git infer `refs/heads/`; a detached HEAD does not. The fully-qualified `refs/heads/<branch>` removes the ambiguity.
+
+**Prevention:**
+1. **From a detached-HEAD worktree, always fully-qualify the push destination:** `git push origin HEAD:refs/heads/<branch>`, not `HEAD:<branch>`.
+2. This is the sanctioned form for the revised `/land-from-worktree` PR-flow — the playbook (and any land script) should use `refs/heads/` so it works regardless of whether the worktree is on a branch or detached.
+
+**Status:** Resolved — self-correcting (git rejects the un-qualified form immediately). Single instance, but **load-bearing for the revised `/land-from-worktree`** (detached-worktree feature-branch push is now the standard land path) — flagged to the skill owner (TL) so the playbook uses the fully-qualified refspec.
+
+**Applies To:** Any agent pushing a feature branch from a detached-HEAD worktree — i.e. every `/land-from-worktree` PR-flow land.
+
+---
+
+## [Build] `gh pr merge --auto` Fails — Auto-Merge Is Disabled in This Repo
+
+**Pattern:** `gh pr merge <n> --auto ...` fails because **auto-merge is not enabled** on this repository — GitHub rejects the `--auto` flag when the repo setting `allowAutoMerge` is off. Under the checks-only PR-flow the intuitive move is "queue an auto-merge and walk away," but there's no auto-merge to queue; the merge must be issued directly once checks are green.
+
+**Instances:**
+- 2026-07-29 — Server Storage (t/1921 Batch B/C, p/206#5): `gh pr merge --auto` failed (auto-merge disabled). Resolved by **polling the PR's checks (Monitor tool, ~30s cadence) until green, then a direct `gh pr merge <n> --rebase --delete-branch`** (no `--auto`).
+
+**Root Cause:** Auto-merge is a per-repo GitHub feature (`allowAutoMerge`) that is currently OFF here. `--auto` asks GitHub to merge *when* checks pass; with the feature disabled the flag is invalid, not merely a no-op. So an agent must own the wait itself: watch checks, then merge.
+
+**Prevention:**
+1. **Don't use `--auto`.** Wait for green, then issue the merge directly: `gh pr checks <n> --watch` (or a Monitor-tool poll ~30s) → `gh pr merge <n> --rebase --delete-branch`. This is exactly the `/land-from-worktree` step-4→5 sequence.
+2. If a fleet-wide "queue and walk away" is wanted, that's a repo-setting change (enable auto-merge) — an owner/DevOps decision, not a per-land workaround.
+
+**Status:** Resolved — self-correcting (the flag errors immediately). Single instance; recorded because the new PR-flow makes `gh pr merge` a routine step and `--auto` is a natural but wrong reach.
+
+**Applies To:** Any agent self-merging a PR under the checks-only PR-flow.
+
+---
+
+## [Build] `gh pr merge --delete-branch` From a Worktree Aborts AFTER the Merge Succeeds — the "fatal" Masks a Landed Merge
+
+**Pattern:** `gh pr merge <n> --rebase --delete-branch` run **from a linked git worktree** aborts with **"fatal: 'main' is already used by worktree"** — but the remote merge has **already succeeded**. `--delete-branch` does a *local* `git checkout main` to clean up the merged head branch, and git forbids checking out `main` when the primary worktree already holds it. So the command exits non-zero on the local-cleanup step *after* the PR is MERGED — a **false-failure signal**: the "fatal" reads as "merge failed" when it actually landed. **This is the exact command `/land-from-worktree` step 5 prescribes**, so every worktree lander hits it.
+
+**Instances:**
+- 2026-07-29 — ElectronMain (p/98#12): `gh pr merge <n> --rebase --delete-branch` from a worktree aborted "fatal: 'main' is already used by worktree" **after** the merge completed. Verified `state=MERGED` (`b2e370ff`), then deleted branches + removed the worktree by hand. No loss — the abort was post-merge cleanup only.
+
+**Root Cause:** `--delete-branch` cleans up the merged head branch **locally as well as remotely**, and to delete a local branch safely gh switches the working copy to the base branch (`git checkout main`). Git's **one-branch-per-worktree** rule blocks checking out `main` while the primary worktree has it checked out → `fatal`. The remote-side merge and branch delete already happened via the API; only the **local** checkout/cleanup fails. Same false-signal family as the "bookkeeping ≠ artifact" genus — the exit code describes a post-success cleanup step, not the merge.
+
+**Prevention:**
+1. **From a worktree, merge WITHOUT `--delete-branch`:** `gh pr merge <n> --rebase`, then delete the branch manually — remote `git push origin --delete <branch>` (or gh's remote delete), local `git branch -D <branch>` from the primary tree. Avoids the base-branch checkout entirely.
+2. **Treat the "fatal" as post-merge:** before reacting, verify `gh pr view <n> --json state` == `MERGED` (or the merge SHA on `origin/main`). If merged, **do NOT retry the merge** — it landed; just clean up branches/worktree by hand.
+3. **`/land-from-worktree` step 5 should drop `--delete-branch`** (or gate it to non-worktree runs) — the skill runs *from a worktree* by definition, so its prescribed command self-triggers this. Flagged to the skill owner (TL).
+
+**Status:** **Resolved** — TL fixed step 5 (p/8#121): it now **drops `--delete-branch`**, verifies `gh pr view <n> --json state` == `MERGED` (**not the exit code**), and deletes the remote branch by push, with the failure-mode note in the skill. Was the dangerous variant of the PR-flow defects — the `fatal` reads as failure → panic-retry → double-land. Root cause folded into the "validate a fleet-standard procedure end-to-end before mandating" process lesson.
+
+**Applies To:** Every worktree PR-flow lander — i.e. everyone using `/land-from-worktree` step 5.
