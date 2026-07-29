@@ -739,6 +739,25 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 
 ---
 
+## [Build] `gh pr merge --auto` Fails — Auto-Merge Is Disabled in This Repo
+
+**Pattern:** `gh pr merge <n> --auto ...` fails because **auto-merge is not enabled** on this repository — GitHub rejects the `--auto` flag when the repo setting `allowAutoMerge` is off. Under the checks-only PR-flow the intuitive move is "queue an auto-merge and walk away," but there's no auto-merge to queue; the merge must be issued directly once checks are green.
+
+**Instances:**
+- 2026-07-29 — Server Storage (t/1921 Batch B/C, p/206#5): `gh pr merge --auto` failed (auto-merge disabled). Resolved by **polling the PR's checks (Monitor tool, ~30s cadence) until green, then a direct `gh pr merge <n> --rebase --delete-branch`** (no `--auto`).
+
+**Root Cause:** Auto-merge is a per-repo GitHub feature (`allowAutoMerge`) that is currently OFF here. `--auto` asks GitHub to merge *when* checks pass; with the feature disabled the flag is invalid, not merely a no-op. So an agent must own the wait itself: watch checks, then merge.
+
+**Prevention:**
+1. **Don't use `--auto`.** Wait for green, then issue the merge directly: `gh pr checks <n> --watch` (or a Monitor-tool poll ~30s) → `gh pr merge <n> --rebase --delete-branch`. This is exactly the `/land-from-worktree` step-4→5 sequence.
+2. If a fleet-wide "queue and walk away" is wanted, that's a repo-setting change (enable auto-merge) — an owner/DevOps decision, not a per-land workaround.
+
+**Status:** Resolved — self-correcting (the flag errors immediately). Single instance; recorded because the new PR-flow makes `gh pr merge` a routine step and `--auto` is a natural but wrong reach.
+
+**Applies To:** Any agent self-merging a PR under the checks-only PR-flow.
+
+---
+
 ## [Build] Vitest Dynamic Import Misses Exports From vi.mock Factory
 
 **Pattern:** Using `await import()` on a module that has a `vi.mock` registration only sees exports defined in the mock factory — not the real module's exports. Missing exports throw "No X export on mock" at runtime, not at compile time.
@@ -947,21 +966,22 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 
 ---
 
-## [Build] `git worktree remove` vs In-Worktree node_modules — Refuses Without `--force`, Then TIMES OUT on the rm (Windows)
+## [Build] `git worktree remove` vs In-Worktree node_modules — Refuses Without `--force`, TIMES OUT on the rm, or Fails When the Dir Is Already Gone (Windows)
 
 **Pattern:** Cleaning up a worktree that ran an in-worktree `npm ci` fails **two** ways on Windows: **(A) refusal** — plain `git worktree remove ../wt-X` exits 128 ("contains modified or untracked files") because the installed `node_modules`/`dist` are untracked; **(B) timeout** — adding `--force` makes it proceed, but `remove` then **synchronously `rm -rf`s the huge node_modules**, which is slow on Windows (AV/indexing scanning every file) and **times out** (2min). So the naive fixes chain into each other: remove → add `--force` → `--force` hangs on the delete.
 
 **Instances:**
 - 2026-07-17 — Shared Lib (`/land-from-worktree` step 8, p/5#13): plain `git worktree remove` exited 128 on untracked `node_modules`; resolved with `--force` (work already pushed, so no loss). (Facet A.)
 - 2026-07-28 — DebateDiagnostics (p/245#1): `git worktree remove <wt>` **timed out at 2min** — it synchronously `rm -rf`s the worktree's large `node_modules` (slow on Windows/AV). Resolved by **detaching git metadata fast, then backgrounding the physical delete**: `git worktree prune` + `git branch -D <branch>`, then `rm -rf <wt-dir>` as a backgrounded task. (Facet B — supersedes the `--force` remedy for deps-installed worktrees.)
+- 2026-07-29 — Server Storage (t/1921 Batch B/C, p/206#5): `git worktree remove --force` failed **"`.git` does not exist"** — the OS/AV had **already deleted the physical worktree directory**, but git's administrative ref lingered, so `remove` couldn't find the worktree it was pointed at. Resolved with **`git worktree prune`** (clears the stale ref). (Facet C — the delete already happened out-of-band; `remove` is the wrong verb, `prune` is the whole fix.)
 
-**Root Cause:** `git worktree remove` (A) is conservative — it aborts on untracked files, and an in-worktree `npm ci` (required by `/land-from-worktree` step 2) always leaves a large untracked `node_modules`. Adding `--force` clears the refusal but (B) `remove` does the `node_modules` deletion **synchronously in the foreground**, and deleting tens of thousands of small files is pathologically slow on Windows (each unlink hits AV/indexing), so it blows the 2-minute tool timeout. The git-metadata detach is instant; only the physical `rm -rf` is slow — so coupling them in a foreground `remove` is what causes the hang. Companion to #77 (same in-worktree `npm ci`) and the Windows Junction pattern.
+**Root Cause:** `git worktree remove` (A) is conservative — it aborts on untracked files, and an in-worktree `npm ci` (required by `/land-from-worktree` step 2) always leaves a large untracked `node_modules`. Adding `--force` clears the refusal but (B) `remove` does the `node_modules` deletion **synchronously in the foreground**, and deleting tens of thousands of small files is pathologically slow on Windows (each unlink hits AV/indexing), so it blows the 2-minute tool timeout. (C) Conversely, once the physical dir is gone (backgrounded rm finished, or AV/OS removed it), `remove` **fails because there's nothing to remove** — only the stale administrative ref remains, which `prune` (not `remove`) clears. The through-line: `remove` couples git-metadata detach (instant) with the physical delete (slow / possibly already done); decouple them — `prune` owns the ref, a backgrounded `rm -rf` owns the files. Companion to #77 (same in-worktree `npm ci`) and the Windows Junction pattern.
 
 **Prevention:**
 1. **For a deps-installed worktree, don't `git worktree remove` at all — detach fast, delete in the background** (DebateDiagnostics, p/245#1): `git worktree prune` + `git branch -D <branch>` (instant, frees the git metadata + branch), then `rm -rf <wt-dir>` as a **backgrounded** task. This avoids BOTH the refusal (A) and the foreground-rm timeout (B).
 2. **`git worktree remove --force` is the fallback only for small/no-deps worktrees** — where the synchronous rm is fast. With a full `node_modules` on Windows it will time out; use #1 instead.
 3. **`--force`/rm is only safe after your commit is pushed** — confirm the worktree's work is on `origin/main` before removing; the sole casualty is `node_modules`. Never remove with uncommitted deliverable work in the worktree.
-4. `git worktree prune` also clears stale administrative refs (same follow-up as the Junction pattern).
+4. `git worktree prune` also clears stale administrative refs (same follow-up as the Junction pattern). **If `remove`/`remove --force` fails with "`.git` does not exist" (Facet C), the physical dir is already gone — stop trying to `remove`; `git worktree prune` IS the fix.**
 
 **Status:** Active — worktree-land cluster; the `/land-from-worktree` step-8 guidance updated from "`remove --force`" to "**prune + `branch -D` + background rm**" for deps-installed worktrees (supersedes the earlier `--force` wording; both refusal and timeout now covered). Handed to TL for the owner-gated batch.
 

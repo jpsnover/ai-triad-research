@@ -1678,8 +1678,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Instances:**
 - 2026-07-17 — Shared Lib (`/land-from-worktree` step 8, p/5#13): plain `git worktree remove` exited 128 on untracked `node_modules`; resolved with `--force` (work already pushed, no loss). (Facet A.)
 - 2026-07-28 — DebateDiagnostics (p/245#1): `git worktree remove <wt>` **timed out at 2min** synchronously `rm -rf`-ing the worktree's large `node_modules` (Windows/AV). Resolved by detaching git metadata fast, then backgrounding the delete: `git worktree prune` + `git branch -D <branch>`, then `rm -rf <wt-dir>` as a backgrounded task. (Facet B — supersedes the `--force` remedy for deps-installed worktrees.)
+- 2026-07-29 — Server Storage (t/1921 Batch B/C, p/206#5): `git worktree remove --force` failed **"`.git` does not exist"** — the OS/AV had already deleted the physical worktree dir, leaving only a stale administrative ref. Resolved with **`git worktree prune`**. (Facet C — the delete already happened out-of-band; `prune` is the whole fix, `remove` is the wrong verb.)
 
-**Root Cause:** (A) `git worktree remove` aborts on untracked files, and an in-worktree `npm ci` always leaves a large untracked `node_modules`. (B) `--force` clears the refusal but does the deletion **synchronously in the foreground**, and unlinking tens of thousands of small files is pathologically slow on Windows (each hits AV/indexing), blowing the 2-minute timeout. The git-metadata detach is instant; only the physical `rm -rf` is slow — coupling them in a foreground `remove` is what hangs. Companion to #77 and the Windows Junction pattern.
+**Root Cause:** (A) `git worktree remove` aborts on untracked files, and an in-worktree `npm ci` always leaves a large untracked `node_modules`. (B) `--force` clears the refusal but does the deletion **synchronously in the foreground**, and unlinking tens of thousands of small files is pathologically slow on Windows (each hits AV/indexing), blowing the 2-minute timeout. (C) Once the physical dir is already gone, `remove` fails ("`.git` does not exist") — only the stale ref remains, which `prune` clears. The through-line: `remove` couples git-metadata detach (instant) with the physical delete (slow / possibly already done); decouple them — `prune` owns the ref, a backgrounded `rm -rf` owns the files. Companion to #77 and the Windows Junction pattern.
 
 **Prevention:**
 1. **For a deps-installed worktree, don't `git worktree remove` — detach fast, delete in the background** (DebateDiagnostics, p/245#1): `git worktree prune` + `git branch -D <branch>` (instant), then `rm -rf <wt-dir>` **backgrounded**. Avoids BOTH the refusal (A) and the foreground-rm timeout (B).
@@ -2087,3 +2088,22 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Resolved — self-correcting (git rejects it immediately). Single instance, but **load-bearing for the revised `/land-from-worktree`** — flagged to the skill owner (TL) so the playbook uses the fully-qualified refspec.
 
 **Applies To:** Any agent pushing a feature branch from a detached-HEAD worktree — i.e. every `/land-from-worktree` PR-flow land.
+
+---
+
+## [Build] `gh pr merge --auto` Fails — Auto-Merge Is Disabled in This Repo
+
+**Pattern:** `gh pr merge <n> --auto ...` fails because auto-merge is not enabled on this repo (`allowAutoMerge` is off). Under the checks-only PR-flow the intuitive "queue an auto-merge and walk away" isn't available; the merge must be issued directly once checks are green.
+
+**Instances:**
+- 2026-07-29 — Server Storage (t/1921 Batch B/C, p/206#5): `gh pr merge --auto` failed (auto-merge disabled). Resolved by polling the PR checks (Monitor tool, ~30s cadence) until green, then a direct `gh pr merge <n> --rebase --delete-branch` (no `--auto`).
+
+**Root Cause:** Auto-merge is a per-repo GitHub feature currently OFF here; `--auto` asks GitHub to merge *when* checks pass, but with the feature disabled the flag is invalid, not a no-op. The agent must own the wait: watch checks, then merge.
+
+**Prevention:**
+1. **Don't use `--auto`.** Wait for green, then merge directly: `gh pr checks <n> --watch` (or a ~30s Monitor poll) → `gh pr merge <n> --rebase --delete-branch`. This is the `/land-from-worktree` step-4→5 sequence.
+2. A fleet-wide "queue and walk away" would be a repo-setting change (enable auto-merge) — owner/DevOps call, not a per-land workaround.
+
+**Status:** Resolved — self-correcting (the flag errors immediately). Single instance; recorded because the new PR-flow makes `gh pr merge` routine and `--auto` is a natural but wrong reach.
+
+**Applies To:** Any agent self-merging a PR under the checks-only PR-flow.
