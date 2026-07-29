@@ -22,6 +22,7 @@ import type { PovNode, Edge, EdgesFile } from './taxonomyTypes.js';
 import { extractCategoryFromId } from './validateNodeId.js';
 import type { Category } from './taxonomyTypes.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
+import { serializeEdgesJson } from '../edges/serializeEdges.js';
 
 // ── Helpers ─────────────────────────────────────────────
 
@@ -241,8 +242,7 @@ async function main(): Promise<void> {
   // Write
   if (!dryRun) {
     edgesFile.last_modified = new Date().toISOString();
-    const json = JSON.stringify(edgesFile, null, 2) + '\n';
-    fs.writeFileSync(edgesPath, json, 'utf-8');
+    fs.writeFileSync(edgesPath, serializeEdgesJson(edgesFile), 'utf-8');
     console.log(`\nWritten: ${edgesPath}`);
   } else {
     console.log('\nDry run complete — no files were modified.');
