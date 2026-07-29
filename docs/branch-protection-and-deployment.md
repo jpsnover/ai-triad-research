@@ -1,4 +1,4 @@
-**Last updated:** 2026-06-20
+**Last updated:** 2026-07-29
 **Author:** Technical Lead
 
 # Branch Protection & Deployment Pipeline
@@ -19,15 +19,22 @@ Each layer catches a different class of failure. Tests catch logic errors. Branc
 
 The `main` branch has GitHub branch protection enabled with:
 
-- **Require pull request before merging** — changes must go through a PR, not pushed directly
-- **Required status checks (6)** — all must pass before the PR can merge:
+- **Required status checks (6), strict** — all must pass before a merge, and `strict`
+  means the branch must be up to date with `main` first:
   1. `test-powershell` — Pester tests, module build, manifest validation
   2. `test-electron (taxonomy-editor)` — npm ci, TypeScript check, vitest, coverage, build
   3. `test-electron (poviewer)` — npm ci, TypeScript check, build
   4. `test-electron (summary-viewer)` — npm ci, TypeScript check, build
   5. `test-electron (workflow-app)` — npm ci, TypeScript check, build
-  6. `test-container` — Dockerfile lint, container build, smoke test (health check, data availability)
-- **Bypass rights** — the repository owner (`jpsnover`) can push directly to `main`, bypassing all protections
+  6. `test-container` — Dockerfile lint, container build, smoke test
+- **Pull requests are NOT required by the platform** — `required_pull_request_reviews`
+  is not configured (required review removed 2026-07-29). PR-flow is the fleet's
+  *convention* (see `/land-from-worktree`), enforced by TL review before Done — not by
+  GitHub. Do not read green protection settings as evidence the review gate is enforced.
+- **Bypass rights** — `enforce_admins=false`, so the admin identity (`jpsnover`) bypasses
+  the required checks on a direct push. The Orca fleet commits and pushes as this same
+  identity, so agent worktree direct-pushes bypass them too.
+- **Force pushes** — disabled (`allow_force_pushes=false`).
 
 ### Why 6 Checks, Not 1
 
