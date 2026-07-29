@@ -18,7 +18,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 $script:ModelRegistry = @{}
 $script:FallbackChains = @{}
-$script:ContextWindows = @{ gemini = 1048576; claude = 200000; groq = 131072; openai = 131072; zai = 1000000 }
+$script:ContextWindows = @{ gemini = 1048576; claude = 200000; groq = 131072; openai = 131072; zai = 1000000; moonshot = 1000000 }
 $script:LastApiKeySource = ''
 $script:AIApiLoggedThisSession = $false
 $script:AIApiLastModel = ''
@@ -177,6 +177,7 @@ function Resolve-AIApiKey {
         'openai' = @('OPENAI_API_KEY')
         'azure'  = @('AZURE_OPENAI_API_KEY')
         'zai'    = @('ZAI_API_KEY')
+        'moonshot' = @('MOONSHOT_API_KEY')
     }
 
     $BackendEnvVars = $EnvVarMap[$Backend]
@@ -432,7 +433,8 @@ function Invoke-AIApi {
                 'azure'  { 'AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT' }
                 'ollama' { '(no env var — local, keyless)' }
                 'zai'    { 'ZAI_API_KEY' }
-                default  { "(unknown backend '$Backend' — expected gemini/claude/groq/openai/azure/ollama/zai)" }
+                'moonshot' { 'MOONSHOT_API_KEY' }
+                default  { "(unknown backend '$Backend' — expected gemini/claude/groq/openai/azure/ollama/zai/moonshot)" }
             }
             Write-Warning "No API key found for $Backend backend. Set $EnvHint or AI_API_KEY."
             return $null
@@ -615,6 +617,48 @@ function Invoke-AIApi {
             }
 
             $Body = $ZaiBody | ConvertTo-Json -Depth 10
+        }
+
+        # t/1936 — Moonshot (Kimi) exposes an OpenAI-compatible /chat/completions
+        # endpoint at https://api.moonshot.ai/v1. Request shape matches Groq/z.ai
+        # exactly (Bearer auth, system+user messages); the model id (kimi-k3) flows
+        # from ai-models.json via $ApiModelId. 1M-token context
+        # ($script:ContextWindows.moonshot) so the pre-flight token check tolerates
+        # very large prompts sanely.
+        'moonshot' {
+            $Uri = 'https://api.moonshot.ai/v1/chat/completions'
+            $Headers = @{
+                'Authorization' = "Bearer $ResolvedKey"
+            }
+
+            $MoonshotMessages = [System.Collections.Generic.List[object]]::new()
+            if ($SystemInstruction) {
+                $MoonshotMessages.Add(@{ role = 'system'; content = $SystemInstruction })
+            }
+            $MoonshotMessages.Add(@{ role = 'user'; content = $Prompt })
+
+            $MoonshotBody = @{
+                model       = $ApiModelId
+                messages    = @($MoonshotMessages)
+                temperature = $Temperature
+                max_tokens  = $MaxTokens
+            }
+            if ($JsonMode) {
+                if ($ResponseSchema) {
+                    $MoonshotBody['response_format'] = @{
+                        type        = 'json_schema'
+                        json_schema = @{
+                            name   = 'response'
+                            schema = $ResponseSchema
+                            strict = $true
+                        }
+                    }
+                } else {
+                    $MoonshotBody['response_format'] = @{ type = 'json_object' }
+                }
+            }
+
+            $Body = $MoonshotBody | ConvertTo-Json -Depth 10
         }
 
         # t/1409 — Ollama exposes an OpenAI-compatible /v1/chat/completions endpoint
@@ -923,6 +967,26 @@ function Invoke-AIApi {
             } catch {
                 $TopKeys = ($Response.PSObject.Properties.Name | Select-Object -First 5) -join ', '
                 Write-Warning "z.ai: unexpected response shape (top-level keys: $TopKeys). Expected choices[].message.content"
+                return $null
+            }
+        }
+        # t/1936 — Moonshot (Kimi) response shape mirrors Groq/z.ai/OpenAI.
+        'moonshot' {
+            try {
+                $Choice = $Response.choices[0]
+                $Text = $Choice.message.content
+                $Truncated = ($Choice.finish_reason -eq 'length')
+                $u = $Response.usage
+                if ($u) {
+                    $Usage = [PSCustomObject]@{
+                        InputTokens  = [int]($u.prompt_tokens)
+                        OutputTokens = [int]($u.completion_tokens)
+                        TotalTokens  = [int]($u.total_tokens)
+                    }
+                }
+            } catch {
+                $TopKeys = ($Response.PSObject.Properties.Name | Select-Object -First 5) -join ', '
+                Write-Warning "Moonshot: unexpected response shape (top-level keys: $TopKeys). Expected choices[].message.content"
                 return $null
             }
         }

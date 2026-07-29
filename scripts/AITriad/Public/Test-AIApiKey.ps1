@@ -63,7 +63,7 @@ function Test-AIApiKey {
     [OutputType([PSCustomObject])]
     param(
         [Parameter(Mandatory, ParameterSetName = 'One', Position = 0)]
-        [ValidateSet('gemini', 'claude', 'groq', 'openai', 'azure', 'ollama', 'zai')]
+        [ValidateSet('gemini', 'claude', 'groq', 'openai', 'azure', 'ollama', 'zai', 'moonshot')]
         [string]$Backend,
 
         [Parameter(ParameterSetName = 'One')]
@@ -170,6 +170,12 @@ function Test-AIApiKey {
                 $Headers['Authorization'] = "Bearer $Key"
                 $script:ZaiPostProbe = $true
             }
+            # t/1936 — Moonshot (Kimi) exposes a standard OpenAI-compatible
+            # GET /v1/models list, so it uses the default GET probe branch below.
+            'moonshot' {
+                $Uri = 'https://api.moonshot.ai/v1/models'
+                $Headers['Authorization'] = "Bearer $Key"
+            }
         }
 
         # Probe the endpoint. Most backends are GET on /models; z.ai uses a POST
@@ -247,6 +253,7 @@ function Test-AIApiKey {
         $Backends += 'ollama'
         # t/1437 — z.ai only if $env:ZAI_API_KEY is present (needs a real key).
         if ($env:ZAI_API_KEY) { $Backends += 'zai' }
+        if ($env:MOONSHOT_API_KEY) { $Backends += 'moonshot' }
         foreach ($B in $Backends) {
             _Probe-Backend -B $B -ExplicitKey '' -AzureEndpoint $env:AZURE_OPENAI_ENDPOINT -Timeout $TimeoutSec
         }
