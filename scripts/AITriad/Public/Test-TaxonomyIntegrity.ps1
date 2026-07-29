@@ -84,7 +84,8 @@ function Test-TaxonomyIntegrity {
             foreach ($PA in $Node.graph_attributes.policy_actions) {
                 if ($PA.PSObject.Properties['policy_id']) { $Pid = $PA.policy_id } else { $Pid = $null }
                 if (-not $Pid) {
-                    $MissingPolicyId += [PSCustomObject]@{ NodeId = $Node.id; POV = $PovKey; Action = $PA.action }
+                    $PaAction = if ($PA.PSObject.Properties['action']) { $PA.action } else { $null }
+                    $MissingPolicyId += [PSCustomObject]@{ NodeId = $Node.id; POV = $PovKey; Action = $PaAction }
                     continue
                 }
 
@@ -162,7 +163,9 @@ function Test-TaxonomyIntegrity {
         if ($Registry) { foreach ($Pol in $Registry.policies) { [void]$ValidIds.Add($Pol.id) } }
 
         foreach ($Edge in $EdgesData.edges) {
-            if (-not $ValidIds.Contains($Edge.source) -or -not $ValidIds.Contains($Edge.target)) {
+            $Src = if ($Edge.PSObject.Properties['source']) { $Edge.source } else { $null }
+            $Tgt = if ($Edge.PSObject.Properties['target']) { $Edge.target } else { $null }
+            if (-not $ValidIds.Contains($Src) -or -not $ValidIds.Contains($Tgt)) {
                 $BadEdges++
             }
         }
@@ -221,8 +224,9 @@ function Test-TaxonomyIntegrity {
     foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic')) {
         if (-not $LoadedFiles.ContainsKey($PovKey)) { continue }
         foreach ($Node in $LoadedFiles[$PovKey].Data.nodes) {
-            if ($Node.parent_id -and -not $PovNodeIds.Contains($Node.parent_id)) {
-                $DanglingParents += [PSCustomObject]@{ NodeId = $Node.id; ParentId = $Node.parent_id; POV = $PovKey }
+            $ParentId = if ($Node.PSObject.Properties['parent_id']) { $Node.parent_id } else { $null }
+            if ($ParentId -and -not $PovNodeIds.Contains($ParentId)) {
+                $DanglingParents += [PSCustomObject]@{ NodeId = $Node.id; ParentId = $ParentId; POV = $PovKey }
             }
         }
     }
