@@ -483,3 +483,24 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 **Status:** Active — root cause is decomposition-completeness (coupling graph vs feature files) + verify-scope (all referencing tests vs a subset). TL self-reported (t/1932#1); durable fix = the `/add-ai-backend` playbook (being filed). Watch for the same shape on other shared enums (POV camps `acc/saf/skp/cc`, BDI categories, `pol-*` registry).
 
 **Applies To:** Any role decomposing or landing a change that adds a member to a shared enumeration/config consumed across multiple files or scopes.
+
+---
+
+## [Process] Branch Protection With `enforce_admins=false` Is Not a Hard Block for Admin Identities — "PR-flow" Is a Convention
+
+**Pattern:** A repo can have branch protection + required status checks on `main`, yet a direct `git push origin HEAD:main` from an **admin identity SUCCEEDS and bypasses the checks** (GitHub logs "Bypassed rule violations, accepted") when `enforce_admins=false`. Because the whole fleet pushes as one repo-owner (admin) identity, the "checks-only PR-flow" gate is a **CONVENTION enforced by review + discipline, not a platform hard-block.** Believing "protection is on" ⇒ "direct push is impossible" is a false-enforcement assumption.
+
+**Instances:**
+- 2026-07-29 — main → PR-flow rollout (e/49): the initial broadcast stated "**direct push to main is BLOCKED**"; corrected ~12 min later (e/49#3/#4, prompted by TL2 p/276#3 + Sage p/8#119) once it was confirmed admin pushes bypass with `enforce_admins=false`. Routine direct-push-to-main is now a **flagged process violation**; pre-broadcast bypass lands (e.g. DebateTool t/1955/t/1949) were grandfathered. Owner deciding whether to make it technically binding (`enforce_admins=true`) vs. keep it convention.
+
+**Root Cause:** GitHub's `enforce_admins` toggle governs whether protection applies to admins. With it `false` and every agent authenticating as the repo-owner admin, the protection rules are **advisory for the fleet**. "branch-protected" describes *configuration*, not the achieved *guarantee* for admin pushers — the same signal-vs-reality gap as the gate-integrity / bookkeeping-≠-artifact family (a control that is configured but doesn't actually bind at the point of action).
+
+**Prevention:**
+1. **Land via green-PR self-merge** (the `/land-from-worktree` PR-flow: feature branch → `gh pr create` → wait for the 6 checks → `gh pr merge --rebase --delete-branch`, no `--admin`/reviewer). Treat routine direct-push-to-main as a process violation.
+2. **Never equate "protection enabled" with "bypass impossible"** — check `enforce_admins` and whether the pushing identity is an admin. A gate admins can bypass is convention, not enforcement; verify the control actually binds before trusting it.
+3. **Admin/hotfix bypass** (`--admin`-merge or direct push) is reserved for fixing a red/broken main when the PR path is itself blocked, a true prod emergency, or an explicit owner-directed land — **reference the authorization; never routine self-service.**
+4. To make the gate technically binding, `enforce_admins=true` (owner call, pending). Until then, discipline is the enforcement — ties to #82 rule-exists-but-not-applied: a convention with no point-of-use hard-block relies on review to catch violations.
+
+**Status:** Active — convention effective 2026-07-29 (e/49, owner-approved, DevOps flipped live). Owner deciding `enforce_admins` true vs. convention. Companion mechanical fix (detached-HEAD feature-branch push needs `HEAD:refs/heads/<branch>`) recorded separately in build.md (ServerAPI p/79#19); both folded into the revised `/land-from-worktree`.
+
+**Applies To:** Every role that lands work to `main` — i.e. the whole fleet.

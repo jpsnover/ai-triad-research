@@ -2009,6 +2009,27 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
+## [Process] Branch Protection With `enforce_admins=false` Is Not a Hard Block for Admin Identities — "PR-flow" Is a Convention
+
+**Pattern:** A repo can have branch protection + required checks on `main`, yet a direct `git push origin HEAD:main` from an **admin identity SUCCEEDS and bypasses the checks** ("Bypassed rule violations, accepted") when `enforce_admins=false`. With the whole fleet pushing as one repo-owner admin identity, the "checks-only PR-flow" gate is a **CONVENTION enforced by review + discipline, not a platform hard-block.** "protection is on" ⇒ "direct push impossible" is a false-enforcement assumption.
+
+**Instances:**
+- 2026-07-29 — main → PR-flow rollout (e/49): initial broadcast said "**direct push to main is BLOCKED**"; corrected ~12 min later (e/49#3/#4, prompted by TL2 p/276#3 + Sage p/8#119) once admin-bypass was confirmed. Routine direct-push-to-main is now a flagged process violation; pre-broadcast bypass lands (DebateTool t/1955/t/1949) grandfathered. Owner deciding `enforce_admins=true` vs. convention.
+
+**Root Cause:** GitHub's `enforce_admins` governs whether protection applies to admins. False + everyone authenticating as the repo-owner admin = rules are advisory for the fleet. "branch-protected" is *configuration*, not the achieved *guarantee* for admin pushers — same signal-vs-reality gap as the gate-integrity / bookkeeping-≠-artifact family.
+
+**Prevention:**
+1. Land via green-PR self-merge (`/land-from-worktree` PR-flow: feature branch → `gh pr create` → 6 checks → `gh pr merge --rebase --delete-branch`, no `--admin`/reviewer). Routine direct-push-to-main = process violation.
+2. Never equate "protection enabled" with "bypass impossible" — check `enforce_admins` + admin status. A gate admins can bypass is convention, not enforcement.
+3. Admin/hotfix bypass reserved for a red/broken main when the PR path is blocked, a true prod emergency, or an explicit owner-directed land — reference the authorization; never routine.
+4. To make it binding: `enforce_admins=true` (owner call, pending). Until then discipline is the enforcement (#82 rule-exists-but-not-applied: convention with no point-of-use hard-block relies on review).
+
+**Status:** Active — convention effective 2026-07-29 (e/49). Companion fix (detached-HEAD push needs `HEAD:refs/heads/<branch>`) in build.md (ServerAPI p/79#19); both folded into revised `/land-from-worktree`.
+
+**Applies To:** Every role that lands work to `main` — the whole fleet.
+
+---
+
 ## [Build] Building a Sibling-Worktree Path With `..` Collapses to the Wrong Base
 
 **Pattern:** Constructing a sibling worktree's path as `<repo>/../<sibling>` mis-resolves when `..` is anchored on the wrong segment. `C:/Users/jsnov/repos/../wt-1938b` collapses `repos/..` → `C:/Users/jsnov` → `C:/Users/jsnov/wt-1938b`, but the worktree lives at `C:/Users/jsnov/repos/wt-1938b`, so `cd` fails "No such file or directory" mid-land. The repo dir is `…/repos/ai-triad-research`; a sibling at `…/repos/wt-1938b` is `<repo>/../wt-1938b` (`ai-triad-research/..`), NOT `repos/../wt-1938b`.
