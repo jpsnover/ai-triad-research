@@ -249,12 +249,10 @@ export function listFlags(): FlagDef[] {
   return Object.values(getConfig().flags);
 }
 
-/** Create or update a flag (admin). Persists + appends audit. Returns the def. */
-export function setFlag(name: string, patch: Partial<FlagDef>, by = '_local'): FlagDef {
-  const config = { flags: { ...getConfig().flags } };
-  const before = config.flags[name] ?? null;
-  const now = new Date().toISOString();
-  const def: FlagDef = {
+/** Merge a patch over the existing flag def (or defaults), producing the new def.
+ *  Field precedence: patch → existing → default; timestamps/creator preserved. */
+function mergeFlagDef(name: string, patch: Partial<FlagDef>, before: FlagDef | null, now: string, by: string): FlagDef {
+  return {
     name,
     enabled: patch.enabled ?? before?.enabled ?? false,
     scope: patch.scope ?? before?.scope ?? 'global',
@@ -264,6 +262,14 @@ export function setFlag(name: string, patch: Partial<FlagDef>, by = '_local'): F
     created_by: before?.created_by ?? by,
     expires_at: patch.expires_at !== undefined ? patch.expires_at : before?.expires_at,
   };
+}
+
+/** Create or update a flag (admin). Persists + appends audit. Returns the def. */
+export function setFlag(name: string, patch: Partial<FlagDef>, by = '_local'): FlagDef {
+  const config = { flags: { ...getConfig().flags } };
+  const before = config.flags[name] ?? null;
+  const now = new Date().toISOString();
+  const def = mergeFlagDef(name, patch, before, now, by);
   config.flags[name] = def;
   persist(config);
   appendAudit({ timestamp: now, action: 'set', flag: name, by, before, after: def });
