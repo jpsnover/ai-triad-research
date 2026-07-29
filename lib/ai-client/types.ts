@@ -65,7 +65,7 @@ export interface RetryProgress {
   rateLimitHeaders?: RateLimitHeaders;
 }
 
-export type BackendId = 'gemini' | 'claude' | 'groq' | 'openai' | 'azure' | 'ollama' | 'deepseek' | 'zai';
+export type BackendId = 'gemini' | 'claude' | 'groq' | 'openai' | 'azure' | 'ollama' | 'deepseek' | 'zai' | 'moonshot';
 
 /** Superset of BackendId that includes non-generation backends needing API key management (e.g. tavily for search). */
 export type ApiKeyBackend = BackendId | 'tavily';
