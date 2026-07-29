@@ -341,7 +341,7 @@ export async function generateText(
         });
         continue;
       }
-      const names: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI', tavily: 'Tavily', deepseek: 'DeepSeek' };
+      const names: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI', tavily: 'Tavily', deepseek: 'DeepSeek', moonshot: 'Moonshot (Kimi)' };
       const backendName = names[backend] ?? backend;
       throw new ActionableError({
         goal: `Generate text via ${backendName}`,

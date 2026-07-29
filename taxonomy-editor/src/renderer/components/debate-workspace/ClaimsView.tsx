@@ -10,6 +10,168 @@ import './ClaimsView.css';
 
 const ATTACK_TYPE_WEIGHTS: Record<string, number> = { rebut: 1.0, undercut: 1.05, undermine: 1.1 };
 
+type ClaimAttribution = NonNullable<ArgumentNetworkNode['claim_taxonomy_attribution']>;
+
+function bandColorFor(computed: number): string {
+  return computed >= 0.8 ? '#22c55e' : computed >= 0.5 ? '#3b82f6' : computed >= 0.3 ? '#f59e0b' : '#ef4444';
+}
+
+function bdiLabelFor(node: ArgumentNetworkNode): string {
+  return node.bdi_category === 'belief' ? 'Belief' : node.bdi_category === 'desire' ? 'Desire' : node.bdi_category === 'intention' ? 'Intention' : '';
+}
+
+function idColTitle(
+  node: ArgumentNetworkNode,
+  bdiLabel: string,
+  computed: number,
+  base: number,
+  delta: number,
+  attacks: ArgumentNetworkEdge[],
+  supports: ArgumentNetworkEdge[],
+  truncText: string,
+): string {
+  return `Argument Network node ${node.id}\nSpeaker: ${speakerLabel(node.speaker)}\n${bdiLabel ? `Category: ${bdiLabel}` : ''}${node.bdi_confidence != null ? ` (confidence: ${node.bdi_confidence.toFixed(2)})` : ''}\nStrength: ${computed.toFixed(2)} (base: ${base.toFixed(2)}, delta: ${delta >= 0 ? '+' : ''}${delta.toFixed(2)})\n${attacks.length} attack${attacks.length !== 1 ? 's' : ''}, ${supports.length} support${supports.length !== 1 ? 's' : ''}\n\n${truncText}`;
+}
+
+function bdiColTitle(bdiLabel: string, node: ArgumentNetworkNode): string | undefined {
+  return bdiLabel && node.bdi_confidence != null ? `${bdiLabel} (confidence: ${node.bdi_confidence.toFixed(2)})` : bdiLabel || undefined;
+}
+
+function strengthColTitle(computed: number, base: number, delta: number): string {
+  return `Strength: ${computed.toFixed(2)} (base: ${base.toFixed(2)}, delta: ${delta >= 0 ? '+' : ''}${delta.toFixed(2)})`;
+}
+
+function edgeColTitle(hasEdges: boolean, attacks: ArgumentNetworkEdge[], supports: ArgumentNetworkEdge[]): string | undefined {
+  return hasEdges ? `${attacks.length} attack${attacks.length !== 1 ? 's' : ''} and ${supports.length} support${supports.length !== 1 ? 's' : ''} connected to this claim` : undefined;
+}
+
+function UnattributedBadge({ reason }: { reason: string }) {
+  const reasonLabel = reason === 'novel_argument' ? 'novel' : 'no embedding';
+  const reasonTip = reason === 'novel_argument'
+    ? 'Unattributed: claim is a novel argument not closely matching any taxonomy node (best similarity < 0.35)'
+    : 'Unattributed: missing embedding — cannot compute similarity';
+  return <span className="claims-badge" title={reasonTip}><span className="claims-dot claims-dot-red">●</span>{reasonLabel}</span>;
+}
+
+function AttributedBadge({ attr }: { attr: ClaimAttribution }) {
+  const conf = attr.attribution_confidence;
+  const confColor = conf >= 0.7 ? '#22c55e' : conf >= 0.5 ? '#3b82f6' : '#f59e0b';
+  const secCount = attr.secondary_refs?.length ?? 0;
+  const attrTip = `Attributed to ${attr.primary_ref} (confidence: ${conf.toFixed(2)})\n${getNodeLabel(attr.primary_ref)}${secCount > 0 ? `\n\n${secCount} secondary ref${secCount !== 1 ? 's' : ''}: ${attr.secondary_refs!.map((s: { node_id: string; similarity: number }) => `${s.node_id} (${s.similarity.toFixed(2)})`).join(', ')}` : ''}`;
+  return (
+    <span className="claims-badge" title={attrTip}>
+      {/* eslint-disable-next-line local/no-inline-style -- dynamic confidence color */}
+      <span className="claims-dot" style={{ color: confColor }}>●</span>{attr.primary_ref} {conf.toFixed(2)}
+    </span>
+  );
+}
+
+function AttributionCell({ attr }: { attr: ClaimAttribution }) {
+  if (attr.unattributed_reason) {
+    return <UnattributedBadge reason={attr.unattributed_reason} />;
+  }
+  return <AttributedBadge attr={attr} />;
+}
+
+function SalienceBadge({ salience }: { salience: string }) {
+  return (
+    <span className="claims-salience-badge">
+      <span className="claims-salience-icon">
+        {salience === 'high' ? '🔴' : salience === 'medium' ? '🟡' : '⚪'}
+      </span>
+      {salience}
+    </span>
+  );
+}
+
+function ClaimGrid({ node, computed, base, delta, band, bandColor, bdiLabel, attacks, supports, hasEdges }: {
+  node: ArgumentNetworkNode;
+  computed: number;
+  base: number;
+  delta: number;
+  band: { label: string };
+  bandColor: string;
+  bdiLabel: string;
+  attacks: ArgumentNetworkEdge[];
+  supports: ArgumentNetworkEdge[];
+  hasEdges: boolean;
+}) {
+  const truncText = node.text.length > 80 ? node.text.slice(0, 80) + '…' : node.text;
+  const attr = node.claim_taxonomy_attribution;
+  return (
+    <div className={node.political_salience ? 'claims-grid claims-grid-salience' : 'claims-grid claims-grid-default'}>
+      {/* Col 1: AN ID */}
+      <strong
+        className="claims-id"
+        title={idColTitle(node, bdiLabel, computed, base, delta, attacks, supports, truncText)}
+      >{node.id}</strong>
+      {/* Col 2: BDI category */}
+      <span title={bdiColTitle(bdiLabel, node)}>{bdiLabel}</span>
+      {/* Col 3: Attribution */}
+      <span>
+        {attr && <AttributionCell attr={attr} />}
+      </span>
+      {/* Col 4: Strength */}
+      <span className="claims-badge claims-badge-nowrap" title={strengthColTitle(computed, base, delta)}>
+        {/* eslint-disable-next-line local/no-inline-style -- dynamic strength band color */}
+        <span className="claims-dot" style={{ color: bandColor }}>●</span>{band.label} {computed.toFixed(2)}
+        {Math.abs(delta) > 0.01 && <span className="claims-delta">{delta > 0 ? '+' : ''}{delta.toFixed(2)}</span>}
+      </span>
+      {/* Col 5: Edge count */}
+      <span className="claims-edge-count" title={edgeColTitle(hasEdges, attacks, supports)}>
+        {hasEdges ? `${attacks.length + supports.length} edge${attacks.length + supports.length !== 1 ? 's' : ''}` : ''}
+      </span>
+      {/* Col 6: Political salience (policymaker debates only) */}
+      {node.political_salience && <SalienceBadge salience={node.political_salience} />}
+    </div>
+  );
+}
+
+function ClaimEdges({ attacks, supports, allNodes, strengthMap }: {
+  attacks: ArgumentNetworkEdge[];
+  supports: ArgumentNetworkEdge[];
+  allNodes: ArgumentNetworkNode[];
+  strengthMap: Map<string, number>;
+}) {
+  return (
+    <div className="claims-edges">
+      {attacks.map(e => {
+        const src = allNodes.find(n => n.id === e.source);
+        const srcStr = strengthMap.get(e.source);
+        const atkMult = ATTACK_TYPE_WEIGHTS[e.attack_type ?? 'rebut'] ?? 1.0;
+        const edgeWeight = e.weight ?? 0.5;
+        const hasWeight = e.weight != null;
+        const contribution = srcStr != null ? srcStr * edgeWeight * atkMult : undefined;
+        return (
+          <div key={`a-${e.source}`} className="claims-attack">
+            ← <strong title={src ? `${src.id} by ${speakerLabel(src.speaker)}\n${src.text}` : e.source}>{e.source}</strong>{' '}
+            <span title={`Attack type: ${e.attack_type ?? 'rebut'} (multiplier: ${atkMult.toFixed(1)})\nEdge weight: ${edgeWeight.toFixed(2)}${hasWeight ? '' : ' (default — no AI weight)'}${contribution != null ? `\nContribution: −${contribution.toFixed(2)} (${(srcStr ?? 0).toFixed(2)} × ${edgeWeight.toFixed(1)} × ${atkMult.toFixed(1)})` : ''}`}>
+              {e.attack_type ?? 'rebut'}
+            </span>{' '}
+            ({speakerLabel(src?.speaker ?? 'system')}): {src?.text}
+          </div>
+        );
+      })}
+      {supports.map(e => {
+        const src = allNodes.find(n => n.id === e.source);
+        const srcStr = strengthMap.get(e.source);
+        const edgeWeight = e.weight ?? 0.5;
+        const hasWeight = e.weight != null;
+        const contribution = srcStr != null ? srcStr * edgeWeight : undefined;
+        return (
+          <div key={`s-${e.source}`} className="claims-support">
+            ← <strong title={src ? `${src.id} by ${speakerLabel(src.speaker)}\n${src.text}` : e.source}>{e.source}</strong>{' '}
+            <span title={`Support\nEdge weight: ${edgeWeight.toFixed(2)}${hasWeight ? '' : ' (default — no AI weight)'}${contribution != null ? `\nContribution: +${contribution.toFixed(2)} (${(srcStr ?? 0).toFixed(2)} × ${edgeWeight.toFixed(1)})` : ''}`}>
+              support
+            </span>{' '}
+            ({speakerLabel(src?.speaker ?? 'system')}): {src?.text}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap, showFormal }: {
   node: ArgumentNetworkNode;
   attacks: ArgumentNetworkEdge[];
@@ -24,11 +186,8 @@ export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap, s
   const computed = strengthMap.get(node.id) ?? node.computed_strength ?? base;
   const delta = computed - base;
   const band = STRENGTH_BAND(computed);
-
-  const bandColor = computed >= 0.8 ? '#22c55e' : computed >= 0.5 ? '#3b82f6' : computed >= 0.3 ? '#f59e0b' : '#ef4444';
-  const attr = node.claim_taxonomy_attribution;
-  const bdiLabel = node.bdi_category === 'belief' ? 'Belief' : node.bdi_category === 'desire' ? 'Desire' : node.bdi_category === 'intention' ? 'Intention' : '';
-  const truncText = node.text.length > 80 ? node.text.slice(0, 80) + '…' : node.text;
+  const bandColor = bandColorFor(computed);
+  const bdiLabel = bdiLabelFor(node);
 
   return (
     <div className="claims-node-row">
@@ -39,95 +198,21 @@ export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap, s
             className="claims-toggle-btn"
           >{expanded ? '▼' : '▶'}</button>
         ) : <span className="claims-toggle-spacer" />}
-        <div className={node.political_salience ? 'claims-grid claims-grid-salience' : 'claims-grid claims-grid-default'}>
-          {/* Col 1: AN ID */}
-          <strong
-            className="claims-id"
-            title={`Argument Network node ${node.id}\nSpeaker: ${speakerLabel(node.speaker)}\n${bdiLabel ? `Category: ${bdiLabel}` : ''}${node.bdi_confidence != null ? ` (confidence: ${node.bdi_confidence.toFixed(2)})` : ''}\nStrength: ${computed.toFixed(2)} (base: ${base.toFixed(2)}, delta: ${delta >= 0 ? '+' : ''}${delta.toFixed(2)})\n${attacks.length} attack${attacks.length !== 1 ? 's' : ''}, ${supports.length} support${supports.length !== 1 ? 's' : ''}\n\n${truncText}`}
-          >{node.id}</strong>
-          {/* Col 2: BDI category */}
-          <span title={bdiLabel && node.bdi_confidence != null ? `${bdiLabel} (confidence: ${node.bdi_confidence.toFixed(2)})` : bdiLabel || undefined}>{bdiLabel}</span>
-          {/* Col 3: Attribution */}
-          <span>
-            {attr && (() => {
-              if (attr.unattributed_reason) {
-                const reasonLabel = attr.unattributed_reason === 'novel_argument' ? 'novel' : 'no embedding';
-                const reasonTip = attr.unattributed_reason === 'novel_argument'
-                  ? 'Unattributed: claim is a novel argument not closely matching any taxonomy node (best similarity < 0.35)'
-                  : 'Unattributed: missing embedding — cannot compute similarity';
-                return <span className="claims-badge" title={reasonTip}><span className="claims-dot claims-dot-red">●</span>{reasonLabel}</span>;
-              }
-              const conf = attr.attribution_confidence;
-              const confColor = conf >= 0.7 ? '#22c55e' : conf >= 0.5 ? '#3b82f6' : '#f59e0b';
-              const secCount = attr.secondary_refs?.length ?? 0;
-              const attrTip = `Attributed to ${attr.primary_ref} (confidence: ${conf.toFixed(2)})\n${getNodeLabel(attr.primary_ref)}${secCount > 0 ? `\n\n${secCount} secondary ref${secCount !== 1 ? 's' : ''}: ${attr.secondary_refs!.map((s: { node_id: string; similarity: number }) => `${s.node_id} (${s.similarity.toFixed(2)})`).join(', ')}` : ''}`;
-              return (
-                <span className="claims-badge" title={attrTip}>
-                  {/* eslint-disable-next-line local/no-inline-style -- dynamic confidence color */}
-                  <span className="claims-dot" style={{ color: confColor }}>●</span>{attr.primary_ref} {conf.toFixed(2)}
-                </span>
-              );
-            })()}
-          </span>
-          {/* Col 4: Strength */}
-          <span className="claims-badge claims-badge-nowrap" title={`Strength: ${computed.toFixed(2)} (base: ${base.toFixed(2)}, delta: ${delta >= 0 ? '+' : ''}${delta.toFixed(2)})`}>
-            {/* eslint-disable-next-line local/no-inline-style -- dynamic strength band color */}
-            <span className="claims-dot" style={{ color: bandColor }}>●</span>{band.label} {computed.toFixed(2)}
-            {Math.abs(delta) > 0.01 && <span className="claims-delta">{delta > 0 ? '+' : ''}{delta.toFixed(2)}</span>}
-          </span>
-          {/* Col 5: Edge count */}
-          <span className="claims-edge-count" title={hasEdges ? `${attacks.length} attack${attacks.length !== 1 ? 's' : ''} and ${supports.length} support${supports.length !== 1 ? 's' : ''} connected to this claim` : undefined}>
-            {hasEdges ? `${attacks.length + supports.length} edge${attacks.length + supports.length !== 1 ? 's' : ''}` : ''}
-          </span>
-          {/* Col 6: Political salience (policymaker debates only) */}
-          {node.political_salience && (
-            <span className="claims-salience-badge">
-              <span className="claims-salience-icon">
-                {node.political_salience === 'high' ? '🔴' : node.political_salience === 'medium' ? '🟡' : '⚪'}
-              </span>
-              {node.political_salience}
-            </span>
-          )}
-        </div>
+        <ClaimGrid
+          node={node}
+          computed={computed}
+          base={base}
+          delta={delta}
+          band={band}
+          bandColor={bandColor}
+          bdiLabel={bdiLabel}
+          attacks={attacks}
+          supports={supports}
+          hasEdges={hasEdges}
+        />
       </div>
       <div className="claims-node-text">{showFormal && node.attribution_text_genus ? node.attribution_text_genus : node.text}</div>
-      {expanded && (
-        <div className="claims-edges">
-          {attacks.map(e => {
-            const src = allNodes.find(n => n.id === e.source);
-            const srcStr = strengthMap.get(e.source);
-            const atkMult = ATTACK_TYPE_WEIGHTS[e.attack_type ?? 'rebut'] ?? 1.0;
-            const edgeWeight = e.weight ?? 0.5;
-            const hasWeight = e.weight != null;
-            const contribution = srcStr != null ? srcStr * edgeWeight * atkMult : undefined;
-            return (
-              <div key={`a-${e.source}`} className="claims-attack">
-                ← <strong title={src ? `${src.id} by ${speakerLabel(src.speaker)}\n${src.text}` : e.source}>{e.source}</strong>{' '}
-                <span title={`Attack type: ${e.attack_type ?? 'rebut'} (multiplier: ${atkMult.toFixed(1)})\nEdge weight: ${edgeWeight.toFixed(2)}${hasWeight ? '' : ' (default — no AI weight)'}${contribution != null ? `\nContribution: −${contribution.toFixed(2)} (${(srcStr ?? 0).toFixed(2)} × ${edgeWeight.toFixed(1)} × ${atkMult.toFixed(1)})` : ''}`}>
-                  {e.attack_type ?? 'rebut'}
-                </span>{' '}
-                ({speakerLabel(src?.speaker ?? 'system')}): {src?.text}
-              </div>
-            );
-          })}
-          {supports.map(e => {
-            const src = allNodes.find(n => n.id === e.source);
-            const srcStr = strengthMap.get(e.source);
-            const edgeWeight = e.weight ?? 0.5;
-            const hasWeight = e.weight != null;
-            const contribution = srcStr != null ? srcStr * edgeWeight : undefined;
-            return (
-              <div key={`s-${e.source}`} className="claims-support">
-                ← <strong title={src ? `${src.id} by ${speakerLabel(src.speaker)}\n${src.text}` : e.source}>{e.source}</strong>{' '}
-                <span title={`Support\nEdge weight: ${edgeWeight.toFixed(2)}${hasWeight ? '' : ' (default — no AI weight)'}${contribution != null ? `\nContribution: +${contribution.toFixed(2)} (${(srcStr ?? 0).toFixed(2)} × ${edgeWeight.toFixed(1)})` : ''}`}>
-                  support
-                </span>{' '}
-                ({speakerLabel(src?.speaker ?? 'system')}): {src?.text}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {expanded && <ClaimEdges attacks={attacks} supports={supports} allNodes={allNodes} strengthMap={strengthMap} />}
     </div>
   );
 }

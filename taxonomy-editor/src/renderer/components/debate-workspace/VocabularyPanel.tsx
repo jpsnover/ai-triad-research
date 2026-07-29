@@ -101,6 +101,51 @@ export function LineageTermsView({ content }: { content: string }) {
   );
 }
 
+function VocabDefRow({ rt, resolved, defLookup, navigateToLineage }: {
+  rt: { standardized_term: string; when: string; default_for_camp?: string };
+  resolved?: string;
+  defLookup?: Map<string, { display: string; definition: string }>;
+  navigateToLineage: (value: string) => void;
+}) {
+  const isHighlighted = resolved != null && rt.standardized_term === resolved;
+  const def = defLookup?.get(rt.standardized_term);
+  const displayText = def?.display ?? rt.standardized_term;
+  return (
+    <div className={isHighlighted ? 'vocab-def vocab-def-active' : 'vocab-def'}>
+      <div className="vocab-def-header">
+        {isHighlighted && (
+          <span className="vocab-active-badge">
+            active
+          </span>
+        )}
+        <a
+          href="#"
+          className={isHighlighted ? 'vocab-def-link vocab-def-link-active' : 'vocab-def-link'}
+          title={`Go to "${displayText}" in Lineage Panel`}
+          onClick={(ev) => { ev.preventDefault(); navigateToLineage(rt.standardized_term); }}
+        >
+          {displayText}
+        </a>
+        {rt.when && <span className="vocab-def-when">{rt.when}</span>}
+        {rt.default_for_camp && (
+          <span
+            className="vocab-def-camp"
+            // eslint-disable-next-line local/no-inline-style -- color pulled from POV_COLOR_VAR lookup at runtime
+            style={{ color: POV_COLOR_VAR[rt.default_for_camp] ?? 'var(--text-muted)' }}
+          >
+            {rt.default_for_camp}
+          </span>
+        )}
+      </div>
+      {def?.definition && (
+        <div className={isHighlighted ? 'vocab-def-text vocab-def-text-active' : 'vocab-def-text'}>
+          {def.definition}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function VocabTermCard({ bare, dict, resolved, defLookup, navigateToLineage, sourceSentence }: {
   bare: string;
   dict?: { resolves_to: { standardized_term: string; when: string; default_for_camp?: string }[]; ambiguous_when?: string[] };
@@ -117,44 +162,9 @@ export function VocabTermCard({ bare, dict, resolved, defLookup, navigateToLinea
           &ldquo;{sourceSentence}&rdquo;
         </div>
       )}
-      {dict?.resolves_to.map((rt, j) => {
-        const isHighlighted = resolved != null && rt.standardized_term === resolved;
-        const def = defLookup?.get(rt.standardized_term);
-        return (
-          <div key={j} className={isHighlighted ? 'vocab-def vocab-def-active' : 'vocab-def'}>
-            <div className="vocab-def-header">
-              {isHighlighted && (
-                <span className="vocab-active-badge">
-                  active
-                </span>
-              )}
-              <a
-                href="#"
-                className={isHighlighted ? 'vocab-def-link vocab-def-link-active' : 'vocab-def-link'}
-                title={`Go to "${def?.display ?? rt.standardized_term}" in Lineage Panel`}
-                onClick={(ev) => { ev.preventDefault(); navigateToLineage(rt.standardized_term); }}
-              >
-                {def?.display ?? rt.standardized_term}
-              </a>
-              {rt.when && <span className="vocab-def-when">{rt.when}</span>}
-              {rt.default_for_camp && (
-                <span
-                  className="vocab-def-camp"
-                  // eslint-disable-next-line local/no-inline-style -- color pulled from POV_COLOR_VAR lookup at runtime
-                  style={{ color: POV_COLOR_VAR[rt.default_for_camp] ?? 'var(--text-muted)' }}
-                >
-                  {rt.default_for_camp}
-                </span>
-              )}
-            </div>
-            {def?.definition && (
-              <div className={isHighlighted ? 'vocab-def-text vocab-def-text-active' : 'vocab-def-text'}>
-                {def.definition}
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {dict?.resolves_to.map((rt, j) => (
+        <VocabDefRow key={j} rt={rt} resolved={resolved} defLookup={defLookup} navigateToLineage={navigateToLineage} />
+      ))}
       {!dict && resolved && (() => {
         const def = defLookup?.get(resolved);
         return (

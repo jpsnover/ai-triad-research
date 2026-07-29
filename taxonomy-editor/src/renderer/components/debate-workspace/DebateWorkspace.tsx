@@ -574,6 +574,18 @@ function DebatePhaseHeader({ activeDebate, isDebatePhase, isOpeningPhase }: {
   );
 }
 
+function isOpeningStart(type: string, prevType: string | null): boolean {
+  return type === 'opening' && prevType !== 'opening';
+}
+
+function isDebateStart(type: string, prevType: string | null): boolean {
+  return (type === 'statement' || type === 'cross_respond') && prevType !== 'statement' && prevType !== 'cross_respond' && prevType !== 'probing' && prevType !== 'fact-check' && prevType !== 'system' && prevType !== 'question';
+}
+
+function isSynthesisStart(type: string, prevType: string | null): boolean {
+  return (type === 'synthesis' || type === 'concluding') && prevType !== 'synthesis' && prevType !== 'concluding';
+}
+
 /** Phase-transition hairline for a transcript position, or null. Extracted verbatim (t/1876). */
 function computeTranscriptHairline(entry: ActiveTranscriptEntry, idx: number, transcript: ActiveTranscriptEntry[]): React.ReactNode {
   let prevVisibleIdx = -1;
@@ -581,13 +593,14 @@ function computeTranscriptHairline(entry: ActiveTranscriptEntry, idx: number, tr
     if (transcript[i].type !== 'clarification') { prevVisibleIdx = i; break; }
   }
   const prevType: string | null = prevVisibleIdx >= 0 ? transcript[prevVisibleIdx].type : null;
-  if (entry.type === 'opening' && prevType !== 'opening') {
+  const type = entry.type as string;
+  if (isOpeningStart(type, prevType)) {
     return <PhaseHairline key={`hairline-opening-${idx}`} label="Opening Statements" />;
   }
-  if (((entry.type as string) === 'statement' || (entry.type as string) === 'cross_respond') && prevType !== 'statement' && prevType !== 'cross_respond' && prevType !== 'probing' && prevType !== 'fact-check' && prevType !== 'system' && prevType !== 'question') {
+  if (isDebateStart(type, prevType)) {
     return <PhaseHairline key={`hairline-debate-${idx}`} label="Cross-Examination" />;
   }
-  if (((entry.type as string) === 'synthesis' || entry.type === 'concluding') && prevType !== 'synthesis' && prevType !== 'concluding') {
+  if (isSynthesisStart(type, prevType)) {
     return <PhaseHairline key={`hairline-synthesis-${idx}`} label="Synthesis" />;
   }
   return null;
@@ -696,6 +709,64 @@ function DebateTranscriptColumn({
   );
 }
 
+function RerunInsightsSlot({ isExploration, activeDebate, explorationSummary, extractAndSeedFromDebate }: {
+  isExploration: boolean;
+  activeDebate: ActiveDebateSession;
+  explorationSummary: DWStore['explorationSummary'];
+  extractAndSeedFromDebate: DWStore['extractAndSeedFromDebate'];
+}) {
+  if (isExploration || activeDebate.phase !== 'closed' || explorationSummary) return null;
+  return (
+    <div className="debate-rerun-insights">
+      <button
+        className="btn btn-explore"
+        onClick={() => void extractAndSeedFromDebate(activeDebate.id)}
+        title="Extract insights from this debate and use them to seed a new, better debate"
+      >
+        Rerun with Insights
+      </button>
+    </div>
+  );
+}
+
+function PhaseActionBar({
+  showRemoteOverlay, activeDebate, isClarificationPhase, isEditClaimsPhase, isOpeningPhase, isDebatePhase, isExplorationClosed,
+  showParamHistory, setShowParamHistory, showEvaluation, setShowEvaluation,
+}: {
+  showRemoteOverlay: boolean;
+  activeDebate: ActiveDebateSession;
+  isClarificationPhase: boolean;
+  isEditClaimsPhase: boolean;
+  isOpeningPhase: boolean;
+  isDebatePhase: boolean;
+  isExplorationClosed: boolean;
+  showParamHistory: boolean;
+  setShowParamHistory: React.Dispatch<React.SetStateAction<boolean>>;
+  showEvaluation: boolean;
+  setShowEvaluation: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
+  // Phase-aware action bar (fixed at bottom) — hidden when popout is driving
+  if (showRemoteOverlay) return null;
+  return (
+    <>
+      {isClarificationPhase && !activeDebate.transcript.some(e => e.type === 'opening' || e.type === 'statement') && <ClarificationActions />}
+      {isEditClaimsPhase && <ClaimsEditor />}
+      {isOpeningPhase && <OpeningActions />}
+      {isDebatePhase && !isExplorationClosed && <DebateActions showParamHistory={showParamHistory} setShowParamHistory={setShowParamHistory} showEvaluation={showEvaluation} setShowEvaluation={setShowEvaluation} />}
+    </>
+  );
+}
+
+function NeutralEvalSlot({ showEvaluation, activeDebate }: { showEvaluation: boolean; activeDebate: ActiveDebateSession }) {
+  if (!showEvaluation || !activeDebate.neutral_evaluations || activeDebate.neutral_evaluations.length === 0) return null;
+  return (
+    <NeutralEvaluationPanel
+      evaluations={activeDebate.neutral_evaluations}
+      speakerMapping={activeDebate.neutral_speaker_mapping}
+    />
+  );
+}
+
 function DebateActionRegion({
   activeDebate, isExploration, isExplorationClosed, explorationSummary, extractAndSeedFromDebate,
   showRemoteOverlay, isClarificationPhase, isEditClaimsPhase, isOpeningPhase, isDebatePhase,
@@ -721,33 +792,29 @@ function DebateActionRegion({
       {/* Exploration summary card — shown when exploration debate closes */}
       {isExplorationClosed && explorationSummary && <ExplorationSummaryCard />}
 
-      {/* "Rerun with Insights" — on non-exploration closed debates */}
-      {!isExploration && activeDebate.phase === 'closed' && !explorationSummary && (
-        <div className="debate-rerun-insights">
-          <button
-            className="btn btn-explore"
-            onClick={() => void extractAndSeedFromDebate(activeDebate.id)}
-            title="Extract insights from this debate and use them to seed a new, better debate"
-          >
-            Rerun with Insights
-          </button>
-        </div>
-      )}
+      <RerunInsightsSlot
+        isExploration={isExploration}
+        activeDebate={activeDebate}
+        explorationSummary={explorationSummary}
+        extractAndSeedFromDebate={extractAndSeedFromDebate}
+      />
 
-      {/* Phase-aware action bar (fixed at bottom) — hidden when popout is driving */}
-      {!showRemoteOverlay && isClarificationPhase && !activeDebate.transcript.some(e => e.type === 'opening' || e.type === 'statement') && <ClarificationActions />}
-      {!showRemoteOverlay && isEditClaimsPhase && <ClaimsEditor />}
-      {!showRemoteOverlay && isOpeningPhase && <OpeningActions />}
-
-      {!showRemoteOverlay && isDebatePhase && !isExplorationClosed && <DebateActions showParamHistory={showParamHistory} setShowParamHistory={setShowParamHistory} showEvaluation={showEvaluation} setShowEvaluation={setShowEvaluation} />}
+      <PhaseActionBar
+        showRemoteOverlay={showRemoteOverlay}
+        activeDebate={activeDebate}
+        isClarificationPhase={isClarificationPhase}
+        isEditClaimsPhase={isEditClaimsPhase}
+        isOpeningPhase={isOpeningPhase}
+        isDebatePhase={isDebatePhase}
+        isExplorationClosed={isExplorationClosed}
+        showParamHistory={showParamHistory}
+        setShowParamHistory={setShowParamHistory}
+        showEvaluation={showEvaluation}
+        setShowEvaluation={setShowEvaluation}
+      />
 
       {/* Neutral evaluation panel — toggled via Evaluation button */}
-      {showEvaluation && activeDebate.neutral_evaluations && activeDebate.neutral_evaluations.length > 0 && (
-        <NeutralEvaluationPanel
-          evaluations={activeDebate.neutral_evaluations}
-          speakerMapping={activeDebate.neutral_speaker_mapping}
-        />
-      )}
+      <NeutralEvalSlot showEvaluation={showEvaluation} activeDebate={activeDebate} />
 
       {/* Parameter calibration history */}
       {showParamHistory && (
@@ -1051,6 +1118,49 @@ function useDebateCoverage(activeDebate: DWStore['activeDebate']) {
   return { coverageMap, strengthWeighted };
 }
 
+// Walk up from the selection's anchor to find the enclosing statement card.
+function findSelectedEntry(anchorNode: Node | null | undefined, currentTarget: EventTarget | null): { entryId: string; isPoverStatement: boolean } {
+  let node = anchorNode as HTMLElement | null;
+  let entryId = '';
+  let isPoverStatement = false;
+  while (node && node !== currentTarget) {
+    if (node.dataset?.entryId) {
+      entryId = node.dataset.entryId;
+      isPoverStatement = node.dataset.isPover === 'true';
+      break;
+    }
+    node = node.parentElement;
+  }
+  return { entryId, isPoverStatement };
+}
+
+// Rendered-text offset + active tier for a selection within a statement card (t/1694).
+function computeSelectionAnchor(
+  selection: Selection,
+  entry: ActiveTranscriptEntry,
+  selectedText: string,
+  defaultTier: DWStore['responseLength'],
+): { startOffset: number; endOffset: number; tier: DetailTier } {
+  const isSub = ['opening', 'statement', 'fact-check', 'cross_respond'].includes(entry.type);
+  const tier: DetailTier = isSub ? ((entry as any).display_tier ?? defaultTier ?? 'detailed') : 'detailed';
+  let startOffset = 0;
+  let endOffset = selectedText.length;
+  const range = selection.getRangeAt(0);
+  const anchorEl = range.startContainer instanceof Element
+    ? range.startContainer
+    : range.startContainer.parentElement;
+  const container = anchorEl?.closest('.debate-statement-content') as HTMLElement | null;
+  if (container) {
+    // `selectedText` was trimmed; realign the offset to the trimmed start so
+    // it points at the same text CommentOverlay will locate.
+    const rawSelected = selection.toString();
+    const leadingWs = rawSelected.length - rawSelected.trimStart().length;
+    startOffset = renderedOffsetOf(container, range.startContainer, range.startOffset) + leadingWs;
+    endOffset = startOffset + selectedText.length;
+  }
+  return { startOffset, endOffset, tier };
+}
+
 function useDebateSelectionMenu(activeDebate: DWStore['activeDebate'], defaultTier: DWStore['responseLength']) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [commentPopover, setCommentPopover] = useState<CommentPopoverState | null>(null);
@@ -1063,49 +1173,17 @@ function useDebateSelectionMenu(activeDebate: DWStore['activeDebate'], defaultTi
 
     e.preventDefault();
 
-    // Walk up from the selection's anchor to find the statement card
-    let node = selection?.anchorNode as HTMLElement | null;
-    let entryId = '';
-    let isPoverStatement = false;
-    while (node && node !== e.currentTarget) {
-      if (node.dataset?.entryId) {
-        entryId = node.dataset.entryId;
-        isPoverStatement = node.dataset.isPover === 'true';
-        break;
-      }
-      node = node.parentElement;
-    }
+    const { entryId, isPoverStatement } = findSelectedEntry(selection?.anchorNode, e.currentTarget);
 
-    // Compute text offsets within the debate-statement-content element
+    // Compute text offsets + active tier within the debate-statement-content element
     let startOffset = 0;
     let endOffset = selectedText.length;
     let tier: DetailTier = 'detailed';
     if (entryId && selection && selection.rangeCount > 0) {
       // Find the entry in the transcript to determine the active tier
-      const entry = activeDebate?.transcript.find(e => e.id === entryId);
+      const entry = activeDebate?.transcript.find(e2 => e2.id === entryId);
       if (entry) {
-        const isSub = ['opening', 'statement', 'fact-check', 'cross_respond'].includes(entry.type);
-        tier = isSub ? ((entry as any).display_tier ?? defaultTier ?? 'detailed') : 'detailed';
-        // Rendered-text offset: measure from the start of the rendered statement
-        // container to the selection start. `selection.toString()` is already
-        // rendered text, so the offset must live in rendered-text space too —
-        // indexOf against the raw markdown silently returns -1 (→ offset 0)
-        // whenever the selection spans inline markdown (**bold**, [links]). This
-        // matches CommentOverlay's rendered-text resolution so the anchor round-
-        // trips even through inline formatting (t/1694).
-        const range = selection.getRangeAt(0);
-        const anchorEl = range.startContainer instanceof Element
-          ? range.startContainer
-          : range.startContainer.parentElement;
-        const container = anchorEl?.closest('.debate-statement-content') as HTMLElement | null;
-        if (container) {
-          // `selectedText` was trimmed; realign the offset to the trimmed start so
-          // it points at the same text CommentOverlay will locate.
-          const rawSelected = selection.toString();
-          const leadingWs = rawSelected.length - rawSelected.trimStart().length;
-          startOffset = renderedOffsetOf(container, range.startContainer, range.startOffset) + leadingWs;
-          endOffset = startOffset + selectedText.length;
-        }
+        ({ startOffset, endOffset, tier } = computeSelectionAnchor(selection, entry, selectedText, defaultTier));
       }
     }
 

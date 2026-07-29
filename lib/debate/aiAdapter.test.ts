@@ -19,12 +19,14 @@ function makeRegistry(overrides: Record<string, unknown> = {}) {
       { id: 'claude', label: 'Anthropic Claude' },
       { id: 'groq', label: 'Groq' },
       { id: 'openai', label: 'OpenAI' },
+      { id: 'zai', label: 'Z.AI' },
     ],
     models: [
       { id: 'gemini-2.5-flash', apiModelId: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', backend: 'gemini' },
       { id: 'claude-sonnet-4-5', apiModelId: 'claude-sonnet-4-5', label: 'Sonnet 4.5', backend: 'claude' },
       { id: 'groq-llama-3.3-70b-versatile', apiModelId: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70b', backend: 'groq' },
       { id: 'openai-gpt-5.5', apiModelId: 'gpt-5.5', label: 'GPT-5.5', backend: 'openai' },
+      { id: 'zai-glm-5-2', apiModelId: 'glm-5-2', label: 'GLM-5.2', backend: 'zai' },
     ],
     fallbackChains: {
       'gemini-2.5-flash': ['claude-sonnet-4-5', 'groq-llama-3.3-70b-versatile'],
@@ -72,6 +74,13 @@ function openaiOkBody(text = 'Hello from OpenAI') {
   };
 }
 
+function zaiOkBody(text = 'Hello from Z.AI') {
+  return {
+    choices: [{ message: { content: text } }],
+    usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+  };
+}
+
 // ── Mock fs to control registry loading ─────────────────
 
 const mockExistsSync = vi.fn();
@@ -100,7 +109,7 @@ vi.mock('../embeddings/onnxEmbedding.js', () => ({
 
 // ── Setup / teardown ────────────────────────────────────
 
-const savedEnvKeys = ['GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY', 'AI_API_KEY', 'DEBATE_ENVELOPE'];
+const savedEnvKeys = ['GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'AI_API_KEY', 'DEBATE_ENVELOPE'];
 const savedEnv: Record<string, string | undefined> = {};
 const mockFetch = vi.fn<(...args: unknown[]) => Promise<Response>>();
 
@@ -504,6 +513,27 @@ describe('aiAdapter', () => {
 
       const fetchOpts = mockFetch.mock.calls[0][1] as RequestInit;
       expect((fetchOpts.headers as Record<string, string>)['Authorization']).toBe('Bearer openai-specific-key');
+    });
+
+    it('uses ZAI_API_KEY for zai backend (not AI_API_KEY fallback)', async () => {
+      process.env.ZAI_API_KEY = 'zai-specific-key';
+      process.env.AI_API_KEY = 'universal-fallback-key';
+      mockFetch.mockImplementation(async () => freshResponse(zaiOkBody(), 200));
+
+      const mod = await getModule();
+      const adapter = mod.createCLIAdapter('/fake/root');
+      await adapter.generateText('test', 'zai-glm-5-2');
+
+      const fetchOpts = mockFetch.mock.calls[0][1] as RequestInit;
+      expect((fetchOpts.headers as Record<string, string>)['Authorization']).toBe('Bearer zai-specific-key');
+    });
+
+    it('names ZAI_API_KEY in error nextSteps when no key is present for zai backend', async () => {
+      const mod = await getModule();
+      const adapter = mod.createCLIAdapter('/fake/root');
+
+      await expect(runWithTimers(adapter.generateText('test', 'zai-glm-5-2')))
+        .rejects.toThrow(/ZAI_API_KEY/);
     });
 
     it('falls back to AI_API_KEY when backend-specific key is missing', async () => {
