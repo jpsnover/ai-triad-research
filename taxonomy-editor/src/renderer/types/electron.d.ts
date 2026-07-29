@@ -3,6 +3,7 @@
 
 import type { Organization, OrganizationEdge } from '@lib/organizations/types';
 import type { EntityDetail, EntitySummary, EntityListQuery } from '@lib/entities/types';
+import type { ContainerMentions } from '@lib/entities/mentionTypes';
 import type { EdgesFile } from '@lib/debate/taxonomyTypes';
 
 export interface ElectronAPI {
@@ -250,6 +251,10 @@ export interface ElectronAPI {
   // Entity list/browser (t/1883). Optional — wired by the list-entities IPC handler
   // (ElectronMain, later). Until then undefined and the bridge degrades to [].
   listEntities?: (query?: EntityListQuery) => Promise<EntitySummary[]>;
+
+  // Container mentions (t/1901). Optional — wired by the container-mentions IPC handler
+  // (ElectronMain, t/1903). Until then undefined and the bridge fails loud.
+  getContainerMentions?: (id: string) => Promise<ContainerMentions | null>;
 
   // Deep-link URL
   getWebAppUrl?: () => Promise<string | null>;

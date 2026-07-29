@@ -1187,6 +1187,11 @@ const rawApi: AppAPI = {
     return get(`/api/entities${qs ? `?${qs}` : ''}`);
   },
 
+  // Container mentions (t/1901). Container ids carry a `:` prefix (sei:/node:) → URL-encode.
+  // Server route t/1902 returns 200 with a null body for an absent container (derived
+  // artifact — absence is "no links", not 404), so this resolves null rather than throwing.
+  getContainerMentions: (containerId) => get(`/api/container-mentions/${encodeURIComponent(containerId)}`),
+
   // Calibration
   getCalibrationHistory: () => get<{ current: unknown; history: unknown[] }>('/api/calibration/history').catch(bridgeWarn('getCalibrationHistory failed', { current: null, history: [] })),
   getCalibrationLog: () => get<{ entries: unknown[]; validationReport: unknown }>('/api/calibration/log').catch(bridgeWarn('getCalibrationLog failed', { entries: [], validationReport: null })),

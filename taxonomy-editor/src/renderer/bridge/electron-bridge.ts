@@ -264,6 +264,11 @@ export const api: AppAPI = {
   // delegates automatically; same fail-loud pattern as getEntity (t/1809) / saveEdges (t/1816).
   listEntities: (query) => window.electronAPI.listEntities?.(query) ?? Promise.reject(new Error('Entity listing is not available in desktop mode yet (pending the list-entities IPC handler, t/1889)')),
 
+  // Container mentions (t/1901). FAIL LOUD until the container-mentions IPC handler lands
+  // (ElectronMain, t/1903) — same staged pattern as getEntity (t/1809) / listEntities (t/1889);
+  // a silent null would render the desktop reading flow link-free with no signal.
+  getContainerMentions: (id) => window.electronAPI.getContainerMentions?.(id) ?? Promise.reject(new Error('Container mentions are not available in desktop mode yet (pending the container-mentions IPC handler, t/1903)')),
+
   // Calibration
   getCalibrationHistory: () => window.electronAPI.getCalibrationHistory(),
   getCalibrationLog: () => window.electronAPI.getCalibrationLog(),

@@ -94,6 +94,11 @@ export type EntityDetail = _EntityDetail;
 export type EntitySummary = _EntitySummary;
 export type EntityListQuery = _EntityListQuery;
 
+// Mention index contract (t/1890 §5). Re-exported for the same single-import-site reason
+// as the entity types above; pure re-export, never redeclared here.
+import type { ContainerMentions as _ContainerMentions } from '@lib/entities/mentionTypes';
+export type ContainerMentions = _ContainerMentions;
+
 export interface OrgFilters { type?: string; pov?: string }
 
 export interface AppAPI {
@@ -327,6 +332,15 @@ export interface AppAPI {
    * server returns the full list (client-side filtered — TL t/1766#7 Q6).
    */
   listEntities: (query?: EntityListQuery) => Promise<EntitySummary[]>;
+
+  /**
+   * Fetch stored entity-name mentions for one container (`GET /api/container-mentions/:id`,
+   * t/1901). Container ids are prefix-namespaced (`sei:<node_id>` / `node:<node_id>`), so the
+   * id is URL-encoded. Resolves `null` when the container has no mentions index yet — the
+   * file is a derived artifact, so absence means "no links", not an error. Consumed by the
+   * Phase 2-E renderer (t/1898). Backends: web route t/1902, electron IPC t/1903.
+   */
+  getContainerMentions: (containerId: string) => Promise<ContainerMentions | null>;
 
   // --- Calibration ---
   getCalibrationHistory: () => Promise<{ current: unknown; history: unknown[] }>;
