@@ -1,0 +1,162 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Static styles extracted from PromptDiffTree.tsx inline styles (t/1849 playbook).
+   Behavior/theme unchanged — values are byte-identical to the original inline styles. */
+
+.pdt-root {
+  font-size: 0.72rem;
+  overflow-y: auto;
+  height: 100%;
+  padding: 4px 0;
+}
+
+/* Entry row — static part; cursor/color/opacity/font-weight/background/border-left stay inline (depend on hasPrompts/isFocused) */
+.pdt-entry-row {
+  padding: 3px 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pdt-caret {
+  width: 12px;
+  text-align: center;
+  font-size: var(--text-2xs);
+}
+
+.pdt-fw-600 {
+  font-weight: 600;
+}
+
+.pdt-muted-2xs {
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+}
+
+/* Stage row — static part; cursor stays inline (depends on runs.length) */
+.pdt-stage-row {
+  padding: 2px 8px 2px 28px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pdt-stage-caret {
+  width: 10px;
+  text-align: center;
+  font-size: var(--text-2xs);
+}
+
+/* Stage badge — static part; background/color stay inline (depend on STAGE_COLORS) */
+.pdt-stage-badge {
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Run row — static part; background/border-left stay inline (depend on isSelected) */
+.pdt-run-row {
+  padding: 2px 8px 2px 46px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pdt-fw-500 {
+  font-weight: 500;
+}
+
+.pdt-stage-retry-badge {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: rgba(245,158,11,0.15);
+  color: #f59e0b;
+  text-transform: uppercase;
+}
+
+.pdt-rerun-badge {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: rgba(239,68,68,0.15);
+  color: #ef4444;
+  text-transform: uppercase;
+}
+
+/* Validation mark — static part; color stays inline (depends on validationPass) */
+.pdt-validation-mark {
+  font-weight: 700;
+  font-size: var(--text-2xs);
+}
+
+/* Sub-node row (tool call & scrub) — static part; background/border-left stay inline (depend on selection) */
+.pdt-subnode-row {
+  padding: 1px 8px 1px 60px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-2xs);
+}
+
+.pdt-tool-icon {
+  padding: 0 4px;
+  border-radius: 2px;
+  font-weight: 600;
+  font-size: var(--text-2xs);
+  background: rgba(14,165,233,0.12);
+  color: #0ea5e9;
+}
+
+.pdt-empty-badge {
+  padding: 0 3px;
+  border-radius: 2px;
+  font-weight: 700;
+  font-size: var(--text-2xs);
+  background: rgba(245,158,11,0.15);
+  color: #f59e0b;
+}
+
+.pdt-scrub-icon {
+  padding: 0 4px;
+  border-radius: 2px;
+  font-weight: 600;
+  font-size: var(--text-2xs);
+  background: rgba(168,85,247,0.12);
+  color: #a855f7;
+}
+
+/* Verdict row — static part; background/border-left stay inline (depend on vSelected) */
+.pdt-verdict-row {
+  padding: 3px 8px 3px 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-2xs);
+}
+
+.pdt-2xs {
+  font-size: var(--text-2xs);
+}
+
+.pdt-fw-600-muted {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* Verdict outcome badge — static part; background/color stay inline (depend on isAccept) */
+.pdt-verdict-outcome-badge {
+  padding: 0 5px;
+  border-radius: 3px;
+  font-weight: 700;
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+}

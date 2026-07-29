@@ -12,6 +12,7 @@ import { PromptDiffPane } from './PromptDiffPane';
 import type { PaneData, PaneDiffLine } from './PromptDiffPane';
 import { POVER_INFO } from '../../types/debate';
 import type { SpeakerId, DebateSession } from '../../types/debate';
+import './PromptDiffWindow.css';
 
 const MAX_PANES = 4;
 
@@ -318,7 +319,7 @@ export function PromptDiffContent({ debate, focusedEntryId: externalFocusedEntry
 
   if (!debate) {
     return (
-      <div style={{ padding: 24, color: 'var(--text-muted)', textAlign: 'center' }}>
+      <div className="pdw-loading">
         Loading debate...
       </div>
     );
@@ -330,30 +331,22 @@ export function PromptDiffContent({ debate, focusedEntryId: externalFocusedEntry
     : '';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: embedded ? '100%' : '100vh', flex: embedded ? 1 : undefined, background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+    <div
+      className="pdw-root"
+      /* eslint-disable-next-line local/no-inline-style -- dynamic: height/flex depend on embedded */
+      style={{ height: embedded ? '100%' : '100vh', flex: embedded ? 1 : undefined }}
+    >
       {/* Toolbar */}
-      <div style={{
-        borderBottom: '1px solid var(--border-color)',
-        padding: '4px 12px',
-        display: 'flex', alignItems: 'center', gap: 12,
-        background: 'var(--bg-secondary)',
-        flexShrink: 0,
-        fontSize: '0.7rem',
-      }}>
-        <span style={{ fontWeight: 600, fontSize: '0.72rem' }}>Prompt Diff</span>
-        <div style={{
-          display: 'inline-flex', borderRadius: 4, overflow: 'hidden',
-          border: '1px solid var(--border-color)',
-        }}>
+      <div className="pdw-toolbar">
+        <span className="pdw-title">Prompt Diff</span>
+        <div className="pdw-toggle-group">
           {(['prompts', 'responses'] as const).map(mode => (
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
+              className="pdw-mode-btn"
+              /* eslint-disable-next-line local/no-inline-style -- dynamic: active-state background/color */
               style={{
-                padding: '2px 10px',
-                border: 'none', cursor: 'pointer',
-                fontSize: 'var(--text-2xs)', fontWeight: 600,
-                textTransform: 'capitalize',
                 background: viewMode === mode ? '#3b82f6' : 'var(--bg-primary)',
                 color: viewMode === mode ? '#fff' : 'var(--text-muted)',
               }}
@@ -364,11 +357,9 @@ export function PromptDiffContent({ debate, focusedEntryId: externalFocusedEntry
         </div>
         <button
           onClick={() => setWordWrap(p => !p)}
+          className="pdw-wrap-btn"
+          /* eslint-disable-next-line local/no-inline-style -- dynamic: active-state background/color */
           style={{
-            padding: '2px 8px', borderRadius: 4,
-            border: '1px solid var(--border-color)',
-            cursor: 'pointer',
-            fontSize: 'var(--text-2xs)', fontWeight: 600,
             background: wordWrap ? '#3b82f6' : 'var(--bg-primary)',
             color: wordWrap ? '#fff' : 'var(--text-muted)',
           }}
@@ -380,14 +371,7 @@ export function PromptDiffContent({ debate, focusedEntryId: externalFocusedEntry
 
       {/* Search bar */}
       {searchOpen && (
-        <div style={{
-          borderBottom: '1px solid var(--border-color)',
-          padding: '4px 12px',
-          display: 'flex', alignItems: 'center', gap: 8,
-          background: 'var(--bg-secondary)',
-          flexShrink: 0,
-          fontSize: '0.7rem',
-        }}>
+        <div className="pdw-search-bar">
           <input
             ref={searchInputRef}
             type="text"
@@ -407,35 +391,34 @@ export function PromptDiffContent({ debate, focusedEntryId: externalFocusedEntry
               }
             }}
             placeholder={`Search ${viewMode}... (F3 next, Shift+F3 prev)`}
-            style={{
-              flex: 1, maxWidth: 300, padding: '2px 8px',
-              border: '1px solid var(--border-color)', borderRadius: 3,
-              background: 'var(--bg-primary)', color: 'var(--text-primary)',
-              fontSize: '0.7rem', fontFamily: 'inherit', outline: 'none',
-            }}
+            className="pdw-search-input"
           />
           {searchTerm && (
-            <span style={{ color: totalMatches > 0 ? 'var(--text-primary)' : '#ef4444', fontSize: 'var(--text-2xs)' }}>
+            <span
+              className="pdw-match-count"
+              /* eslint-disable-next-line local/no-inline-style -- dynamic: color depends on match count */
+              style={{ color: totalMatches > 0 ? 'var(--text-primary)' : '#ef4444' }}
+            >
               {totalMatches > 0 ? `${activeMatchIndex + 1} of ${totalMatches}` : 'No matches'}
             </span>
           )}
           <button
             onClick={() => totalMatches > 0 && setActiveMatchIndex(prev => (prev - 1 + totalMatches) % totalMatches)}
             disabled={totalMatches === 0}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '0 4px' }}
+            className="pdw-search-nav-btn"
             title="Previous (Shift+F3)"
             aria-label="Previous match"
           >&#9650;</button>
           <button
             onClick={() => totalMatches > 0 && setActiveMatchIndex(prev => (prev + 1) % totalMatches)}
             disabled={totalMatches === 0}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '0 4px' }}
+            className="pdw-search-nav-btn"
             title="Next (F3)"
             aria-label="Next match"
           >&#9660;</button>
           <button
             onClick={() => { setSearchOpen(false); setSearchTerm(''); setActiveMatchIndex(0); }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.85rem', padding: '0 4px' }}
+            className="pdw-search-close-btn"
             title="Close (Esc)"
             aria-label="Close"
           >&times;</button>
@@ -443,13 +426,9 @@ export function PromptDiffContent({ debate, focusedEntryId: externalFocusedEntry
       )}
 
       {/* Main area: tree + panes + outline */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div className="pdw-main">
         {/* Tree (left) */}
-        <div style={{
-          width: 240, minWidth: 180, maxWidth: 350,
-          borderRight: '1px solid var(--border-color)',
-          overflowY: 'auto', flexShrink: 0,
-        }}>
+        <div className="pdw-tree">
           <PromptDiffTree
             debate={debate}
             focusedEntryId={focusedEntryId}
@@ -461,12 +440,9 @@ export function PromptDiffContent({ debate, focusedEntryId: externalFocusedEntry
         </div>
 
         {/* Panes (center) */}
-        <div ref={contentRef} style={{ flex: 1, display: 'flex', gap: 2, padding: 2, overflow: 'hidden' }}>
+        <div ref={contentRef} className="pdw-panes">
           {panes.length === 0 && (
-            <div style={{
-              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--text-muted)', fontSize: '0.8rem',
-            }}>
+            <div className="pdw-empty">
               Click a node in the tree to add its {viewMode === 'responses' ? 'response' : 'prompt'} to a pane
             </div>
           )}
@@ -501,12 +477,7 @@ export function PromptDiffContent({ debate, focusedEntryId: externalFocusedEntry
 
         {/* Outline sidebar (far right) */}
         {panes.length >= 2 && (
-          <div style={{
-            width: 20, flexShrink: 0,
-            borderLeft: '1px solid var(--border-color)',
-            background: 'var(--bg-secondary)',
-            position: 'relative', cursor: 'pointer',
-          }}>
+          <div className="pdw-outline">
             {outlineBlocks.map((block, i) => (
               <div
                 key={i}
@@ -514,46 +485,36 @@ export function PromptDiffContent({ debate, focusedEntryId: externalFocusedEntry
                   const totalLines = panes[panes.length - 1].lines.length;
                   setScrollTop(block.startFrac * totalLines * 18);
                 }}
+                className="pdw-outline-block"
+                /* eslint-disable-next-line local/no-inline-style -- dynamic: top/height/background from block fractions and type */
                 style={{
-                  position: 'absolute',
                   top: `${block.startFrac * 100}%`,
                   height: `${Math.max(2, (block.endFrac - block.startFrac) * 100)}%`,
-                  left: 2, right: 2,
                   background: block.type === 'added' ? 'rgba(234,179,8,0.6)' : 'rgba(239,68,68,0.6)',
-                  borderRadius: 1,
                 }}
                 title={`${block.type}: click to jump`}
               />
             ))}
             {/* Viewport overlay */}
-            <div style={{
-              position: 'absolute',
-              top: `${viewportFrac.top * 100}%`,
-              height: `${Math.max(3, viewportFrac.height * 100)}%`,
-              left: 0, right: 0,
-              background: 'rgba(59,130,246,0.2)',
-              border: '1px solid rgba(59,130,246,0.4)',
-              pointerEvents: 'none',
-            }} />
+            <div
+              className="pdw-viewport-overlay"
+              /* eslint-disable-next-line local/no-inline-style -- dynamic: top/height from viewport fractions */
+              style={{
+                top: `${viewportFrac.top * 100}%`,
+                height: `${Math.max(3, viewportFrac.height * 100)}%`,
+              }}
+            />
           </div>
         )}
       </div>
 
       {/* Status bar */}
-      <div style={{
-        borderTop: '1px solid var(--border-color)',
-        padding: '3px 12px',
-        fontSize: 'var(--text-2xs)',
-        color: 'var(--text-muted)',
-        display: 'flex', gap: 16,
-        background: 'var(--bg-secondary)',
-        flexShrink: 0,
-      }}>
+      <div className="pdw-status-bar">
         <span>{panes.length} {viewMode === 'responses' ? 'response' : 'prompt'}{panes.length !== 1 ? 's' : ''} loaded</span>
         {diffChain && <span>Diff: {diffChain}</span>}
         <span
           onClick={() => setSyncScroll(p => !p)}
-          style={{ cursor: 'pointer', borderBottom: '1px dotted var(--text-muted)' }}
+          className="pdw-status-link"
           title="Ctrl+S to toggle"
         >
           Scroll sync: {syncScroll ? 'ON' : 'OFF'}
@@ -561,7 +522,7 @@ export function PromptDiffContent({ debate, focusedEntryId: externalFocusedEntry
         {!searchOpen && (
           <span
             onClick={() => { setSearchOpen(true); setTimeout(() => searchInputRef.current?.focus(), 0); }}
-            style={{ cursor: 'pointer', borderBottom: '1px dotted var(--text-muted)' }}
+            className="pdw-status-link"
             title="Ctrl+F to search"
           >
             Search

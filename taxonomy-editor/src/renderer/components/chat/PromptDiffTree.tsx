@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useCallback } from 'react';
+import './PromptDiffTree.css';
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { POVER_INFO } from '../../types/debate';
 import type { SpeakerId, DebateSession } from '../../types/debate';
@@ -343,7 +344,7 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
   });
 
   return (
-    <div style={{ fontSize: '0.72rem', overflowY: 'auto', height: '100%', padding: '4px 0' }}>
+    <div className="pdt-root">
       {entries.map(({ entry, idx, grouped, verdicts, totalRuns, hasPrompts }) => {
         const isExpanded = expandedEntries.has(entry.id);
         const isFocused = entry.id === focusedEntryId;
@@ -351,25 +352,25 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
           <div key={entry.id}>
             <div
               onClick={() => hasPrompts && toggleEntry(entry.id)}
+              className="pdt-entry-row"
+              // eslint-disable-next-line local/no-inline-style -- dynamic: cursor/color/opacity/font-weight/background/border-left depend on hasPrompts & isFocused
               style={{
-                padding: '3px 8px',
                 cursor: hasPrompts ? 'pointer' : 'default',
                 color: hasPrompts ? 'var(--text-primary)' : 'var(--text-muted)',
                 opacity: hasPrompts ? 1 : 0.5,
                 fontWeight: isFocused ? 700 : 400,
                 background: isFocused ? 'rgba(168,85,247,0.08)' : 'transparent',
-                display: 'flex', alignItems: 'center', gap: 4,
                 borderLeft: isFocused ? '2px solid #a855f7' : '2px solid transparent',
               }}
             >
-              <span style={{ width: 12, textAlign: 'center', fontSize: 'var(--text-2xs)' }}>
+              <span className="pdt-caret">
                 {hasPrompts ? (isExpanded ? '▼' : '▶') : '·'}
               </span>
-              <span style={{ fontWeight: 600 }}>S{idx + 1}</span>
+              <span className="pdt-fw-600">S{idx + 1}</span>
               <span>{speakerLabel(entry.speaker)}</span>
-              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>({entry.type})</span>
+              <span className="pdt-muted-2xs">({entry.type})</span>
               {totalRuns > 1 && (
-                <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
+                <span className="pdt-muted-2xs">
                   {totalRuns} runs
                 </span>
               )}
@@ -383,27 +384,29 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                 <div key={stage}>
                   <div
                     onClick={() => runs.length > 1 && toggleStage(stageKey)}
+                    className="pdt-stage-row"
+                    // eslint-disable-next-line local/no-inline-style -- dynamic: cursor depends on runs.length
                     style={{
-                      padding: '2px 8px 2px 28px',
                       cursor: runs.length > 1 ? 'pointer' : 'default',
-                      display: 'flex', alignItems: 'center', gap: 4,
                     }}
                   >
                     {runs.length > 1 && (
-                      <span style={{ width: 10, textAlign: 'center', fontSize: 'var(--text-2xs)' }}>
+                      <span className="pdt-stage-caret">
                         {isStageExpanded ? '▼' : '▶'}
                       </span>
                     )}
-                    <span style={{
-                      padding: '0 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600,
-                      background: `${STAGE_COLORS[stage] ?? '#888'}20`,
-                      color: STAGE_COLORS[stage] ?? '#888',
-                      textTransform: 'uppercase',
-                    }}>
+                    <span
+                      className="pdt-stage-badge"
+                      // eslint-disable-next-line local/no-inline-style -- dynamic: background/color derived from STAGE_COLORS[stage]
+                      style={{
+                        background: `${STAGE_COLORS[stage] ?? '#888'}20`,
+                        color: STAGE_COLORS[stage] ?? '#888',
+                      }}
+                    >
                       {stage}
                     </span>
                     {runs.length > 1 && (
-                      <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
+                      <span className="pdt-muted-2xs">
                         ({runs.length} runs)
                       </span>
                     )}
@@ -438,22 +441,18 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                       <div key={r.runIndex}>
                         <div
                           onClick={() => onSelectNode(node)}
+                          className="pdt-run-row"
+                          // eslint-disable-next-line local/no-inline-style -- dynamic: background/border-left depend on isSelected
                           style={{
-                            padding: '2px 8px 2px 46px',
-                            cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', gap: 6,
                             background: isSelected ? 'rgba(59,130,246,0.12)' : 'transparent',
                             borderLeft: isSelected ? '2px solid #3b82f6' : '2px solid transparent',
                           }}
                           title="Click to add to diff pane"
                         >
-                          <span style={{ fontWeight: 500 }}>Run {r.runIndex + 1}</span>
+                          <span className="pdt-fw-500">Run {r.runIndex + 1}</span>
                           {r.retryTrigger === 'stage-retry' && (
                             <span
-                              style={{
-                                fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 4px', borderRadius: 3,
-                                background: 'rgba(245,158,11,0.15)', color: '#f59e0b', textTransform: 'uppercase',
-                              }}
+                              className="pdt-stage-retry-badge"
                               title={r.repairHintsIn?.join('\n') ?? 'Stage validator retry'}
                             >
                               Stage Retry
@@ -461,23 +460,23 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                           )}
                           {r.retryTrigger === 'orchestration-rerun' && (
                             <span
-                              style={{
-                                fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 4px', borderRadius: 3,
-                                background: 'rgba(239,68,68,0.15)', color: '#ef4444', textTransform: 'uppercase',
-                              }}
+                              className="pdt-rerun-badge"
                               title={r.repairHintsIn?.join('\n') ?? 'Judge-triggered rerun'}
                             >
                               Rerun
                             </span>
                           )}
-                          <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
+                          <span className="pdt-muted-2xs">
                             {abbreviateModel(node.model)}, {node.temperature}, {(node.responseTimeMs / 1000).toFixed(1)}s
                           </span>
                           {node.validationPass !== undefined && (
-                            <span style={{
-                              color: node.validationPass ? '#22c55e' : '#ef4444',
-                              fontWeight: 700, fontSize: 'var(--text-2xs)',
-                            }}>
+                            <span
+                              className="pdt-validation-mark"
+                              // eslint-disable-next-line local/no-inline-style -- dynamic: color depends on validationPass
+                              style={{
+                                color: node.validationPass ? '#22c55e' : '#ef4444',
+                              }}
+                            >
                               {node.validationPass ? '✓' : '✗'}
                             </span>
                           )}
@@ -499,36 +498,28 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                             <div
                               key={tcKey}
                               onClick={() => onSelectNode(tcNode)}
+                              className="pdt-subnode-row"
+                              // eslint-disable-next-line local/no-inline-style -- dynamic: background/border-left depend on tcSelected
                               style={{
-                                padding: '1px 8px 1px 60px',
-                                cursor: 'pointer',
-                                display: 'flex', alignItems: 'center', gap: 4,
                                 background: tcSelected ? 'rgba(59,130,246,0.12)' : 'transparent',
                                 borderLeft: tcSelected ? '2px solid #3b82f6' : '2px solid transparent',
-                                fontSize: 'var(--text-2xs)',
                               }}
                               title="Tool call — click to view query & results"
                             >
-                              <span style={{
-                                padding: '0 4px', borderRadius: 2, fontWeight: 600, fontSize: 'var(--text-2xs)',
-                                background: 'rgba(14,165,233,0.12)', color: '#0ea5e9',
-                              }}>
+                              <span className="pdt-tool-icon">
                                 🔍
                               </span>
-                              <span style={{ fontWeight: 500 }}>{tc.toolName ?? 'lookup_citation'}</span>
-                              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
+                              <span className="pdt-fw-500">{tc.toolName ?? 'lookup_citation'}</span>
+                              <span className="pdt-muted-2xs">
                                 #{(tc.toolCallIndex ?? ti) + 1}
                               </span>
                               {tc.timeMs != null && (
-                                <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
+                                <span className="pdt-muted-2xs">
                                   {(tc.timeMs / 1000).toFixed(1)}s
                                 </span>
                               )}
                               {tc.empty && (
-                                <span style={{
-                                  padding: '0 3px', borderRadius: 2, fontWeight: 700, fontSize: 'var(--text-2xs)',
-                                  background: 'rgba(245,158,11,0.15)', color: '#f59e0b',
-                                }}>
+                                <span className="pdt-empty-badge">
                                   EMPTY
                                 </span>
                               )}
@@ -548,24 +539,19 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                           return (
                             <div
                               onClick={() => onSelectNode(scrubPNode)}
+                              className="pdt-subnode-row"
+                              // eslint-disable-next-line local/no-inline-style -- dynamic: background/border-left depend on scrubSelected
                               style={{
-                                padding: '1px 8px 1px 60px',
-                                cursor: 'pointer',
-                                display: 'flex', alignItems: 'center', gap: 4,
                                 background: scrubSelected ? 'rgba(59,130,246,0.12)' : 'transparent',
                                 borderLeft: scrubSelected ? '2px solid #3b82f6' : '2px solid transparent',
-                                fontSize: 'var(--text-2xs)',
                               }}
                               title="Scrub diff — pre-scrub vs post-scrub draft"
                             >
-                              <span style={{
-                                padding: '0 4px', borderRadius: 2, fontWeight: 600, fontSize: 'var(--text-2xs)',
-                                background: 'rgba(168,85,247,0.12)', color: '#a855f7',
-                              }}>
+                              <span className="pdt-scrub-icon">
                                 ✂
                               </span>
-                              <span style={{ fontWeight: 500 }}>Scrub</span>
-                              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
+                              <span className="pdt-fw-500">Scrub</span>
+                              <span className="pdt-muted-2xs">
                                 pre → post
                               </span>
                             </div>
@@ -602,29 +588,29 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                   <div
                     key={vKey}
                     onClick={() => onSelectNode(verdictNode)}
+                    className="pdt-verdict-row"
+                    // eslint-disable-next-line local/no-inline-style -- dynamic: background/border-left depend on vSelected
                     style={{
-                      padding: '3px 8px 3px 28px',
-                      cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', gap: 6,
                       background: vSelected ? 'rgba(59,130,246,0.12)' : 'transparent',
                       borderLeft: vSelected ? '2px solid #3b82f6' : '2px solid transparent',
-                      fontSize: 'var(--text-2xs)',
                     }}
                     title={`Orchestration judge verdict for attempt ${v.attemptIndex + 1}`}
                   >
-                    <span style={{ fontSize: 'var(--text-2xs)' }}>⚖</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>
+                    <span className="pdt-2xs">⚖</span>
+                    <span className="pdt-fw-600-muted">
                       Attempt {v.attemptIndex + 1}
                     </span>
-                    <span style={{
-                      padding: '0 5px', borderRadius: 3, fontWeight: 700, fontSize: 'var(--text-2xs)',
-                      background: isAccept ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
-                      color: isAccept ? '#22c55e' : '#ef4444',
-                      textTransform: 'uppercase',
-                    }}>
+                    <span
+                      className="pdt-verdict-outcome-badge"
+                      // eslint-disable-next-line local/no-inline-style -- dynamic: background/color depend on isAccept
+                      style={{
+                        background: isAccept ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                        color: isAccept ? '#22c55e' : '#ef4444',
+                      }}
+                    >
                       {v.validation.outcome.replace(/_/g, ' ')}
                     </span>
-                    <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>
+                    <span className="pdt-muted-2xs">
                       ({v.validation.process_reward.toFixed(2)})
                     </span>
                   </div>

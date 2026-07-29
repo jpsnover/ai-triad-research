@@ -1,0 +1,478 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Static styles extracted from PromptDiffPane.tsx inline styles (t/1849 playbook).
+   Behavior/theme unchanged — values are byte-identical to the original inline styles.
+   Dynamic props (diff-line colors, word-diff highlights, computed left/top/height,
+   ternary-derived backgrounds/colors, wrap-dependent overflow) stay inline. */
+
+.pdp-br2 {
+  border-radius: 2px;
+}
+
+/* ── CitationResolutionSummary ── */
+.pdp-cr-root {
+  margin-top: 6px;
+}
+
+.pdp-cr-title {
+  font-weight: 600;
+  font-size: var(--text-2xs);
+  margin-bottom: 3px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.pdp-cr-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: var(--text-2xs);
+}
+
+.pdp-cr-row2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Badge — font-weight/font-size/padding/border-radius static; background/color dynamic */
+.pdp-mini-badge {
+  font-weight: 700;
+  font-size: var(--text-2xs);
+  padding: 0 4px;
+  border-radius: 2px;
+}
+
+.pdp-muted {
+  color: var(--text-muted);
+}
+
+.pdp-fw600 {
+  font-weight: 600;
+}
+
+.pdp-fw700 {
+  font-weight: 700;
+}
+
+.pdp-c-amber {
+  color: #f59e0b;
+}
+
+.pdp-c-yellow {
+  color: #eab308;
+}
+
+.pdp-c-red {
+  color: #ef4444;
+}
+
+.pdp-green-700 {
+  color: #22c55e;
+  font-weight: 700;
+}
+
+.pdp-red-700 {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+/* ── ValidationPanel ── */
+.pdp-no-validation {
+  padding: 6px 8px;
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+  font-style: italic;
+}
+
+.pdp-validation-panel {
+  padding: 4px 8px;
+  font-size: var(--text-2xs);
+  overflow-y: auto;
+}
+
+.pdp-mb6 {
+  margin-bottom: 6px;
+}
+
+.pdp-mb2 {
+  margin-bottom: 2px;
+}
+
+.pdp-mb1 {
+  margin-bottom: 1px;
+}
+
+.pdp-mt2 {
+  margin-top: 2px;
+}
+
+.pdp-mt4 {
+  margin-top: 4px;
+}
+
+.pdp-flex-ac-g6-mb2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.pdp-flex-ac-g6-mb3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+.pdp-mt2-flex-ac-g4 {
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pdp-flex-g4-ac {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.pdp-flex-g8 {
+  display: flex;
+  gap: 8px;
+}
+
+.pdp-flex-ac-g2 {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Uppercase section label (no margin) */
+.pdp-uc-label {
+  font-weight: 600;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+/* Uppercase section title (margin-bottom: 2px) */
+.pdp-section-title {
+  font-weight: 600;
+  font-size: var(--text-2xs);
+  margin-bottom: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+/* Pill badge — display/padding/border-radius/font static; background/color dynamic */
+.pdp-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 700;
+  font-size: var(--text-2xs);
+}
+
+/* Hint tag — static part; color/background dynamic */
+.pdp-hint-tag {
+  display: inline-block;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  padding: 0 4px;
+  border-radius: 2px;
+  margin-right: 4px;
+}
+
+/* Check glyph — font static; color dynamic */
+.pdp-check {
+  font-weight: 700;
+  font-size: var(--text-2xs);
+}
+
+.pdp-summary {
+  cursor: pointer;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.pdp-2xs {
+  font-size: var(--text-2xs);
+}
+
+.pdp-2xs-muted {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.pdp-capitalize {
+  text-transform: capitalize;
+}
+
+.pdp-cap-500 {
+  text-transform: capitalize;
+  font-weight: 500;
+}
+
+.pdp-ul-hint {
+  margin: 2px 0 0 14px;
+  padding: 0;
+}
+
+.pdp-ul-hints2 {
+  margin: 4px 0 4px 14px;
+  padding: 0;
+}
+
+.pdp-ul-hints3 {
+  margin: 2px 0 4px 14px;
+  padding: 0;
+}
+
+.pdp-ul-14-muted {
+  margin: 2px 0 0 14px;
+  padding: 0;
+  color: var(--text-muted);
+}
+
+.pdp-ul-14b-muted {
+  margin: 1px 0 0 14px;
+  padding: 0;
+  color: var(--text-muted);
+}
+
+.pdp-li-secondary {
+  margin-bottom: 1px;
+  color: var(--text-secondary);
+  font-size: var(--text-2xs);
+}
+
+/* ── ValidationPanelContainer ── */
+/* Root — height dynamic (collapsed ? 'auto' : height) */
+.pdp-vpc-root {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  font-size: var(--text-2xs);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.pdp-drag-handle {
+  height: 4px;
+  cursor: ns-resize;
+  flex-shrink: 0;
+  background: transparent;
+}
+
+.pdp-vpc-summary {
+  cursor: pointer;
+  padding: 3px 8px;
+  flex-shrink: 0;
+  font-weight: 600;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pdp-flex1-auto {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Context menu — position/z-index/background/border/shadow static; left/top dynamic */
+.pdp-ctx-menu {
+  position: fixed;
+  z-index: 9999;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  padding: 2px 0;
+  font-size: 0.7rem;
+  min-width: 120px;
+}
+
+.pdp-ctx-item {
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+/* ── PromptDiffPane ── */
+/* Root — border dynamic (isFocused) */
+.pdp-root {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+.pdp-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  font-size: var(--text-2xs);
+  flex-shrink: 0;
+}
+
+.pdp-tool-badge {
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  background: rgba(14, 165, 233, 0.12);
+  color: #0ea5e9;
+}
+
+.pdp-empty-badge {
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.pdp-results-badge {
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  text-transform: uppercase;
+}
+
+.pdp-scrub-badge {
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  background: rgba(168, 85, 247, 0.12);
+  color: #a855f7;
+}
+
+/* Uppercase badge — static; background/color dynamic (verdict outcome / stage color) */
+.pdp-uc-badge {
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* Pre-scrub toggle button — static; background/color dynamic (preScrub) */
+.pdp-prescrub-btn {
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+}
+
+.pdp-stats {
+  margin-left: auto;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.pdp-ref-label {
+  margin-left: auto;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.pdp-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.pdp-verdict-content {
+  padding: 12px 16px;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Diff content — static; overflow-x/white-space/word-break dynamic (wordWrap) */
+.pdp-content {
+  flex: 1;
+  overflow-y: auto;
+  font-family: Consolas, "Fira Code", monospace;
+  font-size: var(--text-2xs);
+  line-height: 1.4em;
+}
+
+.pdp-run-card {
+  padding: 6px 10px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  margin: 6px 8px 8px;
+  font-size: var(--text-2xs);
+  color: var(--text-secondary);
+  white-space: normal;
+}
+
+.pdp-run-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: capitalize;
+}
+
+.pdp-region-toggle {
+  text-align: center;
+  padding: 4px 0;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  cursor: pointer;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  margin: 2px 0;
+  white-space: normal;
+}
+
+/* Diff line row — static; background/border-left dynamic (per-line diff type) */
+.pdp-line {
+  display: flex;
+  min-height: 1.4em;
+}
+
+/* Line-number gutter — static; opacity dynamic (ghost lines) */
+.pdp-gutter {
+  width: 40px;
+  flex-shrink: 0;
+  text-align: right;
+  padding-right: 6px;
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+  user-select: none;
+  border-right: 1px solid var(--border-color);
+}
+
+.pdp-line-text {
+  padding-left: 6px;
+  color: var(--text-primary);
+}

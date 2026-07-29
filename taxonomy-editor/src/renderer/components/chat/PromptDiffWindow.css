@@ -1,0 +1,177 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Co-located styles for PromptDiffWindow.tsx (inline-style migration, t/1849 playbook). */
+
+.pdw-loading {
+  padding: 24px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.pdw-root {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.pdw-toolbar {
+  border-bottom: 1px solid var(--border-color);
+  padding: 4px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+  font-size: 0.7rem;
+}
+
+.pdw-title {
+  font-weight: 600;
+  font-size: 0.72rem;
+}
+
+.pdw-toggle-group {
+  display: inline-flex;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.pdw-mode-btn {
+  padding: 2px 10px;
+  border: none;
+  cursor: pointer;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.pdw-wrap-btn {
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+}
+
+.pdw-search-bar {
+  border-bottom: 1px solid var(--border-color);
+  padding: 4px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+  font-size: 0.7rem;
+}
+
+.pdw-search-input {
+  flex: 1;
+  max-width: 300px;
+  padding: 2px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.7rem;
+  font-family: inherit;
+  outline: none;
+}
+
+.pdw-match-count {
+  font-size: var(--text-2xs);
+}
+
+.pdw-search-nav-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  padding: 0 4px;
+}
+
+.pdw-search-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 0 4px;
+}
+
+.pdw-main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.pdw-tree {
+  width: 240px;
+  min-width: 180px;
+  max-width: 350px;
+  border-right: 1px solid var(--border-color);
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.pdw-panes {
+  flex: 1;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  overflow: hidden;
+}
+
+.pdw-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.pdw-outline {
+  width: 20px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  position: relative;
+  cursor: pointer;
+}
+
+.pdw-outline-block {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  border-radius: 1px;
+}
+
+.pdw-viewport-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  pointer-events: none;
+}
+
+.pdw-status-bar {
+  border-top: 1px solid var(--border-color);
+  padding: 3px 12px;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  display: flex;
+  gap: 16px;
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.pdw-status-link {
+  cursor: pointer;
+  border-bottom: 1px dotted var(--text-muted);
+}

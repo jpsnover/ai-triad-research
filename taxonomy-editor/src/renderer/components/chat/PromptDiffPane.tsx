@@ -8,6 +8,7 @@ import type { CitationResolutionDiagnostics } from '@lib/debate/citationResoluti
 import { POVER_INFO } from '../../types/debate';
 import type { SpeakerId } from '../../types/debate';
 import { humanizeSpeakerIds } from '../../utils/humanizeSpeakers';
+import './PromptDiffPane.css';
 
 const STAGE_COLORS: Record<string, string> = {
   brief: '#3b82f6', plan: '#a855f7', evidence: '#f59e0b', draft: '#22c55e', cite: '#f97316',
@@ -84,10 +85,11 @@ function highlightMatches(
       <span
         key={`m${pos}`}
         ref={isActive ? activeMatchRef : undefined}
+        className="pdp-br2"
+        // eslint-disable-next-line local/no-inline-style -- dynamic: search-match highlight background/color depend on isActive
         style={{
           background: isActive ? 'rgba(34,197,94,0.7)' : 'rgba(34,197,94,0.4)',
           color: isActive ? '#000' : 'inherit',
-          borderRadius: 2,
         }}
       >
         {text.slice(pos, pos + searchLower.length)}
@@ -138,42 +140,49 @@ function CitationResolutionSummary({ cr }: { cr: CitationResolutionDiagnostics }
     ? '0 — clean'
     : [removed > 0 ? `${removed} removed` : '', hedged > 0 ? `${hedged} hedged` : ''].filter(Boolean).join(', ');
   return (
-    <div style={{ marginTop: 6 }}>
-      <div style={{ fontWeight: 600, fontSize: 'var(--text-2xs)', marginBottom: 3, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+    <div className="pdp-cr-root">
+      <div className="pdp-cr-title">
         Citation Resolution
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', fontSize: 'var(--text-2xs)' }}>
+      <div className="pdp-cr-row">
         <span>
           Path:{' '}
-          <span style={{
-            fontWeight: 700, fontSize: 'var(--text-2xs)', padding: '0 4px', borderRadius: 2,
-            background: cr.path === 'tool-calling' ? 'rgba(59,130,246,0.12)' : 'rgba(245,158,11,0.12)',
-            color: cr.path === 'tool-calling' ? '#3b82f6' : '#f59e0b',
-          }}>
+          <span
+            className="pdp-mini-badge"
+            // eslint-disable-next-line local/no-inline-style -- dynamic: badge background/color depend on cr.path
+            style={{
+              background: cr.path === 'tool-calling' ? 'rgba(59,130,246,0.12)' : 'rgba(245,158,11,0.12)',
+              color: cr.path === 'tool-calling' ? '#3b82f6' : '#f59e0b',
+            }}
+          >
             {cr.path === 'tool-calling' ? 'Tool-Call' : 'Bank+Scrub'}
           </span>
         </span>
-        <span style={{ color: 'var(--text-muted)' }}>Bank: {cr.bank_size} srcs</span>
+        <span className="pdp-muted">Bank: {cr.bank_size} srcs</span>
         <span>
           Matched:{' '}
-          <span style={{
-            fontWeight: 600,
-            color: cr.citations_matched === cr.citations_extracted ? '#22c55e' : '#f59e0b',
-          }}>
+          <span
+            className="pdp-fw600"
+            // eslint-disable-next-line local/no-inline-style -- dynamic: color depends on matched/extracted parity
+            style={{
+              color: cr.citations_matched === cr.citations_extracted ? '#22c55e' : '#f59e0b',
+            }}
+          >
             {cr.citations_matched}/{cr.citations_extracted}
           </span>
         </span>
         <span>
           Fabricated:{' '}
-          <span style={{ fontWeight: 600, color: fabColor }}>{fabDetail}</span>
+          {/* eslint-disable-next-line local/no-inline-style -- dynamic: color derived from fabricatedColor(count) */}
+          <span className="pdp-fw600" style={{ color: fabColor }}>{fabDetail}</span>
         </span>
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
+      <div className="pdp-cr-row2">
         {cr.tool_calls && cr.tool_calls.length > 0 && (
           <span>
             Tool calls: {cr.tool_calls.length}
             {cr.tool_calls.some(tc => tc.empty) && (
-              <span style={{ color: '#f59e0b' }}> ({cr.tool_calls.filter(tc => tc.empty).length} empty)</span>
+              <span className="pdp-c-amber"> ({cr.tool_calls.filter(tc => tc.empty).length} empty)</span>
             )}
           </span>
         )}
@@ -192,34 +201,32 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
 }) {
   if (!validation && !qualityCheck && !orchestrationValidation && !retryTrigger && !citationResolution) {
     return (
-      <div style={{ padding: '6px 8px', color: 'var(--text-muted)', fontSize: 'var(--text-2xs)', fontStyle: 'italic' }}>
+      <div className="pdp-no-validation">
         No validation data
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '4px 8px', fontSize: 'var(--text-2xs)', overflowY: 'auto' }}>
+    <div className="pdp-validation-panel">
       {/* Retry trigger badge + input repair hints */}
       {retryTrigger && retryTrigger !== 'initial' && (() => {
         const tl = TRIGGER_LABEL[retryTrigger];
         return (
-          <div style={{ marginBottom: 6 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-              <span style={{ fontWeight: 600, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+          <div className="pdp-mb6">
+            <div className="pdp-flex-ac-g6-mb2">
+              <span className="pdp-uc-label">
                 Triggered By
               </span>
-              <span style={{
-                display: 'inline-block', padding: '1px 6px', borderRadius: 3,
-                fontWeight: 700, fontSize: 'var(--text-2xs)', background: tl.bg, color: tl.color,
-              }}>
+              {/* eslint-disable-next-line local/no-inline-style -- dynamic: badge background/color from TRIGGER_LABEL[retryTrigger] */}
+              <span className="pdp-badge" style={{ background: tl.bg, color: tl.color }}>
                 {tl.text}
               </span>
             </div>
             {repairHintsIn && repairHintsIn.length > 0 && (
-              <ul style={{ margin: '2px 0 0 14px', padding: 0 }}>
+              <ul className="pdp-ul-hint">
                 {repairHintsIn.map((h, i) => (
-                  <li key={i} style={{ marginBottom: 1, color: 'var(--text-secondary)', fontSize: 'var(--text-2xs)' }}>{humanizeSpeakerIds(h)}</li>
+                  <li key={i} className="pdp-li-secondary">{humanizeSpeakerIds(h)}</li>
                 ))}
               </ul>
             )}
@@ -230,9 +237,8 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
       {validation && (
         <div>
           {/* Pass/Fail badge */}
-          <span style={{
-            display: 'inline-block', padding: '1px 6px', borderRadius: 3,
-            fontWeight: 700, fontSize: 'var(--text-2xs)',
+          {/* eslint-disable-next-line local/no-inline-style -- dynamic: badge background/color depend on validation.pass */}
+          <span className="pdp-badge" style={{
             background: validation.pass ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
             color: validation.pass ? '#22c55e' : '#ef4444',
           }}>
@@ -241,17 +247,14 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
 
           {/* Hints */}
           {validation.hints && validation.hints.length > 0 && (
-            <ul style={{ margin: '4px 0 4px 14px', padding: 0 }}>
+            <ul className="pdp-ul-hints2">
               {validation.hints.map((h, i) => {
                 const cat = classifyHint(h);
                 const s = HINT_STYLE[cat];
                 return (
-                  <li key={i} style={{ marginBottom: 2 }}>
-                    <span style={{
-                      display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
-                      color: s.color, background: s.bg, padding: '0 4px',
-                      borderRadius: 2, marginRight: 4,
-                    }}>{s.label}</span>
+                  <li key={i} className="pdp-mb2">
+                    {/* eslint-disable-next-line local/no-inline-style -- dynamic: hint-tag color/background from HINT_STYLE[cat] */}
+                    <span className="pdp-hint-tag" style={{ color: s.color, background: s.bg }}>{s.label}</span>
                     {humanizeSpeakerIds(h)}
                   </li>
                 );
@@ -261,9 +264,9 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
 
           {/* Directive compliance */}
           {validation.directive_compliance && (
-            <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{
-                fontWeight: 700, fontSize: 'var(--text-2xs)',
+            <div className="pdp-mt2-flex-ac-g4">
+              {/* eslint-disable-next-line local/no-inline-style -- dynamic: color depends on directive compliance */}
+              <span className="pdp-check" style={{
                 color: validation.directive_compliance.compliant ? '#22c55e' : '#ef4444',
               }}>
                 {validation.directive_compliance.compliant ? '✓' : '✗'}
@@ -274,18 +277,19 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
 
           {/* Per-rule details */}
           {validation.details && validation.details.length > 0 && (
-            <details style={{ marginTop: 4 }}>
-              <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
+            <details className="pdp-mt4">
+              <summary className="pdp-summary">
                 {validation.details.filter(d => d.pass).length}/{validation.details.length} rules passed
               </summary>
-              <div style={{ marginTop: 2 }}>
+              <div className="pdp-mt2">
                 {validation.details.map((d, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                    <span style={{ color: d.pass ? '#22c55e' : '#ef4444', fontWeight: 700, fontSize: 'var(--text-2xs)' }}>
+                  <div key={i} className="pdp-flex-g4-ac">
+                    {/* eslint-disable-next-line local/no-inline-style -- dynamic: color depends on rule d.pass */}
+                    <span className="pdp-check" style={{ color: d.pass ? '#22c55e' : '#ef4444' }}>
                       {d.pass ? '✓' : '✗'}
                     </span>
                     <span>{d.rule}</span>
-                    {d.value && <span style={{ color: 'var(--text-muted)' }}>({d.value})</span>}
+                    {d.value && <span className="pdp-muted">({d.value})</span>}
                   </div>
                 ))}
               </div>
@@ -296,24 +300,26 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
 
       {/* Quality Pre-Check */}
       {qualityCheck && (
+        // eslint-disable-next-line local/no-inline-style -- dynamic: margin-top depends on whether validation section rendered above
         <div style={{ marginTop: validation ? 6 : 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 'var(--text-2xs)', marginBottom: 2, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+          <div className="pdp-section-title">
             Quality Pre-Check
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="pdp-flex-g8">
             {(['grounded', 'falsifiable', 'engages'] as const).map(dim => (
-              <span key={dim} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <span style={{ color: qualityCheck[dim] ? '#22c55e' : '#ef4444', fontWeight: 700, fontSize: 'var(--text-2xs)' }}>
+              <span key={dim} className="pdp-flex-ac-g2">
+                {/* eslint-disable-next-line local/no-inline-style -- dynamic: color depends on qualityCheck[dim] */}
+                <span className="pdp-check" style={{ color: qualityCheck[dim] ? '#22c55e' : '#ef4444' }}>
                   {qualityCheck[dim] ? '✓' : '✗'}
                 </span>
-                <span style={{ textTransform: 'capitalize' }}>{dim}</span>
+                <span className="pdp-capitalize">{dim}</span>
               </span>
             ))}
           </div>
           {qualityCheck.weaknesses.length > 0 && (
-            <ul style={{ margin: '2px 0 0 14px', padding: 0, color: 'var(--text-muted)' }}>
+            <ul className="pdp-ul-14-muted">
               {qualityCheck.weaknesses.map((w, i) => (
-                <li key={i} style={{ marginBottom: 1 }}>{humanizeSpeakerIds(w)}</li>
+                <li key={i} className="pdp-mb1">{humanizeSpeakerIds(w)}</li>
               ))}
             </ul>
           )}
@@ -322,14 +328,14 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
 
       {/* Orchestration Validation (judge feedback across the whole turn attempt) */}
       {orchestrationValidation && (
+        // eslint-disable-next-line local/no-inline-style -- dynamic: margin-top depends on whether prior sections rendered
         <div style={{ marginTop: (validation || qualityCheck) ? 6 : 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 'var(--text-2xs)', marginBottom: 2, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+          <div className="pdp-section-title">
             Orchestration Validation
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-            <span style={{
-              display: 'inline-block', padding: '1px 6px', borderRadius: 3,
-              fontWeight: 700, fontSize: 'var(--text-2xs)',
+          <div className="pdp-flex-ac-g6-mb3">
+            {/* eslint-disable-next-line local/no-inline-style -- dynamic: badge background/color depend on outcome */}
+            <span className="pdp-badge" style={{
               background: orchestrationValidation.outcome === 'accept'
                 ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
               color: orchestrationValidation.outcome === 'accept'
@@ -337,24 +343,21 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
             }}>
               {orchestrationValidation.outcome.toUpperCase()}
             </span>
-            <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
+            <span className="pdp-2xs-muted">
               score: {orchestrationValidation.process_reward.toFixed(2)}
             </span>
           </div>
 
           {/* Repair hints */}
           {orchestrationValidation.repairHints.length > 0 && (
-            <ul style={{ margin: '2px 0 4px 14px', padding: 0 }}>
+            <ul className="pdp-ul-hints3">
               {orchestrationValidation.repairHints.map((h, i) => {
                 const cat = classifyHint(h);
                 const s = HINT_STYLE[cat];
                 return (
-                  <li key={i} style={{ marginBottom: 2 }}>
-                    <span style={{
-                      display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
-                      color: s.color, background: s.bg, padding: '0 4px',
-                      borderRadius: 2, marginRight: 4,
-                    }}>{s.label}</span>
+                  <li key={i} className="pdp-mb2">
+                    {/* eslint-disable-next-line local/no-inline-style -- dynamic: hint-tag color/background from HINT_STYLE[cat] */}
+                    <span className="pdp-hint-tag" style={{ color: s.color, background: s.bg }}>{s.label}</span>
                     {humanizeSpeakerIds(h)}
                   </li>
                 );
@@ -363,33 +366,34 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
           )}
 
           {/* Dimensions breakdown */}
-          <details style={{ marginTop: 2 }}>
-            <summary style={{ cursor: 'pointer', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
+          <details className="pdp-mt2">
+            <summary className="pdp-summary">
               Dimensions
               {' '}
               {(['schema', 'grounding', 'advancement', 'clarifies'] as const)
                 .filter(d => !orchestrationValidation.dimensions[d].pass).length === 0
-                ? <span style={{ color: '#22c55e', fontWeight: 700 }}>all pass</span>
-                : <span style={{ color: '#ef4444', fontWeight: 700 }}>
+                ? <span className="pdp-green-700">all pass</span>
+                : <span className="pdp-red-700">
                     {(['schema', 'grounding', 'advancement', 'clarifies'] as const)
                       .filter(d => !orchestrationValidation.dimensions[d].pass).length} failed
                   </span>
               }
             </summary>
-            <div style={{ marginTop: 2 }}>
+            <div className="pdp-mt2">
               {(['schema', 'grounding', 'advancement', 'clarifies'] as const).map(dim => {
                 const d = orchestrationValidation.dimensions[dim];
                 const items = 'issues' in d ? d.issues : d.signals;
                 return (
-                  <div key={dim} style={{ marginBottom: 2 }}>
-                    <span style={{ color: d.pass ? '#22c55e' : '#ef4444', fontWeight: 700, fontSize: 'var(--text-2xs)' }}>
+                  <div key={dim} className="pdp-mb2">
+                    {/* eslint-disable-next-line local/no-inline-style -- dynamic: color depends on dimension d.pass */}
+                    <span className="pdp-check" style={{ color: d.pass ? '#22c55e' : '#ef4444' }}>
                       {d.pass ? '✓' : '✗'}
                     </span>
                     {' '}
-                    <span style={{ textTransform: 'capitalize', fontWeight: 500 }}>{dim}</span>
+                    <span className="pdp-cap-500">{dim}</span>
                     {items.length > 0 && (
-                      <ul style={{ margin: '1px 0 0 14px', padding: 0, color: 'var(--text-muted)' }}>
-                        {items.map((item, j) => <li key={j} style={{ marginBottom: 1 }}>{humanizeSpeakerIds(item)}</li>)}
+                      <ul className="pdp-ul-14b-muted">
+                        {items.map((item, j) => <li key={j} className="pdp-mb1">{humanizeSpeakerIds(item)}</li>)}
                       </ul>
                     )}
                   </div>
@@ -464,7 +468,8 @@ function renderWordDiff(
     .map((seg, i) => (
       seg.type === 'same'
         ? <span key={i}>{seg.text}</span>
-        : <span key={i} style={{ background: wordBg, borderRadius: 2 }}>{seg.text}</span>
+        // eslint-disable-next-line local/no-inline-style -- dynamic: word-diff highlight background depends on lineType
+        : <span key={i} className="pdp-br2" style={{ background: wordBg }}>{seg.text}</span>
     ));
 }
 
@@ -513,23 +518,16 @@ function ValidationPanelContainer({ node, height, onResize, onFind }: {
   }, [height, onResize]);
 
   return (
-    <div style={{
-      flexShrink: 0,
-      height: collapsed ? 'auto' : height,
-      borderTop: '1px solid var(--border-color)',
-      background: 'var(--bg-secondary)',
-      fontSize: 'var(--text-2xs)',
-      display: 'flex', flexDirection: 'column',
-      overflow: 'hidden',
-    }}>
+    <div
+      className="pdp-vpc-root"
+      // eslint-disable-next-line local/no-inline-style -- dynamic: resizable panel height (collapsed ? 'auto' : height)
+      style={{ height: collapsed ? 'auto' : height }}
+    >
       {/* Drag handle */}
       {!collapsed && (
         <div
           onMouseDown={onDragStart}
-          style={{
-            height: 4, cursor: 'ns-resize', flexShrink: 0,
-            background: 'transparent',
-          }}
+          className="pdp-drag-handle"
           onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.3)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           title="Drag to resize validation panel"
@@ -538,27 +536,21 @@ function ValidationPanelContainer({ node, height, onResize, onFind }: {
       {/* Summary / toggle */}
       <div
         onClick={() => setCollapsed(c => !c)}
-        style={{
-          cursor: 'pointer', padding: '3px 8px', flexShrink: 0,
-          fontWeight: 600, fontSize: 'var(--text-2xs)',
-          color: 'var(--text-muted)', userSelect: 'none',
-          display: 'flex', alignItems: 'center', gap: 4,
-        }}
+        className="pdp-vpc-summary"
       >
-        <span style={{ fontSize: 'var(--text-2xs)' }}>{collapsed ? '▶' : '▼'}</span>
+        <span className="pdp-2xs">{collapsed ? '▶' : '▼'}</span>
         Validation
         {node.validation && (
-          <span style={{
-            fontWeight: 700, fontSize: 'var(--text-2xs)',
+          // eslint-disable-next-line local/no-inline-style -- dynamic: color depends on node.validation.pass
+          <span className="pdp-check" style={{
             color: node.validation.pass ? '#22c55e' : '#ef4444',
           }}>
             {node.validation.pass ? '✓' : '✗'}
           </span>
         )}
         {node.orchestrationValidation && (
-          <span style={{
-            fontWeight: 700, fontSize: 'var(--text-2xs)',
-            padding: '0 4px', borderRadius: 2,
+          // eslint-disable-next-line local/no-inline-style -- dynamic: badge background/color depend on outcome
+          <span className="pdp-mini-badge" style={{
             background: node.orchestrationValidation.outcome === 'accept'
               ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
             color: node.orchestrationValidation.outcome === 'accept'
@@ -570,7 +562,7 @@ function ValidationPanelContainer({ node, height, onResize, onFind }: {
       </div>
       {/* Content */}
       {!collapsed && (
-        <div style={{ flex: 1, overflowY: 'auto' }} onContextMenu={handleContextMenu}>
+        <div className="pdp-flex1-auto" onContextMenu={handleContextMenu}>
           <ValidationPanel
             validation={node.validation}
             qualityCheck={node.qualityCheck}
@@ -583,26 +575,18 @@ function ValidationPanelContainer({ node, height, onResize, onFind }: {
       )}
       {/* Context menu */}
       {ctxMenu && (
-        <div style={{
-          position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999,
-          background: 'var(--bg-primary)', border: '1px solid var(--border-color)',
-          borderRadius: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-          padding: '2px 0', fontSize: '0.7rem', minWidth: 120,
-        }}>
+        // eslint-disable-next-line local/no-inline-style -- dynamic: context-menu left/top follow cursor position
+        <div className="pdp-ctx-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }}>
           <div
             onClick={() => { void navigator.clipboard.writeText(ctxMenu.text); setCtxMenu(null); }}
-            style={{
-              padding: '4px 12px', cursor: 'pointer',
-            }}
+            className="pdp-ctx-item"
             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.15)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >Copy</div>
           {onFind && (
             <div
               onClick={() => { onFind(ctxMenu.text); setCtxMenu(null); }}
-              style={{
-                padding: '4px 12px', cursor: 'pointer',
-              }}
+              className="pdp-ctx-item"
               onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.15)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >Find in Panes</div>
@@ -731,85 +715,58 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
   return (
     <div
       onClick={onFocus}
+      className="pdp-root"
+      // eslint-disable-next-line local/no-inline-style -- dynamic: border color depends on isFocused
       style={{
-        flex: 1, minWidth: 0,
-        display: 'flex', flexDirection: 'column',
         border: isFocused ? '1px solid #3b82f6' : '1px solid var(--border-color)',
-        borderRadius: 4, overflow: 'hidden',
-        background: 'var(--bg-primary)',
       }}
     >
       {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        padding: '4px 8px',
-        borderBottom: '1px solid var(--border-color)',
-        background: 'var(--bg-secondary)',
-        fontSize: 'var(--text-2xs)',
-        flexShrink: 0,
-      }}>
+      <div className="pdp-header">
         {node.kind === 'tool-call' ? (
           <>
-            <span style={{
-              padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 700,
-              background: 'rgba(14,165,233,0.12)', color: '#0ea5e9',
-            }}>
+            <span className="pdp-tool-badge">
               🔍 {node.toolName ?? 'lookup_citation'}
             </span>
-            <span style={{ fontWeight: 600 }}>#{(node.toolCallIndex ?? 0) + 1}</span>
+            <span className="pdp-fw600">#{(node.toolCallIndex ?? 0) + 1}</span>
             {node.toolCallEmpty && (
-              <span style={{
-                padding: '1px 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 700,
-                background: 'rgba(245,158,11,0.15)', color: '#f59e0b',
-              }}>
+              <span className="pdp-empty-badge">
                 EMPTY
               </span>
             )}
             {viewMode === 'responses' && (
-              <span style={{
-                padding: '1px 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 700,
-                background: 'rgba(239,68,68,0.15)', color: '#ef4444',
-                textTransform: 'uppercase',
-              }}>
+              <span className="pdp-results-badge">
                 results
               </span>
             )}
           </>
         ) : node.kind === 'scrub' ? (
           <>
-            <span style={{
-              padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 700,
-              background: 'rgba(168,85,247,0.12)', color: '#a855f7',
-            }}>
+            <span className="pdp-scrub-badge">
               ✂ Scrub
             </span>
             {viewMode === 'responses' && (
-              <span style={{
-                padding: '1px 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 700,
-                background: 'rgba(239,68,68,0.15)', color: '#ef4444',
-                textTransform: 'uppercase',
-              }}>
+              <span className="pdp-results-badge">
                 post
               </span>
             )}
             {!viewMode || viewMode === 'prompts' ? (
-              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>pre-scrub draft</span>
+              <span className="pdp-2xs-muted">pre-scrub draft</span>
             ) : (
-              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>post-scrub draft</span>
+              <span className="pdp-2xs-muted">post-scrub draft</span>
             )}
           </>
         ) : node.kind === 'attempt-verdict' ? (
           <>
-            <span style={{ fontSize: 'var(--text-2xs)' }}>⚖</span>
-            <span style={{ fontWeight: 700 }}>Attempt {node.runIndex + 1} Verdict</span>
+            <span className="pdp-2xs">⚖</span>
+            <span className="pdp-fw700">Attempt {node.runIndex + 1} Verdict</span>
             {node.orchestrationValidation && (() => {
               const isAccept = node.orchestrationValidation.outcome === 'accept' || node.orchestrationValidation.outcome === 'accept_with_flag';
               return (
-                <span style={{
-                  padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 700,
+                // eslint-disable-next-line local/no-inline-style -- dynamic: badge background/color depend on isAccept
+                <span className="pdp-uc-badge" style={{
                   background: isAccept ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
                   color: isAccept ? '#22c55e' : '#ef4444',
-                  textTransform: 'uppercase',
                 }}>
                   {node.orchestrationValidation.outcome.replace(/_/g, ' ')} ({node.orchestrationValidation.process_reward.toFixed(2)})
                 </span>
@@ -818,29 +775,24 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
           </>
         ) : (
           <>
-            <span style={{
-              padding: '1px 5px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 700,
+            {/* eslint-disable-next-line local/no-inline-style -- dynamic: badge background/color derived from stageColor */}
+            <span className="pdp-uc-badge" style={{
               background: `${stageColor}20`, color: stageColor,
-              textTransform: 'uppercase',
             }}>
               {node.stage}
             </span>
             {viewMode === 'responses' && (
-              <span style={{
-                padding: '1px 4px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 700,
-                background: 'rgba(239,68,68,0.15)', color: '#ef4444',
-                textTransform: 'uppercase',
-              }}>
+              <span className="pdp-results-badge">
                 resp
               </span>
             )}
-            <span style={{ fontWeight: 600 }}>Run {node.runIndex + 1}</span>
+            <span className="pdp-fw600">Run {node.runIndex + 1}</span>
           </>
         )}
-        <span style={{ color: 'var(--text-muted)' }}>
+        <span className="pdp-muted">
           S{node.entryIndex + 1} {speakerLabel(node.speaker)}
         </span>
-        <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
+        <span className="pdp-2xs-muted">
           ({pane.lines.filter(l => l.type !== 'ghost').length} lines)
         </span>
         {/* Pre-scrub toggle: Path A drafts in Responses mode with fabrications */}
@@ -850,9 +802,9 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
           && onTogglePreScrub && (
           <button
             onClick={(e) => { e.stopPropagation(); onTogglePreScrub(); }}
+            className="pdp-prescrub-btn"
+            // eslint-disable-next-line local/no-inline-style -- dynamic: button background/color depend on preScrub
             style={{
-              padding: '1px 6px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 700,
-              border: '1px solid var(--border-color)', cursor: 'pointer',
               background: preScrub ? 'rgba(168,85,247,0.2)' : 'transparent',
               color: preScrub ? '#a855f7' : 'var(--text-muted)',
             }}
@@ -862,26 +814,22 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
           </button>
         )}
         {stats && !isReference && (
-          <span style={{ marginLeft: 'auto', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
-            <span style={{ color: '#eab308' }}>+{stats.added}</span>
+          <span className="pdp-stats">
+            <span className="pdp-c-yellow">+{stats.added}</span>
             {' / '}
-            <span style={{ color: '#ef4444' }}>-{stats.removed}</span>
+            <span className="pdp-c-red">-{stats.removed}</span>
             {' / '}
             {stats.total} lines
           </span>
         )}
         {isReference && (
-          <span style={{ marginLeft: 'auto', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+          <span className="pdp-ref-label">
             reference
           </span>
         )}
         <button
           onClick={(e) => { e.stopPropagation(); onClose(); }}
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--text-muted)', fontSize: '0.9rem', padding: '0 2px',
-            lineHeight: 1,
-          }}
+          className="pdp-close-btn"
           title={`Close pane ${paneIndex + 1} (Ctrl+W)`}
           aria-label="Close"
         >&times;</button>
@@ -889,10 +837,7 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
 
       {/* Content — hidden for attempt-verdict nodes (validation panel is the sole content) */}
       {node.kind === 'attempt-verdict' ? (
-        <div style={{
-          padding: '12px 16px', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)',
-          fontStyle: 'italic',
-        }}>
+        <div className="pdp-verdict-content">
           Orchestration judge verdict for attempt {node.runIndex + 1}. This assessment was produced after
           the full pipeline (brief → plan → evidence → draft → cite) completed.
         </div>
@@ -901,27 +846,17 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
         ref={contentRef}
         onScroll={handleScroll}
         onContextMenu={handleContextMenu}
+        className="pdp-content"
+        // eslint-disable-next-line local/no-inline-style -- dynamic: overflow-x/white-space/word-break depend on wordWrap
         style={{
-          flex: 1, overflowY: 'auto', overflowX: wordWrap ? 'hidden' : 'auto',
-          fontFamily: 'Consolas, "Fira Code", monospace',
-          fontSize: 'var(--text-2xs)',
-          lineHeight: '1.4em',
+          overflowX: wordWrap ? 'hidden' : 'auto',
           whiteSpace: wordWrap ? 'pre-wrap' : 'pre',
           wordBreak: wordWrap ? 'break-word' : undefined,
         }}
       >
         {/* §C: per-run header card */}
-        <div style={{
-          padding: '6px 10px',
-          background: 'var(--bg-secondary)',
-          borderRadius: 'var(--radius-sm)',
-          border: '1px solid var(--border-color)',
-          margin: '6px 8px 8px',
-          fontSize: 'var(--text-2xs)',
-          color: 'var(--text-secondary)',
-          whiteSpace: 'normal',
-        }}>
-          <div style={{ fontWeight: 600, color: 'var(--text-primary)', textTransform: 'capitalize' }}>
+        <div className="pdp-run-card">
+          <div className="pdp-run-title">
             {node.stage} — Run {node.runIndex + 1}
           </div>
           <div>{node.model} · {node.responseTimeMs}ms</div>
@@ -942,17 +877,7 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
                   <div
                     key={`region-${itemIdx}`}
                     onClick={() => toggleCollapsedRegion(regionIdx)}
-                    style={{
-                      textAlign: 'center',
-                      padding: '4px 0',
-                      fontSize: 'var(--text-2xs)',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                      background: 'var(--bg-secondary)',
-                      borderRadius: 'var(--radius-sm)',
-                      margin: '2px 0',
-                      whiteSpace: 'normal',
-                    }}
+                    className="pdp-region-toggle"
                   >
                     {`⋯ ${count} unchanged lines`}
                   </div>
@@ -964,22 +889,20 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
                 const el = (
                   <div
                     key={`region-${itemIdx}-line-${k}`}
+                    className="pdp-line"
+                    // eslint-disable-next-line local/no-inline-style -- dynamic: per-line diff background/border from LINE_BG/LINE_BORDER
                     style={{
-                      display: 'flex',
                       background: LINE_BG[line.type],
                       borderLeft: LINE_BORDER[line.type],
-                      minHeight: '1.4em',
                     }}
                   >
-                    <span style={{
-                      width: 40, flexShrink: 0, textAlign: 'right', paddingRight: 6,
-                      color: 'var(--text-muted)', fontSize: 'var(--text-2xs)',
-                      userSelect: 'none', borderRight: '1px solid var(--border-color)',
+                    {/* eslint-disable-next-line local/no-inline-style -- dynamic: gutter opacity hides ghost line numbers */}
+                    <span className="pdp-gutter" style={{
                       opacity: line.type === 'ghost' ? 0 : 0.6,
                     }}>
                       {line.lineNumber ?? ''}
                     </span>
-                    <span style={{ paddingLeft: 6, color: 'var(--text-primary)' }}>
+                    <span className="pdp-line-text">
                       {searchLower && line.type !== 'ghost'
                         ? highlightMatches(line.text, searchLower, activeMatchIndex ?? -1, lineMatchStart, activeMatchRef)
                         : line.text}
@@ -1000,17 +923,7 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
                 <div key={`region-${itemIdx}`}>
                   <div
                     onClick={() => toggleCollapsedRegion(regionIdx)}
-                    style={{
-                      textAlign: 'center',
-                      padding: '4px 0',
-                      fontSize: 'var(--text-2xs)',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                      background: 'var(--bg-secondary)',
-                      borderRadius: 'var(--radius-sm)',
-                      margin: '2px 0',
-                      whiteSpace: 'normal',
-                    }}
+                    className="pdp-region-toggle"
                   >
                     {`▼ collapse ${count} lines`}
                   </div>
@@ -1024,22 +937,20 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
             const el = (
               <div
                 key={`line-${itemIdx}`}
+                className="pdp-line"
+                // eslint-disable-next-line local/no-inline-style -- dynamic: per-line diff background/border from LINE_BG/LINE_BORDER
                 style={{
-                  display: 'flex',
                   background: LINE_BG[line.type],
                   borderLeft: LINE_BORDER[line.type],
-                  minHeight: '1.4em',
                 }}
               >
-                <span style={{
-                  width: 40, flexShrink: 0, textAlign: 'right', paddingRight: 6,
-                  color: 'var(--text-muted)', fontSize: 'var(--text-2xs)',
-                  userSelect: 'none', borderRight: '1px solid var(--border-color)',
+                {/* eslint-disable-next-line local/no-inline-style -- dynamic: gutter opacity hides ghost line numbers */}
+                <span className="pdp-gutter" style={{
                   opacity: line.type === 'ghost' ? 0 : 0.6,
                 }}>
                   {line.lineNumber ?? ''}
                 </span>
-                <span style={{ paddingLeft: 6, color: 'var(--text-primary)' }}>
+                <span className="pdp-line-text">
                   {searchLower && line.type !== 'ghost'
                     ? highlightMatches(line.text, searchLower, activeMatchIndex ?? -1, lineMatchStart, activeMatchRef)
                     : line.pairText != null && (line.type === 'added' || line.type === 'removed')
@@ -1064,22 +975,18 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
 
       {/* Context menu */}
       {ctxMenu && (
-        <div style={{
-          position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999,
-          background: 'var(--bg-primary)', border: '1px solid var(--border-color)',
-          borderRadius: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-          padding: '2px 0', fontSize: '0.7rem', minWidth: 120,
-        }}>
+        // eslint-disable-next-line local/no-inline-style -- dynamic: context-menu left/top follow cursor position
+        <div className="pdp-ctx-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }}>
           <div
             onClick={() => { void navigator.clipboard.writeText(ctxMenu.text); setCtxMenu(null); }}
-            style={{ padding: '4px 12px', cursor: 'pointer' }}
+            className="pdp-ctx-item"
             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.15)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >Copy</div>
           {onFindInPanes && (
             <div
               onClick={() => { onFindInPanes(ctxMenu.text); setCtxMenu(null); }}
-              style={{ padding: '4px 12px', cursor: 'pointer' }}
+              className="pdp-ctx-item"
               onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.15)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >Find in Panes</div>
