@@ -1,0 +1,51 @@
+{
+  "_schema_version": "1.0.0",
+  "_doc": "Golden input fixture for the edges.json hybrid serialization contract (t/673). Every writer in every language must reproduce expected.json from this input, byte for byte. Do not reformat this file by hand.",
+  "last_modified": "2026-07-29T00:00:00Z",
+  "edge_types": [
+    "SUPPORTS",
+    "TENSION_WITH",
+    "REFINES"
+  ],
+  "edges": [
+    {
+      "source": "acc-beliefs-001",
+      "target": "saf-beliefs-042",
+      "type": "SUPPORTS",
+      "bidirectional": false,
+      "confidence": 0.85,
+      "rationale": "Plain ASCII rationale with no escaping hazards.",
+      "status": "approved",
+      "discovered_at": "2026-06-19T10:00:21Z",
+      "model": "gemini-3.6-flash"
+    },
+    {
+      "source": "acc-beliefs-002",
+      "target": "skp-desires-011",
+      "type": "TENSION_WITH",
+      "bidirectional": false,
+      "confidence": 0.72,
+      "rationale": "Escaping hazards: Bostrom's \"control problem\" & <risk> — café naïve résumé / path\\to; 5 > 3",
+      "status": "proposed",
+      "discovered_at": "2026-06-20T11:30:00Z",
+      "model": "gemini-3.6-flash"
+    },
+    {
+      "source": "skp-intentions-007",
+      "target": "cc-beliefs-003",
+      "type": "REFINES",
+      "bidirectional": true,
+      "confidence": 1,
+      "rationale": "Numeric edge cases: integer confidence, null weight, empty tag list, nested object.",
+      "status": "approved",
+      "discovered_at": "2026-06-21T09:15:45Z",
+      "model": "gemini-3.6-flash",
+      "weight": null,
+      "tags": [],
+      "provenance": {
+        "run_id": "run-0042",
+        "reviewer": "unassigned"
+      }
+    }
+  ]
+}
