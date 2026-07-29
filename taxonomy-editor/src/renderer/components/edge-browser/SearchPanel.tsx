@@ -152,6 +152,474 @@ function dedupe(results: TaxResult[]): TaxResult[] {
   });
 }
 
+// ─── Shared filter/store types ──────────────────────────
+type PovFilter = 'all' | 'accelerationist' | 'safetyist' | 'skeptic' | 'situations' | 'conflicts';
+type BdiFilter = 'all' | 'Beliefs' | 'Desires' | 'Intentions';
+type StoreState = ReturnType<typeof useTaxonomyStore.getState>;
+
+// ─── Intellectual lineage value collection ──────────────
+function addLineageValues(entries: unknown[], vals: Set<string>): void {
+  for (const l of entries) { const s = typeof l === 'string' ? l : (l as { name?: string })?.name; if (s) vals.add(s); }
+}
+
+function computeLineageValues(state: StoreState): string[] {
+  const vals = new Set<string>();
+  for (const pov of POV_KEYS) {
+    const file = state[pov];
+    if (file) for (const n of file.nodes) addLineageValues(n.graph_attributes?.intellectual_lineage ?? [], vals);
+  }
+  if (state.situations) {
+    for (const n of state.situations.nodes) addLineageValues(n.graph_attributes?.intellectual_lineage ?? [], vals);
+  }
+  return [...vals].sort();
+}
+
+// ─── Taxonomy include flags (which node kinds to search) ─
+function computeIncludeFlags(
+  searchPov: boolean, povFilter: PovFilter, showAllTypes: boolean,
+  isPovTab: boolean, isSituationsTab: boolean, isConflictsTab: boolean,
+): { includePovNodes: boolean; includeSituations: boolean; includeConflicts: boolean } {
+  const includePovNodes = searchPov ? ['accelerationist', 'safetyist', 'skeptic'].includes(povFilter) : (showAllTypes || isPovTab);
+  const includeSituations = searchPov ? povFilter === 'situations' : (showAllTypes || isSituationsTab);
+  const includeConflicts = searchPov ? povFilter === 'conflicts' : (showAllTypes || isConflictsTab);
+  return { includePovNodes, includeSituations, includeConflicts };
+}
+
+// ─── Gather POV-node taxonomy matches ───────────────────
+function gatherPovResults(
+  files: { accelerationist: StoreState['accelerationist']; safetyist: StoreState['safetyist']; skeptic: StoreState['skeptic'] },
+  regex: RegExp, searchPov: boolean, povFilter: PovFilter, bdiFilter: BdiFilter,
+): TaxResult[] {
+  const all: TaxResult[] = [];
+  for (const [pov, file] of [
+    ['accelerationist', files.accelerationist], ['safetyist', files.safetyist], ['skeptic', files.skeptic],
+  ] as const) {
+    if (searchPov && pov !== povFilter) continue;
+    if (file) {
+      const nodes = bdiFilter === 'all' ? file.nodes : file.nodes.filter(n => n.category === bdiFilter);
+      for (const node of nodes) all.push(...searchPovNode(node, regex, pov));
+    }
+  }
+  return all;
+}
+
+// ─── Taxonomy text results computation ──────────────────
+function computeTaxResults(args: {
+  mode: SearchPanelMode; isSemantic: boolean;
+  findQuery: string; findMode: SearchMode; findCaseSensitive: boolean;
+  povFilter: PovFilter; showAllTypes: boolean;
+  isPovTab: boolean; isSituationsTab: boolean; isConflictsTab: boolean;
+  accelerationist: StoreState['accelerationist']; safetyist: StoreState['safetyist']; skeptic: StoreState['skeptic'];
+  situations: StoreState['situations']; conflicts: StoreState['conflicts'];
+  bdiFilter: BdiFilter;
+}): TaxResult[] {
+  const {
+    mode, isSemantic, findQuery, findMode, findCaseSensitive, povFilter, showAllTypes,
+    isPovTab, isSituationsTab, isConflictsTab, accelerationist, safetyist, skeptic, situations, conflicts, bdiFilter,
+  } = args;
+  if (mode !== 'taxonomy' || isSemantic) return [];
+  const regex = buildSearchRegex(findQuery, findMode, findCaseSensitive);
+  if (!regex) return [];
+  const all: TaxResult[] = [];
+  const searchPov = povFilter !== 'all';
+  const { includePovNodes, includeSituations, includeConflicts } = computeIncludeFlags(
+    searchPov, povFilter, showAllTypes, isPovTab, isSituationsTab, isConflictsTab,
+  );
+  if (includePovNodes) {
+    all.push(...gatherPovResults({ accelerationist, safetyist, skeptic }, regex, searchPov, povFilter, bdiFilter));
+  }
+  if (includeSituations) {
+    if (situations) for (const node of situations.nodes) all.push(...searchCCNode(node, regex));
+  }
+  if (includeConflicts) {
+    for (const conflict of conflicts) all.push(...searchConflict(conflict, regex));
+  }
+  return dedupe(all);
+}
+
+// ─── Semantic result filters ────────────────────────────
+function matchesBdiFilter(id: string, bdiFilter: BdiFilter): boolean {
+  if (bdiFilter !== 'all') {
+    const parts = id.split('-');
+    if (parts.length >= 2) {
+      const cat = parts[1].charAt(0).toUpperCase() + parts[1].slice(1);
+      if (cat !== bdiFilter) return false;
+    }
+  }
+  return true;
+}
+
+function matchesSemanticFilters(r: { id: string }, args: {
+  povFilter: PovFilter; showAllTypes: boolean;
+  isPovTab: boolean; isSituationsTab: boolean; isConflictsTab: boolean; bdiFilter: BdiFilter;
+}): boolean {
+  const { povFilter, showAllTypes, isPovTab, isSituationsTab, isConflictsTab, bdiFilter } = args;
+  if (povFilter !== 'all') {
+    const rPov = nodePovFromId(r.id);
+    if (povFilter === 'situations') return r.id.startsWith('sit-');
+    if (povFilter === 'conflicts') return r.id.startsWith('conflict-');
+    if (rPov !== povFilter) return false;
+  } else {
+    if (!showAllTypes) {
+      if (isPovTab && (r.id.startsWith('conflict-') || r.id.startsWith('sit-'))) return false;
+      if (isSituationsTab && !r.id.startsWith('sit-')) return false;
+      if (isConflictsTab && !r.id.startsWith('conflict-')) return false;
+    }
+  }
+  return matchesBdiFilter(r.id, bdiFilter);
+}
+
+// ─── Attribute-mode option list for the current mode ────
+function computeCurrentOptions(
+  mode: SearchPanelMode, isAttrMode: boolean, lineageValues: string[], fallacyValues: string[],
+): string[] {
+  return isAttrMode
+    ? (mode === 'intellectual_lineage' ? lineageValues : mode === 'possible_fallacy' ? fallacyValues : ATTRIBUTE_OPTIONS[mode] || [])
+    : [];
+}
+
+// ─── Presentational sub-components (props in, JSX out) ──
+interface TaxonomyInputAreaProps {
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  findQuery: string;
+  setFindQuery: StoreState['setFindQuery'];
+  isSemantic: boolean;
+  runSemanticSearch: StoreState['runSemanticSearch'];
+  findMode: SearchMode;
+  setFindMode: StoreState['setFindMode'];
+  isOnline: boolean;
+  findCaseSensitive: boolean;
+  setFindCaseSensitive: StoreState['setFindCaseSensitive'];
+  povFilter: PovFilter;
+  setPovFilter: React.Dispatch<React.SetStateAction<PovFilter>>;
+  bdiFilter: BdiFilter;
+  setBdiFilter: React.Dispatch<React.SetStateAction<BdiFilter>>;
+  mode: SearchPanelMode;
+}
+
+function TaxonomyInputArea({
+  inputRef, findQuery, setFindQuery, isSemantic, runSemanticSearch,
+  findMode, setFindMode, isOnline, findCaseSensitive, setFindCaseSensitive,
+  povFilter, setPovFilter, bdiFilter, setBdiFilter, mode,
+}: TaxonomyInputAreaProps) {
+  return (
+    <div className="search-panel-taxonomy">
+      <div className="search-panel-input-row">
+        <input
+          ref={inputRef}
+          className="search-panel-text-input"
+          type="text"
+          value={findQuery}
+          onChange={(e) => setFindQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && isSemantic) {
+              void runSemanticSearch(findQuery, new Set(), new Set());
+            }
+            // Let arrow keys bubble up to panel handler
+          }}
+          placeholder={isSemantic ? 'Describe what you\'re looking for...' : 'Search taxonomy...'}
+        />
+        <select
+          className="search-panel-search-mode"
+          value={findMode}
+          onChange={(e) => {
+            const val = e.target.value as SearchMode;
+            if (val === 'semantic' && !isOnline) return;
+            setFindMode(val);
+          }}
+        >
+          <option value="raw">Raw</option>
+          <option value="wildcard">Wildcard</option>
+          <option value="regex">Regex</option>
+          <option value="semantic" disabled={!isOnline}>Semantic{!isOnline ? ' (offline)' : ''}</option>
+        </select>
+      </div>
+      {!isOnline && mode === 'taxonomy' && (
+        <div className="search-panel-offline-msg">Searching offline — semantic search unavailable</div>
+      )}
+      <div className="search-panel-filter-row">
+        {!isSemantic && (
+          <label className="search-panel-option">
+            <input
+              type="checkbox"
+              checked={findCaseSensitive}
+              onChange={(e) => setFindCaseSensitive(e.target.checked)}
+            />
+            Case sensitive
+          </label>
+        )}
+        <select
+          className="search-panel-pov-filter"
+          value={povFilter}
+          onChange={(e) => setPovFilter(e.target.value as typeof povFilter)}
+        >
+          <option value="all">All POVs</option>
+          <option value="accelerationist">Accelerationist</option>
+          <option value="safetyist">Safetyist</option>
+          <option value="skeptic">Skeptic</option>
+          <option value="situations">Situations</option>
+          <option value="conflicts">Conflicts</option>
+        </select>
+        <select
+          className="search-panel-pov-filter"
+          value={bdiFilter}
+          onChange={(e) => setBdiFilter(e.target.value as typeof bdiFilter)}
+        >
+          <option value="all">All BDI</option>
+          <option value="Beliefs">Beliefs</option>
+          <option value="Desires">Desires</option>
+          <option value="Intentions">Intentions</option>
+        </select>
+      </div>
+    </div>
+  );
+}
+
+interface RelatedInputAreaProps {
+  relatedNodeId: string | null;
+  setRelatedNodeId: React.Dispatch<React.SetStateAction<string | null>>;
+  getLabelForId: StoreState['getLabelForId'];
+  clearSimilarSearch: StoreState['clearSimilarSearch'];
+  relatedThreshold: number;
+  setRelatedThreshold: React.Dispatch<React.SetStateAction<number>>;
+  relatedTypeFilters: Record<string, boolean>;
+  setRelatedTypeFilters: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  relatedQuery: string;
+  setRelatedQuery: React.Dispatch<React.SetStateAction<string>>;
+  relatedFilteredIds: string[];
+  handleRelatedSelect: (nodeId: string) => void;
+}
+
+function RelatedInputArea({
+  relatedNodeId, setRelatedNodeId, getLabelForId, clearSimilarSearch,
+  relatedThreshold, setRelatedThreshold, relatedTypeFilters, setRelatedTypeFilters,
+  relatedQuery, setRelatedQuery, relatedFilteredIds, handleRelatedSelect,
+}: RelatedInputAreaProps) {
+  return (
+    <div className="search-panel-related">
+      {relatedNodeId ? (
+        <>
+          <div className="search-panel-selected-node">
+            <span className="search-panel-selected-id">{relatedNodeId}</span>
+            <span className="search-panel-selected-label">{getLabelForId(relatedNodeId)}</span>
+            <button className="btn btn-ghost btn-sm" onClick={() => { setRelatedNodeId(null); clearSimilarSearch(); }}>
+              &times;
+            </button>
+          </div>
+          <div className="search-panel-related-filters">
+            <div className="search-panel-threshold-row">
+              <label>Min:</label>
+              <input
+                type="range"
+                min={30}
+                max={100}
+                value={relatedThreshold}
+                onChange={(e) => setRelatedThreshold(Number(e.target.value))}
+              />
+              <span className="search-panel-threshold-value">{relatedThreshold}%</span>
+            </div>
+            <div className="search-panel-type-filters">
+              {([['accelerationist', 'Acc'], ['safetyist', 'Saf'], ['skeptic', 'Skp'], ['situation', 'Sit'], ['conflict', 'Con']] as const).map(([key, label]) => (
+                <label key={key} className="search-panel-type-filter">
+                  <input
+                    type="checkbox"
+                    checked={relatedTypeFilters[key] !== false}
+                    onChange={(e) => setRelatedTypeFilters(prev => ({ ...prev, [key]: e.target.checked }))}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="search-panel-typeahead">
+          <input
+            className="search-panel-text-input"
+            type="text"
+            value={relatedQuery}
+            onChange={(e) => setRelatedQuery(e.target.value)}
+            placeholder="Search for a node..."
+          />
+          {relatedFilteredIds.length > 0 && relatedQuery && (
+            <div className="search-panel-typeahead-list">
+              {relatedFilteredIds.map(id => (
+                <div
+                  key={id}
+                  className="search-panel-typeahead-item"
+                  onClick={() => handleRelatedSelect(id)}
+                >
+                  <span className="search-panel-typeahead-id">{id}</span>
+                  <span className="search-panel-typeahead-label">{getLabelForId(id)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface AttrInputAreaProps {
+  isTypeaheadAttr: boolean;
+  attrValue: string;
+  setAttrValue: React.Dispatch<React.SetStateAction<string>>;
+  setAttrQuery: React.Dispatch<React.SetStateAction<string>>;
+  attrQuery: string;
+  mode: SearchPanelMode;
+  filteredAttrOptions: string[];
+  currentOptions: string[];
+}
+
+function AttrInputArea({
+  isTypeaheadAttr, attrValue, setAttrValue, setAttrQuery, attrQuery, mode,
+  filteredAttrOptions, currentOptions,
+}: AttrInputAreaProps) {
+  return (
+    <div className="search-panel-attr">
+      {isTypeaheadAttr ? (
+        <div className="search-panel-typeahead">
+          {attrValue ? (
+            <div className="search-panel-selected-node">
+              <span className="search-panel-selected-label">{formatValue(attrValue)}</span>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setAttrValue(''); setAttrQuery(''); }}>
+                &times;
+              </button>
+            </div>
+          ) : (
+            <>
+              <input
+                className="search-panel-text-input"
+                type="text"
+                value={attrQuery}
+                onChange={(e) => setAttrQuery(e.target.value)}
+                placeholder={`Type to search ${MODE_LABELS[mode].toLowerCase()} values...`}
+              />
+              {filteredAttrOptions.length > 0 && (
+                <div className="search-panel-typeahead-list">
+                  {filteredAttrOptions.map(opt => (
+                    <div
+                      key={opt}
+                      className="search-panel-typeahead-item"
+                      onClick={() => { setAttrValue(opt); setAttrQuery(''); }}
+                    >
+                      <span className="search-panel-typeahead-label">{formatValue(opt)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {attrQuery && filteredAttrOptions.length === 0 && (
+                <div className="search-panel-attr-empty">No matching values</div>
+              )}
+            </>
+          )}
+        </div>
+      ) : currentOptions.length > 0 ? (
+        <select
+          className="search-panel-attr-select"
+          value={attrValue}
+          onChange={(e) => setAttrValue(e.target.value)}
+        >
+          <option value="">Select a value...</option>
+          {currentOptions.map(opt => (
+            <option key={opt} value={opt}>{formatValue(opt)}</option>
+          ))}
+        </select>
+      ) : (
+        <div className="search-panel-attr-empty">No values found</div>
+      )}
+    </div>
+  );
+}
+
+interface SearchEmptyStatesProps {
+  mode: SearchPanelMode;
+  embeddingLoading: StoreState['embeddingLoading'];
+  findQuery: string;
+  flatResults: SearchResult[];
+  relatedNodeId: string | null;
+  similarLoading: StoreState['similarLoading'];
+  isAttrMode: boolean;
+  attrValue: string;
+}
+
+function SearchEmptyStates({
+  mode, embeddingLoading, findQuery, flatResults, relatedNodeId, similarLoading, isAttrMode, attrValue,
+}: SearchEmptyStatesProps) {
+  return (
+    <>
+      {mode === 'taxonomy' && !embeddingLoading && findQuery && flatResults.length === 0 && (
+        <div className="search-panel-empty">No results</div>
+      )}
+      {mode === 'related' && !relatedNodeId && !similarLoading && (
+        <div className="search-panel-empty">Select a node above to find similar items</div>
+      )}
+      {isAttrMode && !attrValue && (
+        <div className="search-panel-empty">Select a value above to filter nodes</div>
+      )}
+      {isAttrMode && attrValue && flatResults.length === 0 && (
+        <div className="search-panel-empty">No matching nodes</div>
+      )}
+    </>
+  );
+}
+
+interface ResultsAreaProps {
+  resultsRef: React.RefObject<HTMLDivElement | null>;
+  mode: SearchPanelMode;
+  embeddingLoading: StoreState['embeddingLoading'];
+  embeddingError: StoreState['embeddingError'];
+  similarLoading: StoreState['similarLoading'];
+  similarStep: StoreState['similarStep'];
+  similarError: StoreState['similarError'];
+  flatResults: SearchResult[];
+  renderResultRow: (r: SearchResult, i: number) => React.ReactNode;
+  relatedNodeId: string | null;
+  isAttrMode: boolean;
+  attrValue: string;
+  findQuery: string;
+}
+
+function ResultsArea({
+  resultsRef, mode, embeddingLoading, embeddingError, similarLoading, similarStep, similarError,
+  flatResults, renderResultRow, relatedNodeId, isAttrMode, attrValue, findQuery,
+}: ResultsAreaProps) {
+  return (
+    <div className="search-panel-results" ref={resultsRef}>
+      {mode === 'taxonomy' && (
+        <>
+          {embeddingLoading && <div className="search-panel-status">Searching...</div>}
+          {embeddingError && <div className="search-panel-error">{embeddingError}</div>}
+        </>
+      )}
+      {mode === 'related' && (
+        <>
+          {similarLoading && <div className="search-panel-status"><span className="search-spinner" />{similarStep || 'Finding similar nodes...'}</div>}
+          {similarError && <div className="search-panel-error">{similarError}</div>}
+        </>
+      )}
+
+      {flatResults.length > 0 && (
+        <div className="search-panel-count">{flatResults.length} result{flatResults.length !== 1 ? 's' : ''}</div>
+      )}
+      {flatResults.map((r, i) => renderResultRow(r, i))}
+
+      {/* Empty states */}
+      <SearchEmptyStates
+        mode={mode}
+        embeddingLoading={embeddingLoading}
+        findQuery={findQuery}
+        flatResults={flatResults}
+        relatedNodeId={relatedNodeId}
+        similarLoading={similarLoading}
+        isAttrMode={isAttrMode}
+        attrValue={attrValue}
+      />
+    </div>
+  );
+}
+
 // ─── Component ──────────────────────────────────────────
 interface SearchPanelProps {
   onAnalyze?: (elementB: { label: string; description: string; category: string }) => void;
@@ -174,8 +642,8 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
 
   const isOnline = useOnlineStatus();
   const [mode, setMode] = useState<SearchPanelMode>(_lastSearchMode);
-  const [povFilter, setPovFilter] = useState<'all' | 'accelerationist' | 'safetyist' | 'skeptic' | 'situations' | 'conflicts'>('all');
-  const [bdiFilter, setBdiFilter] = useState<'all' | 'Beliefs' | 'Desires' | 'Intentions'>('all');
+  const [povFilter, setPovFilter] = useState<PovFilter>('all');
+  const [bdiFilter, setBdiFilter] = useState<BdiFilter>('all');
   const [attrValue, setAttrValue] = useState<string>('');
   const [attrQuery, setAttrQuery] = useState('');
   const [relatedQuery, setRelatedQuery] = useState('');
@@ -253,22 +721,10 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
   }, [accelerationist, safetyist, skeptic, situations]);
 
   // ─── Collect unique intellectual lineage values ────────
-  const lineageValues = useMemo(() => {
-    const vals = new Set<string>();
-    const state = useTaxonomyStore.getState();
-    for (const pov of POV_KEYS) {
-      const file = state[pov];
-      if (file) for (const n of file.nodes) {
-        for (const l of n.graph_attributes?.intellectual_lineage ?? []) { const s = typeof l === 'string' ? l : (l as { name?: string })?.name; if (s) vals.add(s); }
-      }
-    }
-    if (state.situations) {
-      for (const n of state.situations.nodes) {
-        for (const l of n.graph_attributes?.intellectual_lineage ?? []) { const s = typeof l === 'string' ? l : (l as { name?: string })?.name; if (s) vals.add(s); }
-      }
-    }
-    return [...vals].sort();
-  }, [accelerationist, safetyist, skeptic, situations]);
+  const lineageValues = useMemo(
+    () => computeLineageValues(useTaxonomyStore.getState()),
+    [accelerationist, safetyist, skeptic, situations],
+  );
 
   // ─── Collect unique possible fallacy values ─────────
   const fallacyValues = useMemo(() => {
@@ -311,60 +767,17 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
   const showAllTypes = !isPovTab && !isSituationsTab && !isConflictsTab;
 
   // ─── Taxonomy text results ────────────────────────────
-  const taxResults = useMemo(() => {
-    if (mode !== 'taxonomy' || isSemantic) return [];
-    const regex = buildSearchRegex(findQuery, findMode, findCaseSensitive);
-    if (!regex) return [];
-    const all: TaxResult[] = [];
-    const searchPov = povFilter !== 'all';
-    const includePovNodes = searchPov ? ['accelerationist', 'safetyist', 'skeptic'].includes(povFilter) : (showAllTypes || isPovTab);
-    const includeSituations = searchPov ? povFilter === 'situations' : (showAllTypes || isSituationsTab);
-    const includeConflicts = searchPov ? povFilter === 'conflicts' : (showAllTypes || isConflictsTab);
-    if (includePovNodes) {
-      for (const [pov, file] of [
-        ['accelerationist', accelerationist], ['safetyist', safetyist], ['skeptic', skeptic],
-      ] as const) {
-        if (searchPov && pov !== povFilter) continue;
-        if (file) {
-          const nodes = bdiFilter === 'all' ? file.nodes : file.nodes.filter(n => n.category === bdiFilter);
-          for (const node of nodes) all.push(...searchPovNode(node, regex, pov));
-        }
-      }
-    }
-    if (includeSituations) {
-      if (situations) for (const node of situations.nodes) all.push(...searchCCNode(node, regex));
-    }
-    if (includeConflicts) {
-      for (const conflict of conflicts) all.push(...searchConflict(conflict, regex));
-    }
-    return dedupe(all);
-  }, [mode, findQuery, findMode, findCaseSensitive, accelerationist, safetyist, skeptic, situations, conflicts, isSemantic, showAllTypes, isPovTab, isSituationsTab, isConflictsTab, povFilter, bdiFilter]);
+  const taxResults = useMemo(() => computeTaxResults({
+    mode, isSemantic, findQuery, findMode, findCaseSensitive, povFilter, showAllTypes,
+    isPovTab, isSituationsTab, isConflictsTab, accelerationist, safetyist, skeptic, situations, conflicts, bdiFilter,
+  }), [mode, findQuery, findMode, findCaseSensitive, accelerationist, safetyist, skeptic, situations, conflicts, isSemantic, showAllTypes, isPovTab, isSituationsTab, isConflictsTab, povFilter, bdiFilter]);
 
   // Semantic results mapped + filtered by active tab / POV + BDI filter
   const semResults: TaxResult[] = useMemo(() => {
     if (mode !== 'taxonomy' || !isSemantic) return [];
-    return (semanticResults || []).filter(r => {
-      if (povFilter !== 'all') {
-        const rPov = nodePovFromId(r.id);
-        if (povFilter === 'situations') return r.id.startsWith('sit-');
-        if (povFilter === 'conflicts') return r.id.startsWith('conflict-');
-        if (rPov !== povFilter) return false;
-      } else {
-        if (!showAllTypes) {
-          if (isPovTab && (r.id.startsWith('conflict-') || r.id.startsWith('sit-'))) return false;
-          if (isSituationsTab && !r.id.startsWith('sit-')) return false;
-          if (isConflictsTab && !r.id.startsWith('conflict-')) return false;
-        }
-      }
-      if (bdiFilter !== 'all') {
-        const parts = r.id.split('-');
-        if (parts.length >= 2) {
-          const cat = parts[1].charAt(0).toUpperCase() + parts[1].slice(1);
-          if (cat !== bdiFilter) return false;
-        }
-      }
-      return true;
-    }).map(r => {
+    return (semanticResults || []).filter(r => matchesSemanticFilters(r, {
+      povFilter, showAllTypes, isPovTab, isSituationsTab, isConflictsTab, bdiFilter,
+    })).map(r => {
       const label = getLabelForId(r.id);
       const tab: TabId = r.id.startsWith('conflict-') ? 'conflicts'
         : (nodePovFromId(r.id) as TabId) || 'skeptic';
@@ -565,9 +978,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
   // Determine options for current attribute mode
   const isAttrMode = mode !== 'taxonomy' && mode !== 'related';
   const isTypeaheadAttr = mode === 'intellectual_lineage' || mode === 'possible_fallacy';
-  const currentOptions = isAttrMode
-    ? (mode === 'intellectual_lineage' ? lineageValues : mode === 'possible_fallacy' ? fallacyValues : ATTRIBUTE_OPTIONS[mode] || [])
-    : [];
+  const currentOptions = computeCurrentOptions(mode, isAttrMode, lineageValues, fallacyValues);
 
   // Filtered options for typeahead attribute modes
   const filteredAttrOptions = useMemo(() => {
@@ -621,233 +1032,72 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
       {/* Mode-specific input area */}
       <div className="search-panel-input">
         {mode === 'taxonomy' && (
-          <div className="search-panel-taxonomy">
-            <div className="search-panel-input-row">
-              <input
-                ref={inputRef}
-                className="search-panel-text-input"
-                type="text"
-                value={findQuery}
-                onChange={(e) => setFindQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && isSemantic) {
-                    void runSemanticSearch(findQuery, new Set(), new Set());
-                  }
-                  // Let arrow keys bubble up to panel handler
-                }}
-                placeholder={isSemantic ? 'Describe what you\'re looking for...' : 'Search taxonomy...'}
-              />
-              <select
-                className="search-panel-search-mode"
-                value={findMode}
-                onChange={(e) => {
-                  const val = e.target.value as SearchMode;
-                  if (val === 'semantic' && !isOnline) return;
-                  setFindMode(val);
-                }}
-              >
-                <option value="raw">Raw</option>
-                <option value="wildcard">Wildcard</option>
-                <option value="regex">Regex</option>
-                <option value="semantic" disabled={!isOnline}>Semantic{!isOnline ? ' (offline)' : ''}</option>
-              </select>
-            </div>
-            {!isOnline && mode === 'taxonomy' && (
-              <div className="search-panel-offline-msg">Searching offline — semantic search unavailable</div>
-            )}
-            <div className="search-panel-filter-row">
-              {!isSemantic && (
-                <label className="search-panel-option">
-                  <input
-                    type="checkbox"
-                    checked={findCaseSensitive}
-                    onChange={(e) => setFindCaseSensitive(e.target.checked)}
-                  />
-                  Case sensitive
-                </label>
-              )}
-              <select
-                className="search-panel-pov-filter"
-                value={povFilter}
-                onChange={(e) => setPovFilter(e.target.value as typeof povFilter)}
-              >
-                <option value="all">All POVs</option>
-                <option value="accelerationist">Accelerationist</option>
-                <option value="safetyist">Safetyist</option>
-                <option value="skeptic">Skeptic</option>
-                <option value="situations">Situations</option>
-                <option value="conflicts">Conflicts</option>
-              </select>
-              <select
-                className="search-panel-pov-filter"
-                value={bdiFilter}
-                onChange={(e) => setBdiFilter(e.target.value as typeof bdiFilter)}
-              >
-                <option value="all">All BDI</option>
-                <option value="Beliefs">Beliefs</option>
-                <option value="Desires">Desires</option>
-                <option value="Intentions">Intentions</option>
-              </select>
-            </div>
-          </div>
+          <TaxonomyInputArea
+            inputRef={inputRef}
+            findQuery={findQuery}
+            setFindQuery={setFindQuery}
+            isSemantic={isSemantic}
+            runSemanticSearch={runSemanticSearch}
+            findMode={findMode}
+            setFindMode={setFindMode}
+            isOnline={isOnline}
+            findCaseSensitive={findCaseSensitive}
+            setFindCaseSensitive={setFindCaseSensitive}
+            povFilter={povFilter}
+            setPovFilter={setPovFilter}
+            bdiFilter={bdiFilter}
+            setBdiFilter={setBdiFilter}
+            mode={mode}
+          />
         )}
 
         {mode === 'related' && (
-          <div className="search-panel-related">
-            {relatedNodeId ? (
-              <>
-                <div className="search-panel-selected-node">
-                  <span className="search-panel-selected-id">{relatedNodeId}</span>
-                  <span className="search-panel-selected-label">{getLabelForId(relatedNodeId)}</span>
-                  <button className="btn btn-ghost btn-sm" onClick={() => { setRelatedNodeId(null); clearSimilarSearch(); }}>
-                    &times;
-                  </button>
-                </div>
-                <div className="search-panel-related-filters">
-                  <div className="search-panel-threshold-row">
-                    <label>Min:</label>
-                    <input
-                      type="range"
-                      min={30}
-                      max={100}
-                      value={relatedThreshold}
-                      onChange={(e) => setRelatedThreshold(Number(e.target.value))}
-                    />
-                    <span className="search-panel-threshold-value">{relatedThreshold}%</span>
-                  </div>
-                  <div className="search-panel-type-filters">
-                    {([['accelerationist', 'Acc'], ['safetyist', 'Saf'], ['skeptic', 'Skp'], ['situation', 'Sit'], ['conflict', 'Con']] as const).map(([key, label]) => (
-                      <label key={key} className="search-panel-type-filter">
-                        <input
-                          type="checkbox"
-                          checked={relatedTypeFilters[key] !== false}
-                          onChange={(e) => setRelatedTypeFilters(prev => ({ ...prev, [key]: e.target.checked }))}
-                        />
-                        {label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="search-panel-typeahead">
-                <input
-                  className="search-panel-text-input"
-                  type="text"
-                  value={relatedQuery}
-                  onChange={(e) => setRelatedQuery(e.target.value)}
-                  placeholder="Search for a node..."
-                />
-                {relatedFilteredIds.length > 0 && relatedQuery && (
-                  <div className="search-panel-typeahead-list">
-                    {relatedFilteredIds.map(id => (
-                      <div
-                        key={id}
-                        className="search-panel-typeahead-item"
-                        onClick={() => handleRelatedSelect(id)}
-                      >
-                        <span className="search-panel-typeahead-id">{id}</span>
-                        <span className="search-panel-typeahead-label">{getLabelForId(id)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <RelatedInputArea
+            relatedNodeId={relatedNodeId}
+            setRelatedNodeId={setRelatedNodeId}
+            getLabelForId={getLabelForId}
+            clearSimilarSearch={clearSimilarSearch}
+            relatedThreshold={relatedThreshold}
+            setRelatedThreshold={setRelatedThreshold}
+            relatedTypeFilters={relatedTypeFilters}
+            setRelatedTypeFilters={setRelatedTypeFilters}
+            relatedQuery={relatedQuery}
+            setRelatedQuery={setRelatedQuery}
+            relatedFilteredIds={relatedFilteredIds}
+            handleRelatedSelect={handleRelatedSelect}
+          />
         )}
 
         {isAttrMode && (
-          <div className="search-panel-attr">
-            {isTypeaheadAttr ? (
-              <div className="search-panel-typeahead">
-                {attrValue ? (
-                  <div className="search-panel-selected-node">
-                    <span className="search-panel-selected-label">{formatValue(attrValue)}</span>
-                    <button className="btn btn-ghost btn-sm" onClick={() => { setAttrValue(''); setAttrQuery(''); }}>
-                      &times;
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <input
-                      className="search-panel-text-input"
-                      type="text"
-                      value={attrQuery}
-                      onChange={(e) => setAttrQuery(e.target.value)}
-                      placeholder={`Type to search ${MODE_LABELS[mode].toLowerCase()} values...`}
-                    />
-                    {filteredAttrOptions.length > 0 && (
-                      <div className="search-panel-typeahead-list">
-                        {filteredAttrOptions.map(opt => (
-                          <div
-                            key={opt}
-                            className="search-panel-typeahead-item"
-                            onClick={() => { setAttrValue(opt); setAttrQuery(''); }}
-                          >
-                            <span className="search-panel-typeahead-label">{formatValue(opt)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {attrQuery && filteredAttrOptions.length === 0 && (
-                      <div className="search-panel-attr-empty">No matching values</div>
-                    )}
-                  </>
-                )}
-              </div>
-            ) : currentOptions.length > 0 ? (
-              <select
-                className="search-panel-attr-select"
-                value={attrValue}
-                onChange={(e) => setAttrValue(e.target.value)}
-              >
-                <option value="">Select a value...</option>
-                {currentOptions.map(opt => (
-                  <option key={opt} value={opt}>{formatValue(opt)}</option>
-                ))}
-              </select>
-            ) : (
-              <div className="search-panel-attr-empty">No values found</div>
-            )}
-          </div>
+          <AttrInputArea
+            isTypeaheadAttr={isTypeaheadAttr}
+            attrValue={attrValue}
+            setAttrValue={setAttrValue}
+            setAttrQuery={setAttrQuery}
+            attrQuery={attrQuery}
+            mode={mode}
+            filteredAttrOptions={filteredAttrOptions}
+            currentOptions={currentOptions}
+          />
         )}
       </div>
 
       {/* Results area */}
-      <div className="search-panel-results" ref={resultsRef}>
-        {mode === 'taxonomy' && (
-          <>
-            {embeddingLoading && <div className="search-panel-status">Searching...</div>}
-            {embeddingError && <div className="search-panel-error">{embeddingError}</div>}
-          </>
-        )}
-        {mode === 'related' && (
-          <>
-            {similarLoading && <div className="search-panel-status"><span className="search-spinner" />{similarStep || 'Finding similar nodes...'}</div>}
-            {similarError && <div className="search-panel-error">{similarError}</div>}
-          </>
-        )}
-
-        {flatResults.length > 0 && (
-          <div className="search-panel-count">{flatResults.length} result{flatResults.length !== 1 ? 's' : ''}</div>
-        )}
-        {flatResults.map((r, i) => renderResultRow(r, i))}
-
-        {/* Empty states */}
-        {mode === 'taxonomy' && !embeddingLoading && findQuery && flatResults.length === 0 && (
-          <div className="search-panel-empty">No results</div>
-        )}
-        {mode === 'related' && !relatedNodeId && !similarLoading && (
-          <div className="search-panel-empty">Select a node above to find similar items</div>
-        )}
-        {isAttrMode && !attrValue && (
-          <div className="search-panel-empty">Select a value above to filter nodes</div>
-        )}
-        {isAttrMode && attrValue && flatResults.length === 0 && (
-          <div className="search-panel-empty">No matching nodes</div>
-        )}
-      </div>
+      <ResultsArea
+        resultsRef={resultsRef}
+        mode={mode}
+        embeddingLoading={embeddingLoading}
+        embeddingError={embeddingError}
+        similarLoading={similarLoading}
+        similarStep={similarStep}
+        similarError={similarError}
+        flatResults={flatResults}
+        renderResultRow={renderResultRow}
+        relatedNodeId={relatedNodeId}
+        isAttrMode={isAttrMode}
+        attrValue={attrValue}
+        findQuery={findQuery}
+      />
     </div>
   );
 }

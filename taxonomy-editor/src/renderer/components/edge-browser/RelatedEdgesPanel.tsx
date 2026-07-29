@@ -137,6 +137,65 @@ function otherNodePovKey(edge: Edge, nodeId: string): PovMetaKey | undefined {
   return povKeyFromNodeId(otherId);
 }
 
+// Build edge-type groups for a node, applying status/confidence/POV filters,
+// then sort edges within each group by confidence (descending).
+function buildEdgeGroups(
+  edges: Edge[],
+  nodeId: string,
+  statusFilter: EdgeStatus | '',
+  confidenceThreshold: number,
+  hiddenPovs: Set<PovMetaKey>,
+): Map<EdgeType, Edge[]> {
+  const groups = new Map<EdgeType, Edge[]>();
+  for (const edge of edges) {
+    if (edge.source !== nodeId && edge.target !== nodeId) continue;
+    if (statusFilter && edge.status !== statusFilter) continue;
+    if (edge.confidence < confidenceThreshold) continue;
+    const key = otherNodePovKey(edge, nodeId);
+    if (key && hiddenPovs.has(key)) continue;
+
+    const existing = groups.get(edge.type);
+    if (existing) {
+      existing.push(edge);
+    } else {
+      groups.set(edge.type, [edge]);
+    }
+  }
+
+  // Sort edges within each group by confidence (descending)
+  for (const edges of groups.values()) {
+    edges.sort((a, b) => b.confidence - a.confidence);
+  }
+
+  return groups;
+}
+
+// Order groups by fixed priority, appending any remaining types after.
+function sortEdgeGroupsByPriority(groups: Map<EdgeType, Edge[]>): Map<EdgeType, Edge[]> {
+  const EDGE_TYPE_PRIORITY: string[] = [
+    'SUPPORTS',
+    'CONTRADICTS',
+    'ASSUMES',
+    'WEAKENS',
+    'RESPONDS_TO',
+    'TENSION_WITH',
+    'INTERPRETS',
+    'CONVERGES_WITH',
+  ];
+  const sorted = new Map<EdgeType, Edge[]>();
+  // First: types in priority order
+  for (const type of EDGE_TYPE_PRIORITY) {
+    const edges = groups.get(type as EdgeType);
+    if (edges) sorted.set(type as EdgeType, edges);
+  }
+  // Then: any remaining types not in the priority list
+  for (const [type, edges] of groups) {
+    if (!sorted.has(type)) sorted.set(type, edges);
+  }
+
+  return sorted;
+}
+
 export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
   const { edgesFile, edgesLoading, relatedNodeId, showRelatedEdges, selectedEdge, selectEdge } = useTaxonomyStore();
   const [collapsed, setCollapsed] = useState(false);
@@ -175,51 +234,8 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
   // Find all edges where this node is source or target, grouped by edge type
   const groupedEdges = useMemo(() => {
     if (!edgesFile || !nodeId) return new Map<EdgeType, Edge[]>();
-
-    const groups = new Map<EdgeType, Edge[]>();
-    for (const edge of edgesFile.edges) {
-      if (edge.source !== nodeId && edge.target !== nodeId) continue;
-      if (statusFilter && edge.status !== statusFilter) continue;
-      if (edge.confidence < confidenceThreshold) continue;
-      const key = otherNodePovKey(edge, nodeId);
-      if (key && hiddenPovs.has(key)) continue;
-
-      const existing = groups.get(edge.type);
-      if (existing) {
-        existing.push(edge);
-      } else {
-        groups.set(edge.type, [edge]);
-      }
-    }
-
-    // Sort edges within each group by confidence (descending)
-    for (const edges of groups.values()) {
-      edges.sort((a, b) => b.confidence - a.confidence);
-    }
-
-    // Sort groups by fixed priority order
-    const EDGE_TYPE_PRIORITY: string[] = [
-      'SUPPORTS',
-      'CONTRADICTS',
-      'ASSUMES',
-      'WEAKENS',
-      'RESPONDS_TO',
-      'TENSION_WITH',
-      'INTERPRETS',
-      'CONVERGES_WITH',
-    ];
-    const sorted = new Map<EdgeType, Edge[]>();
-    // First: types in priority order
-    for (const type of EDGE_TYPE_PRIORITY) {
-      const edges = groups.get(type as EdgeType);
-      if (edges) sorted.set(type as EdgeType, edges);
-    }
-    // Then: any remaining types not in the priority list
-    for (const [type, edges] of groups) {
-      if (!sorted.has(type)) sorted.set(type, edges);
-    }
-
-    return sorted;
+    const groups = buildEdgeGroups(edgesFile.edges, nodeId, statusFilter, confidenceThreshold, hiddenPovs);
+    return sortEdgeGroupsByPriority(groups);
   }, [edgesFile, nodeId, statusFilter, confidenceThreshold, hiddenPovs]);
 
   // Get edge type definitions for labels

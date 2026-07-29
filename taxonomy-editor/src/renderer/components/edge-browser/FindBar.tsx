@@ -90,6 +90,74 @@ function dedupeResults(results: SearchResult[]): SearchResult[] {
   });
 }
 
+type PovFileLike = { nodes: PovNode[] } | null;
+
+function collectPovResults(
+  regex: RegExp,
+  accelerationist: PovFileLike,
+  safetyist: PovFileLike,
+  skeptic: PovFileLike,
+  povScopes: Set<TabId>,
+  aspectScopes: Set<Category>,
+  hasPovFilter: boolean,
+  hasAspectFilter: boolean,
+): SearchResult[] {
+  const all: SearchResult[] = [];
+  for (const [pov, file] of [
+    ['accelerationist', accelerationist],
+    ['safetyist', safetyist],
+    ['skeptic', skeptic],
+  ] as const) {
+    if (hasPovFilter && !povScopes.has(pov)) continue;
+    if (file) {
+      for (const node of file.nodes) {
+        if (hasAspectFilter && !aspectScopes.has(node.category)) continue;
+        all.push(...searchPovNode(node, regex, pov));
+      }
+    }
+  }
+  return all;
+}
+
+function collectSituationResults(
+  regex: RegExp,
+  situations: { nodes: CrossCuttingNode[] } | null,
+  povScopes: Set<TabId>,
+  hasPovFilter: boolean,
+  hasAspectFilter: boolean,
+): SearchResult[] {
+  const all: SearchResult[] = [];
+  if (!hasPovFilter || povScopes.has('situations')) {
+    if (situations) {
+      for (const node of situations.nodes) {
+        // Situation nodes don't have a category, so skip if aspect-only filter is active
+        if (hasAspectFilter) continue;
+        all.push(...searchSituationNode(node, regex));
+      }
+    }
+  }
+  return all;
+}
+
+function collectConflictResults(
+  regex: RegExp,
+  conflicts: ConflictFile[],
+  povScopes: Set<TabId>,
+  hasPovFilter: boolean,
+  hasAspectFilter: boolean,
+): SearchResult[] {
+  const all: SearchResult[] = [];
+  if (!hasPovFilter || povScopes.has('conflicts')) {
+    // Conflicts don't have a category, so skip if aspect-only filter is active
+    if (!hasAspectFilter) {
+      for (const conflict of conflicts) {
+        all.push(...searchConflict(conflict, regex));
+      }
+    }
+  }
+  return all;
+}
+
 const POV_SCOPES: { id: TabId; label: string }[] = [
   { id: 'accelerationist', label: 'Acc' },
   { id: 'safetyist', label: 'Saf' },
@@ -165,39 +233,9 @@ export function FindBar() {
     const hasAspectFilter = aspectScopes.size > 0;
 
     const all: SearchResult[] = [];
-
-    for (const [pov, file] of [
-      ['accelerationist', accelerationist],
-      ['safetyist', safetyist],
-      ['skeptic', skeptic],
-    ] as const) {
-      if (hasPovFilter && !povScopes.has(pov)) continue;
-      if (file) {
-        for (const node of file.nodes) {
-          if (hasAspectFilter && !aspectScopes.has(node.category)) continue;
-          all.push(...searchPovNode(node, regex, pov));
-        }
-      }
-    }
-
-    if (!hasPovFilter || povScopes.has('situations')) {
-      if (situations) {
-        for (const node of situations.nodes) {
-          // Situation nodes don't have a category, so skip if aspect-only filter is active
-          if (hasAspectFilter) continue;
-          all.push(...searchSituationNode(node, regex));
-        }
-      }
-    }
-
-    if (!hasPovFilter || povScopes.has('conflicts')) {
-      // Conflicts don't have a category, so skip if aspect-only filter is active
-      if (!hasAspectFilter) {
-        for (const conflict of conflicts) {
-          all.push(...searchConflict(conflict, regex));
-        }
-      }
-    }
+    all.push(...collectPovResults(regex, accelerationist, safetyist, skeptic, povScopes, aspectScopes, hasPovFilter, hasAspectFilter));
+    all.push(...collectSituationResults(regex, situations, povScopes, hasPovFilter, hasAspectFilter));
+    all.push(...collectConflictResults(regex, conflicts, povScopes, hasPovFilter, hasAspectFilter));
 
     return dedupeResults(all);
   }, [findQuery, findMode, findCaseSensitive, accelerationist, safetyist, skeptic, situations, conflicts, povScopes, aspectScopes]);

@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import { useTaxonomyStore, type SearchMode } from '../../hooks/useTaxonomyStore';
-import type { PovNode, CrossCuttingNode, ConflictFile, TabId, Category } from '../../types/taxonomy';
+import type { PovNode, CrossCuttingNode, ConflictFile, TabId, Category, PovTaxonomyFile, SituationsFile } from '../../types/taxonomy';
 import { interpretationText } from '../../types/taxonomy';
 import { buildSearchRegex } from '../../utils/searchRegex';
 import { ApiKeyDialog } from '../settings/ApiKeyDialog';
@@ -92,6 +92,107 @@ function dedupeResults(results: SearchResult[]): SearchResult[] {
   });
 }
 
+// Per-scope text-result collectors. Extracted from the textResults useMemo so the
+// memo callback (and each collector) stays under the cyclomatic-complexity ceiling.
+// Loop/branch order and the final dedupe are preserved exactly (ADR-007 line-slice).
+function collectPovResults(
+  files: readonly (readonly [TabId, PovTaxonomyFile | null])[],
+  regex: RegExp,
+  povScopes: Set<TabId>,
+  aspectScopes: Set<Category>,
+): SearchResult[] {
+  const hasPovFilter = povScopes.size > 0;
+  const hasAspectFilter = aspectScopes.size > 0;
+  const all: SearchResult[] = [];
+  for (const [pov, file] of files) {
+    if (hasPovFilter && !povScopes.has(pov)) continue;
+    if (file) {
+      for (const node of file.nodes) {
+        if (hasAspectFilter && !aspectScopes.has(node.category)) continue;
+        all.push(...searchPovNode(node, regex, pov));
+      }
+    }
+  }
+  return all;
+}
+
+function collectSituationResults(
+  situations: SituationsFile | null,
+  regex: RegExp,
+  povScopes: Set<TabId>,
+  aspectScopes: Set<Category>,
+): SearchResult[] {
+  const hasPovFilter = povScopes.size > 0;
+  const hasAspectFilter = aspectScopes.size > 0;
+  const all: SearchResult[] = [];
+  if (!hasPovFilter || povScopes.has('situations')) {
+    if (situations) {
+      for (const node of situations.nodes) {
+        if (hasAspectFilter) continue;
+        all.push(...searchSituationNode(node, regex));
+      }
+    }
+  }
+  return all;
+}
+
+function collectConflictResults(
+  conflicts: ConflictFile[],
+  regex: RegExp,
+  povScopes: Set<TabId>,
+  aspectScopes: Set<Category>,
+): SearchResult[] {
+  const hasPovFilter = povScopes.size > 0;
+  const hasAspectFilter = aspectScopes.size > 0;
+  const all: SearchResult[] = [];
+  if (!hasPovFilter || povScopes.has('conflicts')) {
+    if (!hasAspectFilter) {
+      for (const conflict of conflicts) {
+        all.push(...searchConflict(conflict, regex));
+      }
+    }
+  }
+  return all;
+}
+
+interface TextResultsArgs {
+  findQuery: string;
+  findMode: SearchMode;
+  findCaseSensitive: boolean;
+  accelerationist: PovTaxonomyFile | null;
+  safetyist: PovTaxonomyFile | null;
+  skeptic: PovTaxonomyFile | null;
+  situations: SituationsFile | null;
+  conflicts: ConflictFile[];
+  povScopes: Set<TabId>;
+  aspectScopes: Set<Category>;
+}
+
+function computeTextResults(args: TextResultsArgs): SearchResult[] {
+  const {
+    findQuery, findMode, findCaseSensitive,
+    accelerationist, safetyist, skeptic, situations, conflicts,
+    povScopes, aspectScopes,
+  } = args;
+  const regex = buildSearchRegex(findQuery, findMode, findCaseSensitive);
+  if (!regex) return [];
+
+  const all: SearchResult[] = [
+    ...collectPovResults(
+      [
+        ['accelerationist', accelerationist],
+        ['safetyist', safetyist],
+        ['skeptic', skeptic],
+      ] as const,
+      regex, povScopes, aspectScopes,
+    ),
+    ...collectSituationResults(situations, regex, povScopes, aspectScopes),
+    ...collectConflictResults(conflicts, regex, povScopes, aspectScopes),
+  ];
+
+  return dedupeResults(all);
+}
+
 const POV_SCOPES: { id: TabId; label: string }[] = [
   { id: 'accelerationist', label: 'Acc' },
   { id: 'safetyist', label: 'Saf' },
@@ -105,6 +206,222 @@ const ASPECT_SCOPES: { id: Category; label: string }[] = [
   { id: 'Beliefs', label: 'Beliefs' },
   { id: 'Intentions', label: 'Intentions' },
 ];
+
+// ---- Props-only render sub-components (no hooks) — extracted from SearchBar's
+// return to keep the component under the cyclomatic-complexity ceiling. ----
+
+interface SearchInlineRowProps {
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  findQuery: string;
+  onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFocus: () => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+  placeholder: string;
+  semanticDisabled: boolean;
+  embeddingLoading: boolean;
+  count: string;
+  isSemantic: boolean;
+  onFindPrev: () => void;
+  onFindNext: () => void;
+  resultsCount: number;
+  findMode: SearchMode;
+  onModeChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  showDropdown: boolean;
+  hasActiveFilters: boolean;
+  onToggleDropdown: () => void;
+}
+
+function SearchInlineRow(props: SearchInlineRowProps) {
+  const {
+    inputRef, findQuery, onInputChange, onFocus, onKeyDown, placeholder, semanticDisabled,
+    embeddingLoading, count, isSemantic, onFindPrev, onFindNext, resultsCount,
+    findMode, onModeChange, showDropdown, hasActiveFilters, onToggleDropdown,
+  } = props;
+  return (
+    <div className="search-bar-inline">
+      <input
+        ref={inputRef}
+        className="find-input"
+        type="text"
+        value={findQuery}
+        onChange={onInputChange}
+        onFocus={onFocus}
+        onKeyDown={onKeyDown}
+        placeholder={placeholder}
+        disabled={semanticDisabled}
+      />
+      {embeddingLoading && <span className="search-spinner" />}
+      {count && <span className="find-count">{count}</span>}
+      {!isSemantic && (
+        <>
+          <button className="btn btn-sm" onClick={onFindPrev} disabled={resultsCount === 0} title="Previous (Shift+Enter)" aria-label="Previous match">
+            &uarr;
+          </button>
+          <button className="btn btn-sm" onClick={onFindNext} disabled={resultsCount === 0} title="Next (Enter)" aria-label="Next match">
+            &darr;
+          </button>
+        </>
+      )}
+      <select
+        className="find-mode-select"
+        value={findMode}
+        onChange={onModeChange}
+      >
+        <option value="raw">Raw</option>
+        <option value="wildcard">Wildcard</option>
+        <option value="regex">Regex</option>
+        <option value="semantic">Semantic</option>
+      </select>
+      <button
+        className={`btn btn-ghost btn-sm ${showDropdown ? 'active' : ''} ${hasActiveFilters ? 'has-filters' : ''}`}
+        onClick={onToggleDropdown}
+        title="Search options & filters"
+      >
+        {hasActiveFilters ? 'Filters*' : 'Filters'}
+      </button>
+    </div>
+  );
+}
+
+interface SearchResultsListProps {
+  show: boolean;
+  results: SearchResult[];
+  activeIndex: number;
+  isSemantic: boolean;
+  onSelectResult: (index: number, r: SearchResult) => void;
+  highlightMatch: (text: string) => React.ReactNode;
+}
+
+function SearchResultsList(props: SearchResultsListProps) {
+  const { show, results, activeIndex, isSemantic, onSelectResult, highlightMatch } = props;
+  if (!show || results.length === 0) return null;
+  return (
+    <div className="find-results-panel">
+      {results.map((r, i) => (
+        <div
+          key={`${r.id}-${r.field}-${i}`}
+          className={`find-result-item ${i === activeIndex ? 'active' : ''}`}
+          onClick={() => onSelectResult(i, r)}
+        >
+          <div className="find-result-id">
+            {r.tab} / {r.id}
+            {r.score != null && (
+              <span className="search-score-badge">{Math.round(r.score * 100)}%</span>
+            )}
+          </div>
+          {!isSemantic && (
+            <div className="find-result-match">
+              {highlightMatch(r.matchText)}
+            </div>
+          )}
+          {isSemantic && r.label && (
+            <div className="find-result-match">{r.label}</div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+interface SearchDropdownProps {
+  isSemantic: boolean;
+  findCaseSensitive: boolean;
+  onCaseSensitiveChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onOpenApiKeyDialog: () => void;
+  showResults: boolean;
+  onToggleResults: () => void;
+  povScopes: Set<TabId>;
+  onTogglePovScope: (id: TabId) => void;
+  aspectScopes: Set<Category>;
+  onToggleAspectScope: (id: Category) => void;
+  embeddingError: string | null;
+  results: SearchResult[];
+  activeIndex: number;
+  onSelectResult: (index: number, r: SearchResult) => void;
+  highlightMatch: (text: string) => React.ReactNode;
+}
+
+function SearchDropdown(props: SearchDropdownProps) {
+  const {
+    isSemantic, findCaseSensitive, onCaseSensitiveChange, onOpenApiKeyDialog,
+    showResults, onToggleResults, povScopes, onTogglePovScope, aspectScopes,
+    onToggleAspectScope, embeddingError, results, activeIndex, onSelectResult, highlightMatch,
+  } = props;
+  return (
+    <div className="search-dropdown">
+      <div className="search-dropdown-options">
+        {!isSemantic && (
+          <label>
+            <input
+              type="checkbox"
+              checked={findCaseSensitive}
+              onChange={onCaseSensitiveChange}
+            />
+            Case sensitive
+          </label>
+        )}
+        {isSemantic && (
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={onOpenApiKeyDialog}
+            title="Configure API key (optional — local embeddings used by default)"
+          >
+            API Key
+          </button>
+        )}
+        <button
+          className={`btn btn-ghost btn-sm ${showResults ? 'active' : ''}`}
+          onClick={onToggleResults}
+          title="Show results list"
+        >
+          List
+        </button>
+      </div>
+
+      <div className="find-scopes">
+        <div className="find-scope-group">
+          <span className="find-scope-label">Perspective</span>
+          {POV_SCOPES.map(s => (
+            <button
+              key={s.id}
+              className={`find-scope-chip ${povScopes.has(s.id) ? 'active' : ''}`}
+              data-tab={s.id}
+              onClick={() => onTogglePovScope(s.id)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <div className="find-scope-group">
+          <span className="find-scope-label">Aspect</span>
+          {ASPECT_SCOPES.map(s => (
+            <button
+              key={s.id}
+              className={`find-scope-chip ${aspectScopes.has(s.id) ? 'active' : ''}`}
+              data-cat={s.id}
+              onClick={() => onToggleAspectScope(s.id)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {embeddingError && (
+        <ApiKeyErrorMessage error={embeddingError} />
+      )}
+
+      <SearchResultsList
+        show={showResults}
+        results={results}
+        activeIndex={activeIndex}
+        isSemantic={isSemantic}
+        onSelectResult={onSelectResult}
+        highlightMatch={highlightMatch}
+      />
+    </div>
+  );
+}
 
 export function SearchBar() {
   const [showResults, setShowResults] = useState(false);
@@ -192,46 +509,11 @@ export function SearchBar() {
   // Text-mode results (Raw/Wildcard/Regex)
   const textResults = useMemo(() => {
     if (isSemantic) return [];
-    const regex = buildSearchRegex(findQuery, findMode, findCaseSensitive);
-    if (!regex) return [];
-
-    const hasPovFilter = povScopes.size > 0;
-    const hasAspectFilter = aspectScopes.size > 0;
-
-    const all: SearchResult[] = [];
-
-    for (const [pov, file] of [
-      ['accelerationist', accelerationist],
-      ['safetyist', safetyist],
-      ['skeptic', skeptic],
-    ] as const) {
-      if (hasPovFilter && !povScopes.has(pov)) continue;
-      if (file) {
-        for (const node of file.nodes) {
-          if (hasAspectFilter && !aspectScopes.has(node.category)) continue;
-          all.push(...searchPovNode(node, regex, pov));
-        }
-      }
-    }
-
-    if (!hasPovFilter || povScopes.has('situations')) {
-      if (situations) {
-        for (const node of situations.nodes) {
-          if (hasAspectFilter) continue;
-          all.push(...searchSituationNode(node, regex));
-        }
-      }
-    }
-
-    if (!hasPovFilter || povScopes.has('conflicts')) {
-      if (!hasAspectFilter) {
-        for (const conflict of conflicts) {
-          all.push(...searchConflict(conflict, regex));
-        }
-      }
-    }
-
-    return dedupeResults(all);
+    return computeTextResults({
+      findQuery, findMode, findCaseSensitive,
+      accelerationist, safetyist, skeptic, situations, conflicts,
+      povScopes, aspectScopes,
+    });
   }, [findQuery, findMode, findCaseSensitive, accelerationist, safetyist, skeptic, situations, conflicts, povScopes, aspectScopes, isSemantic]);
 
   // Semantic results mapped to SearchResult shape for display
@@ -342,144 +624,54 @@ export function SearchBar() {
 
   const hasActiveFilters = povScopes.size > 0 || aspectScopes.size > 0;
 
+  const handleSelectResult = (index: number, r: SearchResult) => {
+    setActiveIndex(index);
+    navigateTo(r);
+  };
+
   return (
     <div className="search-bar-wrapper" ref={wrapperRef}>
       {/* Inline row: sits inside tab-bar flex */}
-      <div className="search-bar-inline">
-        <input
-          ref={inputRef}
-          className="find-input"
-          type="text"
-          value={findQuery}
-          onChange={(e) => { setFindQuery(e.target.value); setActiveIndex(0); setShowDropdown(true); }}
-          onFocus={() => setShowDropdown(true)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          disabled={semanticDisabled}
-        />
-        {embeddingLoading && <span className="search-spinner" />}
-        {countText() && <span className="find-count">{countText()}</span>}
-        {!isSemantic && (
-          <>
-            <button className="btn btn-sm" onClick={findPrev} disabled={results.length === 0} title="Previous (Shift+Enter)" aria-label="Previous match">
-              &uarr;
-            </button>
-            <button className="btn btn-sm" onClick={findNext} disabled={results.length === 0} title="Next (Enter)" aria-label="Next match">
-              &darr;
-            </button>
-          </>
-        )}
-        <select
-          className="find-mode-select"
-          value={findMode}
-          onChange={(e) => handleModeChange(e.target.value as SearchMode)}
-        >
-          <option value="raw">Raw</option>
-          <option value="wildcard">Wildcard</option>
-          <option value="regex">Regex</option>
-          <option value="semantic">Semantic</option>
-        </select>
-        <button
-          className={`btn btn-ghost btn-sm ${showDropdown ? 'active' : ''} ${hasActiveFilters ? 'has-filters' : ''}`}
-          onClick={() => setShowDropdown(v => !v)}
-          title="Search options & filters"
-        >
-          {hasActiveFilters ? 'Filters*' : 'Filters'}
-        </button>
-      </div>
+      <SearchInlineRow
+        inputRef={inputRef}
+        findQuery={findQuery}
+        onInputChange={(e) => { setFindQuery(e.target.value); setActiveIndex(0); setShowDropdown(true); }}
+        onFocus={() => setShowDropdown(true)}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        semanticDisabled={semanticDisabled}
+        embeddingLoading={embeddingLoading}
+        count={countText()}
+        isSemantic={isSemantic}
+        onFindPrev={findPrev}
+        onFindNext={findNext}
+        resultsCount={results.length}
+        findMode={findMode}
+        onModeChange={(e) => handleModeChange(e.target.value as SearchMode)}
+        showDropdown={showDropdown}
+        hasActiveFilters={hasActiveFilters}
+        onToggleDropdown={() => setShowDropdown(v => !v)}
+      />
 
       {/* Dropdown panel: absolutely positioned below the tab bar */}
       {showDropdown && (
-        <div className="search-dropdown">
-          <div className="search-dropdown-options">
-            {!isSemantic && (
-              <label>
-                <input
-                  type="checkbox"
-                  checked={findCaseSensitive}
-                  onChange={(e) => setFindCaseSensitive(e.target.checked)}
-                />
-                Case sensitive
-              </label>
-            )}
-            {isSemantic && (
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => setShowApiKeyDialog(true)}
-                title="Configure API key (optional — local embeddings used by default)"
-              >
-                API Key
-              </button>
-            )}
-            <button
-              className={`btn btn-ghost btn-sm ${showResults ? 'active' : ''}`}
-              onClick={() => setShowResults(v => !v)}
-              title="Show results list"
-            >
-              List
-            </button>
-          </div>
-
-          <div className="find-scopes">
-            <div className="find-scope-group">
-              <span className="find-scope-label">Perspective</span>
-              {POV_SCOPES.map(s => (
-                <button
-                  key={s.id}
-                  className={`find-scope-chip ${povScopes.has(s.id) ? 'active' : ''}`}
-                  data-tab={s.id}
-                  onClick={() => togglePovScope(s.id)}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-            <div className="find-scope-group">
-              <span className="find-scope-label">Aspect</span>
-              {ASPECT_SCOPES.map(s => (
-                <button
-                  key={s.id}
-                  className={`find-scope-chip ${aspectScopes.has(s.id) ? 'active' : ''}`}
-                  data-cat={s.id}
-                  onClick={() => toggleAspectScope(s.id)}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {embeddingError && (
-            <ApiKeyErrorMessage error={embeddingError} />
-          )}
-
-          {showResults && results.length > 0 && (
-            <div className="find-results-panel">
-              {results.map((r, i) => (
-                <div
-                  key={`${r.id}-${r.field}-${i}`}
-                  className={`find-result-item ${i === activeIndex ? 'active' : ''}`}
-                  onClick={() => { setActiveIndex(i); navigateTo(r); }}
-                >
-                  <div className="find-result-id">
-                    {r.tab} / {r.id}
-                    {r.score != null && (
-                      <span className="search-score-badge">{Math.round(r.score * 100)}%</span>
-                    )}
-                  </div>
-                  {!isSemantic && (
-                    <div className="find-result-match">
-                      {highlightMatch(r.matchText)}
-                    </div>
-                  )}
-                  {isSemantic && r.label && (
-                    <div className="find-result-match">{r.label}</div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <SearchDropdown
+          isSemantic={isSemantic}
+          findCaseSensitive={findCaseSensitive}
+          onCaseSensitiveChange={(e) => setFindCaseSensitive(e.target.checked)}
+          onOpenApiKeyDialog={() => setShowApiKeyDialog(true)}
+          showResults={showResults}
+          onToggleResults={() => setShowResults(v => !v)}
+          povScopes={povScopes}
+          onTogglePovScope={togglePovScope}
+          aspectScopes={aspectScopes}
+          onToggleAspectScope={toggleAspectScope}
+          embeddingError={embeddingError}
+          results={results}
+          activeIndex={activeIndex}
+          onSelectResult={handleSelectResult}
+          highlightMatch={highlightMatch}
+        />
       )}
 
       {showApiKeyDialog && <ApiKeyDialog onClose={handleApiKeyDialogClose} />}
