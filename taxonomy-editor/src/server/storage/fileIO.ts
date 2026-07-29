@@ -23,6 +23,7 @@ import { getGlobalRecorder, redactRecord } from '../../../../lib/flight-recorder
 import { parseNpy, extractNodeVectors } from '../../../../lib/npy.js';
 import type { OrganizationEdge } from '../../../../lib/organizations/types.js';
 import type { Entity } from '../../../../lib/entities/types.js';
+import type { EntityMentionsFile, ContainerMentions } from '../../../../lib/entities/mentionTypes.js';
 
 // ── Extracted sub-modules (ADR-007, t/1688) — cohesion splits behind a stable
 // barrel: importers keep importing these symbols from './fileIO.js'. Each module
@@ -49,11 +50,23 @@ let userContentBackend: StorageBackend | null = null;
 const ENTITIES_CACHE_TTL_MS = 30_000;
 let entitiesCache: { at: number; entities: Entity[] } | null = null;
 
+// Parsed-mentions cache — same DoS discipline as entitiesCache (t/1793/t/1807).
+// Absent-file case is NOT cached so a newly-built index is picked up on the next
+// read within the TTL window.
+const MENTIONS_CACHE_TTL_MS = 30_000;
+const EMPTY_MENTIONS: EntityMentionsFile = {
+  _schema_version: '1.0.0',
+  _doc: 'empty — entity_mentions.json not yet built',
+  last_modified: '',
+  containers: {},
+};
+let mentionsCache: { at: number; data: EntityMentionsFile } | null = null;
+
 /** Replace the taxonomy/default storage backend. */
-export function setBackend(b: StorageBackend): void { backend = b; entitiesCache = null; }
+export function setBackend(b: StorageBackend): void { backend = b; entitiesCache = null; mentionsCache = null; }
 export function getBackend(): StorageBackend { return backend; }
 /** Alias of setBackend, for explicit dual-backend wiring. */
-export function setTaxonomyBackend(b: StorageBackend): void { backend = b; entitiesCache = null; }
+export function setTaxonomyBackend(b: StorageBackend): void { backend = b; entitiesCache = null; mentionsCache = null; }
 /** Set the backend for user content (chats/debates/community). */
 export function setUserContentBackend(b: StorageBackend): void { userContentBackend = b; }
 /** User-content backend; falls back to the taxonomy backend when unset. */
@@ -580,6 +593,54 @@ export async function readEntities(): Promise<Entity[] | null> {
 export async function readEntityRegistry(): Promise<Map<string, Entity> | null> {
   const entities = await readEntities();
   return entities ? new Map(entities.map(e => [e.id, e])) : null;
+}
+
+// ── Entity Mentions (derived artifact) ──
+
+/**
+ * Read the full entity-mention index from `entity_mentions.json`.
+ *
+ * This is a **derived artifact** (re-buildable by retroactive re-index, §7 of
+ * t/1890): absence means "no links yet", not an error. Returns an empty
+ * `EntityMentionsFile` rather than `null` — callers can address
+ * `file.containers[id]` safely without a null-check on the return value.
+ * (Deviation from `readEntities` which returns `null` on absent; here the
+ * empty-vs-absent distinction is meaningless to all callers.)
+ *
+ * The absent-file case is deliberately NOT cached so that once the index is
+ * first built a subsequent read picks it up within the TTL window.
+ * Memoized for MENTIONS_CACHE_TTL_MS — same DoS discipline as t/1807/t/1793.
+ */
+export async function readEntityMentions(): Promise<EntityMentionsFile> {
+  if (mentionsCache && Date.now() - mentionsCache.at < MENTIONS_CACHE_TTL_MS) {
+    return mentionsCache.data;
+  }
+  try {
+    const p = path.join(getTaxonomyDir(), 'entity_mentions.json');
+    const raw = await backend.readFile(p);
+    if (raw === null) return EMPTY_MENTIONS;
+    const data = JSON.parse(raw) as EntityMentionsFile;
+    mentionsCache = { at: Date.now(), data };
+    return data;
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'file-io',
+      level: 'error',
+      message: 'readEntityMentions failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return EMPTY_MENTIONS;
+  }
+}
+
+/**
+ * Look up all mentions extracted from one container. Returns `null` when the
+ * container has no recorded mentions or the index is absent.
+ */
+export async function readContainerMentions(containerId: string): Promise<ContainerMentions | null> {
+  const file = await readEntityMentions();
+  return file.containers[containerId] ?? null;
 }
 
 // ── Edges ──
