@@ -56,53 +56,60 @@ function startOfUtcDay(ms: number): number {
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
 }
 
+const DAY_MS = 86_400_000;
+
+interface ErrorGroup { name: string; message: string; count: number; lastSeen: string; users: Set<string> }
+interface ErrorAccum { today: number; last7d: number; last30d: number; groups: Map<string, ErrorGroup>; byDayMap: Map<string, number> }
+
+/**
+ * Fold one error entry into the running accumulator: window counters, the
+ * name::normalized-message group, and the trailing-30-day byDay bucket. Entries
+ * with an unparseable timestamp are skipped (mirrors the original `continue`).
+ */
+function accumulateErrorEntry(acc: ErrorAccum, e: ErrorEntry, now: number, todayStart: number): void {
+  const ts = Date.parse(String(e.timestamp));
+  if (Number.isNaN(ts)) return;
+
+  if (ts >= todayStart) acc.today++;
+  if (now - ts <= 7 * DAY_MS) acc.last7d++;
+  const within30 = now - ts <= 30 * DAY_MS;
+  if (within30) acc.last30d++;
+
+  const name = String(e.error?.name ?? 'Error');
+  const message = normalizeMessage(String(e.error?.message ?? ''));
+  const groupKey = `${name}::${message}`;
+  let g = acc.groups.get(groupKey);
+  if (!g) { g = { name, message, count: 0, lastSeen: String(e.timestamp), users: new Set() }; acc.groups.set(groupKey, g); }
+  g.count++;
+  if (String(e.timestamp) > g.lastSeen) g.lastSeen = String(e.timestamp);
+  if (e.userId) g.users.add(String(e.userId));
+
+  if (within30) {
+    const date = new Date(ts).toISOString().slice(0, 10);
+    acc.byDayMap.set(date, (acc.byDayMap.get(date) ?? 0) + 1);
+  }
+}
+
 /**
  * Aggregate error entries into the admin summary. Pure (takes `now`) so it's
  * deterministic under test. `today` is calendar-day (UTC midnight); last7d/30d
  * are rolling windows; byDay covers the trailing 30 days.
  */
 export function summarizeErrors(entries: ErrorEntry[], now: number = Date.now()): ErrorSummary {
-  const DAY = 86_400_000;
   const todayStart = startOfUtcDay(now);
-  let today = 0, last7d = 0, last30d = 0;
+  const acc: ErrorAccum = { today: 0, last7d: 0, last30d: 0, groups: new Map(), byDayMap: new Map() };
 
-  interface Group { name: string; message: string; count: number; lastSeen: string; users: Set<string> }
-  const groups = new Map<string, Group>();
-  const byDayMap = new Map<string, number>();
+  for (const e of entries) accumulateErrorEntry(acc, e, now, todayStart);
 
-  for (const e of entries) {
-    const ts = Date.parse(String(e.timestamp));
-    if (Number.isNaN(ts)) continue;
-
-    if (ts >= todayStart) today++;
-    if (now - ts <= 7 * DAY) last7d++;
-    const within30 = now - ts <= 30 * DAY;
-    if (within30) last30d++;
-
-    const name = String(e.error?.name ?? 'Error');
-    const message = normalizeMessage(String(e.error?.message ?? ''));
-    const groupKey = `${name}::${message}`;
-    let g = groups.get(groupKey);
-    if (!g) { g = { name, message, count: 0, lastSeen: String(e.timestamp), users: new Set() }; groups.set(groupKey, g); }
-    g.count++;
-    if (String(e.timestamp) > g.lastSeen) g.lastSeen = String(e.timestamp);
-    if (e.userId) g.users.add(String(e.userId));
-
-    if (within30) {
-      const date = new Date(ts).toISOString().slice(0, 10);
-      byDayMap.set(date, (byDayMap.get(date) ?? 0) + 1);
-    }
-  }
-
-  const topErrors: TopError[] = [...groups.entries()]
+  const topErrors: TopError[] = [...acc.groups.entries()]
     .map(([groupKey, g]) => ({ groupKey, name: g.name, message: g.message, count: g.count, lastSeen: g.lastSeen, affectedUsers: g.users.size }))
     .sort((a, b) => b.count - a.count || b.lastSeen.localeCompare(a.lastSeen));
 
-  const byDay = [...byDayMap.entries()]
+  const byDay = [...acc.byDayMap.entries()]
     .map(([date, count]) => ({ date, count }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  return { total: entries.length, today, last7d, last30d, topErrors, byDay };
+  return { total: entries.length, today: acc.today, last7d: acc.last7d, last30d: acc.last30d, topErrors, byDay };
 }
 
 // ── 30s summary cache (proxyTiers.ts pattern) ──────────────────────────────
