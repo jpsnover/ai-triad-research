@@ -834,6 +834,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-28 — CL.Investigate1 (t/1767, landed aa319dd2, p/40#11): `git commit -- <paths> -m "msg"` again; fixed by moving `-m` before `--` (files already staged → committed the staged set). 6th instance / 6 agents. Still self-correcting — git rejects immediately, no cost beyond a retry; git's own rejection is the effective enforcement, the warn-only hook can't prevent it.
 - 2026-07-28 — Taxonomy Editor (p/6#22): same flag-order failure; resolved with `git commit -F msgfile -- <paths>`. **7th instance / 7 agents.** At 7× the improvement worth making is corrective GUIDANCE (git's `pathspec '-m' did not match` is cryptic) — the flag-order violation is a crisp syntactic signal, so the `git-commit-pathspec-flag-order` hook should emit the correct form on violation; blocked until the #80 Part-3 fix stops it exit-1-noising on every call. Still NOT a #82 escalation (git enforces).
 - 2026-07-28 — Taxonomy Editor 2 (p/195#7): `git commit -q -- <pathspec> -m "msg"` — same failure. **8th instance / 8 agents.** Fix queued (Diagnostics accepted p/9#47 — corrective-guidance emit folds into #80 Part-3); count reinforces the guidance fix.
+- 2026-07-29 — DebateUI (t/1915, p/83#4): `git commit -- <paths> -m "msg"` — flags after `--`. Self-corrected by reordering to `-m "msg" -- <paths>`. **9th instance / 8 agents** (DebateUI's 2nd). No new per-instance action; corrective-guidance emit still rides on the #80 Part-3 fix.
 
 **Root Cause:** `--` signals end-of-options to git. Everything after `--` is treated as a literal filename/pathspec — including `-m`, `-F`, and any other flag. This is standard POSIX behavior but surprises agents who think of `--` as "here come the paths" without realizing it also disables all subsequent flag parsing.
 
@@ -845,6 +846,47 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Rule (AGENTS.md, overlay 95e9c3b, p/8#30) + `git-commit-pathspec-flag-order` PreToolUse hook (p/9#16); overlay-form matcher gap fixed via inlining (p/9#41). **5 instances / 5 agents.** The hook is **warn-only** — git rejects the malformed command regardless, so recurrences (Docker overlay p/217#1; ServerAPI main-repo t/1788 p/79#13) self-correct on git's own error, not on the hook. The hook's value is guidance, not prevention; durable fix is the rule + habit.
 
 **Applies To:** All agents using git commit with pathspec on any repo — including the overlay expanded form, which the hook may not yet cover.
+
+---
+
+## [Build] `git stash show` Rejects a Pathspec ("Too many revisions specified")
+
+**Pattern:** `git stash show -p 'stash@{N}' -- <path>` fails with "Too many revisions specified" — `git stash show` takes a single stash ref and has no `-- <pathspec>` scoping mode.
+
+**Instances:**
+- 2026-07-29 — DevOps (t/1768, p/26#24): `git stash show -p 'stash@{1}' -- <path>` errored while inspecting a stash for one file. Fixed with `git diff 'stash@{1}^' 'stash@{1}' -- <path>`. Self-resolved, no impact.
+
+**Root Cause:** `git stash show` only diffs a whole stash entry against its base and parses trailing `-- <path>` tokens as extra revisions. A stash is an ordinary commit (`stash@{N}`) whose first parent (`stash@{N}^`) is its capture point, so the underlying `git diff` accepts a normal `<rev> <rev> -- <path>` form.
+
+**Prevention:**
+1. One file from a stash's own change set: `git diff 'stash@{N}^' 'stash@{N}' -- <path>` (note the `^` — the stash's first parent is its base).
+2. Stashed file vs another ref (e.g. origin, the t/1768 supersession check): `git diff 'stash@{N}:<path>' 'origin/main:<path>'` (blob-vs-blob, no `--`).
+3. Whole-stash overview still works: `git stash show -p 'stash@{N}'` — just drop the pathspec.
+
+**Status:** Resolved — self-correcting (git rejects it immediately). Single instance; recorded because stash inspection recurs during worktree/realign cleanups.
+
+**Applies To:** Any agent inspecting a specific file inside a git stash.
+
+---
+
+## [Build] Extracting a `catch` Body Into a Helper Trips the AST-Enforced Flight-Recorder Rule (ADR-003)
+
+**Pattern:** The custom ESLint rule `local/require-flight-recorder-in-catch` (ADR-003) is **position-based** — `getGlobalRecorder()?.record(...)` must be *literally inside* the `catch` AST node. A behavior-preserving refactor that lifts the `catch` body into a helper relocates the `record()` call and fails lint. Complexity-reduction / function-extraction passes are the classic trigger.
+
+**Instances:**
+- 2026-07-29 — Taxonomy Editor 2 (t/1848 batch 7): extracting a `catch` body into a helper tripped the rule. Fixed by keeping `record(...)` inline, extracting only the non-recording tail (p/195#9, t/1848#11).
+- 2026-07-29 — ElectronMain (t/1914): independently hit the same rule in the same fan-out. Same fix.
+
+**Root Cause:** ADR-003 enforces "every `catch` records" *structurally* — the `record()` call must be a direct statement of the `catch` block, not merely reachable. A recording helper is behavior-equivalent but AST-invisible, so the rule holds the line on literal position rather than proving reachability.
+
+**Prevention:**
+1. Decomposing a `catch`-heavy function: keep `getGlobalRecorder()?.record(...)` inline in the `catch`; extract only the non-recording tail (fallback construction, retry orchestration).
+2. Don't wrap the helper to "also record" — the guarantee is literal-position, not reachability. Inline is the sanctioned form.
+3. General: position-based AST rules survive behavior-preserving refactors only if the guarded call stays where the rule expects it — check before extracting any block guarded by a `local/*` rule.
+
+**Status:** Active — self-correcting at point-of-use (lint rejects immediately). **2 instances / 2 roles, both in the t/1848 complexity-decomposition fan-out; 6+ more roles still decomposing catch-heavy code** → likely further rediscovery. Point-of-use prevention broadcast by TE2 on the parent ticket (t/1848#11). **Durable lever TAKEN (TL p/8#116):** fix idiom being embedded in the rule's lint-time message, filed low-pri as **t/1927 (Shared Lib) + t/1928 (Taxonomy Editor)**. **Related drift smell:** the rule is two byte-identical copies (`lib/eslint-rules` + `taxonomy-editor/eslint-rules`) referenced by 3 `eslint.config.mjs` — hence two tickets; update-in-N-places tax + silent-divergence risk. TL noted a single-shared-rule dedup as a separate low-pri follow-up. No divergence yet; if the copies ever drift, that realized failure lands here.
+
+**Applies To:** Any role running function-extraction / complexity-reduction on flight-recorder-guarded `catch` blocks under ADR-003.
 
 ---
 

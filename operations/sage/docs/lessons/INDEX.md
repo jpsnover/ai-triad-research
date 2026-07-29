@@ -3,13 +3,13 @@
 Institutional memory for failure patterns across the AI Triad Research project.
 Organized by category. Each file contains the full pattern details.
 
-**Last updated:** 2026-07-28 | **Total patterns:** 94 | **Resolved:** 21 | **Active:** 73
+**Last updated:** 2026-07-29 | **Total patterns:** 96 | **Resolved:** 21 | **Active:** 75
 
 ## Summary
 
 | Category | File | Patterns | Resolved | Active |
 |----------|------|----------|----------|--------|
-| Build | [build.md](build.md) | 54 | 10 | 44 |
+| Build | [build.md](build.md) | 56 | 10 | 46 |
 | PowerShell | [powershell.md](powershell.md) | 7 | 3 | 4 |
 | Data | [data.md](data.md) | 4 | 1 | 3 |
 | Type System | [type-system.md](type-system.md) | 4 | 0 | 4 |
@@ -36,7 +36,8 @@ Seven patterns crossed the 3-instance threshold (or were high-severity) and beca
 - **Rule-exists-but-not-applied (point-of-use failure class)** — **class-total ≥12; 5 offenders, 2 tripping the per-offender trigger** → [process.md](process.md). Meta-tracker: NOT a coverage gap; rule is correct but doesn't fire at the moment of action. **Two TL triggers, whichever first (p/8#95/#97): (a) any offender's 4th instance → point-of-use hook for that offender (`.Count` guard model); (b) class-total ~6 across offenders → systemic review-habit/checklist/meta-hook.** **BOTH triggers fired + both offenders DISPOSITIONED (p/8#104→#109):** #4 direct-commit-to-shared-main (≥5) → HOOK (t/1780, crisp `branch==main` signal); #5 data-shape type-check (≥4) → RULE-ONLY (t/1810 — correct normalize-at-fetch pattern ≈ the violation, so a detector false-reds = dead gate; strengthened via TS union-types + naming variadic fields). **General criterion logged (TL p/8#109): the hook lever converts an offender ONLY when its violation is a crisp syntactic signal distinct from correct code — "detectable" = distinguishable-from-correct, not just greppable.** **Tag every new instance in process.md; keep both counters current.**
 - **Overlay repo (ogit)** — 7 instances, 4 agents → [build.md](build.md)
 - **Bash heredoc/quoting** — 10 instances, 7 agents → [build.md](build.md) (incl. `pwsh -File` over inline `-Command` for non-trivial PS, p/20#23)
-- **Git `--` flag ordering** — 8 instances, 8 agents → [build.md](build.md) (rule + warn-only hook; git rejects regardless, so recurrences self-correct at zero cost — NOT a #82 escalation, git IS the enforcement. At 7× the improvement is corrective GUIDANCE — the hook should emit `-m "msg" -- <paths>` on violation, blocked on the #80 Part-3 fix; +ServerAPI, +CL.Investigate1, +TaxEditor p/6#22)
+- **Git `--` flag ordering** — 9 instances, 8 agents → [build.md](build.md) (rule + warn-only hook; git rejects regardless, so recurrences self-correct at zero cost — NOT a #82 escalation, git IS the enforcement. At 7× the improvement is corrective GUIDANCE — the hook should emit `-m "msg" -- <paths>` on violation, blocked on the #80 Part-3 fix; +ServerAPI, +CL.Investigate1, +TaxEditor p/6#22, +DebateUI p/83#4)
+- **Catch-body extraction trips ADR-003 flight-recorder rule** — 2 instances, 2 roles (t/1848 fan-out), **6+ roles still exposed** → [build.md](build.md) (position-based AST rule: `record()` must stay LITERALLY in the `catch`; fix = keep record inline, extract only the non-recording tail. Self-correcting at lint, not a #82 escalation. **Durable lever TAKEN (TL p/8#116):** fix idiom embedded in the rule's lint message, filed t/1927+t/1928. TE2 broadcast prevention on t/1848#11. **Drift smell:** rule is 2 byte-identical copies (lib + taxonomy-editor) referenced by 3 eslint.config.mjs — TL noted single-shared-rule dedup as separate low-pri follow-up; realized failure would land here if copies ever diverge)
 - **Push contention (multi-agent)** — 6 instances, 5 agents → [build.md](build.md) (**split by scale:** small commit-to-push contention is self-correcting/not escalating; the LARGE-divergence variant — p/9#36, local 46 ahead/origin 52 ahead — is a push-cadence-ceiling breach that hits out-of-scope conflicts and needs TL/DevOps)
 - **JSON schema assumptions / inspect-before-coding** — 12 instances, 3 agents → [data.md](data.md) (recurring; #82 rule-not-applied offender #5 — RULE-ONLY per t/1810, recording/rule alone isn't preventing it. The PRODUCTION manifestation shipped: extraction cmdlet char-explodes bare-string `aliases` 13/37 records, t/1830 — **in PowerShell** (`Invoke-EntityExtraction`), so the fix is PS-side coerce-at-read (shared helper + Pester fixture), NOT the TS-union strengthening which only covers TS surfaces; p/7#47/#49)
 - **PS strict mode + JSON** — 3 instances → [powershell.md](powershell.md)
