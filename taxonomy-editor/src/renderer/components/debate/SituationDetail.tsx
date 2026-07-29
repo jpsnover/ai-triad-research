@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useRef, type RefObject } from 'react';
+import { useState, useEffect, useRef, useMemo, type RefObject, type ReactNode } from 'react';
 import { POV_META } from '@lib/electron-shared/povMeta';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { SituationNode } from '../../types/taxonomy';
@@ -13,6 +13,8 @@ import { TypeaheadSelect } from '../shared/TypeaheadSelect';
 import { EmptyState } from '../shared/EmptyState';
 import { FieldHelp } from '../shared/FieldHelp';
 import { LinkedChip } from '../shared/LinkedChip';
+import { useMentionRenderer } from '../shared/MentionField';
+import { reconstructNodeContainer } from '../shared/mentionText';
 import { GraphAttributesPanel } from '../taxonomy/GraphAttributesPanel';
 import { getLineageInfo } from '../../data/lineageLookup';
 import { researchPrompt } from '../../prompts/research';
@@ -111,17 +113,19 @@ interface SitHeaderProps {
   err: ErrFn;
   hasErrors: boolean;
   update: UpdateFn;
+  /** Read-only label content with stored entity-name mentions linkified (t/1905). */
+  labelContent?: ReactNode;
 }
 
 /** Header (editable label + category badge + icon actions), validation banner, disagreement badge. */
-function SitHeader({ node, readOnly, onDebate, onPin, err, hasErrors, update }: SitHeaderProps) {
+function SitHeader({ node, readOnly, onDebate, onPin, err, hasErrors, update, labelContent }: SitHeaderProps) {
   return (
     <>
       {/* Header — matches POV detail layout (editable label + category badge + icon actions) */}
       <div className="nd-header">
         <div className="nd-header-title">
           {readOnly ? (
-            <span className="nd-header-label" title={node.label}>{node.label}</span>
+            <span className="nd-header-label" title={node.label}>{labelContent ?? node.label}</span>
           ) : (
             <input
               className={`nd-header-label nd-header-label-editable ${err('label') ? 'has-error' : ''}`}
@@ -194,10 +198,12 @@ interface SitDescriptionFieldProps {
   err: ErrFn;
   update: UpdateFn;
   updateSituationNode: UpdateSituationNodeFn;
+  /** Linkifies stored entity-name mentions in the plain-text reading box (t/1905). */
+  renderMentionField?: (fieldName: string, fallback: string) => ReactNode;
 }
 
 /** Description form group with formal/plain toggle and regenerate. */
-function SitDescriptionField({ node, readOnly, descMode, setDescMode, err, update, updateSituationNode }: SitDescriptionFieldProps) {
+function SitDescriptionField({ node, readOnly, descMode, setDescMode, err, update, updateSituationNode, renderMentionField }: SitDescriptionFieldProps) {
   return (
     <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
       <div className="description-header">
@@ -222,7 +228,11 @@ function SitDescriptionField({ node, readOnly, descMode, setDescMode, err, updat
           {node.plain_description === null ? (
             <div className="plain-description-box plain-description-generating">Regenerating…</div>
           ) : (
-            <div className="plain-description-box">{node.plain_description ?? node.description}</div>
+            <div className="plain-description-box">
+              {readOnly && renderMentionField
+                ? renderMentionField(node.plain_description ? 'plain_description' : 'description', node.plain_description ?? node.description)
+                : (node.plain_description ?? node.description)}
+            </div>
           )}
           {!readOnly && (
             <button
@@ -255,12 +265,14 @@ interface SitOverviewTabProps {
   addLinked: (id: string) => void;
   removeLinked: (id: string) => void;
   chipDepth: number;
+  renderMentionField?: (fieldName: string, fallback: string) => ReactNode;
 }
 
 /** Overview tab: description, divergence, steelman, intellectual lineage, linked nodes, stakeholders. */
 function SitOverviewTab({
   node, readOnly, descMode, setDescMode, err, update, updateSituationNode,
   expandedLineage, setExpandedLineage, showAttributeInfo, allPovIds, addLinked, removeLinked, chipDepth,
+  renderMentionField,
 }: SitOverviewTabProps) {
   return (
     <div className="sit-overview">
@@ -272,6 +284,7 @@ function SitOverviewTab({
         err={err}
         update={update}
         updateSituationNode={updateSituationNode}
+        renderMentionField={renderMentionField}
       />
 
       {node.interpretation_divergence != null && (() => {
@@ -645,6 +658,26 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
     update({ linked_nodes: node.linked_nodes.filter(n => n !== id) });
   };
 
+  // Stored entity-name mentions for the situation's reading-flow text (t/1905 / t/1898 §4.2).
+  // Reconstruct the FULL container so every field's offset basis is correct even for fields we
+  // don't linkify (the HighlightedTextarea `description` path is deferred, matching NodeDetail
+  // t/1898#5). Fetched only in the read-only reading context — the editor uses inputs, not links.
+  //
+  // Mention links route via useMentionRenderer -> setSelectedRef -> the app-level
+  // GlobalDetailPaneHost (t/1987, on origin/main) co-mounted on every tab, so a click on any
+  // surface (SituationsTab / PinnedPanel / SearchPreview / AttributeFilterPanel / shared
+  // DetailPane) opens the entity in the shared pane — no dead clicks anywhere. MENTION_LINKS_LIVE
+  // is retained as a documented kill-switch tied to that host invariant (t/1977).
+  const MENTION_LINKS_LIVE: boolean = true;
+  const mentionContainer = useMemo(
+    () => reconstructNodeContainer(node),
+    [node.label, node.description, node.plain_description],
+  );
+  // A null containerId fetches no mentions, so every field renders as plain text — the interim
+  // guard simply withholds the container ref until MENTION_LINKS_LIVE flips (t/1987).
+  const renderMentionField = useMentionRenderer(readOnly && MENTION_LINKS_LIVE ? `node:${node.id}` : null, mentionContainer);
+  const labelContent: ReactNode = readOnly ? renderMentionField('label', node.label) : node.label;
+
   return (
     <div ref={formRef} className="sit-detail node-detail-tabbed">
       <SitHeader
@@ -655,6 +688,7 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
         err={err}
         hasErrors={hasErrors}
         update={update}
+        labelContent={labelContent}
       />
 
       {/* Tab bar */}
@@ -690,6 +724,7 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
             addLinked={addLinked}
             removeLinked={removeLinked}
             chipDepth={chipDepth}
+            renderMentionField={renderMentionField}
           />
         )}
 
