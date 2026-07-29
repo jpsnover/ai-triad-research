@@ -12,6 +12,7 @@ import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { parseNpy, extractNodeVectors } from '../../../lib/npy.js';
 import { resolveRepoRootForApp } from '../../../lib/electron-shared/resolveRepoRootForApp.js';
 import type { Entity } from '../../../lib/entities/types.js';
+import { serializeEdgesJson } from '../../../lib/edges/serializeEdges.js';
 import type { ContainerMentions, EntityMentionsFile } from '../../../lib/entities/mentionTypes.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -237,8 +238,15 @@ function parseJsonFile(filePath: string): unknown {
 }
 
 /** Write JSON atomically: write to .tmp then rename, preventing corruption on crash/disk-full. */
-function writeJsonFileAtomic(filePath: string, data: unknown): void {
-  const content = JSON.stringify(data, null, 2) + '\n';
+/**
+ * Atomically write an ALREADY-SERIALIZED string to `filePath` (tmp file →
+ * renameSyncWithRetry), recording and surfacing a caller-named ActionableError on failure.
+ * Shared by the generic pretty writer and the dedicated edges writer so the atomic +
+ * flight-recorder semantics live in exactly one place (t/1942). `caller` names the entry
+ * point so a failed edges write reports `writeEdgesFile`, not this helper (the Location
+ * field must name the path actually taken — docs/error-handling.md).
+ */
+function writeStringAtomic(filePath: string, content: string, caller: string): void {
   const tmpPath = filePath + '.tmp';
   try {
     fs.writeFileSync(tmpPath, content, 'utf-8');
@@ -256,7 +264,7 @@ function writeJsonFileAtomic(filePath: string, data: unknown): void {
     throw new ActionableError({
       goal: 'Save taxonomy data',
       problem: `Failed to write ${path.basename(filePath)}`,
-      location: `main/fileIO.ts → writeJsonFileAtomic(${path.basename(filePath)})`,
+      location: `main/fileIO.ts → ${caller}(${path.basename(filePath)})`,
       nextSteps: [
         'Check that the target directory exists and is writable',
         'Verify there is enough free disk space',
@@ -265,6 +273,16 @@ function writeJsonFileAtomic(filePath: string, data: unknown): void {
       innerError: err,
     });
   }
+}
+
+/**
+ * Write a value as 2-space pretty JSON with a single trailing newline, atomically. The
+ * GENERIC writer for every taxonomy JSON file EXCEPT edges.json — edges use the hybrid
+ * format via writeEdgesFile. Do not change this default (t/673: it would silently compact
+ * nodes/situations/policy_actions/… and blow up the data-repo diff).
+ */
+function writeJsonFileAtomic(filePath: string, data: unknown): void {
+  writeStringAtomic(filePath, JSON.stringify(data, null, 2) + '\n', 'writeJsonFileAtomic');
 }
 
 export function readTaxonomyFile(pov: string): unknown {
@@ -755,7 +773,11 @@ export function readContainerMentions(containerId: string): ContainerMentions | 
 
 export function writeEdgesFile(data: unknown): void {
   const edgesPath = path.join(activeTaxonomyDir, 'edges.json');
-  writeJsonFileAtomic(edgesPath, data);
+  // edges.json uses the shared HYBRID format (t/673, docs/edges-json-format.md) so the
+  // desktop and web writers stay byte-identical and don't churn the 14 MB file on every
+  // build alternation. serializeEdgesJson supplies its own single trailing newline — do
+  // NOT add `+ '\n'`. Mirrors the server's writeFile(getEdgesPath(), serializeEdgesJson(data)).
+  writeStringAtomic(edgesPath, serializeEdgesJson(data), 'writeEdgesFile');
 }
 
 // ── Node ↔ Source reverse index ──────────────────────────────────────────────
