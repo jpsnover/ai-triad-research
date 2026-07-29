@@ -103,8 +103,52 @@ describe('entity-resolve IPC handler (t/1809)', () => {
     expect(resolve('sit-007')).toMatchObject({ kind: 'situation', record: { id: 'sit-007' } });
   });
 
-  it('defers the entity kind to not_found (entities.json not shipped)', () => {
-    expect(resolve('ent-001')).toMatchObject({ ref: { kind: 'entity', id: 'ent-001' }, kind: 'not_found' });
+  // Entity resolution (t/1898#12) — un-defers the old not_found stub now that
+  // entities.json ships; desktop mirror of the server route's t/1829 wiring.
+  it('resolves an entity ref to its record, normalizing polymorphic aliases/source_refs', () => {
+    // ent-034 "Claude" (the mention target) has aliases: null; source_refs as a bare string.
+    h.entities = [{
+      id: 'ent-034', name: 'Claude', aliases: null, source_refs: 'doc-1',
+      entity_type: 'artifact', status: 'approved', confidence: 0.9, last_modified: '2026-07-28',
+    }];
+    expect(resolve('ent-034')).toEqual({
+      ref: { kind: 'entity', id: 'ent-034' },
+      kind: 'entity',
+      record: {
+        id: 'ent-034', name: 'Claude', aliases: [], source_refs: ['doc-1'],
+        entity_type: 'artifact', status: 'approved', confidence: 0.9, last_modified: '2026-07-28',
+      },
+    });
+  });
+
+  it('returns not_found for an entity miss (empty/absent registry)', () => {
+    expect(resolve('ent-999')).toEqual({ ref: { kind: 'entity', id: 'ent-999' }, kind: 'not_found' });
+  });
+
+  it('follows merged_into to the canonical record and stamps redirected_from', () => {
+    h.entities = [
+      { id: 'ent-001', name: 'Old', merged_into: 'ent-002', aliases: [], source_refs: [] },
+      { id: 'ent-002', name: 'Canonical', aliases: [], source_refs: [] },
+    ];
+    expect(resolve('ent-001')).toMatchObject({
+      ref: { kind: 'entity', id: 'ent-001' },
+      kind: 'entity',
+      redirected_from: 'ent-001',
+      record: { id: 'ent-002', name: 'Canonical' },
+    });
+  });
+
+  it('returns not_found when a merged_into hop points at an absent id', () => {
+    h.entities = [{ id: 'ent-001', name: 'Old', merged_into: 'ent-gone', aliases: [], source_refs: [] }];
+    expect(resolve('ent-001')).toMatchObject({ kind: 'not_found' });
+  });
+
+  it('throws an ActionableError on a merged_into cycle (corrupt merge data)', () => {
+    h.entities = [
+      { id: 'ent-a', name: 'A', merged_into: 'ent-b', aliases: [], source_refs: [] },
+      { id: 'ent-b', name: 'B', merged_into: 'ent-a', aliases: [], source_refs: [] },
+    ];
+    expect(() => resolve('ent-a')).toThrow(ActionableError);
   });
 });
 
