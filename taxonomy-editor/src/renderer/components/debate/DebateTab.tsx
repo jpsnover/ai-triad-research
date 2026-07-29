@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -29,6 +30,78 @@ import { ParameterHistoryPanel } from '../analysis/ParameterHistoryPanel';
 import { api, isElectronMode } from '@bridge';
 import { trackExport } from '../../lib/analyticsEmitter';
 import './DebateTab.css';
+
+// Prop-type aliases derived from the hooks/stores so the extracted presentational
+// sub-components stay in lockstep with the source types (no cross-boundary imports).
+type SessionSummary = ReturnType<typeof useDebateStore.getState>['sessions'][number];
+type NavApi = ReturnType<typeof useMobileNav>;
+type AuthStatus = ReturnType<typeof useAuthStatus>;
+type ResizablePanel = ReturnType<typeof useResizablePanel>;
+type CopyDebateFn = (type: 'chats' | 'debates', communityId: string) => Promise<string>;
+
+// Shared prop bag for the left list-panel subtree. One interface, forwarded via
+// spread so the presentational children stay in sync without re-declaring props.
+interface DebateListProps {
+  width: number;
+  listView: 'my' | 'community' | null;
+  setListView: Dispatch<SetStateAction<'my' | 'community' | null>>;
+  editMode: boolean;
+  setEditMode: Dispatch<SetStateAction<boolean>>;
+  sessions: SessionSummary[];
+  sessionsLoading: boolean;
+  selectedIds: Set<string>;
+  setSelectedIds: Dispatch<SetStateAction<Set<string>>>;
+  setShowBulkDeleteConfirm: Dispatch<SetStateAction<boolean>>;
+  customOrder: string[];
+  saveCustomOrder: (order: string[]) => void;
+  exitEditMode: () => void;
+  handleNewDebate: () => Promise<void>;
+  setListCollapsed: Dispatch<SetStateAction<boolean>>;
+  communityDebates: CommunityDebate[];
+  communityLoading: boolean;
+  searchQuery: string;
+  setSearchQuery: Dispatch<SetStateAction<string>>;
+  filteredSessions: SessionSummary[];
+  filteredCommunityDebates: CommunityDebate[];
+  activeDebateId: string | null;
+  loadDebate: (id: string) => Promise<void>;
+  renamingId: string | null;
+  setRenamingId: Dispatch<SetStateAction<string | null>>;
+  renameValue: string;
+  setRenameValue: Dispatch<SetStateAction<string>>;
+  renameDebate: (id: string, newTitle: string) => Promise<void>;
+  handleSelect: (session: { id: string }) => void;
+  moveSession: (id: string, direction: 'up' | 'down') => void;
+  selectedCommunityDebate: CommunityDebate | null;
+  setSelectedCommunityDebate: Dispatch<SetStateAction<CommunityDebate | null>>;
+  nav: NavApi;
+  copyingId: string | null;
+  setCopyingId: Dispatch<SetStateAction<string | null>>;
+  copyItem: CopyDebateFn;
+  loadSessions: () => Promise<void>;
+  auth: AuthStatus;
+}
+
+// Shared prop bag for the right (detail) pane subtree.
+interface DebateRightPaneProps {
+  toolbarPanel: string | null;
+  promptInspectorActive: boolean;
+  onMouseDown: ResizablePanel['onMouseDown'];
+  onTouchStart: ResizablePanel['onTouchStart'];
+  searchPreviewId: string | null;
+  setSearchPreviewId: Dispatch<SetStateAction<string | null>>;
+  selectedPromptEntry: PromptCatalogEntry | null;
+  lineagePreviewValue: string | null;
+  setLineagePreviewValue: Dispatch<SetStateAction<string | null>>;
+  isPhone: boolean;
+  activeDebate: DebateSession | null;
+  selectedCommunityDebate: CommunityDebate | null;
+  listView: 'my' | 'community' | null;
+  nav: NavApi;
+  handleExport: (format?: string) => void;
+  exportStatus: string | null;
+  handleNewDebate: () => Promise<void>;
+}
 
 const PHASE_LABELS: Record<string, string> = {
   setup: 'Setup',
@@ -249,372 +322,47 @@ export function DebateTab() {
     void runExport(format);
   };
 
+  const listProps: DebateListProps = {
+    width, listView, setListView, editMode, setEditMode, sessions, sessionsLoading,
+    selectedIds, setSelectedIds, setShowBulkDeleteConfirm, customOrder, saveCustomOrder,
+    exitEditMode, handleNewDebate, setListCollapsed, communityDebates, communityLoading,
+    searchQuery, setSearchQuery, filteredSessions, filteredCommunityDebates, activeDebateId,
+    loadDebate, renamingId, setRenamingId, renameValue, setRenameValue, renameDebate,
+    handleSelect, moveSession, selectedCommunityDebate, setSelectedCommunityDebate, nav,
+    copyingId, setCopyingId, copyItem, loadSessions, auth,
+  };
+
+  const rightPaneProps: DebateRightPaneProps = {
+    toolbarPanel, promptInspectorActive, onMouseDown, onTouchStart, searchPreviewId,
+    setSearchPreviewId, selectedPromptEntry, lineagePreviewValue, setLineagePreviewValue,
+    isPhone, activeDebate, selectedCommunityDebate, listView, nav, handleExport,
+    exportStatus, handleNewDebate,
+  };
+
   return (
     <div className={`two-column${isPhone ? ' phone-mode' : ''}${isTablet ? ' tablet-mode' : ''}${(isPhone ? nav.current.view !== 'list' : !!activeDebateId) && !toolbarPanel ? ' has-selection' : ''}`}>
       {/* Left pane: Session list OR toolbar panel (Search, Prompts, etc.) */}
       {toolbarPanel ? (
-        <div className={`list-panel${isFullWidthPanel(toolbarPanel, promptInspectorActive) ? ' list-panel-full' : ''}`}
-             // eslint-disable-next-line local/no-inline-style -- dynamic: resizable panel width, conditional undefined
-             style={isFullWidthPanel(toolbarPanel, promptInspectorActive) ? undefined : { width }}>
-          {isPhone && <PhoneToolClose />}
-          <ToolbarPaneRenderer
-            panel={toolbarPanel}
-            onSelectResult={(id) => setSearchPreviewId(id)}
-            onSelectLineageValue={setLineagePreviewValue}
-            onSelectPrompt={setSelectedPromptEntry}
-            onInspectorToggle={setPromptInspectorActive}
-          />
-        </div>
+        <ToolbarLeftPanel
+          toolbarPanel={toolbarPanel}
+          promptInspectorActive={promptInspectorActive}
+          width={width}
+          isPhone={isPhone}
+          setSearchPreviewId={setSearchPreviewId}
+          setLineagePreviewValue={setLineagePreviewValue}
+          setSelectedPromptEntry={setSelectedPromptEntry}
+          setPromptInspectorActive={setPromptInspectorActive}
+        />
       ) : (listCollapsed && !isPhone) ? (
         <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
           <span className="pane-collapsed-label">Debates</span>
         </div>
       ) : (
-        // eslint-disable-next-line local/no-inline-style -- dynamic: resizable panel width
-        <div className="list-panel debate-session-list" style={{ width }}>
-          <div className="list-panel-header">
-            <h2>Debates</h2>
-            <div className="list-panel-header-actions">
-              {listView === 'my' && editMode ? (
-                <>
-                  <button className="btn btn-sm" onClick={() => setSelectedIds(new Set(sessions.map(s => s.id)))}>All</button>
-                  <button className="btn btn-sm" onClick={() => setSelectedIds(new Set())}>None</button>
-                  {selectedIds.size > 0 && (
-                    <button className="btn btn-sm btn-danger" onClick={() => setShowBulkDeleteConfirm(true)}>
-                      Delete {selectedIds.size}
-                    </button>
-                  )}
-                  {customOrder.length > 0 && (
-                    <button className="btn btn-sm btn-ghost" onClick={() => saveCustomOrder([])} title="Reset to default sort order">
-                      Reset Order
-                    </button>
-                  )}
-                  <button className="btn btn-sm btn-ghost" onClick={exitEditMode}>Done</button>
-                </>
-              ) : listView === 'my' ? (
-                <>
-                  {sessions.length > 0 && (
-                    <button className="btn btn-sm btn-ghost" onClick={() => setEditMode(true)} title="Edit, rename, reorder, or delete debates">
-                      Edit
-                    </button>
-                  )}
-                  <button className="btn btn-sm" onClick={handleNewDebate}>
-                    + New
-                  </button>
-                  <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
-                </>
-              ) : (
-                <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
-              )}
-            </div>
-          </div>
-          <div className="list-view-tabs">
-            <button className={`list-view-tab${listView === 'my' ? ' active' : ''}`} onClick={() => { setListView('my'); exitEditMode(); }}>My ({sessions.length})</button>
-            <button className={`list-view-tab${listView === 'community' ? ' active' : ''}`} onClick={() => { setListView('community'); exitEditMode(); }}>Community ({communityDebates.length})</button>
-          </div>
-          {listView === 'my' ? (
-            <>
-              {sessions.length > 0 && !editMode && (
-                <div className="debate-tab-search-wrap">
-                  <input
-                    type="text"
-                    placeholder="Search debates..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="debate-tab-search-input"
-                  />
-                </div>
-              )}
-              <div
-                className="list-panel-items debate-tab-list-items"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (editMode || filteredSessions.length === 0) return;
-                  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
-                  e.preventDefault();
-                  const currentIdx = filteredSessions.findIndex(s => s.id === activeDebateId);
-                  const nextIdx = e.key === 'ArrowUp'
-                    ? Math.max(0, currentIdx - 1)
-                    : Math.min(filteredSessions.length - 1, currentIdx + 1);
-                  if (nextIdx !== currentIdx && filteredSessions[nextIdx]) {
-                    void loadDebate(filteredSessions[nextIdx].id);
-                    const container = e.currentTarget;
-                    const items = container.querySelectorAll('.debate-session-item');
-                    items[nextIdx]?.scrollIntoView({ block: 'nearest' });
-                  }
-                }}
-              >
-                {sessionsLoading && sessions.length === 0 && (
-                  <div className="debate-session-empty">Loading...</div>
-                )}
-                {!sessionsLoading && sessions.length === 0 && (
-                  <div className="debate-session-empty">
-                    No debates yet.
-                    <br />
-                    Click <strong>+ New</strong> to start one.
-                  </div>
-                )}
-                {searchQuery && filteredSessions.length === 0 && sessions.length > 0 && (
-                  <div className="debate-session-empty">No debates match &ldquo;{searchQuery}&rdquo;</div>
-                )}
-                {filteredSessions.map((s, idx) => (
-                  <div
-                    key={s.id}
-                    className={`debate-session-item ${s.id === activeDebateId ? 'selected' : ''}${editMode && selectedIds.has(s.id) ? ' bulk-selected' : ''}`}
-                    onClick={editMode ? () => setSelectedIds(prev => {
-                      const next = new Set(prev);
-                      next.has(s.id) ? next.delete(s.id) : next.add(s.id);
-                      return next;
-                    }) : () => handleSelect(s)}
-                  >
-                    {editMode && (
-                      <input
-                        type="checkbox"
-                        className="bulk-select-checkbox"
-                        checked={selectedIds.has(s.id)}
-                        onChange={() => setSelectedIds(prev => {
-                          const next = new Set(prev);
-                          next.has(s.id) ? next.delete(s.id) : next.add(s.id);
-                          return next;
-                        })}
-                      />
-                    )}
-                    {renamingId === s.id ? (
-                      <input
-                        className="debate-session-item-rename"
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && renameValue.trim()) {
-                            e.stopPropagation();
-                            void renameDebate(s.id, renameValue.trim());
-                            setRenamingId(null);
-                          } else if (e.key === 'Escape') {
-                            setRenamingId(null);
-                          }
-                        }}
-                        onBlur={() => {
-                          if (renameValue.trim() && renameValue.trim() !== s.title) {
-                            void renameDebate(s.id, renameValue.trim());
-                          }
-                          setRenamingId(null);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        autoFocus
-                      />
-                    ) : (
-                      <div
-                        className="debate-session-item-title"
-                        onDoubleClick={editMode ? undefined : (e) => { e.stopPropagation(); setRenamingId(s.id); setRenameValue(s.title); }}
-                        title={editMode ? s.title : 'Double-click to rename'}
-                      >
-                        {s.title}
-                      </div>
-                    )}
-                    <div className="debate-session-item-meta">
-                      <span className={`debate-phase-badge phase-${s.phase}`}>
-                        {PHASE_LABELS[s.phase] || s.phase}
-                      </span>
-                      {s.model && <span className="debate-session-item-model">{s.model}</span>}
-                    </div>
-                    <div className="debate-session-item-meta">
-                      {s.turn_count != null && <span className="debate-session-item-turns">{s.turn_count} turn{s.turn_count !== 1 ? 's' : ''}</span>}
-                      <span className="debate-session-item-date">{formatDate(s.updated_at)}</span>
-                    </div>
-                    {editMode ? (
-                      <div className="debate-session-item-edit-actions" onClick={e => e.stopPropagation()}>
-                        <button
-                          className="debate-edit-btn"
-                          onClick={() => { setRenamingId(s.id); setRenameValue(s.title); }}
-                          title="Rename"
-                        >
-                          &#9998;
-                        </button>
-                        <button
-                          className="debate-edit-btn"
-                          onClick={() => moveSession(s.id, 'up')}
-                          disabled={idx === 0}
-                          title="Move up"
-                        >
-                          &#9650;
-                        </button>
-                        <button
-                          className="debate-edit-btn"
-                          onClick={() => moveSession(s.id, 'down')}
-                          disabled={idx === filteredSessions.length - 1}
-                          title="Move down"
-                        >
-                          &#9660;
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        className="debate-session-item-delete"
-                        title="Delete debate"
-                        onClick={(e) => { e.stopPropagation(); setEditMode(true); setSelectedIds(new Set([s.id])); }}
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <>
-            {communityDebates.length > 0 && (
-              <div className="debate-tab-search-wrap">
-                <input
-                  type="text"
-                  placeholder="Search community debates..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="debate-tab-search-input"
-                />
-              </div>
-            )}
-            <div className="list-panel-items">
-              {communityLoading && communityDebates.length === 0 && (
-                <div className="debate-session-empty">Loading community debates...</div>
-              )}
-              {!communityLoading && communityDebates.length === 0 && (
-                <div className="debate-session-empty">
-                  {isElectronMode()
-                    ? 'Community debates are only available in the web app — open it in your browser to browse and search shared debates.'
-                    : 'No community debates available yet.'}
-                </div>
-              )}
-              {searchQuery && filteredCommunityDebates.length === 0 && communityDebates.length > 0 && (
-                <div className="debate-session-empty">No community debates match &ldquo;{searchQuery}&rdquo;</div>
-              )}
-              {filteredCommunityDebates.map((cd) => (
-                <div
-                  key={cd.id}
-                  className={`debate-session-item${selectedCommunityDebate?.id === cd.id ? ' selected' : ''}`}
-                  onClick={() => { setSelectedCommunityDebate(cd); if (nav.isActive) nav.push({ view: 'detail', id: cd.id }); }}
-                >
-                  <div className="debate-session-item-title">{cd.title}</div>
-                  <div className="debate-session-item-meta">
-                    {cd.phase && (
-                      <span className={`debate-phase-badge phase-${cd.phase}`}>
-                        {PHASE_LABELS[cd.phase] || cd.phase}
-                      </span>
-                    )}
-                    {cd.community_metadata?.submitted_by_display && (
-                      <span className="debate-session-item-model">{cd.community_metadata.submitted_by_display}</span>
-                    )}
-                  </div>
-                  <div className="debate-session-item-meta">
-                    <span className="debate-session-item-date">{formatDate(cd.updated_at)}</span>
-                    {!auth?.anonymous && (
-                    <button
-                      className="btn btn-sm debate-tab-copy-btn"
-                      disabled={copyingId === cd.id}
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        setCopyingId(cd.id);
-                        try {
-                          await copyItem('debates', cd.id);
-                          void loadSessions();
-                        } catch (err) {
-                          getGlobalRecorder()?.record({
-                            type: 'system.error',
-                            component: 'debate-tab',
-                            level: 'error',
-                            message: 'Failed to copy community debate',
-                            error: { name: (err as Error).name ?? 'Error', message: String(err) },
-                          });
-                        } finally {
-                          setCopyingId(null);
-                        }
-                      }}
-                    >
-                      {copyingId === cd.id ? 'Copying...' : 'Copy to My'}
-                    </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-            </>
-          )}
-        </div>
+        <DebateListPanel {...listProps} />
       )}
 
       {/* Right pane: context-dependent */}
-      {isFullWidthPanel(toolbarPanel, promptInspectorActive) ? null
-        : toolbarPanel === 'search' ? (
-        <>
-          <div className="resize-handle" onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
-          <div className="detail-panel">
-            <SearchPreview searchPreviewId={searchPreviewId} onClear={() => setSearchPreviewId(null)} />
-          </div>
-        </>
-      ) : (toolbarPanel === 'prompts' && !promptInspectorActive) ? (
-        <>
-          <div className="resize-handle" onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
-          <div className="detail-panel">
-            <PromptDetailPanel entry={selectedPromptEntry} />
-          </div>
-        </>
-      ) : toolbarPanel === 'lineage' ? (
-        <>
-          <div className="resize-handle" onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
-          <div className="detail-panel">
-            <LineageDetailView value={lineagePreviewValue} onSelectValue={setLineagePreviewValue} />
-          </div>
-        </>
-      ) : toolbarPanel ? (
-        <>
-          <div className="resize-handle" onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
-          <div className="detail-panel">
-            <div className="detail-panel-empty">Select an item in the {toolbarPanel} panel</div>
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="resize-handle" onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
-          <div className="detail-panel">
-            {isPhone && (activeDebate || selectedCommunityDebate) && (
-              <div className="phone-detail-header">
-                <button className="phone-detail-back" onClick={() => nav.pop()}>
-                  &larr; Debates
-                </button>
-              </div>
-            )}
-            {listView === 'community' && selectedCommunityDebate ? (
-              <CommunityDebateDetail debate={selectedCommunityDebate} />
-            ) : activeDebate ? (
-              isPhone ? (
-                <DebateWorkspace onExport={handleExport} exportStatus={exportStatus} />
-              ) : (
-                <DebateDetailSummary
-                  debate={activeDebate}
-                  onOpenWindow={() => api.openDebateWindow(activeDebate.id).catch((err) => {
-                    getGlobalRecorder()?.record({
-                      type: 'system.error',
-                      component: 'debate-tab',
-                      level: 'warn',
-                      message: 'Failed to open debate popout window — debate stays inline',
-                      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-                    });
-                  })}
-                  onExport={handleExport}
-                  exportStatus={exportStatus}
-                />
-              )
-            ) : (
-              <div className="debate-empty-state">
-                <h2>Perspective Debater</h2>
-                <p>Select a debate from the list or create a new one.</p>
-                <button className="btn" onClick={handleNewDebate}>
-                  + New Debate
-                </button>
-              </div>
-            )}
-          </div>
-        </>
-      )}
+      <DebateRightPane {...rightPaneProps} />
 
       {quotaError && (
         <div className="debate-error debate-tab-quota-error">
@@ -637,39 +385,516 @@ export function DebateTab() {
         />
       )}
       {showBulkDeleteConfirm && (
-        <div className="dialog-overlay" onClick={() => setShowBulkDeleteConfirm(false)}>
-          <div className="dialog bulk-delete-dialog" onClick={e => e.stopPropagation()}>
-            <h3>Delete {selectedIds.size} debate{selectedIds.size !== 1 ? 's' : ''}?</h3>
-            <div className="bulk-delete-list">
-              {sessions.filter(s => selectedIds.has(s.id)).map(s => (
-                <div key={s.id} className="bulk-delete-item">
-                  <span className="bulk-delete-item-title">{s.title}</span>
-                  <span className="bulk-delete-item-meta">{s.phase} &middot; {formatDate(s.updated_at)}</span>
-                </div>
-              ))}
-            </div>
-            <div className="bulk-delete-note">
-              Session files will be permanently deleted. Harvested items (conflicts, steelman refinements, debate refs) are preserved.
-            </div>
-            <div className="dialog-actions">
-              <button className="btn" onClick={() => setShowBulkDeleteConfirm(false)}>Cancel</button>
-              <button
-                className="btn btn-danger"
-                onClick={async () => {
-                  for (const id of selectedIds) {
-                    await deleteDebate(id);
-                  }
-                  setShowBulkDeleteConfirm(false);
-                  setEditMode(false);
-                  setSelectedIds(new Set());
-                }}
-              >
-                Delete {selectedIds.size} Debate{selectedIds.size !== 1 ? 's' : ''}
-              </button>
-            </div>
-          </div>
+        <BulkDeleteDialog
+          sessions={sessions}
+          selectedIds={selectedIds}
+          setShowBulkDeleteConfirm={setShowBulkDeleteConfirm}
+          setEditMode={setEditMode}
+          setSelectedIds={setSelectedIds}
+          deleteDebate={deleteDebate}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Toolbar left panel (Search / Prompts / Lineage / etc.) ──
+
+function ToolbarLeftPanel({
+  toolbarPanel, promptInspectorActive, width, isPhone,
+  setSearchPreviewId, setLineagePreviewValue, setSelectedPromptEntry, setPromptInspectorActive,
+}: {
+  toolbarPanel: string | null;
+  promptInspectorActive: boolean;
+  width: number;
+  isPhone: boolean;
+  setSearchPreviewId: Dispatch<SetStateAction<string | null>>;
+  setLineagePreviewValue: Dispatch<SetStateAction<string | null>>;
+  setSelectedPromptEntry: Dispatch<SetStateAction<PromptCatalogEntry | null>>;
+  setPromptInspectorActive: Dispatch<SetStateAction<boolean>>;
+}) {
+  return (
+    <div className={`list-panel${isFullWidthPanel(toolbarPanel, promptInspectorActive) ? ' list-panel-full' : ''}`}
+         // eslint-disable-next-line local/no-inline-style -- dynamic: resizable panel width, conditional undefined
+         style={isFullWidthPanel(toolbarPanel, promptInspectorActive) ? undefined : { width }}>
+      {isPhone && <PhoneToolClose />}
+      <ToolbarPaneRenderer
+        panel={toolbarPanel}
+        onSelectResult={(id) => setSearchPreviewId(id)}
+        onSelectLineageValue={setLineagePreviewValue}
+        onSelectPrompt={setSelectedPromptEntry}
+        onInspectorToggle={setPromptInspectorActive}
+      />
+    </div>
+  );
+}
+
+// ── Debate list panel (My / Community switch) ──
+
+function DebateListPanel(props: DebateListProps) {
+  const { width, listView, setListView, sessions, communityDebates, exitEditMode } = props;
+  return (
+    // eslint-disable-next-line local/no-inline-style -- dynamic: resizable panel width
+    <div className="list-panel debate-session-list" style={{ width }}>
+      <div className="list-panel-header">
+        <h2>Debates</h2>
+        <DebateListHeaderActions {...props} />
+      </div>
+      <div className="list-view-tabs">
+        <button className={`list-view-tab${listView === 'my' ? ' active' : ''}`} onClick={() => { setListView('my'); exitEditMode(); }}>My ({sessions.length})</button>
+        <button className={`list-view-tab${listView === 'community' ? ' active' : ''}`} onClick={() => { setListView('community'); exitEditMode(); }}>Community ({communityDebates.length})</button>
+      </div>
+      {listView === 'my' ? (
+        <DebateMyList {...props} />
+      ) : (
+        <DebateCommunityList {...props} />
+      )}
+    </div>
+  );
+}
+
+function DebateListHeaderActions(props: DebateListProps) {
+  const {
+    listView, editMode, sessions, selectedIds, setSelectedIds, setShowBulkDeleteConfirm,
+    customOrder, saveCustomOrder, exitEditMode, handleNewDebate, setEditMode, setListCollapsed,
+  } = props;
+  return (
+    <div className="list-panel-header-actions">
+      {listView === 'my' && editMode ? (
+        <>
+          <button className="btn btn-sm" onClick={() => setSelectedIds(new Set(sessions.map(s => s.id)))}>All</button>
+          <button className="btn btn-sm" onClick={() => setSelectedIds(new Set())}>None</button>
+          {selectedIds.size > 0 && (
+            <button className="btn btn-sm btn-danger" onClick={() => setShowBulkDeleteConfirm(true)}>
+              Delete {selectedIds.size}
+            </button>
+          )}
+          {customOrder.length > 0 && (
+            <button className="btn btn-sm btn-ghost" onClick={() => saveCustomOrder([])} title="Reset to default sort order">
+              Reset Order
+            </button>
+          )}
+          <button className="btn btn-sm btn-ghost" onClick={exitEditMode}>Done</button>
+        </>
+      ) : listView === 'my' ? (
+        <>
+          {sessions.length > 0 && (
+            <button className="btn btn-sm btn-ghost" onClick={() => setEditMode(true)} title="Edit, rename, reorder, or delete debates">
+              Edit
+            </button>
+          )}
+          <button className="btn btn-sm" onClick={handleNewDebate}>
+            + New
+          </button>
+          <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
+        </>
+      ) : (
+        <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
+      )}
+    </div>
+  );
+}
+
+function DebateMyList(props: DebateListProps) {
+  const {
+    sessions, sessionsLoading, editMode, searchQuery, setSearchQuery,
+    filteredSessions, activeDebateId, loadDebate,
+  } = props;
+  return (
+    <>
+      {sessions.length > 0 && !editMode && (
+        <div className="debate-tab-search-wrap">
+          <input
+            type="text"
+            placeholder="Search debates..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="debate-tab-search-input"
+          />
         </div>
       )}
+      <div
+        className="list-panel-items debate-tab-list-items"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (editMode || filteredSessions.length === 0) return;
+          if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+          e.preventDefault();
+          const currentIdx = filteredSessions.findIndex(s => s.id === activeDebateId);
+          const nextIdx = e.key === 'ArrowUp'
+            ? Math.max(0, currentIdx - 1)
+            : Math.min(filteredSessions.length - 1, currentIdx + 1);
+          if (nextIdx !== currentIdx && filteredSessions[nextIdx]) {
+            void loadDebate(filteredSessions[nextIdx].id);
+            const container = e.currentTarget;
+            const items = container.querySelectorAll('.debate-session-item');
+            items[nextIdx]?.scrollIntoView({ block: 'nearest' });
+          }
+        }}
+      >
+        {sessionsLoading && sessions.length === 0 && (
+          <div className="debate-session-empty">Loading...</div>
+        )}
+        {!sessionsLoading && sessions.length === 0 && (
+          <div className="debate-session-empty">
+            No debates yet.
+            <br />
+            Click <strong>+ New</strong> to start one.
+          </div>
+        )}
+        {searchQuery && filteredSessions.length === 0 && sessions.length > 0 && (
+          <div className="debate-session-empty">No debates match &ldquo;{searchQuery}&rdquo;</div>
+        )}
+        {filteredSessions.map((s, idx) => (
+          <DebateSessionListItem
+            {...props}
+            key={s.id}
+            s={s}
+            idx={idx}
+            filteredSessionsLength={filteredSessions.length}
+          />
+        ))}
+      </div>
+    </>
+  );
+}
+
+function DebateSessionListItem(props: DebateListProps & { s: SessionSummary; idx: number; filteredSessionsLength: number }) {
+  const {
+    s, idx, activeDebateId, editMode, selectedIds, setSelectedIds, renamingId, setRenamingId,
+    renameValue, setRenameValue, renameDebate, handleSelect, moveSession, filteredSessionsLength, setEditMode,
+  } = props;
+  return (
+    <div
+      className={`debate-session-item ${s.id === activeDebateId ? 'selected' : ''}${editMode && selectedIds.has(s.id) ? ' bulk-selected' : ''}`}
+      onClick={editMode ? () => setSelectedIds(prev => {
+        const next = new Set(prev);
+        next.has(s.id) ? next.delete(s.id) : next.add(s.id);
+        return next;
+      }) : () => handleSelect(s)}
+    >
+      {editMode && (
+        <input
+          type="checkbox"
+          className="bulk-select-checkbox"
+          checked={selectedIds.has(s.id)}
+          onChange={() => setSelectedIds(prev => {
+            const next = new Set(prev);
+            next.has(s.id) ? next.delete(s.id) : next.add(s.id);
+            return next;
+          })}
+        />
+      )}
+      {renamingId === s.id ? (
+        <input
+          className="debate-session-item-rename"
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && renameValue.trim()) {
+              e.stopPropagation();
+              void renameDebate(s.id, renameValue.trim());
+              setRenamingId(null);
+            } else if (e.key === 'Escape') {
+              setRenamingId(null);
+            }
+          }}
+          onBlur={() => {
+            if (renameValue.trim() && renameValue.trim() !== s.title) {
+              void renameDebate(s.id, renameValue.trim());
+            }
+            setRenamingId(null);
+          }}
+          onClick={(e) => e.stopPropagation()}
+          autoFocus
+        />
+      ) : (
+        <div
+          className="debate-session-item-title"
+          onDoubleClick={editMode ? undefined : (e) => { e.stopPropagation(); setRenamingId(s.id); setRenameValue(s.title); }}
+          title={editMode ? s.title : 'Double-click to rename'}
+        >
+          {s.title}
+        </div>
+      )}
+      <div className="debate-session-item-meta">
+        <span className={`debate-phase-badge phase-${s.phase}`}>
+          {PHASE_LABELS[s.phase] || s.phase}
+        </span>
+        {s.model && <span className="debate-session-item-model">{s.model}</span>}
+      </div>
+      <div className="debate-session-item-meta">
+        {s.turn_count != null && <span className="debate-session-item-turns">{s.turn_count} turn{s.turn_count !== 1 ? 's' : ''}</span>}
+        <span className="debate-session-item-date">{formatDate(s.updated_at)}</span>
+      </div>
+      {editMode ? (
+        <div className="debate-session-item-edit-actions" onClick={e => e.stopPropagation()}>
+          <button
+            className="debate-edit-btn"
+            onClick={() => { setRenamingId(s.id); setRenameValue(s.title); }}
+            title="Rename"
+          >
+            &#9998;
+          </button>
+          <button
+            className="debate-edit-btn"
+            onClick={() => moveSession(s.id, 'up')}
+            disabled={idx === 0}
+            title="Move up"
+          >
+            &#9650;
+          </button>
+          <button
+            className="debate-edit-btn"
+            onClick={() => moveSession(s.id, 'down')}
+            disabled={idx === filteredSessionsLength - 1}
+            title="Move down"
+          >
+            &#9660;
+          </button>
+        </div>
+      ) : (
+        <button
+          className="debate-session-item-delete"
+          title="Delete debate"
+          onClick={(e) => { e.stopPropagation(); setEditMode(true); setSelectedIds(new Set([s.id])); }}
+        >
+          ×
+        </button>
+      )}
+    </div>
+  );
+}
+
+function DebateCommunityList(props: DebateListProps) {
+  const {
+    communityDebates, communityLoading, searchQuery, setSearchQuery, filteredCommunityDebates,
+  } = props;
+  return (
+    <>
+    {communityDebates.length > 0 && (
+      <div className="debate-tab-search-wrap">
+        <input
+          type="text"
+          placeholder="Search community debates..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="debate-tab-search-input"
+        />
+      </div>
+    )}
+    <div className="list-panel-items">
+      {communityLoading && communityDebates.length === 0 && (
+        <div className="debate-session-empty">Loading community debates...</div>
+      )}
+      {!communityLoading && communityDebates.length === 0 && (
+        <div className="debate-session-empty">
+          {isElectronMode()
+            ? 'Community debates are only available in the web app — open it in your browser to browse and search shared debates.'
+            : 'No community debates available yet.'}
+        </div>
+      )}
+      {searchQuery && filteredCommunityDebates.length === 0 && communityDebates.length > 0 && (
+        <div className="debate-session-empty">No community debates match &ldquo;{searchQuery}&rdquo;</div>
+      )}
+      {filteredCommunityDebates.map((cd) => (
+        <CommunityListItem {...props} key={cd.id} cd={cd} />
+      ))}
+    </div>
+    </>
+  );
+}
+
+function CommunityListItem(props: DebateListProps & { cd: CommunityDebate }) {
+  const {
+    cd, selectedCommunityDebate, setSelectedCommunityDebate, nav,
+    copyingId, setCopyingId, copyItem, loadSessions, auth,
+  } = props;
+  return (
+    <div
+      className={`debate-session-item${selectedCommunityDebate?.id === cd.id ? ' selected' : ''}`}
+      onClick={() => { setSelectedCommunityDebate(cd); if (nav.isActive) nav.push({ view: 'detail', id: cd.id }); }}
+    >
+      <div className="debate-session-item-title">{cd.title}</div>
+      <div className="debate-session-item-meta">
+        {cd.phase && (
+          <span className={`debate-phase-badge phase-${cd.phase}`}>
+            {PHASE_LABELS[cd.phase] || cd.phase}
+          </span>
+        )}
+        {cd.community_metadata?.submitted_by_display && (
+          <span className="debate-session-item-model">{cd.community_metadata.submitted_by_display}</span>
+        )}
+      </div>
+      <div className="debate-session-item-meta">
+        <span className="debate-session-item-date">{formatDate(cd.updated_at)}</span>
+        {!auth?.anonymous && (
+        <button
+          className="btn btn-sm debate-tab-copy-btn"
+          disabled={copyingId === cd.id}
+          onClick={async (e) => {
+            e.stopPropagation();
+            setCopyingId(cd.id);
+            try {
+              await copyItem('debates', cd.id);
+              void loadSessions();
+            } catch (err) {
+              getGlobalRecorder()?.record({
+                type: 'system.error',
+                component: 'debate-tab',
+                level: 'error',
+                message: 'Failed to copy community debate',
+                error: { name: (err as Error).name ?? 'Error', message: String(err) },
+              });
+            } finally {
+              setCopyingId(null);
+            }
+          }}
+        >
+          {copyingId === cd.id ? 'Copying...' : 'Copy to My'}
+        </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Right pane (context-dependent) ──
+
+function DebateRightPane(props: DebateRightPaneProps) {
+  const {
+    toolbarPanel, promptInspectorActive, onMouseDown, onTouchStart, searchPreviewId,
+    setSearchPreviewId, selectedPromptEntry, lineagePreviewValue, setLineagePreviewValue,
+  } = props;
+  return isFullWidthPanel(toolbarPanel, promptInspectorActive) ? null
+    : toolbarPanel === 'search' ? (
+    <>
+      <div className="resize-handle" onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
+      <div className="detail-panel">
+        <SearchPreview searchPreviewId={searchPreviewId} onClear={() => setSearchPreviewId(null)} />
+      </div>
+    </>
+  ) : (toolbarPanel === 'prompts' && !promptInspectorActive) ? (
+    <>
+      <div className="resize-handle" onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
+      <div className="detail-panel">
+        <PromptDetailPanel entry={selectedPromptEntry} />
+      </div>
+    </>
+  ) : toolbarPanel === 'lineage' ? (
+    <>
+      <div className="resize-handle" onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
+      <div className="detail-panel">
+        <LineageDetailView value={lineagePreviewValue} onSelectValue={setLineagePreviewValue} />
+      </div>
+    </>
+  ) : toolbarPanel ? (
+    <>
+      <div className="resize-handle" onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
+      <div className="detail-panel">
+        <div className="detail-panel-empty">Select an item in the {toolbarPanel} panel</div>
+      </div>
+    </>
+  ) : (
+    <DebateDetailPane {...props} />
+  );
+}
+
+function DebateDetailPane(props: DebateRightPaneProps) {
+  const {
+    onMouseDown, onTouchStart, isPhone, activeDebate, selectedCommunityDebate,
+    listView, nav, handleExport, exportStatus, handleNewDebate,
+  } = props;
+  return (
+    <>
+      <div className="resize-handle" onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
+      <div className="detail-panel">
+        {isPhone && (activeDebate || selectedCommunityDebate) && (
+          <div className="phone-detail-header">
+            <button className="phone-detail-back" onClick={() => nav.pop()}>
+              &larr; Debates
+            </button>
+          </div>
+        )}
+        {listView === 'community' && selectedCommunityDebate ? (
+          <CommunityDebateDetail debate={selectedCommunityDebate} />
+        ) : activeDebate ? (
+          isPhone ? (
+            <DebateWorkspace onExport={handleExport} exportStatus={exportStatus} />
+          ) : (
+            <DebateDetailSummary
+              debate={activeDebate}
+              onOpenWindow={() => api.openDebateWindow(activeDebate.id).catch((err) => {
+                getGlobalRecorder()?.record({
+                  type: 'system.error',
+                  component: 'debate-tab',
+                  level: 'warn',
+                  message: 'Failed to open debate popout window — debate stays inline',
+                  error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+                });
+              })}
+              onExport={handleExport}
+              exportStatus={exportStatus}
+            />
+          )
+        ) : (
+          <div className="debate-empty-state">
+            <h2>Perspective Debater</h2>
+            <p>Select a debate from the list or create a new one.</p>
+            <button className="btn" onClick={handleNewDebate}>
+              + New Debate
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ── Bulk delete confirmation dialog ──
+
+function BulkDeleteDialog({
+  sessions, selectedIds, setShowBulkDeleteConfirm, setEditMode, setSelectedIds, deleteDebate,
+}: {
+  sessions: SessionSummary[];
+  selectedIds: Set<string>;
+  setShowBulkDeleteConfirm: Dispatch<SetStateAction<boolean>>;
+  setEditMode: Dispatch<SetStateAction<boolean>>;
+  setSelectedIds: Dispatch<SetStateAction<Set<string>>>;
+  deleteDebate: (id: string) => Promise<void>;
+}) {
+  return (
+    <div className="dialog-overlay" onClick={() => setShowBulkDeleteConfirm(false)}>
+      <div className="dialog bulk-delete-dialog" onClick={e => e.stopPropagation()}>
+        <h3>Delete {selectedIds.size} debate{selectedIds.size !== 1 ? 's' : ''}?</h3>
+        <div className="bulk-delete-list">
+          {sessions.filter(s => selectedIds.has(s.id)).map(s => (
+            <div key={s.id} className="bulk-delete-item">
+              <span className="bulk-delete-item-title">{s.title}</span>
+              <span className="bulk-delete-item-meta">{s.phase} &middot; {formatDate(s.updated_at)}</span>
+            </div>
+          ))}
+        </div>
+        <div className="bulk-delete-note">
+          Session files will be permanently deleted. Harvested items (conflicts, steelman refinements, debate refs) are preserved.
+        </div>
+        <div className="dialog-actions">
+          <button className="btn" onClick={() => setShowBulkDeleteConfirm(false)}>Cancel</button>
+          <button
+            className="btn btn-danger"
+            onClick={async () => {
+              for (const id of selectedIds) {
+                await deleteDebate(id);
+              }
+              setShowBulkDeleteConfirm(false);
+              setEditMode(false);
+              setSelectedIds(new Set());
+            }}
+          >
+            Delete {selectedIds.size} Debate{selectedIds.size !== 1 ? 's' : ''}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -693,9 +918,6 @@ function DebateDetailSummary({
   // Desktop (Electron) owners are admin-equivalent; web requires the admin flag.
   const showAdminControls = isElectronMode() || useFlag('permission-admin-features');
   const topic = debate.topic.final || debate.topic.refined || debate.topic.original;
-  const turnCount = debate.transcript?.filter(t => t.type === 'statement' || t.type === 'opening').length ?? 0;
-  const anNodeCount = debate.argument_network?.nodes?.length ?? 0;
-  const anEdgeCount = debate.argument_network?.edges?.length ?? 0;
 
   const handleShare = useCallback(async () => {
     try {
@@ -775,33 +997,7 @@ function DebateDetailSummary({
       </div>
 
       <div className="debate-detail-grid">
-        <div className="debate-detail-section">
-          <h3>Statistics</h3>
-          <div className="debate-detail-stats">
-            <div className="debate-detail-stat">
-              <span className="debate-detail-stat-value">{turnCount}</span>
-              <span className="debate-detail-stat-label">Turns</span>
-            </div>
-            {anNodeCount > 0 && (
-              <div className="debate-detail-stat">
-                <span className="debate-detail-stat-value">{anNodeCount}</span>
-                <span className="debate-detail-stat-label">Arguments</span>
-              </div>
-            )}
-            {anEdgeCount > 0 && (
-              <div className="debate-detail-stat">
-                <span className="debate-detail-stat-value">{anEdgeCount}</span>
-                <span className="debate-detail-stat-label">Relations</span>
-              </div>
-            )}
-            {debate.neutral_evaluations && debate.neutral_evaluations.length > 0 && (
-              <div className="debate-detail-stat">
-                <span className="debate-detail-stat-value">{debate.neutral_evaluations.length}</span>
-                <span className="debate-detail-stat-label">Evaluations</span>
-              </div>
-            )}
-          </div>
-        </div>
+        <DebateStatsSection debate={debate} />
 
         <div className="debate-detail-section">
           <h3>Timestamps</h3>
@@ -815,87 +1011,134 @@ function DebateDetailSummary({
           </div>
         </div>
 
-        <div className="debate-detail-section">
-          <h3>Source</h3>
-          <div className="debate-detail-meta-row">
-            <span className="debate-detail-label">Type:</span>
-            <span>{SOURCE_TYPE_LABELS[debate.source_type] ?? debate.source_type}</span>
-          </div>
-          {debate.source_ref && (
-            <div className="debate-detail-meta-row">
-              <span className="debate-detail-label">Reference:</span>
-              <span className="debate-detail-source-ref" title={debate.source_ref}>
-                {debate.source_type === 'document'
-                  ? debate.source_ref.split('/').pop()
-                  : debate.source_ref}
-              </span>
-            </div>
-          )}
-        </div>
+        <DebateSourceSection debate={debate} />
 
-        {(debate.audience || debate.debate_model || debate.protocol_id || debate.origin) && (
-          <div className="debate-detail-section">
-            <h3>Configuration</h3>
-            {debate.origin && (
-              <div className="debate-detail-meta-row">
-                <span className="debate-detail-label">Created via:</span>
-                <span>{debate.origin.mode === 'cli' ? 'CLI (headless runner)' : 'GUI (Electron app)'}</span>
-              </div>
-            )}
-            {debate.origin?.command && (
-              <div className="debate-detail-meta-row debate-tab-command-row">
-                <span className="debate-detail-label">Command:</span>
-                <code className="debate-tab-command-code">{debate.origin.command}</code>
-              </div>
-            )}
-            {debate.audience && (
-              <div className="debate-detail-meta-row">
-                <span className="debate-detail-label">Audience:</span>
-                <span>{debate.audience.replace(/_/g, ' ')}</span>
-              </div>
-            )}
-            {debate.debate_model && (
-              <div className="debate-detail-meta-row">
-                <span className="debate-detail-label">Model:</span>
-                <span>{debate.debate_model}</span>
-              </div>
-            )}
-            {debate.protocol_id && (
-              <div className="debate-detail-meta-row">
-                <span className="debate-detail-label">Protocol:</span>
-                <span>{debate.protocol_id}</span>
-              </div>
-            )}
-            {debate.model_tier && (
-              <div className="debate-detail-meta-row">
-                <span className="debate-detail-label">Model Tier:</span>
-                <span>{debate.model_tier}</span>
-              </div>
-            )}
-            {debate.speaker_models && Object.keys(debate.speaker_models).length > 0 && (
-              <div className="debate-tab-speaker-models">
-                <span className="debate-detail-label debate-tab-speaker-models-label">Speaker Models:</span>
-                <table className="debate-tab-speaker-table">
-                  <thead>
-                    <tr className="debate-tab-speaker-thead-row">
-                      <th className="debate-tab-speaker-th">Speaker</th>
-                      <th className="debate-tab-speaker-th">Model</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.entries(debate.speaker_models).map(([speaker, model]) => (
-                      <tr key={speaker} className="debate-tab-speaker-tbody-row">
-                        <td className="debate-tab-speaker-td">{speaker}</td>
-                        <td className="debate-tab-speaker-td-model">{model}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+        <DebateConfigSection debate={debate} />
+      </div>
+    </div>
+  );
+}
+
+function DebateStatsSection({ debate }: { debate: DebateSession }) {
+  const turnCount = debate.transcript?.filter(t => t.type === 'statement' || t.type === 'opening').length ?? 0;
+  const anNodeCount = debate.argument_network?.nodes?.length ?? 0;
+  const anEdgeCount = debate.argument_network?.edges?.length ?? 0;
+
+  return (
+    <div className="debate-detail-section">
+      <h3>Statistics</h3>
+      <div className="debate-detail-stats">
+        <div className="debate-detail-stat">
+          <span className="debate-detail-stat-value">{turnCount}</span>
+          <span className="debate-detail-stat-label">Turns</span>
+        </div>
+        {anNodeCount > 0 && (
+          <div className="debate-detail-stat">
+            <span className="debate-detail-stat-value">{anNodeCount}</span>
+            <span className="debate-detail-stat-label">Arguments</span>
+          </div>
+        )}
+        {anEdgeCount > 0 && (
+          <div className="debate-detail-stat">
+            <span className="debate-detail-stat-value">{anEdgeCount}</span>
+            <span className="debate-detail-stat-label">Relations</span>
+          </div>
+        )}
+        {debate.neutral_evaluations && debate.neutral_evaluations.length > 0 && (
+          <div className="debate-detail-stat">
+            <span className="debate-detail-stat-value">{debate.neutral_evaluations.length}</span>
+            <span className="debate-detail-stat-label">Evaluations</span>
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function DebateSourceSection({ debate }: { debate: DebateSession }) {
+  return (
+    <div className="debate-detail-section">
+      <h3>Source</h3>
+      <div className="debate-detail-meta-row">
+        <span className="debate-detail-label">Type:</span>
+        <span>{SOURCE_TYPE_LABELS[debate.source_type] ?? debate.source_type}</span>
+      </div>
+      {debate.source_ref && (
+        <div className="debate-detail-meta-row">
+          <span className="debate-detail-label">Reference:</span>
+          <span className="debate-detail-source-ref" title={debate.source_ref}>
+            {debate.source_type === 'document'
+              ? debate.source_ref.split('/').pop()
+              : debate.source_ref}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DebateConfigSection({ debate }: { debate: DebateSession }) {
+  if (!(debate.audience || debate.debate_model || debate.protocol_id || debate.origin)) return null;
+  return (
+    <div className="debate-detail-section">
+      <h3>Configuration</h3>
+      {debate.origin && (
+        <div className="debate-detail-meta-row">
+          <span className="debate-detail-label">Created via:</span>
+          <span>{debate.origin.mode === 'cli' ? 'CLI (headless runner)' : 'GUI (Electron app)'}</span>
+        </div>
+      )}
+      {debate.origin?.command && (
+        <div className="debate-detail-meta-row debate-tab-command-row">
+          <span className="debate-detail-label">Command:</span>
+          <code className="debate-tab-command-code">{debate.origin.command}</code>
+        </div>
+      )}
+      {debate.audience && (
+        <div className="debate-detail-meta-row">
+          <span className="debate-detail-label">Audience:</span>
+          <span>{debate.audience.replace(/_/g, ' ')}</span>
+        </div>
+      )}
+      {debate.debate_model && (
+        <div className="debate-detail-meta-row">
+          <span className="debate-detail-label">Model:</span>
+          <span>{debate.debate_model}</span>
+        </div>
+      )}
+      {debate.protocol_id && (
+        <div className="debate-detail-meta-row">
+          <span className="debate-detail-label">Protocol:</span>
+          <span>{debate.protocol_id}</span>
+        </div>
+      )}
+      {debate.model_tier && (
+        <div className="debate-detail-meta-row">
+          <span className="debate-detail-label">Model Tier:</span>
+          <span>{debate.model_tier}</span>
+        </div>
+      )}
+      {debate.speaker_models && Object.keys(debate.speaker_models).length > 0 && (
+        <div className="debate-tab-speaker-models">
+          <span className="debate-detail-label debate-tab-speaker-models-label">Speaker Models:</span>
+          <table className="debate-tab-speaker-table">
+            <thead>
+              <tr className="debate-tab-speaker-thead-row">
+                <th className="debate-tab-speaker-th">Speaker</th>
+                <th className="debate-tab-speaker-th">Model</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(debate.speaker_models).map(([speaker, model]) => (
+                <tr key={speaker} className="debate-tab-speaker-tbody-row">
+                  <td className="debate-tab-speaker-td">{speaker}</td>
+                  <td className="debate-tab-speaker-td-model">{model}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -950,9 +1193,6 @@ function CommunityDebateDetail({ debate }: { debate: CommunityDebate }) {
   }, [debate.id]);
 
   const topic = full?.topic ? (full.topic.final || full.topic.refined || full.topic.original) : null;
-  const turnCount = full?.transcript?.filter(t => t.type === 'statement' || t.type === 'opening').length ?? 0;
-  const anNodeCount = full?.argument_network?.nodes?.length ?? 0;
-  const anEdgeCount = full?.argument_network?.edges?.length ?? 0;
 
   return (
     <div className="debate-detail-summary">
@@ -1002,29 +1242,7 @@ function CommunityDebateDetail({ debate }: { debate: CommunityDebate }) {
 
       <div className="debate-detail-grid">
         {/* Statistics */}
-        {full && (
-          <div className="debate-detail-section">
-            <h3>Statistics</h3>
-            <div className="debate-detail-stats">
-              <div className="debate-detail-stat">
-                <span className="debate-detail-stat-value">{turnCount}</span>
-                <span className="debate-detail-stat-label">Turns</span>
-              </div>
-              {anNodeCount > 0 && (
-                <div className="debate-detail-stat">
-                  <span className="debate-detail-stat-value">{anNodeCount}</span>
-                  <span className="debate-detail-stat-label">Arguments</span>
-                </div>
-              )}
-              {anEdgeCount > 0 && (
-                <div className="debate-detail-stat">
-                  <span className="debate-detail-stat-value">{anEdgeCount}</span>
-                  <span className="debate-detail-stat-label">Relations</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        <CommunityStatsSection full={full} />
 
         <div className="debate-detail-section">
           <h3>Timestamps</h3>
@@ -1039,53 +1257,98 @@ function CommunityDebateDetail({ debate }: { debate: CommunityDebate }) {
         </div>
 
         {/* Source */}
-        {full?.source_type && (
-          <div className="debate-detail-section">
-            <h3>Source</h3>
-            <div className="debate-detail-meta-row">
-              <span className="debate-detail-label">Type:</span>
-              <span>{SOURCE_TYPE_LABELS[full.source_type] ?? full.source_type}</span>
-            </div>
-          </div>
-        )}
+        <CommunitySourceSection full={full} />
 
         {/* Configuration */}
-        {full && (full.audience || full.debate_model) && (
-          <div className="debate-detail-section">
-            <h3>Configuration</h3>
-            {full.audience && (
-              <div className="debate-detail-meta-row">
-                <span className="debate-detail-label">Audience:</span>
-                <span>{full.audience.replace(/_/g, ' ')}</span>
-              </div>
-            )}
-            {full.debate_model && (
-              <div className="debate-detail-meta-row">
-                <span className="debate-detail-label">Model:</span>
-                <span>{full.debate_model}</span>
-              </div>
-            )}
-          </div>
-        )}
+        <CommunityConfigSection full={full} />
 
         {/* Community Info */}
-        {debate.community_metadata && (
-          <div className="debate-detail-section">
-            <h3>Community Info</h3>
-            <div className="debate-detail-meta-row">
-              <span className="debate-detail-label">Shared by:</span>
-              <span>{debate.community_metadata.submitted_by_display}</span>
-            </div>
-            <div className="debate-detail-meta-row">
-              <span className="debate-detail-label">Submitted:</span>
-              <span>{formatDateLong(debate.community_metadata.submitted_at)}</span>
-            </div>
-            <div className="debate-detail-meta-row">
-              <span className="debate-detail-label">Approved:</span>
-              <span>{formatDateLong(debate.community_metadata.approved_at)}</span>
-            </div>
+        <CommunityInfoSection debate={debate} />
+      </div>
+    </div>
+  );
+}
+
+function CommunityStatsSection({ full }: { full: DebateSession | null }) {
+  if (!full) return null;
+  const turnCount = full.transcript?.filter(t => t.type === 'statement' || t.type === 'opening').length ?? 0;
+  const anNodeCount = full.argument_network?.nodes?.length ?? 0;
+  const anEdgeCount = full.argument_network?.edges?.length ?? 0;
+  return (
+    <div className="debate-detail-section">
+      <h3>Statistics</h3>
+      <div className="debate-detail-stats">
+        <div className="debate-detail-stat">
+          <span className="debate-detail-stat-value">{turnCount}</span>
+          <span className="debate-detail-stat-label">Turns</span>
+        </div>
+        {anNodeCount > 0 && (
+          <div className="debate-detail-stat">
+            <span className="debate-detail-stat-value">{anNodeCount}</span>
+            <span className="debate-detail-stat-label">Arguments</span>
           </div>
         )}
+        {anEdgeCount > 0 && (
+          <div className="debate-detail-stat">
+            <span className="debate-detail-stat-value">{anEdgeCount}</span>
+            <span className="debate-detail-stat-label">Relations</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CommunitySourceSection({ full }: { full: DebateSession | null }) {
+  if (!full?.source_type) return null;
+  return (
+    <div className="debate-detail-section">
+      <h3>Source</h3>
+      <div className="debate-detail-meta-row">
+        <span className="debate-detail-label">Type:</span>
+        <span>{SOURCE_TYPE_LABELS[full.source_type] ?? full.source_type}</span>
+      </div>
+    </div>
+  );
+}
+
+function CommunityConfigSection({ full }: { full: DebateSession | null }) {
+  if (!(full && (full.audience || full.debate_model))) return null;
+  return (
+    <div className="debate-detail-section">
+      <h3>Configuration</h3>
+      {full.audience && (
+        <div className="debate-detail-meta-row">
+          <span className="debate-detail-label">Audience:</span>
+          <span>{full.audience.replace(/_/g, ' ')}</span>
+        </div>
+      )}
+      {full.debate_model && (
+        <div className="debate-detail-meta-row">
+          <span className="debate-detail-label">Model:</span>
+          <span>{full.debate_model}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CommunityInfoSection({ debate }: { debate: CommunityDebate }) {
+  if (!debate.community_metadata) return null;
+  return (
+    <div className="debate-detail-section">
+      <h3>Community Info</h3>
+      <div className="debate-detail-meta-row">
+        <span className="debate-detail-label">Shared by:</span>
+        <span>{debate.community_metadata.submitted_by_display}</span>
+      </div>
+      <div className="debate-detail-meta-row">
+        <span className="debate-detail-label">Submitted:</span>
+        <span>{formatDateLong(debate.community_metadata.submitted_at)}</span>
+      </div>
+      <div className="debate-detail-meta-row">
+        <span className="debate-detail-label">Approved:</span>
+        <span>{formatDateLong(debate.community_metadata.approved_at)}</span>
       </div>
     </div>
   );
@@ -1186,4 +1449,3 @@ function ExportOptionsDialog({
     </div>
   );
 }
-
