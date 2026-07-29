@@ -11,6 +11,21 @@
 // retroactive re-index (§7) can rebuild it from containers plus approved entities,
 // which is what licenses "apply-late-or-never" as a supported outcome. This is a
 // type-only contract — no runtime logic lives here.
+//
+// ── GEOMETRY INVARIANT (Main-TL ruling, t/1893#4) ────────────────────────────────
+// All mention geometry — `offset`, `quote`, and `text_sha256` — is defined over the
+// NFC-CANONICAL form of the container text. Every producer AND every consumer MUST
+// NFC-canonicalize the container text before computing OR applying an offset or hash.
+// This is a decision, not a description of what any one implementation happens to do.
+// Why it's load-bearing: if a producer hashes/offsets over NFC-canonical text but a
+// consumer indexes the raw (non-NFC) text, then the moment a denormalized sequence
+// appears earlier in the text, every `offset` points at the wrong character, `quote`
+// fails to substring-match, and — worst — `text_sha256` never matches, so the
+// supersession guard false-fires and silently drops every patch as "stale". Rare
+// input, latent bug, miserable to debug. Decide once; consumers build to it. (NFC is
+// already the basis D1's resolver and indexer B use for alias normalization, so this
+// is consistent, not a new axis.) Consumers to hold to it: C (t/1895) re-hashes the
+// NFC-canonical entry text; E (t/1898) NFC-canonicalizes before applying `offset`.
 
 import type { EntityRef } from './types.js';
 
@@ -39,9 +54,11 @@ export type ContainerId = string;
 export interface Mention {
   /** Raw ref token; typed on read by `parseEntityRef()`. Never persisted pre-parsed. */
   entity_ref: string;
-  /** The matched surface form, e.g. "Anthropic". */
+  /** The matched surface form, e.g. "Anthropic"; sliced from the NFC-canonical container
+   *  text (case preserved). See the Geometry Invariant in the file header. */
   quote: string;
-  /** Char offset of the mention into the container text. */
+  /** Char offset of the mention into the **NFC-canonical** container text. See the
+   *  Geometry Invariant in the file header. */
   offset: number;
   /** Provenance — governs the human-wins overwrite rule (§5). */
   discovered_by: MentionProvenance;
@@ -56,7 +73,9 @@ export interface Mention {
  * differently, the patch was computed from text that no longer exists and is dropped.
  */
 export interface ContainerMentions {
-  /** SHA-256 of the exact text the extraction ran against; idempotency + staleness guard. */
+  /** SHA-256 of the **NFC-canonical** container text the extraction ran against; idempotency
+   *  + staleness guard. Consumers MUST hash the NFC-canonical form or the guard false-fires —
+   *  see the Geometry Invariant in the file header. */
   text_sha256: string;
   /** ISO-8601 timestamp of the extraction pass. */
   extracted_at: string;
