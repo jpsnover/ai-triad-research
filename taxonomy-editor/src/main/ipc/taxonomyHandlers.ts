@@ -40,6 +40,69 @@ import { stampNodeAuthorship } from '../../server/storage/editMeta.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { VALID_POV } from '../ipcSchemas.js';
 
+/**
+ * Stamp _edit_meta / _edit_history authorship onto a save's nodes (mirroring the server's
+ * PUT /api/taxonomy/:pov), preserving on-disk metadata for nodes this save did NOT change
+ * (t/828) and recording the save.stamp observability event. Returns the stamped node list.
+ * Extracted verbatim from the save-taxonomy-file handler (t/1914 complexity split).
+ */
+function stampSaveNodes(pov: string, newNodes: unknown[]): unknown[] {
+  let oldNodes: unknown[] = [];
+  try {
+    const existing = readTaxonomyFile(pov);
+    // Existing file may also be either shape — extract nodes from either.
+    oldNodes = Array.isArray(existing)
+      ? existing
+      : ((existing as { nodes?: unknown[] })?.nodes ?? []);
+  } catch (err) {
+    // Missing file on first write is benign (ENOENT); a corrupt existing file means we
+    // can't diff for history — record it but still save against an empty baseline so the
+    // edit is never blocked.
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'ipc-save-taxonomy',
+      level: 'warn',
+      message: 'Could not read existing taxonomy for edit-history diff; stamping against empty baseline',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+  }
+  const stamped = stampNodeAuthorship(
+    oldNodes as Parameters<typeof stampNodeAuthorship>[0],
+    newNodes as Parameters<typeof stampNodeAuthorship>[1],
+  );
+  // Preserve on-disk authorship metadata for nodes this save did NOT change (t/828):
+  // stampNodeAuthorship only (re)writes _edit_meta/_edit_history for added/modified nodes;
+  // unchanged nodes come back verbatim from the payload, which on a desktop re-save lacks
+  // the history already on disk — without this the 2nd+ save strips it.
+  type NodeMeta = { id: string; _edit_meta?: unknown; _edit_history?: unknown };
+  const oldById = new Map((oldNodes as NodeMeta[]).map((n) => [n.id, n]));
+  let stampedCount = 0;
+  let preservedCount = 0;
+  for (const node of stamped as NodeMeta[]) {
+    if (node._edit_meta !== undefined) stampedCount++; // stamp wrote metadata (added/modified node)
+    const old = oldById.get(node.id);
+    if (!old) continue;
+    if (node._edit_meta === undefined && old._edit_meta !== undefined) { node._edit_meta = old._edit_meta; preservedCount++; }
+    if (node._edit_history === undefined && old._edit_history !== undefined) node._edit_history = old._edit_history;
+  }
+  // Observability (t/828): one event per save so a future history-strip is immediately
+  // visible from a flight-recorder dump.
+  getGlobalRecorder()?.record({
+    type: 'state.change',
+    component: 'ipc-save-taxonomy',
+    level: 'info',
+    message: 'save.stamp',
+    data: {
+      pov,
+      total: stamped.length,
+      stampedCount,
+      unchangedCount: stamped.length - stampedCount,
+      preservedCount,
+    },
+  });
+  return stamped;
+}
+
 export function registerTaxonomyHandlers(): void {
   ipcMain.handle('get-taxonomy-dirs', () => {
     return getTaxonomyDirs();
@@ -69,62 +132,7 @@ export function registerTaxonomyHandlers(): void {
       : Array.isArray(data) ? (data as unknown[]) : null;
     let toWrite: unknown = data;
     if (newNodes) {
-      let oldNodes: unknown[] = [];
-      try {
-        const existing = readTaxonomyFile(parsed.data);
-        // Existing file may also be either shape — extract nodes from either.
-        oldNodes = Array.isArray(existing)
-          ? existing
-          : ((existing as { nodes?: unknown[] })?.nodes ?? []);
-      } catch (err) {
-        // Missing file on first write is benign (ENOENT); a corrupt existing file
-        // means we can't diff for history — record it but still save against an
-        // empty baseline so the edit is never blocked.
-        getGlobalRecorder()?.record({
-          type: 'system.error',
-          component: 'ipc-save-taxonomy',
-          level: 'warn',
-          message: 'Could not read existing taxonomy for edit-history diff; stamping against empty baseline',
-          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-        });
-      }
-      const stamped = stampNodeAuthorship(
-        oldNodes as Parameters<typeof stampNodeAuthorship>[0],
-        newNodes as Parameters<typeof stampNodeAuthorship>[1],
-      );
-      // Preserve on-disk authorship metadata for nodes this save did NOT change.
-      // stampNodeAuthorship only (re)writes _edit_meta/_edit_history for added/modified
-      // nodes; unchanged nodes are returned verbatim from the incoming payload. On a
-      // desktop re-save that payload lacks the history already written to disk (the
-      // renderer never receives the stamps back), so without this the 2nd+ save of a
-      // file strips the history the 1st save recorded — every node ends up with none (t/828).
-      type NodeMeta = { id: string; _edit_meta?: unknown; _edit_history?: unknown };
-      const oldById = new Map((oldNodes as NodeMeta[]).map((n) => [n.id, n]));
-      let stampedCount = 0;
-      let preservedCount = 0;
-      for (const node of stamped as NodeMeta[]) {
-        if (node._edit_meta !== undefined) stampedCount++; // stamp wrote metadata (added/modified node)
-        const old = oldById.get(node.id);
-        if (!old) continue;
-        if (node._edit_meta === undefined && old._edit_meta !== undefined) { node._edit_meta = old._edit_meta; preservedCount++; }
-        if (node._edit_history === undefined && old._edit_history !== undefined) node._edit_history = old._edit_history;
-      }
-      // Observability (t/828): one event per save so a future history-strip is immediately
-      // visible from a flight-recorder dump — stampedCount:0 with a high unchanged count on a
-      // re-save was the signature that took hours of static analysis to find.
-      getGlobalRecorder()?.record({
-        type: 'state.change',
-        component: 'ipc-save-taxonomy',
-        level: 'info',
-        message: 'save.stamp',
-        data: {
-          pov: parsed.data,
-          total: stamped.length,
-          stampedCount,
-          unchangedCount: stamped.length - stampedCount,
-          preservedCount,
-        },
-      });
+      const stamped = stampSaveNodes(parsed.data, newNodes);
       if (Array.isArray(incoming.nodes)) {
         incoming.nodes = stamped;       // object form: mutate nodes in place, write the wrapper
       } else {
