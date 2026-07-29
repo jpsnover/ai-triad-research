@@ -224,13 +224,8 @@ function parseDumpNdjson(ndjson: string): ParsedDump {
  * Events are sorted by `_wall` timestamp and tagged with `_source` and `_merged_seq`.
  * Mirrors the `Merge-FlightRecorderDumps` PowerShell cmdlet.
  */
-export function mergeDumps(clientNdjson: string | null, serverNdjson: string | null): string {
-  const client = clientNdjson ? parseDumpNdjson(clientNdjson) : null;
-  const server = serverNdjson ? parseDumpNdjson(serverNdjson) : null;
-
-  const lines: string[] = [];
-
-  // Merged header
+/** Merged header line: overall metadata + per-source timestamps/capacity. */
+function buildMergedHeaderLine(client: ParsedDump | null, server: ParsedDump | null): string {
   const mergedHeader: Record<string, unknown> = {
     _type: 'header',
     merged: true,
@@ -247,9 +242,12 @@ export function mergeDumps(clientNdjson: string | null, serverNdjson: string | n
     mergedHeader[`${src}_retained`] = h.retained;
     mergedHeader[`${src}_lost`] = h.lost;
   }
-  lines.push(JSON.stringify(mergedHeader));
+  return JSON.stringify(mergedHeader);
+}
 
-  // Merged dictionary — deduplicate by category:value
+/** Merged dictionary lines — deduplicate by category:value, re-handle sequentially. */
+function buildMergedDictionaryLines(client: ParsedDump | null, server: ParsedDump | null): string[] {
+  const lines: string[] = [];
   const seen = new Set<string>();
   let handle = 0;
   for (const [src, dump] of [['client', client], ['server', server]] as const) {
@@ -261,8 +259,11 @@ export function mergeDumps(clientNdjson: string | null, serverNdjson: string | n
       lines.push(JSON.stringify({ ...entry, handle: handle++, source: src }));
     }
   }
+  return lines;
+}
 
-  // Merged context — union fields, track provenance
+/** Merged context line — union fields across sources, track per-source provenance. */
+function buildMergedContextLine(client: ParsedDump | null, server: ParsedDump | null): string {
   const mergedCtx: Record<string, unknown> = { _type: 'context' };
   const clientFields: string[] = [];
   const serverFields: string[] = [];
@@ -276,9 +277,11 @@ export function mergeDumps(clientNdjson: string | null, serverNdjson: string | n
   }
   mergedCtx._client_fields = clientFields;
   mergedCtx._server_fields = serverFields;
-  lines.push(JSON.stringify(mergedCtx));
+  return JSON.stringify(mergedCtx);
+}
 
-  // Interleave events by _wall timestamp
+/** Interleave events from both sources by _wall timestamp, stamping _merged_seq. */
+function buildInterleavedEventLines(client: ParsedDump | null, server: ParsedDump | null): string[] {
   const allEvents: Record<string, unknown>[] = [];
   if (client) for (const e of client.events) allEvents.push({ ...e, _source: 'client' });
   if (server) for (const e of server.events) allEvents.push({ ...e, _source: 'server' });
@@ -287,14 +290,34 @@ export function mergeDumps(clientNdjson: string | null, serverNdjson: string | n
     const wb = typeof b._wall === 'string' ? b._wall : '';
     return wa < wb ? -1 : wa > wb ? 1 : 0;
   });
+  const lines: string[] = [];
   for (let i = 0; i < allEvents.length; i++) {
     allEvents[i]._merged_seq = i;
     lines.push(JSON.stringify(allEvents[i]));
   }
+  return lines;
+}
 
-  // Triggers from both sources
+/** Trigger lines from both sources, tagged with provenance. */
+function buildTriggerLines(client: ParsedDump | null, server: ParsedDump | null): string[] {
+  const lines: string[] = [];
   if (client) for (const t of client.triggers) lines.push(JSON.stringify({ ...t, _source: 'client' }));
   if (server) for (const t of server.triggers) lines.push(JSON.stringify({ ...t, _source: 'server' }));
+  return lines;
+}
+
+export function mergeDumps(clientNdjson: string | null, serverNdjson: string | null): string {
+  const client = clientNdjson ? parseDumpNdjson(clientNdjson) : null;
+  const server = serverNdjson ? parseDumpNdjson(serverNdjson) : null;
+
+  // Section order is the dump contract: header → dictionary → context → events → triggers.
+  const lines: string[] = [
+    buildMergedHeaderLine(client, server),
+    ...buildMergedDictionaryLines(client, server),
+    buildMergedContextLine(client, server),
+    ...buildInterleavedEventLines(client, server),
+    ...buildTriggerLines(client, server),
+  ];
 
   return lines.join('\n') + '\n';
 }

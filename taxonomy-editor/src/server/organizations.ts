@@ -35,29 +35,35 @@ function emptyIndexes(): OrgIndexes {
   return { all: [], byId: new Map(), byTopic: new Map(), byPolicy: new Map(), edgesByOrg: new Map() };
 }
 
+/** Index one org into byId + the topic/policy reverse maps. */
+function indexOrg(idx: OrgIndexes, org: Organization): void {
+  if (typeof org?.id === 'string') idx.byId.set(org.id, org);
+  for (const t of org.topic_engagement ?? []) {
+    if (!t?.topic_ref) continue;
+    (idx.byTopic.get(t.topic_ref) ?? idx.byTopic.set(t.topic_ref, []).get(t.topic_ref)!).push(org);
+  }
+  for (const p of org.policy_engagement ?? []) {
+    if (!p?.policy_ref) continue;
+    (idx.byPolicy.get(p.policy_ref) ?? idx.byPolicy.set(p.policy_ref, []).get(p.policy_ref)!).push(org);
+  }
+}
+
+/** Index one edge under its source, and (for org-to-org edges) under its target too. */
+function indexEdge(idx: OrgIndexes, e: OrganizationEdge): void {
+  if (!e || typeof e.source !== 'string') return;
+  (idx.edgesByOrg.get(e.source) ?? idx.edgesByOrg.set(e.source, []).get(e.source)!).push(e);
+  // Org-to-org edges (ALLIED_WITH/COMPETES_WITH/FUNDS) are indexed under the target too,
+  // so an org sees incoming relationships, not just the ones it's the source of.
+  if (typeof e.target === 'string' && e.target.startsWith('org-') && e.target !== e.source) {
+    (idx.edgesByOrg.get(e.target) ?? idx.edgesByOrg.set(e.target, []).get(e.target)!).push(e);
+  }
+}
+
 function buildIndexes(orgs: Organization[], edges: OrganizationEdge[]): OrgIndexes {
   const idx = emptyIndexes();
   idx.all = orgs;
-  for (const org of orgs) {
-    if (typeof org?.id === 'string') idx.byId.set(org.id, org);
-    for (const t of org.topic_engagement ?? []) {
-      if (!t?.topic_ref) continue;
-      (idx.byTopic.get(t.topic_ref) ?? idx.byTopic.set(t.topic_ref, []).get(t.topic_ref)!).push(org);
-    }
-    for (const p of org.policy_engagement ?? []) {
-      if (!p?.policy_ref) continue;
-      (idx.byPolicy.get(p.policy_ref) ?? idx.byPolicy.set(p.policy_ref, []).get(p.policy_ref)!).push(org);
-    }
-  }
-  for (const e of edges) {
-    if (!e || typeof e.source !== 'string') continue;
-    (idx.edgesByOrg.get(e.source) ?? idx.edgesByOrg.set(e.source, []).get(e.source)!).push(e);
-    // Org-to-org edges (ALLIED_WITH/COMPETES_WITH/FUNDS) are indexed under the target too,
-    // so an org sees incoming relationships, not just the ones it's the source of.
-    if (typeof e.target === 'string' && e.target.startsWith('org-') && e.target !== e.source) {
-      (idx.edgesByOrg.get(e.target) ?? idx.edgesByOrg.set(e.target, []).get(e.target)!).push(e);
-    }
-  }
+  for (const org of orgs) indexOrg(idx, org);
+  for (const e of edges) indexEdge(idx, e);
   return idx;
 }
 
