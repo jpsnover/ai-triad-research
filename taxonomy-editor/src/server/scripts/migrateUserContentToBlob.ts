@@ -82,6 +82,58 @@ export async function collectUserContentPaths(source: StorageBackend): Promise<s
  * each with a read-back SHA compare. Per-file failures are recorded and do not
  * abort the run. Returns a summary report.
  */
+/**
+ * Migrate one user-content file, folding the result (or a recorded failure) into
+ * `summary`. Never throws — per-file errors are captured so the run continues.
+ * Mirrors the original loop body (the `continue`s become early `return`s).
+ */
+async function migrateOneFile(
+  source: StorageBackend,
+  dest: StorageBackend,
+  p: string,
+  summary: MigrationSummary,
+  opts: { verify: boolean; dryRun: boolean; log: (m: string) => void },
+): Promise<void> {
+  const { verify, dryRun, log } = opts;
+  try {
+    const content = await source.readFile(p);
+    if (content === null) { summary.failures.push({ path: p, error: 'source returned null' }); return; }
+
+    // Dry run: confirm the source is readable + sized, but write nothing.
+    if (dryRun) {
+      summary.filesMigrated++; // would-migrate count
+      summary.bytesTransferred += Buffer.byteLength(content, 'utf-8');
+      return;
+    }
+
+    await dest.writeFile(p, content);
+    summary.filesMigrated++;
+    summary.bytesTransferred += Buffer.byteLength(content, 'utf-8');
+
+    if (verify) {
+      const readBack = await dest.readFile(p);
+      if (readBack === null || sha256(readBack) !== sha256(content)) {
+        summary.verifyFailures.push({ path: p, error: 'SHA mismatch or missing after write' });
+      } else {
+        summary.verified++;
+      }
+    }
+
+    if (summary.filesMigrated % 50 === 0) log(`  …${summary.filesMigrated} migrated`);
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'migration',
+      level: 'warn',
+      message: 'Failed to migrate user-content file — continuing',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    const error = (err as Error)?.message ?? String(err);
+    summary.failures.push({ path: p, error });
+    log(`  ! failed: ${p} — ${error}`);
+  }
+}
+
 export async function migrateUserContent(
   source: StorageBackend,
   dest: StorageBackend,
@@ -97,45 +149,7 @@ export async function migrateUserContent(
   const paths = await collectUserContentPaths(source);
   log(`${dryRun ? '[DRY RUN] ' : ''}Found ${paths.length} user-content files to migrate.`);
 
-  for (const p of paths) {
-    try {
-      const content = await source.readFile(p);
-      if (content === null) { summary.failures.push({ path: p, error: 'source returned null' }); continue; }
-
-      // Dry run: confirm the source is readable + sized, but write nothing.
-      if (dryRun) {
-        summary.filesMigrated++; // would-migrate count
-        summary.bytesTransferred += Buffer.byteLength(content, 'utf-8');
-        continue;
-      }
-
-      await dest.writeFile(p, content);
-      summary.filesMigrated++;
-      summary.bytesTransferred += Buffer.byteLength(content, 'utf-8');
-
-      if (verify) {
-        const readBack = await dest.readFile(p);
-        if (readBack === null || sha256(readBack) !== sha256(content)) {
-          summary.verifyFailures.push({ path: p, error: 'SHA mismatch or missing after write' });
-        } else {
-          summary.verified++;
-        }
-      }
-
-      if (summary.filesMigrated % 50 === 0) log(`  …${summary.filesMigrated} migrated`);
-    } catch (err) {
-      getGlobalRecorder()?.record({
-        type: 'system.error',
-        component: 'migration',
-        level: 'warn',
-        message: 'Failed to migrate user-content file — continuing',
-        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-      });
-      const error = (err as Error)?.message ?? String(err);
-      summary.failures.push({ path: p, error });
-      log(`  ! failed: ${p} — ${error}`);
-    }
-  }
+  for (const p of paths) await migrateOneFile(source, dest, p, summary, { verify, dryRun, log });
 
   log(
     `${dryRun ? '[DRY RUN] would migrate' : 'Migration complete:'} ${summary.filesMigrated} files, ` +
