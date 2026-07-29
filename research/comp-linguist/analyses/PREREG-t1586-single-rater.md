@@ -55,6 +55,7 @@ Let κ_rt be the test-retest κ and κ_cv the criterion-validity κ.
 | κ_cv ≥ 0.70 and κ_rt ≥ 0.70 | Instrument accepted. Phase 1 UI ships without caveat. |
 | 0.50 ≤ κ_cv < 0.70 | Instrument accepted with an "experimental" label on the tier chip. |
 | κ_cv < 0.50 and κ_rt ≥ 0.70 | The tier ladder diverges from careful human judgment, and the rater is stable, so the divergence is attributable to the instrument. Investigation required before Phase 3 (scheduler) is authorized. |
+| κ_cv < 0.50 and 0.50 ≤ κ_rt < 0.70 | Investigation required before Phase 3, findings carry a stability caveat. *(Cell was undefined at original registration; clarified 2026-07-29 — before any rating data existed — as the conservative composition of the reliability-gate caveat row and the investigation row.)* |
 | κ_cv < 0.50 and κ_rt < 0.50 | Uninterpretable. Rater instability confounds the criterion result. Revise and re-run. |
 
 ## What one rater can and cannot establish
