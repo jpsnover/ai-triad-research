@@ -144,6 +144,36 @@ describe('GET /api/entity/:ref (t/1786)', () => {
     expect(body).not.toHaveProperty('redirected_from');
   });
 
+  it('normalizes polymorphic aliases on the entity record: null → [], bare string → [string] (t/1964)', async () => {
+    // ent-034 "Claude" (the t/1898 mention target) has aliases: null; a bare-string alias
+    // ("GDPR") also occurs. The detail/mention flow reads .some/.length/[0] → must be arrays.
+    readEntityRegistryMock.mockResolvedValue(new Map([
+      ['ent-034', { id: 'ent-034', name: 'Claude', aliases: null } as unknown as Entity],
+      ['ent-071', { id: 'ent-071', name: 'GDPR', aliases: 'GDPR' } as unknown as Entity],
+    ]));
+    const nullCase = await invoke('ent-034');
+    expect(nullCase.status).toBe(200);
+    expect((nullCase.body as { record: Entity }).record.aliases).toEqual([]);
+    const stringCase = await invoke('ent-071');
+    expect(stringCase.status).toBe(200);
+    expect((stringCase.body as { record: Entity }).record.aliases).toEqual(['GDPR']);
+  });
+
+  it('normalizes polymorphic source_refs on the entity record: null → [], bare string → [string] (t/1964#3)', async () => {
+    // source_refs is array | bare string in the store; EntityDetail does `.length > 0 && .map`
+    // → a bare string passes .length then crashes on .map. Coerce at the read boundary.
+    readEntityRegistryMock.mockResolvedValue(new Map([
+      ['ent-040', { id: 'ent-040', name: 'IBM-HashiCorp', source_refs: 'doc-1' } as unknown as Entity],
+      ['ent-050', { id: 'ent-050', name: 'NoRefs', source_refs: null } as unknown as Entity],
+    ]));
+    const stringCase = await invoke('ent-040');
+    expect(stringCase.status).toBe(200);
+    expect((stringCase.body as { record: Entity }).record.source_refs).toEqual(['doc-1']);
+    const nullCase = await invoke('ent-050');
+    expect(nullCase.status).toBe(200);
+    expect((nullCase.body as { record: Entity }).record.source_refs).toEqual([]);
+  });
+
   it('follows a merged_into tombstone to the canonical Entity + stamps redirected_from', async () => {
     readEntityRegistryMock.mockResolvedValue(new Map([
       ['ent-001', { id: 'ent-001', merged_into: 'ent-002' } as unknown as Entity],
@@ -226,6 +256,21 @@ describe('GET /api/entities (t/1883)', () => {
       id: 'ent-001', name: 'OpenAI', aliases: ['OAI'], entity_type: 'institution',
       status: 'approved', confidence: 0.9, last_modified: '2026-02-02',
     });
+  });
+
+  it('coerces polymorphic aliases at the summary boundary: null → [], bare string → [string] (t/1964)', async () => {
+    // entities.json stores aliases as array | null | bare string. EntityBrowserPanel reads
+    // `e.aliases.some(...)`/`e.aliases[0]` off the SUMMARY row → null crashes, a bare string
+    // renders its first char. The list endpoint must hand back a real array either way.
+    readEntityRegistryMock.mockResolvedValue(new Map([
+      ['ent-034', { id: 'ent-034', name: 'Claude', aliases: null, entity_type: 'artifact', status: 'approved', last_modified: '2026-02-02' } as unknown as Entity],
+      ['ent-071', { id: 'ent-071', name: 'GDPR', aliases: 'GDPR', entity_type: 'legislation', status: 'approved', last_modified: '2026-02-02' } as unknown as Entity],
+    ]));
+    const { status, body } = await invokeList();
+    expect(status).toBe(200);
+    const rows = body as Record<string, unknown>[];
+    expect(rows.find(r => r.id === 'ent-034')!.aliases).toEqual([]);
+    expect(rows.find(r => r.id === 'ent-071')!.aliases).toEqual(['GDPR']);
   });
 
   it('returns [] when the entity store is absent (readEntityRegistry → null)', async () => {
