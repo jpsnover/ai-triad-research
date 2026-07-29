@@ -2053,6 +2053,27 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
+## [Process] Validate a Fleet-Standard Procedure Change End-to-End Before Mandating It (Dry-Run One Real PR Through Every Step)
+
+**Pattern:** A change to a fleet-standard procedure (land flow, CI gate, commit convention) broadcast + mandated *before* being run end-to-end ships latent defects every adopter then hits. Writing the intended steps ≠ having *executed* them once against the live infra — the gaps live in the interaction between the steps and the real repo config (branch protection, path filters, worktree constraints, `gh` behavior), invisible on paper, obvious on the first real run.
+
+**Instances:**
+- 2026-07-29 — main → PR-flow rollout (e/49): the revised `/land-from-worktree` was mandated before an end-to-end validation land. **3 defects surfaced within the hour**, each caught by a different role mid-land: (1) detached-HEAD push needs `HEAD:refs/heads/<branch>` (ServerAPI p/79#19); (2) docs-only PRs can't self-merge — path-filtered required checks never report (PowerShell/CL/Sage, t/1962); (3) `gh pr merge --delete-branch` from a worktree aborts post-merge, masking a landed merge (ElectronMain p/98#12). All three would have surfaced in one real PR through every step. TL owned the root cause (p/8#121).
+
+**Root Cause:** A procedure authored from reasoning vs. executed once against the actual repo. Each defect lived in a step's collision with live infra (refspec under detached HEAD; required-checks vs. path-filtering; `gh`'s local checkout under one-branch-per-worktree) — invisible reading the steps, unmissable on a real run. Same verify-the-artifact-not-the-plan discipline the fleet applies to code, applied to process rollout.
+
+**Prevention:**
+1. Before mandating a fleet-standard procedure change, **dry-run it end-to-end** — one real change through EVERY step on the actual repo (real worktree → push → PR → checks → merge → cleanup).
+2. Broadcast AFTER the validation land, citing the validating PR.
+3. If urgency forces broadcasting first, label it PROVISIONAL / pending-validation; don't treat "written" as "validated." (e/49 self-corrected 4× in the hour.)
+4. Genus: a documented procedure is bookkeeping; the validating land is the artifact.
+
+**Status:** Active — TL-owned root cause of the 3 PR-flow defects (self-reported p/8#121). Candidate root-AGENTS.md / DevOps process rule for procedure rollouts. The three defects are recorded individually (refs/heads + `--delete-branch` in build.md; docs-only gate above); this is their common cause.
+
+**Applies To:** Anyone — esp. TL / DevOps — mandating a change to a fleet-standard procedure.
+
+---
+
 ## [Build] Building a Sibling-Worktree Path With `..` Collapses to the Wrong Base
 
 **Pattern:** Constructing a sibling worktree's path as `<repo>/../<sibling>` mis-resolves when `..` is anchored on the wrong segment. `C:/Users/jsnov/repos/../wt-1938b` collapses `repos/..` → `C:/Users/jsnov` → `C:/Users/jsnov/wt-1938b`, but the worktree lives at `C:/Users/jsnov/repos/wt-1938b`, so `cd` fails "No such file or directory" mid-land. The repo dir is `…/repos/ai-triad-research`; a sibling at `…/repos/wt-1938b` is `<repo>/../wt-1938b` (`ai-triad-research/..`), NOT `repos/../wt-1938b`.
@@ -2124,6 +2145,6 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. Treat the "fatal" as post-merge — verify `gh pr view <n> --json state` == `MERGED` (or the SHA on `origin/main`) before reacting; do NOT retry the merge, it landed.
 3. `/land-from-worktree` step 5 should drop `--delete-branch` (or gate it to non-worktree runs) — the skill runs from a worktree by definition. Flagged to TL.
 
-**Status:** Active — defect in the revised `/land-from-worktree` step 5 (e/49 PR-flow). Dangerous: the `fatal` masks a successful merge (retry/panic risk); safe only if the agent verifies `state=MERGED`. Flagged to TL.
+**Status:** **Resolved** — TL fixed step 5 (p/8#121): drops `--delete-branch`, verifies `gh pr view <n> --json state` == `MERGED` (not the exit code), deletes the remote branch by push, + failure-mode note in the skill. Was the dangerous PR-flow variant (fatal → panic-retry → double-land). Root cause folded into the "validate a fleet-standard procedure end-to-end before mandating" process lesson.
 
 **Applies To:** Every worktree PR-flow lander — i.e. everyone using `/land-from-worktree` step 5.

@@ -526,3 +526,24 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 **Status:** Active — **OWNED + fix APPROVED** (TL, e/49#12, ~30 min after first surfaced). TL owns the defect; PowerShell's `ci-gate` aggregate-gate is the approved fix, tracked **t/1962 (DevOps, high)**: PowerShell drafts the job, DevOps lands `ci.yml` + swaps branch-protection to the single `ci-gate` context. **Interim:** the parked PRs (PS2 #128, PowerShell #134) are authorized for `--admin`-merge as the sanctioned **"PR-path-blocked-by-config-defect"** exception (substantive checks green, only path-filtered contexts unsatisfiable — NOT routine bypass); same authorization extends to CL/other docs lands parked until t/1962 — **ping TL, don't bundle with code**. 3 affected roles (PowerShell, CL, Sage). Sage's parked lessons commits are a 3rd instance; **Sage's admin-merge authorization CONFIRMED (e/49#16)** — ping TL to merge any docs-only PR parked on this before t/1962. Interim PRs clearing (#134 admin-merged `c23de7f6`). Note: **t/1961 (TL2) and t/1962 may be dups** for the same structural fix — DevOps/TL to dedup to one (e/49#13); follow whichever survives. Sibling to the `enforce_admins=false` convention lesson.
 
 **Applies To:** Any role landing docs-only or CI-config-only changes to `main` — Sage (lessons/docs), Documentation, DevOps (CI config), anyone editing `AGENTS.md`-adjacent docs.
+
+---
+
+## [Process] Validate a Fleet-Standard Procedure Change End-to-End Before Mandating It (Dry-Run One Real PR Through Every Step)
+
+**Pattern:** A change to a **fleet-standard procedure** (land flow, CI gate, commit convention) that is broadcast and mandated *before* being run end-to-end ships latent defects that every adopter then hits independently. Writing the intended steps ≠ having *executed* them once against the live infrastructure — the gaps live in the **interaction** between the steps and the real repo config (branch protection, path filters, worktree constraints, `gh` behavior), which is invisible on paper and obvious on the first real run.
+
+**Instances:**
+- 2026-07-29 — main → PR-flow rollout (e/49): TL mandated the revised `/land-from-worktree` before an end-to-end validation land. **3 defects surfaced within the hour** as roles adopted it, each caught by a different role mid-land: (1) detached-HEAD push needs `HEAD:refs/heads/<branch>` (ServerAPI p/79#19); (2) docs-only PRs can't self-merge — path-filtered required checks never report → `BLOCKED` (PowerShell/CL/Sage, t/1962); (3) `gh pr merge --delete-branch` from a worktree aborts *after* the merge, masking a landed merge (ElectronMain p/98#12). **All three would have surfaced in a single real PR taken through every step.** TL owned the root cause (p/8#121): "3 PR-flow defects in an hour because I broadcast the procedure before an end-to-end validation land."
+
+**Root Cause:** A procedure authored from reasoning ("these are the steps") vs. one **executed once** against the actual repo. Each defect lived in a step's collision with live infra — the refspec rule under a detached HEAD, required-checks vs. path-filtering, `gh`'s local checkout under the one-branch-per-worktree rule. None are visible reading the steps; each is unmissable on a real run. Same **bookkeeping-≠-artifact / verify-the-artifact-not-the-plan** discipline the fleet applies to code, applied to *process rollout*: a documented procedure is a plan, not evidence it runs.
+
+**Prevention:**
+1. **Before mandating a fleet-standard procedure change, dry-run it end-to-end** — take one real change through EVERY step (real worktree → real push → real PR → real checks → real merge → real cleanup) on the actual repo. The first real run flushes the interaction defects a written procedure can't.
+2. **Broadcast AFTER the validation land, citing the validating PR** — "here's the procedure, and the PR that proves it end-to-end."
+3. **If urgency forces broadcasting first, label it PROVISIONAL / pending-validation** and expect corrections — don't treat "written" as "validated." (The e/49 rollout self-corrected 4× in the hour; a dry-run would have front-loaded that.)
+4. Genus: a documented procedure is bookkeeping; the validating land is the artifact.
+
+**Status:** Active — **TL-owned root cause of the 3 PR-flow defects** (2026-07-29, self-reported p/8#121). Candidate for a root-AGENTS.md / DevOps process rule on fleet-standard procedure rollouts. The three defects are recorded individually (refs/heads push + `--delete-branch` worktree abort in build.md; docs-only gate above); this is their common cause.
+
+**Applies To:** Anyone — especially TL / DevOps — mandating a change to a fleet-standard procedure (land flow, CI gate, branch protection, commit/worktree conventions).

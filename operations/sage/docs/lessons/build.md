@@ -772,7 +772,7 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 2. **Treat the "fatal" as post-merge:** before reacting, verify `gh pr view <n> --json state` == `MERGED` (or the merge SHA on `origin/main`). If merged, **do NOT retry the merge** — it landed; just clean up branches/worktree by hand.
 3. **`/land-from-worktree` step 5 should drop `--delete-branch`** (or gate it to non-worktree runs) — the skill runs *from a worktree* by definition, so its prescribed command self-triggers this. Flagged to the skill owner (TL).
 
-**Status:** Active — **defect in the revised `/land-from-worktree` step 5** (e/49 PR-flow). Dangerous because the `fatal` masks a *successful* merge (retry/panic risk); safe only if the agent verifies `state=MERGED`. Flagged to TL for the step-5 fix.
+**Status:** **Resolved** — TL fixed step 5 (p/8#121): it now **drops `--delete-branch`**, verifies `gh pr view <n> --json state` == `MERGED` (**not the exit code**), and deletes the remote branch by push, with the failure-mode note in the skill. Was the dangerous variant of the PR-flow defects — the `fatal` reads as failure → panic-retry → double-land. Root cause folded into the "validate a fleet-standard procedure end-to-end before mandating" process lesson.
 
 **Applies To:** Every worktree PR-flow lander — i.e. everyone using `/land-from-worktree` step 5.
 

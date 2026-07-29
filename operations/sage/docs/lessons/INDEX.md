@@ -3,7 +3,7 @@
 Institutional memory for failure patterns across the AI Triad Research project.
 Organized by category. Each file contains the full pattern details.
 
-**Last updated:** 2026-07-29 | **Total patterns:** 103 | **Resolved:** 21 | **Active:** 82
+**Last updated:** 2026-07-29 | **Total patterns:** 104 | **Resolved:** 21 | **Active:** 83
 
 ## Summary
 
@@ -13,7 +13,7 @@ Organized by category. Each file contains the full pattern details.
 | PowerShell | [powershell.md](powershell.md) | 7 | 3 | 4 |
 | Data | [data.md](data.md) | 4 | 1 | 3 |
 | Type System | [type-system.md](type-system.md) | 4 | 0 | 4 |
-| Process | [process.md](process.md) | 24 | 7 | 17 |
+| Process | [process.md](process.md) | 25 | 7 | 18 |
 | API | [api.md](api.md) | 3 | 0 | 3 |
 | Design | [design.md](design.md) | 1 | 0 | 1 |
 
@@ -40,6 +40,7 @@ Seven patterns crossed the 3-instance threshold (or were high-severity) and beca
 - **Catch-body extraction trips ADR-003 flight-recorder rule** — 2 instances, 2 roles (t/1848 fan-out), **6+ roles still exposed** → [build.md](build.md) (position-based AST rule: `record()` must stay LITERALLY in the `catch`; fix = keep record inline, extract only the non-recording tail. Self-correcting at lint, not a #82 escalation. **Durable lever TAKEN (TL p/8#116):** fix idiom embedded in the rule's lint message, filed t/1927+t/1928. TE2 broadcast prevention on t/1848#11. **Drift smell:** rule is 2 byte-identical copies (lib + taxonomy-editor) referenced by 3 eslint.config.mjs — TL noted single-shared-rule dedup as separate low-pri follow-up; realized failure would land here if copies ever diverge)
 - **Adding an Nth variant to a shared enum/config touches more than the obvious files** — 1 instance (TL t/1932 Moonshot backend) → [process.md](process.md) (decomposition-completeness + verify-scope: a new backend id broke main in 3 non-adapter coupling sites the DAG missed — keys.ts probe, config.ts Record exhaustiveness (tsc), registry resolver — plus a hand-picked test subset that skipped the broken test. Fix: enumerate the coupling GRAPH not the feature files; run ALL referencing tests; make coupling maps exhaustive so tsc detects them. Durable fix = TL's `/add-ai-backend` checklist playbook. Also refreshed **#90** with the `git push | tail` facet — pipe swallowed a non-ff reject, `&&` teardown stranded the commit)
 - **main PR-flow convention (2026-07-29) — two coupled lessons** → [process.md](process.md) (**A. `enforce_admins=false` ⇒ not a hard block**: direct push to main SUCCEEDS + bypasses checks for admin identities → PR-flow is a TL-enforced CONVENTION, routine direct-push = flagged violation; land via green-PR self-merge; decision = keep convention + tool-layer push-guard t/1926 not `enforce_admins=true`. **B. docs-only PRs can't self-merge**: path-filtered CI leaves required contexts unreported → `mergeStateStatus=BLOCKED`; 3 roles in one hour (PowerShell #134, CL majority-of-lands, Sage lessons-docs); fix APPROVED = always-run aggregate `ci-gate` job as the single required context (t/1962, DevOps high; PowerShell drafts, DevOps lands ci.yml+contexts swap); interim parked PRs admin-merge-authorized as the "PR-path-blocked-by-config-defect" exception, docs need TL `--admin`-merge until it lands. Detached-HEAD push needs `HEAD:refs/heads/<branch>` — build.md)
+- **Validate a fleet-standard procedure end-to-end before mandating it** — 1 compound instance (main PR-flow rollout, e/49) → [process.md](process.md) (**3 defects in one hour** because the revised `/land-from-worktree` was broadcast before a real validation land: refs/heads push, docs-only self-merge gate, `--delete-branch` worktree abort. Fix: dry-run one real PR through EVERY step first; broadcast citing the validating PR; else label PROVISIONAL. TL-owned root cause p/8#121; verify-the-artifact-not-the-plan applied to process rollout)
 - **Push contention (multi-agent)** — 6 instances, 5 agents → [build.md](build.md) (**split by scale:** small commit-to-push contention is self-correcting/not escalating; the LARGE-divergence variant — p/9#36, local 46 ahead/origin 52 ahead — is a push-cadence-ceiling breach that hits out-of-scope conflicts and needs TL/DevOps)
 - **JSON schema assumptions / inspect-before-coding** — 12 instances, 3 agents → [data.md](data.md) (recurring; #82 rule-not-applied offender #5 — RULE-ONLY per t/1810, recording/rule alone isn't preventing it. The PRODUCTION manifestation shipped: extraction cmdlet char-explodes bare-string `aliases` 13/37 records, t/1830 — **in PowerShell** (`Invoke-EntityExtraction`), so the fix is PS-side coerce-at-read (shared helper + Pester fixture), NOT the TS-union strengthening which only covers TS surfaces; p/7#47/#49)
 - **PS strict mode + JSON** — 3 instances → [powershell.md](powershell.md)
