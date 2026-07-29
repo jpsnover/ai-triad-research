@@ -56,19 +56,13 @@ const EDIT_TYPE_LABELS: Record<string, { label: string; color: string }> = {
   deprecate: { label: 'Deprecate', color: '#ef4444' },
 };
 
-function diffWords(oldText: string, newText: string): Array<{ text: string; type: 'same' | 'added' }> {
-  const oldTokens = oldText.split(/(\s+)/);
-  const newTokens = newText.split(/(\s+)/);
-  const m = oldTokens.length, n = newTokens.length;
-  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
-  for (let i = 1; i <= m; i++)
-    for (let j = 1; j <= n; j++)
-      dp[i][j] = oldTokens[i - 1] === newTokens[j - 1]
-        ? dp[i - 1][j - 1] + 1
-        : Math.max(dp[i - 1][j], dp[i][j - 1]);
+type DiffSeg = { text: string; type: 'same' | 'added' };
+type RawDiffSeg = { text: string; type: 'same' | 'added' | 'removed' };
 
-  const raw: Array<{ text: string; type: 'same' | 'added' | 'removed' }> = [];
-  let i = m, j = n;
+/** Walk the LCS dp table back-to-front, producing the raw same/added/removed run (in order). */
+function backtrackWordDiff(oldTokens: string[], newTokens: string[], dp: number[][]): RawDiffSeg[] {
+  const raw: RawDiffSeg[] = [];
+  let i = oldTokens.length, j = newTokens.length;
   while (i > 0 || j > 0) {
     if (i > 0 && j > 0 && oldTokens[i - 1] === newTokens[j - 1]) {
       raw.push({ text: newTokens[j - 1], type: 'same' });
@@ -82,8 +76,12 @@ function diffWords(oldText: string, newText: string): Array<{ text: string; type
     }
   }
   raw.reverse();
+  return raw;
+}
 
-  const merged: Array<{ text: string; type: 'same' | 'added' }> = [];
+/** Drop removed segments and coalesce adjacent same/added runs into display segments. */
+function mergeDiffSegments(raw: RawDiffSeg[]): DiffSeg[] {
+  const merged: DiffSeg[] = [];
   for (const seg of raw) {
     if (seg.type === 'removed') continue;
     const last = merged.length > 0 ? merged[merged.length - 1] : null;
@@ -93,11 +91,610 @@ function diffWords(oldText: string, newText: string): Array<{ text: string; type
   return merged;
 }
 
+function diffWords(oldText: string, newText: string): DiffSeg[] {
+  const oldTokens = oldText.split(/(\s+)/);
+  const newTokens = newText.split(/(\s+)/);
+  const m = oldTokens.length, n = newTokens.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = oldTokens[i - 1] === newTokens[j - 1]
+        ? dp[i - 1][j - 1] + 1
+        : Math.max(dp[i - 1][j], dp[i][j - 1]);
+  return mergeDiffSegments(backtrackWordDiff(oldTokens, newTokens, dp));
+}
+
 const CONFIDENCE_STYLES: Record<string, { label: string; color: string; bg: string }> = {
   high: { label: 'High', color: '#22c55e', bg: '#22c55e22' },
   medium: { label: 'Med', color: '#f59e0b', bg: '#f59e0b22' },
   low: { label: 'Low', color: '#ef4444', bg: '#ef444422' },
 };
+
+// ── EditCard sub-components (t/1848) ──────────────────────────────
+// EditCard was a single 83-complexity component. Its cohesive JSX blocks are
+// extracted here as props-only sub-components (bodies moved verbatim; each owns
+// its own render guard so EditCard's return is branch-free). See ADR-007 split
+// pattern. Types below are derived from the stores so props stay exact.
+type PovKey = 'accelerationist' | 'safetyist' | 'skeptic';
+type EditTypeInfo = { label: string; color: string };
+type AnNode = { id: string; text: string; speaker: string; attribution_text_genus?: string };
+type EnrichStatus = { status: string; error?: string } | undefined;
+type DebateStoreState = ReturnType<typeof useDebateStore.getState>;
+type TaxStoreState = ReturnType<typeof useTaxonomyStore.getState>;
+type DescMode = ReturnType<typeof useDescriptionMode>[0];
+type SetDescMode = ReturnType<typeof useDescriptionMode>[1];
+
+function EditCardHeader({ edit, typeInfo, trackedEnrichNodeId, navigateToNode }: {
+  edit: ReflectionEdit;
+  typeInfo: EditTypeInfo;
+  trackedEnrichNodeId: string | null;
+  navigateToNode: TaxStoreState['navigateToNode'];
+}) {
+  return (
+      <div className="rp-row-header-8-6">
+        <span
+          className="rp-type-badge"
+          /* eslint-disable-next-line local/no-inline-style -- background/color depend on typeInfo.color (per edit_type) */
+          style={{ background: `${typeInfo.color}22`, color: typeInfo.color }}
+        >
+          {typeInfo.label}
+        </span>
+        <span className="rp-text-sm-muted">
+          {edit.category}
+        </span>
+        {edit.node_id && edit.edit_type !== 'add' && (
+          <code className="rp-2xs-muted">{edit.node_id}</code>
+        )}
+        {edit.confidence && CONFIDENCE_STYLES[edit.confidence] && (
+          <span
+            className="rp-confidence-badge"
+            /* eslint-disable-next-line local/no-inline-style -- background/color/border depend on CONFIDENCE_STYLES[edit.confidence] */
+            style={{
+              background: CONFIDENCE_STYLES[edit.confidence].bg,
+              color: CONFIDENCE_STYLES[edit.confidence].color,
+              border: `1px solid ${CONFIDENCE_STYLES[edit.confidence].color}44`,
+            }}
+          >
+            {CONFIDENCE_STYLES[edit.confidence].label}
+          </span>
+        )}
+        {edit.status === 'approved' && (
+          <span className="rp-applied-label">
+            Applied
+            {edit.edit_type === 'add' && trackedEnrichNodeId && (
+              <code
+                className="rp-node-chip-sm"
+                title={`Navigate to ${trackedEnrichNodeId}`}
+                onClick={() => {
+                  const prefix = trackedEnrichNodeId.split('-')[0];
+                  const tab = PREFIX_TO_POV[prefix];
+                  if (tab) navigateToNode(tab, trackedEnrichNodeId);
+                }}
+              >{trackedEnrichNodeId}</code>
+            )}
+          </span>
+        )}
+        {edit.status === 'dismissed' && (
+          <span className="rp-dismissed-label">Dismissed</span>
+        )}
+      </div>
+  );
+}
+
+function EditCardLabelRow({ editing, edit, editedLabel, setEditedLabel, resolved, setEditing }: {
+  editing: boolean;
+  edit: ReflectionEdit;
+  editedLabel: string;
+  setEditedLabel: React.Dispatch<React.SetStateAction<string>>;
+  resolved: boolean;
+  setEditing: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
+  return (
+      <div className="rp-label-row">
+        {editing ? (
+          <>
+            {edit.current_label && (
+              <span className="rp-strike-muted">{edit.current_label}{' → '}</span>
+            )}
+            <input
+              type="text"
+              value={editedLabel}
+              onChange={e => setEditedLabel(e.target.value)}
+              className="rp-label-input"
+            />
+          </>
+        ) : edit.current_label && edit.current_label !== edit.proposed_label ? (
+          <>
+            <span className="rp-strike-muted">{edit.current_label}</span>
+            {' → '}
+            <span
+              className="rp-editable-label"
+              /* eslint-disable-next-line local/no-inline-style -- cursor/border-bottom toggle on whether the edit is still resolvable */
+              style={{ cursor: resolved ? undefined : 'pointer', borderBottom: resolved ? undefined : '1px dashed var(--text-muted)' }}
+              title={resolved ? undefined : 'Click to edit label'}
+              onClick={resolved ? undefined : () => setEditing(true)}
+            >{editedLabel}</span>
+          </>
+        ) : (
+          <span
+            className="rp-editable-label"
+            /* eslint-disable-next-line local/no-inline-style -- cursor/border-bottom toggle on whether the edit is still resolvable */
+            style={{ cursor: resolved ? undefined : 'pointer', borderBottom: resolved ? undefined : '1px dashed var(--text-muted)' }}
+            title={resolved ? undefined : 'Click to edit label'}
+            onClick={resolved ? undefined : () => setEditing(true)}
+          >{editedLabel}</span>
+        )}
+      </div>
+  );
+}
+
+function EditCardCurrentDesc({ edit, currentNode, descMode, setDescMode }: {
+  edit: ReflectionEdit;
+  currentNode: unknown;
+  descMode: DescMode;
+  setDescMode: SetDescMode;
+}) {
+  if (!(edit.current_description && edit.edit_type !== 'add' && edit.current_description !== edit.proposed_description)) return null;
+  const resolved_desc = resolveDescription(
+    currentNode ? { description: edit.current_description, plain_description: (currentNode as { plain_description?: string | null }).plain_description } : { description: edit.current_description },
+    descMode,
+  );
+  return (
+    <div className="rp-current-desc-box">
+      <div className="rp-row-6-2">
+        <span className="rp-label-current">CURRENT</span>
+        <DescriptionToggle
+          mode={descMode}
+          onToggle={setDescMode}
+          hasPlainDescription={!!(currentNode as { plain_description?: string | null } | null)?.plain_description}
+        />
+      </div>
+      {resolved_desc.isGenerating && (
+        <div className="rp-generating-note">
+          Plain description generating…
+        </div>
+      )}
+      {resolved_desc.text}
+    </div>
+  );
+}
+
+/** Review-mode content for an 'add' proposal: plain preview (with loading/error/retry) or formal fallback. */
+function EditCardAddPlainContent({ edit, descMode, plainLoading, plainError, plainPreview, runPlainPreview }: {
+  edit: ReflectionEdit;
+  descMode: DescMode;
+  plainLoading: boolean;
+  plainError: boolean;
+  plainPreview: string | null;
+  runPlainPreview: () => Promise<void>;
+}) {
+  if (!(descMode === 'plain' && edit.edit_type === 'add')) return <>{edit.proposed_description}</>;
+  if (plainLoading) return <span className="rp-muted-italic">Generating plain description…</span>;
+  if (plainError) {
+    return (
+      <>
+        <div className="rp-plain-error-row">
+          <span>{'⚠'} Couldn&apos;t generate a plain description. Showing formal:</span>
+          <button
+            className="btn btn-sm rp-retry-btn"
+            onClick={() => { void runPlainPreview(); }}
+          >Retry</button>
+        </div>
+        {edit.proposed_description}
+      </>
+    );
+  }
+  return <>{plainPreview ?? edit.proposed_description}</>;
+}
+
+function EditCardProposedBox({ edit, descMode, setDescMode, setEditing, resolved, plainLoading, plainError, plainPreview, runPlainPreview }: {
+  edit: ReflectionEdit;
+  descMode: DescMode;
+  setDescMode: SetDescMode;
+  setEditing: React.Dispatch<React.SetStateAction<boolean>>;
+  resolved: boolean;
+  plainLoading: boolean;
+  plainError: boolean;
+  plainPreview: string | null;
+  runPlainPreview: () => Promise<void>;
+}) {
+  return (
+        <div
+          className="rp-proposed-box"
+          /* eslint-disable-next-line local/no-inline-style -- border-left only shown when there is a current-vs-proposed diff to highlight */
+          style={{ borderLeft: edit.current_description && edit.edit_type !== 'add' ? '3px solid rgba(34,197,94,0.3)' : undefined }}
+        >
+          {edit.current_description && edit.edit_type !== 'add' && edit.current_description !== edit.proposed_description ? (
+            <>
+              <div className="rp-row-6-2">
+                <span className="rp-label-proposed">PROPOSED</span>
+                {!resolved && (
+                  <button
+                    className="btn btn-sm btn-ghost rp-edit-btn"
+                    onClick={() => setEditing(true)}
+                  >&#9998; Edit</button>
+                )}
+              </div>
+              {descMode === 'formal' ? diffWords(edit.current_description, edit.proposed_description).map((seg, i) =>
+                seg.type === 'added'
+                  ? <mark key={i} className="rp-diff-added">{seg.text}</mark>
+                  : <span key={i}>{seg.text}</span>
+              ) : edit.proposed_description}
+            </>
+          ) : (
+            <>
+              {!resolved && edit.proposed_description && (
+                <div className="rp-row-6-2">
+                  {edit.edit_type === 'add' && (
+                    <DescriptionToggle
+                      mode={descMode}
+                      onToggle={setDescMode}
+                      hasPlainDescription={!!plainPreview}
+                    />
+                  )}
+                  <span className="rp-flex-1" />
+                  <button
+                    className="btn btn-sm btn-ghost rp-edit-btn-sm"
+                    onClick={() => setEditing(true)}
+                  >&#9998; Edit</button>
+                </div>
+              )}
+              <EditCardAddPlainContent edit={edit} descMode={descMode} plainLoading={plainLoading} plainError={plainError} plainPreview={plainPreview} runPlainPreview={runPlainPreview} />
+            </>
+          )}
+        </div>
+  );
+}
+
+function EditCardDescription({ edit, currentNode, descMode, setDescMode, editing, setEditing, editedDescription, setEditedDescription, isModified, resolved, plainLoading, plainError, plainPreview, runPlainPreview }: {
+  edit: ReflectionEdit;
+  currentNode: unknown;
+  descMode: DescMode;
+  setDescMode: SetDescMode;
+  editing: boolean;
+  setEditing: React.Dispatch<React.SetStateAction<boolean>>;
+  editedDescription: string;
+  setEditedDescription: React.Dispatch<React.SetStateAction<string>>;
+  isModified: boolean;
+  resolved: boolean;
+  plainLoading: boolean;
+  plainError: boolean;
+  plainPreview: string | null;
+  runPlainPreview: () => Promise<void>;
+}) {
+  return (
+    <>
+      {/* Description diff */}
+      <EditCardCurrentDesc edit={edit} currentNode={currentNode} descMode={descMode} setDescMode={setDescMode} />
+
+      {editing ? (
+        /* Edit mode — editable textarea with blue EDITED styling */
+        <div className="rp-edit-box">
+          <div className="rp-row-6-2">
+            <span className="rp-label-edited">EDITED</span>
+            {isModified && (
+              <span className="rp-modified-badge">Modified</span>
+            )}
+          </div>
+          <textarea
+            value={editedDescription}
+            onChange={e => setEditedDescription(e.target.value)}
+            className="rp-edit-textarea"
+          />
+        </div>
+      ) : (
+        /* Review mode — diff-highlighted PROPOSED */
+        <EditCardProposedBox
+          edit={edit}
+          descMode={descMode}
+          setDescMode={setDescMode}
+          setEditing={setEditing}
+          resolved={resolved}
+          plainLoading={plainLoading}
+          plainError={plainError}
+          plainPreview={plainPreview}
+          runPlainPreview={runPlainPreview}
+        />
+      )}
+    </>
+  );
+}
+
+function EditCardCompliance({ complianceViolations, complianceErrors, complianceWarnings }: {
+  complianceViolations: ComplianceViolation[];
+  complianceErrors: ComplianceViolation[];
+  complianceWarnings: ComplianceViolation[];
+}) {
+  return (
+    <>
+      {/* DOLCE compliance */}
+      {complianceViolations.length > 0 && (
+        <div
+          className="rp-compliance-box"
+          /* eslint-disable-next-line local/no-inline-style -- background/border-left color depend on whether any violations are errors */
+          style={{
+            background: complianceErrors.length > 0 ? 'rgba(239,68,68,0.06)' : 'rgba(245,158,11,0.06)',
+            borderLeft: `3px solid ${complianceErrors.length > 0 ? 'rgba(239,68,68,0.4)' : 'rgba(245,158,11,0.4)'}`,
+          }}
+        >
+          <div
+            className="rp-compliance-header"
+            /* eslint-disable-next-line local/no-inline-style -- text color depends on whether any violations are errors */
+            style={{ color: complianceErrors.length > 0 ? '#ef4444' : '#f59e0b' }}
+          >
+            DOLCE Compliance ({complianceErrors.length} error{complianceErrors.length !== 1 ? 's' : ''}, {complianceWarnings.length} warning{complianceWarnings.length !== 1 ? 's' : ''})
+          </div>
+          {complianceViolations.map((v, i) => (
+            <div key={i} className="rp-violation-row">
+              <span
+                className="rp-violation-icon"
+                /* eslint-disable-next-line local/no-inline-style -- icon color depends on this violation's severity */
+                style={{ color: v.severity === 'error' ? '#ef4444' : '#f59e0b' }}
+              >
+                {v.severity === 'error' ? '✗' : '⚠'}
+              </span>
+              <span className="rp-muted-text">
+                <strong>{v.rule}</strong>: {v.message}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      {complianceViolations.length === 0 && (
+        <div className="rp-compliant-ok">
+          {'✓'} DOLCE compliant
+        </div>
+      )}
+    </>
+  );
+}
+
+function EditCardEvidence({ edit, expandedEvidence, setExpandedEvidence, anNodes }: {
+  edit: ReflectionEdit;
+  expandedEvidence: Set<string>;
+  setExpandedEvidence: React.Dispatch<React.SetStateAction<Set<string>>>;
+  anNodes: AnNode[];
+}) {
+  if (!edit.evidence_entries || edit.evidence_entries.length === 0) return null;
+  return (
+        <div className="rp-evidence-label">
+          <div>Evidence: {edit.evidence_entries.map((e, i) => (
+            <button
+              key={i}
+              className="btn btn-sm btn-ghost rp-evidence-btn"
+              /* eslint-disable-next-line local/no-inline-style -- background/color/text-decoration depend on whether this entry is expanded */
+              style={{
+                '--rp-evidence-bg': expandedEvidence.has(e) ? 'var(--color-acc, #3b82f6)' : 'var(--bg-secondary)',
+                '--rp-evidence-color': expandedEvidence.has(e) ? '#fff' : 'var(--color-acc, #3b82f6)',
+                '--rp-evidence-decoration': expandedEvidence.has(e) ? 'none' : 'underline',
+              } as React.CSSProperties}
+              title={expandedEvidence.has(e) ? `Hide ${e} text` : `Show ${e} text (Shift+click to scroll)`}
+              onClick={(ev) => {
+                if (ev.shiftKey) { scrollToEvidence(e); return; }
+                setExpandedEvidence(prev => {
+                  const next = new Set(prev);
+                  if (next.has(e)) next.delete(e); else next.add(e);
+                  return next;
+                });
+              }}
+            >{e}</button>
+          ))}</div>
+          {edit.evidence_entries.filter(e => expandedEvidence.has(e)).map(e => {
+            const node = anNodes.find(n => n.id === e);
+            if (!node) return null;
+            return (
+              <div key={e} className="rp-evidence-card">
+                <span className="rp-evidence-id">{e}</span>
+                <span className="rp-evidence-speaker">({node.speaker})</span>
+                {node.text}
+                {node.attribution_text_genus && <div className="claim-attribution-text"><span className="claim-attribution-label">Attribution:</span>{node.attribution_text_genus}</div>}
+              </div>
+            );
+          })}
+        </div>
+  );
+}
+
+function EditCardRegenerateToggle({ showRegenerateToggle, regeneratePhrases, setRegeneratePhrases }: {
+  showRegenerateToggle: boolean;
+  regeneratePhrases: boolean;
+  setRegeneratePhrases: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
+  if (!showRegenerateToggle) return null;
+  return (
+        <label className="rp-regenerate-label">
+          <input
+            type="checkbox"
+            checked={regeneratePhrases}
+            onChange={e => setRegeneratePhrases(e.target.checked)}
+            className="rp-no-margin"
+          />
+          Regenerate phrases & embeddings
+        </label>
+  );
+}
+
+function EditCardActions({ resolved, editing, isModified, applying, editType, setApplying, setApplyError, setTrackedEnrichNodeId, applyReflectionEdit, editedLabel, editedDescription, regeneratePhrases, pover, editIndex, handleReset, handleCancel, dismissReflectionEdit }: {
+  resolved: boolean;
+  editing: boolean;
+  isModified: boolean;
+  applying: boolean;
+  editType: string;
+  setApplying: React.Dispatch<React.SetStateAction<boolean>>;
+  setApplyError: React.Dispatch<React.SetStateAction<string | null>>;
+  setTrackedEnrichNodeId: React.Dispatch<React.SetStateAction<string | null>>;
+  applyReflectionEdit: DebateStoreState['applyReflectionEdit'];
+  editedLabel: string;
+  editedDescription: string;
+  regeneratePhrases: boolean;
+  pover: string;
+  editIndex: number;
+  handleReset: () => void;
+  handleCancel: () => void;
+  dismissReflectionEdit: DebateStoreState['dismissReflectionEdit'];
+}) {
+  if (resolved) return null;
+  const isEmpty = editing && (
+    (editType === 'add' && !editedLabel.trim()) || !editedDescription.trim()
+  );
+  return (
+        <div className="rp-actions-row">
+          <button
+            className="btn btn-primary rp-btn-approve"
+            disabled={isEmpty || applying}
+            onClick={async () => {
+              setApplying(true);
+              setApplyError(null);
+              try {
+                const result = await applyReflectionEdit(pover, editIndex,
+                  editing && isModified ? { label: editedLabel, description: editedDescription } : undefined,
+                  { regeneratePhrases },
+                );
+                if (!result.ok) {
+                  setApplyError(result.error ?? 'Save failed — check SaveBar for details');
+                } else if (result.enrichNodeId) {
+                  setTrackedEnrichNodeId(result.enrichNodeId);
+                }
+              } catch (err) {
+                getGlobalRecorder()?.record({ type: 'system.error', component: 'reflections-panel', level: 'error', message: 'reflection edit apply failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+                setApplyError(String(err));
+              } finally {
+                setApplying(false);
+              }
+            }}
+          >
+            {applying ? 'Saving…' : 'Approve & Apply'}
+          </button>
+          {editing && isModified && (
+            <button
+              className="btn rp-btn-sm"
+              onClick={handleReset}
+            >
+              Reset
+            </button>
+          )}
+          {editing && (
+            <button
+              className="btn rp-btn-sm"
+              onClick={handleCancel}
+            >
+              Cancel
+            </button>
+          )}
+          <button
+            className="btn rp-btn-sm"
+            onClick={() => dismissReflectionEdit(pover, editIndex)}
+          >
+            Dismiss
+          </button>
+        </div>
+  );
+}
+
+function EditCardEnrichmentStatus({ enrichStatus, edit, trackedEnrichNodeId, navigateToNode, enrichNodeId, clearEnrichmentStatus, retryEnrichment, pover }: {
+  enrichStatus: EnrichStatus;
+  edit: ReflectionEdit;
+  trackedEnrichNodeId: string | null;
+  navigateToNode: TaxStoreState['navigateToNode'];
+  enrichNodeId: string | null;
+  clearEnrichmentStatus: DebateStoreState['clearEnrichmentStatus'];
+  retryEnrichment: DebateStoreState['retryEnrichment'];
+  pover: string;
+}) {
+  return (
+    <>
+      {/* Enrichment status indicator */}
+      {enrichStatus?.status === 'pending' && (
+        <div className="rp-enrich-pending">
+          <span className="rp-pulse-icon">{'⧗'}</span>
+          Enriching node — generating attributes & phrases…
+        </div>
+      )}
+      {enrichStatus?.status === 'success' && (
+        <div className="rp-enrich-success">
+          <span className="rp-row-6">
+            {'✓'} Phrases regenerated successfully
+            {edit.edit_type === 'add' && trackedEnrichNodeId && (
+              <code
+                className="rp-node-chip-lg"
+                title={`Navigate to ${trackedEnrichNodeId}`}
+                onClick={() => {
+                  const prefix = trackedEnrichNodeId.split('-')[0];
+                  const tab = PREFIX_TO_POV[prefix];
+                  if (tab) navigateToNode(tab, trackedEnrichNodeId);
+                }}
+              >{trackedEnrichNodeId}</code>
+            )}
+          </span>
+          <button
+            className="btn btn-sm btn-ghost rp-clear-btn"
+            onClick={() => enrichNodeId && clearEnrichmentStatus(enrichNodeId)}
+          >{'✕'}</button>
+        </div>
+      )}
+      {enrichStatus?.status === 'error' && (
+        <div className="rp-enrich-error">
+          <div className="rp-row-between">
+            <span>{'✗'} Enrichment failed: {enrichStatus.error}</span>
+            <button
+              className="btn btn-sm rp-retry-btn-inline"
+              onClick={() => {
+                if (!enrichNodeId) return;
+                const povKey = pover as 'accelerationist' | 'safetyist' | 'skeptic';
+                void retryEnrichment(enrichNodeId, povKey);
+              }}
+            >Retry</button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function EditCardApplyError({ applyError, isIntegrityError, fixing, setFixing, retryReflectionEditAfterFix, setApplyError, pover, editIndex }: {
+  applyError: string | null;
+  isIntegrityError: boolean;
+  fixing: boolean;
+  setFixing: React.Dispatch<React.SetStateAction<boolean>>;
+  retryReflectionEditAfterFix: DebateStoreState['retryReflectionEditAfterFix'];
+  setApplyError: React.Dispatch<React.SetStateAction<string | null>>;
+  pover: string;
+  editIndex: number;
+}) {
+  if (!applyError) return null;
+  return (
+        <div className="rp-apply-error">
+          <div>{applyError}</div>
+          {isIntegrityError && (
+            <div className="rp-fixit-row">
+              <button
+                className="btn btn-sm rp-fixit-btn"
+                disabled={fixing}
+                title="Remove the dangling references blocking this save, then retry"
+                onClick={async () => {
+                  setFixing(true);
+                  try {
+                    const result = await retryReflectionEditAfterFix(pover, editIndex);
+                    if (result.ok) setApplyError(null);
+                    else setApplyError(result.error ?? 'Fix failed — check SaveBar for details');
+                  } catch (err) {
+                    getGlobalRecorder()?.record({ type: 'system.error', component: 'reflections-panel', level: 'error', message: 'fix-it retry failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+                    setApplyError(String(err));
+                  } finally {
+                    setFixing(false);
+                  }
+                }}
+              >
+                {fixing ? 'Fixing…' : 'Fix it'}
+              </button>
+              <span className="rp-2xs-muted">
+                Removes edges that point to nonexistent nodes, then saves.
+              </span>
+            </div>
+          )}
+        </div>
+  );
+}
 
 function EditCard({ edit, pover, editIndex }: {
   edit: ReflectionEdit;
@@ -201,432 +798,85 @@ function EditCard({ edit, pover, editIndex }: {
     setEditing(false);
   };
 
-  const isEmpty = editing && (
-    (edit.edit_type === 'add' && !editedLabel.trim()) || !editedDescription.trim()
-  );
-
   return (
     <div
       className="rp-card"
       /* eslint-disable-next-line local/no-inline-style -- border/bg/opacity depend on resolved + typeInfo.color, passed as CSS custom properties */
       style={{ '--rp-border': resolved ? 'var(--border-color)' : typeInfo.color, '--rp-bg': resolved ? 'var(--bg-secondary)' : 'var(--bg-primary)', '--rp-opacity': resolved ? 0.6 : 1 } as React.CSSProperties}
     >
-      <div className="rp-row-header-8-6">
-        <span
-          className="rp-type-badge"
-          /* eslint-disable-next-line local/no-inline-style -- background/color depend on typeInfo.color (per edit_type) */
-          style={{ background: `${typeInfo.color}22`, color: typeInfo.color }}
-        >
-          {typeInfo.label}
-        </span>
-        <span className="rp-text-sm-muted">
-          {edit.category}
-        </span>
-        {edit.node_id && edit.edit_type !== 'add' && (
-          <code className="rp-2xs-muted">{edit.node_id}</code>
-        )}
-        {edit.confidence && CONFIDENCE_STYLES[edit.confidence] && (
-          <span
-            className="rp-confidence-badge"
-            /* eslint-disable-next-line local/no-inline-style -- background/color/border depend on CONFIDENCE_STYLES[edit.confidence] */
-            style={{
-              background: CONFIDENCE_STYLES[edit.confidence].bg,
-              color: CONFIDENCE_STYLES[edit.confidence].color,
-              border: `1px solid ${CONFIDENCE_STYLES[edit.confidence].color}44`,
-            }}
-          >
-            {CONFIDENCE_STYLES[edit.confidence].label}
-          </span>
-        )}
-        {edit.status === 'approved' && (
-          <span className="rp-applied-label">
-            Applied
-            {edit.edit_type === 'add' && trackedEnrichNodeId && (
-              <code
-                className="rp-node-chip-sm"
-                title={`Navigate to ${trackedEnrichNodeId}`}
-                onClick={() => {
-                  const prefix = trackedEnrichNodeId.split('-')[0];
-                  const tab = PREFIX_TO_POV[prefix];
-                  if (tab) navigateToNode(tab, trackedEnrichNodeId);
-                }}
-              >{trackedEnrichNodeId}</code>
-            )}
-          </span>
-        )}
-        {edit.status === 'dismissed' && (
-          <span className="rp-dismissed-label">Dismissed</span>
-        )}
-      </div>
+      <EditCardHeader edit={edit} typeInfo={typeInfo} trackedEnrichNodeId={trackedEnrichNodeId} navigateToNode={navigateToNode} />
 
-      {/* Label change */}
-      <div className="rp-label-row">
-        {editing ? (
-          <>
-            {edit.current_label && (
-              <span className="rp-strike-muted">{edit.current_label}{' → '}</span>
-            )}
-            <input
-              type="text"
-              value={editedLabel}
-              onChange={e => setEditedLabel(e.target.value)}
-              className="rp-label-input"
-            />
-          </>
-        ) : edit.current_label && edit.current_label !== edit.proposed_label ? (
-          <>
-            <span className="rp-strike-muted">{edit.current_label}</span>
-            {' → '}
-            <span
-              className="rp-editable-label"
-              /* eslint-disable-next-line local/no-inline-style -- cursor/border-bottom toggle on whether the edit is still resolvable */
-              style={{ cursor: resolved ? undefined : 'pointer', borderBottom: resolved ? undefined : '1px dashed var(--text-muted)' }}
-              title={resolved ? undefined : 'Click to edit label'}
-              onClick={resolved ? undefined : () => setEditing(true)}
-            >{editedLabel}</span>
-          </>
-        ) : (
-          <span
-            className="rp-editable-label"
-            /* eslint-disable-next-line local/no-inline-style -- cursor/border-bottom toggle on whether the edit is still resolvable */
-            style={{ cursor: resolved ? undefined : 'pointer', borderBottom: resolved ? undefined : '1px dashed var(--text-muted)' }}
-            title={resolved ? undefined : 'Click to edit label'}
-            onClick={resolved ? undefined : () => setEditing(true)}
-          >{editedLabel}</span>
-        )}
-      </div>
+      <EditCardLabelRow editing={editing} edit={edit} editedLabel={editedLabel} setEditedLabel={setEditedLabel} resolved={resolved} setEditing={setEditing} />
 
-      {/* Description diff */}
-      {edit.current_description && edit.edit_type !== 'add' && edit.current_description !== edit.proposed_description && (() => {
-        const resolved_desc = resolveDescription(
-          currentNode ? { description: edit.current_description, plain_description: (currentNode as { plain_description?: string | null }).plain_description } : { description: edit.current_description },
-          descMode,
-        );
-        return (
-          <div className="rp-current-desc-box">
-            <div className="rp-row-6-2">
-              <span className="rp-label-current">CURRENT</span>
-              <DescriptionToggle
-                mode={descMode}
-                onToggle={setDescMode}
-                hasPlainDescription={!!(currentNode as { plain_description?: string | null } | null)?.plain_description}
-              />
-            </div>
-            {resolved_desc.isGenerating && (
-              <div className="rp-generating-note">
-                Plain description generating…
-              </div>
-            )}
-            {resolved_desc.text}
-          </div>
-        );
-      })()}
+      <EditCardDescription
+        edit={edit}
+        currentNode={currentNode}
+        descMode={descMode}
+        setDescMode={setDescMode}
+        editing={editing}
+        setEditing={setEditing}
+        editedDescription={editedDescription}
+        setEditedDescription={setEditedDescription}
+        isModified={isModified}
+        resolved={resolved}
+        plainLoading={plainLoading}
+        plainError={plainError}
+        plainPreview={plainPreview}
+        runPlainPreview={runPlainPreview}
+      />
 
-      {editing ? (
-        /* Edit mode — editable textarea with blue EDITED styling */
-        <div className="rp-edit-box">
-          <div className="rp-row-6-2">
-            <span className="rp-label-edited">EDITED</span>
-            {isModified && (
-              <span className="rp-modified-badge">Modified</span>
-            )}
-          </div>
-          <textarea
-            value={editedDescription}
-            onChange={e => setEditedDescription(e.target.value)}
-            className="rp-edit-textarea"
-          />
-        </div>
-      ) : (
-        /* Review mode — diff-highlighted PROPOSED */
-        <div
-          className="rp-proposed-box"
-          /* eslint-disable-next-line local/no-inline-style -- border-left only shown when there is a current-vs-proposed diff to highlight */
-          style={{ borderLeft: edit.current_description && edit.edit_type !== 'add' ? '3px solid rgba(34,197,94,0.3)' : undefined }}
-        >
-          {edit.current_description && edit.edit_type !== 'add' && edit.current_description !== edit.proposed_description ? (
-            <>
-              <div className="rp-row-6-2">
-                <span className="rp-label-proposed">PROPOSED</span>
-                {!resolved && (
-                  <button
-                    className="btn btn-sm btn-ghost rp-edit-btn"
-                    onClick={() => setEditing(true)}
-                  >&#9998; Edit</button>
-                )}
-              </div>
-              {descMode === 'formal' ? diffWords(edit.current_description, edit.proposed_description).map((seg, i) =>
-                seg.type === 'added'
-                  ? <mark key={i} className="rp-diff-added">{seg.text}</mark>
-                  : <span key={i}>{seg.text}</span>
-              ) : edit.proposed_description}
-            </>
-          ) : (
-            <>
-              {!resolved && edit.proposed_description && (
-                <div className="rp-row-6-2">
-                  {edit.edit_type === 'add' && (
-                    <DescriptionToggle
-                      mode={descMode}
-                      onToggle={setDescMode}
-                      hasPlainDescription={!!plainPreview}
-                    />
-                  )}
-                  <span className="rp-flex-1" />
-                  <button
-                    className="btn btn-sm btn-ghost rp-edit-btn-sm"
-                    onClick={() => setEditing(true)}
-                  >&#9998; Edit</button>
-                </div>
-              )}
-              {descMode === 'plain' && edit.edit_type === 'add' ? (
-                plainLoading
-                  ? <span className="rp-muted-italic">Generating plain description…</span>
-                  : plainError
-                    ? (
-                      <>
-                        <div className="rp-plain-error-row">
-                          <span>{'⚠'} Couldn&apos;t generate a plain description. Showing formal:</span>
-                          <button
-                            className="btn btn-sm rp-retry-btn"
-                            onClick={() => { void runPlainPreview(); }}
-                          >Retry</button>
-                        </div>
-                        {edit.proposed_description}
-                      </>
-                    )
-                    : (plainPreview ?? edit.proposed_description)
-              ) : edit.proposed_description}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* DOLCE compliance */}
-      {complianceViolations.length > 0 && (
-        <div
-          className="rp-compliance-box"
-          /* eslint-disable-next-line local/no-inline-style -- background/border-left color depend on whether any violations are errors */
-          style={{
-            background: complianceErrors.length > 0 ? 'rgba(239,68,68,0.06)' : 'rgba(245,158,11,0.06)',
-            borderLeft: `3px solid ${complianceErrors.length > 0 ? 'rgba(239,68,68,0.4)' : 'rgba(245,158,11,0.4)'}`,
-          }}
-        >
-          <div
-            className="rp-compliance-header"
-            /* eslint-disable-next-line local/no-inline-style -- text color depends on whether any violations are errors */
-            style={{ color: complianceErrors.length > 0 ? '#ef4444' : '#f59e0b' }}
-          >
-            DOLCE Compliance ({complianceErrors.length} error{complianceErrors.length !== 1 ? 's' : ''}, {complianceWarnings.length} warning{complianceWarnings.length !== 1 ? 's' : ''})
-          </div>
-          {complianceViolations.map((v, i) => (
-            <div key={i} className="rp-violation-row">
-              <span
-                className="rp-violation-icon"
-                /* eslint-disable-next-line local/no-inline-style -- icon color depends on this violation's severity */
-                style={{ color: v.severity === 'error' ? '#ef4444' : '#f59e0b' }}
-              >
-                {v.severity === 'error' ? '✗' : '⚠'}
-              </span>
-              <span className="rp-muted-text">
-                <strong>{v.rule}</strong>: {v.message}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-      {complianceViolations.length === 0 && (
-        <div className="rp-compliant-ok">
-          {'✓'} DOLCE compliant
-        </div>
-      )}
+      <EditCardCompliance complianceViolations={complianceViolations} complianceErrors={complianceErrors} complianceWarnings={complianceWarnings} />
 
       {/* Rationale */}
       <div className="rp-rationale">
         {edit.rationale}
       </div>
 
-      {/* Evidence entries */}
-      {edit.evidence_entries && edit.evidence_entries.length > 0 && (
-        <div className="rp-evidence-label">
-          <div>Evidence: {edit.evidence_entries.map((e, i) => (
-            <button
-              key={i}
-              className="btn btn-sm btn-ghost rp-evidence-btn"
-              /* eslint-disable-next-line local/no-inline-style -- background/color/text-decoration depend on whether this entry is expanded */
-              style={{
-                '--rp-evidence-bg': expandedEvidence.has(e) ? 'var(--color-acc, #3b82f6)' : 'var(--bg-secondary)',
-                '--rp-evidence-color': expandedEvidence.has(e) ? '#fff' : 'var(--color-acc, #3b82f6)',
-                '--rp-evidence-decoration': expandedEvidence.has(e) ? 'none' : 'underline',
-              } as React.CSSProperties}
-              title={expandedEvidence.has(e) ? `Hide ${e} text` : `Show ${e} text (Shift+click to scroll)`}
-              onClick={(ev) => {
-                if (ev.shiftKey) { scrollToEvidence(e); return; }
-                setExpandedEvidence(prev => {
-                  const next = new Set(prev);
-                  if (next.has(e)) next.delete(e); else next.add(e);
-                  return next;
-                });
-              }}
-            >{e}</button>
-          ))}</div>
-          {edit.evidence_entries.filter(e => expandedEvidence.has(e)).map(e => {
-            const node = anNodes.find(n => n.id === e);
-            if (!node) return null;
-            return (
-              <div key={e} className="rp-evidence-card">
-                <span className="rp-evidence-id">{e}</span>
-                <span className="rp-evidence-speaker">({node.speaker})</span>
-                {node.text}
-                {node.attribution_text_genus && <div className="claim-attribution-text"><span className="claim-attribution-label">Attribution:</span>{node.attribution_text_genus}</div>}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <EditCardEvidence edit={edit} expandedEvidence={expandedEvidence} setExpandedEvidence={setExpandedEvidence} anNodes={anNodes} />
 
-      {/* Regenerate phrases toggle — revise/qualify only */}
-      {showRegenerateToggle && (
-        <label className="rp-regenerate-label">
-          <input
-            type="checkbox"
-            checked={regeneratePhrases}
-            onChange={e => setRegeneratePhrases(e.target.checked)}
-            className="rp-no-margin"
-          />
-          Regenerate phrases & embeddings
-        </label>
-      )}
+      <EditCardRegenerateToggle showRegenerateToggle={showRegenerateToggle} regeneratePhrases={regeneratePhrases} setRegeneratePhrases={setRegeneratePhrases} />
 
-      {/* Actions */}
-      {!resolved && (
-        <div className="rp-actions-row">
-          <button
-            className="btn btn-primary rp-btn-approve"
-            disabled={isEmpty || applying}
-            onClick={async () => {
-              setApplying(true);
-              setApplyError(null);
-              try {
-                const result = await applyReflectionEdit(pover, editIndex,
-                  editing && isModified ? { label: editedLabel, description: editedDescription } : undefined,
-                  { regeneratePhrases },
-                );
-                if (!result.ok) {
-                  setApplyError(result.error ?? 'Save failed — check SaveBar for details');
-                } else if (result.enrichNodeId) {
-                  setTrackedEnrichNodeId(result.enrichNodeId);
-                }
-              } catch (err) {
-                getGlobalRecorder()?.record({ type: 'system.error', component: 'reflections-panel', level: 'error', message: 'reflection edit apply failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-                setApplyError(String(err));
-              } finally {
-                setApplying(false);
-              }
-            }}
-          >
-            {applying ? 'Saving…' : 'Approve & Apply'}
-          </button>
-          {editing && isModified && (
-            <button
-              className="btn rp-btn-sm"
-              onClick={handleReset}
-            >
-              Reset
-            </button>
-          )}
-          {editing && (
-            <button
-              className="btn rp-btn-sm"
-              onClick={handleCancel}
-            >
-              Cancel
-            </button>
-          )}
-          <button
-            className="btn rp-btn-sm"
-            onClick={() => dismissReflectionEdit(pover, editIndex)}
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-      {/* Enrichment status indicator */}
-      {enrichStatus?.status === 'pending' && (
-        <div className="rp-enrich-pending">
-          <span className="rp-pulse-icon">{'⧗'}</span>
-          Enriching node — generating attributes & phrases…
-        </div>
-      )}
-      {enrichStatus?.status === 'success' && (
-        <div className="rp-enrich-success">
-          <span className="rp-row-6">
-            {'✓'} Phrases regenerated successfully
-            {edit.edit_type === 'add' && trackedEnrichNodeId && (
-              <code
-                className="rp-node-chip-lg"
-                title={`Navigate to ${trackedEnrichNodeId}`}
-                onClick={() => {
-                  const prefix = trackedEnrichNodeId.split('-')[0];
-                  const tab = PREFIX_TO_POV[prefix];
-                  if (tab) navigateToNode(tab, trackedEnrichNodeId);
-                }}
-              >{trackedEnrichNodeId}</code>
-            )}
-          </span>
-          <button
-            className="btn btn-sm btn-ghost rp-clear-btn"
-            onClick={() => enrichNodeId && clearEnrichmentStatus(enrichNodeId)}
-          >{'✕'}</button>
-        </div>
-      )}
-      {enrichStatus?.status === 'error' && (
-        <div className="rp-enrich-error">
-          <div className="rp-row-between">
-            <span>{'✗'} Enrichment failed: {enrichStatus.error}</span>
-            <button
-              className="btn btn-sm rp-retry-btn-inline"
-              onClick={() => {
-                if (!enrichNodeId) return;
-                const povKey = pover as 'accelerationist' | 'safetyist' | 'skeptic';
-                void retryEnrichment(enrichNodeId, povKey);
-              }}
-            >Retry</button>
-          </div>
-        </div>
-      )}
-      {applyError && (
-        <div className="rp-apply-error">
-          <div>{applyError}</div>
-          {isIntegrityError && (
-            <div className="rp-fixit-row">
-              <button
-                className="btn btn-sm rp-fixit-btn"
-                disabled={fixing}
-                title="Remove the dangling references blocking this save, then retry"
-                onClick={async () => {
-                  setFixing(true);
-                  try {
-                    const result = await retryReflectionEditAfterFix(pover, editIndex);
-                    if (result.ok) setApplyError(null);
-                    else setApplyError(result.error ?? 'Fix failed — check SaveBar for details');
-                  } catch (err) {
-                    getGlobalRecorder()?.record({ type: 'system.error', component: 'reflections-panel', level: 'error', message: 'fix-it retry failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-                    setApplyError(String(err));
-                  } finally {
-                    setFixing(false);
-                  }
-                }}
-              >
-                {fixing ? 'Fixing…' : 'Fix it'}
-              </button>
-              <span className="rp-2xs-muted">
-                Removes edges that point to nonexistent nodes, then saves.
-              </span>
-            </div>
-          )}
-        </div>
-      )}
+      <EditCardActions
+        resolved={resolved}
+        editing={editing}
+        isModified={isModified}
+        applying={applying}
+        editType={edit.edit_type}
+        setApplying={setApplying}
+        setApplyError={setApplyError}
+        setTrackedEnrichNodeId={setTrackedEnrichNodeId}
+        applyReflectionEdit={applyReflectionEdit}
+        editedLabel={editedLabel}
+        editedDescription={editedDescription}
+        regeneratePhrases={regeneratePhrases}
+        pover={pover}
+        editIndex={editIndex}
+        handleReset={handleReset}
+        handleCancel={handleCancel}
+        dismissReflectionEdit={dismissReflectionEdit}
+      />
+
+      <EditCardEnrichmentStatus
+        enrichStatus={enrichStatus}
+        edit={edit}
+        trackedEnrichNodeId={trackedEnrichNodeId}
+        navigateToNode={navigateToNode}
+        enrichNodeId={enrichNodeId}
+        clearEnrichmentStatus={clearEnrichmentStatus}
+        retryEnrichment={retryEnrichment}
+        pover={pover}
+      />
+
+      <EditCardApplyError
+        applyError={applyError}
+        isIntegrityError={isIntegrityError}
+        fixing={fixing}
+        setFixing={setFixing}
+        retryReflectionEditAfterFix={retryReflectionEditAfterFix}
+        setApplyError={setApplyError}
+        pover={pover}
+        editIndex={editIndex}
+      />
     </div>
   );
 }
