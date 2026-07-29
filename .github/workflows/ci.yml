@@ -31,6 +31,16 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # ── changes: paths-filter that gates which code jobs run per PR ────────────
+  # LOAD-BEARING for branch protection (t/1962). `ci-gate` (below) treats a
+  # SKIPPED gated job as satisfied — which is only sound *because this filter is
+  # sound*. If a filter here is too narrow, a code change can skip a job it
+  # should run, and ci-gate would false-green it through the required check.
+  # `ci-gate` guards this by keeping `changes` in its `needs` and failing the
+  # gate if `changes` itself fails/cancels — but a WRONG-BUT-GREEN filter is not
+  # caught. Any edit to these filters must preserve: every code path maps to the
+  # job(s) that test it, and every filter includes '.github/workflows/ci.yml' so
+  # ci.yml edits run the full suite.
   changes:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -540,3 +550,32 @@ jobs:
       - name: Cleanup
         if: always()
         run: docker rm -f smoke-test || true
+
+  # ── ci-gate: the SINGLE required status context (t/1962) ──────────────────
+  # Replaces the 6 individual code-check contexts in branch protection. Those get
+  # SKIPPED by path-filtering on non-electron PRs (docs-only, PS-only); a skipped
+  # required context never reports `success`, so `strict` protection blocked those
+  # PRs permanently (#128, #134). This job always runs and fails only if a gated
+  # job FAILED or was CANCELLED (skipped = OK) — so docs/PS-only PRs self-merge
+  # while a red code job still blocks. No enforce_admins change.
+  #
+  # `changes` is in `needs` DELIBERATELY (t/1962 #1/#4/#5): "skipped = OK" is only
+  # sound because the path-filter is sound, so a FAILED `changes` job — which would
+  # wrongly SKIP the code jobs — must fail the gate too, else untested code
+  # false-greens. Scope = exact parity with the pre-t/1962 required-6 (the 3 code
+  # job IDs); lib-lint / dependency-audit / schema-validation are intentionally NOT
+  # gated here (not required contexts today — separate decision). Add future
+  # *required* jobs to `needs`; their path-filtered skips report OK.
+  ci-gate:
+    name: ci-gate
+    needs: [changes, test-powershell, test-electron, test-container]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report gated job results
+        run: echo "gated results -> ${{ join(needs.*.result, ' ') }}"
+      - name: Block on any failed/cancelled gated job
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "::error::ci-gate: a gated job did not pass (see results above)"
+          exit 1
