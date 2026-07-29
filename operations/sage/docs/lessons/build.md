@@ -701,6 +701,25 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 
 ---
 
+## [Build] Building a Sibling-Worktree Path With `..` Collapses to the Wrong Base
+
+**Pattern:** Constructing a sibling worktree's path as `<repo>/../<sibling>` mis-resolves when the `..` is anchored on the wrong segment. `C:/Users/jsnov/repos/../wt-1938b` collapses `repos/..` → `C:/Users/jsnov`, yielding `C:/Users/jsnov/wt-1938b` — but the worktree lives at `C:/Users/jsnov/repos/wt-1938b`, so `cd` fails "No such file or directory" mid-land. The repo dir is `…/repos/ai-triad-research`; a sibling worktree at `…/repos/wt-1938b` is `<repo>/../wt-1938b` (i.e. `ai-triad-research/..`), NOT `repos/../wt-1938b`.
+
+**Instances:**
+- 2026-07-29 — PowerShell 2 (p/228#8, t/1938 land): `cd "C:/Users/jsnov/repos/../wt-1938b"` failed — the `..` cancelled `repos` (wrong base) instead of the repo dir. Resolved by using the full absolute sibling path with no `..` segments.
+
+**Root Cause:** `..` is resolved lexically against the *immediately preceding* path segment, not against "the repo." When the path is assembled by string-concatenating a base that ends at a different depth than intended, one stray `..` silently retargets to a valid-looking but wrong directory. Worktree lands are especially exposed because the sibling sits one level up from the repo dir but two levels up from `repos/`.
+
+**Prevention:**
+1. **For sibling worktrees, write the absolute path directly — no `..` segments:** `C:/Users/jsnov/repos/wt-1938b`, not `<repo>/../wt-1938b`.
+2. If you must build it relative, anchor `..` on the **repo dir** (`ai-triad-research/..`), and verify the resolved path (`realpath` / `Resolve-Path`) before `cd`.
+
+**Status:** Resolved — self-correcting (the bad `cd` errors immediately). Single instance; recorded because worktree lands routinely reference sibling paths and the `..`-collapse is a silent retarget, not an obvious typo.
+
+**Applies To:** Any agent building sibling-worktree paths during a `/land-from-worktree` or manual worktree operation.
+
+---
+
 ## [Build] Vitest Dynamic Import Misses Exports From vi.mock Factory
 
 **Pattern:** Using `await import()` on a module that has a `vi.mock` registration only sees exports defined in the mock factory — not the real module's exports. Missing exports throw "No X export on mock" at runtime, not at compile time.

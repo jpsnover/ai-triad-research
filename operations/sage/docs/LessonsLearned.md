@@ -2006,3 +2006,22 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — decomposition-completeness (coupling graph vs feature files) + verify-scope (all referencing tests vs subset). TL self-reported (t/1932#1); durable fix = `/add-ai-backend` playbook (being filed). Watch the same shape on other shared enums (POV camps `acc/saf/skp/cc`, BDI categories, `pol-*` registry).
 
 **Applies To:** Any role decomposing/landing a change that adds a member to a shared enumeration/config consumed across multiple files or scopes.
+
+---
+
+## [Build] Building a Sibling-Worktree Path With `..` Collapses to the Wrong Base
+
+**Pattern:** Constructing a sibling worktree's path as `<repo>/../<sibling>` mis-resolves when `..` is anchored on the wrong segment. `C:/Users/jsnov/repos/../wt-1938b` collapses `repos/..` → `C:/Users/jsnov` → `C:/Users/jsnov/wt-1938b`, but the worktree lives at `C:/Users/jsnov/repos/wt-1938b`, so `cd` fails "No such file or directory" mid-land. The repo dir is `…/repos/ai-triad-research`; a sibling at `…/repos/wt-1938b` is `<repo>/../wt-1938b` (`ai-triad-research/..`), NOT `repos/../wt-1938b`.
+
+**Instances:**
+- 2026-07-29 — PowerShell 2 (p/228#8, t/1938 land): `cd "C:/Users/jsnov/repos/../wt-1938b"` failed — `..` cancelled `repos` (wrong base). Resolved with the full absolute sibling path, no `..`.
+
+**Root Cause:** `..` resolves lexically against the immediately preceding segment, not "the repo." A base assembled to a different depth than intended lets one stray `..` silently retarget to a valid-looking wrong directory. Worktree lands are exposed because the sibling sits one level up from the repo dir but two up from `repos/`.
+
+**Prevention:**
+1. For sibling worktrees, write the absolute path directly — no `..` segments.
+2. If building relative, anchor `..` on the repo dir (`ai-triad-research/..`) and verify with `realpath`/`Resolve-Path` before `cd`.
+
+**Status:** Resolved — self-correcting (bad `cd` errors immediately). Single instance; recorded because worktree lands routinely reference sibling paths and the `..`-collapse is a silent retarget.
+
+**Applies To:** Any agent building sibling-worktree paths during `/land-from-worktree` or manual worktree ops.
