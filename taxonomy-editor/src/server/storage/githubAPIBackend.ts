@@ -523,16 +523,7 @@ export class GitHubAPIBackend implements StorageBackend {
         seen.add(rest.split('/')[0]);
       }
     } else if (!(this.rest.isTripped())) {
-      const creds = await this.getCredsCached();
-      if (creds) {
-        const ref = opts?.ref ?? this.getEffectiveRef();
-        const qRef = ref === 'main' ? '' : `?ref=${encodeURIComponent(ref)}`;
-        const resp = await this.rest.request(creds, 'GET',
-          `/repos/${creds.repo}/contents/${repoPath}${qRef}`);
-        if (resp.ok && Array.isArray(resp.data)) {
-          for (const e of resp.data as Array<{ name: string }>) seen.add(e.name);
-        }
-      }
+      await this.fetchDirectoryFromAPI(repoPath, opts, seen);
     }
 
     // Merge the session overlay so files written this session are visible and
@@ -542,6 +533,21 @@ export class GitHubAPIBackend implements StorageBackend {
     this.mergeOverlayIntoListing(prefix, seen);
 
     return [...seen];
+  }
+
+  private async fetchDirectoryFromAPI(
+    repoPath: string, opts: { ref?: string } | undefined, seen: Set<string>,
+  ): Promise<void> {
+    const creds = await this.getCredsCached();
+    if (creds) {
+      const ref = opts?.ref ?? this.getEffectiveRef();
+      const qRef = ref === 'main' ? '' : `?ref=${encodeURIComponent(ref)}`;
+      const resp = await this.rest.request(creds, 'GET',
+        `/repos/${creds.repo}/contents/${repoPath}${qRef}`);
+      if (resp.ok && Array.isArray(resp.data)) {
+        for (const e of resp.data as Array<{ name: string }>) seen.add(e.name);
+      }
+    }
   }
 
   /**
