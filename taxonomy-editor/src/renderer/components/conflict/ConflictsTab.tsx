@@ -238,150 +238,55 @@ export function ConflictsTab() {
 
   return (
     <div className={`two-column${isPhone ? ' phone-mode' : ''}${isPhone && selectedNodeId && !toolbarPanel ? ' has-selection' : ''}`}>
-      {fullWidth ? (
-        <div className="list-panel list-panel-full">
-          {isPhone && <PhoneToolClose />}
-          <ToolbarPaneRenderer
-            panel={toolbarPanel}
-            onSelectResult={setSearchPreviewId}
-            onSelectLineageValue={setLineagePreviewValue}
-            onSelectFallacy={setSelectedFallacyKey}
-            onSelectPrompt={setSelectedPromptEntry}
-            onInspectorToggle={setPromptInspectorActive}
-          />
-        </div>
-      ) : toolbarPanel ? (
-        <div className="list-panel" style={{ width }}>
-          {isPhone && <PhoneToolClose />}
-          <ToolbarPaneRenderer
-            panel={toolbarPanel}
-            onSelectResult={setSearchPreviewId}
-            onSelectLineageValue={setLineagePreviewValue}
-            onSelectFallacy={setSelectedFallacyKey}
-            onSelectPrompt={setSelectedPromptEntry}
-            onInspectorToggle={setPromptInspectorActive}
-          />
-        </div>
-      ) : listCollapsed ? (
-        <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
-          <span className="pane-collapsed-label">Conflicts</span>
-        </div>
-      ) : (
-        <div className="list-panel" style={{ width }}>
-          <div className="list-panel-header">
-            <h2>Conflicts</h2>
-            <div className="list-panel-header-actions">
-              <button className="btn btn-sm" onClick={() => setShowNew(true)}>
-                + New
-              </button>
-              <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
-            </div>
-          </div>
-          <div className="list-panel-items">
-            {displayClusters.map((cluster) => {
-              const isCollapsed = collapsedClusters.has(cluster.label);
-              return (
-                <div key={cluster.label} className="category-group cluster-group">
-                  <div
-                    className="category-label cluster-label"
-                    onClick={() => toggleCluster(cluster.label)}
-                    style={{ cursor: 'pointer', userSelect: 'none' }}
-                  >
-                    <span className={`category-toggle ${isCollapsed ? 'collapsed' : ''}`}>&#9660;</span>
-                    {cluster.label} <span className="category-count">({cluster.nodeIds.length})</span>
-                  </div>
-                  {!isCollapsed && cluster.nodeIds.map((id) => {
-                    const conflict = conflicts.find(c => c.claim_id === id);
-                    if (!conflict) return null;
-                    return (
-                      <ConflictListItem
-                        key={conflict.claim_id}
-                        claimId={conflict.claim_id}
-                        label={conflict.claim_label}
-                        status={conflict.status}
-                        isSelected={selectedNodeId === conflict.claim_id}
-                        onSelect={setSelectedNodeId}
-                      />
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <ConflictListColumn
+        fullWidth={fullWidth}
+        isPhone={isPhone}
+        toolbarPanel={toolbarPanel}
+        width={width}
+        listCollapsed={listCollapsed}
+        setListCollapsed={setListCollapsed}
+        setShowNew={setShowNew}
+        setSearchPreviewId={setSearchPreviewId}
+        setLineagePreviewValue={setLineagePreviewValue}
+        setSelectedFallacyKey={setSelectedFallacyKey}
+        setSelectedPromptEntry={setSelectedPromptEntry}
+        setPromptInspectorActive={setPromptInspectorActive}
+        displayClusters={displayClusters}
+        collapsedClusters={collapsedClusters}
+        toggleCluster={toggleCluster}
+        conflicts={conflicts}
+        selectedNodeId={selectedNodeId}
+        setSelectedNodeId={setSelectedNodeId}
+      />
       {!fullWidth && (
         <div className="resize-handle" onMouseDown={onMouseDown} />
       )}
-      {fullWidth ? null : toolbarPanel === 'search' ? (
-        <div className="detail-panel">
-          <SearchPreview searchPreviewId={searchPreviewId} onClear={() => setSearchPreviewId(null)} />
-        </div>
-      ) : (toolbarPanel === 'prompts' && !promptInspectorActive) ? (
-        <div className="detail-panel">
-          <PromptDetailPanel entry={selectedPromptEntry} />
-        </div>
-      ) : toolbarPanel === 'lineage' ? (
-        <div className="detail-panel">
-          {renderLineagePreview()}
-        </div>
-      ) : toolbarPanel === 'fallacy' ? (
-        <div className="detail-panel">
-          <FallacyDetailPanel fallacyKey={selectedFallacyKey} />
-        </div>
-      ) : detailCollapsed ? (
-        <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand detail">
-          <span className="pane-collapsed-label">Detail</span>
-        </div>
-      ) : (
-        <div className="detail-panel">
-          {isPhone && selectedNodeId ? (
-            <div className="phone-detail-header">
-              <button className="phone-detail-back" onClick={() => setSelectedNodeId('')}>
-                &larr; Conflicts
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-              <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
-            </div>
-          )}
-          {selectedConflict ? (
-            <ConflictDetail conflict={selectedConflict} onPin={handlePin} />
-          ) : (
-            <div className="detail-panel-empty">Select a conflict to edit</div>
-          )}
-        </div>
-      )}
+      <ConflictDetailColumn
+        fullWidth={fullWidth}
+        toolbarPanel={toolbarPanel}
+        promptInspectorActive={promptInspectorActive}
+        searchPreviewId={searchPreviewId}
+        setSearchPreviewId={setSearchPreviewId}
+        selectedPromptEntry={selectedPromptEntry}
+        renderLineagePreview={renderLineagePreview}
+        selectedFallacyKey={selectedFallacyKey}
+        detailCollapsed={detailCollapsed}
+        setDetailCollapsed={setDetailCollapsed}
+        isPhone={isPhone}
+        selectedNodeId={selectedNodeId}
+        setSelectedNodeId={setSelectedNodeId}
+        selectedConflict={selectedConflict}
+        onPin={handlePin}
+      />
       {pinnedStack.length > 0 && <PinnedPanel />}
 
-      {showNew && (
-        <div className="dialog-overlay" onClick={() => setShowNew(false)}>
-          <div className="dialog" onClick={(e) => e.stopPropagation()}>
-            <h3>New Conflict</h3>
-            <div className="form-group">
-              <label>Claim Label</label>
-              <input
-                type="text"
-                value={newLabel}
-                onChange={(e) => setNewLabel(e.target.value)}
-                placeholder="e.g., AGI Timeline Estimates"
-                autoFocus
-              />
-            </div>
-            <div className="dialog-actions">
-              <button className="btn" onClick={() => setShowNew(false)}>Cancel</button>
-              <button
-                className="btn btn-primary"
-                onClick={handleCreate}
-                disabled={!newLabel.trim()}
-              >
-                Create
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <NewConflictDialog
+        show={showNew}
+        newLabel={newLabel}
+        setNewLabel={setNewLabel}
+        onCreate={handleCreate}
+        onClose={() => setShowNew(false)}
+      />
     </div>
   );
 }
@@ -421,6 +326,268 @@ function ConflictListItem({ claimId, label, status, isSelected, onSelect }: {
         <span style={{ marginLeft: 8, color: status === 'open' ? 'var(--color-skp)' : 'var(--text-muted)' }}>
           [{status}]
         </span>
+      </div>
+    </div>
+  );
+}
+
+type StoreState = ReturnType<typeof useTaxonomyStore.getState>;
+type DisplayCluster = { label: string; nodeIds: string[] };
+
+interface ConflictListColumnProps {
+  fullWidth: boolean;
+  isPhone: boolean;
+  toolbarPanel: StoreState['toolbarPanel'];
+  width: ReturnType<typeof useResizablePanel>['width'];
+  listCollapsed: boolean;
+  setListCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowNew: React.Dispatch<React.SetStateAction<boolean>>;
+  setSearchPreviewId: React.Dispatch<React.SetStateAction<string | null>>;
+  setLineagePreviewValue: React.Dispatch<React.SetStateAction<string | null>>;
+  setSelectedFallacyKey: React.Dispatch<React.SetStateAction<string | null>>;
+  setSelectedPromptEntry: React.Dispatch<React.SetStateAction<PromptCatalogEntry | null>>;
+  setPromptInspectorActive: React.Dispatch<React.SetStateAction<boolean>>;
+  displayClusters: DisplayCluster[];
+  collapsedClusters: Set<string>;
+  toggleCluster: (key: string) => void;
+  conflicts: StoreState['conflicts'];
+  selectedNodeId: StoreState['selectedNodeId'];
+  setSelectedNodeId: StoreState['setSelectedNodeId'];
+}
+
+/** Left column — toolbar panes / collapsed rail / the clustered conflict list. */
+function ConflictListColumn({
+  fullWidth,
+  isPhone,
+  toolbarPanel,
+  width,
+  listCollapsed,
+  setListCollapsed,
+  setShowNew,
+  setSearchPreviewId,
+  setLineagePreviewValue,
+  setSelectedFallacyKey,
+  setSelectedPromptEntry,
+  setPromptInspectorActive,
+  displayClusters,
+  collapsedClusters,
+  toggleCluster,
+  conflicts,
+  selectedNodeId,
+  setSelectedNodeId,
+}: ConflictListColumnProps) {
+  if (fullWidth) {
+    return (
+      <div className="list-panel list-panel-full">
+        {isPhone && <PhoneToolClose />}
+        <ToolbarPaneRenderer
+          panel={toolbarPanel}
+          onSelectResult={setSearchPreviewId}
+          onSelectLineageValue={setLineagePreviewValue}
+          onSelectFallacy={setSelectedFallacyKey}
+          onSelectPrompt={setSelectedPromptEntry}
+          onInspectorToggle={setPromptInspectorActive}
+        />
+      </div>
+    );
+  }
+  if (toolbarPanel) {
+    return (
+      <div className="list-panel" style={{ width }}>
+        {isPhone && <PhoneToolClose />}
+        <ToolbarPaneRenderer
+          panel={toolbarPanel}
+          onSelectResult={setSearchPreviewId}
+          onSelectLineageValue={setLineagePreviewValue}
+          onSelectFallacy={setSelectedFallacyKey}
+          onSelectPrompt={setSelectedPromptEntry}
+          onInspectorToggle={setPromptInspectorActive}
+        />
+      </div>
+    );
+  }
+  if (listCollapsed) {
+    return (
+      <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
+        <span className="pane-collapsed-label">Conflicts</span>
+      </div>
+    );
+  }
+  return (
+    <div className="list-panel" style={{ width }}>
+      <div className="list-panel-header">
+        <h2>Conflicts</h2>
+        <div className="list-panel-header-actions">
+          <button className="btn btn-sm" onClick={() => setShowNew(true)}>
+            + New
+          </button>
+          <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
+        </div>
+      </div>
+      <div className="list-panel-items">
+        {displayClusters.map((cluster) => {
+          const isCollapsed = collapsedClusters.has(cluster.label);
+          return (
+            <div key={cluster.label} className="category-group cluster-group">
+              <div
+                className="category-label cluster-label"
+                onClick={() => toggleCluster(cluster.label)}
+                style={{ cursor: 'pointer', userSelect: 'none' }}
+              >
+                <span className={`category-toggle ${isCollapsed ? 'collapsed' : ''}`}>&#9660;</span>
+                {cluster.label} <span className="category-count">({cluster.nodeIds.length})</span>
+              </div>
+              {!isCollapsed && cluster.nodeIds.map((id) => {
+                const conflict = conflicts.find(c => c.claim_id === id);
+                if (!conflict) return null;
+                return (
+                  <ConflictListItem
+                    key={conflict.claim_id}
+                    claimId={conflict.claim_id}
+                    label={conflict.claim_label}
+                    status={conflict.status}
+                    isSelected={selectedNodeId === conflict.claim_id}
+                    onSelect={setSelectedNodeId}
+                  />
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+interface ConflictDetailColumnProps {
+  fullWidth: boolean;
+  toolbarPanel: StoreState['toolbarPanel'];
+  promptInspectorActive: boolean;
+  searchPreviewId: string | null;
+  setSearchPreviewId: React.Dispatch<React.SetStateAction<string | null>>;
+  selectedPromptEntry: PromptCatalogEntry | null;
+  renderLineagePreview: () => React.ReactNode;
+  selectedFallacyKey: string | null;
+  detailCollapsed: boolean;
+  setDetailCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+  isPhone: boolean;
+  selectedNodeId: StoreState['selectedNodeId'];
+  setSelectedNodeId: StoreState['setSelectedNodeId'];
+  selectedConflict: StoreState['conflicts'][number] | null;
+  onPin: () => void;
+}
+
+/** Right column — toolbar-pane detail / collapsed rail / the selected conflict editor. */
+function ConflictDetailColumn({
+  fullWidth,
+  toolbarPanel,
+  promptInspectorActive,
+  searchPreviewId,
+  setSearchPreviewId,
+  selectedPromptEntry,
+  renderLineagePreview,
+  selectedFallacyKey,
+  detailCollapsed,
+  setDetailCollapsed,
+  isPhone,
+  selectedNodeId,
+  setSelectedNodeId,
+  selectedConflict,
+  onPin,
+}: ConflictDetailColumnProps) {
+  if (fullWidth) return null;
+  if (toolbarPanel === 'search') {
+    return (
+      <div className="detail-panel">
+        <SearchPreview searchPreviewId={searchPreviewId} onClear={() => setSearchPreviewId(null)} />
+      </div>
+    );
+  }
+  if (toolbarPanel === 'prompts' && !promptInspectorActive) {
+    return (
+      <div className="detail-panel">
+        <PromptDetailPanel entry={selectedPromptEntry} />
+      </div>
+    );
+  }
+  if (toolbarPanel === 'lineage') {
+    return (
+      <div className="detail-panel">
+        {renderLineagePreview()}
+      </div>
+    );
+  }
+  if (toolbarPanel === 'fallacy') {
+    return (
+      <div className="detail-panel">
+        <FallacyDetailPanel fallacyKey={selectedFallacyKey} />
+      </div>
+    );
+  }
+  if (detailCollapsed) {
+    return (
+      <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand detail">
+        <span className="pane-collapsed-label">Detail</span>
+      </div>
+    );
+  }
+  return (
+    <div className="detail-panel">
+      {isPhone && selectedNodeId ? (
+        <div className="phone-detail-header">
+          <button className="phone-detail-back" onClick={() => setSelectedNodeId('')}>
+            &larr; Conflicts
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+          <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
+        </div>
+      )}
+      {selectedConflict ? (
+        <ConflictDetail conflict={selectedConflict} onPin={onPin} />
+      ) : (
+        <div className="detail-panel-empty">Select a conflict to edit</div>
+      )}
+    </div>
+  );
+}
+
+interface NewConflictDialogProps {
+  show: boolean;
+  newLabel: string;
+  setNewLabel: React.Dispatch<React.SetStateAction<string>>;
+  onCreate: () => void;
+  onClose: () => void;
+}
+
+/** Modal for creating a new conflict from a claim label. */
+function NewConflictDialog({ show, newLabel, setNewLabel, onCreate, onClose }: NewConflictDialogProps) {
+  if (!show) return null;
+  return (
+    <div className="dialog-overlay" onClick={onClose}>
+      <div className="dialog" onClick={(e) => e.stopPropagation()}>
+        <h3>New Conflict</h3>
+        <div className="form-group">
+          <label>Claim Label</label>
+          <input
+            type="text"
+            value={newLabel}
+            onChange={(e) => setNewLabel(e.target.value)}
+            placeholder="e.g., AGI Timeline Estimates"
+            autoFocus
+          />
+        </div>
+        <div className="dialog-actions">
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button
+            className="btn btn-primary"
+            onClick={onCreate}
+            disabled={!newLabel.trim()}
+          >
+            Create
+          </button>
+        </div>
       </div>
     </div>
   );
