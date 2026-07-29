@@ -45,7 +45,23 @@ export function serializeEdgesJson(data: unknown): string {
     } else {
       // Pretty-print at 2 spaces, then re-indent one level so continuation lines
       // sit inside the root object. The first line stays inline after the key.
-      const pretty = JSON.stringify(value, null, 2).replace(/\n/g, '\n  ');
+      // `JSON.stringify` returns `undefined` (not a string) for an undefined value;
+      // guard so a stray undefined-valued key surfaces as an ActionableError instead
+      // of a bare TypeError from `.replace`. Unreachable via JSON.parse (JSON has no
+      // undefined), but this is a shared util two writers call with in-memory objects.
+      const serialized = JSON.stringify(value, null, 2);
+      if (serialized === undefined) {
+        throw new ActionableError({
+          goal: 'Serialize edges.json in the hybrid format',
+          problem: `Top-level key ${JSON.stringify(key)} has an undefined value, which has no JSON representation`,
+          location: 'lib/edges/serializeEdges.ts serializeEdgesJson',
+          nextSteps: [
+            `Remove the ${JSON.stringify(key)} key or give it a JSON value (string, number, boolean, null, array, or object)`,
+            'See docs/edges-json-format.md — every top-level value must be JSON-serializable',
+          ],
+        });
+      }
+      const pretty = serialized.replace(/\n/g, '\n  ');
       parts.push(`  ${JSON.stringify(key)}: ${pretty}`);
     }
   }

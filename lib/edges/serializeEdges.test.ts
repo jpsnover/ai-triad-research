@@ -69,4 +69,8 @@ describe('serializeEdgesJson', () => {
     expect(() => serializeEdgesJson(null)).toThrow(/top-level object/);
     expect(() => serializeEdgesJson('nope')).toThrow(/top-level object/);
   });
+
+  it('throws an ActionableError (not a bare TypeError) on a top-level undefined value', () => {
+    expect(() => serializeEdgesJson({ a: 1, bad: undefined, edges: [] })).toThrow(/undefined value/);
+  });
 });
