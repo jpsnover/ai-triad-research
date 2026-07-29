@@ -20,6 +20,7 @@ import { registerApiKeyHandlers } from './ipc/apiKeyHandlers.js';
 import { registerDataRepoHandlers } from './ipc/dataRepoHandlers.js';
 import { registerOrganizationHandlers } from './ipc/organizationHandlers.js';
 import { registerEntityHandlers } from './ipc/entityHandlers.js';
+import { registerMentionHandlers } from './ipc/mentionHandlers.js';
 import { registerFlightRecorderHandlers } from './ipc/flightRecorderHandlers.js';
 import { registerCommunityHandlers } from './ipc/communityHandlers.js';
 import { registerSystemHandlers } from './ipc/systemHandlers.js';
@@ -34,6 +35,7 @@ export function registerIpcHandlers(): void {
   registerDataRepoHandlers();
   registerOrganizationHandlers();
   registerEntityHandlers();
+  registerMentionHandlers();
   registerFlightRecorderHandlers();
   registerCommunityHandlers();
   registerSystemHandlers();

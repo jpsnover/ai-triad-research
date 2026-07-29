@@ -436,6 +436,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listEntities: (query?: unknown): Promise<unknown[]> =>
     ipcRenderer.invoke('list-entities', query),
 
+  // Container mentions (t/1903) — desktop transport for getContainerMentions.
+  // Returns ContainerMentions | null; strongly typed on the renderer side (electron.d.ts).
+  getContainerMentions: (containerId: string): Promise<unknown> =>
+    ipcRenderer.invoke('get-container-mentions', containerId),
+
   loadDebateComments: (debateId: string): Promise<unknown> =>
     ipcRenderer.invoke('load-debate-comments', debateId),
 

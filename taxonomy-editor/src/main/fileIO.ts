@@ -12,6 +12,7 @@ import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { parseNpy, extractNodeVectors } from '../../../lib/npy.js';
 import { resolveRepoRootForApp } from '../../../lib/electron-shared/resolveRepoRootForApp.js';
 import type { Entity } from '../../../lib/entities/types.js';
+import type { ContainerMentions, EntityMentionsFile } from '../../../lib/entities/mentionTypes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -723,6 +724,32 @@ export function readEntities(): Entity[] {
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     return [];
+  }
+}
+
+/**
+ * Read the extracted entity mentions for one container from entity_mentions.json in
+ * the active taxonomy dir — the desktop mirror of the server's readContainerMentions
+ * (t/1903 mention read path). entity_mentions.json is a DERIVED, rebuildable artifact:
+ * an absent file OR an absent container both mean "no links yet", never an error → null.
+ * A malformed file also degrades to null (recording the recovery per ADR-003) so mention
+ * rendering never crashes.
+ */
+export function readContainerMentions(containerId: string): ContainerMentions | null {
+  const mentionsPath = path.join(activeTaxonomyDir, 'entity_mentions.json');
+  if (!fs.existsSync(mentionsPath)) return null;
+  try {
+    const file = parseJsonFile(mentionsPath) as EntityMentionsFile | null;
+    return file?.containers?.[containerId] ?? null;
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'main-file-io',
+      level: 'warn',
+      message: 'readContainerMentions: entity_mentions.json could not be parsed; returning null',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return null;
   }
 }
 
