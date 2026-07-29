@@ -26,6 +26,40 @@
 // already the basis D1's resolver and indexer B use for alias normalization, so this
 // is consistent, not a new axis.) Consumers to hold to it: C (t/1895) re-hashes the
 // NFC-canonical entry text; E (t/1898) NFC-canonicalizes before applying `offset`.
+//
+// ── CONTAINER-ID REGISTRY (one source of truth — producers mint, consumers parse) ─
+// Every ContainerId is a self-describing, prefix-namespaced key, so a consumer routes
+// by prefix and never sniffs the payload (Main-TL ratified, t/1894#7):
+//   sei:<sei_key>            Curated fact bucket. <sei_key> = the source_evidence_index.json
+//                            top-level key (a POV node id, e.g. "acc-desires-001").
+//   node:<node_id>           Curated POV/situation node bucket. <node_id> = the node id.
+//   <debate_id>#<entry_id>   Live debate turn (§5, Phase 2b) — one bucket per turn. Reserved
+//                            for the live-extraction path; not produced by the batch re-index.
+//
+// ── CONTAINER-TEXT RECONSTRUCTION (C and E MUST reproduce this byte-identically) ───
+// Rebuild the container text from source, then NFC-canonicalize the WHOLE string last
+// (Geometry Invariant above): text_sha256 is over that NFC string, offset indexes into
+// it, quote is its case-preserved slice. Per kind:
+//   sei:   join each facts[].claim, in array order, with a single LF (U+000A).
+//   node:  join label, description, plain_description — IN THAT FIXED ORDER — with a
+//          blank line (two LF, U+000A U+000A).
+// Byte-layout rules, all load-bearing (one divergence breaks text_sha256 → the
+// supersession guard false-fires and drops every patch):
+//   • An absent/empty field is OMITTED ENTIRELY — no empty segment, no doubled or
+//     hanging delimiter.
+//   • JOIN, not terminate-each: NO trailing delimiter.
+//   • Element order is source order (facts[] as stored; each POV node is its own container).
+//   • NEVER whitespace-collapse the container text — collapse is a matching-only step
+//     (normalizeName) and must never touch the offset/hash basis.
+//
+// ── PRODUCER SCAN CONVENTION (shared by every scanner: batch re-index B + Phase 2b live) ─
+// Alias-table keys and candidate spans are both normalized via normalizeName()
+// (nameResolver.ts: NFC → lowercase → collapse the pinned whitespace set → trim). In free
+// text, candidate spans are delimited by (?<!\w)…(?!\w) word boundaries on the NFC+lowercased
+// text (so "Apollo" does not match inside "Apollonian"; internal '-'/digits in names like
+// "GPT-4o" are literals, bounded only at the ends). Overlaps resolve longest-most-specific
+// (ties: length desc, offset asc, entity_ref asc). Consumers (C read path) parse produced
+// mentions and never re-scan.
 
 import type { EntityRef } from './types.js';
 
