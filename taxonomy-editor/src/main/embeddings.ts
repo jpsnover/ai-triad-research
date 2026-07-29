@@ -201,54 +201,55 @@ function stripExcludes(text: string): string {
  * Re-embed a set of nodes via local Python and update embeddings.json.
  * Runs asynchronously — caller can fire-and-forget.
  */
+/** Compute embeddings for a batch of {id,text} items — ONNX native batch when the model
+ *  is warmed up, else the Python subprocess. Extracted + deduped from updateNodeEmbeddings's
+ *  two identical main/exclusion compute blocks (t/1914 complexity split). */
+async function embedItems(items: { id: string; text: string }[]): Promise<Record<string, number[]>> {
+  if (_onnxReady) {
+    console.log(`[embeddings] Using ONNX native batch (EP=${onnxGetEP()})`);
+    const vecs = await onnxComputeEmbeddings(items.map(n => n.text));
+    const out: Record<string, number[]> = {};
+    for (let i = 0; i < items.length; i++) out[items[i].id] = vecs[i];
+    return out;
+  }
+  return new Promise<Record<string, number[]>>((resolve, reject) => {
+    const child = execFile(
+      PYTHON,
+      [EMBED_SCRIPT, 'batch-encode'],
+      { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        if (err) {
+          reject(new Error(`Python batch-encode failed: ${err.message}\n${stderr}`));
+          return;
+        }
+        try {
+          resolve(JSON.parse(stdout) as Record<string, number[]>);
+        } catch (parseErr) {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'embeddings',
+            level: 'error',
+            message: 'Operation failed',
+            error: { name: (parseErr as Error).name ?? 'Error', message: String(parseErr), stack: (parseErr as Error).stack },
+          });
+          reject(new Error(`Failed to parse batch-encode output: ${parseErr}`));
+        }
+      },
+    );
+    child.stdin!.write(JSON.stringify(items));
+    child.stdin!.end();
+  });
+}
+
 export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise<void> {
   if (nodes.length === 0) return;
 
   const filePath = io.getEmbeddingsPath();
   const items = nodes.map(n => ({ id: n.id, text: n.text }));
-  const inputJson = JSON.stringify(items);
-
   console.log(`[embeddings] Updating ${nodes.length} node embeddings...`);
 
-  // Try ONNX native batch, fall back to Python subprocess
-  let vectors: Record<string, number[]>;
-  if (_onnxReady) {
-    console.log(`[embeddings] Using ONNX native batch (EP=${onnxGetEP()})`);
-    const texts = items.map(n => n.text);
-    const vecs = await onnxComputeEmbeddings(texts);
-    vectors = {};
-    for (let i = 0; i < items.length; i++) {
-      vectors[items[i].id] = vecs[i];
-    }
-  } else {
-    vectors = await new Promise<Record<string, number[]>>((resolve, reject) => {
-      const child = execFile(
-        PYTHON,
-        [EMBED_SCRIPT, 'batch-encode'],
-        { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 },
-        (err, stdout, stderr) => {
-          if (err) {
-            reject(new Error(`Python batch-encode failed: ${err.message}\n${stderr}`));
-            return;
-          }
-          try {
-            resolve(JSON.parse(stdout) as Record<string, number[]>);
-          } catch (parseErr) {
-            getGlobalRecorder()?.record({
-              type: 'system.error',
-              component: 'embeddings',
-              level: 'error',
-              message: 'Operation failed',
-              error: { name: (parseErr as Error).name ?? 'Error', message: String(parseErr), stack: (parseErr as Error).stack },
-            });
-            reject(new Error(`Failed to parse batch-encode output: ${parseErr}`));
-          }
-        },
-      );
-      child.stdin!.write(inputJson);
-      child.stdin!.end();
-    });
-  }
+  // Try ONNX native batch, fall back to Python subprocess (shared helper).
+  const vectors = await embedItems(items);
 
   // Generate exclusion vectors for nodes that have exclusionText
   const exclItems = nodes
@@ -257,42 +258,7 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
   let exclVectors: Record<string, number[]> = {};
   if (exclItems.length > 0) {
     console.log(`[embeddings] Generating ${exclItems.length} exclusion vectors...`);
-    if (_onnxReady) {
-      const texts = exclItems.map(n => n.text);
-      const vecs = await onnxComputeEmbeddings(texts);
-      for (let i = 0; i < exclItems.length; i++) {
-        exclVectors[exclItems[i].id] = vecs[i];
-      }
-    } else {
-      const exclJson = JSON.stringify(exclItems);
-      exclVectors = await new Promise<Record<string, number[]>>((resolve, reject) => {
-        const child = execFile(
-          PYTHON,
-          [EMBED_SCRIPT, 'batch-encode'],
-          { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 },
-          (err, stdout, stderr) => {
-            if (err) {
-              reject(new Error(`Python batch-encode (exclusion) failed: ${err.message}\n${stderr}`));
-              return;
-            }
-            try {
-              resolve(JSON.parse(stdout) as Record<string, number[]>);
-            } catch (parseErr) {
-              getGlobalRecorder()?.record({
-                type: 'system.error',
-                component: 'embeddings',
-                level: 'error',
-                message: 'Operation failed',
-                error: { name: (parseErr as Error).name ?? 'Error', message: String(parseErr), stack: (parseErr as Error).stack },
-              });
-              reject(new Error(`Failed to parse exclusion batch-encode output: ${parseErr}`));
-            }
-          },
-        );
-        child.stdin!.write(exclJson);
-        child.stdin!.end();
-      });
-    }
+    exclVectors = await embedItems(exclItems);
   }
 
   // Read existing embeddings.json (fresh, not from cache)
@@ -866,6 +832,81 @@ async function generateWithTavily(
   };
 }
 
+// One candidate from a Gemini grounded-search response (only the fields we read).
+type GroundedCandidate = {
+  content: { parts: { text: string }[] };
+  groundingMetadata?: {
+    searchEntryPoint?: { renderedContent?: string };
+    groundingChunks?: { web?: { uri?: string; title?: string } }[];
+    groundingSupports?: {
+      segment?: { startIndex?: number; endIndex?: number; text?: string };
+      groundingChunkIndices?: number[];
+      confidenceScores?: number[];
+    }[];
+  };
+};
+
+type GroundingSupport = {
+  segment?: { startIndex?: number; endIndex?: number; text?: string };
+  groundingChunkIndices?: number[];
+  confidenceScores?: number[];
+};
+
+/** Attach each grounding support's segment (with confidence) to its cited chunk
+ *  (mutates `citations`). Extracted from buildGroundingResult (t/1914). */
+function attachGroundingSegments(citations: GroundingCitation[], supports: GroundingSupport[]): void {
+  for (const s of supports) {
+    const seg = s.segment;
+    if (!seg || typeof seg.startIndex !== 'number' || typeof seg.endIndex !== 'number') continue;
+    const idxs = s.groundingChunkIndices ?? [];
+    const scores = s.confidenceScores ?? [];
+    idxs.forEach((ci, k) => {
+      if (ci >= 0 && ci < citations.length) {
+        citations[ci].segments.push({
+          startIndex: seg.startIndex as number,
+          endIndex: seg.endIndex as number,
+          text: seg.text,
+          confidence: scores[k],
+        });
+      }
+    });
+  }
+}
+
+/** Parse a Gemini grounded-search candidate into { text, citations, searchQueries }.
+ *  Extracted verbatim from generateTextWithSearch's inline grounding parse (t/1914). */
+function buildGroundingResult(candidate: GroundedCandidate): { text: string; searchQueries?: string[]; citations?: GroundingCitation[] } {
+  let text = candidate.content.parts
+    .filter(p => typeof p.text === 'string')
+    .map(p => p.text)
+    .join('');
+  const meta = candidate.groundingMetadata;
+  const chunks = meta?.groundingChunks ?? [];
+  const supports = meta?.groundingSupports ?? [];
+
+  const citations: GroundingCitation[] = chunks.map(c => ({
+    uri: c.web?.uri || '',
+    title: c.web?.title || c.web?.uri || '(untitled source)',
+    segments: [],
+  }));
+  attachGroundingSegments(citations, supports);
+
+  if (!text && supports.length > 0) {
+    const segTexts = supports
+      .map(s => s.segment?.text)
+      .filter((t): t is string => !!t);
+    if (segTexts.length > 0) text = segTexts.join(' ');
+  }
+
+  const searchQueries = citations.map(c => c.title).filter(Boolean);
+
+  return {
+    text,
+    searchQueries: searchQueries.length ? searchQueries : undefined,
+    citations: citations.length ? citations : undefined,
+  };
+}
+
 /**
  * Generate text with web search grounding.
  * Gemini: uses built-in google_search tool.
@@ -939,20 +980,7 @@ export async function generateTextWithSearch(
   }
 
   const json = await response.json() as Record<string, unknown>;
-  const candidates = (json as {
-    candidates?: {
-      content: { parts: { text: string }[] };
-      groundingMetadata?: {
-        searchEntryPoint?: { renderedContent?: string };
-        groundingChunks?: { web?: { uri?: string; title?: string } }[];
-        groundingSupports?: {
-          segment?: { startIndex?: number; endIndex?: number; text?: string };
-          groundingChunkIndices?: number[];
-          confidenceScores?: number[];
-        }[];
-      };
-    }[];
-  }).candidates;
+  const candidates = (json as { candidates?: GroundedCandidate[] }).candidates;
   if (!candidates?.length) throw new ActionableError({
     goal: 'Generate text with web search grounding via Gemini',
     problem: 'No candidates returned from Gemini grounded search.',
@@ -964,48 +992,5 @@ export async function generateTextWithSearch(
     ],
   });
 
-  let text = candidates[0].content.parts
-    .filter(p => typeof p.text === 'string')
-    .map(p => p.text)
-    .join('');
-  const meta = candidates[0].groundingMetadata;
-  const chunks = meta?.groundingChunks ?? [];
-  const supports = meta?.groundingSupports ?? [];
-
-  const citations: GroundingCitation[] = chunks.map(c => ({
-    uri: c.web?.uri || '',
-    title: c.web?.title || c.web?.uri || '(untitled source)',
-    segments: [],
-  }));
-  for (const s of supports) {
-    const seg = s.segment;
-    if (!seg || typeof seg.startIndex !== 'number' || typeof seg.endIndex !== 'number') continue;
-    const idxs = s.groundingChunkIndices ?? [];
-    const scores = s.confidenceScores ?? [];
-    idxs.forEach((ci, k) => {
-      if (ci >= 0 && ci < citations.length) {
-        citations[ci].segments.push({
-          startIndex: seg.startIndex as number,
-          endIndex: seg.endIndex as number,
-          text: seg.text,
-          confidence: scores[k],
-        });
-      }
-    });
-  }
-
-  if (!text && supports.length > 0) {
-    const segTexts = supports
-      .map(s => s.segment?.text)
-      .filter((t): t is string => !!t);
-    if (segTexts.length > 0) text = segTexts.join(' ');
-  }
-
-  const searchQueries = citations.map(c => c.title).filter(Boolean);
-
-  return {
-    text,
-    searchQueries: searchQueries.length ? searchQueries : undefined,
-    citations: citations.length ? citations : undefined,
-  };
+  return buildGroundingResult(candidates[0]);
 }
