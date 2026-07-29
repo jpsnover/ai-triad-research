@@ -531,6 +531,303 @@ function runLineageDebateSummary(get: () => DebateStore, activeDebate: DebateSes
       }
 }
 
+// ── factCheckSelection phase helpers (t/1848) ────────────────────────
+// factCheckSelection was a single 73-complexity async action. Its cohesive phases
+// are extracted here as helpers (bodies moved verbatim; see ADR-007 split pattern).
+// ADR-003 record() stays inline in each catch that needs it. The transcript entry
+// is appended BEFORE applyFactCheckToArgumentNetwork re-reads get().activeDebate, so
+// AN edges attach to the newly-added fact-check entry id (order-load-bearing).
+
+/** Gather taxonomy-node context lines for a fact-check (statement refs + top POV nodes). */
+function gatherFactCheckNodes(sourceEntry: { taxonomy_refs?: TaxonomyRef[] } | undefined): string[] {
+  const allNodes: string[] = [];
+  if (sourceEntry?.taxonomy_refs) {
+    for (const ref of sourceEntry.taxonomy_refs) {
+      const label = getNodeLabelForFactCheck(ref.node_id);
+      allNodes.push(`[${ref.node_id}] ${label} — ${ref.relevance}`);
+    }
+  }
+  // Also include some general taxonomy context
+  for (const pov of POV_KEYS) {
+    const ctx = getTaxonomyContext(pov);
+    for (const n of ctx.povNodes.slice(0, 5)) {
+      if (!allNodes.some((l) => l.includes(n.id))) {
+        allNodes.push(`[${n.id}] ${n.label}: ${n.description}`);
+      }
+    }
+  }
+  return allNodes;
+}
+
+/** Word-overlap count between the checked claim and a conflict label (text-similarity fallback). */
+function factCheckClaimOverlap(selectedText: string, claimLabel: string): number {
+  const claimWords = new Set(selectedText.toLowerCase().split(/\s+/).filter(w => w.length > 4));
+  const labelWords = claimLabel.toLowerCase().split(/\s+/);
+  return labelWords.filter(w => claimWords.has(w)).length;
+}
+
+type FactCheckConflict = { claim_id?: string; claim_label?: string; description?: string; status?: string; linked_taxonomy_nodes?: string[] };
+
+/** Format a conflict line for the fact-check prompt. */
+function formatFactCheckConflict(c: FactCheckConflict, includeDescription: boolean): string {
+  const id = c.claim_id || 'unknown';
+  const status = c.status || 'open';
+  return includeDescription
+    ? `[${id}] ${c.claim_label}: ${c.description || ''} (${status})`
+    : `[${id}] ${c.claim_label} (${status})`;
+}
+
+/** Gather conflict lines relevant to the checked statement (shared taxonomy nodes first, then text-overlap fallback). */
+function gatherFactCheckConflicts(sourceEntry: { taxonomy_refs?: TaxonomyRef[] } | undefined, selectedText: string): string[] {
+  const conflicts = useTaxonomyStore.getState().conflicts || [];
+  const refNodeIds = new Set((sourceEntry?.taxonomy_refs || []).map(r => r.node_id));
+  const conflictLines: string[] = [];
+  for (const c of conflicts as FactCheckConflict[]) {
+    if (!c.claim_label) continue;
+    // Prioritize conflicts that share taxonomy nodes with the statement
+    const linked = Array.isArray(c.linked_taxonomy_nodes) ? c.linked_taxonomy_nodes : [];
+    if (linked.some(n => refNodeIds.has(n))) {
+      conflictLines.unshift(formatFactCheckConflict(c, true));
+    } else if (conflictLines.length < 10 && factCheckClaimOverlap(selectedText, c.claim_label) >= 2) {
+      // Text similarity fallback — conflict label overlaps with claim
+      conflictLines.push(formatFactCheckConflict(c, false));
+    }
+  }
+  return conflictLines;
+}
+
+/**
+ * Run grounded web search for external fact-check verification. Gemini uses native
+ * google_search grounding; non-Gemini backends use Tavily + LLM when configured.
+ * Degrades gracefully to internal-only data on failure.
+ */
+async function runFactCheckWebSearch(
+  selectedText: string,
+  statementContext: string,
+  model: string,
+  debateId: string | undefined,
+  get: () => DebateStore,
+  set: (partial: any) => void,
+): Promise<{ webContext: string; searchQueries: string[]; webCitations: import('../../../bridge/types').GroundingCitation[] }> {
+  let webContext = '';
+  let searchQueries: string[] = [];
+  let webCitations: import('../../../bridge/types').GroundingCitation[] = [];
+  try {
+    const searchResult = await api.generateTextWithSearch(
+      `Fact-check this claim from an AI policy debate. Find recent, authoritative sources that support or contradict it. Be specific about what evidence you found.\n\nClaim: "${selectedText}"\n\nContext: ${statementContext.slice(0, 500)}`,
+      model,
+    );
+    webContext = searchResult.text;
+    searchQueries = searchResult.searchQueries || [];
+    webCitations = searchResult.citations || [];
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      debate_id: debateId,
+      component: 'debate-store',
+      level: 'warn',
+      message: 'Fact-check web search failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    console.warn('[factCheck] Web search failed, proceeding with internal data only:', err);
+    pushWarning(get, set, 'Web search unavailable for fact-check');
+    webContext = '(Web search unavailable)';
+  }
+  return { webContext, searchQueries, webCitations };
+}
+
+/** Build and append the fact-check transcript entry (verdict label, source refs, web-search note). */
+function addFactCheckTranscriptEntry(
+  addTranscriptEntry: (entry: Parameters<DebateStore['addTranscriptEntry']>[0]) => string,
+  params: {
+    selectedText: string;
+    validated: ReturnType<typeof validateFactCheckResult>;
+    result: { sources?: unknown[] };
+    webContext: string;
+    searchQueries: string[];
+    webCitations: import('../../../bridge/types').GroundingCitation[];
+  },
+): void {
+  const { selectedText, validated, result, webContext, searchQueries, webCitations } = params;
+  const verdictLabels: Record<string, string> = {
+    supported: 'Supported',
+    partially_accurate: 'Partially Accurate',
+    disputed: 'Disputed',
+    unverifiable: 'Unverifiable',
+    false: 'False',
+  };
+
+  const sources = (Array.isArray(result.sources) ? result.sources : []) as Record<string, unknown>[];
+  const sourceRefs = sources
+    .filter((s) => s.node_id || s.conflict_id)
+    .map((s) => ({
+      node_id: (s.node_id as string) || (s.conflict_id as string) || '',
+      relevance: s.conflict_id ? `Conflict: ${s.conflict_id}` : '',
+    }));
+
+  const webNote = searchQueries.length > 0
+    ? `\n\n*Web sources consulted: ${searchQueries.slice(0, 3).join(', ')}*`
+    : webContext && webContext !== '(Web search unavailable)'
+      ? '\n\n*Verified against web search results*'
+      : '';
+
+  addTranscriptEntry({
+    type: 'fact-check',
+    speaker: 'system',
+    content: `**Fact Check: ${verdictLabels[validated.verdict] || validated.verdict}**\n\n"${selectedText}"\n\n${validated.explanation}${webNote}`,
+    taxonomy_refs: sourceRefs,
+    metadata: {
+      fact_check: {
+        verdict: validated.verdict,
+        explanation: validated.explanation,
+        ...(validated.discrepancy ? { discrepancy: validated.discrepancy } : {}),
+        sources: result.sources,
+        checked_text: selectedText,
+        web_search_used: !!webContext && webContext !== '(Web search unavailable)',
+        web_search_queries: searchQueries,
+        web_search_evidence: webContext && webContext !== '(Web search unavailable)' ? webContext : undefined,
+        web_search_citations: webCitations.length ? webCitations : undefined,
+      },
+    },
+  });
+}
+
+/** Build AN nodes+edges for each fact-check point, each attached to the target node. */
+function buildFactCheckPointNodes(
+  pointsToAdd: { text: string; type?: 'supports' | 'attacks'; evidence_basis?: string }[],
+  bestTargetId: string,
+  factCheckEntryId: string,
+  baseTurnNumber: number,
+  startNodeIdx: number,
+  startEdgeIdx: number,
+): { newNodes: any[]; newEdges: any[] } {
+  const newNodes: any[] = [];
+  const newEdges: any[] = [];
+  let nextNodeIdx = startNodeIdx;
+  let nextEdgeIdx = startEdgeIdx;
+  for (const pt of pointsToAdd.slice(0, 4)) {
+    if (!pt.text) continue;
+    const attackType = pt.type === 'attacks' ? 'attacks' : 'supports';
+    const nodeId = `AN-${nextNodeIdx++}`;
+    newNodes.push({
+      id: nodeId,
+      text: pt.text,
+      speaker: 'system',
+      source_entry_id: factCheckEntryId,
+      taxonomy_refs: [],
+      turn_number: baseTurnNumber,
+      base_strength: attackType === 'attacks' ? 0.7 : 0.6,
+      scoring_method: 'bdi_criteria',
+      bdi_category: 'belief',
+      specificity: 'precise',
+    });
+    const edgeId = `AE-${nextEdgeIdx++}`;
+    newEdges.push({
+      id: edgeId,
+      source: nodeId,
+      target: bestTargetId,
+      type: attackType,
+      attack_type: attackType === 'attacks' ? 'rebut' : undefined,
+      scheme: attackType === 'attacks' ? 'EMPIRICAL CHALLENGE' : 'EXTEND',
+      warrant: `Fact-check evidence (${pt.evidence_basis || 'mixed'}): ${pt.text.slice(0, 100)}`,
+      argumentation_scheme: 'ARGUMENT_FROM_EVIDENCE',
+    });
+  }
+  return { newNodes, newEdges };
+}
+
+/**
+ * Generate AN nodes+edges from fact-check points and commit them. Falls back gracefully:
+ * synthesizes a target node from selectedText when none matches entryId, and synthesizes
+ * a single point from verdict+explanation when the LLM returned no usable points.
+ */
+function applyFactCheckToArgumentNetwork(
+  get: () => DebateStore,
+  set: (partial: any) => void,
+  entryId: string,
+  selectedText: string,
+  result: { points?: unknown[] },
+  validated: ReturnType<typeof validateFactCheckResult>,
+): void {
+  const rawPoints = Array.isArray(result.points) ? result.points as { text: string; type?: 'supports' | 'attacks'; evidence_basis?: string }[] : [];
+  const points = rawPoints.filter(p => p && p.text && p.text.length > 0);
+  const debate = get().activeDebate;
+  if (!debate) return;
+  const an = debate.argument_network || { nodes: [], edges: [] };
+  const factCheckEntryId = debate.transcript[debate.transcript.length - 1]?.id || generateId();
+  const baseTurnNumber = an.nodes.length > 0 ? Math.max(...an.nodes.map(n => n.turn_number)) + 1 : 1;
+
+  // Find AN nodes belonging to the checked statement
+  const targetNodes = an.nodes.filter(n => n.source_entry_id === entryId);
+  const checkedWords = new Set(selectedText.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+  const rankedTargets = targetNodes
+    .map(n => {
+      const words = n.text.toLowerCase().split(/\s+/);
+      const overlap = words.filter(w => checkedWords.has(w)).length;
+      return { node: n, overlap };
+    })
+    .sort((a, b) => b.overlap - a.overlap);
+
+  let nextNodeIdx = an.nodes.length;
+  const newNodes: typeof an.nodes = [];
+  const newEdges: typeof an.edges = [];
+
+  // If no existing target AN node for this entry, synthesize one from the
+  // selected text so fact-check findings have something to attach to.
+  let bestTarget = rankedTargets[0]?.node;
+  if (!bestTarget) {
+    const syntheticId = `AN-${nextNodeIdx++}`;
+    const syntheticNode = {
+      id: syntheticId,
+      text: selectedText.length > 300 ? selectedText.slice(0, 297) + '...' : selectedText,
+      speaker: 'system' as const,
+      source_entry_id: entryId,
+      taxonomy_refs: [],
+      turn_number: baseTurnNumber,
+      base_strength: 0.5,
+      scoring_method: 'unscored' as const,
+      bdi_category: 'belief' as const,
+      specificity: 'precise' as const,
+    };
+    newNodes.push(syntheticNode);
+    bestTarget = syntheticNode;
+  }
+
+  // If the LLM returned no usable points, synthesize one from the verdict + explanation
+  // so the fact-check still appears in the argument network.
+  const pointsToAdd = points.length > 0 ? points : [{
+    text: validated.explanation || `Fact-check verdict: ${validated.verdict}`,
+    type: (validated.verdict === 'disputed' || validated.verdict === 'false') ? 'attacks' as const : 'supports' as const,
+    evidence_basis: 'mixed',
+  }];
+
+  const built = buildFactCheckPointNodes(pointsToAdd, bestTarget.id, factCheckEntryId, baseTurnNumber, nextNodeIdx, an.edges.length);
+  newNodes.push(...built.newNodes);
+  newEdges.push(...built.newEdges);
+
+  if (newNodes.length > 0) {
+    commitAnNodes(get, set, `factcheck(manual,entry=${entryId.slice(-6)})`, newNodes, newEdges);
+  }
+}
+
+/** Assemble the main fact-check prompt (taxonomy nodes + conflicts + optional web-search results). */
+function buildFactCheckMainPrompt(
+  selectedText: string,
+  statementContext: string,
+  allNodes: string[],
+  conflictLines: string[],
+  webContext: string,
+  audience: DebateSession['audience'],
+): string {
+  return buildFactCheckPrompt(
+    selectedText,
+    statementContext,
+    allNodes.join('\n'),
+    conflictLines.slice(0, 15).join('\n') + (webContext ? `\n\n=== WEB SEARCH RESULTS ===\n${webContext}` : ''),
+    audience,
+  );
+}
+
 export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSlice> = (set, get) => ({
   requestSynthesis: async () => {
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
@@ -763,85 +1060,19 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
     const sourceEntry = activeDebate.transcript.find((e) => e.id === entryId);
     const statementContext = sourceEntry?.content || selectedText;
 
-    // Gather taxonomy nodes from the statement's refs + general context
-    const allNodes: string[] = [];
-    if (sourceEntry?.taxonomy_refs) {
-      for (const ref of sourceEntry.taxonomy_refs) {
-        const label = getNodeLabelForFactCheck(ref.node_id);
-        allNodes.push(`[${ref.node_id}] ${label} — ${ref.relevance}`);
-      }
-    }
-
-    // Also include some general taxonomy context
-    for (const pov of POV_KEYS) {
-      const ctx = getTaxonomyContext(pov);
-      for (const n of ctx.povNodes.slice(0, 5)) {
-        if (!allNodes.some((l) => l.includes(n.id))) {
-          allNodes.push(`[${n.id}] ${n.label}: ${n.description}`);
-        }
-      }
-    }
-
-    // Gather conflict data — filter by relevance to the statement's taxonomy refs
-    const conflicts = useTaxonomyStore.getState().conflicts || [];
-    const refNodeIds = new Set((sourceEntry?.taxonomy_refs || []).map(r => r.node_id));
-    const conflictLines: string[] = [];
-    for (const c of conflicts as { claim_id?: string; claim_label?: string; description?: string; status?: string; linked_taxonomy_nodes?: string[] }[]) {
-      if (!c.claim_label) continue;
-      // Prioritize conflicts that share taxonomy nodes with the statement
-      const linked = Array.isArray(c.linked_taxonomy_nodes) ? c.linked_taxonomy_nodes : [];
-      const isRelevant = linked.some(n => refNodeIds.has(n));
-      if (isRelevant) {
-        conflictLines.unshift(`[${c.claim_id || 'unknown'}] ${c.claim_label}: ${c.description || ''} (${c.status || 'open'})`);
-      } else if (conflictLines.length < 10) {
-        // Text similarity fallback — check if conflict label overlaps with claim
-        const claimWords = new Set(selectedText.toLowerCase().split(/\s+/).filter(w => w.length > 4));
-        const labelWords = (c.claim_label || '').toLowerCase().split(/\s+/);
-        const overlap = labelWords.filter(w => claimWords.has(w)).length;
-        if (overlap >= 2) {
-          conflictLines.push(`[${c.claim_id || 'unknown'}] ${c.claim_label} (${c.status || 'open'})`);
-        }
-      }
-    }
+    // Gather taxonomy nodes (statement refs + general context) and relevant conflicts.
+    const allNodes = gatherFactCheckNodes(sourceEntry);
+    const conflictLines = gatherFactCheckConflicts(sourceEntry, selectedText);
 
     // Step 1: Run grounded web search for external verification
     // Gemini uses native google_search grounding; non-Gemini backends use
     // Tavily search + LLM when TAVILY_API_KEY is configured (see embeddings.ts).
     set({ debateActivity: `Searching the web for evidence (${model})` });
-    let webContext = '';
-    let searchQueries: string[] = [];
-    let webCitations: import('../../../bridge/types').GroundingCitation[] = [];
-    try {
-      const searchResult = await api.generateTextWithSearch(
-        `Fact-check this claim from an AI policy debate. Find recent, authoritative sources that support or contradict it. Be specific about what evidence you found.\n\nClaim: "${selectedText}"\n\nContext: ${statementContext.slice(0, 500)}`,
-        model,
-      );
-      webContext = searchResult.text;
-      searchQueries = searchResult.searchQueries || [];
-      webCitations = searchResult.citations || [];
-    } catch (err) {
-      getGlobalRecorder()?.record({
-        type: 'system.error',
-        debate_id: activeDebate?.id,
-        component: 'debate-store',
-        level: 'warn',
-        message: 'Fact-check web search failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-      });
-      console.warn('[factCheck] Web search failed, proceeding with internal data only:', err);
-      pushWarning(get, set, 'Web search unavailable for fact-check');
-      webContext = '(Web search unavailable)';
-    }
+    const { webContext, searchQueries, webCitations } = await runFactCheckWebSearch(selectedText, statementContext, model, activeDebate?.id, get, set);
     if (!isStillValid()) return;
 
     // Step 2: Run main fact-check with all evidence
-    const prompt = buildFactCheckPrompt(
-      selectedText,
-      statementContext,
-      allNodes.join('\n'),
-      conflictLines.slice(0, 15).join('\n') + (webContext ? `\n\n=== WEB SEARCH RESULTS ===\n${webContext}` : ''),
-      activeDebate.audience,
-    );
+    const prompt = buildFactCheckMainPrompt(selectedText, statementContext, allNodes, conflictLines, webContext, activeDebate.audience);
 
     try {
       set({ debateActivity: `Analyzing evidence (${model})` });
@@ -859,139 +1090,10 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
       // (esp. `points`) is still used below for the argument-network synthesis.
       const validated = validateFactCheckResult(result, get().activeDebate?.id);
 
-      const verdictLabels: Record<string, string> = {
-        supported: 'Supported',
-        partially_accurate: 'Partially Accurate',
-        disputed: 'Disputed',
-        unverifiable: 'Unverifiable',
-        false: 'False',
-      };
+      addFactCheckTranscriptEntry(addTranscriptEntry, { selectedText, validated, result, webContext, searchQueries, webCitations });
 
-      const sources = (Array.isArray(result.sources) ? result.sources : []) as Record<string, unknown>[];
-      const sourceRefs = sources
-        .filter((s) => s.node_id || s.conflict_id)
-        .map((s) => ({
-          node_id: (s.node_id as string) || (s.conflict_id as string) || '',
-          relevance: s.conflict_id ? `Conflict: ${s.conflict_id}` : '',
-        }));
-
-      const webNote = searchQueries.length > 0
-        ? `\n\n*Web sources consulted: ${searchQueries.slice(0, 3).join(', ')}*`
-        : webContext && webContext !== '(Web search unavailable)'
-          ? '\n\n*Verified against web search results*'
-          : '';
-
-      addTranscriptEntry({
-        type: 'fact-check',
-        speaker: 'system',
-        content: `**Fact Check: ${verdictLabels[validated.verdict] || validated.verdict}**\n\n"${selectedText}"\n\n${validated.explanation}${webNote}`,
-        taxonomy_refs: sourceRefs,
-        metadata: {
-          fact_check: {
-            verdict: validated.verdict,
-            explanation: validated.explanation,
-            ...(validated.discrepancy ? { discrepancy: validated.discrepancy } : {}),
-            sources: result.sources,
-            checked_text: selectedText,
-            web_search_used: !!webContext && webContext !== '(Web search unavailable)',
-            web_search_queries: searchQueries,
-            web_search_evidence: webContext && webContext !== '(Web search unavailable)' ? webContext : undefined,
-            web_search_citations: webCitations.length ? webCitations : undefined,
-          },
-        },
-      });
-
-      // ── Generate AN nodes and edges from fact-check points ──
-      // Always create AN nodes for a fact-check so the argument network captures
-      // the evidence. Falls back gracefully when:
-      //   - LLM omitted `points` → synthesize one from verdict+explanation
-      //   - No existing AN nodes match entryId → synthesize a target node from selectedText
-      const rawPoints = Array.isArray(result.points) ? result.points as { text: string; type?: 'supports' | 'attacks'; evidence_basis?: string }[] : [];
-      const points = rawPoints.filter(p => p && p.text && p.text.length > 0);
-      const debate = get().activeDebate;
-      if (debate) {
-        const an = debate.argument_network || { nodes: [], edges: [] };
-        const factCheckEntryId = debate.transcript[debate.transcript.length - 1]?.id || generateId();
-        const baseTurnNumber = an.nodes.length > 0 ? Math.max(...an.nodes.map(n => n.turn_number)) + 1 : 1;
-
-        // Find AN nodes belonging to the checked statement
-        const targetNodes = an.nodes.filter(n => n.source_entry_id === entryId);
-        const checkedWords = new Set(selectedText.toLowerCase().split(/\s+/).filter(w => w.length > 3));
-        const rankedTargets = targetNodes
-          .map(n => {
-            const words = n.text.toLowerCase().split(/\s+/);
-            const overlap = words.filter(w => checkedWords.has(w)).length;
-            return { node: n, overlap };
-          })
-          .sort((a, b) => b.overlap - a.overlap);
-
-        let nextNodeIdx = an.nodes.length;
-        let nextEdgeIdx = an.edges.length;
-        const newNodes: typeof an.nodes = [];
-        const newEdges: typeof an.edges = [];
-
-        // If no existing target AN node for this entry, synthesize one from the
-        // selected text so fact-check findings have something to attach to.
-        let bestTarget = rankedTargets[0]?.node;
-        if (!bestTarget) {
-          const syntheticId = `AN-${nextNodeIdx++}`;
-          const syntheticNode = {
-            id: syntheticId,
-            text: selectedText.length > 300 ? selectedText.slice(0, 297) + '...' : selectedText,
-            speaker: 'system' as const,
-            source_entry_id: entryId,
-            taxonomy_refs: [],
-            turn_number: baseTurnNumber,
-            base_strength: 0.5,
-            scoring_method: 'unscored' as const,
-            bdi_category: 'belief' as const,
-            specificity: 'precise' as const,
-          };
-          newNodes.push(syntheticNode);
-          bestTarget = syntheticNode;
-        }
-
-        // If the LLM returned no usable points, synthesize one from the verdict + explanation
-        // so the fact-check still appears in the argument network.
-        const pointsToAdd = points.length > 0 ? points : [{
-          text: validated.explanation || `Fact-check verdict: ${validated.verdict}`,
-          type: (validated.verdict === 'disputed' || validated.verdict === 'false') ? 'attacks' as const : 'supports' as const,
-          evidence_basis: 'mixed',
-        }];
-
-        for (const pt of pointsToAdd.slice(0, 4)) {
-          if (!pt.text) continue;
-          const attackType = pt.type === 'attacks' ? 'attacks' : 'supports';
-          const nodeId = `AN-${nextNodeIdx++}`;
-          newNodes.push({
-            id: nodeId,
-            text: pt.text,
-            speaker: 'system',
-            source_entry_id: factCheckEntryId,
-            taxonomy_refs: [],
-            turn_number: baseTurnNumber,
-            base_strength: attackType === 'attacks' ? 0.7 : 0.6,
-            scoring_method: 'bdi_criteria',
-            bdi_category: 'belief',
-            specificity: 'precise',
-          });
-          const edgeId = `AE-${nextEdgeIdx++}`;
-          newEdges.push({
-            id: edgeId,
-            source: nodeId,
-            target: bestTarget.id,
-            type: attackType,
-            attack_type: attackType === 'attacks' ? 'rebut' : undefined,
-            scheme: attackType === 'attacks' ? 'EMPIRICAL CHALLENGE' : 'EXTEND',
-            warrant: `Fact-check evidence (${pt.evidence_basis || 'mixed'}): ${pt.text.slice(0, 100)}`,
-            argumentation_scheme: 'ARGUMENT_FROM_EVIDENCE',
-          });
-        }
-
-        if (newNodes.length > 0) {
-          commitAnNodes(get, set, `factcheck(manual,entry=${entryId.slice(-6)})`, newNodes, newEdges);
-        }
-      }
+      // Generate AN nodes and edges from the fact-check points and commit them.
+      applyFactCheckToArgumentNetwork(get, set, entryId, selectedText, result, validated);
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error',
