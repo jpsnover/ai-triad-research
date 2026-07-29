@@ -3,6 +3,7 @@
 
 export type { GenerateOptions, ProviderResult, TokenUsage, RateLimitType, RateLimitHeaders, RetryProgress, BackendId, ApiKeyBackend, FetchFn, ToolDefinition, ToolCall, ToolResult, ModelCapabilities } from './types.js';
 export type { ModelEntry, ModelRegistry, ModelPricing } from './registry.js';
+export { ALL_API_KEY_BACKENDS } from './types.js';
 export { resolveBackend, resolveModel, buildModelIdMap, getApiModelId, getDefaultTimeout, getModelCapabilities, filterByCapabilities, estimateCost } from './registry.js';
 export { withTimeout, withRetry, retryableFetch, parseRateLimitType, parseRateLimitHeaders, CLI_RETRY_CONFIG, SERVER_RETRY_CONFIG } from './retry.js';
 export type { RetryConfig } from './retry.js';
