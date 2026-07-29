@@ -152,6 +152,48 @@ function Clear-EntitiesCache {
     $script:EntitiesCachePath = $null
 }
 
+function ConvertTo-NormalizedEntityListFields {
+    <#
+    .SYNOPSIS
+        Coerce an entity record's list fields (aliases, source_refs) to proper JSON
+        arrays IN PLACE — the writer half of t/1964/t/1969.
+    .DESCRIPTION
+        The Entity type (lib/entities/types.ts) declares aliases + source_refs as
+        string[], but entities.json had drifted to store them as array | null | bare
+        string — a shape-vs-type lie that null-deref'd / .map-on-string crashed the
+        entity browser and the t/1898 mention flow. Normalizing here (the single write
+        chokepoint) stops the drift recurring: $null -> @(), a bare scalar/string ->
+        a one-element array, an existing array preserved. $null is guarded FIRST
+        (@($null) would emit [null]); direct property assignment avoids single-element
+        unrolling. `aliases` (contract-required) is always ensured present; `source_refs`
+        (optional) is normalized only when the field exists. `external_refs`
+        ({label,url}[]) is a different shape and is left untouched.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object]$Entity
+    )
+
+    # aliases — contract-required string[]; ensure the field EXISTS and is an array.
+    # (Add-Member for the absent case: direct assignment to a non-existent property
+    # throws under Set-StrictMode -Version Latest.)
+    if (-not $Entity.PSObject.Properties['aliases']) {
+        $Entity | Add-Member -NotePropertyName aliases -NotePropertyValue @() -Force
+    } elseif ($null -eq $Entity.aliases) {
+        $Entity.aliases = @()
+    } elseif ($Entity.aliases -isnot [array]) {
+        $Entity.aliases = @($Entity.aliases)
+    }
+
+    # source_refs — optional string[]; normalize only when the field is present.
+    if ($Entity.PSObject.Properties['source_refs']) {
+        $refs = $Entity.source_refs
+        if ($null -eq $refs)          { $Entity.source_refs = @() }
+        elseif ($refs -isnot [array]) { $Entity.source_refs = @($refs) }
+    }
+}
+
 function Write-EntityStoreAtomic {
     <#
     .SYNOPSIS
@@ -167,6 +209,17 @@ function Write-EntityStoreAtomic {
         [string]$Path
     )
     Set-StrictMode -Version Latest
+
+    # t/1969 — normalize entity list-fields to arrays before serialization so aliases/
+    # source_refs never write as null or a bare string (the drift that crashed the entity
+    # browser / t/1898). Gated on the ENTITIES envelope so the embeddings store's
+    # `vectors` write is untouched. Because the whole envelope is rewritten each save,
+    # this auto-backfills every existing record on the next write (no data-repo pass).
+    if ($Store.PSObject.Properties['entities']) {
+        foreach ($e in @($Store.entities)) {
+            if ($null -ne $e) { ConvertTo-NormalizedEntityListFields -Entity $e }
+        }
+    }
 
     $temp = "$Path.tmp"
     $json = $Store | ConvertTo-Json -Depth 12
