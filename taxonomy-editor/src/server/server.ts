@@ -51,6 +51,7 @@ import { registerCommunityRoutes } from './routes/community.js';
 import { registerHarvestRoutes } from './routes/harvest.js';
 import { registerOrganizationsRoutes } from './routes/organizations.js';
 import { registerEntityRoutes } from './routes/entity.js';
+import { registerMentionsRoutes } from './routes/mentions.js';
 import { registerPublicShareRoutes } from './routes/publicShare.js';
 import { registerTaxonomyRoutes } from './routes/taxonomy.js';
 import { registerMetaRoutes } from './routes/meta.js';
@@ -360,6 +361,12 @@ registerOrganizationsRoutes(router, serverCtx);
 // (lib/entities/types.ts) to the record type that owns each kind. Grouped with
 // organizations (shares the public read tier). Brand-new path — no collision.
 registerEntityRoutes(router, serverCtx);
+
+// ── Container mentions (t/1902) ──
+// GET /api/container-mentions/:containerId — the entity mentions extracted for one
+// container (web transport for C's fileIO.readContainerMentions). Session-gated;
+// an absent container → 200 null (designed miss, not 404). Brand-new path — no collision.
+registerMentionsRoutes(router, serverCtx);
 
 // ── Public share (t/1788) ──
 // GET /api/public/pov/:pov/node/:nodeId — public, no-login, read-only POV node
