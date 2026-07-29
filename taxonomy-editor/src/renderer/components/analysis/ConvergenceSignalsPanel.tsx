@@ -176,6 +176,235 @@ function SummaryStats({ signals }: { signals: ConvergenceSignals[] }) {
   );
 }
 
+type ConcessionVerbatim = { scheme: string; sourceText: string; targetText: string; targetId: string; sourceId: string };
+
+// ── Detail-panel cells (extracted from the detail panel to keep each function's
+//    cyclomatic complexity low — moved verbatim, behavior unchanged) ──
+
+function PolarityCell({ md }: { md: ConvergenceSignals['move_polarity'] }) {
+  return (
+    <div className="conv-detail-cell">
+      <div className="conv-detail-lbl">Polarity</div>
+      <div className="conv-detail-val">
+        <span className="csig-danger">{md?.confrontational ?? 0}C</span>{' / '}
+        <span className="csig-success">{md?.collaborative ?? 0}S</span>
+        {' = '}<strong>{pct(md?.ratio ?? 0)}</strong>
+        {(md?.ratio ?? 0) >= 0.5
+          ? <span className="conv-status-good">cooperative</span>
+          : <span className="conv-status-bad">confrontational</span>}
+      </div>
+    </div>
+  );
+}
+
+function EngagementCell({ ed }: { ed: ConvergenceSignals['dialectical_engagement'] }) {
+  return (
+    <div className="conv-detail-cell">
+      <div className="conv-detail-lbl">Dialectical Engagement</div>
+      <div className="conv-detail-val">
+        {ed?.targeted ?? 0}/{(ed?.targeted ?? 0) + (ed?.standalone ?? 0)} targeted = <strong>{pct(ed?.ratio ?? 0)}</strong>
+        {(ed?.ratio ?? 0) >= 0.7
+          ? <span className="conv-status-good">deep</span>
+          : (ed?.ratio ?? 0) >= 0.4
+            ? <span className="conv-status-warn">moderate</span>
+            : <span className="conv-status-bad">standalone</span>}
+      </div>
+    </div>
+  );
+}
+
+function RedundancyCell({ rr }: { rr: ConvergenceSignals['argument_redundancy'] }) {
+  return (
+    <div className="conv-detail-cell">
+      <div className="conv-detail-lbl">Argument Redundancy</div>
+      <div className="conv-detail-val">
+        avg <strong>{pct(rr?.avg_self_overlap ?? 0)}</strong>, max <strong>{pct(rr?.max_self_overlap ?? 0)}</strong>
+        {rr?.semantic_max_similarity != null && (
+          <>, sem <strong>{pct(rr.semantic_max_similarity)}</strong></>
+        )}
+        {rr?.semantically_recycled
+          ? <span className="conv-status-bad">semantic repeat</span>
+          : (rr?.max_self_overlap ?? 0) >= 0.5
+            ? <span className="conv-status-warn">repeating</span>
+            : <span className="conv-status-good">fresh</span>}
+      </div>
+    </div>
+  );
+}
+
+function CounterargCell({ so }: { so: ConvergenceSignals['dominant_counterargument'] }) {
+  return (
+    <div className="conv-detail-cell">
+      <div className="conv-detail-lbl">Dominant Counterargument</div>
+      <div className="conv-detail-val">
+        {so ? (
+          <>{so.node_id} str={(so.strength ?? 0).toFixed(2)} by {speakerLabel(so.attacker as SpeakerId)}
+            {(so.strength ?? 0) >= 0.7
+              ? <span className="conv-status-bad">strong</span>
+              : (so.strength ?? 0) >= 0.5
+                ? <span className="conv-status-warn">moderate</span>
+                : <span className="conv-status-good">weak</span>}
+          </>
+        ) : <span className="csig-muted">none</span>}
+      </div>
+    </div>
+  );
+}
+
+function ConcessionCell({ co }: { co: ConvergenceSignals['concession_opportunity'] }) {
+  return (
+    <div className="conv-detail-cell">
+      <div className="conv-detail-lbl">Concession</div>
+      <div className="conv-detail-val">
+        {co?.strong_attacks_faced ?? 0} attacks, used: {co?.concession_used ? 'Y' : 'N'} — <OutcomeBadge outcome={co?.outcome ?? 'none'} />
+      </div>
+    </div>
+  );
+}
+
+function DriftCell({ pd }: { pd: ConvergenceSignals['position_drift'] }) {
+  return (
+    <div className="conv-detail-cell">
+      <div className="conv-detail-lbl">Position Drift</div>
+      <div className="conv-detail-val">
+        opening: <strong>{pct(pd?.overlap_with_opening ?? 0)}</strong>, drift: <strong>{pct(pd?.drift ?? 0)}</strong>
+        {(pd?.overlap_with_opening ?? 0) >= 0.6
+          ? <span className="conv-status-warn">anchored</span>
+          : (pd?.overlap_with_opening ?? 0) < 0.3
+            ? <span className="conv-status-info">shifted</span>
+            : <span className="conv-status-good">evolved</span>}
+      </div>
+    </div>
+  );
+}
+
+function CruxCell({ cr }: { cr: ConvergenceSignals['crux_engagement_rate'] }) {
+  const count = cr?.cumulative_count ?? 0;
+  const followThrough = cr?.cumulative_follow_through ?? 0;
+  return (
+    <div className="conv-detail-cell csig-grid-full">
+      <div className="conv-detail-lbl">Crux Engagement</div>
+      <div className="conv-detail-val">
+        this turn: {cr?.used_this_turn ? 'Yes' : 'No'} | cumulative: {count} | follow-through: {followThrough}
+        {count > 0 && followThrough === 0 && (
+          <span className="conv-status-warn">no follow-through</span>
+        )}
+        {count > 0 && followThrough > 0 && (
+          <span className="conv-status-good">resolving</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ConcessionVerbatims({ items }: { items: ConcessionVerbatim[] }) {
+  return (
+    <div className="conv-verbatim-section">
+      <div className="conv-detail-lbl csig-mb-3">Concession Verbatims ({items.length})</div>
+      {items.map((cv, i) => (
+        <div key={i} className="conv-verbatim-entry">
+          <div className="conv-verbatim-ids">{cv.sourceId} → {cv.targetId} via {cv.scheme}</div>
+          <div className="conv-verbatim-text">"{cv.sourceText}"</div>
+          {cv.targetText && <div className="conv-verbatim-target">conceding: "{cv.targetText}"</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ConvergenceDetailPanel({ selected, concessionVerbatims }: { selected: ConvergenceSignals; concessionVerbatims: ConcessionVerbatim[] }) {
+  return (
+    <div
+      className="conv-detail"
+      /* eslint-disable-next-line local/no-inline-style -- dynamic: border color from speaker */
+      style={{ borderLeft: `3px solid ${speakerColor(selected.speaker)}` }}
+    >
+      <div className="conv-detail-header">
+        <span
+          className="conv-detail-speaker"
+          /* eslint-disable-next-line local/no-inline-style -- dynamic: color from speaker */
+          style={{ color: speakerColor(selected.speaker) }}
+        >
+          Round {selected.round} — {speakerLabel(selected.speaker)}
+        </span>
+        <span className="conv-detail-hint">← → to navigate, Esc to close</span>
+      </div>
+      <div className="conv-detail-grid">
+        <PolarityCell md={selected.move_polarity} />
+        <EngagementCell ed={selected.dialectical_engagement} />
+        <RedundancyCell rr={selected.argument_redundancy} />
+        <CounterargCell so={selected.dominant_counterargument} />
+        <ConcessionCell co={selected.concession_opportunity} />
+        <DriftCell pd={selected.position_drift} />
+        <CruxCell cr={selected.crux_engagement_rate} />
+      </div>
+      {concessionVerbatims.length > 0 && (
+        <ConcessionVerbatims items={concessionVerbatims} />
+      )}
+    </div>
+  );
+}
+
+function redundancyColor(rr: ConvergenceSignals['argument_redundancy'], effective: number): string {
+  if (rr?.semantically_recycled) return 'var(--danger)';
+  if (effective > 0.5) return 'var(--warning, #f59e0b)';
+  return 'var(--success)';
+}
+
+function RedundancyMiniBar({ rr }: { rr: ConvergenceSignals['argument_redundancy'] }) {
+  const effective = Math.max(rr?.max_self_overlap ?? 0, rr?.semantic_max_similarity ?? 0);
+  return <MiniBar value={effective} max={1} color={redundancyColor(rr, effective)} />;
+}
+
+function CruxMiniCell({ cr }: { cr: ConvergenceSignals['crux_engagement_rate'] }) {
+  return (
+    <>
+      {cr?.used_this_turn ? '1' : '0'}
+      <span className="csig-muted"> ({cr?.cumulative_count ?? 0})</span>
+    </>
+  );
+}
+
+function ConvergenceRow({ sig, selected, onClick }: { sig: ConvergenceSignals; selected: boolean; onClick: () => void }) {
+  return (
+    <tr
+      onClick={onClick}
+      /* eslint-disable-next-line local/no-inline-style -- dynamic: row highlight from selection */
+      style={{
+        background: selected ? 'color-mix(in srgb, var(--warning, #f59e0b) 10%, transparent)' : undefined,
+      }}
+    >
+      <td>{sig.round}</td>
+      <td
+        /* eslint-disable-next-line local/no-inline-style -- dynamic: color from speaker */
+        style={{ color: speakerColor(sig.speaker) }}
+      >
+        {speakerLabel(sig.speaker)}
+      </td>
+      <td className="csig-center">
+        <span className="csig-danger">{sig.move_polarity?.confrontational ?? 0}</span>
+        {' / '}
+        <span className="csig-success">{sig.move_polarity?.collaborative ?? 0}</span>
+      </td>
+      <td className="csig-center">
+        <MiniBar value={sig.dialectical_engagement?.ratio ?? 0} max={1} color="var(--color-saf, #3b82f6)" />
+      </td>
+      <td className="csig-center">
+        <RedundancyMiniBar rr={sig.argument_redundancy} />
+      </td>
+      <td className="csig-center">
+        <OutcomeBadge outcome={sig.concession_opportunity?.outcome ?? 'none'} />
+      </td>
+      <td className="csig-center">
+        {pct(sig.position_drift?.drift ?? 0)}
+      </td>
+      <td className="csig-center">
+        <CruxMiniCell cr={sig.crux_engagement_rate} />
+      </td>
+    </tr>
+  );
+}
+
 export function ConvergenceSignalsPanel({ debate }: Props) {
   const signals = debate.convergence_signals ?? [];
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
@@ -288,171 +517,20 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
           </thead>
           <tbody>
             {filtered.map((sig, i) => (
-              <tr
+              <ConvergenceRow
                 key={sig.entry_id}
+                sig={sig}
+                selected={selectedIdx === i}
                 onClick={() => setSelectedIdx(selectedIdx === i ? null : i)}
-                /* eslint-disable-next-line local/no-inline-style -- dynamic: row highlight from selection */
-                style={{
-                  background: selectedIdx === i ? 'color-mix(in srgb, var(--warning, #f59e0b) 10%, transparent)' : undefined,
-                }}
-              >
-                <td>{sig.round}</td>
-                <td
-                  /* eslint-disable-next-line local/no-inline-style -- dynamic: color from speaker */
-                  style={{ color: speakerColor(sig.speaker) }}
-                >
-                  {speakerLabel(sig.speaker)}
-                </td>
-                <td className="csig-center">
-                  <span className="csig-danger">{sig.move_polarity?.confrontational ?? 0}</span>
-                  {' / '}
-                  <span className="csig-success">{sig.move_polarity?.collaborative ?? 0}</span>
-                </td>
-                <td className="csig-center">
-                  <MiniBar value={sig.dialectical_engagement?.ratio ?? 0} max={1} color="var(--color-saf, #3b82f6)" />
-                </td>
-                <td className="csig-center">
-                  {(() => {
-                    const effective = Math.max(sig.argument_redundancy?.max_self_overlap ?? 0, sig.argument_redundancy?.semantic_max_similarity ?? 0);
-                    return <MiniBar value={effective} max={1} color={sig.argument_redundancy?.semantically_recycled ? 'var(--danger)' : effective > 0.5 ? 'var(--warning, #f59e0b)' : 'var(--success)'} />;
-                  })()}
-                </td>
-                <td className="csig-center">
-                  <OutcomeBadge outcome={sig.concession_opportunity?.outcome ?? 'none'} />
-                </td>
-                <td className="csig-center">
-                  {pct(sig.position_drift?.drift ?? 0)}
-                </td>
-                <td className="csig-center">
-                  {sig.crux_engagement_rate?.used_this_turn ? '1' : '0'}
-                  <span className="csig-muted"> ({sig.crux_engagement_rate?.cumulative_count ?? 0})</span>
-                </td>
-              </tr>
+              />
             ))}
           </tbody>
         </table>
       </div>
 
-      {selected && (() => {
-        const md = selected.move_polarity;
-        const ed = selected.dialectical_engagement;
-        const rr = selected.argument_redundancy;
-        const so = selected.dominant_counterargument;
-        const co = selected.concession_opportunity;
-        const pd = selected.position_drift;
-        const cr = selected.crux_engagement_rate;
-        return (
-          <div
-            className="conv-detail"
-            /* eslint-disable-next-line local/no-inline-style -- dynamic: border color from speaker */
-            style={{ borderLeft: `3px solid ${speakerColor(selected.speaker)}` }}
-          >
-            <div className="conv-detail-header">
-              <span
-                className="conv-detail-speaker"
-                /* eslint-disable-next-line local/no-inline-style -- dynamic: color from speaker */
-                style={{ color: speakerColor(selected.speaker) }}
-              >
-                Round {selected.round} — {speakerLabel(selected.speaker)}
-              </span>
-              <span className="conv-detail-hint">← → to navigate, Esc to close</span>
-            </div>
-            <div className="conv-detail-grid">
-              <div className="conv-detail-cell">
-                <div className="conv-detail-lbl">Polarity</div>
-                <div className="conv-detail-val">
-                  <span className="csig-danger">{md?.confrontational ?? 0}C</span>{' / '}
-                  <span className="csig-success">{md?.collaborative ?? 0}S</span>
-                  {' = '}<strong>{pct(md?.ratio ?? 0)}</strong>
-                  {(md?.ratio ?? 0) >= 0.5
-                    ? <span className="conv-status-good">cooperative</span>
-                    : <span className="conv-status-bad">confrontational</span>}
-                </div>
-              </div>
-              <div className="conv-detail-cell">
-                <div className="conv-detail-lbl">Dialectical Engagement</div>
-                <div className="conv-detail-val">
-                  {ed?.targeted ?? 0}/{(ed?.targeted ?? 0) + (ed?.standalone ?? 0)} targeted = <strong>{pct(ed?.ratio ?? 0)}</strong>
-                  {(ed?.ratio ?? 0) >= 0.7
-                    ? <span className="conv-status-good">deep</span>
-                    : (ed?.ratio ?? 0) >= 0.4
-                      ? <span className="conv-status-warn">moderate</span>
-                      : <span className="conv-status-bad">standalone</span>}
-                </div>
-              </div>
-              <div className="conv-detail-cell">
-                <div className="conv-detail-lbl">Argument Redundancy</div>
-                <div className="conv-detail-val">
-                  avg <strong>{pct(rr?.avg_self_overlap ?? 0)}</strong>, max <strong>{pct(rr?.max_self_overlap ?? 0)}</strong>
-                  {rr?.semantic_max_similarity != null && (
-                    <>, sem <strong>{pct(rr.semantic_max_similarity)}</strong></>
-                  )}
-                  {rr?.semantically_recycled
-                    ? <span className="conv-status-bad">semantic repeat</span>
-                    : (rr?.max_self_overlap ?? 0) >= 0.5
-                      ? <span className="conv-status-warn">repeating</span>
-                      : <span className="conv-status-good">fresh</span>}
-                </div>
-              </div>
-              <div className="conv-detail-cell">
-                <div className="conv-detail-lbl">Dominant Counterargument</div>
-                <div className="conv-detail-val">
-                  {so ? (
-                    <>{so.node_id} str={(so.strength ?? 0).toFixed(2)} by {speakerLabel(so.attacker as SpeakerId)}
-                      {(so.strength ?? 0) >= 0.7
-                        ? <span className="conv-status-bad">strong</span>
-                        : (so.strength ?? 0) >= 0.5
-                          ? <span className="conv-status-warn">moderate</span>
-                          : <span className="conv-status-good">weak</span>}
-                    </>
-                  ) : <span className="csig-muted">none</span>}
-                </div>
-              </div>
-              <div className="conv-detail-cell">
-                <div className="conv-detail-lbl">Concession</div>
-                <div className="conv-detail-val">
-                  {co?.strong_attacks_faced ?? 0} attacks, used: {co?.concession_used ? 'Y' : 'N'} — <OutcomeBadge outcome={co?.outcome ?? 'none'} />
-                </div>
-              </div>
-              <div className="conv-detail-cell">
-                <div className="conv-detail-lbl">Position Drift</div>
-                <div className="conv-detail-val">
-                  opening: <strong>{pct(pd?.overlap_with_opening ?? 0)}</strong>, drift: <strong>{pct(pd?.drift ?? 0)}</strong>
-                  {(pd?.overlap_with_opening ?? 0) >= 0.6
-                    ? <span className="conv-status-warn">anchored</span>
-                    : (pd?.overlap_with_opening ?? 0) < 0.3
-                      ? <span className="conv-status-info">shifted</span>
-                      : <span className="conv-status-good">evolved</span>}
-                </div>
-              </div>
-              <div className="conv-detail-cell csig-grid-full">
-                <div className="conv-detail-lbl">Crux Engagement</div>
-                <div className="conv-detail-val">
-                  this turn: {cr?.used_this_turn ? 'Yes' : 'No'} | cumulative: {cr?.cumulative_count ?? 0} | follow-through: {cr?.cumulative_follow_through ?? 0}
-                  {(cr?.cumulative_count ?? 0) > 0 && (cr?.cumulative_follow_through ?? 0) === 0 && (
-                    <span className="conv-status-warn">no follow-through</span>
-                  )}
-                  {(cr?.cumulative_count ?? 0) > 0 && (cr?.cumulative_follow_through ?? 0) > 0 && (
-                    <span className="conv-status-good">resolving</span>
-                  )}
-                </div>
-              </div>
-            </div>
-            {concessionVerbatims.length > 0 && (
-              <div className="conv-verbatim-section">
-                <div className="conv-detail-lbl csig-mb-3">Concession Verbatims ({concessionVerbatims.length})</div>
-                {concessionVerbatims.map((cv, i) => (
-                  <div key={i} className="conv-verbatim-entry">
-                    <div className="conv-verbatim-ids">{cv.sourceId} → {cv.targetId} via {cv.scheme}</div>
-                    <div className="conv-verbatim-text">"{cv.sourceText}"</div>
-                    {cv.targetText && <div className="conv-verbatim-target">conceding: "{cv.targetText}"</div>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })()}
+      {selected && (
+        <ConvergenceDetailPanel selected={selected} concessionVerbatims={concessionVerbatims} />
+      )}
     </div>
   );
 }
