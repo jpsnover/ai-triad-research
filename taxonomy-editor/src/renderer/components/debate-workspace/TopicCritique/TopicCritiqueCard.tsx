@@ -7,6 +7,142 @@ import { CritiqueColumn } from './CritiqueColumn';
 import type { TopicCritique } from '@lib/debate/topicCritique';
 import './TopicCritiqueCard.css';
 
+function SuggestedScoreBadges({ suggestedCritique, suggestedColor, delta }: {
+  suggestedCritique: TopicCritique;
+  suggestedColor: string;
+  delta: number;
+}) {
+  return (
+    <>
+      <span className="critique-card-arrow">→</span>
+      <span
+        className="critique-card-score-badge"
+        // eslint-disable-next-line local/no-inline-style -- dynamic badge color from suggested rating
+        style={{ background: suggestedColor }}
+      >
+        {suggestedCritique.composite_score}/20
+      </span>
+      {delta !== 0 && (
+        <span className={`critique-card-delta ${delta > 0 ? 'critique-card-delta--pos' : 'critique-card-delta--neg'}`}>
+          ({delta > 0 ? '+' : ''}{delta})
+        </span>
+      )}
+    </>
+  );
+}
+
+function SuggestedTopicAction({ editingSuggested, setEditingSuggested, editedSuggested, setEditedSuggested, isLoading, hasEdits, rewrittenTopic, onUseSuggested, onReEvaluateSuggested }: {
+  editingSuggested: boolean;
+  setEditingSuggested: (v: boolean) => void;
+  editedSuggested: string;
+  setEditedSuggested: (v: string) => void;
+  isLoading?: boolean;
+  hasEdits: boolean;
+  rewrittenTopic: string;
+  onUseSuggested: (topic: string) => void;
+  onReEvaluateSuggested: (editedTopic: string) => void;
+}) {
+  return (
+    <div className="critique-card-action-col">
+      {editingSuggested ? (
+        <>
+          <textarea
+            className="critique-card-textarea"
+            value={editedSuggested}
+            onChange={(e) => setEditedSuggested(e.target.value)}
+          />
+          <div className="critique-card-btn-row">
+            <button
+              className="btn btn-sm btn-primary critique-card-btn-sm"
+              disabled={!editedSuggested.trim() || isLoading}
+              onClick={() => {
+                setEditingSuggested(false);
+                onReEvaluateSuggested(editedSuggested.trim());
+              }}
+            >
+              {isLoading ? 'Evaluating...' : hasEdits ? 'Re-evaluate' : 'Re-evaluate'}
+            </button>
+            <button
+              className="btn btn-sm critique-card-btn-sm"
+              onClick={() => { setEditingSuggested(false); setEditedSuggested(rewrittenTopic); }}
+            >
+              Cancel
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="critique-card-btn-row">
+          <button
+            className="btn btn-sm btn-primary critique-card-btn-sm"
+            onClick={() => onUseSuggested(rewrittenTopic)}
+          >
+            Use Suggested Topic
+          </button>
+          <button
+            className="btn btn-sm critique-card-btn-sm"
+            onClick={() => setEditingSuggested(true)}
+            title="Edit the suggested topic and re-evaluate its score"
+          >
+            Edit
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CritiqueDetails({ critique, suggestedCritique, currentTopicText, ratingColor, suggestedColor, hasSuggestion, editingSuggested, setEditingSuggested, editedSuggested, setEditedSuggested, isLoading, hasEdits, onUseSuggested, onReEvaluateSuggested }: {
+  critique: TopicCritique;
+  suggestedCritique?: TopicCritique;
+  currentTopicText: string;
+  ratingColor: string;
+  suggestedColor: string;
+  hasSuggestion: boolean;
+  editingSuggested: boolean;
+  setEditingSuggested: (v: boolean) => void;
+  editedSuggested: string;
+  setEditedSuggested: (v: string) => void;
+  isLoading?: boolean;
+  hasEdits: boolean;
+  onUseSuggested: (topic: string) => void;
+  onReEvaluateSuggested: (editedTopic: string) => void;
+}) {
+  return (
+    <div className="critique-card-details">
+      {/* Left: Current topic */}
+      <CritiqueColumn
+        critique={critique}
+        label="Current Topic"
+        topicText={currentTopicText}
+        accentColor={ratingColor}
+      />
+
+      {/* Right: Suggested topic */}
+      {hasSuggestion && (
+        <CritiqueColumn
+          critique={suggestedCritique ?? critique}
+          label={suggestedCritique ? 'Suggested Topic' : 'Suggested Topic (scoring...)'}
+          topicText={editingSuggested ? undefined : (critique.rewritten_topic)}
+          accentColor={suggestedCritique ? suggestedColor : '#6b7280'}
+          action={
+            <SuggestedTopicAction
+              editingSuggested={editingSuggested}
+              setEditingSuggested={setEditingSuggested}
+              editedSuggested={editedSuggested}
+              setEditedSuggested={setEditedSuggested}
+              isLoading={isLoading}
+              hasEdits={hasEdits}
+              rewrittenTopic={critique.rewritten_topic ?? ''}
+              onUseSuggested={onUseSuggested}
+              onReEvaluateSuggested={onReEvaluateSuggested}
+            />
+          }
+        />
+      )}
+    </div>
+  );
+}
+
 export function TopicCritiqueCard({ critique, suggestedCritique, currentTopicText, onUseSuggested, onReEvaluateSuggested, isLoading }: {
   critique: TopicCritique;
   suggestedCritique?: TopicCritique;
@@ -37,21 +173,7 @@ export function TopicCritiqueCard({ critique, suggestedCritique, currentTopicTex
           {critique.composite_score}/20
         </span>
         {suggestedCritique && (
-          <>
-            <span className="critique-card-arrow">→</span>
-            <span
-              className="critique-card-score-badge"
-              // eslint-disable-next-line local/no-inline-style -- dynamic badge color from suggested rating
-              style={{ background: suggestedColor }}
-            >
-              {suggestedCritique.composite_score}/20
-            </span>
-            {delta !== 0 && (
-              <span className={`critique-card-delta ${delta > 0 ? 'critique-card-delta--pos' : 'critique-card-delta--neg'}`}>
-                ({delta > 0 ? '+' : ''}{delta})
-              </span>
-            )}
-          </>
+          <SuggestedScoreBadges suggestedCritique={suggestedCritique} suggestedColor={suggestedColor} delta={delta} />
         )}
         <button
           className="btn btn-sm critique-card-toggle-btn"
@@ -63,72 +185,22 @@ export function TopicCritiqueCard({ critique, suggestedCritique, currentTopicTex
 
       {/* Expanded 2-column details */}
       {showDetails && (
-        <div className="critique-card-details">
-          {/* Left: Current topic */}
-          <CritiqueColumn
-            critique={critique}
-            label="Current Topic"
-            topicText={currentTopicText}
-            accentColor={ratingColor}
-          />
-
-          {/* Right: Suggested topic */}
-          {hasSuggestion && (
-            <CritiqueColumn
-              critique={suggestedCritique ?? critique}
-              label={suggestedCritique ? 'Suggested Topic' : 'Suggested Topic (scoring...)'}
-              topicText={editingSuggested ? undefined : (critique.rewritten_topic)}
-              accentColor={suggestedCritique ? suggestedColor : '#6b7280'}
-              action={
-                <div className="critique-card-action-col">
-                  {editingSuggested ? (
-                    <>
-                      <textarea
-                        className="critique-card-textarea"
-                        value={editedSuggested}
-                        onChange={(e) => setEditedSuggested(e.target.value)}
-                      />
-                      <div className="critique-card-btn-row">
-                        <button
-                          className="btn btn-sm btn-primary critique-card-btn-sm"
-                          disabled={!editedSuggested.trim() || isLoading}
-                          onClick={() => {
-                            setEditingSuggested(false);
-                            onReEvaluateSuggested(editedSuggested.trim());
-                          }}
-                        >
-                          {isLoading ? 'Evaluating...' : hasEdits ? 'Re-evaluate' : 'Re-evaluate'}
-                        </button>
-                        <button
-                          className="btn btn-sm critique-card-btn-sm"
-                          onClick={() => { setEditingSuggested(false); setEditedSuggested(critique.rewritten_topic ?? ''); }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="critique-card-btn-row">
-                      <button
-                        className="btn btn-sm btn-primary critique-card-btn-sm"
-                        onClick={() => onUseSuggested(critique.rewritten_topic)}
-                      >
-                        Use Suggested Topic
-                      </button>
-                      <button
-                        className="btn btn-sm critique-card-btn-sm"
-                        onClick={() => setEditingSuggested(true)}
-                        title="Edit the suggested topic and re-evaluate its score"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                  )}
-                </div>
-              }
-            />
-          )}
-        </div>
+        <CritiqueDetails
+          critique={critique}
+          suggestedCritique={suggestedCritique}
+          currentTopicText={currentTopicText}
+          ratingColor={ratingColor}
+          suggestedColor={suggestedColor}
+          hasSuggestion={hasSuggestion}
+          editingSuggested={editingSuggested}
+          setEditingSuggested={setEditingSuggested}
+          editedSuggested={editedSuggested}
+          setEditedSuggested={setEditedSuggested}
+          isLoading={isLoading}
+          hasEdits={hasEdits}
+          onUseSuggested={onUseSuggested}
+          onReEvaluateSuggested={onReEvaluateSuggested}
+        />
       )}
     </div>
   );
