@@ -1913,16 +1913,18 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-07-28 — ServerAPI (t/1829, p/79#15) + Technical Lead (t/1829#2, p/8#111): `npm run verify 2>&1 | tail -N` returned `tail`'s exit 0, masking verify's real result; a push gated on that eyeballed tail can push a RED verify. ServerAPI's t/1829 outcome was sound only because the failures were unrelated flake — the masked exit was the real footgun.
+- 2026-07-29 — Technical Lead (t/1932, p/8#117): **`git push | tail` inside a `&&` cleanup chain** swallowed a **non-fast-forward rejection** — the pipe returned `tail`'s 0, so the `&&` teardown (worktree remove) ran anyway on an unpushed commit. Same exit-code-laundering, but the masked exit is `git push`'s, and the downstream damage is a **skipped push + teardown that strands the commit** rather than a false-green verify. (This is the "never pipe git push" facet — Sage memory `feedback_never_pipe_git_push.md`, originally Sage #96.)
 
-**Root Cause:** A bash pipeline's exit status is the **last command's** (unless `set -o pipefail`). `verify | tail` → `tail` exits 0 → `$?` = 0 regardless of verify. Same **exit-code-laundering** family as #84 (`&& echo PASS || echo FAIL`) and the **bookkeeping-≠-artifact genus**: the exit you read is the pipe's/wrapper's, not the command's.
+**Root Cause:** A bash pipeline's exit status is the **last command's** (unless `set -o pipefail`). `verify | tail` → `tail` exits 0 → `$?` = 0 regardless of verify; **`git push | tail`** → `tail` exits 0 regardless of a non-ff reject. Same **exit-code-laundering** family as #84 (`&& echo PASS || echo FAIL`) and the **bookkeeping-≠-artifact genus**: the exit you read is the pipe's/wrapper's, not the command's. Especially dangerous when a `&&` cleanup/teardown chains after the piped push — the teardown reads the pipe's 0 and runs on an unpushed HEAD.
 
 **Prevention:**
 1. **Capture the real exit BEFORE piping:** `npm run verify > out.log 2>&1; rc=$?; tail -N out.log; [ $rc -eq 0 ] || exit 1` — decide on `$rc`, view the tail separately.
 2. **Or `set -o pipefail`** (pipeline returns first non-zero); `${PIPESTATUS[0]}` reads the first command's exit after a pipe.
 3. **Never gate a push/land on an eyeballed tail** — the tail shows output, not verdict.
-4. #84 sibling — whenever a wrapper/pipe sits between you and a command's exit, go to the source.
+4. **Never pipe `git push`** — run it bare, branch on its real exit, and **confirm `origin/<branch>` == local HEAD before any worktree teardown** (`git rev-parse origin/main` == `HEAD`). If a push was skipped and the commit stranded, recover via `git cat-file`/`cherry-pick` (see `feedback_never_pipe_git_push.md`).
+5. #84 sibling — whenever a wrapper/pipe sits between you and a command's exit, go to the source.
 
-**Status:** Active — exit-code-laundering (pipe) variant of the false-green genus (#20/#46) + bookkeeping-≠-artifact family (#84 sibling). Surfaced t/1829 (detail t/1829#2).
+**Status:** Active — exit-code-laundering (pipe) variant of the false-green genus (#20/#46) + bookkeeping-≠-artifact family (#84 sibling). Surfaced t/1829 (detail t/1829#2); **+git-push facet t/1932 (p/8#117) — teardown-after-swallowed-non-ff-reject.**
 
 **Applies To:** All agents gating a push/land on `verify`/test output that is piped (`| tail`/`| grep`/`| head`).
 
@@ -1983,3 +1985,24 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — recovery playbook; validated the session's object-level discipline. **Key correction (TL e/46):** the t/1768 realign was a *backed-up* pointer move — **nothing lost**; all 173 local-main-only commits are on durable remote branch `origin/backup/t1768-local-main-20c32334` (no ~30-day pressure). Recover from that branch → `/land-from-worktree` the un-upstreamed commits (**no-ops if already upstream**). Sage recovered + **landed to origin** (`e771400f`, Total 94), verified against the backup branch; **t/1872 Sage check-in complete**. Do NOT recommit to local main (`t/1780` hook warns on it).
 
 **Applies To:** All agents whose work lives on the shared local `main` until synced — i.e. everyone who commits but doesn't push.
+
+---
+
+## [Process] Adding an Nth Variant to a Shared Enum/Config Touches More Than the Obvious Files — Enumerate Coupling Sites + Run ALL Referencing Tests
+
+**Pattern:** Adding a member to a shared enumeration (a new AI backend id, POV camp, node category) has a surface far larger than the "obvious" files. Non-obvious **coupling sites** — exhaustiveness-checked `Record<Enum,…>` maps (TS `TS2741` at compile time), validation-probe tables, id-resolvers — each break independently, often in *different roles' scopes*. A ticket DAG scoped to the obvious files ships a partial change that reddens main across sites the decomposition never listed. Compounded when verify runs a **hand-picked subset** of the referencing tests instead of ALL of them.
+
+**Instances:**
+- 2026-07-29 — Technical Lead (t/1932 Moonshot backend; detail t/1932#1): the DAG covered the 3 adapters (aiAdapter/aiBackends/AIEnrich) but missed 3 non-adapter coupling sites — `routes/keys.ts` `KEY_VALIDATION_PROBES` (keysValidation.test.ts red), `config.ts` `ENV_KEY_NAMES`/`AIBackend` exhaustiveness (server tsc TS2741, blocks everyone), `registry.ts` `resolveBackend` (silent misroute moonshot→gemini). Compounded: config-land verify grepped `keysValidation.test.ts` but ran only `configInvariant`+`modelDiscovery` — a subset skipping the broken test. Green via t/1944+probe `66325245`; routing t/1945.
+
+**Root Cause:** A shared enum/config is a fan-out coupling point — every exhaustiveness-checked map, probe table, and resolver keyed on it is an implicit dependency, enforced only if that check is compiled/run. The author reasons from the *feature* ("add an adapter") not the *coupling graph* ("what is keyed on this id?"), so coupling sites in other scopes fall outside the DAG; a hand-picked test subset then hides the breaks pre-land.
+
+**Prevention:**
+1. Before decomposing a shared-enum addition, **enumerate the coupling graph, not the feature files** — grep the enum/type name + existing members repo-wide; every `Record<Enum,…>`, probe table, and resolver keyed on it needs a ticket (often cross-scope).
+2. **A shared-config change must run ALL referencing tests — never a hand-picked subset.** If you grep for referencing tests, *run the ones you find*; prefer full `npm run verify` for any shared-surface change.
+3. Make coupling maps **exhaustive at compile time** (`Record<Enum,T>` not `Partial<…>`; `switch` + `never` default) so `tsc` becomes the coupling detector.
+4. Durable fix for a recurring multi-site addition: a **checklist playbook**. TL is authoring `/add-ai-backend` (7 config sections + keys.ts probe + config.ts ENV_KEY_NAMES/type + registry resolveBackend + 3 adapters) — the concrete instance of this rule.
+
+**Status:** Active — decomposition-completeness (coupling graph vs feature files) + verify-scope (all referencing tests vs subset). TL self-reported (t/1932#1); durable fix = `/add-ai-backend` playbook (being filed). Watch the same shape on other shared enums (POV camps `acc/saf/skp/cc`, BDI categories, `pol-*` registry).
+
+**Applies To:** Any role decomposing/landing a change that adds a member to a shared enumeration/config consumed across multiple files or scopes.
